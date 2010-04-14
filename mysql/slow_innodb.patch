@@ -1,0 +1,966 @@
+diff -ruN a/patch_info/slow_innodb.info b/patch_info/slow_innodb.info
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/patch_info/slow_innodb.info	2010-01-22 10:34:15.000000000 +0900
+@@ -0,0 +1,15 @@
++File=slow_innodb.patch
++Name=Extended statistics in slow.log (InnoDB part)
++Version=1.2
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++Changelog
++2008-11-26
++YK: Fix inefficient determination of trx, Make not to call useless gettimeofday when don't use slow log. Make log_slow_queries dynamic (bool).
++
++2008-11-07
++VT: Moved log_slow_rate_limit in SHOW VARIABLE into right place
++
++2008-11
++Arjen Lentz: Fixups (backward compatibility) by Arjen Lentz <arjen@openquery.com.au>
+diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
+--- a/storage/innobase/buf/buf0buf.c	2009-12-17 02:57:33.000000000 +0900
++++ b/storage/innobase/buf/buf0buf.c	2010-01-22 10:32:01.000000000 +0900
+@@ -38,6 +38,9 @@
+ #include "trx0undo.h"
+ #include "srv0srv.h"
+ 
++/* prototypes for new functions added to ha_innodb.cc */
++trx_t* innobase_get_trx();
++
+ /*
+ 		IMPLEMENTATION OF THE BUFFER POOL
+ 		=================================
+@@ -1138,6 +1141,36 @@
+ 	return(block);
+ }
+ 
++inline void _increment_page_get_statistics(buf_block_t* block, trx_t* trx)
++{
++	ulint           block_hash;
++	ulint           block_hash_byte;
++	byte            block_hash_offset;
++
++	ut_ad(block);
++
++	if (!innobase_get_slow_log() || !trx || !trx->take_stats)
++		return;
++
++	if (!trx->distinct_page_access_hash) {
++		trx->distinct_page_access_hash = mem_alloc(DPAH_SIZE);
++		memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
++	}
++
++	block_hash = ut_hash_ulint((block->space << 20) + block->space +
++					block->offset, DPAH_SIZE << 3);
++	block_hash_byte = block_hash >> 3;
++	block_hash_offset = (byte) block_hash & 0x07;
++	if (block_hash_byte < 0 || block_hash_byte >= DPAH_SIZE)
++		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %lu !!!\n", block_hash_byte, block_hash_offset);
++	if (block_hash_offset < 0 || block_hash_offset > 7)
++		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %lu !!!\n", block_hash_byte, block_hash_offset);
++	if ((trx->distinct_page_access_hash[block_hash_byte] & ((byte) 0x01 << block_hash_offset)) == 0)
++		trx->distinct_page_access++;
++	trx->distinct_page_access_hash[block_hash_byte] |= (byte) 0x01 << block_hash_offset;
++	return;
++}
++
+ /************************************************************************
+ This is the general function used to get access to a database page. */
+ 
+@@ -1160,6 +1193,11 @@
+ 	ulint		fix_type;
+ 	ibool		success;
+ 	ibool		must_read;
++	trx_t*          trx = NULL;
++	ulint           sec;
++	ulint           ms;
++	ib_longlong     start_time;
++	ib_longlong     finish_time;
+ 
+ 	ut_ad(mtr);
+ 	ut_ad((rw_latch == RW_S_LATCH)
+@@ -1171,6 +1209,9 @@
+ #ifndef UNIV_LOG_DEBUG
+ 	ut_ad(!ibuf_inside() || ibuf_page(space, offset));
+ #endif
++	if (innobase_get_slow_log()) {
++		trx = innobase_get_trx();
++	}
+ 	buf_pool->n_page_gets++;
+ loop:
+ 	block = NULL;
+@@ -1200,7 +1241,7 @@
+ 			return(NULL);
+ 		}
+ 
+-		buf_read_page(space, offset);
++		buf_read_page(space, offset, trx);
+ 
+ #ifdef UNIV_DEBUG
+ 		buf_dbg_counter++;
+@@ -1305,6 +1346,11 @@
+ 			/* Let us wait until the read operation
+ 			completes */
+ 
++			if (innobase_get_slow_log() && trx && trx->take_stats)
++			{
++				ut_usectime(&sec, &ms);
++				start_time = (ib_longlong)sec * 1000000 + ms;
++			}
+ 			for (;;) {
+ 				mutex_enter(&block->mutex);
+ 
+@@ -1320,6 +1366,12 @@
+ 					break;
+ 				}
+ 			}
++			if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
++			{
++				ut_usectime(&sec, &ms);
++				finish_time = (ib_longlong)sec * 1000000 + ms;
++				trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
++			}
+ 		}
+ 
+ 		fix_type = MTR_MEMO_BUF_FIX;
+@@ -1340,12 +1392,16 @@
+ 		/* In the case of a first access, try to apply linear
+ 		read-ahead */
+ 
+-		buf_read_ahead_linear(space, offset);
++		buf_read_ahead_linear(space, offset, trx);
+ 	}
+ 
+ #ifdef UNIV_IBUF_DEBUG
+ 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
+ #endif
++	if (innobase_get_slow_log()) {
++		_increment_page_get_statistics(block, trx);
++	}
++
+ 	return(block->frame);
+ }
+ 
+@@ -1370,6 +1426,7 @@
+ 	ibool		accessed;
+ 	ibool		success;
+ 	ulint		fix_type;
++	trx_t*		trx = NULL;
+ 
+ 	ut_ad(mtr && block);
+ 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
+@@ -1462,12 +1519,16 @@
+ #ifdef UNIV_DEBUG_FILE_ACCESSES
+ 	ut_a(block->file_page_was_freed == FALSE);
+ #endif
++	if (innobase_get_slow_log()) {
++		trx = innobase_get_trx();
++	}
++
+ 	if (UNIV_UNLIKELY(!accessed)) {
+ 		/* In the case of a first access, try to apply linear
+ 		read-ahead */
+ 
+ 		buf_read_ahead_linear(buf_frame_get_space_id(guess),
+-				      buf_frame_get_page_no(guess));
++				      buf_frame_get_page_no(guess), trx);
+ 	}
+ 
+ #ifdef UNIV_IBUF_DEBUG
+@@ -1475,6 +1536,9 @@
+ #endif
+ 	buf_pool->n_page_gets++;
+ 
++	if (innobase_get_slow_log()) {
++		_increment_page_get_statistics(block, trx);
++	}
+ 	return(TRUE);
+ }
+ 
+@@ -1497,6 +1561,7 @@
+ 	buf_block_t*	block;
+ 	ibool		success;
+ 	ulint		fix_type;
++	trx_t*		trx = NULL;
+ 
+ 	ut_ad(mtr);
+ 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
+@@ -1578,6 +1643,11 @@
+ #endif
+ 	buf_pool->n_page_gets++;
+ 
++	if (innobase_get_slow_log()) {
++		trx = innobase_get_trx();
++		_increment_page_get_statistics(block, trx);
++	}
++
+ 	return(TRUE);
+ }
+ 
+diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
+--- a/storage/innobase/buf/buf0rea.c	2009-12-17 02:57:33.000000000 +0900
++++ b/storage/innobase/buf/buf0rea.c	2010-01-22 10:32:01.000000000 +0900
+@@ -70,7 +70,8 @@
+ 			treat the tablespace as dropped; this is a timestamp we
+ 			use to stop dangling page reads from a tablespace
+ 			which we have DISCARDed + IMPORTed back */
+-	ulint	offset)	/* in: page number */
++	ulint	offset,	/* in: page number */
++	trx_t*	trx)
+ {
+ 	buf_block_t*	block;
+ 	ulint		wake_later;
+@@ -129,10 +130,10 @@
+ 
+ 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
+ 
+-	*err = fil_io(OS_FILE_READ | wake_later,
++	*err = _fil_io(OS_FILE_READ | wake_later,
+ 		      sync, space,
+ 		      offset, 0, UNIV_PAGE_SIZE,
+-		      (void*)block->frame, (void*)block);
++		      (void*)block->frame, (void*)block, trx);
+ 	ut_a(*err == DB_SUCCESS);
+ 
+ 	if (sync) {
+@@ -163,8 +164,9 @@
+ 			the page at the given page number does not get
+ 			read even if we return a value > 0! */
+ 	ulint	space,	/* in: space id */
+-	ulint	offset)	/* in: page number of a page which the current thread
++	ulint	offset,	/* in: page number of a page which the current thread
+ 			wants to access */
++	trx_t*	trx)
+ {
+ 	ib_longlong	tablespace_version;
+ 	buf_block_t*	block;
+@@ -260,7 +262,7 @@
+ 			count += buf_read_page_low(
+ 				&err, FALSE,
+ 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+-				space, tablespace_version, i);
++				space, tablespace_version, i, trx);
+ 			if (err == DB_TABLESPACE_DELETED) {
+ 				ut_print_timestamp(stderr);
+ 				fprintf(stderr,
+@@ -306,7 +308,8 @@
+ 			/* out: number of page read requests issued: this can
+ 			be > 1 if read-ahead occurred */
+ 	ulint	space,	/* in: space id */
+-	ulint	offset)	/* in: page number */
++	ulint	offset,	/* in: page number */
++	trx_t*	trx)
+ {
+ 	ib_longlong	tablespace_version;
+ 	ulint		count;
+@@ -315,13 +318,13 @@
+ 
+ 	tablespace_version = fil_space_get_version(space);
+ 
+-	count = buf_read_ahead_random(space, offset);
++	count = buf_read_ahead_random(space, offset, trx);
+ 
+ 	/* We do the i/o in the synchronous aio mode to save thread
+ 	switches: hence TRUE */
+ 
+ 	count2 = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+-				   tablespace_version, offset);
++				   tablespace_version, offset, trx);
+ 	srv_buf_pool_reads+= count2;
+ 	if (err == DB_TABLESPACE_DELETED) {
+ 		ut_print_timestamp(stderr);
+@@ -368,8 +371,9 @@
+ /*==================*/
+ 			/* out: number of page read requests issued */
+ 	ulint	space,	/* in: space id */
+-	ulint	offset)	/* in: page number of a page; NOTE: the current thread
++	ulint	offset,	/* in: page number of a page; NOTE: the current thread
+ 			must want access to this page (see NOTE 3 above) */
++	trx_t*	trx)
+ {
+ 	ib_longlong	tablespace_version;
+ 	buf_block_t*	block;
+@@ -552,7 +556,7 @@
+ 			count += buf_read_page_low(
+ 				&err, FALSE,
+ 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+-				space, tablespace_version, i);
++				space, tablespace_version, i, trx);
+ 			if (err == DB_TABLESPACE_DELETED) {
+ 				ut_print_timestamp(stderr);
+ 				fprintf(stderr,
+@@ -625,7 +629,7 @@
+ 				  (i + 1 == n_stored) && sync,
+ 				  BUF_READ_ANY_PAGE,
+ 				  space_ids[i], space_versions[i],
+-				  page_nos[i]);
++				  page_nos[i], NULL);
+ 
+ 		if (err == DB_TABLESPACE_DELETED) {
+ 			/* We have deleted or are deleting the single-table
+@@ -704,12 +708,12 @@
+ 		if ((i + 1 == n_stored) && sync) {
+ 			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE,
+ 					  space, tablespace_version,
+-					  page_nos[i]);
++					  page_nos[i], NULL);
+ 		} else {
+ 			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
+ 					  | OS_AIO_SIMULATED_WAKE_LATER,
+ 					  space, tablespace_version,
+-					  page_nos[i]);
++					  page_nos[i], NULL);
+ 		}
+ 	}
+ 
+diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
+--- a/storage/innobase/fil/fil0fil.c	2009-12-17 02:57:33.000000000 +0900
++++ b/storage/innobase/fil/fil0fil.c	2010-01-22 10:32:01.000000000 +0900
+@@ -3639,7 +3639,7 @@
+ 				 node->name, node->handle, buf,
+ 				 offset_low, offset_high,
+ 				 UNIV_PAGE_SIZE * n_pages,
+-				 NULL, NULL);
++				 NULL, NULL, NULL);
+ #endif
+ 		if (success) {
+ 			node->size += n_pages;
+@@ -3967,7 +3967,7 @@
+ Reads or writes data. This operation is asynchronous (aio). */
+ 
+ ulint
+-fil_io(
++_fil_io(
+ /*===*/
+ 				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
+ 				if we are trying to do i/o on a tablespace
+@@ -3993,8 +3993,9 @@
+ 	void*	buf,		/* in/out: buffer where to store read data
+ 				or from where to write; in aio this must be
+ 				appropriately aligned */
+-	void*	message)	/* in: message for aio handler if non-sync
++	void*	message,	/* in: message for aio handler if non-sync
+ 				aio used, else ignored */
++	trx_t*	trx)
+ {
+ 	fil_system_t*	system		= fil_system;
+ 	ulint		mode;
+@@ -4138,7 +4139,7 @@
+ #else
+ 	/* Queue the aio request */
+ 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
+-		     offset_low, offset_high, len, node, message);
++		     offset_low, offset_high, len, node, message, trx);
+ #endif
+ 	ut_a(ret);
+ 
+diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
+--- a/storage/innobase/handler/ha_innodb.cc	2010-01-22 10:26:30.000000000 +0900
++++ b/storage/innobase/handler/ha_innodb.cc	2010-01-22 10:32:01.000000000 +0900
+@@ -1185,9 +1185,36 @@
+ 		trx->check_unique_secondary = TRUE;
+ 	}
+ 
++	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
++		trx->take_stats = TRUE;
++	} else {
++		trx->take_stats = FALSE;
++	}
++
+ 	return(trx);
+ }
+ 
++/*************************************************************************
++Gets current trx. */
++extern "C"
++trx_t*
++innobase_get_trx()
++{
++	THD *thd=current_thd;
++	if (likely(thd != 0)) {
++		trx_t*& trx = thd_to_trx(thd);
++		return(trx);
++	} else {
++		return(NULL);
++	}
++}
++
++extern "C"
++ibool
++innobase_get_slow_log()
++{
++	return((ibool) thd_opt_slow_log());
++}
+ 
+ /*************************************************************************
+ Construct ha_innobase handler. */
+@@ -5553,6 +5580,12 @@
+ 		trx->check_unique_secondary = FALSE;
+ 	}
+ 
++	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
++		trx->take_stats = TRUE;
++	} else {
++		trx->take_stats = FALSE;
++	}
++
+ 	if (lower_case_table_names) {
+ 		srv_lower_case_table_names = TRUE;
+ 	} else {
+@@ -5841,6 +5874,12 @@
+ 		trx->check_unique_secondary = FALSE;
+ 	}
+ 
++	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
++		trx->take_stats = TRUE;
++	} else {
++		trx->take_stats = FALSE;
++	}
++
+ 	name_len = strlen(name);
+ 
+ 	assert(name_len < 1000);
+@@ -5926,6 +5965,12 @@
+ 		trx->check_foreigns = FALSE;
+ 	}
+ 
++	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
++		trx->take_stats = TRUE;
++	} else {
++		trx->take_stats = FALSE;
++	}
++
+ 	error = row_drop_database_for_mysql(namebuf, trx);
+ 	my_free(namebuf, MYF(0));
+ 
+@@ -5996,6 +6041,12 @@
+ 		trx->check_foreigns = FALSE;
+ 	}
+ 
++	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
++		trx->take_stats = TRUE;
++	} else {
++		trx->take_stats = FALSE;
++	}
++
+ 	name_len1 = strlen(from);
+ 	name_len2 = strlen(to);
+ 
+@@ -7243,6 +7294,21 @@
+ 	statement has ended */
+ 
+ 	if (trx->n_mysql_tables_in_use == 0) {
++		increment_thd_innodb_stats(thd, trx->io_reads,
++					trx->io_read,
++					trx->io_reads_wait_timer,
++					trx->lock_que_wait_timer,
++					trx->innodb_que_wait_timer,
++					trx->distinct_page_access);
++
++		trx->io_reads = 0;
++		trx->io_read = 0;
++		trx->io_reads_wait_timer = 0;
++		trx->lock_que_wait_timer = 0;
++		trx->innodb_que_wait_timer = 0;
++		trx->distinct_page_access = 0;
++		if (trx->distinct_page_access_hash)
++			memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+ 
+ 		trx->mysql_n_tables_locked = 0;
+ 		prebuilt->used_in_HANDLER = FALSE;
+diff -ruN a/storage/innobase/include/buf0rea.h b/storage/innobase/include/buf0rea.h
+--- a/storage/innobase/include/buf0rea.h	2009-12-17 02:57:34.000000000 +0900
++++ b/storage/innobase/include/buf0rea.h	2010-01-22 10:32:01.000000000 +0900
+@@ -10,6 +10,7 @@
+ #define buf0rea_h
+ 
+ #include "univ.i"
++#include "trx0types.h"
+ #include "buf0types.h"
+ 
+ /************************************************************************
+@@ -25,7 +26,8 @@
+ 			/* out: number of page read requests issued: this can
+ 			be > 1 if read-ahead occurred */
+ 	ulint	space,	/* in: space id */
+-	ulint	offset);/* in: page number */
++	ulint	offset,	/* in: page number */
++	trx_t*	trx);
+ /************************************************************************
+ Applies linear read-ahead if in the buf_pool the page is a border page of
+ a linear read-ahead area and all the pages in the area have been accessed.
+@@ -55,8 +57,9 @@
+ /*==================*/
+ 			/* out: number of page read requests issued */
+ 	ulint	space,	/* in: space id */
+-	ulint	offset);/* in: page number of a page; NOTE: the current thread
++	ulint	offset,	/* in: page number of a page; NOTE: the current thread
+ 			must want access to this page (see NOTE 3 above) */
++	trx_t*	trx);
+ /************************************************************************
+ Issues read requests for pages which the ibuf module wants to read in, in
+ order to contract the insert buffer tree. Technically, this function is like
+diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
+--- a/storage/innobase/include/fil0fil.h	2009-12-17 02:57:34.000000000 +0900
++++ b/storage/innobase/include/fil0fil.h	2010-01-22 10:32:01.000000000 +0900
+@@ -567,8 +567,11 @@
+ /************************************************************************
+ Reads or writes data. This operation is asynchronous (aio). */
+ 
++#define fil_io(type, sync, space_id, block_offset, byte_offset, len, buf, message) \
++	_fil_io(type, sync, space_id, block_offset, byte_offset, len, buf, message, NULL)
++
+ ulint
+-fil_io(
++_fil_io(
+ /*===*/
+ 				/* out: DB_SUCCESS, or DB_TABLESPACE_DELETED
+ 				if we are trying to do i/o on a tablespace
+@@ -594,8 +597,9 @@
+ 	void*	buf,		/* in/out: buffer where to store read data
+ 				or from where to write; in aio this must be
+ 				appropriately aligned */
+-	void*	message);	/* in: message for aio handler if non-sync
++	void*	message,	/* in: message for aio handler if non-sync
+ 				aio used, else ignored */
++	trx_t*	trx);
+ /************************************************************************
+ Reads data from a space to a buffer. Remember that the possible incomplete
+ blocks at the end of file are ignored: they are not taken into account when
+diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0file.h
+--- a/storage/innobase/include/os0file.h	2009-12-17 02:57:34.000000000 +0900
++++ b/storage/innobase/include/os0file.h	2010-01-22 10:32:01.000000000 +0900
+@@ -10,6 +10,7 @@
+ #define os0file_h
+ 
+ #include "univ.i"
++#include "trx0types.h"
+ 
+ #ifndef __WIN__
+ #include <dirent.h>
+@@ -426,8 +427,11 @@
+ /***********************************************************************
+ Requests a synchronous read operation. */
+ 
++#define os_file_read(file, buf, offset, offset_high, n)         \
++		_os_file_read(file, buf, offset, offset_high, n, NULL)
++
+ ibool
+-os_file_read(
++_os_file_read(
+ /*=========*/
+ 				/* out: TRUE if request was
+ 				successful, FALSE if fail */
+@@ -437,7 +441,8 @@
+ 				offset where to read */
+ 	ulint		offset_high,/* in: most significant 32 bits of
+ 				offset */
+-	ulint		n);	/* in: number of bytes to read */
++	ulint		n,	/* in: number of bytes to read */
++	trx_t*		trx);
+ /***********************************************************************
+ Rewind file to its start, read at most size - 1 bytes from it to str, and
+ NUL-terminate str. All errors are silently ignored. This function is
+@@ -589,7 +594,8 @@
+ 				can be used to identify a completed aio
+ 				operation); if mode is OS_AIO_SYNC, these
+ 				are ignored */
+-	void*		message2);
++	void*		message2,
++	trx_t*		trx);
+ /****************************************************************************
+ Wakes up all async i/o threads so that they know to exit themselves in
+ shutdown. */
+diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
+--- a/storage/innobase/include/srv0srv.h	2009-12-17 02:57:35.000000000 +0900
++++ b/storage/innobase/include/srv0srv.h	2010-01-22 10:32:01.000000000 +0900
+@@ -30,6 +30,9 @@
+ #define SRV_AUTO_EXTEND_INCREMENT	\
+ 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
+ 
++/* prototypes for new functions added to ha_innodb.cc */
++ibool	innobase_get_slow_log();
++
+ /* This is set to TRUE if the MySQL user has set it in MySQL */
+ extern ibool	srv_lower_case_table_names;
+ 
+diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
+--- a/storage/innobase/include/trx0trx.h	2009-12-17 02:57:35.000000000 +0900
++++ b/storage/innobase/include/trx0trx.h	2010-01-22 10:32:01.000000000 +0900
+@@ -618,6 +618,17 @@
+ 	/*------------------------------*/
+ 	char detailed_error[256];	/* detailed error message for last
+ 					error, or empty. */
++	/*------------------------------*/
++	ulint		io_reads;
++	ib_longlong	io_read;
++	ulint		io_reads_wait_timer;
++	ib_longlong	lock_que_wait_ustarted;
++	ulint           lock_que_wait_timer;
++	ulint           innodb_que_wait_timer;
++	ulint           distinct_page_access;
++#define	DPAH_SIZE	8192
++	byte*		distinct_page_access_hash;
++	ibool		take_stats;
+ };
+ 
+ #define TRX_MAX_N_THREADS	32	/* maximum number of
+diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
+--- a/storage/innobase/lock/lock0lock.c	2009-12-17 02:57:36.000000000 +0900
++++ b/storage/innobase/lock/lock0lock.c	2010-01-22 10:32:01.000000000 +0900
+@@ -1753,6 +1753,8 @@
+ {
+ 	lock_t*	lock;
+ 	trx_t*	trx;
++	ulint   sec;
++	ulint   ms;
+ 
+ 	ut_ad(mutex_own(&kernel_mutex));
+ 
+@@ -1807,6 +1809,10 @@
+ 	trx->que_state = TRX_QUE_LOCK_WAIT;
+ 	trx->was_chosen_as_deadlock_victim = FALSE;
+ 	trx->wait_started = time(NULL);
++	if (innobase_get_slow_log() && trx->take_stats) {
++		ut_usectime(&sec, &ms);
++		trx->lock_que_wait_ustarted = (ib_longlong)sec * 1000000 + ms;
++	}
+ 
+ 	ut_a(que_thr_stop(thr));
+ 
+@@ -3431,6 +3437,8 @@
+ {
+ 	lock_t*	lock;
+ 	trx_t*	trx;
++	ulint   sec;
++	ulint   ms;
+ 
+ 	ut_ad(mutex_own(&kernel_mutex));
+ 
+@@ -3480,6 +3488,10 @@
+ 		return(DB_SUCCESS);
+ 	}
+ 
++	if (innobase_get_slow_log() && trx->take_stats) {
++		ut_usectime(&sec, &ms);
++		trx->lock_que_wait_ustarted = (ib_longlong)sec * 1000000 + ms;
++	}
+ 	trx->que_state = TRX_QUE_LOCK_WAIT;
+ 	trx->was_chosen_as_deadlock_victim = FALSE;
+ 	trx->wait_started = time(NULL);
+diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
+--- a/storage/innobase/os/os0file.c	2009-12-17 02:57:36.000000000 +0900
++++ b/storage/innobase/os/os0file.c	2010-01-22 10:32:01.000000000 +0900
+@@ -14,6 +14,7 @@
+ #include "srv0start.h"
+ #include "fil0fil.h"
+ #include "buf0buf.h"
++#include "trx0sys.h"
+ 
+ #if defined(UNIV_HOTBACKUP) && defined(__WIN__)
+ /* Add includes for the _stat() call to compile on Windows */
+@@ -1993,9 +1994,12 @@
+ #ifndef __WIN__
+ /***********************************************************************
+ Does a synchronous read operation in Posix. */
++#define os_file_pread(file, buf, n, offset, offset_high)        \
++		_os_file_pread(file, buf, n, offset, offset_high, NULL);
++
+ static
+ ssize_t
+-os_file_pread(
++_os_file_pread(
+ /*==========*/
+ 				/* out: number of bytes read, -1 if error */
+ 	os_file_t	file,	/* in: handle to a file */
+@@ -2003,11 +2007,16 @@
+ 	ulint		n,	/* in: number of bytes to read */
+ 	ulint		offset,	/* in: least significant 32 bits of file
+ 				offset from where to read */
+-	ulint		offset_high) /* in: most significant 32 bits of
++	ulint		offset_high, /* in: most significant 32 bits of
+ 				offset */
++	trx_t*		trx)
+ {
+ 	off_t	offs;
+ 	ssize_t	n_bytes;
++	ulint           sec;
++	ulint           ms;
++	ib_longlong     start_time;
++	ib_longlong     finish_time;
+ 
+ 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+ 
+@@ -2028,6 +2037,13 @@
+ 
+ 	os_n_file_reads++;
+ 
++	if (innobase_get_slow_log() && trx && trx->take_stats)
++	{
++	        trx->io_reads++;
++		trx->io_read += n;
++		ut_usectime(&sec, &ms);
++		start_time = (ib_longlong)sec * 1000000 + ms;
++	}
+ #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
+ 	os_mutex_enter(os_file_count_mutex);
+ 	os_file_n_pending_preads++;
+@@ -2041,6 +2057,13 @@
+ 	os_n_pending_reads--;
+ 	os_mutex_exit(os_file_count_mutex);
+ 
++	if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
++	{
++		ut_usectime(&sec, &ms);
++		finish_time = (ib_longlong)sec * 1000000 + ms;
++		trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
++	}
++
+ 	return(n_bytes);
+ #else
+ 	{
+@@ -2071,6 +2094,13 @@
+ 		os_n_pending_reads--;
+ 		os_mutex_exit(os_file_count_mutex);
+ 
++		if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
++		{
++			ut_usectime(&sec, &ms);
++			finish_time = (ib_longlong)sec * 1000000 + ms;
++			trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
++		}
++
+ 		return(ret);
+ 	}
+ #endif
+@@ -2194,7 +2224,7 @@
+ Requests a synchronous positioned read operation. */
+ 
+ ibool
+-os_file_read(
++_os_file_read(
+ /*=========*/
+ 				/* out: TRUE if request was
+ 				successful, FALSE if fail */
+@@ -2204,7 +2234,8 @@
+ 				offset where to read */
+ 	ulint		offset_high, /* in: most significant 32 bits of
+ 				offset */
+-	ulint		n)	/* in: number of bytes to read */
++	ulint		n,	/* in: number of bytes to read */
++	trx_t*		trx)
+ {
+ #ifdef __WIN__
+ 	BOOL		ret;
+@@ -2268,7 +2299,7 @@
+ 	os_bytes_read_since_printout += n;
+ 
+ try_again:
+-	ret = os_file_pread(file, buf, n, offset, offset_high);
++	ret = _os_file_pread(file, buf, n, offset, offset_high, trx);
+ 
+ 	if ((ulint)ret == n) {
+ 
+@@ -3250,7 +3281,8 @@
+ 				offset */
+ 	ulint		offset_high, /* in: most significant 32 bits of
+ 				offset */
+-	ulint		len)	/* in: length of the block to read or write */
++	ulint		len,	/* in: length of the block to read or write */
++	trx_t*		trx)
+ {
+ 	os_aio_slot_t*	slot;
+ #ifdef WIN_ASYNC_IO
+@@ -3503,7 +3535,8 @@
+ 				can be used to identify a completed aio
+ 				operation); if mode is OS_AIO_SYNC, these
+ 				are ignored */
+-	void*		message2)
++	void*		message2,
++	trx_t*		trx)
+ {
+ 	os_aio_array_t*	array;
+ 	os_aio_slot_t*	slot;
+@@ -3542,8 +3575,8 @@
+ 		wait in the Windows case. */
+ 
+ 		if (type == OS_FILE_READ) {
+-			return(os_file_read(file, buf, offset,
+-					    offset_high, n));
++			return(_os_file_read(file, buf, offset,
++					    offset_high, n, trx));
+ 		}
+ 
+ 		ut_a(type == OS_FILE_WRITE);
+@@ -3576,8 +3609,13 @@
+ 		ut_error;
+ 	}
+ 
++	if (trx && type == OS_FILE_READ)
++	{
++		trx->io_reads++;
++		trx->io_read += n;
++	}
+ 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
+-					 name, buf, offset, offset_high, n);
++					 name, buf, offset, offset_high, n, trx);
+ 	if (type == OS_FILE_READ) {
+ 		if (os_aio_use_native_aio) {
+ #ifdef WIN_ASYNC_IO
+diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
+--- a/storage/innobase/srv/srv0srv.c	2009-12-17 02:57:36.000000000 +0900
++++ b/storage/innobase/srv/srv0srv.c	2010-01-22 10:32:01.000000000 +0900
+@@ -49,6 +49,9 @@
+ #include "row0mysql.h"
+ #include "ha_prototypes.h"
+ 
++/* prototypes for new functions added to ha_innodb.cc */
++ibool	innobase_get_slow_log();
++
+ /* This is set to TRUE if the MySQL user has set it in MySQL; currently
+ affects only FOREIGN KEY definition parsing */
+ ibool	srv_lower_case_table_names	= FALSE;
+@@ -1004,6 +1007,10 @@
+ 	ibool			has_slept = FALSE;
+ 	srv_conc_slot_t*	slot	  = NULL;
+ 	ulint			i;
++	ib_longlong             start_time = 0L;
++	ib_longlong             finish_time = 0L;
++	ulint                   sec;
++	ulint                   ms;
+ 
+ 	if (trx->mysql_thd != NULL
+ 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
+@@ -1074,6 +1081,7 @@
+ 		switches. */
+ 		if (SRV_THREAD_SLEEP_DELAY > 0) {
+ 			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
++			trx->innodb_que_wait_timer += SRV_THREAD_SLEEP_DELAY;
+ 		}
+ 
+ 		trx->op_info = "";
+@@ -1129,12 +1137,23 @@
+ 	/* Go to wait for the event; when a thread leaves InnoDB it will
+ 	release this thread */
+ 
++	if (innobase_get_slow_log() && trx->take_stats) {
++		ut_usectime(&sec, &ms);
++		start_time = (ib_longlong)sec * 1000000 + ms;
++	}
++
+ 	trx->op_info = "waiting in InnoDB queue";
+ 
+ 	os_event_wait(slot->event);
+ 
+ 	trx->op_info = "";
+ 
++	if (innobase_get_slow_log() && trx->take_stats && start_time) {
++		ut_usectime(&sec, &ms);
++		finish_time = (ib_longlong)sec * 1000000 + ms;
++		trx->innodb_que_wait_timer += (ulint)(finish_time - start_time);
++	}
++
+ 	os_fast_mutex_lock(&srv_conc_mutex);
+ 
+ 	srv_conc_n_waiting_threads--;
+diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
+--- a/storage/innobase/trx/trx0trx.c	2009-12-17 02:57:37.000000000 +0900
++++ b/storage/innobase/trx/trx0trx.c	2010-01-22 10:32:01.000000000 +0900
+@@ -186,6 +186,15 @@
+ 	trx->global_read_view = NULL;
+ 	trx->read_view = NULL;
+ 
++	trx->io_reads = 0;
++	trx->io_read = 0;
++	trx->io_reads_wait_timer = 0;
++	trx->lock_que_wait_timer = 0;
++	trx->innodb_que_wait_timer = 0;
++	trx->distinct_page_access = 0;
++	trx->distinct_page_access_hash = NULL;
++	trx->take_stats = FALSE;
++
+ 	/* Set X/Open XA transaction identification to NULL */
+ 	memset(&trx->xid, 0, sizeof(trx->xid));
+ 	trx->xid.formatID = -1;
+@@ -225,6 +234,11 @@
+ 
+ 	trx->mysql_process_no = os_proc_get_number();
+ 
++	if (innobase_get_slow_log() && trx->take_stats) {
++		trx->distinct_page_access_hash = mem_alloc(DPAH_SIZE);
++		memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
++	}
++
+ 	return(trx);
+ }
+ 
+@@ -358,6 +372,12 @@
+ /*===============*/
+ 	trx_t*	trx)	/* in, own: trx object */
+ {
++	if (trx->distinct_page_access_hash)
++	{
++		mem_free(trx->distinct_page_access_hash);
++		trx->distinct_page_access_hash= NULL;
++	}
++
+ 	mutex_enter(&kernel_mutex);
+ 
+ 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
+@@ -379,6 +399,12 @@
+ /*====================*/
+ 	trx_t*	trx)	/* in, own: trx object */
+ {
++	if (trx->distinct_page_access_hash)
++	{
++		mem_free(trx->distinct_page_access_hash);
++		trx->distinct_page_access_hash= NULL;
++	}
++
+ 	mutex_enter(&kernel_mutex);
+ 
+ 	trx_free(trx);
+@@ -1051,6 +1077,9 @@
+ 	trx_t*	trx)	/* in: transaction */
+ {
+ 	que_thr_t*	thr;
++	ulint           sec;
++	ulint           ms;
++	ib_longlong     now;
+ 
+ 	ut_ad(mutex_own(&kernel_mutex));
+ 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
+@@ -1065,6 +1094,11 @@
+ 		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
+ 	}
+ 
++	if (innobase_get_slow_log() && trx->take_stats) {
++		ut_usectime(&sec, &ms);
++		now = (ib_longlong)sec * 1000000 + ms;
++		trx->lock_que_wait_timer += (ulint)(now - trx->lock_que_wait_ustarted);
++	}
+ 	trx->que_state = TRX_QUE_RUNNING;
+ }
+ 
+@@ -1078,6 +1112,9 @@
+ 	trx_t*	trx)	/* in: transaction in the TRX_QUE_LOCK_WAIT state */
+ {
+ 	que_thr_t*	thr;
++	ulint           sec;
++	ulint           ms;
++	ib_longlong     now;
+ 
+ 	ut_ad(mutex_own(&kernel_mutex));
+ 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
+@@ -1092,6 +1129,11 @@
+ 		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
+ 	}
+ 
++	if (innobase_get_slow_log() && trx->take_stats) {
++		ut_usectime(&sec, &ms);
++		now = (ib_longlong)sec * 1000000 + ms;
++		trx->lock_que_wait_timer += (ulint)(now - trx->lock_que_wait_ustarted);
++	}
+ 	trx->que_state = TRX_QUE_RUNNING;
+ }
+ 

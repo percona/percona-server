@@ -1,0 +1,515 @@
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2009-12-10 17:27:16.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2009-12-10 17:34:06.000000000 +0900
+@@ -10183,6 +10183,11 @@
+   "Output statistics of recovery process after it.",
+   NULL, NULL, FALSE);
+ 
++static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
++  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
++  "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
++  NULL, NULL, 0, 0, 64, 0);
++
+ static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+   "During InnoDB crash recovery on slave overwrite relay-log.info "
+@@ -10684,6 +10689,7 @@
+   MYSQL_SYSVAR(change_buffering),
+   MYSQL_SYSVAR(read_ahead_threshold),
+   MYSQL_SYSVAR(io_capacity),
++  MYSQL_SYSVAR(use_purge_thread),
+   NULL
+ };
+ 
+diff -ruN innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h
+--- innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h	2009-12-10 17:27:16.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h	2009-12-10 17:34:06.000000000 +0900
+@@ -37,5 +37,6 @@
+ {"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN innodb_plugin-1.0.6_orig/include/srv0srv.h innodb_plugin-1.0.6_tmp/include/srv0srv.h
+--- innodb_plugin-1.0.6_orig/include/srv0srv.h	2009-12-10 17:27:16.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/srv0srv.h	2009-12-10 17:34:06.000000000 +0900
+@@ -135,6 +135,8 @@
+ extern ibool	srv_fast_recovery;
+ extern ibool	srv_recovery_stats;
+ 
++extern ulint	srv_use_purge_thread;
++
+ extern ibool	srv_auto_extend_last_data_file;
+ extern ulint	srv_last_file_size_max;
+ extern char**	srv_log_group_home_dirs;
+@@ -423,6 +425,8 @@
+ 	SRV_RECOVERY,	/**< threads finishing a recovery */
+ 	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
+ #endif
++	SRV_PURGE,	/* thread purging undo records */
++	SRV_PURGE_WORKER,	/* thread purging undo records */
+ 	SRV_MASTER	/**< the master thread, (whose type number must
+ 			be biggest) */
+ };
+@@ -496,6 +500,21 @@
+ /*==============*/
+ 	void*	arg);	/*!< in: a dummy parameter required by
+ 			os_thread_create */
++/*************************************************************************
++The undo purge thread. */
++UNIV_INTERN
++os_thread_ret_t
++srv_purge_thread(
++/*=============*/
++	void*	arg);	/* in: a dummy parameter required by
++			os_thread_create */
++/*************************************************************************
++The undo purge thread. */
++UNIV_INTERN
++os_thread_ret_t
++srv_purge_worker_thread(
++/*====================*/
++	void*	arg);
+ /*******************************************************************//**
+ Tells the Innobase server that there has been activity in the database
+ and wakes up the master thread if it is suspended (not sleeping). Used
+diff -ruN innodb_plugin-1.0.6_orig/include/trx0purge.h innodb_plugin-1.0.6_tmp/include/trx0purge.h
+--- innodb_plugin-1.0.6_orig/include/trx0purge.h	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/trx0purge.h	2009-12-10 17:34:06.000000000 +0900
+@@ -114,6 +114,25 @@
+ ulint
+ trx_purge(void);
+ /*===========*/
++/**********************************************************************
++This function runs a purge worker batch */
++UNIV_INTERN
++void
++trx_purge_worker(
++/*=============*/
++	ulint	worker_id);
++/**********************************************************************
++This function waits the event for worker batch */
++UNIV_INTERN
++void
++trx_purge_worker_wait(void);
++/*========================*/
++/**********************************************************************
++This function wakes the waiting worker batch */
++UNIV_INTERN
++void
++trx_purge_worker_wake(void);
++/*========================*/
+ /******************************************************************//**
+ Prints information of the purge system to stderr. */
+ UNIV_INTERN
+@@ -131,6 +150,11 @@
+ 					of the trx system and it never ends */
+ 	que_t*		query;		/*!< The query graph which will do the
+ 					parallelized purge operation */
++	ulint		n_worker;
++	os_event_t	worker_event;
++	sess_t**	sess_arr;
++	trx_t**		trx_arr;
++	que_t**		query_arr;
+ 	rw_lock_t	latch;		/*!< The latch protecting the purge view.
+ 					A purge operation must acquire an
+ 					x-latch here for the instant at which
+diff -ruN innodb_plugin-1.0.6_orig/log/log0log.c innodb_plugin-1.0.6_tmp/log/log0log.c
+--- innodb_plugin-1.0.6_orig/log/log0log.c	2009-12-10 17:17:01.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/log/log0log.c	2009-12-10 17:34:06.000000000 +0900
+@@ -3164,6 +3164,16 @@
+ 		goto loop;
+ 	}
+ 
++	/* Check that the purge threads ended */
++	if (srv_use_purge_thread
++	    && (srv_n_threads_active[SRV_PURGE] != 0
++		|| srv_n_threads_active[SRV_PURGE_WORKER] != 0)) {
++
++		mutex_exit(&kernel_mutex);
++
++		goto loop;
++	}
++
+ 	mutex_exit(&kernel_mutex);
+ 
+ 	mutex_enter(&(log_sys->mutex));
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0srv.c innodb_plugin-1.0.6_tmp/srv/srv0srv.c
+--- innodb_plugin-1.0.6_orig/srv/srv0srv.c	2009-12-10 17:27:16.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0srv.c	2009-12-10 17:34:06.000000000 +0900
+@@ -164,6 +164,8 @@
+ UNIV_INTERN ibool	srv_fast_recovery = FALSE;
+ UNIV_INTERN ibool	srv_recovery_stats = FALSE;
+ 
++UNIV_INTERN ulint	srv_use_purge_thread = 0;
++
+ /* if TRUE, then we auto-extend the last data file */
+ UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
+ /* if != 0, this tells the max size auto-extending may increase the
+@@ -2536,10 +2538,10 @@
+ 	srv_main_thread_process_no = os_proc_get_number();
+ 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
+ 
+-	srv_table_reserve_slot(SRV_MASTER);
+ 
+ 	mutex_enter(&kernel_mutex);
+ 
++	srv_table_reserve_slot(SRV_MASTER);
+ 	srv_n_threads_active[SRV_MASTER]++;
+ 
+ 	mutex_exit(&kernel_mutex);
+@@ -2866,6 +2868,7 @@
+ 	/* Flush logs if needed */
+ 	srv_sync_log_buffer_in_background();
+ 
++	if (!srv_use_purge_thread) {
+ 	/* We run a full purge every 10 seconds, even if the server
+ 	were active */
+ 	do {
+@@ -2882,6 +2885,7 @@
+ 		srv_sync_log_buffer_in_background();
+ 
+ 	} while (n_pages_purged);
++	}
+ 
+ 	srv_main_thread_op_info = "flushing buffer pool pages";
+ 
+@@ -2950,6 +2954,7 @@
+ 		os_thread_sleep(100000);
+ 	}
+ 
++	if (!srv_use_purge_thread) {
+ 	srv_main_thread_op_info = "purging";
+ 
+ 	/* Run a full purge */
+@@ -2966,6 +2971,7 @@
+ 		srv_sync_log_buffer_in_background();
+ 
+ 	} while (n_pages_purged);
++	}
+ 
+ 	srv_main_thread_op_info = "reserving kernel mutex";
+ 
+@@ -3118,3 +3124,143 @@
+ 
+ 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
+ }
++
++/*************************************************************************
++A thread which is devoted to purge, for take over the master thread's
++purging */
++UNIV_INTERN
++os_thread_ret_t
++srv_purge_thread(
++/*=============*/
++	void*	arg __attribute__((unused)))
++			/* in: a dummy parameter required by os_thread_create */
++{
++	ulint	n_pages_purged;
++	ulint	n_pages_purged_sum = 1; /* dummy */
++	ulint	history_len;
++	ulint	sleep_ms= 10000; /* initial: 10 sec. */
++	ibool	can_be_last = FALSE;
++
++#ifdef UNIV_DEBUG_THREAD_CREATION
++	fprintf(stderr, "Purge thread starts, id %lu\n",
++		os_thread_pf(os_thread_get_curr_id()));
++#endif
++
++	mutex_enter(&kernel_mutex);
++	srv_table_reserve_slot(SRV_PURGE);
++	srv_n_threads_active[SRV_PURGE]++;
++	mutex_exit(&kernel_mutex);
++
++loop:
++	if (srv_shutdown_state > 0) {
++		if (srv_fast_shutdown) {
++			/* someone other should wait the end of the workers */
++			goto exit_func;
++		}
++
++		mutex_enter(&kernel_mutex);
++		if (srv_n_threads_active[SRV_PURGE_WORKER]) {
++			can_be_last = FALSE;
++		} else {
++			can_be_last = TRUE;
++		}
++		mutex_exit(&kernel_mutex);
++
++		sleep_ms = 10;
++	}
++
++	os_thread_sleep( sleep_ms * 1000 );
++
++	history_len = trx_sys->rseg_history_len;
++	if (history_len > 1000)
++		sleep_ms /= 10;
++	if (sleep_ms < 10)
++		sleep_ms = 10;
++
++	n_pages_purged_sum = 0;
++
++	do {
++		if (srv_fast_shutdown && srv_shutdown_state > 0) {
++			goto exit_func;
++		}
++		n_pages_purged = trx_purge();
++		n_pages_purged_sum += n_pages_purged;
++	} while (n_pages_purged);
++
++	if (srv_shutdown_state > 0 && can_be_last) {
++		/* the last trx_purge() is executed without workers */
++		goto exit_func;
++	}
++
++	if (n_pages_purged_sum) {
++		srv_active_wake_master_thread();
++	}
++
++	if (n_pages_purged_sum == 0)
++		sleep_ms *= 10;
++	if (sleep_ms > 10000)
++		sleep_ms = 10000;
++
++	goto loop;
++
++exit_func:
++	trx_purge_worker_wake(); /* It may not make sense. for safety only */
++
++	/* wake master thread to flush the pages */
++	srv_wake_master_thread();
++
++	mutex_enter(&kernel_mutex);
++	srv_n_threads_active[SRV_PURGE]--;
++	mutex_exit(&kernel_mutex);
++	os_thread_exit(NULL);
++
++	OS_THREAD_DUMMY_RETURN;
++}
++
++/*************************************************************************
++A thread which is devoted to purge, for take over the master thread's
++purging */
++UNIV_INTERN
++os_thread_ret_t
++srv_purge_worker_thread(
++/*====================*/
++	void*	arg)
++{
++	ulint	worker_id; /* index for array */
++
++	worker_id = *((ulint*)arg);
++
++#ifdef UNIV_DEBUG_THREAD_CREATION
++	fprintf(stderr, "Purge worker thread starts, id %lu\n",
++		os_thread_pf(os_thread_get_curr_id()));
++#endif
++	mutex_enter(&kernel_mutex);
++	srv_table_reserve_slot(SRV_PURGE_WORKER);
++	srv_n_threads_active[SRV_PURGE_WORKER]++;
++	mutex_exit(&kernel_mutex);
++
++loop:
++	/* purge worker threads only works when srv_shutdown_state==0 */
++	/* for safety and exactness. */
++	if (srv_shutdown_state > 0) {
++		goto exit_func;
++	}
++
++	trx_purge_worker_wait();
++
++	if (srv_shutdown_state > 0) {
++		goto exit_func;
++	}
++
++	trx_purge_worker(worker_id);
++
++	goto loop;
++
++exit_func:
++	mutex_enter(&kernel_mutex);
++	srv_n_threads_active[SRV_PURGE_WORKER]--;
++	mutex_exit(&kernel_mutex);
++	os_thread_exit(NULL);
++
++	OS_THREAD_DUMMY_RETURN;
++}
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0start.c innodb_plugin-1.0.6_tmp/srv/srv0start.c
+--- innodb_plugin-1.0.6_orig/srv/srv0start.c	2009-12-10 17:17:01.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0start.c	2009-12-10 17:34:06.000000000 +0900
+@@ -143,9 +143,9 @@
+ static ulint		ios;
+ 
+ /** io_handler_thread parameters for thread identification */
+-static ulint		n[SRV_MAX_N_IO_THREADS + 5];
++static ulint		n[SRV_MAX_N_IO_THREADS + 5 + 64];
+ /** io_handler_thread identifiers */
+-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
++static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5 + 64];
+ 
+ /** We use this mutex to test the return value of pthread_mutex_trylock
+    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
+@@ -1705,6 +1705,20 @@
+ 
+ 	os_thread_create(&srv_master_thread, NULL, thread_ids
+ 			 + (1 + SRV_MAX_N_IO_THREADS));
++
++	if (srv_use_purge_thread) {
++		ulint i;
++
++		os_thread_create(&srv_purge_thread, NULL, thread_ids
++				 + (4 + SRV_MAX_N_IO_THREADS));
++
++		for (i = 0; i < srv_use_purge_thread - 1; i++) {
++			n[5 + i + SRV_MAX_N_IO_THREADS] = i; /* using as index for arrays in purge_sys */
++			os_thread_create(&srv_purge_worker_thread,
++					 n + (5 + i + SRV_MAX_N_IO_THREADS),
++					 thread_ids + (5 + i + SRV_MAX_N_IO_THREADS));
++		}
++	}
+ #ifdef UNIV_DEBUG
+ 	/* buf_debug_prints = TRUE; */
+ #endif /* UNIV_DEBUG */
+diff -ruN innodb_plugin-1.0.6_orig/trx/trx0purge.c innodb_plugin-1.0.6_tmp/trx/trx0purge.c
+--- innodb_plugin-1.0.6_orig/trx/trx0purge.c	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/trx/trx0purge.c	2009-12-10 17:34:06.000000000 +0900
+@@ -184,8 +184,9 @@
+ @return	own: the query graph */
+ static
+ que_t*
+-trx_purge_graph_build(void)
++trx_purge_graph_build(
+ /*=======================*/
++	trx_t*	trx)
+ {
+ 	mem_heap_t*	heap;
+ 	que_fork_t*	fork;
+@@ -194,7 +195,7 @@
+ 
+ 	heap = mem_heap_create(512);
+ 	fork = que_fork_create(NULL, NULL, QUE_FORK_PURGE, heap);
+-	fork->trx = purge_sys->trx;
++	fork->trx = trx;
+ 
+ 	thr = que_thr_create(fork, heap);
+ 
+@@ -243,10 +244,35 @@
+ 
+ 	ut_a(trx_start_low(purge_sys->trx, ULINT_UNDEFINED));
+ 
+-	purge_sys->query = trx_purge_graph_build();
++	purge_sys->query = trx_purge_graph_build(purge_sys->trx);
+ 
+ 	purge_sys->view = read_view_oldest_copy_or_open_new(ut_dulint_zero,
+ 							    purge_sys->heap);
++
++	purge_sys->n_worker = 0;
++	if (srv_use_purge_thread > 1) {
++		/* Use worker threads */
++		ulint i;
++
++		purge_sys->n_worker = srv_use_purge_thread - 1;
++
++		purge_sys->sess_arr = mem_alloc(sizeof(sess_t*) * purge_sys->n_worker);
++		purge_sys->trx_arr = mem_alloc(sizeof(trx_t*) * purge_sys->n_worker);
++		purge_sys->query_arr = mem_alloc(sizeof(que_t*) * purge_sys->n_worker);
++
++		purge_sys->worker_event = os_event_create(NULL);
++		os_event_reset(purge_sys->worker_event);
++
++		for (i = 0; i < purge_sys->n_worker; i++) {
++			purge_sys->sess_arr[i] = sess_open();
++
++			purge_sys->trx_arr[i] = purge_sys->sess_arr[i]->trx;
++			purge_sys->trx_arr[i]->is_purge = 1;
++			ut_a(trx_start_low(purge_sys->trx_arr[i], ULINT_UNDEFINED));
++
++			purge_sys->query_arr[i] = trx_purge_graph_build(purge_sys->trx_arr[i]);
++		}
++	}
+ }
+ 
+ /************************************************************************
+@@ -1148,7 +1174,7 @@
+ 
+ 	/* Handle at most 20 undo log pages in one purge batch */
+ 
+-	purge_sys->handle_limit = purge_sys->n_pages_handled + 20;
++	purge_sys->handle_limit = purge_sys->n_pages_handled + 20 * (srv_use_purge_thread + 1);
+ 
+ 	old_pages_handled = purge_sys->n_pages_handled;
+ 
+@@ -1167,6 +1193,9 @@
+ 
+ 	mutex_exit(&kernel_mutex);
+ 
++	if (purge_sys->n_worker)
++		os_event_set(purge_sys->worker_event);
++
+ 	/*	srv_que_task_enqueue(thr2); */
+ 
+ 	if (srv_print_thread_releases) {
+@@ -1176,6 +1205,9 @@
+ 
+ 	que_run_threads(thr);
+ 
++	if (purge_sys->n_worker)
++		os_event_reset(purge_sys->worker_event);
++
+ 	if (srv_print_thread_releases) {
+ 
+ 		fprintf(stderr,
+@@ -1186,6 +1218,52 @@
+ 	return(purge_sys->n_pages_handled - old_pages_handled);
+ }
+ 
++/**********************************************************************
++This function runs a purge worker batch */
++UNIV_INTERN
++void
++trx_purge_worker(
++/*=============*/
++	ulint	worker_id)
++{
++	que_thr_t*	thr;
++
++	mutex_enter(&kernel_mutex);
++
++	thr = que_fork_start_command(purge_sys->query_arr[worker_id]);
++
++	ut_ad(thr);
++
++	mutex_exit(&kernel_mutex);
++
++	que_run_threads(thr);
++
++	if (purge_sys->state == TRX_STOP_PURGE) { /* optimistic */
++		os_event_reset(purge_sys->worker_event);
++	}
++}
++
++/**********************************************************************
++This function waits the event for worker batch */
++UNIV_INTERN
++void
++trx_purge_worker_wait(void)
++/*=======================*/
++{
++	os_event_wait(purge_sys->worker_event);
++}
++
++/**********************************************************************
++This function wakes the waiting worker batch */
++UNIV_INTERN
++void
++trx_purge_worker_wake(void)
++/*=======================*/
++{
++	if (purge_sys->n_worker)
++		os_event_set(purge_sys->worker_event);
++}
++
+ /******************************************************************//**
+ Prints information of the purge system to stderr. */
+ UNIV_INTERN

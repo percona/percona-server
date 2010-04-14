@@ -1,0 +1,258 @@
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2009-12-04 14:18:53.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2009-12-04 14:19:38.000000000 +0900
+@@ -128,9 +128,6 @@
+ # ifndef MYSQL_PLUGIN_IMPORT
+ #  define MYSQL_PLUGIN_IMPORT /* nothing */
+ # endif /* MYSQL_PLUGIN_IMPORT */
+-/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
+-is defined the same in both builds: the MySQL server and the InnoDB plugin. */
+-extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
+ 
+ #if MYSQL_VERSION_ID < 50124
+ /* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
+@@ -927,36 +924,6 @@
+ }
+ 
+ /*************************************************************//**
+-If you want to print a thd that is not associated with the current thread,
+-you must call this function before reserving the InnoDB kernel_mutex, to
+-protect MySQL from setting thd->query NULL. If you print a thd of the current
+-thread, we know that MySQL cannot modify thd->query, and it is not necessary
+-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+-the kernel_mutex. */
+-extern "C" UNIV_INTERN
+-void
+-innobase_mysql_prepare_print_arbitrary_thd(void)
+-/*============================================*/
+-{
+-	ut_ad(!mutex_own(&kernel_mutex));
+-	VOID(pthread_mutex_lock(&LOCK_thread_count));
+-}
+-
+-/*************************************************************//**
+-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+-In the InnoDB latching order, the mutex sits right above the
+-kernel_mutex.  In debug builds, we assert that the kernel_mutex is
+-released before this function is invoked. */
+-extern "C" UNIV_INTERN
+-void
+-innobase_mysql_end_print_arbitrary_thd(void)
+-/*========================================*/
+-{
+-	ut_ad(!mutex_own(&kernel_mutex));
+-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
+-}
+-
+-/*************************************************************//**
+ Prints info of a THD object (== user session thread) to the given file. */
+ extern "C" UNIV_INTERN
+ void
+@@ -2625,7 +2592,10 @@
+ {
+ 	return(HA_ONLINE_ADD_INDEX_NO_WRITES
+ 		| HA_ONLINE_DROP_INDEX_NO_WRITES
+-		| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES
++		/* Current InnoDB doesn't sort unique indexes along mysqld's order
++		   It is dangerous to use index. So it is disabled until
++		   the bug http://bugs.mysql.com/47622 */
++		/* | HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES */
+ 		| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES
+ 		| HA_ONLINE_ADD_PK_INDEX_NO_WRITES);
+ }
+@@ -4802,24 +4772,29 @@
+ 			update the table upper limit. Note: last_value
+ 			will be 0 if get_auto_increment() was not called.*/
+ 
+-			if (auto_inc <= col_max_value
+-			    && auto_inc >= prebuilt->autoinc_last_value) {
++			if (auto_inc >= prebuilt->autoinc_last_value) {
+ set_max_autoinc:
+-				ut_a(prebuilt->autoinc_increment > 0);
+-
+-				ulonglong	need;
+-				ulonglong	offset;
+-
+-				offset = prebuilt->autoinc_offset;
+-				need = prebuilt->autoinc_increment;
+-
+-				auto_inc = innobase_next_autoinc(
+-					auto_inc, need, offset, col_max_value);
+-
+-				err = innobase_set_max_autoinc(auto_inc);
+-
+-				if (err != DB_SUCCESS) {
+-					error = err;
++				/* This should filter out the negative
++				values set explicitly by the user. */
++				if (auto_inc <= col_max_value) {
++					ut_a(prebuilt->autoinc_increment > 0);
++
++					ulonglong	need;
++					ulonglong	offset;
++
++					offset = prebuilt->autoinc_offset;
++					need = prebuilt->autoinc_increment;
++
++					auto_inc = innobase_next_autoinc(
++						auto_inc,
++						need, offset, col_max_value);
++
++					err = innobase_set_max_autoinc(
++						auto_inc);
++
++					if (err != DB_SUCCESS) {
++						error = err;
++					}
+ 				}
+ 			}
+ 			break;
+@@ -9857,6 +9832,20 @@
+ 		return(COMPATIBLE_DATA_NO);
+ 	}
+ 
++	/* Renaming column asynchronizes dictionary between mysqld and InnoDB...
++	   If not synchronized, treat as COMPATIBLE_DATA_NO
++	   until the bug http://bugs.mysql.com/47621 is fixed officialily */
++	{
++		uint	i;
++		for (i = 0; i < table->s->fields; i++) {
++			if (table->field[i]->flags & FIELD_IN_ADD_INDEX
++			    && innobase_strcasecmp(table->field[i]->field_name,
++					dict_table_get_col_name(prebuilt->table, i))) {
++				return(COMPATIBLE_DATA_NO);
++			}
++		}
++	}
++
+ 	/* Check if a column participating in a foreign key is being renamed.
+ 	There is no mechanism for updating InnoDB foreign key definitions. */
+ 	if (foreign_key_column_is_being_renamed(prebuilt, table)) {
+diff -ruN innodb_plugin-1.0.6_orig/include/ha_prototypes.h innodb_plugin-1.0.6_tmp/include/ha_prototypes.h
+--- innodb_plugin-1.0.6_orig/include/ha_prototypes.h	2009-05-26 22:28:49.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/ha_prototypes.h	2010-02-05 17:32:08.000000000 +0900
+@@ -153,28 +153,6 @@
+ 	const void*	field)		/*!< in: MySQL Field */
+ 	__attribute__((nonnull));
+ 
+-/*************************************************************//**
+-If you want to print a thd that is not associated with the current thread,
+-you must call this function before reserving the InnoDB kernel_mutex, to
+-protect MySQL from setting thd->query NULL. If you print a thd of the current
+-thread, we know that MySQL cannot modify thd->query, and it is not necessary
+-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+-the kernel_mutex. */
+-UNIV_INTERN
+-void
+-innobase_mysql_prepare_print_arbitrary_thd(void);
+-/*============================================*/
+-
+-/*************************************************************//**
+-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+-In the InnoDB latching order, the mutex sits right above the
+-kernel_mutex.  In debug builds, we assert that the kernel_mutex is
+-released before this function is invoked. */
+-UNIV_INTERN
+-void
+-innobase_mysql_end_print_arbitrary_thd(void);
+-/*========================================*/
+-
+ /******************************************************************//**
+ Get the variable length bounds of the given character set. */
+ UNIV_INTERN
+diff -ruN innodb_plugin-1.0.6_orig/lock/lock0lock.c innodb_plugin-1.0.6_tmp/lock/lock0lock.c
+--- innodb_plugin-1.0.6_orig/lock/lock0lock.c	2010-02-05 16:59:41.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/lock/lock0lock.c	2010-02-05 17:49:07.000000000 +0900
+@@ -4336,11 +4336,6 @@
+ /*====================*/
+ 	FILE*	file)	/*!< in: file where to print */
+ {
+-	/* We must protect the MySQL thd->query field with a MySQL mutex, and
+-	because the MySQL mutex must be reserved before the kernel_mutex of
+-	InnoDB, we call innobase_mysql_prepare_print_arbitrary_thd() here. */
+-
+-	innobase_mysql_prepare_print_arbitrary_thd();
+ 	lock_mutex_enter_kernel();
+ 
+ 	if (lock_deadlock_found) {
+@@ -4423,7 +4418,6 @@
+ 
+ 	if (trx == NULL) {
+ 		lock_mutex_exit_kernel();
+-		innobase_mysql_end_print_arbitrary_thd();
+ 
+ 		ut_ad(lock_validate());
+ 
+@@ -4507,7 +4501,6 @@
+ 			}
+ 
+ 			lock_mutex_exit_kernel();
+-			innobase_mysql_end_print_arbitrary_thd();
+ 
+ 			mtr_start(&mtr);
+ 
+@@ -4518,7 +4511,6 @@
+ 
+ 			load_page_first = FALSE;
+ 
+-			innobase_mysql_prepare_print_arbitrary_thd();
+ 			lock_mutex_enter_kernel();
+ 
+ 			goto loop;
+diff -ruN innodb_plugin-1.0.6_orig/sync/sync0rw.c innodb_plugin-1.0.6_tmp/sync/sync0rw.c
+--- innodb_plugin-1.0.6_orig/sync/sync0rw.c	2009-12-04 14:13:06.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/sync/sync0rw.c	2009-12-04 14:19:38.000000000 +0900
+@@ -305,8 +305,6 @@
+ 	ut_ad(rw_lock_validate(lock));
+ 	ut_a(lock->lock_word == X_LOCK_DECR);
+ 
+-	lock->magic_n = 0;
+-
+ #ifndef INNODB_RW_LOCKS_USE_ATOMICS
+ 	mutex_free(rw_lock_get_mutex(lock));
+ #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+@@ -326,6 +324,8 @@
+ 	UT_LIST_REMOVE(list, rw_lock_list, lock);
+ 
+ 	mutex_exit(&rw_lock_list_mutex);
++
++	lock->magic_n = 0;
+ }
+ 
+ #ifdef UNIV_DEBUG
+diff -ruN innodb_plugin-1.0.6_orig/trx/trx0i_s.c innodb_plugin-1.0.6_tmp/trx/trx0i_s.c
+--- innodb_plugin-1.0.6_orig/trx/trx0i_s.c	2009-11-21 06:39:48.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/trx/trx0i_s.c	2010-02-05 18:13:19.000000000 +0900
+@@ -1205,9 +1205,6 @@
+ 		return(1);
+ 	}
+ 
+-	/* We are going to access trx->query in all transactions */
+-	innobase_mysql_prepare_print_arbitrary_thd();
+-
+ 	/* We need to read trx_sys and record/table lock queues */
+ 	mutex_enter(&kernel_mutex);
+ 
+@@ -1215,8 +1212,6 @@
+ 
+ 	mutex_exit(&kernel_mutex);
+ 
+-	innobase_mysql_end_print_arbitrary_thd();
+-
+ 	return(0);
+ }
+ 
+diff -ruN innodb_plugin-1.0.6_orig/trx/trx0trx.c innodb_plugin-1.0.6_tmp/trx/trx0trx.c
+--- innodb_plugin-1.0.6_orig/trx/trx0trx.c	2010-02-05 16:59:41.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/trx/trx0trx.c	2010-02-05 18:17:20.000000000 +0900
+@@ -1695,9 +1695,7 @@
+ 
+ /**********************************************************************//**
+ Prints info about a transaction to the given file. The caller must own the
+-kernel mutex and must have called
+-innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL
+-or InnoDB cannot meanwhile change the info printed here. */
++kernel mutex. */
+ UNIV_INTERN
+ void
+ trx_print(

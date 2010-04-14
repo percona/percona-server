@@ -1,0 +1,50 @@
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2010-03-01 12:19:14.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2010-03-01 12:19:56.000000000 +0900
+@@ -10363,7 +10363,7 @@
+ static MYSQL_SYSVAR_BOOL(fast_recovery, innobase_fast_recovery,
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+   "Enable to use speed hack of recovery avoiding flush list sorting.",
+-  NULL, NULL, FALSE);
++  NULL, NULL, TRUE);
+ 
+ static MYSQL_SYSVAR_BOOL(recovery_stats, innobase_recovery_stats,
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+@@ -10373,7 +10373,7 @@
+ static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
+   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+   "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
+-  NULL, NULL, 0, 0, 64, 0);
++  NULL, NULL, 1, 0, 64, 0);
+ 
+ static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+@@ -10473,7 +10473,7 @@
+ static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
+   PLUGIN_VAR_NOCMDARG,
+   "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
+-  NULL, NULL, TRUE);
++  NULL, NULL, FALSE);
+ 
+ static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
+   PLUGIN_VAR_RQCMDARG,
+@@ -10698,7 +10698,7 @@
+ static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
+   PLUGIN_VAR_RQCMDARG,
+   "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
+-  NULL, NULL, 0, 0, 1, 0);
++  NULL, NULL, 1, 0, 1, 0);
+ 
+ static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
+   PLUGIN_VAR_RQCMDARG,
+@@ -10776,8 +10776,8 @@
+ };
+ static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
+   PLUGIN_VAR_RQCMDARG,
+-  "Enable/Disable flushing along modified age. ([none], reflex, estimate)",
+-  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
++  "Enable/Disable flushing along modified age. (none, reflex, [estimate])",
++  NULL, innodb_adaptive_checkpoint_update, 2, &adaptive_checkpoint_typelib);
+ 
+ static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
+   PLUGIN_VAR_RQCMDARG,

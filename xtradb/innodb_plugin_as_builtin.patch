@@ -1,0 +1,59 @@
+diff -ru innodb_plugin/CMakeLists.txt innobase/CMakeLists.txt
+--- innodb_plugin/CMakeLists.txt	2009-11-05 03:31:13.000000000 +0900
++++ innobase/CMakeLists.txt	2009-12-01 16:01:27.000000000 +0900
+@@ -30,8 +30,8 @@
+ ENDIF (CMAKE_SIZEOF_VOID_P MATCHES 8)
+ 
+ # Include directories under innodb_plugin
+-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innodb_plugin/include
+-		    ${CMAKE_SOURCE_DIR}/storage/innodb_plugin/handler)
++INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
++		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
+ 
+ # Include directories under mysql
+ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+diff -ru innodb_plugin/Makefile.in innobase/Makefile.in
+--- innodb_plugin/Makefile.in	2009-11-05 03:37:07.000000000 +0900
++++ innobase/Makefile.in	2009-12-01 16:22:03.000000000 +0900
+@@ -52,7 +52,7 @@
+ build_triplet = @build@
+ host_triplet = @host@
+ target_triplet = @target@
+-subdir = storage/innodb_plugin
++subdir = storage/innobase
+ DIST_COMMON = $(noinst_HEADERS) $(srcdir)/Makefile.am \
+ 	$(srcdir)/Makefile.in COPYING ChangeLog
+ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+@@ -783,7 +783,7 @@
+ 			mem/mem0dbg.c
+ 
+ EXTRA_LIBRARIES = libinnobase.a
+-noinst_LIBRARIES = @plugin_innodb_plugin_static_target@
++noinst_LIBRARIES = @plugin_innobase_static_target@
+ libinnobase_a_SOURCES = \
+ 			btr/btr0btr.c			\
+ 			btr/btr0cur.c			\
+@@ -903,9 +903,9 @@
+ 	      exit 1;; \
+ 	  esac; \
+ 	done; \
+-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  storage/innodb_plugin/Makefile'; \
++	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu  storage/innobase/Makefile'; \
+ 	cd $(top_srcdir) && \
+-	  $(AUTOMAKE) --gnu  storage/innodb_plugin/Makefile
++	  $(AUTOMAKE) --gnu  storage/innobase/Makefile
+ .PRECIOUS: Makefile
+ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
+ 	@case '$?' in \
+diff -ru innodb_plugin/handler/ha_innodb.cc innobase/handler/ha_innodb.cc
+--- innodb_plugin/handler/ha_innodb.cc	2009-11-05 03:31:13.000000000 +0900
++++ innobase/handler/ha_innodb.cc	2009-12-01 15:11:40.000000000 +0900
+@@ -10190,7 +10190,7 @@
+   NULL
+ };
+ 
+-mysql_declare_plugin(innodb_plugin)
++mysql_declare_plugin(innobase)
+ {
+   MYSQL_STORAGE_ENGINE_PLUGIN,
+   &innobase_storage_engine,

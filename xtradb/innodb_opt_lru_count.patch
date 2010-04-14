@@ -1,0 +1,305 @@
+diff -ruN innodb_plugin-1.0.6_orig/buf/buf0buddy.c innodb_plugin-1.0.6_tmp/buf/buf0buddy.c
+--- innodb_plugin-1.0.6_orig/buf/buf0buddy.c	2009-05-25 19:52:29.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/buf/buf0buddy.c	2009-12-04 10:50:41.000000000 +0900
+@@ -143,7 +143,7 @@
+ 			      ut_ad(buf_page_get_state(ut_list_node_313)
+ 				    == BUF_BLOCK_ZIP_FREE)));
+ #endif /* !UNIV_DEBUG_VALGRIND */
+-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
++	bpage = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
+ 
+ 	if (bpage) {
+ 		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
+diff -ruN innodb_plugin-1.0.6_orig/buf/buf0buf.c innodb_plugin-1.0.6_tmp/buf/buf0buf.c
+--- innodb_plugin-1.0.6_orig/buf/buf0buf.c	2009-12-04 10:44:42.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/buf/buf0buf.c	2009-12-04 10:50:41.000000000 +0900
+@@ -667,9 +667,9 @@
+ 	block->page.in_zip_hash = FALSE;
+ 	block->page.in_flush_list = FALSE;
+ 	block->page.in_free_list = FALSE;
+-	block->page.in_LRU_list = FALSE;
+ 	block->in_unzip_LRU_list = FALSE;
+ #endif /* UNIV_DEBUG */
++	block->page.in_LRU_list = FALSE;
+ #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+ 	block->n_pointers = 0;
+ #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+@@ -1149,7 +1149,7 @@
+ 
+ 	memcpy(dpage, bpage, sizeof *dpage);
+ 
+-	ut_d(bpage->in_LRU_list = FALSE);
++	bpage->in_LRU_list = FALSE;
+ 	ut_d(bpage->in_page_hash = FALSE);
+ 
+ 	/* relocate buf_pool->LRU */
+@@ -2903,8 +2903,8 @@
+ 		bpage->in_zip_hash = FALSE;
+ 		bpage->in_flush_list = FALSE;
+ 		bpage->in_free_list = FALSE;
+-		bpage->in_LRU_list = FALSE;
+ #endif /* UNIV_DEBUG */
++		bpage->in_LRU_list = FALSE;
+ 
+ 		ut_d(bpage->in_page_hash = TRUE);
+ 		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
+@@ -3049,7 +3049,7 @@
+ 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
+ 
+ 	/* Flush pages from the end of the LRU list if necessary */
+-	buf_flush_free_margin();
++	buf_flush_free_margin(FALSE);
+ 
+ 	frame = block->frame;
+ 
+@@ -3803,7 +3803,7 @@
+ {
+ 	ulint	ratio;
+ 
+-	buf_pool_mutex_enter();
++	//buf_pool_mutex_enter(); /* optimistic */
+ 
+ 	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
+ 		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
+@@ -3811,7 +3811,7 @@
+ 
+ 	/* 1 + is there to avoid division by zero */
+ 
+-	buf_pool_mutex_exit();
++	//buf_pool_mutex_exit(); /* optimistic */
+ 
+ 	return(ratio);
+ }
+diff -ruN innodb_plugin-1.0.6_orig/buf/buf0flu.c innodb_plugin-1.0.6_tmp/buf/buf0flu.c
+--- innodb_plugin-1.0.6_orig/buf/buf0flu.c	2009-12-04 10:48:12.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/buf/buf0flu.c	2009-12-04 10:50:41.000000000 +0900
+@@ -167,17 +167,19 @@
+ 	buf_page_t*	bpage)	/*!< in: buffer control block, must be
+ 				buf_page_in_file(bpage) and in the LRU list */
+ {
+-	ut_ad(buf_pool_mutex_own());
+-	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+-	ut_ad(bpage->in_LRU_list);
++	//ut_ad(buf_pool_mutex_own());
++	//ut_ad(mutex_own(buf_page_get_mutex(bpage)));
++	//ut_ad(bpage->in_LRU_list); /* optimistic use */
+ 
+-	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
++	if (UNIV_LIKELY(bpage->in_LRU_list && buf_page_in_file(bpage))) {
+ 
+ 		return(bpage->oldest_modification == 0
+ 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
+ 		       && bpage->buf_fix_count == 0);
+ 	}
+ 
++	/* permited not to own LRU_mutex..  */
++/*
+ 	ut_print_timestamp(stderr);
+ 	fprintf(stderr,
+ 		"  InnoDB: Error: buffer block state %lu"
+@@ -185,6 +187,7 @@
+ 		(ulong) buf_page_get_state(bpage));
+ 	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
+ 	putc('\n', stderr);
++*/
+ 
+ 	return(FALSE);
+ }
+@@ -1183,8 +1186,14 @@
+ 	buf_page_t*	bpage;
+ 	ulint		n_replaceable;
+ 	ulint		distance	= 0;
++	ibool		have_LRU_mutex = FALSE;
+ 
+-	buf_pool_mutex_enter();
++	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
++		have_LRU_mutex = TRUE;
++retry:
++	//buf_pool_mutex_enter();
++	if (have_LRU_mutex)
++		buf_pool_mutex_enter();
+ 
+ 	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
+ 
+@@ -1195,7 +1204,13 @@
+ 		   + BUF_FLUSH_EXTRA_MARGIN)
+ 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
+ 
+-		mutex_t* block_mutex = buf_page_get_mutex(bpage);
++		mutex_t* block_mutex;
++		if (!bpage->in_LRU_list) {
++			/* reatart. but it is very optimistic */
++			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
++			continue;
++		}
++		block_mutex = buf_page_get_mutex(bpage);
+ 
+ 		mutex_enter(block_mutex);
+ 
+@@ -1210,11 +1225,17 @@
+ 		bpage = UT_LIST_GET_PREV(LRU, bpage);
+ 	}
+ 
+-	buf_pool_mutex_exit();
++	//buf_pool_mutex_exit();
++	if (have_LRU_mutex)
++		buf_pool_mutex_exit();
+ 
+ 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
+ 
+ 		return(0);
++	} else if (!have_LRU_mutex) {
++		/* confirm it again with LRU_mutex for exactness */
++		have_LRU_mutex = TRUE;
++		goto retry;
+ 	}
+ 
+ 	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
+@@ -1229,8 +1250,9 @@
+ immediately, without waiting. */
+ UNIV_INTERN
+ void
+-buf_flush_free_margin(void)
++buf_flush_free_margin(
+ /*=======================*/
++	ibool	wait)
+ {
+ 	ulint	n_to_flush;
+ 	ulint	n_flushed;
+@@ -1239,7 +1261,7 @@
+ 
+ 	if (n_to_flush > 0) {
+ 		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);
+-		if (n_flushed == ULINT_UNDEFINED) {
++		if (wait && n_flushed == ULINT_UNDEFINED) {
+ 			/* There was an LRU type flush batch already running;
+ 			let us wait for it to end */
+ 
+diff -ruN innodb_plugin-1.0.6_orig/buf/buf0lru.c innodb_plugin-1.0.6_tmp/buf/buf0lru.c
+--- innodb_plugin-1.0.6_orig/buf/buf0lru.c	2009-10-29 20:04:11.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/buf/buf0lru.c	2009-12-04 10:50:41.000000000 +0900
+@@ -896,7 +896,7 @@
+ 
+ 	/* No free block was found: try to flush the LRU list */
+ 
+-	buf_flush_free_margin();
++	buf_flush_free_margin(TRUE);
+ 	++srv_buf_pool_wait_free;
+ 
+ 	os_aio_simulated_wake_handler_threads();
+@@ -1087,7 +1087,7 @@
+ 
+ 	/* Remove the block from the LRU list */
+ 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
+-	ut_d(bpage->in_LRU_list = FALSE);
++	bpage->in_LRU_list = FALSE;
+ 
+ 	buf_unzip_LRU_remove_block_if_needed(bpage);
+ 
+@@ -1162,7 +1162,7 @@
+ 
+ 	ut_ad(!bpage->in_LRU_list);
+ 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
+-	ut_d(bpage->in_LRU_list = TRUE);
++	bpage->in_LRU_list = TRUE;
+ 
+ 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
+ 
+@@ -1230,7 +1230,7 @@
+ 		buf_pool->LRU_old_len++;
+ 	}
+ 
+-	ut_d(bpage->in_LRU_list = TRUE);
++	bpage->in_LRU_list = TRUE;
+ 
+ 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
+ 
+@@ -1467,7 +1467,7 @@
+ 				buf_page_set_old(b, buf_page_is_old(b));
+ #endif /* UNIV_LRU_DEBUG */
+ 			} else {
+-				ut_d(b->in_LRU_list = FALSE);
++				b->in_LRU_list = FALSE;
+ 				buf_LRU_add_block_low(b, buf_page_is_old(b));
+ 			}
+ 
+diff -ruN innodb_plugin-1.0.6_orig/buf/buf0rea.c innodb_plugin-1.0.6_tmp/buf/buf0rea.c
+--- innodb_plugin-1.0.6_orig/buf/buf0rea.c	2009-12-04 10:48:12.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/buf/buf0rea.c	2009-12-04 10:50:41.000000000 +0900
+@@ -195,7 +195,7 @@
+ 	}
+ 
+ 	/* Flush pages from the end of the LRU list if necessary */
+-	buf_flush_free_margin();
++	buf_flush_free_margin(FALSE);
+ 
+ 	/* Increment number of I/O operations used for LRU policy. */
+ 	buf_LRU_stat_inc_io();
+@@ -470,7 +470,7 @@
+ 	os_aio_simulated_wake_handler_threads();
+ 
+ 	/* Flush pages from the end of the LRU list if necessary */
+-	buf_flush_free_margin();
++	buf_flush_free_margin(FALSE);
+ 
+ #ifdef UNIV_DEBUG
+ 	if (buf_debug_prints && (count > 0)) {
+@@ -555,7 +555,7 @@
+ 	os_aio_simulated_wake_handler_threads();
+ 
+ 	/* Flush pages from the end of the LRU list if necessary */
+-	buf_flush_free_margin();
++	buf_flush_free_margin(FALSE);
+ 
+ #ifdef UNIV_DEBUG
+ 	if (buf_debug_prints) {
+@@ -648,7 +648,7 @@
+ 	os_aio_simulated_wake_handler_threads();
+ 
+ 	/* Flush pages from the end of the LRU list if necessary */
+-	buf_flush_free_margin();
++	buf_flush_free_margin(FALSE);
+ 
+ #ifdef UNIV_DEBUG
+ 	if (buf_debug_prints) {
+diff -ruN innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h
+--- innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h	2009-12-04 10:48:12.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h	2009-12-04 10:50:41.000000000 +0900
+@@ -26,5 +26,6 @@
+ {"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN innodb_plugin-1.0.6_orig/include/buf0buf.h innodb_plugin-1.0.6_tmp/include/buf0buf.h
+--- innodb_plugin-1.0.6_orig/include/buf0buf.h	2009-10-29 20:04:11.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/buf0buf.h	2009-12-04 10:50:41.000000000 +0900
+@@ -1123,11 +1123,11 @@
+ 
+ 	UT_LIST_NODE_T(buf_page_t) LRU;
+ 					/*!< node of the LRU list */
+-#ifdef UNIV_DEBUG
++//#ifdef UNIV_DEBUG
+ 	ibool		in_LRU_list;	/*!< TRUE if the page is in
+ 					the LRU list; used in
+ 					debugging */
+-#endif /* UNIV_DEBUG */
++//#endif /* UNIV_DEBUG */
+ 	unsigned	old:1;		/*!< TRUE if the block is in the old
+ 					blocks in buf_pool->LRU_old */
+ 	unsigned	freed_page_clock:31;/*!< the value of
+diff -ruN innodb_plugin-1.0.6_orig/include/buf0flu.h innodb_plugin-1.0.6_tmp/include/buf0flu.h
+--- innodb_plugin-1.0.6_orig/include/buf0flu.h	2009-07-09 01:11:40.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/buf0flu.h	2009-12-04 10:50:41.000000000 +0900
+@@ -51,8 +51,9 @@
+ a margin of replaceable pages there. */
+ UNIV_INTERN
+ void
+-buf_flush_free_margin(void);
++buf_flush_free_margin(
+ /*=======================*/
++	ibool	wait);
+ #endif /* !UNIV_HOTBACKUP */
+ /********************************************************************//**
+ Initializes a page for writing to the tablespace. */

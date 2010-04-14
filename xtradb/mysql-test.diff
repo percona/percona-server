@@ -1,0 +1,356 @@
+diff -ruN innodb_plugin-1.0.6_orig/mysql-test/innodb-index.result innodb_plugin-1.0.6_tmp/mysql-test/innodb-index.result
+--- innodb_plugin-1.0.6_orig/mysql-test/innodb-index.result	2009-11-17 20:52:01.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/mysql-test/innodb-index.result	2009-12-04 16:03:10.000000000 +0900
+@@ -627,7 +627,7 @@
+ create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
+ insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
+ alter table t1 add unique index (b), add unique index (c), add unique index (d);
+-ERROR 23000: Duplicate entry '4' for key 'b'
++ERROR 23000: Duplicate entry 'ac' for key 'c'
+ alter table t1 add unique index (c), add unique index (b), add index (d);
+ ERROR 23000: Duplicate entry 'ac' for key 'c'
+ show create table t1;
+diff -ruN innodb_plugin-1.0.6_orig/mysql-test/innodb.result innodb_plugin-1.0.6_tmp/mysql-test/innodb.result
+--- innodb_plugin-1.0.6_orig/mysql-test/innodb.result	2009-11-17 23:44:20.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/mysql-test/innodb.result	2009-12-04 16:02:57.000000000 +0900
+@@ -1970,7 +1970,7 @@
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
+ alter table t1 add unique(v);
+-ERROR 23000: Duplicate entry 'v' for key 'v_2'
++ERROR 23000: Duplicate entry '{ ' for key 'v_2'
+ alter table t1 add key(v);
+ select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
+ qq
+diff -ruN innodb_plugin-1.0.6_orig/mysql-test/innodb_bug44571.result innodb_plugin-1.0.6_tmp/mysql-test/innodb_bug44571.result
+--- innodb_plugin-1.0.6_orig/mysql-test/innodb_bug44571.result	2009-11-17 20:49:15.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/mysql-test/innodb_bug44571.result	2009-12-04 16:03:22.000000000 +0900
+@@ -3,7 +3,5 @@
+ ALTER TABLE bug44571 ADD INDEX bug44571b (foo);
+ ERROR 42000: Key column 'foo' doesn't exist in table
+ ALTER TABLE bug44571 ADD INDEX bug44571b (bar);
+-ERROR HY000: Incorrect key file for table 'bug44571'; try to repair it
+-CREATE INDEX bug44571b ON bug44571 (bar);
+-ERROR HY000: Incorrect key file for table 'bug44571'; try to repair it
++CREATE INDEX bug44571c ON bug44571 (bar);
+ DROP TABLE bug44571;
+diff -ruN innodb_plugin-1.0.6_orig/mysql-test/innodb_bug44571.test innodb_plugin-1.0.6_tmp/mysql-test/innodb_bug44571.test
+--- innodb_plugin-1.0.6_orig/mysql-test/innodb_bug44571.test	2009-11-17 20:49:15.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/mysql-test/innodb_bug44571.test	2009-12-04 16:03:30.000000000 +0900
+@@ -8,10 +8,6 @@
+ ALTER TABLE bug44571 CHANGE foo bar INT;
+ -- error ER_KEY_COLUMN_DOES_NOT_EXITS
+ ALTER TABLE bug44571 ADD INDEX bug44571b (foo);
+-# The following will fail, because the CHANGE foo bar was
+-# not communicated to InnoDB.
+---error ER_NOT_KEYFILE
+ ALTER TABLE bug44571 ADD INDEX bug44571b (bar);
+---error ER_NOT_KEYFILE
+-CREATE INDEX bug44571b ON bug44571 (bar);
++CREATE INDEX bug44571c ON bug44571 (bar);
+ DROP TABLE bug44571;
+diff -ruN innodb_plugin-1.0.6_orig/mysql-test/patches/information_schema.diff innodb_plugin-1.0.6_tmp/mysql-test/patches/information_schema.diff
+--- innodb_plugin-1.0.6_orig/mysql-test/patches/information_schema.diff	2009-01-31 15:05:24.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/mysql-test/patches/information_schema.diff	2009-12-04 16:31:46.000000000 +0900
+@@ -1,20 +1,28 @@
+---- mysql-test/r/information_schema.result.orig	2009-01-31 03:38:50.000000000 +0200
+-+++ mysql-test/r/information_schema.result	2009-01-31 07:51:58.000000000 +0200
+-@@ -71,6 +71,13 @@
++--- mysql-test/r/information_schema.result.orig	2009-12-04 16:08:19.000000000 +0900
+++++ mysql-test/r/information_schema.result	2009-12-04 16:09:12.000000000 +0900
++@@ -71,6 +71,21 @@
+  TRIGGERS
+  USER_PRIVILEGES
+  VIEWS
+-+INNODB_CMP_RESET
+++INNODB_BUFFER_POOL_PAGES_INDEX
+++INNODB_RSEG
+++INNODB_LOCKS
+++INNODB_BUFFER_POOL_PAGES
+++XTRADB_ENHANCEMENTS
+ +INNODB_TRX
+-+INNODB_CMPMEM_RESET
+++XTRADB_ADMIN_COMMAND
+ +INNODB_LOCK_WAITS
+-+INNODB_CMPMEM
+++INNODB_CMP_RESET
+ +INNODB_CMP
+-+INNODB_LOCKS
+++INNODB_CMPMEM_RESET
+++INNODB_TABLE_STATS
+++INNODB_CMPMEM
+++INNODB_INDEX_STATS
+++INNODB_BUFFER_POOL_PAGES_BLOB
+  columns_priv
+  db
+  event
+-@@ -799,6 +806,8 @@
++@@ -799,6 +814,8 @@
+  TABLES	UPDATE_TIME	datetime
+  TABLES	CHECK_TIME	datetime
+  TRIGGERS	CREATED	datetime
+@@ -23,102 +31,172 @@
+  event	execute_at	datetime
+  event	last_executed	datetime
+  event	starts	datetime
+-@@ -852,7 +861,7 @@
++@@ -847,12 +864,15 @@
++ TABLE_CONSTRAINTS	TABLE_NAME	select
++ TABLE_PRIVILEGES	TABLE_NAME	select
++ VIEWS	TABLE_NAME	select
+++INNODB_BUFFER_POOL_PAGES_INDEX	table_name	select
+++INNODB_TABLE_STATS	table_name	select
+++INNODB_INDEX_STATS	table_name	select
++ delete from mysql.user where user='mysqltest_4';
++ delete from mysql.db where user='mysqltest_4';
+  flush privileges;
+  SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+  table_schema	count(*)
+ -information_schema	28
+-+information_schema	35
+++information_schema	43
+  mysql	22
+  create table t1 (i int, j int);
+  create trigger trg1 before insert on t1 for each row
+-@@ -1267,6 +1276,13 @@
++@@ -1267,6 +1287,21 @@
+  TRIGGERS	TRIGGER_SCHEMA
+  USER_PRIVILEGES	GRANTEE
+  VIEWS	TABLE_SCHEMA
+-+INNODB_CMP_RESET	page_size
+++INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
+++INNODB_RSEG	rseg_id
+++INNODB_LOCKS	lock_id
+++INNODB_BUFFER_POOL_PAGES	page_type
+++XTRADB_ENHANCEMENTS	name
+ +INNODB_TRX	trx_id
+-+INNODB_CMPMEM_RESET	page_size
+++XTRADB_ADMIN_COMMAND	result_message
+ +INNODB_LOCK_WAITS	requesting_trx_id
+-+INNODB_CMPMEM	page_size
+++INNODB_CMP_RESET	page_size
+ +INNODB_CMP	page_size
+-+INNODB_LOCKS	lock_id
+++INNODB_CMPMEM_RESET	page_size
+++INNODB_TABLE_STATS	table_name
+++INNODB_CMPMEM	page_size
+++INNODB_INDEX_STATS	table_name
+++INNODB_BUFFER_POOL_PAGES_BLOB	space_id
+  SELECT t.table_name, c1.column_name
+  FROM information_schema.tables t
+  INNER JOIN
+-@@ -1310,6 +1326,13 @@
++@@ -1310,14 +1345,29 @@
+  TRIGGERS	TRIGGER_SCHEMA
+  USER_PRIVILEGES	GRANTEE
+  VIEWS	TABLE_SCHEMA
+-+INNODB_CMP_RESET	page_size
+++INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
+++INNODB_RSEG	rseg_id
+++INNODB_LOCKS	lock_id
+++INNODB_BUFFER_POOL_PAGES	page_type
+++XTRADB_ENHANCEMENTS	name
+ +INNODB_TRX	trx_id
+-+INNODB_CMPMEM_RESET	page_size
+++XTRADB_ADMIN_COMMAND	result_message
+ +INNODB_LOCK_WAITS	requesting_trx_id
+-+INNODB_CMPMEM	page_size
+++INNODB_CMP_RESET	page_size
+ +INNODB_CMP	page_size
+-+INNODB_LOCKS	lock_id
+++INNODB_CMPMEM_RESET	page_size
+++INNODB_TABLE_STATS	table_name
+++INNODB_CMPMEM	page_size
+++INNODB_INDEX_STATS	table_name
+++INNODB_BUFFER_POOL_PAGES_BLOB	space_id
+  SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+  MAX(table_name)
+- VIEWS
+-@@ -1386,6 +1409,13 @@
++-VIEWS
+++XTRADB_ENHANCEMENTS
++ SELECT table_name from information_schema.tables
++ WHERE table_name=(SELECT MAX(table_name)
++ FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
++ table_name
++-VIEWS
+++XTRADB_ENHANCEMENTS
++ DROP TABLE IF EXISTS bug23037;
++ DROP FUNCTION IF EXISTS get_value;
++ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
++@@ -1386,6 +1436,19 @@
+  FILES	information_schema.FILES	1
+  GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+  GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
+++INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
+++INNODB_BUFFER_POOL_PAGES_BLOB	information_schema.INNODB_BUFFER_POOL_PAGES_BLOB	1
+++INNODB_BUFFER_POOL_PAGES_INDEX	information_schema.INNODB_BUFFER_POOL_PAGES_INDEX	1
+ +INNODB_CMP	information_schema.INNODB_CMP	1
+ +INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
+ +INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1
+ +INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
+++INNODB_INDEX_STATS	information_schema.INNODB_INDEX_STATS	1
+ +INNODB_LOCKS	information_schema.INNODB_LOCKS	1
+ +INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
+++INNODB_RSEG	information_schema.INNODB_RSEG	1
+++INNODB_TABLE_STATS	information_schema.INNODB_TABLE_STATS	1
+ +INNODB_TRX	information_schema.INNODB_TRX	1
+  KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+  PARTITIONS	information_schema.PARTITIONS	1
+  PLUGINS	information_schema.PLUGINS	1
+-diff mysql-test/r/information_schema_db.result.orig mysql-test/r/information_schema_db.result
+---- mysql-test/r/information_schema_db.result.orig	2008-08-04 09:27:49.000000000 +0300
+-+++ mysql-test/r/information_schema_db.result	2008-10-07 12:26:31.000000000 +0300
+-@@ -33,6 +33,13 @@
++@@ -1404,6 +1467,7 @@
++ TRIGGERS	information_schema.TRIGGERS	1
++ USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
++ VIEWS	information_schema.VIEWS	1
+++XTRADB_ENHANCEMENTS	information_schema.XTRADB_ENHANCEMENTS	1
++ create table t1(f1 int);
++ create view v1 as select f1+1 as a from t1;
++ create table t2 (f1 int, f2 int);
++--- mysql-test/r/information_schema_db.result.orig	2009-12-04 16:08:03.000000000 +0900
+++++ mysql-test/r/information_schema_db.result	2009-12-04 16:09:28.000000000 +0900
++@@ -33,6 +33,21 @@
+  TRIGGERS
+  USER_PRIVILEGES
+  VIEWS
+-+INNODB_CMP_RESET
+++INNODB_BUFFER_POOL_PAGES_INDEX
+++INNODB_RSEG
+++INNODB_LOCKS
+++INNODB_BUFFER_POOL_PAGES
+++XTRADB_ENHANCEMENTS
+ +INNODB_TRX
+-+INNODB_CMPMEM_RESET
+++XTRADB_ADMIN_COMMAND
+ +INNODB_LOCK_WAITS
+-+INNODB_CMPMEM
+++INNODB_CMP_RESET
+ +INNODB_CMP
+-+INNODB_LOCKS
+++INNODB_CMPMEM_RESET
+++INNODB_TABLE_STATS
+++INNODB_CMPMEM
+++INNODB_INDEX_STATS
+++INNODB_BUFFER_POOL_PAGES_BLOB
+  show tables from INFORMATION_SCHEMA like 'T%';
+  Tables_in_information_schema (T%)
+  TABLES
+-diff mysql-test/r/mysqlshow.result.orig mysql-test/r/mysqlshow.result
+---- mysql-test/r/mysqlshow.result.orig	2008-08-04 09:27:51.000000000 +0300
+-+++ mysql-test/r/mysqlshow.result	2008-10-07 12:35:39.000000000 +0300
+-@@ -107,6 +107,13 @@
++--- mysql-test/r/mysqlshow.result.orig	2009-12-04 16:07:43.000000000 +0900
+++++ mysql-test/r/mysqlshow.result	2009-12-04 16:09:40.000000000 +0900
++@@ -107,6 +107,21 @@
+  | TRIGGERS                              |
+  | USER_PRIVILEGES                       |
+  | VIEWS                                 |
+-+| INNODB_CMP_RESET                      |
+++| INNODB_BUFFER_POOL_PAGES_INDEX        |
+++| INNODB_RSEG                           |
+++| INNODB_LOCKS                          |
+++| INNODB_BUFFER_POOL_PAGES              |
+++| XTRADB_ENHANCEMENTS                   |
+ +| INNODB_TRX                            |
+-+| INNODB_CMPMEM_RESET                   |
+++| XTRADB_ADMIN_COMMAND                  |
+ +| INNODB_LOCK_WAITS                     |
+-+| INNODB_CMPMEM                         |
+++| INNODB_CMP_RESET                      |
+ +| INNODB_CMP                            |
+-+| INNODB_LOCKS                          |
+++| INNODB_CMPMEM_RESET                   |
+++| INNODB_TABLE_STATS                    |
+++| INNODB_CMPMEM                         |
+++| INNODB_INDEX_STATS                    |
+++| INNODB_BUFFER_POOL_PAGES_BLOB         |
+  +---------------------------------------+
+  Database: INFORMATION_SCHEMA
+  +---------------------------------------+
+-@@ -140,6 +147,13 @@
++@@ -140,6 +155,21 @@
+  | TRIGGERS                              |
+  | USER_PRIVILEGES                       |
+  | VIEWS                                 |
+-+| INNODB_CMP_RESET                      |
+++| INNODB_BUFFER_POOL_PAGES_INDEX        |
+++| INNODB_RSEG                           |
+++| INNODB_LOCKS                          |
+++| INNODB_BUFFER_POOL_PAGES              |
+++| XTRADB_ENHANCEMENTS                   |
+ +| INNODB_TRX                            |
+-+| INNODB_CMPMEM_RESET                   |
+++| XTRADB_ADMIN_COMMAND                  |
+ +| INNODB_LOCK_WAITS                     |
+-+| INNODB_CMPMEM                         |
+++| INNODB_CMP_RESET                      |
+ +| INNODB_CMP                            |
+-+| INNODB_LOCKS                          |
+++| INNODB_CMPMEM_RESET                   |
+++| INNODB_TABLE_STATS                    |
+++| INNODB_CMPMEM                         |
+++| INNODB_INDEX_STATS                    |
+++| INNODB_BUFFER_POOL_PAGES_BLOB         |
+  +---------------------------------------+
+  Wildcard: inf_rmation_schema
+  +--------------------+
+diff -Nur a/mysql-test/patches/disabled.def.diff b/mysql-test/patches/disabled.def.diff
+--- a/mysql-test/patches/disabled.def.diff   1969-12-31 16:00:00.000000000 -0800
++++ b/mysql-test/patches/disabled.def.diff   2010-02-01 03:35:33.000000000 -0800
+@@ -0,0 +1,12 @@
++diff -Nur mysql-test/t/disabled.def.orig mysql-test/t/disabled.def
++--- mysql-test/t/disabled.def.orig      2010-03-23 07:10:50.000000000 -0700
+++++ mysql-test/t/disabled.def   2010-03-23 07:13:40.000000000 -0700
++@@ -12,3 +12,8 @@
++ kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
++ query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
++ innodb-autoinc-44030     : BUG#47621 2009-01-22 svoj MySQL and InnoDB dicts getting out of sync
+++read_many_rows_innodb    : Bug#433409 2009-09-20 the test fails on 5.1.37 https://bugs.launchpad.net/bugs/433409
+++log_tables-big           : Bug#48646 2009-12-12 mysql-test main.log_tables-big fails on 5.1.40
+++information_schema       : Conflict with 5.1-percona-patch
+++information_schema_db    : Conflict with 5.1-percona-patch
+++mysqlshow                : Conflict with 5.1-percona-patch
+diff -Nur a/mysql-test/patches/mysql.diff b/mysql-test/patches/mysql.diff
+--- a/mysql-test/patches/mysql.diff	1969-12-31 16:00:00.000000000 -0800
++++ b/mysql-test/patches/mysql.diff	2010-02-11 16:30:38.000000000 -0800
+@@ -0,0 +1,22 @@
++--- mysql-test/r/mysql.result.orig      2010-02-11 04:11:48.000000000 -0500
+++++ mysql-test/r/mysql.result   2010-02-11 04:18:24.000000000 -0500
++@@ -162,8 +162,8 @@
++ ERROR 1049 (42000) at line 1: Unknown database 'invalid'
++ Test connect with dbname + hostname
++ Test connect with dbname + _invalid_ hostname
++-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
++-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+++ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
+++ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
++ The commands reported in the bug report
++ ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
++ Too long dbname
++@@ -198,7 +198,7 @@
++ 1
++ COUNT (*)
++ 1
++-ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+++ERROR 2003 (HY000) at line 1: Can't connect to MySQL server on 'invalid_hostname' (errno)
++ End of 5.0 tests
++ WARNING: --server-arg option not supported in this configuration.
++ Warning (Code 1286): Unknown table engine 'nonexistent'
+diff -Nur a/mysql-test/patches/mysql_upgrade.diff b/mysql-test/patches/mysql_upgrade.diff
+--- a/mysql-test/patches/mysql_upgrade.diff     1969-12-31 16:00:00.000000000 -0800
++++ b/mysql-test/patches/mysql_upgrade.diff     2010-02-14 05:12:47.000000000 -0800
+@@ -0,0 +1,11 @@
++--- mysql-test/r/mysql_upgrade.result.orig      2010-02-13 16:51:51.000000000 -0500
+++++ mysql-test/r/mysql_upgrade.result   2010-02-13 16:52:07.000000000 -0500
++@@ -94,7 +94,7 @@
++ mysql.user                                         OK
++ DROP USER mysqltest1@'%';
++ Run mysql_upgrade with a non existing server socket
++-mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
+++mysqlcheck: Got error: 2003: Can't connect to MySQL server on 'not_existing_host' (errno) when trying to connect
++ FATAL ERROR: Upgrade failed
++ set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
++ mtr.global_suppressions                            OK

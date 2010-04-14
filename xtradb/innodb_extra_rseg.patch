@@ -1,0 +1,340 @@
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2009-12-04 11:50:29.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2009-12-04 11:51:36.000000000 +0900
+@@ -10317,6 +10317,11 @@
+   "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
+   NULL, NULL, 0, 0, 1, 0);
+ 
++static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
++  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
++  "Number of extra user rollback segments when create new database.",
++  NULL, NULL, 0, 0, 126, 0);
++
+ static struct st_mysql_sys_var* innobase_system_variables[]= {
+   MYSQL_SYSVAR(additional_mem_pool_size),
+   MYSQL_SYSVAR(autoextend_increment),
+@@ -10380,6 +10385,7 @@
+   MYSQL_SYSVAR(read_ahead),
+   MYSQL_SYSVAR(adaptive_checkpoint),
+   MYSQL_SYSVAR(enable_unsafe_group_commit),
++  MYSQL_SYSVAR(extra_rsegments),
+   MYSQL_SYSVAR(use_sys_malloc),
+   MYSQL_SYSVAR(change_buffering),
+   MYSQL_SYSVAR(read_ahead_threshold),
+@@ -10402,6 +10408,7 @@
+   innobase_system_variables, /* system variables */
+   NULL /* reserved */
+ },
++i_s_innodb_rseg,
+ i_s_innodb_buffer_pool_pages,
+ i_s_innodb_buffer_pool_pages_index,
+ i_s_innodb_buffer_pool_pages_blob,
+diff -ruN innodb_plugin-1.0.6_orig/handler/i_s.cc innodb_plugin-1.0.6_tmp/handler/i_s.cc
+--- innodb_plugin-1.0.6_orig/handler/i_s.cc	2009-12-04 11:04:03.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/i_s.cc	2009-12-04 11:51:36.000000000 +0900
+@@ -44,6 +44,8 @@
+ #include "srv0start.h" /* for srv_was_started */
+ #include "btr0btr.h" /* for btr_page_get_index_id */
+ #include "dict0dict.h" /* for dict_index_get_if_in_cache */
++#include "trx0rseg.h" /* for trx_rseg_struct */
++#include "trx0sys.h" /* for trx_sys */
+ /* from buf0buf.c */
+ struct buf_chunk_struct{
+ 	ulint		mem_size;	/* allocated size of the chunk */
+@@ -2490,3 +2492,166 @@
+ 
+ 	DBUG_RETURN(0);
+ }
++
++/***********************************************************************
++*/
++static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
++{
++	{STRUCT_FLD(field_name,		"rseg_id"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"space_id"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"zip_size"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"page_no"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"max_size"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"curr_size"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	END_OF_ST_FIELD_INFO
++};
++
++static
++int
++i_s_innodb_rseg_fill(
++/*=================*/
++	THD*		thd,	/* in: thread */
++	TABLE_LIST*	tables,	/* in/out: tables to fill */
++	COND*		cond)	/* in: condition (ignored) */
++{
++	TABLE*	table	= (TABLE *) tables->table;
++	int	status	= 0;
++	trx_rseg_t*	rseg;
++
++	DBUG_ENTER("i_s_innodb_rseg_fill");
++
++	/* deny access to non-superusers */
++	if (check_global_access(thd, PROCESS_ACL)) {
++
++		DBUG_RETURN(0);
++	}
++
++	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
++
++	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
++
++	while (rseg) {
++		table->field[0]->store(rseg->id);
++		table->field[1]->store(rseg->space);
++		table->field[2]->store(rseg->zip_size);
++		table->field[3]->store(rseg->page_no);
++		table->field[4]->store(rseg->max_size);
++		table->field[5]->store(rseg->curr_size);
++
++		if (schema_table_store_record(thd, table)) {
++			status = 1;
++			break;
++		}
++
++		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
++	}
++
++	DBUG_RETURN(status);
++}
++
++static
++int
++i_s_innodb_rseg_init(
++/*=================*/
++			/* out: 0 on success */
++	void*	p)	/* in/out: table schema object */
++{
++	DBUG_ENTER("i_s_innodb_rseg_init");
++	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
++
++	schema->fields_info = i_s_innodb_rseg_fields_info;
++	schema->fill_table = i_s_innodb_rseg_fill;
++
++	DBUG_RETURN(0);
++}
++
++UNIV_INTERN struct st_mysql_plugin	i_s_innodb_rseg =
++{
++	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
++	/* int */
++	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
++
++	/* pointer to type-specific plugin descriptor */
++	/* void* */
++	STRUCT_FLD(info, &i_s_info),
++
++	/* plugin name */
++	/* const char* */
++	STRUCT_FLD(name, "INNODB_RSEG"),
++
++	/* plugin author (for SHOW PLUGINS) */
++	/* const char* */
++	STRUCT_FLD(author, plugin_author),
++
++	/* general descriptive text (for SHOW PLUGINS) */
++	/* const char* */
++	STRUCT_FLD(descr, "InnoDB rollback segment information"),
++
++	/* the plugin license (PLUGIN_LICENSE_XXX) */
++	/* int */
++	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
++
++	/* the function to invoke when plugin is loaded */
++	/* int (*)(void*); */
++	STRUCT_FLD(init, i_s_innodb_rseg_init),
++
++	/* the function to invoke when plugin is unloaded */
++	/* int (*)(void*); */
++	STRUCT_FLD(deinit, i_s_common_deinit),
++
++	/* plugin version (for SHOW PLUGINS) */
++	/* unsigned int */
++	STRUCT_FLD(version, 0x0100 /* 1.0 */),
++
++	/* struct st_mysql_show_var* */
++	STRUCT_FLD(status_vars, NULL),
++
++	/* struct st_mysql_sys_var** */
++	STRUCT_FLD(system_vars, NULL),
++
++	/* reserved for dependency checking */
++	/* void* */
++	STRUCT_FLD(__reserved1, NULL)
++};
+diff -ruN innodb_plugin-1.0.6_orig/handler/i_s.h innodb_plugin-1.0.6_tmp/handler/i_s.h
+--- innodb_plugin-1.0.6_orig/handler/i_s.h	2009-12-04 11:04:03.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/i_s.h	2009-12-04 11:51:36.000000000 +0900
+@@ -37,5 +37,6 @@
+ extern struct st_mysql_plugin	i_s_innodb_cmpmem;
+ extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
+ extern struct st_mysql_plugin	i_s_innodb_patches;
++extern struct st_mysql_plugin	i_s_innodb_rseg;
+ 
+ #endif /* i_s_h */
+diff -ruN innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h
+--- innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h	2009-12-04 11:50:29.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h	2009-12-04 11:51:36.000000000 +0900
+@@ -29,5 +29,6 @@
+ {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_buffer_pool_pages","Information of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_expand_undo_slots","expandable maximum number of undo slots","from 1024 (default) to about 4000","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_extra_rseg","allow to create extra rollback segments","When create new db, the new parameter allows to create more rollback segments","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN innodb_plugin-1.0.6_orig/include/srv0srv.h innodb_plugin-1.0.6_tmp/include/srv0srv.h
+--- innodb_plugin-1.0.6_orig/include/srv0srv.h	2009-12-04 11:50:29.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/srv0srv.h	2009-12-04 11:51:36.000000000 +0900
+@@ -229,6 +229,8 @@
+ extern ulint	srv_read_ahead;
+ extern ulint	srv_adaptive_checkpoint;
+ 
++extern ulint	srv_extra_rsegments;
++
+ /*-------------------------------------------*/
+ 
+ extern ulint	srv_n_rows_inserted;
+diff -ruN innodb_plugin-1.0.6_orig/include/trx0sys.h innodb_plugin-1.0.6_tmp/include/trx0sys.h
+--- innodb_plugin-1.0.6_orig/include/trx0sys.h	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/trx0sys.h	2009-12-04 11:51:36.000000000 +0900
+@@ -134,6 +134,13 @@
+ void
+ trx_sys_create(void);
+ /*================*/
++/*********************************************************************
++Create extra rollback segments when create_new_db */
++UNIV_INTERN
++void
++trx_sys_create_extra_rseg(
++/*======================*/
++	ulint	num);	/* in: number of extra user rollback segments */
+ /****************************************************************//**
+ Looks for a free slot for a rollback segment in the trx system file copy.
+ @return	slot index or ULINT_UNDEFINED if not found */
+diff -ruN innodb_plugin-1.0.6_orig/scripts/install_innodb_plugins.sql innodb_plugin-1.0.6_tmp/scripts/install_innodb_plugins.sql
+--- innodb_plugin-1.0.6_orig/scripts/install_innodb_plugins.sql	2009-12-04 11:04:03.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/scripts/install_innodb_plugins.sql	2009-12-04 11:55:50.000000000 +0900
+@@ -11,3 +11,4 @@
+ INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES SONAME 'ha_innodb.so';
+ INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES_BLOB SONAME 'ha_innodb.so';
+ INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES_INDEX SONAME 'ha_innodb.so';
++INSTALL PLUGIN innodb_rseg SONAME 'ha_innodb.so';
+diff -ruN innodb_plugin-1.0.6_orig/scripts/install_innodb_plugins_win.sql innodb_plugin-1.0.6_tmp/scripts/install_innodb_plugins_win.sql
+--- innodb_plugin-1.0.6_orig/scripts/install_innodb_plugins_win.sql	2009-12-04 11:04:03.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/scripts/install_innodb_plugins_win.sql	2009-12-04 11:56:00.000000000 +0900
+@@ -11,3 +11,4 @@
+ INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES SONAME 'ha_innodb.dll';
+ INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES_BLOB SONAME 'ha_innodb.dll';
+ INSTALL PLUGIN INNODB_BUFFER_POOL_PAGES_INDEX SONAME 'ha_innodb.dll';
++INSTALL PLUGIN innodb_rseg SONAME 'ha_innodb.dll';
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0srv.c innodb_plugin-1.0.6_tmp/srv/srv0srv.c
+--- innodb_plugin-1.0.6_orig/srv/srv0srv.c	2009-12-04 11:50:29.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0srv.c	2009-12-04 11:51:36.000000000 +0900
+@@ -391,6 +391,8 @@
+ UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
+ UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
+ UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
++
++UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
+ /*-------------------------------------------*/
+ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
+ UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0start.c innodb_plugin-1.0.6_tmp/srv/srv0start.c
+--- innodb_plugin-1.0.6_orig/srv/srv0start.c	2009-12-04 10:48:12.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0start.c	2009-12-04 11:51:36.000000000 +0900
+@@ -1512,6 +1512,14 @@
+ 		dict_create();
+ 		srv_startup_is_before_trx_rollback_phase = FALSE;
+ 
++		if (trx_doublewrite == NULL) {
++			/* Create the doublewrite buffer here to avoid assertion error
++			   about page_no of doublewrite_buf */
++			trx_sys_create_doublewrite_buf();
++		}
++
++		if (srv_extra_rsegments)
++			trx_sys_create_extra_rseg(srv_extra_rsegments);
+ #ifdef UNIV_LOG_ARCHIVE
+ 	} else if (srv_archive_recovery) {
+ 		fprintf(stderr,
+diff -ruN innodb_plugin-1.0.6_orig/trx/trx0sys.c innodb_plugin-1.0.6_tmp/trx/trx0sys.c
+--- innodb_plugin-1.0.6_orig/trx/trx0sys.c	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/trx/trx0sys.c	2009-12-04 11:51:36.000000000 +0900
+@@ -1039,6 +1039,31 @@
+ 	trx_sys_init_at_db_start();
+ }
+ 
++/*********************************************************************
++Create extra rollback segments when create_new_db */
++UNIV_INTERN
++void
++trx_sys_create_extra_rseg(
++/*======================*/
++	ulint	num)	/* in: number of extra user rollback segments */
++{
++	mtr_t	mtr;
++	ulint	slot_no;
++	ulint	i;
++
++	/* Craete extra rollback segments */
++	mtr_start(&mtr);
++	for (i = 1; i < num + 1; i++) {
++		if(!trx_rseg_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no, &mtr)) {
++			fprintf(stderr,
++"InnoDB: Warning: Failed to create extra rollback segments.\n");
++			break;
++		}
++		ut_a(slot_no == i);
++	}
++	mtr_commit(&mtr);
++}
++
+ /*****************************************************************//**
+ Update the file format tag.
+ @return	always TRUE */

@@ -1,0 +1,143 @@
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2009-12-04 11:04:03.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2009-12-04 11:39:52.000000000 +0900
+@@ -187,6 +187,7 @@
+ #endif /* UNIV_LOG_ARCHIVE */
+ static my_bool	innobase_use_doublewrite		= TRUE;
+ static my_bool	innobase_use_checksums			= TRUE;
++static my_bool	innobase_extra_undoslots		= FALSE;
+ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
+ static my_bool	innobase_rollback_on_timeout		= FALSE;
+ static my_bool	innobase_create_status_file		= FALSE;
+@@ -2089,6 +2090,8 @@
+ 		goto error;
+ 	}
+ 
++	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
++
+ 	/* -------------- Log files ---------------------------*/
+ 
+ 	/* The default dir for log files is the datadir of MySQL */
+@@ -9941,6 +9944,13 @@
+   "The common part for InnoDB table spaces.",
+   NULL, NULL, NULL);
+ 
++static MYSQL_SYSVAR_BOOL(extra_undoslots, innobase_extra_undoslots,
++  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
++  "Enable to use about 4000 undo slots instead of default 1024. "
++  "#### Attention: Once you enable this parameter, "
++  "don't use the datafile for normal mysqld or ibbackup! ####",
++  NULL, NULL, FALSE);
++
+ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+   "Enable InnoDB doublewrite buffer (enabled by default). "
+@@ -10317,6 +10327,7 @@
+   MYSQL_SYSVAR(data_file_path),
+   MYSQL_SYSVAR(data_home_dir),
+   MYSQL_SYSVAR(doublewrite),
++  MYSQL_SYSVAR(extra_undoslots),
+   MYSQL_SYSVAR(fast_shutdown),
+   MYSQL_SYSVAR(file_io_threads),
+   MYSQL_SYSVAR(read_io_threads),
+diff -ruN innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h
+--- innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h	2009-12-04 11:04:03.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h	2009-12-04 11:39:52.000000000 +0900
+@@ -28,5 +28,6 @@
+ {"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_buffer_pool_pages","Information of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_expand_undo_slots","expandable maximum number of undo slots","from 1024 (default) to about 4000","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN innodb_plugin-1.0.6_orig/include/srv0srv.h innodb_plugin-1.0.6_tmp/include/srv0srv.h
+--- innodb_plugin-1.0.6_orig/include/srv0srv.h	2009-12-04 10:48:12.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/srv0srv.h	2009-12-04 11:39:52.000000000 +0900
+@@ -130,6 +130,8 @@
+ extern ulint*	srv_data_file_sizes;
+ extern ulint*	srv_data_file_is_raw_partition;
+ 
++extern ibool	srv_extra_undoslots;
++
+ extern ibool	srv_auto_extend_last_data_file;
+ extern ulint	srv_last_file_size_max;
+ extern char**	srv_log_group_home_dirs;
+diff -ruN innodb_plugin-1.0.6_orig/include/trx0rseg.h innodb_plugin-1.0.6_tmp/include/trx0rseg.h
+--- innodb_plugin-1.0.6_orig/include/trx0rseg.h	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/trx0rseg.h	2009-12-04 11:39:52.000000000 +0900
+@@ -134,8 +134,11 @@
+ 	trx_rseg_t*	rseg);		/* in, own: instance to free */
+ 
+ 
++/* Real max value may be 4076 in usual. But reserve 4 slot for safety or etc... */
++#define TRX_RSEG_N_EXTRA_SLOTS	(((UNIV_PAGE_SIZE - (FIL_PAGE_DATA + FIL_PAGE_DATA_END + TRX_RSEG_UNDO_SLOTS)) / TRX_RSEG_SLOT_SIZE) - 4)
++
+ /* Number of undo log slots in a rollback segment file copy */
+-#define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
++#define TRX_RSEG_N_SLOTS	(srv_extra_undoslots ? TRX_RSEG_N_EXTRA_SLOTS : (UNIV_PAGE_SIZE / 16))
+ 
+ /* Maximum number of transactions supported by a single rollback segment */
+ #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0srv.c innodb_plugin-1.0.6_tmp/srv/srv0srv.c
+--- innodb_plugin-1.0.6_orig/srv/srv0srv.c	2009-12-04 10:48:12.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0srv.c	2009-12-04 11:39:52.000000000 +0900
+@@ -159,6 +159,8 @@
+ /* size in database pages */
+ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
+ 
++UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
++
+ /* if TRUE, then we auto-extend the last data file */
+ UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
+ /* if != 0, this tells the max size auto-extending may increase the
+diff -ruN innodb_plugin-1.0.6_orig/trx/trx0undo.c innodb_plugin-1.0.6_tmp/trx/trx0undo.c
+--- innodb_plugin-1.0.6_orig/trx/trx0undo.c	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/trx/trx0undo.c	2009-12-04 11:39:52.000000000 +0900
+@@ -1398,9 +1398,47 @@
+ 	rseg_header = trx_rsegf_get_new(rseg->space, rseg->zip_size,
+ 					rseg->page_no, &mtr);
+ 
++	if (!srv_extra_undoslots) {
++		/* uses direct call for avoid "Assertion failure" */
++		//page_no = trx_rsegf_get_nth_undo(rseg_header, TRX_RSEG_N_EXTRA_SLOTS - 1, &mtr);
++		page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
++					 + (TRX_RSEG_N_EXTRA_SLOTS - 1) * TRX_RSEG_SLOT_SIZE,
++					 MLOG_4BYTES, &mtr);
++		if (page_no != 0) {
++			/* check extended slots are not used */
++			for (i = TRX_RSEG_N_SLOTS; i < TRX_RSEG_N_EXTRA_SLOTS; i++) {
++				/* uses direct call for avoid "Assertion failure" */
++				page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
++							 + i * TRX_RSEG_SLOT_SIZE,
++							 MLOG_4BYTES, &mtr);
++				if (page_no != FIL_NULL) {
++					srv_extra_undoslots = TRUE;
++					fprintf(stderr,
++"InnoDB: Error: innodb_extra_undoslots option is disabled, but it was enabled before.\n"
++"InnoDB: The datafile is not normal for mysqld and disabled innodb_extra_undoslots.\n"
++"InnoDB: Enable innodb_extra_undoslots if it was enabled before, and\n"
++"InnoDB: ### don't use this datafile with other mysqld or ibbackup! ###\n"
++"InnoDB: Cannot continue operation for the safety. Calling exit(1).\n");
++					exit(1);
++				}
++			}
++			fprintf(stderr,
++"InnoDB: Warning: innodb_extra_undoslots option is disabled, but it was  enabled before.\n"
++"InnoDB: But extended undo slots seem not used, so continue operation.\n");
++		}
++	}
++
+ 	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
+ 		page_no = trx_rsegf_get_nth_undo(rseg_header, i, &mtr);
+ 
++		/* If it was not initialized when the datafile created,
++		page_no will be 0 for the extended slots after that */
++
++		if (page_no == 0) {
++			page_no = FIL_NULL;
++			trx_rsegf_set_nth_undo(rseg_header, i, page_no, &mtr);
++		}
++
+ 		/* In forced recovery: try to avoid operations which look
+ 		at database pages; undo logs are rapidly changing data, and
+ 		the probability that they are in an inconsistent state is

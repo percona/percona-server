@@ -1,0 +1,52 @@
+diff -ru a/mysql-test/r/create.result b/mysql-test/r/create.result
+--- a/mysql-test/r/create.result	2009-12-17 03:21:28.000000000 +0900
++++ b/mysql-test/r/create.result	2010-01-29 18:45:23.000000000 +0900
+@@ -1746,7 +1746,8 @@
+   `COMMAND` varchar(16) NOT NULL DEFAULT '',
+   `TIME` int(7) NOT NULL DEFAULT '0',
+   `STATE` varchar(64) DEFAULT NULL,
+-  `INFO` longtext
++  `INFO` longtext,
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0'
+ ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+ drop table t1;
+ create temporary table t1 like information_schema.processlist;
+@@ -1760,7 +1761,8 @@
+   `COMMAND` varchar(16) NOT NULL DEFAULT '',
+   `TIME` int(7) NOT NULL DEFAULT '0',
+   `STATE` varchar(64) DEFAULT NULL,
+-  `INFO` longtext
++  `INFO` longtext,
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0'
+ ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+ drop table t1;
+ create table t1 like information_schema.character_sets;
+diff -ru a/mysql-test/r/profiling.result b/mysql-test/r/profiling.result
+--- a/mysql-test/r/profiling.result	2009-12-17 03:21:47.000000000 +0900
++++ b/mysql-test/r/profiling.result	2010-01-29 18:45:23.000000000 +0900
+@@ -6,6 +6,8 @@
+ Variable_name	Value
+ profiling	OFF
+ profiling_history_size	15
++profiling_server	OFF
++profiling_use_getrusage	OFF
+ select @@profiling;
+ @@profiling
+ 0
+@@ -17,12 +19,16 @@
+ Variable_name	Value
+ profiling	OFF
+ profiling_history_size	100
++profiling_server	OFF
++profiling_use_getrusage	OFF
+ set session profiling = ON;
+ set session profiling_history_size=30;
+ show session variables like 'profil%';
+ Variable_name	Value
+ profiling	ON
+ profiling_history_size	30
++profiling_server	OFF
++profiling_use_getrusage	OFF
+ select @@profiling;
+ @@profiling
+ 1

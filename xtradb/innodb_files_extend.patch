@@ -1,0 +1,403 @@
+diff -ruN innodb_plugin-1.0.6_orig/buf/buf0buddy.c innodb_plugin-1.0.6_tmp/buf/buf0buddy.c
+--- innodb_plugin-1.0.6_orig/buf/buf0buddy.c	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/buf/buf0buddy.c	2010-03-12 16:48:25.000000000 +0900
+@@ -43,7 +43,7 @@
+ #endif /* UNIV_DEBUG */
+ /** Statistics of the buddy system, indexed by block size.
+ Protected by buf_pool_mutex. */
+-UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
++UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
+ 
+ /**********************************************************************//**
+ Get the offset of the buddy of a compressed page frame.
+diff -ruN innodb_plugin-1.0.6_orig/fil/fil0fil.c innodb_plugin-1.0.6_tmp/fil/fil0fil.c
+--- innodb_plugin-1.0.6_orig/fil/fil0fil.c	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/fil/fil0fil.c	2010-03-12 16:48:25.000000000 +0900
+@@ -4594,9 +4594,9 @@
+ 	ut_ad(ut_is_2pow(zip_size));
+ 	ut_ad(buf);
+ 	ut_ad(len > 0);
+-#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
+-# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
+-#endif
++//#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
++//# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
++//#endif
+ 	ut_ad(fil_validate());
+ #ifndef UNIV_HOTBACKUP
+ # ifndef UNIV_LOG_DEBUG
+diff -ruN innodb_plugin-1.0.6_orig/fsp/fsp0fsp.c innodb_plugin-1.0.6_tmp/fsp/fsp0fsp.c
+--- innodb_plugin-1.0.6_orig/fsp/fsp0fsp.c	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/fsp/fsp0fsp.c	2010-03-12 16:48:25.000000000 +0900
+@@ -658,15 +658,16 @@
+ 	ulint	offset)		/*!< in: page offset */
+ {
+ #ifndef DOXYGEN /* Doxygen gets confused of these */
+-# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
+-		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+-#  error
+-# endif
++//# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
++//		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
++//#  error
++//# endif
+ # if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
+ 		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+ #  error
+ # endif
+ #endif /* !DOXYGEN */
++	ut_a(UNIV_PAGE_SIZE > XDES_ARR_OFFSET + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
+ 	ut_ad(ut_is_2pow(zip_size));
+ 
+ 	if (!zip_size) {
+@@ -1469,12 +1470,12 @@
+ 							   mtr);
+ 		xdes_init(descr, mtr);
+ 
+-#if UNIV_PAGE_SIZE % FSP_EXTENT_SIZE
+-# error "UNIV_PAGE_SIZE % FSP_EXTENT_SIZE != 0"
+-#endif
+-#if PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE
+-# error "PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE != 0"
+-#endif
++//#if UNIV_PAGE_SIZE % FSP_EXTENT_SIZE
++//# error "UNIV_PAGE_SIZE % FSP_EXTENT_SIZE != 0"
++//#endif
++//#if PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE
++//# error "PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE != 0"
++//#endif
+ 
+ 		if (UNIV_UNLIKELY(init_xdes)) {
+ 
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2010-03-12 16:48:25.000000000 +0900
+@@ -173,6 +173,8 @@
+ static ulong innobase_read_io_threads;
+ static ulong innobase_write_io_threads;
+ 
++static ulong innobase_page_size;
++
+ static my_bool innobase_thread_concurrency_timer_based;
+ static long long innobase_buffer_pool_size, innobase_log_file_size;
+ 
+@@ -2068,6 +2070,36 @@
+ 	}
+ #endif /* UNIV_DEBUG */
+ 
++	srv_page_size = 0;
++	srv_page_size_shift = 0;
++
++	if (innobase_page_size != (1 << 14)) {
++		int n_shift;
++
++		fprintf(stderr,
++			"InnoDB: Warning: innodb_page_size has been changed from default value 16384. (###EXPERIMENTAL### operation)\n");
++		for (n_shift = 12; n_shift <= UNIV_PAGE_SIZE_SHIFT_MAX; n_shift++) {
++			if (innobase_page_size == (1 << n_shift)) {
++				srv_page_size_shift = n_shift;
++				srv_page_size = (1 << srv_page_size_shift);
++				fprintf(stderr,
++					"InnoDB: The universal page size of the database is set to %lu.\n",
++					srv_page_size);
++				break;
++			}
++		}
++	} else {
++		srv_page_size_shift = 14;
++		srv_page_size = (1 << srv_page_size_shift);
++	}
++
++	if (!srv_page_size_shift) {
++		fprintf(stderr,
++			"InnoDB: Error: %lu is not valid value for innodb_page_size.\n",
++			innobase_page_size);
++		goto error;
++	}
++
+ #ifndef MYSQL_SERVER
+ 	innodb_overwrite_relay_log_info = FALSE;
+ #endif
+@@ -6614,9 +6646,9 @@
+ 					| DICT_TF_COMPACT
+ 					| DICT_TF_FORMAT_ZIP
+ 					<< DICT_TF_FORMAT_SHIFT;
+-#if DICT_TF_ZSSIZE_MAX < 1
+-# error "DICT_TF_ZSSIZE_MAX < 1"
+-#endif
++//#if DICT_TF_ZSSIZE_MAX < 1
++//# error "DICT_TF_ZSSIZE_MAX < 1"
++//#endif
+ 			}
+ 		}
+ 
+@@ -10322,6 +10354,11 @@
+   "#### Attention: The checksum is not compatible for normal or disabled version! ####",
+   NULL, NULL, FALSE);
+ 
++static MYSQL_SYSVAR_ULONG(page_size, innobase_page_size,
++  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
++  "###EXPERIMENTAL###: The universal page size of the database. Changing for created database is not supported. Use on your own risk!",
++  NULL, NULL, (1 << 14), (1 << 12), (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
++
+ static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
+   PLUGIN_VAR_READONLY,
+   "The common part for InnoDB table spaces.",
+@@ -10787,6 +10824,7 @@
+   NULL, NULL, 0, 0, 1, 0);
+ 
+ static struct st_mysql_sys_var* innobase_system_variables[]= {
++  MYSQL_SYSVAR(page_size),
+   MYSQL_SYSVAR(additional_mem_pool_size),
+   MYSQL_SYSVAR(autoextend_increment),
+   MYSQL_SYSVAR(buffer_pool_size),
+diff -ruN innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h
+--- innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h	2010-03-12 17:23:54.000000000 +0900
+@@ -45,5 +45,6 @@
+ {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN innodb_plugin-1.0.6_orig/include/buf0buddy.h innodb_plugin-1.0.6_tmp/include/buf0buddy.h
+--- innodb_plugin-1.0.6_orig/include/buf0buddy.h	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/buf0buddy.h	2010-03-12 16:48:25.000000000 +0900
+@@ -83,7 +83,7 @@
+ 
+ /** Statistics of the buddy system, indexed by block size.
+ Protected by buf_pool_mutex. */
+-extern buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
++extern buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
+ 
+ #ifndef UNIV_NONINL
+ # include "buf0buddy.ic"
+diff -ruN innodb_plugin-1.0.6_orig/include/buf0buf.h innodb_plugin-1.0.6_tmp/include/buf0buf.h
+--- innodb_plugin-1.0.6_orig/include/buf0buf.h	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/buf0buf.h	2010-03-12 16:48:25.000000000 +0900
+@@ -1429,11 +1429,11 @@
+ 	/* @{ */
+ 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
+ 					/*!< unmodified compressed pages */
+-	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
++	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
+ 					/*!< buddy free lists */
+-#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
+-# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
+-#endif
++//#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
++//# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
++//#endif
+ #if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
+ # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
+ #endif
+diff -ruN innodb_plugin-1.0.6_orig/include/buf0types.h innodb_plugin-1.0.6_tmp/include/buf0types.h
+--- innodb_plugin-1.0.6_orig/include/buf0types.h	2009-08-28 01:00:27.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/buf0types.h	2010-03-12 16:48:25.000000000 +0900
+@@ -70,6 +70,7 @@
+ 					buddy system; must be at least
+ 					sizeof(buf_page_t) */
+ #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
++#define BUF_BUDDY_SIZES_MAX	(UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT)
+ 					/*!< number of buddy sizes */
+ 
+ /** twice the maximum block size of the buddy system;
+diff -ruN innodb_plugin-1.0.6_orig/include/page0types.h innodb_plugin-1.0.6_tmp/include/page0types.h
+--- innodb_plugin-1.0.6_orig/include/page0types.h	2009-05-26 22:28:49.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/page0types.h	2010-03-12 16:48:25.000000000 +0900
+@@ -56,8 +56,9 @@
+ 
+ /** Number of supported compressed page sizes */
+ #define PAGE_ZIP_NUM_SSIZE (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 2)
+-#if PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)
+-# error "PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)"
++#define PAGE_ZIP_NUM_SSIZE_MAX (UNIV_PAGE_SIZE_SHIFT_MAX - PAGE_ZIP_MIN_SIZE_SHIFT + 2)
++#if PAGE_ZIP_NUM_SSIZE_MAX > (1 << PAGE_ZIP_SSIZE_BITS)
++# error "PAGE_ZIP_NUM_SSIZE_MAX > (1 << PAGE_ZIP_SSIZE_BITS)"
+ #endif
+ 
+ /** Compressed page descriptor */
+@@ -98,7 +99,7 @@
+ typedef struct page_zip_stat_struct page_zip_stat_t;
+ 
+ /** Statistics on compression, indexed by page_zip_des_struct::ssize - 1 */
+-extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
++extern page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE_MAX - 1];
+ 
+ /**********************************************************************//**
+ Write the "deleted" flag of a record on a compressed page.  The flag must
+diff -ruN innodb_plugin-1.0.6_orig/include/trx0sys.h innodb_plugin-1.0.6_tmp/include/trx0sys.h
+--- innodb_plugin-1.0.6_orig/include/trx0sys.h	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/trx0sys.h	2010-03-12 16:48:25.000000000 +0900
+@@ -487,9 +487,9 @@
+ /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
+ #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
+ 
+-#if UNIV_PAGE_SIZE < 4096
+-# error "UNIV_PAGE_SIZE < 4096"
+-#endif
++//#if UNIV_PAGE_SIZE < 4096
++//# error "UNIV_PAGE_SIZE < 4096"
++//#endif
+ /** The offset of the MySQL replication info in the trx system header;
+ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
+ #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
+diff -ruN innodb_plugin-1.0.6_orig/include/univ.i innodb_plugin-1.0.6_tmp/include/univ.i
+--- innodb_plugin-1.0.6_orig/include/univ.i	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/univ.i	2010-03-12 16:48:25.000000000 +0900
+@@ -292,9 +292,13 @@
+ */
+ 
+ /* The 2-logarithm of UNIV_PAGE_SIZE: */
+-#define UNIV_PAGE_SIZE_SHIFT	14
++/* #define UNIV_PAGE_SIZE_SHIFT	14 */
++#define UNIV_PAGE_SIZE_SHIFT_MAX	14
++#define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
+ /* The universal page size of the database */
+-#define UNIV_PAGE_SIZE		(1 << UNIV_PAGE_SIZE_SHIFT)
++/* #define UNIV_PAGE_SIZE		(1 << UNIV_PAGE_SIZE_SHIFT) */
++#define UNIV_PAGE_SIZE		srv_page_size
++#define UNIV_PAGE_SIZE_MAX	(1 << UNIV_PAGE_SIZE_SHIFT_MAX)
+ 
+ /* Maximum number of parallel threads in a parallelized operation */
+ #define UNIV_MAX_PARALLELISM	32
+@@ -387,7 +391,7 @@
+ stored part of the field in the tablespace. The length field then
+ contains the sum of the following flag and the locally stored len. */
+ 
+-#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
++#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
+ 
+ /* Some macros to improve branch prediction and reduce cache misses */
+ #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
+@@ -490,4 +494,6 @@
+ 	UNIV_MEM_ALLOC(addr, size);			\
+ } while (0)
+ 
++extern ulint	srv_page_size_shift;
++extern ulint	srv_page_size;
+ #endif
+diff -ruN innodb_plugin-1.0.6_orig/log/log0log.c innodb_plugin-1.0.6_tmp/log/log0log.c
+--- innodb_plugin-1.0.6_orig/log/log0log.c	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/log/log0log.c	2010-03-12 16:51:30.000000000 +0900
+@@ -608,7 +608,9 @@
+ 
+ 	offset = (gr_lsn_size_offset + difference) % group_size;
+ 
++	if (sizeof(ulint) == 4) {
+ 	ut_a(offset < (((ib_int64_t) 1) << 32)); /* offset must be < 4 GB */
++	}
+ 
+ 	/* fprintf(stderr,
+ 	"Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
+@@ -1805,6 +1807,7 @@
+ 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
+ 
+ #ifdef UNIV_LOG_ARCHIVE
++#error "UNIV_LOG_ARCHIVE could not be enabled"
+ 	if (log_sys->archiving_state == LOG_ARCH_OFF) {
+ 		archived_lsn = IB_ULONGLONG_MAX;
+ 	} else {
+@@ -1818,7 +1821,9 @@
+ 
+ 	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
+ #else /* UNIV_LOG_ARCHIVE */
+-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
++	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN,
++			(ib_uint64_t)log_group_calc_lsn_offset(
++				log_sys->next_checkpoint_lsn, group));
+ #endif /* UNIV_LOG_ARCHIVE */
+ 
+ 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
+diff -ruN innodb_plugin-1.0.6_orig/log/log0recv.c innodb_plugin-1.0.6_tmp/log/log0recv.c
+--- innodb_plugin-1.0.6_orig/log/log0recv.c	2010-03-12 22:15:18.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/log/log0recv.c	2010-03-12 22:16:15.000000000 +0900
+@@ -680,8 +680,22 @@
+ 
+ 			group->lsn = mach_read_ull(
+ 				buf + LOG_CHECKPOINT_LSN);
++
++#ifdef UNIV_LOG_ARCHIVE
++#error "UNIV_LOG_ARCHIVE could not be enabled"
++#endif
++			{
++			ib_uint64_t tmp_lsn_offset = mach_read_ull(
++					buf + LOG_CHECKPOINT_ARCHIVED_LSN);
++				if (sizeof(ulint) != 4
++				    && tmp_lsn_offset != IB_ULONGLONG_MAX) {
++					group->lsn_offset = (ulint) tmp_lsn_offset;
++				} else {
+ 			group->lsn_offset = mach_read_from_4(
+ 				buf + LOG_CHECKPOINT_OFFSET);
++				}
++			}
++
+ 			checkpoint_no = mach_read_ull(
+ 				buf + LOG_CHECKPOINT_NO);
+ 
+diff -ruN innodb_plugin-1.0.6_orig/page/page0zip.c innodb_plugin-1.0.6_tmp/page/page0zip.c
+--- innodb_plugin-1.0.6_orig/page/page0zip.c	2009-09-28 17:52:25.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/page/page0zip.c	2010-03-12 16:48:25.000000000 +0900
+@@ -49,7 +49,7 @@
+ 
+ #ifndef UNIV_HOTBACKUP
+ /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
+-UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
++UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE_MAX - 1];
+ #endif /* !UNIV_HOTBACKUP */
+ 
+ /* Please refer to ../include/page0zip.ic for a description of the
+diff -ruN innodb_plugin-1.0.6_orig/row/row0merge.c innodb_plugin-1.0.6_tmp/row/row0merge.c
+--- innodb_plugin-1.0.6_orig/row/row0merge.c	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/row/row0merge.c	2010-03-12 16:48:25.000000000 +0900
+@@ -92,7 +92,7 @@
+ row_merge_block_t.  Thus, it must be able to hold one merge record,
+ whose maximum size is the same as the minimum size of
+ row_merge_block_t. */
+-typedef byte	mrec_buf_t[UNIV_PAGE_SIZE];
++typedef byte	mrec_buf_t[UNIV_PAGE_SIZE_MAX];
+ 
+ /** @brief Merge record in row_merge_block_t.
+ 
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0srv.c innodb_plugin-1.0.6_tmp/srv/srv0srv.c
+--- innodb_plugin-1.0.6_orig/srv/srv0srv.c	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0srv.c	2010-03-12 16:48:25.000000000 +0900
+@@ -224,6 +224,10 @@
+ UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
+ UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
+ 
++/* The universal page size of the database */
++UNIV_INTERN ulint	srv_page_size_shift	= 0;
++UNIV_INTERN ulint	srv_page_size		= 0;
++
+ /* User settable value of the number of pages that must be present
+ in the buffer cache and accessed sequentially for InnoDB to trigger a
+ readahead request. */
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0start.c innodb_plugin-1.0.6_tmp/srv/srv0start.c
+--- innodb_plugin-1.0.6_orig/srv/srv0start.c	2010-03-12 16:47:45.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0start.c	2010-03-12 16:48:25.000000000 +0900
+@@ -1352,10 +1352,12 @@
+ 	}
+ #endif /* UNIV_LOG_ARCHIVE */
+ 
+-	if (srv_n_log_files * srv_log_file_size >= 262144) {
++	if (sizeof(ulint) == 4
++	    && srv_n_log_files * srv_log_file_size
++	       >= ((ulint)1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
+ 		fprintf(stderr,
+ 			"InnoDB: Error: combined size of log files"
+-			" must be < 4 GB\n");
++			" must be < 4 GB on 32-bit systems\n");
+ 
+ 		return(DB_ERROR);
+ 	}
+@@ -1364,7 +1366,7 @@
+ 
+ 	for (i = 0; i < srv_n_data_files; i++) {
+ #ifndef __WIN__
+-		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= 262144) {
++		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= ((ulint)1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
+ 			fprintf(stderr,
+ 				"InnoDB: Error: file size must be < 4 GB"
+ 				" with this MySQL binary\n"

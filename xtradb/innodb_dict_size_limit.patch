@@ -1,0 +1,443 @@
+diff -ruN innodb_plugin-1.0.6_orig/btr/btr0sea.c innodb_plugin-1.0.6_tmp/btr/btr0sea.c
+--- innodb_plugin-1.0.6_orig/btr/btr0sea.c	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/btr/btr0sea.c	2009-12-04 12:06:51.000000000 +0900
+@@ -1163,6 +1163,126 @@
+ 	mem_free(folds);
+ }
+ 
++/************************************************************************
++Drops a page hash index based on index */
++UNIV_INTERN
++void
++btr_search_drop_page_hash_index_on_index(
++/*=====================================*/
++	dict_index_t*	index)		/* in: record descriptor */
++{
++	buf_page_t*	bpage;
++	hash_table_t*	table;
++	buf_block_t*	block;
++	ulint		n_fields;
++	ulint		n_bytes;
++	const page_t*		page;
++	const rec_t*		rec;
++	ulint		fold;
++	ulint		prev_fold;
++	dulint			index_id;
++	ulint		n_cached;
++	ulint		n_recs;
++	ulint*		folds;
++	ulint		i;
++	mem_heap_t*	heap	= NULL;
++	ulint*		offsets;
++
++	rw_lock_x_lock(&btr_search_latch);
++	buf_pool_mutex_enter();
++
++	table = btr_search_sys->hash_index;
++
++	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
++
++	while (bpage != NULL) {
++		block = (buf_block_t*) bpage;
++		if (block->index == index && block->is_hashed) {
++			page = block->frame;
++
++			/* from btr_search_drop_page_hash_index() */
++			n_fields = block->curr_n_fields;
++			n_bytes = block->curr_n_bytes;
++
++			ut_a(n_fields + n_bytes > 0);
++
++			n_recs = page_get_n_recs(page);
++
++			/* Calculate and cache fold values into an array for fast deletion
++			from the hash index */
++
++			folds = mem_alloc(n_recs * sizeof(ulint));
++
++			n_cached = 0;
++
++			rec = page_get_infimum_rec(page);
++			rec = page_rec_get_next_low(rec, page_is_comp(page));
++
++			index_id = btr_page_get_index_id(page);
++	
++			ut_a(0 == ut_dulint_cmp(index_id, index->id));
++
++			prev_fold = 0;
++
++			offsets = NULL;
++
++			while (!page_rec_is_supremum(rec)) {
++				offsets = rec_get_offsets(rec, index, offsets,
++							n_fields + (n_bytes > 0), &heap);
++				ut_a(rec_offs_n_fields(offsets) == n_fields + (n_bytes > 0));
++				fold = rec_fold(rec, offsets, n_fields, n_bytes, index_id);
++
++				if (fold == prev_fold && prev_fold != 0) {
++
++					goto next_rec;
++				}
++
++				/* Remove all hash nodes pointing to this page from the
++				hash chain */
++
++				folds[n_cached] = fold;
++				n_cached++;
++next_rec:
++				rec = page_rec_get_next_low(rec, page_rec_is_comp(rec));
++				prev_fold = fold;
++			}
++
++			for (i = 0; i < n_cached; i++) {
++
++				ha_remove_all_nodes_to_page(table, folds[i], page);
++			}
++
++			ut_a(index->search_info->ref_count > 0);
++			index->search_info->ref_count--;
++
++			block->is_hashed = FALSE;
++			block->index = NULL;
++	
++#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
++			if (UNIV_UNLIKELY(block->n_pointers)) {
++				/* Corruption */
++				ut_print_timestamp(stderr);
++				fprintf(stderr,
++"  InnoDB: Corruption of adaptive hash index. After dropping\n"
++"InnoDB: the hash index to a page of %s, still %lu hash nodes remain.\n",
++					index->name, (ulong) block->n_pointers);
++			}
++#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
++
++			mem_free(folds);
++		}
++
++		bpage = UT_LIST_GET_PREV(LRU, bpage);
++	}
++
++	buf_pool_mutex_exit();
++	rw_lock_x_unlock(&btr_search_latch);
++
++	if (UNIV_LIKELY_NULL(heap)) {
++		mem_heap_free(heap);
++	}
++}
++
+ /********************************************************************//**
+ Drops a page hash index when a page is freed from a fseg to the file system.
+ Drops possible hash index if the page happens to be in the buffer pool. */
+diff -ruN innodb_plugin-1.0.6_orig/dict/dict0boot.c innodb_plugin-1.0.6_tmp/dict/dict0boot.c
+--- innodb_plugin-1.0.6_orig/dict/dict0boot.c	2009-05-25 19:52:29.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/dict/dict0boot.c	2009-12-04 12:06:51.000000000 +0900
+@@ -265,6 +265,7 @@
+ 	system tables */
+ 	/*-------------------------*/
+ 	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0);
++	table->n_mysql_handles_opened = 1; /* for pin */
+ 
+ 	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
+ 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
+@@ -314,6 +315,7 @@
+ 
+ 	/*-------------------------*/
+ 	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0);
++	table->n_mysql_handles_opened = 1; /* for pin */
+ 
+ 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
+ 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
+@@ -346,6 +348,7 @@
+ 
+ 	/*-------------------------*/
+ 	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE, 7, 0);
++	table->n_mysql_handles_opened = 1; /* for pin */
+ 
+ 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
+ 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
+@@ -388,6 +391,7 @@
+ 
+ 	/*-------------------------*/
+ 	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0);
++	table->n_mysql_handles_opened = 1; /* for pin */
+ 
+ 	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
+ 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
+diff -ruN innodb_plugin-1.0.6_orig/dict/dict0crea.c innodb_plugin-1.0.6_tmp/dict/dict0crea.c
+--- innodb_plugin-1.0.6_orig/dict/dict0crea.c	2009-08-05 20:06:55.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/dict/dict0crea.c	2009-12-04 12:06:52.000000000 +0900
+@@ -1181,6 +1181,9 @@
+ 		/* Foreign constraint system tables have already been
+ 		created, and they are ok */
+ 
++		table1->n_mysql_handles_opened = 1; /* for pin */
++		table2->n_mysql_handles_opened = 1; /* for pin */
++
+ 		mutex_exit(&(dict_sys->mutex));
+ 
+ 		return(DB_SUCCESS);
+@@ -1262,6 +1265,11 @@
+ 
+ 	trx_commit_for_mysql(trx);
+ 
++	table1 = dict_table_get_low("SYS_FOREIGN");
++	table2 = dict_table_get_low("SYS_FOREIGN_COLS");
++	table1->n_mysql_handles_opened = 1; /* for pin */
++	table2->n_mysql_handles_opened = 1; /* for pin */
++
+ 	row_mysql_unlock_data_dictionary(trx);
+ 
+ 	trx_free_for_mysql(trx);
+diff -ruN innodb_plugin-1.0.6_orig/dict/dict0dict.c innodb_plugin-1.0.6_tmp/dict/dict0dict.c
+--- innodb_plugin-1.0.6_orig/dict/dict0dict.c	2009-11-04 22:24:28.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/dict/dict0dict.c	2009-12-04 12:06:52.000000000 +0900
+@@ -542,6 +542,8 @@
+ 
+ 	table = dict_table_get_on_id_low(table_id);
+ 
++	dict_table_LRU_trim(table);
++
+ 	mutex_exit(&(dict_sys->mutex));
+ 
+ 	return(table);
+@@ -651,6 +653,8 @@
+ 		table->n_mysql_handles_opened++;
+ 	}
+ 
++	dict_table_LRU_trim(table);
++
+ 	mutex_exit(&(dict_sys->mutex));
+ 
+ 	if (table != NULL) {
+@@ -1147,6 +1151,64 @@
+ 	dict_mem_table_free(table);
+ }
+ 
++/**************************************************************************
++Frees tables from the end of table_LRU if the dictionary cache occupies
++too much space. */
++UNIV_INTERN
++void
++dict_table_LRU_trim(
++/*================*/
++	dict_table_t*	self)
++{
++	dict_table_t*	table;
++	dict_table_t*	prev_table;
++	dict_foreign_t*	foreign;
++	ulint		n_removed;
++	ulint		n_have_parent;
++	ulint		cached_foreign_tables;
++
++#ifdef UNIV_SYNC_DEBUG
++	ut_ad(mutex_own(&(dict_sys->mutex)));
++#endif /* UNIV_SYNC_DEBUG */
++
++retry:
++	n_removed = n_have_parent = 0;
++	table = UT_LIST_GET_LAST(dict_sys->table_LRU);
++
++	while ( srv_dict_size_limit && table
++		&& ((dict_sys->table_hash->n_cells
++		     + dict_sys->table_id_hash->n_cells) * sizeof(hash_cell_t)
++		    + dict_sys->size) > srv_dict_size_limit ) {
++		prev_table = UT_LIST_GET_PREV(table_LRU, table);
++
++		if (table == self || table->n_mysql_handles_opened)
++			goto next_loop;
++
++		cached_foreign_tables = 0;
++		foreign = UT_LIST_GET_FIRST(table->foreign_list);
++		while (foreign != NULL) {
++			if (foreign->referenced_table)
++				cached_foreign_tables++;
++			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
++		}
++
++		if (cached_foreign_tables == 0) {
++			dict_table_remove_from_cache(table);
++			n_removed++;
++		} else {
++			n_have_parent++;
++		}
++next_loop:
++		table = prev_table;
++	}
++
++	if ( srv_dict_size_limit && n_have_parent && n_removed
++		&& ((dict_sys->table_hash->n_cells
++		     + dict_sys->table_id_hash->n_cells) * sizeof(hash_cell_t)
++		    + dict_sys->size) > srv_dict_size_limit )
++		goto retry;
++}
++
+ /****************************************************************//**
+ If the given column name is reserved for InnoDB system columns, return
+ TRUE.
+@@ -1608,6 +1670,11 @@
+ 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+ 	ut_ad(mutex_own(&(dict_sys->mutex)));
+ 
++	/* remove all entry of the index from adaptive hash index,
++	because removing from adaptive hash index needs dict_index */
++	if (btr_search_enabled && srv_dict_size_limit)
++		btr_search_drop_page_hash_index_on_index(index);
++
+ 	/* We always create search info whether or not adaptive
+ 	hash index is enabled or not. */
+ 	info = index->search_info;
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2009-12-04 12:05:25.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2009-12-04 12:06:52.000000000 +0900
+@@ -556,6 +556,8 @@
+   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
+   {"dblwr_writes",
+   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
++  {"dict_tables",
++  (char*) &export_vars.innodb_dict_tables,		  SHOW_LONG},
+   {"have_atomic_builtins",
+   (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
+   {"log_waits",
+@@ -10530,6 +10532,11 @@
+   "Number of extra user rollback segments when create new database.",
+   NULL, NULL, 0, 0, 126, 0);
+ 
++static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
++  PLUGIN_VAR_RQCMDARG,
++  "Limit the allocated memory for dictionary cache. (0: unlimited)",
++  NULL, NULL, 0, 0, LONG_MAX, 0);
++
+ static struct st_mysql_sys_var* innobase_system_variables[]= {
+   MYSQL_SYSVAR(additional_mem_pool_size),
+   MYSQL_SYSVAR(autoextend_increment),
+@@ -10596,6 +10603,7 @@
+   MYSQL_SYSVAR(adaptive_checkpoint),
+   MYSQL_SYSVAR(enable_unsafe_group_commit),
+   MYSQL_SYSVAR(extra_rsegments),
++  MYSQL_SYSVAR(dict_size_limit),
+   MYSQL_SYSVAR(use_sys_malloc),
+   MYSQL_SYSVAR(change_buffering),
+   MYSQL_SYSVAR(read_ahead_threshold),
+diff -ruN innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h
+--- innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h	2009-12-04 12:05:25.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h	2009-12-04 12:06:52.000000000 +0900
+@@ -32,5 +32,6 @@
+ {"innodb_extra_rseg","allow to create extra rollback segments","When create new db, the new parameter allows to create more rollback segments","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
+ {"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
++{"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN innodb_plugin-1.0.6_orig/ibuf/ibuf0ibuf.c innodb_plugin-1.0.6_tmp/ibuf/ibuf0ibuf.c
+--- innodb_plugin-1.0.6_orig/ibuf/ibuf0ibuf.c	2009-12-04 10:48:12.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/ibuf/ibuf0ibuf.c	2009-12-04 12:06:52.000000000 +0900
+@@ -508,6 +508,7 @@
+ 
+ 	/* Use old-style record format for the insert buffer. */
+ 	table = dict_mem_table_create(IBUF_TABLE_NAME, IBUF_SPACE_ID, 1, 0);
++	table->n_mysql_handles_opened = 1; /* for pin */
+ 
+ 	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
+ 
+diff -ruN innodb_plugin-1.0.6_orig/include/btr0sea.h innodb_plugin-1.0.6_tmp/include/btr0sea.h
+--- innodb_plugin-1.0.6_orig/include/btr0sea.h	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/btr0sea.h	2009-12-04 12:06:52.000000000 +0900
+@@ -140,6 +140,13 @@
+ 				s- or x-latched, or an index page
+ 				for which we know that
+ 				block->buf_fix_count == 0 */
++/************************************************************************
++Drops a page hash index based on index */
++UNIV_INTERN
++void
++btr_search_drop_page_hash_index_on_index(
++/*=====================================*/
++	dict_index_t*	index);		/* in: record descriptor */
+ /********************************************************************//**
+ Drops a page hash index when a page is freed from a fseg to the file system.
+ Drops possible hash index if the page happens to be in the buffer pool. */
+diff -ruN innodb_plugin-1.0.6_orig/include/dict0dict.h innodb_plugin-1.0.6_tmp/include/dict0dict.h
+--- innodb_plugin-1.0.6_orig/include/dict0dict.h	2009-11-02 18:42:56.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/dict0dict.h	2009-12-04 12:06:52.000000000 +0900
+@@ -1098,6 +1098,12 @@
+ /*====================================*/
+ 	dict_table_t*	table,	/*!< in: table */
+ 	const char*	name);	/*!< in: name of the index to find */
++
++UNIV_INTERN
++void
++dict_table_LRU_trim(
++/*================*/
++	dict_table_t*	self);
+ /* Buffers for storing detailed information about the latest foreign key
+ and unique key errors */
+ extern FILE*	dict_foreign_err_file;
+diff -ruN innodb_plugin-1.0.6_orig/include/dict0dict.ic innodb_plugin-1.0.6_tmp/include/dict0dict.ic
+--- innodb_plugin-1.0.6_orig/include/dict0dict.ic	2009-05-25 19:52:29.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/dict0dict.ic	2009-12-04 12:06:52.000000000 +0900
+@@ -744,6 +744,13 @@
+ 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
+ 		    dict_table_t*, table, ut_ad(table->cached),
+ 		    !strcmp(table->name, table_name));
++
++	/* make young in table_LRU */
++	if (table) {
++		UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
++		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
++	}
++
+ 	return(table);
+ }
+ 
+@@ -797,6 +804,12 @@
+ 		table = dict_load_table_on_id(table_id);
+ 	}
+ 
++	/* make young in table_LRU */
++	if (table) {
++		UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
++		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
++	}
++
+ 	ut_ad(!table || table->cached);
+ 
+ 	/* TODO: should get the type information from MySQL */
+diff -ruN innodb_plugin-1.0.6_orig/include/srv0srv.h innodb_plugin-1.0.6_tmp/include/srv0srv.h
+--- innodb_plugin-1.0.6_orig/include/srv0srv.h	2009-12-04 12:05:25.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/srv0srv.h	2009-12-04 12:06:52.000000000 +0900
+@@ -232,7 +232,7 @@
+ extern ulint	srv_adaptive_checkpoint;
+ 
+ extern ulint	srv_extra_rsegments;
+-
++extern ulint	srv_dict_size_limit;
+ /*-------------------------------------------*/
+ 
+ extern ulint	srv_n_rows_inserted;
+@@ -612,6 +612,7 @@
+ 	ulint innodb_data_writes;		/*!< I/O write requests */
+ 	ulint innodb_data_written;		/*!< Data bytes written */
+ 	ulint innodb_data_reads;		/*!< I/O read requests */
++	ulint innodb_dict_tables;
+ 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
+ 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
+ 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
+diff -ruN innodb_plugin-1.0.6_orig/srv/srv0srv.c innodb_plugin-1.0.6_tmp/srv/srv0srv.c
+--- innodb_plugin-1.0.6_orig/srv/srv0srv.c	2009-12-04 12:05:25.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/srv/srv0srv.c	2009-12-04 12:06:52.000000000 +0900
+@@ -394,6 +394,7 @@
+ UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+ 
+ UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
++UNIV_INTERN ulint	srv_dict_size_limit = 0;
+ /*-------------------------------------------*/
+ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
+ UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
+@@ -2078,6 +2079,7 @@
+ 	export_vars.innodb_data_reads = os_n_file_reads;
+ 	export_vars.innodb_data_writes = os_n_file_writes;
+ 	export_vars.innodb_data_written = srv_data_written;
++	export_vars.innodb_dict_tables= (dict_sys ? UT_LIST_GET_LEN(dict_sys->table_LRU) : 0);
+ 	export_vars.innodb_buffer_pool_read_requests = buf_pool->stat.n_page_gets;
+ 	export_vars.innodb_buffer_pool_write_requests
+ 		= srv_buf_pool_write_requests;

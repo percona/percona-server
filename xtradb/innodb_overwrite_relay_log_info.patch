@@ -1,0 +1,463 @@
+diff -ruN innodb_plugin-1.0.6_orig/handler/ha_innodb.cc innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc
+--- innodb_plugin-1.0.6_orig/handler/ha_innodb.cc	2009-12-04 11:57:09.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/ha_innodb.cc	2009-12-04 11:59:26.000000000 +0900
+@@ -61,7 +61,17 @@
+ #pragma implementation				// gcc: Class implementation
+ #endif
+ 
++#define MYSQL_SERVER
++
+ #include <mysql_priv.h>
++#ifdef MYSQL_SERVER
++#include <rpl_mi.h>
++#include <slave.h>
++// Defined in slave.cc
++int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
++int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
++			  const char *default_val);
++#endif /* MYSQL_SERVER */
+ 
+ #include <m_ctype.h>
+ #include <mysys_err.h>
+@@ -106,6 +116,14 @@
+ #include "ha_innodb.h"
+ #include "i_s.h"
+ 
++#ifdef MYSQL_SERVER
++// Defined in trx0sys.c
++extern char		trx_sys_mysql_master_log_name[];
++extern ib_int64_t	trx_sys_mysql_master_log_pos;
++extern char		trx_sys_mysql_relay_log_name[];
++extern ib_int64_t	trx_sys_mysql_relay_log_pos;
++#endif /* MYSQL_SERVER */
++
+ #ifndef MYSQL_SERVER
+ # ifndef MYSQL_PLUGIN_IMPORT
+ #  define MYSQL_PLUGIN_IMPORT /* nothing */
+@@ -189,6 +207,7 @@
+ static my_bool	innobase_use_checksums			= TRUE;
+ static my_bool	innobase_extra_undoslots		= FALSE;
+ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
++static my_bool	innobase_overwrite_relay_log_info	= FALSE;
+ static my_bool	innobase_rollback_on_timeout		= FALSE;
+ static my_bool	innobase_create_status_file		= FALSE;
+ static my_bool	innobase_stats_on_metadata		= TRUE;
+@@ -2007,6 +2026,89 @@
+ 	}
+ #endif /* UNIV_DEBUG */
+ 
++#ifndef MYSQL_SERVER
++	innodb_overwrite_relay_log_info = FALSE;
++#endif
++
++#ifdef HAVE_REPLICATION
++#ifdef MYSQL_SERVER
++	/* read master log position from relay-log.info if exists */
++	char fname[FN_REFLEN+128];
++	int pos;
++	int info_fd;
++	IO_CACHE info_file;
++
++	fname[0] = '\0';
++
++	if(innobase_overwrite_relay_log_info) {
++
++	fprintf(stderr,
++		"InnoDB: Warning: innodb_overwrite_relay_log_info is enabled."
++		" Updates in other storage engines may have problem with consistency.\n");
++
++	bzero((char*) &info_file, sizeof(info_file));
++	fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
++
++	int error=0;
++
++	if (!access(fname,F_OK)) {
++		/* exist */
++		if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0) {
++			error=1;
++		} else if (init_io_cache(&info_file, info_fd, IO_SIZE*2,
++					READ_CACHE, 0L, 0, MYF(MY_WME))) {
++			error=1;
++		}
++
++		if (error) {
++relay_info_error:
++			if (info_fd >= 0)
++				my_close(info_fd, MYF(0));
++			fname[0] = '\0';
++			goto skip_relay;
++		}
++	} else {
++		fname[0] = '\0';
++		goto skip_relay;
++	}
++
++	if (init_strvar_from_file(fname, sizeof(fname), &info_file, "") || /* dummy (it is relay-log) */
++	    init_intvar_from_file(&pos, &info_file, BIN_LOG_HEADER_SIZE)) { 
++		end_io_cache(&info_file);
++		error=1;
++		goto relay_info_error;
++	}
++
++	fprintf(stderr,
++		"InnoDB: relay-log.info is detected.\n"
++		"InnoDB: relay log: position %u, file name %s\n",
++		pos, fname);
++
++	strncpy(trx_sys_mysql_relay_log_name, fname, TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
++	trx_sys_mysql_relay_log_pos = (ib_int64_t) pos;
++
++	if (init_strvar_from_file(fname, sizeof(fname), &info_file, "") ||
++	    init_intvar_from_file(&pos, &info_file, 0)) {
++		end_io_cache(&info_file);
++		error=1;
++		goto relay_info_error;
++	}
++
++	fprintf(stderr,
++		"InnoDB: master log: position %u, file name %s\n",
++		pos, fname);
++
++	strncpy(trx_sys_mysql_master_log_name, fname, TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
++	trx_sys_mysql_master_log_pos = (ib_int64_t) pos;
++
++	end_io_cache(&info_file);
++	if (info_fd >= 0)
++		my_close(info_fd, MYF(0));
++	}
++skip_relay:
++#endif /* MYSQL_SERVER */
++#endif /* HAVE_REPLICATION */
++
+ 	/* Check that values don't overflow on 32-bit systems. */
+ 	if (sizeof(ulint) == 4) {
+ 		if (innobase_buffer_pool_size > UINT_MAX32) {
+@@ -2275,6 +2377,76 @@
+ 		goto mem_free_and_error;
+ 	}
+ 
++#ifdef HAVE_REPLICATION
++#ifdef MYSQL_SERVER
++	if(innobase_overwrite_relay_log_info) {
++	/* If InnoDB progressed from relay-log.info, overwrite it */
++	if (fname[0] == '\0') {
++		fprintf(stderr,
++			"InnoDB: something wrong with relay-info.log. InnoDB will not overwrite it.\n");
++	} else if (0 != strcmp(fname, trx_sys_mysql_master_log_name)
++		   || pos != trx_sys_mysql_master_log_pos) {
++		/* Overwrite relay-log.info */
++		bzero((char*) &info_file, sizeof(info_file));
++		fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
++
++		int error = 0;
++
++		if (!access(fname,F_OK)) {
++			/* exist */
++			if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0) {
++				error = 1;
++			} else if (init_io_cache(&info_file, info_fd, IO_SIZE*2,
++						WRITE_CACHE, 0L, 0, MYF(MY_WME))) {
++				error = 1;
++			}
++
++			if (error) {
++				if (info_fd >= 0)
++					my_close(info_fd, MYF(0));
++				goto skip_overwrite;
++			}
++		} else {
++			error = 1;
++			goto skip_overwrite;
++		}
++
++		char buff[FN_REFLEN*2+22*2+4], *pos;
++
++		my_b_seek(&info_file, 0L);
++		pos=strmov(buff, trx_sys_mysql_relay_log_name);
++		*pos++='\n';
++		pos=longlong2str(trx_sys_mysql_relay_log_pos, pos, 10);
++		*pos++='\n';
++		pos=strmov(pos, trx_sys_mysql_master_log_name);
++		*pos++='\n';
++		pos=longlong2str(trx_sys_mysql_master_log_pos, pos, 10);
++		*pos='\n';
++
++		if (my_b_write(&info_file, (uchar*) buff, (size_t) (pos-buff)+1))
++			error = 1;
++		if (flush_io_cache(&info_file))
++			error = 1;
++
++		end_io_cache(&info_file);
++		if (info_fd >= 0)
++			my_close(info_fd, MYF(0));
++skip_overwrite:
++		if (error) {
++			fprintf(stderr,
++				"InnoDB: ERROR: error occured during overwriting relay-log.info.\n");
++		} else {
++			fprintf(stderr,
++				"InnoDB: relay-log.info was overwritten.\n");
++		}
++	} else {
++		fprintf(stderr,
++			"InnoDB: InnoDB and relay-log.info are synchronized. InnoDB will not overwrite it.\n");
++	}
++	}
++#endif /* MYSQL_SERVER */
++#endif /* HAVE_REPLICATION */
++
+ 	innobase_open_tables = hash_create(200);
+ 	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
+ 	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
+@@ -2390,6 +2562,26 @@
+ 		return;
+ 	}
+ 
++#ifdef HAVE_REPLICATION
++#ifdef MYSQL_SERVER
++	THD *thd=current_thd;
++
++	if (thd && thd->slave_thread) {
++		/* Update the replication position info inside InnoDB */
++		trx->mysql_master_log_file_name
++			= active_mi->rli.group_master_log_name;
++		trx->mysql_master_log_pos
++			= ((ib_int64_t)active_mi->rli.group_master_log_pos +
++			   ((ib_int64_t)active_mi->rli.future_event_relay_log_pos -
++			    (ib_int64_t)active_mi->rli.group_relay_log_pos));
++		trx->mysql_relay_log_file_name
++			= active_mi->rli.group_relay_log_name;
++		trx->mysql_relay_log_pos
++			= (ib_int64_t)active_mi->rli.future_event_relay_log_pos;
++	}
++#endif /* MYSQL_SERVER */
++#endif /* HAVE_REPLICATION */
++
+ 	trx_commit_for_mysql(trx);
+ }
+ 
+@@ -9951,6 +10143,12 @@
+   "don't use the datafile for normal mysqld or ibbackup! ####",
+   NULL, NULL, FALSE);
+ 
++static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
++  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
++  "During InnoDB crash recovery on slave overwrite relay-log.info "
++  "to align master log file position if information in InnoDB and relay-log.info is different.",
++  NULL, NULL, FALSE);
++
+ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
+   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+   "Enable InnoDB doublewrite buffer (enabled by default). "
+@@ -10360,6 +10558,7 @@
+   MYSQL_SYSVAR(old_blocks_pct),
+   MYSQL_SYSVAR(old_blocks_time),
+   MYSQL_SYSVAR(open_files),
++  MYSQL_SYSVAR(overwrite_relay_log_info),
+   MYSQL_SYSVAR(rollback_on_timeout),
+   MYSQL_SYSVAR(stats_on_metadata),
+   MYSQL_SYSVAR(stats_sample_pages),
+diff -ruN innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h
+--- innodb_plugin-1.0.6_orig/handler/innodb_patch_info.h	2009-12-04 11:57:09.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/handler/innodb_patch_info.h	2009-12-04 11:59:26.000000000 +0900
+@@ -30,5 +30,6 @@
+ {"innodb_buffer_pool_pages","Information of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_expand_undo_slots","expandable maximum number of undo slots","from 1024 (default) to about 4000","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_extra_rseg","allow to create extra rollback segments","When create new db, the new parameter allows to create more rollback segments","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN innodb_plugin-1.0.6_orig/include/trx0sys.h innodb_plugin-1.0.6_tmp/include/trx0sys.h
+--- innodb_plugin-1.0.6_orig/include/trx0sys.h	2009-12-04 11:57:09.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/trx0sys.h	2009-12-04 11:59:26.000000000 +0900
+@@ -52,6 +52,9 @@
+ extern ib_int64_t	trx_sys_mysql_master_log_pos;
+ /* @} */
+ 
++extern char		trx_sys_mysql_relay_log_name[];
++extern ib_int64_t	trx_sys_mysql_relay_log_pos;
++
+ /** If this MySQL server uses binary logging, after InnoDB has been inited
+ and if it has done a crash recovery, we store the binlog file name and position
+ here. */
+@@ -300,7 +303,7 @@
+ void
+ trx_sys_update_mysql_binlog_offset(
+ /*===============================*/
+-	const char*	file_name,/*!< in: MySQL log file name */
++	const char*	file_name_in,/*!< in: MySQL log file name */
+ 	ib_int64_t	offset,	/*!< in: position in that log file */
+ 	ulint		field,	/*!< in: offset of the MySQL log info field in
+ 				the trx sys header */
+@@ -480,6 +483,7 @@
+ @see trx_sys_mysql_master_log_name
+ @see trx_sys_mysql_bin_log_name */
+ #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
++#define TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN	480	/* (500 - 12) is dead line. */
+ /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
+ #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
+ 
+@@ -489,6 +493,7 @@
+ /** The offset of the MySQL replication info in the trx system header;
+ this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
+ #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
++#define TRX_SYS_MYSQL_RELAY_LOG_INFO	(UNIV_PAGE_SIZE - 1500)
+ 
+ /** The offset of the MySQL binlog offset info in the trx system header */
+ #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
+diff -ruN innodb_plugin-1.0.6_orig/include/trx0trx.h innodb_plugin-1.0.6_tmp/include/trx0trx.h
+--- innodb_plugin-1.0.6_orig/include/trx0trx.h	2009-09-10 14:29:31.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/include/trx0trx.h	2009-12-04 11:59:26.000000000 +0900
+@@ -555,6 +555,21 @@
+ 	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
+ 					contains the end offset of the binlog
+ 					entry */
++	const char*	mysql_master_log_file_name;
++					/* if the database server is a MySQL
++					replication slave, we have here the
++					master binlog name up to which
++					replication has processed; otherwise
++					this is a pointer to a null
++					character */
++	ib_int64_t	mysql_master_log_pos;
++					/* if the database server is a MySQL
++					replication slave, this is the
++					position in the log file up to which
++					replication has processed */
++	const char*	mysql_relay_log_file_name;
++	ib_int64_t	mysql_relay_log_pos;
++
+ 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
+ 					with this transaction object */
+ 	ulint		mysql_process_no;/* since in Linux, 'top' reports
+diff -ruN innodb_plugin-1.0.6_orig/trx/trx0sys.c innodb_plugin-1.0.6_tmp/trx/trx0sys.c
+--- innodb_plugin-1.0.6_orig/trx/trx0sys.c	2009-12-04 11:57:09.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/trx/trx0sys.c	2009-12-04 11:59:26.000000000 +0900
+@@ -74,13 +74,16 @@
+ file name and position here. */
+ /* @{ */
+ /** Master binlog file name */
+-UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
++UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN];
+ /** Master binlog file position.  We have successfully got the updates
+ up to this position.  -1 means that no crash recovery was needed, or
+ there was no master log position info inside InnoDB.*/
+ UNIV_INTERN ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+ /* @} */
+ 
++UNIV_INTERN char	trx_sys_mysql_relay_log_name[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN];
++UNIV_INTERN ib_int64_t	trx_sys_mysql_relay_log_pos	= -1;
++
+ /** If this MySQL server uses binary logging, after InnoDB has been inited
+ and if it has done a crash recovery, we store the binlog file name and position
+ here. */
+@@ -670,19 +673,24 @@
+ void
+ trx_sys_update_mysql_binlog_offset(
+ /*===============================*/
+-	const char*	file_name,/*!< in: MySQL log file name */
++	const char*	file_name_in,/*!< in: MySQL log file name */
+ 	ib_int64_t	offset,	/*!< in: position in that log file */
+ 	ulint		field,	/*!< in: offset of the MySQL log info field in
+ 				the trx sys header */
+ 	mtr_t*		mtr)	/*!< in: mtr */
+ {
+ 	trx_sysf_t*	sys_header;
++	const char*	file_name;
+ 
+-	if (ut_strlen(file_name) >= TRX_SYS_MYSQL_LOG_NAME_LEN) {
++	if (ut_strlen(file_name_in) >= TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN) {
+ 
+ 		/* We cannot fit the name to the 512 bytes we have reserved */
++		/* -> To store relay log file information, file_name must fit to the 480 bytes */
+ 
+-		return;
++		file_name = "";
++	}
++	else {
++		file_name = file_name_in;
+ 	}
+ 
+ 	sys_header = trx_sysf_get(mtr);
+@@ -808,13 +816,26 @@
+ 					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+ 		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+ 		+ TRX_SYS_MYSQL_LOG_NAME);
++
++	fprintf(stderr,
++		"InnoDB: and relay log file\n"
++		"InnoDB: position %lu %lu, file name %s\n",
++		(ulong) mach_read_from_4(sys_header
++					 + TRX_SYS_MYSQL_RELAY_LOG_INFO
++					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
++		(ulong) mach_read_from_4(sys_header
++					 + TRX_SYS_MYSQL_RELAY_LOG_INFO
++					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
++		sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
++		+ TRX_SYS_MYSQL_LOG_NAME);
++
+ 	/* Copy the master log position info to global variables we can
+ 	use in ha_innobase.cc to initialize glob_mi to right values */
+ 
+ 	ut_memcpy(trx_sys_mysql_master_log_name,
+ 		  sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+ 		  + TRX_SYS_MYSQL_LOG_NAME,
+-		  TRX_SYS_MYSQL_LOG_NAME_LEN);
++		  TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+ 
+ 	trx_sys_mysql_master_log_pos
+ 		= (((ib_int64_t) mach_read_from_4(
+@@ -823,6 +844,19 @@
+ 		+ ((ib_int64_t) mach_read_from_4(
+ 			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+ 			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
++
++	ut_memcpy(trx_sys_mysql_relay_log_name,
++		  sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
++		  + TRX_SYS_MYSQL_LOG_NAME,
++		  TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
++
++	trx_sys_mysql_relay_log_pos
++		= (((ib_int64_t) mach_read_from_4(
++			    sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
++			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
++		+ ((ib_int64_t) mach_read_from_4(
++			   sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
++			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
+ 	mtr_commit(&mtr);
+ }
+ 
+diff -ruN innodb_plugin-1.0.6_orig/trx/trx0trx.c innodb_plugin-1.0.6_tmp/trx/trx0trx.c
+--- innodb_plugin-1.0.6_orig/trx/trx0trx.c	2009-10-01 05:32:02.000000000 +0900
++++ innodb_plugin-1.0.6_tmp/trx/trx0trx.c	2009-12-04 11:59:26.000000000 +0900
+@@ -128,6 +128,10 @@
+ 
+ 	trx->mysql_log_file_name = NULL;
+ 	trx->mysql_log_offset = 0;
++	trx->mysql_master_log_file_name = "";
++	trx->mysql_master_log_pos = 0;
++	trx->mysql_relay_log_file_name = "";
++	trx->mysql_relay_log_pos = 0;
+ 
+ 	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
+ 
+@@ -791,6 +795,19 @@
+ 			trx->mysql_log_file_name = NULL;
+ 		}
+ 
++		if (trx->mysql_master_log_file_name[0] != '\0') {
++			/* This database server is a MySQL replication slave */
++			trx_sys_update_mysql_binlog_offset(
++				trx->mysql_relay_log_file_name,
++				trx->mysql_relay_log_pos,
++				TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
++			trx_sys_update_mysql_binlog_offset(
++				trx->mysql_master_log_file_name,
++				trx->mysql_master_log_pos,
++				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
++			trx->mysql_master_log_file_name = "";
++		}
++
+ 		/* The following call commits the mini-transaction, making the
+ 		whole transaction committed in the file-based world, at this
+ 		log sequence number. The transaction becomes 'durable' when

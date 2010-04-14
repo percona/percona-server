@@ -1,0 +1,12 @@
+diff -Nur a/srv/srv0start.c b/srv/srv0start.c
+--- a/srv/srv0start.c	2010-03-30 11:00:00.000000000 -0700
++++ b/srv/srv0start.c	2010-03-30 11:32:29.000000000 -0700
+@@ -1821,7 +1821,7 @@
+ 	if (srv_print_verbose_log) {
+ 		ut_print_timestamp(stderr);
+ 		fprintf(stderr,
+-			" InnoDB Plugin %s started; "
++			" Percona XtraDB (http://www.percona.com) %s started; "
+ 			"log sequence number %llu\n",
+ 			INNODB_VERSION_STR, srv_start_lsn);
+ 	}

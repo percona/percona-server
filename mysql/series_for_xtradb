@@ -4,6 +4,7 @@ profiling_slow.patch
 microsec_process.patch
 userstat.patch
 optimizer_fix.patch
+mysql_dump_ignore_ct.patch
 mysql-test_for_xtradb.diff
 show_temp_51.patch
 

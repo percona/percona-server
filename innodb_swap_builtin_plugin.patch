@@ -1,0 +1,140 @@
+diff -ruN a/configure b/configure
+--- a/configure	2010-04-06 23:13:20.000000000 +0900
++++ b/configure	2010-04-28 19:12:59.000000000 +0900
+@@ -2059,13 +2059,13 @@
+    === InnoDB Storage Engine ===
+   Plugin Name:      innobase
+   Description:      Transactional Tables using InnoDB
+-  Supports build:   static and dynamic
++  Supports build:   dynamic
+   Configurations:   max, max-no-ndb
+ 
+    === InnoDB Storage Engine ===
+   Plugin Name:      innodb_plugin
+   Description:      Transactional Tables using InnoDB
+-  Supports build:   dynamic
++  Supports build:   static and dynamic
+   Configurations:   max, max-no-ndb
+ 
+    === MyISAM Storage Engine ===
+@@ -42113,7 +42113,8 @@
+ 
+ 
+ 
+-      mysql_plugin_innobase=yes
++      { $as_echo "$as_me:$LINENO: WARNING: InnoDB Storage Engine can only be built as a plugin" >&5
++$as_echo "$as_me: WARNING: InnoDB Storage Engine can only be built as a plugin" >&2;}
+ 
+ 
+ 
+@@ -42125,8 +42126,7 @@
+ 
+ 
+ 
+-      { $as_echo "$as_me:$LINENO: WARNING: InnoDB Storage Engine can only be built as a plugin" >&5
+-$as_echo "$as_me: WARNING: InnoDB Storage Engine can only be built as a plugin" >&2;}
++      mysql_plugin_innodb_plugin=yes
+ 
+ 
+ 
+@@ -43541,7 +43541,7 @@
+     { $as_echo "$as_me:$LINENO: result: no" >&5
+ $as_echo "no" >&6; }
+   else
+-
++    with_plugin_innobase=''
+     if test "X$mysql_plugin_innobase" != Xyes -a \
+             "X$with_plugin_innobase" != Xyes; then
+ 
+@@ -43567,20 +43567,11 @@
+     else
+ 
+ 
+-
+-         mysql_use_plugin_dir="storage/innobase"
+-         mysql_plugin_libs="$mysql_plugin_libs \$(top_builddir)/storage/innobase/libinnobase.a"
+-
+-
+-
+-        cat >>confdefs.h <<\_ACEOF
+-#define WITH_INNOBASE_STORAGE_ENGINE 1
+-_ACEOF
+-
+-
+-       plugin_innobase_static_target="libinnobase.a"
+-
+-       plugin_innobase_shared_target=""
++        { $as_echo "$as_me:$LINENO: result: error" >&5
++$as_echo "error" >&6; }
++        { { $as_echo "$as_me:$LINENO: error: Plugin innobase does not support static linking" >&5
++$as_echo "$as_me: error: Plugin innobase does not support static linking" >&2;}
++   { (exit 1); exit 1; }; }
+ 
+ 
+       mysql_plugin_defs="$mysql_plugin_defs, builtin_innobase_plugin"
+@@ -43668,7 +43659,7 @@
+     { $as_echo "$as_me:$LINENO: result: no" >&5
+ $as_echo "no" >&6; }
+   else
+-    with_plugin_innodb_plugin=''
++
+     if test "X$mysql_plugin_innodb_plugin" != Xyes -a \
+             "X$with_plugin_innodb_plugin" != Xyes; then
+ 
+@@ -43694,11 +43685,20 @@
+     else
+ 
+ 
+-        { $as_echo "$as_me:$LINENO: result: error" >&5
+-$as_echo "error" >&6; }
+-        { { $as_echo "$as_me:$LINENO: error: Plugin innodb_plugin does not support static linking" >&5
+-$as_echo "$as_me: error: Plugin innodb_plugin does not support static linking" >&2;}
+-   { (exit 1); exit 1; }; }
++
++         mysql_use_plugin_dir="storage/innodb_plugin"
++         mysql_plugin_libs="$mysql_plugin_libs \$(top_builddir)/storage/innodb_plugin/libinnobase.a"
++
++
++
++        cat >>confdefs.h <<\_ACEOF
++#define WITH_INNODB_PLUGIN_STORAGE_ENGINE 1
++_ACEOF
++
++
++       plugin_innodb_plugin_static_target="libinnobase.a"
++
++       plugin_innodb_plugin_shared_target=""
+ 
+ 
+       mysql_plugin_defs="$mysql_plugin_defs, builtin_innodb_plugin_plugin"
+diff -ruN a/mysql-test/suite/innodb/include/have_innodb_plugin.inc b/mysql-test/suite/innodb/include/have_innodb_plugin.inc
+--- a/mysql-test/suite/innodb/include/have_innodb_plugin.inc	2010-04-06 23:39:15.000000000 +0900
++++ b/mysql-test/suite/innodb/include/have_innodb_plugin.inc	2010-04-28 19:13:13.000000000 +0900
+@@ -1,4 +1,4 @@
+ disable_query_log;
+ --require r/true.require
+-select (PLUGIN_LIBRARY LIKE 'ha_innodb_plugin%') as `TRUE` from information_schema.plugins where PLUGIN_NAME='InnoDB';
++select (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` from information_schema.engines where engine = 'innodb';
+ enable_query_log;
+diff -ruN a/storage/innobase/plug.in b/storage/innobase/plug.in
+--- a/storage/innobase/plug.in	2010-04-06 23:07:11.000000000 +0900
++++ b/storage/innobase/plug.in	2010-04-28 19:12:59.000000000 +0900
+@@ -1,7 +1,6 @@
+ MYSQL_STORAGE_ENGINE(innobase, innodb, [InnoDB Storage Engine],
+         [Transactional Tables using InnoDB], [max,max-no-ndb])
+ MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
+-MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
+ MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])
+ MYSQL_PLUGIN_ACTIONS(innobase,  [
+   AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
+diff -ruN a/storage/innodb_plugin/plug.in b/storage/innodb_plugin/plug.in
+--- a/storage/innodb_plugin/plug.in	2010-04-06 23:07:14.000000000 +0900
++++ b/storage/innodb_plugin/plug.in	2010-04-28 19:12:59.000000000 +0900
+@@ -17,6 +17,7 @@
+ MYSQL_STORAGE_ENGINE(innodb_plugin,, [InnoDB Storage Engine],
+         [Transactional Tables using InnoDB], [max,max-no-ndb])
+ MYSQL_PLUGIN_DIRECTORY(innodb_plugin, [storage/innodb_plugin])
++MYSQL_PLUGIN_STATIC(innodb_plugin,   [libinnobase.a])
+ MYSQL_PLUGIN_DYNAMIC(innodb_plugin,  [ha_innodb_plugin.la])
+ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
+   AC_CHECK_HEADERS(sched.h)

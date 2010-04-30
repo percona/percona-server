@@ -1,0 +1,1023 @@
+diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
+--- a/include/mysql/plugin.h	2010-04-06 23:04:03.000000000 +0900
++++ b/include/mysql/plugin.h	2010-04-28 15:37:56.000000000 +0900
+@@ -694,6 +694,16 @@
+ /* Increments the row counter, see THD::row_count */
+ void thd_inc_row_count(MYSQL_THD thd);
+ 
++void increment_thd_innodb_stats(MYSQL_THD thd,
++                    long io_reads,
++                    long long io_read,
++                    long io_reads_wait_timer,
++                    long lock_que_wait_timer,
++                    long que_wait_timer,
++                    long page_access);
++unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
++int thd_opt_slow_log();
++#define EXTENDED_SLOWLOG
+ /**
+   Create a temporary file.
+ 
+diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
+--- a/include/mysql/plugin.h.pp	2010-04-06 23:04:03.000000000 +0900
++++ b/include/mysql/plugin.h.pp	2010-04-28 15:37:56.000000000 +0900
+@@ -122,6 +122,15 @@
+ char *thd_security_context(void* thd, char *buffer, unsigned int length,
+                            unsigned int max_query_len);
+ void thd_inc_row_count(void* thd);
++void increment_thd_innodb_stats(void* thd,
++                    long io_reads,
++                    long long io_read,
++                    long io_reads_wait_timer,
++                    long lock_que_wait_timer,
++                    long que_wait_timer,
++                    long page_access);
++unsigned long thd_log_slow_verbosity(const void* thd);
++int thd_opt_slow_log();
+ int mysql_tmpfile(const char *prefix);
+ int thd_killed(const void* thd);
+ unsigned long thd_get_thread_id(const void* thd);
+diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/patch_info/slow_extended.info	2010-04-28 15:37:56.000000000 +0900
+@@ -0,0 +1,15 @@
++File=slow_extended.patch
++Name=Extended statistics in slow.log (not InnoDB part)
++Version=1.2
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++Changelog
++2008-11-26
++YK: Fix inefficient determination of trx, Make not to call useless gettimeofday when don't use slow log. Make log_slow_queries dynamic (bool).
++
++2008-11-07
++VT: Moved log_slow_rate_limit in SHOW VARIABLE into right place
++
++2008-11
++Arjen Lentz: Fixups (backward compatibility) by Arjen Lentz <arjen@openquery.com.au>
+diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
+--- a/scripts/mysqldumpslow.sh	2010-04-06 23:06:04.000000000 +0900
++++ b/scripts/mysqldumpslow.sh	2010-04-28 15:37:56.000000000 +0900
+@@ -83,8 +83,8 @@
+     s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
+     my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
+ 
+-    s/^# Query_time: ([0-9.]+)\s+Lock_time: ([0-9.]+)\s+Rows_sent: ([0-9.]+).*\n//;
+-    my ($t, $l, $r) = ($1, $2, $3);
++    s/^# Query_time: (\d+(\.\d+)?)  Lock_time: (\d+(\.\d+)?)  Rows_sent: (\d+(\.\d+)?).*\n//;
++    my ($t, $l, $r) = ($1, $3, $5);
+     $t -= $l unless $opt{l};
+ 
+     # remove fluff that mysqld writes to log when it (re)starts:
+diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
+--- a/sql/event_scheduler.cc	2010-04-06 23:06:05.000000000 +0900
++++ b/sql/event_scheduler.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -193,6 +193,7 @@
+   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
+   pthread_mutex_lock(&LOCK_thread_count);
+   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
++  thd->write_to_slow_log = TRUE;
+   pthread_mutex_unlock(&LOCK_thread_count);
+ 
+   /*
+diff -ruN a/sql/filesort.cc b/sql/filesort.cc
+--- a/sql/filesort.cc	2010-04-06 23:06:05.000000000 +0900
++++ b/sql/filesort.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -190,6 +190,7 @@
+   {
+     status_var_increment(thd->status_var.filesort_scan_count);
+   }
++  thd->query_plan_flags|= QPLAN_FILESORT;
+ #ifdef CAN_TRUST_RANGE
+   if (select && select->quick && select->quick->records > 0L)
+   {
+@@ -255,6 +256,7 @@
+   }
+   else
+   {
++    thd->query_plan_flags|= QPLAN_FILESORT_DISK;
+     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
+     {
+       x_free(table_sort.buffpek);
+@@ -1201,6 +1203,7 @@
+   DBUG_ENTER("merge_buffers");
+ 
+   status_var_increment(current_thd->status_var.filesort_merge_passes);
++  current_thd->query_plan_fsort_passes++;
+   if (param->not_killable)
+   {
+     killed= &not_killable;
+diff -ruN a/sql/log.cc b/sql/log.cc
+--- a/sql/log.cc	2010-04-06 23:07:02.000000000 +0900
++++ b/sql/log.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -987,7 +987,7 @@
+     /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
+     user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
+                              sctx->priv_user ? sctx->priv_user : "", "[",
+-                             sctx->user ? sctx->user : "", "] @ ",
++                             sctx->user ? sctx->user : (thd->slave_thread ? "SQL_SLAVE" : ""), "] @ ",
+                              sctx->host ? sctx->host : "", " [",
+                              sctx->ip ? sctx->ip : "", "]", NullS) -
+                     user_host_buff);
+@@ -1010,6 +1010,18 @@
+       query_length= command_name[thd->command].length;
+     }
+ 
++    if (!query_length)
++    {
++      thd->sent_row_count= thd->examined_row_count= 0;
++      thd->row_count= 0;
++      thd->bytes_sent_old= thd->status_var.bytes_sent;
++      thd->tmp_tables_used= thd->tmp_tables_disk_used= 0;
++      thd->tmp_tables_size= 0;
++      thd->innodb_was_used= FALSE;
++      thd->query_plan_flags= QPLAN_NONE;
++      thd->query_plan_fsort_passes= 0;
++    }
++
+     for (current_handler= slow_log_handler_list; *current_handler ;)
+       error= (*current_handler++)->log_slow(thd, current_time, thd->start_time,
+                                             user_host_buff, user_host_len,
+@@ -2307,7 +2319,7 @@
+ 
+     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
+     {
+-      if (current_time != last_time)
++      if (opt_log_slow_timestamp_every || current_time != last_time)
+       {
+         last_time= current_time;
+         struct tm start;
+@@ -2335,12 +2347,55 @@
+     sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
+     sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
+     if (my_b_printf(&log_file,
+-                    "# Query_time: %s  Lock_time: %s"
+-                    " Rows_sent: %lu  Rows_examined: %lu\n",
++                    "# Thread_id: %lu  Schema: %s\n" \
++                    "# Query_time: %s  Lock_time: %s  Rows_sent: %lu  Rows_examined: %lu  Rows_affected: %lu  Rows_read: %lu\n"
++                    "# Bytes_sent: %lu  Tmp_tables: %lu  Tmp_disk_tables: %lu  Tmp_table_sizes: %lu\n",
++                    (ulong) thd->thread_id, (thd->db ? thd->db : ""),
+                     query_time_buff, lock_time_buff,
+                     (ulong) thd->sent_row_count,
+-                    (ulong) thd->examined_row_count) == (uint) -1)
++                    (ulong) thd->examined_row_count,
++                    ((long) thd->row_count_func > 0 ) ? (ulong) thd->row_count_func : 0,
++                    (ulong) thd->row_count,
++                    (ulong) (thd->status_var.bytes_sent - thd->bytes_sent_old),
++                    (ulong) thd->tmp_tables_used,
++                    (ulong) thd->tmp_tables_disk_used,
++                    (ulong) thd->tmp_tables_size) == (uint) -1)
+       tmp_errno= errno;
++    if ((thd->variables.log_slow_verbosity & SLOG_V_QUERY_PLAN) &&
++         my_b_printf(&log_file,
++                    "# QC_Hit: %s  Full_scan: %s  Full_join: %s  Tmp_table: %s  Tmp_table_on_disk: %s\n" \
++                    "# Filesort: %s  Filesort_on_disk: %s  Merge_passes: %lu\n",
++                    ((thd->query_plan_flags & QPLAN_QC) ? "Yes" : "No"),
++                    ((thd->query_plan_flags & QPLAN_FULL_SCAN) ? "Yes" : "No"),
++                    ((thd->query_plan_flags & QPLAN_FULL_JOIN) ? "Yes" : "No"),
++                    ((thd->query_plan_flags & QPLAN_TMP_TABLE) ? "Yes" : "No"),
++                    ((thd->query_plan_flags & QPLAN_TMP_DISK) ? "Yes" : "No"),
++                    ((thd->query_plan_flags & QPLAN_FILESORT) ? "Yes" : "No"),
++                    ((thd->query_plan_flags & QPLAN_FILESORT_DISK) ? "Yes" : "No"),
++                    thd->query_plan_fsort_passes) == (uint) -1)
++      tmp_errno=errno;
++    if ((thd->variables.log_slow_verbosity & SLOG_V_INNODB) && thd->innodb_was_used)
++    {
++      char buf[3][20];
++      snprintf(buf[0], 20, "%.6f", thd->innodb_io_reads_wait_timer / 1000000.0);
++      snprintf(buf[1], 20, "%.6f", thd->innodb_lock_que_wait_timer / 1000000.0);
++      snprintf(buf[2], 20, "%.6f", thd->innodb_innodb_que_wait_timer / 1000000.0);
++      if (my_b_printf(&log_file,
++                      "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %lu  InnoDB_IO_r_wait: %s\n" \
++                      "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n" \
++                      "#   InnoDB_pages_distinct: %lu\n",
++                      (ulong) thd->innodb_io_reads,
++                      (ulong) thd->innodb_io_read,
++                      buf[0], buf[1], buf[2],
++                      (ulong) thd->innodb_page_access) == (uint) -1)
++        tmp_errno=errno;
++    } 
++    else
++    {
++      if ((thd->variables.log_slow_verbosity & SLOG_V_INNODB) &&
++          my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
++        tmp_errno=errno;
++    }
+     if (thd->db && strcmp(thd->db, db))
+     {						// Database changed
+       if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-04-28 15:37:19.000000000 +0900
++++ b/sql/mysql_priv.h	2010-04-28 15:37:56.000000000 +0900
+@@ -613,6 +613,78 @@
+ 
+ #define STRING_BUFFER_USUAL_SIZE 80
+ 
++/* Slow log */
++
++struct msl_opts
++{
++  ulong val;
++  const char *name;
++};
++
++#define SLOG_V_MICROTIME      1 << 0
++#define SLOG_V_QUERY_PLAN     1 << 1
++#define SLOG_V_INNODB         1 << 2
++/* ... */
++#define SLOG_V_INVALID        1 << 31
++#define SLOG_V_NONE           SLOG_V_MICROTIME
++
++static const struct msl_opts slog_verb[]= 
++{
++  /* Basic flags */
++
++  { SLOG_V_MICROTIME, "microtime" },
++  { SLOG_V_QUERY_PLAN, "query_plan" },
++  { SLOG_V_INNODB, "innodb" },
++
++  /* End of baisc flags */
++
++  { 0, "" },
++
++  /* Complex flags */
++
++  { SLOG_V_MICROTIME, "minimal" },
++  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN, "standard" },
++  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN|SLOG_V_INNODB, "full" },
++
++  /* End of complex flags */
++
++  { SLOG_V_INVALID, (char *)0 }
++};
++
++#define QPLAN_NONE            0
++#define QPLAN_QC              1 << 0
++#define QPLAN_QC_NO           1 << 1
++#define QPLAN_FULL_SCAN       1 << 2
++#define QPLAN_FULL_JOIN       1 << 3
++#define QPLAN_TMP_TABLE       1 << 4
++#define QPLAN_TMP_DISK        1 << 5
++#define QPLAN_FILESORT        1 << 6
++#define QPLAN_FILESORT_DISK   1 << 7
++/* ... */
++#define QPLAN_MAX             1 << 31
++
++#define SLOG_F_QC_NO          QPLAN_QC_NO
++#define SLOG_F_FULL_SCAN      QPLAN_FULL_SCAN
++#define SLOG_F_FULL_JOIN      QPLAN_FULL_JOIN
++#define SLOG_F_TMP_TABLE      QPLAN_TMP_TABLE
++#define SLOG_F_TMP_DISK       QPLAN_TMP_DISK
++#define SLOG_F_FILESORT       QPLAN_FILESORT
++#define SLOG_F_FILESORT_DISK  QPLAN_FILESORT_DISK
++#define SLOG_F_INVALID        1 << 31
++#define SLOG_F_NONE           0
++
++static const struct msl_opts slog_filter[]= 
++{
++  { SLOG_F_QC_NO,         "qc_miss" },
++  { SLOG_F_FULL_SCAN,     "full_scan" },
++  { SLOG_F_FULL_JOIN,     "full_join" },
++  { SLOG_F_TMP_TABLE,     "tmp_table" },
++  { SLOG_F_TMP_DISK,      "tmp_table_on_disk" },
++  { SLOG_F_FILESORT,      "filesort" },
++  { SLOG_F_FILESORT_DISK, "filesort_on_disk" },
++  { SLOG_F_INVALID,       (char *)0 }
++};
++
+ /*
+   Some defines for exit codes for ::is_equal class functions.
+ */
+@@ -2007,6 +2079,9 @@
+ extern my_bool opt_secure_auth;
+ extern char* opt_secure_file_priv;
+ extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
++extern my_bool opt_log_slow_sp_statements;
++extern my_bool opt_log_slow_timestamp_every;
++extern my_bool opt_use_global_long_query_time;
+ extern my_bool sp_automatic_privileges, opt_noacl;
+ extern my_bool opt_old_style_user_limits, trust_function_creators;
+ extern uint opt_crash_binlog_innodb;
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-04-28 15:37:19.000000000 +0900
++++ b/sql/mysqld.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -484,6 +484,9 @@
+ char* opt_secure_file_priv= 0;
+ my_bool opt_log_slow_admin_statements= 0;
+ my_bool opt_log_slow_slave_statements= 0;
++my_bool opt_log_slow_sp_statements= 0;
++my_bool opt_log_slow_timestamp_every= 0;
++my_bool opt_use_global_long_query_time= 0;
+ my_bool lower_case_file_system= 0;
+ my_bool opt_large_pages= 0;
+ my_bool opt_myisam_use_mmap= 0;
+@@ -5729,6 +5732,11 @@
+   OPT_SECURE_FILE_PRIV,
+   OPT_MIN_EXAMINED_ROW_LIMIT,
+   OPT_LOG_SLOW_SLAVE_STATEMENTS,
++  OPT_LOG_SLOW_RATE_LIMIT,
++  OPT_LOG_SLOW_VERBOSITY,
++  OPT_LOG_SLOW_FILTER,
++  OPT_LOG_SLOW_SP_STATEMENTS,
++  OPT_LOG_SLOW_TIMESTAMP_EVERY,
+ #if defined(ENABLED_DEBUG_SYNC)
+   OPT_DEBUG_SYNC_TIMEOUT,
+ #endif /* defined(ENABLED_DEBUG_SYNC) */
+@@ -5736,6 +5744,7 @@
+   OPT_SLAVE_EXEC_MODE,
+   OPT_GENERAL_LOG_FILE,
+   OPT_SLOW_QUERY_LOG_FILE,
++  OPT_USE_GLOBAL_LONG_QUERY_TIME,
+   OPT_IGNORE_BUILTIN_INNODB,
+   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
+   OPT_DEFAULT_CHARACTER_SET_OLD
+@@ -6712,6 +6721,29 @@
+    "microsecond precision.",
+    (uchar**) &long_query_time, (uchar**) &long_query_time, 0, GET_DOUBLE,
+    REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
++  {"log_slow_filter", OPT_LOG_SLOW_FILTER,
++    "Log only the queries that followed certain execution plan. Multiple flags allowed in a comma-separated string. [qc_miss, full_scan, full_join, tmp_table, tmp_table_on_disk, filesort, filesort_on_disk]",
++    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_F_NONE, 0, 0},
++  {"log_slow_rate_limit", OPT_LOG_SLOW_RATE_LIMIT,
++    "Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
++    (uchar**) &global_system_variables.log_slow_rate_limit,
++    (uchar**) &max_system_variables.log_slow_rate_limit, 0, GET_ULONG,
++    REQUIRED_ARG, 1, 1, LONG_MAX, 0, 1L, 0},
++  {"log_slow_verbosity", OPT_LOG_SLOW_VERBOSITY,
++    "Choose how verbose the messages to your slow log will be. Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb]",
++    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_V_MICROTIME, 0, 0},
++  {"log_slow_sp_statements", OPT_LOG_SLOW_SP_STATEMENTS,
++   "Log slow statements executed by stored procedure to the slow log if it is open.",
++   (uchar**) &opt_log_slow_sp_statements, (uchar**) &opt_log_slow_sp_statements,
++   0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
++  {"log_slow_timestamp_every", OPT_LOG_SLOW_TIMESTAMP_EVERY,
++   "Timestamp is printed for all records of the slow log even if they are same time.",
++   (uchar**) &opt_log_slow_timestamp_every, (uchar**) &opt_log_slow_timestamp_every,
++   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
++  {"use_global_long_query_time", OPT_USE_GLOBAL_LONG_QUERY_TIME,
++   "Control always use global long_query_time or local long_query_time.",
++   (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
++   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
+    "If set to 1, table names are stored in lowercase on disk and table names "
+    "will be case-insensitive.  Should be set to 2 if you are using a case-"
+@@ -7838,6 +7870,9 @@
+   global_system_variables.old_passwords= 0;
+   global_system_variables.old_alter_table= 0;
+   global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
++
++  global_system_variables.log_slow_verbosity= SLOG_V_MICROTIME;
++  global_system_variables.log_slow_filter= SLOG_F_NONE;
+   /*
+     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
+     when collecting index statistics for MyISAM tables.
+@@ -8338,6 +8373,24 @@
+   case OPT_BOOTSTRAP:
+     opt_noacl=opt_bootstrap=1;
+     break;
++  case OPT_LOG_SLOW_FILTER:
++    if ((global_system_variables.log_slow_filter= 
++          msl_flag_resolve_by_name(slog_filter, argument,
++                                   SLOG_F_NONE, SLOG_F_INVALID)) == SLOG_F_INVALID)
++    {
++      fprintf(stderr,"Invalid argument in log_slow_filter: %s\n", argument);
++      exit(1);
++    }
++    break;
++  case OPT_LOG_SLOW_VERBOSITY:
++    if ((global_system_variables.log_slow_verbosity= 
++         msl_flag_resolve_by_name(slog_verb, argument,
++                                  SLOG_V_NONE, SLOG_V_INVALID)) == SLOG_V_INVALID)
++    {
++      fprintf(stderr,"Invalid argument in log_slow_verbosity: %s\n", argument);
++      exit(1);
++    }
++    break;
+   case OPT_SERVER_ID:
+     server_id_supplied = 1;
+     break;
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-04-06 23:07:03.000000000 +0900
++++ b/sql/set_var.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -892,6 +892,28 @@
+                                       QUERY_LOG_GENERAL);
+ static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
+                                          QUERY_LOG_SLOW);
++static sys_var_thd_ulong      sys_log_slow_rate_limit(&vars, "log_slow_rate_limit",
++                                            &SV::log_slow_rate_limit);
++static sys_var_thd_msl_flag   sys_log_slow_filter(&vars, "log_slow_filter",
++                                      &SV::log_slow_filter,
++                                       SLOG_F_NONE,
++                                       SLOG_F_NONE,
++                                       SLOG_F_INVALID,
++                                       slog_filter);
++static sys_var_thd_msl_flag   sys_log_slow_verbosity(&vars, "log_slow_verbosity",
++                                      &SV::log_slow_verbosity,
++                                       SLOG_V_NONE,
++                                       SLOG_V_MICROTIME,
++                                       SLOG_V_INVALID,
++                                       slog_verb);
++static sys_var_bool_ptr       sys_log_slow_slave_statements(&vars, "log_slow_slave_statements",
++                                                            &opt_log_slow_slave_statements);
++static sys_var_bool_ptr       sys_log_slow_sp_statements(&vars, "log_slow_sp_statements",
++                                                         &opt_log_slow_sp_statements);
++static sys_var_bool_ptr       sys_log_slow_timestamp_every(&vars, "log_slow_timestamp_every",
++                                                           &opt_log_slow_timestamp_every);
++static sys_var_bool_ptr       sys_use_global_long_query_time(&vars, "use_global_long_query_time",
++                                                       &opt_use_global_long_query_time);
+ /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
+ static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
+                                           &opt_slow_log, QUERY_LOG_SLOW);
+@@ -3706,6 +3728,192 @@
+ #endif
+ }
+ 
++/* Slow log stuff */
++
++ulong msl_option_resolve_by_name(const struct msl_opts *opts, const char *name, ulong len)
++{
++  ulong i;
++  
++  for (i=0; opts[i].name; i++)
++  {
++    if (!my_strnncoll(&my_charset_latin1,
++                      (const uchar *)name, len,
++                      (const uchar *)opts[i].name, strlen(opts[i].name)))
++      return opts[i].val;
++  }
++  return opts[i].val;
++}
++
++ulong msl_flag_resolve_by_name(const struct msl_opts *opts, const char *names_list, 
++                               const ulong none_val, const ulong invalid_val)
++{
++  const char *p, *e;
++  ulong val= none_val;
++  
++  if (!*names_list)
++    return val;
++  
++  for (p= e= names_list; ; e++)
++  {
++    ulong i;
++    
++    if (*e != ',' && *e)
++      continue;
++    for (i=0; opts[i].name; i++)
++    {
++      if (!my_strnncoll(&my_charset_latin1,
++                        (const uchar *)p, e - p,
++                        (const uchar *)opts[i].name, strlen(opts[i].name)))
++      {
++        val= val | opts[i].val;
++        break;
++      }
++    }
++    if (opts[i].val == invalid_val)
++      return invalid_val;
++    if (!*e)
++      break;
++    p= e + 1;
++  }
++  return val;
++}
++
++const char *msl_option_get_name(const struct msl_opts *opts, ulong val)
++{
++  for (ulong i=0; opts[i].name && opts[i].name[0]; i++)
++  {
++    if (opts[i].val == val)
++      return opts[i].name;
++  }
++  return "*INVALID*";
++}
++
++char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val)
++{
++  uint offset= 0;
++  
++  *buf= '\0';
++  for (ulong i=0; opts[i].name && opts[i].name[0]; i++)
++  {
++    if (opts[i].val & val)
++      offset+= snprintf(buf+offset, STRING_BUFFER_USUAL_SIZE - offset - 1,
++                        "%s%s", (offset ? "," : ""), opts[i].name);
++  }
++  return buf;
++}
++
++/****************************************************************************
++ Functions to handle log_slow_verbosity
++****************************************************************************/
++
++/* Based upon sys_var::check_enum() */
++
++bool sys_var_thd_msl_option::check(THD *thd, set_var *var)
++{
++  char buff[STRING_BUFFER_USUAL_SIZE];
++  String str(buff, sizeof(buff), &my_charset_latin1), *res;
++
++  if (var->value->result_type() == STRING_RESULT)
++  {
++    ulong verb= this->invalid_val;
++    if (!(res=var->value->val_str(&str)) ||
++             (var->save_result.ulong_value=
++          (ulong) (verb= msl_option_resolve_by_name(this->opts, res->ptr(), res->length()))) == this->invalid_val)
++      goto err;
++    return 0;
++  }
++
++err:
++  my_error(ER_WRONG_ARGUMENTS, MYF(0), var->var->name);
++  return 1;
++}
++
++uchar *sys_var_thd_msl_option::value_ptr(THD *thd, enum_var_type type,
++                                       LEX_STRING *base)
++{
++  ulong val;
++  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
++        thd->variables.*offset);
++  const char *verbosity= msl_option_get_name(this->opts, val);
++  return (uchar *) verbosity;
++}
++
++
++void sys_var_thd_msl_option::set_default(THD *thd, enum_var_type type)
++{
++  if (type == OPT_GLOBAL)
++    global_system_variables.*offset= (ulong) this->default_val;
++  else
++    thd->variables.*offset= (ulong) (global_system_variables.*offset);
++}
++
++
++bool sys_var_thd_msl_option::update(THD *thd, set_var *var)
++{
++  if (var->type == OPT_GLOBAL)
++    global_system_variables.*offset= var->save_result.ulong_value;
++  else
++    thd->variables.*offset= var->save_result.ulong_value;
++  return 0;
++}
++
++/****************************************************************************
++ Functions to handle log_slow_filter
++****************************************************************************/
++  
++/* Based upon sys_var::check_enum() */
++
++bool sys_var_thd_msl_flag::check(THD *thd, set_var *var)
++{
++  char buff[2 * STRING_BUFFER_USUAL_SIZE];
++  String str(buff, sizeof(buff), &my_charset_latin1), *res;
++
++  if (var->value->result_type() == STRING_RESULT)
++  {
++    ulong filter= this->none_val;
++    if (!(res=var->value->val_str(&str)) ||
++        (var->save_result.ulong_value=
++          (ulong) (filter= msl_flag_resolve_by_name(this->flags, res->ptr(), this->none_val, 
++                                                    this->invalid_val))) == this->invalid_val)
++      goto err;
++    return 0;
++  }
++
++err:
++  my_error(ER_WRONG_ARGUMENTS, MYF(0), var->var->name);
++  return 1;
++}
++
++uchar *sys_var_thd_msl_flag::value_ptr(THD *thd, enum_var_type type,
++                                       LEX_STRING *base)
++{
++  ulong val;
++  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
++        thd->variables.*offset);
++  msl_flag_get_name(this->flags, this->flags_string, val);
++  return (uchar *) this->flags_string;
++}
++
++
++void sys_var_thd_msl_flag::set_default(THD *thd, enum_var_type type)
++{
++  if (type == OPT_GLOBAL)
++    global_system_variables.*offset= (ulong) this->default_val;
++  else
++    thd->variables.*offset= (ulong) (global_system_variables.*offset);
++}
++
++
++bool sys_var_thd_msl_flag::update(THD *thd, set_var *var)
++{
++  if (var->type == OPT_GLOBAL)
++    global_system_variables.*offset= var->save_result.ulong_value;
++  else
++    thd->variables.*offset= var->save_result.ulong_value;
++  return 0;
++}
++
++
+ /****************************************************************************
+  Functions to handle table_type
+ ****************************************************************************/
+diff -ruN a/sql/set_var.h b/sql/set_var.h
+--- a/sql/set_var.h	2010-04-06 23:07:03.000000000 +0900
++++ b/sql/set_var.h	2010-04-28 15:37:56.000000000 +0900
+@@ -567,6 +567,66 @@
+ };
+ 
+ 
++class sys_var_thd_msl_option :public sys_var_thd
++{
++protected:
++  ulong SV::*offset;
++  const ulong none_val;
++  const ulong default_val;
++  const ulong invalid_val;
++  const struct msl_opts *opts;
++public:
++  sys_var_thd_msl_option(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
++                         const ulong none_val_arg,
++                         const ulong default_val_arg,
++                         const ulong invalid_val_arg,
++                         const struct msl_opts *opts_arg)
++    :sys_var_thd(name_arg), offset(offset_arg), none_val(none_val_arg),
++     default_val(default_val_arg), invalid_val(invalid_val_arg), 
++     opts(opts_arg)
++  { chain_sys_var(chain); }
++  bool check(THD *thd, set_var *var);
++  SHOW_TYPE show_type() { return SHOW_CHAR; }
++  bool check_update_type(Item_result type)
++  {
++    return type != STRING_RESULT;              /* Only accept strings */
++  }
++  void set_default(THD *thd, enum_var_type type);
++  bool update(THD *thd, set_var *var);
++  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
++};
++
++
++class sys_var_thd_msl_flag :public sys_var_thd
++{
++protected:
++  char flags_string[2 * STRING_BUFFER_USUAL_SIZE];
++  ulong SV::*offset;
++  const ulong none_val;
++  const ulong default_val;
++  const ulong invalid_val;
++  const struct msl_opts *flags;
++public:
++  sys_var_thd_msl_flag(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg, 
++                       const ulong none_val_arg, 
++                       const ulong default_val_arg, 
++                       const ulong invalid_val_arg,
++                       const struct msl_opts *flags_arg)
++    :sys_var_thd(name_arg), offset(offset_arg), none_val(none_val_arg),
++     default_val(default_val_arg), invalid_val(invalid_val_arg), 
++     flags(flags_arg)
++  { chain_sys_var(chain); }
++  bool check(THD *thd, set_var *var);
++  SHOW_TYPE show_type() { return SHOW_CHAR; }
++  bool check_update_type(Item_result type)
++  {
++    return type != STRING_RESULT;              /* Only accept strings */
++  }
++  void set_default(THD *thd, enum_var_type type);
++  bool update(THD *thd, set_var *var);
++  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
++};
++
+ class sys_var_thd_storage_engine :public sys_var_thd
+ {
+ protected:
+@@ -1465,3 +1525,10 @@
+ bool process_key_caches(process_key_cache_t func);
+ void delete_elements(I_List<NAMED_LIST> *list,
+ 		     void (*free_element)(const char*, uchar*));
++
++/* Slow log functions */
++ulong msl_option_resolve_by_name(const struct msl_opts *opts, const char *name, ulong len);
++ulong msl_flag_resolve_by_name(const struct msl_opts *opts, const char *names_list, 
++                               const ulong none_val, const ulong invalid_val);
++const char *msl_option_get_name(const struct msl_opts *opts, ulong val);
++char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val);
+diff -ruN a/sql/slave.cc b/sql/slave.cc
+--- a/sql/slave.cc	2010-04-06 23:07:03.000000000 +0900
++++ b/sql/slave.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -1825,6 +1825,7 @@
+     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
+   thd->slave_thread = 1;
+   thd->enable_slow_log= opt_log_slow_slave_statements;
++  thd->write_to_slow_log= opt_log_slow_slave_statements;
+   set_slave_thread_options(thd);
+   thd->client_capabilities = CLIENT_LOCAL_FILES;
+   pthread_mutex_lock(&LOCK_thread_count);
+diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
+--- a/sql/sp_head.cc	2010-04-28 15:37:19.000000000 +0900
++++ b/sql/sp_head.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -1964,7 +1964,7 @@
+     DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
+                        m_name.str));
+   }
+-  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
++  if (!(m_flags & LOG_SLOW_STATEMENTS || opt_log_slow_sp_statements) && thd->enable_slow_log)
+   {
+     DBUG_PRINT("info", ("Disabling slow log for the execution"));
+     save_enable_slow_log= true;
+diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
+--- a/sql/sql_cache.cc	2010-04-06 23:07:04.000000000 +0900
++++ b/sql/sql_cache.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -1653,6 +1653,7 @@
+ 
+   thd->limit_found_rows = query->found_rows();
+   thd->status_var.last_query_cost= 0.0;
++  thd->query_plan_flags|= QPLAN_QC;
+   thd->main_da.disable_status();
+ 
+   BLOCK_UNLOCK_RD(query_block);
+@@ -1661,6 +1662,7 @@
+ err_unlock:
+   unlock();
+ err:
++  thd->query_plan_flags|= QPLAN_QC_NO;
+   DBUG_RETURN(0);				// Query was not cached
+ }
+ 
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
+--- a/sql/sql_class.cc	2010-04-06 23:07:04.000000000 +0900
++++ b/sql/sql_class.cc	2010-04-28 15:42:47.000000000 +0900
+@@ -308,6 +308,34 @@
+   thd->row_count++;
+ }
+ 
++extern "C"
++void increment_thd_innodb_stats(THD* thd,long io_reads,
++                    long long  io_read,
++                    long      io_reads_wait_timer,
++                    long      lock_que_wait_timer,
++                    long      que_wait_timer,
++                    long      page_access)
++{
++  thd->innodb_was_used = TRUE;
++  thd->innodb_io_reads += io_reads;
++  thd->innodb_io_read += io_read;
++  thd->innodb_io_reads_wait_timer += io_reads_wait_timer;
++  thd->innodb_lock_que_wait_timer += lock_que_wait_timer;
++  thd->innodb_innodb_que_wait_timer += que_wait_timer;
++  thd->innodb_page_access += page_access;
++}
++
++extern "C"
++unsigned long thd_log_slow_verbosity(const THD *thd)
++{
++  return (unsigned long) thd->variables.log_slow_verbosity;
++}
++
++extern "C"
++int thd_opt_slow_log()
++{
++  return (int) opt_slow_log;
++}
+ 
+ /**
+   Dumps a text description of a thread, its security context
+@@ -3114,6 +3142,12 @@
+     first_successful_insert_id_in_prev_stmt;
+   backup->first_successful_insert_id_in_cur_stmt= 
+     first_successful_insert_id_in_cur_stmt;
++  backup->innodb_io_reads= innodb_io_reads;
++  backup->innodb_io_read= innodb_io_read;
++  backup->innodb_io_reads_wait_timer= innodb_io_reads_wait_timer;
++  backup->innodb_lock_que_wait_timer= innodb_lock_que_wait_timer;
++  backup->innodb_innodb_que_wait_timer= innodb_innodb_que_wait_timer;
++  backup->innodb_page_access= innodb_page_access;
+ 
+   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
+       !current_stmt_binlog_row_based)
+@@ -3133,6 +3167,12 @@
+   cuted_fields= 0;
+   transaction.savepoints= 0;
+   first_successful_insert_id_in_cur_stmt= 0;
++  innodb_io_reads= 0;
++  innodb_io_read= 0;
++  innodb_io_reads_wait_timer= 0;
++  innodb_lock_que_wait_timer= 0;
++  innodb_innodb_que_wait_timer= 0;
++  innodb_page_access= 0;
+ }
+ 
+ 
+@@ -3195,6 +3235,12 @@
+   */
+   examined_row_count+= backup->examined_row_count;
+   cuted_fields+=       backup->cuted_fields;
++  innodb_io_reads+= backup->innodb_io_reads;
++  innodb_io_read+= backup->innodb_io_read;
++  innodb_io_reads_wait_timer+= backup->innodb_io_reads_wait_timer;
++  innodb_lock_que_wait_timer+= backup->innodb_lock_que_wait_timer;
++  innodb_innodb_que_wait_timer+= backup->innodb_innodb_que_wait_timer;
++  innodb_page_access+= backup->innodb_page_access;
+   DBUG_VOID_RETURN;
+ }
+ 
+diff -ruN a/sql/sql_class.h b/sql/sql_class.h
+--- a/sql/sql_class.h	2010-04-06 23:07:04.000000000 +0900
++++ b/sql/sql_class.h	2010-04-28 15:37:56.000000000 +0900
+@@ -401,6 +401,17 @@
+   DATE_TIME_FORMAT *datetime_format;
+   DATE_TIME_FORMAT *time_format;
+   my_bool sysdate_is_now;
++
++  ulong log_slow_rate_limit;
++  ulong log_slow_filter;
++  ulong log_slow_verbosity;
++
++  ulong      innodb_io_reads;
++  ulonglong  innodb_io_read;
++  ulong      innodb_io_reads_wait_timer;
++  ulong      innodb_lock_que_wait_timer;
++  ulong      innodb_innodb_que_wait_timer;
++  ulong      innodb_page_access;
+ };
+ 
+ 
+@@ -994,6 +1005,14 @@
+   uint in_sub_stmt;
+   bool enable_slow_log;
+   bool last_insert_id_used;
++
++  ulong      innodb_io_reads;
++  ulonglong  innodb_io_read;
++  ulong      innodb_io_reads_wait_timer;
++  ulong      innodb_lock_que_wait_timer;
++  ulong      innodb_innodb_que_wait_timer;
++  ulong      innodb_page_access;
++
+   SAVEPOINT *savepoints;
+   enum enum_check_fields count_cuted_fields;
+ };
+@@ -1417,6 +1436,23 @@
+   thr_lock_type update_lock_default;
+   Delayed_insert *di;
+ 
++  bool       write_to_slow_log;
++
++  ulonglong  bytes_sent_old;
++  ulong      tmp_tables_used;
++  ulong      tmp_tables_disk_used;
++  ulonglong  tmp_tables_size;
++  bool       innodb_was_used;
++  ulong      innodb_io_reads;
++  ulonglong  innodb_io_read;
++  ulong      innodb_io_reads_wait_timer;
++  ulong      innodb_lock_que_wait_timer;
++  ulong      innodb_innodb_que_wait_timer;
++  ulong      innodb_page_access;
++
++  ulong      query_plan_flags;
++  ulong      query_plan_fsort_passes;
++
+   /* <> 0 if we are inside of trigger or stored function. */
+   uint in_sub_stmt;
+   /* TRUE when the current top has SQL_LOG_BIN ON */
+diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
+--- a/sql/sql_connect.cc	2010-04-06 23:07:04.000000000 +0900
++++ b/sql/sql_connect.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -1121,6 +1121,15 @@
+ 
+     prepare_new_connection_state(thd);
+ 
++    /* 
++      If rate limiting of slow log writes is enabled, decide whether to log this 
++      new thread's queries or not. Uses extremely simple algorithm. :) 
++    */ 
++    thd->write_to_slow_log= FALSE; 
++    if (thd->variables.log_slow_rate_limit <= 1 ||  
++        (thd->thread_id % thd->variables.log_slow_rate_limit) == 0) 
++         thd->write_to_slow_log= TRUE; 
++
+     while (!net->error && net->vio != 0 &&
+            !(thd->killed == THD::KILL_CONNECTION))
+     {
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
+--- a/sql/sql_parse.cc	2010-04-28 15:37:19.000000000 +0900
++++ b/sql/sql_parse.cc	2010-04-28 16:00:21.000000000 +0900
+@@ -1654,6 +1654,31 @@
+   if (unlikely(thd->in_sub_stmt))
+     DBUG_VOID_RETURN;                           // Don't set time for sub stmt
+ 
++  /* Follow the slow log filter configuration. */
++  if (thd->variables.log_slow_filter != SLOG_F_NONE &&
++      (!(thd->variables.log_slow_filter & thd->query_plan_flags) ||
++       ((thd->variables.log_slow_filter & SLOG_F_QC_NO) &&
++        (thd->query_plan_flags & QPLAN_QC))))
++    DBUG_VOID_RETURN;
++
++  /*
++    Low long_query_time value most likely means user is debugging stuff and even
++    though some thread's queries are not supposed to be logged b/c of the rate
++    limit, if one of them takes long enough (>= 1 second) it will be sensible
++    to make an exception and write to slow log anyway.
++  */
++
++  ulonglong end_utime_of_query= thd->current_utime();
++
++  if (opt_use_global_long_query_time)
++    thd->variables.long_query_time = global_system_variables.long_query_time;
++
++  /* Do not log this thread's queries due to rate limiting. */
++  if (thd->write_to_slow_log != TRUE
++      && (thd->variables.long_query_time >= 1000000
++          || (ulong) (end_utime_of_query - thd->utime_after_lock) < 1000000))
++    DBUG_VOID_RETURN;
++
+   /*
+     Do not log administrative statements unless the appropriate option is
+     set.
+@@ -2040,6 +2065,8 @@
+     context.resolve_in_table_list_only((TABLE_LIST*)select_lex->
+                                        table_list.first);
+ 
++  /* Reset the counter at all cases for the extended slow query log */
++  thd->row_count= 1;
+   /*
+     Reset warning count for each query that uses tables
+     A better approach would be to reset this for any commands
+@@ -5708,6 +5735,19 @@
+   thd->rand_used= 0;
+   thd->sent_row_count= thd->examined_row_count= 0;
+ 
++  thd->bytes_sent_old= thd->status_var.bytes_sent;
++  thd->tmp_tables_used= thd->tmp_tables_disk_used= 0;
++  thd->tmp_tables_size= 0;
++  thd->innodb_was_used= FALSE;
++  thd->innodb_io_reads= 0;
++  thd->innodb_io_read= 0;
++  thd->innodb_io_reads_wait_timer= 0;
++  thd->innodb_lock_que_wait_timer= 0;
++  thd->innodb_innodb_que_wait_timer= 0;
++  thd->innodb_page_access= 0;
++  thd->query_plan_flags= QPLAN_NONE;
++  thd->query_plan_fsort_passes= 0;
++
+   /*
+     Because we come here only for start of top-statements, binlog format is
+     constant inside a complex statement (using stored functions) etc.
+diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
+--- a/sql/sql_select.cc	2010-04-06 23:07:05.000000000 +0900
++++ b/sql/sql_select.cc	2010-04-28 15:37:56.000000000 +0900
+@@ -6709,7 +6709,10 @@
+ 	  {
+ 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
+ 	    if (statistics)
++            {
+ 	      status_var_increment(join->thd->status_var.select_scan_count);
++              join->thd->query_plan_flags|= QPLAN_FULL_SCAN;
++            }
+ 	  }
+ 	}
+ 	else
+@@ -6723,7 +6726,10 @@
+ 	  {
+ 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
+ 	    if (statistics)
++            {
+ 	      status_var_increment(join->thd->status_var.select_full_join_count);
++              join->thd->query_plan_flags|= QPLAN_FULL_JOIN;
++            }
+ 	  }
+ 	}
+ 	if (!table->no_keyread)
+@@ -9877,6 +9883,7 @@
+               (ulong) rows_limit,test(group)));
+ 
+   status_var_increment(thd->status_var.created_tmp_tables);
++  thd->query_plan_flags|= QPLAN_TMP_TABLE;
+ 
+   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
+     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
+@@ -10758,6 +10765,7 @@
+     goto err;
+   }
+   status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
++  table->in_use->query_plan_flags|= QPLAN_TMP_DISK;
+   share->db_record_offset= 1;
+   DBUG_RETURN(0);
+  err:
+@@ -10776,6 +10784,14 @@
+   save_proc_info=thd->proc_info;
+   thd_proc_info(thd, "removing tmp table");
+ 
++  thd->tmp_tables_used++;
++  if (entry->file)
++  {
++    thd->tmp_tables_size += entry->file->stats.data_file_length;
++    if (entry->file->ht->db_type != DB_TYPE_HEAP)
++      thd->tmp_tables_disk_used++;
++  }
++
+   // Release latches since this can take a long time
+   ha_release_temporary_latches(thd);
+ 

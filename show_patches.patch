@@ -1,0 +1,290 @@
+diff -ruN a/patch_info/show_patches.info b/patch_info/show_patches.info
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/patch_info/show_patches.info	2010-04-28 15:29:36.000000000 +0900
+@@ -0,0 +1,9 @@
++File=show_patches.patch
++Name=SHOW PATCHES
++Version=1.0
++Author=Jeremy Cole
++License=N/A
++Comment=
++Changelog
++2010-01
++Ported to 5.1.42
+diff -ruN a/sql/Makefile.am b/sql/Makefile.am
+--- a/sql/Makefile.am	2010-04-06 23:06:05.000000000 +0900
++++ b/sql/Makefile.am	2010-04-28 15:29:36.000000000 +0900
+@@ -146,7 +146,7 @@
+ 			@DEFS@
+ 
+ BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
+-BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
++BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h patch_info.h link_sources
+ EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
+ 			nt_servc.cc nt_servc.h \
+ 			message.mc  message.h message.rc MSG00001.bin \
+@@ -183,6 +183,9 @@
+ udf_example_la_SOURCES= udf_example.c
+ udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
+ 
++patch_info.h:	patch_info.h.pl
++	$(PERL) $< > $@
++
+ # We might have some stuff not built in this build, but that we want to install
+ install-exec-hook:
+ 	$(mkinstalldirs) $(DESTDIR)$(libexecdir) $(DESTDIR)$(pkglibdir)
+diff -ruN a/sql/Makefile.in b/sql/Makefile.in
+--- a/sql/Makefile.in	2010-04-06 23:12:51.000000000 +0900
++++ b/sql/Makefile.in	2010-04-28 15:29:36.000000000 +0900
+@@ -631,7 +631,7 @@
+ mysql_tzinfo_to_sql_SOURCES = tztime.cc
+ mysql_tzinfo_to_sql_CXXFLAGS = -DTZINFO2SQL
+ BUILT_MAINT_SRC = sql_yacc.cc sql_yacc.h
+-BUILT_SOURCES = $(BUILT_MAINT_SRC) lex_hash.h link_sources
++BUILT_SOURCES = $(BUILT_MAINT_SRC) lex_hash.h patch_info.h link_sources
+ EXTRA_DIST = udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
+ 			nt_servc.cc nt_servc.h \
+ 			message.mc  message.h message.rc MSG00001.bin \
+@@ -1316,6 +1316,9 @@
+ 	test ! -f mysqld-debug.sym.gz   || $(INSTALL_DATA)    mysqld-debug.sym.gz   $(DESTDIR)$(pkglibdir)
+ 	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
+ 
++patch_info.h:	patch_info.h.pl
++	$(PERL) $< > $@
++
+ # Don't update the files from bitkeeper
+ %::SCCS/s.%
+ # Tell versions [3.59,3.63) of GNU make to not export all variables.
+diff -ruN a/sql/lex.h b/sql/lex.h
+--- a/sql/lex.h	2010-04-06 23:07:01.000000000 +0900
++++ b/sql/lex.h	2010-04-28 15:29:36.000000000 +0900
+@@ -392,6 +392,7 @@
+   { "PARTITIONING",     SYM(PARTITIONING_SYM)},
+   { "PARTITIONS",       SYM(PARTITIONS_SYM)},
+   { "PASSWORD",		SYM(PASSWORD)},
++  { "PATCHES",		SYM(PATCHES)},
+   { "PHASE",            SYM(PHASE_SYM)},
+   { "PLUGIN",           SYM(PLUGIN_SYM)},
+   { "PLUGINS",          SYM(PLUGINS_SYM)},
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-04-06 23:07:02.000000000 +0900
++++ b/sql/mysql_priv.h	2010-04-28 15:29:36.000000000 +0900
+@@ -1368,6 +1368,7 @@
+ int mysqld_show_status(THD *thd);
+ int mysqld_show_variables(THD *thd,const char *wild);
+ bool mysqld_show_storage_engines(THD *thd);
++bool mysqld_show_patches(THD *thd);
+ bool mysqld_show_authors(THD *thd);
+ bool mysqld_show_contributors(THD *thd);
+ bool mysqld_show_privileges(THD *thd);
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-04-06 23:07:02.000000000 +0900
++++ b/sql/mysqld.cc	2010-04-28 15:29:36.000000000 +0900
+@@ -3148,6 +3148,7 @@
+   {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
+   {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
+   {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
++  {"show_patches",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PATCHES]), SHOW_LONG_STATUS},
+   {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
+   {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
+ #ifndef DBUG_OFF
+diff -ruN a/sql/patch_info.h.pl b/sql/patch_info.h.pl
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/sql/patch_info.h.pl	2010-04-28 15:29:36.000000000 +0900
+@@ -0,0 +1,65 @@
++use strict;
++
++my $patch_info_path = '../patch_info';
++my $file = '';
++my $output = '';
++
++
++if (opendir(PATCH_DIR, $patch_info_path))
++{
++	while ((my $file = readdir(PATCH_DIR)))
++	{
++		open(PATCH_FILE, "<$patch_info_path/$file") || die("Unable to open $patch_info_path/$file ($!)");
++		my %fields;
++	
++		if ($file =~ /^\./)
++		{
++			next;
++		}	
++	
++		while (<PATCH_FILE>)
++		{
++			chomp;
++	
++			my ($key, $value) = split(/\s*=\s*/);
++			$fields{lc($key)} = $value;
++		}
++	
++		$output .= "{\"$fields{'file'}\", \"$fields{'name'}\", \"$fields{'version'}\", \"$fields{'author'}\", \"$fields{'license'}\",\"$fields{'comment'}\"},\n"
++	}
++}	
++
++print <<HEADER;
++
++/* Copyright (C) 2002-2006 MySQL AB
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++#ifdef USE_PRAGMA_INTERFACE
++#pragma interface			/* gcc class implementation */
++#endif
++
++struct patch {
++	const char *file;
++	const char *name;
++	const char *version;
++	const char *author;
++	const char *license;
++	const char *comment;
++}patches[] = {
++$output
++{NULL, NULL, NULL, NULL}
++};	
++
++HEADER
+diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
+--- a/sql/sp_head.cc	2010-04-06 23:07:04.000000000 +0900
++++ b/sql/sp_head.cc	2010-04-28 15:29:36.000000000 +0900
+@@ -197,6 +197,7 @@
+   case SQLCOM_SHOW_MASTER_STAT:
+   case SQLCOM_SHOW_NEW_MASTER:
+   case SQLCOM_SHOW_OPEN_TABLES:
++  case SQLCOM_SHOW_PATCHES:
+   case SQLCOM_SHOW_PRIVILEGES:
+   case SQLCOM_SHOW_PROCESSLIST:
+   case SQLCOM_SHOW_PROC_CODE:
+diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
+--- a/sql/sql_lex.h	2010-04-06 23:07:04.000000000 +0900
++++ b/sql/sql_lex.h	2010-04-28 15:29:36.000000000 +0900
+@@ -118,6 +118,7 @@
+   SQLCOM_SHOW_CREATE_TRIGGER,
+   SQLCOM_ALTER_DB_UPGRADE,
+   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
++  SQLCOM_SHOW_PATCHES,
+ 
+   /*
+     When a command is added here, be sure it's also added in mysqld.cc
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
+--- a/sql/sql_parse.cc	2010-04-06 23:07:05.000000000 +0900
++++ b/sql/sql_parse.cc	2010-04-28 15:29:36.000000000 +0900
+@@ -3401,6 +3401,9 @@
+   case SQLCOM_SHOW_CONTRIBUTORS:
+     res= mysqld_show_contributors(thd);
+     break;
++  case SQLCOM_SHOW_PATCHES:
++    res= mysqld_show_patches(thd);
++    break;
+   case SQLCOM_SHOW_PRIVILEGES:
+     res= mysqld_show_privileges(thd);
+     break;
+diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
+--- a/sql/sql_prepare.cc	2010-04-06 23:07:05.000000000 +0900
++++ b/sql/sql_prepare.cc	2010-04-28 15:29:36.000000000 +0900
+@@ -1919,6 +1919,7 @@
+     */
+   case SQLCOM_SHOW_PROCESSLIST:
+   case SQLCOM_SHOW_STORAGE_ENGINES:
++  case SQLCOM_SHOW_PATCHES:
+   case SQLCOM_SHOW_PRIVILEGES:
+   case SQLCOM_SHOW_COLUMN_TYPES:
+   case SQLCOM_SHOW_ENGINE_LOGS:
+diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
+--- a/sql/sql_show.cc	2010-04-06 23:07:05.000000000 +0900
++++ b/sql/sql_show.cc	2010-04-28 15:29:36.000000000 +0900
+@@ -23,6 +23,7 @@
+ #include "sp.h"
+ #include "sp_head.h"
+ #include "sql_trigger.h"
++#include "patch_info.h"
+ #include "authors.h"
+ #include "contributors.h"
+ #ifdef HAVE_EVENT_SCHEDULER
+@@ -7209,3 +7210,42 @@
+     status and client connection will be closed.
+   */
+ }
++
++/***************************************************************************
++** List patches built into this release
++***************************************************************************/
++
++bool mysqld_show_patches(THD *thd)
++{
++  List<Item> field_list;
++  int i = 0;
++  Protocol *protocol= thd->protocol;
++  DBUG_ENTER("mysqld_show_patches");
++
++  field_list.push_back(new Item_empty_string("File", 255));
++  field_list.push_back(new Item_empty_string("Name", 50));
++  field_list.push_back(new Item_empty_string("Version", 10));
++  field_list.push_back(new Item_empty_string("Author", 50));
++  field_list.push_back(new Item_empty_string("License", 50));
++  field_list.push_back(new Item_empty_string("Comment", 32));
++
++  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
++    DBUG_RETURN(TRUE);
++
++  for (i = 0; patches[i].file; i++)
++  {
++    protocol->prepare_for_resend();
++    protocol->store(patches[i].file, system_charset_info);
++    protocol->store(patches[i].name, system_charset_info);
++    protocol->store(patches[i].version, system_charset_info);
++    protocol->store(patches[i].author, system_charset_info);
++    protocol->store(patches[i].license, system_charset_info);
++    protocol->store(patches[i].comment, system_charset_info);
++
++    if (protocol->write())
++      DBUG_RETURN(TRUE);
++  }
++
++  my_eof(thd);
++  DBUG_RETURN(FALSE);
++}
+diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+--- a/sql/sql_yacc.yy	2010-04-06 23:07:06.000000000 +0900
++++ b/sql/sql_yacc.yy	2010-04-28 15:29:36.000000000 +0900
+@@ -1056,6 +1056,7 @@
+ %token  PARTITIONS_SYM
+ %token  PARTITION_SYM                 /* SQL-2003-R */
+ %token  PASSWORD
++%token  PATCHES
+ %token  PHASE_SYM
+ %token  PLUGINS_SYM
+ %token  PLUGIN_SYM
+@@ -10179,6 +10180,11 @@
+             if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
+               MYSQL_YYABORT;
+           }
++        | PATCHES
++          {
++            LEX *lex=Lex;
++            lex->sql_command= SQLCOM_SHOW_PATCHES;
++          }
+         | opt_storage ENGINES_SYM
+           {
+             LEX *lex=Lex;
+@@ -11771,6 +11777,7 @@
+         | PARTITIONING_SYM         {}
+         | PARTITIONS_SYM           {}
+         | PASSWORD                 {}
++        | PATCHES                  {}
+         | PHASE_SYM                {}
+         | PLUGIN_SYM               {}
+         | PLUGINS_SYM              {}

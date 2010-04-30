@@ -1,0 +1,745 @@
+diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
+--- a/mysql-test/r/create.result	2010-04-06 23:36:37.000000000 +0900
++++ b/mysql-test/r/create.result	2010-04-30 17:53:05.000000000 +0900
+@@ -1743,7 +1743,8 @@
+   `COMMAND` varchar(16) NOT NULL DEFAULT '',
+   `TIME` int(7) NOT NULL DEFAULT '0',
+   `STATE` varchar(64) DEFAULT NULL,
+-  `INFO` longtext
++  `INFO` longtext,
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0'
+ ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+ drop table t1;
+ create temporary table t1 like information_schema.processlist;
+@@ -1757,7 +1758,8 @@
+   `COMMAND` varchar(16) NOT NULL DEFAULT '',
+   `TIME` int(7) NOT NULL DEFAULT '0',
+   `STATE` varchar(64) DEFAULT NULL,
+-  `INFO` longtext
++  `INFO` longtext,
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0'
+ ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+ drop table t1;
+ create table t1 like information_schema.character_sets;
+diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_schema.result
+--- a/mysql-test/r/information_schema.result	2010-04-06 23:36:46.000000000 +0900
++++ b/mysql-test/r/information_schema.result	2010-04-30 17:53:05.000000000 +0900
+@@ -44,10 +44,12 @@
+ select * from v1;
+ c
+ CHARACTER_SETS
++CLIENT_STATISTICS
+ COLLATIONS
+ COLLATION_CHARACTER_SET_APPLICABILITY
+ COLUMNS
+ COLUMN_PRIVILEGES
++INDEX_STATISTICS
+ ENGINES
+ EVENTS
+ FILES
+@@ -68,9 +70,29 @@
+ TABLES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++THREAD_STATISTICS
+ TRIGGERS
+ USER_PRIVILEGES
++USER_STATISTICS
+ VIEWS
++INNODB_BUFFER_POOL_PAGES_INDEX
++INNODB_RSEG
++INNODB_LOCKS
++INNODB_BUFFER_POOL_PAGES
++XTRADB_ENHANCEMENTS
++INNODB_TRX
++XTRADB_ADMIN_COMMAND
++INNODB_LOCK_WAITS
++INNODB_SYS_TABLES
++INNODB_CMP
++INNODB_CMPMEM_RESET
++INNODB_CMP_RESET
++INNODB_CMPMEM
++INNODB_INDEX_STATS
++INNODB_SYS_INDEXES
++INNODB_BUFFER_POOL_PAGES_BLOB
++INNODB_TABLE_STATS
+ columns_priv
+ db
+ event
+@@ -106,6 +128,8 @@
+ TABLES	TABLES
+ TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
++THREAD_STATISTICS	THREAD_STATISTICS
+ TRIGGERS	TRIGGERS
+ tables_priv	tables_priv
+ time_zone	time_zone
+@@ -125,6 +149,8 @@
+ TABLES	TABLES
+ TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
++THREAD_STATISTICS	THREAD_STATISTICS
+ TRIGGERS	TRIGGERS
+ tables_priv	tables_priv
+ time_zone	time_zone
+@@ -144,6 +170,8 @@
+ TABLES	TABLES
+ TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
++THREAD_STATISTICS	THREAD_STATISTICS
+ TRIGGERS	TRIGGERS
+ tables_priv	tables_priv
+ time_zone	time_zone
+@@ -625,12 +653,14 @@
+ where table_schema='information_schema' limit 2;
+ TABLE_NAME	TABLE_TYPE	ENGINE
+ CHARACTER_SETS	SYSTEM VIEW	MEMORY
+-COLLATIONS	SYSTEM VIEW	MEMORY
++CLIENT_STATISTICS	SYSTEM VIEW	MEMORY
+ show tables from information_schema like "T%";
+ Tables_in_information_schema (T%)
+ TABLES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++THREAD_STATISTICS
+ TRIGGERS
+ create database information_schema;
+ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+@@ -640,6 +670,8 @@
+ TABLES	SYSTEM VIEW
+ TABLE_CONSTRAINTS	SYSTEM VIEW
+ TABLE_PRIVILEGES	SYSTEM VIEW
++TABLE_STATISTICS	SYSTEM VIEW
++THREAD_STATISTICS	SYSTEM VIEW
+ TRIGGERS	SYSTEM VIEW
+ create table t1(a int);
+ ERROR 42S02: Unknown table 't1' in information_schema
+@@ -652,6 +684,8 @@
+ TABLES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++THREAD_STATISTICS
+ TRIGGERS
+ select table_name from tables where table_name='user';
+ table_name
+@@ -799,6 +833,8 @@
+ TABLES	UPDATE_TIME	datetime
+ TABLES	CHECK_TIME	datetime
+ TRIGGERS	CREATED	datetime
++INNODB_TRX	trx_started	datetime
++INNODB_TRX	trx_wait_started	datetime
+ event	execute_at	datetime
+ event	last_executed	datetime
+ event	starts	datetime
+@@ -838,6 +874,7 @@
+ TABLE_NAME	COLUMN_NAME	PRIVILEGES
+ COLUMNS	TABLE_NAME	select
+ COLUMN_PRIVILEGES	TABLE_NAME	select
++INDEX_STATISTICS	TABLE_NAME	select
+ FILES	TABLE_NAME	select
+ KEY_COLUMN_USAGE	TABLE_NAME	select
+ PARTITIONS	TABLE_NAME	select
+@@ -846,13 +883,17 @@
+ TABLES	TABLE_NAME	select
+ TABLE_CONSTRAINTS	TABLE_NAME	select
+ TABLE_PRIVILEGES	TABLE_NAME	select
++TABLE_STATISTICS	TABLE_NAME	select
+ VIEWS	TABLE_NAME	select
++INNODB_BUFFER_POOL_PAGES_INDEX	table_name	select
++INNODB_INDEX_STATS	table_name	select
++INNODB_TABLE_STATS	table_name	select
+ delete from mysql.user where user='mysqltest_4';
+ delete from mysql.db where user='mysqltest_4';
+ flush privileges;
+ SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+ table_schema	count(*)
+-information_schema	28
++information_schema	50
+ mysql	22
+ create table t1 (i int, j int);
+ create trigger trg1 before insert on t1 for each row
+@@ -1240,10 +1281,12 @@
+         );
+ table_name	column_name
+ CHARACTER_SETS	CHARACTER_SET_NAME
++CLIENT_STATISTICS	CLIENT
+ COLLATIONS	COLLATION_NAME
+ COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+ COLUMNS	TABLE_SCHEMA
+ COLUMN_PRIVILEGES	TABLE_SCHEMA
++INDEX_STATISTICS	TABLE_SCHEMA
+ ENGINES	ENGINE
+ EVENTS	EVENT_SCHEMA
+ FILES	TABLE_SCHEMA
+@@ -1264,9 +1307,29 @@
+ TABLES	TABLE_SCHEMA
+ TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+ TABLE_PRIVILEGES	TABLE_SCHEMA
++TABLE_STATISTICS	TABLE_SCHEMA
++THREAD_STATISTICS	THREAD_ID
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
++USER_STATISTICS	USER
+ VIEWS	TABLE_SCHEMA
++INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_RSEG	rseg_id
++INNODB_LOCKS	lock_id
++INNODB_BUFFER_POOL_PAGES	page_type
++XTRADB_ENHANCEMENTS	name
++INNODB_TRX	trx_id
++XTRADB_ADMIN_COMMAND	result_message
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_SYS_TABLES	NAME
++INNODB_CMP	page_size
++INNODB_CMPMEM_RESET	page_size
++INNODB_CMP_RESET	page_size
++INNODB_CMPMEM	page_size
++INNODB_INDEX_STATS	table_schema
++INNODB_SYS_INDEXES	TABLE_ID
++INNODB_BUFFER_POOL_PAGES_BLOB	space_id
++INNODB_TABLE_STATS	table_schema
+ SELECT t.table_name, c1.column_name
+ FROM information_schema.tables t
+ INNER JOIN
+@@ -1283,10 +1346,12 @@
+         );
+ table_name	column_name
+ CHARACTER_SETS	CHARACTER_SET_NAME
++CLIENT_STATISTICS	CLIENT
+ COLLATIONS	COLLATION_NAME
+ COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+ COLUMNS	TABLE_SCHEMA
+ COLUMN_PRIVILEGES	TABLE_SCHEMA
++INDEX_STATISTICS	TABLE_SCHEMA
+ ENGINES	ENGINE
+ EVENTS	EVENT_SCHEMA
+ FILES	TABLE_SCHEMA
+@@ -1307,17 +1372,37 @@
+ TABLES	TABLE_SCHEMA
+ TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+ TABLE_PRIVILEGES	TABLE_SCHEMA
++TABLE_STATISTICS	TABLE_SCHEMA
++THREAD_STATISTICS	THREAD_ID
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
++USER_STATISTICS	USER
+ VIEWS	TABLE_SCHEMA
++INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_RSEG	rseg_id
++INNODB_LOCKS	lock_id
++INNODB_BUFFER_POOL_PAGES	page_type
++XTRADB_ENHANCEMENTS	name
++INNODB_TRX	trx_id
++XTRADB_ADMIN_COMMAND	result_message
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_SYS_TABLES	NAME
++INNODB_CMP	page_size
++INNODB_CMPMEM_RESET	page_size
++INNODB_CMP_RESET	page_size
++INNODB_CMPMEM	page_size
++INNODB_INDEX_STATS	table_schema
++INNODB_SYS_INDEXES	TABLE_ID
++INNODB_BUFFER_POOL_PAGES_BLOB	space_id
++INNODB_TABLE_STATS	table_schema
+ SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+ MAX(table_name)
+-VIEWS
++XTRADB_ENHANCEMENTS
+ SELECT table_name from information_schema.tables
+ WHERE table_name=(SELECT MAX(table_name)
+ FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
+ table_name
+-VIEWS
++XTRADB_ENHANCEMENTS
+ DROP TABLE IF EXISTS bug23037;
+ DROP FUNCTION IF EXISTS get_value;
+ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
+@@ -1377,6 +1462,7 @@
+ group by t.table_name order by num1, t.table_name;
+ table_name	group_concat(t.table_schema, '.', t.table_name)	num1
+ CHARACTER_SETS	information_schema.CHARACTER_SETS	1
++CLIENT_STATISTICS	information_schema.CLIENT_STATISTICS	1
+ COLLATIONS	information_schema.COLLATIONS	1
+ COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
+ COLUMNS	information_schema.COLUMNS	1
+@@ -1386,6 +1472,22 @@
+ FILES	information_schema.FILES	1
+ GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+ GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
++INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
++INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
++INNODB_BUFFER_POOL_PAGES_BLOB	information_schema.INNODB_BUFFER_POOL_PAGES_BLOB	1
++INNODB_BUFFER_POOL_PAGES_INDEX	information_schema.INNODB_BUFFER_POOL_PAGES_INDEX	1
++INNODB_CMP	information_schema.INNODB_CMP	1
++INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
++INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1
++INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
++INNODB_INDEX_STATS	information_schema.INNODB_INDEX_STATS	1
++INNODB_LOCKS	information_schema.INNODB_LOCKS	1
++INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
++INNODB_RSEG	information_schema.INNODB_RSEG	1
++INNODB_SYS_INDEXES	information_schema.INNODB_SYS_INDEXES	1
++INNODB_SYS_TABLES	information_schema.INNODB_SYS_TABLES	1
++INNODB_TABLE_STATS	information_schema.INNODB_TABLE_STATS	1
++INNODB_TRX	information_schema.INNODB_TRX	1
+ KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+ PARTITIONS	information_schema.PARTITIONS	1
+ PLUGINS	information_schema.PLUGINS	1
+@@ -1401,9 +1503,13 @@
+ TABLES	information_schema.TABLES	1
+ TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
+ TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
++TABLE_STATISTICS	information_schema.TABLE_STATISTICS	1
++THREAD_STATISTICS	information_schema.THREAD_STATISTICS	1
+ TRIGGERS	information_schema.TRIGGERS	1
+ USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
++USER_STATISTICS	information_schema.USER_STATISTICS	1
+ VIEWS	information_schema.VIEWS	1
++XTRADB_ENHANCEMENTS	information_schema.XTRADB_ENHANCEMENTS	1
+ create table t1(f1 int);
+ create view v1 as select f1+1 as a from t1;
+ create table t2 (f1 int, f2 int);
+diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information_schema_db.result
+--- a/mysql-test/r/information_schema_db.result	2010-04-06 23:36:46.000000000 +0900
++++ b/mysql-test/r/information_schema_db.result	2010-04-30 17:53:05.000000000 +0900
+@@ -6,10 +6,12 @@
+ show tables;
+ Tables_in_information_schema
+ CHARACTER_SETS
++CLIENT_STATISTICS
+ COLLATIONS
+ COLLATION_CHARACTER_SET_APPLICABILITY
+ COLUMNS
+ COLUMN_PRIVILEGES
++INDEX_STATISTICS
+ ENGINES
+ EVENTS
+ FILES
+@@ -30,14 +32,36 @@
+ TABLES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++THREAD_STATISTICS
+ TRIGGERS
+ USER_PRIVILEGES
++USER_STATISTICS
+ VIEWS
++INNODB_BUFFER_POOL_PAGES_INDEX
++INNODB_RSEG
++INNODB_LOCKS
++INNODB_BUFFER_POOL_PAGES
++XTRADB_ENHANCEMENTS
++INNODB_TRX
++XTRADB_ADMIN_COMMAND
++INNODB_LOCK_WAITS
++INNODB_SYS_TABLES
++INNODB_CMP
++INNODB_CMPMEM_RESET
++INNODB_CMP_RESET
++INNODB_CMPMEM
++INNODB_INDEX_STATS
++INNODB_SYS_INDEXES
++INNODB_BUFFER_POOL_PAGES_BLOB
++INNODB_TABLE_STATS
+ show tables from INFORMATION_SCHEMA like 'T%';
+ Tables_in_information_schema (T%)
+ TABLES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++THREAD_STATISTICS
+ TRIGGERS
+ create database `inf%`;
+ create database mbase;
+diff -ruN a/mysql-test/r/innodb.result b/mysql-test/r/innodb.result
+--- a/mysql-test/r/innodb.result	2010-04-06 23:36:47.000000000 +0900
++++ b/mysql-test/r/innodb.result	2010-04-30 17:53:06.000000000 +0900
+@@ -691,14 +691,16 @@
+ select count(*) from t1 where sca_pic is null;
+ count(*)
+ 2
+-alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
++alter table t1 drop index sca_pic;
++alter table t1 add index sca_pic (cat_code, sca_pic);
+ select count(*) from t1 where sca_code='PD' and sca_pic is null;
+ count(*)
+ 1
+ select count(*) from t1 where cat_code='E';
+ count(*)
+ 0
+-alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
++alter table t1 drop index sca_pic;
++alter table t1 add index (sca_pic, cat_code);
+ select count(*) from t1 where sca_code='PD' and sca_pic is null;
+ count(*)
+ 1
+@@ -1508,7 +1510,7 @@
+ ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ drop index id2 on t2;
+ drop index id on t2;
+-Got one of the listed errors
++ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
+ show create table t2;
+ Table	Create Table
+ t2	CREATE TABLE `t2` (
+@@ -1738,7 +1740,7 @@
+ drop table t1;
+ SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+ variable_value
+-512
++8192
+ SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
+ variable_value
+ 16384
+@@ -1766,9 +1768,10 @@
+ SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
+ variable_value - @innodb_row_lock_time_avg_orig
+ 0
++SET @old_innodb_sync_spin_loops= @@global.innodb_sync_spin_loops;
+ show variables like "innodb_sync_spin_loops";
+ Variable_name	Value
+-innodb_sync_spin_loops	20
++innodb_sync_spin_loops	30
+ set global innodb_sync_spin_loops=1000;
+ show variables like "innodb_sync_spin_loops";
+ Variable_name	Value
+@@ -1781,10 +1784,11 @@
+ show variables like "innodb_sync_spin_loops";
+ Variable_name	Value
+ innodb_sync_spin_loops	20
++SET @@global.innodb_sync_spin_loops= @old_innodb_sync_spin_loops;
+ SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
+ show variables like "innodb_thread_concurrency";
+ Variable_name	Value
+-innodb_thread_concurrency	8
++innodb_thread_concurrency	0
+ set global innodb_thread_concurrency=1001;
+ Warnings:
+ Warning	1292	Truncated incorrect thread_concurrency value: '1001'
+@@ -1970,7 +1974,7 @@
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+ 1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
+ alter table t1 add unique(v);
+-ERROR 23000: Duplicate entry '{ ' for key 'v_2'
++ERROR 23000: Duplicate entry 'v' for key 'v_2'
+ alter table t1 add key(v);
+ select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
+ qq
+@@ -2377,6 +2381,8 @@
+ ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ drop table t1;
+ create table t1 (v varchar(10), c char(10)) row_format=fixed;
++Warnings:
++Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+ show create table t1;
+ Table	Create Table
+ t1	CREATE TABLE `t1` (
+@@ -3086,7 +3092,7 @@
+ commit;
+ drop table t1, t2, t3, t5, t6, t8, t9;
+ CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
+-ERROR HY000: Can't create table 'test.t1' (errno: -1)
++ERROR 42000: Incorrect column name 'DB_ROW_ID'
+ CREATE TABLE t1 (
+ a BIGINT(20) NOT NULL,
+ PRIMARY KEY  (a)
+diff -ruN a/mysql-test/r/innodb_bug44369.result b/mysql-test/r/innodb_bug44369.result
+--- a/mysql-test/r/innodb_bug44369.result	2010-04-06 23:36:48.000000000 +0900
++++ b/mysql-test/r/innodb_bug44369.result	2010-04-30 17:53:06.000000000 +0900
+@@ -1,14 +1,14 @@
+ create table bug44369 (DB_ROW_ID int) engine=innodb;
+-ERROR HY000: Can't create table 'test.bug44369' (errno: -1)
++ERROR 42000: Incorrect column name 'DB_ROW_ID'
+ create table bug44369 (db_row_id int) engine=innodb;
+-ERROR HY000: Can't create table 'test.bug44369' (errno: -1)
++ERROR 42000: Incorrect column name 'db_row_id'
+ show warnings;
+ Level	Code	Message
+-Warning	1005	Error creating table 'test/bug44369' with column name 'db_row_id'. 'db_row_id' is a reserved name. Please try to re-create the table with a different column name.
++Error	1166	Incorrect column name 'db_row_id'
+ Error	1005	Can't create table 'test.bug44369' (errno: -1)
+ create table bug44369 (db_TRX_Id int) engine=innodb;
+-ERROR HY000: Can't create table 'test.bug44369' (errno: -1)
++ERROR 42000: Incorrect column name 'db_TRX_Id'
+ show warnings;
+ Level	Code	Message
+-Warning	1005	Error creating table 'test/bug44369' with column name 'db_TRX_Id'. 'db_TRX_Id' is a reserved name. Please try to re-create the table with a different column name.
++Error	1166	Incorrect column name 'db_TRX_Id'
+ Error	1005	Can't create table 'test.bug44369' (errno: -1)
+diff -ruN a/mysql-test/r/innodb_bug46000.result b/mysql-test/r/innodb_bug46000.result
+--- a/mysql-test/r/innodb_bug46000.result	2010-04-06 23:36:48.000000000 +0900
++++ b/mysql-test/r/innodb_bug46000.result	2010-04-30 17:53:06.000000000 +0900
+@@ -1,17 +1,19 @@
+ create table bug46000(`id` int,key `GEN_CLUST_INDEX`(`id`))engine=innodb;
+-ERROR HY000: Can't create table 'test.bug46000' (errno: -1)
++ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'
+ create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;
+-ERROR HY000: Can't create table 'test.bug46000' (errno: -1)
++ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'
+ show warnings;
+ Level	Code	Message
+-Warning	1005	Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
++Warning	1280	Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
++Error	1280	Incorrect index name 'GEN_CLUST_INDEX'
+ Error	1005	Can't create table 'test.bug46000' (errno: -1)
+ create table bug46000(id int) engine=innodb;
+ create index GEN_CLUST_INDEX on bug46000(id);
+-ERROR HY000: Can't create table '#sql-temporary' (errno: -1)
++ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'
+ show warnings;
+ Level	Code	Message
+-Warning	1005	Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
+-Error	1005	Can't create table '#sql-temporary' (errno: -1)
++Warning	1280	Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
++Error	1280	Incorrect index name 'GEN_CLUST_INDEX'
++Error	1030	Got error -1 from storage engine
+ create index idx on bug46000(id);
+ drop table bug46000;
+diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
+--- a/mysql-test/r/mysqlshow.result	2010-04-06 23:36:53.000000000 +0900
++++ b/mysql-test/r/mysqlshow.result	2010-04-30 17:53:06.000000000 +0900
+@@ -80,10 +80,12 @@
+ |                Tables                 |
+ +---------------------------------------+
+ | CHARACTER_SETS                        |
++| CLIENT_STATISTICS                     |
+ | COLLATIONS                            |
+ | COLLATION_CHARACTER_SET_APPLICABILITY |
+ | COLUMNS                               |
+ | COLUMN_PRIVILEGES                     |
++| INDEX_STATISTICS                      |
+ | ENGINES                               |
+ | EVENTS                                |
+ | FILES                                 |
+@@ -104,19 +106,41 @@
+ | TABLES                                |
+ | TABLE_CONSTRAINTS                     |
+ | TABLE_PRIVILEGES                      |
++| TABLE_STATISTICS                      |
++| THREAD_STATISTICS                     |
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
++| USER_STATISTICS                       |
+ | VIEWS                                 |
++| INNODB_BUFFER_POOL_PAGES_INDEX        |
++| INNODB_RSEG                           |
++| INNODB_LOCKS                          |
++| INNODB_BUFFER_POOL_PAGES              |
++| XTRADB_ENHANCEMENTS                   |
++| INNODB_TRX                            |
++| XTRADB_ADMIN_COMMAND                  |
++| INNODB_LOCK_WAITS                     |
++| INNODB_SYS_TABLES                     |
++| INNODB_CMP                            |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_CMP_RESET                      |
++| INNODB_CMPMEM                         |
++| INNODB_INDEX_STATS                    |
++| INNODB_SYS_INDEXES                    |
++| INNODB_BUFFER_POOL_PAGES_BLOB         |
++| INNODB_TABLE_STATS                    |
+ +---------------------------------------+
+ Database: INFORMATION_SCHEMA
+ +---------------------------------------+
+ |                Tables                 |
+ +---------------------------------------+
+ | CHARACTER_SETS                        |
++| CLIENT_STATISTICS                     |
+ | COLLATIONS                            |
+ | COLLATION_CHARACTER_SET_APPLICABILITY |
+ | COLUMNS                               |
+ | COLUMN_PRIVILEGES                     |
++| INDEX_STATISTICS                      |
+ | ENGINES                               |
+ | EVENTS                                |
+ | FILES                                 |
+@@ -137,9 +161,29 @@
+ | TABLES                                |
+ | TABLE_CONSTRAINTS                     |
+ | TABLE_PRIVILEGES                      |
++| TABLE_STATISTICS                      |
++| THREAD_STATISTICS                     |
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
++| USER_STATISTICS                       |
+ | VIEWS                                 |
++| INNODB_BUFFER_POOL_PAGES_INDEX        |
++| INNODB_RSEG                           |
++| INNODB_LOCKS                          |
++| INNODB_BUFFER_POOL_PAGES              |
++| XTRADB_ENHANCEMENTS                   |
++| INNODB_TRX                            |
++| XTRADB_ADMIN_COMMAND                  |
++| INNODB_LOCK_WAITS                     |
++| INNODB_SYS_TABLES                     |
++| INNODB_CMP                            |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_CMP_RESET                      |
++| INNODB_CMPMEM                         |
++| INNODB_INDEX_STATS                    |
++| INNODB_SYS_INDEXES                    |
++| INNODB_BUFFER_POOL_PAGES_BLOB         |
++| INNODB_TABLE_STATS                    |
+ +---------------------------------------+
+ Wildcard: inf_rmation_schema
+ +--------------------+
+diff -ruN a/mysql-test/r/profiling.result b/mysql-test/r/profiling.result
+--- a/mysql-test/r/profiling.result	2010-04-06 23:36:56.000000000 +0900
++++ b/mysql-test/r/profiling.result	2010-04-30 17:53:06.000000000 +0900
+@@ -6,6 +6,8 @@
+ Variable_name	Value
+ profiling	OFF
+ profiling_history_size	15
++profiling_server	OFF
++profiling_use_getrusage	OFF
+ select @@profiling;
+ @@profiling
+ 0
+@@ -17,12 +19,16 @@
+ Variable_name	Value
+ profiling	OFF
+ profiling_history_size	100
++profiling_server	OFF
++profiling_use_getrusage	OFF
+ set session profiling = ON;
+ set session profiling_history_size=30;
+ show session variables like 'profil%';
+ Variable_name	Value
+ profiling	ON
+ profiling_history_size	30
++profiling_server	OFF
++profiling_use_getrusage	OFF
+ select @@profiling;
+ @@profiling
+ 1
+diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
+--- a/mysql-test/r/select.result	2010-04-06 23:36:59.000000000 +0900
++++ b/mysql-test/r/select.result	2010-04-30 17:53:06.000000000 +0900
+@@ -2196,10 +2196,10 @@
+ select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
+ a	a
+ 1	2
+-2	2
+-3	2
+ 1	3
++2	2
+ 2	3
++3	2
+ 3	3
+ select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+ a	a
+diff -ruN a/mysql-test/suite/innodb/t/disabled.def b/mysql-test/suite/innodb/t/disabled.def
+--- a/mysql-test/suite/innodb/t/disabled.def	2010-04-06 23:39:13.000000000 +0900
++++ b/mysql-test/suite/innodb/t/disabled.def	2010-04-30 17:53:06.000000000 +0900
+@@ -1 +1 @@
+-innodb-index: InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal
++#innodb-index: InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal
+diff -ruN a/mysql-test/t/innodb.test b/mysql-test/t/innodb.test
+--- a/mysql-test/t/innodb.test	2010-04-06 23:36:15.000000000 +0900
++++ b/mysql-test/t/innodb.test	2010-04-30 17:53:06.000000000 +0900
+@@ -427,11 +427,13 @@
+ select count(*) from t1 where sca_code = 'PD';
+ select count(*) from t1 where sca_code <= 'PD';
+ select count(*) from t1 where sca_pic is null;
+-alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
++alter table t1 drop index sca_pic;
++alter table t1 add index sca_pic (cat_code, sca_pic);
+ select count(*) from t1 where sca_code='PD' and sca_pic is null;
+ select count(*) from t1 where cat_code='E';
+ 
+-alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
++alter table t1 drop index sca_pic;
++alter table t1 add index (sca_pic, cat_code);
+ select count(*) from t1 where sca_code='PD' and sca_pic is null;
+ select count(*) from t1 where sca_pic >= 'n';
+ select sca_pic from t1 where sca_pic is null;
+@@ -1151,7 +1153,7 @@
+ create index id2 on t2 (id);
+ show create table t2;
+ drop index id2 on t2;
+---error 1025,1025
++--error ER_DROP_INDEX_FK
+ drop index id on t2;
+ show create table t2;
+ drop table t2;
+@@ -1333,6 +1335,7 @@
+ SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
+ 
+ # Test for innodb_sync_spin_loops variable
++SET @old_innodb_sync_spin_loops= @@global.innodb_sync_spin_loops;
+ show variables like "innodb_sync_spin_loops";
+ set global innodb_sync_spin_loops=1000;
+ show variables like "innodb_sync_spin_loops";
+@@ -1340,6 +1343,7 @@
+ show variables like "innodb_sync_spin_loops";
+ set global innodb_sync_spin_loops=20;
+ show variables like "innodb_sync_spin_loops";
++SET @@global.innodb_sync_spin_loops= @old_innodb_sync_spin_loops;
+ 
+ # Test for innodb_thread_concurrency variable
+ SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
+@@ -2265,7 +2269,7 @@
+ drop table t1, t2, t3, t5, t6, t8, t9;
+ 
+ # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
+---error 1005
++--error ER_WRONG_COLUMN_NAME
+ CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
+ 
+ #
+diff -ruN a/mysql-test/t/innodb_bug44369.test b/mysql-test/t/innodb_bug44369.test
+--- a/mysql-test/t/innodb_bug44369.test	2010-04-06 23:36:16.000000000 +0900
++++ b/mysql-test/t/innodb_bug44369.test	2010-04-30 17:53:06.000000000 +0900
+@@ -6,16 +6,16 @@
+ --source include/have_innodb.inc
+ 
+ # This create table operation should fail.
+---error ER_CANT_CREATE_TABLE
++--error ER_WRONG_COLUMN_NAME
+ create table bug44369 (DB_ROW_ID int) engine=innodb;
+ 
+ # This create should fail as well
+---error ER_CANT_CREATE_TABLE
++--error ER_WRONG_COLUMN_NAME
+ create table bug44369 (db_row_id int) engine=innodb;
+ 
+ show warnings;
+ 
+---error ER_CANT_CREATE_TABLE
++--error ER_WRONG_COLUMN_NAME
+ create table bug44369 (db_TRX_Id int) engine=innodb;
+ 
+ show warnings;
+diff -ruN a/mysql-test/t/innodb_bug46000.test b/mysql-test/t/innodb_bug46000.test
+--- a/mysql-test/t/innodb_bug46000.test	2010-04-06 23:36:16.000000000 +0900
++++ b/mysql-test/t/innodb_bug46000.test	2010-04-30 17:53:06.000000000 +0900
+@@ -7,11 +7,11 @@
+ 
+ # This 'create table' operation should fail because of
+ # using the reserve name as its index name.
+---error ER_CANT_CREATE_TABLE
++--error ER_WRONG_NAME_FOR_INDEX
+ create table bug46000(`id` int,key `GEN_CLUST_INDEX`(`id`))engine=innodb;
+ 
+ # Mixed upper/lower case of the reserved key words
+---error ER_CANT_CREATE_TABLE
++--error ER_WRONG_NAME_FOR_INDEX
+ create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb;
+ 
+ show warnings;
+@@ -20,7 +20,7 @@
+ 
+ # This 'create index' operation should fail.
+ --replace_regex /'[^']*test.#sql-[0-9a-f_]*'/'#sql-temporary'/
+---error ER_CANT_CREATE_TABLE
++--error ER_WRONG_NAME_FOR_INDEX
+ create index GEN_CLUST_INDEX on bug46000(id);
+ 
+ --replace_regex /'[^']*test.#sql-[0-9a-f_]*'/'#sql-temporary'/

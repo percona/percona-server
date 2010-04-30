@@ -1,0 +1,70 @@
+diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
+--- a/storage/innodb_plugin/dict/dict0dict.c	2010-04-30 10:49:58.000000000 +0900
++++ b/storage/innodb_plugin/dict/dict0dict.c	2010-04-30 15:44:22.000000000 +0900
+@@ -1441,7 +1441,11 @@
+ 			goto add_field_size;
+ 		}
+ 
++		if (srv_relax_table_creation) {
++			field_max_size = dict_col_get_min_size(col);
++		} else {
+ 		field_max_size = dict_col_get_max_size(col);
++		}
+ 		field_ext_max_size = field_max_size < 256 ? 1 : 2;
+ 
+ 		if (field->prefix_len) {
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 15:44:22.000000000 +0900
+@@ -11201,6 +11201,11 @@
+   "Limit the allocated memory for dictionary cache. (0: unlimited)",
+   NULL, NULL, 0, 0, LONG_MAX, 0);
+ 
++static MYSQL_SYSVAR_ULONG(relax_table_creation, srv_relax_table_creation,
++  PLUGIN_VAR_RQCMDARG,
++  "Relax limitation of column size at table creation as builtin InnoDB.",
++  NULL, NULL, 0, 0, 1, 0);
++
+ static struct st_mysql_sys_var* innobase_system_variables[]= {
+   MYSQL_SYSVAR(additional_mem_pool_size),
+   MYSQL_SYSVAR(autoextend_increment),
+@@ -11279,6 +11284,7 @@
+   MYSQL_SYSVAR(read_ahead_threshold),
+   MYSQL_SYSVAR(io_capacity),
+   MYSQL_SYSVAR(use_purge_thread),
++  MYSQL_SYSVAR(relax_table_creation),
+   NULL
+ };
+ 
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 15:44:22.000000000 +0900
+@@ -41,5 +41,6 @@
+ {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_relax_table_creation","Relax limitation of column size at table creation as builtin InnoDB.","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 15:44:22.000000000 +0900
+@@ -228,6 +228,7 @@
+ extern ulint	srv_adaptive_checkpoint;
+ 
+ extern ulint	srv_expand_import;
++extern ulint	srv_relax_table_creation;
+ 
+ extern ulint	srv_extra_rsegments;
+ extern ulint	srv_dict_size_limit;
+diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 15:44:22.000000000 +0900
+@@ -397,6 +397,7 @@
+ UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+ 
+ UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
++UNIV_INTERN ulint	srv_relax_table_creation = 0; /* 0:disable 1:enable */
+ 
+ UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
+ UNIV_INTERN ulint	srv_dict_size_limit = 0;

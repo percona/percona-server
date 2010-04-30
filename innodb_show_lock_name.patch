@@ -1,0 +1,331 @@
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:38:27.000000000 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:46:54.000000000 +0900
+@@ -9022,8 +9022,8 @@
+ 			rw_lock_wait_time += mutex->lspent_time;
+ 		}
+ #else /* UNIV_DEBUG */
+-		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
+-				     mutex->cfile_name, (ulong) mutex->cline);
++		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s",
++				     mutex->cmutex_name);
+ 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
+ 				     (ulong) mutex->count_os_wait);
+ 
+@@ -9038,9 +9038,8 @@
+ 
+ 	if (block_mutex) {
+ 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
+-					     "combined %s:%lu",
+-					     block_mutex->cfile_name,
+-					     (ulong) block_mutex->cline);
++					     "combined %s",
++					     block_mutex->cmutex_name);
+ 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
+ 					     "os_waits=%lu",
+ 					     (ulong) block_mutex_oswait_count);
+@@ -9069,8 +9068,8 @@
+ 			continue;
+ 		}
+ 
+-		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
+-				     lock->cfile_name, (ulong) lock->cline);
++		buf1len = my_snprintf(buf1, sizeof buf1, "%s",
++				     lock->lock_name);
+ 		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
+ 				      (ulong) lock->count_os_wait);
+ 
+@@ -9084,9 +9083,8 @@
+ 
+ 	if (block_lock) {
+ 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
+-					     "combined %s:%lu",
+-					     block_lock->cfile_name,
+-					     (ulong) block_lock->cline);
++					     "combined %s",
++					     block_lock->lock_name);
+ 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
+ 					     "os_waits=%lu",
+ 					     (ulong) block_lock_oswait_count);
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 14:38:27.000000000 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 14:39:03.000000000 +0900
+@@ -39,5 +39,6 @@
+ {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/include/sync0rw.h
+--- a/storage/innodb_plugin/include/sync0rw.h	2010-04-06 23:07:13.000000000 +0900
++++ b/storage/innodb_plugin/include/sync0rw.h	2010-04-30 14:39:03.000000000 +0900
+@@ -120,7 +120,7 @@
+ # endif /* UNIV_SYNC_DEBUG */
+ #else /* UNIV_DEBUG */
+ # define rw_lock_create(L, level) 					\
+-	rw_lock_create_func((L), __FILE__, __LINE__)
++	rw_lock_create_func((L), #L, NULL, 0)
+ #endif /* UNIV_DEBUG */
+ 
+ /******************************************************************//**
+@@ -137,8 +137,8 @@
+ # ifdef UNIV_SYNC_DEBUG
+ 	ulint		level,		/*!< in: level */
+ # endif /* UNIV_SYNC_DEBUG */
+-	const char*	cmutex_name, 	/*!< in: mutex name */
+ #endif /* UNIV_DEBUG */
++	const char*	cmutex_name, 	/*!< in: mutex name */
+ 	const char*	cfile_name,	/*!< in: file name where created */
+ 	ulint 		cline);		/*!< in: file line where created */
+ /******************************************************************//**
+@@ -541,7 +541,8 @@
+ 	ulint	level;		/*!< Level in the global latching order. */
+ #endif /* UNIV_SYNC_DEBUG */
+ 	ulint count_os_wait;	/*!< Count of os_waits. May not be accurate */
+-	const char*	cfile_name;/*!< File name where lock created */
++	//const char*	cfile_name;/*!< File name where lock created */
++	const char*	lock_name;/*!< lock name */
+         /* last s-lock file/line is not guaranteed to be correct */
+ 	const char*	last_s_file_name;/*!< File name where last s-locked */
+ 	const char*	last_x_file_name;/*!< File name where last x-locked */
+@@ -552,7 +553,7 @@
+ 				are at the start of this struct, thus we can
+ 				peek this field without causing much memory
+ 				bus traffic */
+-	unsigned	cline:14;	/*!< Line where created */
++	//unsigned	cline:14;	/*!< Line where created */
+ 	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
+ 	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
+ 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
+diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/include/sync0sync.h
+--- a/storage/innodb_plugin/include/sync0sync.h	2010-04-29 18:58:20.000000000 +0900
++++ b/storage/innodb_plugin/include/sync0sync.h	2010-04-30 14:39:03.000000000 +0900
+@@ -80,7 +80,7 @@
+ # endif
+ #else
+ # define mutex_create(M, level)					\
+-	mutex_create_func((M), __FILE__, __LINE__)
++	mutex_create_func((M), #M, NULL, 0)
+ #endif
+ 
+ /******************************************************************//**
+@@ -93,8 +93,8 @@
+ mutex_create_func(
+ /*==============*/
+ 	mutex_t*	mutex,		/*!< in: pointer to memory */
+-#ifdef UNIV_DEBUG
+ 	const char*	cmutex_name,	/*!< in: mutex name */
++#ifdef UNIV_DEBUG
+ # ifdef UNIV_SYNC_DEBUG
+ 	ulint		level,		/*!< in: level */
+ # endif /* UNIV_SYNC_DEBUG */
+@@ -536,9 +536,9 @@
+ 	ulint	line;		/*!< Line where the mutex was locked */
+ 	ulint	level;		/*!< Level in the global latching order */
+ #endif /* UNIV_SYNC_DEBUG */
++#ifdef UNIV_DEBUG
+ 	const char*	cfile_name;/*!< File name where mutex created */
+ 	ulint		cline;	/*!< Line where created */
+-#ifdef UNIV_DEBUG
+ 	os_thread_id_t thread_id; /*!< The thread id of the thread
+ 				which locked the mutex. */
+ 	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
+@@ -553,9 +553,9 @@
+ 	ulong		count_os_yield;	/*!< count of os_wait */
+ 	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
+ 	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */
+-	const char*	cmutex_name;	/*!< mutex name */
+ 	ulint		mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
+ #endif /* UNIV_DEBUG */
++	const char*	cmutex_name;	/*!< mutex name */
+ };
+ 
+ /** The global array of wait cells for implementation of the databases own
+diff -ruN a/storage/innodb_plugin/sync/sync0arr.c b/storage/innodb_plugin/sync/sync0arr.c
+--- a/storage/innodb_plugin/sync/sync0arr.c	2010-04-29 15:44:28.000000000 +0900
++++ b/storage/innodb_plugin/sync/sync0arr.c	2010-04-30 14:39:03.000000000 +0900
+@@ -482,12 +482,12 @@
+ 		mutex = cell->old_wait_mutex;
+ 
+ 		fprintf(file,
+-			"Mutex at %p created file %s line %lu, lock var %lu\n"
++			"Mutex at %p '%s', lock var %lu\n"
+ #ifdef UNIV_SYNC_DEBUG
+ 			"Last time reserved in file %s line %lu, "
+ #endif /* UNIV_SYNC_DEBUG */
+ 			"waiters flag %lu\n",
+-			(void*) mutex, mutex->cfile_name, (ulong) mutex->cline,
++			(void*) mutex, mutex->cmutex_name,
+ 			(ulong) mutex->lock_word,
+ #ifdef UNIV_SYNC_DEBUG
+ 			mutex->file_name, (ulong) mutex->line,
+@@ -503,9 +503,8 @@
+ 		rwlock = cell->old_wait_rw_lock;
+ 
+ 		fprintf(file,
+-			" RW-latch at %p created in file %s line %lu\n",
+-			(void*) rwlock, rwlock->cfile_name,
+-			(ulong) rwlock->cline);
++			" RW-latch at %p '%s'\n",
++			(void*) rwlock, rwlock->lock_name);
+ 		writer = rw_lock_get_writer(rwlock);
+ 		if (writer != RW_LOCK_NOT_LOCKED) {
+ 			fprintf(file,
+diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sync0rw.c
+--- a/storage/innodb_plugin/sync/sync0rw.c	2010-04-06 23:07:14.000000000 +0900
++++ b/storage/innodb_plugin/sync/sync0rw.c	2010-04-30 14:39:03.000000000 +0900
+@@ -231,8 +231,8 @@
+ # ifdef UNIV_SYNC_DEBUG
+ 	ulint		level,		/*!< in: level */
+ # endif /* UNIV_SYNC_DEBUG */
+-	const char*	cmutex_name, 	/*!< in: mutex name */
+ #endif /* UNIV_DEBUG */
++	const char*	cmutex_name, 	/*!< in: mutex name */
+ 	const char*	cfile_name,	/*!< in: file name where created */
+ 	ulint		cline)		/*!< in: file line where created */
+ {
+@@ -242,14 +242,15 @@
+ #ifndef INNODB_RW_LOCKS_USE_ATOMICS
+ 	mutex_create(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
+ 
+-	lock->mutex.cfile_name = cfile_name;
+-	lock->mutex.cline = cline;
++	ut_d(lock->mutex.cfile_name = cfile_name);
++	ut_d(lock->mutex.cline = cline);
+ 
+-	ut_d(lock->mutex.cmutex_name = cmutex_name);
++	lock->mutex.cmutex_name = cmutex_name;
+ 	ut_d(lock->mutex.mutex_type = 1);
+ #else /* INNODB_RW_LOCKS_USE_ATOMICS */
+ # ifdef UNIV_DEBUG
+-	UT_NOT_USED(cmutex_name);
++	UT_NOT_USED(cfile_name);
++	UT_NOT_USED(cline);
+ # endif
+ #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+ 
+@@ -269,8 +270,7 @@
+ 
+ 	lock->magic_n = RW_LOCK_MAGIC_N;
+ 
+-	lock->cfile_name = cfile_name;
+-	lock->cline = (unsigned int) cline;
++	lock->lock_name = cmutex_name;
+ 
+ 	lock->count_os_wait = 0;
+ 	lock->last_s_file_name = "not yet reserved";
+@@ -391,10 +391,10 @@
+ 	if (srv_print_latch_waits) {
+ 		fprintf(stderr,
+ 			"Thread %lu spin wait rw-s-lock at %p"
+-			" cfile %s cline %lu rnds %lu\n",
++			" '%s' rnds %lu\n",
+ 			(ulong) os_thread_pf(os_thread_get_curr_id()),
+ 			(void*) lock,
+-			lock->cfile_name, (ulong) lock->cline, (ulong) i);
++			lock->lock_name, (ulong) i);
+ 	}
+ 
+ 	/* We try once again to obtain the lock */
+@@ -427,10 +427,9 @@
+ 		if (srv_print_latch_waits) {
+ 			fprintf(stderr,
+ 				"Thread %lu OS wait rw-s-lock at %p"
+-				" cfile %s cline %lu\n",
++				" '%s'\n",
+ 				os_thread_pf(os_thread_get_curr_id()),
+-				(void*) lock, lock->cfile_name,
+-				(ulong) lock->cline);
++				(void*) lock, lock->lock_name);
+ 		}
+ 
+ 		/* these stats may not be accurate */
+@@ -649,9 +648,9 @@
+ 	if (srv_print_latch_waits) {
+ 		fprintf(stderr,
+ 			"Thread %lu spin wait rw-x-lock at %p"
+-			" cfile %s cline %lu rnds %lu\n",
++			" '%s' rnds %lu\n",
+ 			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
+-			lock->cfile_name, (ulong) lock->cline, (ulong) i);
++			lock->lock_name, (ulong) i);
+ 	}
+ 
+ 	sync_array_reserve_cell(sync_primary_wait_array,
+@@ -672,9 +671,9 @@
+ 	if (srv_print_latch_waits) {
+ 		fprintf(stderr,
+ 			"Thread %lu OS wait for rw-x-lock at %p"
+-			" cfile %s cline %lu\n",
++			" '%s'\n",
+ 			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
+-			lock->cfile_name, (ulong) lock->cline);
++			lock->lock_name);
+ 	}
+ 
+ 	/* these stats may not be accurate */
+diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/sync0sync.c
+--- a/storage/innodb_plugin/sync/sync0sync.c	2010-04-29 18:58:20.000000000 +0900
++++ b/storage/innodb_plugin/sync/sync0sync.c	2010-04-30 14:39:03.000000000 +0900
+@@ -238,8 +238,8 @@
+ mutex_create_func(
+ /*==============*/
+ 	mutex_t*	mutex,		/*!< in: pointer to memory */
+-#ifdef UNIV_DEBUG
+ 	const char*	cmutex_name,	/*!< in: mutex name */
++#ifdef UNIV_DEBUG
+ # ifdef UNIV_SYNC_DEBUG
+ 	ulint		level,		/*!< in: level */
+ # endif /* UNIV_SYNC_DEBUG */
+@@ -263,11 +263,13 @@
+ 	mutex->file_name = "not yet reserved";
+ 	mutex->level = level;
+ #endif /* UNIV_SYNC_DEBUG */
++#ifdef UNIV_DEBUG
+ 	mutex->cfile_name = cfile_name;
+ 	mutex->cline = cline;
++#endif /* UNIV_DEBUG */
+ 	mutex->count_os_wait = 0;
+-#ifdef UNIV_DEBUG
+ 	mutex->cmutex_name=	  cmutex_name;
++#ifdef UNIV_DEBUG
+ 	mutex->count_using=	  0;
+ 	mutex->mutex_type=	  0;
+ 	mutex->lspent_time=	  0;
+@@ -518,9 +520,9 @@
+ #ifdef UNIV_SRV_PRINT_LATCH_WAITS
+ 	fprintf(stderr,
+ 		"Thread %lu spin wait mutex at %p"
+-		" cfile %s cline %lu rnds %lu\n",
++		" '%s' rnds %lu\n",
+ 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
+-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
++		mutex->cmutex_name, (ulong) i);
+ #endif
+ 
+ 	mutex_spin_round_count += i;
+@@ -595,9 +597,9 @@
+ 
+ #ifdef UNIV_SRV_PRINT_LATCH_WAITS
+ 	fprintf(stderr,
+-		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
++		"Thread %lu OS wait mutex at %p '%s' rnds %lu\n",
+ 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
+-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
++		mutex->cmutex_name, (ulong) i);
+ #endif
+ 
+ 	mutex_os_wait_count++;
+@@ -899,9 +901,8 @@
+ 
+ 				if (mutex->magic_n == MUTEX_MAGIC_N) {
+ 					fprintf(stderr,
+-						"Mutex created at %s %lu\n",
+-						mutex->cfile_name,
+-						(ulong) mutex->cline);
++						"Mutex '%s'\n",
++						mutex->cmutex_name);
+ 
+ 					if (mutex_get_lock_word(mutex) != 0) {
+ 						const char*	file_name;

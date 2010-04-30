@@ -1,0 +1,45 @@
+diff -ruN a/patch_info/microsec_process.info b/patch_info/microsec_process.info
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/patch_info/microsec_process.info	2010-04-28 16:22:56.000000000 +0900
+@@ -0,0 +1,8 @@
++File=microsec_process.patch
++Name=Adds INFOMATION_SCHEMA.PROCESSLIST with TIME_MS column
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++2010-01
++Ported to 5.1.42
+diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
+--- a/sql/sql_show.cc	2010-04-28 15:37:19.000000000 +0900
++++ b/sql/sql_show.cc	2010-04-28 16:22:56.000000000 +0900
+@@ -1907,7 +1907,8 @@
+   TABLE *table= tables->table;
+   CHARSET_INFO *cs= system_charset_info;
+   char *user;
+-  time_t now= my_time(0);
++  time_t now;
++  ulonglong now_utime= my_micro_time_and_time(&now);
+   DBUG_ENTER("fill_process_list");
+ 
+   user= thd->security_ctx->master_access & PROCESS_ACL ?
+@@ -2003,6 +2004,10 @@
+       }
+       pthread_mutex_unlock(&tmp->LOCK_thd_data);
+ 
++      /* TIME_MS */
++      table->field[8]->store(((tmp->start_utime ?
++                               now_utime - tmp->start_utime : 0)/ 1000));
++
+       if (schema_table_store_record(thd, table))
+       {
+         VOID(pthread_mutex_unlock(&LOCK_thread_count));
+@@ -6648,6 +6653,8 @@
+   {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", SKIP_OPEN_TABLE},
+   {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info",
+    SKIP_OPEN_TABLE},
++  {"TIME_MS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
++   0, 0, "Time_ms", SKIP_OPEN_TABLE},
+   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+ };
+ 

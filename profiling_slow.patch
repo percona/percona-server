@@ -1,0 +1,253 @@
+diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/patch_info/profiling_slow.info	2010-04-28 16:15:40.000000000 +0900
+@@ -0,0 +1,9 @@
++File=profiling_slow.info
++Name=profiling from SHOW PROFILE to slow.log
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++Changelog
++2009-05-18
++Initial implementation
+diff -ruN a/sql/log.cc b/sql/log.cc
+--- a/sql/log.cc	2010-04-28 16:14:10.000000000 +0900
++++ b/sql/log.cc	2010-04-28 16:15:40.000000000 +0900
+@@ -2396,6 +2396,11 @@
+           my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
+         tmp_errno=errno;
+     }
++
++#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
++    thd->profiling.print_current(&log_file);
++#endif
++
+     if (thd->db && strcmp(thd->db, db))
+     {						// Database changed
+       if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-04-28 16:14:10.000000000 +0900
++++ b/sql/mysqld.cc	2010-04-28 16:15:40.000000000 +0900
+@@ -5724,6 +5724,8 @@
+   OPT_LOG_OUTPUT,
+   OPT_PORT_OPEN_TIMEOUT,
+   OPT_PROFILING,
++  OPT_PROFILING_SERVER,
++  OPT_PROFILING_USE_GETRUSAGE,
+   OPT_KEEP_FILES_ON_CREATE,
+   OPT_GENERAL_LOG,
+   OPT_SLOW_LOG,
+@@ -6324,6 +6326,16 @@
+    (uchar**) &global_system_variables.profiling_history_size,
+    (uchar**) &max_system_variables.profiling_history_size,
+    0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
++  {"profiling_server", OPT_PROFILING_SERVER,
++   "Enable profiling of all threads",
++   (uchar**) &global_system_variables.profiling_server,
++   (uchar**) &max_system_variables.profiling_server, 0, GET_BOOL,
++   OPT_ARG, 0, 0, 0, 0, 0, 0 },
++  {"profiling_use_getrusage", OPT_PROFILING_USE_GETRUSAGE,
++   "Enable getrusage function call for profiling",
++   (uchar**) &global_system_variables.profiling_use_getrusage,
++   (uchar**) &max_system_variables.profiling_use_getrusage, 0, GET_BOOL,
++   OPT_ARG, 0, 0, 0, 0, 0, 0 },
+ #endif
+   {"relay-log", OPT_RELAY_LOG,
+    "The location and name to use for relay logs.",
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-04-28 16:14:10.000000000 +0900
++++ b/sql/set_var.cc	2010-04-28 16:15:40.000000000 +0900
+@@ -781,6 +781,10 @@
+                                       ulonglong(OPTION_PROFILING));
+ static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
+ 					      &SV::profiling_history_size);
++static sys_var_thd_bool	sys_profiling_server(&vars, "profiling_server",
++					      &SV::profiling_server);
++static sys_var_thd_bool	sys_profiling_use_getrusage(&vars, "profiling_use_getrusage",
++					      &SV::profiling_use_getrusage);
+ #endif
+ 
+ /* Local state variables */
+diff -ruN a/sql/sql_class.h b/sql/sql_class.h
+--- a/sql/sql_class.h	2010-04-28 16:14:10.000000000 +0900
++++ b/sql/sql_class.h	2010-04-28 16:15:40.000000000 +0900
+@@ -327,6 +327,8 @@
+   ulong optimizer_switch;
+   ulong preload_buff_size;
+   ulong profiling_history_size;
++  my_bool profiling_server;
++  my_bool profiling_use_getrusage;
+   ulong query_cache_type;
+   ulong read_buff_size;
+   ulong read_rnd_buff_size;
+diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
+--- a/sql/sql_profile.cc	2010-04-06 23:07:05.000000000 +0900
++++ b/sql/sql_profile.cc	2010-04-28 16:15:40.000000000 +0900
+@@ -221,9 +221,22 @@
+ */
+ void PROF_MEASUREMENT::collect()
+ {
++  struct timespec tp;
+   time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
+ #ifdef HAVE_GETRUSAGE
+-  getrusage(RUSAGE_SELF, &rusage);
++  if ((profile->get_profiling())->enabled_getrusage())
++    getrusage(RUSAGE_SELF, &rusage);
++#endif
++
++#ifdef HAVE_CLOCK_GETTIME
++  if (!(clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
++  {
++    cpu_time_usecs= tp.tv_sec*1000000000.0 + tp.tv_nsec;
++  } 
++  else
++  {
++    cpu_time_usecs= 0;
++  }
+ #endif
+ }
+ 
+@@ -341,7 +354,7 @@
+     finish_current_query();
+   }
+ 
+-  enabled= (((thd)->options & OPTION_PROFILING) != 0);
++  enabled= (((thd)->options & OPTION_PROFILING) != 0) || ( thd->variables.profiling_server );
+ 
+   if (! enabled) DBUG_VOID_RETURN;
+ 
+@@ -379,7 +392,8 @@
+     status_change("ending", NULL, NULL, 0);
+ 
+     if ((enabled) &&                                    /* ON at start? */
+-        ((thd->options & OPTION_PROFILING) != 0) &&   /* and ON at end? */
++        (((thd->options & OPTION_PROFILING) != 0) || 
++          (thd->variables.profiling_server)) &&   /* and ON at end? */
+         (current->query_source != NULL) &&
+         (! current->entries.is_empty()))
+     {
+@@ -480,6 +494,88 @@
+   DBUG_VOID_RETURN;
+ }
+ 
++bool PROFILING::enabled_getrusage()
++{
++  return thd->variables.profiling_use_getrusage;
++}
++
++/**
++  Print output for current query to file 
++*/
++
++int PROFILING::print_current(IO_CACHE *log_file)
++{
++  DBUG_ENTER("PROFILING::print_current");
++  ulonglong row_number= 0;
++  char query_time_buff[22+7];
++  char query_cpu_time_buff[22+7];
++
++  QUERY_PROFILE *query;
++  /* Get current query */
++  if (current == NULL)
++  {
++    DBUG_RETURN(0);
++  }
++
++  query= current;
++
++  my_b_printf(log_file, "# PROFILE_VALUES ");
++
++    void *entry_iterator;
++    PROF_MEASUREMENT *entry, *previous= NULL, *first= NULL;
++    /* ...and for each query, go through all its state-change steps. */
++    for (entry_iterator= query->entries.new_iterator();
++         entry_iterator != NULL;
++         entry_iterator= query->entries.iterator_next(entry_iterator),
++         previous=entry, row_number++)
++    {
++      entry= query->entries.iterator_value(entry_iterator);
++
++      /* Skip the first.  We count spans of fence, not fence-posts. */
++      if (previous == NULL) {first= entry; continue;}
++
++      if (thd->lex->sql_command == SQLCOM_SHOW_PROFILE)
++      {
++        /*
++          We got here via a SHOW command.  That means that we stored
++          information about the query we wish to show and that isn't
++          in a WHERE clause at a higher level to filter out rows we
++          wish to exclude.
++
++          Because that functionality isn't available in the server yet,
++          we must filter here, at the wrong level.  Once one can con-
++          struct where and having conditions at the SQL layer, then this
++          condition should be ripped out.
++        */
++        if (thd->lex->profile_query_id == 0) /* 0 == show final query */
++        {
++          if (query != last)
++            continue;
++        }
++        else
++        {
++          if (thd->lex->profile_query_id != query->profiling_query_id)
++            continue;
++        }
++      }
++
++      snprintf(query_time_buff, sizeof(query_time_buff), "%.6f", (entry->time_usecs-previous->time_usecs)/(1000.0*1000));
++      snprintf(query_cpu_time_buff, sizeof(query_cpu_time_buff), "%.6f", (entry->cpu_time_usecs-previous->cpu_time_usecs)/(1000.0*1000*1000));
++      my_b_printf(log_file, "%s: %s (cpu: %s), ", previous->status, query_time_buff, query_cpu_time_buff);
++
++    }
++
++    my_b_printf(log_file, "\n");
++    if ((entry != NULL) && (first != NULL))
++    {
++      snprintf(query_time_buff, sizeof(query_time_buff), "%.6f", (entry->time_usecs-first->time_usecs)/(1000.0*1000));
++      snprintf(query_cpu_time_buff, sizeof(query_cpu_time_buff), "%.6f", (entry->cpu_time_usecs-first->cpu_time_usecs)/(1000.0*1000*1000));
++      my_b_printf(log_file, "# PROFILE_TOTALS Total: %s (cpu: %s)\n", query_time_buff, query_cpu_time_buff);
++    }
++
++  DBUG_RETURN(0);
++}
++
+ /**
+   Fill the information schema table, "query_profile", as defined in show.cc .
+   There are two ways to get to this function:  Selecting from the information
+diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
+--- a/sql/sql_profile.h	2010-04-06 23:07:05.000000000 +0900
++++ b/sql/sql_profile.h	2010-04-28 16:15:40.000000000 +0900
+@@ -180,6 +180,7 @@
+   unsigned int line;
+ 
+   double time_usecs;
++  double cpu_time_usecs;
+   char *allocated_status_memory;
+ 
+   void set_label(const char *status_arg, const char *function_arg, 
+@@ -230,6 +231,11 @@
+ 
+   /* Show this profile.  This is called by PROFILING. */
+   bool show(uint options);
++
++public:
++
++  inline PROFILING * get_profiling() { return profiling; };
++
+ };
+ 
+ 
+@@ -275,9 +281,11 @@
+ 
+   /* SHOW PROFILES */
+   bool show_profiles();
++  bool enabled_getrusage();
+ 
+   /* ... from INFORMATION_SCHEMA.PROFILING ... */
+   int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
++  int print_current(IO_CACHE *log_file);
+ };
+ 
+ #  endif /* HAVE_PROFILING */

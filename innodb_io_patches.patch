@@ -1,0 +1,1059 @@
+diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
+--- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-06 23:07:12.000000000 +0900
++++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:44:57.000000000 +0900
+@@ -1129,8 +1129,9 @@
+ /*====================*/
+ 	ulint		space,		/*!< in: space id */
+ 	ulint		offset,		/*!< in: page offset */
+-	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
++	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
+ 					BUF_FLUSH_LIST */
++	ulint		flush_neighbors)
+ {
+ 	buf_page_t*	bpage;
+ 	ulint		low, high;
+@@ -1139,7 +1140,7 @@
+ 
+ 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
+ 
+-	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
++	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN || !flush_neighbors) {
+ 		/* If there is little space, it is better not to flush any
+ 		block except from the end of the LRU list */
+ 
+@@ -1314,7 +1315,7 @@
+ 
+ 				/* Try to flush also all the neighbors */
+ 				page_count += buf_flush_try_neighbors(
+-					space, offset, flush_type);
++					space, offset, flush_type, srv_flush_neighbor_pages);
+ 				/* fprintf(stderr,
+ 				"Flush type %lu, page no %lu, neighb %lu\n",
+ 				flush_type, offset,
+diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
+--- a/storage/innodb_plugin/buf/buf0rea.c	2010-04-06 23:07:12.000000000 +0900
++++ b/storage/innodb_plugin/buf/buf0rea.c	2010-04-29 15:44:57.000000000 +0900
+@@ -254,6 +254,10 @@
+ 		= BUF_READ_AHEAD_LINEAR_AREA;
+ 	ulint		threshold;
+ 
++ 	if (!(srv_read_ahead & 2)) {
++ 		return(0);
++ 	}
++
+ 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
+ 		/* No read-ahead to avoid thread deadlocks */
+ 		return(0);
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:44:28.000000000 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:44:58.000000000 +0900
+@@ -2165,6 +2165,9 @@
+ 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
+ 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
+ 
++	srv_read_ahead &= 3;
++	srv_adaptive_checkpoint %= 3;
++
+ 	srv_force_recovery = (ulint) innobase_force_recovery;
+ 
+ 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+@@ -9680,6 +9683,10 @@
+ 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
+ 	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+ 	{
++		if (srv_enable_unsafe_group_commit && !THDVAR(thd, support_xa)) {
++			/* choose group commit rather than binlog order */
++			return(error);
++		}
+ 
+ 		/* For ibbackup to work the order of transactions in binlog
+ 		and InnoDB must be the same. Consider the situation
+@@ -10744,6 +10751,100 @@
+   "trigger a readahead.",
+   NULL, NULL, 56, 0, 64, 0);
+ 
++static MYSQL_SYSVAR_LONGLONG(ibuf_max_size, srv_ibuf_max_size,
++  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
++  "The maximum size of the insert buffer. (in bytes)",
++  NULL, NULL, LONGLONG_MAX, 0, LONGLONG_MAX, 0);
++
++static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
++  PLUGIN_VAR_RQCMDARG,
++  "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
++  NULL, NULL, 0, 0, 1, 0);
++
++static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
++  PLUGIN_VAR_RQCMDARG,
++  "Tunes amount of insert buffer processing of background, in addition to innodb_io_capacity. (in percentage)",
++  NULL, NULL, 100, 100, 999999999, 0);
++
++static MYSQL_SYSVAR_ULONG(checkpoint_age_target, srv_checkpoint_age_target,
++  PLUGIN_VAR_RQCMDARG,
++  "Control soft limit of checkpoint age. (0 : not control)",
++  NULL, NULL, 0, 0, ~0UL, 0);
++
++static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
++  PLUGIN_VAR_RQCMDARG,
++  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
++  NULL, NULL, 1, 0, 1, 0);
++
++static
++void
++innodb_read_ahead_update(
++  THD* thd,
++  struct st_mysql_sys_var*     var,
++  void*        var_ptr,
++  const void*  save)
++{
++  *(long *)var_ptr= (*(long *)save) & 3;
++}
++const char *read_ahead_names[]=
++{
++  "none", /* 0 */
++  "random",
++  "linear",
++  "both", /* 3 */
++  /* For compatibility of the older patch */
++  "0", /* 4 ("none" + 4) */
++  "1",
++  "2",
++  "3", /* 7 ("both" + 4) */
++  NullS
++};
++TYPELIB read_ahead_typelib=
++{
++  array_elements(read_ahead_names) - 1, "read_ahead_typelib",
++  read_ahead_names, NULL
++};
++static MYSQL_SYSVAR_ENUM(read_ahead, srv_read_ahead,
++  PLUGIN_VAR_RQCMDARG,
++  "Control read ahead activity (none, random, [linear], both). [from 1.0.5: random read ahead is ignored]",
++  NULL, innodb_read_ahead_update, 2, &read_ahead_typelib);
++
++static
++void
++innodb_adaptive_checkpoint_update(
++  THD* thd,
++  struct st_mysql_sys_var*     var,
++  void*        var_ptr,
++  const void*  save)
++{
++  *(long *)var_ptr= (*(long *)save) % 3;
++}
++const char *adaptive_checkpoint_names[]=
++{
++  "none", /* 0 */
++  "reflex", /* 1 */
++  "estimate", /* 2 */
++  /* For compatibility of the older patch */
++  "0", /* 3 ("none" + 3) */
++  "1", /* 4 ("reflex" + 3) */
++  "2", /* 5 ("estimate" + 3) */
++  NullS
++};
++TYPELIB adaptive_checkpoint_typelib=
++{
++  array_elements(adaptive_checkpoint_names) - 1, "adaptive_checkpoint_typelib",
++  adaptive_checkpoint_names, NULL
++};
++static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
++  PLUGIN_VAR_RQCMDARG,
++  "Enable/Disable flushing along modified age. ([none], reflex, estimate)",
++  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
++
++static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
++  PLUGIN_VAR_RQCMDARG,
++  "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
++  NULL, NULL, 0, 0, 1, 0);
++
+ static struct st_mysql_sys_var* innobase_system_variables[]= {
+   MYSQL_SYSVAR(additional_mem_pool_size),
+   MYSQL_SYSVAR(autoextend_increment),
+@@ -10798,6 +10899,14 @@
+   MYSQL_SYSVAR(show_verbose_locks),
+   MYSQL_SYSVAR(show_locks_held),
+   MYSQL_SYSVAR(version),
++  MYSQL_SYSVAR(ibuf_max_size),
++  MYSQL_SYSVAR(ibuf_active_contract),
++  MYSQL_SYSVAR(ibuf_accel_rate),
++  MYSQL_SYSVAR(checkpoint_age_target),
++  MYSQL_SYSVAR(flush_neighbor_pages),
++  MYSQL_SYSVAR(read_ahead),
++  MYSQL_SYSVAR(adaptive_checkpoint),
++  MYSQL_SYSVAR(enable_unsafe_group_commit),
+   MYSQL_SYSVAR(use_sys_malloc),
+   MYSQL_SYSVAR(change_buffering),
+   MYSQL_SYSVAR(read_ahead_threshold),
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:44:28.000000000 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:44:58.000000000 +0900
+@@ -25,5 +25,6 @@
+ }innodb_enhancements[] = {
+ {"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
+--- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-04-06 23:07:12.000000000 +0900
++++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-04-29 15:44:58.000000000 +0900
+@@ -458,8 +458,10 @@
+ 	grow in size, as the references on the upper levels of the tree can
+ 	change */
+ 
+-	ibuf->max_size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE
+-		/ IBUF_POOL_SIZE_PER_MAX_SIZE;
++	ibuf->max_size = ut_min( buf_pool_get_curr_size() / UNIV_PAGE_SIZE
++		/ IBUF_POOL_SIZE_PER_MAX_SIZE, (ulint) srv_ibuf_max_size / UNIV_PAGE_SIZE);
++
++	srv_ibuf_max_size = (long long) ibuf->max_size * UNIV_PAGE_SIZE;
+ 
+ 	mutex_create(&ibuf_pessimistic_insert_mutex,
+ 		     SYNC_IBUF_PESS_INSERT_MUTEX);
+@@ -2300,11 +2302,13 @@
+ 
+ 	mutex_enter(&ibuf_mutex);
+ 
++	if (!srv_ibuf_active_contract) {
+ 	if (ibuf->size < ibuf->max_size + IBUF_CONTRACT_ON_INSERT_NON_SYNC) {
+ 		mutex_exit(&ibuf_mutex);
+ 
+ 		return;
+ 	}
++	}
+ 
+ 	sync = FALSE;
+ 
+diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-04-29 15:44:28.000000000 +0900
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-29 15:44:58.000000000 +0900
+@@ -199,6 +199,16 @@
+ extern ulong	srv_max_purge_lag;
+ 
+ extern ulong	srv_replication_delay;
++
++extern long long	srv_ibuf_max_size;
++extern ulint	srv_ibuf_active_contract;
++extern ulint	srv_ibuf_accel_rate;
++extern ulint	srv_checkpoint_age_target;
++extern ulint	srv_flush_neighbor_pages;
++extern ulint	srv_enable_unsafe_group_commit;
++extern ulint	srv_read_ahead;
++extern ulint	srv_adaptive_checkpoint;
++
+ /*-------------------------------------------*/
+ 
+ extern ulint	srv_n_rows_inserted;
+diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
+--- a/storage/innodb_plugin/log/log0log.c	2010-04-06 23:07:13.000000000 +0900
++++ b/storage/innodb_plugin/log/log0log.c	2010-04-29 15:44:58.000000000 +0900
+@@ -347,6 +347,33 @@
+ }
+ 
+ /************************************************************//**
++*/
++UNIV_INLINE
++ulint
++log_max_modified_age_async()
++{
++	if (srv_checkpoint_age_target) {
++		return(ut_min(log_sys->max_modified_age_async,
++				srv_checkpoint_age_target
++				- srv_checkpoint_age_target / 8));
++	} else {
++		return(log_sys->max_modified_age_async);
++	}
++}
++
++UNIV_INLINE
++ulint
++log_max_checkpoint_age_async()
++{
++	if (srv_checkpoint_age_target) {
++		return(ut_min(log_sys->max_checkpoint_age_async,
++				srv_checkpoint_age_target));
++	} else {
++		return(log_sys->max_checkpoint_age_async);
++	}
++}
++
++/************************************************************//**
+ Closes the log.
+ @return	lsn */
+ UNIV_INTERN
+@@ -415,7 +442,7 @@
+ 		}
+ 	}
+ 
+-	if (checkpoint_age <= log->max_modified_age_async) {
++	if (checkpoint_age <= log_max_modified_age_async()) {
+ 
+ 		goto function_exit;
+ 	}
+@@ -423,8 +450,8 @@
+ 	oldest_lsn = buf_pool_get_oldest_modification();
+ 
+ 	if (!oldest_lsn
+-	    || lsn - oldest_lsn > log->max_modified_age_async
+-	    || checkpoint_age > log->max_checkpoint_age_async) {
++	    || lsn - oldest_lsn > log_max_modified_age_async()
++	    || checkpoint_age > log_max_checkpoint_age_async()) {
+ 
+ 		log->check_flush_or_checkpoint = TRUE;
+ 	}
+@@ -2102,10 +2129,10 @@
+ 
+ 		sync = TRUE;
+ 		advance = 2 * (age - log->max_modified_age_sync);
+-	} else if (age > log->max_modified_age_async) {
++	} else if (age > log_max_modified_age_async()) {
+ 
+ 		/* A flush is not urgent: we do an asynchronous preflush */
+-		advance = age - log->max_modified_age_async;
++		advance = age - log_max_modified_age_async();
+ 	} else {
+ 		advance = 0;
+ 	}
+@@ -2119,7 +2146,7 @@
+ 
+ 		do_checkpoint = TRUE;
+ 
+-	} else if (checkpoint_age > log->max_checkpoint_age_async) {
++	} else if (checkpoint_age > log_max_checkpoint_age_async()) {
+ 		/* A checkpoint is not urgent: do it asynchronously */
+ 
+ 		do_checkpoint = TRUE;
+@@ -3327,6 +3354,17 @@
+ 		log_sys->flushed_to_disk_lsn,
+ 		log_sys->last_checkpoint_lsn);
+ 
++	fprintf(file,
++		"Max checkpoint age    %lu\n"
++		"Checkpoint age target %lu\n"
++		"Modified age          %lu\n"
++		"Checkpoint age        %lu\n",
++			(ulong) log_sys->max_checkpoint_age,
++			(ulong) log_max_checkpoint_age_async(),
++			(ulong) (log_sys->lsn -
++					log_buf_pool_get_oldest_modification()),
++			(ulong) (log_sys->lsn - log_sys->last_checkpoint_lsn));
++
+ 	current_time = time(NULL);
+ 
+ 	time_elapsed = 0.001 + difftime(current_time,
+diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0file.c
+--- a/storage/innodb_plugin/os/os0file.c	2010-04-06 23:07:14.000000000 +0900
++++ b/storage/innodb_plugin/os/os0file.c	2010-04-29 15:44:58.000000000 +0900
+@@ -91,6 +91,28 @@
+ /** Flag: enable debug printout for asynchronous i/o */
+ UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
+ 
++/* State for the state of an IO request in simulated AIO.
++   Protocol for simulated aio:
++     client requests IO: find slot with reserved = FALSE. Add entry with
++                         status = OS_AIO_NOT_ISSUED.
++     IO thread wakes: find adjacent slots with reserved = TRUE and status =
++                      OS_AIO_NOT_ISSUED. Change status for slots to
++                      OS_AIO_ISSUED.
++     IO operation completes: set status for slots to OS_AIO_DONE. set status
++                             for the first slot to OS_AIO_CLAIMED and return
++                             result for that slot.
++   When there are multiple read and write threads, they all compete to execute
++   the requests in the array (os_aio_array_t). This avoids the need to load
++   balance requests at the time the request is made at the cost of waking all
++   threads when a request is available.
++*/
++typedef enum {
++	OS_AIO_NOT_ISSUED, /* Available to be processed by an IO thread. */
++	OS_AIO_ISSUED,     /* Being processed by an IO thread. */
++	OS_AIO_DONE,       /* Request processed. */
++	OS_AIO_CLAIMED     /* Result being returned to client. */
++} os_aio_status;
++
+ /** The asynchronous i/o array slot structure */
+ typedef struct os_aio_slot_struct	os_aio_slot_t;
+ 
+@@ -100,6 +122,8 @@
+ 	ulint		pos;		/*!< index of the slot in the aio
+ 					array */
+ 	ibool		reserved;	/*!< TRUE if this slot is reserved */
++	os_aio_status   status;		/* Status for current request. Valid when reserved
++					is TRUE. Used only in simulated aio. */
+ 	time_t		reservation_time;/*!< time when reserved */
+ 	ulint		len;		/*!< length of the block to read or
+ 					write */
+@@ -110,11 +134,11 @@
+ 	ulint		offset_high;	/*!< 32 high bits of file offset */
+ 	os_file_t	file;		/*!< file where to read or write */
+ 	const char*	name;		/*!< file name or path */
+-	ibool		io_already_done;/*!< used only in simulated aio:
+-					TRUE if the physical i/o already
+-					made and only the slot message
+-					needs to be passed to the caller
+-					of os_aio_simulated_handle */
++//	ibool		io_already_done;/*!< used only in simulated aio:
++//					TRUE if the physical i/o already
++//					made and only the slot message
++//					needs to be passed to the caller
++//					of os_aio_simulated_handle */
+ 	fil_node_t*	message1;	/*!< message which is given by the */
+ 	void*		message2;	/*!< the requester of an aio operation
+ 					and which can be used to identify
+@@ -168,6 +192,13 @@
+ /** Array of events used in simulated aio */
+ static os_event_t*	os_aio_segment_wait_events	= NULL;
+ 
++/* Number for the first global segment for reading. */
++const ulint os_aio_first_read_segment = 2;
++
++/* Number for the first global segment for writing. Set to
++2 + os_aio_read_write_threads. */
++ulint os_aio_first_write_segment = 0;
++
+ /** The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
+ are NULL when the module has not yet been initialized. @{ */
+ static os_aio_array_t*	os_aio_read_array	= NULL;	/*!< Reads */
+@@ -177,12 +208,18 @@
+ static os_aio_array_t*	os_aio_sync_array	= NULL;	/*!< Synchronous I/O */
+ /* @} */
+ 
++/* Per thread buffer used for merged IO requests. Used by
++os_aio_simulated_handle so that a buffer doesn't have to be allocated
++for each request. */
++static char* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
++static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
++
+ /** Number of asynchronous I/O segments.  Set by os_aio_init(). */
+ static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
+ 
+ /** If the following is TRUE, read i/o handler threads try to
+ wait until a batch of new read requests have been posted */
+-static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
++static volatile ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+ #endif /* UNIV_HOTBACKUP */
+ 
+ UNIV_INTERN ulint	os_n_file_reads		= 0;
+@@ -3088,11 +3125,14 @@
+ 
+ 	for (i = 0; i < n_segments; i++) {
+ 		srv_set_io_thread_op_info(i, "not started yet");
++		os_aio_thread_buffer[i] = 0;
++		os_aio_thread_buffer_size[i] = 0;
+ 	}
+ 
+ 
+ 	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
+ 
++	os_aio_first_write_segment = os_aio_first_read_segment + n_read_segs;
+ 	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
+ 
+ 	srv_io_thread_function[0] = "insert buffer thread";
+@@ -3101,14 +3141,14 @@
+ 
+ 	srv_io_thread_function[1] = "log thread";
+ 
+-	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
++	os_aio_read_array = os_aio_array_create(n_per_seg,
+ 						n_read_segs);
+ 	for (i = 2; i < 2 + n_read_segs; i++) {
+ 		ut_a(i < SRV_MAX_N_IO_THREADS);
+ 		srv_io_thread_function[i] = "read thread";
+ 	}
+ 
+-	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
++	os_aio_write_array = os_aio_array_create(n_per_seg,
+ 						 n_write_segs);
+ 	for (i = 2 + n_read_segs; i < n_segments; i++) {
+ 		ut_a(i < SRV_MAX_N_IO_THREADS);
+@@ -3388,7 +3428,8 @@
+ 	slot->buf      = buf;
+ 	slot->offset   = offset;
+ 	slot->offset_high = offset_high;
+-	slot->io_already_done = FALSE;
++//	slot->io_already_done = FALSE;
++	slot->status = OS_AIO_NOT_ISSUED;
+ 
+ #ifdef WIN_ASYNC_IO
+ 	control = &(slot->control);
+@@ -3419,6 +3460,7 @@
+ 	ut_ad(slot->reserved);
+ 
+ 	slot->reserved = FALSE;
++	slot->status = OS_AIO_NOT_ISSUED;
+ 
+ 	array->n_reserved--;
+ 
+@@ -3455,16 +3497,18 @@
+ 
+ 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
+ 
+-	n = array->n_slots / array->n_segments;
++	n = array->n_slots;
+ 
+ 	/* Look through n slots after the segment * n'th slot */
+ 
+ 	os_mutex_enter(array->mutex);
+ 
+ 	for (i = 0; i < n; i++) {
+-		slot = os_aio_array_get_nth_slot(array, i + segment * n);
++		slot = os_aio_array_get_nth_slot(array, i);
+ 
+-		if (slot->reserved) {
++		if (slot->reserved &&
++		    (slot->status == OS_AIO_NOT_ISSUED ||
++		     slot->status == OS_AIO_DONE)) {
+ 			/* Found an i/o request */
+ 
+ 			break;
+@@ -3474,7 +3518,25 @@
+ 	os_mutex_exit(array->mutex);
+ 
+ 	if (i < n) {
+-		os_event_set(os_aio_segment_wait_events[global_segment]);
++		if (array == os_aio_ibuf_array) {
++			os_event_set(os_aio_segment_wait_events[0]);
++
++		} else if (array == os_aio_log_array) {
++			os_event_set(os_aio_segment_wait_events[1]);
++
++		} else if (array == os_aio_read_array) {
++			ulint	x;
++			for (x = os_aio_first_read_segment; x < os_aio_first_write_segment; x++)
++				os_event_set(os_aio_segment_wait_events[x]);
++
++		} else if (array == os_aio_write_array) {
++			ulint	x;
++			for (x = os_aio_first_write_segment; x < os_aio_n_segments; x++)
++				os_event_set(os_aio_segment_wait_events[x]);
++
++		} else {
++			ut_a(0);
++		}
+ 	}
+ }
+ 
+@@ -3485,8 +3547,6 @@
+ os_aio_simulated_wake_handler_threads(void)
+ /*=======================================*/
+ {
+-	ulint	i;
+-
+ 	if (os_aio_use_native_aio) {
+ 		/* We do not use simulated aio: do nothing */
+ 
+@@ -3495,9 +3555,10 @@
+ 
+ 	os_aio_recommend_sleep_for_read_threads	= FALSE;
+ 
+-	for (i = 0; i < os_aio_n_segments; i++) {
+-		os_aio_simulated_wake_handler_thread(i);
+-	}
++	os_aio_simulated_wake_handler_thread(0);
++	os_aio_simulated_wake_handler_thread(1);
++	os_aio_simulated_wake_handler_thread(os_aio_first_read_segment);
++	os_aio_simulated_wake_handler_thread(os_aio_first_write_segment);
+ }
+ 
+ /**********************************************************************//**
+@@ -3785,7 +3846,7 @@
+ 	ut_ad(os_aio_validate());
+ 	ut_ad(segment < array->n_segments);
+ 
+-	n = array->n_slots / array->n_segments;
++	n = array->n_slots;
+ 
+ 	if (array == os_aio_sync_array) {
+ 		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
+@@ -3794,12 +3855,12 @@
+ 		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
+ 		i = os_event_wait_multiple(n,
+ 					   (array->native_events)
+-					   + segment * n);
++					   );
+ 	}
+ 
+ 	os_mutex_enter(array->mutex);
+ 
+-	slot = os_aio_array_get_nth_slot(array, i + segment * n);
++	slot = os_aio_array_get_nth_slot(array, i);
+ 
+ 	ut_a(slot->reserved);
+ 
+@@ -3902,10 +3963,13 @@
+ 	os_aio_slot_t*	slot;
+ 	os_aio_slot_t*	slot2;
+ 	os_aio_slot_t*	consecutive_ios[OS_AIO_MERGE_N_CONSECUTIVE];
++	os_aio_slot_t*  lowest_request;
++	os_aio_slot_t*	oldest_request;
+ 	ulint		n_consecutive;
+ 	ulint		total_len;
+ 	ulint		offs;
+ 	ulint		lowest_offset;
++	ulint		oldest_offset;
+ 	ulint		biggest_age;
+ 	ulint		age;
+ 	byte*		combined_buf;
+@@ -3913,6 +3977,7 @@
+ 	ibool		ret;
+ 	ulint		n;
+ 	ulint		i;
++	time_t          now;
+ 
+ 	/* Fix compiler warning */
+ 	*consecutive_ios = NULL;
+@@ -3928,7 +3993,7 @@
+ 	ut_ad(os_aio_validate());
+ 	ut_ad(segment < array->n_segments);
+ 
+-	n = array->n_slots / array->n_segments;
++	n = array->n_slots;
+ 
+ 	/* Look through n slots after the segment * n'th slot */
+ 
+@@ -3950,9 +4015,9 @@
+ 	done */
+ 
+ 	for (i = 0; i < n; i++) {
+-		slot = os_aio_array_get_nth_slot(array, i + segment * n);
++		slot = os_aio_array_get_nth_slot(array, i);
+ 
+-		if (slot->reserved && slot->io_already_done) {
++		if (slot->reserved && slot->status == OS_AIO_DONE) {
+ 
+ 			if (os_aio_print_debug) {
+ 				fprintf(stderr,
+@@ -3974,67 +4039,57 @@
+ 	then pick the one at the lowest offset. */
+ 
+ 	biggest_age = 0;
+-	lowest_offset = ULINT_MAX;
++	now = time(NULL);
++	oldest_request = lowest_request = NULL;
++	oldest_offset = lowest_offset = ULINT_MAX;
+ 
++	/* Find the oldest request and the request with the smallest offset */
+ 	for (i = 0; i < n; i++) {
+-		slot = os_aio_array_get_nth_slot(array, i + segment * n);
++		slot = os_aio_array_get_nth_slot(array, i);
+ 
+-		if (slot->reserved) {
+-			age = (ulint)difftime(time(NULL),
+-					      slot->reservation_time);
++		if (slot->reserved && slot->status == OS_AIO_NOT_ISSUED) {
++			age = (ulint)difftime(now, slot->reservation_time);
+ 
+ 			if ((age >= 2 && age > biggest_age)
+ 			    || (age >= 2 && age == biggest_age
+-				&& slot->offset < lowest_offset)) {
++				&& slot->offset < oldest_offset)) {
+ 
+ 				/* Found an i/o request */
+-				consecutive_ios[0] = slot;
+-
+-				n_consecutive = 1;
+-
+ 				biggest_age = age;
+-				lowest_offset = slot->offset;
++				oldest_request = slot;
++				oldest_offset = slot->offset;
+ 			}
+-		}
+-	}
+-
+-	if (n_consecutive == 0) {
+-		/* There were no old requests. Look for an i/o request at the
+-		lowest offset in the array (we ignore the high 32 bits of the
+-		offset in these heuristics) */
+-
+-		lowest_offset = ULINT_MAX;
+-
+-		for (i = 0; i < n; i++) {
+-			slot = os_aio_array_get_nth_slot(array,
+-							 i + segment * n);
+-
+-			if (slot->reserved && slot->offset < lowest_offset) {
+ 
++			/* Look for an i/o request at the lowest offset in the array
++			 * (we ignore the high 32 bits of the offset) */
++			if (slot->offset < lowest_offset) {
+ 				/* Found an i/o request */
+-				consecutive_ios[0] = slot;
+-
+-				n_consecutive = 1;
+-
++				lowest_request = slot;
+ 				lowest_offset = slot->offset;
+ 			}
+ 		}
+ 	}
+ 
+-	if (n_consecutive == 0) {
++	if (!lowest_request && !oldest_request) {
+ 
+ 		/* No i/o requested at the moment */
+ 
+ 		goto wait_for_io;
+ 	}
+ 
+-	slot = consecutive_ios[0];
++	if (oldest_request) {
++		slot = oldest_request;
++	} else {
++		slot = lowest_request;
++	}
++	consecutive_ios[0] = slot;
++	n_consecutive = 1;
+ 
+ 	/* Check if there are several consecutive blocks to read or write */
+ 
+ consecutive_loop:
+ 	for (i = 0; i < n; i++) {
+-		slot2 = os_aio_array_get_nth_slot(array, i + segment * n);
++		slot2 = os_aio_array_get_nth_slot(array, i);
+ 
+ 		if (slot2->reserved && slot2 != slot
+ 		    && slot2->offset == slot->offset + slot->len
+@@ -4042,7 +4097,8 @@
+ 		    && slot->offset + slot->len > slot->offset
+ 		    && slot2->offset_high == slot->offset_high
+ 		    && slot2->type == slot->type
+-		    && slot2->file == slot->file) {
++		    && slot2->file == slot->file
++		    && slot2->status == OS_AIO_NOT_ISSUED) {
+ 
+ 			/* Found a consecutive i/o request */
+ 
+@@ -4071,6 +4127,8 @@
+ 
+ 	for (i = 0; i < n_consecutive; i++) {
+ 		total_len += consecutive_ios[i]->len;
++		ut_a(consecutive_ios[i]->status == OS_AIO_NOT_ISSUED);
++		consecutive_ios[i]->status = OS_AIO_ISSUED;
+ 	}
+ 
+ 	if (n_consecutive == 1) {
+@@ -4078,7 +4136,14 @@
+ 		combined_buf = slot->buf;
+ 		combined_buf2 = NULL;
+ 	} else {
+-		combined_buf2 = ut_malloc(total_len + UNIV_PAGE_SIZE);
++		if ((total_len + UNIV_PAGE_SIZE) > os_aio_thread_buffer_size[global_segment]) {
++			if (os_aio_thread_buffer[global_segment])
++				ut_free(os_aio_thread_buffer[global_segment]);
++
++			os_aio_thread_buffer[global_segment] = ut_malloc(total_len + UNIV_PAGE_SIZE);
++			os_aio_thread_buffer_size[global_segment] = total_len + UNIV_PAGE_SIZE;
++		}
++		combined_buf2 = os_aio_thread_buffer[global_segment];
+ 
+ 		ut_a(combined_buf2);
+ 
+@@ -4089,6 +4154,9 @@
+ 	this assumes that there is just one i/o-handler thread serving
+ 	a single segment of slots! */
+ 
++	ut_a(slot->reserved);
++	ut_a(slot->status == OS_AIO_ISSUED);
++
+ 	os_mutex_exit(array->mutex);
+ 
+ 	if (slot->type == OS_FILE_WRITE && n_consecutive > 1) {
+@@ -4144,16 +4212,13 @@
+ 		}
+ 	}
+ 
+-	if (combined_buf2) {
+-		ut_free(combined_buf2);
+-	}
+-
+ 	os_mutex_enter(array->mutex);
+ 
+ 	/* Mark the i/os done in slots */
+ 
+ 	for (i = 0; i < n_consecutive; i++) {
+-		consecutive_ios[i]->io_already_done = TRUE;
++		ut_a(consecutive_ios[i]->status == OS_AIO_ISSUED);
++		consecutive_ios[i]->status = OS_AIO_DONE;
+ 	}
+ 
+ 	/* We return the messages for the first slot now, and if there were
+@@ -4163,6 +4228,8 @@
+ slot_io_done:
+ 
+ 	ut_a(slot->reserved);
++	ut_a(slot->status == OS_AIO_DONE);
++	slot->status = OS_AIO_CLAIMED;
+ 
+ 	*message1 = slot->message1;
+ 	*message2 = slot->message2;
+diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 15:44:28.000000000 +0900
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 15:44:58.000000000 +0900
+@@ -370,6 +370,17 @@
+ 
+ UNIV_INTERN ulong	srv_replication_delay		= 0;
+ 
++UNIV_INTERN long long	srv_ibuf_max_size = 0;
++UNIV_INTERN ulint	srv_ibuf_active_contract = 0; /* 0:disable 1:enable */
++UNIV_INTERN ulint	srv_ibuf_accel_rate = 100;
++#define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
++
++UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
++UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
++
++UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
++UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
++UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+ /*-------------------------------------------*/
+ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
+ UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
+@@ -2481,6 +2492,10 @@
+ 	ibool		skip_sleep	= FALSE;
+ 	ulint		i;
+ 
++	ib_uint64_t	lsn_old;
++
++	ib_uint64_t	oldest_lsn;
++
+ #ifdef UNIV_DEBUG_THREAD_CREATION
+ 	fprintf(stderr, "Master thread starts, id %lu\n",
+ 		os_thread_pf(os_thread_get_curr_id()));
+@@ -2496,6 +2511,9 @@
+ 
+ 	mutex_exit(&kernel_mutex);
+ 
++	mutex_enter(&(log_sys->mutex));
++	lsn_old = log_sys->lsn;
++	mutex_exit(&(log_sys->mutex));
+ loop:
+ 	/*****************************************************************/
+ 	/* ---- When there is database activity by users, we cycle in this
+@@ -2533,6 +2551,19 @@
+ 
+ 			os_thread_sleep(1000000);
+ 			srv_main_sleeps++;
++
++			/*
++			mutex_enter(&(log_sys->mutex));
++			oldest_lsn = buf_pool_get_oldest_modification();
++			ib_uint64_t	lsn = log_sys->lsn;
++			mutex_exit(&(log_sys->mutex));
++
++			if(oldest_lsn)
++			fprintf(stderr,
++				"InnoDB flush: age pct: %lu, lsn progress: %lu\n",
++				(lsn - oldest_lsn) * 100 / log_sys->max_checkpoint_age,
++				lsn - lsn_old);
++			*/
+ 		}
+ 
+ 		skip_sleep = FALSE;
+@@ -2569,7 +2600,7 @@
+ 		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
+ 		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
+ 			srv_main_thread_op_info = "doing insert buffer merge";
+-			ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
++			ibuf_contract_for_n_pages(FALSE, PCT_IBUF_IO(5));
+ 
+ 			/* Flush logs if needed */
+ 			srv_sync_log_buffer_in_background();
+@@ -2593,6 +2624,10 @@
+ 			iteration of this loop. */
+ 
+ 			skip_sleep = TRUE;
++
++			mutex_enter(&(log_sys->mutex));
++			lsn_old = log_sys->lsn;
++			mutex_exit(&(log_sys->mutex));
+ 		} else if (srv_adaptive_flushing) {
+ 
+ 			/* Try to keep the rate of flushing of dirty
+@@ -2614,6 +2649,140 @@
+ 					skip_sleep = TRUE;
+ 				}
+ 			}
++
++			mutex_enter(&(log_sys->mutex));
++			lsn_old = log_sys->lsn;
++			mutex_exit(&(log_sys->mutex));
++		} else if (srv_adaptive_checkpoint == 1) {
++			/* adaptive_flushing option is prior to adaptive_checkpoint option, for now */
++
++			/* Try to keep modified age not to exceed
++			max_checkpoint_age * 7/8 line */
++
++			mutex_enter(&(log_sys->mutex));
++			lsn_old = log_sys->lsn;
++			oldest_lsn = buf_pool_get_oldest_modification();
++			if (oldest_lsn == 0) {
++
++				mutex_exit(&(log_sys->mutex));
++
++			} else {
++				if ((log_sys->lsn - oldest_lsn)
++				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 8)) {
++					/* LOG_POOL_PREFLUSH_RATIO_ASYNC is exceeded. */
++					/* We should not flush from here. */
++					mutex_exit(&(log_sys->mutex));
++				} else if ((log_sys->lsn - oldest_lsn)
++				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 4)) {
++
++					/* 2nd defence line (max_checkpoint_age * 3/4) */
++
++					mutex_exit(&(log_sys->mutex));
++
++					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
++									  IB_ULONGLONG_MAX);
++					skip_sleep = TRUE;
++				} else if ((log_sys->lsn - oldest_lsn)
++					   > (log_sys->max_checkpoint_age)/2 ) {
++
++					/* 1st defence line (max_checkpoint_age * 1/2) */
++
++					mutex_exit(&(log_sys->mutex));
++
++					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(10),
++									  IB_ULONGLONG_MAX);
++					skip_sleep = TRUE;
++				} else {
++					mutex_exit(&(log_sys->mutex));
++				}
++			}
++		} else if (srv_adaptive_checkpoint == 2) {
++
++			/* Try to keep modified age not to exceed
++			max_checkpoint_age * 7/8 line */
++
++			mutex_enter(&(log_sys->mutex));
++
++			oldest_lsn = buf_pool_get_oldest_modification();
++			if (oldest_lsn == 0) {
++				lsn_old = log_sys->lsn;
++				mutex_exit(&(log_sys->mutex));
++
++			} else {
++				if ((log_sys->lsn - oldest_lsn)
++				    > (log_sys->max_checkpoint_age) - ((log_sys->max_checkpoint_age) / 8)) {
++					/* LOG_POOL_PREFLUSH_RATIO_ASYNC is exceeded. */
++					/* We should not flush from here. */
++					lsn_old = log_sys->lsn;
++					mutex_exit(&(log_sys->mutex));
++				} else if ((log_sys->lsn - oldest_lsn)
++					   > (log_sys->max_checkpoint_age)/4 ) {
++
++					/* defence line (max_checkpoint_age * 1/2) */
++					ib_uint64_t	lsn = log_sys->lsn;
++
++					ib_uint64_t level, bpl;
++					buf_page_t* bpage;
++
++					mutex_exit(&(log_sys->mutex));
++
++					buf_pool_mutex_enter();
++
++					level = 0;
++					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
++
++					while (bpage != NULL) {
++						ib_uint64_t	oldest_modification = bpage->oldest_modification;
++						if (oldest_modification != 0) {
++							level += log_sys->max_checkpoint_age
++								 - (lsn - oldest_modification);
++						}
++						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
++					}
++
++					if (level) {
++						bpl = ((ib_uint64_t) UT_LIST_GET_LEN(buf_pool->flush_list)
++							* UT_LIST_GET_LEN(buf_pool->flush_list)
++							* (lsn - lsn_old)) / level;
++					} else {
++						bpl = 0;
++					}
++
++					buf_pool_mutex_exit();
++
++					if (!srv_use_doublewrite_buf) {
++						/* flush is faster than when doublewrite */
++						bpl = (bpl * 7) / 8;
++					}
++
++					if (bpl) {
++retry_flush_batch:
++						n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
++									bpl,
++									oldest_lsn + (lsn - lsn_old));
++						if (n_pages_flushed == ULINT_UNDEFINED) {
++							os_thread_sleep(5000);
++							goto retry_flush_batch;
++						}
++					}
++
++					lsn_old = lsn;
++					/*
++					fprintf(stderr,
++						"InnoDB flush: age pct: %lu, lsn progress: %lu, blocks to flush:%llu\n",
++						(lsn - oldest_lsn) * 100 / log_sys->max_checkpoint_age,
++						lsn - lsn_old, bpl);
++					*/
++				} else {
++					lsn_old = log_sys->lsn;
++					mutex_exit(&(log_sys->mutex));
++				}
++			}
++
++		} else {
++			mutex_enter(&(log_sys->mutex));
++			lsn_old = log_sys->lsn;
++			mutex_exit(&(log_sys->mutex));
+ 		}
+ 
+ 		if (srv_activity_count == old_activity_count) {
+@@ -2662,7 +2831,7 @@
+ 	even if the server were active */
+ 
+ 	srv_main_thread_op_info = "doing insert buffer merge";
+-	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
++	ibuf_contract_for_n_pages(FALSE, PCT_IBUF_IO(5));
+ 
+ 	/* Flush logs if needed */
+ 	srv_sync_log_buffer_in_background();
+@@ -2787,7 +2956,7 @@
+ 		buf_flush_batch below. Otherwise, the system favors
+ 		clean pages over cleanup throughput. */
+ 		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
+-							   PCT_IO(100));
++							   PCT_IBUF_IO(100));
+ 	}
+ 
+ 	srv_main_thread_op_info = "reserving kernel mutex";
+diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
+--- a/storage/innodb_plugin/srv/srv0start.c	2010-04-06 23:07:14.000000000 +0900
++++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-29 15:44:58.000000000 +0900
+@@ -1138,7 +1138,12 @@
+ 		break;
+ 	default:
+ 		/* On Win 2000 and XP use async i/o */
+-		os_aio_use_native_aio = TRUE;
++		//os_aio_use_native_aio = TRUE;
++		os_aio_use_native_aio = FALSE;
++		fprintf(stderr,
++			"InnoDB: Windows native async i/o is disabled as default.\n"
++			"InnoDB:   It is not applicable for the current"
++			" multi io threads implementation.\n");
+ 		break;
+ 	}
+ #endif
+@@ -1175,6 +1180,12 @@
+ 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
+ 				  "async_unbuffered")) {
+ 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
++		os_aio_use_native_aio = TRUE;
++		srv_n_read_io_threads = srv_n_write_io_threads = 1;
++		fprintf(stderr,
++			"InnoDB: 'async_unbuffered' was detected as innodb_flush_method.\n"
++			"InnoDB:   Windows native async i/o is enabled.\n"
++			"InnoDB:   And io threads are restricted.\n");
+ #endif
+ 	} else {
+ 		fprintf(stderr,

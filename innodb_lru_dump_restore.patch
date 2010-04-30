@@ -1,0 +1,463 @@
+diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
+--- a/storage/innodb_plugin/buf/buf0lru.c	2010-04-29 18:58:20.000000000 +0900
++++ b/storage/innodb_plugin/buf/buf0lru.c	2010-04-30 15:47:10.000000000 +0900
+@@ -2107,6 +2107,218 @@
+ 	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
+ }
+ 
++/********************************************************************//**
++Dump the LRU page list to the specific file. */
++#define LRU_DUMP_FILE "ib_lru_dump"
++
++UNIV_INTERN
++ibool
++buf_LRU_file_dump(void)
++/*===================*/
++{
++	os_file_t	dump_file = -1;
++	ibool		success;
++	byte*		buffer_base = NULL;
++	byte*		buffer = NULL;
++	buf_page_t*	bpage;
++	ulint		buffers;
++	ulint		offset;
++	ibool		ret = FALSE;
++	ulint		i;
++
++	for (i = 0; i < srv_n_data_files; i++) {
++		if (strstr(srv_data_file_names[i], LRU_DUMP_FILE) != NULL) {
++			fprintf(stderr,
++				" InnoDB: The name '%s' seems to be used for"
++				" innodb_data_file_path. Dumping LRU list is not"
++				" done for safeness.\n", LRU_DUMP_FILE);
++			goto end;
++		}
++	}
++
++	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
++	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
++	if (!buffer) {
++		fprintf(stderr,
++			" InnoDB: cannot allocate buffer.\n");
++		goto end;
++	}
++
++	dump_file = os_file_create(LRU_DUMP_FILE, OS_FILE_OVERWRITE,
++				OS_FILE_NORMAL, OS_DATA_FILE, &success);
++	if (!success) {
++		os_file_get_last_error(TRUE);
++		fprintf(stderr,
++			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
++		goto end;
++	}
++
++	mutex_enter(&LRU_list_mutex);
++	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
++
++	buffers = offset = 0;
++	while (bpage != NULL) {
++		if (offset == 0) {
++			memset(buffer, 0, UNIV_PAGE_SIZE);
++		}
++
++		mach_write_to_4(buffer + offset * 4, bpage->space);
++		offset++;
++		mach_write_to_4(buffer + offset * 4, bpage->offset);
++		offset++;
++
++		if (offset == UNIV_PAGE_SIZE/4) {
++			success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
++					(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
++					(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
++					UNIV_PAGE_SIZE);
++			if (!success) {
++				mutex_exit(&LRU_list_mutex);
++				fprintf(stderr,
++					" InnoDB: cannot write page %lu of %s\n",
++					buffers, LRU_DUMP_FILE);
++				goto end;
++			}
++			buffers++;
++			offset = 0;
++		}
++
++		bpage = UT_LIST_GET_PREV(LRU, bpage);
++	}
++	mutex_exit(&LRU_list_mutex);
++
++	if (offset == 0) {
++		memset(buffer, 0, UNIV_PAGE_SIZE);
++	}
++
++	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
++	offset++;
++	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
++	offset++;
++
++	success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
++			(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
++			(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
++			UNIV_PAGE_SIZE);
++	if (!success) {
++		goto end;
++	}
++
++	ret = TRUE;
++end:
++	if (dump_file != -1)
++		os_file_close(dump_file);
++	if (buffer_base)
++		ut_free(buffer_base);
++
++	return(ret);
++}
++/********************************************************************//**
++Read the pages based on the specific file.*/
++UNIV_INTERN
++ibool
++buf_LRU_file_restore(void)
++/*======================*/
++{
++	os_file_t	dump_file = -1;
++	ibool		success;
++	byte*		buffer_base = NULL;
++	byte*		buffer = NULL;
++	ulint		buffers;
++	ulint		offset;
++	ulint		reads = 0;
++	ulint		req = 0;
++	ibool		terminated = FALSE;
++	ibool		ret = FALSE;
++
++	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
++	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
++	if (!buffer) {
++		fprintf(stderr,
++			" InnoDB: cannot allocate buffer.\n");
++		goto end;
++	}
++
++	dump_file = os_file_create_simple_no_error_handling(
++		LRU_DUMP_FILE, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
++	if (!success) {
++		os_file_get_last_error(TRUE);
++		fprintf(stderr,
++			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
++		goto end;
++	}
++
++	buffers = 0;
++	while (!terminated) {
++		success = os_file_read(dump_file, buffer,
++				(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
++				(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
++				UNIV_PAGE_SIZE);
++		if (!success) {
++			fprintf(stderr,
++				" InnoDB: cannot read page %lu of %s,"
++				" or meet unexpected terminal.",
++				buffers, LRU_DUMP_FILE);
++			goto end;
++		}
++
++		for (offset = 0; offset < UNIV_PAGE_SIZE/4; offset += 2) {
++			ulint	space_id, zip_size, page_no;
++			ulint	err;
++			ib_int64_t	tablespace_version;
++
++			space_id = mach_read_from_4(buffer + offset * 4);
++			page_no = mach_read_from_4(buffer + (offset + 1) * 4);
++			if (space_id == 0xFFFFFFFFUL
++			    || page_no == 0xFFFFFFFFUL) {
++				terminated = TRUE;
++				break;
++			}
++
++			if (offset % 16 == 15) {
++				os_aio_simulated_wake_handler_threads();
++				buf_flush_free_margin(FALSE);
++			}
++
++			zip_size = fil_space_get_zip_size(space_id);
++			if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
++				continue;
++			}
++
++			if (fil_area_is_exist(space_id, zip_size, page_no, 0,
++					zip_size ? zip_size : UNIV_PAGE_SIZE)) {
++
++				tablespace_version = fil_space_get_version(space_id);
++
++				req++;
++				reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
++						  | OS_AIO_SIMULATED_WAKE_LATER,
++						  space_id, zip_size, TRUE,
++						  tablespace_version, page_no, NULL);
++				buf_LRU_stat_inc_io();
++			}
++		}
++
++		buffers++;
++	}
++
++	os_aio_simulated_wake_handler_threads();
++	buf_flush_free_margin(FALSE);
++
++	ut_print_timestamp(stderr);
++	fprintf(stderr,
++		" InnoDB: reading pages based on the dumped LRU list was done."
++		" (requested: %lu, read: %lu)\n", req, reads);
++	ret = TRUE;
++end:
++	if (dump_file != -1)
++		os_file_close(dump_file);
++	if (buffer_base)
++		ut_free(buffer_base);
++
++	return(ret);
++}
++
+ #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+ /**********************************************************************//**
+ Validates the LRU list.
+diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
+--- a/storage/innodb_plugin/buf/buf0rea.c	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/buf/buf0rea.c	2010-04-30 15:47:10.000000000 +0900
+@@ -56,7 +56,7 @@
+ which case it is never read into the pool, or if the tablespace does
+ not exist or is being dropped 
+ @return 1 if read request is issued. 0 if it is not */
+-static
++UNIV_INTERN
+ ulint
+ buf_read_page_low(
+ /*==============*/
+diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
+--- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 15:47:10.000000000 +0900
+@@ -4765,6 +4765,78 @@
+ 	return(DB_SUCCESS);
+ }
+ 
++/********************************************************************//**
++Confirm whether the parameters are valid or not */
++UNIV_INTERN
++ibool
++fil_area_is_exist(
++/*==============*/
++	ulint	space_id,	/*!< in: space id */
++	ulint	zip_size,	/*!< in: compressed page size in bytes;
++				0 for uncompressed pages */
++	ulint	block_offset,	/*!< in: offset in number of blocks */
++	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
++				aio this must be divisible by the OS block
++				size */
++	ulint	len)		/*!< in: how many bytes to read or write; this
++				must not cross a file boundary; in aio this
++				must be a block size multiple */
++{
++	fil_space_t*	space;
++	fil_node_t*	node;
++
++	/* Reserve the fil_system mutex and make sure that we can open at
++	least one file while holding it, if the file is not already open */
++
++	fil_mutex_enter_and_prepare_for_io(space_id);
++
++	space = fil_space_get_by_id(space_id);
++
++	if (!space) {
++		mutex_exit(&fil_system->mutex);
++		return(FALSE);
++	}
++
++	node = UT_LIST_GET_FIRST(space->chain);
++
++	for (;;) {
++		if (UNIV_UNLIKELY(node == NULL)) {
++			mutex_exit(&fil_system->mutex);
++			return(FALSE);
++		}
++
++		if (space->id != 0 && node->size == 0) {
++			/* We do not know the size of a single-table tablespace
++			before we open the file */
++
++			break;
++		}
++
++		if (node->size > block_offset) {
++			/* Found! */
++			break;
++		} else {
++			block_offset -= node->size;
++			node = UT_LIST_GET_NEXT(chain, node);
++		}
++	}
++
++	/* Open file if closed */
++	fil_node_prepare_for_io(node, fil_system, space);
++	fil_node_complete_io(node, fil_system, OS_FILE_READ);
++
++	/* Check that at least the start offset is within the bounds of a
++	single-table tablespace */
++	if (UNIV_UNLIKELY(node->size <= block_offset)
++	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
++		mutex_exit(&fil_system->mutex);
++		return(FALSE);
++	}
++
++	mutex_exit(&fil_system->mutex);
++	return(TRUE);
++}
++
+ #ifndef UNIV_HOTBACKUP
+ /**********************************************************************//**
+ Waits for an aio operation to complete. This function is used to write the
+diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
+--- a/storage/innodb_plugin/handler/i_s.cc	2010-04-30 14:38:27.000000000 +0900
++++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-30 15:47:10.000000000 +0900
+@@ -47,6 +47,7 @@
+ #include "trx0rseg.h" /* for trx_rseg_struct */
+ #include "trx0sys.h" /* for trx_sys */
+ #include "dict0dict.h" /* for dict_sys */
++#include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
+ /* from buf0buf.c */
+ struct buf_chunk_struct{
+ 	ulint		mem_size;	/* allocated size of the chunk */
+@@ -3091,6 +3092,36 @@
+ 			"Hello!");
+ 		goto end_func;
+ 	}
++	else if (!strncasecmp("XTRA_LRU_DUMP", ptr, 13)) {
++		ut_print_timestamp(stderr);
++		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_DUMP'"
++				" was detected.\n");
++
++		if (buf_LRU_file_dump()) {
++			field_store_string(i_s_table->field[0],
++				"XTRA_LRU_DUMP was succeeded.");
++		} else {
++			field_store_string(i_s_table->field[0],
++				"XTRA_LRU_DUMP was failed.");
++		}
++
++		goto end_func;
++	}
++	else if (!strncasecmp("XTRA_LRU_RESTORE", ptr, 16)) {
++		ut_print_timestamp(stderr);
++		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_RESTORE'"
++				" was detected.\n");
++
++		if (buf_LRU_file_restore()) {
++			field_store_string(i_s_table->field[0],
++				"XTRA_LRU_RESTORE was succeeded.");
++		} else {
++			field_store_string(i_s_table->field[0],
++				"XTRA_LRU_RESTORE was failed.");
++		}
++
++		goto end_func;
++	}
+ 
+ 	field_store_string(i_s_table->field[0],
+ 		"Undefined XTRA_* command.");
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 15:46:35.000000000 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 15:47:10.000000000 +0900
+@@ -42,5 +42,6 @@
+ {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_relax_table_creation","Relax limitation of column size at table creation as builtin InnoDB.","","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/include/buf0lru.h
+--- a/storage/innodb_plugin/include/buf0lru.h	2010-04-29 18:58:20.000000000 +0900
++++ b/storage/innodb_plugin/include/buf0lru.h	2010-04-30 15:47:10.000000000 +0900
+@@ -213,6 +213,18 @@
+ void
+ buf_LRU_stat_update(void);
+ /*=====================*/
++/********************************************************************//**
++Dump the LRU page list to the specific file. */
++UNIV_INTERN
++ibool
++buf_LRU_file_dump(void);
++/*===================*/
++/********************************************************************//**
++Read the pages based on the specific file.*/
++UNIV_INTERN
++ibool
++buf_LRU_file_restore(void);
++/*======================*/
+ 
+ #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+ /**********************************************************************//**
+diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/include/buf0rea.h
+--- a/storage/innodb_plugin/include/buf0rea.h	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/include/buf0rea.h	2010-04-30 15:47:10.000000000 +0900
+@@ -31,6 +31,37 @@
+ #include "buf0types.h"
+ 
+ /********************************************************************//**
++Low-level function which reads a page asynchronously from a file to the
++buffer buf_pool if it is not already there, in which case does nothing.
++Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
++flag is cleared and the x-lock released by an i/o-handler thread.
++@return 1 if a read request was queued, 0 if the page already resided
++in buf_pool, or if the page is in the doublewrite buffer blocks in
++which case it is never read into the pool, or if the tablespace does
++not exist or is being dropped 
++@return 1 if read request is issued. 0 if it is not */
++UNIV_INTERN
++ulint
++buf_read_page_low(
++/*==============*/
++	ulint*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
++			trying to read from a non-existent tablespace, or a
++			tablespace which is just now being dropped */
++	ibool	sync,	/*!< in: TRUE if synchronous aio is desired */
++	ulint	mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ...,
++			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
++			at read-ahead functions) */
++	ulint	space,	/*!< in: space id */
++	ulint	zip_size,/*!< in: compressed page size, or 0 */
++	ibool	unzip,	/*!< in: TRUE=request uncompressed page */
++	ib_int64_t tablespace_version, /*!< in: if the space memory object has
++			this timestamp different from what we are giving here,
++			treat the tablespace as dropped; this is a timestamp we
++			use to stop dangling page reads from a tablespace
++			which we have DISCARDed + IMPORTed back */
++	ulint	offset,	/*!< in: page number */
++	trx_t*	trx);
++/********************************************************************//**
+ High-level function which reads a page asynchronously from a file to the
+ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
+ an exclusive lock on the buffer frame. The flag is cleared and the x-lock
+diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
+--- a/storage/innodb_plugin/include/fil0fil.h	2010-04-30 15:01:51.000000000 +0900
++++ b/storage/innodb_plugin/include/fil0fil.h	2010-04-30 15:47:10.000000000 +0900
+@@ -645,6 +645,22 @@
+ 	void*	message,	/*!< in: message for aio handler if non-sync
+ 				aio used, else ignored */
+ 	trx_t*	trx);
++/********************************************************************//**
++Confirm whether the parameters are valid or not */
++UNIV_INTERN
++ibool
++fil_area_is_exist(
++/*==============*/
++	ulint	space_id,	/*!< in: space id */
++	ulint	zip_size,	/*!< in: compressed page size in bytes;
++				0 for uncompressed pages */
++	ulint	block_offset,	/*!< in: offset in number of blocks */
++	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
++				aio this must be divisible by the OS block
++				size */
++	ulint	len);		/*!< in: how many bytes to read or write; this
++				must not cross a file boundary; in aio this
++				must be a block size multiple */
+ /**********************************************************************//**
+ Waits for an aio operation to complete. This function is used to write the
+ handler for completed requests. The aio array of pending requests is divided

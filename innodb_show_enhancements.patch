@@ -1,0 +1,268 @@
+diff -ruN a/storage/innodb_plugin/Makefile.am b/storage/innodb_plugin/Makefile.am
+--- a/storage/innodb_plugin/Makefile.am	2010-04-06 23:07:11.000000000 +0900
++++ b/storage/innodb_plugin/Makefile.am	2010-04-29 15:22:39.000000000 +0900
+@@ -226,6 +226,7 @@
+ 			include/ut0vec.h	\
+ 			include/ut0vec.ic	\
+ 			include/ut0wqueue.h	\
++			handler/innodb_patch_info.h	\
+ 			mem/mem0dbg.c
+ 
+ EXTRA_LIBRARIES=	libinnobase.a
+diff -ruN a/storage/innodb_plugin/Makefile.in b/storage/innodb_plugin/Makefile.in
+--- a/storage/innodb_plugin/Makefile.in	2010-04-06 23:12:58.000000000 +0900
++++ b/storage/innodb_plugin/Makefile.in	2010-04-29 15:22:39.000000000 +0900
+@@ -782,6 +782,7 @@
+ 			include/ut0vec.h	\
+ 			include/ut0vec.ic	\
+ 			include/ut0wqueue.h	\
++			handler/innodb_patch_info.h	\
+ 			mem/mem0dbg.c
+ 
+ EXTRA_LIBRARIES = libinnobase.a
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-06 23:07:12.000000000 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:22:39.000000000 +0900
+@@ -10814,7 +10814,8 @@
+ i_s_innodb_cmp,
+ i_s_innodb_cmp_reset,
+ i_s_innodb_cmpmem,
+-i_s_innodb_cmpmem_reset
++i_s_innodb_cmpmem_reset,
++i_s_innodb_patches
+ mysql_declare_plugin_end;
+ 
+ /** @brief Initialize the default value of innodb_commit_concurrency.
+diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
+--- a/storage/innodb_plugin/handler/i_s.cc	2010-04-06 23:07:12.000000000 +0900
++++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-29 15:22:39.000000000 +0900
+@@ -32,6 +32,7 @@
+ #include <mysys_err.h>
+ #include <my_sys.h>
+ #include "i_s.h"
++#include "innodb_patch_info.h"
+ #include <mysql/plugin.h>
+ 
+ extern "C" {
+@@ -217,6 +218,168 @@
+ 	return(ret);
+ }
+ 
++/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_patches */
++static ST_FIELD_INFO	innodb_patches_fields_info[] =
++{
++#define IDX_PATCH_NAME		0
++	{STRUCT_FLD(field_name,		"name"),
++	 STRUCT_FLD(field_length,	255),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	0),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++#define IDX_PATCH_DESCR		1
++	{STRUCT_FLD(field_name,		"description"),
++	 STRUCT_FLD(field_length,	255),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	0),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++#define IDX_PATCH_COMMENT		2
++	{STRUCT_FLD(field_name,		"comment"),
++	 STRUCT_FLD(field_length,	100),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	0),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++#define IDX_PATCH_LINK			3
++	{STRUCT_FLD(field_name,		"link"),
++	 STRUCT_FLD(field_length,	255),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	0),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	END_OF_ST_FIELD_INFO
++};
++
++static struct st_mysql_information_schema	i_s_info =
++{
++	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
++};
++
++/***********************************************************************
++Fill the dynamic table information_schema.innodb_patches */
++static
++int
++innodb_patches_fill(
++/*=============*/
++				/* out: 0 on success, 1 on failure */
++	THD*		thd,	/* in: thread */
++	TABLE_LIST*	tables,	/* in/out: tables to fill */
++	COND*		cond)	/* in: condition (ignored) */
++{
++	TABLE*	table	= (TABLE *) tables->table;
++	int	status	= 0;
++	int	i;
++	Field**	fields;
++
++
++	DBUG_ENTER("innodb_patches_fill");
++	fields = table->field;
++
++	/* deny access to non-superusers */
++	if (check_global_access(thd, PROCESS_ACL)) {
++
++		DBUG_RETURN(0);
++	}
++
++	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
++	
++	for (i = 0; innodb_enhancements[i].file; i++) {
++
++   	field_store_string(fields[0],innodb_enhancements[i].file);
++   	field_store_string(fields[1],innodb_enhancements[i].name);
++   	field_store_string(fields[2],innodb_enhancements[i].comment);
++   	field_store_string(fields[3],innodb_enhancements[i].link);
++
++	if (schema_table_store_record(thd, table)) {
++		status = 1;
++		break;
++	}
++
++	}
++
++
++	DBUG_RETURN(status);
++}
++
++/***********************************************************************
++Bind the dynamic table information_schema.innodb_patches. */
++static
++int
++innodb_patches_init(
++/*=========*/
++			/* out: 0 on success */
++	void*	p)	/* in/out: table schema object */
++{
++	DBUG_ENTER("innodb_patches_init");
++	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
++
++	schema->fields_info = innodb_patches_fields_info;
++	schema->fill_table = innodb_patches_fill;
++
++	DBUG_RETURN(0);
++}
++
++
++UNIV_INTERN struct st_mysql_plugin      i_s_innodb_patches =
++{
++        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
++        /* int */
++        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
++
++        /* pointer to type-specific plugin descriptor */
++        /* void* */
++        STRUCT_FLD(info, &i_s_info),
++
++        /* plugin name */
++        /* const char* */
++        STRUCT_FLD(name, "XTRADB_ENHANCEMENTS"),
++
++        /* plugin author (for SHOW PLUGINS) */
++        /* const char* */
++        STRUCT_FLD(author, "Percona"),
++
++        /* general descriptive text (for SHOW PLUGINS) */
++        /* const char* */
++        STRUCT_FLD(descr, "Enhancements applied to InnoDB plugin"),
++
++        /* the plugin license (PLUGIN_LICENSE_XXX) */
++        /* int */
++        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
++
++        /* the function to invoke when plugin is loaded */
++        /* int (*)(void*); */
++        STRUCT_FLD(init, innodb_patches_init),
++
++        /* the function to invoke when plugin is unloaded */
++        /* int (*)(void*); */
++        STRUCT_FLD(deinit, i_s_common_deinit),
++
++        /* plugin version (for SHOW PLUGINS) */
++        /* unsigned int */
++        STRUCT_FLD(version, INNODB_VERSION_SHORT),
++
++        /* struct st_mysql_show_var* */
++        STRUCT_FLD(status_vars, NULL),
++
++        /* struct st_mysql_sys_var** */
++        STRUCT_FLD(system_vars, NULL),
++
++        /* reserved for dependency checking */
++        /* void* */
++        STRUCT_FLD(__reserved1, NULL)
++};
++
++
+ /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_trx */
+ static ST_FIELD_INFO	innodb_trx_fields_info[] =
+ {
+@@ -401,10 +564,6 @@
+ 	DBUG_RETURN(0);
+ }
+ 
+-static struct st_mysql_information_schema	i_s_info =
+-{
+-	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+-};
+ 
+ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
+ {
+diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
+--- a/storage/innodb_plugin/handler/i_s.h	2010-04-06 23:07:12.000000000 +0900
++++ b/storage/innodb_plugin/handler/i_s.h	2010-04-29 15:22:39.000000000 +0900
+@@ -33,5 +33,6 @@
+ extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
+ extern struct st_mysql_plugin	i_s_innodb_cmpmem;
+ extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
++extern struct st_mysql_plugin	i_s_innodb_patches;
+ 
+ #endif /* i_s_h */
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:22:39.000000000 +0900
+@@ -0,0 +1,28 @@
++/* Copyright (C) 2002-2006 MySQL AB
++  
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++  
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++#ifdef USE_PRAGMA_INTERFACE
++#pragma interface                      /* gcc class implementation */
++#endif
++
++struct innodb_enhancement {
++       const char *file;
++       const char *name;
++       const char *comment;
++       const char *link;
++}innodb_enhancements[] = {
++{"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
++{NULL, NULL, NULL, NULL}
++};

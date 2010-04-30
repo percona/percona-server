@@ -5,6 +5,7 @@ profiling_slow.patch
 microsec_process.patch
 userstat.patch
 optimizer_fix.patch
+mysql_dump_ignore_ct.patch
 innodb_show_enhancements.patch
 innodb_show_status.patch
 innodb_io_patches.patch

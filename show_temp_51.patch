@@ -1,0 +1,520 @@
+diff -ruN a/mysql-test/r/show_temp_tables.result b/mysql-test/r/show_temp_tables.result
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/mysql-test/r/show_temp_tables.result	2010-04-30 19:46:32.000000000 +0900
+@@ -0,0 +1,62 @@
++drop table if exists t1,t2,t3;
++drop database if exists showtemp;
++create database if not exists showtemp;
++use test;
++create temporary table t1(id int);
++create temporary table t2(id int);
++create temporary table showtemp.t3(id int);
++insert into t1 values(10),(20),(30),(40);
++insert into showtemp.t3 values(999);
++show temporary tables;
++Temp_tables_in_test
++t2
++t1
++show global temporary tables;
++Session	Temp_tables_in_test
++3	t2
++3	t1
++show temporary tables from test;
++Temp_tables_in_test
++t2
++t1
++show temporary tables in showtemp;
++Temp_tables_in_showtemp
++t3
++select table_schema, table_name, engine, table_rows from Information_schema.temporary_tables;
++table_schema	table_name	engine	table_rows
++showtemp	t3	MyISAM	1
++test	t2	MyISAM	0
++test	t1	MyISAM	4
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
++table_schema	table_name	engine	table_rows
++showtemp	t3	MyISAM	1
++test	t2	MyISAM	0
++test	t1	MyISAM	4
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables where table_schema='showtemp';
++table_schema	table_name	engine	table_rows
++showtemp	t3	MyISAM	1
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables where table_schema='temp';
++table_schema	table_name	engine	table_rows
++drop table if exists showtemp.t2;
++create temporary table t1(id int);
++create temporary table showtemp.t2(id int);
++show temporary tables;
++Temp_tables_in_test
++t1
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
++table_schema	table_name	engine	table_rows
++showtemp	t2	MyISAM	0
++test	t1	MyISAM	0
++showtemp	t3	MyISAM	1
++test	t2	MyISAM	0
++test	t1	MyISAM	4
++drop table showtemp.t2;
++drop table t1;
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
++table_schema	table_name	engine	table_rows
++showtemp	t3	MyISAM	1
++test	t2	MyISAM	0
++test	t1	MyISAM	4
++drop table t1, t2;
++drop table showtemp.t3;
++drop database showtemp;
+diff -ruN a/mysql-test/t/show_temp_tables.test b/mysql-test/t/show_temp_tables.test
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
++++ b/mysql-test/t/show_temp_tables.test	2010-04-30 19:46:32.000000000 +0900
+@@ -0,0 +1,64 @@
++# Uses GRANT commands that usually disabled in embedded server
++-- source include/not_embedded.inc
++
++# Save the initial number of concurrent sessions
++--source include/count_sessions.inc
++
++#
++# Test of SHOW [GLOBAL] TEMPORARY TABLES [FROM/IN] DB and 
++# Information_schema.temporary_tables and global_temporary_tables
++#
++
++connect(stcon1,localhost,root,,test);
++connect(stcon2,localhost,root,,test);
++
++connection stcon1;
++
++--disable_warnings
++drop table if exists t1,t2,t3;
++drop database if exists showtemp;
++create database if not exists showtemp;
++--enable_warnings
++
++use test;
++create temporary table t1(id int);
++create temporary table t2(id int);
++create temporary table showtemp.t3(id int);
++insert into t1 values(10),(20),(30),(40);
++insert into showtemp.t3 values(999);
++
++show temporary tables;
++show global temporary tables;
++show temporary tables from test;
++show temporary tables in showtemp;
++select table_schema, table_name, engine, table_rows from Information_schema.temporary_tables;
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables where table_schema='showtemp';
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables where table_schema='temp';
++
++connection stcon2;
++
++--disable_warnings
++drop table if exists showtemp.t2;
++--enable_warnings
++create temporary table t1(id int);
++create temporary table showtemp.t2(id int);
++show temporary tables;
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
++drop table showtemp.t2;
++drop table t1;
++
++disconnect stcon2;
++
++connection stcon1;
++select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
++
++drop table t1, t2;
++drop table showtemp.t3;
++drop database showtemp;
++
++connection default;
++disconnect stcon1;
++
++# Wait till all disconnects are completed
++--source include/wait_until_count_sessions.inc
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-04-30 19:37:14.000000000 +0900
++++ b/sql/mysqld.cc	2010-04-30 19:46:32.000000000 +0900
+@@ -3187,6 +3187,7 @@
+   {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
+   {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
+   {"show_thread_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_THREAD_STATS]), SHOW_LONG_STATUS},
++  {"show_temporary_tables",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TEMPORARY_TABLES]), SHOW_LONG_STATUS},
+   {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
+   {"show_user_statistics", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_USER_STATS]), SHOW_LONG_STATUS},
+   {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
+diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
+--- a/sql/sql_lex.h	2010-04-30 19:37:14.000000000 +0900
++++ b/sql/sql_lex.h	2010-04-30 19:46:32.000000000 +0900
+@@ -67,7 +67,7 @@
+   SQLCOM_UPDATE, SQLCOM_INSERT, SQLCOM_INSERT_SELECT,
+   SQLCOM_DELETE, SQLCOM_TRUNCATE, SQLCOM_DROP_TABLE, SQLCOM_DROP_INDEX,
+ 
+-  SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
++  SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_TEMPORARY_TABLES, SQLCOM_SHOW_FIELDS,
+   SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_STATUS,
+   SQLCOM_SHOW_ENGINE_LOGS, SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_MUTEX,
+   SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
+--- a/sql/sql_parse.cc	2010-04-30 19:37:14.000000000 +0900
++++ b/sql/sql_parse.cc	2010-04-30 19:46:32.000000000 +0900
+@@ -338,6 +338,9 @@
+    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
+                                                  CF_SHOW_TABLE_COMMAND |
+                                                  CF_REEXECUTION_FRAGILE);
++   sql_command_flags[SQLCOM_SHOW_TEMPORARY_TABLES]=       (CF_STATUS_COMMAND |
++                                                 CF_SHOW_TABLE_COMMAND |
++                                                 CF_REEXECUTION_FRAGILE);
+   sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
+                                                 CF_SHOW_TABLE_COMMAND |
+                                                 CF_REEXECUTION_FRAGILE);
+@@ -1762,6 +1765,8 @@
+ 
+   case SCH_TABLE_NAMES:
+   case SCH_TABLES:
++  case SCH_TEMPORARY_TABLES:
++  case SCH_GLOBAL_TEMPORARY_TABLES:
+   case SCH_VIEWS:
+   case SCH_TRIGGERS:
+   case SCH_EVENTS:
+@@ -2260,6 +2265,7 @@
+   }
+   case SQLCOM_SHOW_DATABASES:
+   case SQLCOM_SHOW_TABLES:
++  case SQLCOM_SHOW_TEMPORARY_TABLES:
+   case SQLCOM_SHOW_TRIGGERS:
+   case SQLCOM_SHOW_TABLE_STATUS:
+   case SQLCOM_SHOW_OPEN_TABLES:
+@@ -5353,6 +5359,8 @@
+ 
+   case SCH_TABLE_NAMES:
+   case SCH_TABLES:
++  case SCH_TEMPORARY_TABLES:
++  case SCH_GLOBAL_TEMPORARY_TABLES:
+   case SCH_VIEWS:
+   case SCH_TRIGGERS:
+   case SCH_EVENTS:
+diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
+--- a/sql/sql_show.cc	2010-04-30 19:37:14.000000000 +0900
++++ b/sql/sql_show.cc	2010-04-30 19:46:32.000000000 +0900
+@@ -3096,6 +3096,7 @@
+     return 0;
+   case SQLCOM_SHOW_TABLES:
+   case SQLCOM_SHOW_TABLE_STATUS:
++  case SQLCOM_SHOW_TEMPORARY_TABLES:
+   case SQLCOM_SHOW_TRIGGERS:
+   case SQLCOM_SHOW_EVENTS:
+     lookup_field_values->db_value.str= lex->select_lex.db;
+@@ -3551,6 +3552,228 @@
+   return (uint) OPEN_FULL_TABLE;
+ }
+ 
++/**
++  @brief          Change I_S table item list for SHOW [GLOBAL] TEMPORARY TABLES [FROM/IN db]
++
++  @param[in]      thd                      thread handler
++  @param[in]      schema_table             I_S table
++
++  @return         Operation status
++    @retval       0                        success
++    @retval       1                        error
++*/
++int make_temporary_tables_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
++{
++  char tmp[128];
++  String buffer(tmp,sizeof(tmp), thd->charset());
++  LEX *lex= thd->lex;
++  Name_resolution_context *context= &lex->select_lex.context;
++
++  if (thd->lex->option_type == OPT_GLOBAL) {
++    ST_FIELD_INFO *field_info= &schema_table->fields_info[0];
++    Item_field *field= new Item_field(context, NullS, NullS, field_info->field_name);
++    if (add_item_to_list(thd, field))
++      return 1;
++    field->set_name(field_info->old_name, strlen(field_info->old_name), system_charset_info);
++  }
++
++  ST_FIELD_INFO *field_info= &schema_table->fields_info[2];
++  buffer.length(0);
++  buffer.append(field_info->old_name);
++  buffer.append(lex->select_lex.db);
++
++  if (lex->wild && lex->wild->ptr())
++  {
++    buffer.append(STRING_WITH_LEN(" ("));
++    buffer.append(lex->wild->ptr());
++    buffer.append(')');
++  }
++
++  Item_field *field= new Item_field(context, NullS, NullS, field_info->field_name);    
++  if (add_item_to_list(thd, field))
++    return 1;
++
++  field->set_name(buffer.ptr(), buffer.length(), system_charset_info);
++  return 0;
++}
++
++/**
++  @brief          Fill records for temporary tables by reading info from table object
++
++  @param[in]      thd                      thread handler
++  @param[in]      table                    I_S table
++  @param[in]      tmp_table                temporary table
++  @param[in]      db                       database name
++
++  @return         Operation status
++    @retval       0                        success
++    @retval       1                        error
++*/
++
++static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table, const char *db, bool table_name_only)
++{
++  CHARSET_INFO *cs= system_charset_info;
++  DBUG_ENTER("store_temporary_table_record");
++
++  if (db && my_strcasecmp(cs, db, tmp_table->s->db.str))
++    DBUG_RETURN(0);
++
++  restore_record(table, s->default_values);
++
++  //session_id
++  table->field[0]->store((longlong) thd->thread_id, TRUE);
++
++  //database
++  table->field[1]->store(tmp_table->s->db.str, tmp_table->s->db.length, cs);
++
++  //table
++  table->field[2]->store(tmp_table->s->table_name.str, tmp_table->s->table_name.length, cs);
++
++  if (table_name_only)
++    DBUG_RETURN(schema_table_store_record(thd, table));
++
++  //engine
++  handler *handle= tmp_table->file;
++  char *engineType = (char *)(handle ? handle->table_type() : "UNKNOWN");
++  table->field[3]->store(engineType, strlen(engineType), cs);
++
++  //name
++  if (tmp_table->s->path.str) {
++    char *p=strstr(tmp_table->s->path.str, "#sql");
++    int len=tmp_table->s->path.length-(p-tmp_table->s->path.str);
++    table->field[4]->store(p, min(FN_REFLEN, len), cs);
++  }
++
++  // file stats
++  handler *file= tmp_table->file;
++
++  if (file) {
++
++    MYSQL_TIME time;
++
++    /**
++        TODO: InnoDB stat(file) checks file on short names within data dictionary
++        rather than using full path, because of that, temp files created in
++        TMPDIR will not have access/create time as it will not find the file
++
++        The fix is to patch InnoDB to use full path
++    */
++    file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
++
++    table->field[5]->store((longlong) file->stats.records, TRUE);
++    table->field[5]->set_notnull();
++
++    table->field[6]->store((longlong) file->stats.mean_rec_length, TRUE);
++    table->field[7]->store((longlong) file->stats.data_file_length, TRUE);
++    table->field[8]->store((longlong) file->stats.index_file_length, TRUE);
++    if (file->stats.create_time)
++    {
++      thd->variables.time_zone->gmt_sec_to_TIME(&time,
++                                                (my_time_t) file->stats.create_time);
++      table->field[9]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
++      table->field[9]->set_notnull();
++    }
++    if (file->stats.update_time)
++    {
++      thd->variables.time_zone->gmt_sec_to_TIME(&time,
++                                                (my_time_t) file->stats.update_time);
++      table->field[10]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
++      table->field[10]->set_notnull();
++    }
++  }
++
++  DBUG_RETURN(schema_table_store_record(thd, table));
++}
++
++/**
++  @brief          Fill I_S tables with global temporary tables
++
++  @param[in]      thd                      thread handler
++  @param[in]      tables                   I_S table
++  @param[in]      cond                     'WHERE' condition
++
++  @return         Operation status
++    @retval       0                        success
++    @retval       1                        error
++*/
++
++static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables, COND *cond)
++{
++  DBUG_ENTER("fill_global_temporary_tables");
++
++  pthread_mutex_lock(&LOCK_thread_count);
++
++  bool table_names_only= (thd->lex->sql_command == SQLCOM_SHOW_TEMPORARY_TABLES) ? 1 : 0;
++  I_List_iterator<THD> it(threads);
++  THD *thd_item;
++  TABLE *tmp;
++
++#ifndef NO_EMBEDDED_ACCESS_CHECKS
++  Security_context *sctx= thd->security_ctx;
++  uint db_access;
++#endif
++ 
++  while ((thd_item=it++)) {
++    for (tmp=thd_item->temporary_tables; tmp; tmp=tmp->next) {
++
++#ifndef NO_EMBEDDED_ACCESS_CHECKS
++      if (test_all_bits(sctx->master_access, DB_ACLS))
++        db_access=DB_ACLS;
++      else
++        db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, tmp->s->db.str, 0) | sctx->master_access);
++
++      if (!(db_access & DB_ACLS) && check_grant_db(thd,tmp->s->db.str)) {
++        //no access for temp tables within this db for user
++        continue;
++      }
++#endif
++
++      THD *t= tmp->in_use;
++      tmp->in_use= thd;
++
++      if (store_temporary_table_record(thd_item, tables->table, tmp, thd->lex->select_lex.db, table_names_only)) {
++        tmp->in_use= t;
++        pthread_mutex_unlock(&LOCK_thread_count); 
++        DBUG_RETURN(1);
++      }
++
++      tmp->in_use= t;
++    }
++  }
++
++  pthread_mutex_unlock(&LOCK_thread_count); 
++  DBUG_RETURN(0);
++}
++
++/**
++  @brief          Fill I_S tables with session temporary tables
++
++  @param[in]      thd                      thread handler
++  @param[in]      tables                   I_S table
++  @param[in]      cond                     'WHERE' condition
++
++  @return         Operation status
++    @retval       0                        success
++    @retval       1                        error
++*/
++
++int fill_temporary_tables(THD *thd, TABLE_LIST *tables, COND *cond)
++{
++  DBUG_ENTER("fill_temporary_tables");
++
++  if (thd->lex->option_type == OPT_GLOBAL)
++    DBUG_RETURN(fill_global_temporary_tables(thd, tables, cond));
++
++  bool table_names_only= (thd->lex->sql_command == SQLCOM_SHOW_TEMPORARY_TABLES) ? 1 : 0;
++  TABLE *tmp;
++
++  for (tmp=thd->temporary_tables; tmp; tmp=tmp->next) {
++    if (store_temporary_table_record(thd, tables->table, tmp, thd->lex->select_lex.db, table_names_only)) {
++      DBUG_RETURN(1);
++    }
++  }
++  DBUG_RETURN(0);
++}
+ 
+ /**
+   @brief          Fill I_S table with data from FRM file only
+@@ -6629,6 +6852,25 @@
+   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+ };
+ 
++ST_FIELD_INFO temporary_table_fields_info[]=
++{
++  {"SESSION_ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Session", SKIP_OPEN_TABLE},
++  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Db", SKIP_OPEN_TABLE},
++  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Temp_tables_in_", SKIP_OPEN_TABLE},
++  {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Engine", OPEN_FRM_ONLY},
++  {"NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, "Name", SKIP_OPEN_TABLE},
++  {"TABLE_ROWS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
++   MY_I_S_UNSIGNED, "Rows", OPEN_FULL_TABLE},
++  {"AVG_ROW_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 
++   MY_I_S_UNSIGNED, "Avg Row", OPEN_FULL_TABLE},
++  {"DATA_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 
++   MY_I_S_UNSIGNED, "Data Length", OPEN_FULL_TABLE},
++  {"INDEX_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 
++   MY_I_S_UNSIGNED, "Index Size", OPEN_FULL_TABLE},
++  {"CREATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Create Time", OPEN_FULL_TABLE},
++  {"UPDATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Update Time", OPEN_FULL_TABLE},
++  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
++};
+ 
+ ST_FIELD_INFO columns_fields_info[]=
+ {
+@@ -7289,6 +7531,9 @@
+    fill_schema_files, 0, 0, -1, -1, 0, 0},
+   {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
+    fill_status, make_old_format, 0, 0, -1, 0, 0},
++  {"GLOBAL_TEMPORARY_TABLES", temporary_table_fields_info, create_schema_table, 
++   fill_global_temporary_tables, make_temporary_tables_old_format, 0, 2, 3, 0,
++   OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
+   {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
+    fill_variables, make_old_format, 0, 0, -1, 0, 0},
+   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
+@@ -7332,6 +7577,9 @@
+    get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
+   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
+    fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
++  {"TEMPORARY_TABLES", temporary_table_fields_info, create_schema_table,
++   fill_temporary_tables, make_temporary_tables_old_format, 0, 2, 3, 0,
++   OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
+   {"TABLE_STATISTICS", table_stats_fields_info, create_schema_table,
+     fill_schema_table_stats, make_old_format, 0, -1, -1, 0, 0},
+   {"THREAD_STATISTICS", thread_stats_fields_info, create_schema_table,
+diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+--- a/sql/sql_yacc.yy	2010-04-30 19:37:14.000000000 +0900
++++ b/sql/sql_yacc.yy	2010-04-30 19:46:32.000000000 +0900
+@@ -10078,6 +10078,15 @@
+              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
+                MYSQL_YYABORT;
+            }
++         | opt_var_type TEMPORARY TABLES opt_db
++           {
++             LEX *lex= Lex;
++             lex->sql_command= SQLCOM_SHOW_TEMPORARY_TABLES;
++             lex->option_type= $1;
++             lex->select_lex.db= $4;
++             if (prepare_schema_table(YYTHD, lex, 0, SCH_TEMPORARY_TABLES))
++               MYSQL_YYABORT;
++           }
+          | opt_full TRIGGERS_SYM opt_db wild_and_where
+            {
+              LEX *lex= Lex;
+diff -ruN a/sql/table.h b/sql/table.h
+--- a/sql/table.h	2010-04-30 19:37:14.000000000 +0900
++++ b/sql/table.h	2010-04-30 19:46:32.000000000 +0900
+@@ -955,6 +955,7 @@
+   SCH_FILES,
+   SCH_GLOBAL_STATUS,
+   SCH_GLOBAL_VARIABLES,
++  SCH_GLOBAL_TEMPORARY_TABLES,
+   SCH_KEY_COLUMN_USAGE,
+   SCH_OPEN_TABLES,
+   SCH_PARTITIONS,
+@@ -973,6 +974,7 @@
+   SCH_TABLE_CONSTRAINTS,
+   SCH_TABLE_NAMES,
+   SCH_TABLE_PRIVILEGES,
++  SCH_TEMPORARY_TABLES,
+   SCH_TABLE_STATS,
+   SCH_THREAD_STATS,
+   SCH_TRIGGERS,

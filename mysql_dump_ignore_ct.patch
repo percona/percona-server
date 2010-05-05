@@ -37,7 +37,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
        MYSQL_FIELD *field;
 +   
 +      my_bool old_ignore_errors=ignore_errors;
-+      fprintf(stderr, "ignore create table %d\n", opt_ignore_show_create_table_error);
++      //fprintf(stderr, "ignore create table %d\n", opt_ignore_show_create_table_error);
 +      if (opt_ignore_show_create_table_error)
 +         ignore_errors=1;
  

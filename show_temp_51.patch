@@ -1,7 +1,7 @@
 diff -ruN a/mysql-test/r/show_temp_tables.result b/mysql-test/r/show_temp_tables.result
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/mysql-test/r/show_temp_tables.result	2010-04-30 19:46:32.000000000 +0900
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,58 @@
 +drop table if exists t1,t2,t3;
 +drop database if exists showtemp;
 +create database if not exists showtemp;
@@ -15,10 +15,6 @@ diff -ruN a/mysql-test/r/show_temp_tables.result b/mysql-test/r/show_temp_tables
 +Temp_tables_in_test
 +t2
 +t1
-+show global temporary tables;
-+Session	Temp_tables_in_test
-+3	t2
-+3	t1
 +show temporary tables from test;
 +Temp_tables_in_test
 +t2
@@ -67,7 +63,7 @@ diff -ruN a/mysql-test/r/show_temp_tables.result b/mysql-test/r/show_temp_tables
 diff -ruN a/mysql-test/t/show_temp_tables.test b/mysql-test/t/show_temp_tables.test
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/mysql-test/t/show_temp_tables.test	2010-04-30 19:46:32.000000000 +0900
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,65 @@
 +# Uses GRANT commands that usually disabled in embedded server
 +-- source include/not_embedded.inc
 +
@@ -98,7 +94,8 @@ diff -ruN a/mysql-test/t/show_temp_tables.test b/mysql-test/t/show_temp_tables.t
 +insert into showtemp.t3 values(999);
 +
 +show temporary tables;
-+show global temporary tables;
++# "Session" is not same value always. mysql-test cannot test it always.
++#show global temporary tables;
 +show temporary tables from test;
 +show temporary tables in showtemp;
 +select table_schema, table_name, engine, table_rows from Information_schema.temporary_tables;
@@ -502,14 +499,14 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 diff -ruN a/sql/table.h b/sql/table.h
 --- a/sql/table.h	2010-04-30 19:37:14.000000000 +0900
 +++ b/sql/table.h	2010-04-30 19:46:32.000000000 +0900
-@@ -955,6 +955,7 @@
+@@ -954,6 +954,7 @@
+   SCH_EVENTS,
    SCH_FILES,
    SCH_GLOBAL_STATUS,
-   SCH_GLOBAL_VARIABLES,
 +  SCH_GLOBAL_TEMPORARY_TABLES,
+   SCH_GLOBAL_VARIABLES,
    SCH_KEY_COLUMN_USAGE,
    SCH_OPEN_TABLES,
-   SCH_PARTITIONS,
 @@ -973,6 +974,7 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,

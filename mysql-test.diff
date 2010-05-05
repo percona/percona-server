@@ -24,7 +24,7 @@ diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
 diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_schema.result
 --- a/mysql-test/r/information_schema.result	2010-04-06 23:36:46.000000000 +0900
 +++ b/mysql-test/r/information_schema.result	2010-04-30 17:53:05.000000000 +0900
-@@ -44,10 +44,12 @@
+@@ -44,14 +44,17 @@
  select * from v1;
  c
  CHARACTER_SETS
@@ -37,10 +37,16 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  ENGINES
  EVENTS
  FILES
-@@ -68,9 +70,29 @@
+ GLOBAL_STATUS
++GLOBAL_TEMPORARY_TABLES
+ GLOBAL_VARIABLES
+ KEY_COLUMN_USAGE
+ PARTITIONS
+@@ -68,9 +71,30 @@
  TABLES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TEMPORARY_TABLES
 +TABLE_STATISTICS
 +THREAD_STATISTICS
  TRIGGERS
@@ -67,34 +73,37 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  columns_priv
  db
  event
-@@ -106,6 +128,8 @@
+@@ -106,6 +130,9 @@
  TABLES	TABLES
  TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
  TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TEMPORARY_TABLES	TEMPORARY_TABLES
 +TABLE_STATISTICS	TABLE_STATISTICS
 +THREAD_STATISTICS	THREAD_STATISTICS
  TRIGGERS	TRIGGERS
  tables_priv	tables_priv
  time_zone	time_zone
-@@ -125,6 +149,8 @@
+@@ -125,6 +152,9 @@
  TABLES	TABLES
  TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
  TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TEMPORARY_TABLES	TEMPORARY_TABLES
 +TABLE_STATISTICS	TABLE_STATISTICS
 +THREAD_STATISTICS	THREAD_STATISTICS
  TRIGGERS	TRIGGERS
  tables_priv	tables_priv
  time_zone	time_zone
-@@ -144,6 +170,8 @@
+@@ -144,6 +174,9 @@
  TABLES	TABLES
  TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
  TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TEMPORARY_TABLES	TEMPORARY_TABLES
 +TABLE_STATISTICS	TABLE_STATISTICS
 +THREAD_STATISTICS	THREAD_STATISTICS
  TRIGGERS	TRIGGERS
  tables_priv	tables_priv
  time_zone	time_zone
-@@ -625,12 +653,14 @@
+@@ -625,12 +658,15 @@
  where table_schema='information_schema' limit 2;
  TABLE_NAME	TABLE_TYPE	ENGINE
  CHARACTER_SETS	SYSTEM VIEW	MEMORY
@@ -105,50 +114,68 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  TABLES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TEMPORARY_TABLES
 +TABLE_STATISTICS
 +THREAD_STATISTICS
  TRIGGERS
  create database information_schema;
  ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-@@ -640,6 +670,8 @@
+@@ -640,6 +676,9 @@
  TABLES	SYSTEM VIEW
  TABLE_CONSTRAINTS	SYSTEM VIEW
  TABLE_PRIVILEGES	SYSTEM VIEW
++TEMPORARY_TABLES	SYSTEM VIEW
 +TABLE_STATISTICS	SYSTEM VIEW
 +THREAD_STATISTICS	SYSTEM VIEW
  TRIGGERS	SYSTEM VIEW
  create table t1(a int);
  ERROR 42S02: Unknown table 't1' in information_schema
-@@ -652,6 +684,8 @@
+@@ -652,6 +691,9 @@
  TABLES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TEMPORARY_TABLES
 +TABLE_STATISTICS
 +THREAD_STATISTICS
  TRIGGERS
  select table_name from tables where table_name='user';
  table_name
-@@ -799,6 +833,8 @@
+@@ -790,6 +832,8 @@
+ FILES	CREATE_TIME	datetime
+ FILES	UPDATE_TIME	datetime
+ FILES	CHECK_TIME	datetime
++GLOBAL_TEMPORARY_TABLES	CREATE_TIME	datetime
++GLOBAL_TEMPORARY_TABLES	UPDATE_TIME	datetime
+ PARTITIONS	CREATE_TIME	datetime
+ PARTITIONS	UPDATE_TIME	datetime
+ PARTITIONS	CHECK_TIME	datetime
+@@ -798,7 +842,11 @@
+ TABLES	CREATE_TIME	datetime
  TABLES	UPDATE_TIME	datetime
  TABLES	CHECK_TIME	datetime
++TEMPORARY_TABLES	CREATE_TIME	datetime
++TEMPORARY_TABLES	UPDATE_TIME	datetime
  TRIGGERS	CREATED	datetime
 +INNODB_TRX	trx_started	datetime
 +INNODB_TRX	trx_wait_started	datetime
  event	execute_at	datetime
  event	last_executed	datetime
  event	starts	datetime
-@@ -838,6 +874,7 @@
+@@ -838,7 +886,9 @@
  TABLE_NAME	COLUMN_NAME	PRIVILEGES
  COLUMNS	TABLE_NAME	select
  COLUMN_PRIVILEGES	TABLE_NAME	select
 +INDEX_STATISTICS	TABLE_NAME	select
  FILES	TABLE_NAME	select
++GLOBAL_TEMPORARY_TABLES	TABLE_NAME	select
  KEY_COLUMN_USAGE	TABLE_NAME	select
  PARTITIONS	TABLE_NAME	select
-@@ -846,13 +883,17 @@
+ REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
+@@ -846,13 +896,18 @@
  TABLES	TABLE_NAME	select
  TABLE_CONSTRAINTS	TABLE_NAME	select
  TABLE_PRIVILEGES	TABLE_NAME	select
++TEMPORARY_TABLES	TABLE_NAME	select
 +TABLE_STATISTICS	TABLE_NAME	select
  VIEWS	TABLE_NAME	select
 +INNODB_BUFFER_POOL_PAGES_INDEX	table_name	select
@@ -160,11 +187,11 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
  table_schema	count(*)
 -information_schema	28
-+information_schema	50
++information_schema	52
  mysql	22
  create table t1 (i int, j int);
  create trigger trg1 before insert on t1 for each row
-@@ -1240,10 +1281,12 @@
+@@ -1240,14 +1295,17 @@
          );
  table_name	column_name
  CHARACTER_SETS	CHARACTER_SET_NAME
@@ -177,10 +204,16 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  ENGINES	ENGINE
  EVENTS	EVENT_SCHEMA
  FILES	TABLE_SCHEMA
-@@ -1264,9 +1307,29 @@
+ GLOBAL_STATUS	VARIABLE_NAME
++GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA
+ GLOBAL_VARIABLES	VARIABLE_NAME
+ KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+ PARTITIONS	TABLE_SCHEMA
+@@ -1264,9 +1322,30 @@
  TABLES	TABLE_SCHEMA
  TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
  TABLE_PRIVILEGES	TABLE_SCHEMA
++TEMPORARY_TABLES	TABLE_SCHEMA
 +TABLE_STATISTICS	TABLE_SCHEMA
 +THREAD_STATISTICS	THREAD_ID
  TRIGGERS	TRIGGER_SCHEMA
@@ -195,7 +228,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
 +INNODB_TRX	trx_id
 +XTRADB_ADMIN_COMMAND	result_message
 +INNODB_LOCK_WAITS	requesting_trx_id
-+INNODB_SYS_TABLES	NAME
++INNODB_SYS_TABLES	SCHEMA
 +INNODB_CMP	page_size
 +INNODB_CMPMEM_RESET	page_size
 +INNODB_CMP_RESET	page_size
@@ -207,7 +240,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  SELECT t.table_name, c1.column_name
  FROM information_schema.tables t
  INNER JOIN
-@@ -1283,10 +1346,12 @@
+@@ -1283,14 +1362,17 @@
          );
  table_name	column_name
  CHARACTER_SETS	CHARACTER_SET_NAME
@@ -220,10 +253,16 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  ENGINES	ENGINE
  EVENTS	EVENT_SCHEMA
  FILES	TABLE_SCHEMA
-@@ -1307,17 +1372,37 @@
+ GLOBAL_STATUS	VARIABLE_NAME
++GLOBAL_TEMPORARY_TABLES	TABLE_SCHEMA
+ GLOBAL_VARIABLES	VARIABLE_NAME
+ KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+ PARTITIONS	TABLE_SCHEMA
+@@ -1307,17 +1389,38 @@
  TABLES	TABLE_SCHEMA
  TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
  TABLE_PRIVILEGES	TABLE_SCHEMA
++TEMPORARY_TABLES	TABLE_SCHEMA
 +TABLE_STATISTICS	TABLE_SCHEMA
 +THREAD_STATISTICS	THREAD_ID
  TRIGGERS	TRIGGER_SCHEMA
@@ -238,7 +277,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
 +INNODB_TRX	trx_id
 +XTRADB_ADMIN_COMMAND	result_message
 +INNODB_LOCK_WAITS	requesting_trx_id
-+INNODB_SYS_TABLES	NAME
++INNODB_SYS_TABLES	SCHEMA
 +INNODB_CMP	page_size
 +INNODB_CMPMEM_RESET	page_size
 +INNODB_CMP_RESET	page_size
@@ -260,7 +299,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  DROP TABLE IF EXISTS bug23037;
  DROP FUNCTION IF EXISTS get_value;
  SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
-@@ -1377,6 +1462,7 @@
+@@ -1377,6 +1480,7 @@
  group by t.table_name order by num1, t.table_name;
  table_name	group_concat(t.table_schema, '.', t.table_name)	num1
  CHARACTER_SETS	information_schema.CHARACTER_SETS	1
@@ -268,9 +307,11 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  COLLATIONS	information_schema.COLLATIONS	1
  COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
  COLUMNS	information_schema.COLUMNS	1
-@@ -1386,6 +1472,22 @@
+@@ -1385,7 +1489,24 @@
+ EVENTS	information_schema.EVENTS	1
  FILES	information_schema.FILES	1
  GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
++GLOBAL_TEMPORARY_TABLES	information_schema.GLOBAL_TEMPORARY_TABLES	1
  GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 +INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
 +INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
@@ -291,11 +332,12 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
  PARTITIONS	information_schema.PARTITIONS	1
  PLUGINS	information_schema.PLUGINS	1
-@@ -1401,9 +1503,13 @@
+@@ -1401,9 +1522,14 @@
  TABLES	information_schema.TABLES	1
  TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
  TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 +TABLE_STATISTICS	information_schema.TABLE_STATISTICS	1
++TEMPORARY_TABLES	information_schema.TEMPORARY_TABLES	1
 +THREAD_STATISTICS	information_schema.THREAD_STATISTICS	1
  TRIGGERS	information_schema.TRIGGERS	1
  USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
@@ -308,7 +350,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
 diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information_schema_db.result
 --- a/mysql-test/r/information_schema_db.result	2010-04-06 23:36:46.000000000 +0900
 +++ b/mysql-test/r/information_schema_db.result	2010-04-30 17:53:05.000000000 +0900
-@@ -6,10 +6,12 @@
+@@ -6,14 +6,17 @@
  show tables;
  Tables_in_information_schema
  CHARACTER_SETS
@@ -321,10 +363,16 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
  ENGINES
  EVENTS
  FILES
-@@ -30,14 +32,36 @@
+ GLOBAL_STATUS
++GLOBAL_TEMPORARY_TABLES
+ GLOBAL_VARIABLES
+ KEY_COLUMN_USAGE
+ PARTITIONS
+@@ -30,14 +33,38 @@
  TABLES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TEMPORARY_TABLES
 +TABLE_STATISTICS
 +THREAD_STATISTICS
  TRIGGERS
@@ -353,6 +401,7 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
  TABLES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TEMPORARY_TABLES
 +TABLE_STATISTICS
 +THREAD_STATISTICS
  TRIGGERS
@@ -505,7 +554,7 @@ diff -ruN a/mysql-test/r/innodb_bug46000.result b/mysql-test/r/innodb_bug46000.r
 diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
 --- a/mysql-test/r/mysqlshow.result	2010-04-06 23:36:53.000000000 +0900
 +++ b/mysql-test/r/mysqlshow.result	2010-04-30 17:53:06.000000000 +0900
-@@ -80,10 +80,12 @@
+@@ -80,14 +80,17 @@
  |                Tables                 |
  +---------------------------------------+
  | CHARACTER_SETS                        |
@@ -518,10 +567,16 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  | ENGINES                               |
  | EVENTS                                |
  | FILES                                 |
-@@ -104,19 +106,41 @@
+ | GLOBAL_STATUS                         |
++| GLOBAL_TEMPORARY_TABLES               |
+ | GLOBAL_VARIABLES                      |
+ | KEY_COLUMN_USAGE                      |
+ | PARTITIONS                            |
+@@ -104,23 +107,47 @@
  | TABLES                                |
  | TABLE_CONSTRAINTS                     |
  | TABLE_PRIVILEGES                      |
++| TEMPORARY_TABLES                      |
 +| TABLE_STATISTICS                      |
 +| THREAD_STATISTICS                     |
  | TRIGGERS                              |
@@ -560,10 +615,16 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  | ENGINES                               |
  | EVENTS                                |
  | FILES                                 |
-@@ -137,9 +161,29 @@
+ | GLOBAL_STATUS                         |
++| GLOBAL_TEMPORARY_TABLES               |
+ | GLOBAL_VARIABLES                      |
+ | KEY_COLUMN_USAGE                      |
+ | PARTITIONS                            |
+@@ -137,9 +164,30 @@
  | TABLES                                |
  | TABLE_CONSTRAINTS                     |
  | TABLE_PRIVILEGES                      |
++| TEMPORARY_TABLES                      |
 +| TABLE_STATISTICS                      |
 +| THREAD_STATISTICS                     |
  | TRIGGERS                              |

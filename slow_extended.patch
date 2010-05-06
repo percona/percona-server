@@ -1,11 +1,12 @@
 diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
 --- a/include/mysql/plugin.h	2010-04-06 23:04:03.000000000 +0900
 +++ b/include/mysql/plugin.h	2010-04-28 15:37:56.000000000 +0900
-@@ -694,6 +694,16 @@
+@@ -694,6 +694,17 @@
  /* Increments the row counter, see THD::row_count */
  void thd_inc_row_count(MYSQL_THD thd);
  
 +void increment_thd_innodb_stats(MYSQL_THD thd,
++                    unsigned long long trx_id,
 +                    long io_reads,
 +                    long long io_read,
 +                    long io_reads_wait_timer,
@@ -21,11 +22,12 @@ diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
 diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
 --- a/include/mysql/plugin.h.pp	2010-04-06 23:04:03.000000000 +0900
 +++ b/include/mysql/plugin.h.pp	2010-04-28 15:37:56.000000000 +0900
-@@ -122,6 +122,15 @@
+@@ -122,6 +122,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
 +void increment_thd_innodb_stats(void* thd,
++                    unsigned long long trx_id,
 +                    long io_reads,
 +                    long long io_read,
 +                    long io_reads_wait_timer,
@@ -148,16 +150,17 @@ diff -ruN a/sql/log.cc b/sql/log.cc
        {
          last_time= current_time;
          struct tm start;
-@@ -2335,12 +2347,55 @@
+@@ -2335,12 +2347,59 @@
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
      if (my_b_printf(&log_file,
 -                    "# Query_time: %s  Lock_time: %s"
 -                    " Rows_sent: %lu  Rows_examined: %lu\n",
-+                    "# Thread_id: %lu  Schema: %s\n" \
++                    "# Thread_id: %lu  Schema: %s  Last_errno: %u  Killed: %u\n" \
 +                    "# Query_time: %s  Lock_time: %s  Rows_sent: %lu  Rows_examined: %lu  Rows_affected: %lu  Rows_read: %lu\n"
 +                    "# Bytes_sent: %lu  Tmp_tables: %lu  Tmp_disk_tables: %lu  Tmp_table_sizes: %lu\n",
 +                    (ulong) thd->thread_id, (thd->db ? thd->db : ""),
++                    thd->last_errno, (uint) thd->killed,
                      query_time_buff, lock_time_buff,
                      (ulong) thd->sent_row_count,
 -                    (ulong) thd->examined_row_count) == (uint) -1)
@@ -184,14 +187,17 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +      tmp_errno=errno;
 +    if ((thd->variables.log_slow_verbosity & SLOG_V_INNODB) && thd->innodb_was_used)
 +    {
-+      char buf[3][20];
++      char buf[4][20];
 +      snprintf(buf[0], 20, "%.6f", thd->innodb_io_reads_wait_timer / 1000000.0);
 +      snprintf(buf[1], 20, "%.6f", thd->innodb_lock_que_wait_timer / 1000000.0);
 +      snprintf(buf[2], 20, "%.6f", thd->innodb_innodb_que_wait_timer / 1000000.0);
++      snprintf(buf[3], 20, "%llX", thd->innodb_trx_id);
 +      if (my_b_printf(&log_file,
++                      "#   InnoDB_trx_id: %s\n" \
 +                      "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %lu  InnoDB_IO_r_wait: %s\n" \
 +                      "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n" \
 +                      "#   InnoDB_pages_distinct: %lu\n",
++                      buf[3],
 +                      (ulong) thd->innodb_io_reads,
 +                      (ulong) thd->innodb_io_read,
 +                      buf[0], buf[1], buf[2],
@@ -748,12 +754,14 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-04-06 23:07:04.000000000 +0900
 +++ b/sql/sql_class.cc	2010-04-28 15:42:47.000000000 +0900
-@@ -308,6 +308,34 @@
+@@ -308,6 +308,37 @@
    thd->row_count++;
  }
  
 +extern "C"
-+void increment_thd_innodb_stats(THD* thd,long io_reads,
++void increment_thd_innodb_stats(THD* thd,
++                    unsigned long long trx_id,
++                    long io_reads,
 +                    long long  io_read,
 +                    long      io_reads_wait_timer,
 +                    long      lock_que_wait_timer,
@@ -761,6 +769,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 +                    long      page_access)
 +{
 +  thd->innodb_was_used = TRUE;
++  thd->innodb_trx_id = trx_id;
 +  thd->innodb_io_reads += io_reads;
 +  thd->innodb_io_read += io_read;
 +  thd->innodb_io_reads_wait_timer += io_reads_wait_timer;
@@ -783,7 +792,16 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /**
    Dumps a text description of a thread, its security context
-@@ -3114,6 +3142,12 @@
+@@ -725,6 +756,8 @@
+ bool THD::handle_error(uint sql_errno, const char *message,
+                        MYSQL_ERROR::enum_warning_level level)
+ {
++  last_errno = sql_errno;
++
+   for (Internal_error_handler *error_handler= m_internal_handler;
+        error_handler;
+        error_handler= error_handler->m_prev_internal_handler)
+@@ -3114,6 +3147,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -796,10 +814,12 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !current_stmt_binlog_row_based)
-@@ -3133,6 +3167,12 @@
+@@ -3133,6 +3172,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
++  last_errno= 0;
++  innodb_trx_id= 0;
 +  innodb_io_reads= 0;
 +  innodb_io_read= 0;
 +  innodb_io_reads_wait_timer= 0;
@@ -809,7 +829,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -3195,6 +3235,12 @@
+@@ -3195,6 +3242,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -858,7 +878,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1417,6 +1436,23 @@
+@@ -1417,6 +1436,26 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -869,6 +889,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 +  ulong      tmp_tables_disk_used;
 +  ulonglong  tmp_tables_size;
 +  bool       innodb_was_used;
++  ulonglong  innodb_trx_id;
 +  ulong      innodb_io_reads;
 +  ulonglong  innodb_io_read;
 +  ulong      innodb_io_reads_wait_timer;
@@ -878,6 +899,8 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 +
 +  ulong      query_plan_flags;
 +  ulong      query_plan_fsort_passes;
++
++  uint       last_errno;
 +
    /* <> 0 if we are inside of trigger or stored function. */
    uint in_sub_stmt;
@@ -945,7 +968,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5708,6 +5735,19 @@
+@@ -5708,6 +5735,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -953,6 +976,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +  thd->tmp_tables_used= thd->tmp_tables_disk_used= 0;
 +  thd->tmp_tables_size= 0;
 +  thd->innodb_was_used= FALSE;
++  thd->innodb_trx_id= 0;
 +  thd->innodb_io_reads= 0;
 +  thd->innodb_io_read= 0;
 +  thd->innodb_io_reads_wait_timer= 0;
@@ -961,6 +985,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +  thd->innodb_page_access= 0;
 +  thd->query_plan_flags= QPLAN_NONE;
 +  thd->query_plan_fsort_passes= 0;
++  thd->last_errno= 0;
 +
    /*
      Because we come here only for start of top-statements, binlog format is

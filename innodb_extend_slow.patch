@@ -421,12 +421,14 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -8726,6 +8762,23 @@
+@@ -8726,6 +8762,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
 +#ifdef EXTENDED_SLOWLOG
-+		increment_thd_innodb_stats(thd, trx->io_reads,
++		increment_thd_innodb_stats(thd,
++					(unsigned long long) ut_conv_dulint_to_longlong(trx->id),
++					trx->io_reads,
 +					trx->io_read,
 +					trx->io_reads_wait_timer,
 +					trx->lock_que_wait_timer,

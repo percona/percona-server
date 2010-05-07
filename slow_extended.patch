@@ -150,7 +150,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
        {
          last_time= current_time;
          struct tm start;
-@@ -2335,12 +2347,59 @@
+@@ -2335,12 +2347,64 @@
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
      if (my_b_printf(&log_file,
@@ -172,6 +172,14 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +                    (ulong) thd->tmp_tables_disk_used,
 +                    (ulong) thd->tmp_tables_size) == (uint) -1)
        tmp_errno= errno;
++    if (thd->innodb_was_used)
++    {
++      char buf[20];
++      snprintf(buf, 20, "%llX", thd->innodb_trx_id);
++      if (my_b_printf(&log_file,
++                    "# InnoDB_trx_id: %s\n", buf) == (uint) -1)
++        tmp_errno=errno;
++    }
 +    if ((thd->variables.log_slow_verbosity & SLOG_V_QUERY_PLAN) &&
 +         my_b_printf(&log_file,
 +                    "# QC_Hit: %s  Full_scan: %s  Full_join: %s  Tmp_table: %s  Tmp_table_on_disk: %s\n" \
@@ -187,17 +195,14 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +      tmp_errno=errno;
 +    if ((thd->variables.log_slow_verbosity & SLOG_V_INNODB) && thd->innodb_was_used)
 +    {
-+      char buf[4][20];
++      char buf[3][20];
 +      snprintf(buf[0], 20, "%.6f", thd->innodb_io_reads_wait_timer / 1000000.0);
 +      snprintf(buf[1], 20, "%.6f", thd->innodb_lock_que_wait_timer / 1000000.0);
 +      snprintf(buf[2], 20, "%.6f", thd->innodb_innodb_que_wait_timer / 1000000.0);
-+      snprintf(buf[3], 20, "%llX", thd->innodb_trx_id);
 +      if (my_b_printf(&log_file,
-+                      "#   InnoDB_trx_id: %s\n" \
 +                      "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %lu  InnoDB_IO_r_wait: %s\n" \
 +                      "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n" \
 +                      "#   InnoDB_pages_distinct: %lu\n",
-+                      buf[3],
 +                      (ulong) thd->innodb_io_reads,
 +                      (ulong) thd->innodb_io_read,
 +                      buf[0], buf[1], buf[2],

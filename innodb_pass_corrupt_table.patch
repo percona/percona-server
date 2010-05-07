@@ -998,7 +998,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -8824,6 +8917,10 @@
+@@ -8826,6 +8919,10 @@
  
  	update_thd(thd);
  
@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11206,6 +11303,14 @@
+@@ -11208,6 +11305,14 @@
    "Relax limitation of column size at table creation as builtin InnoDB.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -1024,7 +1024,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11285,6 +11390,7 @@
+@@ -11287,6 +11392,7 @@
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(use_purge_thread),
    MYSQL_SYSVAR(relax_table_creation),

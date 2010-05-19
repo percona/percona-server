@@ -81,7 +81,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2017,6 +2019,36 @@
+@@ -2018,6 +2020,36 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -118,7 +118,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -6899,9 +6931,9 @@
+@@ -6902,9 +6934,9 @@
  					| DICT_TF_COMPACT
  					| DICT_TF_FORMAT_ZIP
  					<< DICT_TF_FORMAT_SHIFT;
@@ -131,7 +131,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			}
  		}
  
-@@ -10860,6 +10892,11 @@
+@@ -10863,6 +10895,11 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -143,7 +143,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11325,6 +11362,7 @@
+@@ -11333,6 +11370,7 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -154,8 +154,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:34:36.000000000 +0900
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:35:09.000000000 +0900
-@@ -45,5 +45,6 @@
- {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
+@@ -46,5 +46,6 @@
+ {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_path' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
 +{"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -230,7 +230,7 @@ diff -ruN a/storage/innodb_plugin/include/page0types.h b/storage/innodb_plugin/i
 diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/include/trx0sys.h
 --- a/storage/innodb_plugin/include/trx0sys.h	2010-04-29 16:43:16.000000000 +0900
 +++ b/storage/innodb_plugin/include/trx0sys.h	2010-04-30 16:35:09.000000000 +0900
-@@ -489,9 +489,9 @@
+@@ -514,9 +514,9 @@
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
  
@@ -363,7 +363,7 @@ diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:34:37.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:35:09.000000000 +0900
-@@ -216,6 +216,10 @@
+@@ -218,6 +218,10 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
  
@@ -377,7 +377,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:31:04.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:35:09.000000000 +0900
-@@ -1347,10 +1347,12 @@
+@@ -1497,10 +1497,12 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -392,7 +392,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  		return(DB_ERROR);
  	}
-@@ -1359,7 +1361,7 @@
+@@ -1509,7 +1511,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

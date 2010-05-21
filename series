@@ -7,6 +7,7 @@ userstat.patch
 optimizer_fix.patch
 mysql_dump_ignore_ct.patch
 show_temp_51.patch
+mysql_misc.patch
 innodb_show_enhancements.patch
 innodb_show_status.patch
 innodb_io_patches.patch

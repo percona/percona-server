@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:36.000000000 +0900
-@@ -11475,6 +11475,8 @@
+@@ -11484,6 +11484,8 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
  i_s_innodb_admin_command,
@@ -597,7 +597,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/
 diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:37:36.000000000 +0900
-@@ -46,5 +46,6 @@
+@@ -47,5 +47,6 @@
  {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},

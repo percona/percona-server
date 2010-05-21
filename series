@@ -27,6 +27,7 @@ innodb_show_lock_name.patch
 innodb_extend_slow.patch
 innodb_relax_table_creation.patch
 innodb_lru_dump_restore.patch
+innodb_separate_doublewrite.patch
 innodb_pass_corrupt_table.patch
 innodb_fast_checksum.patch
 innodb_files_extend.patch

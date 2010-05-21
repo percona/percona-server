@@ -702,6 +702,44 @@ diff -ruN a/mysql-test/suite/innodb/t/disabled.def b/mysql-test/suite/innodb/t/d
 @@ -1 +1 @@
 -innodb-index: InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal
 +#innodb-index: InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal
+diff -ruN a/mysql-test/t/innodb-autoinc-44030.test b/mysql-test/t/innodb-autoinc-44030.test
+--- a/mysql-test/t/innodb-autoinc-44030.test	2010-04-06 23:36:14.000000000 +0900
++++ b/mysql-test/t/innodb-autoinc-44030.test	2010-05-20 18:50:47.000000000 +0900
+@@ -2,6 +2,8 @@
+ # embedded server ignores 'delayed', so skip this
+ -- source include/not_embedded.inc
+ 
++let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
++
+ --disable_warnings
+ drop table if exists t1;
+ --enable_warnings
+@@ -32,3 +34,6 @@
+ INSERT INTO t1 VALUES(null);
+ SELECT * FROM t1;
+ DROP TABLE t1;
++
++-- disable_query_log
++eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
+diff -ruN a/mysql-test/t/innodb-autoinc.test b/mysql-test/t/innodb-autoinc.test
+--- a/mysql-test/t/innodb-autoinc.test	2010-04-06 23:36:14.000000000 +0900
++++ b/mysql-test/t/innodb-autoinc.test	2010-05-20 18:50:06.000000000 +0900
+@@ -6,6 +6,8 @@
+ drop table if exists t1;
+ --enable_warnings
+ 
++let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
++
+ #
+ # Bug #34335
+ #
+@@ -662,3 +664,6 @@
+ SELECT * FROM t1;
+ SHOW CREATE TABLE t1;
+ DROP TABLE t1;
++
++-- disable_query_log
++eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
 diff -ruN a/mysql-test/t/innodb.test b/mysql-test/t/innodb.test
 --- a/mysql-test/t/innodb.test	2010-04-06 23:36:15.000000000 +0900
 +++ b/mysql-test/t/innodb.test	2010-04-30 17:53:06.000000000 +0900

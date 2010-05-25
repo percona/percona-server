@@ -1,4 +1,3 @@
-unchanged:
 --- mysql-5.1.46.orig/storage/innodb_plugin/handler/ha_innodb.cc	2010-05-25 00:44:19.000000000 +0400
 +++ mysql-5.1.46/storage/innodb_plugin/handler/ha_innodb.cc	2010-05-25 01:01:55.000000000 +0400
 @@ -539,6 +539,8 @@
@@ -10,7 +9,6 @@ unchanged:
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
    {"dict_tables",
-unchanged:
 --- mysql-5.1.46.orig/storage/innodb_plugin/include/lock0lock.h	2010-04-06 18:07:12.000000000 +0400
 +++ mysql-5.1.46/storage/innodb_plugin/include/lock0lock.h	2010-05-25 00:52:34.000000000 +0400
 @@ -43,6 +43,7 @@
@@ -21,7 +19,6 @@ unchanged:
  
  /*********************************************************************//**
  Gets the size of a lock struct.
-unchanged:
 --- mysql-5.1.46.orig/storage/innodb_plugin/include/srv0srv.h	2010-05-25 00:44:19.000000000 +0400
 +++ mysql-5.1.46/storage/innodb_plugin/include/srv0srv.h	2010-05-25 00:56:58.000000000 +0400
 @@ -660,6 +660,7 @@
@@ -32,7 +29,6 @@ unchanged:
  	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
  	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
  	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
-unchanged:
 --- mysql-5.1.46/storage/innodb_plugin/lock/lock0lock.c	2010-05-25 00:57:00.000000000 +0400
 +++ mysql-5.1.46/storage/innodb_plugin/lock/lock0lock.c	2010-05-25 16:53:32.000000000 +0400
 @@ -3322,6 +3322,7 @@
@@ -43,7 +39,6 @@ unchanged:
  		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
  		      lock_latest_err_file);
  		break;
-unchanged:
 --- mysql-5.1.46.orig/storage/innodb_plugin/srv/srv0srv.c	2010-05-25 00:44:19.000000000 +0400
 +++ mysql-5.1.46/storage/innodb_plugin/srv/srv0srv.c	2010-05-25 00:59:29.000000000 +0400
 @@ -433,7 +433,7 @@
@@ -55,7 +50,7 @@ unchanged:
  UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
  UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
  UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-@@ -2140,5 +2140,7 @@
+@@ -2140,6 +2140,8 @@
  		= UT_LIST_GET_LEN(buf_pool->flush_list);
  	export_vars.innodb_buffer_pool_pages_free
  		= UT_LIST_GET_LEN(buf_pool->free);

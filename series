@@ -37,3 +37,4 @@ innodb_fix_misc.patch
 innodb_adjust_defaults.patch
 mysql-test.diff
 innodb_deadlock_count.patch
+innodb_deadlock_count2.patch

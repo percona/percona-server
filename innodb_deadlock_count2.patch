@@ -1,0 +1,109 @@
+diff -uNar mysql-5.1.46.original/mysql-test/r/percona-innodb-deadlock-count.result mysql-5.1.46/mysql-test/r/percona-innodb-deadlock-count.result
+--- mysql-5.1.46.original/mysql-test/r/percona-innodb-deadlock-count.result	1970-01-01 03:00:00.000000000 +0300
++++ mysql-5.1.46/mysql-test/r/percona-innodb-deadlock-count.result	2010-05-25 16:55:16.000000000 +0400
+@@ -0,0 +1,34 @@
++# Drop test table
++drop table if exists t;
++# Create test table
++create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
++# Insert two rows to test table
++insert into t values(2,1);
++insert into t values(1,2);
++show global status like 'Innodb_deadlocks';
++Variable_name	Value
++Innodb_deadlocks	0
++# Establish connection con1 (user=root)
++connect(localhost,root,,test,13000,/storage/project/percona/mysql-5.1.46.final/mysql-test/var/tmp/mysqld.1.sock);
++# Establish connection con2 (user=root)
++connect(localhost,root,,test,13000,/storage/project/percona/mysql-5.1.46.final/mysql-test/var/tmp/mysqld.1.sock);
++# Establish connection con3 (user=root)
++connect(localhost,root,,test,13000,/storage/project/percona/mysql-5.1.46.final/mysql-test/var/tmp/mysqld.1.sock);
++# Switch to connection con1
++BEGIN;
++SELECT b FROM t WHERE a=1 FOR UPDATE;
++b
++2
++# Switch to connection con2
++BEGIN;
++SELECT b FROM t WHERE a=2 FOR UPDATE;
++b
++1
++# Switch to connection con1
++SELECT b FROM t WHERE a=2 FOR UPDATE;
++# Switch to connection con2
++SELECT b FROM t WHERE a=1 FOR UPDATE;
++# Switch to connection con3
++show global status like 'Innodb_deadlocks';
++Variable_name	Value
++Innodb_deadlocks	1
+diff -uNar mysql-5.1.46.original/mysql-test/t/percona-innodb-deadlock-count.test mysql-5.1.46/mysql-test/t/percona-innodb-deadlock-count.test
+--- mysql-5.1.46.original/mysql-test/t/percona-innodb-deadlock-count.test	1970-01-01 03:00:00.000000000 +0300
++++ mysql-5.1.46/mysql-test/t/percona-innodb-deadlock-count.test	2010-05-25 16:55:03.000000000 +0400
+@@ -0,0 +1,47 @@
++--source include/have_innodb.inc
++--echo # Drop test table
++       --disable_warnings
++drop table if exists t;
++--enable_warnings
++disable_abort_on_error;
++
++--echo # Create test table
++create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
++--echo # Insert two rows to test table
++insert into t values(2,1);
++insert into t values(1,2);
++
++#set global innodb_lock_wait_timeout=2;
++
++#--echo # Look for deadlock count
++show global status like 'Innodb_deadlocks';
++
++--echo # Establish connection con1 (user=root)
++connect (con1,localhost,root,,);
++--echo # Establish connection con2 (user=root)
++connect (con2,localhost,root,,);
++--echo # Establish connection con3 (user=root)
++connect (con3,localhost,root,,);
++
++--echo # Switch to connection con1
++connection con1;
++BEGIN; SELECT b FROM t WHERE a=1 FOR UPDATE;
++
++#show engine innodb status;
++
++--echo # Switch to connection con2
++connection con2;
++BEGIN; SELECT b FROM t WHERE a=2 FOR UPDATE;
++
++--echo # Switch to connection con1
++connection con1;
++SEND SELECT b FROM t WHERE a=2 FOR UPDATE;
++
++--echo # Switch to connection con2
++connection con2;
++SEND SELECT b FROM t WHERE a=1 FOR UPDATE;
++
++--echo # Switch to connection con3
++connection con3;
++show global status like 'Innodb_deadlocks';
++
+diff -uNar mysql-5.1.46.original/storage/innodb_plugin/lock/lock0lock.c mysql-5.1.46/storage/innodb_plugin/lock/lock0lock.c
+--- mysql-5.1.46.original/storage/innodb_plugin/lock/lock0lock.c	2010-05-25 16:52:51.000000000 +0400
++++ mysql-5.1.46/storage/innodb_plugin/lock/lock0lock.c	2010-05-25 16:53:32.000000000 +0400
+@@ -3322,6 +3322,7 @@
+ 		break;
+ 
+ 	case LOCK_VICTIM_IS_START:
++		srv_n_lock_deadlock_count++;
+ 		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
+ 		      lock_latest_err_file);
+ 		break;
+@@ -3500,8 +3501,6 @@
+ 				as a victim to try to avoid deadlocking our
+ 				recursion starting point transaction */
+ 
+-				srv_n_lock_deadlock_count++;
+-
+ 				fputs("*** WE ROLL BACK TRANSACTION (1)\n",
+ 				      ef);
+ 

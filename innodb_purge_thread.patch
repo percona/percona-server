@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:13:25.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:13:51.000000000 +0900
-@@ -10721,6 +10721,11 @@
+@@ -10723,6 +10723,11 @@
    "Output statistics of recovery process after it.",
    NULL, NULL, FALSE);
  
@@ -13,7 +13,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11222,6 +11227,7 @@
+@@ -11223,6 +11228,7 @@
    MYSQL_SYSVAR(change_buffering),
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -34,8 +34,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 14:13:25.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 14:13:51.000000000 +0900
-@@ -117,6 +117,8 @@
- extern ibool	srv_fast_recovery;
+@@ -116,6 +116,8 @@
+ 
  extern ibool	srv_recovery_stats;
  
 +extern ulint	srv_use_purge_thread;
@@ -43,7 +43,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ibool	srv_auto_extend_last_data_file;
  extern ulint	srv_last_file_size_max;
  extern char**	srv_log_group_home_dirs;
-@@ -406,6 +408,8 @@
+@@ -405,6 +407,8 @@
  	SRV_RECOVERY,	/**< threads finishing a recovery */
  	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
  #endif
@@ -52,7 +52,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  	SRV_MASTER	/**< the master thread, (whose type number must
  			be biggest) */
  };
-@@ -479,6 +483,21 @@
+@@ -478,6 +482,21 @@
  /*==============*/
  	void*	arg);	/*!< in: a dummy parameter required by
  			os_thread_create */
@@ -138,8 +138,8 @@ diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 14:13:25.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 14:13:51.000000000 +0900
-@@ -147,6 +147,8 @@
- UNIV_INTERN ibool	srv_fast_recovery = FALSE;
+@@ -146,6 +146,8 @@
+ 
  UNIV_INTERN ibool	srv_recovery_stats = FALSE;
  
 +UNIV_INTERN ulint	srv_use_purge_thread = 0;
@@ -147,7 +147,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /* if TRUE, then we auto-extend the last data file */
  UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
  /* if != 0, this tells the max size auto-extending may increase the
-@@ -2609,10 +2611,10 @@
+@@ -2610,10 +2612,10 @@
  	srv_main_thread_process_no = os_proc_get_number();
  	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
  
@@ -159,7 +159,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	srv_n_threads_active[SRV_MASTER]++;
  
  	mutex_exit(&kernel_mutex);
-@@ -2942,6 +2944,7 @@
+@@ -2943,6 +2945,7 @@
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
  
@@ -167,7 +167,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	/* We run a full purge every 10 seconds, even if the server
  	were active */
  	do {
-@@ -2958,6 +2961,7 @@
+@@ -2959,6 +2962,7 @@
  		srv_sync_log_buffer_in_background();
  
  	} while (n_pages_purged);
@@ -175,7 +175,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	srv_main_thread_op_info = "flushing buffer pool pages";
  
-@@ -3026,6 +3030,7 @@
+@@ -3027,6 +3031,7 @@
  		os_thread_sleep(100000);
  	}
  
@@ -183,7 +183,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	srv_main_thread_op_info = "purging";
  
  	/* Run a full purge */
-@@ -3042,6 +3047,7 @@
+@@ -3043,6 +3048,7 @@
  		srv_sync_log_buffer_in_background();
  
  	} while (n_pages_purged);
@@ -191,7 +191,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	srv_main_thread_op_info = "reserving kernel mutex";
  
-@@ -3194,3 +3200,143 @@
+@@ -3195,3 +3201,143 @@
  
  	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
  }

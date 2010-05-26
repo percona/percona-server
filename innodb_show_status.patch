@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2010-04-29 15:28:56.000000000 +0900
-@@ -3855,14 +3855,16 @@
+@@ -3849,14 +3849,16 @@
  	buf_pool_mutex_enter();
  
  	fprintf(file,
@@ -60,7 +60,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:20.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:56.000000000 +0900
-@@ -10532,6 +10532,16 @@
+@@ -10541,6 +10541,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -77,7 +77,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -10714,7 +10724,7 @@
+@@ -10723,7 +10733,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -86,7 +86,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -10785,6 +10795,8 @@
+@@ -10794,6 +10804,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -211,7 +211,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /** Maximum number of times allowed to conditionally acquire
  mutex before switching to blocking wait on the mutex */
  #define MAX_MUTEX_NOWAIT	20
-@@ -1695,6 +1698,14 @@
+@@ -1696,6 +1699,14 @@
  	ulint	n_reserved;
  	ibool	ret;
  
@@ -226,7 +226,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	mutex_enter(&srv_innodb_monitor_mutex);
  
  	current_time = time(NULL);
-@@ -1743,31 +1754,6 @@
+@@ -1744,31 +1755,6 @@
  
  	mutex_exit(&dict_foreign_err_mutex);
  
@@ -258,7 +258,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	fputs("--------\n"
  	      "FILE I/O\n"
  	      "--------\n", file);
-@@ -1798,10 +1784,84 @@
+@@ -1799,10 +1785,84 @@
  	      "BUFFER POOL AND MEMORY\n"
  	      "----------------------\n", file);
  	fprintf(file,
@@ -347,7 +347,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
  		dict_sys->size);
  
-@@ -1860,6 +1920,31 @@
+@@ -1861,6 +1921,31 @@
  	srv_n_rows_deleted_old = srv_n_rows_deleted;
  	srv_n_rows_read_old = srv_n_rows_read;
  

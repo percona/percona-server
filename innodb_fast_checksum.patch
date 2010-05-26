@@ -88,7 +88,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
 --- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-30 14:13:25.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-30 16:32:03.000000000 +0900
-@@ -939,7 +939,9 @@
+@@ -926,7 +926,9 @@
  
  	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  			srv_use_checksums
@@ -155,15 +155,15 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:31:04.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:32:03.000000000 +0900
-@@ -186,6 +186,7 @@
+@@ -185,6 +185,7 @@
  #endif /* UNIV_LOG_ARCHIVE */
  static my_bool	innobase_use_doublewrite		= TRUE;
  static my_bool	innobase_use_checksums			= TRUE;
 +static my_bool	innobase_fast_checksum			= FALSE;
  static my_bool	innobase_extra_undoslots		= FALSE;
- static my_bool	innobase_fast_recovery			= FALSE;
  static my_bool	innobase_recovery_stats			= TRUE;
-@@ -2327,6 +2328,7 @@
+ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
+@@ -2338,6 +2339,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -171,7 +171,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -10852,6 +10854,15 @@
+@@ -10859,6 +10861,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -187,7 +187,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11326,6 +11337,7 @@
+@@ -11328,6 +11339,7 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(checksums),
@@ -200,7 +200,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:32:03.000000000 +0900
 @@ -45,5 +45,6 @@
  {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_path' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
 +{"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
@@ -234,7 +234,7 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 16:31:04.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 16:32:03.000000000 +0900
-@@ -211,6 +211,7 @@
+@@ -210,6 +210,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
@@ -294,7 +294,7 @@ diff -ruN a/storage/innodb_plugin/include/ut0rnd.ic b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:31:04.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:32:03.000000000 +0900
-@@ -380,6 +380,7 @@
+@@ -379,6 +379,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

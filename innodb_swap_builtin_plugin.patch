@@ -107,6 +107,15 @@ diff -ruN a/configure b/configure
  
  
        mysql_plugin_defs="$mysql_plugin_defs, builtin_innodb_plugin_plugin"
+diff -ruN a/mysql-test/include/have_innodb_plugin.inc b/mysql-test/include/have_innodb_plugin.inc
+--- a/mysql-test/include/have_innodb_plugin.inc	2010-05-07 00:59:10.000000000 +0900
++++ b/mysql-test/include/have_innodb_plugin.inc	2010-05-25 18:12:49.000000000 +0900
+@@ -1,4 +1,4 @@
+ disable_query_log;
+ --require r/true.require
+-SELECT (plugin_library LIKE 'ha_innodb_plugin%') AS `TRUE` FROM information_schema.plugins WHERE LOWER(plugin_name) = 'innodb' AND LOWER(plugin_status) = 'active';
++select (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` from information_schema.engines where engine = 'innodb';
+ enable_query_log;
 diff -ruN a/mysql-test/include/read_many_rows.inc b/mysql-test/include/read_many_rows.inc
 --- a/mysql-test/include/read_many_rows.inc	2010-04-06 23:37:12.000000000 +0900
 +++ b/mysql-test/include/read_many_rows.inc	2010-05-18 15:39:02.000000000 +0900
@@ -181,15 +190,6 @@ diff -ruN a/mysql-test/r/read_many_rows_innodb.result b/mysql-test/r/read_many_r
  select * from t2;
  f2
  drop procedure proc24989;
-diff -ruN a/mysql-test/suite/innodb/include/have_innodb_plugin.inc b/mysql-test/suite/innodb/include/have_innodb_plugin.inc
---- a/mysql-test/suite/innodb/include/have_innodb_plugin.inc	2010-04-06 23:39:15.000000000 +0900
-+++ b/mysql-test/suite/innodb/include/have_innodb_plugin.inc	2010-04-28 19:13:13.000000000 +0900
-@@ -1,4 +1,4 @@
- disable_query_log;
- --require r/true.require
--select (PLUGIN_LIBRARY LIKE 'ha_innodb_plugin%') as `TRUE` from information_schema.plugins where PLUGIN_NAME='InnoDB';
-+select (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` from information_schema.engines where engine = 'innodb';
- enable_query_log;
 diff -ruN a/storage/innobase/plug.in b/storage/innobase/plug.in
 --- a/storage/innobase/plug.in	2010-04-06 23:07:11.000000000 +0900
 +++ b/storage/innobase/plug.in	2010-04-28 19:12:59.000000000 +0900

@@ -13,7 +13,7 @@ diff -ruN a/patch_info/optimizer_fix.info b/patch_info/optimizer_fix.info
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-04-28 16:49:28.000000000 +0900
 +++ b/sql/mysql_priv.h	2010-04-28 16:58:34.000000000 +0900
-@@ -2087,6 +2087,7 @@
+@@ -2093,6 +2093,7 @@
  extern ulong slave_exec_mode_options;
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
@@ -153,7 +153,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-04-28 16:14:10.000000000 +0900
 +++ b/sql/sql_select.cc	2010-04-28 16:58:35.000000000 +0900
-@@ -2562,6 +2562,11 @@
+@@ -2561,6 +2561,11 @@
        table->reginfo.impossible_range=1;
        DBUG_RETURN(0);
      }

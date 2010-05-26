@@ -72,7 +72,7 @@ diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:34:36.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:35:09.000000000 +0900
-@@ -152,6 +152,8 @@
+@@ -151,6 +151,8 @@
  static ulong innobase_read_io_threads;
  static ulong innobase_write_io_threads;
  
@@ -81,7 +81,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2018,6 +2020,36 @@
+@@ -2030,6 +2032,36 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -118,7 +118,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -6902,9 +6934,9 @@
+@@ -6911,9 +6943,9 @@
  					| DICT_TF_COMPACT
  					| DICT_TF_FORMAT_ZIP
  					<< DICT_TF_FORMAT_SHIFT;
@@ -131,7 +131,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			}
  		}
  
-@@ -10863,6 +10895,11 @@
+@@ -10870,6 +10902,11 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -143,7 +143,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11333,6 +11370,7 @@
+@@ -11335,6 +11372,7 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -155,7 +155,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:34:36.000000000 +0900
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:35:09.000000000 +0900
 @@ -46,5 +46,6 @@
- {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_path' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
 +{"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -246,7 +246,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include/univ.i
 --- a/storage/innodb_plugin/include/univ.i	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:35:09.000000000 +0900
-@@ -280,9 +280,13 @@
+@@ -287,9 +287,13 @@
  */
  
  /* The 2-logarithm of UNIV_PAGE_SIZE: */
@@ -262,7 +262,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -375,7 +379,7 @@
+@@ -382,7 +386,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -271,7 +271,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -478,4 +482,6 @@
+@@ -485,4 +489,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  
@@ -363,7 +363,7 @@ diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:34:37.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:35:09.000000000 +0900
-@@ -218,6 +218,10 @@
+@@ -217,6 +217,10 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
  
@@ -377,7 +377,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:31:04.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:35:09.000000000 +0900
-@@ -1497,10 +1497,12 @@
+@@ -1486,10 +1486,12 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -392,7 +392,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  		return(DB_ERROR);
  	}
-@@ -1509,7 +1511,7 @@
+@@ -1498,7 +1500,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

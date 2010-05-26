@@ -325,7 +325,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  /* from buf0buf.c */
  struct buf_chunk_struct{
  	ulint		mem_size;	/* allocated size of the chunk */
-@@ -3091,6 +3092,36 @@
+@@ -3096,6 +3097,36 @@
  			"Hello!");
  		goto end_func;
  	}

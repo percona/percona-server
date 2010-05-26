@@ -128,7 +128,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			retries = 0;
  		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
  			++retries;
-@@ -2430,6 +2493,13 @@
+@@ -2423,6 +2486,13 @@
  			/* Let us wait until the read operation
  			completes */
  
@@ -142,7 +142,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			for (;;) {
  				enum buf_io_fix	io_fix;
  
-@@ -2444,6 +2514,12 @@
+@@ -2437,6 +2507,12 @@
  					break;
  				}
  			}
@@ -155,7 +155,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		}
  
  		fix_type = MTR_MEMO_BUF_FIX;
-@@ -2469,13 +2545,17 @@
+@@ -2462,13 +2538,17 @@
  		/* In the case of a first access, try to apply linear
  		read-ahead */
  
@@ -174,7 +174,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	return(block);
  }
  
-@@ -2498,6 +2578,7 @@
+@@ -2491,6 +2571,7 @@
  	unsigned	access_time;
  	ibool		success;
  	ulint		fix_type;
@@ -182,7 +182,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	ut_ad(block);
  	ut_ad(mtr);
-@@ -2575,13 +2656,17 @@
+@@ -2568,13 +2649,17 @@
  #ifdef UNIV_DEBUG_FILE_ACCESSES
  	ut_a(block->page.file_page_was_freed == FALSE);
  #endif
@@ -201,7 +201,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2590,6 +2675,9 @@
+@@ -2583,6 +2668,9 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  
@@ -211,7 +211,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	return(TRUE);
  }
  
-@@ -2611,6 +2699,7 @@
+@@ -2604,6 +2692,7 @@
  {
  	ibool		success;
  	ulint		fix_type;
@@ -219,7 +219,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
-@@ -2695,6 +2784,11 @@
+@@ -2688,6 +2777,11 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  
@@ -371,7 +371,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:49:40.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:50:11.000000000 +0900
-@@ -1318,6 +1318,16 @@
+@@ -1317,6 +1317,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -388,7 +388,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_VOID_RETURN;
  }
  
-@@ -1374,6 +1384,32 @@
+@@ -1373,6 +1383,32 @@
  }
  
  
@@ -421,7 +421,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -8726,6 +8762,25 @@
+@@ -8733,6 +8769,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -581,7 +581,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
 --- a/storage/innodb_plugin/include/trx0trx.h	2010-04-29 16:43:16.000000000 +0900
 +++ b/storage/innodb_plugin/include/trx0trx.h	2010-04-30 14:50:11.000000000 +0900
-@@ -732,6 +732,17 @@
+@@ -740,6 +740,17 @@
  	/*------------------------------*/
  	char detailed_error[256];	/*!< detailed error message for last
  					error, or empty. */
@@ -821,7 +821,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /* This is set to TRUE if the MySQL user has set it in MySQL; currently
  affects only FOREIGN KEY definition parsing */
  UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-@@ -1155,6 +1158,10 @@
+@@ -1154,6 +1157,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -832,7 +832,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1231,6 +1238,7 @@
+@@ -1230,6 +1237,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -840,7 +840,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		trx->op_info = "";
-@@ -1286,12 +1294,25 @@
+@@ -1285,12 +1293,25 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  

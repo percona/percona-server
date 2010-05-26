@@ -182,7 +182,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-04-06 23:07:05.000000000 +0900
 +++ b/sql/sql_parse.cc	2010-04-28 15:29:36.000000000 +0900
-@@ -3401,6 +3401,9 @@
+@@ -3416,6 +3416,9 @@
    case SQLCOM_SHOW_CONTRIBUTORS:
      res= mysqld_show_contributors(thd);
      break;

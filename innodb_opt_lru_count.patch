@@ -33,7 +33,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	ut_d(bpage->in_page_hash = FALSE);
  
  	/* relocate buf_pool->LRU */
-@@ -2924,8 +2924,8 @@
+@@ -2918,8 +2918,8 @@
  		bpage->in_zip_hash = FALSE;
  		bpage->in_flush_list = FALSE;
  		bpage->in_free_list = FALSE;
@@ -43,7 +43,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  		ut_d(bpage->in_page_hash = TRUE);
  		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
-@@ -3071,7 +3071,7 @@
+@@ -3065,7 +3065,7 @@
  	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -52,7 +52,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	frame = block->frame;
  
-@@ -3825,7 +3825,7 @@
+@@ -3819,7 +3819,7 @@
  {
  	ulint	ratio;
  
@@ -61,7 +61,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
  		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
-@@ -3833,7 +3833,7 @@
+@@ -3827,7 +3827,7 @@
  
  	/* 1 + is there to avoid division by zero */
  
@@ -73,7 +73,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
 --- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:55:25.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:55:42.000000000 +0900
-@@ -321,17 +321,19 @@
+@@ -323,17 +323,19 @@
  	buf_page_t*	bpage)	/*!< in: buffer control block, must be
  				buf_page_in_file(bpage) and in the LRU list */
  {
@@ -97,7 +97,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	ut_print_timestamp(stderr);
  	fprintf(stderr,
  		"  InnoDB: Error: buffer block state %lu"
-@@ -339,6 +341,7 @@
+@@ -341,6 +343,7 @@
  		(ulong) buf_page_get_state(bpage));
  	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
  	putc('\n', stderr);
@@ -105,7 +105,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	return(FALSE);
  }
-@@ -1402,8 +1405,14 @@
+@@ -1404,8 +1407,14 @@
  	buf_page_t*	bpage;
  	ulint		n_replaceable;
  	ulint		distance	= 0;
@@ -121,7 +121,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -1414,7 +1423,13 @@
+@@ -1416,7 +1425,13 @@
  		   + BUF_FLUSH_EXTRA_MARGIN)
  	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
  
@@ -136,7 +136,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		mutex_enter(block_mutex);
  
-@@ -1429,11 +1444,17 @@
+@@ -1431,11 +1446,17 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -155,7 +155,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	}
  
  	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
-@@ -1448,8 +1469,9 @@
+@@ -1450,8 +1471,9 @@
  immediately, without waiting. */
  UNIV_INTERN
  void
@@ -166,7 +166,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  {
  	ulint	n_to_flush;
  	ulint	n_flushed;
-@@ -1458,7 +1480,7 @@
+@@ -1460,7 +1482,7 @@
  
  	if (n_to_flush > 0) {
  		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);

@@ -111,7 +111,7 @@ diff -ruN a/patch_info/userstats.info b/patch_info/userstats.info
 diff -ruN a/sql/handler.cc b/sql/handler.cc
 --- a/sql/handler.cc	2010-04-06 23:06:06.000000000 +0900
 +++ b/sql/handler.cc	2010-04-30 18:39:05.000000000 +0900
-@@ -1190,6 +1190,8 @@
+@@ -1194,6 +1194,8 @@
      if (cookie)
        tc_log->unlog(cookie, xid);
      DBUG_EXECUTE_IF("crash_commit_after", abort(););
@@ -120,7 +120,7 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
  end:
      if (rw_trans)
        start_waiting_global_read_lock(thd);
-@@ -1320,6 +1322,8 @@
+@@ -1324,6 +1326,8 @@
    /* Always cleanup. Even if there nht==0. There may be savepoints. */
    if (is_real_trans)
      thd->transaction.cleanup();
@@ -129,7 +129,7 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
  #endif /* USING_TRANSACTIONS */
    if (all)
      thd->transaction_rollback_request= FALSE;
-@@ -1758,6 +1762,7 @@
+@@ -1762,6 +1766,7 @@
      ha_info->reset(); /* keep it conveniently zero-filled */
    }
    trans->ha_list= sv->ha_list;
@@ -137,7 +137,7 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
    DBUG_RETURN(error);
  }
  
-@@ -2118,6 +2123,8 @@
+@@ -2122,6 +2127,8 @@
        dup_ref=ref+ALIGN_SIZE(ref_length);
      cached_table_flags= table_flags();
    }
@@ -146,7 +146,7 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
    DBUG_RETURN(error);
  }
  
-@@ -3567,6 +3574,111 @@
+@@ -3571,6 +3578,111 @@
    return;
  }
  
@@ -547,7 +547,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  pthread_handler_t handle_bootstrap(void *arg);
  int mysql_execute_command(THD *thd);
  bool do_command(THD *thd);
-@@ -2022,6 +2032,7 @@
+@@ -2028,6 +2038,7 @@
  extern ulong max_connect_errors, connect_timeout;
  extern ulong slave_net_timeout, slave_trans_retries;
  extern uint max_user_connections;
@@ -555,7 +555,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern ulong what_to_log,flush_time;
  extern ulong query_buff_size;
  extern ulong max_prepared_stmt_count, prepared_stmt_count;
-@@ -2075,6 +2086,7 @@
+@@ -2081,6 +2092,7 @@
  extern my_bool opt_slave_compressed_protocol, use_temp_pool;
  extern ulong slave_exec_mode_options;
  extern my_bool opt_readonly, lower_case_file_system;
@@ -563,7 +563,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
  extern my_bool opt_secure_auth;
  extern char* opt_secure_file_priv;
-@@ -2138,6 +2150,15 @@
+@@ -2144,6 +2156,15 @@
  extern struct system_variables max_system_variables;
  extern struct system_status_var global_status_var;
  extern struct rand_struct sql_rand;
@@ -766,7 +766,7 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-04-30 18:38:49.000000000 +0900
 +++ b/sql/sql_class.cc	2010-04-30 18:39:05.000000000 +0900
-@@ -673,6 +673,13 @@
+@@ -704,6 +704,13 @@
    mysys_var=0;
    binlog_evt_union.do_union= FALSE;
    enable_slow_log= 0;
@@ -780,7 +780,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  #ifndef DBUG_OFF
    dbug_sentry=THD_SENTRY_MAGIC;
  #endif
-@@ -873,6 +880,7 @@
+@@ -904,6 +911,7 @@
    reset_current_stmt_binlog_row_based();
    bzero((char *) &status_var, sizeof(status_var));
    sql_log_bin_toplevel= options & OPTION_BIN_LOG;
@@ -788,7 +788,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  #if defined(ENABLED_DEBUG_SYNC)
    /* Initialize the Debug Sync Facility. See debug_sync.cc. */
-@@ -880,6 +888,84 @@
+@@ -911,6 +919,84 @@
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  }
  
@@ -873,7 +873,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /*
    Init THD for query processing.
-@@ -1504,6 +1590,32 @@
+@@ -1535,6 +1621,32 @@
  }
  #endif
  
@@ -906,7 +906,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  struct Item_change_record: public ilink
  {
-@@ -1691,6 +1803,7 @@
+@@ -1722,6 +1834,7 @@
      buffer.set(buff, sizeof(buff), &my_charset_bin);
    }
    thd->sent_row_count++;
@@ -914,7 +914,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
    if (thd->is_error())
    {
      protocol->remove_last_row();
-@@ -1795,6 +1908,7 @@
+@@ -1826,6 +1939,7 @@
  select_export::~select_export()
  {
    thd->sent_row_count=row_count;
@@ -922,7 +922,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -2807,6 +2921,7 @@
+@@ -2837,6 +2951,7 @@
    if (likely(thd != 0))
    { /* current_thd==0 when close_connection() calls net_send_error() */
      thd->status_var.bytes_sent+= length;
@@ -930,7 +930,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
    }
  }
  
-@@ -2814,6 +2929,7 @@
+@@ -2844,6 +2959,7 @@
  void thd_increment_bytes_received(ulong length)
  {
    current_thd->status_var.bytes_received+= length;
@@ -941,7 +941,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-04-30 18:38:49.000000000 +0900
 +++ b/sql/sql_class.h	2010-04-30 18:39:05.000000000 +0900
-@@ -1426,6 +1426,8 @@
+@@ -1430,6 +1430,8 @@
      first byte of the packet in do_command()
    */
    enum enum_server_command command;
@@ -950,7 +950,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    uint32     server_id;
    uint32     file_id;			// for LOAD DATA INFILE
    /* remote (peer) port */
-@@ -1812,6 +1814,8 @@
+@@ -1816,6 +1818,8 @@
    /* variables.transaction_isolation is reset to this after each commit */
    enum_tx_isolation session_tx_isolation;
    enum_check_fields count_cuted_fields;
@@ -959,7 +959,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  
    DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
    MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
-@@ -1900,6 +1904,49 @@
+@@ -1904,6 +1908,49 @@
    */
    LOG_INFO*  current_linfo;
    NET*       slave_net;			// network connection from slave -> m.
@@ -1009,7 +1009,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    /* Used by the sys_var class to store temporary values */
    union
    {
-@@ -1965,6 +2012,11 @@
+@@ -1969,6 +2016,11 @@
      alloc_root. 
    */
    void init_for_queries();
@@ -1021,7 +1021,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    void change_user(void);
    void cleanup(void);
    void cleanup_after_query();
-@@ -2330,9 +2382,15 @@
+@@ -2334,9 +2386,15 @@
      *p_db= strmake(db, db_length);
      *p_db_length= db_length;
      return FALSE;
@@ -1037,7 +1037,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  public:
    inline Internal_error_handler *get_internal_handler()
    { return m_internal_handler; }
-@@ -2386,6 +2444,9 @@
+@@ -2390,6 +2448,9 @@
    MEM_ROOT main_mem_root;
  };
  
@@ -1650,7 +1650,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    (void) pthread_mutex_unlock(&LOCK_user_conn);
    DBUG_RETURN(error);
  }
-@@ -481,6 +1059,7 @@
+@@ -488,6 +1066,7 @@
      general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
      DBUG_RETURN(1);
    }
@@ -1658,7 +1658,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
             thd->main_security_ctx.user,
             thd->main_security_ctx.host_or_ip,
-@@ -962,11 +1541,20 @@
+@@ -969,11 +1548,20 @@
        my_sleep(1000);				/* must wait after eof() */
  #endif
      statistic_increment(aborted_connects,&LOCK_status);
@@ -1679,7 +1679,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    DBUG_RETURN(0);
  }
  
-@@ -988,6 +1576,7 @@
+@@ -995,6 +1583,7 @@
    if (thd->killed || (net->error && net->vio != 0))
    {
      statistic_increment(aborted_threads,&LOCK_status);
@@ -1687,7 +1687,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    }
  
    if (net->error && net->vio != 0)
-@@ -1114,10 +1703,14 @@
+@@ -1121,10 +1710,14 @@
    for (;;)
    {
      NET *net= &thd->net;
@@ -1702,7 +1702,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
  
      prepare_new_connection_state(thd);
  
-@@ -1140,6 +1733,8 @@
+@@ -1147,6 +1740,8 @@
     
  end_thread:
      close_connection(thd, 0, 1);
@@ -1798,7 +1798,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Commands which always take a long time are logged into
      the slow log only if opt_log_slow_admin_statements is set.
-@@ -1808,6 +1820,13 @@
+@@ -1823,6 +1835,13 @@
      thd->profiling.discard_current_query();
  #endif
      break;
@@ -1812,7 +1812,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_OPEN_TABLES:
    case SCH_VARIABLES:
    case SCH_STATUS:
-@@ -1964,6 +1983,7 @@
+@@ -1979,6 +1998,7 @@
                         thd->security_ctx->priv_host)) &&
          check_global_access(thd, SUPER_ACL))
      {
@@ -1820,7 +1820,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
        DBUG_RETURN(TRUE);
      }
-@@ -5244,6 +5264,7 @@
+@@ -5259,6 +5279,7 @@
        if (!no_errors)
        {
          const char *db_name= db ? db : thd->db;
@@ -1828,7 +1828,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
          my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                   sctx->priv_user, sctx->priv_host, db_name);
        }
-@@ -5276,12 +5297,15 @@
+@@ -5291,12 +5312,15 @@
    {						// We can never grant this
      DBUG_PRINT("error",("No possible access"));
      if (!no_errors)
@@ -1844,7 +1844,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      DBUG_RETURN(TRUE);				/* purecov: tested */
    }
  
-@@ -5307,11 +5331,15 @@
+@@ -5322,11 +5346,15 @@
  
    DBUG_PRINT("error",("Access denied"));
    if (!no_errors)
@@ -1860,7 +1860,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_RETURN(TRUE);				/* purecov: tested */
  }
  
-@@ -5340,6 +5368,7 @@
+@@ -5355,6 +5383,7 @@
  
      if (!thd->col_access && check_grant_db(thd, dst_db_name))
      {
@@ -1868,7 +1868,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                 thd->security_ctx->priv_user,
                 thd->security_ctx->priv_host,
-@@ -5421,9 +5450,12 @@
+@@ -5436,9 +5465,12 @@
          (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
      {
        if (!no_errors)
@@ -1881,7 +1881,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        return TRUE;
      }
      /*
-@@ -5586,6 +5618,7 @@
+@@ -5601,6 +5633,7 @@
    if ((thd->security_ctx->master_access & want_access))
      return 0;
    get_privilege_desc(command, sizeof(command), want_access);
@@ -1889,7 +1889,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -5967,6 +6000,34 @@
+@@ -5982,6 +6015,34 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
  
@@ -1924,7 +1924,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
    {
      LEX *lex= thd->lex;
-@@ -6042,6 +6103,43 @@
+@@ -6057,6 +6118,43 @@
      *found_semicolon= NULL;
    }
  
@@ -1968,7 +1968,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -6904,6 +7002,13 @@
+@@ -6919,6 +7017,13 @@
      if (flush_error_log())
        result=1;
    }
@@ -1982,7 +1982,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #ifdef HAVE_QUERY_CACHE
    if (options & REFRESH_QUERY_CACHE_FREE)
    {
-@@ -7004,6 +7109,40 @@
+@@ -7019,6 +7124,40 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
@@ -2953,7 +2953,7 @@ diff -ruN a/sql/sql_update.cc b/sql/sql_update.cc
      DBUG_PRINT("info",("%ld records updated", (long) updated));
    }
    thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
-@@ -2191,5 +2192,6 @@
+@@ -2201,5 +2202,6 @@
    thd->row_count_func=
      (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
    ::my_ok(thd, (ulong) thd->row_count_func, id, buff);

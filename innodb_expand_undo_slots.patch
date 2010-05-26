@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:06:22.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:06:59.000000000 +0900
-@@ -166,6 +166,7 @@
+@@ -165,6 +165,7 @@
  #endif /* UNIV_LOG_ARCHIVE */
  static my_bool	innobase_use_doublewrite		= TRUE;
  static my_bool	innobase_use_checksums			= TRUE;
@@ -9,7 +9,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
-@@ -2038,6 +2039,8 @@
+@@ -2051,6 +2052,8 @@
  		goto error;
  	}
  
@@ -18,7 +18,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -10479,6 +10482,13 @@
+@@ -10488,6 +10491,13 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -32,7 +32,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -10855,6 +10865,7 @@
+@@ -10864,6 +10874,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),

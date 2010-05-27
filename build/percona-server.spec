@@ -9,10 +9,7 @@
 ##############################################################################
 
 # Required arguments
-# mysqlversion		- e.g. 5.1.37
-# pluginversion	- Version of InnoDB plugin taken as the basis, e.g. 1.0.3
-# redhatversion	- 5 or 4
-# majorversion	- The XtraDB release, eg. 6
+# gotrevision - Revision in BZR branch
 
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
@@ -109,36 +106,18 @@
 
 %define server_suffix  -rel%{majorversion}.%{minorversion}
 %define package_suffix -51
-%define ndbug_comment Percona SQL Server (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
-%define debug_comment Percona SQL Server - Debug (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
-%define commercial 0
-%define YASSL_BUILD 1
-%define EMBEDDED_BUILD 0
-%define PARTITION_BUILD 1
-%define CLUSTER_BUILD 0
-%define COMMUNITY_BUILD 1
-%define INNODB_BUILD 1
-%define PERCONA_PLUGIN_BUILD 1
-%define MARIA_BUILD 0
+%define ndbug_comment Percona Server (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define debug_comment Percona Server - Debug (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
 %define NORMAL_TEST_MODE test-bt
 %define DEBUG_TEST_MODE test-bt-debug
 
 %define BUILD_DEBUG 0
-
-
-%if %{COMMUNITY_BUILD}
-%define cluster_package_prefix -cluster
-%else
-%define cluster_package_prefix -
-%endif
 
 %define lic_type GNU GPL v2
 %define lic_files COPYING README
 %define src_dir Percona-Server
 
 Source1: Percona-Server.tar.gz
-
-%define perconaxtradbplugin percona-xtradb-%{pluginversion}-%{majorversion}.tar.gz
 
 ##############################################################################
 # Main spec file section
@@ -192,9 +171,7 @@ Percona Inc. provides commercial support of Percona Server.
 For more information visist our web site http://www.percona.com/
 
 This package includes the Percona-XtraDB server binary 
-%if %{INNODB_BUILD}
 (configured including XtraDB)
-%endif
 as well as related utilities to run and administer a Percona Server.
 
 If you want to access and work with the database, you have to install
@@ -305,11 +282,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
 	    --with-pic \
             --prefix=/ \
-%if %{CLUSTER_BUILD}
-	    --with-extra-charsets=all \
-%else
 	    --with-extra-charsets=complex \
-%endif
 %if %{YASSL_BUILD}
 	    --with-ssl \
 %else
@@ -330,11 +303,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	    $OPT_COMMENT \
 %endif
 	    $OPT_DEBUG \
-%if %{commercial}
-            --with-libedit \
-%else
 	    --with-readline \
-%endif
 	    ; make "
 }
 # end of function definition "BuildMySQL"
@@ -343,38 +312,14 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 BuildServer() {
 BuildMySQL "--enable-shared \
         --with-server-suffix='%{server_suffix}' \
-%if %{CLUSTER_BUILD}
-		--with-plugin-ndbcluster \
-%else
-		--without-plugin-ndbcluster \
-%endif
-%if %{MARIA_BUILD}
-		--with-plugin-maria \
-		--with-maria-tmp-tables \
-%else
-		--without-plugin-maria \
-%endif
-%if %{INNODB_BUILD}
 		--without-plugin-innobase \
 		--with-plugin-innodb_plugin \
-%else
-		--without-plugin-innobase \
-		--without-plugin-innodb_plugin \
-%endif
-%if %{PARTITION_BUILD}
 		--with-plugin-partition \
-%else
-		--without-plugin-partition \
-%endif
 		--with-plugin-csv \
 		--with-plugin-archive \
 		--with-plugin-blackhole \
 		--with-plugin-federated \
-%if %{EMBEDDED_BUILD}
-		--with-embedded-server \
-%else
 		--without-embedded-server \
-%endif
 		--without-bench \
 		--with-zlib-dir=bundled \
 		--with-big-tables"
@@ -404,17 +349,6 @@ mkdir -p $RBR%{_libdir}/mysql $RBR%{_sbindir}
 if [ -z "$CXX" -a -z "$CC" ] ; then
 	export CC="gcc" CXX="gcc"
 fi
-
-if [ "%{redhatversion}" = "5" ] ; then 
-export CFLAGS="-static-libgcc -O2 -fno-omit-frame-pointer  -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -mtune=generic"
-export CXXFLAGS="-static-libgcc -O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -mtune=generic"
-fi
-
-if [ "%{redhatversion}" != "5" ] ; then
-export CFLAGS="-static-libgcc -O2 -g -fno-omit-frame-pointer -pipe "
-export CXXFLAGS="-static-libgcc -O2 -g -fno-omit-frame-pointer -pipe "
-fi 
-
 
 # Create the shared libs seperately to avoid a dependency for the client utilities
 DEBUG=0
@@ -728,9 +662,6 @@ fi
 
 %doc %{lic_files}
 %doc support-files/my-*.cnf
-%if %{CLUSTER_BUILD}
-%doc support-files/ndb-*.ini
-%endif
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -843,10 +774,6 @@ fi
 
 %files -n Percona-Server-devel%{package_suffix}
 %defattr(-, root, root, 0755)
-%if %{commercial}
-%else
-%doc EXCEPTIONS-CLIENT
-%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config

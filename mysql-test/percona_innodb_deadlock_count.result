@@ -8,9 +8,6 @@ create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
 # Insert two rows to test table
 insert into t values(2,1);
 insert into t values(1,2);
-show global status like 'Innodb_deadlocks';
-Variable_name	Value
-Innodb_deadlocks	0
 # Switch to connection con1
 BEGIN;
 SELECT b FROM t WHERE a=1 FOR UPDATE;
@@ -26,6 +23,4 @@ SELECT b FROM t WHERE a=2 FOR UPDATE;
 # Switch to connection con2
 SELECT b FROM t WHERE a=1 FOR UPDATE;
 # Switch to connection con3
-show global status like 'Innodb_deadlocks';
-Variable_name	Value
-Innodb_deadlocks	1
+1

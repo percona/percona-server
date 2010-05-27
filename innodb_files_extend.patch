@@ -143,7 +143,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11335,6 +11372,7 @@
+@@ -11330,6 +11367,7 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -154,7 +154,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:34:36.000000000 +0900
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:35:09.000000000 +0900
-@@ -46,5 +46,6 @@
+@@ -45,5 +45,6 @@
  {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},

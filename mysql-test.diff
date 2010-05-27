@@ -699,16 +699,23 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb_misc1.result b/mysql-test/suite/inn
  CREATE TABLE t1 (
  a BIGINT(20) NOT NULL,
  PRIMARY KEY  (a)
+@@ -763,6 +763,7 @@
+   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
+ ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
+ DROP TABLE t1,t2;
++SET SESSION innodb_strict_mode = on;
+ CREATE TABLE t1 (
+ c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
+ c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
 diff -ruN a/mysql-test/suite/innodb/t/disabled.def b/mysql-test/suite/innodb/t/disabled.def
 --- a/mysql-test/suite/innodb/t/disabled.def	2010-04-06 23:39:13.000000000 +0900
 +++ b/mysql-test/suite/innodb/t/disabled.def	2010-04-30 17:53:06.000000000 +0900
-@@ -9,4 +9,5 @@
+@@ -9,4 +9,4 @@
  #  Do not use any TAB characters for whitespace.
  #
  ##############################################################################
 -innodb : Bug#53306 2010-04-30 VasilDimov valgrind warnings
 +#innodb : Bug#53306 2010-04-30 VasilDimov valgrind warnings
-+innodb_misc1 : Bug#53986 2010-05-26 YasufumiKinoshita
 diff -ruN a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test b/mysql-test/suite/innodb/t/innodb-autoinc-44030.test
 --- a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test	2010-05-07 01:01:28.000000000 +0900
 +++ b/mysql-test/suite/innodb/t/innodb-autoinc-44030.test	2010-05-26 19:12:57.000000000 +0900
@@ -852,3 +859,12 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb_misc1.test b/mysql-test/suite/innod
  CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
  
  #
+@@ -1021,6 +1021,8 @@
+ #
+ # Bug #21101 (Prints wrong error message if max row size is too large)
+ #
++#from innodb-1.0.8, any size is passed without innodb_strict_mode.
++SET SESSION innodb_strict_mode = on;
+ --error 1118
+ CREATE TABLE t1 (
+ 	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),

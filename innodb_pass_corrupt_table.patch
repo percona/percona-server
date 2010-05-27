@@ -470,7 +470,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4269,6 +4270,11 @@
+@@ -4265,6 +4266,11 @@
  	}
  
  	while (index) {
@@ -482,7 +482,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  		index->stat_index_size = size;
-@@ -4987,4 +4993,42 @@
+@@ -4983,4 +4989,42 @@
  		mutex_free(&dict_index_stat_mutex[i]);
  	}
  }
@@ -1005,9 +1005,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11218,6 +11315,14 @@
-   "Relax limitation of column size at table creation as builtin InnoDB.",
-   NULL, NULL, 0, 0, 1, 0);
+@@ -11213,6 +11310,14 @@
+   "Limit the allocated memory for dictionary cache. (0: unlimited)",
+   NULL, NULL, 0, 0, LONG_MAX, 0);
  
 +static	MYSQL_SYSVAR_ULONG(pass_corrupt_table, srv_pass_corrupt_table,
 +  PLUGIN_VAR_RQCMDARG,
@@ -1020,10 +1020,10 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11297,6 +11402,7 @@
+@@ -11291,6 +11396,7 @@
+   MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(use_purge_thread),
-   MYSQL_SYSVAR(relax_table_creation),
 +  MYSQL_SYSVAR(pass_corrupt_table),
    NULL
  };
@@ -1050,8 +1050,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.h b/storage/innodb_plugin/ha
 diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 15:48:30.000000000 +0900
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 15:49:22.000000000 +0900
-@@ -44,5 +44,6 @@
- {"innodb_relax_table_creation","Relax limitation of column size at table creation as builtin InnoDB.","","http://www.percona.com/docs/wiki/percona-xtradb"},
+@@ -43,5 +43,6 @@
+ {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
 +{"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -1215,10 +1215,10 @@ diff -ruN a/storage/innodb_plugin/include/fut0fut.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 15:46:35.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 15:49:22.000000000 +0900
-@@ -230,6 +230,7 @@
+@@ -229,6 +229,7 @@
+ extern ulint	srv_adaptive_checkpoint;
  
  extern ulint	srv_expand_import;
- extern ulint	srv_relax_table_creation;
 +extern ulint	srv_pass_corrupt_table;
  
  extern ulint	srv_extra_rsegments;
@@ -1276,10 +1276,10 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 15:46:35.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 15:49:22.000000000 +0900
-@@ -399,6 +399,7 @@
+@@ -398,6 +398,7 @@
+ UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
- UNIV_INTERN ulint	srv_relax_table_creation = 0; /* 0:disable 1:enable */
 +UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
  
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */

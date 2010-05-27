@@ -272,7 +272,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11218,6 +11226,7 @@
+@@ -11213,6 +11221,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -283,9 +283,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-05-19 18:55:03.000000000 +0900
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-05-19 19:20:08.000000000 +0900
-@@ -43,5 +43,6 @@
+@@ -42,5 +42,6 @@
+ {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_relax_table_creation","Relax limitation of column size at table creation as builtin InnoDB.","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
 +{"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}

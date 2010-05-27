@@ -37,3 +37,4 @@ innodb_adjust_defaults.patch
 mysql-test.diff
 percona-support.patch
 innodb_deadlock_count.patch
+bug580324.patch

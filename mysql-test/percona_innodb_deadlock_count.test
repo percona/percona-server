@@ -44,3 +44,8 @@ let $result = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
 
 let $diff = `SELECT $result - $current`;
 echo $diff;
+--echo # Drop test table
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+disable_abort_on_error;

@@ -796,10 +796,6 @@ fi
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
-%if %{CLUSTER_BUILD}
-%{_libdir}/mysql/libndbclient.a
-%{_libdir}/mysql/libndbclient.la
-%endif
 
 %files -n Percona-Server-shared%{package_suffix}
 %defattr(-, root, root, 0755)

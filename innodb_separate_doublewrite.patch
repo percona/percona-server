@@ -227,6 +227,15 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0fsp.c
 --- a/storage/innodb_plugin/fsp/fsp0fsp.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/fsp/fsp0fsp.c	2010-05-19 18:55:53.000000000 +0900
+@@ -48,7 +48,7 @@
+ # include "log0log.h"
+ #endif /* UNIV_HOTBACKUP */
+ #include "dict0mem.h"
+-
++#include "trx0sys.h"
+ 
+ #define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
+ 						within a file page */
 @@ -1002,10 +1002,10 @@
  	flst_init(header + FSP_SEG_INODES_FREE, mtr);
  
@@ -293,6 +302,16 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/mtr0log.ic b/storage/innodb_plugin/include/mtr0log.ic
 --- a/storage/innodb_plugin/include/mtr0log.ic	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/include/mtr0log.ic	2010-05-19 18:55:53.000000000 +0900
+@@ -27,8 +27,8 @@
+ #include "ut0lst.h"
+ #include "buf0buf.h"
+ #include "fsp0types.h"
++#include "srv0srv.h"
+ #include "trx0sys.h"
+-
+ /********************************************************//**
+ Opens a buffer to mlog. It must be closed with mlog_close.
+ @return	buffer, NULL if log mode MTR_LOG_NONE */
 @@ -201,7 +201,8 @@
  	the doublewrite buffer is located in pages
  	FSP_EXTENT_SIZE, ..., 3 * FSP_EXTENT_SIZE - 1 in the

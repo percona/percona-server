@@ -12,6 +12,6 @@ SELECT sleep(5);
 
 set long_query_time=2;
 
-let $cmd = cat var/mysqld.1/data/percona_slow_query_log.log | grep Query_time | wc -l;
+let $cmd = cat var/mysqld.1/data/percona_slow_query_log-long_query_time.log | grep Query_time | wc -l;
 echo $cmd;
 exec $cmd;

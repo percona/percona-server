@@ -137,7 +137,7 @@ diff -Nur Percona-Server.orig/sql/sql_parse.cc Percona-Server/sql/sql_parse.cc
  }
 -
 +#define SLOG_UG_SETUP(session,value,flag,global) do {   \
-+  if(value & flag == flag)                            \
++  if((value & flag) == flag)                            \
 +    session = global;                                 \
 +  } while(false);
  

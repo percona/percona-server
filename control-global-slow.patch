@@ -143,13 +143,10 @@ diff -Nur Percona-Server.orig/sql/sql_parse.cc Percona-Server/sql/sql_parse.cc
  
  void log_slow_statement(THD *thd)
  {
-@@ -1698,6 +1701,21 @@
+@@ -1698,6 +1701,18 @@
    if (opt_use_global_long_query_time)
      thd->variables.long_query_time = global_system_variables.long_query_time;
  
-+  if (opt_use_global_long_query_time)
-+    thd->variables.long_query_time = global_system_variables.long_query_time;
-+
 +  /* use_global_log_slow_control */
 +  {
 +    system_variables const &g     = global_system_variables; // global                                                           

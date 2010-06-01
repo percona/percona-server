@@ -1,0 +1,5 @@
+percona-server-dfsg-5.1 (5.1.47-11.0) lenny; urgency=low
+
+  * Percona Server 11.0
+
+ -- Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>  Fri, 28 May 2010 08:51:58 -0400

@@ -78,7 +78,7 @@ diff -Nur a/sql/log.cc b/sql/log.cc
 +	}
 +	else
 +	{
-+	  buff_len= snprintf(buff, sizeof buff,
++	  buff_len= my_snprintf(buff, sizeof buff,
 +	    "# Time: %02d%02d%02d %2d:%02d:%02d\n",
 +            start.tm_year % 100, start.tm_mon + 1,
 +	    start.tm_mday, start.tm_hour,

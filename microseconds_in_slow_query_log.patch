@@ -1,3 +1,16 @@
+diff -Nur /dev/null b/patch_info/microseconds_in_slow_query_log.patch
+--- /dev/null                                             1970-01-01 09:00:00.000000000 +0900
++++ b/patch_info/microseconds_in_slow_query_log.patch     2010-06-02 22:00:00.000000000 +0900
+@@ -0,0 +1,9 @@
++File=microseconds_in_slow_query_log.patch
++Name=Allow microsecond time precision in in slow.log (not InnoDB part)
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++Changelog
++2010-06-02
++Initial version of patch
 diff -Nur a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-05-31 20:12:17.000000000 +0400
 +++ b/sql/log.cc	2010-05-31 20:13:05.000000000 +0400

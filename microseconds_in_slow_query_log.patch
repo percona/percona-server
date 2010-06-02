@@ -67,7 +67,7 @@ diff -Nur a/sql/log.cc b/sql/log.cc
 -                              start.tm_year % 100, start.tm_mon + 1,
 -                              start.tm_mday, start.tm_hour,
 -                              start.tm_min, start.tm_sec);
-+	if(opt_microseconds_in_slow_query_log)
++	if(opt_slow_query_log_microseconds_timestamp)
 +	{
 +	  ulonglong microsecond = current_utime % (1000 * 1000);
 +	  buff_len= snprintf(buff, sizeof buff,
@@ -134,7 +134,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool opt_log_slow_sp_statements= 0;
  my_bool opt_log_slow_timestamp_every= 0;
  my_bool opt_use_global_long_query_time= 0;
-+my_bool opt_microseconds_in_slow_query_log= 0;
++my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_myisam_use_mmap= 0;
@@ -142,7 +142,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_SUPPRESS_LOG_WARNING_1592,
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
-+  OPT_MICROSECONDS_IN_SLOW_QUERY_LOG,
++  OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD
@@ -150,9 +150,9 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
     "Control always use global long_query_time or local long_query_time.",
     (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
-+  {"microseconds_in_slow_query_log", OPT_MICROSECONDS_IN_SLOW_QUERY_LOG,
++  {"slow_query_log_microseconds_timestamp", OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
 +   "Use microsecond time's precision in slow query log",
-+   (uchar**) &opt_microseconds_in_slow_query_log, (uchar**) &opt_microseconds_in_slow_query_log,
++   (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
 +   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
@@ -164,7 +164,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool opt_log_slow_sp_statements;
  extern my_bool opt_log_slow_timestamp_every;
  extern my_bool opt_use_global_long_query_time;
-+extern my_bool opt_microseconds_in_slow_query_log;
++extern my_bool opt_slow_query_log_microseconds_timestamp;
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;
@@ -175,8 +175,8 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
                                                             &opt_log_slow_timestamp_every);
  static sys_var_bool_ptr       sys_use_global_long_query_time(&vars, "use_global_long_query_time",
                                                         &opt_use_global_long_query_time);
-+static sys_var_bool_ptr       sys_microseconds_in_slow_query_log(&vars, "microseconds_in_slow_query_log",
-+                                                       &opt_microseconds_in_slow_query_log);
++static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
++                                                       &opt_slow_query_log_microseconds_timestamp);
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);

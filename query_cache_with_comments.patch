@@ -1,0 +1,234 @@
+diff -Nur a/patch_info/query_cache_with_comments.patch b/patch_info/query_cache_with_comments.patch
+--- a/patch_info/query_cache_with_comments.patch	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/query_cache_with_comments.patch	2010-06-03 14:56:38.000000000 +0400
+@@ -0,0 +1,9 @@
++File=query_cache_with_comments.patch
++Name=Remove comments from query (need for cache hit)
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++Changelog
++2010-06-03
++Initial version of patch
+diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
+--- a/sql/sql_cache.cc	2010-06-03 14:52:57.000000000 +0400
++++ b/sql/sql_cache.cc	2010-06-03 14:51:42.000000000 +0400
+@@ -1345,6 +1345,209 @@
+   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
+ */
+ 
++uint remove_substring(char* where, uint length, uint start, uint stop)
++{
++  uint remove_count  = stop - start + 1; // include last symbol!
++  uint result_length = length - remove_count;
++  uint tail_length   = length - stop;
++  if(tail_length>0)
++  {
++    memcpy(where+start,where+stop+1,tail_length);
++  }
++  where[result_length] = 0;
++  return result_length;
++}
++uint remove_trailing_from_begin(char* sql,uint query_length)
++{
++  uint query_position = 0;
++  while(
++	(query_position < query_length)
++	&&
++	(
++	 (' ' == sql[query_position])
++	 ||
++	 ('\n' == sql[query_position])
++	 ||
++	 ('\r' == sql[query_position])
++	)
++       )
++  {
++    ++query_position;
++  }
++  if(query_position > 0)
++    query_length = remove_substring(sql,query_length,0,query_position-1);
++  return query_length;
++}
++uint remove_trailing_from_end(char* sql,uint query_length)
++{
++  uint query_position = query_length;
++  while(
++	(query_position > 0)
++	&&
++	(
++	 (' ' == sql[query_position-1])
++	 ||
++	 ('\n' == sql[query_position-1])
++	 ||
++	 ('\r' == sql[query_position-1])
++	)
++       )
++  {
++    --query_position;
++  }
++  if(query_position < query_length)
++    query_length = remove_substring(sql,query_length,query_position+1,query_length);
++  return query_length;
++}
++uint remove_comments_from_query(char* sql,uint query_length)
++{
++  /* simple state machine for search of comments and remove it */
++  const uchar search          = 0;
++  const uchar quote_single    = 1;
++  const uchar quote_double    = 2;
++  const uchar c_comment_1     = 3;
++  const uchar c_comment_2     = 4;
++  const uchar c_comment_3     = 5;
++  const uchar sharp_comment   = 6;
++  const uchar minus_comment_1 = 7;
++  const uchar minus_comment_2 = 8;
++  const uchar space           = 9;
++
++  for(int i = 0; i < 2; ++i)
++    {
++      // first pass - remove all comments and double spaces
++      // second pass - remove double spaces (may born after space removing)
++      ulong query_position = 0;
++      ulong query_skip_position_start;
++      uchar state = search;
++      while(query_position < query_length)
++	{
++	  char current = sql[query_position];
++	  switch(state)
++	    {
++	    case search:
++	      {
++		switch(current)
++		  {
++		  case '\'':
++		    state = quote_single;
++		    break;
++		  case '"':
++		    state = quote_double;
++		    break;
++		  case '/':
++		    state = c_comment_1;
++		    query_skip_position_start = query_position;
++		    break;
++		  case '#':
++		    state = sharp_comment;
++		    query_skip_position_start = query_position;
++		    break;
++		  case '-':
++		    state = minus_comment_1;
++		    query_skip_position_start = query_position;
++		    break;
++		  case ' ':
++		    state = space;
++		    break;
++		  default:
++		    ;
++		  };
++		break;
++	      }
++	    case quote_single:
++	      {
++		if('\'' == current)
++		  {
++		    state = search;
++		  }
++		break;
++	      }
++	    case quote_double:
++	      {
++		if('"' == current)
++		  {
++		    state = search;
++		  }
++		break;
++	      }
++	    case c_comment_1:
++	      {
++		if('*' == current)
++		  {
++		    state = c_comment_2;
++		  }
++		else
++		  {
++		    state = search;
++		  }
++		break;
++	      }
++	    case c_comment_2:
++	      {
++		if('*' == current)
++		  {
++		    state = c_comment_3;
++		  }
++		break;
++	      }
++	    case c_comment_3:
++	      {
++		switch(current)
++		  {
++		  case '/':
++		    query_length = remove_substring(sql,query_length,query_skip_position_start,query_position);
++		    state = search;
++		    continue;
++		  case '*':
++		    state = c_comment_3;
++		    break;
++		  default:
++		    state = c_comment_2;
++		  }
++		break;
++	      }
++	    case minus_comment_1:
++	      {
++		if('-' == current)
++		  {
++		    state = minus_comment_2;
++		  }
++		else
++		  {
++		    state = search;
++		  }
++		break;
++	      }
++	    case sharp_comment:
++	    case minus_comment_2:
++	      {
++		if('\n' == current || (query_position + 1 == query_length))
++		  {
++		    query_length = remove_substring(sql,query_length,query_skip_position_start,query_position);
++		    state = search;
++		    continue;	    
++		  }
++		break;
++	      }
++	    case space:
++	      {
++		if(' ' == current)
++		  {
++		    query_length = remove_substring(sql,query_length,query_position,query_position);
++		  }
++		state = search;
++		continue;
++	      }
++
++	    };
++	  ++query_position;
++	}
++    }
++  query_length = remove_trailing_from_begin(sql,query_length);
++  query_length = remove_trailing_from_end(sql,query_length);
++  return query_length;
++}
+ int
+ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
+ {
+@@ -1408,6 +1611,7 @@
+       DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
+       goto err;
+     }
++    query_length = remove_comments_from_query(sql,query_length);
+   }
+ 
+   /*

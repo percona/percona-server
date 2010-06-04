@@ -842,7 +842,15 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/in
  drop index id on t2;
  show create table t2;
  drop table t2;
-@@ -1333,6 +1335,7 @@
+@@ -1319,6 +1321,7 @@
+ 
+ # Test for testable InnoDB status variables. This test
+ # uses previous ones(pages_created, rows_deleted, ...).
++--replace_result 8191 8192
+ SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+ SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
+ SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
+@@ -1333,6 +1336,7 @@
  SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
  
  # Test for innodb_sync_spin_loops variable
@@ -850,7 +858,7 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/in
  show variables like "innodb_sync_spin_loops";
  set global innodb_sync_spin_loops=1000;
  show variables like "innodb_sync_spin_loops";
-@@ -1340,6 +1343,7 @@
+@@ -1340,6 +1344,7 @@
  show variables like "innodb_sync_spin_loops";
  set global innodb_sync_spin_loops=20;
  show variables like "innodb_sync_spin_loops";

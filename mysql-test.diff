@@ -936,3 +936,9 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb_misc1.test b/mysql-test/suite/innod
  --error 1118
  CREATE TABLE t1 (
  	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
+diff -Nur a/mysql-test/t/log_tables-big-master.opt b/mysql-test/t/log_tables-big-master.opt
+--- a/mysql-test/t/log_tables-big-master.opt    2010-06-04 05:51:12.000000000 -0700
++++ b/mysql-test/t/log_tables-big-master.opt    2010-06-04 05:52:30.000000000 -0700
+@@ -1 +1 @@
+---log-slow-queries
++--log-output=table,file --log-slow-queries

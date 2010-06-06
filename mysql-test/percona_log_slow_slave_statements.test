@@ -1,0 +1,49 @@
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+CREATE TABLE t(id INT);
+INSERT INTO t VALUES (0), (1), (2), (3), (4), (5), (6), (7);
+
+connection slave;
+
+START SLAVE;
+--source include/wait_for_slave_to_start.inc
+
+SELECT SLEEP(0.1),id from t where id = 1;
+set global log_slow_slave_statements=ON;
+SELECT SLEEP(0.1),id from t where id = 2;
+
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
+
+START SLAVE;
+--source include/wait_for_slave_to_start.inc
+
+SELECT SLEEP(0.1),id from t where id = 3;
+set global log_slow_slave_statements=OFF;
+SELECT SLEEP(0.1),id from t where id = 4;
+
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
+
+START SLAVE;
+--source include/wait_for_slave_to_start.inc
+
+SELECT SLEEP(0.1),id from t where id = 5;
+
+let $i=5;
+let $cmd=cat ./var/mysqld.2/data/percona_log_slow_slave_statements-slave.log | grep;
+while($i)
+{
+    let $current_cmd = $cmd "SELECT SLEEP(0.1),id from t where id = $i" | wc -l;
+    echo $current_cmd;
+    exec $current_cmd;
+    dec $i;
+}
+
+connection master;
+DROP TABLE t;

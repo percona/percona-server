@@ -25,4 +25,4 @@ SELECT b FROM t WHERE a=1 FOR UPDATE;
 # Switch to connection con3
 1
 # Drop test table
-drop table if exists t;
+drop table t;

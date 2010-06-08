@@ -312,7 +312,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
  
  		if (UNIV_UNLIKELY(err == DB_TABLESPACE_DELETED)) {
  tablespace_deleted:
-@@ -684,12 +687,12 @@
+@@ -728,12 +731,12 @@
  		if ((i + 1 == n_stored) && sync) {
  			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
  					  zip_size, TRUE, tablespace_version,

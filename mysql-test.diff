@@ -942,3 +942,11 @@ diff -Nur a/mysql-test/t/log_tables-big-master.opt b/mysql-test/t/log_tables-big
 @@ -1 +1 @@
 ---log-slow-queries
 +--log-output=table,file --log-slow-queries
+diff -Nur a/mysql-test/t/disabled.def b/mysql-test/t/disabled.def
+--- a/mysql-test/t/disabled.def	2010-06-08 22:46:28.000000000 -0700
++++ b/mysql-test/t/disabled.def	2010-06-08 22:49:03.000000000 -0700
+@@ -13,3 +13,4 @@
+ query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
+ partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
+ ps_3innodb               : Bug#53309 2010-04-30 VasilDimov valgrind warnings
++alter_table-big          : Bug#590627 2010-06-09 Fails on MySQL 5.1.47

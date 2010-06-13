@@ -24,22 +24,23 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
 
-select * from t1;
-
-show status like "Qcache_queries_in_cache";
-show status like "Qcache_inserts";
-show status like "Qcache_hits";
-
-select * from t1;
-select * from t1;
-select * from t1;
-select * from t1;
+/* with comment */ select * from t1;
 
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
 
 /* with comment */ select * from t1;
+/* with comment */ select * from t1;
+/* with comment */ select * from t1;
+/* with comment */ select * from t1;
+/* with comment */ select * from t1;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+select * from t1;
 
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";

@@ -64,15 +64,7 @@ unchanged:
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
 --- Percona-Server/sql/sql_cache.cc	2010-06-13 01:08:05.000000000 +0400
 +++ good/sql/sql_cache.cc	2010-06-13 00:52:49.000000000 +0400
-@@ -326,6 +326,7 @@
-       (This could be done with almost no speed penalty)
- */
- 
-+#include <fstream>
- #include "mysql_priv.h"
- #ifdef HAVE_QUERY_CACHE
- #include <m_ctype.h>
-@@ -333,6 +334,181 @@
+@@ -333,6 +334,178 @@
  #include <hash.h>
  #include "../storage/myisammrg/ha_myisammrg.h"
  #include "../storage/myisammrg/myrg_def.h"
@@ -226,9 +218,6 @@ unchanged:
 +      }
 +    buffer[position] = 0;
 +    length = position;
-+    std::ofstream f("/tmp/zabivator",std::ios_base::app);
-+    f << "SOURCE QUERY: '" << query  << "' WITH LENGTH " << strlen(query)  << " SOURCE LENGTH: " << query_length << std::endl;
-+    f << "RESULT QUERY: '" << buffer << "' WITH LENGTH " << strlen(buffer) << " RESULT LENGTH: " << length       << std::endl;
 +}
 +void QueryStripComments::cleanup()
 +{

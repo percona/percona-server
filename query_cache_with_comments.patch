@@ -200,7 +200,7 @@ unchanged:
 +	    }
 +	break;
 +	default:
-+	  break; // make gcc hapy
++	  break; // make gcc happy
 +	}
 +      buffer[position] = current;
 +      ++query_position;
@@ -214,7 +214,7 @@ unchanged:
 +	--position;
 +      break;
 +      default:
-+	break; // make gcc hape
++	break; // make gcc happy
 +      }
 +    buffer[position] = 0;
 +    length = position;

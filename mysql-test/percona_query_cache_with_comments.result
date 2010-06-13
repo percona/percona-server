@@ -16,7 +16,7 @@ Qcache_inserts	0
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
-select * from t1;
+/* with comment */ select * from t1;
 a
 1
 2
@@ -30,35 +30,26 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
-select * from t1;
+/* with comment */ select * from t1;
 a
 1
 2
 3
-select * from t1;
+/* with comment */ select * from t1;
 a
 1
 2
 3
-select * from t1;
+/* with comment */ select * from t1;
 a
 1
 2
 3
-select * from t1;
+/* with comment */ select * from t1;
 a
 1
 2
 3
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	1
-show status like "Qcache_inserts";
-Variable_name	Value
-Qcache_inserts	1
-show status like "Qcache_hits";
-Variable_name	Value
-Qcache_hits	4
 /* with comment */ select * from t1;
 a
 1
@@ -73,7 +64,7 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	5
-select * /*internal comment*/from t1;
+select * from t1;
 a
 1
 2
@@ -87,7 +78,7 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	6
-select * /*internal comment*/ from t1;
+select * /*internal comment*/from t1;
 a
 1
 2
@@ -101,7 +92,7 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	7
-select * from t1 /* at the end */;
+select * /*internal comment*/ from t1;
 a
 1
 2
@@ -115,7 +106,7 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	8
-select * from t1 /* with "quote" */;
+select * from t1 /* at the end */;
 a
 1
 2
@@ -129,7 +120,7 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	9
-select * from t1 /* with 'quote' */;
+select * from t1 /* with "quote" */;
 a
 1
 2
@@ -143,6 +134,20 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	10
+select * from t1 /* with 'quote' */;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	11
 select * from t1 # 123
 ;
 a
@@ -157,7 +162,7 @@ Variable_name	Value
 Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	11
+Qcache_hits	12
 select * from t1 # 123 with "quote"
 ;
 a
@@ -172,24 +177,8 @@ Variable_name	Value
 Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
-select * from t1 # 123 with 'quote'
-;
-a
-1
-2
-3
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	1
-show status like "Qcache_inserts";
-Variable_name	Value
-Qcache_inserts	1
-show status like "Qcache_hits";
-Variable_name	Value
 Qcache_hits	13
-select * from t1
-# 123
+select * from t1 # 123 with 'quote'
 ;
 a
 1
@@ -220,7 +209,8 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	15
-select * from t1 -- 123
+select * from t1
+# 123
 ;
 a
 1
@@ -235,6 +225,21 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	16
+select * from t1 -- 123
+;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	17
 select * from t1
 -- 123
 ;
@@ -250,7 +255,7 @@ Variable_name	Value
 Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	17
+Qcache_hits	18
 select "test",a from t1;
 test	a
 test	1
@@ -274,7 +279,7 @@ Variable_name	Value
 Qcache_inserts	2
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	19
+Qcache_hits	20
 select "test /* internal 'comment' */",a from t1;
 test /* internal 'comment' */	a
 test /* internal 'comment' */	1
@@ -293,7 +298,7 @@ Variable_name	Value
 Qcache_inserts	4
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	19
+Qcache_hits	20
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
 set global query_cache_strip_comments=OFF;

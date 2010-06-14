@@ -804,7 +804,7 @@ fi
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)
-%{_datadir}/mysql-test
+%{_datadir}/mysql-test/*
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*

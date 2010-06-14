@@ -1,3 +1,15 @@
+--- a/patch_info/control_global_slow.patch	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/control_global_slow.patch	2010-06-03 14:56:38.000000000 +0400
+@@ -0,0 +1,9 @@
++File=control_global_slow.patch
++Name=Allow choose scope to use of slow-query-log's variables - global or local
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=http://www.percona.com/docs/wiki/patches:control_global_slow
++Changelog
++2010-06-03
++First version of patch
 diff -Nur Percona-Server.orig/sql/mysqld.cc Percona-Server/sql/mysqld.cc
 --- Percona-Server.orig/sql/mysqld.cc	2010-05-28 01:47:26.000000000 +0400
 +++ Percona-Server/sql/mysqld.cc	2010-05-28 01:58:52.000000000 +0400

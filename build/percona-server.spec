@@ -117,8 +117,6 @@
 %define lic_files COPYING README
 %define src_dir Percona-Server
 
-Source1: Percona-Server.tar.gz
-
 ##############################################################################
 # Main spec file section
 ##############################################################################
@@ -417,7 +415,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
-install -d $RBR%{_datadir}/mysql-test
+install -d $RBR/mysql-test
 install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
@@ -804,7 +802,7 @@ fi
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)
-%{_datadir}/mysql-test/*
+/usr/mysql-test/*
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*

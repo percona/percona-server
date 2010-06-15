@@ -281,7 +281,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
             --with-mysqld-user=%{mysqld_user} \
             --with-unix-socket-path=/var/lib/mysql/mysql.sock \
 	    --with-pic \
-            --prefix=/ \
+            -prefix=/usr \
 	    --with-extra-charsets=complex \
 %if %{YASSL_BUILD}
 	    --with-ssl \

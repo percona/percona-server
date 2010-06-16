@@ -19,8 +19,8 @@ diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
 -  SQLCOM_ALTER_DB_UPGRADE,
 +  SQLCOM_ALTER_DB_UPGRADE, SQLCOM_SHOW_TEMPORARY_TABLES,
    SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
+   SQLCOM_SHOW_PATCHES,
  
-   /*
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-04-30 19:37:14.000000000 +0900
 +++ b/sql/sql_parse.cc	2010-04-30 19:46:32.000000000 +0900

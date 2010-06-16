@@ -1,0 +1,143 @@
+--- Percona-Server/configure.in	2010-06-14 19:37:23.000000000 +0400
++++ good/configure.in	2010-06-14 19:34:35.000000000 +0400
+@@ -839,7 +839,7 @@
+ AC_HEADER_STDC
+ AC_HEADER_SYS_WAIT
+ AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
+- memory.h pwd.h select.h \
++ memory.h pwd.h select.h poll.h \
+  stdlib.h stddef.h \
+  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
+  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
+--- Percona-Server/sql/mysqld.cc	2010-06-14 19:37:25.000000000 +0400
++++ good/sql/mysqld.cc	2010-06-14 19:34:35.000000000 +0400
+@@ -55,6 +55,10 @@
+ #include "sp_rcontext.h"
+ #include "sp_cache.h"
+ 
++#ifdef HAVE_POLL_H
++#include <poll.h>
++#endif
++
+ #define mysqld_charset &my_charset_latin1
+ 
+ #ifdef HAVE_purify
+@@ -5056,28 +5060,49 @@
+ {
+   my_socket sock,new_sock;
+   uint error_count=0;
+-  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
+-  fd_set readFDs,clientFDs;
+   THD *thd;
+   struct sockaddr_in cAddr;
+-  int ip_flags=0,socket_flags=0,flags;
++  int ip_flags=0,socket_flags=0,flags,retval;
+   st_vio *vio_tmp;
++#ifdef HAVE_POLL
++  int socket_count= 0;
++  struct pollfd fds[2]; // for ip_sock and unix_sock
++#else
++  fd_set readFDs,clientFDs;
++  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
++#endif
++
+   DBUG_ENTER("handle_connections_sockets");
+ 
+   LINT_INIT(new_sock);
+ 
+   (void) my_pthread_getprio(pthread_self());		// For debugging
+ 
++#ifndef HAVE_POLL
+   FD_ZERO(&clientFDs);
++#endif
++
+   if (ip_sock != INVALID_SOCKET)
+   {
++#ifdef HAVE_POLL
++    fds[socket_count].fd= ip_sock;
++    fds[socket_count].events= POLLIN;
++    socket_count++;
++#else
+     FD_SET(ip_sock,&clientFDs);
++#endif
+ #ifdef HAVE_FCNTL
+     ip_flags = fcntl(ip_sock, F_GETFL, 0);
+ #endif
+   }
+ #ifdef HAVE_SYS_UN_H
++#ifdef HAVE_POLL
++  fds[socket_count].fd= unix_sock;
++  fds[socket_count].events= POLLIN;
++  socket_count++;
++#else
+   FD_SET(unix_sock,&clientFDs);
++#endif
+ #ifdef HAVE_FCNTL
+   socket_flags=fcntl(unix_sock, F_GETFL, 0);
+ #endif
+@@ -5087,12 +5112,15 @@
+   MAYBE_BROKEN_SYSCALL;
+   while (!abort_loop)
+   {
+-    readFDs=clientFDs;
+-#ifdef HPUX10
+-    if (select(max_used_connection,(int*) &readFDs,0,0,0) < 0)
+-      continue;
++#ifdef HAVE_POLL
++    retval= poll(fds, socket_count, -1);
+ #else
+-    if (select((int) max_used_connection,&readFDs,0,0,0) < 0)
++    readFDs=clientFDs;
++
++    retval= select((int) max_used_connection,&readFDs,0,0,0);
++#endif
++
++    if (retval < 0)
+     {
+       if (socket_errno != SOCKET_EINTR)
+       {
+@@ -5102,7 +5130,7 @@
+       MAYBE_BROKEN_SYSCALL
+       continue;
+     }
+-#endif	/* HPUX10 */
++
+     if (abort_loop)
+     {
+       MAYBE_BROKEN_SYSCALL;
+@@ -5110,6 +5138,21 @@
+     }
+ 
+     /* Is this a new connection request ? */
++#ifdef HAVE_POLL
++    for (int i= 0; i < socket_count; ++i) 
++    {
++      if (fds[i].revents & POLLIN)
++      {
++        sock= fds[i].fd;
++#ifdef HAVE_FCNTL
++        flags= fcntl(sock, F_GETFL, 0);
++#else
++        flags= 0;
++#endif // HAVE_FCNTL
++        break;
++      }
++    }
++#else  // HAVE_POLL
+ #ifdef HAVE_SYS_UN_H
+     if (FD_ISSET(unix_sock,&readFDs))
+     {
+@@ -5117,11 +5160,12 @@
+       flags= socket_flags;
+     }
+     else
+-#endif
++#endif // HAVE_SYS_UN_H
+     {
+       sock = ip_sock;
+       flags= ip_flags;
+     }
++#endif // HAVE_POOL
+ 
+ #if !defined(NO_FCNTL_NONBLOCK)
+     if (!(test_flags & TEST_BLOCKING))

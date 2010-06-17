@@ -1,5 +1,7 @@
 source include/have_innodb.inc;
 
+SET GLOBAL SLOW_QUERY_LOG=OFF;
+
 --disable_warnings
 drop table if exists t;
 --enable_warnings
@@ -10,6 +12,8 @@ create table t(id INT PRIMARY KEY) engine=InnoDB;
 insert into t values(1);
 insert into t values(2);
 insert into t values(3);
+
+SET GLOBAL SLOW_QUERY_LOG=ON;
 
 SELECT sleep(2);
 

@@ -1,3 +1,4 @@
+SET GLOBAL SLOW_QUERY_LOG=OFF;
 drop table if exists t;
 # Create test table
 create table t(id INT PRIMARY KEY) engine=InnoDB;
@@ -5,6 +6,7 @@ create table t(id INT PRIMARY KEY) engine=InnoDB;
 insert into t values(1);
 insert into t values(2);
 insert into t values(3);
+SET GLOBAL SLOW_QUERY_LOG=ON;
 SELECT sleep(2);
 sleep(2)
 0

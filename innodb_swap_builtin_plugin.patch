@@ -1,7 +1,7 @@
 diff -ruN a/configure b/configure
 --- a/configure	2010-04-06 23:13:20.000000000 +0900
 +++ b/configure	2010-04-28 19:12:59.000000000 +0900
-@@ -2059,13 +2059,13 @@
+@@ -2061,13 +2061,13 @@
     === InnoDB Storage Engine ===
    Plugin Name:      innobase
    Description:      Transactional Tables using InnoDB
@@ -17,7 +17,7 @@ diff -ruN a/configure b/configure
    Configurations:   max, max-no-ndb
  
     === MyISAM Storage Engine ===
-@@ -42113,7 +42113,8 @@
+@@ -42279,7 +42279,8 @@
  
  
  
@@ -27,7 +27,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -42125,8 +42126,7 @@
+@@ -42291,8 +42292,7 @@
  
  
  
@@ -37,7 +37,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -43541,7 +43541,7 @@
+@@ -43707,7 +43707,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -46,7 +46,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innobase" != Xyes -a \
              "X$with_plugin_innobase" != Xyes; then
  
-@@ -43567,20 +43567,11 @@
+@@ -43733,20 +43733,11 @@
      else
  
  
@@ -72,7 +72,7 @@ diff -ruN a/configure b/configure
  
  
        mysql_plugin_defs="$mysql_plugin_defs, builtin_innobase_plugin"
-@@ -43668,7 +43659,7 @@
+@@ -43834,7 +43825,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -81,7 +81,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innodb_plugin" != Xyes -a \
              "X$with_plugin_innodb_plugin" != Xyes; then
  
-@@ -43694,11 +43685,20 @@
+@@ -43860,11 +43851,20 @@
      else
  
  

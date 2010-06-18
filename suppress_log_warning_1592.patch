@@ -1,7 +1,7 @@
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-05-21 18:23:50.000000000 +0900
 +++ b/sql/mysql_priv.h	2010-05-21 18:23:59.000000000 +0900
-@@ -2094,6 +2094,7 @@
+@@ -2095,6 +2095,7 @@
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
  extern my_bool opt_optimizer_fix;
@@ -54,7 +54,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-05-21 18:23:50.000000000 +0900
 +++ b/sql/sql_class.cc	2010-05-21 18:23:59.000000000 +0900
-@@ -4067,6 +4067,7 @@
+@@ -4087,6 +4087,7 @@
                   ER_BINLOG_UNSAFE_STATEMENT,
                   ER(ER_BINLOG_UNSAFE_STATEMENT));
      if (global_system_variables.log_warnings &&

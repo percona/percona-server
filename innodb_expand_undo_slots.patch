@@ -9,7 +9,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
-@@ -2051,6 +2052,8 @@
+@@ -2073,6 +2074,8 @@
  		goto error;
  	}
  
@@ -18,7 +18,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -10488,6 +10491,13 @@
+@@ -10631,6 +10634,13 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -32,7 +32,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -10864,6 +10874,7 @@
+@@ -11007,6 +11017,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),

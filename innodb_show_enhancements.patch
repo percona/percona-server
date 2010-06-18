@@ -23,7 +23,7 @@ diff -ruN a/storage/innodb_plugin/Makefile.in b/storage/innodb_plugin/Makefile.i
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:22:39.000000000 +0900
-@@ -10823,7 +10823,8 @@
+@@ -10966,7 +10966,8 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,

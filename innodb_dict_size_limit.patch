@@ -131,7 +131,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
 diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/dict0boot.c
 --- a/storage/innodb_plugin/dict/dict0boot.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0boot.c	2010-04-29 16:51:00.000000000 +0900
-@@ -265,6 +265,7 @@
+@@ -283,6 +283,7 @@
  	system tables */
  	/*-------------------------*/
  	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0);
@@ -139,7 +139,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
  
  	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
  	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
-@@ -317,6 +318,7 @@
+@@ -335,6 +336,7 @@
  
  	/*-------------------------*/
  	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0);
@@ -147,7 +147,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
  
  	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
  	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
-@@ -349,6 +351,7 @@
+@@ -367,6 +369,7 @@
  
  	/*-------------------------*/
  	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE, 7, 0);
@@ -155,7 +155,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
  
  	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
  	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
-@@ -394,6 +397,7 @@
+@@ -412,6 +415,7 @@
  
  	/*-------------------------*/
  	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0);
@@ -166,7 +166,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
 --- a/storage/innodb_plugin/dict/dict0crea.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0crea.c	2010-04-29 16:51:00.000000000 +0900
-@@ -1197,6 +1197,9 @@
+@@ -1201,6 +1201,9 @@
  		/* Foreign constraint system tables have already been
  		created, and they are ok */
  
@@ -176,7 +176,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  		mutex_exit(&(dict_sys->mutex));
  
  		return(DB_SUCCESS);
-@@ -1278,6 +1281,11 @@
+@@ -1282,6 +1285,11 @@
  
  	trx_commit_for_mysql(trx);
  
@@ -298,7 +298,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11077,6 +11079,11 @@
+@@ -11220,6 +11222,11 @@
    "Number of extra user rollback segments when create new database.",
    NULL, NULL, 0, 0, 126, 0);
  
@@ -310,7 +310,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11143,6 +11150,7 @@
+@@ -11286,6 +11293,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),
@@ -359,7 +359,7 @@ diff -ruN a/storage/innodb_plugin/include/btr0sea.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
 --- a/storage/innodb_plugin/include/dict0dict.h	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/include/dict0dict.h	2010-04-29 16:51:00.000000000 +0900
-@@ -1115,6 +1115,12 @@
+@@ -1116,6 +1116,12 @@
  /*====================================*/
  	dict_table_t*	table,	/*!< in: table */
  	const char*	name);	/*!< in: name of the index to find */
@@ -433,7 +433,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2083,6 +2084,7 @@
+@@ -2087,6 +2088,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

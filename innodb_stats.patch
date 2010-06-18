@@ -398,7 +398,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
 diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
 --- a/storage/innodb_plugin/dict/dict0dict.c	2010-04-29 16:54:08.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0dict.c	2010-04-30 10:46:23.000000000 +0900
-@@ -4393,7 +4393,8 @@
+@@ -4406,7 +4406,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -423,7 +423,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 10:46:03.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 10:46:23.000000000 +0900
-@@ -4917,6 +4917,10 @@
+@@ -4939,6 +4939,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -434,7 +434,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5253,6 +5257,10 @@
+@@ -5275,6 +5279,10 @@
  		}
  	}
  
@@ -445,7 +445,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5306,6 +5314,10 @@
+@@ -5328,6 +5336,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -456,7 +456,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5830,6 +5842,11 @@
+@@ -5852,6 +5864,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -468,7 +468,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -7619,7 +7636,9 @@
+@@ -7725,7 +7742,9 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -479,7 +479,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -7701,7 +7720,7 @@
+@@ -7807,7 +7826,7 @@
  		We do not update delete_length if no locking is requested
  		so the "old" value can remain. delete_length is initialized
  		to 0 in the ha_statistics' constructor. */
@@ -488,7 +488,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			/* lock the data dictionary to avoid races with
  			ibd_file_missing and tablespace_discarded */
-@@ -10821,6 +10840,37 @@
+@@ -10964,6 +10983,37 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -526,7 +526,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11130,6 +11180,9 @@
+@@ -11273,6 +11323,9 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -536,7 +536,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11190,6 +11243,8 @@
+@@ -11333,6 +11386,8 @@
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,
@@ -954,7 +954,7 @@ diff -ruN a/storage/innodb_plugin/include/page0cur.h b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/rem0cmp.h b/storage/innodb_plugin/include/rem0cmp.h
 --- a/storage/innodb_plugin/include/rem0cmp.h	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/rem0cmp.h	2010-04-30 10:46:23.000000000 +0900
-@@ -167,10 +167,11 @@
+@@ -169,10 +169,11 @@
  				matched fields; when the function returns,
  				contains the value the for current
  				comparison */
@@ -1074,7 +1074,7 @@ diff -ruN a/storage/innodb_plugin/page/page0cur.c b/storage/innodb_plugin/page/p
 diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0cmp.c
 --- a/storage/innodb_plugin/rem/rem0cmp.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/rem/rem0cmp.c	2010-04-30 10:46:23.000000000 +0900
-@@ -861,10 +861,11 @@
+@@ -866,10 +866,11 @@
  				matched fields; when the function returns,
  				contains the value the for current
  				comparison */
@@ -1087,7 +1087,7 @@ diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0
  {
  	ulint		rec1_n_fields;	/* the number of fields in rec */
  	ulint		rec1_f_len;	/* length of current field in rec */
-@@ -957,7 +958,11 @@
+@@ -962,7 +963,11 @@
  
  				if (rec1_f_len == rec2_f_len) {
  
@@ -1103,7 +1103,7 @@ diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-04-30 10:46:23.000000000 +0900
-@@ -852,6 +852,9 @@
+@@ -853,6 +853,9 @@
  
  	table->stat_modified_counter = counter + 1;
  

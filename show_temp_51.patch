@@ -34,7 +34,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1777,6 +1780,8 @@
+@@ -1785,6 +1788,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -43,7 +43,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2275,6 +2280,7 @@
+@@ -2283,6 +2288,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -51,7 +51,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -5368,6 +5374,8 @@
+@@ -5376,6 +5382,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -63,7 +63,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-04-30 19:37:14.000000000 +0900
 +++ b/sql/sql_show.cc	2010-04-30 19:46:32.000000000 +0900
-@@ -3096,6 +3096,7 @@
+@@ -3097,6 +3097,7 @@
      return 0;
    case SQLCOM_SHOW_TABLES:
    case SQLCOM_SHOW_TABLE_STATUS:
@@ -71,7 +71,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      lookup_field_values->db_value.str= lex->select_lex.db;
-@@ -3551,6 +3552,228 @@
+@@ -3552,6 +3553,228 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -300,7 +300,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
    @brief          Fill I_S table with data from FRM file only
-@@ -6629,6 +6852,25 @@
+@@ -6631,6 +6854,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -326,7 +326,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7289,6 +7531,9 @@
+@@ -7291,6 +7533,9 @@
     fill_schema_files, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -336,7 +336,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7332,6 +7577,9 @@
+@@ -7334,6 +7579,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},

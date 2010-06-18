@@ -88,7 +88,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
 --- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-30 14:13:25.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-30 16:32:03.000000000 +0900
-@@ -926,7 +926,9 @@
+@@ -952,7 +952,9 @@
  
  	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  			srv_use_checksums
@@ -102,7 +102,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 16:31:04.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 16:32:03.000000000 +0900
-@@ -3066,7 +3066,9 @@
+@@ -3069,7 +3069,9 @@
  			mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
@@ -113,7 +113,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3178,7 +3180,8 @@
+@@ -3181,7 +3183,8 @@
  					goto skip_write;
  				}
  
@@ -123,7 +123,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
  				    && checksum_field
  				    != buf_calc_page_new_checksum(page)) {
-@@ -3186,6 +3189,17 @@
+@@ -3189,6 +3192,17 @@
  					goto skip_write;
  				}
  
@@ -141,7 +141,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
  					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
  
-@@ -3260,7 +3274,9 @@
+@@ -3263,7 +3277,9 @@
  
  					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  							srv_use_checksums
@@ -163,7 +163,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool	innobase_extra_undoslots		= FALSE;
  static my_bool	innobase_fast_recovery			= FALSE;
  static my_bool	innobase_recovery_stats			= TRUE;
-@@ -2339,6 +2340,7 @@
+@@ -2361,6 +2362,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -171,7 +171,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -10860,6 +10862,15 @@
+@@ -11003,6 +11005,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -187,7 +187,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11329,6 +11340,7 @@
+@@ -11472,6 +11483,7 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(checksums),

@@ -69,7 +69,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-04-06 23:07:02.000000000 +0900
 +++ b/sql/mysql_priv.h	2010-04-28 15:29:36.000000000 +0900
-@@ -1368,6 +1368,7 @@
+@@ -1369,6 +1369,7 @@
  int mysqld_show_status(THD *thd);
  int mysqld_show_variables(THD *thd,const char *wild);
  bool mysqld_show_storage_engines(THD *thd);
@@ -182,7 +182,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-04-06 23:07:05.000000000 +0900
 +++ b/sql/sql_parse.cc	2010-04-28 15:29:36.000000000 +0900
-@@ -3416,6 +3416,9 @@
+@@ -3424,6 +3424,9 @@
    case SQLCOM_SHOW_CONTRIBUTORS:
      res= mysqld_show_contributors(thd);
      break;
@@ -214,7 +214,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "authors.h"
  #include "contributors.h"
  #ifdef HAVE_EVENT_SCHEDULER
-@@ -7209,3 +7210,42 @@
+@@ -7211,3 +7212,42 @@
      status and client connection will be closed.
    */
  }

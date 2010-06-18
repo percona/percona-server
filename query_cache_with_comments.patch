@@ -41,7 +41,7 @@
     (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
 --- a/sql/mysql_priv.h	2010-06-04 20:20:43.000000000 +0400
 +++ b/sql/mysql_priv.h	2010-06-04 20:27:31.000000000 +0400
-@@ -2123,6 +2123,7 @@
+@@ -2124,6 +2124,7 @@
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
  extern my_bool opt_log_slow_sp_statements;
  extern my_bool opt_log_slow_timestamp_every;
@@ -64,7 +64,7 @@ unchanged:
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
 --- Percona-Server/sql/sql_cache.cc	2010-06-13 01:08:05.000000000 +0400
 +++ good/sql/sql_cache.cc	2010-06-13 00:52:49.000000000 +0400
-@@ -333,6 +334,178 @@
+@@ -333,6 +333,178 @@
  #include <hash.h>
  #include "../storage/myisammrg/ha_myisammrg.h"
  #include "../storage/myisammrg/myrg_def.h"
@@ -243,7 +243,7 @@ unchanged:
  
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
-@@ -1235,6 +1411,8 @@
+@@ -1235,6 +1407,8 @@
        unlock();
        DBUG_VOID_RETURN;
      }
@@ -252,7 +252,7 @@ unchanged:
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1354,6 +1532,9 @@
+@@ -1354,6 +1528,9 @@
    Query_cache_block_table *block_table, *block_table_end;
    ulong tot_length;
    Query_cache_query_flags flags;
@@ -262,7 +262,7 @@ unchanged:
    DBUG_ENTER("Query_cache::send_result_to_client");
  
    /*
-@@ -1430,6 +1611,9 @@
+@@ -1430,6 +1607,9 @@
    DBUG_ASSERT(thd->net.query_cache_query == 0);
  
    Query_cache_block *query_block;
@@ -272,7 +272,7 @@ unchanged:
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1496,6 +1680,8 @@
+@@ -1496,6 +1676,8 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  hash_search(&queries, (uchar*) sql,
  						   tot_length);

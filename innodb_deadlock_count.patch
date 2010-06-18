@@ -55,7 +55,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
  UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
  UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-@@ -2139,6 +2139,8 @@
+@@ -2143,6 +2143,8 @@
  		= UT_LIST_GET_LEN(buf_pool->flush_list);
  	export_vars.innodb_buffer_pool_pages_free
  		= UT_LIST_GET_LEN(buf_pool->free);

@@ -42,7 +42,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
-@@ -1969,6 +1988,89 @@
+@@ -1991,6 +2010,89 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -132,7 +132,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Check that values don't overflow on 32-bit systems. */
  	if (sizeof(ulint) == 4) {
  		if (innobase_buffer_pool_size > UINT_MAX32) {
-@@ -2237,6 +2339,76 @@
+@@ -2259,6 +2361,76 @@
  		goto mem_free_and_error;
  	}
  
@@ -209,7 +209,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innobase_open_tables = hash_create(200);
  	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
  	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
-@@ -2350,6 +2522,26 @@
+@@ -2372,6 +2544,26 @@
  		return;
  	}
  
@@ -236,7 +236,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	trx_commit_for_mysql(trx);
  }
  
-@@ -10498,6 +10690,12 @@
+@@ -10641,6 +10833,12 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -249,7 +249,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -10907,6 +11105,7 @@
+@@ -11050,6 +11248,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -308,7 +308,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
 --- a/storage/innodb_plugin/include/trx0trx.h	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/trx0trx.h	2010-04-29 16:42:07.000000000 +0900
-@@ -571,6 +571,21 @@
+@@ -568,6 +568,21 @@
  	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
  					contains the end offset of the binlog
  					entry */
@@ -430,7 +430,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
 diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
 --- a/storage/innodb_plugin/trx/trx0trx.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/trx/trx0trx.c	2010-04-29 16:42:07.000000000 +0900
-@@ -128,6 +128,10 @@
+@@ -127,6 +127,10 @@
  
  	trx->mysql_log_file_name = NULL;
  	trx->mysql_log_offset = 0;
@@ -441,7 +441,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
  
-@@ -792,6 +796,19 @@
+@@ -791,6 +795,19 @@
  			trx->mysql_log_file_name = NULL;
  		}
  

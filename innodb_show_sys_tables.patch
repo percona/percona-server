@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:36.000000000 +0900
-@@ -11486,6 +11486,8 @@
+@@ -11629,6 +11629,8 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
  i_s_innodb_admin_command,

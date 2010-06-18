@@ -1,4 +1,4 @@
-diff -Nur /dev/null b/patch_info/microseconds_in_slow_query_log.patch
+diff -ruN a/patch_info/microseconds_in_slow_query_log.patch b/patch_info/microseconds_in_slow_query_log.patch
 --- /dev/null                                             1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/microseconds_in_slow_query_log.patch     2010-06-02 22:00:00.000000000 +0900
 @@ -0,0 +1,9 @@
@@ -11,7 +11,7 @@ diff -Nur /dev/null b/patch_info/microseconds_in_slow_query_log.patch
 +Changelog
 +2010-06-02
 +Initial version of patch
-diff -Nur a/sql/log.cc b/sql/log.cc
+diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-05-31 20:12:17.000000000 +0400
 +++ b/sql/log.cc	2010-05-31 20:13:05.000000000 +0400
 @@ -524,11 +524,13 @@
@@ -55,7 +55,7 @@ diff -Nur a/sql/log.cc b/sql/log.cc
                                              user_host_buff, user_host_len,
                                              query_utime, lock_utime, is_command,
                                              query, query_length) || error;
-@@ -2314,12 +2316,13 @@
+@@ -2302,12 +2304,13 @@
      TRUE - error occured
  */
  
@@ -70,7 +70,7 @@ diff -Nur a/sql/log.cc b/sql/log.cc
    bool error= 0;
    DBUG_ENTER("MYSQL_QUERY_LOG::write");
  
-@@ -2346,12 +2349,23 @@
+@@ -2334,12 +2337,23 @@
          last_time= current_time;
          struct tm start;
          localtime_r(&current_time, &start);
@@ -100,7 +100,7 @@ diff -Nur a/sql/log.cc b/sql/log.cc
  
          /* Note that my_b_write() assumes it knows the length for this */
          if (my_b_write(&log_file, (uchar*) buff, buff_len))
-diff -Nur a/sql/log.h b/sql/log.h
+diff -ruN a/sql/log.h b/sql/log.h
 --- a/sql/log.h	2010-05-31 20:12:22.000000000 +0400
 +++ b/sql/log.h	2010-05-31 20:13:07.000000000 +0400
 @@ -206,7 +206,7 @@
@@ -112,7 +112,7 @@ diff -Nur a/sql/log.h b/sql/log.h
               const char *user_host, uint user_host_len,
               ulonglong query_utime, ulonglong lock_utime, bool is_command,
               const char *sql_text, uint sql_text_len);
-@@ -429,7 +429,7 @@
+@@ -419,7 +419,7 @@
    virtual bool init()= 0;
    virtual void cleanup()= 0;
  
@@ -121,7 +121,7 @@ diff -Nur a/sql/log.h b/sql/log.h
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-@@ -458,7 +458,7 @@
+@@ -448,7 +448,7 @@
    virtual bool init();
    virtual void cleanup();
  
@@ -130,7 +130,7 @@ diff -Nur a/sql/log.h b/sql/log.h
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-@@ -490,7 +490,7 @@
+@@ -480,7 +480,7 @@
    virtual bool init();
    virtual void cleanup();
  
@@ -139,8 +139,18 @@ diff -Nur a/sql/log.h b/sql/log.h
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-Двоичные файлы a/sql/log.o и b/sql/log.o различаются
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-06-18 18:58:56.216288525 +0900
++++ b/sql/mysql_priv.h	2010-06-18 18:59:58.618171545 +0900
+@@ -2125,6 +2125,7 @@
+ extern my_bool opt_log_slow_sp_statements;
+ extern my_bool opt_log_slow_timestamp_every;
+ extern my_bool opt_use_global_long_query_time;
++extern my_bool opt_slow_query_log_microseconds_timestamp;
+ extern my_bool sp_automatic_privileges, opt_noacl;
+ extern my_bool opt_old_style_user_limits, trust_function_creators;
+ extern uint opt_crash_binlog_innodb;
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-05-31 20:12:40.000000000 +0400
 +++ b/sql/mysqld.cc	2010-05-31 20:13:27.000000000 +0400
 @@ -487,6 +487,7 @@
@@ -170,18 +180,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-05-31 20:12:45.000000000 +0400
-+++ b/sql/mysql_priv.h	2010-05-31 20:13:19.000000000 +0400
-@@ -2124,6 +2124,7 @@
- extern my_bool opt_log_slow_sp_statements;
- extern my_bool opt_log_slow_timestamp_every;
- extern my_bool opt_use_global_long_query_time;
-+extern my_bool opt_slow_query_log_microseconds_timestamp;
- extern my_bool sp_automatic_privileges, opt_noacl;
- extern my_bool opt_old_style_user_limits, trust_function_creators;
- extern uint opt_crash_binlog_innodb;
-diff -Nur a/sql/set_var.cc b/sql/set_var.cc
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-05-31 20:12:27.000000000 +0400
 +++ b/sql/set_var.cc	2010-05-31 20:13:14.000000000 +0400
 @@ -932,6 +932,8 @@

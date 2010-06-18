@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
 --- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:44:57.000000000 +0900
-@@ -1131,8 +1131,9 @@
+@@ -1157,8 +1157,9 @@
  /*====================*/
  	ulint		space,		/*!< in: space id */
  	ulint		offset,		/*!< in: page offset */
@@ -12,7 +12,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  {
  	buf_page_t*	bpage;
  	ulint		low, high;
-@@ -1141,7 +1142,7 @@
+@@ -1167,7 +1168,7 @@
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -21,7 +21,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  		/* If there is little space, it is better not to flush any
  		block except from the end of the LRU list */
  
-@@ -1316,7 +1317,7 @@
+@@ -1342,7 +1343,7 @@
  
  				/* Try to flush also all the neighbors */
  				page_count += buf_flush_try_neighbors(
@@ -47,7 +47,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:44:28.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:44:58.000000000 +0900
-@@ -2178,6 +2178,9 @@
+@@ -2200,6 +2200,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -57,7 +57,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -9689,6 +9692,10 @@
+@@ -9795,6 +9798,10 @@
  	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
  	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
  	{
@@ -68,7 +68,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  		/* For ibbackup to work the order of transactions in binlog
  		and InnoDB must be the same. Consider the situation
-@@ -10753,6 +10760,100 @@
+@@ -10896,6 +10903,100 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -169,7 +169,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -10807,6 +10908,14 @@
+@@ -10950,6 +11051,14 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -807,7 +807,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2483,6 +2494,10 @@
+@@ -2487,6 +2498,10 @@
  	ibool		skip_sleep	= FALSE;
  	ulint		i;
  
@@ -818,7 +818,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
  		os_thread_pf(os_thread_get_curr_id()));
-@@ -2498,6 +2513,9 @@
+@@ -2502,6 +2517,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -828,7 +828,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2535,6 +2553,19 @@
+@@ -2539,6 +2557,19 @@
  
  			os_thread_sleep(1000000);
  			srv_main_sleeps++;
@@ -848,7 +848,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		skip_sleep = FALSE;
-@@ -2571,7 +2602,7 @@
+@@ -2575,7 +2606,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -857,7 +857,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2595,6 +2626,10 @@
+@@ -2599,6 +2630,10 @@
  			iteration of this loop. */
  
  			skip_sleep = TRUE;
@@ -868,7 +868,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2616,6 +2651,140 @@
+@@ -2620,6 +2655,140 @@
  					skip_sleep = TRUE;
  				}
  			}
@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2664,7 +2833,7 @@
+@@ -2668,7 +2837,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1018,7 +1018,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2789,7 +2958,7 @@
+@@ -2793,7 +2962,7 @@
  		buf_flush_batch below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,

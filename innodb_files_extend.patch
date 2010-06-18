@@ -13,7 +13,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 16:34:36.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 16:35:09.000000000 +0900
-@@ -4616,9 +4616,9 @@
+@@ -4619,9 +4619,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
  	ut_ad(len > 0);
@@ -50,7 +50,7 @@ diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
  	ut_ad(ut_is_2pow(zip_size));
  
  	if (!zip_size) {
-@@ -1467,12 +1468,12 @@
+@@ -1465,12 +1466,12 @@
  							   mtr);
  		xdes_init(descr, mtr);
  
@@ -81,7 +81,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2031,6 +2033,36 @@
+@@ -2053,6 +2055,36 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -118,7 +118,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -6912,9 +6944,9 @@
+@@ -6936,9 +6968,9 @@
  					| DICT_TF_COMPACT
  					| DICT_TF_FORMAT_ZIP
  					<< DICT_TF_FORMAT_SHIFT;
@@ -131,7 +131,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			}
  		}
  
-@@ -10871,6 +10903,11 @@
+@@ -11014,6 +11046,11 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -143,7 +143,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11336,6 +11373,7 @@
+@@ -11479,6 +11516,7 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -246,7 +246,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include/univ.i
 --- a/storage/innodb_plugin/include/univ.i	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:35:09.000000000 +0900
-@@ -287,9 +287,13 @@
+@@ -283,9 +283,13 @@
  */
  
  /* The 2-logarithm of UNIV_PAGE_SIZE: */
@@ -262,7 +262,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -382,7 +386,7 @@
+@@ -378,7 +382,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -271,7 +271,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -485,4 +489,6 @@
+@@ -481,4 +485,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  

@@ -141,7 +141,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      for (current_handler= slow_log_handler_list; *current_handler ;)
        error= (*current_handler++)->log_slow(thd, current_time, thd->start_time,
                                              user_host_buff, user_host_len,
-@@ -2307,7 +2319,7 @@
+@@ -2295,7 +2307,7 @@
  
      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
      {
@@ -150,7 +150,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
        {
          last_time= current_time;
          struct tm start;
-@@ -2335,12 +2347,64 @@
+@@ -2323,12 +2335,64 @@
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
      if (my_b_printf(&log_file,
@@ -300,7 +300,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  /*
    Some defines for exit codes for ::is_equal class functions.
  */
-@@ -2013,6 +2085,9 @@
+@@ -2014,6 +2086,9 @@
  extern my_bool opt_secure_auth;
  extern char* opt_secure_file_priv;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
@@ -806,7 +806,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
    for (Internal_error_handler *error_handler= m_internal_handler;
         error_handler;
         error_handler= error_handler->m_prev_internal_handler)
-@@ -3144,6 +3177,12 @@
+@@ -3165,6 +3198,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -819,7 +819,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !current_stmt_binlog_row_based)
-@@ -3163,6 +3202,14 @@
+@@ -3184,6 +3223,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -834,7 +834,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -3225,6 +3272,12 @@
+@@ -3246,6 +3293,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -932,7 +932,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-04-28 15:37:19.000000000 +0900
 +++ b/sql/sql_parse.cc	2010-04-28 16:00:21.000000000 +0900
-@@ -1669,6 +1669,31 @@
+@@ -1677,6 +1677,31 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -964,7 +964,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -2055,6 +2080,8 @@
+@@ -2063,6 +2088,8 @@
      context.resolve_in_table_list_only((TABLE_LIST*)select_lex->
                                         table_list.first);
  
@@ -973,7 +973,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5723,6 +5750,21 @@
+@@ -5731,6 +5758,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -998,7 +998,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-04-06 23:07:05.000000000 +0900
 +++ b/sql/sql_select.cc	2010-04-28 15:37:56.000000000 +0900
-@@ -6708,7 +6708,10 @@
+@@ -6729,7 +6729,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1009,7 +1009,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	else
-@@ -6722,7 +6725,10 @@
+@@ -6743,7 +6746,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1020,7 +1020,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	if (!table->no_keyread)
-@@ -9876,6 +9882,7 @@
+@@ -9939,6 +9945,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -1028,7 +1028,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -10757,6 +10764,7 @@
+@@ -10820,6 +10827,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -1036,7 +1036,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -10775,6 +10783,14 @@
+@@ -10838,6 +10846,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  

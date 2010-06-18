@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
 --- a/storage/innodb_plugin/buf/buf0lru.c	2010-04-29 18:58:20.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0lru.c	2010-04-30 15:47:10.000000000 +0900
-@@ -2107,6 +2107,218 @@
+@@ -2122,6 +2122,218 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  
@@ -235,7 +235,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 15:01:51.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 15:47:10.000000000 +0900
-@@ -4765,6 +4765,78 @@
+@@ -4766,6 +4766,78 @@
  	return(DB_SUCCESS);
  }
  
@@ -438,7 +438,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
 --- a/storage/innodb_plugin/include/fil0fil.h	2010-04-30 15:01:51.000000000 +0900
 +++ b/storage/innodb_plugin/include/fil0fil.h	2010-04-30 15:47:10.000000000 +0900
-@@ -645,6 +645,22 @@
+@@ -653,6 +653,22 @@
  	void*	message,	/*!< in: message for aio handler if non-sync
  				aio used, else ignored */
  	trx_t*	trx);

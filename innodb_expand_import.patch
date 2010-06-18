@@ -12,7 +12,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #ifndef UNIV_HOTBACKUP
  # include "buf0lru.h"
  # include "ibuf0ibuf.h"
-@@ -2982,7 +2986,7 @@
+@@ -2983,7 +2987,7 @@
  	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
  
  	file = os_file_create_simple_no_error_handling(
@@ -21,7 +21,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	if (!success) {
  		/* The following call prints an error message */
  		os_file_get_last_error(TRUE);
-@@ -3029,6 +3033,330 @@
+@@ -3030,6 +3034,330 @@
  	space_id = fsp_header_get_space_id(page);
  	space_flags = fsp_header_get_flags(page);
  
@@ -355,7 +355,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:54:08.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 10:28:05.000000000 +0900
-@@ -11074,6 +11074,11 @@
+@@ -11217,6 +11217,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -367,7 +367,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "Number of extra user rollback segments when create new database.",
-@@ -11149,6 +11154,7 @@
+@@ -11292,6 +11297,7 @@
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(enable_unsafe_group_commit),

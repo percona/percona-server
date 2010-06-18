@@ -132,7 +132,7 @@ Source:		Percona-Server.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server Percona-XtraDB-server
+Provides:	msqlormysql MySQL-server
 BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
 
 # Think about what you use here since the first step is to
@@ -157,7 +157,8 @@ For more information visist our web site http://www.percona.com/
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	 chkconfig coreutils shadow-utils grep procps
-Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
+Obsoletes:  Percona-XtraDB-server-51
+Provides:	msqlormysql mysql-server MySQL-server
 
 %description -n Percona-Server-server%{package_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
@@ -180,7 +181,8 @@ package "Percona-Server-client%{package_suffix}" as well!
 %package -n Percona-Server-client%{package_suffix}
 Summary: Percona-Server - Client
 Group: Applications/Databases
-Provides: mysql-client MySQL-client Percona-XtraDB-client mysql MySQL
+Obsoletes:  Percona-XtraDB-client%{package_suffix}
+Provides: mysql-client MySQL-client mysql MySQL
 
 %description -n Percona-Server-client%{package_suffix}
 This package contains the standard Percona Serverclients and administration tools. 
@@ -194,7 +196,8 @@ This package contains the standard Percona Serverclients and administration tool
 Requires: mysql-client perl
 Summary: Percona-Server - Test suite
 Group: Applications/Databases
-Provides: mysql-test MySQL-test Percona-XtraDB-test
+Obsoletes:  Percona-XtraDB-test%{package_suffix}
+Provides: mysql-test MySQL-test
 AutoReqProv: no
 
 %description -n Percona-Server-test%{package_suffix}
@@ -207,7 +210,8 @@ This package contains the Percona-Server regression test suite.
 %package -n Percona-Server-devel%{package_suffix}
 Summary: Percona-Server - Development header files and libraries
 Group: Applications/Databases
-Provides: mysql-devel MySQL-devel Percona-XtraDB-devel
+Obsoletes:  Percona-XtraDB-devel%{package_suffix}
+Provides: mysql-devel MySQL-devel
 
 %description -n Percona-Server-devel%{package_suffix}
 This package contains the development header files and libraries
@@ -220,7 +224,8 @@ necessary to develop Percona Server client applications.
 %package -n Percona-Server-shared%{package_suffix}
 Summary: Percona-Server - Shared libraries
 Group: Applications/Databases
-Provides: mysql-shared MySQL-shared Percona-XtraDB-shared
+Obsoletes:  Percona-XtraDB-shared%{package_suffix}
+Provides: mysql-shared MySQL-shared
 
 %description -n Percona-Server-shared%{package_suffix}
 This package contains the shared libraries (*.so*) which certain

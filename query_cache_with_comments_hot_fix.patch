@@ -107,8 +107,8 @@
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
---- Percona-Server/storage/innodb_plugin/include/univ.i.old	2010-06-25 09:04:50.125925877 +0400
-+++ Percona-Server/storage/innodb_plugin/include/univ.i	2010-06-25 09:05:07.105924448 +0400
+--- a/storage/innodb_plugin/include/univ.i	2010-06-25 09:04:50.125925877 +0400
++++ b/storage/innodb_plugin/include/univ.i	2010-06-25 09:05:07.105924448 +0400
 @@ -49,7 +49,7 @@
  #define INNODB_VERSION_BUGFIX	8
  

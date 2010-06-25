@@ -41,3 +41,4 @@ bug580324.patch
 control-global-slow.patch
 microseconds_in_slow_query_log.patch
 query_cache_with_comments.patch
+query_cache_with_comments_hot_fix.patch

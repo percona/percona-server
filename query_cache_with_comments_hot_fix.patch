@@ -1,0 +1,120 @@
+--- Percona-Server/sql/query_strip_comments.h	2010-06-25 08:52:39.347162722 +0400
++++ good/sql/query_strip_comments.h	2010-06-25 08:39:19.135977437 +0400
+@@ -21,7 +21,6 @@
+   char* buffer;
+   uint  length /*query length, not buffer length*/;
+   uint  buffer_length;
+-  bool control;
+ };
+ class QueryStripComments_Backup
+ {
+--- Percona-Server/sql/sql_cache.cc	2010-06-25 08:52:39.347162722 +0400
++++ good/sql/sql_cache.cc	2010-06-25 08:45:13.645911942 +0400
+@@ -340,7 +340,6 @@
+   buffer = 0;
+   length = 0;
+   buffer_length = 0;
+-  control = false;
+ }
+ QueryStripComments::~QueryStripComments()
+ {
+@@ -349,27 +348,12 @@
+ 
+ void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
+ {
+-  if(false == opt_query_cache_strip_comments)
++  uint new_buffer_length = query_length + additional_length;
++  if(new_buffer_length > buffer_length)
+     {
+       cleanup();
+-      control = false;
+-      buffer = (char*)query;
+-      length = query_length;
+-      return;
++      buffer = (char*)my_malloc(new_buffer_length,MYF(0));
+     }
+-  if(!control)
+-    {
+-      cleanup();
+-      control = true;
+-    }
+-  {
+-    uint new_buffer_length = query_length + additional_length;
+-    if(new_buffer_length > buffer_length)
+-      {
+-	cleanup();
+-	buffer = (char*)my_malloc(new_buffer_length,MYF(0));
+-      }
+-  }
+   uint query_position = 0;
+   uint position = 0;
+   int last_space = -1;
+@@ -486,7 +470,7 @@
+ }
+ void QueryStripComments::cleanup()
+ {
+-  if(control && buffer)
++  if(buffer)
+   {
+     my_free(buffer,MYF(0));
+   }
+@@ -496,14 +480,27 @@
+ }
+ QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc)
+ {
+-  thd = a_thd;
+-  query = thd->query();
+-  length = thd->query_length();
+-  thd->set_query(qsc->query(),qsc->query_length());
++  if(opt_query_cache_strip_comments)
++  {
++    thd = a_thd;
++    query = thd->query();
++    length = thd->query_length();
++    qsc->set(query,length,thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    thd->set_query(qsc->query(),qsc->query_length());
++  }
++  else
++  {
++    thd = 0;
++    query = 0;
++    length = 0;
++  }
+ }
+ QueryStripComments_Backup::~QueryStripComments_Backup()
+ {
+-  thd->set_query(query,length);
++  if(thd)
++  {
++    thd->set_query(query,length);
++  }
+ }
+ 
+ #ifdef EMBEDDED_LIBRARY
+@@ -1607,9 +1604,12 @@
+   DBUG_ASSERT(thd->net.query_cache_query == 0);
+ 
+   Query_cache_block *query_block;
+-  query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+-  sql          = query_strip_comments->query();
+-  query_length = query_strip_comments->query_length();
++  if(opt_query_cache_strip_comments)
++  {
++    query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    sql          = query_strip_comments->query();
++    query_length = query_strip_comments->query_length();
++  }
+ 
+   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
+   if (thd->db_length)
+--- Percona-Server/storage/innodb_plugin/include/univ.i.old	2010-06-25 09:04:50.125925877 +0400
++++ Percona-Server/storage/innodb_plugin/include/univ.i	2010-06-25 09:05:07.105924448 +0400
+@@ -49,7 +49,7 @@
+ #define INNODB_VERSION_BUGFIX	8
+ 
+ #ifndef PERCONA_INNODB_VERSION
+-#define PERCONA_INNODB_VERSION 11.0
++#define PERCONA_INNODB_VERSION 11.1
+ #endif
+ 
+ 

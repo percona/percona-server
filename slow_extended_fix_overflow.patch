@@ -1,0 +1,18 @@
+--- a/sql/log.cc	2010-07-01 01:29:35.850450968 +0400
++++ b/sql/log.cc	2010-07-01 01:49:39.340476234 +0400
+@@ -1019,7 +1019,14 @@
+     current_time= my_time_possible_from_micro(current_utime);
+     if (thd->start_utime)
+     {
+-      query_utime= (current_utime - thd->start_utime);
++      if(current_utime < thd->start_utime)
++      {
++        query_utime= 0;
++      }
++      else
++      {
++        query_utime= (current_utime - thd->start_utime);
++      }
+       lock_utime=  (thd->utime_after_lock - thd->start_utime);
+     }
+     else

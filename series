@@ -43,3 +43,4 @@ microseconds_in_slow_query_log.patch
 query_cache_with_comments.patch
 bugfix48929.patch
 control-global-slow-2.patch
+query_cache_with_comments_hot_fix.patch

@@ -45,3 +45,4 @@ bugfix48929.patch
 control-global-slow-2.patch
 query_cache_with_comments_hot_fix.patch
 slow_extended_fix_overflow.patch
+slow_extended_slave_innodb_stats_fix.patch

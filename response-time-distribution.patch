@@ -1,0 +1,795 @@
+diff -Nur a/include/mysql_com.h b/include/mysql_com.h
+--- a/include/mysql_com.h	2010-07-02 01:24:32.191691645 +0400
++++ b/include/mysql_com.h	2010-07-02 01:39:32.820441561 +0400
+@@ -128,10 +128,11 @@
+ #define REFRESH_FAST		32768	/* Intern flag */
+ 
+ /* RESET (remove all queries) from query cache */
+-#define REFRESH_QUERY_CACHE	65536
+-#define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
+-#define REFRESH_DES_KEY_FILE	0x40000L
+-#define REFRESH_USER_RESOURCES	0x80000L
++#define REFRESH_QUERY_CACHE	     65536
++#define REFRESH_QUERY_CACHE_FREE    0x20000L /* pack query cache */
++#define REFRESH_DES_KEY_FILE	     0x40000L
++#define REFRESH_USER_RESOURCES	     0x80000L
++#define REFRESH_QUERY_RESPONSE_TIME 0x100000L /* response time distibution */
+ 
+ #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
+ #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
+diff -Nur a/mysql-test/r/information_schema_db.result b/mysql-test/r/information_schema_db.result
+--- a/mysql-test/r/information_schema_db.result	2010-07-02 01:24:33.390439300 +0400
++++ b/mysql-test/r/information_schema_db.result	2010-07-02 01:39:32.820441561 +0400
+@@ -25,6 +25,7 @@
+ PROFILING
+ REFERENTIAL_CONSTRAINTS
+ ROUTINES
++QUERY_RESPONSE_TIME
+ SCHEMATA
+ SCHEMA_PRIVILEGES
+ SESSION_STATUS
+diff -Nur a/mysql-test/r/information_schema.result b/mysql-test/r/information_schema.result
+--- a/mysql-test/r/information_schema.result	2010-07-02 01:24:33.390439300 +0400
++++ b/mysql-test/r/information_schema.result	2010-07-02 01:39:32.820441561 +0400
+@@ -63,6 +63,7 @@
+ PROFILING
+ REFERENTIAL_CONSTRAINTS
+ ROUTINES
++QUERY_RESPONSE_TIME
+ SCHEMATA
+ SCHEMA_PRIVILEGES
+ SESSION_STATUS
+@@ -907,7 +908,7 @@
+ flush privileges;
+ SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+ table_schema	count(*)
+-information_schema	52
++information_schema	53
+ mysql	22
+ create table t1 (i int, j int);
+ create trigger trg1 before insert on t1 for each row
+@@ -1314,6 +1315,7 @@
+ PROFILING	QUERY_ID
+ REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
+ ROUTINES	ROUTINE_SCHEMA
++QUERY_RESPONSE_TIME	time
+ SCHEMATA	SCHEMA_NAME
+ SCHEMA_PRIVILEGES	TABLE_SCHEMA
+ SESSION_STATUS	VARIABLE_NAME
+@@ -1381,6 +1383,7 @@
+ PROFILING	QUERY_ID
+ REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
+ ROUTINES	ROUTINE_SCHEMA
++QUERY_RESPONSE_TIME	time
+ SCHEMATA	SCHEMA_NAME
+ SCHEMA_PRIVILEGES	TABLE_SCHEMA
+ SESSION_STATUS	VARIABLE_NAME
+@@ -1512,6 +1515,7 @@
+ PLUGINS	information_schema.PLUGINS	1
+ PROCESSLIST	information_schema.PROCESSLIST	1
+ PROFILING	information_schema.PROFILING	1
++QUERY_RESPONSE_TIME	information_schema.QUERY_RESPONSE_TIME	1
+ REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
+ ROUTINES	information_schema.ROUTINES	1
+ SCHEMATA	information_schema.SCHEMATA	1
+diff -Nur a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
+--- a/mysql-test/r/mysqlshow.result	2010-07-02 01:24:33.400441134 +0400
++++ b/mysql-test/r/mysqlshow.result	2010-07-02 01:39:32.830450377 +0400
+@@ -99,6 +99,7 @@
+ | PROFILING                             |
+ | REFERENTIAL_CONSTRAINTS               |
+ | ROUTINES                              |
++| QUERY_RESPONSE_TIME                   |
+ | SCHEMATA                              |
+ | SCHEMA_PRIVILEGES                     |
+ | SESSION_STATUS                        |
+@@ -156,6 +157,7 @@
+ | PROFILING                             |
+ | REFERENTIAL_CONSTRAINTS               |
+ | ROUTINES                              |
++| QUERY_RESPONSE_TIME                   |
+ | SCHEMATA                              |
+ | SCHEMA_PRIVILEGES                     |
+ | SESSION_STATUS                        |
+diff -Nur a/patch_info/response-time-distribution.info b/patch_info/response-time-distribution.info
+--- a/patch_info/response-time-distribution.info	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/response-time-distribution.info	2010-07-02 01:39:32.830450377 +0400
+@@ -0,0 +1,9 @@
++File=response-time-distribution.patch
++Name=Response time distribution
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++Changelog
++2010-07-02
++First version avaliable
+\ В конце файла нет новой строки
+diff -Nur a/sql/lex.h b/sql/lex.h
+--- a/sql/lex.h	2010-07-02 01:24:32.201691242 +0400
++++ b/sql/lex.h	2010-07-02 01:39:32.830450377 +0400
+@@ -415,6 +415,7 @@
+   { "PURGE",		SYM(PURGE)},
+   { "QUARTER",          SYM(QUARTER_SYM)},
+   { "QUERY",		SYM(QUERY_SYM)},
++  { "QUERY_RESPONSE_TIME", SYM(QUERY_RESPONSE_TIME_SYM)},
+   { "QUICK",	        SYM(QUICK)},
+   { "RANGE",            SYM(RANGE_SYM)},
+   { "READ",		SYM(READ_SYM)},
+diff -Nur a/sql/Makefile.am b/sql/Makefile.am
+--- a/sql/Makefile.am	2010-07-02 01:24:31.900441413 +0400
++++ b/sql/Makefile.am	2010-07-02 01:39:32.830450377 +0400
+@@ -67,7 +67,7 @@
+ 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
+ 			log_event.h rpl_record.h \
+ 			log_event_old.h rpl_record_old.h \
+-			sql_sort.h sql_cache.h set_var.h \
++			sql_sort.h sql_cache.h set_var.h query_response_time.h \
+ 			spatial.h gstream.h client_settings.h tzfile.h \
+ 			tztime.h my_decimal.h\
+ 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
+@@ -90,7 +90,7 @@
+ 			sql_string.cc sql_manager.cc sql_map.cc \
+ 			mysqld.cc password.c hash_filo.cc hostname.cc \
+ 			sql_connect.cc scheduler.cc sql_parse.cc \
+-			set_var.cc sql_yacc.yy \
++			set_var.cc query_response_time.cc sql_yacc.yy \
+ 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
+ 			sql_profile.cc \
+ 			sql_prepare.cc sql_error.cc sql_locale.cc \
+diff -Nur a/sql/Makefile.in b/sql/Makefile.in
+--- a/sql/Makefile.in	2010-07-02 01:24:31.900441413 +0400
++++ b/sql/Makefile.in	2010-07-02 01:39:32.830450377 +0400
+@@ -121,7 +121,7 @@
+ 	sql_string.$(OBJEXT) sql_manager.$(OBJEXT) sql_map.$(OBJEXT) \
+ 	mysqld.$(OBJEXT) password.$(OBJEXT) hash_filo.$(OBJEXT) \
+ 	hostname.$(OBJEXT) sql_connect.$(OBJEXT) scheduler.$(OBJEXT) \
+-	sql_parse.$(OBJEXT) set_var.$(OBJEXT) sql_yacc.$(OBJEXT) \
++	sql_parse.$(OBJEXT) set_var.$(OBJEXT) query_response_time.${OBJEXT} sql_yacc.$(OBJEXT) \
+ 	sql_base.$(OBJEXT) table.$(OBJEXT) sql_select.$(OBJEXT) \
+ 	sql_insert.$(OBJEXT) sql_profile.$(OBJEXT) \
+ 	sql_prepare.$(OBJEXT) sql_error.$(OBJEXT) sql_locale.$(OBJEXT) \
+@@ -563,7 +563,7 @@
+ 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
+ 			log_event.h rpl_record.h \
+ 			log_event_old.h rpl_record_old.h \
+-			sql_sort.h sql_cache.h set_var.h \
++			sql_sort.h sql_cache.h set_var.h query_response_time.h \
+ 			spatial.h gstream.h client_settings.h tzfile.h \
+ 			tztime.h my_decimal.h\
+ 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
+@@ -586,7 +586,7 @@
+ 			sql_string.cc sql_manager.cc sql_map.cc \
+ 			mysqld.cc password.c hash_filo.cc hostname.cc \
+ 			sql_connect.cc scheduler.cc sql_parse.cc \
+-			set_var.cc sql_yacc.yy \
++			set_var.cc query_response_time.cc sql_yacc.yy \
+ 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
+ 			sql_profile.cc \
+ 			sql_prepare.cc sql_error.cc sql_locale.cc \
+@@ -829,6 +829,7 @@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/password.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/procedure.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/protocol.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/query_response_time.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/records.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/repl_failsafe.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rpl_filter.Po@am__quote@
+diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-02 01:24:33.630441664 +0400
++++ b/sql/mysqld.cc	2010-07-02 01:39:32.840440196 +0400
+@@ -32,6 +32,8 @@
+ 
+ #include "rpl_injector.h"
+ 
++#include "query_response_time.h"
++
+ #ifdef HAVE_SYS_PRCTL_H
+ #include <sys/prctl.h>
+ #endif
+@@ -493,6 +495,8 @@
+ my_bool opt_query_cache_strip_comments;
+ my_bool opt_use_global_long_query_time= 0;
+ my_bool opt_slow_query_log_microseconds_timestamp= 0;
++ulong   opt_query_response_time_range_base  = QUERY_RESPONSE_TIME_DEFAULT_BASE;
++my_bool opt_enable_query_response_time_stats= 0;
+ my_bool lower_case_file_system= 0;
+ my_bool opt_large_pages= 0;
+ my_bool opt_myisam_use_mmap= 0;
+@@ -1348,6 +1352,7 @@
+   free_global_thread_stats();
+   free_global_table_stats();
+   free_global_index_stats();
++  query_response_time_free();
+ #ifdef HAVE_REPLICATION
+   end_slave_list();
+ #endif
+@@ -4034,6 +4039,7 @@
+ 
+   init_global_table_stats();
+   init_global_index_stats();
++  query_response_time_init();
+ 
+   /* We have to initialize the storage engines before CSV logging */
+   if (ha_init())
+@@ -5834,6 +5840,8 @@
+   OPT_USE_GLOBAL_LONG_QUERY_TIME,
+   OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
+   OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
++  OPT_QUERY_RESPONSE_TIME_RANGE_BASE,
++  OPT_ENABLE_QUERY_RESPONSE_TIME_STATS,
+   OPT_IGNORE_BUILTIN_INNODB,
+   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
+   OPT_DEFAULT_CHARACTER_SET_OLD
+@@ -6854,6 +6862,21 @@
+    "Use microsecond time's precision in slow query log",
+    (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
+    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
++  {"query_response_time_range_base", OPT_QUERY_RESPONSE_TIME_RANGE_BASE,
++     "Select base of log for query_response_time ranges. WARNING: variable change affect only after flush",
++   (uchar**) &opt_query_response_time_range_base, (uchar**) &opt_query_response_time_range_base,
++   0, GET_ULONG, REQUIRED_ARG, 
++   /* def_value */  QUERY_RESPONSE_TIME_DEFAULT_BASE,
++   /* min_value */  2,
++   /* max_value */  QUERY_RESPONSE_TIME_MAXIMUM_BASE, 
++   /* sub_size */   0,
++   /* block_size */ 1,
++   /* app_type */ 0
++  },
++  {"enable_query_response_time_stats", OPT_ENABLE_QUERY_RESPONSE_TIME_STATS,
++   "Enable or disable query response time statisics collecting",
++   (uchar**) &opt_enable_query_response_time_stats, (uchar**) &opt_enable_query_response_time_stats,
++   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
+    "If set to 1, table names are stored in lowercase on disk and table names "
+    "will be case-insensitive.  Should be set to 2 if you are using a case-"
+diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-07-02 01:24:33.620439832 +0400
++++ b/sql/mysql_priv.h	2010-07-02 01:39:32.850439794 +0400
+@@ -2133,6 +2133,8 @@
+ extern my_bool opt_query_cache_strip_comments;
+ extern my_bool opt_use_global_long_query_time;
+ extern my_bool opt_slow_query_log_microseconds_timestamp;
++extern ulong   opt_query_response_time_range_base;
++extern my_bool opt_enable_query_response_time_stats;
+ extern my_bool sp_automatic_privileges, opt_noacl;
+ extern my_bool opt_old_style_user_limits, trust_function_creators;
+ extern uint opt_crash_binlog_innodb;
+diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
+--- a/sql/query_response_time.cc	1970-01-01 03:00:00.000000000 +0300
++++ b/sql/query_response_time.cc	2010-07-02 01:39:32.850439794 +0400
+@@ -0,0 +1,290 @@
++#include "my_global.h"
++#include "mysql_priv.h"
++#include "mysql_com.h"
++#include "rpl_tblmap.h"
++#include "query_response_time.h"
++
++#define STRING_POSITIVE_POWER_LENGTH QUERY_RESPONSE_TIME_STRING_POSITIVE_POWER_LENGTH
++#define STRING_NEGATIVE_POWER_LENGTH 6
++#define MINIMUM_BASE 2
++#define MAXIMUM_BASE QUERY_RESPONSE_TIME_MAXIMUM_BASE
++#define POSITIVE_POWER_FILLER QUERY_RESPONSE_TIME_POSITIVE_POWER_FILLER
++#define NEGATIVE_POWER_FILLER QUERY_RESPONSE_TIME_NEGATIVE_POWER_FILLER
++#define STRING_OVERFLOW QUERY_RESPONSE_TIME_STRING_OVERFLOW
++#define TIME_OVERFLOW   QUERY_RESPONSE_TIME_TIME_OVERFLOW
++#define DEFAULT_BASE    QUERY_RESPONSE_TIME_DEFAULT_BASE
++
++#define do_xstr(s) do_str(s)
++#define do_str(s) #s
++#define do_format(filler,width) "%" filler width "llu"
++/*
++  Format strings for snprintf. Generate from:
++  POSITIVE_POWER_FILLER and STRING_POSITIVE_POWER_LENGTH
++  NEFATIVE_POWER_FILLER and STRING_NEGATIVE_POWER_LENGTH
++*/
++#define STRING_POSITIVE_POWER_FORMAT do_format(POSITIVE_POWER_FILLER,do_xstr(STRING_POSITIVE_POWER_LENGTH))
++#define STRING_NEGATIVE_POWER_FORMAT do_format(NEGATIVE_POWER_FILLER,do_xstr(STRING_NEGATIVE_POWER_LENGTH))
++#define STRING_FORMAT		      STRING_POSITIVE_POWER_FORMAT "." STRING_NEGATIVE_POWER_FORMAT
++
++
++#define STRING_LENGTH	QUERY_RESPONSE_TIME_STRING_LENGTH
++#define STRING_BUFFER_LENGTH	(STRING_LENGTH + 1 /* '\0' */)
++
++/*
++  Calculate length of "log linear"
++  1)
++  (MINIMUM_BASE ^ result) <= (10 ^ STRING_POWER_LENGTH) < (MINIMUM_BASE ^ (result + 1))
++
++  2)
++  (MINIMUM_BASE ^ result) <= (10 ^ STRING_POWER_LENGTH)
++  and
++  (MINIMUM_BASE ^ (result + 1)) > (10 ^ STRING_POWER_LENGTH)
++
++  3)
++  result     <= LOG(MINIMUM_BASE, 10 ^ STRING_POWER_LENGTH)= STRING_POWER_LENGTH * LOG(MINIMUM_BASE,10)
++  result + 1 >  LOG(MINIMUM_BASE, 10 ^ STRING_POWER_LENGTH)= STRING_POWER_LENGTH * LOG(MINIMUM_BASE,10)
++
++  4) STRING_POWER_LENGTH * LOG(MINIMUM_BASE,10) - 1 < result <= STRING_POWER_LENGTH * LOG(MINIMUM_BASE,10)
++
++  MINIMUM_BASE= 2 always, LOG(MINIMUM_BASE,10)= 3.3219280948873626, result= (int)3.3219280948873626 * STRING_POWER_LENGTH
++
++  Last counter always use for time overflow
++*/
++#define POSITIVE_POWER_COUNT ((int)(3.32192809 * STRING_POSITIVE_POWER_LENGTH))
++#define NEGATIVE_POWER_COUNT ((int)(3.32192809 * STRING_NEGATIVE_POWER_LENGTH))
++#define OVERALL_POWER_COUNT (NEGATIVE_POWER_COUNT + 1 + POSITIVE_POWER_COUNT)
++
++namespace query_response_time
++{
++
++class utility
++{
++public:
++  utility() : m_base(0)
++  {
++    const ulonglong million= 1000 * 1000;
++    m_max_dec_value= million;
++    for(int i= 0; STRING_POSITIVE_POWER_LENGTH > i; ++i)
++      m_max_dec_value *= 10;
++    setup(DEFAULT_BASE);
++  }
++public:
++  uint      base()            const { return m_base; }
++  uint      negative_count()  const { return m_negative_count; }
++  uint      positive_count()  const { return m_positive_count; }
++  uint      bound_count()     const { return m_bound_count; }
++  ulonglong max_dec_value()   const { return m_max_dec_value; }
++  ulonglong bound(uint index) const { return m_bound[ index ]; }
++public:
++  void setup(uint base)
++  {
++    if(base != m_base)
++    {
++      m_base= base;
++
++      const ulonglong million= 1000 * 1000;
++      ulonglong value= million;
++      m_negative_count= 0;
++      while(value > 0)
++      {
++	m_negative_count += 1;
++	value /= m_base;
++      }
++      m_negative_count -= 1;
++
++      value= million;
++      m_positive_count= 0;
++      while(value < m_max_dec_value)
++      {
++	m_positive_count += 1;
++	value *= m_base;
++      }
++      m_bound_count= m_negative_count + m_positive_count;
++
++      value= million;
++      for(int i= 0; i < m_negative_count; ++i)
++      {
++	value /= m_base;
++	m_bound[m_negative_count - i - 1]= value;
++      }
++      value= million;
++      for(int i= 0; i < m_positive_count;  ++i)
++      {
++	m_bound[m_negative_count + i]= value;
++	value *= m_base;
++      }
++    }
++  }
++private:
++  uint      m_base;
++  uint      m_negative_count;
++  uint      m_positive_count;
++  uint      m_bound_count;
++  ulonglong m_max_dec_value; /* for STRING_POSITIVE_POWER_LENGTH=7 is 10000000 */
++  ulonglong m_bound[OVERALL_POWER_COUNT];
++};
++
++class string_collector
++{
++private:
++  typedef char string_type[STRING_BUFFER_LENGTH];
++public:
++  string_collector(utility& u) : m_base(0), m_utility(0)
++  {
++    memset((char*)m_nothing,'X',STRING_BUFFER_LENGTH);
++    m_nothing[STRING_POSITIVE_POWER_LENGTH]= '.';
++    m_nothing[STRING_LENGTH]= '\0';
++    setup(u);
++  }
++public:
++  const char* string(uint index) const { return m_bound[ index ]; }
++public:
++  void setup(utility& u)
++  {
++    if(m_base != u.base())
++    {
++      m_utility= &u;
++      m_base= m_utility->base();
++      const ulonglong million= 1000 * 1000;
++      for(int i= 0; OVERALL_POWER_COUNT + 1 > i; ++i)
++      {
++	memcpy((char*)m_bound[i],(char*)m_nothing,STRING_BUFFER_LENGTH);
++      }
++
++      for(int i= 0, count= m_utility->bound_count(); i < count; ++i)
++      {
++	ulonglong value  = m_utility->bound(i);
++	char*     result = (char*)m_bound[i];
++        if(0 > snprintf(result,STRING_BUFFER_LENGTH,STRING_FORMAT,(value / million),(value % million)))
++        {
++	  // string overflow
++          memcpy(result,STRING_OVERFLOW,sizeof(STRING_OVERFLOW));
++        }
++      }
++      memcpy((char*)(m_bound[m_utility->bound_count()]),TIME_OVERFLOW,sizeof(TIME_OVERFLOW));
++    }
++  }
++private:
++  utility*    m_utility;
++  ulong       m_base;
++  string_type m_bound[OVERALL_POWER_COUNT + 1];
++  string_type m_nothing;
++};
++
++class time_collector
++{
++public:
++  time_collector(utility& u) : m_utility(&u)
++  {
++  }
++  ulong count(uint index) { return m_count[index]; }
++public:
++  void flush()
++  {
++    memset(&m_count,0,sizeof(m_count));
++  }
++  void collect(ulonglong time)
++  {
++    int i= 0;
++    for(int count= m_utility->bound_count(); count > i; ++i)
++    {
++      if(m_utility->bound(i) > time)
++      {
++	m_count[i] += 1;
++	break;
++      }
++    }
++  }
++private:
++  utility* m_utility;
++  ulong    m_base;
++  ulong    m_count[OVERALL_POWER_COUNT + 1];
++};
++
++class collector
++{
++public:
++  collector() : m_string(m_utility), m_time(m_utility)
++  {
++    m_utility.setup(DEFAULT_BASE);
++    m_string.setup(m_utility);
++    m_time.flush();
++  }
++public:
++  void flush()
++  {
++    m_utility.setup(opt_query_response_time_range_base);
++    m_string.setup(m_utility);
++    m_time.flush();
++  }
++  int fill(THD* thd, TABLE_LIST *tables, COND *cond)
++  {
++    DBUG_ENTER("fill_schema_query_response_time");
++    TABLE        *table= static_cast<TABLE*>(tables->table);
++    Field        **fields= table->field;
++    for(int i= 0, count= bound_count() + 1 /* with overflow */; count > i; ++i)
++    {
++      const char* time= this->string(i);
++      const ulong count= this->count(i);
++      fields[0]->store(time,strlen(time),system_charset_info);
++      fields[1]->store(count);
++      if (schema_table_store_record(thd, table))
++      {
++	DBUG_RETURN(1);
++      }
++    }
++    DBUG_RETURN(0);
++  }
++  void collect(ulonglong time)
++  {
++    m_time.collect(time);
++  }
++  uint bound_count() const
++  {
++    return m_utility.bound_count();
++  }
++  const char* string(uint index)
++  {
++    return m_string.string(index);
++  }
++  ulonglong count(uint index)
++  {
++    return m_time.count(index);
++  }
++public:
++  static collector* instance()
++  {
++    static collector v;
++    return &v;
++  }
++private:
++  utility          m_utility;
++  string_collector m_string;
++  time_collector   m_time;
++};
++
++} // namespace query_response_time
++
++void query_response_time_init()
++{
++  query_response_time::collector::instance();
++}
++
++void query_response_time_free()
++{
++  query_response_time::collector::instance()->flush();
++}
++
++void query_response_time_flush()
++{
++  query_response_time::collector::instance()->flush();
++}
++void query_response_time_collect(ulonglong query_time)
++{
++  query_response_time::collector::instance()->collect(query_time);
++}
++
++int query_response_time_fill(THD* thd, TABLE_LIST *tables, COND *cond)
++{
++  query_response_time::collector::instance()->fill(thd,tables,cond);
++}
+diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
+--- a/sql/query_response_time.h	1970-01-01 03:00:00.000000000 +0300
++++ b/sql/query_response_time.h	2010-07-02 01:39:32.850439794 +0400
+@@ -0,0 +1,63 @@
++#ifndef QUERY_RESPONSE_TIME_H
++#define QUERY_RESPONSE_TIME_H
++
++/*
++  Settings for query response time
++*/
++
++/*
++  Maximum string length for (10 ^ (-1 * QUERY_RESPONSE_TIME_STRING_NEGATIVE_POWER_LENGTH)) in text representation.
++  Example: for 6 is 0.000001
++  Always 2
++
++  Maximum string length for (10 ^ (QUERY_RESPONSE_TIME_STRING_POSITIVE_POWER_LENGTH + 1) - 1) in text representation.
++  Example: for 7 is 9999999.0
++*/
++#define QUERY_RESPONSE_TIME_STRING_POSITIVE_POWER_LENGTH 7
++
++/*
++  Minimum base for log - ALWAYS 2
++  Maximum base for log:
++*/
++#define QUERY_RESPONSE_TIME_MAXIMUM_BASE 1000
++
++/*
++  Filler for whole number (positive power)
++  Example: for
++  QUERY_RESPONSE_TIME_POSITIVE_POWER_FILLER ' '
++  QUERY_RESPONSE_TIME_POSITIVE_POWER_LENGTH 7
++  and number 7234 result is:
++  '   7234'
++*/
++#define QUERY_RESPONSE_TIME_POSITIVE_POWER_FILLER " "
++/*
++  Filler for fractional number. Similiary to whole number
++*/
++#define QUERY_RESPONSE_TIME_NEGATIVE_POWER_FILLER "0"
++
++/*
++  Message if string overflow (string overflow - internal error, this string say about bug in QUERY_RESPONSE_TIME)
++*/
++#define QUERY_RESPONSE_TIME_STRING_OVERFLOW "TOO BIG STRING"
++
++/*
++  Message if time too big for statistic collecting (very long query)
++*/
++#define QUERY_RESPONSE_TIME_TIME_OVERFLOW "TOO LONG QUERY"
++
++#define QUERY_RESPONSE_TIME_DEFAULT_BASE 10
++
++#define QUERY_RESPONSE_TIME_STRING_LENGTH				\
++  max( (QUERY_RESPONSE_TIME_STRING_POSITIVE_POWER_LENGTH + 1 /* '.' */ + 2 /*QUERY_RESPONSE_TIME_STRING_NEGATIVE_POWER_LENGTH*/), \
++       max( (sizeof(QUERY_RESPONSE_TIME_TIME_OVERFLOW) - 1),		\
++	    (sizeof(QUERY_RESPONSE_TIME_STRING_OVERFLOW) - 1) ) )
++
++extern ST_SCHEMA_TABLE query_response_time_table;
++
++extern void query_response_time_init   ();
++extern void query_response_time_free   ();
++extern void query_response_time_flush  ();
++extern void query_response_time_collect(ulonglong query_time);
++extern int  query_response_time_fill   (THD* thd, TABLE_LIST *tables, COND *cond);
++
++#endif // QUERY_RESPONSE_TIME_H
+diff -Nur a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-07-02 01:24:33.620439832 +0400
++++ b/sql/set_var.cc	2010-07-02 01:39:32.850439794 +0400
+@@ -995,6 +995,10 @@
+ static sys_var_use_global_long_query_time sys_use_global_long_query_time;
+ static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
+                                                        &opt_slow_query_log_microseconds_timestamp);
++static sys_var_bool_ptr       sys_enable_query_response_time_stats(&vars, "enable_query_response_time_stats",
++                                                       &opt_enable_query_response_time_stats);
++static sys_var_long_ptr       sys_query_response_time_range_base(&vars, "query_response_time_range_base",
++					               &opt_query_response_time_range_base);
+ /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
+ static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
+                                           &opt_slow_log, QUERY_LOG_SLOW);
+diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
+--- a/sql/sql_parse.cc	2010-07-02 01:24:33.640439586 +0400
++++ b/sql/sql_parse.cc	2010-07-02 01:39:32.860440509 +0400
+@@ -27,6 +27,7 @@
+ #include "sp_cache.h"
+ #include "events.h"
+ #include "sql_trigger.h"
++#include "query_response_time.h"
+ 
+ /**
+   @defgroup Runtime_Environment Runtime Environment
+@@ -1728,23 +1729,31 @@
+     Do not log administrative statements unless the appropriate option is
+     set.
+   */
+-  if (thd->enable_slow_log)
++  if (opt_enable_query_response_time_stats || thd->enable_slow_log)
+   {
+-    ulonglong end_utime_of_query= thd->current_utime();
+-    thd_proc_info(thd, "logging slow query");
+-
+-    if (((end_utime_of_query - thd->utime_after_lock) >
+-         thd->variables.long_query_time ||
+-         ((thd->server_status &
+-           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+-          opt_log_queries_not_using_indexes &&
+-           !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
+-        thd->examined_row_count >= thd->variables.min_examined_row_limit)
++    ulonglong end_utime_of_query   = thd->current_utime();
++    ulonglong query_execution_time = end_utime_of_query - thd->utime_after_lock;
++    if(opt_enable_query_response_time_stats)
++    {
++      query_response_time_collect(query_execution_time);
++    }
++    if (thd->enable_slow_log)
+     {
+       thd_proc_info(thd, "logging slow query");
+-      thd->status_var.long_query_count++;
+-      slow_log_print(thd, thd->query(), thd->query_length(), 
+-                     end_utime_of_query);
++
++      if ((query_execution_time >
++           thd->variables.long_query_time ||
++           ((thd->server_status &
++             (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
++            opt_log_queries_not_using_indexes &&
++             !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
++          thd->examined_row_count >= thd->variables.min_examined_row_limit)
++      {
++        thd_proc_info(thd, "logging slow query");
++        thd->status_var.long_query_count++;
++        slow_log_print(thd, thd->query(), thd->query_length(), 
++                       end_utime_of_query);
++      }
+     }
+   }
+   DBUG_VOID_RETURN;
+@@ -1869,6 +1878,7 @@
+   case SCH_CHARSETS:
+   case SCH_ENGINES:
+   case SCH_COLLATIONS:
++  case SCH_QUERY_RESPONSE_TIME:
+   case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
+   case SCH_USER_PRIVILEGES:
+   case SCH_SCHEMA_PRIVILEGES:
+@@ -7161,6 +7171,10 @@
+     init_global_index_stats();
+     pthread_mutex_unlock(&LOCK_global_index_stats);
+   }
++  if (options & REFRESH_QUERY_RESPONSE_TIME)
++  {
++    query_response_time_flush();
++  }
+   if (options & (REFRESH_USER_STATS | REFRESH_CLIENT_STATS | REFRESH_THREAD_STATS))
+   {
+     pthread_mutex_lock(&LOCK_global_user_client_stats);
+diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
+--- a/sql/sql_show.cc	2010-07-02 01:24:32.341690355 +0400
++++ b/sql/sql_show.cc	2010-07-02 01:39:32.870453236 +0400
+@@ -31,6 +31,7 @@
+ #include "event_data_objects.h"
+ #endif
+ #include <my_dir.h>
++#include "query_response_time.h"
+ #include "debug_sync.h"
+ 
+ #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
+@@ -7503,6 +7504,13 @@
+ 
+ */
+ 
++ST_FIELD_INFO query_response_time_fields_info[] =
++  {
++    {"time",  QUERY_RESPONSE_TIME_STRING_LENGTH,             MYSQL_TYPE_STRING,   0, 0,               "", SKIP_OPEN_TABLE },
++    {"count", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "", SKIP_OPEN_TABLE },
++    {0,       0,                           MYSQL_TYPE_STRING,   0, 0,               0,  SKIP_OPEN_TABLE }
++  };
++
+ ST_SCHEMA_TABLE schema_tables[]=
+ {
+   {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
+@@ -7557,6 +7565,8 @@
+    1, 9, 0, OPEN_TABLE_ONLY},
+   {"ROUTINES", proc_fields_info, create_schema_table, 
+    fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
++  {"QUERY_RESPONSE_TIME", query_response_time_fields_info, create_schema_table, 
++   query_response_time_fill, make_old_format, 0, -1, -1, 0, 0},
+   {"SCHEMATA", schema_fields_info, create_schema_table,
+    fill_schema_schemata, make_schemata_old_format, 0, 1, -1, 0, 0},
+   {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
+diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+--- a/sql/sql_yacc.yy	2010-07-02 01:24:32.351690512 +0400
++++ b/sql/sql_yacc.yy	2010-07-02 01:39:32.880456465 +0400
+@@ -1080,6 +1080,7 @@
+ %token  PURGE
+ %token  QUARTER_SYM
+ %token  QUERY_SYM
++%token  QUERY_RESPONSE_TIME_SYM
+ %token  QUICK
+ %token  RANGE_SYM                     /* SQL-2003-R */
+ %token  READS_SYM                     /* SQL-2003-R */
+@@ -10378,6 +10379,13 @@
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
+              MYSQL_YYABORT;
+           }
++        | QUERY_RESPONSE_TIME_SYM wild_and_where
++	  {
++           LEX *lex= Lex;
++           lex->sql_command= SQLCOM_SELECT;
++           if (prepare_schema_table(YYTHD, lex, 0, SCH_QUERY_RESPONSE_TIME))
++             MYSQL_YYABORT;	  
++	  }
+         | CREATE PROCEDURE sp_name
+           {
+             LEX *lex= Lex;
+@@ -10598,6 +10606,8 @@
+           { Lex->type|= REFRESH_TABLE_STATS; }
+         | INDEX_STATS_SYM
+           { Lex->type|= REFRESH_INDEX_STATS; }
++        | QUERY_RESPONSE_TIME_SYM
++          { Lex->type|= REFRESH_QUERY_RESPONSE_TIME; }
+         | MASTER_SYM
+           { Lex->type|= REFRESH_MASTER; }
+         | DES_KEY_FILE
+@@ -11856,6 +11866,7 @@
+         | PROFILES_SYM             {}
+         | QUARTER_SYM              {}
+         | QUERY_SYM                {}
++        | QUERY_RESPONSE_TIME_SYM  {}
+         | QUICK                    {}
+         | READ_ONLY_SYM            {}
+         | REBUILD_SYM              {}
+diff -Nur a/sql/table.h b/sql/table.h
+--- a/sql/table.h	2010-07-02 01:24:32.361689550 +0400
++++ b/sql/table.h	2010-07-02 01:39:32.900439457 +0400
+@@ -964,6 +964,7 @@
+   SCH_PROFILES,
+   SCH_REFERENTIAL_CONSTRAINTS,
+   SCH_PROCEDURES,
++  SCH_QUERY_RESPONSE_TIME,
+   SCH_SCHEMATA,
+   SCH_SCHEMA_PRIVILEGES,
+   SCH_SESSION_STATUS,

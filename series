@@ -1,6 +1,7 @@
 innodb_swap_builtin_plugin.patch
 show_patches.patch
 slow_extended.patch
+slow_extended_fix_overflow.patch
 profiling_slow.patch
 microsec_process.patch
 userstat.patch
@@ -40,10 +41,9 @@ innodb_deadlock_count.patch
 bug580324.patch
 control-global-slow.patch
 microseconds_in_slow_query_log.patch
-query_cache_with_comments.patch
 bugfix48929.patch
+query_cache_with_comments.patch
 control-global-slow-2.patch
 query_cache_with_comments_hot_fix.patch
-slow_extended_fix_overflow.patch
 response-time-distribution.patch
 query_cache_with_comments_cacheable_fix.patch

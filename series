@@ -41,5 +41,3 @@ bug580324.patch
 bugfix48929.patch
 response-time-distribution.patch
 query_cache_with_comments.patch
-query_cache_with_comments_hot_fix.patch
-query_cache_with_comments_cacheable_fix.patch

@@ -1,0 +1,401 @@
+diff -Nur a/patch_info/query_cache_with_comments.patch b/patch_info/query_cache_with_comments.patch
+--- a/patch_info/query_cache_with_comments.patch	2010-07-05 23:33:42.768972001 +0400
++++ b/patch_info/query_cache_with_comments.patch	2010-07-05 23:34:25.938972002 +0400
+@@ -1,9 +1,10 @@
+ File=query_cache_with_comments.patch
+ Name=Remove comments from query (need for cache hit)
+-Version=1.0
++Version=1.2
+ Author=Percona <info@percona.com>
+ License=GPL
+ Comment=
+ Changelog
+-2010-06-13
+-Second version of patch
++2010-07-05
++* Fix crash
++* Fix incorrect behavior
+diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
+--- a/sql/sql_cache.cc	2010-07-05 23:33:43.018972001 +0400
++++ b/sql/sql_cache.cc	2010-07-06 03:56:10.468972001 +0400
+@@ -346,127 +346,145 @@
+   cleanup();
+ }
+ 
++inline bool query_strip_comments_is_white_space(char c)
++{
++  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
++}
+ void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
+ {
+   uint new_buffer_length = query_length + additional_length;
+   if(new_buffer_length > buffer_length)
+-    {
+-      cleanup();
+-      buffer = (char*)my_malloc(new_buffer_length,MYF(0));
+-    }
++  {
++    cleanup();
++    buffer = (char*)my_malloc(new_buffer_length,MYF(0));
++  }
+   uint query_position = 0;
+   uint position = 0;
+-  int last_space = -1;
++  // Skip whitespaces from begin
++  while((query_position < query_length) && query_strip_comments_is_white_space(query[query_position]))
++  {
++    ++query_position;
++  }
++  long int last_space = -1;
+   while(query_position < query_length)
++  {
++    char current = query[query_position];
++    bool insert_space = false; // insert space to buffer, (IMPORTANT) don't update query_position
++    switch(current)
+     {
+-      char current = query[query_position];
+-      switch(current)
+-	{
+-	case '\'':
+-	  do
+-	    {
+-	      buffer[position] = query[query_position]; // copy current symbol
+-	      ++position;
+-	      ++query_position;
+-	      if('\'' == query[query_position])
+-		break;
+-	    }
+-	  while(query_position < query_length);
+-	  break;
+-	case '"':
+-	  do
+-	    {
+-	      buffer[position] = query[query_position]; // copy current symbol
+-	      ++position;
+-	      ++query_position;
+-	      if('"' == query[query_position])
+-		break;
+-	    }
+-	  while(query_position < query_length);
+-	  break;
+-	case '/':
+-	  if('*' == query[query_position+1])
+-	    {
+-	      query_position += 2; // skip "/*"
+-	      do
+-		{
+-		  if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
+-		    {
+-		      query_position += 2; // skip "*/"
+-		      break;
+-		    }
+-		  else
+-		    {
+-		      ++query_position;
+-		    }
+-		}
+-	      while(query_position < query_length);
+-	      continue; // analyze current symbol
+-	    }
+-	  break;
+-	case '#':
+-	  do
+-	    {
+-	      ++query_position; // skip current symbol
+-	      if('\n' == query[query_position])  // check for '\n'
+-		{
+-		  ++query_position; // skip '\n'
+-		  break;
+-		}
+-	    }
+-	  while(query_position < query_length);
+-	  continue; // analyze current symbol
+-	case '-':
+-	  if(query[query_position+1] == '-')
+-	    {
+-	      ++query_position; // skip "-"
+-	      do
+-		{
+-		  ++query_position; // skip current symbol
+-		  if('\n' == query[query_position]) // check for '\n'
+-		    {
+-		      ++query_position; // skip '\n'
+-		      break;
+-		    }
+-		}
+-	      while(query_position < query_length);
+-	      continue; // analyze current symbol
+-	    }
+-	  break;
+-	case '\r':
+-	case '\n':
+-	case ' ':
+-	  if((last_space + 1) == position)
+-	    {
+-	      last_space = position;
+-	      ++query_position; // skip double space
+-	      continue;
+-	    }
+-	  else
+-	    {
+-	      last_space = position;
+-	      break;
+-	    }
+-	break;
+-	default:
+-	  break; // make gcc happy
+-	}
+-      buffer[position] = current;
+-      ++query_position;
+-      ++position;
++    case '\'':
++    case '"':
++      {
++        buffer[position++] = query[query_position++]; // copy current symbol
++        bool escaping = false;
++        while(query_position < query_length)
++        {
++          if(escaping) // previous symbol was "\", just copy escaped symbol
++          {
++            escaping = false;
++          }
++          else
++          {
++            if(current == query[query_position]) // found pair quote
++            {
++              break;
++            }
++            if('\\' == query[query_position]) // notify about escaping
++            {
++              escaping = true;
++            }
++          }
++          buffer[position++] = query[query_position++]; // copy current symbol
++        }
++        break;
++      }
++    case '/':
++      {
++        if('*' == query[query_position+1])
++        {
++          query_position += 2; // skip "/*"
++          do
++          {
++            if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
++            {
++              query_position += 2; // skip "*/"
++              insert_space = true;
++              break;
++            }
++            else
++            {
++              ++query_position;
++            }
++          }
++          while(query_position < query_length);
++          if(!insert_space)
++          {
++            continue;
++          }
++        }
++        break;
++      }
++    case '-':
++      {
++        if(query[query_position+1] == '-')
++        {
++          ++query_position; // skip "-", and go to search of "\n"
++        }
++        else
++        {
++          break;
++        }
++      }
++    case '#':
++      {
++        do
++        {
++          ++query_position; // skip current symbol (# or -)
++          if('\n' == query[query_position])  // check for '\n'
++          {
++            ++query_position; // skip '\n'
++            insert_space = true;
++            break;
++          }
++        }
++        while(query_position < query_length);
++        if(insert_space)
++        {
++          break;
++        }
++        else
++        {
++          continue;
++        }
++      }
++    default:
++      break; // make gcc happy
+     }
+-    switch(buffer[position-1])
++    bool is_white_space = query_strip_comments_is_white_space(current);
++    insert_space = insert_space || is_white_space;
++    if(insert_space)
++    {
++      if((last_space + 1) != position)
+       {
+-      case ' ':
+-      case '\r':
+-      case '\n':
+-	--position;
+-      break;
+-      default:
+-	break; // make gcc happy
++        last_space = position;
++        buffer[position++] = ' ';
++      }
++      if(is_white_space)
++      {
++        ++query_position;
+       }
+-    buffer[position] = 0;
+-    length = position;
++    }
++    else
++    {
++      buffer[position++] = query[query_position++];
++    }
++  }
++  while((0 < position) && query_strip_comments_is_white_space(buffer[position - 1]))
++  {
++    --position;
++  }
++  buffer[position] = 0;
++  length = position;
+ }
+ void QueryStripComments::cleanup()
+ {
+@@ -1549,21 +1567,103 @@
+ 
+   {
+     uint i= 0;
+-    /*
+-      Skip '(' characters in queries like following:
+-      (select a from t1) union (select a from t1);
+-    */
+-    while (sql[i]=='(')
+-      i++;
++    if(opt_query_cache_strip_comments)
++    {
++      /* Skip all comments and non-letter symbols */
++      uint& query_position = i;
++      char* query = sql;
++      while(query_position < query_length)
++      {
++        bool check = false;
++        char current = query[query_position];
++        switch(current)
++        {
++        case '/':
++          if('*' == query[query_position+1])
++          {
++            query_position += 2; // skip "/*"
++            do
++            {
++              if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
++              {
++                query_position += 2; // skip "*/" (without space)
++                break;
++              }
++              else
++              {
++                ++query_position;
++              }
++            }
++            while(query_position < query_length);
++            continue; // analyze current symbol
++          }
++          break;
++        case '-':
++          if(query[query_position+1] == '-')
++          {
++            ++query_position; // skip "-"
++          }
++          else
++          {
++            break;
++          }
++        case '#':
++          do
++          {
++            ++query_position; // skip current symbol
++            if('\n' == query[query_position])  // check for '\n'
++            {
++              ++query_position; // skip '\n'
++              break;
++            }
++          }
++          while(query_position < query_length);
++          continue; // analyze current symbol
++        case '\r':
++        case '\n':
++        case '\t':
++        case ' ':
++        case '(':
++        case ')':
++          break;
++        default:
++          check = true;
++          break; // make gcc happy
++        } // switch(current)
++        if(check)
++        {
++          if(query_position + 2 < query_length)
++          {
++            // cacheable
++            break;
++          }
++          else
++          {
++            DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
++            goto err;
++          }
++        } // if(check)
++        ++query_position;
++      } // while(query_position < query_length)
++    }
++    else // if(opt_query_cache_strip_comments)
++    {
++      /*
++        Skip '(' characters in queries like following:
++        (select a from t1) union (select a from t1);
++      */
++      while (sql[i]=='(')
++        i++;
+ 
+-    /*
+-      Test if the query is a SELECT
+-      (pre-space is removed in dispatch_command).
++    } // if(opt_query_cache_strip_comments)    
++      /*
++        Test if the query is a SELECT
++        (pre-space is removed in dispatch_command).
+ 
+-      First '/' looks like comment before command it is not
+-      frequently appeared in real life, consequently we can
+-      check all such queries, too.
+-    */
++        First '/' looks like comment before command it is not
++        frequently appeared in real life, consequently we can
++        check all such queries, too.
++      */
+     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
+          my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
+          my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+@@ -1572,7 +1672,6 @@
+       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+       goto err;
+     }
+-    
+     if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+     {
+       /*

@@ -1,6 +1,6 @@
 diff -Nur a/patch_info/query_cache_with_comments.patch b/patch_info/query_cache_with_comments.patch
 --- a/patch_info/query_cache_with_comments.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/query_cache_with_comments.patch	2010-07-07 03:33:07.498972002 +0400
++++ b/patch_info/query_cache_with_comments.patch	2010-07-07 03:42:49.838972002 +0400
 @@ -0,0 +1,9 @@
 +File=query_cache_with_comments.patch
 +Name=Remove comments from query (need for cache hit)
@@ -12,17 +12,17 @@ diff -Nur a/patch_info/query_cache_with_comments.patch b/patch_info/query_cache_
 +2010-06-13
 +Second version of patch
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-07 03:33:06.988972002 +0400
-+++ b/sql/mysqld.cc	2010-07-07 03:33:07.508972002 +0400
-@@ -490,6 +490,7 @@
+--- a/sql/mysqld.cc	2010-07-07 03:42:49.258972002 +0400
++++ b/sql/mysqld.cc	2010-07-07 03:42:49.878972002 +0400
+@@ -492,6 +492,7 @@
  my_bool opt_log_slow_slave_statements= 0;
  my_bool opt_log_slow_sp_statements= 0;
  my_bool opt_log_slow_timestamp_every= 0;
 +my_bool opt_query_cache_strip_comments;
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
- my_bool lower_case_file_system= 0;
-@@ -5829,6 +5830,7 @@
+ ulong   opt_query_response_time_range_base  = QUERY_RESPONSE_TIME_DEFAULT_BASE;
+@@ -5835,6 +5836,7 @@
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
    OPT_SUPPRESS_LOG_WARNING_1592,
@@ -30,7 +30,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -6840,6 +6842,10 @@
+@@ -6848,6 +6850,10 @@
    {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
      "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
     0, 0, 0, GET_STR, NO_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
@@ -42,8 +42,8 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
     "Control always use global long_query_time or local long_query_time.",
     (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
 diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-07 03:33:06.998972002 +0400
-+++ b/sql/mysql_priv.h	2010-07-07 03:33:07.508972002 +0400
+--- a/sql/mysql_priv.h	2010-07-07 03:42:49.268972002 +0400
++++ b/sql/mysql_priv.h	2010-07-07 03:42:49.888972002 +0400
 @@ -2130,6 +2130,7 @@
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
  extern my_bool opt_log_slow_sp_statements;
@@ -51,10 +51,10 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 +extern my_bool opt_query_cache_strip_comments;
  extern my_bool opt_use_global_long_query_time;
  extern my_bool opt_slow_query_log_microseconds_timestamp;
- extern my_bool sp_automatic_privileges, opt_noacl;
+ extern ulong   opt_query_response_time_range_base;
 diff -Nur a/sql/query_strip_comments.h b/sql/query_strip_comments.h
 --- a/sql/query_strip_comments.h	1970-01-01 03:00:00.000000000 +0300
-+++ b/sql/query_strip_comments.h	2010-07-07 03:33:07.518972002 +0400
++++ b/sql/query_strip_comments.h	2010-07-07 03:42:50.508972002 +0400
 @@ -0,0 +1,38 @@
 +#ifndef _SQL_QUERY_STRIPC_COMMENTS_H_
 +#define _SQL_QUERY_STRIPC_COMMENTS_H_
@@ -95,8 +95,8 @@ diff -Nur a/sql/query_strip_comments.h b/sql/query_strip_comments.h
 +#endif // HAVE_QUERY_CACHE
 +#endif // _SQL_QUERY_STRIPC_COMMENTS_H_
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-07 03:33:06.988972002 +0400
-+++ b/sql/set_var.cc	2010-07-07 03:33:07.508972002 +0400
+--- a/sql/set_var.cc	2010-07-07 03:42:49.258972002 +0400
++++ b/sql/set_var.cc	2010-07-07 03:42:50.528972002 +0400
 @@ -928,6 +928,8 @@
  #ifndef EMBEDDED_LIBRARY
  static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
@@ -107,8 +107,8 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
  
  static uchar *slave_get_report_port(THD *thd)
 diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
---- a/sql/sql_cache.cc	2010-07-07 03:33:06.988972002 +0400
-+++ b/sql/sql_cache.cc	2010-07-07 03:33:07.508972002 +0400
+--- a/sql/sql_cache.cc	2010-07-07 03:42:49.258972002 +0400
++++ b/sql/sql_cache.cc	2010-07-07 03:42:50.528972002 +0400
 @@ -333,6 +333,178 @@
  #include <hash.h>
  #include "../storage/myisammrg/ha_myisammrg.h"
@@ -327,8 +327,8 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
    if (query_block == 0 ||
        query_block->query()->result() == 0 ||
 diff -Nur a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-07-07 03:33:06.988972002 +0400
-+++ b/sql/sql_class.h	2010-07-07 03:33:07.518972002 +0400
+--- a/sql/sql_class.h	2010-07-07 03:42:49.258972002 +0400
++++ b/sql/sql_class.h	2010-07-07 03:42:50.538972002 +0400
 @@ -22,7 +22,9 @@
  
  #include "log.h"

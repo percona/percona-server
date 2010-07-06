@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-bzr revert series;
 bzr revert *.patch;
 bzr revert *.diff;
 rm -rf a b Percona-Server;

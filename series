@@ -1,7 +1,6 @@
 innodb_swap_builtin_plugin.patch
 show_patches.patch
 slow_extended.patch
-slow_extended_fix_overflow.patch
 profiling_slow.patch
 microsec_process.patch
 userstat.patch

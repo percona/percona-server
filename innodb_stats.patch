@@ -395,35 +395,604 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  	}
  
  	dict_index_stat_mutex_exit(index);
+diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/dict0boot.c
+--- a/storage/innodb_plugin/dict/dict0boot.c	2010-07-06 15:53:58.653413511 +0900
++++ b/storage/innodb_plugin/dict/dict0boot.c	2010-07-06 15:54:35.343447401 +0900
+@@ -232,6 +232,21 @@
+ 	mlog_write_ulint(dict_header + DICT_HDR_FIELDS, root_page_no,
+ 			 MLOG_4BYTES, mtr);
+ 	/*--------------------------*/
++	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
++				  DICT_HDR_SPACE, 0, DICT_STATS_ID,
++				  dict_ind_redundant, mtr);
++	if (root_page_no == FIL_NULL) {
++
++		return(FALSE);
++	}
++
++#ifdef UNIV_DEBUG
++	fprintf(stderr, "InnoDB: DEBUG: root_page_no of DICT_STATS_ID = %lu\n", root_page_no);
++#endif
++
++	mlog_write_ulint(dict_header + DICT_HDR_STATS, root_page_no,
++			 MLOG_4BYTES, mtr);
++	/*--------------------------*/
+ 
+ 	return(TRUE);
+ }
+@@ -424,7 +439,7 @@
+ 	table->id = DICT_FIELDS_ID;
+ 	dict_table_add_to_cache(table, heap);
+ 	dict_sys->sys_fields = table;
+-	mem_heap_free(heap);
++	mem_heap_empty(heap);
+ 
+ 	index = dict_mem_index_create("SYS_FIELDS", "CLUST_IND",
+ 				      DICT_HDR_SPACE,
+@@ -441,6 +456,50 @@
+ 					FALSE);
+ 	ut_a(error == DB_SUCCESS);
+ 
++	/*-------------------------*/
++	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 3, 0);
++	table->n_mysql_handles_opened = 1; /* for pin */
++
++	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
++	dict_mem_table_add_col(table, heap, "KEY_COLS", DATA_INT, 0, 4);
++	dict_mem_table_add_col(table, heap, "DIFF_VALS", DATA_BINARY, 0, 0);
++
++	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
++#if DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2
++#error "DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2"
++#endif
++
++	table->id = DICT_STATS_ID;
++	dict_table_add_to_cache(table, heap);
++	dict_sys->sys_stats = table;
++	mem_heap_free(heap);
++
++	index = dict_mem_index_create("SYS_STATS", "CLUST_IND",
++				      DICT_HDR_SPACE,
++				      DICT_UNIQUE | DICT_CLUSTERED, 2);
++
++	dict_mem_index_add_field(index, "INDEX_ID", 0);
++	dict_mem_index_add_field(index, "KEY_COLS", 0);
++
++	index->id = DICT_STATS_ID;
++
++	if (srv_use_sys_stats_table
++	    && mtr_read_ulint(dict_hdr
++			      + DICT_HDR_STATS,
++			      MLOG_4BYTES, &mtr) != 13) {
++		fprintf(stderr,
++			"InnoDB: Error: SYS_STATS table may not be created when initialize InnoDB\n"
++			"InnoDB: Please recreate innodb files.\n");
++		ut_error;
++	}
++
++	error = dict_index_add_to_cache(table, index,
++					mtr_read_ulint(dict_hdr
++						       + DICT_HDR_STATS,
++						       MLOG_4BYTES, &mtr),
++					FALSE);
++	ut_a(error == DB_SUCCESS);
++
+ 	mtr_commit(&mtr);
+ 	/*-------------------------*/
+ 
+@@ -454,6 +513,7 @@
+ 	dict_load_sys_table(dict_sys->sys_columns);
+ 	dict_load_sys_table(dict_sys->sys_indexes);
+ 	dict_load_sys_table(dict_sys->sys_fields);
++	dict_load_sys_table(dict_sys->sys_stats);
+ 
+ 	mutex_exit(&(dict_sys->mutex));
+ }
+diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
+--- a/storage/innodb_plugin/dict/dict0crea.c	2010-07-06 15:53:58.655437549 +0900
++++ b/storage/innodb_plugin/dict/dict0crea.c	2010-07-06 15:54:35.346416905 +0900
+@@ -496,6 +496,51 @@
+ }
+ 
+ /*****************************************************************//**
++Based on an index object, this function builds the entry to be inserted
++in the SYS_STATS system table.
++@return	the tuple which should be inserted */
++static
++dtuple_t*
++dict_create_sys_stats_tuple(
++/*========================*/
++	const dict_index_t*	index,
++	ulint			i,
++	mem_heap_t*		heap)
++{
++	dict_table_t*	sys_stats;
++	dtuple_t*	entry;
++	dfield_t*	dfield;
++	byte*		ptr;
++
++	ut_ad(index);
++	ut_ad(heap);
++
++	sys_stats = dict_sys->sys_stats;
++
++	entry = dtuple_create(heap, 3 + DATA_N_SYS_COLS);
++
++	dict_table_copy_types(entry, sys_stats);
++
++	/* 0: INDEX_ID -----------------------*/
++	dfield = dtuple_get_nth_field(entry, 0/*INDEX_ID*/);
++	ptr = mem_heap_alloc(heap, 8);
++	mach_write_to_8(ptr, index->id);
++	dfield_set_data(dfield, ptr, 8);
++	/* 1: KEY_COLS -----------------------*/
++	dfield = dtuple_get_nth_field(entry, 1/*KEY_COLS*/);
++	ptr = mem_heap_alloc(heap, 4);
++	mach_write_to_4(ptr, i);
++	dfield_set_data(dfield, ptr, 4);
++	/* 4: DIFF_VALS ----------------------*/
++	dfield = dtuple_get_nth_field(entry, 2/*DIFF_VALS*/);
++	ptr = mem_heap_alloc(heap, 8);
++	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
++	dfield_set_data(dfield, ptr, 8);
++
++	return(entry);
++}
++
++/*****************************************************************//**
+ Creates the tuple with which the index entry is searched for writing the index
+ tree root page number, if such a tree is created.
+ @return	the tuple for search */
+@@ -605,6 +650,27 @@
+ }
+ 
+ /***************************************************************//**
++Builds a row for storing stats to insert.
++@return DB_SUCCESS */
++static
++ulint
++dict_build_stats_def_step(
++/*======================*/
++	ind_node_t*	node)
++{
++	dict_index_t*	index;
++	dtuple_t*	row;
++
++	index = node->index;
++
++	row = dict_create_sys_stats_tuple(index, node->stats_no, node->heap);
++
++	ins_node_set_new_row(node->stats_def, row);
++
++	return(DB_SUCCESS);
++}
++
++/***************************************************************//**
+ Creates an index tree for the index if it is not a member of a cluster.
+ @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+ static
+@@ -928,6 +994,10 @@
+ 					  dict_sys->sys_fields, heap);
+ 	node->field_def->common.parent = node;
+ 
++	node->stats_def = ins_node_create(INS_DIRECT,
++					  dict_sys->sys_stats, heap);
++	node->stats_def->common.parent = node;
++
+ 	node->commit_node = commit_node_create(heap);
+ 	node->commit_node->common.parent = node;
+ 
+@@ -1078,6 +1148,7 @@
+ 
+ 		node->state = INDEX_BUILD_FIELD_DEF;
+ 		node->field_no = 0;
++		node->stats_no = 0;
+ 
+ 		thr->run_node = node->ind_def;
+ 
+@@ -1123,7 +1194,27 @@
+ 			goto function_exit;
+ 		}
+ 
+-		node->state = INDEX_CREATE_INDEX_TREE;
++		node->state = INDEX_BUILD_STATS_COLS;
++	}
++
++	if (node->state == INDEX_BUILD_STATS_COLS) {
++		if (node->stats_no <= dict_index_get_n_unique(node->index)) {
++
++			err = dict_build_stats_def_step(node);
++
++			if (err != DB_SUCCESS) {
++
++				goto function_exit;
++			}
++
++			node->stats_no++;
++
++			thr->run_node = node->stats_def;
++
++			return(thr);
++		} else {
++			node->state = INDEX_CREATE_INDEX_TREE;
++		}
+ 	}
+ 
+ 	if (node->state == INDEX_CREATE_INDEX_TREE) {
 diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
 --- a/storage/innodb_plugin/dict/dict0dict.c	2010-04-29 16:54:08.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0dict.c	2010-04-30 10:46:23.000000000 +0900
-@@ -4406,7 +4406,8 @@
+@@ -711,7 +711,7 @@
+ 			/* If table->ibd_file_missing == TRUE, this will
+ 			print an error message and return without doing
+ 			anything. */
+-			dict_update_statistics(table);
++			dict_update_statistics(table, FALSE);
+ 		}
+ 	}
+ 
+@@ -4231,6 +4231,255 @@
+ }
+ 
+ /*********************************************************************//**
++functions to use SYS_STATS system table. */
++static
++ibool
++dict_reload_statistics(
++/*===================*/
++	dict_table_t*	table,
++	ulint*		sum_of_index_sizes)
++{
++	dict_index_t*	index;
++	ulint		size;
++	mem_heap_t*	heap;
++
++	index = dict_table_get_first_index(table);
++
++	if (index == NULL) {
++		/* Table definition is corrupt */
++
++		return(FALSE);
++	}
++
++	heap = mem_heap_create(1000);
++
++	while (index) {
++		if (table->is_corrupt) {
++			ut_a(srv_pass_corrupt_table);
++			mem_heap_free(heap);
++			return(FALSE);
++		}
++
++		size = btr_get_size(index, BTR_TOTAL_SIZE);
++
++		index->stat_index_size = size;
++
++		*sum_of_index_sizes += size;
++
++		size = btr_get_size(index, BTR_N_LEAF_PAGES);
++
++		if (size == 0) {
++			/* The root node of the tree is a leaf */
++			size = 1;
++		}
++
++		index->stat_n_leaf_pages = size;
++
++/*===========================================*/
++{
++	dict_table_t*	sys_stats;
++	dict_index_t*	sys_index;
++	btr_pcur_t	pcur;
++	dtuple_t*	tuple;
++	dfield_t*	dfield;
++	ulint		key_cols;
++	ulint		n_cols;
++	const rec_t*	rec;
++	const byte*	field;
++	ulint		len;
++	ib_int64_t*	stat_n_diff_key_vals_tmp;
++	byte*		buf;
++	ulint		i;
++	mtr_t		mtr;
++
++	n_cols = dict_index_get_n_unique(index);
++	stat_n_diff_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
++
++	sys_stats = dict_sys->sys_stats;
++	sys_index = UT_LIST_GET_FIRST(sys_stats->indexes);
++	ut_a(!dict_table_is_comp(sys_stats));
++
++	tuple = dtuple_create(heap, 1);
++	dfield = dtuple_get_nth_field(tuple, 0);
++
++	buf = mem_heap_alloc(heap, 8);
++	mach_write_to_8(buf, index->id);
++
++	dfield_set_data(dfield, buf, 8);
++	dict_index_copy_types(tuple, sys_index, 1);
++
++	mtr_start(&mtr);
++
++	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
++				  BTR_SEARCH_LEAF, &pcur, &mtr);
++	for (i = 0; i <= n_cols; i++) {
++		rec = btr_pcur_get_rec(&pcur);
++
++		if (!btr_pcur_is_on_user_rec(&pcur)) {
++			/* not found: even 1 if not found should not be alowed */
++			fprintf(stderr, "InnoDB: Warning: stats for %s/%s (%lu/%lu)"
++				        " not fonund in SYS_STATS\n",
++					index->table_name, index->name, i, n_cols);
++			btr_pcur_close(&pcur);
++			mtr_commit(&mtr);
++			mem_heap_free(heap);
++			return(FALSE);
++		}
++
++		if (rec_get_deleted_flag(rec, 0)) {
++			goto next_rec;
++		}
++
++		field = rec_get_nth_field_old(rec, 1, &len);
++		ut_a(len == 4);
++
++		key_cols = mach_read_from_4(field);
++
++		ut_a(i == key_cols);
++
++		field = rec_get_nth_field_old(rec, DICT_SYS_STATS_DIFF_VALS_FIELD, &len);
++		ut_a(len == 8);
++
++		stat_n_diff_key_vals_tmp[i] = ut_conv_dulint_to_longlong(mach_read_from_8(field));
++next_rec:
++		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
++	}
++
++	btr_pcur_close(&pcur);
++	mtr_commit(&mtr);
++
++	dict_index_stat_mutex_enter(index);
++	for (i = 0; i <= n_cols; i++) {
++		index->stat_n_diff_key_vals[i] = stat_n_diff_key_vals_tmp[i];
++	}
++	dict_index_stat_mutex_exit(index);
++}
++/*===========================================*/
++
++		index = dict_table_get_next_index(index);
++	}
++
++	mem_heap_free(heap);
++	return(TRUE);
++}
++
++static
++void
++dict_store_statistics(
++/*==================*/
++	dict_table_t*	table)
++{
++	dict_index_t*	index;
++	mem_heap_t*	heap;
++
++	index = dict_table_get_first_index(table);
++
++	ut_a(index);
++
++	heap = mem_heap_create(1000);
++
++	while (index) {
++		if (table->is_corrupt) {
++			ut_a(srv_pass_corrupt_table);
++			mem_heap_free(heap);
++			return;
++		}
++
++/*===========================================*/
++{
++	dict_table_t*	sys_stats;
++	dict_index_t*	sys_index;
++	btr_pcur_t	pcur;
++	dtuple_t*	tuple;
++	dfield_t*	dfield;
++	ulint		key_cols;
++	ulint		n_cols;
++	ulint		rests;
++	const rec_t*	rec;
++	const byte*	field;
++	ulint		len;
++	ib_int64_t*	stat_n_diff_key_vals_tmp;
++	byte*		buf;
++	ulint		i;
++	mtr_t		mtr;
++
++	n_cols = dict_index_get_n_unique(index);
++	stat_n_diff_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
++
++	dict_index_stat_mutex_enter(index);
++	for (i = 0; i <= n_cols; i++) {
++		stat_n_diff_key_vals_tmp[i] = index->stat_n_diff_key_vals[i];
++	}
++	dict_index_stat_mutex_exit(index);
++
++	sys_stats = dict_sys->sys_stats;
++	sys_index = UT_LIST_GET_FIRST(sys_stats->indexes);
++	ut_a(!dict_table_is_comp(sys_stats));
++
++	tuple = dtuple_create(heap, 1);
++	dfield = dtuple_get_nth_field(tuple, 0);
++
++	buf = mem_heap_alloc(heap, 8);
++	mach_write_to_8(buf, index->id);
++
++	dfield_set_data(dfield, buf, 8);
++	dict_index_copy_types(tuple, sys_index, 1);
++
++	mtr_start(&mtr);
++
++	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
++				  BTR_MODIFY_LEAF, &pcur, &mtr);
++	rests = n_cols + 1;
++	for (i = 0; i <= n_cols; i++) {
++		rec = btr_pcur_get_rec(&pcur);
++
++		if (!btr_pcur_is_on_user_rec(&pcur)) {
++			/* not found */
++			btr_pcur_close(&pcur);
++			mtr_commit(&mtr);
++			break;
++		}
++
++		if (rec_get_deleted_flag(rec, 0)) {
++			goto next_rec;
++		}
++
++		field = rec_get_nth_field_old(rec, 1, &len);
++		ut_a(len == 4);
++
++		key_cols = mach_read_from_4(field);
++
++		field = rec_get_nth_field_old(rec, DICT_SYS_STATS_DIFF_VALS_FIELD, &len);
++		ut_a(len == 8);
++
++		mlog_write_dulint((byte*)field,
++				ut_dulint_create((ulint) (stat_n_diff_key_vals_tmp[key_cols] >> 32),
++						(ulint) stat_n_diff_key_vals_tmp[key_cols] & 0xFFFFFFFF),
++				&mtr);
++
++		rests--;
++
++next_rec:
++		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
++	}
++	btr_pcur_close(&pcur);
++	mtr_commit(&mtr);
++
++	if (rests) {
++		fprintf(stderr, "InnoDB: Warning: failed to store %lu stats entries"
++				" of %s/%s to SYS_STATS system table.\n",
++				rests, index->table_name, index->name);
++	}
++}
++/*===========================================*/
++
++		index = dict_table_get_next_index(index);
++	}
++
++	mem_heap_free(heap);
++}
++
++/*********************************************************************//**
+ Calculates new estimates for table and index statistics. The statistics
+ are used in query optimization. */
+ UNIV_INTERN
+@@ -4238,9 +4487,10 @@
+ dict_update_statistics_low(
+ /*=======================*/
+ 	dict_table_t*	table,		/*!< in/out: table */
+-	ibool		has_dict_mutex __attribute__((unused)))
++	ibool		has_dict_mutex __attribute__((unused)),
+ 					/*!< in: TRUE if the caller has the
+ 					dictionary mutex */
++	ibool		sync)		/*!< in: TRUE if must update SYS_STATS */
+ {
+ 	dict_index_t*	index;
+ 	ulint		size;
+@@ -4266,6 +4516,23 @@
+ 		return;
+ 	}
+ 
++	if (srv_use_sys_stats_table && !sync) {
++		/* reload statistics from SYS_STATS table */
++		if (dict_reload_statistics(table, &sum_of_index_sizes)) {
++			/* success */
++#ifdef UNIV_DEBUG
++			fprintf(stderr, "InnoDB: DEBUG: reload_statistics is scceeded for %s.\n",
++					table->name);
++#endif
++			goto end;
++		}
++	}
++#ifdef UNIV_DEBUG
++	fprintf(stderr, "InnoDB: DEBUG: update_statistics for %s.\n",
++			table->name);
++#endif
++	sum_of_index_sizes = 0;
++
+ 	/* Find out the sizes of the indexes and how many different values
+ 	for the key they approximately have */
+ 
+@@ -4298,6 +4565,11 @@
+ 		index = dict_table_get_next_index(index);
+ 	}
+ 
++	if (srv_use_sys_stats_table) {
++		/* store statistics to SYS_STATS table */
++		dict_store_statistics(table);
++	}
++end:
+ 	index = dict_table_get_first_index(table);
+ 
+ 	dict_index_stat_mutex_enter(index);
+@@ -4324,9 +4596,10 @@
+ void
+ dict_update_statistics(
+ /*===================*/
+-	dict_table_t*	table)	/*!< in/out: table */
++	dict_table_t*	table,	/*!< in/out: table */
++	ibool		sync)
+ {
+-	dict_update_statistics_low(table, FALSE);
++	dict_update_statistics_low(table, FALSE, sync);
+ }
+ 
+ /**********************************************************************//**
+@@ -4406,7 +4679,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
 -	dict_update_statistics_low(table, TRUE);
 +	if (srv_stats_auto_update)
-+		dict_update_statistics_low(table, TRUE);
++		dict_update_statistics_low(table, TRUE, FALSE);
  
  	fprintf(stderr,
  		"--------------------------------------\n"
 diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
 --- a/storage/innodb_plugin/dict/dict0load.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0load.c	2010-04-30 10:46:23.000000000 +0900
-@@ -221,7 +221,7 @@
+@@ -221,8 +221,8 @@
  			/* The table definition was corrupt if there
  			is no index */
  
 -			if (dict_table_get_first_index(table)) {
+-				dict_update_statistics_low(table, TRUE);
 +			if (srv_stats_auto_update && dict_table_get_first_index(table)) {
- 				dict_update_statistics_low(table, TRUE);
++				dict_update_statistics_low(table, TRUE, FALSE);
  			}
  
+ 			dict_table_print_low(table);
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 10:46:03.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 10:46:23.000000000 +0900
-@@ -4939,6 +4939,10 @@
+@@ -190,6 +190,7 @@
+ static my_bool	innobase_rollback_on_timeout		= FALSE;
+ static my_bool	innobase_create_status_file		= FALSE;
+ static my_bool	innobase_stats_on_metadata		= TRUE;
++static my_bool	innobase_use_sys_stats_table		= FALSE;
+ 
+ static char*	internal_innobase_data_file_path	= NULL;
+ 
+@@ -2181,6 +2182,8 @@
+ 
+ 	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
+ 
++	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
++
+ 	/* -------------- Log files ---------------------------*/
+ 
+ 	/* The default dir for log files is the datadir of MySQL */
+@@ -4939,6 +4942,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -434,7 +1003,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5275,6 +5279,10 @@
+@@ -5275,6 +5282,10 @@
  		}
  	}
  
@@ -445,7 +1014,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5328,6 +5336,10 @@
+@@ -5328,6 +5339,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -456,7 +1025,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5852,6 +5864,11 @@
+@@ -5852,6 +5867,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -468,7 +1037,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -7725,7 +7742,9 @@
+@@ -7725,13 +7745,16 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -479,7 +1048,15 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -7807,7 +7826,7 @@
+ 			prebuilt->trx->op_info = "updating table statistics";
+ 
+-			dict_update_statistics(ib_table);
++			dict_update_statistics(ib_table,
++				(thd_sql_command(user_thd) == SQLCOM_ANALYZE)?TRUE:FALSE);
+ 
+ 			prebuilt->trx->op_info = "returning various info to MySQL";
+ 		}
+@@ -7807,7 +7830,7 @@
  		We do not update delete_length if no locking is requested
  		so the "old" value can remain. delete_length is initialized
  		to 0 in the ha_statistics' constructor. */
@@ -488,7 +1065,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			/* lock the data dictionary to avoid races with
  			ibd_file_missing and tablespace_discarded */
-@@ -10964,6 +10983,37 @@
+@@ -10964,6 +10987,45 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -523,20 +1100,29 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +  "e.g. Data_free.",
 +  NULL, NULL, 1, 0, 1, 0);
 +
++static MYSQL_SYSVAR_BOOL(use_sys_stats_table, innobase_use_sys_stats_table,
++  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
++  "Enable to use SYS_STATS system table to store statistics statically, "
++  "And avoids to calculate statistics at every first open of the tables. "
++  "This option may make the opportunities of update statistics less. "
++  "So you should use ANALYZE TABLE command intentionally.",
++  NULL, NULL, FALSE);
++
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11273,6 +11323,9 @@
+@@ -11273,6 +11335,10 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
 +  MYSQL_SYSVAR(stats_method),
 +  MYSQL_SYSVAR(stats_auto_update),
 +  MYSQL_SYSVAR(stats_update_need_lock),
++  MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11333,6 +11386,8 @@
+@@ -11333,6 +11399,8 @@
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,
@@ -925,6 +1511,93 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
+diff -ruN a/storage/innodb_plugin/include/dict0boot.h b/storage/innodb_plugin/include/dict0boot.h
+--- a/storage/innodb_plugin/include/dict0boot.h	2010-06-04 00:50:08.000000000 +0900
++++ b/storage/innodb_plugin/include/dict0boot.h	2010-07-06 15:54:35.368482713 +0900
+@@ -101,6 +101,7 @@
+ #define DICT_COLUMNS_ID		ut_dulint_create(0, 2)
+ #define DICT_INDEXES_ID		ut_dulint_create(0, 3)
+ #define DICT_FIELDS_ID		ut_dulint_create(0, 4)
++#define DICT_STATS_ID		ut_dulint_create(0, 6)
+ /* The following is a secondary index on SYS_TABLES */
+ #define DICT_TABLE_IDS_ID	ut_dulint_create(0, 5)
+ 
+@@ -128,6 +129,7 @@
+ #define	DICT_HDR_INDEXES	44	/* Root of the index index tree */
+ #define	DICT_HDR_FIELDS		48	/* Root of the index field
+ 					index tree */
++#define	DICT_HDR_STATS		52	/* Root of the stats tree */
+ 
+ #define DICT_HDR_FSEG_HEADER	56	/* Segment header for the tablespace
+ 					segment into which the dictionary
+@@ -141,6 +143,8 @@
+ #define DICT_SYS_INDEXES_TYPE_FIELD	 6
+ #define DICT_SYS_INDEXES_NAME_FIELD	 4
+ 
++#define DICT_SYS_STATS_DIFF_VALS_FIELD	 4
++
+ /* When a row id which is zero modulo this number (which must be a power of
+ two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
+ updated */
+diff -ruN a/storage/innodb_plugin/include/dict0crea.h b/storage/innodb_plugin/include/dict0crea.h
+--- a/storage/innodb_plugin/include/dict0crea.h	2010-06-04 00:49:59.000000000 +0900
++++ b/storage/innodb_plugin/include/dict0crea.h	2010-07-06 15:54:35.370499414 +0900
+@@ -170,6 +170,7 @@
+ 	ins_node_t*	field_def; /* child node which does the inserts of
+ 				the field definitions; the row to be inserted
+ 				is built by the parent node  */
++	ins_node_t*	stats_def;
+ 	commit_node_t*	commit_node;
+ 				/* child node which performs a commit after
+ 				a successful index creation */
+@@ -180,6 +181,7 @@
+ 	dict_table_t*	table;	/*!< table which owns the index */
+ 	dtuple_t*	ind_row;/* index definition row built */
+ 	ulint		field_no;/* next field definition to insert */
++	ulint		stats_no;
+ 	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage */
+ };
+ 
+@@ -189,6 +191,7 @@
+ #define	INDEX_CREATE_INDEX_TREE	3
+ #define	INDEX_COMMIT_WORK	4
+ #define	INDEX_ADD_TO_CACHE	5
++#define	INDEX_BUILD_STATS_COLS	6
+ 
+ #ifndef UNIV_NONINL
+ #include "dict0crea.ic"
+diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
+--- a/storage/innodb_plugin/include/dict0dict.h	2010-07-06 15:53:58.685414141 +0900
++++ b/storage/innodb_plugin/include/dict0dict.h	2010-07-06 15:54:35.371528831 +0900
+@@ -1040,8 +1040,9 @@
+ dict_update_statistics_low(
+ /*=======================*/
+ 	dict_table_t*	table,		/*!< in/out: table */
+-	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
++	ibool		has_dict_mutex,	/*!< in: TRUE if the caller has the
+ 					dictionary mutex */
++	ibool		sync);
+ /*********************************************************************//**
+ Calculates new estimates for table and index statistics. The statistics
+ are used in query optimization. */
+@@ -1049,7 +1050,8 @@
+ void
+ dict_update_statistics(
+ /*===================*/
+-	dict_table_t*	table);	/*!< in/out: table */
++	dict_table_t*	table,	/*!< in/out: table */
++	ibool		sync);
+ /********************************************************************//**
+ Reserves the dictionary system mutex for MySQL. */
+ UNIV_INTERN
+@@ -1160,6 +1162,7 @@
+ 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
+ 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
+ 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
++	dict_table_t*	sys_stats;	/*!< SYS_STATS table */
+ };
+ #endif /* !UNIV_HOTBACKUP */
+ 
 diff -ruN a/storage/innodb_plugin/include/page0cur.h b/storage/innodb_plugin/include/page0cur.h
 --- a/storage/innodb_plugin/include/page0cur.h	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/page0cur.h	2010-04-30 10:46:23.000000000 +0900
@@ -980,7 +1653,7 @@ diff -ruN a/storage/innodb_plugin/include/rem0cmp.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 10:46:03.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 10:46:23.000000000 +0900
-@@ -192,6 +192,12 @@
+@@ -192,6 +192,13 @@
  extern ibool	srv_innodb_status;
  
  extern unsigned long long	srv_stats_sample_pages;
@@ -990,6 +1663,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
 +#define SRV_STATS_METHOD_IGNORE_NULLS    2
 +extern ulint	srv_stats_auto_update;
 +extern ulint	srv_stats_update_need_lock;
++extern ibool	srv_use_sys_stats_table;
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
@@ -1071,6 +1745,17 @@ diff -ruN a/storage/innodb_plugin/page/page0cur.c b/storage/innodb_plugin/page/p
  /***********************************************************//**
  Writes the log record of a record insert on a page. */
  static
+diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0que.c
+--- a/storage/innodb_plugin/que/que0que.c	2010-06-04 00:49:59.000000000 +0900
++++ b/storage/innodb_plugin/que/que0que.c	2010-07-06 15:54:35.373427068 +0900
+@@ -622,6 +622,7 @@
+ 
+ 		que_graph_free_recursive(cre_ind->ind_def);
+ 		que_graph_free_recursive(cre_ind->field_def);
++		que_graph_free_recursive(cre_ind->stats_def);
+ 		que_graph_free_recursive(cre_ind->commit_node);
+ 
+ 		mem_heap_free(cre_ind->heap);
 diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0cmp.c
 --- a/storage/innodb_plugin/rem/rem0cmp.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/rem/rem0cmp.c	2010-04-30 10:46:23.000000000 +0900
@@ -1100,6 +1785,18 @@ diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0
  
  				} else if (rec2_f_len == UNIV_SQL_NULL) {
  
+diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/row0merge.c
+--- a/storage/innodb_plugin/row/row0merge.c	2010-06-04 00:50:27.000000000 +0900
++++ b/storage/innodb_plugin/row/row0merge.c	2010-07-06 15:54:35.374540556 +0900
+@@ -1986,6 +1986,8 @@
+ 		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
+ 		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
+ 		"COMMIT WORK;\n"
++		/* Drop the stored stats of the index. */
++		"DELETE FROM SYS_STATS WHERE INDEX_ID = :indexid;\n"
+ 		/* Drop the field definitions of the index. */
+ 		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
+ 		/* Drop the index definition and the B-tree. */
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-04-30 10:46:23.000000000 +0900
@@ -1113,16 +1810,44 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	/* Calculate new statistics if 1 / 16 of table has been modified
  	since the last time a statistics batch was run, or if
  	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
+@@ -862,7 +865,7 @@
+ 	if (counter > 2000000000
+ 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
+ 
+-		dict_update_statistics(table);
++		dict_update_statistics(table, TRUE);
+ 	}
+ }
+ 
+@@ -2911,7 +2914,7 @@
+ 	dict_table_autoinc_lock(table);
+ 	dict_table_autoinc_initialize(table, 1);
+ 	dict_table_autoinc_unlock(table);
+-	dict_update_statistics(table);
++	dict_update_statistics(table, TRUE);
+ 
+ 	trx_commit_for_mysql(trx);
+ 
+@@ -3213,6 +3216,8 @@
+ 			   "       IF (SQL % NOTFOUND) THEN\n"
+ 			   "               found := 0;\n"
+ 			   "       ELSE\n"
++			   "               DELETE FROM SYS_STATS\n"
++			   "               WHERE INDEX_ID = index_id;\n"
+ 			   "               DELETE FROM SYS_FIELDS\n"
+ 			   "               WHERE INDEX_ID = index_id;\n"
+ 			   "               DELETE FROM SYS_INDEXES\n"
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 10:46:03.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 10:46:30.000000000 +0900
-@@ -364,6 +364,9 @@
+@@ -364,6 +364,10 @@
  /* When estimating number of different key values in an index, sample
  this many index pages */
  UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 +UNIV_INTERN ulint	srv_stats_method = 0;
 +UNIV_INTERN ulint	srv_stats_auto_update = 1;
 +UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
++UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

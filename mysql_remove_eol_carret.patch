@@ -1,0 +1,67 @@
+diff -Nur a/client/client_priv.h b/client/client_priv.h
+--- a/client/client_priv.h	2010-07-06 15:06:50.000000000 -0700
++++ b/client/client_priv.h	2010-07-06 15:07:18.000000000 -0700
+@@ -92,5 +92,6 @@
+   OPT_WRITE_BINLOG, OPT_DUMP_DATE,
+   OPT_FIRST_SLAVE,
+   OPT_ALL,
+-  OPT_MAX_CLIENT_OPTION
++  OPT_MAX_CLIENT_OPTION,
++  OPT_REMOVE_EOL_CARRET
+ };
+diff -Nur a/client/mysql.cc b/client/mysql.cc
+--- a/client/mysql.cc	2010-06-03 08:50:02.000000000 -0700
++++ b/client/mysql.cc	2010-07-06 15:07:18.000000000 -0700
+@@ -141,6 +141,8 @@
+ enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
+ typedef enum enum_info_type INFO_TYPE;
+ 
++my_bool opt_remove_eol_carret=0;
++
+ static MYSQL mysql;			/* The connection */
+ static my_bool ignore_errors=0,wait_flag=0,quick=0,
+                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
+@@ -1426,6 +1428,10 @@
+    NO_ARG, 1, 0, 0, 0, 0, 0},  
+   {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
+    NO_ARG, 0, 0, 0, 0, 0, 0},
++  {"remove-eol-carret", OPT_REMOVE_EOL_CARRET, "Remove \\r before \\n in batch mode", 
++  (uchar**)&opt_remove_eol_carret , (uchar**)&opt_remove_eol_carret, 0, 
++   GET_BOOL,
++   NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"unbuffered", 'n', "Flush buffer after each query.", (uchar**) &unbuffered,
+    (uchar**) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"column-names", OPT_COLUMN_NAMES, "Write column names in results.",
+diff -Nur a/client/readline.cc b/client/readline.cc
+--- a/client/readline.cc	2010-06-03 08:50:23.000000000 -0700
++++ b/client/readline.cc	2010-07-06 15:07:18.000000000 -0700
+@@ -20,6 +20,8 @@
+ #include <m_string.h>
+ #include "my_readline.h"
+ 
++extern my_bool opt_remove_eol_carret;
++
+ static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
+ 			    ulong max_size);
+ static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
+@@ -51,7 +53,7 @@
+   if (!(pos=intern_read_line(line_buff,&out_length, truncated)))
+     return 0;
+   if (out_length && pos[out_length-1] == '\n')
+-    if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
++    if (--out_length && opt_remove_eol_carret && pos[out_length-1] == '\r')  /* Remove '\n' */
+       out_length--;                                 /* Remove '\r' */
+   line_buff->read_length=out_length;
+   pos[out_length]=0;
+diff -Nur a/patch_info/mysql_remove_eol_carret.patch b/patch_info/mysql_remove_eol_carret.patch
+--- a/patch_info/mysql_remove_eol_carret.patch	1969-12-31 16:00:00.000000000 -0800
++++ b/patch_info/mysql_remove_eol_carret.patch	2010-07-06 15:10:10.000000000 -0700
+@@ -0,0 +1,8 @@
++File=mysql_remove_eol_carret.patch
++Name=
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=Do not remove carret before eol unless --remove-eol-carret is enabled in MySQL client.
++Changelog
++

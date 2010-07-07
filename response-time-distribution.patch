@@ -258,7 +258,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 --- a/sql/query_response_time.cc	1970-01-01 03:00:00.000000000 +0300
 +++ b/sql/query_response_time.cc	2010-07-07 05:50:03.668972001 +0400
-@@ -0,0 +1,291 @@
+@@ -0,0 +1,286 @@
 +#include "my_global.h"
 +#include "mysql_priv.h"
 +#include "mysql_com.h"
@@ -513,42 +513,37 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +  {
 +    return m_time.count(index);
 +  }
-+public:
-+  static collector* instance()
-+  {
-+    static collector v;
-+    return &v;
-+  }
 +private:
 +  utility          m_utility;
 +  string_collector m_string;
 +  time_collector   m_time;
 +};
 +
++static collector g_collector;
++
 +} // namespace query_response_time
 +
 +void query_response_time_init()
 +{
-+  query_response_time::collector::instance();
 +}
 +
 +void query_response_time_free()
 +{
-+  query_response_time::collector::instance()->flush();
++  query_response_time::g_collector.flush();
 +}
 +
 +void query_response_time_flush()
 +{
-+  query_response_time::collector::instance()->flush();
++  query_response_time::g_collector.flush();
 +}
 +void query_response_time_collect(ulonglong query_time)
 +{
-+  query_response_time::collector::instance()->collect(query_time);
++  query_response_time::g_collector.collect(query_time);
 +}
 +
 +int query_response_time_fill(THD* thd, TABLE_LIST *tables, COND *cond)
 +{
-+  query_response_time::collector::instance()->fill(thd,tables,cond);
++  query_response_time::g_collector.fill(thd,tables,cond);
 +}
 diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
 --- a/sql/query_response_time.h	1970-01-01 03:00:00.000000000 +0300

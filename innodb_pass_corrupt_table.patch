@@ -470,7 +470,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4545,6 +4546,11 @@
+@@ -4549,6 +4550,11 @@
  	}
  
  	while (index) {
@@ -482,7 +482,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  		index->stat_index_size = size;
-@@ -5269,4 +5275,42 @@
+@@ -5273,4 +5279,42 @@
  		mutex_free(&dict_index_stat_mutex[i]);
  	}
  }

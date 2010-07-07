@@ -1,12 +1,13 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:36.000000000 +0900
-@@ -11642,6 +11642,8 @@
+@@ -11642,6 +11642,9 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
  i_s_innodb_admin_command,
 +i_s_innodb_sys_tables,
 +i_s_innodb_sys_indexes,
++i_s_innodb_sys_stats,
  i_s_innodb_patches
  mysql_declare_plugin_end;
  
@@ -21,7 +22,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
  /* from buf0buf.c */
  struct buf_chunk_struct{
-@@ -3167,6 +3168,564 @@
+@@ -3167,6 +3168,667 @@
  	STRUCT_FLD(deinit, i_s_common_deinit),
  	STRUCT_FLD(version, 0x0100 /* 1.0 */),
  	STRUCT_FLD(status_vars, NULL),
@@ -165,6 +166,35 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 +
 +	 END_OF_ST_FIELD_INFO
++};
++
++static ST_FIELD_INFO	i_s_innodb_sys_stats_info[] =
++{
++	{STRUCT_FLD(field_name,		"INDEX_ID"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"KEY_COLS"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"DIFF_VALS"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	END_OF_ST_FIELD_INFO
 +};
 +
 +static
@@ -423,6 +453,40 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +static
 +int
++copy_sys_stats_rec(
++/*===============*/
++	TABLE*			table,
++	const dict_index_t*	index,
++	const rec_t*		rec
++)
++{
++	int	status;
++	int	field;
++
++	/* INDEX_ID */
++	field = dict_index_get_nth_col_pos(index, 0);
++	status = copy_id_field(table, 0, rec, field);
++	if (status) {
++		return status;
++	}
++	/* KEY_COLS */
++	field = dict_index_get_nth_col_pos(index, 1);
++	status = copy_int_field(table, 1, rec, field);
++	if (status) {
++		return status;
++	}
++	/* DIFF_VALS */
++	field = dict_index_get_nth_col_pos(index, 2);
++	status = copy_id_field(table, 2, rec, field);
++	if (status) {
++		return status;
++	}
++
++	return 0;
++}
++
++static
++int
 +i_s_innodb_schema_table_fill(
 +/*=========================*/
 +	THD*		thd,
@@ -450,6 +514,11 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +		id = 0;
 +	} else if (innobase_strcasecmp(table_name, "innodb_sys_indexes") == 0) {
 +		id = 1;
++	} else if (innobase_strcasecmp(table_name, "innodb_sys_stats") == 0) {
++		id = 2;
++		if (!srv_use_sys_stats_table) {
++			DBUG_RETURN(1);
++		}
 +	} else {
 +		DBUG_RETURN(1);
 +	}
@@ -463,8 +532,10 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +	if (id == 0) {
 +		innodb_table = dict_table_get_low("SYS_TABLES");
-+	} else {
++	} else if (id == 1) {
 +		innodb_table = dict_table_get_low("SYS_INDEXES");
++	} else {
++		innodb_table = dict_table_get_low("SYS_STATS");
 +	}
 +	index = UT_LIST_GET_FIRST(innodb_table->indexes);
 +
@@ -489,8 +560,10 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +		if (id == 0) {
 +			status = copy_sys_tables_rec(table, index, rec);
-+		} else {
++		} else if (id == 1) {
 +			status = copy_sys_indexes_rec(table, index, rec);
++		} else {
++			status = copy_sys_stats_rec(table, index, rec);
 +		}
 +		if (status) {
 +			btr_pcur_close(&pcur);
@@ -555,6 +628,21 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	DBUG_RETURN(0);
 +}
 +
++static
++int
++i_s_innodb_sys_stats_init(
++/*======================*/
++	void*	p)
++{
++	DBUG_ENTER("i_s_innodb_sys_stats_init");
++	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
++
++	schema->fields_info = i_s_innodb_sys_stats_info;
++	schema->fill_table = i_s_innodb_schema_table_fill;
++
++	DBUG_RETURN(0);
++}
++
 +UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_tables =
 +{
 +	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
@@ -583,18 +671,35 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	STRUCT_FLD(deinit, i_s_common_deinit),
 +	STRUCT_FLD(version, 0x0100 /* 1.0 */),
 +	STRUCT_FLD(status_vars, NULL),
++	STRUCT_FLD(system_vars, NULL),
++	STRUCT_FLD(__reserved1, NULL)
++};
++
++UNIV_INTERN struct st_mysql_plugin   i_s_innodb_sys_stats =
++{
++	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
++	STRUCT_FLD(info, &i_s_info),
++	STRUCT_FLD(name, "INNODB_SYS_STATS"),
++	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(descr, "InnoDB SYS_STATS table"),
++	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
++	STRUCT_FLD(init, i_s_innodb_sys_stats_init),
++	STRUCT_FLD(deinit, i_s_common_deinit),
++	STRUCT_FLD(version, 0x0100 /* 1.0 */),
++	STRUCT_FLD(status_vars, NULL),
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
  };
 diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
 --- a/storage/innodb_plugin/handler/i_s.h	2010-04-30 14:38:27.000000000 +0900
 +++ b/storage/innodb_plugin/handler/i_s.h	2010-04-30 16:37:36.000000000 +0900
-@@ -41,5 +41,7 @@
+@@ -41,5 +41,8 @@
  extern struct st_mysql_plugin	i_s_innodb_table_stats;
  extern struct st_mysql_plugin	i_s_innodb_index_stats;
  extern struct st_mysql_plugin	i_s_innodb_admin_command;
 +extern struct st_mysql_plugin   i_s_innodb_sys_tables;
 +extern struct st_mysql_plugin   i_s_innodb_sys_indexes;
++extern struct st_mysql_plugin	i_s_innodb_sys_stats;
  
  #endif /* i_s_h */
 diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h

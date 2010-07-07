@@ -1,6 +1,6 @@
-diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/patch_info/profiling_slow.info	2010-04-28 16:15:40.000000000 +0900
+diff -Nur a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
+--- a/patch_info/profiling_slow.info	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/profiling_slow.info	2010-07-07 03:32:18.108972002 +0400
 @@ -0,0 +1,9 @@
 +File=profiling_slow.info
 +Name=profiling from SHOW PROFILE to slow.log
@@ -11,10 +11,10 @@ diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
 +Changelog
 +2009-05-18
 +Initial implementation
-diff -ruN a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2010-04-28 16:14:10.000000000 +0900
-+++ b/sql/log.cc	2010-04-28 16:15:40.000000000 +0900
-@@ -2393,6 +2393,11 @@
+diff -Nur a/sql/log.cc b/sql/log.cc
+--- a/sql/log.cc	2010-07-07 03:32:17.588972002 +0400
++++ b/sql/log.cc	2010-07-07 03:32:18.108972002 +0400
+@@ -2421,6 +2421,11 @@
            my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
          tmp_errno=errno;
      }
@@ -26,10 +26,10 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-04-28 16:14:10.000000000 +0900
-+++ b/sql/mysqld.cc	2010-04-28 16:15:40.000000000 +0900
-@@ -5724,6 +5724,8 @@
+diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-07 03:32:17.598972002 +0400
++++ b/sql/mysqld.cc	2010-07-07 03:32:18.108972002 +0400
+@@ -5725,6 +5725,8 @@
    OPT_LOG_OUTPUT,
    OPT_PORT_OPEN_TIMEOUT,
    OPT_PROFILING,
@@ -38,7 +38,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_KEEP_FILES_ON_CREATE,
    OPT_GENERAL_LOG,
    OPT_SLOW_LOG,
-@@ -6324,6 +6326,16 @@
+@@ -6327,6 +6329,16 @@
     (uchar**) &global_system_variables.profiling_history_size,
     (uchar**) &max_system_variables.profiling_history_size,
     0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
@@ -55,10 +55,10 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #endif
    {"relay-log", OPT_RELAY_LOG,
     "The location and name to use for relay logs.",
-diff -ruN a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-04-28 16:14:10.000000000 +0900
-+++ b/sql/set_var.cc	2010-04-28 16:15:40.000000000 +0900
-@@ -781,6 +781,10 @@
+diff -Nur a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-07-07 03:32:17.588972002 +0400
++++ b/sql/set_var.cc	2010-07-07 03:32:18.118972002 +0400
+@@ -846,6 +846,10 @@
                                        ulonglong(OPTION_PROFILING));
  static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
  					      &SV::profiling_history_size);
@@ -69,9 +69,9 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  #endif
  
  /* Local state variables */
-diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-04-28 16:14:10.000000000 +0900
-+++ b/sql/sql_class.h	2010-04-28 16:15:40.000000000 +0900
+diff -Nur a/sql/sql_class.h b/sql/sql_class.h
+--- a/sql/sql_class.h	2010-07-07 03:32:17.588972002 +0400
++++ b/sql/sql_class.h	2010-07-07 03:32:18.118972002 +0400
 @@ -327,6 +327,8 @@
    ulong optimizer_switch;
    ulong preload_buff_size;
@@ -81,9 +81,9 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    ulong query_cache_type;
    ulong read_buff_size;
    ulong read_rnd_buff_size;
-diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
---- a/sql/sql_profile.cc	2010-04-06 23:07:05.000000000 +0900
-+++ b/sql/sql_profile.cc	2010-04-28 16:15:40.000000000 +0900
+diff -Nur a/sql/sql_profile.cc b/sql/sql_profile.cc
+--- a/sql/sql_profile.cc	2010-07-07 03:32:17.598972002 +0400
++++ b/sql/sql_profile.cc	2010-07-07 03:32:18.118972002 +0400
 @@ -221,9 +221,22 @@
  */
  void PROF_MEASUREMENT::collect()
@@ -216,9 +216,9 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
  /**
    Fill the information schema table, "query_profile", as defined in show.cc .
    There are two ways to get to this function:  Selecting from the information
-diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
---- a/sql/sql_profile.h	2010-04-06 23:07:05.000000000 +0900
-+++ b/sql/sql_profile.h	2010-04-28 16:15:40.000000000 +0900
+diff -Nur a/sql/sql_profile.h b/sql/sql_profile.h
+--- a/sql/sql_profile.h	2010-07-07 03:32:17.608972002 +0400
++++ b/sql/sql_profile.h	2010-07-07 03:32:18.118972002 +0400
 @@ -180,6 +180,7 @@
    unsigned int line;
  

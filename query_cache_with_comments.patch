@@ -1,18 +1,21 @@
+diff -Nur a/patch_info/query_cache_with_comments.patch b/patch_info/query_cache_with_comments.patch
 --- a/patch_info/query_cache_with_comments.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/query_cache_with_comments.patch	2010-06-03 14:56:38.000000000 +0400
-@@ -0,0 +1,9 @@
++++ b/patch_info/query_cache_with_comments.patch	2010-07-07 03:48:04.748972002 +0400
+@@ -0,0 +1,10 @@
 +File=query_cache_with_comments.patch
 +Name=Remove comments from query (need for cache hit)
-+Version=1.0
++Version=1.2
 +Author=Percona <info@percona.com>
 +License=GPL
 +Comment=
 +Changelog
-+2010-06-13
-+Second version of patch
---- a/sql/mysqld.cc	2010-06-04 20:20:43.000000000 +0400
-+++ b/sql/mysqld.cc	2010-06-04 20:30:02.000000000 +0400
-@@ -486,6 +486,7 @@
++2010-07-05
++* Fix crash
++* Fix incorrect behavior
+diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-07 03:48:04.228972002 +0400
++++ b/sql/mysqld.cc	2010-07-07 03:48:04.758972002 +0400
+@@ -490,6 +490,7 @@
  my_bool opt_log_slow_slave_statements= 0;
  my_bool opt_log_slow_sp_statements= 0;
  my_bool opt_log_slow_timestamp_every= 0;
@@ -20,7 +23,7 @@
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
-@@ -5785,6 +5786,7 @@
+@@ -5829,6 +5830,7 @@
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
    OPT_SUPPRESS_LOG_WARNING_1592,
@@ -28,9 +31,9 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -6796,6 +6798,10 @@
+@@ -6840,6 +6842,10 @@
    {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
-     "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit]",
+     "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
     0, 0, 0, GET_STR, NO_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
 +  {"query_cache_strip_comments", OPT_QUERY_CACHE_STRIP_COMMENTS,
 +   "Enable and disable optimisation \"strip comment for query cache\" - optimisation strip all comments from query while search query result in query cache",
@@ -39,9 +42,10 @@
    {"use_global_long_query_time", OPT_USE_GLOBAL_LONG_QUERY_TIME,
     "Control always use global long_query_time or local long_query_time.",
     (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
---- a/sql/mysql_priv.h	2010-06-04 20:20:43.000000000 +0400
-+++ b/sql/mysql_priv.h	2010-06-04 20:27:31.000000000 +0400
-@@ -2124,6 +2124,7 @@
+diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-07-07 03:48:04.238972002 +0400
++++ b/sql/mysql_priv.h	2010-07-07 03:48:04.998972002 +0400
+@@ -2130,6 +2130,7 @@
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
  extern my_bool opt_log_slow_sp_statements;
  extern my_bool opt_log_slow_timestamp_every;
@@ -49,264 +53,10 @@
  extern my_bool opt_use_global_long_query_time;
  extern my_bool opt_slow_query_log_microseconds_timestamp;
  extern my_bool sp_automatic_privileges, opt_noacl;
-only in patch2:
-unchanged:
---- a/sql/set_var.cc	2010-06-04 20:20:43.000000000 +0400
-+++ b/sql/set_var.cc	2010-06-04 20:37:40.000000000 +0400
-@@ -930,6 +930,8 @@
-                                                          &opt_log_slow_sp_statements);
- static sys_var_bool_ptr       sys_log_slow_timestamp_every(&vars, "log_slow_timestamp_every",
-                                                            &opt_log_slow_timestamp_every);
-+static sys_var_bool_ptr       sys_query_cache_strip_comments(&vars, "query_cache_strip_comments",
-+                                                       &opt_query_cache_strip_comments);
- static sys_var_bool_ptr       sys_use_global_long_query_time(&vars, "use_global_long_query_time",
-                                                        &opt_use_global_long_query_time);
- static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
---- Percona-Server/sql/sql_cache.cc	2010-06-13 01:08:05.000000000 +0400
-+++ good/sql/sql_cache.cc	2010-06-13 00:52:49.000000000 +0400
-@@ -333,6 +333,178 @@
- #include <hash.h>
- #include "../storage/myisammrg/ha_myisammrg.h"
- #include "../storage/myisammrg/myrg_def.h"
-+#include "query_strip_comments.h"
-+
-+QueryStripComments::QueryStripComments()
-+{
-+  buffer = 0;
-+  length = 0;
-+  buffer_length = 0;
-+  control = false;
-+}
-+QueryStripComments::~QueryStripComments()
-+{
-+  cleanup();
-+}
-+
-+void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
-+{
-+  if(false == opt_query_cache_strip_comments)
-+    {
-+      cleanup();
-+      control = false;
-+      buffer = (char*)query;
-+      length = query_length;
-+      return;
-+    }
-+  if(!control)
-+    {
-+      cleanup();
-+      control = true;
-+    }
-+  {
-+    uint new_buffer_length = query_length + additional_length;
-+    if(new_buffer_length > buffer_length)
-+      {
-+	cleanup();
-+	buffer = (char*)my_malloc(new_buffer_length,MYF(0));
-+      }
-+  }
-+  uint query_position = 0;
-+  uint position = 0;
-+  int last_space = -1;
-+  while(query_position < query_length)
-+    {
-+      char current = query[query_position];
-+      switch(current)
-+	{
-+	case '\'':
-+	  do
-+	    {
-+	      buffer[position] = query[query_position]; // copy current symbol
-+	      ++position;
-+	      ++query_position;
-+	      if('\'' == query[query_position])
-+		break;
-+	    }
-+	  while(query_position < query_length);
-+	  break;
-+	case '"':
-+	  do
-+	    {
-+	      buffer[position] = query[query_position]; // copy current symbol
-+	      ++position;
-+	      ++query_position;
-+	      if('"' == query[query_position])
-+		break;
-+	    }
-+	  while(query_position < query_length);
-+	  break;
-+	case '/':
-+	  if('*' == query[query_position+1])
-+	    {
-+	      query_position += 2; // skip "/*"
-+	      do
-+		{
-+		  if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
-+		    {
-+		      query_position += 2; // skip "*/"
-+		      break;
-+		    }
-+		  else
-+		    {
-+		      ++query_position;
-+		    }
-+		}
-+	      while(query_position < query_length);
-+	      continue; // analyze current symbol
-+	    }
-+	  break;
-+	case '#':
-+	  do
-+	    {
-+	      ++query_position; // skip current symbol
-+	      if('\n' == query[query_position])  // check for '\n'
-+		{
-+		  ++query_position; // skip '\n'
-+		  break;
-+		}
-+	    }
-+	  while(query_position < query_length);
-+	  continue; // analyze current symbol
-+	case '-':
-+	  if(query[query_position+1] == '-')
-+	    {
-+	      ++query_position; // skip "-"
-+	      do
-+		{
-+		  ++query_position; // skip current symbol
-+		  if('\n' == query[query_position]) // check for '\n'
-+		    {
-+		      ++query_position; // skip '\n'
-+		      break;
-+		    }
-+		}
-+	      while(query_position < query_length);
-+	      continue; // analyze current symbol
-+	    }
-+	  break;
-+	case '\r':
-+	case '\n':
-+	case ' ':
-+	  if((last_space + 1) == position)
-+	    {
-+	      last_space = position;
-+	      ++query_position; // skip double space
-+	      continue;
-+	    }
-+	  else
-+	    {
-+	      last_space = position;
-+	      break;
-+	    }
-+	break;
-+	default:
-+	  break; // make gcc happy
-+	}
-+      buffer[position] = current;
-+      ++query_position;
-+      ++position;
-+    }
-+    switch(buffer[position-1])
-+      {
-+      case ' ':
-+      case '\r':
-+      case '\n':
-+	--position;
-+      break;
-+      default:
-+	break; // make gcc happy
-+      }
-+    buffer[position] = 0;
-+    length = position;
-+}
-+void QueryStripComments::cleanup()
-+{
-+  if(control && buffer)
-+  {
-+    my_free(buffer,MYF(0));
-+  }
-+  buffer        = 0;
-+  length        = 0;
-+  buffer_length = 0;
-+}
-+QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc)
-+{
-+  thd = a_thd;
-+  query = thd->query();
-+  length = thd->query_length();
-+  thd->set_query(qsc->query(),qsc->query_length());
-+}
-+QueryStripComments_Backup::~QueryStripComments_Backup()
-+{
-+  thd->set_query(query,length);
-+}
- 
- #ifdef EMBEDDED_LIBRARY
- #include "emb_qcache.h"
-@@ -1235,6 +1407,8 @@
-       unlock();
-       DBUG_VOID_RETURN;
-     }
-+    QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
-+    QueryStripComments_Backup backup(thd,query_strip_comments);
- 
-     /* Key is query + database + flag */
-     if (thd->db_length)
-@@ -1354,6 +1528,9 @@
-   Query_cache_block_table *block_table, *block_table_end;
-   ulong tot_length;
-   Query_cache_query_flags flags;
-+  QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
-+  char *sql_backup          = sql;
-+  uint  query_length_backup = query_length;
-   DBUG_ENTER("Query_cache::send_result_to_client");
- 
-   /*
-@@ -1430,6 +1607,9 @@
-   DBUG_ASSERT(thd->net.query_cache_query == 0);
- 
-   Query_cache_block *query_block;
-+  query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
-+  sql          = query_strip_comments->query();
-+  query_length = query_strip_comments->query_length();
- 
-   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
-   if (thd->db_length)
-@@ -1496,6 +1676,8 @@
- 	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
-   query_block = (Query_cache_block *)  hash_search(&queries, (uchar*) sql,
- 						   tot_length);
-+  sql          = sql_backup;
-+  query_length = query_length_backup;
-   /* Quick abort on unlocked data */
-   if (query_block == 0 ||
-       query_block->query()->result() == 0 ||
---- Percona-Server/sql/sql_class.h	2010-06-13 01:08:07.000000000 +0400
-+++ good/sql/sql_class.h	2010-06-12 21:10:55.000000000 +0400
-@@ -22,7 +22,9 @@
- 
- #include "log.h"
- #include "rpl_tblmap.h"
--
-+#ifdef HAVE_QUERY_CACHE
-+#include "query_strip_comments.h"
-+#endif // HAVE_QUERY_CACHE
- /**
-   An interface that is used to take an action when
-   the locking module notices that a table version has changed
-@@ -663,6 +665,9 @@
-   */
-   LEX_STRING query_string;
-   Server_side_cursor *cursor;
-+#ifdef HAVE_QUERY_CACHE
-+  QueryStripComments query_strip_comments; // see sql_cache.cc
-+#endif //HAVE_QUERY_CACHE
- 
-   inline char *query() { return query_string.str; }
-   inline uint32 query_length() { return query_string.length; }
---- /dev/null	2010-06-12 14:20:43.523601313 +0400
-+++ good/sql/query_strip_comments.h	2010-06-12 23:28:21.000000000 +0400
-@@ -0,0 +1,38 @@
+diff -Nur a/sql/query_strip_comments.h b/sql/query_strip_comments.h
+--- a/sql/query_strip_comments.h	1970-01-01 03:00:00.000000000 +0300
++++ b/sql/query_strip_comments.h	2010-07-07 03:48:05.298972002 +0400
+@@ -0,0 +1,37 @@
 +#ifndef _SQL_QUERY_STRIPC_COMMENTS_H_
 +#define _SQL_QUERY_STRIPC_COMMENTS_H_
 +#ifdef HAVE_QUERY_CACHE
@@ -330,7 +80,6 @@ unchanged:
 +  char* buffer;
 +  uint  length /*query length, not buffer length*/;
 +  uint  buffer_length;
-+  bool control;
 +};
 +class QueryStripComments_Backup
 +{
@@ -345,3 +94,402 @@ unchanged:
 +
 +#endif // HAVE_QUERY_CACHE
 +#endif // _SQL_QUERY_STRIPC_COMMENTS_H_
+diff -Nur a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-07-07 03:48:04.218972002 +0400
++++ b/sql/set_var.cc	2010-07-07 03:48:05.298972002 +0400
+@@ -928,6 +928,8 @@
+ #ifndef EMBEDDED_LIBRARY
+ static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
+ static sys_var_const_str_ptr    sys_repl_report_user(&vars, "report_user", &report_user);
++static sys_var_bool_ptr       sys_query_cache_strip_comments(&vars, "query_cache_strip_comments",
++                                                       &opt_query_cache_strip_comments);
+ static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
+ 
+ static uchar *slave_get_report_port(THD *thd)
+diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
+--- a/sql/sql_cache.cc	2010-07-07 03:48:04.228972002 +0400
++++ b/sql/sql_cache.cc	2010-07-07 03:48:05.298972002 +0400
+@@ -333,6 +333,193 @@
+ #include <hash.h>
+ #include "../storage/myisammrg/ha_myisammrg.h"
+ #include "../storage/myisammrg/myrg_def.h"
++#include "query_strip_comments.h"
++
++QueryStripComments::QueryStripComments()
++{
++  buffer = 0;
++  length = 0;
++  buffer_length = 0;
++}
++QueryStripComments::~QueryStripComments()
++{
++  cleanup();
++}
++
++inline bool query_strip_comments_is_white_space(char c)
++{
++  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
++}
++void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
++{
++  uint new_buffer_length = query_length + additional_length;
++  if(new_buffer_length > buffer_length)
++  {
++    cleanup();
++    buffer = (char*)my_malloc(new_buffer_length,MYF(0));
++  }
++  uint query_position = 0;
++  uint position = 0;
++  // Skip whitespaces from begin
++  while((query_position < query_length) && query_strip_comments_is_white_space(query[query_position]))
++  {
++    ++query_position;
++  }
++  long int last_space = -1;
++  while(query_position < query_length)
++  {
++    char current = query[query_position];
++    bool insert_space = false; // insert space to buffer, (IMPORTANT) don't update query_position
++    switch(current)
++    {
++    case '\'':
++    case '"':
++      {
++        buffer[position++] = query[query_position++]; // copy current symbol
++        bool escaping = false;
++        while(query_position < query_length)
++        {
++          if(escaping) // previous symbol was "\", just copy escaped symbol
++          {
++            escaping = false;
++          }
++          else
++          {
++            if(current == query[query_position]) // found pair quote
++            {
++              break;
++            }
++            if('\\' == query[query_position]) // notify about escaping
++            {
++              escaping = true;
++            }
++          }
++          buffer[position++] = query[query_position++]; // copy current symbol
++        }
++        break;
++      }
++    case '/':
++      {
++        if('*' == query[query_position+1])
++        {
++          query_position += 2; // skip "/*"
++          do
++          {
++            if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
++            {
++              query_position += 2; // skip "*/"
++              insert_space = true;
++              break;
++            }
++            else
++            {
++              ++query_position;
++            }
++          }
++          while(query_position < query_length);
++          if(!insert_space)
++          {
++            continue;
++          }
++        }
++        break;
++      }
++    case '-':
++      {
++        if(query[query_position+1] == '-')
++        {
++          ++query_position; // skip "-", and go to search of "\n"
++        }
++        else
++        {
++          break;
++        }
++      }
++    case '#':
++      {
++        do
++        {
++          ++query_position; // skip current symbol (# or -)
++          if('\n' == query[query_position])  // check for '\n'
++          {
++            ++query_position; // skip '\n'
++            insert_space = true;
++            break;
++          }
++        }
++        while(query_position < query_length);
++        if(insert_space)
++        {
++          break;
++        }
++        else
++        {
++          continue;
++        }
++      }
++    default:
++      break; // make gcc happy
++    }
++    bool is_white_space = query_strip_comments_is_white_space(current);
++    insert_space = insert_space || is_white_space;
++    if(insert_space)
++    {
++      if((last_space + 1) != position)
++      {
++        last_space = position;
++        buffer[position++] = ' ';
++      }
++      if(is_white_space)
++      {
++        ++query_position;
++      }
++    }
++    else
++    {
++      buffer[position++] = query[query_position++];
++    }
++  }
++  while((0 < position) && query_strip_comments_is_white_space(buffer[position - 1]))
++  {
++    --position;
++  }
++  buffer[position] = 0;
++  length = position;
++}
++void QueryStripComments::cleanup()
++{
++  if(buffer)
++  {
++    my_free(buffer,MYF(0));
++  }
++  buffer        = 0;
++  length        = 0;
++  buffer_length = 0;
++}
++QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc)
++{
++  if(opt_query_cache_strip_comments)
++  {
++    thd = a_thd;
++    query = thd->query();
++    length = thd->query_length();
++    qsc->set(query,length,thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    thd->set_query(qsc->query(),qsc->query_length());
++  }
++  else
++  {
++    thd = 0;
++    query = 0;
++    length = 0;
++  }
++}
++QueryStripComments_Backup::~QueryStripComments_Backup()
++{
++  if(thd)
++  {
++    thd->set_query(query,length);
++  }
++}
+ 
+ #ifdef EMBEDDED_LIBRARY
+ #include "emb_qcache.h"
+@@ -1235,6 +1422,8 @@
+       unlock();
+       DBUG_VOID_RETURN;
+     }
++    QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
++    QueryStripComments_Backup backup(thd,query_strip_comments);
+ 
+     /* Key is query + database + flag */
+     if (thd->db_length)
+@@ -1354,6 +1543,9 @@
+   Query_cache_block_table *block_table, *block_table_end;
+   ulong tot_length;
+   Query_cache_query_flags flags;
++  QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
++  char *sql_backup          = sql;
++  uint  query_length_backup = query_length;
+   DBUG_ENTER("Query_cache::send_result_to_client");
+ 
+   /*
+@@ -1375,21 +1567,103 @@
+ 
+   {
+     uint i= 0;
+-    /*
+-      Skip '(' characters in queries like following:
+-      (select a from t1) union (select a from t1);
+-    */
+-    while (sql[i]=='(')
+-      i++;
++    if(opt_query_cache_strip_comments)
++    {
++      /* Skip all comments and non-letter symbols */
++      uint& query_position = i;
++      char* query = sql;
++      while(query_position < query_length)
++      {
++        bool check = false;
++        char current = query[query_position];
++        switch(current)
++        {
++        case '/':
++          if('*' == query[query_position+1])
++          {
++            query_position += 2; // skip "/*"
++            do
++            {
++              if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
++              {
++                query_position += 2; // skip "*/" (without space)
++                break;
++              }
++              else
++              {
++                ++query_position;
++              }
++            }
++            while(query_position < query_length);
++            continue; // analyze current symbol
++          }
++          break;
++        case '-':
++          if(query[query_position+1] == '-')
++          {
++            ++query_position; // skip "-"
++          }
++          else
++          {
++            break;
++          }
++        case '#':
++          do
++          {
++            ++query_position; // skip current symbol
++            if('\n' == query[query_position])  // check for '\n'
++            {
++              ++query_position; // skip '\n'
++              break;
++            }
++          }
++          while(query_position < query_length);
++          continue; // analyze current symbol
++        case '\r':
++        case '\n':
++        case '\t':
++        case ' ':
++        case '(':
++        case ')':
++          break;
++        default:
++          check = true;
++          break; // make gcc happy
++        } // switch(current)
++        if(check)
++        {
++          if(query_position + 2 < query_length)
++          {
++            // cacheable
++            break;
++          }
++          else
++          {
++            DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
++            goto err;
++          }
++        } // if(check)
++        ++query_position;
++      } // while(query_position < query_length)
++    }
++    else // if(opt_query_cache_strip_comments)
++    {
++      /*
++        Skip '(' characters in queries like following:
++        (select a from t1) union (select a from t1);
++      */
++      while (sql[i]=='(')
++        i++;
+ 
+-    /*
+-      Test if the query is a SELECT
+-      (pre-space is removed in dispatch_command).
++    } // if(opt_query_cache_strip_comments)    
++      /*
++        Test if the query is a SELECT
++        (pre-space is removed in dispatch_command).
+ 
+-      First '/' looks like comment before command it is not
+-      frequently appeared in real life, consequently we can
+-      check all such queries, too.
+-    */
++        First '/' looks like comment before command it is not
++        frequently appeared in real life, consequently we can
++        check all such queries, too.
++      */
+     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
+          my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
+          my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+@@ -1398,7 +1672,6 @@
+       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+       goto err;
+     }
+-    
+     if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+     {
+       /*
+@@ -1430,6 +1703,12 @@
+   DBUG_ASSERT(thd->net.query_cache_query == 0);
+ 
+   Query_cache_block *query_block;
++  if(opt_query_cache_strip_comments)
++  {
++    query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    sql          = query_strip_comments->query();
++    query_length = query_strip_comments->query_length();
++  }
+ 
+   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
+   if (thd->db_length)
+@@ -1496,6 +1775,8 @@
+ 	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
+   query_block = (Query_cache_block *)  hash_search(&queries, (uchar*) sql,
+ 						   tot_length);
++  sql          = sql_backup;
++  query_length = query_length_backup;
+   /* Quick abort on unlocked data */
+   if (query_block == 0 ||
+       query_block->query()->result() == 0 ||
+diff -Nur a/sql/sql_class.h b/sql/sql_class.h
+--- a/sql/sql_class.h	2010-07-07 03:48:04.228972002 +0400
++++ b/sql/sql_class.h	2010-07-07 03:48:05.308972002 +0400
+@@ -22,7 +22,9 @@
+ 
+ #include "log.h"
+ #include "rpl_tblmap.h"
+-
++#ifdef HAVE_QUERY_CACHE
++#include "query_strip_comments.h"
++#endif // HAVE_QUERY_CACHE
+ /**
+   An interface that is used to take an action when
+   the locking module notices that a table version has changed
+@@ -663,6 +665,9 @@
+   */
+   LEX_STRING query_string;
+   Server_side_cursor *cursor;
++#ifdef HAVE_QUERY_CACHE
++  QueryStripComments query_strip_comments; // see sql_cache.cc
++#endif //HAVE_QUERY_CACHE
+ 
+   inline char *query() { return query_string.str; }
+   inline uint32 query_length() { return query_string.length; }

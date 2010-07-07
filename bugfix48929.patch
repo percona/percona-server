@@ -1,5 +1,6 @@
---- Percona-Server/configure.in	2010-06-14 19:37:23.000000000 +0400
-+++ good/configure.in	2010-06-14 19:34:35.000000000 +0400
+diff -Nur a/configure.in b/configure.in
+--- a/configure.in	2010-07-07 03:33:05.008972002 +0400
++++ b/configure.in	2010-07-07 03:33:05.788972002 +0400
 @@ -839,7 +839,7 @@
  AC_HEADER_STDC
  AC_HEADER_SYS_WAIT
@@ -9,8 +10,9 @@
   stdlib.h stddef.h \
   strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
   sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
---- Percona-Server/sql/mysqld.cc	2010-06-14 19:37:25.000000000 +0400
-+++ good/sql/mysqld.cc	2010-06-14 19:34:35.000000000 +0400
+diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-07 03:33:05.278972002 +0400
++++ b/sql/mysqld.cc	2010-07-07 03:33:05.788972002 +0400
 @@ -55,6 +55,10 @@
  #include "sp_rcontext.h"
  #include "sp_cache.h"
@@ -22,7 +24,7 @@
  #define mysqld_charset &my_charset_latin1
  
  #ifdef HAVE_purify
-@@ -5056,28 +5060,49 @@
+@@ -5055,28 +5059,49 @@
  {
    my_socket sock,new_sock;
    uint error_count=0;
@@ -75,7 +77,7 @@
  #ifdef HAVE_FCNTL
    socket_flags=fcntl(unix_sock, F_GETFL, 0);
  #endif
-@@ -5087,12 +5112,15 @@
+@@ -5086,12 +5111,15 @@
    MAYBE_BROKEN_SYSCALL;
    while (!abort_loop)
    {
@@ -96,7 +98,7 @@
      {
        if (socket_errno != SOCKET_EINTR)
        {
-@@ -5102,7 +5130,7 @@
+@@ -5101,7 +5129,7 @@
        MAYBE_BROKEN_SYSCALL
        continue;
      }
@@ -105,7 +107,7 @@
      if (abort_loop)
      {
        MAYBE_BROKEN_SYSCALL;
-@@ -5110,6 +5138,21 @@
+@@ -5109,6 +5137,21 @@
      }
  
      /* Is this a new connection request ? */
@@ -127,7 +129,7 @@
  #ifdef HAVE_SYS_UN_H
      if (FD_ISSET(unix_sock,&readFDs))
      {
-@@ -5117,11 +5160,12 @@
+@@ -5116,11 +5159,12 @@
        flags= socket_flags;
      }
      else

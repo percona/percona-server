@@ -470,7 +470,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4278,6 +4279,11 @@
+@@ -4545,6 +4546,11 @@
  	}
  
  	while (index) {
@@ -482,7 +482,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  		index->stat_index_size = size;
-@@ -4996,4 +5002,42 @@
+@@ -5269,4 +5275,42 @@
  		mutex_free(&dict_index_stat_mutex[i]);
  	}
  }
@@ -759,7 +759,7 @@ diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 15:46:35.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:23:01.000000000 +0900
-@@ -3675,6 +3675,12 @@
+@@ -3678,6 +3678,12 @@
  		DBUG_RETURN(1);
  	}
  
@@ -772,7 +772,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Create buffers for packing the fields of a record. Why
  	table->reclength did not work here? Obviously, because char
  	fields when packed actually became 1 byte longer, when we also
-@@ -3702,6 +3708,19 @@
+@@ -3705,6 +3711,19 @@
  	/* Get pointer to a table object in InnoDB dictionary cache */
  	ib_table = dict_table_get(norm_name, TRUE);
  	
@@ -792,7 +792,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
  			++retries;
-@@ -4864,6 +4883,10 @@
+@@ -4867,6 +4886,10 @@
  
  	ha_statistic_increment(&SSV::ha_write_count);
  
@@ -803,7 +803,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5081,6 +5104,10 @@
+@@ -5084,6 +5107,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -814,7 +814,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error_result);
  }
  
-@@ -5257,6 +5284,10 @@
+@@ -5260,6 +5287,10 @@
  
  	ha_statistic_increment(&SSV::ha_update_count);
  
@@ -825,7 +825,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
  		table->timestamp_field->set_time();
  
-@@ -5346,6 +5377,10 @@
+@@ -5349,6 +5380,10 @@
  
  	innobase_active_small();
  
@@ -836,7 +836,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error);
  }
  
-@@ -5367,6 +5402,10 @@
+@@ -5370,6 +5405,10 @@
  
  	ha_statistic_increment(&SSV::ha_delete_count);
  
@@ -847,7 +847,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (!prebuilt->upd_node) {
  		row_get_prebuilt_update_vector(prebuilt);
  	}
-@@ -5393,6 +5432,10 @@
+@@ -5396,6 +5435,10 @@
  
  	innobase_active_small();
  
@@ -858,7 +858,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error);
  }
  
-@@ -5632,6 +5675,10 @@
+@@ -5635,6 +5678,10 @@
  
  	ha_statistic_increment(&SSV::ha_read_key_count);
  
@@ -869,7 +869,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	index = prebuilt->index;
  
  	if (UNIV_UNLIKELY(index == NULL)) {
-@@ -5694,6 +5741,10 @@
+@@ -5697,6 +5744,10 @@
  		ret = DB_UNSUPPORTED;
  	}
  
@@ -880,7 +880,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -5804,6 +5855,10 @@
+@@ -5807,6 +5858,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -891,7 +891,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -5894,6 +5949,10 @@
+@@ -5897,6 +5952,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -902,7 +902,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -5903,6 +5962,10 @@
+@@ -5906,6 +5965,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -913,7 +913,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7139,6 +7202,10 @@
+@@ -7142,6 +7205,10 @@
  		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
  	}
  
@@ -924,7 +924,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7147,6 +7214,10 @@
+@@ -7150,6 +7217,10 @@
  		goto fallback;
  	}
  
@@ -935,7 +935,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7653,6 +7724,16 @@
+@@ -7656,6 +7727,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -952,7 +952,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -7785,9 +7866,9 @@
+@@ -7788,9 +7869,9 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -965,7 +965,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8032,9 +8113,17 @@
+@@ -8036,9 +8117,17 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -983,7 +983,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	return(0);
  }
  
-@@ -8216,6 +8305,10 @@
+@@ -8220,6 +8309,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -994,7 +994,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -8943,6 +9036,10 @@
+@@ -8947,6 +9040,10 @@
  
  	update_thd(thd);
  
@@ -1005,7 +1005,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11362,6 +11459,14 @@
+@@ -11374,6 +11471,14 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -1020,7 +1020,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11441,6 +11546,7 @@
+@@ -11454,6 +11559,7 @@
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(use_purge_thread),
@@ -1138,7 +1138,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
 --- a/storage/innodb_plugin/include/dict0dict.h	2010-04-29 16:54:08.000000000 +0900
 +++ b/storage/innodb_plugin/include/dict0dict.h	2010-04-30 15:49:22.000000000 +0900
-@@ -1182,6 +1182,15 @@
+@@ -1185,6 +1185,15 @@
  dict_close(void);
  /*============*/
  
@@ -1215,7 +1215,7 @@ diff -ruN a/storage/innodb_plugin/include/fut0fut.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 15:46:35.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 15:49:22.000000000 +0900
-@@ -229,6 +229,7 @@
+@@ -230,6 +230,7 @@
  extern ulint	srv_adaptive_checkpoint;
  
  extern ulint	srv_expand_import;
@@ -1276,7 +1276,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 15:46:35.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 15:49:22.000000000 +0900
-@@ -398,6 +398,7 @@
+@@ -399,6 +399,7 @@
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */

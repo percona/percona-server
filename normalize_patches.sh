@@ -1,6 +1,4 @@
 #!/usr/bin/env sh
-bzr revert *.patch;
-bzr revert *.diff;
 rm -rf a b Percona-Server;
 tar zxf mysql-5.1.48.tar.gz;
 mv mysql-5.1.48 Percona-Server;

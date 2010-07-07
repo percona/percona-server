@@ -41,3 +41,5 @@ bug580324.patch
 bugfix48929.patch
 query_cache_with_comments.patch
 response-time-distribution.patch
+mysql_remove_eol_carret.patch
+slow_extended_slave_innodb_stats_fix.patch

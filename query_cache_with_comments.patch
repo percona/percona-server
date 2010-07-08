@@ -19,7 +19,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool opt_log_slow_slave_statements= 0;
  my_bool opt_log_slow_sp_statements= 0;
  my_bool opt_log_slow_timestamp_every= 0;
-+my_bool opt_query_cache_strip_comments;
++my_bool opt_query_cache_strip_comments = 0;
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;

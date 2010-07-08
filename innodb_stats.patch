@@ -429,11 +429,12 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
  
  	index = dict_mem_index_create("SYS_FIELDS", "CLUST_IND",
  				      DICT_HDR_SPACE,
-@@ -441,6 +456,50 @@
+@@ -441,6 +456,55 @@
  					FALSE);
  	ut_a(error == DB_SUCCESS);
  
 +	/*-------------------------*/
++if (srv_use_sys_stats_table) {
 +	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 3, 0);
 +	table->n_mysql_handles_opened = 1; /* for pin */
 +
@@ -449,7 +450,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 +	table->id = DICT_STATS_ID;
 +	dict_table_add_to_cache(table, heap);
 +	dict_sys->sys_stats = table;
-+	mem_heap_free(heap);
++	mem_heap_empty(heap);
 +
 +	index = dict_mem_index_create("SYS_STATS", "CLUST_IND",
 +				      DICT_HDR_SPACE,
@@ -460,10 +461,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 +
 +	index->id = DICT_STATS_ID;
 +
-+	if (srv_use_sys_stats_table
-+	    && mtr_read_ulint(dict_hdr
-+			      + DICT_HDR_STATS,
-+			      MLOG_4BYTES, &mtr) != 13) {
++	if (mtr_read_ulint(dict_hdr
++			   + DICT_HDR_STATS,
++			   MLOG_4BYTES, &mtr) != 13) {
 +		fprintf(stderr,
 +			"InnoDB: Error: SYS_STATS table may not be created when initialize InnoDB\n"
 +			"InnoDB: Please recreate innodb files.\n");
@@ -476,15 +476,21 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 +						       MLOG_4BYTES, &mtr),
 +					FALSE);
 +	ut_a(error == DB_SUCCESS);
++} else {
++	dict_sys->sys_stats = NULL;
++} /* if (srv_use_sys_stats_table) */
++
++	mem_heap_free(heap);
 +
  	mtr_commit(&mtr);
  	/*-------------------------*/
  
-@@ -454,6 +513,7 @@
+@@ -454,6 +518,8 @@
  	dict_load_sys_table(dict_sys->sys_columns);
  	dict_load_sys_table(dict_sys->sys_indexes);
  	dict_load_sys_table(dict_sys->sys_fields);
-+	dict_load_sys_table(dict_sys->sys_stats);
++	if (srv_use_sys_stats_table)
++		dict_load_sys_table(dict_sys->sys_stats);
  
  	mutex_exit(&(dict_sys->mutex));
  }
@@ -571,18 +577,22 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  Creates an index tree for the index if it is not a member of a cluster.
  @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
  static
-@@ -928,6 +994,10 @@
+@@ -928,6 +994,14 @@
  					  dict_sys->sys_fields, heap);
  	node->field_def->common.parent = node;
  
-+	node->stats_def = ins_node_create(INS_DIRECT,
-+					  dict_sys->sys_stats, heap);
-+	node->stats_def->common.parent = node;
++	if (srv_use_sys_stats_table) {
++		node->stats_def = ins_node_create(INS_DIRECT,
++						  dict_sys->sys_stats, heap);
++		node->stats_def->common.parent = node;
++	} else {
++		node->stats_def = NULL;
++	}
 +
  	node->commit_node = commit_node_create(heap);
  	node->commit_node->common.parent = node;
  
-@@ -1078,6 +1148,7 @@
+@@ -1078,6 +1152,7 @@
  
  		node->state = INDEX_BUILD_FIELD_DEF;
  		node->field_no = 0;
@@ -590,12 +600,16 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  
  		thr->run_node = node->ind_def;
  
-@@ -1123,7 +1194,27 @@
+@@ -1123,7 +1198,31 @@
  			goto function_exit;
  		}
  
 -		node->state = INDEX_CREATE_INDEX_TREE;
-+		node->state = INDEX_BUILD_STATS_COLS;
++		if (srv_use_sys_stats_table) {
++			node->state = INDEX_BUILD_STATS_COLS;
++		} else {
++			node->state = INDEX_CREATE_INDEX_TREE;
++		}
 +	}
 +
 +	if (node->state == INDEX_BUILD_STATS_COLS) {
@@ -631,7 +645,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		}
  	}
  
-@@ -4231,6 +4231,255 @@
+@@ -4231,6 +4231,259 @@
  }
  
  /*********************************************************************//**
@@ -719,7 +733,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 +	for (i = 0; i <= n_cols; i++) {
 +		rec = btr_pcur_get_rec(&pcur);
 +
-+		if (!btr_pcur_is_on_user_rec(&pcur)) {
++		if (!btr_pcur_is_on_user_rec(&pcur)
++		    || ut_dulint_cmp(mach_read_from_8(rec_get_nth_field_old(rec, 0, &len)),
++				     index->id)) {
 +			/* not found: even 1 if not found should not be alowed */
 +			fprintf(stderr, "InnoDB: Warning: stats for %s/%s (%lu/%lu)"
 +				        " not fonund in SYS_STATS\n",
@@ -837,7 +853,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 +	for (i = 0; i <= n_cols; i++) {
 +		rec = btr_pcur_get_rec(&pcur);
 +
-+		if (!btr_pcur_is_on_user_rec(&pcur)) {
++		if (!btr_pcur_is_on_user_rec(&pcur)
++		    || ut_dulint_cmp(mach_read_from_8(rec_get_nth_field_old(rec, 0, &len)),
++				     index->id)) {
 +			/* not found */
 +			btr_pcur_close(&pcur);
 +			mtr_commit(&mtr);
@@ -887,7 +905,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4238,9 +4487,10 @@
+@@ -4238,9 +4491,10 @@
  dict_update_statistics_low(
  /*=======================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -899,7 +917,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  {
  	dict_index_t*	index;
  	ulint		size;
-@@ -4266,6 +4516,23 @@
+@@ -4266,6 +4520,23 @@
  		return;
  	}
  
@@ -923,7 +941,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4298,6 +4565,11 @@
+@@ -4298,6 +4569,11 @@
  		index = dict_table_get_next_index(index);
  	}
  
@@ -935,7 +953,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	index = dict_table_get_first_index(table);
  
  	dict_index_stat_mutex_enter(index);
-@@ -4324,9 +4596,10 @@
+@@ -4324,9 +4600,10 @@
  void
  dict_update_statistics(
  /*===================*/
@@ -948,7 +966,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  }
  
  /**********************************************************************//**
-@@ -4406,7 +4679,8 @@
+@@ -4406,7 +4683,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -1748,11 +1766,12 @@ diff -ruN a/storage/innodb_plugin/page/page0cur.c b/storage/innodb_plugin/page/p
 diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0que.c
 --- a/storage/innodb_plugin/que/que0que.c	2010-06-04 00:49:59.000000000 +0900
 +++ b/storage/innodb_plugin/que/que0que.c	2010-07-06 15:54:35.373427068 +0900
-@@ -622,6 +622,7 @@
+@@ -622,6 +622,8 @@
  
  		que_graph_free_recursive(cre_ind->ind_def);
  		que_graph_free_recursive(cre_ind->field_def);
-+		que_graph_free_recursive(cre_ind->stats_def);
++		if (srv_use_sys_stats_table)
++			que_graph_free_recursive(cre_ind->stats_def);
  		que_graph_free_recursive(cre_ind->commit_node);
  
  		mem_heap_free(cre_ind->heap);
@@ -1788,15 +1807,40 @@ diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0
 diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/row0merge.c
 --- a/storage/innodb_plugin/row/row0merge.c	2010-06-04 00:50:27.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0merge.c	2010-07-06 15:54:35.374540556 +0900
-@@ -1986,6 +1986,8 @@
- 		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
- 		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
- 		"COMMIT WORK;\n"
-+		/* Drop the stored stats of the index. */
+@@ -1977,7 +1977,8 @@
+ 	tables in Innobase. Deleting a row from SYS_INDEXES table also
+ 	frees the file segments of the B-tree associated with the index. */
+ 
+-	static const char str1[] =
++	const char* str1;
++	static const char str1_a[] =
+ 		"PROCEDURE DROP_INDEX_PROC () IS\n"
+ 		"BEGIN\n"
+ 		/* Rename the index, so that it will be dropped by
+@@ -1992,6 +1993,23 @@
+ 		"DELETE FROM SYS_INDEXES WHERE ID = :indexid;\n"
+ 		"END;\n";
+ 
++	static const char str1_b[] =
++		"PROCEDURE DROP_INDEX_PROC () IS\n"
++		"BEGIN\n"
++		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
++		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
++		"COMMIT WORK;\n"
 +		"DELETE FROM SYS_STATS WHERE INDEX_ID = :indexid;\n"
- 		/* Drop the field definitions of the index. */
- 		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
- 		/* Drop the index definition and the B-tree. */
++		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
++		"DELETE FROM SYS_INDEXES WHERE ID = :indexid;\n"
++		"END;\n";
++
++	if (srv_use_sys_stats_table) {
++		str1 = str1_b;
++	} else {
++		str1 = str1_a;
++	}
++
+ 	ut_ad(index && table && trx);
+ 
+ 	pars_info_add_dulint_literal(info, "indexid", index->id);
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-04-30 10:46:23.000000000 +0900
@@ -1828,15 +1872,92 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  
  	trx_commit_for_mysql(trx);
  
-@@ -3213,6 +3216,8 @@
- 			   "       IF (SQL % NOTFOUND) THEN\n"
- 			   "               found := 0;\n"
- 			   "       ELSE\n"
+@@ -3159,6 +3162,77 @@
+ 
+ 	pars_info_add_str_literal(info, "table_name", name);
+ 
++	if (srv_use_sys_stats_table) {
++	err = que_eval_sql(info,
++			   "PROCEDURE DROP_TABLE_PROC () IS\n"
++			   "sys_foreign_id CHAR;\n"
++			   "table_id CHAR;\n"
++			   "index_id CHAR;\n"
++			   "foreign_id CHAR;\n"
++			   "found INT;\n"
++			   "BEGIN\n"
++			   "SELECT ID INTO table_id\n"
++			   "FROM SYS_TABLES\n"
++			   "WHERE NAME = :table_name\n"
++			   "LOCK IN SHARE MODE;\n"
++			   "IF (SQL % NOTFOUND) THEN\n"
++			   "       RETURN;\n"
++			   "END IF;\n"
++			   "found := 1;\n"
++			   "SELECT ID INTO sys_foreign_id\n"
++			   "FROM SYS_TABLES\n"
++			   "WHERE NAME = 'SYS_FOREIGN'\n"
++			   "LOCK IN SHARE MODE;\n"
++			   "IF (SQL % NOTFOUND) THEN\n"
++			   "       found := 0;\n"
++			   "END IF;\n"
++			   "IF (:table_name = 'SYS_FOREIGN') THEN\n"
++			   "       found := 0;\n"
++			   "END IF;\n"
++			   "IF (:table_name = 'SYS_FOREIGN_COLS') THEN\n"
++			   "       found := 0;\n"
++			   "END IF;\n"
++			   "WHILE found = 1 LOOP\n"
++			   "       SELECT ID INTO foreign_id\n"
++			   "       FROM SYS_FOREIGN\n"
++			   "       WHERE FOR_NAME = :table_name\n"
++			   "               AND TO_BINARY(FOR_NAME)\n"
++			   "                 = TO_BINARY(:table_name)\n"
++			   "               LOCK IN SHARE MODE;\n"
++			   "       IF (SQL % NOTFOUND) THEN\n"
++			   "               found := 0;\n"
++			   "       ELSE\n"
++			   "               DELETE FROM SYS_FOREIGN_COLS\n"
++			   "               WHERE ID = foreign_id;\n"
++			   "               DELETE FROM SYS_FOREIGN\n"
++			   "               WHERE ID = foreign_id;\n"
++			   "       END IF;\n"
++			   "END LOOP;\n"
++			   "found := 1;\n"
++			   "WHILE found = 1 LOOP\n"
++			   "       SELECT ID INTO index_id\n"
++			   "       FROM SYS_INDEXES\n"
++			   "       WHERE TABLE_ID = table_id\n"
++			   "       LOCK IN SHARE MODE;\n"
++			   "       IF (SQL % NOTFOUND) THEN\n"
++			   "               found := 0;\n"
++			   "       ELSE\n"
 +			   "               DELETE FROM SYS_STATS\n"
 +			   "               WHERE INDEX_ID = index_id;\n"
- 			   "               DELETE FROM SYS_FIELDS\n"
- 			   "               WHERE INDEX_ID = index_id;\n"
- 			   "               DELETE FROM SYS_INDEXES\n"
++			   "               DELETE FROM SYS_FIELDS\n"
++			   "               WHERE INDEX_ID = index_id;\n"
++			   "               DELETE FROM SYS_INDEXES\n"
++			   "               WHERE ID = index_id\n"
++			   "               AND TABLE_ID = table_id;\n"
++			   "       END IF;\n"
++			   "END LOOP;\n"
++			   "DELETE FROM SYS_COLUMNS\n"
++			   "WHERE TABLE_ID = table_id;\n"
++			   "DELETE FROM SYS_TABLES\n"
++			   "WHERE ID = table_id;\n"
++			   "END;\n"
++			   , FALSE, trx);
++	} else {
+ 	err = que_eval_sql(info,
+ 			   "PROCEDURE DROP_TABLE_PROC () IS\n"
+ 			   "sys_foreign_id CHAR;\n"
+@@ -3226,6 +3300,7 @@
+ 			   "WHERE ID = table_id;\n"
+ 			   "END;\n"
+ 			   , FALSE, trx);
++	} /* if (srv_use_sys_stats_table) */
+ 
+ 	switch (err) {
+ 		ibool		is_temp;
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 10:46:03.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 10:46:30.000000000 +0900

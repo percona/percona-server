@@ -11,5 +11,12 @@ reset query cache;
 flush status;
 ( select * from t1 );
 /*!40101 SET @OLD_SQL_MODE := @@SQL_MODE, @@SQL_MODE := REPLACE(REPLACE(@@SQL_MODE, 'ANSI_QUOTES', ''), ',,', ','), @OLD_QUOTE := @@SQL_QUOTE_SHOW_CREATE, @@SQL_QUOTE_SHOW_CREATE := 1 */;
+/* only comment */;
+let query=# only comment
+;
+eval $query;
+let query=-- only comment
+;
+eval $query;
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;

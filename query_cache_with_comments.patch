@@ -180,7 +180,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +      }
 +    case '/':
 +      {
-+        if('*' == query[query_position+1])
++        if(('*' == query[query_position+1]) && ((query_position + 2) < query_length) && ('!' != query[query_position+2]))
 +        {
 +          query_position += 2; // skip "/*"
 +          do
@@ -344,7 +344,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +        switch(current)
 +        {
 +        case '/':
-+          if('*' == query[query_position+1])
++          if(('*' == query[query_position+1]) && ((query_position + 2) < query_length) && ('!' != query[query_position+2]))
 +          {
 +            query_position += 2; // skip "/*"
 +            do

@@ -12,7 +12,7 @@ ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
 DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEBVERSION = $(shell echo "rel`if test -z \"$(major_version)\"; then echo 11; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo 1; else echo $(minor_version); fi`" )
+DEBVERSION = $(shell echo "rel`if test -z \"$(major_version)\"; then echo 11; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo 2; else echo $(minor_version); fi`" )
 
 DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
 DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
@@ -21,7 +21,7 @@ DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//'
 DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
 
 
-DISTRIBUTION = $(shell echo "Percona Server (GPL), `if test -z \"$(major_version)\"; then echo 11; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo 0; else echo $(minor_version); fi` `if ! test -z \"$(BB_PERCONA_REVISION)\"; then echo \", Revision $(BB_PERCONA_REVISION)\"; fi`")
+DISTRIBUTION = $(shell echo "Percona Server (GPL), `if test -z \"$(major_version)\"; then echo 11; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo 2; else echo $(minor_version); fi` `if ! test -z \"$(BB_PERCONA_REVISION)\"; then echo \", Revision $(BB_PERCONA_REVISION)\"; fi`")
 
 MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
 ifeq (${MAKE_J}, -j0)

@@ -6,7 +6,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  #define INNODB_VERSION_BUGFIX	8
  
 +#ifndef PERCONA_INNODB_VERSION
-+#define PERCONA_INNODB_VERSION 11.1
++#define PERCONA_INNODB_VERSION 11.2
 +#endif
 +
 +

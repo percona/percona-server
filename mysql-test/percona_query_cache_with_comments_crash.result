@@ -11,5 +11,11 @@ a
 1
 2
 3
+/*!40101 SET @OLD_SQL_MODE := @@SQL_MODE, @@SQL_MODE := REPLACE(REPLACE(@@SQL_MODE, 'ANSI_QUOTES', ''), ',,', ','), @OLD_QUOTE := @@SQL_QUOTE_SHOW_CREATE, @@SQL_QUOTE_SHOW_CREATE := 1 */;
+/* only comment */;
+# only comment
+;
+-- only comment
+;
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;

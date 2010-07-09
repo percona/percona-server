@@ -36,6 +36,7 @@ tests:
 	install -m 644 mysql-test/*.opt Percona-Server/mysql-test/t/
 	install -m 644 mysql-test/*.test Percona-Server/mysql-test/t/
 	install -m 644 mysql-test/*.result Percona-Server/mysql-test/r/
+	install -m 644 mysql-test/*.inc Percona-Server/mysql-test/include
 
 misc:
 	@echo "Installing other files"

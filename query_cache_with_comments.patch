@@ -1,6 +1,6 @@
 diff -Nur a/patch_info/query_cache_with_comments.patch b/patch_info/query_cache_with_comments.patch
 --- a/patch_info/query_cache_with_comments.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/query_cache_with_comments.patch	2010-07-07 03:48:04.748972002 +0400
++++ b/patch_info/query_cache_with_comments.patch	2010-07-09 09:07:58.531329002 +0400
 @@ -0,0 +1,10 @@
 +File=query_cache_with_comments.patch
 +Name=Remove comments from query (need for cache hit)
@@ -13,8 +13,8 @@ diff -Nur a/patch_info/query_cache_with_comments.patch b/patch_info/query_cache_
 +* Fix crash
 +* Fix incorrect behavior
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-07 03:48:04.228972002 +0400
-+++ b/sql/mysqld.cc	2010-07-07 03:48:04.758972002 +0400
+--- a/sql/mysqld.cc	2010-07-09 09:07:57.191329000 +0400
++++ b/sql/mysqld.cc	2010-07-09 09:07:58.531329002 +0400
 @@ -490,6 +490,7 @@
  my_bool opt_log_slow_slave_statements= 0;
  my_bool opt_log_slow_sp_statements= 0;
@@ -43,8 +43,8 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
     "Control always use global long_query_time or local long_query_time.",
     (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
 diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-07 03:48:04.238972002 +0400
-+++ b/sql/mysql_priv.h	2010-07-07 03:48:04.998972002 +0400
+--- a/sql/mysql_priv.h	2010-07-09 09:07:57.211329001 +0400
++++ b/sql/mysql_priv.h	2010-07-09 09:07:59.761329001 +0400
 @@ -2130,6 +2130,7 @@
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
  extern my_bool opt_log_slow_sp_statements;
@@ -55,7 +55,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool sp_automatic_privileges, opt_noacl;
 diff -Nur a/sql/query_strip_comments.h b/sql/query_strip_comments.h
 --- a/sql/query_strip_comments.h	1970-01-01 03:00:00.000000000 +0300
-+++ b/sql/query_strip_comments.h	2010-07-07 03:48:05.298972002 +0400
++++ b/sql/query_strip_comments.h	2010-07-09 09:07:59.961329001 +0400
 @@ -0,0 +1,37 @@
 +#ifndef _SQL_QUERY_STRIPC_COMMENTS_H_
 +#define _SQL_QUERY_STRIPC_COMMENTS_H_
@@ -95,8 +95,8 @@ diff -Nur a/sql/query_strip_comments.h b/sql/query_strip_comments.h
 +#endif // HAVE_QUERY_CACHE
 +#endif // _SQL_QUERY_STRIPC_COMMENTS_H_
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-07 03:48:04.218972002 +0400
-+++ b/sql/set_var.cc	2010-07-07 03:48:05.298972002 +0400
+--- a/sql/set_var.cc	2010-07-09 09:07:57.191329000 +0400
++++ b/sql/set_var.cc	2010-07-09 09:08:00.001329001 +0400
 @@ -928,6 +928,8 @@
  #ifndef EMBEDDED_LIBRARY
  static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
@@ -107,9 +107,9 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
  
  static uchar *slave_get_report_port(THD *thd)
 diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
---- a/sql/sql_cache.cc	2010-07-07 03:48:04.228972002 +0400
-+++ b/sql/sql_cache.cc	2010-07-07 03:48:05.298972002 +0400
-@@ -333,6 +333,193 @@
+--- a/sql/sql_cache.cc	2010-07-09 09:07:57.191329000 +0400
++++ b/sql/sql_cache.cc	2010-07-09 09:08:00.001329001 +0400
+@@ -333,6 +333,180 @@
  #include <hash.h>
  #include "../storage/myisammrg/ha_myisammrg.h"
  #include "../storage/myisammrg/myrg_def.h"
@@ -156,23 +156,11 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +    case '"':
 +      {
 +        buffer[position++] = query[query_position++]; // copy current symbol
-+        bool escaping = false;
 +        while(query_position < query_length)
 +        {
-+          if(escaping) // previous symbol was "\", just copy escaped symbol
++          if(current == query[query_position]) // found pair quote
 +          {
-+            escaping = false;
-+          }
-+          else
-+          {
-+            if(current == query[query_position]) // found pair quote
-+            {
-+              break;
-+            }
-+            if('\\' == query[query_position]) // notify about escaping
-+            {
-+              escaping = true;
-+            }
++            break;
 +          }
 +          buffer[position++] = query[query_position++]; // copy current symbol
 +        }
@@ -180,7 +168,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +      }
 +    case '/':
 +      {
-+        if(('*' == query[query_position+1]) && ((query_position + 2) < query_length) && ('!' != query[query_position+2]))
++        if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
 +        {
 +          query_position += 2; // skip "/*"
 +          do
@@ -238,20 +226,19 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +        }
 +      }
 +    default:
++      if(query_strip_comments_is_white_space(current))
++      {
++        insert_space = true;
++        ++query_position;
++      }
 +      break; // make gcc happy
 +    }
-+    bool is_white_space = query_strip_comments_is_white_space(current);
-+    insert_space = insert_space || is_white_space;
 +    if(insert_space)
 +    {
 +      if((last_space + 1) != position)
 +      {
 +        last_space = position;
 +        buffer[position++] = ' ';
-+      }
-+      if(is_white_space)
-+      {
-+        ++query_position;
 +      }
 +    }
 +    else
@@ -303,7 +290,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
  
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
-@@ -1235,6 +1422,8 @@
+@@ -1235,6 +1409,8 @@
        unlock();
        DBUG_VOID_RETURN;
      }
@@ -312,7 +299,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1354,6 +1543,9 @@
+@@ -1354,6 +1530,9 @@
    Query_cache_block_table *block_table, *block_table_end;
    ulong tot_length;
    Query_cache_query_flags flags;
@@ -322,7 +309,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
    DBUG_ENTER("Query_cache::send_result_to_client");
  
    /*
-@@ -1375,21 +1567,103 @@
+@@ -1375,21 +1554,103 @@
  
    {
      uint i= 0;
@@ -344,7 +331,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +        switch(current)
 +        {
 +        case '/':
-+          if(('*' == query[query_position+1]) && ((query_position + 2) < query_length) && ('!' != query[query_position+2]))
++          if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
 +          {
 +            query_position += 2; // skip "/*"
 +            do
@@ -439,7 +426,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
      if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
           my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
           my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1398,7 +1672,6 @@
+@@ -1398,7 +1659,6 @@
        DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
        goto err;
      }
@@ -447,7 +434,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
      if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
      {
        /*
-@@ -1430,6 +1703,12 @@
+@@ -1430,6 +1690,12 @@
    DBUG_ASSERT(thd->net.query_cache_query == 0);
  
    Query_cache_block *query_block;
@@ -460,7 +447,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1496,6 +1775,8 @@
+@@ -1496,6 +1762,8 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  hash_search(&queries, (uchar*) sql,
  						   tot_length);
@@ -470,8 +457,8 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
    if (query_block == 0 ||
        query_block->query()->result() == 0 ||
 diff -Nur a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-07-07 03:48:04.228972002 +0400
-+++ b/sql/sql_class.h	2010-07-07 03:48:05.308972002 +0400
+--- a/sql/sql_class.h	2010-07-09 09:07:57.191329000 +0400
++++ b/sql/sql_class.h	2010-07-09 09:08:00.071329001 +0400
 @@ -22,7 +22,9 @@
  
  #include "log.h"

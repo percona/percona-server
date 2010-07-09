@@ -69,6 +69,10 @@ let $query=select * from t1
 --source include/percona_query_cache_with_comments_eval.inc
 
 let $query=select * from t1
+/* *\/ */;
+--source include/percona_query_cache_with_comments_eval.inc
+
+let $query=select * from t1
 /* comment in the end */
 ;
 --source include/percona_query_cache_with_comments_eval.inc
@@ -85,4 +89,7 @@ let $query=select * from t1 -- comment in the end;
 
 let $query=select * from t1 -- comment in the end
 ;
+--source include/percona_query_cache_with_comments_eval.inc
+
+let $query=select ' \'  ' from t1;
 --source include/percona_query_cache_with_comments_eval.inc

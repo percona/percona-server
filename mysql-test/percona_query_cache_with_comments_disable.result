@@ -630,8 +630,7 @@ Variable_name	Value
 Qcache_hits	16
 -----------------------------------------------------
 select * from t1
-/* comment in the end */
-
+/* *\/ */
 -----------------------------------------------------
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -643,6 +642,41 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	16
 select * from t1
+/* *\/ */;
+a
+1
+2
+3
+select * from t1
+/* *\/ */;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	18
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	18
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	17
+-----------------------------------------------------
+select * from t1
+/* comment in the end */
+
+-----------------------------------------------------
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	18
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	18
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	17
+select * from t1
 /* comment in the end */
 ;
 a
@@ -658,35 +692,16 @@ a
 3
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	17
+Qcache_queries_in_cache	18
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	17
+Qcache_inserts	18
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	18
+Qcache_hits	19
 -----------------------------------------------------
 select * from t1 #comment in the end
 -----------------------------------------------------
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	17
-show status like "Qcache_inserts";
-Variable_name	Value
-Qcache_inserts	17
-show status like "Qcache_hits";
-Variable_name	Value
-Qcache_hits	18
-select * from t1 #comment in the end;
-a
-1
-2
-3
-select * from t1 #comment in the end;
-a
-1
-2
-3
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	18
@@ -696,19 +711,38 @@ Qcache_inserts	18
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	19
+select * from t1 #comment in the end;
+a
+1
+2
+3
+select * from t1 #comment in the end;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	19
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	19
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	20
 -----------------------------------------------------
 select * from t1 #comment in the end
 
 -----------------------------------------------------
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	18
+Qcache_queries_in_cache	19
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	18
+Qcache_inserts	19
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	19
+Qcache_hits	20
 select * from t1 #comment in the end
 ;
 a
@@ -717,37 +751,6 @@ a
 3
 select * from t1 #comment in the end
 ;
-a
-1
-2
-3
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	18
-show status like "Qcache_inserts";
-Variable_name	Value
-Qcache_inserts	18
-show status like "Qcache_hits";
-Variable_name	Value
-Qcache_hits	21
------------------------------------------------------
-select * from t1 -- comment in the end
------------------------------------------------------
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	18
-show status like "Qcache_inserts";
-Variable_name	Value
-Qcache_inserts	18
-show status like "Qcache_hits";
-Variable_name	Value
-Qcache_hits	21
-select * from t1 -- comment in the end;
-a
-1
-2
-3
-select * from t1 -- comment in the end;
 a
 1
 2
@@ -763,7 +766,6 @@ Variable_name	Value
 Qcache_hits	22
 -----------------------------------------------------
 select * from t1 -- comment in the end
-
 -----------------------------------------------------
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -774,6 +776,38 @@ Qcache_inserts	19
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	22
+select * from t1 -- comment in the end;
+a
+1
+2
+3
+select * from t1 -- comment in the end;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	20
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	20
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	23
+-----------------------------------------------------
+select * from t1 -- comment in the end
+
+-----------------------------------------------------
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	20
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	20
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	23
 select * from t1 -- comment in the end
 ;
 a
@@ -788,13 +822,44 @@ a
 3
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	19
+Qcache_queries_in_cache	20
 show status like "Qcache_inserts";
 Variable_name	Value
-Qcache_inserts	19
+Qcache_inserts	20
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	24
+Qcache_hits	25
+-----------------------------------------------------
+select ' \'  ' from t1
+-----------------------------------------------------
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	20
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	20
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	25
+select ' \'  ' from t1;
+'  
+ '  
+ '  
+ '  
+select ' \'  ' from t1;
+'  
+ '  
+ '  
+ '  
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	21
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	21
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	26
 DROP TABLE t1;
 SET GLOBAL query_cache_size=default;
 set global query_cache_strip_comments=OFF;

@@ -109,7 +109,7 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
 diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 --- a/sql/sql_cache.cc	2010-07-09 01:32:44.691329001 +0400
 +++ b/sql/sql_cache.cc	2010-07-09 01:32:28.481329002 +0400
-@@ -333,6 +333,193 @@
+@@ -333,6 +333,180 @@
  #include <hash.h>
  #include "../storage/myisammrg/ha_myisammrg.h"
  #include "../storage/myisammrg/myrg_def.h"
@@ -156,23 +156,11 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +    case '"':
 +      {
 +        buffer[position++] = query[query_position++]; // copy current symbol
-+        bool escaping = false;
 +        while(query_position < query_length)
 +        {
-+          if(escaping) // previous symbol was "\", just copy escaped symbol
++          if(current == query[query_position]) // found pair quote
 +          {
-+            escaping = false;
-+          }
-+          else
-+          {
-+            if(current == query[query_position]) // found pair quote
-+            {
-+              break;
-+            }
-+            if('\\' == query[query_position]) // notify about escaping
-+            {
-+              escaping = true;
-+            }
++            break;
 +          }
 +          buffer[position++] = query[query_position++]; // copy current symbol
 +        }
@@ -180,7 +168,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +      }
 +    case '/':
 +      {
-+        if(('*' == query[query_position+1]) && ((query_position + 2) < query_length) && ('!' != query[query_position+2]))
++        if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
 +        {
 +          query_position += 2; // skip "/*"
 +          do
@@ -238,20 +226,19 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +        }
 +      }
 +    default:
++      if(query_strip_comments_is_white_space(current))
++      {
++        insert_space = true;
++        ++query_position;
++      }
 +      break; // make gcc happy
 +    }
-+    bool is_white_space = query_strip_comments_is_white_space(current);
-+    insert_space = insert_space || is_white_space;
 +    if(insert_space)
 +    {
 +      if((last_space + 1) != position)
 +      {
 +        last_space = position;
 +        buffer[position++] = ' ';
-+      }
-+      if(is_white_space)
-+      {
-+        ++query_position;
 +      }
 +    }
 +    else
@@ -344,7 +331,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +        switch(current)
 +        {
 +        case '/':
-+          if(('*' == query[query_position+1]) && ((query_position + 2) < query_length) && ('!' != query[query_position+2]))
++          if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
 +          {
 +            query_position += 2; // skip "/*"
 +            do

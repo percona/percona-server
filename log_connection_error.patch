@@ -1,0 +1,46 @@
+diff -Nur a/patch_info/log_connection_error.patch b/patch_info/log_connection_error.patch
+--- a/patch_info/log_connection_error.patch	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/log_connection_error.patch	2010-07-14 03:12:24.851271001 +0400
+@@ -0,0 +1,6 @@
++File=log_connection_error.patch
++Name=logging abandoned connections
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
+diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-14 03:10:09.381271000 +0400
++++ b/sql/mysqld.cc	2010-07-14 03:10:32.251271000 +0400
+@@ -5007,6 +5007,10 @@
+ 
+     DBUG_PRINT("error",("Too many connections"));
+     close_connection(thd, ER_CON_COUNT_ERROR, 1);
++    if (global_system_variables.log_warnings)
++    {
++      sql_print_warning("%s", ER(ER_CON_COUNT_ERROR));
++    }
+     statistic_increment(denied_connections, &LOCK_status);
+     delete thd;
+     DBUG_VOID_RETURN;
+@@ -5394,6 +5398,10 @@
+     if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
+ 	my_net_init(&thd->net, thd->net.vio))
+     {
++      if (global_system_variables.log_warnings)
++      {
++        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
++      }
+       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+       delete thd;
+       continue;
+@@ -5589,6 +5597,10 @@
+                                                    event_conn_closed)) ||
+                         my_net_init(&thd->net, thd->net.vio))
+     {
++      if (global_system_variables.log_warnings)
++      {
++        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
++      }
+       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+       errmsg= 0;
+       goto errorconn;

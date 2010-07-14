@@ -35,7 +35,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900
-@@ -1963,7 +1963,7 @@
+@@ -1965,7 +1965,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

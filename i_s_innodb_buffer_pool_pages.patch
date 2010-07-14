@@ -1,3 +1,21 @@
+diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
+--- a/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 15:57:23.322321253 +0900
++++ b/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 16:04:45.521321527 +0900
+@@ -269,14 +269,6 @@
+ UNIV_INTERN ibool		buf_debug_prints = FALSE;
+ #endif /* UNIV_DEBUG */
+ 
+-/** A chunk of buffers.  The buffer pool is allocated in chunks. */
+-struct buf_chunk_struct{
+-	ulint		mem_size;	/*!< allocated size of the chunk */
+-	ulint		size;		/*!< size of frames[] and blocks[] */
+-	void*		mem;		/*!< pointer to the memory area which
+-					was allocated for the frames */
+-	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+-};
+ #endif /* !UNIV_HOTBACKUP */
+ 
+ /********************************************************************//**
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:55:25.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:04:05.000000000 +0900
@@ -14,24 +32,16 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-04-29 15:28:20.000000000 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-29 16:04:05.000000000 +0900
-@@ -42,6 +42,16 @@
+@@ -42,6 +42,8 @@
  #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
  #include "ha_prototypes.h" /* for innobase_convert_name() */
  #include "srv0start.h" /* for srv_was_started */
 +#include "btr0btr.h" /* for btr_page_get_index_id */
 +#include "dict0dict.h" /* for dict_index_get_if_in_cache */
-+/* from buf0buf.c */
-+struct buf_chunk_struct{
-+	ulint		mem_size;	/* allocated size of the chunk */
-+	ulint		size;		/* size of frames[] and blocks[] */
-+	void*		mem;		/* pointer to the memory area which
-+					was allocated for the frames */
-+	buf_block_t*	blocks;		/* array of buffer control blocks */
-+};
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -380,6 +390,751 @@
+@@ -380,6 +382,751 @@
  };
  
  
@@ -806,3 +816,22 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_buffer_pool_pages","Information of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
+diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
+--- a/storage/innodb_plugin/include/buf0buf.h	2010-07-14 15:57:23.333331973 +0900
++++ b/storage/innodb_plugin/include/buf0buf.h	2010-07-14 16:03:45.885392395 +0900
+@@ -1286,6 +1286,15 @@
+ #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
+ /* @} */
+ 
++/** A chunk of buffers.  The buffer pool is allocated in chunks. */
++struct buf_chunk_struct{
++	ulint		mem_size;	/*!< allocated size of the chunk */
++	ulint		size;		/*!< size of frames[] and blocks[] */
++	void*		mem;		/*!< pointer to the memory area which
++					was allocated for the frames */
++	buf_block_t*	blocks;		/*!< array of buffer control blocks */
++};
++
+ /** @brief The buffer pool statistics structure. */
+ struct buf_pool_stat_struct{
+ 	ulint	n_page_gets;	/*!< number of page gets performed;

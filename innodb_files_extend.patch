@@ -176,7 +176,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buddy.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-04-30 16:34:37.000000000 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-04-30 16:35:09.000000000 +0900
-@@ -1443,11 +1443,11 @@
+@@ -1452,11 +1452,11 @@
  	/* @{ */
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */

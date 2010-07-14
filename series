@@ -32,6 +32,7 @@ innodb_pass_corrupt_table.patch
 innodb_fast_checksum.patch
 innodb_files_extend.patch
 innodb_show_sys_tables.patch
+innodb_buffer_pool_shm.patch
 innodb_fix_misc.patch
 innodb_adjust_defaults.patch
 mysql-test.diff

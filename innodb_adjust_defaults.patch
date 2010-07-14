@@ -19,7 +19,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
    PLUGIN_VAR_RQCMDARG,
-@@ -11418,7 +11418,7 @@
+@@ -11423,7 +11423,7 @@
  static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
    PLUGIN_VAR_RQCMDARG,
    "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
@@ -28,7 +28,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
    PLUGIN_VAR_RQCMDARG,
-@@ -11496,8 +11496,8 @@
+@@ -11501,8 +11501,8 @@
  };
  static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
    PLUGIN_VAR_RQCMDARG,

@@ -246,7 +246,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	/* Align a pointer to the first frame.  Note that when
  	os_large_page_size is smaller than UNIV_PAGE_SIZE,
-@@ -795,8 +998,13 @@
+@@ -795,8 +999,13 @@
  	it is bigger, we may allocate more blocks than requested. */
  
  	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
@@ -260,7 +260,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	/* Subtract the space needed for block descriptors. */
  	{
-@@ -810,6 +1018,98 @@
+@@ -810,6 +1019,98 @@
  		chunk->size = size;
  	}
  
@@ -359,7 +359,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	/* Init block structs and assign frames for them. Then we
  	assign the frames to the first blocks (we already mapped the
  	memory above). */
-@@ -833,6 +1133,11 @@
+@@ -833,6 +1134,11 @@
  		block++;
  		frame += UNIV_PAGE_SIZE;
  	}
@@ -371,7 +371,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	return(chunk);
  }
-@@ -1009,6 +1314,8 @@
+@@ -1009,6 +1315,8 @@
  		UNIV_MEM_UNDESC(block);
  	}
  
@@ -380,7 +380,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	os_mem_free_large(chunk->mem, chunk->mem_size);
  }
  
-@@ -1058,7 +1365,10 @@
+@@ -1058,7 +1366,10 @@
  	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
  
  	buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
@@ -391,7 +391,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	buf_pool->last_printout_time = time(NULL);
  
-@@ -1073,6 +1383,86 @@
+@@ -1073,6 +1384,86 @@
  	--------------------------- */
  	/* All fields are initialized by mem_zalloc(). */
  
@@ -478,7 +478,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mutex_exit(&LRU_list_mutex);
  	rw_lock_x_unlock(&page_hash_latch);
  	buf_pool_mutex_exit();
-@@ -1097,6 +1487,30 @@
+@@ -1097,6 +1488,30 @@
  	buf_chunk_t*	chunk;
  	buf_chunk_t*	chunks;
  
@@ -509,7 +509,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	chunks = buf_pool->chunks;
  	chunk = chunks + buf_pool->n_chunks;
  
-@@ -1105,10 +1519,13 @@
+@@ -1105,10 +1520,13 @@
  		would fail at shutdown. */
  		os_mem_free_large(chunk->mem, chunk->mem_size);
  	}
@@ -523,7 +523,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mem_free(buf_pool);
  	buf_pool = NULL;
  }
-@@ -1303,6 +1720,11 @@
+@@ -1303,6 +1721,11 @@
  	//buf_pool_mutex_enter();
  	mutex_enter(&LRU_list_mutex);
  
@@ -535,7 +535,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  shrink_again:
  	if (buf_pool->n_chunks <= 1) {
  
-@@ -1546,6 +1968,11 @@
+@@ -1546,6 +1969,11 @@
  buf_pool_resize(void)
  /*=================*/
  {
@@ -624,7 +624,7 @@ diff -ruN a/storage/innodb_plugin/ha/hash0hash.c b/storage/innodb_plugin/ha/hash
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-14 16:34:18.597725479 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-14 16:40:16.159323612 +0900
-@@ -11273,6 +11273,11 @@
+@@ -11293,6 +11293,11 @@
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
  
@@ -636,7 +636,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11532,6 +11537,7 @@
+@@ -11552,6 +11557,7 @@
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),

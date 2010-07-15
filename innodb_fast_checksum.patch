@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2010-04-30 16:31:04.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2010-04-30 16:32:03.000000000 +0900
-@@ -351,6 +351,27 @@
+@@ -343,6 +343,27 @@
  	return(checksum);
  }
  
@@ -29,7 +29,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  /********************************************************************//**
  In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
  looked at the first few bytes of the page. This calculates that old
-@@ -465,9 +486,21 @@
+@@ -457,9 +478,21 @@
  		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
  		(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
  
@@ -52,7 +52,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		    != buf_calc_page_new_checksum(read_buf)) {
  
  			return(TRUE);
-@@ -491,6 +524,7 @@
+@@ -483,6 +516,7 @@
  	dict_index_t*	index;
  #endif /* !UNIV_HOTBACKUP */
  	ulint		checksum;
@@ -60,7 +60,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	ulint		old_checksum;
  	ulint		size	= zip_size;
  
-@@ -577,12 +611,14 @@
+@@ -569,12 +603,14 @@
  
  	checksum = srv_use_checksums
  		? buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
@@ -76,7 +76,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		" checksum %lu\n"
  		"InnoDB: stored checksum %lu, prior-to-4.0.14-form"
  		" stored checksum %lu\n"
-@@ -591,7 +627,7 @@
+@@ -583,7 +619,7 @@
  		"InnoDB: Page number (if stored to page already) %lu,\n"
  		"InnoDB: space id (if created with >= MySQL-4.1.1"
  		" and stored already) %lu\n",

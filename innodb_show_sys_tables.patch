@@ -20,9 +20,9 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  #include "dict0dict.h" /* for dict_sys */
 +#include "btr0pcur.h"
  #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
- /* from buf0buf.c */
- struct buf_chunk_struct{
-@@ -3167,6 +3168,667 @@
+ }
+ 
+@@ -3159,6 +3160,667 @@
  	STRUCT_FLD(deinit, i_s_common_deinit),
  	STRUCT_FLD(version, 0x0100 /* 1.0 */),
  	STRUCT_FLD(status_vars, NULL),

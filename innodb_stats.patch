@@ -1157,10 +1157,10 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
 +#include "dict0dict.h" /* for dict_sys */
- /* from buf0buf.c */
- struct buf_chunk_struct{
- 	ulint		mem_size;	/* allocated size of the chunk */
-@@ -2657,3 +2658,347 @@
+ }
+ 
+ static const char plugin_author[] = "Innobase Oy";
+@@ -2649,3 +2650,347 @@
  	/* void* */
  	STRUCT_FLD(__reserved1, NULL)
  };

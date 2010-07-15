@@ -24,7 +24,7 @@ diff -ruN a/storage/innodb_plugin/include/lock0lock.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-05-27 17:49:37.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-05-27 17:50:58.000000000 +0900
-@@ -659,6 +659,7 @@
+@@ -661,6 +661,7 @@
  	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
@@ -46,7 +46,7 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-05-27 17:49:37.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-05-27 17:50:58.000000000 +0900
-@@ -432,7 +432,7 @@
+@@ -435,7 +435,7 @@
  static ulint	srv_n_rows_updated_old		= 0;
  static ulint	srv_n_rows_deleted_old		= 0;
  static ulint	srv_n_rows_read_old		= 0;
@@ -55,7 +55,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
  UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
  UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-@@ -2144,6 +2144,8 @@
+@@ -2147,6 +2147,8 @@
  		= UT_LIST_GET_LEN(buf_pool->flush_list);
  	export_vars.innodb_buffer_pool_pages_free
  		= UT_LIST_GET_LEN(buf_pool->free);

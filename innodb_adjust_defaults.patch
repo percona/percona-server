@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:39:14.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:43:26.000000000 +0900
-@@ -11080,7 +11080,7 @@
+@@ -11100,7 +11100,7 @@
  static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
@@ -10,7 +10,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11180,7 +11180,7 @@
+@@ -11200,7 +11200,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
    PLUGIN_VAR_NOCMDARG,
    "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
@@ -19,7 +19,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
    PLUGIN_VAR_RQCMDARG,
-@@ -11423,7 +11423,7 @@
+@@ -11443,7 +11443,7 @@
  static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
    PLUGIN_VAR_RQCMDARG,
    "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
@@ -28,7 +28,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
    PLUGIN_VAR_RQCMDARG,
-@@ -11501,8 +11501,8 @@
+@@ -11521,8 +11521,8 @@
  };
  static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
    PLUGIN_VAR_RQCMDARG,

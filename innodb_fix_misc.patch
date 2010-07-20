@@ -1,3 +1,27 @@
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-20 16:33:04.367866757 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-20 16:33:53.992827856 +0900
+@@ -5722,6 +5722,9 @@
+ 		prebuilt->index_usable = FALSE;
+ 		DBUG_RETURN(HA_ERR_CRASHED);
+ 	}
++	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
++		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
++	}
+ 
+ 	/* Note that if the index for which the search template is built is not
+ 	necessarily prebuilt->index, but can also be the clustered index */
+@@ -7593,6 +7596,10 @@
+ 		n_rows = HA_POS_ERROR;
+ 		goto func_exit;
+ 	}
++	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
++		n_rows = HA_ERR_TABLE_DEF_CHANGED;
++		goto func_exit;
++	}
+ 
+ 	heap = mem_heap_create(2 * (key->key_parts * sizeof(dfield_t)
+ 				    + sizeof(dtuple_t)));
 diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include/univ.i
 --- a/storage/innodb_plugin/include/univ.i	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
@@ -32,6 +56,65 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
  
+diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
+--- a/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:04.097866666 +0900
++++ b/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:53.995828763 +0900
+@@ -1125,6 +1125,13 @@
+ 
+ 	thr = que_fork_get_first_thr(prebuilt->ins_graph);
+ 
++	if (!prebuilt->mysql_has_locked) {
++		fprintf(stderr, "InnoDB: Error: row_insert_for_mysql is called without ha_innobase::external_lock()\n");
++		if (trx->mysql_thd != NULL) {
++			innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
++		}
++	}
++
+ 	if (prebuilt->sql_stat_start) {
+ 		node->state = INS_NODE_SET_IX_LOCK;
+ 		prebuilt->sql_stat_start = FALSE;
+diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0sel.c
+--- a/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:04.204866103 +0900
++++ b/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:53.998864025 +0900
+@@ -3296,6 +3296,7 @@
+ 	mem_heap_t*	heap				= NULL;
+ 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+ 	ulint*		offsets				= offsets_;
++	ibool		problematic_use = FALSE;
+ 
+ 	rec_offs_init(offsets_);
+ 
+@@ -3719,6 +3720,15 @@
+ 		}
+ 	}
+ 
++	if (!prebuilt->mysql_has_locked) {
++		fprintf(stderr, "InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock()\n");
++		if (trx->mysql_thd != NULL) {
++			innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
++		}
++		problematic_use = TRUE;
++	}
++retry_check:
++	
+ 	if (!prebuilt->sql_stat_start) {
+ 		/* No need to set an intention lock or assign a read view */
+ 
+@@ -3729,6 +3739,14 @@
+ 			      " perform a consistent read\n"
+ 			      "InnoDB: but the read view is not assigned!\n",
+ 			      stderr);
++			if (problematic_use) {
++				fprintf(stderr, "InnoDB: It may be caused by calling "
++						"without ha_innobase::external_lock()\n"
++						"InnoDB: For the first-aid, avoiding the crash. "
++						"But it should be fixed ASAP.\n");
++				prebuilt->sql_stat_start = TRUE;
++				goto retry_check;
++			}
+ 			trx_print(stderr, trx, 600);
+ 			fputc('\n', stderr);
+ 			ut_a(0);
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900

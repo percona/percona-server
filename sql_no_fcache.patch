@@ -1,6 +1,6 @@
 diff -Nur a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2010-07-21 17:54:36.710424002 +0400
-+++ b/client/mysqldump.c	2010-07-21 17:54:37.570424002 +0400
+--- a/client/mysqldump.c	2010-07-21 19:26:05.740424002 +0400
++++ b/client/mysqldump.c	2010-07-21 19:25:37.640424002 +0400
 @@ -132,6 +132,8 @@
  #endif
  static uint opt_protocol= 0;
@@ -58,7 +58,7 @@ diff -Nur a/client/mysqldump.c b/client/mysqldump.c
      if (where)
 diff -Nur a/include/flashcache_ioctl.h b/include/flashcache_ioctl.h
 --- a/include/flashcache_ioctl.h	1970-01-01 03:00:00.000000000 +0300
-+++ b/include/flashcache_ioctl.h	2010-07-21 17:54:37.570424002 +0400
++++ b/include/flashcache_ioctl.h	2010-07-21 19:25:37.640424002 +0400
 @@ -0,0 +1,53 @@
 +/****************************************************************************
 + *  flashcache_ioctl.h
@@ -113,9 +113,19 @@ diff -Nur a/include/flashcache_ioctl.h b/include/flashcache_ioctl.h
 +#define FLASHCACHEDELALLWHITELIST      _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELISTALL_CMD, pid_t)
 +
 +#endif
+diff -Nur a/patch_info/sql_no_fcache.info b/patch_info/sql_no_fcache.info
+--- a/patch_info/sql_no_fcache.info	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/sql_no_fcache.info	2010-07-21 19:27:01.150424002 +0400
+@@ -0,0 +1,6 @@
++File=sql_no_fcache.patch
++Name=Support for flashcache including the SQL_NO_FCACHE option that prevents blocks from being cached during a query.
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
 diff -Nur a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2010-07-21 17:54:37.070424002 +0400
-+++ b/sql/lex.h	2010-07-21 17:54:37.570424002 +0400
+--- a/sql/lex.h	2010-07-21 19:26:06.940424002 +0400
++++ b/sql/lex.h	2010-07-21 19:25:37.640424002 +0400
 @@ -500,6 +500,7 @@
    { "SQL_CACHE",        SYM(SQL_CACHE_SYM)},
    { "SQL_CALC_FOUND_ROWS", SYM(SQL_CALC_FOUND_ROWS)},
@@ -125,8 +135,8 @@ diff -Nur a/sql/lex.h b/sql/lex.h
    { "SQL_THREAD",	SYM(SQL_THREAD)},
    { "SQL_TSI_FRAC_SECOND", SYM(FRAC_SECOND_SYM)},
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-21 17:54:37.060424002 +0400
-+++ b/sql/mysqld.cc	2010-07-21 17:54:37.580424002 +0400
+--- a/sql/mysqld.cc	2010-07-21 19:26:06.970424002 +0400
++++ b/sql/mysqld.cc	2010-07-21 19:25:37.640424002 +0400
 @@ -47,6 +47,10 @@
  #endif
  #endif
@@ -273,8 +283,8 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
    {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
 diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-21 17:54:37.070424002 +0400
-+++ b/sql/mysql_priv.h	2010-07-21 17:54:37.580424002 +0400
+--- a/sql/mysql_priv.h	2010-07-21 19:26:06.950424002 +0400
++++ b/sql/mysql_priv.h	2010-07-21 19:25:37.650424002 +0400
 @@ -837,6 +837,8 @@
  */
  extern ulong server_id, concurrency;
@@ -285,8 +295,8 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                        uint key_length,
 diff -Nur a/sql/sql_lex.cc b/sql/sql_lex.cc
---- a/sql/sql_lex.cc	2010-07-21 17:54:37.050424002 +0400
-+++ b/sql/sql_lex.cc	2010-07-21 17:54:37.580424002 +0400
+--- a/sql/sql_lex.cc	2010-06-03 19:50:11.000000000 +0400
++++ b/sql/sql_lex.cc	2010-07-21 19:25:37.650424002 +0400
 @@ -314,6 +314,7 @@
    lex->describe= 0;
    lex->subqueries= FALSE;
@@ -296,8 +306,8 @@ diff -Nur a/sql/sql_lex.cc b/sql/sql_lex.cc
    lex->lock_option= TL_READ;
    lex->safe_to_cache_query= 1;
 diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2010-07-21 17:54:37.080424002 +0400
-+++ b/sql/sql_lex.h	2010-07-21 17:54:37.580424002 +0400
+--- a/sql/sql_lex.h	2010-07-21 19:26:05.770424002 +0400
++++ b/sql/sql_lex.h	2010-07-21 19:25:37.650424002 +0400
 @@ -1682,6 +1682,7 @@
    */
    bool view_prepare_mode;
@@ -307,8 +317,8 @@ diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
    st_parsing_options parsing_options;
    Alter_info alter_info;
 diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2010-07-21 17:54:37.060424002 +0400
-+++ b/sql/sql_select.cc	2010-07-21 17:54:37.590424002 +0400
+--- a/sql/sql_select.cc	2010-07-21 19:26:05.720424002 +0400
++++ b/sql/sql_select.cc	2010-07-21 19:25:37.660424002 +0400
 @@ -37,6 +37,10 @@
  #include <hash.h>
  #include <ft_global.h>
@@ -349,8 +359,8 @@ diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
  }
  
 diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-07-21 17:54:37.070424002 +0400
-+++ b/sql/sql_yacc.yy	2010-07-21 17:54:37.600424002 +0400
+--- a/sql/sql_yacc.yy	2010-07-21 19:26:06.960424002 +0400
++++ b/sql/sql_yacc.yy	2010-07-21 19:25:37.690424002 +0400
 @@ -1165,6 +1165,7 @@
  %token  SQL_CACHE_SYM
  %token  SQL_CALC_FOUND_ROWS

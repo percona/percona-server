@@ -1,0 +1,372 @@
+diff -Nur a/client/mysqldump.c b/client/mysqldump.c
+--- a/client/mysqldump.c	2010-07-21 17:54:36.710424002 +0400
++++ b/client/mysqldump.c	2010-07-21 17:54:37.570424002 +0400
+@@ -132,6 +132,8 @@
+ #endif
+ static uint opt_protocol= 0;
+ 
++static my_bool server_supports_sql_no_fcache= FALSE;
++
+ /*
+ Dynamic_string wrapper functions. In this file use these
+ wrappers, they will terminate the process if there is
+@@ -1512,6 +1514,17 @@
+     /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
+     server_supports_switching_charsets= FALSE;
+   } 
++  
++  /* Check to see if we support SQL_NO_FCACHE on this server. */ 
++  if (mysql_query(mysql, "SELECT SQL_NO_FCACHE NOW()") == 0)
++  {
++    MYSQL_RES *res = mysql_store_result(mysql);
++    if (res)
++    {
++      mysql_free_result(res);
++    }
++    server_supports_sql_no_fcache= TRUE;
++  }
+   /*
+     As we're going to set SQL_MODE, it would be lost on reconnect, so we
+     cannot reconnect.
+@@ -3166,7 +3179,12 @@
+ 
+     /* now build the query string */
+ 
+-    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * INTO OUTFILE '");
++    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
++    if (server_supports_sql_no_fcache)
++    {
++      dynstr_append_checked(&query_string, "/*!50084 SQL_NO_FCACHE */ ");
++    }
++    dynstr_append_checked(&query_string, "* INTO OUTFILE '");
+     dynstr_append_checked(&query_string, filename);
+     dynstr_append_checked(&query_string, "'");
+ 
+@@ -3216,7 +3234,12 @@
+       check_io(md_result_file);
+     }
+     
+-    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
++    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
++    if (server_supports_sql_no_fcache)
++    {
++      dynstr_append_checked(&query_string, "/*!50084 SQL_NO_FCACHE */ ");
++    }
++    dynstr_append_checked(&query_string, "* FROM ");
+     dynstr_append_checked(&query_string, result_table);
+ 
+     if (where)
+diff -Nur a/include/flashcache_ioctl.h b/include/flashcache_ioctl.h
+--- a/include/flashcache_ioctl.h	1970-01-01 03:00:00.000000000 +0300
++++ b/include/flashcache_ioctl.h	2010-07-21 17:54:37.570424002 +0400
+@@ -0,0 +1,53 @@
++/****************************************************************************
++ *  flashcache_ioctl.h
++ *  FlashCache: Device mapper target for block-level disk caching
++ *
++ *  Copyright 2010 Facebook, Inc.
++ *  Author: Mohan Srinivasan (mohan@facebook.com)
++ *
++ *  Based on DM-Cache:
++ *   Copyright (C) International Business Machines Corp., 2006
++ *   Author: Ming Zhao (mingzhao@ufl.edu)
++ *
++ *  This program is free software; you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License as published by
++ *  the Free Software Foundation; under version 2 of the License.
++ *
++ *  This program is distributed in the hope that it will be useful,
++ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *  GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ ****************************************************************************/
++
++#ifndef FLASHCACHE_IOCTL_H
++#define FLASHCACHE_IOCTL_H
++
++#include <linux/types.h>
++
++#define FLASHCACHE_IOCTL 0xfe
++
++enum {
++       FLASHCACHEADDNCPID_CMD=200,
++       FLASHCACHEDELNCPID_CMD,
++       FLASHCACHEDELNCALL_CMD,
++       FLASHCACHEADDWHITELIST_CMD,
++       FLASHCACHEDELWHITELIST_CMD,
++       FLASHCACHEDELWHITELISTALL_CMD,
++};
++
++#define FLASHCACHEADDNCPID     _IOW(FLASHCACHE_IOCTL, FLASHCACHEADDNCPID_CMD, pid_t)
++#define FLASHCACHEDELNCPID     _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELNCPID_CMD, pid_t)
++#define FLASHCACHEDELNCALL     _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELNCALL_CMD, pid_t)
++
++#define FLASHCACHEADDBLACKLIST         FLASHCACHEADDNCPID
++#define FLASHCACHEDELBLACKLIST         FLASHCACHEDELNCPID
++#define FLASHCACHEDELALLBLACKLIST      FLASHCACHEDELNCALL
++
++#define FLASHCACHEADDWHITELIST         _IOW(FLASHCACHE_IOCTL, FLASHCACHEADDWHITELIST_CMD, pid_t)
++#define FLASHCACHEDELWHITELIST         _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELIST_CMD, pid_t)
++#define FLASHCACHEDELALLWHITELIST      _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELISTALL_CMD, pid_t)
++
++#endif
+diff -Nur a/sql/lex.h b/sql/lex.h
+--- a/sql/lex.h	2010-07-21 17:54:37.070424002 +0400
++++ b/sql/lex.h	2010-07-21 17:54:37.570424002 +0400
+@@ -500,6 +500,7 @@
+   { "SQL_CACHE",        SYM(SQL_CACHE_SYM)},
+   { "SQL_CALC_FOUND_ROWS", SYM(SQL_CALC_FOUND_ROWS)},
+   { "SQL_NO_CACHE",	SYM(SQL_NO_CACHE_SYM)},
++  { "SQL_NO_FCACHE",   SYM(SQL_NO_FCACHE_SYM)},
+   { "SQL_SMALL_RESULT", SYM(SQL_SMALL_RESULT)},
+   { "SQL_THREAD",	SYM(SQL_THREAD)},
+   { "SQL_TSI_FRAC_SECOND", SYM(FRAC_SECOND_SYM)},
+diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-21 17:54:37.060424002 +0400
++++ b/sql/mysqld.cc	2010-07-21 17:54:37.580424002 +0400
+@@ -47,6 +47,10 @@
+ #endif
+ #endif
+ 
++#include <mntent.h>
++#include <sys/statfs.h>
++#include "flashcache_ioctl.h"
++
+ #ifndef DEFAULT_SKIP_THREAD_PRIORITY
+ #define DEFAULT_SKIP_THREAD_PRIORITY 0
+ #endif
+@@ -557,6 +561,11 @@
+ ulong max_connections, max_connect_errors;
+ uint  max_user_connections= 0;
+ ulonglong denied_connections = 0;
++
++/* flashcache */
++int cachedev_fd;
++my_bool cachedev_enabled= FALSE;
++
+ /**
+   Limit of the total number of prepared statements in the server.
+   Is necessary to protect the server against out-of-memory attacks.
+@@ -4322,6 +4331,95 @@
+ }
+ #endif//DBUG_OFF
+ 
++/*
++ * Auto detect if we support flash cache on the host system.
++ * This needs to be called before we setuid away from root
++ * to avoid permission problems on opening the device node.
++ */
++static void init_cachedev(void)
++{
++  struct statfs stfs_data_home_dir;
++  struct statfs stfs;
++  struct mntent *ent;
++  pid_t pid = getpid();
++  FILE *mounts;
++  char *error_message= NULL;
++
++  // disabled by default
++  cachedev_fd = -1;
++  cachedev_enabled= FALSE;
++
++  if (!mysql_data_home)
++  {
++    error_message= "mysql_data_home not set";
++    goto epilogue;
++  }
++
++  if (statfs(mysql_data_home, &stfs_data_home_dir) < 0)
++  {
++    error_message= "statfs failed";
++    goto epilogue;
++  }
++
++  mounts = setmntent("/etc/mtab", "r");
++  if (mounts == NULL)
++  {
++    error_message= "setmntent failed";
++    goto epilogue;
++  }
++
++  while ((ent = getmntent(mounts)) != NULL)
++  {
++    if (statfs(ent->mnt_dir, &stfs) < 0)
++      continue;
++    if (memcmp(&stfs.f_fsid, &stfs_data_home_dir.f_fsid, sizeof(fsid_t)) == 0)
++      break;
++  }
++  endmntent(mounts);
++
++  if (ent == NULL)
++  {
++    error_message= "getmntent loop failed";
++    goto epilogue;
++  }
++
++  cachedev_fd = open(ent->mnt_fsname, O_RDONLY);
++  if (cachedev_fd < 0)
++  {
++    error_message= "open flash device failed";
++    goto epilogue;
++  }
++
++  /* cleanup previous whitelistings */
++  if (ioctl(cachedev_fd, FLASHCACHEDELALLWHITELIST, &pid) < 0)
++  {
++    close(cachedev_fd);
++    cachedev_fd = -1;
++    error_message= "ioctl failed";
++  } else {
++    ioctl(cachedev_fd, FLASHCACHEADDWHITELIST, &pid);
++  }
++
++epilogue:
++  sql_print_information("Flashcache bypass: %s",
++      (cachedev_fd > 0) ? "enabled" : "disabled");
++  if (error_message)
++    sql_print_information("Flashcache setup error is : %s\n", error_message);
++  else
++    cachedev_enabled= TRUE;
++
++}
++
++static void cleanup_cachedev(void)
++{
++  pid_t pid = getpid();
++
++  if (cachedev_enabled) {
++    ioctl(cachedev_fd, FLASHCACHEDELWHITELIST, &pid);
++    close(cachedev_fd);
++    cachedev_fd = -1;
++  }
++}
+ 
+ #ifdef __WIN__
+ int win_main(int argc, char **argv)
+@@ -4426,6 +4524,8 @@
+   test_lc_time_sz();
+ #endif
+ 
++  init_cachedev();
++  
+   /*
+     We have enough space for fiddling with the argv, continue
+   */
+@@ -4627,6 +4727,8 @@
+   clean_up_mutexes();
+   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+ 
++  cleanup_cachedev();
++
+   exit(0);
+   return(0);					/* purecov: deadcode */
+ }
+@@ -7706,6 +7808,7 @@
+   {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
+   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
+   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
++  {"Flashcache_enabled",       (char*) &cachedev_enabled,       SHOW_BOOL },
+   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
+   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
+   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
+diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-07-21 17:54:37.070424002 +0400
++++ b/sql/mysql_priv.h	2010-07-21 17:54:37.580424002 +0400
+@@ -837,6 +837,8 @@
+ */
+ extern ulong server_id, concurrency;
+ 
++/* flashcache */
++extern int cachedev_fd;
+ 
+ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+                                       uint key_length,
+diff -Nur a/sql/sql_lex.cc b/sql/sql_lex.cc
+--- a/sql/sql_lex.cc	2010-07-21 17:54:37.050424002 +0400
++++ b/sql/sql_lex.cc	2010-07-21 17:54:37.580424002 +0400
+@@ -314,6 +314,7 @@
+   lex->describe= 0;
+   lex->subqueries= FALSE;
+   lex->view_prepare_mode= FALSE;
++  lex->disable_flashcache= FALSE;
+   lex->derived_tables= 0;
+   lex->lock_option= TL_READ;
+   lex->safe_to_cache_query= 1;
+diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
+--- a/sql/sql_lex.h	2010-07-21 17:54:37.080424002 +0400
++++ b/sql/sql_lex.h	2010-07-21 17:54:37.580424002 +0400
+@@ -1682,6 +1682,7 @@
+   */
+   bool view_prepare_mode;
+   bool safe_to_cache_query;
++  bool disable_flashcache;
+   bool subqueries, ignore;
+   st_parsing_options parsing_options;
+   Alter_info alter_info;
+diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
+--- a/sql/sql_select.cc	2010-07-21 17:54:37.060424002 +0400
++++ b/sql/sql_select.cc	2010-07-21 17:54:37.590424002 +0400
+@@ -37,6 +37,10 @@
+ #include <hash.h>
+ #include <ft_global.h>
+ 
++#include <sys/syscall.h>
++#include <sys/ioctl.h>
++#include "flashcache_ioctl.h"
++
+ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
+ 			      "MAYBE_REF","ALL","range","index","fulltext",
+ 			      "ref_or_null","unique_subquery","index_subquery",
+@@ -239,9 +243,16 @@
+                    ulong setup_tables_done_option)
+ {
+   bool res;
++  pid_t pid;
+   register SELECT_LEX *select_lex = &lex->select_lex;
+   DBUG_ENTER("handle_select");
+ 
++  if(lex->disable_flashcache && cachedev_fd > 0)
++  {
++    pid = syscall(SYS_gettid);
++    ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid);
++  }
++
+   if (select_lex->master_unit()->is_union() || 
+       select_lex->master_unit()->fake_select_lex)
+     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
+@@ -274,6 +285,10 @@
+   if (unlikely(res))
+     result->abort();
+ 
++  if (lex->disable_flashcache && cachedev_fd > 0)
++  {
++    ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
++  }
+   DBUG_RETURN(res);
+ }
+ 
+diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+--- a/sql/sql_yacc.yy	2010-07-21 17:54:37.070424002 +0400
++++ b/sql/sql_yacc.yy	2010-07-21 17:54:37.600424002 +0400
+@@ -1165,6 +1165,7 @@
+ %token  SQL_CACHE_SYM
+ %token  SQL_CALC_FOUND_ROWS
+ %token  SQL_NO_CACHE_SYM
++%token  SQL_NO_FCACHE_SYM
+ %token  SQL_SMALL_RESULT
+ %token  SQL_SYM                       /* SQL-2003-R */
+ %token  SQL_THREAD
+@@ -6733,6 +6734,10 @@
+             Lex->select_lex.options&= ~OPTION_TO_QUERY_CACHE;
+             Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
+           }
++	| SQL_NO_FCACHE_SYM
++	  {
++	    Lex->disable_flashcache= TRUE;
++	  }
+         | SQL_CACHE_SYM
+           {
+             /*

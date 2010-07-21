@@ -240,14 +240,13 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  KEY_COLUMN_USAGE	TABLE_NAME	select
  PARTITIONS	TABLE_NAME	select
  REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
-@@ -846,13 +898,18 @@
+@@ -846,13 +898,17 @@
  TABLES	TABLE_NAME	select
  TABLE_CONSTRAINTS	TABLE_NAME	select
  TABLE_PRIVILEGES	TABLE_NAME	select
 +TEMPORARY_TABLES	TABLE_NAME	select
 +TABLE_STATISTICS	TABLE_NAME	select
  VIEWS	TABLE_NAME	select
-+INNODB_BUFFER_POOL_PAGES_INDEX	table_name	select
 +INNODB_INDEX_STATS	table_name	select
 +INNODB_TABLE_STATS	table_name	select
  delete from mysql.user where user='mysqltest_4';
@@ -260,7 +259,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  mysql	22
  create table t1 (i int, j int);
  create trigger trg1 before insert on t1 for each row
-@@ -1240,14 +1297,17 @@
+@@ -1240,14 +1296,17 @@
          );
  table_name	column_name
  CHARACTER_SETS	CHARACTER_SET_NAME
@@ -278,7 +277,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  GLOBAL_VARIABLES	VARIABLE_NAME
  KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
  PARTITIONS	TABLE_SCHEMA
-@@ -1256,6 +1316,7 @@
+@@ -1256,6 +1315,7 @@
  PROFILING	QUERY_ID
  REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
  ROUTINES	ROUTINE_SCHEMA
@@ -286,7 +285,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  SCHEMATA	SCHEMA_NAME
  SCHEMA_PRIVILEGES	TABLE_SCHEMA
  SESSION_STATUS	VARIABLE_NAME
-@@ -1264,9 +1325,31 @@
+@@ -1264,9 +1324,31 @@
  TABLES	TABLE_SCHEMA
  TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
  TABLE_PRIVILEGES	TABLE_SCHEMA
@@ -297,7 +296,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  USER_PRIVILEGES	GRANTEE
 +USER_STATISTICS	USER
  VIEWS	TABLE_SCHEMA
-+INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_BUFFER_POOL_PAGES_INDEX	index_id
 +INNODB_RSEG	rseg_id
 +INNODB_LOCKS	lock_id
 +INNODB_BUFFER_POOL_PAGES	page_type
@@ -318,7 +317,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  SELECT t.table_name, c1.column_name
  FROM information_schema.tables t
  INNER JOIN
-@@ -1283,14 +1366,17 @@
+@@ -1283,14 +1365,17 @@
          );
  table_name	column_name
  CHARACTER_SETS	CHARACTER_SET_NAME
@@ -336,7 +335,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  GLOBAL_VARIABLES	VARIABLE_NAME
  KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
  PARTITIONS	TABLE_SCHEMA
-@@ -1299,6 +1385,7 @@
+@@ -1299,6 +1384,7 @@
  PROFILING	QUERY_ID
  REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA
  ROUTINES	ROUTINE_SCHEMA
@@ -344,7 +343,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  SCHEMATA	SCHEMA_NAME
  SCHEMA_PRIVILEGES	TABLE_SCHEMA
  SESSION_STATUS	VARIABLE_NAME
-@@ -1307,17 +1394,39 @@
+@@ -1307,17 +1393,39 @@
  TABLES	TABLE_SCHEMA
  TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
  TABLE_PRIVILEGES	TABLE_SCHEMA
@@ -355,7 +354,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  USER_PRIVILEGES	GRANTEE
 +USER_STATISTICS	USER
  VIEWS	TABLE_SCHEMA
-+INNODB_BUFFER_POOL_PAGES_INDEX	schema_name
++INNODB_BUFFER_POOL_PAGES_INDEX	index_id
 +INNODB_RSEG	rseg_id
 +INNODB_LOCKS	lock_id
 +INNODB_BUFFER_POOL_PAGES	page_type
@@ -386,7 +385,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  DROP TABLE IF EXISTS bug23037;
  DROP FUNCTION IF EXISTS get_value;
  SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
-@@ -1377,6 +1486,7 @@
+@@ -1377,6 +1485,7 @@
  group by t.table_name order by num1, t.table_name;
  table_name	group_concat(t.table_schema, '.', t.table_name)	num1
  CHARACTER_SETS	information_schema.CHARACTER_SETS	1
@@ -394,7 +393,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  COLLATIONS	information_schema.COLLATIONS	1
  COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
  COLUMNS	information_schema.COLUMNS	1
-@@ -1385,12 +1495,31 @@
+@@ -1385,12 +1494,31 @@
  EVENTS	information_schema.EVENTS	1
  FILES	information_schema.FILES	1
  GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
@@ -426,7 +425,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
  ROUTINES	information_schema.ROUTINES	1
  SCHEMATA	information_schema.SCHEMATA	1
-@@ -1401,9 +1530,14 @@
+@@ -1401,9 +1529,14 @@
  TABLES	information_schema.TABLES	1
  TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
  TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1

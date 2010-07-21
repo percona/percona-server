@@ -3389,7 +3389,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-04-29 16:39:34.000000000 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-29 16:59:37.000000000 +0900
-@@ -2276,7 +2276,8 @@
+@@ -2233,7 +2233,8 @@
  
  	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
  
@@ -3399,7 +3399,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  
  	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
  		buf_buddy_stat_t*	buddy_stat = &buf_buddy_stat[x];
-@@ -2302,7 +2303,8 @@
+@@ -2259,7 +2260,8 @@
  		}
  	}
  

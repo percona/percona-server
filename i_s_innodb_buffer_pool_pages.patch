@@ -32,16 +32,15 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-04-29 15:28:20.000000000 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-29 16:04:05.000000000 +0900
-@@ -42,6 +42,8 @@
+@@ -42,6 +42,7 @@
  #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
  #include "ha_prototypes.h" /* for innobase_convert_name() */
  #include "srv0start.h" /* for srv_was_started */
 +#include "btr0btr.h" /* for btr_page_get_index_id */
-+#include "dict0dict.h" /* for dict_index_get_if_in_cache */
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -380,6 +382,751 @@
+@@ -380,6 +381,709 @@
  };
  
  
@@ -100,27 +99,11 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +static ST_FIELD_INFO	i_s_innodb_buffer_pool_pages_index_fields_info[] =
 +{
-+	{STRUCT_FLD(field_name,		"schema_name"),
-+	 STRUCT_FLD(field_length,	64),
-+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
++	{STRUCT_FLD(field_name,		"index_id"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 +	 STRUCT_FLD(value,		0),
-+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-+	 STRUCT_FLD(old_name,		""),
-+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-+
-+	{STRUCT_FLD(field_name,		"table_name"),
-+	 STRUCT_FLD(field_length,	64),
-+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-+	 STRUCT_FLD(value,		0),
-+	 STRUCT_FLD(field_flags,	0),
-+	 STRUCT_FLD(old_name,		""),
-+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-+
-+	{STRUCT_FLD(field_name,		"index_name"),
-+	 STRUCT_FLD(field_length,	64),
-+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-+	 STRUCT_FLD(value,		0),
-+	 STRUCT_FLD(field_flags,	0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
 +	 STRUCT_FLD(old_name,		""),
 +	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 +
@@ -321,7 +304,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 +
 +	buf_pool_mutex_enter();
-+  mutex_enter(&(dict_sys->mutex));
 +	
 +	chunk = buf_pool->chunks;
 +  
@@ -393,7 +375,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +    }      
 +	}
 +
-+  mutex_exit(&(dict_sys->mutex));
 +	buf_pool_mutex_exit();
 +
 +	DBUG_RETURN(status);
@@ -414,7 +395,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	int	status	= 0;
 +
 +  ulint		n_chunks, n_blocks;
-+  dict_index_t*	index;
 +  dulint		index_id;
 +
 +  const char *p;
@@ -434,7 +414,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 +
 +	buf_pool_mutex_enter();
-+  mutex_enter(&(dict_sys->mutex));
 +	
 +	chunk = buf_pool->chunks;
 +  
@@ -446,48 +425,28 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +  
 +      if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
 +        index_id = btr_page_get_index_id(frame);
-+      	index = dict_index_get_if_in_cache_low(index_id);
-+      	if(index)
-+        {
-+          if((p = strchr(index->table_name, '/')))
-+          {
-+            strncpy(db_name_raw, index->table_name, p-index->table_name);
-+            db_name_raw[p-index->table_name] = 0;
-+            filename_to_tablename(db_name_raw, db_name, sizeof(db_name));
-+            field_store_string(table->field[0], db_name);
-+            p++;            
-+          } else {
-+            field_store_string(table->field[0], NULL);
-+            p = index->table_name;
-+          }
-+          strcpy(table_name_raw, (const char*)p);
-+          filename_to_tablename(table_name_raw, table_name, sizeof(table_name));
-+          field_store_string(table->field[1], table_name);
-+          field_store_string(table->field[2], index->name);
++        table->field[0]->store(ut_conv_dulint_to_longlong(index_id));
++        table->field[1]->store(block->page.space);
++        table->field[2]->store(block->page.offset);
++        table->field[3]->store(page_get_n_recs(frame));
++        table->field[4]->store(page_get_data_size(frame));
++        table->field[5]->store(block->is_hashed);
++        table->field[6]->store(block->page.access_time);
++        table->field[7]->store(block->page.newest_modification != 0);
++        table->field[8]->store(block->page.oldest_modification != 0);
++        table->field[9]->store(block->page.old);
++        table->field[10]->store(0);
++        table->field[11]->store(block->page.buf_fix_count);
++        table->field[12]->store(block->page.flush_type);
 +          
-+          table->field[3]->store(block->page.space);
-+          table->field[4]->store(block->page.offset);
-+          table->field[5]->store(page_get_n_recs(frame));
-+          table->field[6]->store(page_get_data_size(frame));
-+          table->field[7]->store(block->is_hashed);
-+          table->field[8]->store(block->page.access_time);
-+          table->field[9]->store(block->page.newest_modification != 0);
-+          table->field[10]->store(block->page.oldest_modification != 0);
-+          table->field[11]->store(block->page.old);
-+          table->field[12]->store(0);
-+          table->field[13]->store(block->page.buf_fix_count);
-+          table->field[14]->store(block->page.flush_type);
-+          
-+          if (schema_table_store_record(thd, table)) {
-+            status = 1;
-+            break;
-+          }
++        if (schema_table_store_record(thd, table)) {
++          status = 1;
++          break;
 +        }
 +      }      
 +    }
 +	}
 +
-+  mutex_exit(&(dict_sys->mutex));
 +	buf_pool_mutex_exit();
 +
 +	DBUG_RETURN(status);
@@ -525,7 +484,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 +
 +	buf_pool_mutex_enter();
-+  mutex_enter(&(dict_sys->mutex));
 +	
 +	chunk = buf_pool->chunks;
 +    
@@ -581,7 +539,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +    }      
 +	}
 +
-+  mutex_exit(&(dict_sys->mutex));
 +	buf_pool_mutex_exit();
 +
 +	DBUG_RETURN(status);

@@ -1,0 +1,106 @@
+diff -ruN a/sql/handler.h b/sql/handler.h
+--- a/sql/handler.h	2010-07-21 22:49:53.660561079 +0900
++++ b/sql/handler.h	2010-07-21 22:50:24.106530090 +0900
+@@ -167,6 +167,19 @@
+ #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
+ #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
+ #define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
++
++#define HA_ONLINE_ALTER_INDEX_MASK	(HA_ONLINE_ADD_INDEX_NO_WRITES \
++						| HA_ONLINE_DROP_INDEX_NO_WRITES \
++						| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES \
++						| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES \
++						| HA_ONLINE_ADD_PK_INDEX_NO_WRITES \
++						| HA_ONLINE_DROP_PK_INDEX_NO_WRITES \
++						| HA_ONLINE_ADD_INDEX \
++						| HA_ONLINE_DROP_INDEX \
++						| HA_ONLINE_ADD_UNIQUE_INDEX \
++						| HA_ONLINE_DROP_UNIQUE_INDEX \
++						| HA_ONLINE_ADD_PK_INDEX \
++						| HA_ONLINE_DROP_PK_INDEX)
+ /*
+   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
+   supported at all.
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-21 22:49:54.011529414 +0900
++++ b/sql/mysqld.cc	2010-07-21 22:50:24.112527179 +0900
+@@ -5784,6 +5784,7 @@
+   OPT_USERSTAT_RUNNING,
+   OPT_THREAD_STATISTICS,
+   OPT_OPTIMIZER_FIX,
++  OPT_ONLINE_ALTER_INDEX,
+   OPT_SUPPRESS_LOG_WARNING_1592,
+   OPT_USE_GLOBAL_LONG_QUERY_TIME,
+   OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
+@@ -5814,6 +5815,13 @@
+    "from libc.so",
+    (uchar**) &opt_allow_suspicious_udfs, (uchar**) &opt_allow_suspicious_udfs,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
++  {"online_alter_index",
++   OPT_ONLINE_ALTER_INDEX,
++   "If disabled, suppresses online operations for indexes of ALTER TABLE "
++   "(e.g. fast index creation of InnoDB Plugin) for the session.",
++   (uchar**) &global_system_variables.online_alter_index,
++   (uchar**) &global_system_variables.online_alter_index,
++   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
+    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"auto-increment-increment", OPT_AUTO_INCREMENT,
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-07-21 22:49:54.019529438 +0900
++++ b/sql/set_var.cc	2010-07-21 22:50:24.122532110 +0900
+@@ -741,6 +741,11 @@
+ sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
+ 			      &SV::engine_condition_pushdown);
+ 
++/* Control online operations of ALTER TABLE */
++static sys_var_thd_bool
++sys_online_alter_index(&vars, "online_alter_index",
++			&SV::online_alter_index);
++
+ #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+ /* ndb thread specific variable settings */
+ static sys_var_thd_ulong
+diff -ruN a/sql/sql_class.h b/sql/sql_class.h
+--- a/sql/sql_class.h	2010-07-21 22:49:53.742561560 +0900
++++ b/sql/sql_class.h	2010-07-21 22:50:24.130529404 +0900
+@@ -378,6 +378,8 @@
+   my_bool ndb_use_transactions;
+   my_bool ndb_index_stat_enable;
+ 
++  my_bool online_alter_index;
++
+   my_bool old_alter_table;
+   my_bool old_passwords;
+ 
+diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
+--- a/sql/sql_partition.cc	2010-06-04 00:50:11.000000000 +0900
++++ b/sql/sql_partition.cc	2010-07-21 22:50:24.140530183 +0900
+@@ -4356,7 +4356,12 @@
+         alter_info->no_parts= curr_part_no - new_part_no;
+       }
+     }
+-    if (!(flags= table->file->alter_table_flags(alter_info->flags)))
++    flags= table->file->alter_table_flags(alter_info->flags);
++    if (!thd->variables.online_alter_index)
++    {
++      flags&= ~((uint)HA_ONLINE_ALTER_INDEX_MASK);
++    }
++    if (!flags)
+     {
+       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
+       DBUG_RETURN(1);
+diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
+--- a/sql/sql_table.cc	2010-06-04 00:50:11.000000000 +0900
++++ b/sql/sql_table.cc	2010-07-21 22:50:24.146531063 +0900
+@@ -6986,6 +6986,10 @@
+     uint  *idx_end_p;
+ 
+     alter_flags= table->file->alter_table_flags(alter_info->flags);
++    if (!thd->variables.online_alter_index)
++    {
++      alter_flags&= ~((ulong)HA_ONLINE_ALTER_INDEX_MASK);
++    }
+     DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
+     /* Check dropped indexes. */
+     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;

@@ -260,7 +260,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  /* Note: This variable can be set to on/off and any of the supported
  file formats in the configuration file, but can only be set to any
-@@ -2218,6 +2219,8 @@
+@@ -2235,6 +2236,8 @@
  		goto error;
  	}
  
@@ -269,7 +269,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
-@@ -11243,6 +11246,11 @@
+@@ -11260,6 +11263,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -281,7 +281,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11394,6 +11402,7 @@
+@@ -11411,6 +11419,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),

@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-20 16:33:04.367866757 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-20 16:33:53.992827856 +0900
-@@ -5722,6 +5722,9 @@
+@@ -5739,6 +5739,9 @@
  		prebuilt->index_usable = FALSE;
  		DBUG_RETURN(HA_ERR_CRASHED);
  	}
@@ -11,7 +11,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  	/* Note that if the index for which the search template is built is not
  	necessarily prebuilt->index, but can also be the clustered index */
-@@ -7593,6 +7596,10 @@
+@@ -7610,6 +7613,10 @@
  		n_rows = HA_POS_ERROR;
  		goto func_exit;
  	}

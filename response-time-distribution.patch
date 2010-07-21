@@ -137,7 +137,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
-@@ -5834,6 +5840,8 @@
+@@ -5835,6 +5841,8 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -146,7 +146,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD
-@@ -6854,6 +6862,21 @@
+@@ -6862,6 +6870,21 @@
     "Use microsecond time's precision in slow query log",
     (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -540,7 +540,7 @@ diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-09 09:08:02.051329001 +0400
 +++ b/sql/set_var.cc	2010-07-09 09:08:04.981329001 +0400
-@@ -995,6 +995,10 @@
+@@ -1000,6 +1000,10 @@
  static sys_var_use_global_long_query_time sys_use_global_long_query_time;
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
                                                         &opt_slow_query_log_microseconds_timestamp);

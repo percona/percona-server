@@ -46,3 +46,4 @@ mysql_remove_eol_carret.patch
 log_connection_error.patch
 status_wait_query_cache_mutex.patch
 sql_no_fcache.patch
+remove_fcntl_excessive_calls.patch

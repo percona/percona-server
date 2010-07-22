@@ -11,32 +11,26 @@ diff -Nur a/patch_info/status_wait_query_cache_mutex.info b/patch_info/status_wa
 +2010-07 - First version avaliable
 diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 --- a/sql/sql_cache.cc	2010-07-21 01:37:51.190424002 +0400
-+++ b/sql/sql_cache.cc	2010-07-21 01:48:50.180424002 +0400
-@@ -610,6 +610,9 @@
++++ b/sql/sql_cache.cc	2010-07-22 14:55:17.930424002 +0400
+@@ -609,7 +609,13 @@
+   bool interrupt= FALSE;
    DBUG_ENTER("Query_cache::try_lock");
  
++  THD *thd = current_thd;
++  const char* old_proc_info= thd->proc_info;
++  thd_proc_info(thd,"Waiting on query cache mutex");
    pthread_mutex_lock(&structure_guard_mutex);
 +  DBUG_EXECUTE_IF("status_wait_query_cache_mutex_sleep", {
-+      my_sleep(3000);
++      sleep(1);
 +    });
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -634,6 +637,9 @@
-     else
-     {
-       DBUG_ASSERT(m_cache_lock_status == Query_cache::LOCKED);
-+      THD *thd = current_thd;
-+      const char* old_proc_info= thd->proc_info;
-+      thd_proc_info(thd,"Waiting on query cache mutex");
-       /*
-         To prevent send_result_to_client() and query_cache_insert() from
-         blocking execution for too long a timeout is put on the lock.
-@@ -654,6 +660,7 @@
-       {
-         pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
-       }
-+      thd->proc_info = old_proc_info;
+@@ -657,6 +663,7 @@
      }
    }
    pthread_mutex_unlock(&structure_guard_mutex);
++  thd->proc_info = old_proc_info;
+ 
+   DBUG_RETURN(interrupt);
+ }

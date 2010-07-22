@@ -44,3 +44,28 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
        close_connection(thd, ER_OUT_OF_RESOURCES, 1);
        errmsg= 0;
        goto errorconn;
+--- a/mysql-test/t/connect.test	2010-06-03 20:17:31.000000000 +0400
++++ b/mysql-test/t/connect.test	2010-07-21 12:30:34.760424002 +0400
+@@ -1,3 +1,5 @@
++set global log_warnings=0;
++
+ # This test is to check various cases of connections
+ # with right and wrong password, with and without database
+ # Unfortunately the check is incomplete as we can't connect without database
+@@ -300,3 +301,4 @@
+ # Wait till all disconnects are completed
+ --source include/wait_until_count_sessions.inc
+ 
++set global log_warnings=1;
+--- a/mysql-test/r/connect.result	2010-06-03 20:18:01.000000000 +0400
++++ b/mysql-test/r/connect.result	2010-07-21 12:30:54.860424002 +0400
+@@ -1,3 +1,4 @@
++set global log_warnings=0;
+ drop table if exists t1,t2;
+ show tables;
+ Tables_in_mysql
+@@ -218,3 +219,4 @@
+ # ------------------------------------------------------------------
+ # -- End of 5.1 tests
+ # ------------------------------------------------------------------
++set global log_warnings=1;

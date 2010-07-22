@@ -380,3 +380,15 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | SQL_CACHE_SYM
            {
              /*
+diff -Nur a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
+--- a/mysql-test/r/mysqldump.result	2010-06-03 20:18:15.000000000 +0400
++++ b/mysql-test/r/mysqldump.result	2010-07-22 11:29:00.550424002 +0400
+@@ -1832,7 +1832,7 @@
+ # Bug#21288 mysqldump segmentation fault when using --where
+ #
+ create table t1 (a int);
+-mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
++mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ /*!50084 SQL_NO_FCACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
+ mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
+ 
+ /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;

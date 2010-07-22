@@ -120,7 +120,7 @@ diff -Nur a/patch_info/sql_no_fcache.info b/patch_info/sql_no_fcache.info
 +File=sql_no_fcache.patch
 +Name=Support for flashcache including the SQL_NO_FCACHE option that prevents blocks from being cached during a query.
 +Version=1.0
-+Author=Percona <info@percona.com>
++Author=Facebook
 +License=GPL
 +Comment=
 diff -Nur a/sql/lex.h b/sql/lex.h

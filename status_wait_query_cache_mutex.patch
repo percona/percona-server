@@ -1,0 +1,36 @@
+diff -Nur a/patch_info/status_wait_query_cache_mutex.info b/patch_info/status_wait_query_cache_mutex.info
+--- a/patch_info/status_wait_query_cache_mutex.info	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/status_wait_query_cache_mutex.info	2010-07-21 01:42:09.650424002 +0400
+@@ -0,0 +1,7 @@
++File=status_wait_query_cache_mutex.patch
++Name=Add new status - Waiting on query cache mutex
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++2010-07 - First version avaliable
+diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
+--- a/sql/sql_cache.cc	2010-07-21 01:37:51.190424002 +0400
++++ b/sql/sql_cache.cc	2010-07-22 14:55:17.930424002 +0400
+@@ -609,7 +609,13 @@
+   bool interrupt= FALSE;
+   DBUG_ENTER("Query_cache::try_lock");
+ 
++  THD *thd = current_thd;
++  const char* old_proc_info= thd->proc_info;
++  thd_proc_info(thd,"Waiting on query cache mutex");
+   pthread_mutex_lock(&structure_guard_mutex);
++  DBUG_EXECUTE_IF("status_wait_query_cache_mutex_sleep", {
++      sleep(1);
++    });
+   while (1)
+   {
+     if (m_cache_lock_status == Query_cache::UNLOCKED)
+@@ -657,6 +663,7 @@
+     }
+   }
+   pthread_mutex_unlock(&structure_guard_mutex);
++  thd->proc_info = old_proc_info;
+ 
+   DBUG_RETURN(interrupt);
+ }

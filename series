@@ -44,3 +44,4 @@ query_cache_with_comments.patch
 response-time-distribution.patch
 mysql_remove_eol_carret.patch
 log_connection_error.patch
+status_wait_query_cache_mutex.patch

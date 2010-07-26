@@ -635,7 +635,7 @@ diff -ruN a/storage/innodb_plugin/ha/hash0hash.c b/storage/innodb_plugin/ha/hash
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-14 16:34:18.597725479 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-14 16:40:16.159323612 +0900
-@@ -11293,6 +11293,11 @@
+@@ -11310,6 +11310,11 @@
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
  
@@ -647,7 +647,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11552,6 +11557,7 @@
+@@ -11569,6 +11574,7 @@
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),

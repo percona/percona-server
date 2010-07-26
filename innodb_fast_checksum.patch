@@ -163,7 +163,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool	innobase_extra_undoslots		= FALSE;
  static my_bool	innobase_fast_recovery			= FALSE;
  static my_bool	innobase_recovery_stats			= TRUE;
-@@ -2364,6 +2365,7 @@
+@@ -2381,6 +2382,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -171,7 +171,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11027,6 +11029,15 @@
+@@ -11044,6 +11046,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -187,7 +187,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11504,6 +11515,7 @@
+@@ -11521,6 +11532,7 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(checksums),

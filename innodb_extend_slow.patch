@@ -371,7 +371,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:49:40.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:50:11.000000000 +0900
-@@ -1342,6 +1342,16 @@
+@@ -1359,6 +1359,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -388,7 +388,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_VOID_RETURN;
  }
  
-@@ -1397,6 +1407,32 @@
+@@ -1414,6 +1424,32 @@
  }
  
  
@@ -421,7 +421,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -8864,6 +8900,25 @@
+@@ -8881,6 +8917,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -581,7 +581,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
 --- a/storage/innodb_plugin/include/trx0trx.h	2010-04-29 16:43:16.000000000 +0900
 +++ b/storage/innodb_plugin/include/trx0trx.h	2010-04-30 14:50:11.000000000 +0900
-@@ -737,6 +737,17 @@
+@@ -738,6 +738,17 @@
  	/*------------------------------*/
  	char detailed_error[256];	/*!< detailed error message for last
  					error, or empty. */
@@ -869,7 +869,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
 --- a/storage/innodb_plugin/trx/trx0trx.c	2010-04-29 16:43:16.000000000 +0900
 +++ b/storage/innodb_plugin/trx/trx0trx.c	2010-04-30 14:50:11.000000000 +0900
-@@ -177,6 +177,15 @@
+@@ -179,6 +179,15 @@
  	trx->global_read_view = NULL;
  	trx->read_view = NULL;
  
@@ -885,7 +885,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	/* Set X/Open XA transaction identification to NULL */
  	memset(&trx->xid, 0, sizeof(trx->xid));
  	trx->xid.formatID = -1;
-@@ -214,6 +223,11 @@
+@@ -216,6 +225,11 @@
  
  	trx->mysql_process_no = os_proc_get_number();
  
@@ -897,7 +897,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	return(trx);
  }
  
-@@ -345,6 +359,12 @@
+@@ -347,6 +361,12 @@
  /*===============*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -910,7 +910,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	mutex_enter(&kernel_mutex);
  
  	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
-@@ -366,6 +386,12 @@
+@@ -368,6 +388,12 @@
  /*====================*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -923,7 +923,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	mutex_enter(&kernel_mutex);
  
  	trx_free(trx);
-@@ -1071,6 +1097,9 @@
+@@ -1083,6 +1109,9 @@
  	trx_t*	trx)	/*!< in: transaction */
  {
  	que_thr_t*	thr;
@@ -933,7 +933,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1085,6 +1114,11 @@
+@@ -1097,6 +1126,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  
@@ -945,7 +945,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	trx->que_state = TRX_QUE_RUNNING;
  }
  
-@@ -1098,6 +1132,9 @@
+@@ -1110,6 +1144,9 @@
  	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
  {
  	que_thr_t*	thr;
@@ -955,7 +955,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1112,6 +1149,11 @@
+@@ -1124,6 +1161,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  

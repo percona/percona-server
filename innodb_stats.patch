@@ -1096,7 +1096,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static char*	internal_innobase_data_file_path	= NULL;
  
-@@ -2181,6 +2182,8 @@
+@@ -2198,6 +2199,8 @@
  
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
@@ -1105,7 +1105,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -4939,6 +4942,10 @@
+@@ -4956,6 +4959,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -1116,7 +1116,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5275,6 +5282,10 @@
+@@ -5292,6 +5299,10 @@
  		}
  	}
  
@@ -1127,7 +1127,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5328,6 +5339,10 @@
+@@ -5345,6 +5356,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -1138,7 +1138,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5852,6 +5867,11 @@
+@@ -5869,6 +5884,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -1150,7 +1150,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -7725,13 +7745,36 @@
+@@ -7742,13 +7762,36 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -1189,7 +1189,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -7807,7 +7850,7 @@
+@@ -7824,7 +7867,7 @@
  		We do not update delete_length if no locking is requested
  		so the "old" value can remain. delete_length is initialized
  		to 0 in the ha_statistics' constructor. */
@@ -1198,7 +1198,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			/* lock the data dictionary to avoid races with
  			ibd_file_missing and tablespace_discarded */
-@@ -10964,6 +11007,45 @@
+@@ -10981,6 +11024,45 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1244,7 +1244,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11273,6 +11355,10 @@
+@@ -11290,6 +11372,10 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1255,7 +1255,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11333,6 +11419,8 @@
+@@ -11351,6 +11437,8 @@
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,

@@ -1,0 +1,6 @@
+--source include/have_innodb.inc
+
+#check the list of variable names
+--replace_column 2 Value
+show variables;
+

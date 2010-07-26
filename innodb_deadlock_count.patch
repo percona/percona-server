@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-05-27 17:49:37.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-05-27 17:50:58.000000000 +0900
-@@ -540,6 +540,8 @@
+@@ -546,6 +546,8 @@
    (char*) &export_vars.innodb_data_written,		  SHOW_LONG},
    {"dblwr_pages_written",
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},

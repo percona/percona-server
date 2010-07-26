@@ -26,7 +26,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-29 15:28:56.000000000 +0900
-@@ -4820,3 +4820,30 @@
+@@ -4787,3 +4787,30 @@
  
  	fil_system = NULL;
  }
@@ -60,7 +60,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:20.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:56.000000000 +0900
-@@ -10684,6 +10684,16 @@
+@@ -10711,6 +10711,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -77,7 +77,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -10866,7 +10876,7 @@
+@@ -10893,7 +10903,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -86,7 +86,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -10937,6 +10947,8 @@
+@@ -10964,6 +10974,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -108,7 +108,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
 --- a/storage/innodb_plugin/include/fil0fil.h	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/include/fil0fil.h	2010-04-29 15:28:56.000000000 +0900
-@@ -726,6 +726,16 @@
+@@ -716,6 +716,16 @@
  /*==============*/
  	const byte*	page);	/*!< in: file page */
  

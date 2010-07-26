@@ -19,7 +19,7 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-05-27 19:54:18.000000000 +0400
 +++ b/sql/sql_parse.cc	2010-05-27 20:03:20.000000000 +0400
-@@ -1307,10 +1307,12 @@
+@@ -1320,10 +1320,12 @@
      break;
  #else
    {
@@ -34,7 +34,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  
      /* used as fields initializator */
      lex_start(thd);
-@@ -1322,26 +1324,22 @@
+@@ -1335,26 +1337,22 @@
      /*
        We have name + wildcard in packet, separated by endzero
      */
@@ -72,7 +72,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  
      if (is_schema_db(table_list.db, table_list.db_length))
      {
-@@ -1350,9 +1348,6 @@
+@@ -1363,9 +1361,6 @@
          table_list.schema_table= schema_table;
      }
  

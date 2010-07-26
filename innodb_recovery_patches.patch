@@ -120,7 +120,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  
-@@ -10899,6 +10903,16 @@
+@@ -10926,6 +10930,16 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -137,7 +137,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11342,6 +11356,8 @@
+@@ -11369,6 +11383,8 @@
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
    MYSQL_SYSVAR(extra_undoslots),
@@ -349,7 +349,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	}
  
  	mutex_exit(&(recv_sys->mutex));
-@@ -3252,6 +3310,84 @@
+@@ -3255,6 +3313,84 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -445,7 +445,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
  # include "os0thread.h"
-@@ -4212,6 +4213,18 @@
+@@ -4225,6 +4226,18 @@
  		}
  	}
  

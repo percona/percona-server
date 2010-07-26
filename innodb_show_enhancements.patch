@@ -12,7 +12,7 @@ diff -ruN a/storage/innodb_plugin/Makefile.am b/storage/innodb_plugin/Makefile.a
 diff -ruN a/storage/innodb_plugin/Makefile.in b/storage/innodb_plugin/Makefile.in
 --- a/storage/innodb_plugin/Makefile.in	2010-04-06 23:12:58.000000000 +0900
 +++ b/storage/innodb_plugin/Makefile.in	2010-04-29 15:22:39.000000000 +0900
-@@ -782,6 +782,7 @@
+@@ -783,6 +783,7 @@
  			include/ut0vec.h	\
  			include/ut0vec.ic	\
  			include/ut0wqueue.h	\
@@ -23,7 +23,7 @@ diff -ruN a/storage/innodb_plugin/Makefile.in b/storage/innodb_plugin/Makefile.i
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:22:39.000000000 +0900
-@@ -10966,7 +10966,8 @@
+@@ -10993,7 +10993,8 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,

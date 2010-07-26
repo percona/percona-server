@@ -136,7 +136,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		mutex_enter(block_mutex);
  
-@@ -1457,11 +1472,17 @@
+@@ -1457,11 +1472,18 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -151,11 +151,12 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
 +	} else if (!have_LRU_mutex) {
 +		/* confirm it again with LRU_mutex for exactness */
 +		have_LRU_mutex = TRUE;
++		distance = 0;
 +		goto retry;
  	}
  
  	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
-@@ -1476,8 +1497,9 @@
+@@ -1476,8 +1498,9 @@
  immediately, without waiting. */
  UNIV_INTERN
  void
@@ -166,7 +167,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  {
  	ulint	n_to_flush;
  	ulint	n_flushed;
-@@ -1486,7 +1508,7 @@
+@@ -1486,7 +1509,7 @@
  
  	if (n_to_flush > 0) {
  		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);

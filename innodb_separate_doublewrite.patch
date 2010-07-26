@@ -60,7 +60,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
 --- a/storage/innodb_plugin/dict/dict0load.c	2010-05-19 18:55:03.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0load.c	2010-05-19 18:55:53.000000000 +0900
-@@ -390,7 +390,7 @@
+@@ -395,7 +395,7 @@
  
  		mtr_commit(&mtr);
  
@@ -69,7 +69,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  			/* The system tablespace always exists. */
  		} else if (in_crash_recovery) {
  			/* Check that the tablespace (the .ibd file) really
-@@ -898,7 +898,7 @@
+@@ -903,7 +903,7 @@
  	space = mach_read_from_4(field);
  
  	/* Check if the tablespace exists and has the right name */
@@ -78,7 +78,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  		flags = dict_sys_tables_get_flags(rec);
  
  		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-@@ -951,7 +951,7 @@
+@@ -956,7 +956,7 @@
  	}
  
  	/* See if the tablespace is available. */
@@ -188,16 +188,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		char*	new_path;
  
  		fprintf(stderr,
-@@ -3888,7 +3890,7 @@
- 	space = UT_LIST_GET_FIRST(fil_system->space_list);
- 
- 	while (space) {
--		if (space->purpose == FIL_TABLESPACE && space->id != 0
-+		if (space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(space->id)
- 		    && !space->mark) {
- 			fputs("InnoDB: Warning: tablespace ", stderr);
- 			ut_print_filename(stderr, space->name);
-@@ -4463,7 +4465,7 @@
+@@ -4430,7 +4432,7 @@
  	}
  
  	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
@@ -206,7 +197,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node is in the LRU list, remove it */
  
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
-@@ -4509,7 +4511,7 @@
+@@ -4476,7 +4478,7 @@
  	}
  
  	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
@@ -215,7 +206,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5122,7 +5124,7 @@
+@@ -5089,7 +5091,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
@@ -269,7 +260,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
-@@ -11260,6 +11263,11 @@
+@@ -11287,6 +11290,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -281,7 +272,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11411,6 +11419,7 @@
+@@ -11438,6 +11446,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -430,7 +421,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-05-19 18:55:03.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-05-19 18:55:53.000000000 +0900
-@@ -3311,7 +3311,7 @@
+@@ -3312,7 +3312,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  
@@ -621,7 +612,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  	ibool		log_file_created;
  	ibool		log_created	= FALSE;
  	ibool		log_opened	= FALSE;
-@@ -1381,6 +1520,7 @@
+@@ -1384,6 +1523,7 @@
  	}
  
  	err = open_or_create_data_files(&create_new_db,
@@ -629,7 +620,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  #ifdef UNIV_LOG_ARCHIVE
  					&min_arch_log_no, &max_arch_log_no,
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -1497,6 +1637,14 @@
+@@ -1500,6 +1640,14 @@
  
  	trx_sys_file_format_init();
  

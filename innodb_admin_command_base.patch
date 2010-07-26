@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:35:00.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:36:22.000000000 +0900
-@@ -11461,6 +11461,7 @@
+@@ -11488,6 +11488,7 @@
  i_s_innodb_cmpmem_reset,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,

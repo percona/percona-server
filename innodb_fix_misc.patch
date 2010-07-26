@@ -1,33 +1,9 @@
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-20 16:33:04.367866757 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-20 16:33:53.992827856 +0900
-@@ -5739,6 +5739,9 @@
- 		prebuilt->index_usable = FALSE;
- 		DBUG_RETURN(HA_ERR_CRASHED);
- 	}
-+	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
-+		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
-+	}
- 
- 	/* Note that if the index for which the search template is built is not
- 	necessarily prebuilt->index, but can also be the clustered index */
-@@ -7610,6 +7613,10 @@
- 		n_rows = HA_POS_ERROR;
- 		goto func_exit;
- 	}
-+	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
-+		n_rows = HA_ERR_TABLE_DEF_CHANGED;
-+		goto func_exit;
-+	}
- 
- 	heap = mem_heap_create(2 * (key->key_parts * sizeof(dfield_t)
- 				    + sizeof(dtuple_t)));
 diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include/univ.i
 --- a/storage/innodb_plugin/include/univ.i	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	0
- #define INNODB_VERSION_BUGFIX	9
+ #define INNODB_VERSION_BUGFIX	10
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.0
@@ -59,7 +35,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:04.097866666 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:53.995828763 +0900
-@@ -1125,6 +1125,13 @@
+@@ -1127,6 +1127,13 @@
  
  	thr = que_fork_get_first_thr(prebuilt->ins_graph);
  
@@ -76,7 +52,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0sel.c
 --- a/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:04.204866103 +0900
 +++ b/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:53.998864025 +0900
-@@ -3296,6 +3296,7 @@
+@@ -3321,6 +3321,7 @@
  	mem_heap_t*	heap				= NULL;
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
@@ -84,7 +60,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
  
  	rec_offs_init(offsets_);
  
-@@ -3719,6 +3720,15 @@
+@@ -3748,6 +3749,15 @@
  		}
  	}
  
@@ -100,7 +76,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3729,6 +3739,14 @@
+@@ -3758,6 +3768,14 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -118,7 +94,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900
-@@ -1965,7 +1965,7 @@
+@@ -1968,7 +1968,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
@@ -127,27 +103,6 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  			"log sequence number %llu\n",
  			INNODB_VERSION_STR, srv_start_lsn);
  	}
-diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sync0rw.c
---- a/storage/innodb_plugin/sync/sync0rw.c	2010-04-30 14:49:40.000000000 +0900
-+++ b/storage/innodb_plugin/sync/sync0rw.c	2010-04-30 16:41:46.000000000 +0900
-@@ -305,8 +305,6 @@
- 	ut_ad(rw_lock_validate(lock));
- 	ut_a(lock->lock_word == X_LOCK_DECR);
- 
--	lock->magic_n = 0;
--
- #ifndef INNODB_RW_LOCKS_USE_ATOMICS
- 	mutex_free(rw_lock_get_mutex(lock));
- #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-@@ -326,6 +324,8 @@
- 	UT_LIST_REMOVE(list, rw_lock_list, lock);
- 
- 	mutex_exit(&rw_lock_list_mutex);
-+
-+	lock->magic_n = 0;
- }
- 
- #ifdef UNIV_DEBUG
 diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/trx0purge.c
 --- a/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:52:46.538653893 +0900
 +++ b/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:57:46.505530034 +0900

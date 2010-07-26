@@ -24,7 +24,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-21 22:49:54.011529414 +0900
 +++ b/sql/mysqld.cc	2010-07-21 22:50:24.112527179 +0900
-@@ -5784,6 +5784,7 @@
+@@ -5832,6 +5832,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -32,9 +32,9 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_SUPPRESS_LOG_WARNING_1592,
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
-@@ -5814,6 +5815,13 @@
+@@ -5862,6 +5863,13 @@
     "from libc.so",
-    (uchar**) &opt_allow_suspicious_udfs, (uchar**) &opt_allow_suspicious_udfs,
+    &opt_allow_suspicious_udfs, &opt_allow_suspicious_udfs,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 +  {"online_alter_index",
 +   OPT_ONLINE_ALTER_INDEX,
@@ -43,9 +43,9 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 +   (uchar**) &global_system_variables.online_alter_index,
 +   (uchar**) &global_system_variables.online_alter_index,
 +   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode will also set transaction isolation level 'serializable'.", 0, 0, 0,
+   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode "
+    "will also set transaction isolation level 'serializable'.", 0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-   {"auto-increment-increment", OPT_AUTO_INCREMENT,
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-21 22:49:54.019529438 +0900
 +++ b/sql/set_var.cc	2010-07-21 22:50:24.122532110 +0900
@@ -76,7 +76,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 --- a/sql/sql_partition.cc	2010-06-04 00:50:11.000000000 +0900
 +++ b/sql/sql_partition.cc	2010-07-21 22:50:24.140530183 +0900
-@@ -4356,7 +4356,12 @@
+@@ -4358,7 +4358,12 @@
          alter_info->no_parts= curr_part_no - new_part_no;
        }
      }

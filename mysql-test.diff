@@ -827,15 +827,6 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb_misc1.result b/mysql-test/suite/inn
  CREATE TABLE t1 (
  c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
  c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
-diff -ruN a/mysql-test/suite/innodb/t/disabled.def b/mysql-test/suite/innodb/t/disabled.def
---- a/mysql-test/suite/innodb/t/disabled.def	2010-04-06 23:39:13.000000000 +0900
-+++ b/mysql-test/suite/innodb/t/disabled.def	2010-04-30 17:53:06.000000000 +0900
-@@ -9,4 +9,4 @@
- #  Do not use any TAB characters for whitespace.
- #
- ##############################################################################
--innodb_multi_update: Bug #38999 2010-05-05 mmakela Valgrind warnings
-+#innodb_multi_update: Bug #38999 2010-05-05 mmakela Valgrind warnings
 diff -ruN a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test b/mysql-test/suite/innodb/t/innodb-autoinc-44030.test
 --- a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test	2010-05-07 01:01:28.000000000 +0900
 +++ b/mysql-test/suite/innodb/t/innodb-autoinc-44030.test	2010-05-26 19:12:57.000000000 +0900
@@ -996,14 +987,6 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb_misc1.test b/mysql-test/suite/innod
  --error 1118
  CREATE TABLE t1 (
  	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
-diff -ruN a/mysql-test/t/disabled.def b/mysql-test/t/disabled.def
---- a/mysql-test/t/disabled.def	2010-06-04 01:17:34.000000000 +0900
-+++ b/mysql-test/t/disabled.def	2010-06-18 18:46:21.887171602 +0900
-@@ -12,3 +12,4 @@
- kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
- query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
- partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
-+#alter_table-big          : Bug#590627 2010-06-09 Fails on MySQL 5.1.47
 diff -ruN a/mysql-test/t/log_tables-big-master.opt b/mysql-test/t/log_tables-big-master.opt
 --- a/mysql-test/t/log_tables-big-master.opt    2010-06-04 05:51:12.000000000 -0700
 +++ b/mysql-test/t/log_tables-big-master.opt    2010-06-04 05:52:30.000000000 -0700

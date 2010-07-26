@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0sea.c
 --- a/storage/innodb_plugin/btr/btr0sea.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/btr/btr0sea.c	2010-04-29 16:51:00.000000000 +0900
-@@ -1163,6 +1163,126 @@
+@@ -1164,6 +1164,126 @@
  	mem_free(folds);
  }
  
@@ -166,7 +166,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
 --- a/storage/innodb_plugin/dict/dict0crea.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0crea.c	2010-04-29 16:51:00.000000000 +0900
-@@ -1201,6 +1201,9 @@
+@@ -1213,6 +1213,9 @@
  		/* Foreign constraint system tables have already been
  		created, and they are ok */
  
@@ -176,7 +176,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  		mutex_exit(&(dict_sys->mutex));
  
  		return(DB_SUCCESS);
-@@ -1282,6 +1285,11 @@
+@@ -1294,6 +1297,11 @@
  
  	trx_commit_for_mysql(trx);
  
@@ -191,7 +191,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
 --- a/storage/innodb_plugin/dict/dict0dict.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0dict.c	2010-04-29 16:51:00.000000000 +0900
-@@ -585,6 +585,8 @@
+@@ -583,6 +583,8 @@
  
  	table = dict_table_get_on_id_low(table_id);
  
@@ -200,7 +200,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	mutex_exit(&(dict_sys->mutex));
  
  	return(table);
-@@ -700,6 +702,8 @@
+@@ -698,6 +700,8 @@
  		table->n_mysql_handles_opened++;
  	}
  
@@ -209,7 +209,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	mutex_exit(&(dict_sys->mutex));
  
  	if (table != NULL) {
-@@ -1196,6 +1200,64 @@
+@@ -1212,6 +1216,64 @@
  	dict_mem_table_free(table);
  }
  
@@ -274,7 +274,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  /****************************************************************//**
  If the given column name is reserved for InnoDB system columns, return
  TRUE.
-@@ -1658,6 +1720,11 @@
+@@ -1674,6 +1736,11 @@
  	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -298,7 +298,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11237,6 +11239,11 @@
+@@ -11264,6 +11266,11 @@
    "Number of extra user rollback segments when create new database.",
    NULL, NULL, 0, 0, 126, 0);
  
@@ -310,7 +310,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11304,6 +11311,7 @@
+@@ -11331,6 +11338,7 @@
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),
@@ -414,7 +414,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -606,6 +606,7 @@
+@@ -607,6 +607,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */

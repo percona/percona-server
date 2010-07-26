@@ -23,14 +23,14 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
  static ulong opt_max_allowed_packet, opt_net_buffer_length;
 @@ -326,6 +326,9 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
-    (uchar**) &opt_ignore, (uchar**) &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+    &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
 +  {"ignore-create-error", OPT_IGNORE_CREATE_ERROR, "Don't exit on show create table errors.",
 +   (uchar**) &opt_ignore_show_create_table_error, (uchar**) &opt_ignore_show_create_table_error, 0, GET_BOOL,
 +   NO_ARG, 0, 0, 0, 0, 0, 0},
    {"lines-terminated-by", OPT_LTB, 
     "Lines in the output file are terminated by the given string.",
-    (uchar**) &lines_terminated, (uchar**) &lines_terminated, 0, GET_STR,
+    &lines_terminated, &lines_terminated, 0, GET_STR,
 @@ -2303,13 +2306,21 @@
        /* Make an sql-file, if path was given iow. option -T was given */
        char buff[20+FN_REFLEN];

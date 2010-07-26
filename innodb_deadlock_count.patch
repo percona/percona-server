@@ -24,7 +24,7 @@ diff -ruN a/storage/innodb_plugin/include/lock0lock.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-05-27 17:49:37.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-05-27 17:50:58.000000000 +0900
-@@ -661,6 +661,7 @@
+@@ -662,6 +662,7 @@
  	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
@@ -35,7 +35,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/lock0lock.c
 --- a/storage/innodb_plugin/lock/lock0lock.c	2010-05-27 17:49:37.000000000 +0900
 +++ b/storage/innodb_plugin/lock/lock0lock.c	2010-05-27 17:50:58.000000000 +0900
-@@ -3322,6 +3322,7 @@
+@@ -3330,6 +3330,7 @@
  		break;
  
  	case LOCK_VICTIM_IS_START:

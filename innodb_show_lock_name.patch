@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:38:27.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:46:54.000000000 +0900
-@@ -9177,8 +9177,8 @@
+@@ -9204,8 +9204,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -12,7 +12,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9193,9 +9193,8 @@
+@@ -9220,9 +9220,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -24,7 +24,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9224,8 +9223,8 @@
+@@ -9251,8 +9250,8 @@
  			continue;
  		}
  
@@ -35,7 +35,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9239,9 +9238,8 @@
+@@ -9266,9 +9265,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -97,7 +97,7 @@ diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/incl
 +	//unsigned	cline:14;	/*!< Line where created */
  	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
  	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
- 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
+ #ifdef UNIV_DEBUG
 diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/include/sync0sync.h
 --- a/storage/innodb_plugin/include/sync0sync.h	2010-04-29 18:58:20.000000000 +0900
 +++ b/storage/innodb_plugin/include/sync0sync.h	2010-04-30 14:39:03.000000000 +0900
@@ -207,7 +207,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sy
  
 @@ -269,8 +270,7 @@
  
- 	lock->magic_n = RW_LOCK_MAGIC_N;
+ 	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
  
 -	lock->cfile_name = cfile_name;
 -	lock->cline = (unsigned int) cline;
@@ -215,7 +215,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sy
  
  	lock->count_os_wait = 0;
  	lock->last_s_file_name = "not yet reserved";
-@@ -391,10 +391,10 @@
+@@ -387,10 +387,10 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu spin wait rw-s-lock at %p"
@@ -228,7 +228,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sy
  	}
  
  	/* We try once again to obtain the lock */
-@@ -427,10 +427,9 @@
+@@ -423,10 +423,9 @@
  		if (srv_print_latch_waits) {
  			fprintf(stderr,
  				"Thread %lu OS wait rw-s-lock at %p"
@@ -241,7 +241,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sy
  		}
  
  		/* these stats may not be accurate */
-@@ -649,9 +648,9 @@
+@@ -645,9 +644,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu spin wait rw-x-lock at %p"
@@ -253,7 +253,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sy
  	}
  
  	sync_array_reserve_cell(sync_primary_wait_array,
-@@ -672,9 +671,9 @@
+@@ -668,9 +667,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu OS wait for rw-x-lock at %p"

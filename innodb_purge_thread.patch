@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:13:25.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:13:51.000000000 +0900
-@@ -10913,6 +10913,11 @@
+@@ -10940,6 +10940,11 @@
    "Output statistics of recovery process after it.",
    NULL, NULL, FALSE);
  
@@ -13,7 +13,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11424,6 +11429,7 @@
+@@ -11451,6 +11456,7 @@
    MYSQL_SYSVAR(change_buffering),
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -43,7 +43,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ibool	srv_auto_extend_last_data_file;
  extern ulint	srv_last_file_size_max;
  extern char**	srv_log_group_home_dirs;
-@@ -406,6 +408,8 @@
+@@ -407,6 +409,8 @@
  	SRV_RECOVERY,	/**< threads finishing a recovery */
  	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
  #endif
@@ -52,7 +52,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  	SRV_MASTER	/**< the master thread, (whose type number must
  			be biggest) */
  };
-@@ -479,6 +483,21 @@
+@@ -480,6 +484,21 @@
  /*==============*/
  	void*	arg);	/*!< in: a dummy parameter required by
  			os_thread_create */
@@ -118,7 +118,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0purge.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
 --- a/storage/innodb_plugin/log/log0log.c	2010-04-29 15:55:25.000000000 +0900
 +++ b/storage/innodb_plugin/log/log0log.c	2010-04-30 14:13:51.000000000 +0900
-@@ -3147,6 +3147,16 @@
+@@ -3150,6 +3150,16 @@
  		goto loop;
  	}
  
@@ -350,7 +350,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  /** We use this mutex to test the return value of pthread_mutex_trylock
     on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-@@ -1699,6 +1699,20 @@
+@@ -1702,6 +1702,20 @@
  
  	os_thread_create(&srv_master_thread, NULL, thread_ids
  			 + (1 + SRV_MAX_N_IO_THREADS));

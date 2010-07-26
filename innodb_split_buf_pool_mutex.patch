@@ -41,7 +41,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
 diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0sea.c
 --- a/storage/innodb_plugin/btr/btr0sea.c	2010-04-29 16:54:08.000000000 +0900
 +++ b/storage/innodb_plugin/btr/btr0sea.c	2010-04-29 16:59:36.000000000 +0900
-@@ -1189,7 +1189,7 @@
+@@ -1190,7 +1190,7 @@
  	ulint*		offsets;
  
  	rw_lock_x_lock(&btr_search_latch);
@@ -50,7 +50,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
  
  	table = btr_search_sys->hash_index;
  
-@@ -1275,7 +1275,7 @@
+@@ -1276,7 +1276,7 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -59,7 +59,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
  	rw_lock_x_unlock(&btr_search_latch);
  
  	if (UNIV_LIKELY_NULL(heap)) {
-@@ -1868,7 +1868,8 @@
+@@ -1869,7 +1869,8 @@
  	rec_offs_init(offsets_);
  
  	rw_lock_x_lock(&btr_search_latch);
@@ -69,7 +69,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
  
  	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
  
-@@ -1876,11 +1877,13 @@
+@@ -1877,11 +1878,13 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if ((i != 0) && ((i % chunk_size) == 0)) {
@@ -85,7 +85,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
  		}
  
  		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
-@@ -1987,11 +1990,13 @@
+@@ -1988,11 +1991,13 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if (i != 0) {
@@ -101,7 +101,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
  		}
  
  		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
-@@ -1999,7 +2004,8 @@
+@@ -2000,7 +2005,8 @@
  		}
  	}
  
@@ -1228,7 +1228,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +
  		block->page.buf_fix_count = 1;
  		buf_block_set_io_fix(block, BUF_IO_READ);
- 		rw_lock_x_lock(&block->lock);
+ 		rw_lock_x_lock_func(&block->lock, 0, file, line);
  
  		UNIV_MEM_INVALID(bpage, sizeof *bpage);
  
@@ -2304,7 +2304,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
  
-@@ -1640,7 +1713,7 @@
+@@ -1641,7 +1714,7 @@
  	buf_page_t*		bpage;
  	const ib_rbt_node_t*	rnode = NULL;
  
@@ -2313,7 +2313,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  			 ut_ad(ut_list_node_313->in_flush_list));
  
  	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-@@ -1655,7 +1728,7 @@
+@@ -1656,7 +1729,7 @@
  	while (bpage != NULL) {
  		const ib_uint64_t om = bpage->oldest_modification;
  		ut_ad(bpage->in_flush_list);
@@ -2322,7 +2322,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  		ut_a(om > 0);
  
  		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
-@@ -1667,7 +1740,7 @@
+@@ -1668,7 +1741,7 @@
  			rnode = rbt_next(buf_pool->flush_rbt, rnode);
  		}
  
@@ -2331,7 +2331,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		ut_a(!bpage || om >= bpage->oldest_modification);
  	}
-@@ -1689,11 +1762,13 @@
+@@ -1690,11 +1763,13 @@
  {
  	ibool	ret;
  

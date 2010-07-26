@@ -1,7 +1,18 @@
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-07 03:32:29.908972002 +0400
-+++ b/sql/mysqld.cc	2010-07-07 03:32:30.418972002 +0400
-@@ -498,6 +498,7 @@
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-07-26 18:31:59.056061915 +0900
++++ b/sql/mysql_priv.h	2010-07-26 18:34:10.205015964 +0900
+@@ -2080,6 +2080,7 @@
+ extern my_bool opt_readonly, lower_case_file_system;
+ extern my_bool opt_userstat_running, opt_thread_statistics;
+ extern my_bool opt_optimizer_fix;
++extern my_bool opt_suppress_log_warning_1592;
+ extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+ extern my_bool opt_secure_auth;
+ extern char* opt_secure_file_priv;
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-26 18:33:52.988451388 +0900
++++ b/sql/mysqld.cc	2010-07-26 18:34:10.203114167 +0900
+@@ -532,6 +532,7 @@
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
  my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
  my_bool opt_optimizer_fix= 0;
@@ -9,7 +20,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5783,6 +5784,7 @@
+@@ -5831,6 +5832,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -17,7 +28,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7223,6 +7225,10 @@
+@@ -7335,6 +7337,10 @@
     "Enable unofficial optimizer fixes.",
     (uchar**) &opt_optimizer_fix, (uchar**) &opt_optimizer_fix,
     0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
@@ -28,20 +39,9 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
     "Causes updates to non-transactional engines using statement format to be "
     "written directly to binary log. Before using this option, make sure that "
-diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-07 03:32:29.918972002 +0400
-+++ b/sql/mysql_priv.h	2010-07-07 03:32:30.418972002 +0400
-@@ -2123,6 +2123,7 @@
- extern my_bool opt_readonly, lower_case_file_system;
- extern my_bool opt_userstat_running, opt_thread_statistics;
- extern my_bool opt_optimizer_fix;
-+extern my_bool opt_suppress_log_warning_1592;
- extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
- extern my_bool opt_secure_auth;
- extern char* opt_secure_file_priv;
-diff -Nur a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-07 03:32:29.908972002 +0400
-+++ b/sql/set_var.cc	2010-07-07 03:32:30.428972002 +0400
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-07-26 18:31:59.093062279 +0900
++++ b/sql/set_var.cc	2010-07-26 18:34:10.210061358 +0900
 @@ -561,6 +561,8 @@
  						      &opt_thread_statistics);
  static sys_var_bool_ptr		sys_optimizer_fix(&vars, "optimizer_fix",
@@ -51,9 +51,9 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
  					       &SV::read_rnd_buff_size);
  static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
-diff -Nur a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2010-07-07 03:32:29.908972002 +0400
-+++ b/sql/sql_class.cc	2010-07-07 03:32:30.428972002 +0400
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
+--- a/sql/sql_class.cc	2010-07-26 18:29:12.285116210 +0900
++++ b/sql/sql_class.cc	2010-07-26 18:34:10.214061153 +0900
 @@ -4087,6 +4087,7 @@
                   ER_BINLOG_UNSAFE_STATEMENT,
                   ER(ER_BINLOG_UNSAFE_STATEMENT));

@@ -490,7 +490,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
 --- a/storage/innodb_plugin/dict/dict0crea.c	2010-07-06 15:53:58.655437549 +0900
 +++ b/storage/innodb_plugin/dict/dict0crea.c	2010-07-06 15:54:35.346416905 +0900
-@@ -496,6 +496,51 @@
+@@ -508,6 +508,51 @@
  }
  
  /*****************************************************************//**
@@ -542,7 +542,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  Creates the tuple with which the index entry is searched for writing the index
  tree root page number, if such a tree is created.
  @return	the tuple for search */
-@@ -605,6 +650,27 @@
+@@ -617,6 +662,27 @@
  }
  
  /***************************************************************//**
@@ -570,7 +570,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  Creates an index tree for the index if it is not a member of a cluster.
  @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
  static
-@@ -928,6 +994,49 @@
+@@ -940,6 +1006,49 @@
  					  dict_sys->sys_fields, heap);
  	node->field_def->common.parent = node;
  
@@ -620,7 +620,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  	node->commit_node = commit_node_create(heap);
  	node->commit_node->common.parent = node;
  
-@@ -1078,6 +1187,7 @@
+@@ -1090,6 +1199,7 @@
  
  		node->state = INDEX_BUILD_FIELD_DEF;
  		node->field_no = 0;
@@ -628,7 +628,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  
  		thr->run_node = node->ind_def;
  
-@@ -1123,7 +1233,31 @@
+@@ -1135,7 +1245,31 @@
  			goto function_exit;
  		}
  
@@ -661,7 +661,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1169,6 +1303,66 @@
+@@ -1181,6 +1315,66 @@
  		return(NULL);
  	}
  
@@ -731,7 +731,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
 --- a/storage/innodb_plugin/dict/dict0dict.c	2010-04-29 16:54:08.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0dict.c	2010-04-30 10:46:23.000000000 +0900
-@@ -711,7 +711,7 @@
+@@ -709,7 +709,7 @@
  			/* If table->ibd_file_missing == TRUE, this will
  			print an error message and return without doing
  			anything. */
@@ -740,7 +740,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		}
  	}
  
-@@ -4231,6 +4231,259 @@
+@@ -4247,6 +4247,259 @@
  }
  
  /*********************************************************************//**
@@ -1000,7 +1000,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4238,9 +4491,10 @@
+@@ -4254,9 +4507,10 @@
  dict_update_statistics_low(
  /*=======================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -1012,7 +1012,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  {
  	dict_index_t*	index;
  	ulint		size;
-@@ -4266,6 +4520,23 @@
+@@ -4282,6 +4536,23 @@
  		return;
  	}
  
@@ -1036,7 +1036,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4298,6 +4569,11 @@
+@@ -4314,6 +4585,11 @@
  		index = dict_table_get_next_index(index);
  	}
  
@@ -1048,7 +1048,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	index = dict_table_get_first_index(table);
  
  	dict_index_stat_mutex_enter(index);
-@@ -4324,9 +4600,10 @@
+@@ -4340,9 +4616,10 @@
  void
  dict_update_statistics(
  /*===================*/
@@ -1061,7 +1061,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  }
  
  /**********************************************************************//**
-@@ -4406,7 +4683,8 @@
+@@ -4422,7 +4699,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -1105,7 +1105,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -4956,6 +4959,10 @@
+@@ -4961,6 +4964,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -1116,7 +1116,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5292,6 +5299,10 @@
+@@ -5297,6 +5304,10 @@
  		}
  	}
  
@@ -1127,7 +1127,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5345,6 +5356,10 @@
+@@ -5350,6 +5361,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -1138,7 +1138,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5869,6 +5884,11 @@
+@@ -5877,6 +5892,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -1150,7 +1150,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -7742,13 +7762,36 @@
+@@ -7769,13 +7789,36 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -1189,7 +1189,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -7824,7 +7867,7 @@
+@@ -7851,7 +7894,7 @@
  		We do not update delete_length if no locking is requested
  		so the "old" value can remain. delete_length is initialized
  		to 0 in the ha_statistics' constructor. */
@@ -1198,7 +1198,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			/* lock the data dictionary to avoid races with
  			ibd_file_missing and tablespace_discarded */
-@@ -10981,6 +11024,45 @@
+@@ -11008,6 +11051,45 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1244,7 +1244,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11290,6 +11372,10 @@
+@@ -11317,6 +11399,10 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1255,7 +1255,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11351,6 +11437,8 @@
+@@ -11378,6 +11464,8 @@
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,
@@ -1840,7 +1840,7 @@ diff -ruN a/storage/innodb_plugin/include/rem0cmp.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/row0mysql.h b/storage/innodb_plugin/include/row0mysql.h
 --- a/storage/innodb_plugin/include/row0mysql.h	2010-06-04 00:50:27.000000000 +0900
 +++ b/storage/innodb_plugin/include/row0mysql.h	2010-07-15 22:07:58.390510794 +0900
-@@ -377,6 +377,14 @@
+@@ -376,6 +376,14 @@
  					then checked for not being too
  					large. */
  /*********************************************************************//**
@@ -2025,7 +2025,7 @@ diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0
 diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/row0merge.c
 --- a/storage/innodb_plugin/row/row0merge.c	2010-06-04 00:50:27.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0merge.c	2010-07-06 15:54:35.374540556 +0900
-@@ -1986,6 +1986,8 @@
+@@ -2016,6 +2016,8 @@
  		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
  		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
  		"COMMIT WORK;\n"
@@ -2037,7 +2037,7 @@ diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-04-30 10:46:23.000000000 +0900
-@@ -853,6 +853,9 @@
+@@ -855,6 +855,9 @@
  
  	table->stat_modified_counter = counter + 1;
  
@@ -2047,7 +2047,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	/* Calculate new statistics if 1 / 16 of table has been modified
  	since the last time a statistics batch was run, or if
  	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
-@@ -862,7 +865,7 @@
+@@ -864,7 +867,7 @@
  	if (counter > 2000000000
  	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
  
@@ -2056,7 +2056,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	}
  }
  
-@@ -2011,6 +2014,46 @@
+@@ -2012,6 +2015,46 @@
  }
  
  /*********************************************************************//**
@@ -2103,7 +2103,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  Scans a table create SQL string and adds to the data dictionary
  the foreign key constraints declared in the string. This function
  should be called after the indexes for a table have been created.
-@@ -2911,7 +2954,7 @@
+@@ -2912,7 +2955,7 @@
  	dict_table_autoinc_lock(table);
  	dict_table_autoinc_initialize(table, 1);
  	dict_table_autoinc_unlock(table);
@@ -2112,7 +2112,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  
  	trx_commit_for_mysql(trx);
  
-@@ -3213,6 +3256,8 @@
+@@ -3214,6 +3257,8 @@
  			   "       IF (SQL % NOTFOUND) THEN\n"
  			   "               found := 0;\n"
  			   "       ELSE\n"

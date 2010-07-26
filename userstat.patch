@@ -23,7 +23,7 @@ diff -ruN a/aclocal.m4 b/aclocal.m4
 diff -ruN a/configure b/configure
 --- a/configure	2010-07-16 10:52:00.382732698 +0900
 +++ b/configure	2010-07-16 10:52:16.265463293 +0900
-@@ -38123,7 +38123,7 @@
+@@ -38125,7 +38125,7 @@
    realpath rename rint rwlock_init setupterm \
    shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
    sighold sigset sigthreadmask port_create sleep \
@@ -46,7 +46,7 @@ diff -ruN a/Makefile.in b/Makefile.in
 diff -ruN a/include/config.h.in b/include/config.h.in
 --- a/include/config.h.in	2010-06-04 00:54:04.000000000 +0900
 +++ b/include/config.h.in	2010-07-16 10:52:16.309426502 +0900
-@@ -802,6 +802,9 @@
+@@ -805,6 +805,9 @@
  /* Define to 1 if you have the <stdlib.h> header file. */
  #undef HAVE_STDLIB_H
  
@@ -195,7 +195,7 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
 +  table_stats->rows_changed += rows_changed;
 +  table_stats->rows_changed_x_indexes +=
 +      rows_changed * (table->s->keys ? table->s->keys : 1);
-+  ha_thd()->diff_total_read_rows += rows_read;
++  current_thd->diff_total_read_rows += rows_read;
 +  rows_read = rows_changed = 0;
 +end:
 +  pthread_mutex_unlock(&LOCK_global_table_stats);
@@ -402,7 +402,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
  /*
    Log slow query with all enabled log event handlers
-@@ -4422,6 +4444,8 @@
+@@ -4478,6 +4500,8 @@
                               thd->first_successful_insert_id_in_prev_stmt_for_binlog);
            if (e.write(file))
              goto err;
@@ -411,7 +411,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
          }
          if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
          {
-@@ -4433,12 +4457,16 @@
+@@ -4489,12 +4513,16 @@
                               minimum());
            if (e.write(file))
              goto err;
@@ -428,7 +428,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
          }
          if (thd->user_var_events.elements)
          {
-@@ -4454,6 +4482,8 @@
+@@ -4510,6 +4538,8 @@
                                   user_var_event->charset_number);
              if (e.write(file))
                goto err;
@@ -437,7 +437,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
            }
          }
        }
-@@ -4466,6 +4496,8 @@
+@@ -4522,6 +4552,8 @@
      if (event_info->write(file) || 
          DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
        goto err;
@@ -446,7 +446,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
      if (file == &log_file) // we are writing to the real log (disk)
      {
-@@ -4611,7 +4643,7 @@
+@@ -4667,7 +4699,7 @@
      be reset as a READ_CACHE to be able to read the contents from it.
   */
  
@@ -455,7 +455,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  {
    Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
  
-@@ -4659,6 +4691,7 @@
+@@ -4715,6 +4747,7 @@
        /* write the first half of the split header */
        if (my_b_write(&log_file, header, carry))
          return ER_ERROR_ON_WRITE;
@@ -463,7 +463,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
        /*
          copy fixed second half of header to cache so the correct
-@@ -4727,6 +4760,7 @@
+@@ -4783,6 +4816,7 @@
      /* Write data to the binary log file */
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
@@ -471,7 +471,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      cache->read_pos=cache->read_end;		// Mark buffer used up
    } while ((length= my_b_fill(cache)));
  
-@@ -4849,21 +4883,24 @@
+@@ -4905,21 +4939,24 @@
        */
        if (qinfo.write(&log_file))
          goto err;
@@ -501,7 +501,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 diff -ruN a/sql/log.h b/sql/log.h
 --- a/sql/log.h	2010-07-16 10:52:00.513380973 +0900
 +++ b/sql/log.h	2010-07-16 10:52:16.335381559 +0900
-@@ -355,7 +355,7 @@
+@@ -360,7 +360,7 @@
    bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
    bool write_incident(THD *thd, bool lock);
  
@@ -510,7 +510,7 @@ diff -ruN a/sql/log.h b/sql/log.h
    void set_write_error(THD *thd);
    bool check_write_error(THD *thd);
  
-@@ -493,6 +493,7 @@
+@@ -498,6 +498,7 @@
                             const char *sql_text, uint sql_text_len,
                             CHARSET_INFO *client_cs);
    void flush();
@@ -518,7 +518,7 @@ diff -ruN a/sql/log.h b/sql/log.h
    void init_pthread_objects();
    MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
    MYSQL_QUERY_LOG *get_mysql_log() { return &mysql_log; }
-@@ -537,6 +538,7 @@
+@@ -542,6 +543,7 @@
    void init_base();
    void init_log_tables();
    bool flush_logs(THD *thd);
@@ -529,7 +529,7 @@ diff -ruN a/sql/log.h b/sql/log.h
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-16 10:52:00.528310598 +0900
 +++ b/sql/mysql_priv.h	2010-07-16 10:52:16.364380969 +0900
-@@ -1182,7 +1182,17 @@
+@@ -1139,7 +1139,17 @@
  bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
  void init_max_user_conn(void);
  void init_update_queries(void);
@@ -547,7 +547,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  pthread_handler_t handle_bootstrap(void *arg);
  int mysql_execute_command(THD *thd);
  bool do_command(THD *thd);
-@@ -2057,6 +2067,7 @@
+@@ -2014,6 +2024,7 @@
  extern ulong max_connect_errors, connect_timeout;
  extern ulong slave_net_timeout, slave_trans_retries;
  extern uint max_user_connections;
@@ -555,7 +555,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern ulong what_to_log,flush_time;
  extern ulong query_buff_size;
  extern ulong max_prepared_stmt_count, prepared_stmt_count;
-@@ -2110,6 +2121,7 @@
+@@ -2067,6 +2078,7 @@
  extern my_bool opt_slave_compressed_protocol, use_temp_pool;
  extern ulong slave_exec_mode_options;
  extern my_bool opt_readonly, lower_case_file_system;
@@ -563,7 +563,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
  extern my_bool opt_secure_auth;
  extern char* opt_secure_file_priv;
-@@ -2174,6 +2186,15 @@
+@@ -2131,6 +2143,15 @@
  extern struct system_variables max_system_variables;
  extern struct system_status_var global_status_var;
  extern struct rand_struct sql_rand;
@@ -582,7 +582,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-16 10:52:00.615310090 +0900
 +++ b/sql/mysqld.cc	2010-07-16 10:52:16.343382023 +0900
-@@ -496,6 +496,7 @@
+@@ -530,6 +530,7 @@
  uint    opt_debug_sync_timeout= 0;
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
@@ -590,7 +590,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -544,6 +545,7 @@
+@@ -578,6 +579,7 @@
  ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
  ulong max_connections, max_connect_errors;
  uint  max_user_connections= 0;
@@ -598,7 +598,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -645,6 +647,10 @@
+@@ -679,6 +681,10 @@
  	        LOCK_global_system_variables,
  		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
                  LOCK_connection_count;
@@ -609,7 +609,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    The below lock protects access to two global server variables:
    max_prepared_stmt_count and prepared_stmt_count. These variables
-@@ -1330,6 +1336,11 @@
+@@ -1364,6 +1370,11 @@
    x_free(opt_secure_file_priv);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -621,7 +621,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -1446,6 +1457,10 @@
+@@ -1480,6 +1491,10 @@
    (void) pthread_cond_destroy(&COND_thread_cache);
    (void) pthread_cond_destroy(&COND_flush_thread_cache);
    (void) pthread_cond_destroy(&COND_manager);
@@ -632,7 +632,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  }
  
  #endif /*EMBEDDED_LIBRARY*/
-@@ -3127,6 +3142,7 @@
+@@ -3168,6 +3183,7 @@
    {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
    {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
@@ -640,7 +640,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
    {"show_column_types",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLUMN_TYPES]), SHOW_LONG_STATUS},
    {"show_contributors",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CONTRIBUTORS]), SHOW_LONG_STATUS},
-@@ -3148,6 +3164,7 @@
+@@ -3189,6 +3205,7 @@
  #endif
    {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
    {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
@@ -648,7 +648,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
    {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
    {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
-@@ -3166,9 +3183,12 @@
+@@ -3207,9 +3224,12 @@
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
    {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
@@ -661,7 +661,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
    {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
    {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
-@@ -3600,6 +3620,10 @@
+@@ -3648,6 +3668,10 @@
  #endif
    (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
    (void) pthread_cond_init(&COND_server_started,NULL);
@@ -672,7 +672,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    sp_cache_init();
  #ifdef HAVE_EVENT_SCHEDULER
    Events::init_mutexes();
-@@ -4000,6 +4024,9 @@
+@@ -4048,6 +4072,9 @@
    if (!errmesg[0][0])
      unireg_abort(1);
  
@@ -682,7 +682,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
    {
-@@ -4146,6 +4173,9 @@
+@@ -4194,6 +4221,9 @@
  
    init_max_user_conn();
    init_update_queries();
@@ -692,7 +692,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    DBUG_RETURN(0);
  }
  
-@@ -4963,6 +4993,7 @@
+@@ -5011,6 +5041,7 @@
  
      DBUG_PRINT("error",("Too many connections"));
      close_connection(thd, ER_CON_COUNT_ERROR, 1);
@@ -700,7 +700,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      delete thd;
      DBUG_VOID_RETURN;
    }
-@@ -5747,6 +5778,8 @@
+@@ -5795,6 +5826,8 @@
    OPT_SLAVE_EXEC_MODE,
    OPT_GENERAL_LOG_FILE,
    OPT_SLOW_QUERY_LOG_FILE,
@@ -709,8 +709,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7175,6 +7208,14 @@
-    (uchar**) &max_system_variables.net_wait_timeout, 0, GET_ULONG,
+@@ -7287,6 +7320,14 @@
+    &max_system_variables.net_wait_timeout, 0, GET_ULONG,
     REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
     0, 1, 0},
 +  {"userstat_running", OPT_USERSTAT_RUNNING,
@@ -1021,7 +1021,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    void change_user(void);
    void cleanup(void);
    void cleanup_after_query();
-@@ -2342,9 +2394,15 @@
+@@ -2347,9 +2399,15 @@
      *p_db= strmake(db, db_length);
      *p_db_length= db_length;
      return FALSE;
@@ -1037,7 +1037,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  public:
    inline Internal_error_handler *get_internal_handler()
    { return m_internal_handler; }
-@@ -2398,6 +2456,9 @@
+@@ -2403,6 +2461,9 @@
    MEM_ROOT main_mem_root;
  };
  
@@ -1650,7 +1650,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    (void) pthread_mutex_unlock(&LOCK_user_conn);
    DBUG_RETURN(error);
  }
-@@ -488,6 +1066,7 @@
+@@ -490,6 +1068,7 @@
      general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
      DBUG_RETURN(1);
    }
@@ -1658,7 +1658,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
             thd->main_security_ctx.user,
             thd->main_security_ctx.host_or_ip,
-@@ -969,11 +1548,20 @@
+@@ -971,11 +1550,20 @@
        my_sleep(1000);				/* must wait after eof() */
  #endif
      statistic_increment(aborted_connects,&LOCK_status);
@@ -1679,7 +1679,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    DBUG_RETURN(0);
  }
  
-@@ -995,6 +1583,7 @@
+@@ -997,6 +1585,7 @@
    if (thd->killed || (net->error && net->vio != 0))
    {
      statistic_increment(aborted_threads,&LOCK_status);
@@ -1687,7 +1687,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    }
  
    if (net->error && net->vio != 0)
-@@ -1121,10 +1710,14 @@
+@@ -1123,10 +1712,14 @@
    for (;;)
    {
      NET *net= &thd->net;
@@ -1702,7 +1702,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
  
      prepare_new_connection_state(thd);
  
-@@ -1147,6 +1740,8 @@
+@@ -1149,6 +1742,8 @@
     
  end_thread:
      close_connection(thd, 0, 1);
@@ -1798,7 +1798,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Commands which always take a long time are logged into
      the slow log only if opt_log_slow_admin_statements is set.
-@@ -1843,6 +1855,13 @@
+@@ -1859,6 +1871,13 @@
      thd->profiling.discard_current_query();
  #endif
      break;
@@ -1812,7 +1812,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_OPEN_TABLES:
    case SCH_VARIABLES:
    case SCH_STATUS:
-@@ -1999,6 +2018,7 @@
+@@ -2015,6 +2034,7 @@
                         thd->security_ctx->priv_host)) &&
          check_global_access(thd, SUPER_ACL))
      {
@@ -1820,7 +1820,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
        DBUG_RETURN(TRUE);
      }
-@@ -5279,6 +5299,7 @@
+@@ -5297,6 +5317,7 @@
        if (!no_errors)
        {
          const char *db_name= db ? db : thd->db;
@@ -1828,7 +1828,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
          my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                   sctx->priv_user, sctx->priv_host, db_name);
        }
-@@ -5311,12 +5332,15 @@
+@@ -5329,12 +5350,15 @@
    {						// We can never grant this
      DBUG_PRINT("error",("No possible access"));
      if (!no_errors)
@@ -1844,7 +1844,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      DBUG_RETURN(TRUE);				/* purecov: tested */
    }
  
-@@ -5342,11 +5366,15 @@
+@@ -5360,11 +5384,15 @@
  
    DBUG_PRINT("error",("Access denied"));
    if (!no_errors)
@@ -1860,7 +1860,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_RETURN(TRUE);				/* purecov: tested */
  }
  
-@@ -5375,6 +5403,7 @@
+@@ -5393,6 +5421,7 @@
  
      if (!thd->col_access && check_grant_db(thd, dst_db_name))
      {
@@ -1868,7 +1868,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                 thd->security_ctx->priv_user,
                 thd->security_ctx->priv_host,
-@@ -5456,9 +5485,12 @@
+@@ -5474,9 +5503,12 @@
          (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
      {
        if (!no_errors)
@@ -1881,7 +1881,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        return TRUE;
      }
      /*
-@@ -5621,6 +5653,7 @@
+@@ -5639,6 +5671,7 @@
    if ((thd->security_ctx->master_access & want_access))
      return 0;
    get_privilege_desc(command, sizeof(command), want_access);
@@ -1889,7 +1889,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -6002,6 +6035,34 @@
+@@ -6020,6 +6053,34 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
  
@@ -1924,7 +1924,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (query_cache_send_result_to_client(thd, (char*) inBuf, length) <= 0)
    {
      LEX *lex= thd->lex;
-@@ -6077,6 +6138,43 @@
+@@ -6100,6 +6161,43 @@
      *found_semicolon= NULL;
    }
  
@@ -1968,7 +1968,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -6939,6 +7037,13 @@
+@@ -6965,6 +7063,13 @@
      if (flush_error_log())
        result=1;
    }
@@ -1982,7 +1982,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #ifdef HAVE_QUERY_CACHE
    if (options & REFRESH_QUERY_CACHE_FREE)
    {
-@@ -7039,6 +7144,40 @@
+@@ -7065,6 +7170,40 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
@@ -2036,7 +2036,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  /**
    A result class used to send cursor rows using the binary protocol.
  */
-@@ -2072,8 +2075,36 @@
+@@ -2100,8 +2103,36 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2074,7 +2074,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  
    if (thd->stmt_map.insert(thd, stmt))
    {
-@@ -2081,7 +2112,7 @@
+@@ -2109,7 +2140,7 @@
        The error is set in the insert. The statement itself
        will be also deleted there (this is how the hash works).
      */
@@ -2083,7 +2083,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    /* Reset warnings from previous command */
-@@ -2108,6 +2139,44 @@
+@@ -2136,6 +2167,44 @@
    thd->protocol= save_protocol;
  
    /* check_prepared_statemnt sends the metadata packet in case of success */
@@ -2128,7 +2128,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2454,12 +2523,36 @@
+@@ -2482,12 +2551,36 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2166,7 +2166,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
  #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-@@ -2480,6 +2573,44 @@
+@@ -2508,6 +2601,44 @@
    /* Close connection socket; for use with client testing (Bug#43560). */
    DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
  
@@ -2211,7 +2211,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  
  }
-@@ -2553,20 +2684,45 @@
+@@ -2581,20 +2712,45 @@
  
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
@@ -2259,7 +2259,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    thd->stmt_arena= stmt;
-@@ -2590,6 +2746,44 @@
+@@ -2618,6 +2774,44 @@
    thd->restore_backup_statement(stmt, &stmt_backup);
    thd->stmt_arena= thd;
  
@@ -2304,7 +2304,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2620,13 +2814,37 @@
+@@ -2648,13 +2842,37 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2343,7 +2343,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    stmt->close_cursor();
-@@ -2643,6 +2861,44 @@
+@@ -2671,6 +2889,44 @@
  
    my_ok(thd);
  
@@ -2801,7 +2801,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /* collect status for all running threads */
  
-@@ -6643,6 +7032,104 @@
+@@ -6644,6 +7033,104 @@
  };
  
  
@@ -2906,7 +2906,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_FIELD_INFO processlist_fields_info[]=
  {
    {"ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Id", SKIP_OPEN_TABLE},
-@@ -6778,6 +7265,8 @@
+@@ -6779,6 +7266,8 @@
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
     fill_schema_charsets, make_character_sets_old_format, 0, -1, -1, 0, 0},
@@ -2915,7 +2915,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"COLLATIONS", collation_fields_info, create_schema_table, 
     fill_schema_collation, make_old_format, 0, -1, -1, 0, 0},
    {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
-@@ -6787,6 +7276,8 @@
+@@ -6788,6 +7277,8 @@
     OPTIMIZE_I_S_TABLE|OPEN_VIEW_FULL},
    {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
     fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
@@ -2924,7 +2924,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"ENGINES", engines_fields_info, create_schema_table,
     fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
  #ifdef HAVE_EVENT_SCHEDULER
-@@ -6843,11 +7334,17 @@
+@@ -6844,11 +7335,17 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
@@ -2963,7 +2963,7 @@ diff -ruN a/sql/sql_update.cc b/sql/sql_update.cc
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-07-16 10:52:00.457381998 +0900
 +++ b/sql/sql_yacc.yy	2010-07-16 10:52:16.445343351 +0900
-@@ -758,6 +758,7 @@
+@@ -757,6 +757,7 @@
  %token  CHECK_SYM                     /* SQL-2003-R */
  %token  CIPHER_SYM
  %token  CLIENT_SYM
@@ -2971,7 +2971,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  CLOSE_SYM                     /* SQL-2003-R */
  %token  COALESCE                      /* SQL-2003-N */
  %token  CODE_SYM
-@@ -904,6 +905,7 @@
+@@ -903,6 +904,7 @@
  %token  IMPORT
  %token  INDEXES
  %token  INDEX_SYM
@@ -2979,7 +2979,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  INFILE
  %token  INITIAL_SIZE_SYM
  %token  INNER_SYM                     /* SQL-2003-R */
-@@ -1145,6 +1147,7 @@
+@@ -1144,6 +1146,7 @@
  %token  SIGNED_SYM
  %token  SIMPLE_SYM                    /* SQL-2003-N */
  %token  SLAVE
@@ -2987,7 +2987,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  SMALLINT                      /* SQL-2003-R */
  %token  SNAPSHOT_SYM
  %token  SOCKET_SYM
-@@ -1190,6 +1193,7 @@
+@@ -1189,6 +1192,7 @@
  %token  TABLESPACE
  %token  TABLE_REF_PRIORITY
  %token  TABLE_SYM                     /* SQL-2003-R */
@@ -2995,7 +2995,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  TABLE_CHECKSUM_SYM
  %token  TEMPORARY                     /* SQL-2003-N */
  %token  TEMPTABLE_SYM
-@@ -1198,6 +1202,7 @@
+@@ -1197,6 +1201,7 @@
  %token  TEXT_SYM
  %token  THAN_SYM
  %token  THEN_SYM                      /* SQL-2003-R */
@@ -3003,7 +3003,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  TIMESTAMP                     /* SQL-2003-R */
  %token  TIMESTAMP_ADD
  %token  TIMESTAMP_DIFF
-@@ -1235,6 +1240,7 @@
+@@ -1234,6 +1239,7 @@
  %token  UPGRADE_SYM
  %token  USAGE                         /* SQL-2003-N */
  %token  USER                          /* SQL-2003-R */
@@ -3011,7 +3011,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  USE_FRM
  %token  USE_SYM
  %token  USING                         /* SQL-2003-R */
-@@ -10328,6 +10334,41 @@
+@@ -10323,6 +10329,41 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -3053,7 +3053,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | CREATE PROCEDURE sp_name
            {
              LEX *lex= Lex;
-@@ -10536,6 +10577,18 @@
+@@ -10531,6 +10572,18 @@
            { Lex->type|= REFRESH_STATUS; }
          | SLAVE
            { Lex->type|= REFRESH_SLAVE; }
@@ -3072,7 +3072,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -11638,6 +11691,7 @@
+@@ -11633,6 +11686,7 @@
          | CHAIN_SYM                {}
          | CHANGED                  {}
          | CIPHER_SYM               {}
@@ -3080,7 +3080,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | CLIENT_SYM               {}
          | COALESCE                 {}
          | CODE_SYM                 {}
-@@ -11699,6 +11753,7 @@
+@@ -11694,6 +11748,7 @@
          | HOSTS_SYM                {}
          | HOUR_SYM                 {}
          | IDENTIFIED_SYM           {}
@@ -3088,7 +3088,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | INVOKER_SYM              {}
          | IMPORT                   {}
          | INDEXES                  {}
-@@ -11823,6 +11878,7 @@
+@@ -11818,6 +11873,7 @@
          | SIMPLE_SYM               {}
          | SHARE_SYM                {}
          | SHUTDOWN                 {}
@@ -3096,7 +3096,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | SNAPSHOT_SYM             {}
          | SOUNDS_SYM               {}
          | SOURCE_SYM               {}
-@@ -11842,6 +11898,7 @@
+@@ -11837,6 +11893,7 @@
          | SUSPEND_SYM              {}
          | SWAPS_SYM                {}
          | SWITCHES_SYM             {}
@@ -3104,7 +3104,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | TABLES                   {}
          | TABLE_CHECKSUM_SYM       {}
          | TABLESPACE               {}
-@@ -11849,6 +11906,7 @@
+@@ -11844,6 +11901,7 @@
          | TEMPTABLE_SYM            {}
          | TEXT_SYM                 {}
          | THAN_SYM                 {}
@@ -3112,7 +3112,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | TRANSACTION_SYM          {}
          | TRIGGERS_SYM             {}
          | TIMESTAMP                {}
-@@ -11866,6 +11924,7 @@
+@@ -11861,6 +11919,7 @@
          | UNKNOWN_SYM              {}
          | UNTIL_SYM                {}
          | USER                     {}
@@ -3326,7 +3326,7 @@ diff -ruN a/sql/table.h b/sql/table.h
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-06-04 00:50:08.000000000 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-07-16 10:52:16.483343553 +0900
-@@ -4025,6 +4025,8 @@
+@@ -4036,6 +4036,8 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -3335,7 +3335,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -4362,6 +4364,8 @@
+@@ -4373,6 +4375,8 @@
  		}
  	}
  
@@ -3344,7 +3344,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error, user_thd);
-@@ -4414,6 +4418,8 @@
+@@ -4425,6 +4429,8 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -3353,7 +3353,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error, user_thd);
-@@ -4893,6 +4899,9 @@
+@@ -4904,6 +4910,9 @@
  	if (ret == DB_SUCCESS) {
  		error = 0;
  		table->status = 0;

@@ -18,7 +18,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -10648,6 +10651,13 @@
+@@ -10675,6 +10678,13 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -32,7 +32,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11024,6 +11034,7 @@
+@@ -11051,6 +11061,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),

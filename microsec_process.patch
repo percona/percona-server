@@ -34,7 +34,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
        if (schema_table_store_record(thd, table))
        {
          VOID(pthread_mutex_unlock(&LOCK_thread_count));
-@@ -6650,6 +6655,8 @@
+@@ -6651,6 +6656,8 @@
    {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", SKIP_OPEN_TABLE},
    {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info",
     SKIP_OPEN_TABLE},

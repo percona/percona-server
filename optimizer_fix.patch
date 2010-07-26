@@ -1,6 +1,6 @@
-diff -Nur a/patch_info/optimizer_fix.info b/patch_info/optimizer_fix.info
---- a/patch_info/optimizer_fix.info	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/optimizer_fix.info	2010-07-07 03:32:22.938972001 +0400
+diff -ruN a/patch_info/optimizer_fix.info b/patch_info/optimizer_fix.info
+--- a/patch_info/optimizer_fix.info	1970-01-01 09:00:00.000000000 +0900
++++ b/patch_info/optimizer_fix.info	2010-07-26 18:29:35.685061376 +0900
 @@ -0,0 +1,8 @@
 +File=optimizer_fix.patch
 +Name=Unofficial optimizer fixes
@@ -10,10 +10,21 @@ diff -Nur a/patch_info/optimizer_fix.info b/patch_info/optimizer_fix.info
 +Comment=
 +2010-01
 +Ported to 5.1.42
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-07 03:32:22.428972001 +0400
-+++ b/sql/mysqld.cc	2010-07-07 03:32:22.938972001 +0400
-@@ -497,6 +497,7 @@
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-07-26 18:29:12.224113574 +0900
++++ b/sql/mysql_priv.h	2010-07-26 18:29:35.697144981 +0900
+@@ -2079,6 +2079,7 @@
+ extern ulong slave_exec_mode_options;
+ extern my_bool opt_readonly, lower_case_file_system;
+ extern my_bool opt_userstat_running, opt_thread_statistics;
++extern my_bool opt_optimizer_fix;
+ extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+ extern my_bool opt_secure_auth;
+ extern char* opt_secure_file_priv;
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-26 18:29:12.238109757 +0900
++++ b/sql/mysqld.cc	2010-07-26 18:29:35.687113582 +0900
+@@ -531,6 +531,7 @@
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
  my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
@@ -21,7 +32,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5780,6 +5781,7 @@
+@@ -5828,6 +5829,7 @@
    OPT_SLOW_QUERY_LOG_FILE,
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
@@ -29,7 +40,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7216,6 +7218,10 @@
+@@ -7328,6 +7330,10 @@
     "Control TABLE_STATISTICS running, when userstat_running is enabled",
     (uchar**) &opt_thread_statistics, (uchar**) &opt_thread_statistics,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -40,20 +51,9 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
     "Causes updates to non-transactional engines using statement format to be "
     "written directly to binary log. Before using this option, make sure that "
-diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-07 03:32:22.438972001 +0400
-+++ b/sql/mysql_priv.h	2010-07-07 03:32:22.938972001 +0400
-@@ -2122,6 +2122,7 @@
- extern ulong slave_exec_mode_options;
- extern my_bool opt_readonly, lower_case_file_system;
- extern my_bool opt_userstat_running, opt_thread_statistics;
-+extern my_bool opt_optimizer_fix;
- extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
- extern my_bool opt_secure_auth;
- extern char* opt_secure_file_priv;
-diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
---- a/sql/opt_range.cc	2010-07-07 03:32:22.438972001 +0400
-+++ b/sql/opt_range.cc	2010-07-07 03:32:22.948972001 +0400
+diff -ruN a/sql/opt_range.cc b/sql/opt_range.cc
+--- a/sql/opt_range.cc	2010-07-09 21:34:57.000000000 +0900
++++ b/sql/opt_range.cc	2010-07-26 18:29:35.711113511 +0900
 @@ -695,7 +695,7 @@
  static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                         bool index_read_must_be_used,
@@ -63,7 +63,7 @@ diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
  static
  TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                                            double read_time,
-@@ -2199,6 +2199,7 @@
+@@ -2200,6 +2200,7 @@
  				  ha_rows limit, bool force_quick_range)
  {
    uint idx;
@@ -71,7 +71,7 @@ diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
    double scan_time;
    DBUG_ENTER("SQL_SELECT::test_quick_select");
    DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
-@@ -2369,12 +2370,17 @@
+@@ -2370,12 +2371,17 @@
  
          /* Get best 'range' plan and prepare data for making other plans */
          if ((range_trp= get_key_scans_params(&param, tree, FALSE, TRUE,
@@ -90,7 +90,7 @@ diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
          /*
            Simultaneous key scans and row deletes on several handler
            objects are not allowed so don't use ROR-intersection for
-@@ -3725,7 +3731,7 @@
+@@ -3726,7 +3732,7 @@
    {
      DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
                                          "tree in SEL_IMERGE"););
@@ -99,7 +99,7 @@ diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
      {
        /*
          One of index scans in this index_merge is more expensive than entire
-@@ -4828,11 +4834,12 @@
+@@ -4829,11 +4835,12 @@
  static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                         bool index_read_must_be_used, 
                                         bool update_tbl_stats,
@@ -113,7 +113,7 @@ diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
    TRP_RANGE* read_plan= NULL;
    bool pk_is_clustered= param->table->file->primary_key_is_clustered();
    DBUG_ENTER("get_key_scans_params");
-@@ -4903,6 +4910,11 @@
+@@ -4904,6 +4911,11 @@
          key_to_read=  key;
        }
  
@@ -125,7 +125,7 @@ diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
      }
    }
  
-@@ -4925,6 +4937,12 @@
+@@ -4926,6 +4938,12 @@
    else
      DBUG_PRINT("info", ("No 'range' table read plan found"));
  
@@ -138,9 +138,9 @@ diff -Nur a/sql/opt_range.cc b/sql/opt_range.cc
    DBUG_RETURN(read_plan);
  }
  
-diff -Nur a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-07 03:32:22.418972001 +0400
-+++ b/sql/set_var.cc	2010-07-07 03:32:22.948972001 +0400
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-07-26 18:29:12.250113584 +0900
++++ b/sql/set_var.cc	2010-07-26 18:29:35.724113196 +0900
 @@ -559,6 +559,8 @@
  						     &opt_userstat_running);
  static sys_var_bool_ptr		sys_thread_statistics(&vars, "thread_statistics",
@@ -150,10 +150,10 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
  					       &SV::read_rnd_buff_size);
  static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
-diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2010-07-07 03:32:22.418972001 +0400
-+++ b/sql/sql_select.cc	2010-07-07 03:32:22.958972001 +0400
-@@ -2561,6 +2561,11 @@
+diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
+--- a/sql/sql_select.cc	2010-07-26 18:23:40.015145156 +0900
++++ b/sql/sql_select.cc	2010-07-26 18:29:35.743144611 +0900
+@@ -2569,6 +2569,11 @@
        table->reginfo.impossible_range=1;
        DBUG_RETURN(0);
      }

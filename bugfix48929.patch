@@ -4,12 +4,37 @@ diff -Nur a/configure.in b/configure.in
 @@ -839,7 +839,7 @@
  AC_HEADER_STDC
  AC_HEADER_SYS_WAIT
- AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h ieeefp.h limits.h \
-- memory.h pwd.h select.h \
-+ memory.h pwd.h select.h poll.h \
+ AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h fpu_control.h \
+- ieeefp.h limits.h memory.h pwd.h select.h \
++ ieeefp.h limits.h memory.h pwd.h select.h poll.h \
   stdlib.h stddef.h \
   strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
   sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
+diff -Nur a/configure b/configure
+--- a/configure	2010-07-26 18:29:12.172114128 +0900
++++ b/configure	2010-07-26 20:44:59.199030524 +0900
+@@ -21639,7 +21639,7 @@
+ 
+ 
+ for ac_header in fcntl.h fenv.h float.h floatingpoint.h fpu_control.h \
+- ieeefp.h limits.h memory.h pwd.h select.h \
++ ieeefp.h limits.h memory.h pwd.h select.h poll.h \
+  stdlib.h stddef.h \
+  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
+  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
+diff -Nur a/include/config.h.in b/include/config.h.in
+--- a/include/config.h.in	2010-07-26 18:29:12.192113524 +0900
++++ b/include/config.h.in	2010-07-26 20:46:08.265182869 +0900
+@@ -602,6 +602,9 @@
+ /* Define to 1 if you have the `poll' function. */
+ #undef HAVE_POLL
+ 
++/* Define to 1 if you have the <poll.h> header file. */
++#undef HAVE_POLL_H
++
+ /* Define to 1 if you have the `port_create' function. */
+ #undef HAVE_PORT_CREATE
+ 
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-07 03:33:05.278972002 +0400
 +++ b/sql/mysqld.cc	2010-07-07 03:33:05.788972002 +0400
@@ -24,7 +49,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #define mysqld_charset &my_charset_latin1
  
  #ifdef HAVE_purify
-@@ -5055,28 +5059,49 @@
+@@ -5103,28 +5107,49 @@
  {
    my_socket sock,new_sock;
    uint error_count=0;
@@ -77,7 +102,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_FCNTL
    socket_flags=fcntl(unix_sock, F_GETFL, 0);
  #endif
-@@ -5086,12 +5111,15 @@
+@@ -5134,12 +5159,15 @@
    MAYBE_BROKEN_SYSCALL;
    while (!abort_loop)
    {
@@ -98,7 +123,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
      {
        if (socket_errno != SOCKET_EINTR)
        {
-@@ -5101,7 +5129,7 @@
+@@ -5149,7 +5177,7 @@
        MAYBE_BROKEN_SYSCALL
        continue;
      }
@@ -107,7 +132,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
      if (abort_loop)
      {
        MAYBE_BROKEN_SYSCALL;
-@@ -5109,6 +5137,21 @@
+@@ -5157,6 +5185,21 @@
      }
  
      /* Is this a new connection request ? */
@@ -129,7 +154,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_SYS_UN_H
      if (FD_ISSET(unix_sock,&readFDs))
      {
-@@ -5116,11 +5159,12 @@
+@@ -5164,11 +5207,12 @@
        flags= socket_flags;
      }
      else

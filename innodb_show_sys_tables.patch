@@ -14,7 +14,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-04-30 15:48:30.000000000 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-30 16:37:36.000000000 +0900
-@@ -47,6 +47,7 @@
+@@ -46,6 +46,7 @@
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
  #include "dict0dict.h" /* for dict_sys */
@@ -22,7 +22,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
  }
  
-@@ -3159,6 +3160,664 @@
+@@ -3116,6 +3117,664 @@
  	STRUCT_FLD(deinit, i_s_common_deinit),
  	STRUCT_FLD(version, 0x0100 /* 1.0 */),
  	STRUCT_FLD(status_vars, NULL),

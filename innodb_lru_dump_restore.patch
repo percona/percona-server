@@ -317,7 +317,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-04-30 14:38:27.000000000 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-30 15:47:10.000000000 +0900
-@@ -47,6 +47,7 @@
+@@ -46,6 +46,7 @@
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
  #include "dict0dict.h" /* for dict_sys */
@@ -325,7 +325,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -3088,6 +3089,36 @@
+@@ -3045,6 +3046,36 @@
  			"Hello!");
  		goto end_func;
  	}

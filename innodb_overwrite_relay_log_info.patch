@@ -280,16 +280,17 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
  /** If this MySQL server uses binary logging, after InnoDB has been inited
  and if it has done a crash recovery, we store the binlog file name and position
  here. */
-@@ -300,7 +303,7 @@
+@@ -300,7 +303,8 @@
  void
  trx_sys_update_mysql_binlog_offset(
  /*===============================*/
 -	const char*	file_name,/*!< in: MySQL log file name */
++	trx_sysf_t*	sys_header,
 +	const char*	file_name_in,/*!< in: MySQL log file name */
  	ib_int64_t	offset,	/*!< in: position in that log file */
  	ulint		field,	/*!< in: offset of the MySQL log info field in
  				the trx sys header */
-@@ -482,6 +485,7 @@
+@@ -482,6 +486,7 @@
  @see trx_sys_mysql_master_log_name
  @see trx_sys_mysql_bin_log_name */
  #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
@@ -297,7 +298,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
  
-@@ -491,6 +495,7 @@
+@@ -491,6 +496,7 @@
  /** The offset of the MySQL replication info in the trx system header;
  this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
  #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
@@ -351,18 +352,19 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  /** If this MySQL server uses binary logging, after InnoDB has been inited
  and if it has done a crash recovery, we store the binlog file name and position
  here. */
-@@ -670,19 +673,24 @@
+@@ -670,22 +673,25 @@
  void
  trx_sys_update_mysql_binlog_offset(
  /*===============================*/
 -	const char*	file_name,/*!< in: MySQL log file name */
++	trx_sysf_t*	sys_header,
 +	const char*	file_name_in,/*!< in: MySQL log file name */
  	ib_int64_t	offset,	/*!< in: position in that log file */
  	ulint		field,	/*!< in: offset of the MySQL log info field in
  				the trx sys header */
  	mtr_t*		mtr)	/*!< in: mtr */
  {
- 	trx_sysf_t*	sys_header;
+-	trx_sysf_t*	sys_header;
 +	const char*	file_name;
  
 -	if (ut_strlen(file_name) >= TRX_SYS_MYSQL_LOG_NAME_LEN) {
@@ -377,9 +379,12 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
 +	else {
 +		file_name = file_name_in;
  	}
+-
+-	sys_header = trx_sysf_get(mtr);
  
- 	sys_header = trx_sysf_get(mtr);
-@@ -808,13 +816,26 @@
+ 	if (mach_read_from_4(sys_header + field
+ 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+@@ -808,13 +814,26 @@
  					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
  		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  		+ TRX_SYS_MYSQL_LOG_NAME);
@@ -407,7 +412,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  
  	trx_sys_mysql_master_log_pos
  		= (((ib_int64_t) mach_read_from_4(
-@@ -823,6 +844,19 @@
+@@ -823,6 +842,19 @@
  		+ ((ib_int64_t) mach_read_from_4(
  			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
@@ -441,17 +446,41 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
  
-@@ -791,6 +795,19 @@
+@@ -727,6 +731,7 @@
+ 	trx_rseg_t*	rseg;
+ 	trx_undo_t*	undo;
+ 	mtr_t		mtr;
++	trx_sysf_t*	sys_header = NULL;
+ 
+ 	ut_ad(mutex_own(&kernel_mutex));
+ 
+@@ -784,13 +789,35 @@
+ 
+ 		if (trx->mysql_log_file_name
+ 		    && trx->mysql_log_file_name[0] != '\0') {
++			if (!sys_header) {
++				sys_header = trx_sysf_get(&mtr);
++			}
+ 			trx_sys_update_mysql_binlog_offset(
++				sys_header,
+ 				trx->mysql_log_file_name,
+ 				trx->mysql_log_offset,
+ 				TRX_SYS_MYSQL_LOG_INFO, &mtr);
  			trx->mysql_log_file_name = NULL;
  		}
  
 +		if (trx->mysql_master_log_file_name[0] != '\0') {
 +			/* This database server is a MySQL replication slave */
++			if (!sys_header) {
++				sys_header = trx_sysf_get(&mtr);
++			}
 +			trx_sys_update_mysql_binlog_offset(
++				sys_header,
 +				trx->mysql_relay_log_file_name,
 +				trx->mysql_relay_log_pos,
 +				TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
 +			trx_sys_update_mysql_binlog_offset(
++				sys_header,
 +				trx->mysql_master_log_file_name,
 +				trx->mysql_master_log_pos,
 +				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);

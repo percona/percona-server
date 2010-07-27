@@ -374,7 +374,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
  /*********************************************************************
  Create extra rollback segments when create_new_db */
  UNIV_INTERN
-@@ -446,6 +469,8 @@
+@@ -447,6 +470,8 @@
  
  /* Space id and page no where the trx system file copy resides */
  #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
@@ -849,7 +849,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  			   && ((page_no >= block1
  				&& page_no
  				< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-@@ -982,6 +1135,87 @@
+@@ -980,6 +1133,87 @@
  }
  
  /*****************************************************************//**
@@ -937,7 +937,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  Creates and initializes the central memory structures for the transaction
  system. This is called when the database is started. */
  UNIV_INTERN
-@@ -1087,6 +1321,26 @@
+@@ -1085,6 +1319,26 @@
  	trx_sys_init_at_db_start();
  }
  

@@ -230,7 +230,7 @@ diff -ruN a/storage/innodb_plugin/include/page0types.h b/storage/innodb_plugin/i
 diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/include/trx0sys.h
 --- a/storage/innodb_plugin/include/trx0sys.h	2010-04-29 16:43:16.000000000 +0900
 +++ b/storage/innodb_plugin/include/trx0sys.h	2010-04-30 16:35:09.000000000 +0900
-@@ -514,9 +514,9 @@
+@@ -515,9 +515,9 @@
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
  

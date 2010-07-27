@@ -923,7 +923,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	mutex_enter(&kernel_mutex);
  
  	trx_free(trx);
-@@ -1071,6 +1097,9 @@
+@@ -1081,6 +1107,9 @@
  	trx_t*	trx)	/*!< in: transaction */
  {
  	que_thr_t*	thr;
@@ -933,7 +933,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1085,6 +1114,11 @@
+@@ -1095,6 +1124,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  
@@ -945,7 +945,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	trx->que_state = TRX_QUE_RUNNING;
  }
  
-@@ -1098,6 +1132,9 @@
+@@ -1108,6 +1142,9 @@
  	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
  {
  	que_thr_t*	thr;
@@ -955,7 +955,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1112,6 +1149,11 @@
+@@ -1122,6 +1159,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  

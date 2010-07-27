@@ -420,9 +420,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 +					  DICT_HDR_XTRADB_FLAG, &mtr);
 +		}
 +		mtr_commit(&mtr);
-+
 +		/* restart mtr */
 +		mtr_start(&mtr);
++		dict_hdr = dict_hdr_get(&mtr);
 +	}
 +
  	/* Because we only write new row ids to disk-based data structure

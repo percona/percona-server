@@ -5,7 +5,7 @@ diff -Nur a/patch_info/remove_fcntl_excessive_calls.info b/patch_info/remove_fcn
 +File=remove_fcntl_excessive_calls.patch
 +Name=remove fcntl excessive calls
 +Version=1.0
-+Author=Facebook
++Author=This is a port of the official fix.
 +License=GPL
 +Comment=
 diff -Nur a/sql/net_serv.cc b/sql/net_serv.cc

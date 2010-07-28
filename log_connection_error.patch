@@ -1,64 +1,6 @@
-diff -Nur a/patch_info/log_connection_error.patch b/patch_info/log_connection_error.patch
---- a/patch_info/log_connection_error.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/log_connection_error.patch	2010-07-14 03:12:24.851271001 +0400
-@@ -0,0 +1,6 @@
-+File=log_connection_error.patch
-+Name=logging abandoned connections
-+Version=1.0
-+Author=Percona <info@percona.com>
-+License=GPL
-+Comment=
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-14 03:10:09.381271000 +0400
-+++ b/sql/mysqld.cc	2010-07-14 03:10:32.251271000 +0400
-@@ -5007,6 +5007,10 @@
- 
-     DBUG_PRINT("error",("Too many connections"));
-     close_connection(thd, ER_CON_COUNT_ERROR, 1);
-+    if (global_system_variables.log_warnings)
-+    {
-+      sql_print_warning("%s", ER(ER_CON_COUNT_ERROR));
-+    }
-     statistic_increment(denied_connections, &LOCK_status);
-     delete thd;
-     DBUG_VOID_RETURN;
-@@ -5394,6 +5398,10 @@
-     if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
- 	my_net_init(&thd->net, thd->net.vio))
-     {
-+      if (global_system_variables.log_warnings)
-+      {
-+        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
-+      }
-       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-       delete thd;
-       continue;
-@@ -5589,6 +5597,10 @@
-                                                    event_conn_closed)) ||
-                         my_net_init(&thd->net, thd->net.vio))
-     {
-+      if (global_system_variables.log_warnings)
-+      {
-+        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
-+      }
-       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-       errmsg= 0;
-       goto errorconn;
---- a/mysql-test/t/connect.test	2010-06-03 20:17:31.000000000 +0400
-+++ b/mysql-test/t/connect.test	2010-07-21 12:30:34.760424002 +0400
-@@ -1,3 +1,5 @@
-+set global log_warnings=0;
-+
- # This test is to check various cases of connections
- # with right and wrong password, with and without database
- # Unfortunately the check is incomplete as we can't connect without database
-@@ -300,3 +301,4 @@
- # Wait till all disconnects are completed
- --source include/wait_until_count_sessions.inc
- 
-+set global log_warnings=1;
---- a/mysql-test/r/connect.result	2010-06-03 20:18:01.000000000 +0400
-+++ b/mysql-test/r/connect.result	2010-07-21 12:30:54.860424002 +0400
+diff -Nur a/mysql-test/r/connect.result b/mysql-test/r/connect.result
+--- a/mysql-test/r/connect.result	2010-07-28 16:47:46.895318726 +0400
++++ b/mysql-test/r/connect.result	2010-07-28 16:47:48.234134231 +0400
 @@ -1,3 +1,4 @@
 +set global log_warnings=0;
  drop table if exists t1,t2;
@@ -69,3 +11,63 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  # -- End of 5.1 tests
  # ------------------------------------------------------------------
 +set global log_warnings=1;
+diff -Nur a/mysql-test/t/connect.test b/mysql-test/t/connect.test
+--- a/mysql-test/t/connect.test	2010-07-28 16:47:46.865318816 +0400
++++ b/mysql-test/t/connect.test	2010-07-28 16:47:48.057260581 +0400
+@@ -1,3 +1,5 @@
++set global log_warnings=0;
++
+ # This test is to check various cases of connections
+ # with right and wrong password, with and without database
+ # Unfortunately the check is incomplete as we can't connect without database
+@@ -300,3 +302,4 @@
+ # Wait till all disconnects are completed
+ --source include/wait_until_count_sessions.inc
+ 
++set global log_warnings=1;
+diff -Nur a/patch_info/log_connection_error.patch b/patch_info/log_connection_error.patch
+--- a/patch_info/log_connection_error.patch	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/log_connection_error.patch	2010-07-28 16:47:47.634070367 +0400
+@@ -0,0 +1,6 @@
++File=log_connection_error.patch
++Name=logging abandoned connections
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
+diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-07-28 16:47:47.105319218 +0400
++++ b/sql/mysqld.cc	2010-07-28 16:47:47.644101813 +0400
+@@ -5055,6 +5055,10 @@
+ 
+     DBUG_PRINT("error",("Too many connections"));
+     close_connection(thd, ER_CON_COUNT_ERROR, 1);
++    if (global_system_variables.log_warnings)
++    {
++      sql_print_warning("%s", ER(ER_CON_COUNT_ERROR));
++    }
+     statistic_increment(denied_connections, &LOCK_status);
+     delete thd;
+     DBUG_VOID_RETURN;
+@@ -5442,6 +5446,10 @@
+     if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
+ 	my_net_init(&thd->net, thd->net.vio))
+     {
++      if (global_system_variables.log_warnings)
++      {
++        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
++      }
+       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+       delete thd;
+       continue;
+@@ -5637,6 +5645,10 @@
+                                                    event_conn_closed)) ||
+                         my_net_init(&thd->net, thd->net.vio))
+     {
++      if (global_system_variables.log_warnings)
++      {
++        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
++      }
+       close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+       errmsg= 0;
+       goto errorconn;

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 rm -rf a b Percona-Server;
-tar zxf mysql-5.1.48.tar.gz;
-mv mysql-5.1.48 Percona-Server;
+tar zxf mysql-5.1.49.tar.gz;
+mv mysql-5.1.49 Percona-Server;
 for patch_name in `cat series`; do
     echo "========================================================="
     echo "===== Check patch $patch_name";

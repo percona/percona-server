@@ -321,7 +321,19 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  /* prototypes for new functions added to ha_innodb.cc */
  trx_t* innobase_get_trx();
-@@ -1803,6 +1804,14 @@
+@@ -895,6 +896,11 @@
+ 			ready = buf_flush_ready_for_replace(&block->page);
+ 			mutex_exit(&block->mutex);
+ 
++			if (block->page.is_corrupt) {
++				/* corrupt page may remain, it can be skipped */
++				break;
++			}
++
+ 			if (!ready) {
+ 
+ 				return(block);
+@@ -1803,6 +1809,14 @@
  		return(NULL);
  	}
  
@@ -336,7 +348,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&page_hash_latch);
-@@ -2264,6 +2273,14 @@
+@@ -2264,6 +2278,14 @@
  		return(NULL);
  	}
  
@@ -351,7 +363,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -2885,6 +2902,7 @@
+@@ -2885,6 +2907,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -359,7 +371,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  #ifdef UNIV_DEBUG_FILE_ACCESSES
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES */
-@@ -3341,7 +3359,8 @@
+@@ -3341,7 +3364,8 @@
  void
  buf_page_io_complete(
  /*=================*/
@@ -369,7 +381,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  {
  	enum buf_io_fix	io_type;
  	const ibool	uncompressed = (buf_page_get_state(bpage)
-@@ -3419,6 +3438,7 @@
+@@ -3419,6 +3443,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -377,7 +389,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -3460,6 +3480,19 @@
+@@ -3460,6 +3485,19 @@
  			      REFMAN "forcing-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -397,7 +409,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				fputs("InnoDB: Ending processing because of"
  				      " a corrupt database page.\n",
-@@ -3467,6 +3500,7 @@
+@@ -3467,6 +3505,7 @@
  				exit(1);
  			}
  		}
@@ -405,7 +417,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -3476,8 +3510,11 @@
+@@ -3476,8 +3515,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(

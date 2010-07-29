@@ -384,7 +384,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +			if (srv_pass_corrupt_table && !trx_sys_sys_space(bpage->space)
 +			    && bpage->space < SRV_LOG_SPACE_FIRST_ID) {
 +				fprintf(stderr,
-+					"InnoDB: space %lu will be treated as corrupt.\n",
++					"InnoDB: space %u will be treated as corrupt.\n",
 +					bpage->space);
 +				fil_space_set_corrupt(bpage->space);
 +				if (trx && trx->dict_operation_lock_mode == 0) {

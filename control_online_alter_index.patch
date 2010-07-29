@@ -36,7 +36,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
     "from libc.so",
     &opt_allow_suspicious_udfs, &opt_allow_suspicious_udfs,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-+  {"online_alter_index",
++  {"fast_index_creation",
 +   OPT_ONLINE_ALTER_INDEX,
 +   "If disabled, suppresses online operations for indexes of ALTER TABLE "
 +   "(e.g. fast index creation of InnoDB Plugin) for the session.",
@@ -55,7 +55,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  
 +/* Control online operations of ALTER TABLE */
 +static sys_var_thd_bool
-+sys_online_alter_index(&vars, "online_alter_index",
++sys_online_alter_index(&vars, "fast_index_creation",
 +			&SV::online_alter_index);
 +
  #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE

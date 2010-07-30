@@ -1,0 +1,24 @@
+diff -Nur a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
+--- a/storage/innobase/handler/ha_innodb.cc	2010-07-29 17:33:38.624027192 +0400
++++ b/storage/innobase/handler/ha_innodb.cc	2010-07-29 17:47:18.182779090 +0400
+@@ -9009,7 +9009,7 @@
+   &innobase_storage_engine,
+   innobase_hton_name,
+   "Innobase OY",
+-  "Supports transactions, row-level locking, and foreign keys",
++  "Percona-XtraDB, Supports transactions, row-level locking, and foreign keys",
+   PLUGIN_LICENSE_GPL,
+   innobase_init, /* Plugin Init */
+   NULL, /* Plugin Deinit */
+diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-29 17:33:42.044016720 +0400
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-29 17:47:28.982778191 +0400
+@@ -11692,7 +11692,7 @@
+   &innobase_storage_engine,
+   innobase_hton_name,
+   "Innobase Oy",
+-  "Supports transactions, row-level locking, and foreign keys",
++  "Percona-XtraDB, Supports transactions, row-level locking, and foreign keys",
+   PLUGIN_LICENSE_GPL,
+   innobase_init, /* Plugin Init */
+   NULL, /* Plugin Deinit */

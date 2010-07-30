@@ -382,13 +382,3 @@ diff -Nur a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    DBUG_ENTER("ha_myisam::register_query_cache_table");
    /*
      No call back function is needed to determine if a cached statement
---- a/mysql-test/r/percona_server_variables.result	2010-07-28 19:40:10.732776799 +0400
-+++ b/mysql-test/r/percona_server_variables.result	2010-07-29 16:26:05.342779636 +0400
-@@ -239,6 +239,7 @@
- protocol_version	Value
- pseudo_thread_id	Value
- query_alloc_block_size	Value
-+query_cache_enable	Value
- query_cache_limit	Value
- query_cache_min_res_unit	Value
- query_cache_size	Value

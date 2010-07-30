@@ -239,6 +239,7 @@ profiling_use_getrusage	Value
 protocol_version	Value
 pseudo_thread_id	Value
 query_alloc_block_size	Value
+query_cache_enable     Value
 query_cache_limit	Value
 query_cache_min_res_unit	Value
 query_cache_size	Value

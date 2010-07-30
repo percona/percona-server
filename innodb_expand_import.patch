@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-29 15:44:28.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 10:43:13.000000000 +0900
-@@ -40,6 +40,10 @@
+@@ -40,6 +40,11 @@
  #include "dict0dict.h"
  #include "page0page.h"
  #include "page0zip.h"
@@ -9,6 +9,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +#include "trx0sys.h"
 +#include "pars0pars.h"
 +#include "row0mysql.h"
++#include "que0que.h"
  #ifndef UNIV_HOTBACKUP
  # include "buf0lru.h"
  # include "ibuf0ibuf.h"
@@ -133,7 +134,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +			/* over write space id of all pages */
 +			rec_offs_init(offsets_);
 +
-+			fprintf(stderr, "InnoDB: Progress in %:");
++			fprintf(stderr, "InnoDB: Progress in %%:");
 +
 +			for (offset = 0; offset < size_bytes; offset += UNIV_PAGE_SIZE) {
 +				ulint		checksum_field;
@@ -410,3 +411,25 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
  /*-------------------------------------------*/
+diff -ruN a/storage/innodb_plugin/include/row0row.h b/storage/innodb_plugin/include/row0row.h
+--- a/storage/innodb_plugin/include/row0row.h	2010-07-09 16:34:54.000000000 +0400
++++ b/storage/innodb_plugin/include/row0row.h	2010-07-30 09:20:21.994018171 +0400
+@@ -68,6 +68,18 @@
+ 	const rec_t*	rec,	/*!< in: record */
+ 	dict_index_t*	index,	/*!< in: clustered index */
+ 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
++/*********************************************************************//**                                                                                   
++Gets the offset of trx id field, in bytes relative to the origin of                                                                                          
++a clustered index record.                                                                                                                                    
++@return offset of DATA_TRX_ID */
++UNIV_INTERN
++ulint
++row_get_trx_id_offset(
++/*==================*/
++                      const rec_t*    rec __attribute__((unused)),
++                      /*!< in: record */
++                      dict_index_t*   index,  /*!< in: clustered index */
++                      const ulint*    offsets)/*!< in: rec_get_offsets(rec, index) */
+ /*****************************************************************//**
+ When an insert or purge to a table is performed, this function builds
+ the entry to be inserted into or purged from an index on the table.

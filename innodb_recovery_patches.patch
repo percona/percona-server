@@ -349,12 +349,11 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	}
  
  	mutex_exit(&(recv_sys->mutex));
-@@ -3255,6 +3313,84 @@
+@@ -3255,6 +3313,83 @@
  	}
  #endif /* UNIV_DEBUG */
  
 +	if (recv_needed_recovery && srv_recovery_stats) {
-+		FILE*	file = stderr;
 +		ulint	i;
 +
 +		fprintf(stderr,

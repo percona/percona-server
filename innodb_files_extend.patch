@@ -37,7 +37,7 @@ diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
 -		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 -#  error
 -# endif
-+//# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
++//# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET
 +//		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 +//#  error
 +//# endif
@@ -89,7 +89,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +	srv_page_size_shift = 0;
 +
 +	if (innobase_page_size != (1 << 14)) {
-+		int n_shift;
++		uint n_shift;
 +
 +		fprintf(stderr,
 +			"InnoDB: Warning: innodb_page_size has been changed from default value 16384. (###EXPERIMENTAL### operation)\n");

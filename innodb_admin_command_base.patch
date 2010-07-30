@@ -12,7 +12,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-04-30 10:49:58.000000000 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-30 14:36:22.000000000 +0900
-@@ -2951,3 +2951,140 @@
+@@ -2951,3 +2951,139 @@
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -49,7 +49,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	COND*		cond)
 +{
 +	TABLE*	i_s_table	= (TABLE *) tables->table;
-+	CHARSET_INFO *cs= system_charset_info;
 +	char**	query_str;
 +	char*	ptr;
 +	char	quote	= '\0';

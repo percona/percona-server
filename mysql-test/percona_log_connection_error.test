@@ -7,7 +7,7 @@ SET @old_log_warnings = @@log_warnings;
 SET GLOBAL max_connections=2;
 
 SET GLOBAL LOG_WARNINGS = 0;
-connect (conn0,localhost,root,,);
+--connect (conn0,localhost,root,,)
 connection conn0;
 --error 1040
 --connect (conn1,localhost,root,,,,./var/tmp/mysqld.1.sock)
@@ -16,7 +16,7 @@ SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
 
 connection main;
 SET GLOBAL LOG_WARNINGS = 1;
-connect (conn1,localhost,root,,);
+--connect (conn1,localhost,root,,)
 --error 1040
 --connect (conn0,localhost,root,,,,./var/tmp/mysqld.1.sock)
 disconnect conn1;
@@ -24,7 +24,7 @@ SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
 
 connection main;
 SET GLOBAL LOG_WARNINGS = 0;
-connect (conn0,localhost,root,,);
+--connect (conn0,localhost,root,,)
 --error 1040
 --connect (conn1,localhost,root,,,,./var/tmp/mysqld.1.sock)
 disconnect conn0;

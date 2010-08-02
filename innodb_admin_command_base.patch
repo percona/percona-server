@@ -52,7 +52,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	char**	query_str;
 +	char*	ptr;
 +	char	quote	= '\0';
-+	char*	command_head = "XTRA_";
++	const char*	command_head = "XTRA_";
 +
 +	DBUG_ENTER("i_s_innodb_admin_command_fill");
 +

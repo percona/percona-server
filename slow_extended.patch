@@ -452,7 +452,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 +#define SLOG_UG_MIN_EXAMINED_ROW_LIMIT      1 << 5
 +#define SLOG_UG_ALL                         SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY | SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT
 +/* ... */
-+#define SLOG_UG_INVALID                     1 << 31
++#define SLOG_UG_INVALID                     1##UL << 31
 +
 +static const struct msl_opts slog_use_global[]=
 +  {
@@ -475,7 +475,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 +#define SLOG_V_QUERY_PLAN     1 << 1
 +#define SLOG_V_INNODB         1 << 2
 +/* ... */
-+#define SLOG_V_INVALID        1 << 31
++#define SLOG_V_INVALID        1##UL << 31
 +#define SLOG_V_NONE           SLOG_V_MICROTIME
 +
 +static const struct msl_opts slog_verb[]= 
@@ -520,7 +520,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 +#define SLOG_F_TMP_DISK       QPLAN_TMP_DISK
 +#define SLOG_F_FILESORT       QPLAN_FILESORT
 +#define SLOG_F_FILESORT_DISK  QPLAN_FILESORT_DISK
-+#define SLOG_F_INVALID        1 << 31
++#define SLOG_F_INVALID        1##UL << 31
 +#define SLOG_F_NONE           0
 +
 +static const struct msl_opts slog_filter[]= 

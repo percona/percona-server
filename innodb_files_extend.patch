@@ -94,7 +94,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +		fprintf(stderr,
 +			"InnoDB: Warning: innodb_page_size has been changed from default value 16384. (###EXPERIMENTAL### operation)\n");
 +		for (n_shift = 12; n_shift <= UNIV_PAGE_SIZE_SHIFT_MAX; n_shift++) {
-+			if (innobase_page_size == (1 << n_shift)) {
++			if (innobase_page_size == ((ulong)1 << n_shift)) {
 +				srv_page_size_shift = n_shift;
 +				srv_page_size = (1 << srv_page_size_shift);
 +				fprintf(stderr,
@@ -203,6 +203,18 @@ diff -ruN a/storage/innodb_plugin/include/buf0types.h b/storage/innodb_plugin/in
  					/*!< number of buddy sizes */
  
  /** twice the maximum block size of the buddy system;
+diff -ruN a/storage/innodb_plugin/include/mtr0log.ic b/storage/innodb_plugin/include/mtr0log.ic
+--- a/storage/innodb_plugin/include/mtr0log.ic	2010-08-02 17:53:38.107904828 +0900
++++ b/storage/innodb_plugin/include/mtr0log.ic	2010-08-02 17:55:56.452879919 +0900
+@@ -203,7 +203,7 @@
+ 	system tablespace */
+ 	if ((space == TRX_SYS_SPACE
+ 	     || (srv_doublewrite_file && space == TRX_DOUBLEWRITE_SPACE))
+-	    && offset >= FSP_EXTENT_SIZE && offset < 3 * FSP_EXTENT_SIZE) {
++	    && offset >= (ulint)FSP_EXTENT_SIZE && offset < 3 * (ulint)FSP_EXTENT_SIZE) {
+ 		if (trx_doublewrite_buf_is_being_created) {
+ 			/* Do nothing: we only come to this branch in an
+ 			InnoDB database creation. We do not redo log
 diff -ruN a/storage/innodb_plugin/include/page0types.h b/storage/innodb_plugin/include/page0types.h
 --- a/storage/innodb_plugin/include/page0types.h	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/page0types.h	2010-04-30 16:35:09.000000000 +0900

@@ -840,7 +840,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  			   && ((page_no >= block1
  				&& page_no
  				< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-@@ -980,6 +1133,87 @@
+@@ -980,6 +1133,83 @@
  }
  
  /*****************************************************************//**
@@ -852,12 +852,8 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
 +	ulint	space,
 +	mtr_t*	mtr)
 +{
-+	trx_sysf_t*	sys_header;
-+	ulint		slot_no;
 +	buf_block_t*	block;
 +	page_t*		page;
-+	ulint		page_no;
-+	ulint		i;
 +
 +	ut_ad(mtr);
 +

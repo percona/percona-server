@@ -2056,7 +2056,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	}
  }
  
-@@ -2012,6 +2015,46 @@
+@@ -2012,6 +2015,45 @@
  }
  
  /*********************************************************************//**
@@ -2072,7 +2072,6 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
 +	mem_heap_t*	heap;
 +	que_thr_t*	thr;
 +	ulint		err;
-+	ulint		i;
 +
 +	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 +

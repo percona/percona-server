@@ -555,7 +555,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
 +/* Per thread buffer used for merged IO requests. Used by
 +os_aio_simulated_handle so that a buffer doesn't have to be allocated
 +for each request. */
-+static char* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
++static byte* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
 +static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
 +
  /** Number of asynchronous I/O segments.  Set by os_aio_init(). */

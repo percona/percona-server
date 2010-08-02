@@ -207,13 +207,13 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
 +  if (!table->s || !table->s->table_cache_key.str || !table->s->table_name.str) return;
 +
 +  if (!opt_userstat_running) {
-+    for (int x = 0; x < table->s->keys; x++) {
++    for (uint x = 0; x < table->s->keys; x++) {
 +      index_rows_read[x] = 0;
 +    }
 +    return;
 +  }
 +
-+  for (int x = 0; x < table->s->keys; x++) {
++  for (uint x = 0; x < table->s->keys; x++) {
 +    if (index_rows_read[x]) {
 +      // Rows were read using this index.
 +      KEY* key_info = &table->key_info[x];
@@ -282,13 +282,14 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    /**
      next_insert_id is the next value which should be inserted into the
      auto_increment column: in a inserting-multi-row statement (like INSERT
-@@ -1156,8 +1163,10 @@
+@@ -1155,9 +1162,11 @@
+     ref_length(sizeof(my_off_t)),
      ft_handler(0), inited(NONE),
      locked(FALSE), implicit_emptied(0),
-     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
--    auto_inc_intervals_count(0)
+-    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
++    pushed_cond(0), rows_read(0), rows_changed(0), next_insert_id(0), insert_id_for_cur_row(0),
+     auto_inc_intervals_count(0)
 -    {}
-+    auto_inc_intervals_count(0), rows_read(0), rows_changed(0)
 +    {
 +      memset(index_rows_read, 0, sizeof(index_rows_read));
 +    }
@@ -2440,91 +2441,10 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
               sctx->priv_user, sctx->host_or_ip, dbname);
      general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-@@ -2366,6 +2401,360 @@
+@@ -2366,6 +2401,279 @@
    DBUG_RETURN(res);
  }
  
-+/*
-+   Aggregate values for mapped_user entries by their role.
-+
-+   SYNOPSIS
-+     aggregate_user_stats
-+       all_user_stats - input to aggregate
-+       agg_user_stats - returns aggregated values
-+
-+   RETURN
-+     0 - OK
-+     1 - error
-+ */
-+static int
-+aggregate_user_stats(HASH *all_user_stats, HASH *agg_user_stats)
-+{
-+  DBUG_ENTER("aggregate_user_stats");
-+  if (hash_init(agg_user_stats, system_charset_info,
-+                max(all_user_stats->records, 1),
-+                0, 0, (hash_get_key)get_key_user_stats,
-+                (hash_free_key)free_user_stats, 0))
-+  {
-+    sql_print_error("Malloc in aggregate_user_stats failed");
-+    DBUG_RETURN(1);
-+  }
-+
-+  for (int i = 0; i < all_user_stats->records; ++i) {
-+    USER_STATS *user = (USER_STATS*)hash_element(all_user_stats, i);
-+    USER_STATS *agg_user;
-+    if (!(agg_user = (USER_STATS*)hash_search(agg_user_stats,
-+                                              (uchar*)user->priv_user,
-+                                              strlen(user->priv_user))))
-+    {
-+      // First entry for this role.
-+      if (!(agg_user =
-+            (USER_STATS*) my_malloc(sizeof(USER_STATS), MYF(MY_WME | MY_ZEROFILL))))
-+      {
-+        sql_print_error("Malloc in aggregate_user_stats failed");
-+        DBUG_RETURN(1);
-+      }
-+
-+      init_user_stats(agg_user, user->priv_user, user->priv_user,
-+                      user->total_connections, user->concurrent_connections,
-+                      user->connected_time, user->busy_time, user->cpu_time,
-+                      user->bytes_received, user->bytes_sent,
-+                      user->binlog_bytes_written,
-+                      user->rows_fetched, user->rows_updated, user->rows_read,
-+                      user->select_commands, user->update_commands,
-+                      user->other_commands,
-+                      user->commit_trans, user->rollback_trans,
-+                      user->denied_connections, user->lost_connections,
-+                      user->access_denied_errors, user->empty_queries);
-+
-+      if (my_hash_insert(agg_user_stats, (uchar*)agg_user))
-+      {
-+        // Out of memory.
-+        my_free((char*)agg_user, 0);
-+        sql_print_error("Malloc in aggregate_user_stats failed");
-+        DBUG_RETURN(1);
-+      }
-+    }
-+    else
-+    {
-+      // Aggregate with existing values for this role.
-+      add_user_stats(agg_user,
-+                     user->total_connections, user->concurrent_connections,
-+                     user->connected_time, user->busy_time, user->cpu_time,
-+                     user->bytes_received, user->bytes_sent,
-+                     user->binlog_bytes_written,
-+                     user->rows_fetched, user->rows_updated, user->rows_read,
-+                     user->select_commands, user->update_commands,
-+                     user->other_commands,
-+                     user->commit_trans, user->rollback_trans,
-+                     user->denied_connections, user->lost_connections,
-+                     user->access_denied_errors, user->empty_queries);
-+    }
-+  }
-+  DBUG_PRINT("exit", ("aggregated %d input into %d output entries",
-+                      all_user_stats->records, agg_user_stats->records));
-+  DBUG_RETURN(0);
-+}
-+
 +/*
 +   Write result to network for SHOW USER_STATISTICS
 +
@@ -2540,7 +2460,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +int send_user_stats(THD* thd, HASH *all_user_stats, TABLE *table)
 +{
 +  DBUG_ENTER("send_user_stats");
-+  for (int i = 0; i < all_user_stats->records; ++i) {
++  for (uint i = 0; i < all_user_stats->records; ++i) {
 +    restore_record(table, s->default_values);
 +    USER_STATS *user_stats = (USER_STATS*)hash_element(all_user_stats, i);
 +      table->field[0]->store(user_stats->user, strlen(user_stats->user), system_charset_info);
@@ -2576,7 +2496,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +int send_thread_stats(THD* thd, HASH *all_thread_stats, TABLE *table)
 +{
 +  DBUG_ENTER("send_thread_stats");
-+  for (int i = 0; i < all_thread_stats->records; ++i) {
++  for (uint i = 0; i < all_thread_stats->records; ++i) {
 +    restore_record(table, s->default_values);
 +    THREAD_STATS *user_stats = (THREAD_STATS*)hash_element(all_thread_stats, i);
 +      table->field[0]->store((longlong)user_stats->id);
@@ -2721,7 +2641,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +  char *table_full_name, *table_schema;
 +
 +  pthread_mutex_lock(&LOCK_global_table_stats);
-+  for (int i = 0; i < global_table_stats.records; ++i) {
++  for (uint i = 0; i < global_table_stats.records; ++i) {
 +    restore_record(table, s->default_values);
 +    TABLE_STATS *table_stats = 
 +      (TABLE_STATS*)hash_element(&global_table_stats, i);
@@ -2764,7 +2684,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +  char *index_full_name, *table_schema, *table_name;
 +
 +  pthread_mutex_lock(&LOCK_global_index_stats);
-+  for (int i = 0; i < global_index_stats.records; ++i) {
++  for (uint i = 0; i < global_index_stats.records; ++i) {
 +    restore_record(table, s->default_values);
 +    INDEX_STATS *index_stats =
 +      (INDEX_STATS*)hash_element(&global_index_stats, i);
@@ -3421,7 +3341,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
 +  if (!error) {
 +    rows_read++;
 +
-+    int inx = (active_index == -1) ? file->lastinx : active_index;
++    int inx = (active_index == MAX_KEY) ? file->lastinx : active_index;
 +    if (inx >= 0 && inx < MAX_KEY)
 +      index_rows_read[inx]++;
 +  }
@@ -3449,7 +3369,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
 +  if (!error) {
 +    rows_read++;
 +
-+    int inx = (active_index == -1) ? file->lastinx : active_index;
++    int inx = (active_index == MAX_KEY) ? file->lastinx : active_index;
 +    if (inx >= 0 && inx < MAX_KEY)
 +      index_rows_read[inx]++;
 +  }
@@ -3463,7 +3383,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
 +  if (!error) {
 +    rows_read++;
 +
-+    int inx = (active_index == -1) ? file->lastinx : active_index;
++    int inx = (active_index == MAX_KEY) ? file->lastinx : active_index;
 +    if (inx >= 0 && inx < MAX_KEY)
 +      index_rows_read[inx]++;
 +  }
@@ -3477,7 +3397,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
 +  if (!error) {
 +    rows_read++;
 +
-+    int inx = (active_index == -1) ? file->lastinx : active_index;
++    int inx = (active_index == MAX_KEY) ? file->lastinx : active_index;
 +    if (inx >= 0 && inx < MAX_KEY)
 +      index_rows_read[inx]++;
 +  }
@@ -3491,7 +3411,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
 +  if (!error) {
 +    rows_read++;
 +
-+    int inx = (active_index == -1) ? file->lastinx : active_index;
++    int inx = (active_index == MAX_KEY) ? file->lastinx : active_index;
 +    if (inx >= 0 && inx < MAX_KEY)
 +      index_rows_read[inx]++;
 +  }
@@ -3505,7 +3425,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
 +  if (!error) {
 +    rows_read++;
 +
-+    int inx = (active_index == -1) ? file->lastinx : active_index;
++    int inx = (active_index == MAX_KEY) ? file->lastinx : active_index;
 +    if (inx >= 0 && inx < MAX_KEY)
 +      index_rows_read[inx]++;
 +  }
@@ -3519,7 +3439,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
 +  if (!error) {
 +    rows_read++;
 +
-+    int inx = (active_index == -1) ? file->lastinx : active_index;
++    int inx = (active_index == MAX_KEY) ? file->lastinx : active_index;
 +    if (inx >= 0 && inx < MAX_KEY)
 +      index_rows_read[inx]++;
 +  }

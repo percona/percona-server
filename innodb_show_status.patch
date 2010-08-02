@@ -211,14 +211,13 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /** Maximum number of times allowed to conditionally acquire
  mutex before switching to blocking wait on the mutex */
  #define MAX_MUTEX_NOWAIT	20
-@@ -1700,6 +1703,14 @@
+@@ -1700,6 +1703,13 @@
  	ulint	n_reserved;
  	ibool	ret;
  
 +	ulint	btr_search_sys_subtotal;
 +	ulint	lock_sys_subtotal;
 +	ulint	recv_sys_subtotal;
-+	ulint	io_counter_subtotal;
 +
 +	ulint	i;
 +	trx_t*	trx;

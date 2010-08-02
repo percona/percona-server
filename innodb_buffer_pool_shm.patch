@@ -95,7 +95,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	byte*		frame;
 +	ulint		zip_hash_n = 0;
 +	ulint		zip_hash_mem_size = 0;
-+	hash_table_t*	zip_hash_tmp;
++	hash_table_t*	zip_hash_tmp = NULL;
  	ulint		i;
 +	buf_shm_info_t*	shm_info = NULL;
  

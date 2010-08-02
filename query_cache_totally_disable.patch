@@ -1,3 +1,13 @@
+diff -Nur a/patch_info/query_cache_totally_disable.info b/patch_info/query_cache_totally_disable.info
+--- a/patch_info/query_cache_totally_disable.info      1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/query_cache_totally_disable.info      2010-07-29 01:31:19.284017962 +0400
+@@ -0,0 +1,6 @@
++File=query_cache_totally_disable.patch
++Name=Totally disable query cache
++Version=1.0
++Author=Percona
++License=GPL
++Comment=
 diff -Nur a/mysql-test/r/query_cache_disabled.result b/mysql-test/r/query_cache_disabled.result
 --- a/mysql-test/r/query_cache_disabled.result	1970-01-01 03:00:00.000000000 +0300
 +++ b/mysql-test/r/query_cache_disabled.result	2010-07-31 20:44:34.764016531 +0400

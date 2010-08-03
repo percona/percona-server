@@ -39,6 +39,7 @@ engine_condition_pushdown	Value
 error_count	Value
 event_scheduler	Value
 expire_logs_days	Value
+fast_index_creation	Value
 flush	Value
 flush_time	Value
 foreign_key_checks	Value
@@ -222,7 +223,6 @@ new	Value
 old	Value
 old_alter_table	Value
 old_passwords	Value
-online_alter_index	Value
 open_files_limit	Value
 optimizer_fix	Value
 optimizer_prune_level	Value
@@ -239,7 +239,6 @@ profiling_use_getrusage	Value
 protocol_version	Value
 pseudo_thread_id	Value
 query_alloc_block_size	Value
-query_cache_enable     Value
 query_cache_limit	Value
 query_cache_min_res_unit	Value
 query_cache_size	Value

@@ -1449,7 +1449,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
 -      table->field[5]->store((longlong)(tmp->start_time ?
 -                                      now - tmp->start_time : 0), FALSE);
 +      longlong value_in_time_column = 0;
-+      if(tmp->string_time && (now > tmp->start_time))
++      if(tmp->start_time && (now > tmp->start_time))
 +      {
 +        value_in_time_column = (now - tmp->start_time);
 +      }

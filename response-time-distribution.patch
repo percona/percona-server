@@ -203,7 +203,7 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +
 +#define do_xstr(s) do_str(s)
 +#define do_str(s) #s
-+#define do_format(filler,width) "%" filler width "llu"
++#define do_format(filler,width) "%" filler width "lld"
 +/*
 +  Format strings for snprintf. Generate from:
 +  POSITIVE_POWER_FILLER and STRING_POSITIVE_POWER_LENGTH
@@ -340,7 +340,7 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +
 +      for(int i= 0, count= m_utility->bound_count(); i < count; ++i)
 +      {
-+	ulonglong value  = m_utility->bound(i);
++	longlong value  = (longlong)m_utility->bound(i);
 +	char*     result = (char*)m_bound[i];
 +        if(0 > snprintf(result,STRING_BUFFER_LENGTH,STRING_FORMAT,(value / million),(value % million)))
 +        {

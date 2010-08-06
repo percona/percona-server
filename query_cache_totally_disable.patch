@@ -194,31 +194,12 @@ diff -Nur a/sql/set_var.h b/sql/set_var.h
 diff -Nur a/sql/share/errmsg.txt b/sql/share/errmsg.txt
 --- a/sql/share/errmsg.txt	2010-07-09 16:35:08.000000000 +0400
 +++ b/sql/share/errmsg.txt	2010-07-31 20:41:47.244015659 +0400
-@@ -6213,3 +6213,27 @@
+@@ -6213,3 +6213,8 @@
  ER_DEBUG_SYNC_HIT_LIMIT
    eng "debug sync point hit limit reached"
    ger "Debug Sync Point Hit Limit erreicht"
-+
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_01
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_02
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_03
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_04
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_05
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_06
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_07
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_08
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_09
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
-+ER_QUERY_CACHE_DISABLED_WRITE_SPACE_10
-+  eng "Fix error number for ER_QUERY_CACHE_DISABLED"
++PADD_QUERY_CACHE_DISABLED 1651
++  eng "ER_QUERY_CACHE_DISABLED padding to 1651 error"
 +ER_QUERY_CACHE_DISABLED
 +  eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
 +

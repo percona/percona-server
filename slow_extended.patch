@@ -328,45 +328,6 @@ diff -Nur a/sql/log.cc b/sql/log.cc
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
-diff -Nur a/sql/log.h b/sql/log.h
---- a/sql/log.h	2010-07-09 21:34:57.000000000 +0900
-+++ b/sql/log.h	2010-07-26 18:04:33.879030230 +0900
-@@ -211,7 +211,7 @@
-              uint user_host_len, int thread_id,
-              const char *command_type, uint command_type_len,
-              const char *sql_text, uint sql_text_len);
--  bool write(THD *thd, time_t current_time, time_t query_start_arg,
-+  bool write(THD *thd, ulonglong current_utime, time_t query_start_arg,
-              const char *user_host, uint user_host_len,
-              ulonglong query_utime, ulonglong lock_utime, bool is_command,
-              const char *sql_text, uint sql_text_len);
-@@ -424,7 +424,7 @@
-   virtual bool init()= 0;
-   virtual void cleanup()= 0;
- 
--  virtual bool log_slow(THD *thd, time_t current_time,
-+  virtual bool log_slow(THD *thd, ulonglong current_utime,
-                         time_t query_start_arg, const char *user_host,
-                         uint user_host_len, ulonglong query_utime,
-                         ulonglong lock_utime, bool is_command,
-@@ -453,7 +453,7 @@
-   virtual bool init();
-   virtual void cleanup();
- 
--  virtual bool log_slow(THD *thd, time_t current_time,
-+  virtual bool log_slow(THD *thd, ulonglong current_utime,
-                         time_t query_start_arg, const char *user_host,
-                         uint user_host_len, ulonglong query_utime,
-                         ulonglong lock_utime, bool is_command,
-@@ -485,7 +485,7 @@
-   virtual bool init();
-   virtual void cleanup();
- 
--  virtual bool log_slow(THD *thd, time_t current_time,
-+  virtual bool log_slow(THD *thd, ulonglong current_utime,
-                         time_t query_start_arg, const char *user_host,
-                         uint user_host_len, ulonglong query_utime,
-                         ulonglong lock_utime, bool is_command,
 diff -Nur a/sql/log_event.cc b/sql/log_event.cc
 --- a/sql/log_event.cc	2010-07-09 21:34:57.000000000 +0900
 +++ b/sql/log_event.cc	2010-07-26 18:04:33.839181682 +0900
@@ -428,127 +389,45 @@ diff -Nur a/sql/log_event.cc b/sql/log_event.cc
    /*
      As a disk space optimization, future masters will not log an event for
      LAST_INSERT_ID() if that function returned 0 (and thus they will be able
-diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-26 18:04:18.711114116 +0900
-+++ b/sql/mysql_priv.h	2010-07-26 18:04:33.901113370 +0900
-@@ -613,6 +613,106 @@
+diff -Nur a/sql/log.h b/sql/log.h
+--- a/sql/log.h	2010-07-09 21:34:57.000000000 +0900
++++ b/sql/log.h	2010-07-26 18:04:33.879030230 +0900
+@@ -211,7 +211,7 @@
+              uint user_host_len, int thread_id,
+              const char *command_type, uint command_type_len,
+              const char *sql_text, uint sql_text_len);
+-  bool write(THD *thd, time_t current_time, time_t query_start_arg,
++  bool write(THD *thd, ulonglong current_utime, time_t query_start_arg,
+              const char *user_host, uint user_host_len,
+              ulonglong query_utime, ulonglong lock_utime, bool is_command,
+              const char *sql_text, uint sql_text_len);
+@@ -424,7 +424,7 @@
+   virtual bool init()= 0;
+   virtual void cleanup()= 0;
  
- #define STRING_BUFFER_USUAL_SIZE 80
+-  virtual bool log_slow(THD *thd, time_t current_time,
++  virtual bool log_slow(THD *thd, ulonglong current_utime,
+                         time_t query_start_arg, const char *user_host,
+                         uint user_host_len, ulonglong query_utime,
+                         ulonglong lock_utime, bool is_command,
+@@ -453,7 +453,7 @@
+   virtual bool init();
+   virtual void cleanup();
  
-+/* Slow log */
-+
-+struct msl_opts
-+{
-+  ulong val;
-+  const char *name;
-+};
-+
-+/* use global log slow control */
-+#define SLOG_UG_NONE                        1 << 0
-+#define SLOG_UG_LOG_SLOW_FILTER             1 << 1
-+#define SLOG_UG_LOG_SLOW_RATE_LIMIT         1 << 2
-+#define SLOG_UG_LOG_SLOW_VERBOSITY          1 << 3
-+#define SLOG_UG_LONG_QUERY_TIME             1 << 4
-+#define SLOG_UG_MIN_EXAMINED_ROW_LIMIT      1 << 5
-+#define SLOG_UG_ALL                         SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY | SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT
-+/* ... */
-+#define SLOG_UG_INVALID                     1##UL << 31
-+
-+static const struct msl_opts slog_use_global[]=
-+  {
-+    /* Basic flags */
-+    { SLOG_UG_NONE                      , "none" },
-+    { SLOG_UG_LOG_SLOW_FILTER           , "log_slow_filter" },
-+    { SLOG_UG_LOG_SLOW_RATE_LIMIT       , "log_slow_rate_limit" },
-+    { SLOG_UG_LOG_SLOW_VERBOSITY        , "log_slow_verbosity" },
-+    { SLOG_UG_LONG_QUERY_TIME           , "long_query_time" },
-+    { SLOG_UG_MIN_EXAMINED_ROW_LIMIT    , "min_examined_row_limit" },
-+    /* ... */
-+    { 0, "" },
-+    /* Complex flags */
-+    { SLOG_UG_ALL                       , "all" },
-+    /* ... */
-+    { SLOG_UG_INVALID                   , (char*)0 }
-+  };
-+
-+#define SLOG_V_MICROTIME      1 << 0
-+#define SLOG_V_QUERY_PLAN     1 << 1
-+#define SLOG_V_INNODB         1 << 2
-+/* ... */
-+#define SLOG_V_INVALID        1##UL << 31
-+#define SLOG_V_NONE           SLOG_V_MICROTIME
-+
-+static const struct msl_opts slog_verb[]= 
-+{
-+  /* Basic flags */
-+
-+  { SLOG_V_MICROTIME, "microtime" },
-+  { SLOG_V_QUERY_PLAN, "query_plan" },
-+  { SLOG_V_INNODB, "innodb" },
-+
-+  /* End of baisc flags */
-+
-+  { 0, "" },
-+
-+  /* Complex flags */
-+
-+  { SLOG_V_MICROTIME, "minimal" },
-+  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN, "standard" },
-+  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN|SLOG_V_INNODB, "full" },
-+
-+  /* End of complex flags */
-+
-+  { SLOG_V_INVALID, (char *)0 }
-+};
-+
-+#define QPLAN_NONE            0
-+#define QPLAN_QC              1 << 0
-+#define QPLAN_QC_NO           1 << 1
-+#define QPLAN_FULL_SCAN       1 << 2
-+#define QPLAN_FULL_JOIN       1 << 3
-+#define QPLAN_TMP_TABLE       1 << 4
-+#define QPLAN_TMP_DISK        1 << 5
-+#define QPLAN_FILESORT        1 << 6
-+#define QPLAN_FILESORT_DISK   1 << 7
-+/* ... */
-+#define QPLAN_MAX             1 << 31
-+
-+#define SLOG_F_QC_NO          QPLAN_QC_NO
-+#define SLOG_F_FULL_SCAN      QPLAN_FULL_SCAN
-+#define SLOG_F_FULL_JOIN      QPLAN_FULL_JOIN
-+#define SLOG_F_TMP_TABLE      QPLAN_TMP_TABLE
-+#define SLOG_F_TMP_DISK       QPLAN_TMP_DISK
-+#define SLOG_F_FILESORT       QPLAN_FILESORT
-+#define SLOG_F_FILESORT_DISK  QPLAN_FILESORT_DISK
-+#define SLOG_F_INVALID        1##UL << 31
-+#define SLOG_F_NONE           0
-+
-+static const struct msl_opts slog_filter[]= 
-+{
-+  { SLOG_F_QC_NO,         "qc_miss" },
-+  { SLOG_F_FULL_SCAN,     "full_scan" },
-+  { SLOG_F_FULL_JOIN,     "full_join" },
-+  { SLOG_F_TMP_TABLE,     "tmp_table" },
-+  { SLOG_F_TMP_DISK,      "tmp_table_on_disk" },
-+  { SLOG_F_FILESORT,      "filesort" },
-+  { SLOG_F_FILESORT_DISK, "filesort_on_disk" },
-+  { SLOG_F_INVALID,       (char *)0 }
-+};
-+
- /*
-   Some defines for exit codes for ::is_equal class functions.
- */
-@@ -1971,6 +2071,10 @@
- extern my_bool opt_secure_auth;
- extern char* opt_secure_file_priv;
- extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-+extern my_bool opt_log_slow_sp_statements;
-+extern my_bool opt_log_slow_timestamp_every;
-+extern my_bool opt_use_global_long_query_time;
-+extern my_bool opt_slow_query_log_microseconds_timestamp;
- extern my_bool sp_automatic_privileges, opt_noacl;
- extern my_bool opt_old_style_user_limits, trust_function_creators;
- extern uint opt_crash_binlog_innodb;
+-  virtual bool log_slow(THD *thd, time_t current_time,
++  virtual bool log_slow(THD *thd, ulonglong current_utime,
+                         time_t query_start_arg, const char *user_host,
+                         uint user_host_len, ulonglong query_utime,
+                         ulonglong lock_utime, bool is_command,
+@@ -485,7 +485,7 @@
+   virtual bool init();
+   virtual void cleanup();
+ 
+-  virtual bool log_slow(THD *thd, time_t current_time,
++  virtual bool log_slow(THD *thd, ulonglong current_utime,
+                         time_t query_start_arg, const char *user_host,
+                         uint user_host_len, ulonglong query_utime,
+                         ulonglong lock_utime, bool is_command,
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-26 18:04:18.720113568 +0900
 +++ b/sql/mysqld.cc	2010-07-26 18:04:33.888144493 +0900
@@ -675,6 +554,127 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    case OPT_SERVER_ID:
      server_id_supplied = 1;
      break;
+diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-07-26 18:04:18.711114116 +0900
++++ b/sql/mysql_priv.h	2010-07-26 18:04:33.901113370 +0900
+@@ -613,6 +613,106 @@
+ 
+ #define STRING_BUFFER_USUAL_SIZE 80
+ 
++/* Slow log */
++
++struct msl_opts
++{
++  ulong val;
++  const char *name;
++};
++
++/* use global log slow control */
++#define SLOG_UG_NONE                        1 << 0
++#define SLOG_UG_LOG_SLOW_FILTER             1 << 1
++#define SLOG_UG_LOG_SLOW_RATE_LIMIT         1 << 2
++#define SLOG_UG_LOG_SLOW_VERBOSITY          1 << 3
++#define SLOG_UG_LONG_QUERY_TIME             1 << 4
++#define SLOG_UG_MIN_EXAMINED_ROW_LIMIT      1 << 5
++#define SLOG_UG_ALL                         SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY | SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT
++/* ... */
++#define SLOG_UG_INVALID                     1##UL << 31
++
++static const struct msl_opts slog_use_global[]=
++  {
++    /* Basic flags */
++    { SLOG_UG_NONE                      , "none" },
++    { SLOG_UG_LOG_SLOW_FILTER           , "log_slow_filter" },
++    { SLOG_UG_LOG_SLOW_RATE_LIMIT       , "log_slow_rate_limit" },
++    { SLOG_UG_LOG_SLOW_VERBOSITY        , "log_slow_verbosity" },
++    { SLOG_UG_LONG_QUERY_TIME           , "long_query_time" },
++    { SLOG_UG_MIN_EXAMINED_ROW_LIMIT    , "min_examined_row_limit" },
++    /* ... */
++    { 0, "" },
++    /* Complex flags */
++    { SLOG_UG_ALL                       , "all" },
++    /* ... */
++    { SLOG_UG_INVALID                   , (char*)0 }
++  };
++
++#define SLOG_V_MICROTIME      1 << 0
++#define SLOG_V_QUERY_PLAN     1 << 1
++#define SLOG_V_INNODB         1 << 2
++/* ... */
++#define SLOG_V_INVALID        1##UL << 31
++#define SLOG_V_NONE           SLOG_V_MICROTIME
++
++static const struct msl_opts slog_verb[]= 
++{
++  /* Basic flags */
++
++  { SLOG_V_MICROTIME, "microtime" },
++  { SLOG_V_QUERY_PLAN, "query_plan" },
++  { SLOG_V_INNODB, "innodb" },
++
++  /* End of baisc flags */
++
++  { 0, "" },
++
++  /* Complex flags */
++
++  { SLOG_V_MICROTIME, "minimal" },
++  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN, "standard" },
++  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN|SLOG_V_INNODB, "full" },
++
++  /* End of complex flags */
++
++  { SLOG_V_INVALID, (char *)0 }
++};
++
++#define QPLAN_NONE            0
++#define QPLAN_QC              1 << 0
++#define QPLAN_QC_NO           1 << 1
++#define QPLAN_FULL_SCAN       1 << 2
++#define QPLAN_FULL_JOIN       1 << 3
++#define QPLAN_TMP_TABLE       1 << 4
++#define QPLAN_TMP_DISK        1 << 5
++#define QPLAN_FILESORT        1 << 6
++#define QPLAN_FILESORT_DISK   1 << 7
++/* ... */
++#define QPLAN_MAX             1 << 31
++
++#define SLOG_F_QC_NO          QPLAN_QC_NO
++#define SLOG_F_FULL_SCAN      QPLAN_FULL_SCAN
++#define SLOG_F_FULL_JOIN      QPLAN_FULL_JOIN
++#define SLOG_F_TMP_TABLE      QPLAN_TMP_TABLE
++#define SLOG_F_TMP_DISK       QPLAN_TMP_DISK
++#define SLOG_F_FILESORT       QPLAN_FILESORT
++#define SLOG_F_FILESORT_DISK  QPLAN_FILESORT_DISK
++#define SLOG_F_INVALID        1##UL << 31
++#define SLOG_F_NONE           0
++
++static const struct msl_opts slog_filter[]= 
++{
++  { SLOG_F_QC_NO,         "qc_miss" },
++  { SLOG_F_FULL_SCAN,     "full_scan" },
++  { SLOG_F_FULL_JOIN,     "full_join" },
++  { SLOG_F_TMP_TABLE,     "tmp_table" },
++  { SLOG_F_TMP_DISK,      "tmp_table_on_disk" },
++  { SLOG_F_FILESORT,      "filesort" },
++  { SLOG_F_FILESORT_DISK, "filesort_on_disk" },
++  { SLOG_F_INVALID,       (char *)0 }
++};
++
+ /*
+   Some defines for exit codes for ::is_equal class functions.
+ */
+@@ -1971,6 +2071,10 @@
+ extern my_bool opt_secure_auth;
+ extern char* opt_secure_file_priv;
+ extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
++extern my_bool opt_log_slow_sp_statements;
++extern my_bool opt_log_slow_timestamp_every;
++extern my_bool opt_use_global_long_query_time;
++extern my_bool opt_slow_query_log_microseconds_timestamp;
+ extern my_bool sp_automatic_privileges, opt_noacl;
+ extern my_bool opt_old_style_user_limits, trust_function_creators;
+ extern uint opt_crash_binlog_innodb;
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-09 21:34:53.000000000 +0900
 +++ b/sql/set_var.cc	2010-07-26 18:04:33.913144446 +0900
@@ -1424,7 +1424,7 @@ diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -10847,6 +10855,14 @@
+@@ -10847,5 +10855,13 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  
@@ -1438,4 +1438,3 @@ diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
 +
    // Release latches since this can take a long time
    ha_release_temporary_latches(thd);
- 

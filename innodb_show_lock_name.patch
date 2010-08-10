@@ -1,6 +1,6 @@
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:38:27.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 14:46:54.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:28.676992644 +0400
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:29.176994600 +0400
 @@ -9204,8 +9204,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
@@ -47,9 +47,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_lock_oswait_count);
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 14:38:27.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 14:39:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:28.676992644 +0400
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:29.536991291 +0400
 @@ -39,5 +39,6 @@
  {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -57,9 +57,9 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/include/sync0rw.h
---- a/storage/innodb_plugin/include/sync0rw.h	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/include/sync0rw.h	2010-04-30 14:39:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/include/sync0rw.h
+--- a/storage/innodb_plugin/include/sync0rw.h	2010-08-10 15:31:28.686992801 +0400
++++ b/storage/innodb_plugin/include/sync0rw.h	2010-08-10 15:31:29.897003902 +0400
 @@ -120,7 +120,7 @@
  # endif /* UNIV_SYNC_DEBUG */
  #else /* UNIV_DEBUG */
@@ -98,9 +98,9 @@ diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/incl
  	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
  	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
  #ifdef UNIV_DEBUG
-diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/include/sync0sync.h
---- a/storage/innodb_plugin/include/sync0sync.h	2010-04-29 18:58:20.000000000 +0900
-+++ b/storage/innodb_plugin/include/sync0sync.h	2010-04-30 14:39:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/include/sync0sync.h
+--- a/storage/innodb_plugin/include/sync0sync.h	2010-08-10 15:31:28.686992801 +0400
++++ b/storage/innodb_plugin/include/sync0sync.h	2010-08-10 15:31:32.076992476 +0400
 @@ -80,7 +80,7 @@
  # endif
  #else
@@ -142,9 +142,9 @@ diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/in
  };
  
  /** The global array of wait cells for implementation of the databases own
-diff -ruN a/storage/innodb_plugin/sync/sync0arr.c b/storage/innodb_plugin/sync/sync0arr.c
---- a/storage/innodb_plugin/sync/sync0arr.c	2010-04-29 15:44:28.000000000 +0900
-+++ b/storage/innodb_plugin/sync/sync0arr.c	2010-04-30 14:39:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/sync/sync0arr.c b/storage/innodb_plugin/sync/sync0arr.c
+--- a/storage/innodb_plugin/sync/sync0arr.c	2010-08-10 15:31:28.676992644 +0400
++++ b/storage/innodb_plugin/sync/sync0arr.c	2010-08-10 15:31:32.297203764 +0400
 @@ -482,12 +482,12 @@
  		mutex = cell->old_wait_mutex;
  
@@ -172,9 +172,9 @@ diff -ruN a/storage/innodb_plugin/sync/sync0arr.c b/storage/innodb_plugin/sync/s
  		writer = rw_lock_get_writer(rwlock);
  		if (writer != RW_LOCK_NOT_LOCKED) {
  			fprintf(file,
-diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sync0rw.c
---- a/storage/innodb_plugin/sync/sync0rw.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/sync/sync0rw.c	2010-04-30 14:39:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sync0rw.c
+--- a/storage/innodb_plugin/sync/sync0rw.c	2010-08-10 15:31:28.676992644 +0400
++++ b/storage/innodb_plugin/sync/sync0rw.c	2010-08-10 15:31:33.436991679 +0400
 @@ -231,8 +231,8 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
@@ -265,9 +265,9 @@ diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sy
  	}
  
  	/* these stats may not be accurate */
-diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/sync0sync.c
---- a/storage/innodb_plugin/sync/sync0sync.c	2010-04-29 18:58:20.000000000 +0900
-+++ b/storage/innodb_plugin/sync/sync0sync.c	2010-04-30 14:39:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/sync0sync.c
+--- a/storage/innodb_plugin/sync/sync0sync.c	2010-08-10 15:31:28.676992644 +0400
++++ b/storage/innodb_plugin/sync/sync0sync.c	2010-08-10 15:31:34.526992531 +0400
 @@ -238,8 +238,8 @@
  mutex_create_func(
  /*==============*/
@@ -293,7 +293,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/
  	mutex->count_using=	  0;
  	mutex->mutex_type=	  0;
  	mutex->lspent_time=	  0;
-@@ -518,9 +520,9 @@
+@@ -520,9 +522,9 @@
  #ifdef UNIV_SRV_PRINT_LATCH_WAITS
  	fprintf(stderr,
  		"Thread %lu spin wait mutex at %p"
@@ -305,7 +305,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/
  #endif
  
  	mutex_spin_round_count += i;
-@@ -595,9 +597,9 @@
+@@ -597,9 +599,9 @@
  
  #ifdef UNIV_SRV_PRINT_LATCH_WAITS
  	fprintf(stderr,
@@ -317,7 +317,7 @@ diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/
  #endif
  
  	mutex_os_wait_count++;
-@@ -899,9 +901,8 @@
+@@ -901,9 +903,8 @@
  
  				if (mutex->magic_n == MUTEX_MAGIC_N) {
  					fprintf(stderr,

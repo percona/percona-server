@@ -1,6 +1,6 @@
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-05-27 17:49:37.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-05-27 17:50:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:32:14.468241191 +0400
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:32:14.926992081 +0400
 @@ -546,6 +546,8 @@
    (char*) &export_vars.innodb_data_written,		  SHOW_LONG},
    {"dblwr_pages_written",
@@ -10,9 +10,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
    {"dict_tables",
-diff -ruN a/storage/innodb_plugin/include/lock0lock.h b/storage/innodb_plugin/include/lock0lock.h
---- a/storage/innodb_plugin/include/lock0lock.h	2010-05-07 00:27:48.000000000 +0900
-+++ b/storage/innodb_plugin/include/lock0lock.h	2010-05-27 17:50:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/lock0lock.h b/storage/innodb_plugin/include/lock0lock.h
+--- a/storage/innodb_plugin/include/lock0lock.h	2010-08-10 15:32:14.478241628 +0400
++++ b/storage/innodb_plugin/include/lock0lock.h	2010-08-10 15:32:14.926992081 +0400
 @@ -43,6 +43,7 @@
  #endif /* UNIV_DEBUG */
  /* Buffer for storing information about the most recent deadlock error */
@@ -21,9 +21,9 @@ diff -ruN a/storage/innodb_plugin/include/lock0lock.h b/storage/innodb_plugin/in
  
  /*********************************************************************//**
  Gets the size of a lock struct.
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-05-27 17:49:37.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-05-27 17:50:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:32:14.478241628 +0400
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:32:14.936991959 +0400
 @@ -662,6 +662,7 @@
  	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
@@ -32,9 +32,9 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
  	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
  	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
-diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/lock0lock.c
---- a/storage/innodb_plugin/lock/lock0lock.c	2010-05-27 17:49:37.000000000 +0900
-+++ b/storage/innodb_plugin/lock/lock0lock.c	2010-05-27 17:50:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/lock0lock.c
+--- a/storage/innodb_plugin/lock/lock0lock.c	2010-08-10 15:32:14.478241628 +0400
++++ b/storage/innodb_plugin/lock/lock0lock.c	2010-08-10 15:32:14.936991959 +0400
 @@ -3330,6 +3330,7 @@
  		break;
  
@@ -43,9 +43,9 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
  		      lock_latest_err_file);
  		break;
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-05-27 17:49:37.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-05-27 17:50:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:32:14.478241628 +0400
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:32:14.936991959 +0400
 @@ -435,7 +435,7 @@
  static ulint	srv_n_rows_updated_old		= 0;
  static ulint	srv_n_rows_deleted_old		= 0;
@@ -55,7 +55,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
  UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
  UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-@@ -2147,6 +2147,8 @@
+@@ -2146,6 +2146,8 @@
  		= UT_LIST_GET_LEN(buf_pool->flush_list);
  	export_vars.innodb_buffer_pool_pages_free
  		= UT_LIST_GET_LEN(buf_pool->free);

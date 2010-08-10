@@ -1,6 +1,6 @@
 diff -Nur a/include/mysql_com.h b/include/mysql_com.h
---- a/include/mysql_com.h	2010-08-03 16:30:52.209042179 +0400
-+++ b/include/mysql_com.h	2010-08-03 16:30:52.787792153 +0400
+--- a/include/mysql_com.h	2010-08-10 15:32:19.546992007 +0400
++++ b/include/mysql_com.h	2010-08-10 15:32:20.088242513 +0400
 @@ -128,10 +128,11 @@
  #define REFRESH_FAST		32768	/* Intern flag */
  
@@ -19,7 +19,7 @@ diff -Nur a/include/mysql_com.h b/include/mysql_com.h
  #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
 diff -Nur a/patch_info/response-time-distribution.info b/patch_info/response-time-distribution.info
 --- a/patch_info/response-time-distribution.info	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/response-time-distribution.info	2010-08-03 16:30:53.208275601 +0400
++++ b/patch_info/response-time-distribution.info	2010-08-10 15:32:20.088242513 +0400
 @@ -0,0 +1,9 @@
 +File=response-time-distribution.patch
 +Name=Response time distribution
@@ -31,8 +31,8 @@ diff -Nur a/patch_info/response-time-distribution.info b/patch_info/response-tim
 +2010-07-02
 +First version avaliable
 diff -Nur a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2010-08-03 16:30:52.229043051 +0400
-+++ b/sql/lex.h	2010-08-03 16:30:57.838120628 +0400
+--- a/sql/lex.h	2010-08-10 15:32:19.566991761 +0400
++++ b/sql/lex.h	2010-08-10 15:32:20.088242513 +0400
 @@ -415,6 +415,7 @@
    { "PURGE",		SYM(PURGE)},
    { "QUARTER",          SYM(QUARTER_SYM)},
@@ -42,8 +42,8 @@ diff -Nur a/sql/lex.h b/sql/lex.h
    { "RANGE",            SYM(RANGE_SYM)},
    { "READ",		SYM(READ_SYM)},
 diff -Nur a/sql/Makefile.am b/sql/Makefile.am
---- a/sql/Makefile.am	2010-08-03 16:30:52.209042179 +0400
-+++ b/sql/Makefile.am	2010-08-03 16:31:00.608848414 +0400
+--- a/sql/Makefile.am	2010-08-10 15:32:19.556992443 +0400
++++ b/sql/Makefile.am	2010-08-10 15:32:20.088242513 +0400
 @@ -67,7 +67,7 @@
  			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
  			log_event.h rpl_record.h \
@@ -63,8 +63,8 @@ diff -Nur a/sql/Makefile.am b/sql/Makefile.am
  			sql_profile.cc \
  			sql_prepare.cc sql_error.cc sql_locale.cc \
 diff -Nur a/sql/Makefile.in b/sql/Makefile.in
---- a/sql/Makefile.in	2010-08-03 16:30:52.219042615 +0400
-+++ b/sql/Makefile.in	2010-08-03 16:31:00.608848414 +0400
+--- a/sql/Makefile.in	2010-08-10 15:32:19.566991761 +0400
++++ b/sql/Makefile.in	2010-08-10 15:32:20.088242513 +0400
 @@ -121,7 +121,7 @@
  	sql_string.$(OBJEXT) sql_manager.$(OBJEXT) sql_map.$(OBJEXT) \
  	mysqld.$(OBJEXT) password.$(OBJEXT) hash_filo.$(OBJEXT) \
@@ -101,8 +101,8 @@ diff -Nur a/sql/Makefile.in b/sql/Makefile.in
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/repl_failsafe.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rpl_filter.Po@am__quote@
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-08-03 16:30:52.219042615 +0400
-+++ b/sql/mysqld.cc	2010-08-03 16:31:04.097791697 +0400
+--- a/sql/mysqld.cc	2010-08-10 15:32:19.556992443 +0400
++++ b/sql/mysqld.cc	2010-08-10 15:32:20.098240993 +0400
 @@ -32,6 +32,8 @@
  
  #include "rpl_injector.h"
@@ -169,8 +169,8 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
 diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-08-03 16:30:52.229043051 +0400
-+++ b/sql/mysql_priv.h	2010-08-03 16:31:06.608929709 +0400
+--- a/sql/mysql_priv.h	2010-08-10 15:32:19.566991761 +0400
++++ b/sql/mysql_priv.h	2010-08-10 15:32:20.098240993 +0400
 @@ -2090,6 +2090,8 @@
  extern my_bool opt_query_cache_strip_comments;
  extern my_bool opt_use_global_long_query_time;
@@ -182,7 +182,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern uint opt_crash_binlog_innodb;
 diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 --- a/sql/query_response_time.cc	1970-01-01 03:00:00.000000000 +0300
-+++ b/sql/query_response_time.cc	2010-08-03 16:31:07.657793195 +0400
++++ b/sql/query_response_time.cc	2010-08-10 15:32:20.098240993 +0400
 @@ -0,0 +1,286 @@
 +#include "my_global.h"
 +#include "mysql_priv.h"
@@ -203,7 +203,7 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +
 +#define do_xstr(s) do_str(s)
 +#define do_str(s) #s
-+#define do_format(filler,width) "%" filler width "llu"
++#define do_format(filler,width) "%" filler width "lld"
 +/*
 +  Format strings for snprintf. Generate from:
 +  POSITIVE_POWER_FILLER and STRING_POSITIVE_POWER_LENGTH
@@ -340,7 +340,7 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +
 +      for(int i= 0, count= m_utility->bound_count(); i < count; ++i)
 +      {
-+	ulonglong value  = m_utility->bound(i);
++	longlong value  = (longlong)m_utility->bound(i);
 +	char*     result = (char*)m_bound[i];
 +        if(0 > snprintf(result,STRING_BUFFER_LENGTH,STRING_FORMAT,(value / million),(value % million)))
 +        {
@@ -472,7 +472,7 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +}
 diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
 --- a/sql/query_response_time.h	1970-01-01 03:00:00.000000000 +0300
-+++ b/sql/query_response_time.h	2010-08-03 16:31:08.968033268 +0400
++++ b/sql/query_response_time.h	2010-08-10 15:32:20.098240993 +0400
 @@ -0,0 +1,63 @@
 +#ifndef QUERY_RESPONSE_TIME_H
 +#define QUERY_RESPONSE_TIME_H
@@ -538,8 +538,8 @@ diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
 +
 +#endif // QUERY_RESPONSE_TIME_H
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-08-03 16:30:52.209042179 +0400
-+++ b/sql/set_var.cc	2010-08-03 16:31:08.977791774 +0400
+--- a/sql/set_var.cc	2010-08-10 15:32:19.556992443 +0400
++++ b/sql/set_var.cc	2010-08-10 15:32:20.098240993 +0400
 @@ -1000,6 +1000,10 @@
  static sys_var_use_global_long_query_time sys_use_global_long_query_time;
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
@@ -552,8 +552,8 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
 diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-08-03 16:30:52.229043051 +0400
-+++ b/sql/sql_parse.cc	2010-08-03 16:31:09.059042069 +0400
+--- a/sql/sql_parse.cc	2010-08-10 15:32:19.577006165 +0400
++++ b/sql/sql_parse.cc	2010-08-10 15:32:20.108241429 +0400
 @@ -27,6 +27,7 @@
  #include "sp_cache.h"
  #include "events.h"
@@ -628,8 +628,8 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
    {
      pthread_mutex_lock(&LOCK_global_user_client_stats);
 diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-08-03 16:30:52.219042615 +0400
-+++ b/sql/sql_show.cc	2010-08-03 16:31:09.187791149 +0400
+--- a/sql/sql_show.cc	2010-08-10 15:32:19.566991761 +0400
++++ b/sql/sql_show.cc	2010-08-10 15:32:20.108241429 +0400
 @@ -31,6 +31,7 @@
  #include "event_data_objects.h"
  #endif
@@ -638,7 +638,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  #include "debug_sync.h"
  
  #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
-@@ -7509,6 +7510,13 @@
+@@ -7428,6 +7429,13 @@
  
  */
  
@@ -652,7 +652,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7563,6 +7571,8 @@
+@@ -7482,6 +7490,8 @@
     1, 9, 0, OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -662,8 +662,8 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
     fill_schema_schemata, make_schemata_old_format, 0, 1, -1, 0, 0},
    {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
 diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-08-03 16:30:52.219042615 +0400
-+++ b/sql/sql_yacc.yy	2010-08-03 16:31:09.197791585 +0400
+--- a/sql/sql_yacc.yy	2010-08-10 15:32:19.566991761 +0400
++++ b/sql/sql_yacc.yy	2010-08-10 15:32:20.108241429 +0400
 @@ -1079,6 +1079,7 @@
  %token  PURGE
  %token  QUARTER_SYM
@@ -704,8 +704,8 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | READ_ONLY_SYM            {}
          | REBUILD_SYM              {}
 diff -Nur a/sql/table.h b/sql/table.h
---- a/sql/table.h	2010-08-03 16:30:52.219042615 +0400
-+++ b/sql/table.h	2010-08-03 16:31:09.347791692 +0400
+--- a/sql/table.h	2010-08-10 15:32:19.556992443 +0400
++++ b/sql/table.h	2010-08-10 15:32:20.118244100 +0400
 @@ -964,6 +964,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,

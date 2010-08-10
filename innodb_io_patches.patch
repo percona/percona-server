@@ -1,6 +1,6 @@
-diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
---- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:44:57.000000000 +0900
+diff -Nur a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
+--- a/storage/innodb_plugin/buf/buf0flu.c	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/buf/buf0flu.c	2010-08-10 15:30:36.676991527 +0400
 @@ -1157,8 +1157,9 @@
  /*====================*/
  	ulint		space,		/*!< in: space id */
@@ -30,9 +30,9 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  				/* fprintf(stderr,
  				"Flush type %lu, page no %lu, neighb %lu\n",
  				flush_type, offset,
-diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
---- a/storage/innodb_plugin/buf/buf0rea.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0rea.c	2010-04-29 15:44:57.000000000 +0900
+diff -Nur a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
+--- a/storage/innodb_plugin/buf/buf0rea.c	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/buf/buf0rea.c	2010-08-10 15:30:36.686994198 +0400
 @@ -254,6 +254,10 @@
  		= BUF_READ_AHEAD_LINEAR_AREA;
  	ulint		threshold;
@@ -44,9 +44,9 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
  	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
  		/* No read-ahead to avoid thread deadlocks */
  		return(0);
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:44:28.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:30:37.326992753 +0400
 @@ -313,6 +313,12 @@
    "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
    NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
@@ -225,9 +225,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(change_buffering),
    MYSQL_SYSVAR(read_ahead_threshold),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:44:28.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:30:36.168242088 +0400
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:30:37.326992753 +0400
 @@ -25,5 +25,6 @@
  }innodb_enhancements[] = {
  {"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -235,9 +235,9 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
---- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
+--- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-08-10 15:30:36.168242088 +0400
++++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-08-10 15:30:37.326992753 +0400
 @@ -458,8 +458,10 @@
  	grow in size, as the references on the upper levels of the tree can
  	change */
@@ -265,9 +265,9 @@ diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/
  
  	sync = FALSE;
  
-diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/include/buf0rea.h
---- a/storage/innodb_plugin/include/buf0rea.h	2010-07-09 21:34:54.000000000 +0900
-+++ b/storage/innodb_plugin/include/buf0rea.h	2010-07-26 18:55:35.287029931 +0900
+diff -Nur a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/include/buf0rea.h
+--- a/storage/innodb_plugin/include/buf0rea.h	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/include/buf0rea.h	2010-08-10 15:30:37.326992753 +0400
 @@ -124,8 +124,7 @@
  
  /** The size in pages of the area which the read-ahead algorithms read if
@@ -278,9 +278,9 @@ diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/incl
  
  /** @name Modes used in read-ahead @{ */
  /** read only pages belonging to the insert buffer tree */
-diff -ruN a/storage/innodb_plugin/include/ha_prototypes.h b/storage/innodb_plugin/include/ha_prototypes.h
---- a/storage/innodb_plugin/include/ha_prototypes.h	2010-06-04 00:50:08.000000000 +0900
-+++ b/storage/innodb_plugin/include/ha_prototypes.h	2010-07-21 23:16:34.725949399 +0900
+diff -Nur a/storage/innodb_plugin/include/ha_prototypes.h b/storage/innodb_plugin/include/ha_prototypes.h
+--- a/storage/innodb_plugin/include/ha_prototypes.h	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/include/ha_prototypes.h	2010-08-10 15:30:37.336992630 +0400
 @@ -268,4 +268,12 @@
  	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
  			the global innodb_lock_wait_timeout */
@@ -294,9 +294,9 @@ diff -ruN a/storage/innodb_plugin/include/ha_prototypes.h b/storage/innodb_plugi
 +	void*	thd);
 +
  #endif
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-29 15:44:28.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:30:37.336992630 +0400
 @@ -199,6 +199,16 @@
  extern ulong	srv_max_purge_lag;
  
@@ -325,9 +325,9 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  };
  
  /** Alternatives for file i/o in Windows */
-diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
---- a/storage/innodb_plugin/include/trx0trx.h	2010-06-04 00:50:08.000000000 +0900
-+++ b/storage/innodb_plugin/include/trx0trx.h	2010-07-21 23:16:34.728529747 +0900
+diff -Nur a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
+--- a/storage/innodb_plugin/include/trx0trx.h	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/include/trx0trx.h	2010-08-10 15:30:37.336992630 +0400
 @@ -497,6 +497,7 @@
  					FALSE, one can save CPU time and about
  					150 bytes in the undo log size as then
@@ -336,9 +336,9 @@ diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/incl
  	ulint		flush_log_later;/* In 2PC, we hold the
  					prepare_commit mutex across
  					both phases. In that case, we
-diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
---- a/storage/innodb_plugin/log/log0log.c	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/log/log0log.c	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
+--- a/storage/innodb_plugin/log/log0log.c	2010-08-10 15:30:36.168242088 +0400
++++ b/storage/innodb_plugin/log/log0log.c	2010-08-10 15:30:37.336992630 +0400
 @@ -347,6 +347,33 @@
  }
  
@@ -459,9 +459,9 @@ diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0
  	current_time = time(NULL);
  
  	time_elapsed = 0.001 + difftime(current_time,
-diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log0recv.c
---- a/storage/innodb_plugin/log/log0recv.c	2010-06-04 00:50:08.000000000 +0900
-+++ b/storage/innodb_plugin/log/log0recv.c	2010-07-26 15:43:24.641061256 +0900
+diff -Nur a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log0recv.c
+--- a/storage/innodb_plugin/log/log0recv.c	2010-08-10 15:30:36.168242088 +0400
++++ b/storage/innodb_plugin/log/log0recv.c	2010-08-10 15:30:37.336992630 +0400
 @@ -2893,9 +2893,12 @@
  	ib_uint64_t	contiguous_lsn;
  	ib_uint64_t	archived_lsn;
@@ -476,9 +476,9 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  #ifdef UNIV_LOG_ARCHIVE
  	ut_ad(type != LOG_CHECKPOINT || limit_lsn == IB_ULONGLONG_MAX);
  /** TRUE when recovering from a checkpoint */
-diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0file.c
---- a/storage/innodb_plugin/os/os0file.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/os/os0file.c	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0file.c
+--- a/storage/innodb_plugin/os/os0file.c	2010-08-10 15:30:36.168242088 +0400
++++ b/storage/innodb_plugin/os/os0file.c	2010-08-10 15:30:37.336992630 +0400
 @@ -91,6 +91,28 @@
  /** Flag: enable debug printout for asynchronous i/o */
  UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
@@ -555,7 +555,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
 +/* Per thread buffer used for merged IO requests. Used by
 +os_aio_simulated_handle so that a buffer doesn't have to be allocated
 +for each request. */
-+static char* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
++static byte* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
 +static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
 +
  /** Number of asynchronous I/O segments.  Set by os_aio_init(). */
@@ -933,9 +933,9 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	*message1 = slot->message1;
  	*message2 = slot->message2;
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 15:44:28.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:30:37.336992630 +0400
 @@ -370,6 +370,17 @@
  
  UNIV_INTERN ulong	srv_replication_delay		= 0;
@@ -954,7 +954,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2487,6 +2498,10 @@
+@@ -2486,6 +2497,10 @@
  	ibool		skip_sleep	= FALSE;
  	ulint		i;
  
@@ -965,7 +965,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
  		os_thread_pf(os_thread_get_curr_id()));
-@@ -2502,6 +2517,9 @@
+@@ -2501,6 +2516,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -975,7 +975,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2539,6 +2557,19 @@
+@@ -2538,6 +2556,19 @@
  
  			os_thread_sleep(1000000);
  			srv_main_sleeps++;
@@ -995,7 +995,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		skip_sleep = FALSE;
-@@ -2575,7 +2606,7 @@
+@@ -2574,7 +2605,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -1004,7 +1004,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2599,6 +2630,10 @@
+@@ -2598,6 +2629,10 @@
  			iteration of this loop. */
  
  			skip_sleep = TRUE;
@@ -1015,7 +1015,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2620,6 +2655,140 @@
+@@ -2619,6 +2654,140 @@
  					skip_sleep = TRUE;
  				}
  			}
@@ -1156,7 +1156,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2668,7 +2837,7 @@
+@@ -2667,7 +2836,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1165,7 +1165,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2793,7 +2962,7 @@
+@@ -2792,7 +2961,7 @@
  		buf_flush_batch below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -1174,9 +1174,9 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
---- a/storage/innodb_plugin/srv/srv0start.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-29 15:44:58.000000000 +0900
+diff -Nur a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
+--- a/storage/innodb_plugin/srv/srv0start.c	2010-08-10 15:30:36.178241686 +0400
++++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-10 15:30:37.336992630 +0400
 @@ -1138,7 +1138,12 @@
  		break;
  	default:
@@ -1214,9 +1214,9 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  #endif
  	} else {
  		fprintf(stderr,
-diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
---- a/storage/innodb_plugin/trx/trx0trx.c	2010-06-04 00:50:08.000000000 +0900
-+++ b/storage/innodb_plugin/trx/trx0trx.c	2010-07-21 23:16:34.731529496 +0900
+diff -Nur a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
+--- a/storage/innodb_plugin/trx/trx0trx.c	2010-08-10 15:30:36.168242088 +0400
++++ b/storage/innodb_plugin/trx/trx0trx.c	2010-08-10 15:30:37.348242665 +0400
 @@ -109,6 +109,8 @@
  
  	trx->support_xa = TRUE;

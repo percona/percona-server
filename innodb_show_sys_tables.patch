@@ -1,6 +1,6 @@
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:05.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:37:36.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:59.488242902 +0400
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:59.946993512 +0400
 @@ -11707,6 +11707,9 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
@@ -11,9 +11,19 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  i_s_innodb_patches
  mysql_declare_plugin_end;
  
-diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
---- a/storage/innodb_plugin/handler/i_s.cc	2010-04-30 15:48:30.000000000 +0900
-+++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-30 16:37:36.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:59.488242902 +0400
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:32:00.606992667 +0400
+@@ -46,5 +46,6 @@
+ {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_sys_tables_sys_indexes","Expose InnoDB SYS_TABLES and SYS_INDEXES schema tables","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -Nur a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
+--- a/storage/innodb_plugin/handler/i_s.cc	2010-08-10 15:31:59.488242902 +0400
++++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-10 15:31:59.946993512 +0400
 @@ -46,6 +46,7 @@
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
@@ -22,13 +32,10 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
  }
  
-@@ -3116,6 +3117,664 @@
- 	STRUCT_FLD(deinit, i_s_common_deinit),
- 	STRUCT_FLD(version, 0x0100 /* 1.0 */),
- 	STRUCT_FLD(status_vars, NULL),
-+	STRUCT_FLD(system_vars, NULL),
-+	STRUCT_FLD(__reserved1, NULL)
-+};
+@@ -3114,3 +3115,661 @@
+ 	STRUCT_FLD(system_vars, NULL),
+ 	STRUCT_FLD(__reserved1, NULL)
+ };
 +
 +static ST_FIELD_INFO	i_s_innodb_sys_tables_info[] =
 +{
@@ -684,12 +691,12 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	STRUCT_FLD(deinit, i_s_common_deinit),
 +	STRUCT_FLD(version, 0x0100 /* 1.0 */),
 +	STRUCT_FLD(status_vars, NULL),
- 	STRUCT_FLD(system_vars, NULL),
- 	STRUCT_FLD(__reserved1, NULL)
- };
-diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
---- a/storage/innodb_plugin/handler/i_s.h	2010-04-30 14:38:27.000000000 +0900
-+++ b/storage/innodb_plugin/handler/i_s.h	2010-04-30 16:37:36.000000000 +0900
++	STRUCT_FLD(system_vars, NULL),
++	STRUCT_FLD(__reserved1, NULL)
++};
+diff -Nur a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
+--- a/storage/innodb_plugin/handler/i_s.h	2010-08-10 15:31:59.488242902 +0400
++++ b/storage/innodb_plugin/handler/i_s.h	2010-08-10 15:32:00.267006064 +0400
 @@ -41,5 +41,8 @@
  extern struct st_mysql_plugin	i_s_innodb_table_stats;
  extern struct st_mysql_plugin	i_s_innodb_index_stats;
@@ -699,13 +706,3 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/
 +extern struct st_mysql_plugin	i_s_innodb_sys_stats;
  
  #endif /* i_s_h */
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:37:05.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:37:36.000000000 +0900
-@@ -46,5 +46,6 @@
- {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_sys_tables_sys_indexes","Expose InnoDB SYS_TABLES and SYS_INDEXES schema tables","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };

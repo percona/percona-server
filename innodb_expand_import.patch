@@ -1,7 +1,7 @@
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-29 15:44:28.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 10:43:13.000000000 +0900
-@@ -40,6 +40,10 @@
+@@ -40,6 +40,12 @@
  #include "dict0dict.h"
  #include "page0page.h"
  #include "page0zip.h"
@@ -9,6 +9,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +#include "trx0sys.h"
 +#include "pars0pars.h"
 +#include "row0mysql.h"
++#include "row0row.h"
++#include "que0que.h"
  #ifndef UNIV_HOTBACKUP
  # include "buf0lru.h"
  # include "ibuf0ibuf.h"
@@ -109,7 +111,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +		for (i = 0; i < n_index; i++) {
 +			new_id[i] =
 +				dict_table_get_index_on_name(table,
-+						(page + (i + 1) * 512 + 12))->id;
++						(char*)(page + (i + 1) * 512 + 12))->id;
 +			old_id[i] = mach_read_from_8(page + (i + 1) * 512);
 +			root_page[i] = mach_read_from_4(page + (i + 1) * 512 + 8);
 +		}
@@ -133,7 +135,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +			/* over write space id of all pages */
 +			rec_offs_init(offsets_);
 +
-+			fprintf(stderr, "InnoDB: Progress in %:");
++			fprintf(stderr, "InnoDB: Progress in %%:");
 +
 +			for (offset = 0; offset < size_bytes; offset += UNIV_PAGE_SIZE) {
 +				ulint		checksum_field;

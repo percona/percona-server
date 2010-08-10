@@ -1,6 +1,6 @@
-diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0sea.c
---- a/storage/innodb_plugin/btr/btr0sea.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/btr/btr0sea.c	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0sea.c
+--- a/storage/innodb_plugin/btr/btr0sea.c	2010-08-10 15:30:58.028244087 +0400
++++ b/storage/innodb_plugin/btr/btr0sea.c	2010-08-10 15:30:58.588243072 +0400
 @@ -1164,6 +1164,126 @@
  	mem_free(folds);
  }
@@ -128,9 +128,9 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
  /********************************************************************//**
  Drops a page hash index when a page is freed from a fseg to the file system.
  Drops possible hash index if the page happens to be in the buffer pool. */
-diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/dict0boot.c
---- a/storage/innodb_plugin/dict/dict0boot.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/dict/dict0boot.c	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/dict0boot.c
+--- a/storage/innodb_plugin/dict/dict0boot.c	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/dict/dict0boot.c	2010-08-10 15:30:58.978241628 +0400
 @@ -283,6 +283,7 @@
  	system tables */
  	/*-------------------------*/
@@ -163,9 +163,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
  
  	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
  	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
-diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
---- a/storage/innodb_plugin/dict/dict0crea.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/dict/dict0crea.c	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
+--- a/storage/innodb_plugin/dict/dict0crea.c	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/dict/dict0crea.c	2010-08-10 15:30:59.338242509 +0400
 @@ -1213,6 +1213,9 @@
  		/* Foreign constraint system tables have already been
  		created, and they are ok */
@@ -188,9 +188,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  	row_mysql_unlock_data_dictionary(trx);
  
  	trx_free_for_mysql(trx);
-diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
---- a/storage/innodb_plugin/dict/dict0dict.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/dict/dict0dict.c	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
+--- a/storage/innodb_plugin/dict/dict0dict.c	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/dict/dict0dict.c	2010-08-10 15:31:00.158251430 +0400
 @@ -583,6 +583,8 @@
  
  	table = dict_table_get_on_id_low(table_id);
@@ -286,9 +286,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	/* We always create search info whether or not adaptive
  	hash index is enabled or not. */
  	info = index->search_info;
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:50:25.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:01.328242353 +0400
 @@ -541,6 +541,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
@@ -318,9 +318,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(change_buffering),
    MYSQL_SYSVAR(read_ahead_threshold),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:50:25.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:01.627115342 +0400
 @@ -32,5 +32,6 @@
  {"innodb_extra_rseg","allow to create extra rollback segments","When create new db, the new parameter allows to create more rollback segments","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
@@ -328,9 +328,9 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
---- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
+--- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2010-08-10 15:31:02.546991169 +0400
 @@ -508,6 +508,7 @@
  
  	/* Use old-style record format for the insert buffer. */
@@ -339,9 +339,9 @@ diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/
  
  	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
  
-diff -ruN a/storage/innodb_plugin/include/btr0sea.h b/storage/innodb_plugin/include/btr0sea.h
---- a/storage/innodb_plugin/include/btr0sea.h	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/include/btr0sea.h	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/btr0sea.h b/storage/innodb_plugin/include/btr0sea.h
+--- a/storage/innodb_plugin/include/btr0sea.h	2010-08-10 15:30:58.028244087 +0400
++++ b/storage/innodb_plugin/include/btr0sea.h	2010-08-10 15:31:04.816992317 +0400
 @@ -140,6 +140,13 @@
  				s- or x-latched, or an index page
  				for which we know that
@@ -356,9 +356,9 @@ diff -ruN a/storage/innodb_plugin/include/btr0sea.h b/storage/innodb_plugin/incl
  /********************************************************************//**
  Drops a page hash index when a page is freed from a fseg to the file system.
  Drops possible hash index if the page happens to be in the buffer pool. */
-diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
---- a/storage/innodb_plugin/include/dict0dict.h	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/include/dict0dict.h	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
+--- a/storage/innodb_plugin/include/dict0dict.h	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/include/dict0dict.h	2010-08-10 15:31:04.816992317 +0400
 @@ -1116,6 +1116,12 @@
  /*====================================*/
  	dict_table_t*	table,	/*!< in: table */
@@ -372,9 +372,9 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/in
  /* Buffers for storing detailed information about the latest foreign key
  and unique key errors */
  extern FILE*	dict_foreign_err_file;
-diff -ruN a/storage/innodb_plugin/include/dict0dict.ic b/storage/innodb_plugin/include/dict0dict.ic
---- a/storage/innodb_plugin/include/dict0dict.ic	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/include/dict0dict.ic	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/dict0dict.ic b/storage/innodb_plugin/include/dict0dict.ic
+--- a/storage/innodb_plugin/include/dict0dict.ic	2010-08-10 15:30:58.028244087 +0400
++++ b/storage/innodb_plugin/include/dict0dict.ic	2010-08-10 15:31:05.428243637 +0400
 @@ -744,6 +744,13 @@
  	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
  		    dict_table_t*, table, ut_ad(table->cached),
@@ -402,9 +402,9 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.ic b/storage/innodb_plugin/i
  	ut_ad(!table || table->cached);
  
  	/* TODO: should get the type information from MySQL */
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-29 16:50:25.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:30:58.018244210 +0400
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:31:05.558241205 +0400
 @@ -214,7 +214,7 @@
  extern ulint	srv_adaptive_checkpoint;
  
@@ -422,9 +422,9 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
  	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
  	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 16:50:25.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 16:51:00.000000000 +0900
+diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:30:58.028244087 +0400
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:31:05.578241797 +0400
 @@ -386,6 +386,7 @@
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
@@ -433,7 +433,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2087,6 +2088,7 @@
+@@ -2086,6 +2087,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

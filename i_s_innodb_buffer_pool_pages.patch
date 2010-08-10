@@ -40,7 +40,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -380,6 +381,709 @@
+@@ -380,6 +381,705 @@
  };
  
  
@@ -396,10 +396,6 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +  ulint		n_chunks, n_blocks;
 +  dulint		index_id;
-+
-+  const char *p;
-+  char db_name_raw[NAME_LEN*5+1], db_name[NAME_LEN+1];
-+  char table_name_raw[NAME_LEN*5+1], table_name[NAME_LEN+1];
 +
 +	buf_chunk_t*	chunk;
 +

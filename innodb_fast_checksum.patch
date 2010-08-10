@@ -1,6 +1,6 @@
-diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
---- a/storage/innodb_plugin/buf/buf0buf.c	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0buf.c	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
+--- a/storage/innodb_plugin/buf/buf0buf.c	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/buf/buf0buf.c	2010-08-10 15:31:54.607913454 +0400
 @@ -343,6 +343,27 @@
  	return(checksum);
  }
@@ -85,9 +85,9 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		(ulong) mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
  		(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
  					 - FIL_PAGE_END_LSN_OLD_CHKSUM),
-diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
---- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-30 14:13:25.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
+--- a/storage/innodb_plugin/buf/buf0flu.c	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/buf/buf0flu.c	2010-08-10 15:31:54.607913454 +0400
 @@ -952,7 +952,9 @@
  
  	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
@@ -99,10 +99,10 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  			: BUF_NO_CHECKSUM_MAGIC);
  
  	/* We overwrite the first 4 bytes of the end lsn field to store
-diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 16:32:03.000000000 +0900
-@@ -3069,7 +3069,9 @@
+diff -Nur a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
+--- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-10 15:31:53.958242431 +0400
++++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-10 15:31:55.256992498 +0400
+@@ -3071,7 +3071,9 @@
  			mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
@@ -113,7 +113,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3181,7 +3183,8 @@
+@@ -3183,7 +3185,8 @@
  					goto skip_write;
  				}
  
@@ -123,7 +123,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
  				    && checksum_field
  				    != buf_calc_page_new_checksum(page)) {
-@@ -3189,6 +3192,17 @@
+@@ -3191,6 +3194,17 @@
  					goto skip_write;
  				}
  
@@ -141,7 +141,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
  					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
  
-@@ -3263,7 +3277,9 @@
+@@ -3265,7 +3279,9 @@
  
  					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  							srv_use_checksums
@@ -152,9 +152,9 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  									: BUF_NO_CHECKSUM_MAGIC);
  					mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  							srv_use_checksums
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:55.266992375 +0400
 @@ -185,6 +185,7 @@
  #endif /* UNIV_LOG_ARCHIVE */
  static my_bool	innobase_use_doublewrite		= TRUE;
@@ -195,9 +195,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:55.266992375 +0400
 @@ -44,5 +44,6 @@
  {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -205,9 +205,9 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
---- a/storage/innodb_plugin/include/buf0buf.h	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/include/buf0buf.h	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
+--- a/storage/innodb_plugin/include/buf0buf.h	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/include/buf0buf.h	2010-08-10 15:31:55.266992375 +0400
 @@ -477,6 +477,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
@@ -220,9 +220,9 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  /********************************************************************//**
  In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
  looked at the first few bytes of the page. This calculates that old
-diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
---- a/storage/innodb_plugin/include/fil0fil.h	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/include/fil0fil.h	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
+--- a/storage/innodb_plugin/include/fil0fil.h	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/include/fil0fil.h	2010-08-10 15:31:55.276994766 +0400
 @@ -117,6 +117,7 @@
  #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /*!< starting from 4.1.x this
  					contains the space id of the page */
@@ -231,9 +231,9 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
  /* @} */
  /** File page trailer @{ */
  #define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/*!< the low 4 bytes of this are used
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:31:55.276994766 +0400
 @@ -211,6 +211,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
@@ -242,9 +242,9 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  
  extern ibool	srv_set_thread_priorities;
  extern int	srv_query_thread_priority;
-diff -ruN a/storage/innodb_plugin/include/ut0rnd.h b/storage/innodb_plugin/include/ut0rnd.h
---- a/storage/innodb_plugin/include/ut0rnd.h	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/include/ut0rnd.h	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/ut0rnd.h b/storage/innodb_plugin/include/ut0rnd.h
+--- a/storage/innodb_plugin/include/ut0rnd.h	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/include/ut0rnd.h	2010-08-10 15:31:55.276994766 +0400
 @@ -124,6 +124,13 @@
  	const byte*	str,	/*!< in: string of bytes */
  	ulint		len)	/*!< in: length */
@@ -259,9 +259,9 @@ diff -ruN a/storage/innodb_plugin/include/ut0rnd.h b/storage/innodb_plugin/inclu
  /***********************************************************//**
  Looks for a prime number slightly greater than the given argument.
  The prime is chosen so that it is not near any power of 2.
-diff -ruN a/storage/innodb_plugin/include/ut0rnd.ic b/storage/innodb_plugin/include/ut0rnd.ic
---- a/storage/innodb_plugin/include/ut0rnd.ic	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/include/ut0rnd.ic	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/include/ut0rnd.ic b/storage/innodb_plugin/include/ut0rnd.ic
+--- a/storage/innodb_plugin/include/ut0rnd.ic	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/include/ut0rnd.ic	2010-08-10 15:31:55.276994766 +0400
 @@ -229,3 +229,28 @@
  
  	return(fold);
@@ -291,9 +291,9 @@ diff -ruN a/storage/innodb_plugin/include/ut0rnd.ic b/storage/innodb_plugin/incl
 +
 +	return(fold);
 +}
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:31:04.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 16:32:03.000000000 +0900
+diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:31:53.968242030 +0400
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:31:55.276994766 +0400
 @@ -380,6 +380,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;

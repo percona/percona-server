@@ -1,6 +1,6 @@
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-08-03 16:24:54.399041517 +0400
-+++ b/sql/mysqld.cc	2010-08-03 16:24:55.047792871 +0400
+--- a/sql/mysqld.cc	2010-08-10 15:30:20.718242870 +0400
++++ b/sql/mysqld.cc	2010-08-10 15:30:21.697083751 +0400
 @@ -3229,6 +3229,7 @@
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -10,8 +10,8 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_user_statistics", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_USER_STATS]), SHOW_LONG_STATUS},
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
 diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2010-08-03 16:24:54.409043350 +0400
-+++ b/sql/sql_lex.h	2010-08-03 16:24:55.047792871 +0400
+--- a/sql/sql_lex.h	2010-08-10 15:30:20.728242468 +0400
++++ b/sql/sql_lex.h	2010-08-10 15:30:21.706991717 +0400
 @@ -116,7 +116,7 @@
    SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
    SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
@@ -22,8 +22,8 @@ diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
    SQLCOM_SHOW_PATCHES,
  
 diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-08-03 16:24:54.409043350 +0400
-+++ b/sql/sql_parse.cc	2010-08-03 16:24:55.067792067 +0400
+--- a/sql/sql_parse.cc	2010-08-10 15:30:20.728242468 +0400
++++ b/sql/sql_parse.cc	2010-08-10 15:30:21.816992317 +0400
 @@ -338,6 +338,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
@@ -61,9 +61,9 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_TRIGGERS:
    case SCH_EVENTS:
 diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-08-03 16:24:54.399041517 +0400
-+++ b/sql/sql_show.cc	2010-08-03 16:24:55.067792067 +0400
-@@ -3102,6 +3102,7 @@
+--- a/sql/sql_show.cc	2010-08-10 15:30:20.718242870 +0400
++++ b/sql/sql_show.cc	2010-08-10 15:30:21.816992317 +0400
+@@ -3021,6 +3021,7 @@
      return 0;
    case SQLCOM_SHOW_TABLES:
    case SQLCOM_SHOW_TABLE_STATUS:
@@ -71,7 +71,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      lookup_field_values->db_value.str= lex->select_lex.db;
-@@ -3558,6 +3559,228 @@
+@@ -3477,6 +3478,228 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -300,7 +300,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
    @brief          Fill I_S table with data from FRM file only
-@@ -6637,6 +6860,25 @@
+@@ -6556,6 +6779,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -326,7 +326,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7297,6 +7539,9 @@
+@@ -7216,6 +7458,9 @@
     fill_schema_files, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -336,7 +336,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7340,6 +7585,9 @@
+@@ -7259,6 +7504,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
@@ -347,8 +347,8 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
      fill_schema_table_stats, make_old_format, 0, -1, -1, 0, 0},
    {"THREAD_STATISTICS", thread_stats_fields_info, create_schema_table,
 diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-08-03 16:24:54.409043350 +0400
-+++ b/sql/sql_yacc.yy	2010-08-03 16:24:55.077792503 +0400
+--- a/sql/sql_yacc.yy	2010-08-10 15:30:20.718242870 +0400
++++ b/sql/sql_yacc.yy	2010-08-10 15:30:21.827008397 +0400
 @@ -10073,6 +10073,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
@@ -366,8 +366,8 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
             {
               LEX *lex= Lex;
 diff -Nur a/sql/table.h b/sql/table.h
---- a/sql/table.h	2010-08-03 16:24:54.399041517 +0400
-+++ b/sql/table.h	2010-08-03 16:24:55.077792503 +0400
+--- a/sql/table.h	2010-08-10 15:30:20.718242870 +0400
++++ b/sql/table.h	2010-08-10 15:30:21.827008397 +0400
 @@ -954,6 +954,7 @@
    SCH_EVENTS,
    SCH_FILES,

@@ -1,6 +1,6 @@
 diff -Nur a/include/mysql/plugin.h b/include/mysql/plugin.h
---- a/include/mysql/plugin.h	2010-08-03 16:24:06.589042259 +0400
-+++ b/include/mysql/plugin.h	2010-08-03 16:24:07.447811698 +0400
+--- a/include/mysql/plugin.h	2010-08-10 15:30:02.258242936 +0400
++++ b/include/mysql/plugin.h	2010-08-10 15:30:02.788243125 +0400
 @@ -694,6 +694,17 @@
  /* Increments the row counter, see THD::row_count */
  void thd_inc_row_count(MYSQL_THD thd);
@@ -20,8 +20,8 @@ diff -Nur a/include/mysql/plugin.h b/include/mysql/plugin.h
    Create a temporary file.
  
 diff -Nur a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
---- a/include/mysql/plugin.h.pp	2010-08-03 16:24:06.589042259 +0400
-+++ b/include/mysql/plugin.h.pp	2010-08-03 16:24:08.307791348 +0400
+--- a/include/mysql/plugin.h.pp	2010-08-10 15:30:02.258242936 +0400
++++ b/include/mysql/plugin.h.pp	2010-08-10 15:30:02.788243125 +0400
 @@ -122,6 +122,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
@@ -41,7 +41,7 @@ diff -Nur a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
  unsigned long thd_get_thread_id(const void* thd);
 diff -Nur a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 --- a/patch_info/slow_extended.info	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/slow_extended.info	2010-08-03 16:24:08.317791503 +0400
++++ b/patch_info/slow_extended.info	2010-08-10 15:30:03.517510597 +0400
 @@ -0,0 +1,23 @@
 +File=slow_extended.patch
 +Name=Extended statistics in slow.log (not InnoDB part)
@@ -67,8 +67,8 @@ diff -Nur a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 +5) Fix innodb_stats on replication (Bug 600684)
 +
 diff -Nur a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
---- a/scripts/mysqldumpslow.sh	2010-08-03 16:24:06.289043429 +0400
-+++ b/scripts/mysqldumpslow.sh	2010-08-03 16:24:10.917894200 +0400
+--- a/scripts/mysqldumpslow.sh	2010-08-10 15:30:02.008241539 +0400
++++ b/scripts/mysqldumpslow.sh	2010-08-10 15:30:03.517510597 +0400
 @@ -83,8 +83,8 @@
      s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
      my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
@@ -81,8 +81,8 @@ diff -Nur a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
  
      # remove fluff that mysqld writes to log when it (re)starts:
 diff -Nur a/sql/event_scheduler.cc b/sql/event_scheduler.cc
---- a/sql/event_scheduler.cc	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/event_scheduler.cc	2010-08-03 16:24:15.429043385 +0400
+--- a/sql/event_scheduler.cc	2010-08-10 15:30:02.278241852 +0400
++++ b/sql/event_scheduler.cc	2010-08-10 15:30:03.658917996 +0400
 @@ -193,6 +193,7 @@
    thd->client_capabilities|= CLIENT_MULTI_RESULTS;
    pthread_mutex_lock(&LOCK_thread_count);
@@ -92,8 +92,8 @@ diff -Nur a/sql/event_scheduler.cc b/sql/event_scheduler.cc
  
    /*
 diff -Nur a/sql/filesort.cc b/sql/filesort.cc
---- a/sql/filesort.cc	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/filesort.cc	2010-08-03 16:24:18.357792407 +0400
+--- a/sql/filesort.cc	2010-08-10 15:30:02.278241852 +0400
++++ b/sql/filesort.cc	2010-08-10 15:30:03.658917996 +0400
 @@ -190,6 +190,7 @@
    {
      status_var_increment(thd->status_var.filesort_scan_count);
@@ -119,8 +119,8 @@ diff -Nur a/sql/filesort.cc b/sql/filesort.cc
    {
      killed= &not_killable;
 diff -Nur a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/log.cc	2010-08-03 16:24:21.907828951 +0400
+--- a/sql/log.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/log.cc	2010-08-10 15:30:03.658917996 +0400
 @@ -524,11 +524,13 @@
  */
  
@@ -329,8 +329,8 @@ diff -Nur a/sql/log.cc b/sql/log.cc
      {						// Database changed
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
 diff -Nur a/sql/log_event.cc b/sql/log_event.cc
---- a/sql/log_event.cc	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/log_event.cc	2010-08-03 16:24:22.648844848 +0400
+--- a/sql/log_event.cc	2010-08-10 15:30:02.278241852 +0400
++++ b/sql/log_event.cc	2010-08-10 15:30:03.666991650 +0400
 @@ -3001,6 +3001,7 @@
    LEX_STRING new_db;
    int expected_error,actual_error= 0;
@@ -390,8 +390,8 @@ diff -Nur a/sql/log_event.cc b/sql/log_event.cc
      As a disk space optimization, future masters will not log an event for
      LAST_INSERT_ID() if that function returned 0 (and thus they will be able
 diff -Nur a/sql/log.h b/sql/log.h
---- a/sql/log.h	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/log.h	2010-08-03 16:24:22.637800704 +0400
+--- a/sql/log.h	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/log.h	2010-08-10 15:30:03.666991650 +0400
 @@ -211,7 +211,7 @@
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
@@ -429,8 +429,8 @@ diff -Nur a/sql/log.h b/sql/log.h
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/mysqld.cc	2010-08-03 16:24:23.947815330 +0400
+--- a/sql/mysqld.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/mysqld.cc	2010-08-10 15:30:03.666991650 +0400
 @@ -518,6 +518,10 @@
  char* opt_secure_file_priv= 0;
  my_bool opt_log_slow_admin_statements= 0;
@@ -555,8 +555,8 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
      server_id_supplied = 1;
      break;
 diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-08-03 16:24:06.619042449 +0400
-+++ b/sql/mysql_priv.h	2010-08-03 16:24:23.867829161 +0400
+--- a/sql/mysql_priv.h	2010-08-10 15:30:02.278241852 +0400
++++ b/sql/mysql_priv.h	2010-08-10 15:30:03.676992924 +0400
 @@ -613,6 +613,106 @@
  
  #define STRING_BUFFER_USUAL_SIZE 80
@@ -578,7 +578,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 +#define SLOG_UG_MIN_EXAMINED_ROW_LIMIT      1 << 5
 +#define SLOG_UG_ALL                         SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY | SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT
 +/* ... */
-+#define SLOG_UG_INVALID                     1 << 31
++#define SLOG_UG_INVALID                     1##UL << 31
 +
 +static const struct msl_opts slog_use_global[]=
 +  {
@@ -601,7 +601,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 +#define SLOG_V_QUERY_PLAN     1 << 1
 +#define SLOG_V_INNODB         1 << 2
 +/* ... */
-+#define SLOG_V_INVALID        1 << 31
++#define SLOG_V_INVALID        1##UL << 31
 +#define SLOG_V_NONE           SLOG_V_MICROTIME
 +
 +static const struct msl_opts slog_verb[]= 
@@ -646,7 +646,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
 +#define SLOG_F_TMP_DISK       QPLAN_TMP_DISK
 +#define SLOG_F_FILESORT       QPLAN_FILESORT
 +#define SLOG_F_FILESORT_DISK  QPLAN_FILESORT_DISK
-+#define SLOG_F_INVALID        1 << 31
++#define SLOG_F_INVALID        1##UL << 31
 +#define SLOG_F_NONE           0
 +
 +static const struct msl_opts slog_filter[]= 
@@ -676,8 +676,8 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/set_var.cc	2010-08-03 16:24:23.979041934 +0400
+--- a/sql/set_var.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/set_var.cc	2010-08-10 15:30:03.676992924 +0400
 @@ -161,6 +161,71 @@
  
  static sys_var_chain vars = { NULL, NULL };
@@ -986,8 +986,8 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
   Functions to handle table_type
  ****************************************************************************/
 diff -Nur a/sql/set_var.h b/sql/set_var.h
---- a/sql/set_var.h	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/set_var.h	2010-08-03 16:24:23.979041934 +0400
+--- a/sql/set_var.h	2010-08-10 15:30:02.278241852 +0400
++++ b/sql/set_var.h	2010-08-10 15:30:03.676992924 +0400
 @@ -567,6 +567,80 @@
  };
  
@@ -1081,8 +1081,8 @@ diff -Nur a/sql/set_var.h b/sql/set_var.h
 +const char *msl_option_get_name(const struct msl_opts *opts, ulong val);
 +char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val);
 diff -Nur a/sql/slave.cc b/sql/slave.cc
---- a/sql/slave.cc	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/slave.cc	2010-08-03 16:24:24.077803677 +0400
+--- a/sql/slave.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/slave.cc	2010-08-10 15:30:03.676992924 +0400
 @@ -1825,6 +1825,7 @@
      + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
    thd->slave_thread = 1;
@@ -1092,8 +1092,8 @@ diff -Nur a/sql/slave.cc b/sql/slave.cc
    thd->client_capabilities = CLIENT_LOCAL_FILES;
    pthread_mutex_lock(&LOCK_thread_count);
 diff -Nur a/sql/sp_head.cc b/sql/sp_head.cc
---- a/sql/sp_head.cc	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/sp_head.cc	2010-08-03 16:24:24.157805487 +0400
+--- a/sql/sp_head.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/sp_head.cc	2010-08-10 15:30:03.686993080 +0400
 @@ -1987,7 +1987,7 @@
      DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                         m_name.str));
@@ -1104,8 +1104,8 @@ diff -Nur a/sql/sp_head.cc b/sql/sp_head.cc
      DBUG_PRINT("info", ("Disabling slow log for the execution"));
      save_enable_slow_log= true;
 diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
---- a/sql/sql_cache.cc	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/sql_cache.cc	2010-08-03 16:24:24.212061279 +0400
+--- a/sql/sql_cache.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/sql_cache.cc	2010-08-10 15:30:03.686993080 +0400
 @@ -1653,6 +1653,7 @@
  
    thd->limit_found_rows = query->found_rows();
@@ -1123,8 +1123,8 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
  }
  
 diff -Nur a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/sql_class.cc	2010-08-03 16:24:24.212061279 +0400
+--- a/sql/sql_class.cc	2010-08-10 15:30:02.278241852 +0400
++++ b/sql/sql_class.cc	2010-08-10 15:30:03.686993080 +0400
 @@ -339,6 +339,37 @@
    thd->row_count++;
  }
@@ -1214,8 +1214,8 @@ diff -Nur a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
 diff -Nur a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/sql_class.h	2010-08-03 16:24:24.357792965 +0400
+--- a/sql/sql_class.h	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/sql_class.h	2010-08-10 15:30:03.727028346 +0400
 @@ -401,6 +401,18 @@
    DATE_TIME_FORMAT *datetime_format;
    DATE_TIME_FORMAT *time_format;
@@ -1278,8 +1278,8 @@ diff -Nur a/sql/sql_class.h b/sql/sql_class.h
    uint in_sub_stmt;
    /* TRUE when the current top has SQL_LOG_BIN ON */
 diff -Nur a/sql/sql_connect.cc b/sql/sql_connect.cc
---- a/sql/sql_connect.cc	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/sql_connect.cc	2010-08-03 16:24:24.419043228 +0400
+--- a/sql/sql_connect.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/sql_connect.cc	2010-08-10 15:30:03.727028346 +0400
 @@ -1130,6 +1130,15 @@
  
      prepare_new_connection_state(thd);
@@ -1297,8 +1297,8 @@ diff -Nur a/sql/sql_connect.cc b/sql/sql_connect.cc
             !(thd->killed == THD::KILL_CONNECTION))
      {
 diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-08-03 16:24:06.619042449 +0400
-+++ b/sql/sql_parse.cc	2010-08-03 16:24:24.419043228 +0400
+--- a/sql/sql_parse.cc	2010-08-10 15:30:02.288242846 +0400
++++ b/sql/sql_parse.cc	2010-08-10 15:30:03.736991906 +0400
 @@ -1679,7 +1679,10 @@
    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
    DBUG_RETURN(error);
@@ -1384,8 +1384,8 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
      Because we come here only for start of top-statements, binlog format is
      constant inside a complex statement (using stored functions) etc.
 diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2010-08-03 16:24:06.599042136 +0400
-+++ b/sql/sql_select.cc	2010-08-03 16:24:24.559240139 +0400
+--- a/sql/sql_select.cc	2010-08-10 15:30:02.268241417 +0400
++++ b/sql/sql_select.cc	2010-08-10 15:30:03.736991906 +0400
 @@ -6737,7 +6737,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
@@ -1440,18 +1440,22 @@ diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
    ha_release_temporary_latches(thd);
  
 diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-08-03 16:24:06.609042572 +0400
-+++ b/sql/sql_show.cc	2010-08-03 16:24:24.599053869 +0400
-@@ -1966,8 +1966,13 @@
+--- a/sql/sql_show.cc	2010-08-10 15:30:02.278241852 +0400
++++ b/sql/sql_show.cc	2010-08-10 15:30:03.747014411 +0400
+@@ -1966,8 +1966,17 @@
          table->field[4]->store(command_name[tmp->command].str,
                                 command_name[tmp->command].length, cs);
        /* MYSQL_TIME */
 -      table->field[5]->store((longlong)(tmp->start_time ?
 -                                      now - tmp->start_time : 0), FALSE);
-+      longlong value_in_time_column = 0;
-+      if(tmp->start_time && (now > tmp->start_time))
++      longlong value_in_time_column= 0;
++      if(tmp->start_time)
 +      {
 +        value_in_time_column = (now - tmp->start_time);
++        if(value_in_time_column > now)
++        {
++          value_in_time_column= 0;
++        }
 +      }
 +      table->field[5]->store(value_in_time_column, FALSE);
 +

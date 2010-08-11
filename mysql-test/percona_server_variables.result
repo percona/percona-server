@@ -28,6 +28,8 @@ connect_timeout	Value
 datadir	Value
 date_format	Value
 datetime_format	Value
+debug	Value
+debug_sync	Value
 default_week_format	Value
 delay_key_write	Value
 delayed_insert_limit	Value

@@ -5,19 +5,23 @@ compile:
 
 rpms: rpm_cli rpm_perl rpm_c
 
-rpm_cli: clean_cli
+rpm_dir:
+	- mkdir dist
+	- mkdir dist/BUILD dist/RPMS dist/SOURCES dist/SPECS dist/SRPMS
+
+rpm_cli: clean_cli rpm_dir
 	tar cvfz dist/libhsclient.tar.gz libhsclient
 	rpmbuild --define "_topdir `pwd`/dist" -ta \
 		dist/libhsclient.tar.gz
 
-rpm_perl: clean_perl
+rpm_perl: clean_perl rpm_dir
 	cd perl-Net-HandlerSocket && perl Makefile.PL && $(MAKE) clean && \
 		rm -f Makefile.old
 	tar cvfz dist/perl-Net-HandlerSocket.tar.gz perl-Net-HandlerSocket
 	rpmbuild --define "_topdir `pwd`/dist" -ta \
 		dist/perl-Net-HandlerSocket.tar.gz
 
-rpm_c: clean_c
+rpm_c: clean_c rpm_dir
 	tar cvfz dist/handlersocket.tar.gz handlersocket
 	rpmbuild --define "_topdir `pwd`/dist" -ta \
 		dist/handlersocket.tar.gz

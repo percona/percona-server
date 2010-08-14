@@ -1,0 +1,79 @@
+
+-----------------------------------------------------------------
+ビルド＆インストール方法(RPM)
+
+動作させるのに必要なパッケージは、libhsclient、handlersocket、
+perl-Net-HandlerSocketの3つです。mysqlサーバ側はlibhsclientと
+handlersocketを、クライアント側はlibhsclientと
+perl-Net-HandlerSocketをインストールする必要があります。
+
+mysqlサーバ側でhandlersocketプラグインをビルドするには以下が必要
+です。
+
+・mysqlインストール時に同時にインストールされるヘッダファイル
+     これはmysqlがビルドされた際のオプション等を取得するために使
+     用します。既定では/usr/include/mysql/の下にインストールされ
+     ていることを想定しています。変更するにはMakefileのMYSQL_INC
+     を書き換えてください。
+・mysqlの内部ヘッダファイル
+     handlersocketプラグインのビルド前に、mysqlの内部ヘッダファイ
+     ルをmysqlのソースコードからコピーしてくる必要があります。
+     コピーするにはhandlersocket/ディレクトリの下で./copy_hdrs.sh
+     を実行してください。たとえばバージョン5.1.45のソースコードが
+     /path/to/mysql/sourceにあるときは、
+         $ ./copy_hdrs.sh /path/to/mysql/source 5.1.45
+     のように実行します。
+
+注意: handlersocketプラグインをビルドする際には、プラグインを使用
+するmysqlと完全に一致するバージョンのソースコードを使ってください。
+少しでも違うバージョンのソースコードを使うとクラッシュなどの誤動
+作がおきることがあります。
+
+以下の順に実行すればrpmパッケージがビルド＆インストールされます。
+
+(mysqlサーバ側)
+  $ make clean
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/*.rpm
+  $ make clean
+  $ make rpm_c
+  $ sudo rpm -U dist/RPMS/*/*.rpm
+
+(クライアント側)
+  $ make clean
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/*.rpm
+  $ make clean
+  $ make rpm_perl
+  $ sudo rpm -U dist/RPMS/*/*.rpm
+
+mysqlを起動した状態で、mysqlの設定ファイル(my.cnf等)に以下の内容を
+追加します。
+
+  [mysqld]
+  handlersocket_port = 9998
+      # handlersocketが接続を受け付けるポート(参照系リクエスト用)
+  handlersocket_port_wr = 9999
+      # handlersocketが接続を受け付けるポート(更新系リクエスト用)
+  handlersocket_address =
+      # handlersocketがバインドするアドレス(空のままでOK)
+  handlersocket_verbose = 0
+      # デバッグ用
+  handlersocket_timeout = 300
+      # 通信タイムアウト(秒)
+  handlersocket_threads = 16
+      # handlersocketのワーカースレッド数
+  thread_concurrency = 128
+      # handlersocketが幾つかのスレッドを占有するため、大きめの
+      # 値を指定してください
+  open_files_limit = 65535
+      # ソケットを大量に開けるようにするため、大きめの値を指定し
+      # てください
+
+以下のクエリを実行します。
+
+  mysql> install plugin handlersocket soname 'handlersocket.so';
+  Query OK, 0 rows affected (0.06 sec)
+
+以上でhandlersocketへクライアントからアクセスできるようになります。
+

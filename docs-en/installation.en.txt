@@ -1,0 +1,70 @@
+
+-----------------------------------------------------------------
+At first, you need to install libhsclient on the server side and
+the client side. This library does not requre MySQL to compile.
+
+  $ cd libhsclient
+  $ make
+  $ sudo make install
+
+-----------------------------------------------------------------
+You need the source code of MySQL to build the handlersocket
+plugin. Note that it must be the same version of MySQL that you
+want to install handlersocket.
+
+(Note: The default Makefile assumes that MySQL is installed in
+/usr and the public header files are in /usr/include/mysql. If
+not, you need to modify the MYSQL_INC variable in the Makefile.)
+
+Before building handlersocket, run the copy_hdrs.sh script to
+copy required internal header files of MySQL.
+
+  $ cd handlersocket
+  $ ./copy_hdrs.sh /path/to/mysql/source 5.1.45
+
+Then build the source and install.
+
+  $ make
+  $ sudo make install
+
+Append configuration options for handlersocket to my.cnf.
+
+  [mysqld]
+  handlersocket_port = 9998
+    # the port number to bind to (for read requests)
+  handlersocket_port_wr = 9999
+    # the port number to bind to (for write requests)
+  handlersocket_threads = 16
+    # the number of worker threads (for read requests)
+  handlersocket_threads_wr = 1
+    # the number of worker threads (for write requests)
+  open_files_limit = 65535
+    # to allow handlersocket accept many concurrent
+    # connections, make open_files_limit as large as
+    # possible.
+
+Log in to mysql as root, and execute the following query.
+
+  mysql> install plugin handlersocket soname 'handlersocket.so';
+
+If handlersocket.so is successfully installed, it starts
+accepting connections on port 9998 and 9999. Running
+'show processlist' should show handlersocket worker threads.
+
+-----------------------------------------------------------------
+On the client side, you need to install libhsclient for c++ apps
+and perl-Net-HandlerSocket for perl apps. They do not require
+MySQL to compile.
+
+  $ cd perl-Net-HandlerSocket
+  $ perl Makefile.PL
+  $ make
+  $ sudo make install
+
+-----------------------------------------------------------------
+Alternatively, you can use the rpm installation. If your OS
+supports rpms, you can simply use the following command to build
+and install handlersocket rpm packages.
+
+  $ make installrpms
+

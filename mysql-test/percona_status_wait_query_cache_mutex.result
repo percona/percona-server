@@ -18,9 +18,9 @@ SELECT number from t where id > 0;
 SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
-2	root	localhost	test	Sleep	0		NULL
-3	root	localhost	test	Query	0	Waiting on query cache mutex	SELECT number from t where id > 0
-4	root	localhost	test	Query	0	Waiting on query cache mutex	SELECT number from t where id > 0
-5	root	localhost	test	Query	0	NULL	SHOW PROCESSLIST
+Id	root	localhost	test	Sleep	Time		NULL
+Id	root	localhost	test	Query	Time	Waiting on query cache mutex	SELECT number from t where id > 0
+Id	root	localhost	test	Sleep	Time		NULL
+Id	root	localhost	test	Query	Time	NULL	SHOW PROCESSLIST
 DROP TABLE t;
 set GLOBAL query_cache_size=0;

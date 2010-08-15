@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS t;
 -- enable_warnings
 CREATE TABLE t(id INT);
 SELECT * from t;
+
 sync_slave_with_master;
 
 connection slave;
@@ -14,7 +15,7 @@ SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
-FLUSH QUERY_RESPONSE_TIME;
+source include/percona_query_response_time_flush.inc;
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=ON;
 
 connection master;
@@ -30,7 +31,7 @@ SELECT SUM(INFORMATION_SCHEMA.QUERY_RESPONSE_TIME.count) FROM INFORMATION_SCHEMA
 
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 2;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
-FLUSH QUERY_RESPONSE_TIME;
+source include/percona_query_response_time_flush.inc;
 
 connection master;
 INSERT INTO t VALUES(0);

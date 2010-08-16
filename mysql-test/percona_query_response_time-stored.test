@@ -7,6 +7,7 @@ BEGIN
 	DECLARE first  VARCHAR(5);
 	DECLARE second VARCHAR(5);
 	DECLARE result VARCHAR(20);
+	SELECT SLEEP(1.11) INTO first;
 	SET first= 'Hello';
 	SET second=', ';
 	SET result= CONCAT(first,second);

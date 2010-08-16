@@ -4,6 +4,7 @@ BEGIN
 DECLARE first  VARCHAR(5);
 DECLARE second VARCHAR(5);
 DECLARE result VARCHAR(20);
+SELECT SLEEP(1.11) INTO first;
 SET first= 'Hello';
 SET second=', ';
 SET result= CONCAT(first,second);
@@ -96,8 +97,8 @@ SELECT c.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
 count	query_count	not_zero_region_count	region_count
-4	5	2	44
 1	5	2	44
+4	5	2	44
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 44
@@ -166,7 +167,8 @@ SELECT c.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
 count	query_count	not_zero_region_count	region_count
-2	2	1	14
+1	2	2	14
+1	2	2	14
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 14
@@ -205,7 +207,8 @@ SELECT c.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
 count	query_count	not_zero_region_count	region_count
-2	2	1	17
+1	2	2	17
+1	2	2	17
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 17
@@ -247,7 +250,8 @@ SELECT c.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
 count	query_count	not_zero_region_count	region_count
-2	2	1	7
+1	2	2	7
+1	2	2	7
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 7
@@ -279,7 +283,8 @@ SELECT c.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as c WHERE c.count > 0;
 count	query_count	not_zero_region_count	region_count
-2	2	1	6
+1	2	2	6
+1	2	2	6
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 6

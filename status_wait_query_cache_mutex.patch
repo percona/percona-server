@@ -21,7 +21,7 @@ diff -Nur a/sql/sql_cache.cc b/sql/sql_cache.cc
 +  thd_proc_info(thd,"Waiting on query cache mutex");
    pthread_mutex_lock(&structure_guard_mutex);
 +  DBUG_EXECUTE_IF("status_wait_query_cache_mutex_sleep", {
-+      sleep(1);
++      sleep(5);
 +    });
    while (1)
    {

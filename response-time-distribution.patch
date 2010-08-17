@@ -638,7 +638,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  #include "debug_sync.h"
  
  #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
-@@ -7428,6 +7429,13 @@
+@@ -7432,6 +7433,13 @@
  
  */
  
@@ -652,7 +652,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7482,6 +7490,8 @@
+@@ -7486,6 +7494,8 @@
     1, 9, 0, OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},

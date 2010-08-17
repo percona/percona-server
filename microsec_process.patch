@@ -23,7 +23,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    DBUG_ENTER("fill_process_list");
  
    user= thd->security_ctx->master_access & PROCESS_ACL ?
-@@ -2009,6 +2010,10 @@
+@@ -2013,6 +2014,10 @@
        }
        pthread_mutex_unlock(&tmp->LOCK_thd_data);
  
@@ -34,7 +34,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
        if (schema_table_store_record(thd, table))
        {
          VOID(pthread_mutex_unlock(&LOCK_thread_count));
-@@ -6656,6 +6661,8 @@
+@@ -6660,6 +6665,8 @@
    {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", SKIP_OPEN_TABLE},
    {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info",
     SKIP_OPEN_TABLE},

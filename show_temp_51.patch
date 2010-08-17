@@ -63,7 +63,7 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-08-10 15:30:20.718242870 +0400
 +++ b/sql/sql_show.cc	2010-08-10 15:30:21.816992317 +0400
-@@ -3021,6 +3021,7 @@
+@@ -3025,6 +3025,7 @@
      return 0;
    case SQLCOM_SHOW_TABLES:
    case SQLCOM_SHOW_TABLE_STATUS:
@@ -71,7 +71,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      lookup_field_values->db_value.str= lex->select_lex.db;
-@@ -3477,6 +3478,228 @@
+@@ -3481,6 +3482,228 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -300,7 +300,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
    @brief          Fill I_S table with data from FRM file only
-@@ -6556,6 +6779,25 @@
+@@ -6560,6 +6783,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -326,7 +326,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7216,6 +7458,9 @@
+@@ -7220,6 +7462,9 @@
     fill_schema_files, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -336,7 +336,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7259,6 +7504,9 @@
+@@ -7263,6 +7508,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},

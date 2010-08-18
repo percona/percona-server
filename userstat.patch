@@ -2441,7 +2441,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
               sctx->priv_user, sctx->host_or_ip, dbname);
      general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-@@ -2371,6 +2406,279 @@
+@@ -2375,6 +2410,279 @@
    DBUG_RETURN(res);
  }
  
@@ -2721,7 +2721,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  
  /* collect status for all running threads */
  
-@@ -6649,6 +6957,104 @@
+@@ -6653,6 +6961,104 @@
  };
  
  
@@ -2826,7 +2826,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  ST_FIELD_INFO processlist_fields_info[]=
  {
    {"ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Id", SKIP_OPEN_TABLE},
-@@ -6784,6 +7190,8 @@
+@@ -6788,6 +7194,8 @@
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
     fill_schema_charsets, make_character_sets_old_format, 0, -1, -1, 0, 0},
@@ -2835,7 +2835,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    {"COLLATIONS", collation_fields_info, create_schema_table, 
     fill_schema_collation, make_old_format, 0, -1, -1, 0, 0},
    {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
-@@ -6793,6 +7201,8 @@
+@@ -6797,6 +7205,8 @@
     OPTIMIZE_I_S_TABLE|OPEN_VIEW_FULL},
    {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
     fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
@@ -2844,7 +2844,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    {"ENGINES", engines_fields_info, create_schema_table,
     fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
  #ifdef HAVE_EVENT_SCHEDULER
-@@ -6849,11 +7259,17 @@
+@@ -6853,11 +7263,17 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},

@@ -1,3 +1,10 @@
+# name       : mysql_dump_ignore_ct.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2010-04-06 23:03:48.000000000 +0900
 +++ b/client/client_priv.h	2010-04-30 19:37:42.000000000 +0900

@@ -1,3 +1,10 @@
+# name       : userstat.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/aclocal.m4 b/aclocal.m4
 --- a/aclocal.m4	2010-08-10 15:30:08.308258244 +0400
 +++ b/aclocal.m4	2010-08-10 15:30:09.697005249 +0400

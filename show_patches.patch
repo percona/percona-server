@@ -1,3 +1,10 @@
+# name       : show_patches.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/patch_info/show_patches.info b/patch_info/show_patches.info
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/show_patches.info	2010-04-28 15:29:36.000000000 +0900

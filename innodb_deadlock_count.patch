@@ -1,3 +1,10 @@
+# name       : innodb_deadlock_count.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:32:14.468241191 +0400
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:32:14.926992081 +0400

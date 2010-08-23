@@ -1,3 +1,10 @@
+# name       : innodb_expand_import.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-29 15:44:28.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 10:43:13.000000000 +0900

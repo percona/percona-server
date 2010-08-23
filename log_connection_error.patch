@@ -1,3 +1,10 @@
+# name       : log_connection_error.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/mysql-test/r/connect.result b/mysql-test/r/connect.result
 --- a/mysql-test/r/connect.result	2010-07-28 16:47:46.895318726 +0400
 +++ b/mysql-test/r/connect.result	2010-07-28 16:47:48.234134231 +0400

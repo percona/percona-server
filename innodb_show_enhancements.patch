@@ -1,3 +1,10 @@
+# name       : innodb_show_enhancements.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/storage/innodb_plugin/Makefile.am b/storage/innodb_plugin/Makefile.am
 --- a/storage/innodb_plugin/Makefile.am	2010-04-06 23:07:11.000000000 +0900
 +++ b/storage/innodb_plugin/Makefile.am	2010-04-29 15:22:39.000000000 +0900

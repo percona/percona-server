@@ -1,3 +1,10 @@
+# name       : bugfix48929.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/configure.in b/configure.in
 --- a/configure.in	2010-07-07 03:33:05.008972002 +0400
 +++ b/configure.in	2010-07-07 03:33:05.788972002 +0400

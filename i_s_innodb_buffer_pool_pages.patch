@@ -1,3 +1,10 @@
+# name       : i_s_innodb_buffer_pool_pages.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 15:57:23.322321253 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 16:04:45.521321527 +0900

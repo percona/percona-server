@@ -1,3 +1,10 @@
+# name       : control_online_alter_index.patch
+# introduced : 12
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-07-21 22:49:53.660561079 +0900
 +++ b/sql/handler.h	2010-07-21 22:50:24.106530090 +0900

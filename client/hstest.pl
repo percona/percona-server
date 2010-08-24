@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 use DBI;
-use DB::HandlerSocket;
+use Net::HandlerSocket;
 
 my %conf = ();
 for my $i (@ARGV) {
@@ -37,7 +37,7 @@ my $dsn = "DBI:mysql:database=;host=$host;port=$mysqlport"
 	. ";mysql_server_prepare=$ssps";
 my $dbh = DBI->connect($dsn, $mysqluser, $mysqlpass, { RaiseError => 1 });
 my $hsargs = { 'host' => $host, 'port' => $hsport };
-my $cli = new DB::HandlerSocket($hsargs);
+my $cli = new Net::HandlerSocket($hsargs);
 
 my @actions = split(/,/, $actions_str);
 for my $action (@actions) {

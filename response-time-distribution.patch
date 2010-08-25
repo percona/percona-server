@@ -1,3 +1,10 @@
+# name       : response-time-distribution.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/include/mysql_com.h b/include/mysql_com.h
 --- a/include/mysql_com.h	2010-08-10 15:32:19.546992007 +0400
 +++ b/include/mysql_com.h	2010-08-10 15:32:20.088242513 +0400

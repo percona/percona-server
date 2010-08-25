@@ -1,3 +1,10 @@
+# name       : innodb_recovery_patches.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
 --- a/storage/innodb_plugin/buf/buf0rea.c	2010-04-29 18:58:20.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0rea.c	2010-04-30 13:53:47.000000000 +0900

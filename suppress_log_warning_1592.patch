@@ -1,3 +1,10 @@
+# name       : suppress_log_warning_1592.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-26 18:31:59.056061915 +0900
 +++ b/sql/mysql_priv.h	2010-07-26 18:34:10.205015964 +0900

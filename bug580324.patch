@@ -1,3 +1,10 @@
+# name       : bug580324.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
 --- a/sql/sql_base.cc	2010-05-27 19:54:18.000000000 +0400
 +++ b/sql/sql_base.cc	2010-05-27 19:55:20.000000000 +0400

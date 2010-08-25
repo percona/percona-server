@@ -1,3 +1,10 @@
+# name       : percona-support.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/scripts/mysql_install_db.sh b/scripts/mysql_install_db.sh
 --- a/scripts/mysql_install_db.sh       2009-08-08 09:20:07.000000000 +0000
 +++ b/scripts/mysql_install_db.sh       2009-08-08 09:29:23.000000000 +0000

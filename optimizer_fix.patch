@@ -1,3 +1,10 @@
+# name       : optimizer_fix.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/patch_info/optimizer_fix.info b/patch_info/optimizer_fix.info
 --- a/patch_info/optimizer_fix.info	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/optimizer_fix.info	2010-07-26 18:29:35.685061376 +0900

@@ -1,3 +1,10 @@
+# name       : innodb_show_sys_tables.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:59.488242902 +0400
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:59.946993512 +0400

@@ -1,3 +1,10 @@
+# name       : status_wait_query_cache_mutex.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/patch_info/status_wait_query_cache_mutex.info b/patch_info/status_wait_query_cache_mutex.info
 --- a/patch_info/status_wait_query_cache_mutex.info	1970-01-01 03:00:00.000000000 +0300
 +++ b/patch_info/status_wait_query_cache_mutex.info	2010-07-21 01:42:09.650424002 +0400

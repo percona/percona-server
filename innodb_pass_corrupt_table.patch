@@ -1,3 +1,10 @@
+# name       : innodb_pass_corrupt_table.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0btr.c
 --- a/storage/innodb_plugin/btr/btr0btr.c	2010-08-10 15:31:45.166991929 +0400
 +++ b/storage/innodb_plugin/btr/btr0btr.c	2010-08-10 15:31:45.626991583 +0400

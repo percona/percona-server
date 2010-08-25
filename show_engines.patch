@@ -1,3 +1,10 @@
+# name       : show_engines.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-07-29 17:33:38.624027192 +0400
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-07-29 17:47:18.182779090 +0400

@@ -1,3 +1,10 @@
+# name       : sql_no_fcache.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/client/mysqldump.c b/client/mysqldump.c
 --- a/client/mysqldump.c	2010-07-28 16:47:58.264067653 +0400
 +++ b/client/mysqldump.c	2010-07-28 16:47:59.604985656 +0400

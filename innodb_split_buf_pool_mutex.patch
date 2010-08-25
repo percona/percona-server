@@ -1,3 +1,10 @@
+# name       : innodb_split_buf_pool_mutex.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0cur.c
 --- a/storage/innodb_plugin/btr/btr0cur.c	2010-08-10 15:31:06.898242887 +0400
 +++ b/storage/innodb_plugin/btr/btr0cur.c	2010-08-10 15:31:07.358242821 +0400

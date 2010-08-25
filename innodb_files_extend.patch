@@ -1,3 +1,10 @@
+# name       : innodb_files_extend.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -Nur a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/buf0buddy.c
 --- a/storage/innodb_plugin/buf/buf0buddy.c	2010-08-10 15:31:56.568242479 +0400
 +++ b/storage/innodb_plugin/buf/buf0buddy.c	2010-08-10 15:31:57.016993492 +0400

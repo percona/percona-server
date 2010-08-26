@@ -51,3 +51,4 @@ remove_fcntl_excessive_calls.patch
 show_engines.patch
 error_pad.patch
 query_cache_totally_disable.patch
+mysql-syslog.patch

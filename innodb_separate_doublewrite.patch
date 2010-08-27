@@ -5,9 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
---- a/storage/innodb_plugin/buf/buf0buf.c	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/buf/buf0buf.c	2010-08-10 15:31:42.668241809 +0400
+diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
+--- a/storage/innodb_plugin/buf/buf0buf.c	2010-08-27 16:32:40.292412102 +0900
++++ b/storage/innodb_plugin/buf/buf0buf.c	2010-08-27 16:37:55.358105738 +0900
 @@ -3388,7 +3388,8 @@
  		read_space_id = mach_read_from_4(
  			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
@@ -18,9 +18,9 @@ diff -Nur a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		    && trx_doublewrite_page_inside(bpage->offset)) {
  
  			ut_print_timestamp(stderr);
-diff -Nur a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
---- a/storage/innodb_plugin/buf/buf0flu.c	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/buf/buf0flu.c	2010-08-10 15:31:43.127157246 +0400
+diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
+--- a/storage/innodb_plugin/buf/buf0flu.c	2010-08-27 16:13:11.065058523 +0900
++++ b/storage/innodb_plugin/buf/buf0flu.c	2010-08-27 16:37:55.359251796 +0900
 @@ -688,7 +688,8 @@
  	write_buf = trx_doublewrite->write_buf;
  	i = 0;
@@ -50,9 +50,9 @@ diff -Nur a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	/* We know that the writes have been flushed to disk now
  	and in recovery we will find them in the doublewrite buffer
-diff -Nur a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
---- a/storage/innodb_plugin/buf/buf0rea.c	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/buf/buf0rea.c	2010-08-10 15:31:43.887128342 +0400
+diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
+--- a/storage/innodb_plugin/buf/buf0rea.c	2010-08-27 16:36:03.492105076 +0900
++++ b/storage/innodb_plugin/buf/buf0rea.c	2010-08-27 16:37:55.361249702 +0900
 @@ -86,7 +86,9 @@
  	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
  	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
@@ -64,9 +64,9 @@ diff -Nur a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
  	    && (   (offset >= trx_doublewrite->block1
  		    && offset < trx_doublewrite->block1
  		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-diff -Nur a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
---- a/storage/innodb_plugin/dict/dict0load.c	2010-08-10 15:31:42.198242278 +0400
-+++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-10 15:31:43.887128342 +0400
+diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
+--- a/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:22:04.223059346 +0900
++++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:37:55.363104692 +0900
 @@ -395,7 +395,7 @@
  
  		mtr_commit(&mtr);
@@ -94,9 +94,9 @@ diff -Nur a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  		/* The system tablespace is always available. */
  	} else if (!fil_space_for_table_exists_in_mem(
  			   space, name,
-diff -Nur a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-10 15:31:42.198242278 +0400
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-10 15:31:43.887128342 +0400
+diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
+--- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:36:03.494411641 +0900
++++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:37:55.367990277 +0900
 @@ -679,14 +679,14 @@
  		size_bytes = (((ib_int64_t)size_high) << 32)
  			+ (ib_int64_t)size_low;
@@ -222,9 +222,9 @@ diff -Nur a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  		fil_node = UT_LIST_GET_NEXT(LRU, fil_node);
  	}
-diff -Nur a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0fsp.c
---- a/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-10 15:31:42.198242278 +0400
-+++ b/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-10 15:31:43.897004461 +0400
+diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0fsp.c
+--- a/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-04 02:24:19.000000000 +0900
++++ b/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-27 16:37:55.372989956 +0900
 @@ -48,7 +48,7 @@
  # include "log0log.h"
  #endif /* UNIV_HOTBACKUP */
@@ -247,9 +247,9 @@ diff -Nur a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
  			   dict_ind_redundant, mtr);
  	} else {
  		fsp_fill_free_list(TRUE, space, header, mtr);
-diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:42.198242278 +0400
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:43.897004461 +0400
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:32:40.307988438 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:37:55.381993155 +0900
 @@ -166,6 +166,7 @@
  static char*	innobase_log_group_home_dir		= NULL;
  static char*	innobase_file_format_name		= NULL;
@@ -267,7 +267,7 @@ diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
-@@ -11287,6 +11290,11 @@
+@@ -11288,6 +11291,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -279,7 +279,7 @@ diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11438,6 +11446,7 @@
+@@ -11439,6 +11447,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -287,9 +287,9 @@ diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
    MYSQL_SYSVAR(extra_undoslots),
-diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:42.198242278 +0400
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:43.897004461 +0400
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:36:03.497990333 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:37:55.401058721 +0900
 @@ -42,5 +42,6 @@
  {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -297,9 +297,9 @@ diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -Nur a/storage/innodb_plugin/include/mtr0log.ic b/storage/innodb_plugin/include/mtr0log.ic
---- a/storage/innodb_plugin/include/mtr0log.ic	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/include/mtr0log.ic	2010-08-10 15:31:43.897004461 +0400
+diff -ruN a/storage/innodb_plugin/include/mtr0log.ic b/storage/innodb_plugin/include/mtr0log.ic
+--- a/storage/innodb_plugin/include/mtr0log.ic	2010-08-04 02:24:19.000000000 +0900
++++ b/storage/innodb_plugin/include/mtr0log.ic	2010-08-27 16:37:55.401990156 +0900
 @@ -27,8 +27,8 @@
  #include "ut0lst.h"
  #include "buf0buf.h"
@@ -320,9 +320,9 @@ diff -Nur a/storage/innodb_plugin/include/mtr0log.ic b/storage/innodb_plugin/inc
  	    && offset >= FSP_EXTENT_SIZE && offset < 3 * FSP_EXTENT_SIZE) {
  		if (trx_doublewrite_buf_is_being_created) {
  			/* Do nothing: we only come to this branch in an
-diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:31:43.897004461 +0400
+diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:32:40.319059202 +0900
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:37:55.403989968 +0900
 @@ -115,6 +115,8 @@
  extern ulint*	srv_data_file_sizes;
  extern ulint*	srv_data_file_is_raw_partition;
@@ -332,9 +332,9 @@ diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ibool	srv_extra_undoslots;
  
  extern ibool	srv_recovery_stats;
-diff -Nur a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/include/trx0sys.h
---- a/storage/innodb_plugin/include/trx0sys.h	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/include/trx0sys.h	2010-08-10 15:31:43.897004461 +0400
+diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/include/trx0sys.h
+--- a/storage/innodb_plugin/include/trx0sys.h	2010-08-27 16:08:45.299059235 +0900
++++ b/storage/innodb_plugin/include/trx0sys.h	2010-08-27 16:37:55.404990159 +0900
 @@ -124,6 +124,22 @@
  /*=============*/
  	ulint	space,	/*!< in: space */
@@ -381,9 +381,9 @@ diff -Nur a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
  #include "fsp0fsp.h"
  #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
  
-diff -Nur a/storage/innodb_plugin/include/trx0sys.ic b/storage/innodb_plugin/include/trx0sys.ic
---- a/storage/innodb_plugin/include/trx0sys.ic	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/include/trx0sys.ic	2010-08-10 15:31:43.897004461 +0400
+diff -ruN a/storage/innodb_plugin/include/trx0sys.ic b/storage/innodb_plugin/include/trx0sys.ic
+--- a/storage/innodb_plugin/include/trx0sys.ic	2010-08-04 02:24:19.000000000 +0900
++++ b/storage/innodb_plugin/include/trx0sys.ic	2010-08-27 16:37:55.407990247 +0900
 @@ -71,6 +71,40 @@
  }
  
@@ -425,9 +425,9 @@ diff -Nur a/storage/innodb_plugin/include/trx0sys.ic b/storage/innodb_plugin/inc
  Gets the pointer in the nth slot of the rseg array.
  @return	pointer to rseg object, NULL if slot not in use */
  UNIV_INLINE
-diff -Nur a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
---- a/storage/innodb_plugin/row/row0mysql.c	2010-08-10 15:31:42.198242278 +0400
-+++ b/storage/innodb_plugin/row/row0mysql.c	2010-08-10 15:31:43.908253939 +0400
+diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
+--- a/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:22:04.287058274 +0900
++++ b/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:37:55.410993060 +0900
 @@ -3311,7 +3311,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
@@ -437,9 +437,9 @@ diff -Nur a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  			if (!fil_space_for_table_exists_in_mem(space_id,
  							       name_or_path,
  							       is_temp, FALSE,
-diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:31:43.908253939 +0400
+diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:32:40.334058105 +0900
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:37:55.414990255 +0900
 @@ -145,6 +145,8 @@
  /* size in database pages */
  UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
@@ -449,9 +449,9 @@ diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
  
  UNIV_INTERN ibool	srv_recovery_stats = FALSE;
-diff -Nur a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
---- a/storage/innodb_plugin/srv/srv0start.c	2010-08-10 15:31:42.208242155 +0400
-+++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-10 15:31:43.908253939 +0400
+diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
+--- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:27:30.236020955 +0900
++++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:37:55.418990221 +0900
 @@ -711,6 +711,7 @@
  /*======================*/
  	ibool*		create_new_db,	/*!< out: TRUE if new database should be
@@ -642,9 +642,9 @@ diff -Nur a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  	if (create_new_db) {
  		mtr_start(&mtr);
  		fsp_header_init(0, sum_of_new_sizes, &mtr);
-diff -Nur a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0sys.c
---- a/storage/innodb_plugin/trx/trx0sys.c	2010-08-10 15:31:42.198242278 +0400
-+++ b/storage/innodb_plugin/trx/trx0sys.c	2010-08-10 15:31:43.908253939 +0400
+diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0sys.c
+--- a/storage/innodb_plugin/trx/trx0sys.c	2010-08-27 16:23:31.045058700 +0900
++++ b/storage/innodb_plugin/trx/trx0sys.c	2010-08-27 16:37:55.421992951 +0900
 @@ -402,6 +402,149 @@
  
  		goto start_again;

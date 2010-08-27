@@ -5,10 +5,10 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:25.846993624 +0400
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:26.436996428 +0400
-@@ -11488,6 +11488,7 @@
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:27:30.222410116 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:27:44.073104773 +0900
+@@ -11489,6 +11489,7 @@
  i_s_innodb_cmpmem_reset,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
@@ -16,19 +16,9 @@ diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  i_s_innodb_patches
  mysql_declare_plugin_end;
  
-diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:25.846993624 +0400
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:26.857031214 +0400
-@@ -38,5 +38,6 @@
- {"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
-diff -Nur a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
---- a/storage/innodb_plugin/handler/i_s.cc	2010-08-10 15:31:25.846993624 +0400
-+++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-10 15:31:26.446993233 +0400
+diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
+--- a/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:22:04.261021936 +0900
++++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:27:44.077058655 +0900
 @@ -2947,3 +2947,139 @@
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
@@ -169,9 +159,9 @@ diff -Nur a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	STRUCT_FLD(system_vars, NULL),
 +	STRUCT_FLD(__reserved1, NULL)
 +};
-diff -Nur a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
---- a/storage/innodb_plugin/handler/i_s.h	2010-08-10 15:31:25.846993624 +0400
-+++ b/storage/innodb_plugin/handler/i_s.h	2010-08-10 15:31:26.716992152 +0400
+diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
+--- a/storage/innodb_plugin/handler/i_s.h	2010-08-27 16:22:04.261987654 +0900
++++ b/storage/innodb_plugin/handler/i_s.h	2010-08-27 16:27:44.079059299 +0900
 @@ -40,5 +40,6 @@
  extern struct st_mysql_plugin	i_s_innodb_rseg;
  extern struct st_mysql_plugin	i_s_innodb_table_stats;
@@ -179,3 +169,13 @@ diff -Nur a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/
 +extern struct st_mysql_plugin	i_s_innodb_admin_command;
  
  #endif /* i_s_h */
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:27:30.223001821 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:27:44.074104321 +0900
+@@ -38,5 +38,6 @@
+ {"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };

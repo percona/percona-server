@@ -6,7 +6,7 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/patch_info/optimizer_fix.info b/patch_info/optimizer_fix.info
---- a/patch_info/optimizer_fix.info	1970-01-01 09:00:00.000000000 +0900
+--- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/optimizer_fix.info	2010-07-26 18:29:35.685061376 +0900
 @@ -0,0 +1,8 @@
 +File=optimizer_fix.patch
@@ -148,7 +148,7 @@ diff -ruN a/sql/opt_range.cc b/sql/opt_range.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-26 18:29:12.250113584 +0900
 +++ b/sql/set_var.cc	2010-07-26 18:29:35.724113196 +0900
-@@ -559,6 +559,8 @@
+@@ -558,6 +558,8 @@
  						     &opt_userstat_running);
  static sys_var_bool_ptr		sys_thread_statistics(&vars, "thread_statistics",
  						      &opt_thread_statistics);

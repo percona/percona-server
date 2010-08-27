@@ -5,10 +5,10 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:23.406993164 +0400
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-10 15:31:23.936991959 +0400
-@@ -10940,6 +10940,11 @@
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:23:31.022060427 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:25:49.004020662 +0900
+@@ -10941,6 +10941,11 @@
    "Output statistics of recovery process after it.",
    NULL, NULL, FALSE);
  
@@ -20,7 +20,7 @@ diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11451,6 +11456,7 @@
+@@ -11452,6 +11457,7 @@
    MYSQL_SYSVAR(change_buffering),
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -28,9 +28,9 @@ diff -Nur a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    NULL
  };
  
-diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:23.406993164 +0400
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:23.936991959 +0400
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:23:31.027058629 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:25:49.004020662 +0900
 @@ -37,5 +37,6 @@
  {"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -38,9 +38,9 @@ diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:31:23.406993164 +0400
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-10 15:31:24.138242178 +0400
+diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:23:31.030059162 +0900
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:25:49.005987844 +0900
 @@ -116,6 +116,8 @@
  
  extern ibool	srv_recovery_stats;
@@ -81,9 +81,9 @@ diff -Nur a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  /*******************************************************************//**
  Tells the Innobase server that there has been activity in the database
  and wakes up the master thread if it is suspended (not sleeping). Used
-diff -Nur a/storage/innodb_plugin/include/trx0purge.h b/storage/innodb_plugin/include/trx0purge.h
---- a/storage/innodb_plugin/include/trx0purge.h	2010-08-10 15:31:23.416995556 +0400
-+++ b/storage/innodb_plugin/include/trx0purge.h	2010-08-10 15:31:24.476994541 +0400
+diff -ruN a/storage/innodb_plugin/include/trx0purge.h b/storage/innodb_plugin/include/trx0purge.h
+--- a/storage/innodb_plugin/include/trx0purge.h	2010-08-04 02:24:19.000000000 +0900
++++ b/storage/innodb_plugin/include/trx0purge.h	2010-08-27 16:25:49.006988119 +0900
 @@ -114,6 +114,25 @@
  ulint
  trx_purge(void);
@@ -122,9 +122,9 @@ diff -Nur a/storage/innodb_plugin/include/trx0purge.h b/storage/innodb_plugin/in
  	rw_lock_t	latch;		/*!< The latch protecting the purge view.
  					A purge operation must acquire an
  					x-latch here for the instant at which
-diff -Nur a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
---- a/storage/innodb_plugin/log/log0log.c	2010-08-10 15:31:23.406993164 +0400
-+++ b/storage/innodb_plugin/log/log0log.c	2010-08-10 15:31:24.476994541 +0400
+diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
+--- a/storage/innodb_plugin/log/log0log.c	2010-08-27 15:54:18.086987682 +0900
++++ b/storage/innodb_plugin/log/log0log.c	2010-08-27 16:25:49.010020843 +0900
 @@ -3150,6 +3150,16 @@
  		goto loop;
  	}
@@ -142,9 +142,9 @@ diff -Nur a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0
  	mutex_exit(&kernel_mutex);
  
  	mutex_enter(&(log_sys->mutex));
-diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:31:23.416995556 +0400
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-10 15:31:24.486991905 +0400
+diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:23:31.042058997 +0900
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:25:49.014058600 +0900
 @@ -146,6 +146,8 @@
  
  UNIV_INTERN ibool	srv_recovery_stats = FALSE;
@@ -342,9 +342,9 @@ diff -Nur a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +
 +	OS_THREAD_DUMMY_RETURN;
 +}
-diff -Nur a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
---- a/storage/innodb_plugin/srv/srv0start.c	2010-08-10 15:31:23.416995556 +0400
-+++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-10 15:31:24.486991905 +0400
+diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
+--- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 15:59:21.760987922 +0900
++++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:25:49.017058492 +0900
 @@ -126,9 +126,9 @@
  static ulint		ios;
  
@@ -378,9 +378,9 @@ diff -Nur a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  #ifdef UNIV_DEBUG
  	/* buf_debug_prints = TRUE; */
  #endif /* UNIV_DEBUG */
-diff -Nur a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/trx0purge.c
---- a/storage/innodb_plugin/trx/trx0purge.c	2010-08-10 15:31:23.406993164 +0400
-+++ b/storage/innodb_plugin/trx/trx0purge.c	2010-08-10 15:31:24.486991905 +0400
+diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/trx0purge.c
+--- a/storage/innodb_plugin/trx/trx0purge.c	2010-08-04 02:24:20.000000000 +0900
++++ b/storage/innodb_plugin/trx/trx0purge.c	2010-08-27 16:25:49.020058576 +0900
 @@ -184,8 +184,9 @@
  @return	own: the query graph */
  static

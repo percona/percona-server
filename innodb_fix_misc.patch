@@ -5,12 +5,86 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
+#
+# comment: http://lists.mysql.com/commits/112400 is applied also for innodb_plugin
+#          to pass innodb_bug53756.test by innodb_plugin
+diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
+--- a/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:38:38.230059368 +0900
++++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:59:15.262021286 +0900
+@@ -1072,6 +1072,8 @@
+ 
+ 	ut_ad(mutex_own(&(dict_sys->mutex)));
+ 
++	table = NULL;
++
+ 	/* NOTE that the operation of this function is protected by
+ 	the dictionary mutex, and therefore no deadlocks can occur
+ 	with other dictionary operations. */
+@@ -1098,15 +1100,17 @@
+ 				  BTR_SEARCH_LEAF, &pcur, &mtr);
+ 	rec = btr_pcur_get_rec(&pcur);
+ 
+-	if (!btr_pcur_is_on_user_rec(&pcur)
+-	    || rec_get_deleted_flag(rec, 0)) {
++	if (!btr_pcur_is_on_user_rec(&pcur)) {
+ 		/* Not found */
++		goto func_exit;
++	}
+ 
+-		btr_pcur_close(&pcur);
+-		mtr_commit(&mtr);
+-		mem_heap_free(heap);
+-
+-		return(NULL);
++	/* Find the first record that is not delete marked */
++	while (rec_get_deleted_flag(rec, 0)) {
++		if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
++			goto func_exit;
++		}
++		rec = btr_pcur_get_rec(&pcur);
+ 	}
+ 
+ 	/*---------------------------------------------------*/
+@@ -1119,19 +1123,14 @@
+ 
+ 	/* Check if the table id in record is the one searched for */
+ 	if (ut_dulint_cmp(table_id, mach_read_from_8(field)) != 0) {
+-
+-		btr_pcur_close(&pcur);
+-		mtr_commit(&mtr);
+-		mem_heap_free(heap);
+-
+-		return(NULL);
++		goto func_exit;
+ 	}
+ 
+ 	/* Now we get the table name from the record */
+ 	field = rec_get_nth_field_old(rec, 1, &len);
+ 	/* Load the table definition to memory */
+ 	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len));
+-
++func_exit:
+ 	btr_pcur_close(&pcur);
+ 	mtr_commit(&mtr);
+ 	mem_heap_free(heap);
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
+@@ -11685,7 +11685,7 @@
+   &innobase_storage_engine,
+   innobase_hton_name,
+   "Innobase Oy",
+-  "Supports transactions, row-level locking, and foreign keys",
++  "Percona-XtraDB, Supports transactions, row-level locking, and foreign keys",
+   PLUGIN_LICENSE_GPL,
+   innobase_init, /* Plugin Init */
+   NULL, /* Plugin Deinit */
 diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include/univ.i
 --- a/storage/innodb_plugin/include/univ.i	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	0
- #define INNODB_VERSION_BUGFIX	10
+ #define INNODB_VERSION_BUGFIX	11
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.0
@@ -59,7 +133,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0sel.c
 --- a/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:04.204866103 +0900
 +++ b/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:53.998864025 +0900
-@@ -3321,6 +3321,7 @@
+@@ -3357,6 +3357,7 @@
  	mem_heap_t*	heap				= NULL;
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
@@ -67,7 +141,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
  
  	rec_offs_init(offsets_);
  
-@@ -3748,6 +3749,15 @@
+@@ -3794,6 +3795,15 @@
  		}
  	}
  
@@ -83,7 +157,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3758,6 +3768,14 @@
+@@ -3804,6 +3814,14 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -101,7 +175,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900
-@@ -1968,7 +1968,7 @@
+@@ -1966,7 +1966,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

@@ -49,7 +49,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-26 18:31:59.093062279 +0900
 +++ b/sql/set_var.cc	2010-07-26 18:34:10.210061358 +0900
-@@ -561,6 +561,8 @@
+@@ -560,6 +560,8 @@
  						      &opt_thread_statistics);
  static sys_var_bool_ptr		sys_optimizer_fix(&vars, "optimizer_fix",
  						  &opt_optimizer_fix);
@@ -61,7 +61,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-07-26 18:29:12.285116210 +0900
 +++ b/sql/sql_class.cc	2010-07-26 18:34:10.214061153 +0900
-@@ -4087,6 +4087,7 @@
+@@ -4117,6 +4117,7 @@
                   ER_BINLOG_UNSAFE_STATEMENT,
                   ER(ER_BINLOG_UNSAFE_STATEMENT));
      if (global_system_variables.log_warnings &&

@@ -5,9 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
---- a/storage/innodb_plugin/buf/buf0lru.c	2010-08-10 15:31:39.858241983 +0400
-+++ b/storage/innodb_plugin/buf/buf0lru.c	2010-08-10 15:31:40.338242509 +0400
+diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
+--- a/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:13:11.070058073 +0900
++++ b/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:34:33.860400549 +0900
 @@ -2122,6 +2122,218 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
@@ -227,9 +227,9 @@ diff -Nur a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /**********************************************************************//**
  Validates the LRU list.
-diff -Nur a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
---- a/storage/innodb_plugin/buf/buf0rea.c	2010-08-10 15:31:39.858241983 +0400
-+++ b/storage/innodb_plugin/buf/buf0rea.c	2010-08-10 15:31:40.338242509 +0400
+diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
+--- a/storage/innodb_plugin/buf/buf0rea.c	2010-08-27 16:32:40.293411717 +0900
++++ b/storage/innodb_plugin/buf/buf0rea.c	2010-08-27 16:34:33.863409016 +0900
 @@ -56,7 +56,7 @@
  which case it is never read into the pool, or if the tablespace does
  not exist or is being dropped 
@@ -239,9 +239,9 @@ diff -Nur a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
  ulint
  buf_read_page_low(
  /*==============*/
-diff -Nur a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-10 15:31:39.848242665 +0400
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-10 15:31:40.897004740 +0400
+diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
+--- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:32:40.298411400 +0900
++++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:34:33.868058362 +0900
 @@ -4735,6 +4735,78 @@
  	return(DB_SUCCESS);
  }
@@ -321,19 +321,9 @@ diff -Nur a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #ifndef UNIV_HOTBACKUP
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
-diff -Nur a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:39.848242665 +0400
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-10 15:31:40.907001824 +0400
-@@ -41,5 +41,6 @@
- {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
-diff -Nur a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
---- a/storage/innodb_plugin/handler/i_s.cc	2010-08-10 15:31:39.848242665 +0400
-+++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-10 15:31:40.907001824 +0400
+diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
+--- a/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:29:12.540979608 +0900
++++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:34:33.873058189 +0900
 @@ -46,6 +46,7 @@
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
@@ -379,9 +369,19 @@ diff -Nur a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  
  	field_store_string(i_s_table->field[0],
  		"Undefined XTRA_* command.");
-diff -Nur a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/include/buf0lru.h
---- a/storage/innodb_plugin/include/buf0lru.h	2010-08-10 15:31:39.848242665 +0400
-+++ b/storage/innodb_plugin/include/buf0lru.h	2010-08-10 15:31:40.907001824 +0400
+diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:32:40.313021803 +0900
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:34:33.871059345 +0900
+@@ -41,5 +41,6 @@
+ {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
++{"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+ };
+diff -ruN a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/include/buf0lru.h
+--- a/storage/innodb_plugin/include/buf0lru.h	2010-08-27 16:13:11.085978393 +0900
++++ b/storage/innodb_plugin/include/buf0lru.h	2010-08-27 16:34:33.875100517 +0900
 @@ -213,6 +213,18 @@
  void
  buf_LRU_stat_update(void);
@@ -401,9 +401,9 @@ diff -Nur a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/incl
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /**********************************************************************//**
-diff -Nur a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/include/buf0rea.h
---- a/storage/innodb_plugin/include/buf0rea.h	2010-08-10 15:31:39.848242665 +0400
-+++ b/storage/innodb_plugin/include/buf0rea.h	2010-08-10 15:31:40.907001824 +0400
+diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/include/buf0rea.h
+--- a/storage/innodb_plugin/include/buf0rea.h	2010-08-27 16:32:40.314021595 +0900
++++ b/storage/innodb_plugin/include/buf0rea.h	2010-08-27 16:34:33.877059445 +0900
 @@ -31,6 +31,37 @@
  #include "buf0types.h"
  
@@ -442,9 +442,9 @@ diff -Nur a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/incl
  High-level function which reads a page asynchronously from a file to the
  buffer buf_pool if it is not already there. Sets the io_fix flag and sets
  an exclusive lock on the buffer frame. The flag is cleared and the x-lock
-diff -Nur a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
---- a/storage/innodb_plugin/include/fil0fil.h	2010-08-10 15:31:39.848242665 +0400
-+++ b/storage/innodb_plugin/include/fil0fil.h	2010-08-10 15:31:40.907001824 +0400
+diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
+--- a/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:32:40.315012507 +0900
++++ b/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:34:33.878063455 +0900
 @@ -643,6 +643,22 @@
  	void*	message,	/*!< in: message for aio handler if non-sync
  				aio used, else ignored */

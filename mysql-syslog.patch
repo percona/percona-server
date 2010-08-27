@@ -122,3 +122,4 @@ diff -Nur a/client/mysql.cc b/client/mysql.cc
 +#endif
  
    buffer->length(0);
+ 

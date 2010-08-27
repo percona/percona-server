@@ -6,7 +6,7 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
---- a/patch_info/profiling_slow.info	1970-01-01 03:00:00.000000000 +0300
+--- /dev/null	1970-01-01 03:00:00.000000000 +0300
 +++ b/patch_info/profiling_slow.info	2010-07-07 03:32:18.108972002 +0400
 @@ -0,0 +1,9 @@
 +File=profiling_slow.info
@@ -21,7 +21,7 @@ diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
 diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-07-07 03:32:17.588972002 +0400
 +++ b/sql/log.cc	2010-07-07 03:32:18.108972002 +0400
-@@ -2416,6 +2416,11 @@
+@@ -2429,6 +2429,11 @@
            my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
          tmp_errno=errno;
      }
@@ -65,7 +65,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-07 03:32:17.588972002 +0400
 +++ b/sql/set_var.cc	2010-07-07 03:32:18.118972002 +0400
-@@ -846,6 +846,10 @@
+@@ -845,6 +845,10 @@
                                        ulonglong(OPTION_PROFILING));
  static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
  					      &SV::profiling_history_size);
@@ -79,7 +79,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-07-07 03:32:17.588972002 +0400
 +++ b/sql/sql_class.h	2010-07-07 03:32:18.118972002 +0400
-@@ -327,6 +327,8 @@
+@@ -328,6 +328,8 @@
    ulong optimizer_switch;
    ulong preload_buff_size;
    ulong profiling_history_size;

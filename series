@@ -8,7 +8,6 @@ optimizer_fix.patch
 mysql_dump_ignore_ct.patch
 show_temp_51.patch
 suppress_log_warning_1592.patch
-control_online_alter_index.patch
 innodb_show_enhancements.patch
 innodb_show_status.patch
 innodb_io_patches.patch
@@ -33,7 +32,6 @@ innodb_pass_corrupt_table.patch
 innodb_fast_checksum.patch
 innodb_files_extend.patch
 innodb_show_sys_tables.patch
-innodb_buffer_pool_shm.patch
 innodb_fix_misc.patch
 innodb_adjust_defaults.patch
 mysql-test.diff
@@ -42,13 +40,14 @@ innodb_deadlock_count.patch
 bug580324.patch
 bugfix48929.patch
 query_cache_with_comments.patch
-response-time-distribution.patch
-mysql_remove_eol_carret.patch
+control_online_alter_index.patch
 log_connection_error.patch
-status_wait_query_cache_mutex.patch
-sql_no_fcache.patch
-remove_fcntl_excessive_calls.patch
-show_engines.patch
-error_pad.patch
 query_cache_totally_disable.patch
 mysql-syslog.patch
+innodb_buffer_pool_shm.patch
+response-time-distribution.patch
+mysql_remove_eol_carret.patch
+status_wait_query_cache_mutex.patch
+error_pad.patch
+remove_fcntl_excessive_calls.patch
+sql_no_fcache.patch

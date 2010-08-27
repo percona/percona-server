@@ -8,7 +8,7 @@
 diff -ruN a/configure b/configure
 --- a/configure	2010-04-06 23:13:20.000000000 +0900
 +++ b/configure	2010-04-28 19:12:59.000000000 +0900
-@@ -2062,13 +2062,13 @@
+@@ -2068,13 +2068,13 @@
     === InnoDB Storage Engine ===
    Plugin Name:      innobase
    Description:      Transactional Tables using InnoDB
@@ -24,7 +24,7 @@ diff -ruN a/configure b/configure
    Configurations:   max, max-no-ndb
  
     === MyISAM Storage Engine ===
-@@ -42290,7 +42290,8 @@
+@@ -42174,7 +42174,8 @@
  
  
  
@@ -34,7 +34,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -42302,8 +42303,7 @@
+@@ -42186,8 +42187,7 @@
  
  
  
@@ -44,7 +44,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -43718,7 +43718,7 @@
+@@ -43602,7 +43602,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -53,7 +53,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innobase" != Xyes -a \
              "X$with_plugin_innobase" != Xyes; then
  
-@@ -43744,20 +43744,11 @@
+@@ -43628,20 +43628,11 @@
      else
  
  
@@ -79,7 +79,7 @@ diff -ruN a/configure b/configure
  
  
        mysql_plugin_defs="$mysql_plugin_defs, builtin_innobase_plugin"
-@@ -43845,7 +43836,7 @@
+@@ -43729,7 +43720,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -88,7 +88,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innodb_plugin" != Xyes -a \
              "X$with_plugin_innodb_plugin" != Xyes; then
  
-@@ -43871,11 +43862,20 @@
+@@ -43755,11 +43746,20 @@
      else
  
  
@@ -117,7 +117,8 @@ diff -ruN a/configure b/configure
 diff -ruN a/mysql-test/include/have_innodb_plugin.inc b/mysql-test/include/have_innodb_plugin.inc
 --- a/mysql-test/include/have_innodb_plugin.inc	2010-05-07 00:59:10.000000000 +0900
 +++ b/mysql-test/include/have_innodb_plugin.inc	2010-05-25 18:12:49.000000000 +0900
-@@ -1,4 +1,4 @@
+@@ -1,5 +1,5 @@
+ --source include/not_embedded.inc
  disable_query_log;
  --require r/true.require
 -SELECT (plugin_library LIKE 'ha_innodb_plugin%') AS `TRUE` FROM information_schema.plugins WHERE LOWER(plugin_name) = 'innodb' AND LOWER(plugin_status) = 'active';

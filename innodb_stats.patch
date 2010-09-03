@@ -640,13 +640,13 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  		}
  
 -		node->state = INDEX_CREATE_INDEX_TREE;
-+		if (srv_use_sys_stats_table) {
++		if (srv_use_sys_stats_table
++		    && !((node->table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)) {
 +			node->state = INDEX_BUILD_STATS_COLS;
 +		} else {
 +			node->state = INDEX_CREATE_INDEX_TREE;
 +		}
 +	}
-+
 +	if (node->state == INDEX_BUILD_STATS_COLS) {
 +		if (node->stats_no <= dict_index_get_n_unique(node->index)) {
 +
@@ -1023,7 +1023,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		return;
  	}
  
-+	if (srv_use_sys_stats_table && !sync) {
++	if (srv_use_sys_stats_table && !((table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY) && !sync) {
 +		/* reload statistics from SYS_STATS table */
 +		if (dict_reload_statistics(table, &sum_of_index_sizes)) {
 +			/* success */
@@ -1047,7 +1047,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		index = dict_table_get_next_index(index);
  	}
  
-+	if (srv_use_sys_stats_table) {
++	if (srv_use_sys_stats_table && !((table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)) {
 +		/* store statistics to SYS_STATS table */
 +		dict_store_statistics(table);
 +	}
@@ -1168,7 +1168,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-+			if (srv_use_sys_stats_table
++			if (srv_use_sys_stats_table && !((ib_table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)
 +			    && thd_sql_command(user_thd) == SQLCOM_ANALYZE) {
 +				/* If the indexes on the table don't have enough rows in SYS_STATS system table, */
 +				/* they need to be created. */

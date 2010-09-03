@@ -14,8 +14,8 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.47
-%define majorversion 11
+%define mysqlversion 5.1.50
+%define majorversion 12
 %define minorversion 0
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}

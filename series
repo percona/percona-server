@@ -46,7 +46,6 @@ query_cache_totally_disable.patch
 mysql-syslog.patch
 innodb_buffer_pool_shm.patch
 response-time-distribution.patch
-mysql_remove_eol_carret.patch
 status_wait_query_cache_mutex.patch
 error_pad.patch
 remove_fcntl_excessive_calls.patch

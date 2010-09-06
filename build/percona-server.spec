@@ -15,8 +15,8 @@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
 %define mysqlversion 5.1.49
-%define majorversion 12
-%define minorversion 0
+%define majorversion 11
+%define minorversion 3
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 

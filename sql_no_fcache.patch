@@ -156,17 +156,18 @@ diff -Nur a/sql/lex.h b/sql/lex.h
 diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-28 16:47:58.565318871 +0400
 +++ b/sql/mysqld.cc	2010-07-28 16:48:03.004544367 +0400
-@@ -47,6 +47,10 @@
+@@ -46,6 +46,11 @@
+ #define OPT_NDB_SHM_DEFAULT 0
  #endif
  #endif
- 
++#if defined(__linux__)
 +#include <mntent.h>
 +#include <sys/statfs.h>
 +#include "flashcache_ioctl.h"
-+
++#endif//__linux__
+
  #ifndef DEFAULT_SKIP_THREAD_PRIORITY
  #define DEFAULT_SKIP_THREAD_PRIORITY 0
- #endif
 @@ -591,6 +595,11 @@
  ulong max_connections, max_connect_errors;
  uint  max_user_connections= 0;
@@ -179,10 +180,11 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4370,6 +4379,95 @@
+@@ -4370,6 +4380,97 @@
  }
  #endif//DBUG_OFF
- 
+
++#if defined(__linux__)
 +/*
 + * Auto detect if we support flash cache on the host system.
 + * This needs to be called before we setuid away from root
@@ -272,26 +274,31 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
 +    cachedev_fd = -1;
 +  }
 +}
++#endif//__linux__
  
  #ifdef __WIN__
  int win_main(int argc, char **argv)
-@@ -4474,6 +4572,8 @@
+@@ -4474,6 +4575,10 @@
    test_lc_time_sz();
  #endif
- 
+
++#if defined(__linux__)
 +  init_cachedev();
-+  
++#endif//__linux__
++
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4675,6 +4775,8 @@
+@@ -4675,6 +4780,10 @@
    clean_up_mutexes();
    my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
- 
+
++#if defined(__linux__)
 +  cleanup_cachedev();
++#endif//__linux__
 +
    exit(0);
-   return(0);					/* purecov: deadcode */
+   return(0);                                   /* purecov: deadcode */
  }
 @@ -7827,6 +7929,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
@@ -338,42 +345,48 @@ diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
 diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-07-28 16:47:58.555318714 +0400
 +++ b/sql/sql_select.cc	2010-07-28 16:48:13.414069437 +0400
-@@ -37,6 +37,10 @@
+@@ -37,6 +37,12 @@
  #include <hash.h>
  #include <ft_global.h>
- 
+
 +#include <sys/syscall.h>
 +#include <sys/ioctl.h>
++#if defined(__linux__)
 +#include "flashcache_ioctl.h"
++#endif//__linux__
 +
  const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
  			      "MAYBE_REF","ALL","range","index","fulltext",
  			      "ref_or_null","unique_subquery","index_subquery",
-@@ -239,9 +243,16 @@
+@@ -239,9 +245,18 @@
                     ulong setup_tables_done_option)
  {
    bool res;
 +  pid_t pid;
    register SELECT_LEX *select_lex = &lex->select_lex;
    DBUG_ENTER("handle_select");
- 
+
++#if defined(__linux__)
 +  if(lex->disable_flashcache && cachedev_fd > 0)
 +  {
 +    pid = syscall(SYS_gettid);
 +    ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid);
 +  }
-+
++#endif//__linux__
++ 
    if (select_lex->master_unit()->is_union() || 
        select_lex->master_unit()->fake_select_lex)
      res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
-@@ -274,6 +285,10 @@
+@@ -274,6 +289,12 @@
    if (unlikely(res))
      result->abort();
- 
+
++#if defined(__linux__)
 +  if (lex->disable_flashcache && cachedev_fd > 0)
 +  {
 +    ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
 +  }
++#endif//__linux__ 
    DBUG_RETURN(res);
  }
  

@@ -83,7 +83,7 @@ Recommends: mailx, libhtml-template-perl
 Pre-Depends: percona-server-common (>= ${source:Version}), adduser (>= 3.40), debconf
 Depends: percona-server-client-5.1 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10)
 Conflicts: mysql-server (<< ${source:Version}), mysql-server-4.1, percona-xtradb-server-5.0
-Provides: mysql-server
+Provides: mysql-server, virtual-mysql-client
 Replaces: mysql-server (<< ${source:Version}), mysql-server-5.0, percona-xtradb-server-5.0
 Description: Percona Server database server binaries                                     
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL database

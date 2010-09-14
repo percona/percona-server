@@ -96,7 +96,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  /********************************************************************//**
  Allocates a chunk of buffer frames.
  @return	chunk, or NULL on failure */
-@@ -768,26 +835,167 @@
+@@ -768,26 +835,170 @@
  {
  	buf_block_t*	block;
  	byte*		frame;
@@ -135,10 +135,13 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		ut_a(buf_pool->n_chunks == 1);
 +
 +		fprintf(stderr,
-+		"InnoDB: Notice: innodb_buffer_pool_shm_key option is specified.\n"
-+		"InnoDB: This option may not be safe to keep consistency of datafiles.\n"
-+		"InnoDB: Because InnoDB cannot lock datafiles when shutdown until reusing shared memory segment.\n"
-+		"InnoDB: You should ensure no change of InnoDB files while using innodb_buffer_pool_shm_key.\n");
++		"InnoDB: Warning: The innodb_buffer_pool_shm_key option has been specified.\n"
++		"InnoDB: Do not change the following between restarts of the server while this option is being used:\n"
++		"InnoDB:   * the mysqld executable between restarts of the server.\n"
++		"InnoDB:   * the value of innodb_buffer_pool_size.\n");
++		"InnoDB:   * the value of innodb_page_size.\n");
++		"InnoDB:   * datafiles created by InnoDB during this session.\n");
++		"InnoDB: Otherwise, data corruption in datafiles may result.\n");
 +
 +		/* FIXME: This is vague id still */
 +		binary_id = (ulint) ((void*)mtr_commit - (void*)btr_root_get)
@@ -648,7 +651,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
 +static MYSQL_SYSVAR_UINT(buffer_pool_shm_key, srv_buffer_pool_shm_key,
 +  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-+  "[experimental] The key value of shared memory segment for the buffer pool. 0 means disable the feature (default).",
++  "[experimental] The key value of shared memory segment for the buffer pool. 0 (default) disables the feature.",
 +  NULL, NULL, 0, 0, INT_MAX32, 0);
 +
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
@@ -897,7 +900,7 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 +	*is_new = FALSE;
 +#if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
 +	fprintf(stderr,
-+		"InnoDB: The shared memory key %#x (%d) is specified.\n",
++		"InnoDB: The shared memory segment containing the buffer pool is: key  %#x (%d).\n",
 +		key, key);
 +# if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
 +	if (!os_use_large_pages || !os_large_page_size) {
@@ -914,12 +917,12 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 +	if (shmid < 0) {
 +		if (errno == EEXIST) {
 +			fprintf(stderr,
-+				"InnoDB: HugeTLB: The shared memory segment seems to exist already.\n");
++				"InnoDB: HugeTLB: The shared memory segment exists.\n");
 +			shmid = shmget((key_t)key, (size_t)size,
 +					SHM_HUGETLB | SHM_R | SHM_W);
 +			if (shmid < 0) {
 +				fprintf(stderr,
-+					"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes.(reuse) errno %d\n",
++					"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes. (reuse) errno %d\n",
 +					size, errno);
 +				goto skip;
 +			} else {
@@ -928,14 +931,14 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 +			}
 +		} else {
 +			fprintf(stderr,
-+				"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes.(new) errno %d\n",
++				"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes. (new) errno %d\n",
 +				size, errno);
 +			goto skip;
 +		}
 +	} else {
 +		*is_new = TRUE;
 +		fprintf(stderr,
-+			"InnoDB: HugeTLB: The new shared memory segment is created.\n");
++			"InnoDB: HugeTLB: A new shared memory segment has been created .\n");
 +	}
 +
 +	ptr = shmat(shmid, NULL, 0);
@@ -971,12 +974,12 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 +	if (shmid < 0) {
 +		if (errno == EEXIST) {
 +			fprintf(stderr,
-+				"InnoDB: The shared memory segment seems to exist already.\n");
++				"InnoDB: A shared memory segment containing the buffer pool seems to already exist.\n");
 +			shmid = shmget((key_t)key, (size_t)size,
 +					SHM_R | SHM_W);
 +			if (shmid < 0) {
 +				fprintf(stderr,
-+					"InnoDB: Warning: Failed to allocate %lu bytes.(reuse) errno %d\n",
++					"InnoDB: Warning: Failed to allocate %lu bytes. (reuse) errno %d\n",
 +					size, errno);
 +				ptr = NULL;
 +				goto end;
@@ -986,7 +989,7 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 +			}
 +		} else {
 +			fprintf(stderr,
-+				"InnoDB: Warning: Failed to allocate %lu bytes.(new) errno %d\n",
++				"InnoDB: Warning: Failed to allocate %lu bytes. (new) errno %d\n",
 +				size, errno);
 +			ptr = NULL;
 +			goto end;
@@ -994,7 +997,7 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 +	} else {
 +		*is_new = TRUE;
 +		fprintf(stderr,
-+			"InnoDB: The new shared memory segment is created.\n");
++			"InnoDB: A new shared memory segment has been created.\n");
 +	}
 +
 +	ptr = shmat(shmid, NULL, 0);

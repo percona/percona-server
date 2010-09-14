@@ -56,7 +56,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-21 22:49:54.019529438 +0900
 +++ b/sql/set_var.cc	2010-07-21 22:50:24.122532110 +0900
-@@ -740,6 +740,11 @@
+@@ -745,6 +745,11 @@
  sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
  			      &SV::engine_condition_pushdown);
  

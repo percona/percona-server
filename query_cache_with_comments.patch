@@ -30,15 +30,15 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
-@@ -5878,6 +5879,7 @@
+@@ -5877,6 +5878,7 @@
+   OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
-   OPT_ONLINE_ALTER_INDEX,
    OPT_SUPPRESS_LOG_WARNING_1592,
 +  OPT_QUERY_CACHE_STRIP_COMMENTS,
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -6938,6 +6940,10 @@
+@@ -6930,6 +6932,10 @@
    {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
      "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
     0, 0, 0, GET_STR, NO_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
@@ -104,7 +104,7 @@ diff -Nur a/sql/query_strip_comments.h b/sql/query_strip_comments.h
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-28 16:47:41.124069093 +0400
 +++ b/sql/set_var.cc	2010-07-28 16:47:41.734068580 +0400
-@@ -933,6 +933,8 @@
+@@ -927,6 +927,8 @@
  #ifndef EMBEDDED_LIBRARY
  static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
  static sys_var_const_str_ptr    sys_repl_report_user(&vars, "report_user", &report_user);
@@ -477,7 +477,7 @@ diff -Nur a/sql/sql_class.h b/sql/sql_class.h
  /**
    An interface that is used to take an action when
    the locking module notices that a table version has changed
-@@ -665,6 +667,9 @@
+@@ -667,6 +669,9 @@
    */
    LEX_STRING query_string;
    Server_side_cursor *cursor;

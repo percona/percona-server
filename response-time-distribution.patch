@@ -72,7 +72,7 @@ diff -Nur a/sql/Makefile.am b/sql/Makefile.am
 diff -Nur a/sql/Makefile.in b/sql/Makefile.in
 --- a/sql/Makefile.in	2010-08-10 15:32:19.566991761 +0400
 +++ b/sql/Makefile.in	2010-08-10 15:32:20.088242513 +0400
-@@ -121,7 +121,7 @@
+@@ -122,7 +122,7 @@
  	sql_string.$(OBJEXT) sql_manager.$(OBJEXT) sql_map.$(OBJEXT) \
  	mysqld.$(OBJEXT) password.$(OBJEXT) hash_filo.$(OBJEXT) \
  	hostname.$(OBJEXT) sql_connect.$(OBJEXT) scheduler.$(OBJEXT) \
@@ -81,7 +81,7 @@ diff -Nur a/sql/Makefile.in b/sql/Makefile.in
  	sql_base.$(OBJEXT) table.$(OBJEXT) sql_select.$(OBJEXT) \
  	sql_insert.$(OBJEXT) sql_profile.$(OBJEXT) \
  	sql_prepare.$(OBJEXT) sql_error.$(OBJEXT) sql_locale.$(OBJEXT) \
-@@ -564,7 +564,7 @@
+@@ -567,7 +567,7 @@
  			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
  			log_event.h rpl_record.h \
  			log_event_old.h rpl_record_old.h \
@@ -90,7 +90,7 @@ diff -Nur a/sql/Makefile.in b/sql/Makefile.in
  			spatial.h gstream.h client_settings.h tzfile.h \
  			tztime.h my_decimal.h\
  			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
-@@ -587,7 +587,7 @@
+@@ -590,7 +590,7 @@
  			sql_string.cc sql_manager.cc sql_map.cc \
  			mysqld.cc password.c hash_filo.cc hostname.cc \
  			sql_connect.cc scheduler.cc sql_parse.cc \
@@ -99,7 +99,7 @@ diff -Nur a/sql/Makefile.in b/sql/Makefile.in
  			sql_base.cc table.cc sql_select.cc sql_insert.cc \
  			sql_profile.cc \
  			sql_prepare.cc sql_error.cc sql_locale.cc \
-@@ -830,6 +830,7 @@
+@@ -833,6 +833,7 @@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/password.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/procedure.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/protocol.Po@am__quote@
@@ -144,7 +144,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
-@@ -5883,6 +5889,8 @@
+@@ -5895,6 +5901,8 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -153,7 +153,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD
-@@ -6952,6 +6960,21 @@
+@@ -6964,6 +6972,21 @@
     "Use microsecond time's precision in slow query log",
     (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -547,7 +547,7 @@ diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
 diff -Nur a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-08-10 15:32:19.556992443 +0400
 +++ b/sql/set_var.cc	2010-08-10 15:32:20.098240993 +0400
-@@ -1000,6 +1000,10 @@
+@@ -1004,6 +1004,10 @@
  static sys_var_use_global_long_query_time sys_use_global_long_query_time;
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
                                                         &opt_slow_query_log_microseconds_timestamp);
@@ -569,7 +569,7 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
  
  /**
    @defgroup Runtime_Environment Runtime Environment
-@@ -1744,23 +1745,31 @@
+@@ -1749,23 +1750,31 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -615,7 +615,7 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1885,6 +1894,7 @@
+@@ -1890,6 +1899,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -623,7 +623,7 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
    case SCH_USER_PRIVILEGES:
    case SCH_SCHEMA_PRIVILEGES:
-@@ -7187,6 +7197,10 @@
+@@ -7202,6 +7212,10 @@
      init_global_index_stats();
      pthread_mutex_unlock(&LOCK_global_index_stats);
    }
@@ -645,7 +645,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  #include "debug_sync.h"
  
  #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
-@@ -7432,6 +7433,13 @@
+@@ -7467,6 +7468,13 @@
  
  */
  
@@ -659,7 +659,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7486,6 +7494,8 @@
+@@ -7521,6 +7529,8 @@
     1, 9, 0, OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -713,7 +713,7 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 diff -Nur a/sql/table.h b/sql/table.h
 --- a/sql/table.h	2010-08-10 15:32:19.556992443 +0400
 +++ b/sql/table.h	2010-08-10 15:32:20.118244100 +0400
-@@ -964,6 +964,7 @@
+@@ -963,6 +963,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,
    SCH_PROCEDURES,

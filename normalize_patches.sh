@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-ls -1 *.patch | grep -v repair | xargs bzr revert
+#ls -1 *.patch | grep -v repair | xargs bzr revert
 rm -rf a b Percona-Server;
-tar zxf mysql-5.1.49.tar.gz;
-mv mysql-5.1.49 Percona-Server;
+tar zxf mysql-5.1.50.tar.gz;
+mv mysql-5.1.50 Percona-Server;
 for patch_name in `cat series`; do
     echo "========================================================="
     echo "===== Check patch $patch_name";
@@ -23,10 +23,11 @@ for patch_name in `cat series`; do
 	find b -name "*.orig" | xargs rm;
 	patch_name_new=$patch_name.new;
 	patch_name_split=$patch_name.split;
-	rm $patch_name_new;
+	rm -f $patch_name_new;
 	rm -rf $patch_name_split;
 	mkdir $patch_name_split;
 	cd $patch_name_split;
+	cat ../$patch_name | head -n7 > ../$patch_name_new
 	for filename in `splitdiff -a -d ../$patch_name | awk '{ print $2 }' | sed -e "s/>//g"`; do
 	    echo $filename;
 	    a_head=`cat $filename | head -n2 | head -n1`;

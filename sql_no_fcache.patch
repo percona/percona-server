@@ -327,7 +327,7 @@ diff -Nur a/sql/sql_lex.cc b/sql/sql_lex.cc
 diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/sql_lex.h	2010-07-28 16:48:08.405691834 +0400
-@@ -1714,6 +1714,7 @@
+@@ -1728,6 +1728,7 @@
    */
    bool view_prepare_mode;
    bool safe_to_cache_query;

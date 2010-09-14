@@ -6,8 +6,8 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -Nur a/extra/comp_err.c b/extra/comp_err.c
---- a/extra/comp_err.c	2010-07-09 16:34:53.000000000 +0400
-+++ b/extra/comp_err.c	2010-08-07 01:38:45.484168234 +0400
+--- a/extra/comp_err.c	2010-08-03 17:24:24.000000000 +0000
++++ b/extra/comp_err.c	2010-09-14 16:49:28.000000000 +0000
 @@ -30,11 +30,12 @@
  #include <assert.h>
  #include <my_dir.h>
@@ -116,7 +116,7 @@ diff -Nur a/extra/comp_err.c b/extra/comp_err.c
  
        /* add error to the list */
        *tail_error= current_error;
-@@ -822,80 +859,124 @@
+@@ -822,78 +859,122 @@
    DBUG_RETURN(new_message);
  }
  
@@ -153,7 +153,7 @@ diff -Nur a/extra/comp_err.c b/extra/comp_err.c
 -  struct errors *new_error;
 +  char *er_name;
 +  uint d_code;
-   char *start;
++  char *start;
    DBUG_ENTER("parse_error_string");
    DBUG_PRINT("enter", ("str: %s", str));
  
@@ -169,8 +169,9 @@ diff -Nur a/extra/comp_err.c b/extra/comp_err.c
      DBUG_RETURN(0);				/* OOM: Fatal error */
  
 -  /* getting the error name */
-+  str= skip_delimiters(str);
-+
+   str= skip_delimiters(str);
+ 
+-  if (!(new_error->er_name= get_word(&str)))
 +  if (!(d_code= parse_error_offset(start)))
 +  {
 +    fprintf(stderr, "Failed to parse the error padd string '%s' '%s' (d_code doesn't parse)!\n",er_name,str);
@@ -195,14 +196,11 @@ diff -Nur a/extra/comp_err.c b/extra/comp_err.c
 +  int d_code;
 +  const char *sql_code1= empty_string;
 +  const char *sql_code2= empty_string;
-+  char *start;
 +  DBUG_ENTER("parse_error_string");
 +  DBUG_PRINT("enter", ("str: %s", str));
 +
-   start= str;
-   str= skip_delimiters(str);
- 
--  if (!(new_error->er_name= get_word(&str)))
++  str= skip_delimiters(str);
++
 +  /* getting the error name */
 +
 +  if (!(er_name= get_word(&str)))

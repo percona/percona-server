@@ -109,7 +109,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:40:36.522990504 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:42:03.602023484 +0900
-@@ -3071,7 +3071,9 @@
+@@ -3096,7 +3096,9 @@
  			mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
@@ -120,8 +120,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3183,7 +3185,8 @@
- 					goto skip_write;
+@@ -3226,7 +3228,8 @@
+ 					page_is_corrupt = TRUE;
  				}
  
 -				if (checksum_field != 0
@@ -130,8 +130,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
  				    && checksum_field
  				    != buf_calc_page_new_checksum(page)) {
-@@ -3191,6 +3194,17 @@
- 					goto skip_write;
+@@ -3234,6 +3237,17 @@
+ 					page_is_corrupt = TRUE;
  				}
  
 +				if (srv_fast_checksum
@@ -142,13 +142,13 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +				    && checksum_field
 +				    != buf_calc_page_new_checksum(page)) {
 +
-+					goto skip_write;
++					page_is_corrupt = TRUE;
 +				}
 +
- 				if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
- 					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
- 
-@@ -3265,7 +3279,9 @@
+ 				/* if it is free page, inconsistency is acceptable */
+ 				if (!offset) {
+ 					/* header page*/
+@@ -3379,7 +3393,9 @@
  
  					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  							srv_use_checksums

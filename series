@@ -39,14 +39,12 @@ percona-support.patch
 innodb_deadlock_count.patch
 bug580324.patch
 bugfix48929.patch
-query_cache_with_comments.patch
+query_cache_enhance.patch
 control_online_alter_index.patch
 log_connection_error.patch
-query_cache_totally_disable.patch
 mysql-syslog.patch
 innodb_buffer_pool_shm.patch
 response-time-distribution.patch
-status_wait_query_cache_mutex.patch
 error_pad.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch

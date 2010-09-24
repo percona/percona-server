@@ -788,8 +788,8 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
 +		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 +
 +		fprintf(stderr, "InnoDB: Doublewrite buffer created in the doublewrite file\n");
++		trx_sys_multiple_tablespace_format = TRUE;
 +	}
-+
 +	trx_doublewrite_buf_is_being_created = FALSE;
 +    }
  }

@@ -62,7 +62,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +	ptrdiff_t	frame_offset)
 +{
 +	/* block_init */
-+	block->frame = ((void*)(block->frame) + frame_offset);
++	block->frame += frame_offset;
 +
 +	UNIV_MEM_DESC(block->frame, UNIV_PAGE_SIZE, block);
 +
@@ -79,7 +79,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 +
 +	if (block->page.zip.data)
-+		block->page.zip.data = ((void*)(block->page.zip.data) + frame_offset);
++		block->page.zip.data += frame_offset;
 +
 +	block->is_hashed = FALSE;
 +
@@ -144,17 +144,17 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		"InnoDB: Otherwise, data corruption in datafiles may result.\n");
 +
 +		/* FIXME: This is vague id still */
-+		binary_id = (ulint) ((void*)mtr_commit - (void*)btr_root_get)
-+			  + (ulint) ((void*)os_get_os_version - (void*)buf_calc_page_new_checksum)
-+			  + (ulint) ((void*)page_dir_find_owner_slot - (void*)dfield_data_is_binary_equal)
-+			  + (ulint) ((void*)que_graph_publish - (void*)dict_casedn_str)
-+			  + (ulint) ((void*)read_view_oldest_copy_or_open_new - (void*)fil_space_get_version)
-+			  + (ulint) ((void*)rec_get_n_extern_new - (void*)fsp_get_size_low)
-+			  + (ulint) ((void*)row_get_trx_id_offset - (void*)ha_create_func)
-+			  + (ulint) ((void*)srv_set_io_thread_op_info - (void*)thd_is_replication_slave_thread)
-+			  + (ulint) ((void*)mutex_create_func - (void*)ibuf_inside)
-+			  + (ulint) ((void*)trx_set_detailed_error - (void*)lock_check_trx_id_sanity)
-+			  + (ulint) ((void*)ut_time - (void*)mem_heap_strdup);
++		binary_id = (ulint) ((byte*)mtr_commit - (byte*)btr_root_get)
++			  + (ulint) ((byte*)os_get_os_version - (byte*)buf_calc_page_new_checksum)
++			  + (ulint) ((byte*)page_dir_find_owner_slot - (byte*)dfield_data_is_binary_equal)
++			  + (ulint) ((byte*)que_graph_publish - (byte*)dict_casedn_str)
++			  + (ulint) ((byte*)read_view_oldest_copy_or_open_new - (byte*)fil_space_get_version)
++			  + (ulint) ((byte*)rec_get_n_extern_new - (byte*)fsp_get_size_low)
++			  + (ulint) ((byte*)row_get_trx_id_offset - (byte*)ha_create_func)
++			  + (ulint) ((byte*)srv_set_io_thread_op_info - (byte*)thd_is_replication_slave_thread)
++			  + (ulint) ((byte*)mutex_create_func - (byte*)ibuf_inside)
++			  + (ulint) ((byte*)trx_set_detailed_error - (byte*)lock_check_trx_id_sanity)
++			  + (ulint) ((byte*)ut_time - (byte*)mem_heap_strdup);
 +
 +		chunk->mem = os_shm_alloc(&chunk->mem_size, srv_buffer_pool_shm_key, &is_new);
 +
@@ -170,7 +170,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +
 +		shm_info = chunk->mem;
 +
-+		zip_hash_tmp = (hash_table_t*)((void*)chunk->mem + chunk->mem_size - zip_hash_mem_size);
++		zip_hash_tmp = (hash_table_t*)((byte*)chunk->mem + chunk->mem_size - zip_hash_mem_size);
 +
 +		if (is_new) {
 +			strncpy(shm_info->head_str, BUF_SHM_INFO_HEAD, 8);
@@ -227,7 +227,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +			ut_a(shm_info->zip_hash_n == zip_hash_n);
 +
 +			/* check checksum */
-+			checksum = ut_fold_binary(chunk->mem + sizeof(buf_shm_info_t),
++			checksum = ut_fold_binary((byte*)chunk->mem + sizeof(buf_shm_info_t),
 +						  chunk->mem_size - sizeof(buf_shm_info_t));
 +			if (shm_info->checksum != checksum) {
 +				fprintf(stderr,
@@ -260,14 +260,14 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	/* Allocate the block descriptors from
  	the start of the memory block. */
 +	if (srv_buffer_pool_shm_key) {
-+		chunk->blocks = chunk->mem + sizeof(buf_shm_info_t);
++		chunk->blocks = (buf_block_t*)((byte*)chunk->mem + sizeof(buf_shm_info_t));
 +	} else {
  	chunk->blocks = chunk->mem;
 +	}
  
  	/* Align a pointer to the first frame.  Note that when
  	os_large_page_size is smaller than UNIV_PAGE_SIZE,
-@@ -795,8 +1003,13 @@
+@@ -795,8 +1006,13 @@
  	it is bigger, we may allocate more blocks than requested. */
  
  	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
@@ -281,7 +281,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	/* Subtract the space needed for block descriptors. */
  	{
-@@ -810,6 +1023,98 @@
+@@ -810,6 +1026,98 @@
  		chunk->size = size;
  	}
  
@@ -301,10 +301,10 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		}
 +
 +		chunk->size = shm_info->chunk_backup.size;
-+		phys_offset = (void*)frame - (void*)((void*)chunk->mem + shm_info->frame_offset);
-+		logi_offset = (void*)frame - (void*)chunk->blocks[0].frame;
++		phys_offset = frame - (byte*)chunk->mem + shm_info->frame_offset;
++		logi_offset = frame - chunk->blocks[0].frame;
 +		previous_frame_address = chunk->blocks[0].frame;
-+		blocks_offset = (void*)chunk->blocks - (void*)shm_info->chunk_backup.blocks;
++		blocks_offset = (byte*)chunk->blocks - (byte*)shm_info->chunk_backup.blocks;
 +
 +		if (phys_offset || logi_offset || blocks_offset) {
 +			fprintf(stderr,
@@ -315,8 +315,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +			"InnoDB: Pysical offset                  : %ld (%#lx)\n"
 +			"InnoDB: Logical offset (frames)         : %ld (%#lx)\n"
 +			"InnoDB: Logical offset (blocks)         : %ld (%#lx)\n",
-+				(void*)((void*)chunk->mem + shm_info->frame_offset),
-+				(void*)chunk->blocks[0].frame, (void*)frame,
++				(byte*)chunk->mem + shm_info->frame_offset,
++				chunk->blocks[0].frame, frame,
 +				phys_offset, phys_offset, logi_offset, logi_offset,
 +				blocks_offset, blocks_offset);
 +		} else {
@@ -328,7 +328,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +			fprintf(stderr,
 +			"InnoDB: Aligning physical offset...");
 +
-+			memmove((void*)frame, (void*)((void*)chunk->mem + shm_info->frame_offset),
++			memmove(frame, (byte*)chunk->mem + shm_info->frame_offset,
 +				chunk->size * UNIV_PAGE_SIZE);
 +
 +			fprintf(stderr,
@@ -356,7 +356,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +					previous_frame_address, logi_offset, blocks_offset);
 +			if (shm_info->buf_pool_backup.LRU_old)
 +				shm_info->buf_pool_backup.LRU_old =
-+					((void*)(shm_info->buf_pool_backup.LRU_old)
++					(buf_page_t*)((byte*)(shm_info->buf_pool_backup.LRU_old)
 +						+ (((void*)shm_info->buf_pool_backup.LRU_old > previous_frame_address)
 +						  ? logi_offset : blocks_offset));
 +
@@ -380,19 +380,19 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	/* Init block structs and assign frames for them. Then we
  	assign the frames to the first blocks (we already mapped the
  	memory above). */
-@@ -833,6 +1138,11 @@
+@@ -833,6 +1141,11 @@
  		block++;
  		frame += UNIV_PAGE_SIZE;
  	}
 +	}
 +
 +	if (shm_info) {
-+		shm_info->frame_offset = (void*)chunk->blocks[0].frame - (void*)chunk->mem;
++		shm_info->frame_offset = chunk->blocks[0].frame - (byte*)chunk->mem;
 +	}
  
  	return(chunk);
  }
-@@ -1014,6 +1324,8 @@
+@@ -1014,6 +1327,8 @@
  		UNIV_MEM_UNDESC(block);
  	}
  
@@ -401,7 +401,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	os_mem_free_large(chunk->mem, chunk->mem_size);
  }
  
-@@ -1063,7 +1375,10 @@
+@@ -1063,7 +1378,10 @@
  	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
  
  	buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
@@ -412,17 +412,17 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	buf_pool->last_printout_time = time(NULL);
  
-@@ -1078,6 +1393,86 @@
+@@ -1078,6 +1396,86 @@
  	--------------------------- */
  	/* All fields are initialized by mem_zalloc(). */
  
 +	if (srv_buffer_pool_shm_key) {
 +		buf_shm_info_t*	shm_info;
 +
-+		ut_a(chunk->blocks == chunk->mem + sizeof(buf_shm_info_t));
++		ut_a((byte*)chunk->blocks == (byte*)chunk->mem + sizeof(buf_shm_info_t));
 +		shm_info = chunk->mem;
 +
-+		buf_pool->zip_hash = (hash_table_t*)((void*)chunk->mem + shm_info->zip_hash_offset);
++		buf_pool->zip_hash = (hash_table_t*)((byte*)chunk->mem + shm_info->zip_hash_offset);
 +
 +		if(shm_info->is_new) {
 +			shm_info->is_new = FALSE; /* initialization was finished */
@@ -499,7 +499,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mutex_exit(&LRU_list_mutex);
  	rw_lock_x_unlock(&page_hash_latch);
  	buf_pool_mutex_exit();
-@@ -1102,6 +1497,30 @@
+@@ -1102,6 +1500,30 @@
  	buf_chunk_t*	chunk;
  	buf_chunk_t*	chunks;
  
@@ -510,7 +510,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +
 +		chunk = buf_pool->chunks;
 +		shm_info = chunk->mem;
-+		ut_a(chunk->blocks == chunk->mem + sizeof(buf_shm_info_t));
++		ut_a((byte*)chunk->blocks == (byte*)chunk->mem + sizeof(buf_shm_info_t));
 +
 +		/* validation the shared memory segment doesn't have unrecoverable contents. */
 +		/* Currently, validation became not needed */
@@ -520,7 +520,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		memcpy(&(shm_info->chunk_backup), chunk, sizeof(buf_chunk_t));
 +
 +		if (srv_fast_shutdown < 2) {
-+			shm_info->checksum = ut_fold_binary(chunk->mem + sizeof(buf_shm_info_t),
++			shm_info->checksum = ut_fold_binary((byte*)chunk->mem + sizeof(buf_shm_info_t),
 +							    chunk->mem_size - sizeof(buf_shm_info_t));
 +			shm_info->clean = TRUE;
 +		}
@@ -530,7 +530,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	chunks = buf_pool->chunks;
  	chunk = chunks + buf_pool->n_chunks;
  
-@@ -1110,10 +1529,13 @@
+@@ -1110,10 +1532,13 @@
  		would fail at shutdown. */
  		os_mem_free_large(chunk->mem, chunk->mem_size);
  	}
@@ -544,7 +544,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mem_free(buf_pool);
  	buf_pool = NULL;
  }
-@@ -1308,6 +1730,11 @@
+@@ -1308,6 +1733,11 @@
  	//buf_pool_mutex_enter();
  	mutex_enter(&LRU_list_mutex);
  
@@ -556,7 +556,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  shrink_again:
  	if (buf_pool->n_chunks <= 1) {
  
-@@ -1551,6 +1978,11 @@
+@@ -1551,6 +1981,11 @@
  buf_pool_resize(void)
  /*=================*/
  {
@@ -608,7 +608,7 @@ diff -ruN a/storage/innodb_plugin/ha/hash0hash.c b/storage/innodb_plugin/ha/hash
 +	offset = (sizeof(hash_table_t) + 7) / 8;
 +	offset *= 8;
 +
-+	table->array = (hash_cell_t*)(((void*)table) + offset);
++	table->array = (hash_cell_t*)(((byte*)table) + offset);
 +	table->n_cells = prime;
 +# if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 +	table->adaptive = FALSE;
@@ -634,7 +634,7 @@ diff -ruN a/storage/innodb_plugin/ha/hash0hash.c b/storage/innodb_plugin/ha/hash
 +	offset = (sizeof(hash_table_t) + 7) / 8;
 +	offset *= 8;
 +
-+	table->array = (hash_cell_t*)(((void*)table) + offset);
++	table->array = (hash_cell_t*)(((byte*)table) + offset);
 +	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 +}
 +
@@ -694,7 +694,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
 +/* the fold should be relative when srv_buffer_pool_shm_key is enabled */
 +#define BUF_POOL_ZIP_FOLD_PTR(ptr) (!srv_buffer_pool_shm_key\
 +					?((ulint) (ptr) / UNIV_PAGE_SIZE)\
-+					:((ulint) ((void*)ptr - (void*)(buf_pool->chunks->blocks->frame)) / UNIV_PAGE_SIZE))
++					:((ulint) ((byte*)ptr - (byte*)(buf_pool->chunks->blocks->frame)) / UNIV_PAGE_SIZE))
  #define BUF_POOL_ZIP_FOLD(b) BUF_POOL_ZIP_FOLD_PTR((b)->frame)
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
@@ -748,14 +748,14 @@ diff -ruN a/storage/innodb_plugin/include/hash0hash.h b/storage/innodb_plugin/in
 +		NODE_TYPE*	node2222;\
 +\
 +		if ((TABLE)->array[i2222].node) \
-+			(TABLE)->array[i2222].node \
-+			+= (((TABLE)->array[i2222].node > (void*)FADDR)?FOFFSET:BOFFSET);\
++			(TABLE)->array[i2222].node = (void*)((byte*)(TABLE)->array[i2222].node \
++			+ (((TABLE)->array[i2222].node > (void*)FADDR)?FOFFSET:BOFFSET));\
 +		node2222 = HASH_GET_FIRST((TABLE), i2222);\
 +\
 +		while (node2222) {\
 +			if (node2222->PTR_NAME) \
-+				node2222->PTR_NAME = ((void*)node2222->PTR_NAME) \
-+				+ ((((void*)node2222->PTR_NAME) > (void*)FADDR)?FOFFSET:BOFFSET);\
++				node2222->PTR_NAME = (void*)((byte*)(node2222->PTR_NAME) \
++				+ ((((void*)node2222->PTR_NAME) > (void*)FADDR)?FOFFSET:BOFFSET));\
 +\
 +			node2222 = node2222->PTR_NAME;\
 +		}\
@@ -840,10 +840,10 @@ diff -ruN a/storage/innodb_plugin/include/ut0lst.h b/storage/innodb_plugin/inclu
 +	TYPE*	ut_list_node_313;					\
 +									\
 +	if ((BASE).start)						\
-+		(BASE).start = ((void*)((BASE).start)			\
++		(BASE).start = (void*)((byte*)((BASE).start)			\
 +			+ (((void*)((BASE).start) > (void*)FADDR)?FOFFSET:BOFFSET));\
 +	if ((BASE).end)							\
-+		(BASE).end   = ((void*)((BASE).end)			\
++		(BASE).end   = (void*)((byte*)((BASE).end)			\
 +			+ (((void*)((BASE).end) > (void*)FADDR)?FOFFSET:BOFFSET));\
 +									\
 +	ut_list_node_313 = (BASE).start;				\
@@ -851,10 +851,10 @@ diff -ruN a/storage/innodb_plugin/include/ut0lst.h b/storage/innodb_plugin/inclu
 +	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
 +		ut_a(ut_list_node_313);					\
 +		if ((ut_list_node_313->NAME).prev)			\
-+			(ut_list_node_313->NAME).prev = ((void*)((ut_list_node_313->NAME).prev)\
++			(ut_list_node_313->NAME).prev = (void*)((byte*)((ut_list_node_313->NAME).prev)\
 +				+ (((void*)((ut_list_node_313->NAME).prev) > (void*)FADDR)?FOFFSET:BOFFSET));\
 +		if ((ut_list_node_313->NAME).next)			\
-+			(ut_list_node_313->NAME).next =	((void*)((ut_list_node_313->NAME).next)\
++			(ut_list_node_313->NAME).next =	(void*)((byte*)((ut_list_node_313->NAME).next)\
 +				+ (((void*)((ut_list_node_313->NAME).next)> (void*)FADDR)?FOFFSET:BOFFSET));\
 +		ut_list_node_313 = (ut_list_node_313->NAME).next;	\
 +	}								\
@@ -894,11 +894,11 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 +	ibool*	is_new)
 +{
 +	void*	ptr;
++#if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
 +	ulint	size;
 +	int	shmid;
 +
 +	*is_new = FALSE;
-+#if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
 +	fprintf(stderr,
 +		"InnoDB: The shared memory segment containing the buffer pool is: key  %#x (%d).\n",
 +		key, key);

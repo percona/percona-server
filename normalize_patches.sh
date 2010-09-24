@@ -36,7 +36,7 @@ for patch_name in `cat series`; do
 	    a_path=`echo $a_head | awk '{ print $2 }'`;
 	    b_path=`echo $b_head | awk '{ print $2 }'`;
 	    echo "A_PATH='$a_path' B_PATH='$b_path'";
-	    (cd ..; echo "diff -Nur $a_path $b_path" >> $patch_name_new);
+	    (cd ..; echo "diff -ruN $a_path $b_path" >> $patch_name_new);
 	    (cat $filename | head -n2 | head -n1 >> ../$patch_name_new);
 	    (cat $filename | head -n2 | tail -n1 >> ../$patch_name_new);
 	    (cd ..; diff -Nur $a_path $b_path | tail -n+3 >> $patch_name_new);

@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:43:11.941989968 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:44:21.668058937 +0900
-@@ -4588,9 +4588,9 @@
+@@ -4722,9 +4722,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
  	ut_ad(len > 0);

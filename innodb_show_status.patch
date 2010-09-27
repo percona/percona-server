@@ -201,7 +201,7 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
 -	if (nth_lock >= 10) {
 -		fputs("10 LOCKS PRINTED FOR THIS TRX:"
 +	if (nth_lock >= srv_show_locks_held) {
-+		fputs("TOO LOCKS PRINTED FOR THIS TRX:"
++		fputs("TOO MANY LOCKS PRINTED FOR THIS TRX:"
  		      " SUPPRESSING FURTHER PRINTS\n",
  		      file);
  

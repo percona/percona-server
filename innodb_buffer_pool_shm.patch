@@ -96,7 +96,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  /********************************************************************//**
  Allocates a chunk of buffer frames.
  @return	chunk, or NULL on failure */
-@@ -768,26 +835,174 @@
+@@ -768,26 +835,184 @@
  {
  	buf_block_t*	block;
  	byte*		frame;
@@ -161,7 +161,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 +			return(NULL);
 +		}
-+
++init_again:
 +#ifdef UNIV_SET_MEM_TO_ZERO
 +		if (is_new) {
 +			memset(chunk->mem, '\0', chunk->mem_size);
@@ -204,16 +204,6 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +				"InnoDB: Error: The shared memory was not initialized yet.\n");
 +				return(NULL);
 +			}
-+			if (!shm_info->clean) {
-+				fprintf(stderr,
-+				"InnoDB: Error: The shared memory was not shut down cleanly.\n");
-+				return(NULL);
-+			}
-+			if (!shm_info->reusable) {
-+				fprintf(stderr,
-+				"InnoDB: Error: The shared memory has unrecoverable contents.\n");
-+				return(NULL);
-+			}
 +			if (shm_info->buf_pool_size != srv_buf_pool_size) {
 +				fprintf(stderr,
 +				"InnoDB: Error: srv_buf_pool_size is different (shm=%lu current=%lu).\n",
@@ -226,14 +216,34 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +				shm_info->page_size, srv_page_size);
 +				return(NULL);
 +			}
++			if (!shm_info->reusable) {
++				fprintf(stderr,
++				"InnoDB: Warning: The shared memory has unrecoverable contents.\n"
++				"InnoDB: The shared memory segment is initialized.\n");
++				is_new = TRUE;
++				goto init_again;
++			}
++			if (!shm_info->clean) {
++				fprintf(stderr,
++				"InnoDB: Warning: The shared memory was not shut down cleanly.\n"
++				"InnoDB: The shared memory segment is initialized.\n");
++				is_new = TRUE;
++				goto init_again;
++			}
 +
 +			ut_a(shm_info->zip_hash_offset == chunk->mem_size - zip_hash_mem_size);
 +			ut_a(shm_info->zip_hash_n == zip_hash_n);
 +
 +			/* check checksum */
-+			checksum = ut_fold_binary_32((byte*)chunk->mem + sizeof(buf_shm_info_t),
-+						  chunk->mem_size - sizeof(buf_shm_info_t));
-+			if (shm_info->checksum != checksum) {
++			if (srv_buffer_pool_shm_checksum) {
++				checksum = ut_fold_binary_32((byte*)chunk->mem + sizeof(buf_shm_info_t),
++							     chunk->mem_size - sizeof(buf_shm_info_t));
++			} else {
++				checksum = BUF_NO_CHECKSUM_MAGIC;
++			}
++
++			if (shm_info->checksum != BUF_NO_CHECKSUM_MAGIC
++			    && shm_info->checksum != checksum) {
 +				fprintf(stderr,
 +				"InnoDB: Error: checksum of the shared memory is not match. "
 +				"(stored=%lu calculated=%lu)\n",
@@ -271,7 +281,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	/* Align a pointer to the first frame.  Note that when
  	os_large_page_size is smaller than UNIV_PAGE_SIZE,
-@@ -795,8 +1010,13 @@
+@@ -795,8 +1020,13 @@
  	it is bigger, we may allocate more blocks than requested. */
  
  	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
@@ -285,7 +295,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	/* Subtract the space needed for block descriptors. */
  	{
-@@ -810,6 +1030,98 @@
+@@ -810,6 +1040,98 @@
  		chunk->size = size;
  	}
  
@@ -305,7 +315,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		}
 +
 +		chunk->size = shm_info->chunk_backup.size;
-+		phys_offset = frame - (byte*)chunk->mem + shm_info->frame_offset;
++		phys_offset = frame - ((byte*)chunk->mem + shm_info->frame_offset);
 +		logi_offset = frame - chunk->blocks[0].frame;
 +		previous_frame_address = chunk->blocks[0].frame;
 +		blocks_offset = (byte*)chunk->blocks - (byte*)shm_info->chunk_backup.blocks;
@@ -339,17 +349,17 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +			" Done.\n");
 +		}
 +
++		/* buf_block_t */
++		block = chunk->blocks;
++		for (i = chunk->size; i--; ) {
++			buf_block_reuse(block, logi_offset);
++			block++;
++		}
++
 +		if (logi_offset || blocks_offset) {
 +			fprintf(stderr,
 +			"InnoDB: Aligning logical offset...");
 +
-+			/* buf_block_t */
-+			block = chunk->blocks;
-+
-+			for (i = chunk->size; i--; ) {
-+				buf_block_reuse(block, logi_offset);
-+				block++;
-+			}
 +
 +			/* buf_pool_t buf_pool_backup */
 +			UT_LIST_OFFSET(flush_list, buf_page_t, shm_info->buf_pool_backup.flush_list,
@@ -384,7 +394,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	/* Init block structs and assign frames for them. Then we
  	assign the frames to the first blocks (we already mapped the
  	memory above). */
-@@ -833,6 +1145,11 @@
+@@ -833,6 +1155,11 @@
  		block++;
  		frame += UNIV_PAGE_SIZE;
  	}
@@ -396,7 +406,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	return(chunk);
  }
-@@ -1014,6 +1331,8 @@
+@@ -1014,6 +1341,8 @@
  		UNIV_MEM_UNDESC(block);
  	}
  
@@ -405,7 +415,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	os_mem_free_large(chunk->mem, chunk->mem_size);
  }
  
-@@ -1063,7 +1382,10 @@
+@@ -1063,7 +1392,10 @@
  	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
  
  	buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
@@ -416,7 +426,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	buf_pool->last_printout_time = time(NULL);
  
-@@ -1078,6 +1400,86 @@
+@@ -1078,6 +1410,86 @@
  	--------------------------- */
  	/* All fields are initialized by mem_zalloc(). */
  
@@ -503,7 +513,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mutex_exit(&LRU_list_mutex);
  	rw_lock_x_unlock(&page_hash_latch);
  	buf_pool_mutex_exit();
-@@ -1102,6 +1504,30 @@
+@@ -1102,6 +1514,34 @@
  	buf_chunk_t*	chunk;
  	buf_chunk_t*	chunks;
  
@@ -524,8 +534,12 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		memcpy(&(shm_info->chunk_backup), chunk, sizeof(buf_chunk_t));
 +
 +		if (srv_fast_shutdown < 2) {
-+			shm_info->checksum = ut_fold_binary_32((byte*)chunk->mem + sizeof(buf_shm_info_t),
-+							    chunk->mem_size - sizeof(buf_shm_info_t));
++			if (srv_buffer_pool_shm_checksum) {
++				shm_info->checksum = ut_fold_binary_32((byte*)chunk->mem + sizeof(buf_shm_info_t),
++								       chunk->mem_size - sizeof(buf_shm_info_t));
++			} else {
++				shm_info->checksum = BUF_NO_CHECKSUM_MAGIC;
++			}
 +			shm_info->clean = TRUE;
 +		}
 +
@@ -534,7 +548,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	chunks = buf_pool->chunks;
  	chunk = chunks + buf_pool->n_chunks;
  
-@@ -1110,10 +1536,13 @@
+@@ -1110,10 +1550,13 @@
  		would fail at shutdown. */
  		os_mem_free_large(chunk->mem, chunk->mem_size);
  	}
@@ -548,7 +562,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mem_free(buf_pool);
  	buf_pool = NULL;
  }
-@@ -1308,6 +1737,11 @@
+@@ -1308,6 +1751,11 @@
  	//buf_pool_mutex_enter();
  	mutex_enter(&LRU_list_mutex);
  
@@ -560,7 +574,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  shrink_again:
  	if (buf_pool->n_chunks <= 1) {
  
-@@ -1551,6 +1985,11 @@
+@@ -1551,6 +1999,11 @@
  buf_pool_resize(void)
  /*=================*/
  {
@@ -649,7 +663,23 @@ diff -ruN a/storage/innodb_plugin/ha/hash0hash.c b/storage/innodb_plugin/ha/hash
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-14 16:34:18.597725479 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-07-14 16:40:16.159323612 +0900
-@@ -11340,6 +11340,11 @@
+@@ -197,6 +197,7 @@
+ static my_bool	innobase_create_status_file		= FALSE;
+ static my_bool	innobase_stats_on_metadata		= TRUE;
+ static my_bool	innobase_use_sys_stats_table		= FALSE;
++static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
+ 
+ static char*	internal_innobase_data_file_path	= NULL;
+ 
+@@ -2417,6 +2418,7 @@
+ 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+ 	srv_use_checksums = (ibool) innobase_use_checksums;
+ 	srv_fast_checksum = (ibool) innobase_fast_checksum;
++	srv_buffer_pool_shm_checksum = (ibool) innobase_buffer_pool_shm_checksum;
+ 
+ #ifdef HAVE_LARGE_PAGES
+         if ((os_use_large_pages = (ibool) my_use_large_pages))
+@@ -11340,6 +11342,16 @@
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
  
@@ -658,14 +688,20 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +  "[experimental] The key value of shared memory segment for the buffer pool. 0 (default) disables the feature.",
 +  NULL, NULL, 0, 0, INT_MAX32, 0);
 +
++static MYSQL_SYSVAR_BOOL(buffer_pool_shm_checksum, innobase_buffer_pool_shm_checksum,
++  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
++  "Enable buffer_pool_shm checksum validation (enabled by default).",
++  NULL, NULL, TRUE);
++
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11599,6 +11604,7 @@
+@@ -11599,6 +11611,8 @@
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
 +  MYSQL_SYSVAR(buffer_pool_shm_key),
++  MYSQL_SYSVAR(buffer_pool_shm_checksum),
    MYSQL_SYSVAR(checksums),
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
@@ -816,11 +852,12 @@ diff -ruN a/storage/innodb_plugin/include/os0proc.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-07-14 16:32:49.695323045 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-07-14 16:40:16.171325784 +0900
-@@ -156,6 +156,8 @@
+@@ -156,6 +156,9 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
  
 +extern uint	srv_buffer_pool_shm_key;
++extern ibool	srv_buffer_pool_shm_checksum;
 +
  extern ibool	srv_thread_concurrency_timer_based;
  
@@ -1057,12 +1094,13 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-07-14 16:33:23.848391648 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-07-14 16:40:16.177323553 +0900
-@@ -211,6 +211,9 @@
+@@ -211,6 +211,10 @@
  UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
  UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
  
 +/* key value for shm */
 +UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
++UNIV_INTERN ibool	srv_buffer_pool_shm_checksum = TRUE;
 +
  /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
  instead. */

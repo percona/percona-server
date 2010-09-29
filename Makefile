@@ -32,11 +32,8 @@ mysql-$(MYSQL_VERSION).tar.gz:
 	$(FETCH_CMD) $(MASTER_SITE)/mysql-$(MYSQL_VERSION).tar.gz
 
 tests:
-	@echo "Installing mysql-test files"
-	install -m 644 mysql-test/*.opt Percona-Server/mysql-test/t/
-	install -m 644 mysql-test/*.test Percona-Server/mysql-test/t/
-	install -m 644 mysql-test/*.result Percona-Server/mysql-test/r/
-	install -m 644 mysql-test/*.inc Percona-Server/mysql-test/include/
+	./install_tests.sh
+
 misc:
 	@echo "Installing other files"
 	install -m 644 lrusort.py Percona-Server/scripts

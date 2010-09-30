@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #ls -1 *.patch | grep -v repair | xargs bzr revert
+echo "Prepare source code for patch's adaptation...";
 rm -rf a b Percona-Server;
 tar zxf mysql-5.1.50.tar.gz;
 mv mysql-5.1.50 Percona-Server;
+cp -R Percona-Server a;
+cp -R Percona-Server b;
 for patch_name in `cat series`; do
     echo "========================================================="
     echo "===== Check patch $patch_name";
-    cp -R Percona-Server a;
-    cp -R Percona-Server b;
     echo "===== Apply patch $patch_name...";
     patch -p1 -d b < $patch_name >result;
     fail=`cat result | grep FAIL | wc -l`;
@@ -47,5 +48,11 @@ for patch_name in `cat series`; do
 	rm -rf $patch_name_split;
     fi;
     patch -p1 -d Percona-Server < $patch_name > /dev/null;
-    rm -rf a b;
+    if [ $hunk -ne 0 ]; then
+	rm -rf a b;
+	cp -R Percona-Server a;
+	cp -R Percona-Server b;
+    else 
+	patch -p1 -d a < $patch_name > /dev/null;
+    fi;
 done;

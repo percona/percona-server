@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/client/mysqldump.c b/client/mysqldump.c
+diff -ruN a/client/mysqldump.c b/client/mysqldump.c
 --- a/client/mysqldump.c	2010-07-28 16:47:58.264067653 +0400
 +++ b/client/mysqldump.c	2010-07-28 16:47:59.604985656 +0400
 @@ -132,6 +132,8 @@
@@ -63,7 +63,7 @@ diff -Nur a/client/mysqldump.c b/client/mysqldump.c
      dynstr_append_checked(&query_string, result_table);
  
      if (where)
-diff -Nur a/include/flashcache_ioctl.h b/include/flashcache_ioctl.h
+diff -ruN a/include/flashcache_ioctl.h b/include/flashcache_ioctl.h
 --- a/include/flashcache_ioctl.h	1970-01-01 03:00:00.000000000 +0300
 +++ b/include/flashcache_ioctl.h	2010-07-28 16:47:59.744079911 +0400
 @@ -0,0 +1,53 @@
@@ -120,7 +120,7 @@ diff -Nur a/include/flashcache_ioctl.h b/include/flashcache_ioctl.h
 +#define FLASHCACHEDELALLWHITELIST      _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELISTALL_CMD, pid_t)
 +
 +#endif
-diff -Nur a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
+diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
 --- a/mysql-test/r/mysqldump.result	2010-07-28 16:47:58.334083833 +0400
 +++ b/mysql-test/r/mysqldump.result	2010-07-28 16:48:14.805318437 +0400
 @@ -1832,7 +1832,7 @@
@@ -132,7 +132,7 @@ diff -Nur a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
  mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
  
  /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-diff -Nur a/patch_info/sql_no_fcache.info b/patch_info/sql_no_fcache.info
+diff -ruN a/patch_info/sql_no_fcache.info b/patch_info/sql_no_fcache.info
 --- a/patch_info/sql_no_fcache.info	1970-01-01 03:00:00.000000000 +0300
 +++ b/patch_info/sql_no_fcache.info	2010-07-28 16:47:59.915439165 +0400
 @@ -0,0 +1,6 @@
@@ -142,7 +142,7 @@ diff -Nur a/patch_info/sql_no_fcache.info b/patch_info/sql_no_fcache.info
 +Author=Facebook
 +License=GPL
 +Comment=
-diff -Nur a/sql/lex.h b/sql/lex.h
+diff -ruN a/sql/lex.h b/sql/lex.h
 --- a/sql/lex.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/lex.h	2010-07-28 16:48:00.134078469 +0400
 @@ -500,6 +500,7 @@
@@ -153,21 +153,22 @@ diff -Nur a/sql/lex.h b/sql/lex.h
    { "SQL_SMALL_RESULT", SYM(SQL_SMALL_RESULT)},
    { "SQL_THREAD",	SYM(SQL_THREAD)},
    { "SQL_TSI_FRAC_SECOND", SYM(FRAC_SECOND_SYM)},
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-28 16:47:58.565318871 +0400
 +++ b/sql/mysqld.cc	2010-07-28 16:48:03.004544367 +0400
-@@ -47,6 +47,10 @@
+@@ -46,6 +46,11 @@
+ #define OPT_NDB_SHM_DEFAULT 0
  #endif
  #endif
- 
++#if defined(__linux__)
 +#include <mntent.h>
 +#include <sys/statfs.h>
 +#include "flashcache_ioctl.h"
-+
++#endif//__linux__
+ 
  #ifndef DEFAULT_SKIP_THREAD_PRIORITY
  #define DEFAULT_SKIP_THREAD_PRIORITY 0
- #endif
-@@ -591,6 +595,11 @@
+@@ -591,6 +596,11 @@
  ulong max_connections, max_connect_errors;
  uint  max_user_connections= 0;
  ulonglong denied_connections = 0;
@@ -179,10 +180,11 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4370,6 +4379,95 @@
+@@ -4370,6 +4380,97 @@
  }
  #endif//DBUG_OFF
  
++#if defined(__linux__)
 +/*
 + * Auto detect if we support flash cache on the host system.
 + * This needs to be called before we setuid away from root
@@ -272,28 +274,33 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
 +    cachedev_fd = -1;
 +  }
 +}
++#endif//__linux__
  
  #ifdef __WIN__
  int win_main(int argc, char **argv)
-@@ -4474,6 +4572,8 @@
+@@ -4474,6 +4575,10 @@
    test_lc_time_sz();
  #endif
  
++#if defined(__linux__)
 +  init_cachedev();
-+  
++#endif//__linux__
++
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4675,6 +4775,8 @@
+@@ -4675,6 +4780,10 @@
    clean_up_mutexes();
    my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
++#if defined(__linux__)
 +  cleanup_cachedev();
++#endif//__linux__
 +
    exit(0);
    return(0);					/* purecov: deadcode */
  }
-@@ -7827,6 +7929,7 @@
+@@ -7827,6 +7936,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -301,7 +308,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
    {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
    {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
-diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/mysql_priv.h	2010-07-28 16:48:05.505952089 +0400
 @@ -794,6 +794,8 @@
@@ -313,7 +320,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  
  typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                        uint key_length,
-diff -Nur a/sql/sql_lex.cc b/sql/sql_lex.cc
+diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
 --- a/sql/sql_lex.cc	2010-07-28 16:47:58.555318714 +0400
 +++ b/sql/sql_lex.cc	2010-07-28 16:48:07.794069239 +0400
 @@ -306,6 +306,7 @@
@@ -324,7 +331,7 @@ diff -Nur a/sql/sql_lex.cc b/sql/sql_lex.cc
    lex->derived_tables= 0;
    lex->lock_option= TL_READ;
    lex->safe_to_cache_query= 1;
-diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
+diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/sql_lex.h	2010-07-28 16:48:08.405691834 +0400
 @@ -1728,6 +1728,7 @@
@@ -335,21 +342,23 @@ diff -Nur a/sql/sql_lex.h b/sql/sql_lex.h
    bool subqueries, ignore;
    st_parsing_options parsing_options;
    Alter_info alter_info;
-diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
+diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-07-28 16:47:58.555318714 +0400
 +++ b/sql/sql_select.cc	2010-07-28 16:48:13.414069437 +0400
-@@ -37,6 +37,10 @@
+@@ -37,6 +37,12 @@
  #include <hash.h>
  #include <ft_global.h>
  
 +#include <sys/syscall.h>
 +#include <sys/ioctl.h>
++#if defined(__linux__)
 +#include "flashcache_ioctl.h"
++#endif//__linux__
 +
  const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
  			      "MAYBE_REF","ALL","range","index","fulltext",
  			      "ref_or_null","unique_subquery","index_subquery",
-@@ -239,9 +243,16 @@
+@@ -239,9 +245,18 @@
                     ulong setup_tables_done_option)
  {
    bool res;
@@ -357,27 +366,31 @@ diff -Nur a/sql/sql_select.cc b/sql/sql_select.cc
    register SELECT_LEX *select_lex = &lex->select_lex;
    DBUG_ENTER("handle_select");
  
++#if defined(__linux__)
 +  if(lex->disable_flashcache && cachedev_fd > 0)
 +  {
 +    pid = syscall(SYS_gettid);
 +    ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid);
 +  }
-+
++#endif//__linux__
++ 
    if (select_lex->master_unit()->is_union() || 
        select_lex->master_unit()->fake_select_lex)
      res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
-@@ -274,6 +285,10 @@
+@@ -274,6 +289,12 @@
    if (unlikely(res))
      result->abort();
  
++#if defined(__linux__)
 +  if (lex->disable_flashcache && cachedev_fd > 0)
 +  {
 +    ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
 +  }
++#endif//__linux__ 
    DBUG_RETURN(res);
  }
  
-diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-07-28 16:47:58.565318871 +0400
 +++ b/sql/sql_yacc.yy	2010-07-28 16:48:14.205317990 +0400
 @@ -1164,6 +1164,7 @@

@@ -96,7 +96,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  /********************************************************************//**
  Allocates a chunk of buffer frames.
  @return	chunk, or NULL on failure */
-@@ -768,26 +835,184 @@
+@@ -768,26 +835,188 @@
  {
  	buf_block_t*	block;
  	byte*		frame;
@@ -109,6 +109,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	/* Round down to a multiple of page size,
  	although it already should be. */
  	mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
++
++	srv_buffer_pool_shm_is_reused = FALSE;
 +
 +	if (srv_buffer_pool_shm_key) {
 +		/* zip_hash size */
@@ -261,6 +263,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +		} else {
 +			/* adjust offset is done later */
 +			hash_create_reuse(zip_hash_tmp);
++
++			srv_buffer_pool_shm_is_reused = TRUE;
 +		}
 +	} else {
  	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
@@ -281,7 +285,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	/* Align a pointer to the first frame.  Note that when
  	os_large_page_size is smaller than UNIV_PAGE_SIZE,
-@@ -795,8 +1020,13 @@
+@@ -795,8 +1024,13 @@
  	it is bigger, we may allocate more blocks than requested. */
  
  	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
@@ -295,7 +299,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	/* Subtract the space needed for block descriptors. */
  	{
-@@ -810,6 +1040,98 @@
+@@ -810,6 +1044,98 @@
  		chunk->size = size;
  	}
  
@@ -394,7 +398,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	/* Init block structs and assign frames for them. Then we
  	assign the frames to the first blocks (we already mapped the
  	memory above). */
-@@ -833,6 +1155,11 @@
+@@ -833,6 +1159,11 @@
  		block++;
  		frame += UNIV_PAGE_SIZE;
  	}
@@ -406,7 +410,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	return(chunk);
  }
-@@ -1014,6 +1341,8 @@
+@@ -1014,6 +1345,8 @@
  		UNIV_MEM_UNDESC(block);
  	}
  
@@ -415,7 +419,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	os_mem_free_large(chunk->mem, chunk->mem_size);
  }
  
-@@ -1063,7 +1392,10 @@
+@@ -1063,7 +1396,10 @@
  	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
  
  	buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
@@ -426,7 +430,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	buf_pool->last_printout_time = time(NULL);
  
-@@ -1078,6 +1410,86 @@
+@@ -1078,6 +1414,86 @@
  	--------------------------- */
  	/* All fields are initialized by mem_zalloc(). */
  
@@ -513,7 +517,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mutex_exit(&LRU_list_mutex);
  	rw_lock_x_unlock(&page_hash_latch);
  	buf_pool_mutex_exit();
-@@ -1102,6 +1514,34 @@
+@@ -1102,6 +1518,34 @@
  	buf_chunk_t*	chunk;
  	buf_chunk_t*	chunks;
  
@@ -548,7 +552,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	chunks = buf_pool->chunks;
  	chunk = chunks + buf_pool->n_chunks;
  
-@@ -1110,10 +1550,13 @@
+@@ -1110,10 +1554,13 @@
  		would fail at shutdown. */
  		os_mem_free_large(chunk->mem, chunk->mem_size);
  	}
@@ -562,7 +566,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	mem_free(buf_pool);
  	buf_pool = NULL;
  }
-@@ -1308,6 +1751,11 @@
+@@ -1308,6 +1755,11 @@
  	//buf_pool_mutex_enter();
  	mutex_enter(&LRU_list_mutex);
  
@@ -574,7 +578,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  shrink_again:
  	if (buf_pool->n_chunks <= 1) {
  
-@@ -1551,6 +1999,11 @@
+@@ -1551,6 +2003,11 @@
  buf_pool_resize(void)
  /*=================*/
  {
@@ -852,11 +856,12 @@ diff -ruN a/storage/innodb_plugin/include/os0proc.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-07-14 16:32:49.695323045 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-07-14 16:40:16.171325784 +0900
-@@ -156,6 +156,9 @@
+@@ -156,6 +156,10 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
  
 +extern uint	srv_buffer_pool_shm_key;
++extern ibool	srv_buffer_pool_shm_is_reused;
 +extern ibool	srv_buffer_pool_shm_checksum;
 +
  extern ibool	srv_thread_concurrency_timer_based;
@@ -913,6 +918,17 @@ diff -ruN a/storage/innodb_plugin/include/ut0lst.h b/storage/innodb_plugin/inclu
 +} while (0)
 +
  #endif
+ 
+diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log0recv.c
+--- a/storage/innodb_plugin/log/log0recv.c	2010-10-01 15:25:27.106299166 +0900
++++ b/storage/innodb_plugin/log/log0recv.c	2010-10-01 15:26:33.689261436 +0900
+@@ -2901,6 +2901,7 @@
+ /*==========================*/
+ {
+ 	ut_a(!recv_needed_recovery);
++	ut_a(!srv_buffer_pool_shm_is_reused);
+ 
+ 	recv_needed_recovery = TRUE;
  
 diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0proc.c
 --- a/storage/innodb_plugin/os/os0proc.c	2010-06-04 00:49:59.000000000 +0900
@@ -1094,12 +1110,13 @@ diff -ruN a/storage/innodb_plugin/os/os0proc.c b/storage/innodb_plugin/os/os0pro
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-07-14 16:33:23.848391648 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-07-14 16:40:16.177323553 +0900
-@@ -211,6 +211,10 @@
+@@ -211,6 +211,11 @@
  UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
  UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
  
 +/* key value for shm */
 +UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
++UNIV_INTERN ibool	srv_buffer_pool_shm_is_reused = FALSE;
 +UNIV_INTERN ibool	srv_buffer_pool_shm_checksum = TRUE;
 +
  /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
@@ -1112,8 +1129,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  		Note that this is not as heavy weight as it seems. At
  		this point there will be only ONE page in the buf_LRU
  		and there must be no page in the buf_flush list. */
-+		/* TODO: treat more correctly */
-+		if (!srv_buffer_pool_shm_key)
++		/* buffer_pool_shm should not be reused when recovery was needed. */
++		if (!srv_buffer_pool_shm_is_reused)
  		buf_pool_invalidate();
  
  		/* We always try to do a recovery, even if the database had

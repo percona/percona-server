@@ -1024,9 +1024,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11439,6 +11536,14 @@
-   "Limit the allocated memory for dictionary cache. (0: unlimited)",
-   NULL, NULL, 0, 0, LONG_MAX, 0);
+@@ -11445,6 +11542,14 @@
+   "0 (the default) disables automatic dumps.",
+   NULL, NULL, 0, 0, UINT_MAX32, 0);
  
 +static	MYSQL_SYSVAR_ULONG(pass_corrupt_table, srv_pass_corrupt_table,
 +  PLUGIN_VAR_RQCMDARG,
@@ -1039,9 +1039,9 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11520,6 +11625,7 @@
-   MYSQL_SYSVAR(read_ahead_threshold),
+@@ -11527,6 +11632,7 @@
    MYSQL_SYSVAR(io_capacity),
+   MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
 +  MYSQL_SYSVAR(pass_corrupt_table),
    NULL
@@ -1346,7 +1346,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:38:38.286989546 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:39:03.048990992 +0900
-@@ -399,6 +399,7 @@
+@@ -402,6 +402,7 @@
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
@@ -1357,7 +1357,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:38:38.290021700 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:39:03.052021423 +0900
-@@ -1954,6 +1954,13 @@
+@@ -1958,6 +1958,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);
  

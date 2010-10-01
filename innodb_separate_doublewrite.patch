@@ -279,7 +279,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11439,6 +11447,7 @@
+@@ -11445,6 +11453,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),

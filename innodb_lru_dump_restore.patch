@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
 --- a/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:13:11.070058073 +0900
 +++ b/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:34:33.860400549 +0900
-@@ -2122,6 +2122,218 @@
+@@ -2122,6 +2122,278 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  
@@ -118,6 +118,26 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +
 +	return(ret);
 +}
++
++typedef struct {
++	ib_uint32_t space_id;
++	ib_uint32_t page_no;
++} dump_record_t;
++
++static int dump_record_cmp(const void *a, const void *b)
++{
++	const dump_record_t *rec1 = (dump_record_t *) a;
++	const dump_record_t *rec2 = (dump_record_t *) b;
++
++	if (rec1->space_id < rec2->space_id)
++		return -1;
++	if (rec1->space_id > rec2->space_id)
++		return 1;
++	if (rec1->page_no < rec2->page_no)
++		return -1;
++	return rec1->page_no > rec2->page_no;
++}
++
 +/********************************************************************//**
 +Read the pages based on the specific file.*/
 +UNIV_INTERN
@@ -135,25 +155,34 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +	ulint		req = 0;
 +	ibool		terminated = FALSE;
 +	ibool		ret = FALSE;
-+
-+	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
-+	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
-+	if (!buffer) {
-+		fprintf(stderr,
-+			" InnoDB: cannot allocate buffer.\n");
-+		goto end;
-+	}
++	dump_record_t*	records;
++	ulint		size;
++	ulint		size_high;
++	ulint		length;
 +
 +	dump_file = os_file_create_simple_no_error_handling(
 +		LRU_DUMP_FILE, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
-+	if (!success) {
++	if (!success || !os_file_get_size(dump_file, &size, &size_high)) {
 +		os_file_get_last_error(TRUE);
 +		fprintf(stderr,
 +			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
 +		goto end;
 +	}
++	if (size == 0 || size_high > 0 || size % 8) {
++		fprintf(stderr, " InnoDB: broken LRU dump file\n");
++		goto end;
++	}
++	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
++	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
++	records = ut_malloc(size);
++	if (!buffer || !records) {
++		fprintf(stderr,
++			" InnoDB: cannot allocate buffer.\n");
++		goto end;
++	}
 +
 +	buffers = 0;
++	length = 0;
 +	while (!terminated) {
 +		success = os_file_read(dump_file, buffer,
 +				(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
@@ -162,15 +191,14 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +		if (!success) {
 +			fprintf(stderr,
 +				" InnoDB: cannot read page %lu of %s,"
-+				" or meet unexpected terminal.",
++				" or meet unexpected terminal.\n",
 +				buffers, LRU_DUMP_FILE);
 +			goto end;
 +		}
 +
 +		for (offset = 0; offset < UNIV_PAGE_SIZE/4; offset += 2) {
-+			ulint	space_id, zip_size, page_no;
-+			ulint	err;
-+			ib_int64_t	tablespace_version;
++			ulint	space_id;
++			ulint	page_no;
 +
 +			space_id = mach_read_from_4(buffer + offset * 4);
 +			page_no = mach_read_from_4(buffer + (offset + 1) * 4);
@@ -180,31 +208,61 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +				break;
 +			}
 +
-+			if (offset % 16 == 15) {
-+				os_aio_simulated_wake_handler_threads();
-+				buf_flush_free_margin(FALSE);
-+			}
-+
-+			zip_size = fil_space_get_zip_size(space_id);
-+			if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
-+				continue;
-+			}
-+
-+			if (fil_area_is_exist(space_id, zip_size, page_no, 0,
-+					zip_size ? zip_size : UNIV_PAGE_SIZE)) {
-+
-+				tablespace_version = fil_space_get_version(space_id);
-+
-+				req++;
-+				reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
-+						  | OS_AIO_SIMULATED_WAKE_LATER,
-+						  space_id, zip_size, TRUE,
-+						  tablespace_version, page_no, NULL);
-+				buf_LRU_stat_inc_io();
++			records[length].space_id = space_id;
++			records[length].page_no = page_no;
++			length++;
++			if (length * 8 >= size) {
++				fprintf(stderr,
++					" InnoDB: could not find the "
++					"end-of-file marker after reading "
++					"the expected %lu bytes from the "
++					"LRU dump file.\n"
++					" InnoDB: this could be caused by a "
++					"broken or incomplete file.\n"
++					" InnoDB: trying to process what has "
++					"been read so far.\n",
++					size);
++				terminated= TRUE;
++				break;
 +			}
 +		}
-+
 +		buffers++;
++	}
++
++	qsort(records, length, sizeof(dump_record_t), dump_record_cmp);
++
++	for (offset = 0; offset < length; offset++) {
++		ulint		space_id;
++		ulint		page_no;
++		ulint		zip_size;
++		ulint		err;
++		ib_int64_t	tablespace_version;
++
++		space_id = records[offset].space_id;
++		page_no = records[offset].page_no;
++
++		if (offset % 16 == 15) {
++			os_aio_simulated_wake_handler_threads();
++			buf_flush_free_margin(FALSE);
++		}
++
++		zip_size = fil_space_get_zip_size(space_id);
++		if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
++			continue;
++		}
++
++		if (fil_area_is_exist(space_id, zip_size, page_no, 0,
++				      zip_size ? zip_size : UNIV_PAGE_SIZE)) {
++
++			tablespace_version = fil_space_get_version(space_id);
++
++			req++;
++			reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
++						   | OS_AIO_SIMULATED_WAKE_LATER,
++						   space_id, zip_size, TRUE,
++						   tablespace_version, page_no, NULL);
++			buf_LRU_stat_inc_io();
++		}
 +	}
 +
 +	os_aio_simulated_wake_handler_threads();
@@ -220,6 +278,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +		os_file_close(dump_file);
 +	if (buffer_base)
 +		ut_free(buffer_base);
++	if (records)
++		ut_free(records);
 +
 +	return(ret);
 +}
@@ -321,6 +381,30 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #ifndef UNIV_HOTBACKUP
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 09:57:56.486228425 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 10:00:13.292228546 +0900
+@@ -11431,6 +11431,12 @@
+   "Limit the allocated memory for dictionary cache. (0: unlimited)",
+   NULL, NULL, 0, 0, LONG_MAX, 0);
+ 
++static MYSQL_SYSVAR_UINT(auto_lru_dump, srv_auto_lru_dump,
++  PLUGIN_VAR_RQCMDARG,
++  "Time in seconds between automatic buffer pool dumps. "
++  "0 (the default) disables automatic dumps.",
++  NULL, NULL, 0, 0, UINT_MAX32, 0);
++
+ static struct st_mysql_sys_var* innobase_system_variables[]= {
+   MYSQL_SYSVAR(additional_mem_pool_size),
+   MYSQL_SYSVAR(autoextend_increment),
+@@ -11510,6 +11516,7 @@
+   MYSQL_SYSVAR(change_buffering),
+   MYSQL_SYSVAR(read_ahead_threshold),
+   MYSQL_SYSVAR(io_capacity),
++  MYSQL_SYSVAR(auto_lru_dump),
+   MYSQL_SYSVAR(use_purge_thread),
+   NULL
+ };
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:29:12.540979608 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:34:33.873058189 +0900
@@ -468,3 +552,147 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
  handler for completed requests. The aio array of pending requests is divided
+diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2010-10-01 09:57:56.500228711 +0900
++++ b/storage/innodb_plugin/include/srv0srv.h	2010-10-01 10:00:13.302223409 +0900
+@@ -334,6 +334,9 @@
+ reading of a disk page */
+ extern ulint srv_buf_pool_reads;
+ 
++/** Time in seconds between automatic buffer pool dumps */
++extern uint srv_auto_lru_dump;
++
+ /** Status variables to be passed to MySQL */
+ typedef struct export_var_struct export_struc;
+ 
+@@ -602,6 +605,16 @@
+ /*=====================*/
+ 	void*	arg);	/*!< in: a dummy parameter required by
+ 			os_thread_create */
++/*********************************************************************//**
++A thread which restores the buffer pool from a dump file on startup and does
++periodic buffer pool dumps.
++@return	a dummy parameter */
++UNIV_INTERN
++os_thread_ret_t
++srv_LRU_dump_restore_thread(
++/*====================*/
++	void*	arg);	/*!< in: a dummy parameter required by
++			os_thread_create */
+ /******************************************************************//**
+ Outputs to a file the output of the InnoDB Monitor.
+ @return FALSE if not all information printed
+diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2010-10-01 09:57:56.516255101 +0900
++++ b/storage/innodb_plugin/srv/srv0srv.c	2010-10-01 10:00:13.304230973 +0900
+@@ -298,6 +298,9 @@
+ reading of a disk page */
+ UNIV_INTERN ulint srv_buf_pool_reads = 0;
+ 
++/** Time in seconds between automatic buffer pool dumps */
++UNIV_INTERN uint srv_auto_lru_dump = 0;
++
+ /* structure to pass status variables to MySQL */
+ UNIV_INTERN export_struc export_vars;
+ 
+@@ -2537,6 +2540,56 @@
+ 	/* We count the number of threads in os_thread_exit(). A created
+ 	thread should always use that to exit and not use return() to exit. */
+ 
++	os_thread_exit(NULL);
++
++	OS_THREAD_DUMMY_RETURN;
++}
++
++/*********************************************************************//**
++A thread which restores the buffer pool from a dump file on startup and does
++periodic buffer pool dumps.
++@return	a dummy parameter */
++UNIV_INTERN
++os_thread_ret_t
++srv_LRU_dump_restore_thread(
++/*====================*/
++	void*	arg __attribute__((unused)))
++			/*!< in: a dummy parameter required by
++			os_thread_create */
++{
++	uint	auto_lru_dump;
++	time_t	last_dump_time;
++	time_t	time_elapsed;
++
++#ifdef UNIV_DEBUG_THREAD_CREATION
++	fprintf(stderr, "LRU dump/restore thread starts, id %lu\n",
++		os_thread_pf(os_thread_get_curr_id()));
++#endif
++
++	if (srv_auto_lru_dump)
++		buf_LRU_file_restore();
++
++	last_dump_time = time(NULL);
++
++loop:
++	os_thread_sleep(5000000);
++
++	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
++		goto exit_func;
++	}
++
++	time_elapsed = time(NULL) - last_dump_time;
++	auto_lru_dump = srv_auto_lru_dump;
++	if (auto_lru_dump > 0 && (time_t) auto_lru_dump < time_elapsed) {
++		last_dump_time = time(NULL);
++		buf_LRU_file_dump();
++	}
++
++	goto loop;
++exit_func:
++	/* We count the number of threads in os_thread_exit(). A created
++	thread should always use that to exit and not use return() to exit. */
++
+ 	os_thread_exit(NULL);
+ 
+ 	OS_THREAD_DUMMY_RETURN;
+diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
+--- a/storage/innodb_plugin/srv/srv0start.c	2010-10-01 09:57:56.420229366 +0900
++++ b/storage/innodb_plugin/srv/srv0start.c	2010-10-01 10:00:13.309260428 +0900
+@@ -126,9 +126,9 @@
+ static ulint		ios;
+ 
+ /** io_handler_thread parameters for thread identification */
+-static ulint		n[SRV_MAX_N_IO_THREADS + 6 + 64];
++static ulint		n[SRV_MAX_N_IO_THREADS + 7 + 64];
+ /** io_handler_thread identifiers */
+-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 64];
++static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + 64];
+ 
+ /** We use this mutex to test the return value of pthread_mutex_trylock
+    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
+@@ -1683,6 +1683,10 @@
+ 	os_thread_create(&srv_monitor_thread, NULL,
+ 			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+ 
++	/* Create the thread which automaticaly dumps/restore buffer pool */
++	os_thread_create(&srv_LRU_dump_restore_thread, NULL,
++			 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
++
+ 	srv_is_being_started = FALSE;
+ 
+ 	if (trx_doublewrite == NULL) {
+@@ -1707,13 +1711,13 @@
+ 		ulint i;
+ 
+ 		os_thread_create(&srv_purge_thread, NULL, thread_ids
+-				 + (5 + SRV_MAX_N_IO_THREADS));
++				 + (6 + SRV_MAX_N_IO_THREADS));
+ 
+ 		for (i = 0; i < srv_use_purge_thread - 1; i++) {
+-			n[6 + i + SRV_MAX_N_IO_THREADS] = i; /* using as index for arrays in purge_sys */
++			n[7 + i + SRV_MAX_N_IO_THREADS] = i; /* using as index for arrays in purge_sys */
+ 			os_thread_create(&srv_purge_worker_thread,
+-					 n + (6 + i + SRV_MAX_N_IO_THREADS),
+-					 thread_ids + (6 + i + SRV_MAX_N_IO_THREADS));
++					 n + (7 + i + SRV_MAX_N_IO_THREADS),
++					 thread_ids + (7 + i + SRV_MAX_N_IO_THREADS));
+ 		}
+ 	}
+ #ifdef UNIV_DEBUG

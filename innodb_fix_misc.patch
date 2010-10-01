@@ -70,7 +70,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
-@@ -11685,7 +11685,7 @@
+@@ -11692,7 +11692,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -175,7 +175,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900
-@@ -1966,7 +1966,7 @@
+@@ -1970,7 +1970,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

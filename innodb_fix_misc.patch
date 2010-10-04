@@ -11,7 +11,7 @@
 diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
 --- a/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:38:38.230059368 +0900
 +++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:59:15.262021286 +0900
-@@ -1072,6 +1072,8 @@
+@@ -1083,6 +1083,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  	/* NOTE that the operation of this function is protected by
  	the dictionary mutex, and therefore no deadlocks can occur
  	with other dictionary operations. */
-@@ -1098,15 +1100,17 @@
+@@ -1109,15 +1111,17 @@
  				  BTR_SEARCH_LEAF, &pcur, &mtr);
  	rec = btr_pcur_get_rec(&pcur);
  
@@ -45,7 +45,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  	}
  
  	/*---------------------------------------------------*/
-@@ -1119,19 +1123,14 @@
+@@ -1130,19 +1134,14 @@
  
  	/* Check if the table id in record is the one searched for */
  	if (ut_dulint_cmp(table_id, mach_read_from_8(field)) != 0) {
@@ -70,7 +70,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
-@@ -11692,7 +11692,7 @@
+@@ -11714,7 +11714,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -84,7 +84,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	0
- #define INNODB_VERSION_BUGFIX	11
+ #define INNODB_VERSION_BUGFIX	12
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.1
@@ -116,7 +116,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:04.097866666 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:53.995828763 +0900
-@@ -1127,6 +1127,13 @@
+@@ -1134,6 +1134,13 @@
  
  	thr = que_fork_get_first_thr(prebuilt->ins_graph);
  
@@ -133,7 +133,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0sel.c
 --- a/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:04.204866103 +0900
 +++ b/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:53.998864025 +0900
-@@ -3357,6 +3357,7 @@
+@@ -3356,6 +3356,7 @@
  	mem_heap_t*	heap				= NULL;
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;

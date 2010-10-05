@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/configure.in b/configure.in
+diff -ruN a/configure.in b/configure.in
 --- a/configure.in	2010-07-07 03:33:05.008972002 +0400
 +++ b/configure.in	2010-07-07 03:33:05.788972002 +0400
 @@ -808,7 +808,7 @@
@@ -17,7 +17,7 @@ diff -Nur a/configure.in b/configure.in
   stdlib.h stddef.h \
   strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
   sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
-diff -Nur a/configure b/configure
+diff -ruN a/configure b/configure
 --- a/configure	2010-07-26 18:29:12.172114128 +0900
 +++ b/configure	2010-07-26 20:44:59.199030524 +0900
 @@ -21524,7 +21524,7 @@
@@ -29,7 +29,7 @@ diff -Nur a/configure b/configure
   stdlib.h stddef.h \
   strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
   sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
-diff -Nur a/include/config.h.in b/include/config.h.in
+diff -ruN a/include/config.h.in b/include/config.h.in
 --- a/include/config.h.in	2010-07-26 18:29:12.192113524 +0900
 +++ b/include/config.h.in	2010-07-26 20:46:08.265182869 +0900
 @@ -599,6 +599,9 @@
@@ -42,7 +42,7 @@ diff -Nur a/include/config.h.in b/include/config.h.in
  /* Define to 1 if you have the `port_create' function. */
  #undef HAVE_PORT_CREATE
  
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-07 03:33:05.278972002 +0400
 +++ b/sql/mysqld.cc	2010-07-07 03:33:05.788972002 +0400
 @@ -55,6 +55,10 @@
@@ -56,7 +56,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #define mysqld_charset &my_charset_latin1
  
  #ifdef HAVE_purify
-@@ -5103,28 +5107,49 @@
+@@ -5108,28 +5112,49 @@
  {
    my_socket sock,new_sock;
    uint error_count=0;
@@ -109,7 +109,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_FCNTL
    socket_flags=fcntl(unix_sock, F_GETFL, 0);
  #endif
-@@ -5134,12 +5159,15 @@
+@@ -5139,12 +5164,15 @@
    MAYBE_BROKEN_SYSCALL;
    while (!abort_loop)
    {
@@ -130,7 +130,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
      {
        if (socket_errno != SOCKET_EINTR)
        {
-@@ -5149,7 +5177,7 @@
+@@ -5154,7 +5182,7 @@
        MAYBE_BROKEN_SYSCALL
        continue;
      }
@@ -139,7 +139,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
      if (abort_loop)
      {
        MAYBE_BROKEN_SYSCALL;
-@@ -5157,6 +5185,21 @@
+@@ -5162,6 +5190,21 @@
      }
  
      /* Is this a new connection request ? */
@@ -161,7 +161,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_SYS_UN_H
      if (FD_ISSET(unix_sock,&readFDs))
      {
-@@ -5164,11 +5207,12 @@
+@@ -5169,11 +5212,12 @@
        flags= socket_flags;
      }
      else

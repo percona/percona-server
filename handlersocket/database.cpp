@@ -165,7 +165,7 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   std::vector<char> info_message_buf;
   table_vec_type table_vec;
   table_map_type table_map;
-  #if MYSQL_VERSION_ID >= 60000
+  #if MYSQL_VERSION_ID >= 50505
   MDL_request *mdl_request;
   #else
   void *mdl_request;
@@ -271,7 +271,11 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
     const NET v = { 0 };
     thd->net = v;
     if (for_write_flag) {
+#if MYSQL_VERSION_ID >= 50505
+      thd->variables.option_bits |= OPTION_BIN_LOG;
+#else
       thd->options |= OPTION_BIN_LOG;
+#endif
       safeFree(thd->db);
       thd->db = 0;
       thd->db = my_strdup("handlersocket", MYF(0));
@@ -295,8 +299,9 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
   set_thread_message("hs:listening");
   DBG_THR(fprintf(stderr, "HNDSOCK x1 %p\n", thd));
 
-  #if MYSQL_VERSION_ID >= 60000
-  mdl_request = MDL_request::create(0, "", "", thd->mem_root);
+  #if MYSQL_VERSION_ID >= 50505
+  mdl_request = MDL_request::create(MDL_key::TABLE, "", "", for_write_flag ?
+                  MDL_SHARED_WRITE : MDL_SHARED_READ, thd->mem_root);
   #endif
 
   lex_start(thd);
@@ -360,7 +365,6 @@ dbcontext::lock_tables_if()
     }
   }
   if (lock == 0) {
-    bool need_reopen = false;
     const size_t num_max = table_vec.size();
     TABLE *tables[num_max ? num_max : 1]; /* GNU */
     size_t num_open = 0;
@@ -377,10 +381,10 @@ dbcontext::lock_tables_if()
       thd->in_lock_tables = 1;
     }
     #endif
-    #if MYSQL_VERSION_ID >= 60000
-    lock = thd->lock = mysql_lock_tables(thd, &tables[0], num_open, 0,
-      &need_reopen);
+    #if MYSQL_VERSION_ID >= 50505
+    lock = thd->lock = mysql_lock_tables(thd, &tables[0], num_open, 0);
     #else
+    bool need_reopen= false;
     lock = thd->lock = mysql_lock_tables(thd, &tables[0], num_open,
       MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &need_reopen);
     #endif
@@ -393,7 +397,11 @@ dbcontext::lock_tables_if()
 	thd));
     }
     if (for_write_flag) {
+#if MYSQL_VERSION_ID >= 50505
+      thd->set_current_stmt_binlog_format_row();
+#else
       thd->current_stmt_binlog_row_based = 1;
+#endif
     }
   }
   DBG_LOCK(fprintf(stderr, "HNDSOCK tblnum=%d\n", (int)tblnum));
@@ -406,7 +414,7 @@ dbcontext::unlock_tables_if()
     DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK unlock tables\n"));
     if (for_write_flag) {
       bool suc = true;
-      #if MYSQL_VERSION_ID >= 60000
+      #if MYSQL_VERSION_ID >= 50505
       suc = (trans_commit_stmt(thd) == 0);
       #else
       suc = (ha_autocommit_or_rollback(thd, 0) == 0);
@@ -743,13 +751,12 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     TABLE *table = 0;
     bool refresh = true;
     const thr_lock_type lock_type = for_write_flag ? TL_WRITE : TL_READ;
-    #if MYSQL_VERSION_ID >= 60000
+    #if MYSQL_VERSION_ID >= 50505
     tables.init_one_table(dbn, strlen(dbn), tbl, strlen(tbl), tbl,
       lock_type);
     tables.mdl_request = mdl_request;
-    enum_open_table_action ot_act = OT_NO_ACTION;
-    if (!open_table(thd, &tables, thd->mem_root, &ot_act,
-      OPEN_VIEW_NO_PARSE)) {
+    Open_table_context ot_act(thd, MYSQL_OPEN_REOPEN);
+    if (!open_table(thd, &tables, thd->mem_root, &ot_act)) {
       table = tables.table;
     }
     #else

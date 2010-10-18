@@ -528,12 +528,12 @@ hstcpsvr_worker::run_one_ep()
   /* WRITE */
   for (int i = 0; i < nfds; ++i) {
     epoll_event& ev = events[i];
-    if ((ev.events & EPOLLOUT) == 0) {
+    hstcpsvr_conn *const conn = static_cast<hstcpsvr_conn *>(ev.data.ptr);
+    if (commit_error && conn != 0) {
+      conn->reset();
       continue;
     }
-    hstcpsvr_conn *const conn = static_cast<hstcpsvr_conn *>(ev.data.ptr);
-    if (commit_error) {
-      conn->reset();
+    if ((ev.events & EPOLLOUT) == 0) {
       continue;
     }
     ++out_count;

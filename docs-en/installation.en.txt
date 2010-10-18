@@ -11,7 +11,7 @@ crash, etc).
 
 * Get MySQL source code
 
-* Get MySQl binary
+* Get MySQL binary
 
 * Build Handlersocket
   $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
@@ -22,7 +22,7 @@ mysql_config) are located, and --with-mysql-plugindir refers to a plugin
 directory where plugin libraries (*.so) are installed.  
 
   $ make
-  $ suto make install
+  $ sudo make install
 
  Both libhsclient and handlersocket will be installed.
 

@@ -4,10 +4,9 @@
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
-# should be done or reviewed by the maintainer!
-diff -Nur a/include/mysql_com.h b/include/mysql_com.h
---- a/include/mysql_com.h	2010-09-14 20:27:52.000000000 +0000
-+++ b/include/mysql_com.h	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/include/mysql_com.h b/include/mysql_com.h
+--- a/include/mysql_com.h	2010-10-16 07:28:32.000000000 +0400
++++ b/include/mysql_com.h	2010-10-16 07:29:04.000000000 +0400
 @@ -128,10 +128,11 @@
  #define REFRESH_FAST		32768	/* Intern flag */
  
@@ -24,9 +23,9 @@ diff -Nur a/include/mysql_com.h b/include/mysql_com.h
  
  #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
  #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
-diff -Nur a/patch_info/response-time-distribution.info b/patch_info/response-time-distribution.info
---- a/patch_info/response-time-distribution.info	1970-01-01 00:00:00.000000000 +0000
-+++ b/patch_info/response-time-distribution.info	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/patch_info/response-time-distribution.info b/patch_info/response-time-distribution.info
+--- a/patch_info/response-time-distribution.info	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/response-time-distribution.info	2010-10-16 07:29:04.000000000 +0400
 @@ -0,0 +1,9 @@
 +File=response-time-distribution.patch
 +Name=Response time distribution
@@ -37,9 +36,9 @@ diff -Nur a/patch_info/response-time-distribution.info b/patch_info/response-tim
 +Changelog
 +2010-07-02 first version avaliable
 +2010-09-15 add column 'total'
-diff -Nur a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/lex.h	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/sql/lex.h b/sql/lex.h
+--- a/sql/lex.h	2010-10-16 07:28:35.000000000 +0400
++++ b/sql/lex.h	2010-10-16 07:29:04.000000000 +0400
 @@ -415,6 +415,7 @@
    { "PURGE",		SYM(PURGE)},
    { "QUARTER",          SYM(QUARTER_SYM)},
@@ -48,9 +47,9 @@ diff -Nur a/sql/lex.h b/sql/lex.h
    { "QUICK",	        SYM(QUICK)},
    { "RANGE",            SYM(RANGE_SYM)},
    { "READ",		SYM(READ_SYM)},
-diff -Nur a/sql/Makefile.am b/sql/Makefile.am
---- a/sql/Makefile.am	2010-09-14 20:27:51.000000000 +0000
-+++ b/sql/Makefile.am	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/sql/Makefile.am b/sql/Makefile.am
+--- a/sql/Makefile.am	2010-10-16 07:28:31.000000000 +0400
++++ b/sql/Makefile.am	2010-10-16 07:29:04.000000000 +0400
 @@ -67,7 +67,7 @@
  			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
  			log_event.h rpl_record.h \
@@ -69,9 +68,9 @@ diff -Nur a/sql/Makefile.am b/sql/Makefile.am
  			sql_base.cc table.cc sql_select.cc sql_insert.cc \
  			sql_profile.cc \
  			sql_prepare.cc sql_error.cc sql_locale.cc \
-diff -Nur a/sql/Makefile.in b/sql/Makefile.in
---- a/sql/Makefile.in	2010-09-14 20:27:51.000000000 +0000
-+++ b/sql/Makefile.in	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/sql/Makefile.in b/sql/Makefile.in
+--- a/sql/Makefile.in	2010-10-16 07:28:31.000000000 +0400
++++ b/sql/Makefile.in	2010-10-16 07:29:04.000000000 +0400
 @@ -122,7 +122,7 @@
  	sql_string.$(OBJEXT) sql_manager.$(OBJEXT) sql_map.$(OBJEXT) \
  	mysqld.$(OBJEXT) password.$(OBJEXT) hash_filo.$(OBJEXT) \
@@ -107,9 +106,9 @@ diff -Nur a/sql/Makefile.in b/sql/Makefile.in
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/records.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/repl_failsafe.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rpl_filter.Po@am__quote@
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/mysqld.cc	2010-09-14 20:32:15.000000000 +0000
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-10-16 07:28:35.000000000 +0400
++++ b/sql/mysqld.cc	2010-10-16 07:29:04.000000000 +0400
 @@ -32,6 +32,8 @@
  
  #include "rpl_injector.h"
@@ -119,7 +118,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_SYS_PRCTL_H
  #include <sys/prctl.h>
  #endif
-@@ -527,6 +533,8 @@
+@@ -532,6 +534,8 @@
  my_bool opt_query_cache_strip_comments = 0;
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
@@ -128,7 +127,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_myisam_use_mmap= 0;
-@@ -1382,6 +1395,7 @@
+@@ -1392,6 +1396,7 @@
    free_global_thread_stats();
    free_global_table_stats();
    free_global_index_stats();
@@ -136,7 +135,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -4082,6 +4096,7 @@
+@@ -4092,6 +4097,7 @@
  
    init_global_table_stats();
    init_global_index_stats();
@@ -144,7 +143,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
  
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
-@@ -5895,6 +6003,8 @@
+@@ -6004,6 +6010,8 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -153,7 +152,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD
-@@ -6964,6 +7074,21 @@
+@@ -7073,6 +7081,21 @@
     "Use microsecond time's precision in slow query log",
     (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -175,10 +174,10 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/mysql_priv.h	2010-09-14 20:31:41.000000000 +0000
-@@ -2090,6 +2090,8 @@
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
+--- a/sql/mysql_priv.h	2010-10-16 07:28:35.000000000 +0400
++++ b/sql/mysql_priv.h	2010-10-16 07:29:04.000000000 +0400
+@@ -2092,6 +2092,8 @@
  extern my_bool opt_query_cache_strip_comments;
  extern my_bool opt_use_global_long_query_time;
  extern my_bool opt_slow_query_log_microseconds_timestamp;
@@ -187,10 +186,10 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;
-diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
---- a/sql/query_response_time.cc	1970-01-01 00:00:00.000000000 +0000
-+++ b/sql/query_response_time.cc	2010-09-14 20:32:15.000000000 +0000
-@@ -0,0 +1,279 @@
+diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
+--- a/sql/query_response_time.cc	1970-01-01 03:00:00.000000000 +0300
++++ b/sql/query_response_time.cc	2010-10-18 15:23:12.000000000 +0400
+@@ -0,0 +1,347 @@
 +#include "my_global.h"
 +#include "mysql_priv.h"
 +#include "mysql_com.h"
@@ -341,6 +340,74 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +  }
 +  buffer[result_length]= 0;
 +}
++#ifdef __x86_64__
++typedef uint64 TimeCounter;
++void add_time_atomic(TimerCounter* counter, uint64 time)
++{
++  __sync_fetch_and_add(counter,time);  
++}
++#endif // __x86_64__
++#ifdef __i386__
++inline uint32 get_high(uint64 value)
++{
++  return ((value >> 32) << 32);
++}
++inline uint32 get_low(uint64 value)
++{
++  return ((value << 32) >> 32);
++}
++class TimeCounter
++{
++public:
++  TimeCounter& operator=(uint64 time)
++  {
++    this->m_high= get_high(time);
++    this->m_low=  get_low(time);
++    return *this;
++  }
++  operator uint64() const
++  {
++    return ((static_cast<uint64>(m_high) << 32) + static_cast<uint64>(m_low));
++  }
++  void add(uint64 time)
++  {
++    uint32 time_high = get_high(time);
++    uint32 time_low  = get_low(time);
++    uint64 time_low64= time_low;
++    while(true)
++    {
++      uint32 old_low= this->m_low;
++      uint64 old_low64= old_low;
++
++      uint64 new_low64= old_low64 + time_low64;
++      uint32 new_low= (get_low(new_low64));
++      bool add_high= (get_high(new_low64) != 0);
++
++      if(!__sync_bool_compare_and_swap(&m_low,old_low,new_low))
++      {
++	continue;
++      }
++      if(add_high)
++      {
++	++time_high;
++      }
++      if(time_high > 0)
++      {
++        __sync_fetch_and_add(&m_high,time_high);
++      }
++      break;
++    }
++  }
++private:
++  uint32 m_low;
++  uint32 m_high;
++};
++void add_time_atomic(TimeCounter* counter, uint64 time)
++{
++  counter->add(time);
++}
++#endif // __i386__
++
 +class time_collector
 +{
 +public:
@@ -363,15 +430,15 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +      if(m_utility->bound(i) > time)
 +      {
 +        __sync_fetch_and_add(&(m_count[i]),(uint32)1);
-+        __sync_fetch_and_add(&(m_total[i]),time);
-+	break;
++	 add_time_atomic(&(m_total[i]),time);
++        break;
 +      }
 +    }
 +  }
 +private:
 +  utility* m_utility;
 +  uint32   m_count[OVERALL_POWER_COUNT + 1];
-+  uint64   m_total[OVERALL_POWER_COUNT + 1];
++  TimeCounter m_total[OVERALL_POWER_COUNT + 1];
 +};
 +
 +class collector
@@ -470,9 +537,9 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +{
 +  return query_response_time::g_collector.fill(thd,tables,cond);
 +}
-diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
---- a/sql/query_response_time.h	1970-01-01 00:00:00.000000000 +0000
-+++ b/sql/query_response_time.h	2010-09-14 20:32:15.000000000 +0000
+diff -ruN a/sql/query_response_time.h b/sql/query_response_time.h
+--- a/sql/query_response_time.h	1970-01-01 03:00:00.000000000 +0300
++++ b/sql/query_response_time.h	2010-10-16 07:29:04.000000000 +0400
 @@ -0,0 +1,69 @@
 +#ifndef QUERY_RESPONSE_TIME_H
 +#define QUERY_RESPONSE_TIME_H
@@ -543,9 +610,9 @@ diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
 +extern int  query_response_time_fill   (THD* thd, TABLE_LIST *tables, COND *cond);
 +
 +#endif // QUERY_RESPONSE_TIME_H
-diff -Nur a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/set_var.cc	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
+--- a/sql/set_var.cc	2010-10-16 07:28:35.000000000 +0400
++++ b/sql/set_var.cc	2010-10-16 07:29:04.000000000 +0400
 @@ -1004,6 +1004,10 @@
  static sys_var_use_global_long_query_time sys_use_global_long_query_time;
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
@@ -557,9 +624,9 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/sql_parse.cc	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
+--- a/sql/sql_parse.cc	2010-10-16 07:28:35.000000000 +0400
++++ b/sql/sql_parse.cc	2010-10-16 07:29:04.000000000 +0400
 @@ -27,6 +27,7 @@
  #include "sp_cache.h"
  #include "events.h"
@@ -633,9 +700,9 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (options & (REFRESH_USER_STATS | REFRESH_CLIENT_STATS | REFRESH_THREAD_STATS))
    {
      pthread_mutex_lock(&LOCK_global_user_client_stats);
-diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/sql_show.cc	2010-09-14 20:32:15.000000000 +0000
+diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
+--- a/sql/sql_show.cc	2010-10-16 07:28:32.000000000 +0400
++++ b/sql/sql_show.cc	2010-10-16 07:29:04.000000000 +0400
 @@ -31,6 +31,7 @@
  #include "event_data_objects.h"
  #endif
@@ -668,9 +735,9 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    {"SCHEMATA", schema_fields_info, create_schema_table,
     fill_schema_schemata, make_schemata_old_format, 0, 1, -1, 0, 0},
    {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
-diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/sql_yacc.yy	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+--- a/sql/sql_yacc.yy	2010-10-16 07:28:35.000000000 +0400
++++ b/sql/sql_yacc.yy	2010-10-16 07:29:04.000000000 +0400
 @@ -1079,6 +1079,7 @@
  %token  PURGE
  %token  QUARTER_SYM
@@ -679,7 +746,7 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -10373,6 +10374,13 @@
+@@ -10378,6 +10379,13 @@
             if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
               MYSQL_YYABORT;
            }
@@ -693,7 +760,7 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | CREATE PROCEDURE sp_name
            {
              LEX *lex= Lex;
-@@ -10593,6 +10601,8 @@
+@@ -10598,6 +10606,8 @@
            { Lex->type|= REFRESH_TABLE_STATS; }
          | INDEX_STATS_SYM
            { Lex->type|= REFRESH_INDEX_STATS; }
@@ -702,7 +769,7 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -11851,6 +11861,7 @@
+@@ -11856,6 +11866,7 @@
          | PROFILES_SYM             {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}
@@ -710,9 +777,9 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | QUICK                    {}
          | READ_ONLY_SYM            {}
          | REBUILD_SYM              {}
-diff -Nur a/sql/table.h b/sql/table.h
---- a/sql/table.h	2010-09-14 20:27:52.000000000 +0000
-+++ b/sql/table.h	2010-09-14 20:31:41.000000000 +0000
+diff -ruN a/sql/table.h b/sql/table.h
+--- a/sql/table.h	2010-10-16 07:28:32.000000000 +0400
++++ b/sql/table.h	2010-10-16 07:29:04.000000000 +0400
 @@ -963,6 +963,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,

@@ -342,7 +342,7 @@ diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
 +}
 +#ifdef __x86_64__
 +typedef uint64 TimeCounter;
-+void add_time_atomic(TimerCounter* counter, uint64 time)
++void add_time_atomic(TimeCounter* counter, uint64 time)
 +{
 +  __sync_fetch_and_add(counter,time);  
 +}

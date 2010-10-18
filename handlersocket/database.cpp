@@ -397,7 +397,7 @@ dbcontext::lock_tables_if()
     lock = thd->lock = mysql_lock_tables(thd, &tables[0], num_open,
       MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN, &need_reopen);
     #endif
-    status_var_increment(lock_tables_count);
+    statistic_increment(lock_tables_count);
     thd_proc_info(thd, &info_message_buf[0]);
     DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK lock tables %p %p %zu %zu\n",
       thd, lock, num_max, num_open));
@@ -437,7 +437,7 @@ dbcontext::unlock_tables_if()
     }
     mysql_unlock_tables(thd, lock);
     lock = thd->lock = 0;
-    status_var_increment(unlock_tables_count);
+    statistic_increment(unlock_tables_count);
   }
   if (user_level_lock_locked) {
     if (user_lock->release_lock()) {
@@ -466,7 +466,7 @@ dbcontext::close_tables_if()
   if (!table_vec.empty()) {
     DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK close tables\n"));
     close_thread_tables(thd);
-    status_var_increment(close_tables_count);
+    statistic_increment(close_tables_count);
     table_vec.clear();
     table_map.clear();
   }
@@ -675,7 +675,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   hnd->ha_index_or_rnd_end();
   hnd->ha_index_init(pst.get_idxnum(), 1);
-//  status_var_increment(index_init_count);
+//  statistic_increment(index_init_count);
   if (!modify_op_flag) {
     cb.dbcb_resp_begin(pst.get_retfields().size());
   } else {
@@ -783,7 +783,7 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
 	thd, dbn, tbl, static_cast<int>(refresh)));
       return cb.dbcb_resp_short(2, "open_table");
     }
-    status_var_increment(open_tables_count);
+    statistic_increment(open_tables_count);
     table->reginfo.lock_type = lock_type;
     table->use_all_columns();
     tblnum = table_vec.size();

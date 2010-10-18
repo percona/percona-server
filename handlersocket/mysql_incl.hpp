@@ -13,7 +13,7 @@
 #define MYSQL_DYNAMIC_PLUGIN
 #define MYSQL_SERVER 1
 
-#include <mysql/my_config.h>
+#include <my_config.h>
 #ifdef DBUG_ON
 #define SAFE_MUTEX
 #endif

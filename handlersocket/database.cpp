@@ -24,6 +24,13 @@
 #define DBG_REFCNT(x)
 #define DBG_DELETED
 
+/* status variables */
+unsigned long long int open_tables_count;
+unsigned long long int close_tables_count;
+unsigned long long int lock_tables_count;
+unsigned long long int unlock_tables_count;
+unsigned long long int index_exec_count;
+
 namespace dena {
 
 prep_stmt::prep_stmt()
@@ -219,15 +226,6 @@ dbcontext::~dbcontext()
 }
 
 namespace {
-
-/* status variables */
-extern "C" {
-  unsigned long long int open_tables_count;
-  unsigned long long int close_tables_count;
-  unsigned long long int lock_tables_count;
-  unsigned long long int unlock_tables_count;
-  unsigned long long int index_init_count;
-}
 
 int
 wait_server_to_start(THD *thd, volatile int& shutdown_flag)
@@ -675,7 +673,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   hnd->ha_index_or_rnd_end();
   hnd->ha_index_init(pst.get_idxnum(), 1);
-//  statistic_increment(index_init_count, &LOCK_status);
+//  statistic_increment(index_exec_count, &LOCK_status);
   if (!modify_op_flag) {
     cb.dbcb_resp_begin(pst.get_retfields().size());
   } else {

@@ -99,5 +99,11 @@ struct dbcontext_i {
 
 };
 
+extern unsigned long long int open_tables_count;
+extern unsigned long long int close_tables_count;
+extern unsigned long long int lock_tables_count;
+extern unsigned long long int unlock_tables_count;
+//extern unsigned long long int index_exec_count;
+
 #endif
 

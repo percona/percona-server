@@ -157,18 +157,12 @@ static struct st_mysql_sys_var *daemon_handlersocket_system_variables[] = {
   0
 };
 
-extern unsigned long long int open_tables_count;
-extern unsigned long long int close_tables_count;
-extern unsigned long long int lock_tables_count;
-extern unsigned long long int unlock_tables_count;
-//extern unsigned long long int index_init_count;
-
 static SHOW_VAR hs_status_variables[] = {
   {"table_open", (char*) &open_tables_count, SHOW_LONGLONG},
   {"table_close", (char*) &close_tables_count, SHOW_LONGLONG},
   {"table_lock", (char*) &lock_tables_count, SHOW_LONGLONG},
   {"table_unlock", (char*) &unlock_tables_count, SHOW_LONGLONG},
-//  {"index_init", (char*) &index_init_count, SHOW_LONGLONG},
+//  {"index_exec", (char*) &index_exec_count, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 

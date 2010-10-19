@@ -471,7 +471,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  
  #include <ctype.h>
  
-@@ -705,7 +706,7 @@
+@@ -704,7 +705,7 @@
  	mutex_exit(&(dict_sys->mutex));
  
  	if (table != NULL) {
@@ -480,7 +480,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			/* If table->ibd_file_missing == TRUE, this will
  			print an error message and return without doing
  			anything. */
-@@ -1246,7 +1247,7 @@
+@@ -1245,7 +1246,7 @@
  		    + dict_sys->size) > srv_dict_size_limit ) {
  		prev_table = UT_LIST_GET_PREV(table_LRU, table);
  
@@ -489,19 +489,19 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4565,6 +4566,11 @@
- 	}
+@@ -4556,6 +4557,11 @@
  
- 	while (index) {
+ 
+ 	do {
 +		if (table->is_corrupt) {
 +			ut_a(srv_pass_corrupt_table);
 +			return;
 +		}
 +
- 		size = btr_get_size(index, BTR_TOTAL_SIZE);
- 
- 		index->stat_index_size = size;
-@@ -5289,4 +5295,42 @@
+ 		if (UNIV_LIKELY
+ 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
+ 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+@@ -5301,4 +5307,42 @@
  		mutex_free(&dict_index_stat_mutex[i]);
  	}
  }
@@ -778,7 +778,7 @@ diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:38:38.249059616 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:39:02.960021471 +0900
-@@ -3696,6 +3696,12 @@
+@@ -3716,6 +3716,12 @@
  		DBUG_RETURN(1);
  	}
  
@@ -791,7 +791,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Create buffers for packing the fields of a record. Why
  	table->reclength did not work here? Obviously, because char
  	fields when packed actually became 1 byte longer, when we also
-@@ -3723,6 +3729,19 @@
+@@ -3743,6 +3749,19 @@
  	/* Get pointer to a table object in InnoDB dictionary cache */
  	ib_table = dict_table_get(norm_name, TRUE);
  	
@@ -811,7 +811,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
  			++retries;
-@@ -4890,6 +4909,10 @@
+@@ -4910,6 +4929,10 @@
  
  	ha_statistic_increment(&SSV::ha_write_count);
  
@@ -822,7 +822,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5107,6 +5130,10 @@
+@@ -5127,6 +5150,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -833,7 +833,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error_result);
  }
  
-@@ -5283,6 +5310,10 @@
+@@ -5303,6 +5330,10 @@
  
  	ha_statistic_increment(&SSV::ha_update_count);
  
@@ -844,7 +844,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
  		table->timestamp_field->set_time();
  
-@@ -5372,6 +5403,10 @@
+@@ -5392,6 +5423,10 @@
  
  	innobase_active_small();
  
@@ -855,7 +855,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error);
  }
  
-@@ -5393,6 +5428,10 @@
+@@ -5413,6 +5448,10 @@
  
  	ha_statistic_increment(&SSV::ha_delete_count);
  
@@ -866,7 +866,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (!prebuilt->upd_node) {
  		row_get_prebuilt_update_vector(prebuilt);
  	}
-@@ -5419,6 +5458,10 @@
+@@ -5439,6 +5478,10 @@
  
  	innobase_active_small();
  
@@ -877,7 +877,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error);
  }
  
-@@ -5658,6 +5701,10 @@
+@@ -5678,6 +5721,10 @@
  
  	ha_statistic_increment(&SSV::ha_read_key_count);
  
@@ -888,7 +888,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	index = prebuilt->index;
  
  	if (UNIV_UNLIKELY(index == NULL)) {
-@@ -5723,6 +5770,10 @@
+@@ -5743,6 +5790,10 @@
  		ret = DB_UNSUPPORTED;
  	}
  
@@ -899,7 +899,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -5833,6 +5884,10 @@
+@@ -5853,6 +5904,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -910,7 +910,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -5923,6 +5978,10 @@
+@@ -5943,6 +5998,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -921,7 +921,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -5932,6 +5991,10 @@
+@@ -5952,6 +6011,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -932,7 +932,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7184,6 +7247,10 @@
+@@ -7204,6 +7267,10 @@
  		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
  	}
  
@@ -943,7 +943,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7192,6 +7259,10 @@
+@@ -7212,6 +7279,10 @@
  		goto fallback;
  	}
  
@@ -954,7 +954,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7702,6 +7773,16 @@
+@@ -7722,6 +7793,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -971,7 +971,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -7833,9 +7914,9 @@
+@@ -7840,9 +7921,9 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -984,7 +984,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8101,9 +8182,17 @@
+@@ -8122,9 +8203,17 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -1002,7 +1002,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	return(0);
  }
  
-@@ -8285,6 +8374,10 @@
+@@ -8306,6 +8395,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1013,7 +1013,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9012,6 +9105,10 @@
+@@ -9033,6 +9126,10 @@
  
  	update_thd(thd);
  
@@ -1024,7 +1024,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11445,6 +11542,14 @@
+@@ -11467,6 +11564,14 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1039,7 +1039,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11527,6 +11632,7 @@
+@@ -11549,6 +11654,7 @@
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
@@ -1157,7 +1157,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
 --- a/storage/innodb_plugin/include/dict0dict.h	2010-08-27 16:22:04.264988090 +0900
 +++ b/storage/innodb_plugin/include/dict0dict.h	2010-08-27 16:39:03.011025333 +0900
-@@ -1185,6 +1185,15 @@
+@@ -1201,6 +1201,15 @@
  dict_close(void);
  /*============*/
  
@@ -1176,7 +1176,7 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/dict0mem.h b/storage/innodb_plugin/include/dict0mem.h
 --- a/storage/innodb_plugin/include/dict0mem.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/dict0mem.h	2010-08-27 16:39:03.013021149 +0900
-@@ -539,6 +539,7 @@
+@@ -560,6 +560,7 @@
  				the AUTOINC lock on this table. */
  				/* @} */
  	/*----------------------*/

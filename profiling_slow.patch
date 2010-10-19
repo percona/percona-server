@@ -36,7 +36,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-07 03:32:17.598972002 +0400
 +++ b/sql/mysqld.cc	2010-07-07 03:32:18.108972002 +0400
-@@ -5773,6 +5773,8 @@
+@@ -5778,6 +5778,8 @@
    OPT_LOG_OUTPUT,
    OPT_PORT_OPEN_TIMEOUT,
    OPT_PROFILING,
@@ -45,7 +45,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_KEEP_FILES_ON_CREATE,
    OPT_GENERAL_LOG,
    OPT_SLOW_LOG,
-@@ -6385,6 +6387,16 @@
+@@ -6390,6 +6392,16 @@
     &global_system_variables.profiling_history_size,
     &max_system_variables.profiling_history_size,
     0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},

@@ -198,7 +198,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
 --- a/storage/innodb_plugin/dict/dict0dict.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0dict.c	2010-08-27 16:09:42.930057360 +0900
-@@ -583,6 +583,8 @@
+@@ -582,6 +582,8 @@
  
  	table = dict_table_get_on_id_low(table_id);
  
@@ -207,7 +207,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	mutex_exit(&(dict_sys->mutex));
  
  	return(table);
-@@ -698,6 +700,8 @@
+@@ -697,6 +699,8 @@
  		table->n_mysql_handles_opened++;
  	}
  
@@ -216,7 +216,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	mutex_exit(&(dict_sys->mutex));
  
  	if (table != NULL) {
-@@ -1212,6 +1216,64 @@
+@@ -1211,6 +1215,64 @@
  	dict_mem_table_free(table);
  }
  
@@ -281,7 +281,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  /****************************************************************//**
  If the given column name is reserved for InnoDB system columns, return
  TRUE.
-@@ -1674,6 +1736,11 @@
+@@ -1673,6 +1735,11 @@
  	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -305,7 +305,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11265,6 +11267,11 @@
+@@ -11287,6 +11289,11 @@
    "Number of extra user rollback segments when create new database.",
    NULL, NULL, 0, 0, 126, 0);
  
@@ -317,7 +317,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11332,6 +11339,7 @@
+@@ -11354,6 +11361,7 @@
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),
@@ -366,7 +366,7 @@ diff -ruN a/storage/innodb_plugin/include/btr0sea.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
 --- a/storage/innodb_plugin/include/dict0dict.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/dict0dict.h	2010-08-27 16:09:42.953188223 +0900
-@@ -1116,6 +1116,12 @@
+@@ -1132,6 +1132,12 @@
  /*====================================*/
  	dict_table_t*	table,	/*!< in: table */
  	const char*	name);	/*!< in: name of the index to find */
@@ -382,7 +382,7 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/dict0dict.ic b/storage/innodb_plugin/include/dict0dict.ic
 --- a/storage/innodb_plugin/include/dict0dict.ic	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/dict0dict.ic	2010-08-27 16:09:42.955104393 +0900
-@@ -744,6 +744,13 @@
+@@ -786,6 +786,13 @@
  	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
  		    dict_table_t*, table, ut_ad(table->cached),
  		    !strcmp(table->name, table_name));
@@ -396,7 +396,7 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.ic b/storage/innodb_plugin/i
  	return(table);
  }
  
-@@ -797,6 +804,12 @@
+@@ -839,6 +846,12 @@
  		table = dict_load_table_on_id(table_id);
  	}
  

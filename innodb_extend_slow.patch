@@ -378,7 +378,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:30:34.589021493 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:30:47.356987871 +0900
-@@ -1359,6 +1359,16 @@
+@@ -1372,6 +1372,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -395,7 +395,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_VOID_RETURN;
  }
  
-@@ -1414,6 +1424,32 @@
+@@ -1427,6 +1437,32 @@
  }
  
  
@@ -428,7 +428,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -8909,6 +8945,25 @@
+@@ -8930,6 +8966,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {

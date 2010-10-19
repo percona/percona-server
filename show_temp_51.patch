@@ -8,7 +8,7 @@
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-08-27 15:24:41.663411604 +0900
 +++ b/sql/mysqld.cc	2010-08-27 15:30:36.942106886 +0900
-@@ -3230,6 +3230,7 @@
+@@ -3233,6 +3233,7 @@
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
    {"show_thread_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_THREAD_STATS]), SHOW_LONG_STATUS},
@@ -58,7 +58,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -5421,6 +5427,8 @@
+@@ -5440,6 +5446,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -356,7 +356,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-08-27 15:19:09.976059692 +0900
 +++ b/sql/sql_yacc.yy	2010-08-27 15:30:36.971993050 +0900
-@@ -10073,6 +10073,15 @@
+@@ -10096,6 +10096,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }

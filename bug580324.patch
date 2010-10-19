@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/sql/sql_base.cc b/sql/sql_base.cc
+diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
 --- a/sql/sql_base.cc	2010-05-27 19:54:18.000000000 +0400
 +++ b/sql/sql_base.cc	2010-05-27 19:55:20.000000000 +0400
 @@ -233,8 +233,12 @@
@@ -23,7 +23,7 @@ diff -Nur a/sql/sql_base.cc b/sql/sql_base.cc
    if (tmp_table)
    {
      int4store(key + key_length, thd->server_id);
-diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-05-27 19:54:18.000000000 +0400
 +++ b/sql/sql_parse.cc	2010-05-27 20:03:20.000000000 +0400
 @@ -1326,10 +1326,12 @@
@@ -89,7 +89,7 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
      thd->set_query(fields, query_length);
      general_log_print(thd, command, "%s %s", table_list.table_name, fields);
      if (lower_case_table_names)
-diff -Nur a/strings/ctype-utf8.c b/strings/ctype-utf8.c
+diff -ruN a/strings/ctype-utf8.c b/strings/ctype-utf8.c
 --- a/strings/ctype-utf8.c	2010-05-06 19:28:05.000000000 +0400
 +++ b/strings/ctype-utf8.c	2010-05-27 20:04:20.000000000 +0400
 @@ -4116,6 +4116,10 @@

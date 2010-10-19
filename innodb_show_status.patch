@@ -67,7 +67,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:20.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:56.000000000 +0900
-@@ -10712,6 +10712,16 @@
+@@ -10734,6 +10734,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -84,7 +84,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -10894,7 +10904,7 @@
+@@ -10916,7 +10926,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -93,7 +93,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -10965,6 +10975,8 @@
+@@ -10987,6 +10997,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),

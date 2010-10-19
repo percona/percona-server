@@ -1,4 +1,4 @@
 #!/bin/sh
 
-aclocal && automake -c --foreign --add-missing && autoheader && autoconf
+libtoolize --force --copy && aclocal && automake -c --foreign --add-missing && autoheader && autoconf
 

@@ -14890,6 +14890,10 @@ if test "${with_mysql_bindir+set}" = set; then :
 $as_echo "yes: Using $ac_mysql_bin_dir, version $MYSQL_BIN_VERSION" >&6; }
 
       MYSQL_LIB=`(cd $ac_mysql_bin_dir; ./mysql_config --libs_r)`
+      LIB_DIR=`echo $MYSQL_LIB | cut -d'L' -f2 | cut -d' ' -f1`
+      if test a`basename $LIB_DIR` = amysql ; then
+        MYSQL_LIB="-L`dirname $LIB_DIR` $MYSQL_LIB"
+      fi
 
 
 else

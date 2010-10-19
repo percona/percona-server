@@ -34,7 +34,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = hsclient$(EXEEXT) hstest$(EXEEXT)
+bin_PROGRAMS = hsclient$(EXEEXT)
 subdir = client
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -53,12 +53,6 @@ hsclient_LDADD = $(LDADD)
 hsclient_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(hsclient_CXXFLAGS) \
 	$(CXXFLAGS) $(hsclient_LDFLAGS) $(LDFLAGS) -o $@
-am_hstest_OBJECTS = hstest-hstest.$(OBJEXT)
-hstest_OBJECTS = $(am_hstest_OBJECTS)
-hstest_LDADD = $(LDADD)
-hstest_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CXXLD) $(hstest_CXXFLAGS) $(CXXFLAGS) \
-	$(hstest_LDFLAGS) $(LDFLAGS) -o $@
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -72,8 +66,8 @@ CXXLD = $(CXX)
 CXXLINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
 	--mode=link $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-SOURCES = $(hsclient_SOURCES) $(hstest_SOURCES)
-DIST_SOURCES = $(hsclient_SOURCES) $(hstest_SOURCES)
+SOURCES = $(hsclient_SOURCES)
+DIST_SOURCES = $(hsclient_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -198,19 +192,12 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CPPFLAGS = $(MYSQL_INC)
 AM_INCLUDES = -I. -I.. -I../libhsclient
-AM_LIBS = $(MYSQL_LIB)
 ACLOCAL_AMFILES = $$ACLOCAL_ARGS
 pkgplugindir = $(PLUGIN_DIR)
 hsclient_SOURCES = hsclient.cpp
-#hsclient_LDADD= -L../libhsclient/.libs -lhsclient $(AM_LIBS) -lmysqlclient -lm -lpthread
-hsclient_LDFLAGS = -static -L../libhsclient/.libs -lhsclient $(AM_LIBS) -lmysqlclient -lm -lpthread
-hsclient_CXXFLAGS = $(AM_CFLAGS) $(AM_INCLUDES)
-hstest_SOURCES = hstest.cpp
-#hstest_LDADD= -L../libhsclient/.libs -lhsclient $(AM_LIBS) -lmysqlclient -lm -lpthread
-hstest_LDFLAGS = -static -L../libhsclient/.libs -lhsclient $(AM_LIBS) -lmysqlclient -lm -lpthread
-hstest_CXXFLAGS = $(AM_CFLAGS) $(AM_INCLUDES)
+hsclient_LDFLAGS = -static -L../libhsclient/.libs -lhsclient
+hsclient_CXXFLAGS = $(AM_INCLUDES)
 all: all-am
 
 .SUFFIXES:
@@ -291,9 +278,6 @@ clean-binPROGRAMS:
 hsclient$(EXEEXT): $(hsclient_OBJECTS) $(hsclient_DEPENDENCIES) 
 	@rm -f hsclient$(EXEEXT)
 	$(hsclient_LINK) $(hsclient_OBJECTS) $(hsclient_LDADD) $(LIBS)
-hstest$(EXEEXT): $(hstest_OBJECTS) $(hstest_DEPENDENCIES) 
-	@rm -f hstest$(EXEEXT)
-	$(hstest_LINK) $(hstest_OBJECTS) $(hstest_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -302,7 +286,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hsclient-hsclient.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hstest-hstest.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -338,20 +321,6 @@ hsclient-hsclient.obj: hsclient.cpp
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='hsclient.cpp' object='hsclient-hsclient.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(hsclient_CXXFLAGS) $(CXXFLAGS) -c -o hsclient-hsclient.obj `if test -f 'hsclient.cpp'; then $(CYGPATH_W) 'hsclient.cpp'; else $(CYGPATH_W) '$(srcdir)/hsclient.cpp'; fi`
-
-hstest-hstest.o: hstest.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(hstest_CXXFLAGS) $(CXXFLAGS) -MT hstest-hstest.o -MD -MP -MF $(DEPDIR)/hstest-hstest.Tpo -c -o hstest-hstest.o `test -f 'hstest.cpp' || echo '$(srcdir)/'`hstest.cpp
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/hstest-hstest.Tpo $(DEPDIR)/hstest-hstest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='hstest.cpp' object='hstest-hstest.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(hstest_CXXFLAGS) $(CXXFLAGS) -c -o hstest-hstest.o `test -f 'hstest.cpp' || echo '$(srcdir)/'`hstest.cpp
-
-hstest-hstest.obj: hstest.cpp
-@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(hstest_CXXFLAGS) $(CXXFLAGS) -MT hstest-hstest.obj -MD -MP -MF $(DEPDIR)/hstest-hstest.Tpo -c -o hstest-hstest.obj `if test -f 'hstest.cpp'; then $(CYGPATH_W) 'hstest.cpp'; else $(CYGPATH_W) '$(srcdir)/hstest.cpp'; fi`
-@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/hstest-hstest.Tpo $(DEPDIR)/hstest-hstest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='hstest.cpp' object='hstest-hstest.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(hstest_CXXFLAGS) $(CXXFLAGS) -c -o hstest-hstest.obj `if test -f 'hstest.cpp'; then $(CYGPATH_W) 'hstest.cpp'; else $(CYGPATH_W) '$(srcdir)/hstest.cpp'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -559,6 +528,11 @@ uninstall-am: uninstall-binPROGRAMS
 	pdf pdf-am ps ps-am tags uninstall uninstall-am \
 	uninstall-binPROGRAMS
 
+
+hstest: hstest.o
+	$(CXX) $(CXXFLAGS) $(LFLAGS) hstest.o -L../libhsclient/.libs -lhsclient $(MYSQL_LIB) -o hstest
+hstest.o: hstest.cpp
+	$(CXX) $(CXXFLAGS) $(MYSQL_INC) $(AM_INCLUDES) -c hstest.cpp
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

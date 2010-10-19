@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/client/client_priv.h b/client/client_priv.h
+diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2010-08-08 14:12:42.229338865 +0400
 +++ b/client/client_priv.h	2010-08-08 14:12:43.068089277 +0400
 @@ -90,6 +90,7 @@
@@ -16,7 +16,7 @@ diff -Nur a/client/client_priv.h b/client/client_priv.h
    OPT_FIRST_SLAVE,
    OPT_ALL,
    OPT_MAX_CLIENT_OPTION
-diff -Nur a/client/mysql.cc b/client/mysql.cc
+diff -ruN a/client/mysql.cc b/client/mysql.cc
 --- a/client/mysql.cc	2010-08-08 14:12:42.229338865 +0400
 +++ b/client/mysql.cc	2010-08-08 14:12:43.488088866 +0400
 @@ -43,6 +43,9 @@

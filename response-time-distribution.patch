@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -Nur a/include/mysql_com.h b/include/mysql_com.h
+diff -ruN a/include/mysql_com.h b/include/mysql_com.h
 --- a/include/mysql_com.h	2010-09-14 20:27:52.000000000 +0000
 +++ b/include/mysql_com.h	2010-09-14 20:31:41.000000000 +0000
 @@ -128,10 +128,11 @@
@@ -24,7 +24,7 @@ diff -Nur a/include/mysql_com.h b/include/mysql_com.h
  
  #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
  #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
-diff -Nur a/patch_info/response-time-distribution.info b/patch_info/response-time-distribution.info
+diff -ruN a/patch_info/response-time-distribution.info b/patch_info/response-time-distribution.info
 --- a/patch_info/response-time-distribution.info	1970-01-01 00:00:00.000000000 +0000
 +++ b/patch_info/response-time-distribution.info	2010-09-14 20:31:41.000000000 +0000
 @@ -0,0 +1,9 @@
@@ -37,7 +37,7 @@ diff -Nur a/patch_info/response-time-distribution.info b/patch_info/response-tim
 +Changelog
 +2010-07-02 first version avaliable
 +2010-09-15 add column 'total'
-diff -Nur a/sql/lex.h b/sql/lex.h
+diff -ruN a/sql/lex.h b/sql/lex.h
 --- a/sql/lex.h	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/lex.h	2010-09-14 20:31:41.000000000 +0000
 @@ -415,6 +415,7 @@
@@ -48,7 +48,7 @@ diff -Nur a/sql/lex.h b/sql/lex.h
    { "QUICK",	        SYM(QUICK)},
    { "RANGE",            SYM(RANGE_SYM)},
    { "READ",		SYM(READ_SYM)},
-diff -Nur a/sql/Makefile.am b/sql/Makefile.am
+diff -ruN a/sql/Makefile.am b/sql/Makefile.am
 --- a/sql/Makefile.am	2010-09-14 20:27:51.000000000 +0000
 +++ b/sql/Makefile.am	2010-09-14 20:31:41.000000000 +0000
 @@ -67,7 +67,7 @@
@@ -69,7 +69,7 @@ diff -Nur a/sql/Makefile.am b/sql/Makefile.am
  			sql_base.cc table.cc sql_select.cc sql_insert.cc \
  			sql_profile.cc \
  			sql_prepare.cc sql_error.cc sql_locale.cc \
-diff -Nur a/sql/Makefile.in b/sql/Makefile.in
+diff -ruN a/sql/Makefile.in b/sql/Makefile.in
 --- a/sql/Makefile.in	2010-09-14 20:27:51.000000000 +0000
 +++ b/sql/Makefile.in	2010-09-14 20:31:41.000000000 +0000
 @@ -122,7 +122,7 @@
@@ -107,7 +107,7 @@ diff -Nur a/sql/Makefile.in b/sql/Makefile.in
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/records.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/repl_failsafe.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rpl_filter.Po@am__quote@
-diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/mysqld.cc	2010-09-14 20:32:15.000000000 +0000
 @@ -32,6 +32,8 @@
@@ -175,7 +175,7 @@ diff -Nur a/sql/mysqld.cc b/sql/mysqld.cc
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/mysql_priv.h	2010-09-14 20:31:41.000000000 +0000
 @@ -2090,6 +2090,8 @@
@@ -187,7 +187,7 @@ diff -Nur a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;
-diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
+diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
 --- a/sql/query_response_time.cc	1970-01-01 00:00:00.000000000 +0000
 +++ b/sql/query_response_time.cc	2010-09-14 20:32:15.000000000 +0000
 @@ -0,0 +1,279 @@
@@ -470,7 +470,7 @@ diff -Nur a/sql/query_response_time.cc b/sql/query_response_time.cc
 +{
 +  return query_response_time::g_collector.fill(thd,tables,cond);
 +}
-diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
+diff -ruN a/sql/query_response_time.h b/sql/query_response_time.h
 --- a/sql/query_response_time.h	1970-01-01 00:00:00.000000000 +0000
 +++ b/sql/query_response_time.h	2010-09-14 20:32:15.000000000 +0000
 @@ -0,0 +1,69 @@
@@ -543,7 +543,7 @@ diff -Nur a/sql/query_response_time.h b/sql/query_response_time.h
 +extern int  query_response_time_fill   (THD* thd, TABLE_LIST *tables, COND *cond);
 +
 +#endif // QUERY_RESPONSE_TIME_H
-diff -Nur a/sql/set_var.cc b/sql/set_var.cc
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/set_var.cc	2010-09-14 20:31:41.000000000 +0000
 @@ -1004,6 +1004,10 @@
@@ -557,7 +557,7 @@ diff -Nur a/sql/set_var.cc b/sql/set_var.cc
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/sql_parse.cc	2010-09-14 20:31:41.000000000 +0000
 @@ -27,6 +27,7 @@
@@ -633,7 +633,7 @@ diff -Nur a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (options & (REFRESH_USER_STATS | REFRESH_CLIENT_STATS | REFRESH_THREAD_STATS))
    {
      pthread_mutex_lock(&LOCK_global_user_client_stats);
-diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
+diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/sql_show.cc	2010-09-14 20:32:15.000000000 +0000
 @@ -31,6 +31,7 @@
@@ -668,7 +668,7 @@ diff -Nur a/sql/sql_show.cc b/sql/sql_show.cc
    {"SCHEMATA", schema_fields_info, create_schema_table,
     fill_schema_schemata, make_schemata_old_format, 0, 1, -1, 0, 0},
    {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
-diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/sql_yacc.yy	2010-09-14 20:31:41.000000000 +0000
 @@ -1079,6 +1079,7 @@
@@ -710,7 +710,7 @@ diff -Nur a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | QUICK                    {}
          | READ_ONLY_SYM            {}
          | REBUILD_SYM              {}
-diff -Nur a/sql/table.h b/sql/table.h
+diff -ruN a/sql/table.h b/sql/table.h
 --- a/sql/table.h	2010-09-14 20:27:52.000000000 +0000
 +++ b/sql/table.h	2010-09-14 20:31:41.000000000 +0000
 @@ -963,6 +963,7 @@

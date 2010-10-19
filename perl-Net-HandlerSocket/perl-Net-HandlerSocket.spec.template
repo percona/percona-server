@@ -13,7 +13,7 @@
 
 name:      perl-Net-HandlerSocket
 summary:   HandlerSocket - Perl extension for handlersocket
-version:   1.0.4
+version:   HANDLERSOCKET_VERSION
 release:   1%{?dist}
 packager:  Akira Higuchi <higuchi dot akira at dena dot jp>
 license:   BSD

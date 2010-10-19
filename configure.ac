@@ -57,7 +57,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
       AC_MSG_RESULT([yes: Using $ac_mysql_bin_dir, version $MYSQL_BIN_VERSION])
 
       MYSQL_LIB=`(cd $ac_mysql_bin_dir; ./mysql_config --libs_r)`
-      LIB_DIR=`echo $MYSQL_LIB | cut -d'L' -f2 | cut -d' ' -f1`
+      LIB_DIR=`echo $MYSQL_LIB | sed -e "s|.* -L||" | sed -e "s| .*||"`
       if test a`basename $LIB_DIR` = amysql ; then
         MYSQL_LIB="-L`dirname $LIB_DIR` $MYSQL_LIB" 
       fi
@@ -85,10 +85,12 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
       fi
     ],
     [
-        ac_mysql_plugin_dir=$ac_mysql_bin_dir/../lib/plugin
-        PLUGIN_DIR="$ac_mysql_plugin_dir"
-        AC_SUBST(PLUGIN_DIR)
-        AC_MSG_RESULT([--with-mysql-plugindir was not set. Using $ac_mysql_plugin_dir])
+      LIB_DIR_TMP1=`(cd $ac_mysql_bin_dir; ./mysql_config --libs_r)`
+      LIB_DIR_TMP2=`echo $LIB_DIR_TMP1 | sed -e "s|.* -L||" | sed -e "s| .*||"`
+      ac_mysql_plugin_dir=$LIB_DIR_TMP2/plugin
+      PLUGIN_DIR="$ac_mysql_plugin_dir"
+      AC_SUBST(PLUGIN_DIR)
+      AC_MSG_RESULT([--with-mysql-plugindir was not set. Using $ac_mysql_plugin_dir])
     ]
   )
 ])

@@ -15,6 +15,7 @@ rpm_cli: clean_cli rpm_dir
 		dist/libhsclient.tar.gz
 
 rpm_perl: clean_perl rpm_dir
+	sed -e "s/HANDLERSOCKET_VERSION/$(VERSION)/" perl-Net-HandlerSocket/perl-Net-HandlerSocket.spec.template > perl-Net-HandlerSocket/perl-Net-HandlerSocket.spec 
 	cd perl-Net-HandlerSocket && perl Makefile.PL && make clean && \
 		rm -f Makefile.old
 	tar cvfz dist/perl-Net-HandlerSocket.tar.gz perl-Net-HandlerSocket
@@ -32,7 +33,7 @@ install_rpm_pl:
 	- sudo rpm -e perl-Net-HandlerSocket-debuginfo
 	make clean
 	make rpm_perl
-	- sudo rpm -U dist/RPMS/*/*.rpm
+	- sudo rpm -U dist/RPMS/*/perl*.rpm
 
 installrpms:
 	- sudo rpm -e handlersocket
@@ -43,13 +44,13 @@ installrpms:
 	- sudo rpm -e libhsclient-debuginfo
 	make clean
 	make rpm_cli
-	- sudo rpm -U dist/RPMS/*/*.rpm
+	- sudo rpm -U dist/RPMS/*/libhsclient*.rpm
 	make clean
 	make rpm_perl
-	- sudo rpm -U dist/RPMS/*/*.rpm
+	- sudo rpm -U dist/RPMS/*/perl*.rpm
 	make clean
 	make rpm_c
-	- sudo rpm -U dist/RPMS/*/*.rpm
+	- sudo rpm -U dist/RPMS/*/handlersocket*.rpm
 
 clean_cli:
 	cd libhsclient && make clean

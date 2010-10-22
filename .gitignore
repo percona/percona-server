@@ -11,3 +11,7 @@ config.h*
 config.status
 config.log
 TAGS
+aclocal.m4
+.libs
+ltmain.sh
+*.la

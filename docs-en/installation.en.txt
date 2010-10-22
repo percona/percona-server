@@ -14,7 +14,7 @@ crash, etc).
 * Get MySQL binary
 
 * Build Handlersocket
-  $ autoreconf -i
+  $ ./autogen.sh
   $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
 
  --with-mysql-source refers to the top of MySQL source directory,

@@ -4,11 +4,17 @@ Makefile
 .deps
 *.lo
 *.o
+INSTALL
 stamp-h1
 libtool
+ltmain.sh
+missing
+install-sh
 autom4te.cache
 config.h*
 config.status
+config.guess
+config.sub
 config.log
 TAGS
 aclocal.m4

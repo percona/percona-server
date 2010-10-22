@@ -1,7 +1,5 @@
 AM_INCLUDES= -I. -I..
 ACLOCAL_AMFILES= $$ACLOCAL_ARGS
-top_builddir=$(abs_top_builddir)
-top_srcdir=$(abs_top_srcdir)
 
 # noinst_HEADERS= allocator.hpp          config.hpp    mutex.hpp          string_util.hpp  auto_addrinfo.hpp      escape.hpp    socket.hpp         thread.hpp auto_file.hpp          fatal.hpp     string_buffer.hpp  util.hpp auto_ptrcontainer.hpp  hstcpcli.hpp  string_ref.hpp
 lib_LTLIBRARIES= libhsclient.la

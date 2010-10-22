@@ -2,8 +2,6 @@ AM_CPPFLAGS= $(MYSQL_INC)
 AM_INCLUDES= -I. -I.. -I../libhsclient
 ACLOCAL_AMFILES= $$ACLOCAL_ARGS
 pkgplugindir=  $(PLUGIN_DIR)
-top_builddir=$(abs_top_builddir)
-top_srcdir=$(abs_top_srcdir)
 
 noinst_HEADERS= database.hpp  hstcpsvr.hpp  hstcpsvr_worker.hpp  mysql_incl.hpp
 

@@ -10,3 +10,4 @@ autom4te.cache
 config.h*
 config.status
 config.log
+TAGS

@@ -21,12 +21,12 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
   AC_ARG_WITH([mysql-source],
     [AS_HELP_STRING([--with-mysql-source=PATH], [MySQL source directory PATH])],
     [
-      ac_mysql_source_dir="$withval"
+      ac_mysql_source_dir=`cd $withval && pwd`
       if test -f "$ac_mysql_source_dir/sql/handler.h" ; then
-        MYSQL_INC="-I../$ac_mysql_source_dir/sql"
-        MYSQL_INC="$MYSQL_INC -I../$ac_mysql_source_dir/include"
-        MYSQL_INC="$MYSQL_INC -I../$ac_mysql_source_dir/regex"
-        MYSQL_INC="$MYSQL_INC -I../$ac_mysql_source_dir"
+        MYSQL_INC="-I$ac_mysql_source_dir/sql"
+        MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir/include"
+        MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir/regex"
+        MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir"
         AC_SUBST(MYSQL_INC)
         MYSQL_SOURCE_VERSION=`cat $ac_mysql_source_dir/configure.in | grep "\[[MySQL Server\]]" | sed -e "s|.*\([[0-9]]\+\.[[0-9]]\+\.[[0-9]]\+[[0-9a-zA-Z\_\-]]*\).*|\1|"`
         AC_MSG_RESULT([yes: Using $ac_mysql_source_dir, version $MYSQL_SOURCE_VERSION])
@@ -44,7 +44,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
   AC_ARG_WITH([mysql-bindir],
     [AS_HELP_STRING([--with-mysql-bindir=PATH], [MySQL biarny directory PATH. This should be the directory where MySQL binary executables (i.e. mysql_config) are located])],
     [
-      ac_mysql_bin_dir="$withval"
+      ac_mysql_bin_dir=`cd $withval && pwd`
       if test ! -f "$ac_mysql_bin_dir/mysql_config" ; then
         AC_MSG_ERROR([mysql_config not found! invalid MySQL base directory: $ac_mysql_bin_dir])
       fi

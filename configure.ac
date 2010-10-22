@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 #AC_PREREQ([2.63b])
-AC_INIT([handlersocket-plugin], [1.0.5], [Yoshinori.Matsunobu@gmail.com])
+AC_INIT([handlersocket-plugin], [1.0.6], [Yoshinori.Matsunobu@gmail.com])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_SRCDIR([libhsclient/fatal.cpp])
@@ -75,7 +75,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
   AC_ARG_WITH([mysql-plugindir],
     [AS_HELP_STRING([--with-mysql-plugindir=PATH], [MySQL plugin directory where handlersocket.so to be copied])],
     [
-      ac_mysql_plugin_dir="$withval"
+      ac_mysql_plugin_dir=`cd $withval && pwd`
       if test -d "$ac_mysql_plugin_dir/" ; then
         PLUGIN_DIR="$ac_mysql_plugin_dir"
         AC_SUBST(PLUGIN_DIR)

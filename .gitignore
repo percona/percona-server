@@ -24,3 +24,7 @@ ltmain.sh
 handlersocket/*.spec
 libhsclient/*.spec
 perl-Net-HandlerSocket/*.spec
+regtest/*/*.log
+regtest/*/*.log2
+regtest/*/DONE
+dist/*

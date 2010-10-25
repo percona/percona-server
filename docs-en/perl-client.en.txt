@@ -117,7 +117,7 @@ executing them separatedly.
   }
 
 -----------------------------------------------------------------
-When an error is occured, the the first element of the returned
+When an error is occured, the first element of the returned
 arrayref becomes a non-zero value. A negative value indicates
 that an I/O error is occured and the Net::HandlerSocket object
 should be disposed. A positive value means that the connection is

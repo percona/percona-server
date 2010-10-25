@@ -1,35 +1,25 @@
 
 -----------------------------------------------------------------
-ビルド＆インストール方法(RPM)
+ビルド方法(RPMを使わない方法)
 
-動作させるのに必要なパッケージは、libhsclient、handlersocket、
-perl-Net-HandlerSocketの3つです。mysqlサーバ側はlibhsclientと
-handlersocketを、クライアント側はlibhsclientと
-perl-Net-HandlerSocketをインストールする必要があります。
+以下のようにしてconfigureを実行します。
 
-mysqlサーバ側でhandlersocketプラグインをビルドするには以下が必要
-です。
+  $ ./autogen.sh
+  $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
 
-・mysqlインストール時に同時にインストールされるヘッダファイル
-     これはmysqlがビルドされた際のオプション等を取得するために使
-     用します。既定では/usr/include/mysql/の下にインストールされ
-     ていることを想定しています。変更するにはMakefileのMYSQL_INC
-     を書き換えてください。
-・mysqlの内部ヘッダファイル
-     handlersocketプラグインのビルド前に、mysqlの内部ヘッダファイ
-     ルをmysqlのソースコードからコピーしてくる必要があります。
-     コピーするにはhandlersocket/ディレクトリの下で./copy_hdrs.sh
-     を実行してください。たとえばバージョン5.1.45のソースコードが
-     /path/to/mysql/sourceにあるときは、
-         $ ./copy_hdrs.sh /path/to/mysql/source 5.1.45
-     のように実行します。
+ここで--with-mysql-sourceにはMySQLのソースコードのトップディレク
+トリを指定します。--with-mysql-bindirにはインストール済みのMySQL
+のmysql_configコマンドが有るディレクトリを指定します。
+その後以下のようにビルド・インストールします。
 
-注意: handlersocketプラグインをビルドする際には、プラグインを使用
-するmysqlと完全に一致するバージョンのソースコードを使ってください。
-少しでも違うバージョンのソースコードを使うとクラッシュなどの誤動
-作がおきることがあります。
+  $ make
+  $ sudo make install
 
-以下の順に実行すればrpmパッケージがビルド＆インストールされます。
+-----------------------------------------------------------------
+ビルド方法(RPM)
+
+単にmakeするかわりに以下のように実行すれば、rpmパッケージがビルド
+＆インストールされます。
 
 (mysqlサーバ側)
   $ make clean
@@ -46,6 +36,9 @@ mysqlサーバ側でhandlersocketプラグインをビルドするには以下�
   $ make clean
   $ make rpm_perl
   $ sudo rpm -U dist/RPMS/*/*.rpm
+
+-----------------------------------------------------------------
+起動
 
 mysqlを起動した状態で、mysqlの設定ファイル(my.cnf等)に以下の内容を
 追加します。

@@ -4,7 +4,7 @@ pkgplugindir=  $(PLUGIN_DIR)
 
 bin_PROGRAMS=hsclient 
 hsclient_SOURCES= hsclient.cpp
-hsclient_LDFLAGS= -static -L../libhsclient/.libs -lhsclient
+hsclient_LDFLAGS= -static -L../libhsclient -lhsclient
 hsclient_CXXFLAGS= $(AM_INCLUDES)
 
 hstest: hstest.o

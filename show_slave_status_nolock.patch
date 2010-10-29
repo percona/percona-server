@@ -1,0 +1,98 @@
+diff -ruN a/patch_info/show_slave_status_nolock.patch b/patch_info/show_slave_status_nolock.patch
+--- a/patch_info/show_slave_status_nolock.patch	1970-01-01 05:00:00.000000000 +0500
++++ b/patch_info/show_slave_status_nolock.patch	2010-10-29 14:44:13.000000000 +0600
+@@ -0,0 +1,6 @@
++File=show_slave_status_nolock.patch
++Name= SHOW SLAVE STATUS NOLOCK
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment= Implement SHOW SLAVE STATUS without lock (STOP SLAVE lock the same mutex what lock SHOW SLAVE STATUS)
+diff -ruN a/sql/lex.h b/sql/lex.h
+--- a/sql/lex.h	2010-10-29 14:39:13.000000000 +0600
++++ b/sql/lex.h	2010-10-29 14:41:48.000000000 +0600
+@@ -367,6 +367,7 @@
+   { "NONE",		SYM(NONE_SYM)},
+   { "NOT",		SYM(NOT_SYM)},
+   { "NO_WRITE_TO_BINLOG",  SYM(NO_WRITE_TO_BINLOG)},
++  { "NOLOCK",           SYM(NOLOCK_SYM)},
+   { "NULL",		SYM(NULL_SYM)},
+   { "NUMERIC",		SYM(NUMERIC_SYM)},
+   { "NVARCHAR",		SYM(NVARCHAR_SYM)},
+diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
+--- a/sql/sql_lex.h	2010-10-29 14:39:13.000000000 +0600
++++ b/sql/sql_lex.h	2010-10-29 14:41:56.000000000 +0600
+@@ -119,7 +119,8 @@
+   SQLCOM_ALTER_DB_UPGRADE, SQLCOM_SHOW_TEMPORARY_TABLES,
+   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
+   SQLCOM_SHOW_PATCHES,
+-
++  /* SHOW SLAVE STATUS NOLOCK */
++  SQLCOM_SHOW_SLAVE_NOLOCK_STAT,
+   /*
+     When a command is added here, be sure it's also added in mysqld.cc
+     in "struct show_var_st status_vars[]= {" ...
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
+--- a/sql/sql_parse.cc	2010-10-29 14:39:13.000000000 +0600
++++ b/sql/sql_parse.cc	2010-10-29 14:42:03.000000000 +0600
+@@ -326,6 +326,7 @@
+   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
+   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
+   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
++  sql_command_flags[SQLCOM_SHOW_SLAVE_NOLOCK_STAT]=  CF_STATUS_COMMAND;
+   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
+   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
+   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
+@@ -2538,12 +2539,16 @@
+     pthread_mutex_unlock(&LOCK_active_mi);
+     break;
+   }
++  case SQLCOM_SHOW_SLAVE_NOLOCK_STAT:
+   case SQLCOM_SHOW_SLAVE_STAT:
+   {
+     /* Accept one of two privileges */
+     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
+       goto error;
+-    pthread_mutex_lock(&LOCK_active_mi);
++    if(SQLCOM_SHOW_SLAVE_NOLOCK_STAT != lex->sql_command)
++    {
++      pthread_mutex_lock(&LOCK_active_mi);
++    }
+     if (active_mi != NULL)
+     {
+       res = show_master_info(thd, active_mi);
+@@ -2554,7 +2559,10 @@
+                    WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
+       my_ok(thd);
+     }
+-    pthread_mutex_unlock(&LOCK_active_mi);
++    if(SQLCOM_SHOW_SLAVE_NOLOCK_STAT != lex->sql_command)
++    {
++      pthread_mutex_unlock(&LOCK_active_mi);
++    }
+     break;
+   }
+   case SQLCOM_SHOW_MASTER_STAT:
+diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
+--- a/sql/sql_yacc.yy	2010-10-29 14:39:13.000000000 +0600
++++ b/sql/sql_yacc.yy	2010-10-29 14:41:39.000000000 +0600
+@@ -1173,6 +1173,7 @@
+ %token  STARTS_SYM
+ %token  START_SYM                     /* SQL-2003-R */
+ %token  STATUS_SYM
++%token  NOLOCK_SYM                    /* SHOW SLAVE STATUS NOLOCK */
+ %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
+ %token  STD_SYM
+ %token  STOP_SYM
+@@ -10367,6 +10368,11 @@
+           {
+             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
+           }
++	/* SHOW SLAVE STATUS NOLOCK */
++        | SLAVE STATUS_SYM NOLOCK_SYM
++          {
++	    Lex->sql_command = SQLCOM_SHOW_SLAVE_NOLOCK_STAT; //SQLCOM_SHOW_SLAVE_NOLOCK_STAT;
++          }
+         | CLIENT_STATS_SYM wild_and_where 
+           {
+            LEX *lex= Lex;

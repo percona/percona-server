@@ -105,7 +105,7 @@ HandlerSocket returns a response of the following syntax for each request.
   multiple of <numcolumns>. It is possible that <r1> ... <rn> is empty.
 
 If <errorcode> is non-zero, <numcolumns> is always 1 and <r1> indicates a
-human-readable error message.
+human-readable error message, though sometimes <r1> is not provided.
 
 ----------------------------------------------------------------------------
 Response for 'open_index'
@@ -144,8 +144,5 @@ Response for 'insert'
 If 'insert' is succeeded, HanderSocket returns a line of the following
 syntax.
 
-   0 1 <numinserted>
-
-- <numinserted> is either 0 or 1. It becomes 1 if a new row is actually
-inserted, and 0 if no row is inserted because of a collision.
+   0 1
 

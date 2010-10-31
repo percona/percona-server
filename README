@@ -20,4 +20,6 @@ The current version of handlersocket only works with GNU/Linux. There are
 a c++ and a perl library for handlersocket clients.
 
 See documentation files under docs-en/ (docs-ja/) for details.
+(Note: the current source tree of HandlerSocket has a lot of compilation
+problems. I'll fix them as soon as possible.)
 

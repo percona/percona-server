@@ -16,6 +16,7 @@ config.status
 config.guess
 config.sub
 config.log
+depcomp
 TAGS
 aclocal.m4
 .libs

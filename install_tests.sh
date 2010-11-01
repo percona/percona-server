@@ -12,3 +12,4 @@ install_path mysql-test "global"
 for test_name in `(cd mysql-test; find . -type d | grep "./" | sed -e "s/.\///g")`; do
     install_path mysql-test/$test_name $test_name
 done
+echo "Done"

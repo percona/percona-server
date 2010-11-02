@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:23:31.022060427 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:25:49.004020662 +0900
-@@ -10963,6 +10963,11 @@
+@@ -10959,6 +10959,11 @@
    "Output statistics of recovery process after it.",
    NULL, NULL, FALSE);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11474,6 +11479,7 @@
+@@ -11470,6 +11475,7 @@
    MYSQL_SYSVAR(change_buffering),
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -438,7 +438,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/tr
  }
  
  /************************************************************************
-@@ -1148,7 +1174,7 @@
+@@ -1144,7 +1170,7 @@
  
  	/* Handle at most 20 undo log pages in one purge batch */
  
@@ -447,7 +447,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/tr
  
  	old_pages_handled = purge_sys->n_pages_handled;
  
-@@ -1167,6 +1193,9 @@
+@@ -1163,6 +1189,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -457,7 +457,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/tr
  	/*	srv_que_task_enqueue(thr2); */
  
  	if (srv_print_thread_releases) {
-@@ -1176,6 +1205,9 @@
+@@ -1172,6 +1201,9 @@
  
  	que_run_threads(thr);
  
@@ -467,7 +467,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/tr
  	if (srv_print_thread_releases) {
  
  		fprintf(stderr,
-@@ -1186,6 +1218,52 @@
+@@ -1182,6 +1214,52 @@
  	return(purge_sys->n_pages_handled - old_pages_handled);
  }
  

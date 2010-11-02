@@ -389,7 +389,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
  /*
    Log slow query with all enabled log event handlers
-@@ -4491,6 +4513,8 @@
+@@ -4495,6 +4517,8 @@
                               thd->first_successful_insert_id_in_prev_stmt_for_binlog);
            if (e.write(file))
              goto err;
@@ -398,7 +398,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
          }
          if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
          {
-@@ -4502,12 +4526,16 @@
+@@ -4506,12 +4530,16 @@
                               minimum());
            if (e.write(file))
              goto err;
@@ -415,7 +415,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
          }
          if (thd->user_var_events.elements)
          {
-@@ -4523,6 +4551,8 @@
+@@ -4527,6 +4555,8 @@
                                   user_var_event->charset_number);
              if (e.write(file))
                goto err;
@@ -424,7 +424,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
            }
          }
        }
-@@ -4535,6 +4565,8 @@
+@@ -4539,6 +4569,8 @@
      if (event_info->write(file) || 
          DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
        goto err;
@@ -433,7 +433,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
      if (file == &log_file) // we are writing to the real log (disk)
      {
-@@ -4680,7 +4712,7 @@
+@@ -4684,7 +4716,7 @@
      be reset as a READ_CACHE to be able to read the contents from it.
   */
  
@@ -442,7 +442,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  {
    Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
  
-@@ -4728,6 +4760,7 @@
+@@ -4732,6 +4764,7 @@
        /* write the first half of the split header */
        if (my_b_write(&log_file, header, carry))
          return ER_ERROR_ON_WRITE;
@@ -450,7 +450,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
        /*
          copy fixed second half of header to cache so the correct
-@@ -4796,6 +4829,7 @@
+@@ -4800,6 +4833,7 @@
      /* Write data to the binary log file */
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
@@ -458,7 +458,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      cache->read_pos=cache->read_end;		// Mark buffer used up
    } while ((length= my_b_fill(cache)));
  
-@@ -4918,21 +4952,24 @@
+@@ -4922,21 +4956,24 @@
        */
        if (qinfo.write(&log_file))
          goto err;
@@ -753,7 +753,7 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-08-27 14:38:08.741990000 +0900
 +++ b/sql/sql_class.cc	2010-08-27 15:10:33.825058007 +0900
-@@ -704,6 +704,13 @@
+@@ -706,6 +706,13 @@
    mysys_var=0;
    binlog_evt_union.do_union= FALSE;
    enable_slow_log= 0;
@@ -767,7 +767,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  #ifndef DBUG_OFF
    dbug_sentry=THD_SENTRY_MAGIC;
  #endif
-@@ -907,6 +914,7 @@
+@@ -909,6 +916,7 @@
    reset_current_stmt_binlog_row_based();
    bzero((char *) &status_var, sizeof(status_var));
    sql_log_bin_toplevel= options & OPTION_BIN_LOG;
@@ -775,7 +775,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  #if defined(ENABLED_DEBUG_SYNC)
    /* Initialize the Debug Sync Facility. See debug_sync.cc. */
-@@ -914,6 +922,84 @@
+@@ -916,6 +924,84 @@
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  }
  
@@ -860,7 +860,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /*
    Init THD for query processing.
-@@ -1545,6 +1631,32 @@
+@@ -1547,6 +1633,32 @@
  }
  #endif
  
@@ -893,7 +893,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  struct Item_change_record: public ilink
  {
-@@ -1732,6 +1844,7 @@
+@@ -1734,6 +1846,7 @@
      buffer.set(buff, sizeof(buff), &my_charset_bin);
    }
    thd->sent_row_count++;
@@ -901,7 +901,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
    if (thd->is_error())
    {
      protocol->remove_last_row();
-@@ -1836,6 +1949,7 @@
+@@ -1838,6 +1951,7 @@
  select_export::~select_export()
  {
    thd->sent_row_count=row_count;
@@ -909,7 +909,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -2868,6 +2982,7 @@
+@@ -2870,6 +2984,7 @@
    if (likely(thd != 0))
    { /* current_thd==0 when close_connection() calls net_send_error() */
      thd->status_var.bytes_sent+= length;
@@ -917,7 +917,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
    }
  }
  
-@@ -2875,6 +2990,7 @@
+@@ -2877,6 +2992,7 @@
  void thd_increment_bytes_received(ulong length)
  {
    current_thd->status_var.bytes_received+= length;
@@ -2115,7 +2115,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2485,12 +2554,36 @@
+@@ -2489,12 +2558,36 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2153,7 +2153,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
  #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-@@ -2511,6 +2604,44 @@
+@@ -2515,6 +2608,44 @@
    /* Close connection socket; for use with client testing (Bug#43560). */
    DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
  
@@ -2198,7 +2198,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  
  }
-@@ -2584,20 +2715,45 @@
+@@ -2588,20 +2719,45 @@
  
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
@@ -2246,7 +2246,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    thd->stmt_arena= stmt;
-@@ -2621,6 +2777,44 @@
+@@ -2625,6 +2781,44 @@
    thd->restore_backup_statement(stmt, &stmt_backup);
    thd->stmt_arena= thd;
  
@@ -2291,7 +2291,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2651,13 +2845,37 @@
+@@ -2655,13 +2849,37 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2330,7 +2330,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    stmt->close_cursor();
-@@ -2674,6 +2892,44 @@
+@@ -2678,6 +2896,44 @@
  
    my_ok(thd);
  
@@ -3204,7 +3204,7 @@ diff -ruN a/sql/structs.h b/sql/structs.h
 diff -ruN a/sql/table.h b/sql/table.h
 --- a/sql/table.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/sql/table.h	2010-08-27 15:10:33.906987259 +0900
-@@ -943,10 +943,12 @@
+@@ -944,10 +944,12 @@
  enum enum_schema_tables
  {
    SCH_CHARSETS= 0,
@@ -3217,7 +3217,7 @@ diff -ruN a/sql/table.h b/sql/table.h
    SCH_ENGINES,
    SCH_EVENTS,
    SCH_FILES,
-@@ -970,8 +972,11 @@
+@@ -971,8 +973,11 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,
    SCH_TABLE_PRIVILEGES,

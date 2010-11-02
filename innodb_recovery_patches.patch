@@ -127,7 +127,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  
-@@ -10949,6 +10953,16 @@
+@@ -10945,6 +10949,16 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -144,7 +144,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11392,6 +11406,8 @@
+@@ -11388,6 +11402,8 @@
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
    MYSQL_SYSVAR(extra_undoslots),
@@ -243,7 +243,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	recv_sys->buf = ut_malloc(RECV_PARSING_BUF_SIZE);
  	recv_sys->len = 0;
  	recv_sys->recovered_offset = 0;
-@@ -1355,6 +1363,11 @@
+@@ -1353,6 +1361,11 @@
  
  	len = rec_end - body;
  
@@ -255,7 +255,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	recv = mem_heap_alloc(recv_sys->heap, sizeof(recv_t));
  	recv->type = type;
  	recv->len = rec_end - body;
-@@ -1466,6 +1479,7 @@
+@@ -1464,6 +1477,7 @@
  	ib_uint64_t	start_lsn;
  	ib_uint64_t	end_lsn;
  	ib_uint64_t	page_lsn;
@@ -263,7 +263,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	ib_uint64_t	page_newest_lsn;
  	ibool		modification_to_page;
  #ifndef UNIV_HOTBACKUP
-@@ -1488,6 +1502,8 @@
+@@ -1486,6 +1500,8 @@
  					     buf_block_get_page_no(block));
  
  	if ((recv_addr == NULL)
@@ -272,7 +272,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	    || (recv_addr->state == RECV_BEING_PROCESSED)
  	    || (recv_addr->state == RECV_PROCESSED)) {
  
-@@ -1503,6 +1519,14 @@
+@@ -1501,6 +1517,14 @@
  
  	recv_addr->state = RECV_BEING_PROCESSED;
  
@@ -287,7 +287,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	mutex_exit(&(recv_sys->mutex));
  
  	mtr_start(&mtr);
-@@ -1532,6 +1556,7 @@
+@@ -1530,6 +1554,7 @@
  
  	/* Read the newest modification lsn from the page */
  	page_lsn = mach_read_ull(page + FIL_PAGE_LSN);
@@ -295,7 +295,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  
  #ifndef UNIV_HOTBACKUP
  	/* It may be that the page has been modified in the buffer
-@@ -1551,6 +1576,21 @@
+@@ -1549,6 +1574,21 @@
  	modification_to_page = FALSE;
  	start_lsn = end_lsn = 0;
  
@@ -317,7 +317,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	recv = UT_LIST_GET_FIRST(recv_addr->rec_list);
  
  	while (recv) {
-@@ -1605,6 +1645,13 @@
+@@ -1603,6 +1643,13 @@
  							 buf + recv->len,
  							 block, &mtr);
  
@@ -331,7 +331,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  			end_lsn = recv->start_lsn + recv->len;
  			mach_write_ull(FIL_PAGE_LSN + page, end_lsn);
  			mach_write_ull(UNIV_PAGE_SIZE
-@@ -1705,6 +1752,13 @@
+@@ -1703,6 +1750,13 @@
  		}
  	}
  
@@ -345,7 +345,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	buf_read_recv_pages(FALSE, space, zip_size, page_nos, n);
  	/*
  	fprintf(stderr, "Recv pages at %lu n %lu\n", page_nos[0], n);
-@@ -1858,6 +1912,10 @@
+@@ -1856,6 +1910,10 @@
  
  	if (has_printed) {
  		fprintf(stderr, "InnoDB: Apply batch completed\n");
@@ -356,7 +356,7 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	}
  
  	mutex_exit(&(recv_sys->mutex));
-@@ -3255,6 +3313,83 @@
+@@ -3257,6 +3315,83 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -451,7 +451,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
  # include "os0thread.h"
-@@ -4225,6 +4226,18 @@
+@@ -4206,6 +4207,18 @@
  		}
  	}
  
@@ -493,7 +493,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  #include "os0file.h"
  #include "read0read.h"
  
-@@ -553,6 +554,12 @@
+@@ -558,6 +559,12 @@
  			       zip_size ? zip_size : UNIV_PAGE_SIZE,
  			       read_buf, NULL);
  
@@ -506,7 +506,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  			/* Check if the page is corrupt */
  
  			if (UNIV_UNLIKELY
-@@ -600,6 +607,13 @@
+@@ -605,6 +612,13 @@
  				       zip_size, page_no, 0,
  				       zip_size ? zip_size : UNIV_PAGE_SIZE,
  				       page, NULL);

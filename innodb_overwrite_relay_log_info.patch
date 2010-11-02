@@ -243,7 +243,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	trx_commit_for_mysql(trx);
  }
  
-@@ -10708,6 +10900,12 @@
+@@ -10704,6 +10896,12 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -256,7 +256,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11117,6 +11315,7 @@
+@@ -11113,6 +11311,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -359,7 +359,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  /** If this MySQL server uses binary logging, after InnoDB has been inited
  and if it has done a crash recovery, we store the binlog file name and position
  here. */
-@@ -670,22 +673,25 @@
+@@ -675,22 +678,25 @@
  void
  trx_sys_update_mysql_binlog_offset(
  /*===============================*/
@@ -391,7 +391,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  
  	if (mach_read_from_4(sys_header + field
  			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-@@ -808,13 +814,26 @@
+@@ -813,13 +819,26 @@
  					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
  		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  		+ TRX_SYS_MYSQL_LOG_NAME);
@@ -419,7 +419,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  
  	trx_sys_mysql_master_log_pos
  		= (((ib_int64_t) mach_read_from_4(
-@@ -823,6 +842,19 @@
+@@ -828,6 +847,19 @@
  		+ ((ib_int64_t) mach_read_from_4(
  			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));

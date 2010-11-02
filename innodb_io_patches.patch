@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
 --- a/storage/innodb_plugin/buf/buf0flu.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0flu.c	2010-08-27 15:52:29.282007496 +0900
-@@ -1157,8 +1157,9 @@
+@@ -1162,8 +1162,9 @@
  /*====================*/
  	ulint		space,		/*!< in: space id */
  	ulint		offset,		/*!< in: page offset */
@@ -19,7 +19,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  {
  	buf_page_t*	bpage;
  	ulint		low, high;
-@@ -1167,7 +1168,7 @@
+@@ -1172,7 +1173,7 @@
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -28,15 +28,15 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  		/* If there is little space, it is better not to flush any
  		block except from the end of the LRU list */
  
-@@ -1342,7 +1343,7 @@
+@@ -1344,7 +1345,7 @@
  
  				/* Try to flush also all the neighbors */
  				page_count += buf_flush_try_neighbors(
 -					space, offset, flush_type);
 +					space, offset, flush_type, srv_flush_neighbor_pages);
- 				/* fprintf(stderr,
- 				"Flush type %lu, page no %lu, neighb %lu\n",
- 				flush_type, offset,
+ 
+ 				buf_pool_mutex_enter();
+ 				goto flush_next;
 diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
 --- a/storage/innodb_plugin/buf/buf0rea.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0rea.c	2010-08-27 15:52:29.282007496 +0900
@@ -95,7 +95,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -9845,6 +9865,10 @@
+@@ -9841,6 +9861,10 @@
  	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
  	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
  	{
@@ -106,7 +106,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  		/* For ibbackup to work the order of transactions in binlog
  		and InnoDB must be the same. Consider the situation
-@@ -10818,7 +10842,7 @@
+@@ -10814,7 +10838,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -115,7 +115,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
-@@ -10946,6 +10970,100 @@
+@@ -10942,6 +10966,100 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -216,7 +216,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11000,6 +11118,15 @@
+@@ -10996,6 +11114,15 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -470,8 +470,8 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
 --- a/storage/innodb_plugin/log/log0recv.c	2010-08-04 02:24:20.000000000 +0900
 +++ b/storage/innodb_plugin/log/log0recv.c	2010-08-27 15:52:29.313058539 +0900
 @@ -2893,9 +2893,12 @@
- 	ib_uint64_t	contiguous_lsn;
  	ib_uint64_t	archived_lsn;
+ #endif /* UNIV_LOG_ARCHIVE */
  	byte*		buf;
 -	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 +	byte*		log_hdr_buf;
@@ -575,7 +575,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #endif /* UNIV_HOTBACKUP */
  
  UNIV_INTERN ulint	os_n_file_reads		= 0;
-@@ -1462,6 +1499,11 @@
+@@ -1443,6 +1480,11 @@
  		os_file_set_nocache(file, name, mode_str);
  	}
  
@@ -587,7 +587,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #ifdef USE_FILE_LOCK
  	if (create_mode != OS_FILE_OPEN_RAW && os_file_lock(file, name)) {
  
-@@ -3096,11 +3138,14 @@
+@@ -3077,11 +3119,14 @@
  
  	for (i = 0; i < n_segments; i++) {
  		srv_set_io_thread_op_info(i, "not started yet");
@@ -602,7 +602,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
  
  	srv_io_thread_function[0] = "insert buffer thread";
-@@ -3109,14 +3154,14 @@
+@@ -3090,14 +3135,14 @@
  
  	srv_io_thread_function[1] = "log thread";
  
@@ -619,7 +619,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  						 n_write_segs);
  	for (i = 2 + n_read_segs; i < n_segments; i++) {
  		ut_a(i < SRV_MAX_N_IO_THREADS);
-@@ -3396,7 +3441,8 @@
+@@ -3377,7 +3422,8 @@
  	slot->buf      = buf;
  	slot->offset   = offset;
  	slot->offset_high = offset_high;
@@ -629,7 +629,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  #ifdef WIN_ASYNC_IO
  	control = &(slot->control);
-@@ -3427,6 +3473,7 @@
+@@ -3408,6 +3454,7 @@
  	ut_ad(slot->reserved);
  
  	slot->reserved = FALSE;
@@ -637,7 +637,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	array->n_reserved--;
  
-@@ -3463,16 +3510,18 @@
+@@ -3444,16 +3491,18 @@
  
  	segment = os_aio_get_array_and_local_segment(&array, global_segment);
  
@@ -659,7 +659,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  			/* Found an i/o request */
  
  			break;
-@@ -3482,7 +3531,25 @@
+@@ -3463,7 +3512,25 @@
  	os_mutex_exit(array->mutex);
  
  	if (i < n) {
@@ -686,7 +686,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	}
  }
  
-@@ -3493,8 +3560,6 @@
+@@ -3474,8 +3541,6 @@
  os_aio_simulated_wake_handler_threads(void)
  /*=======================================*/
  {
@@ -695,7 +695,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	if (os_aio_use_native_aio) {
  		/* We do not use simulated aio: do nothing */
  
-@@ -3503,9 +3568,10 @@
+@@ -3484,9 +3549,10 @@
  
  	os_aio_recommend_sleep_for_read_threads	= FALSE;
  
@@ -709,7 +709,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  }
  
  /**********************************************************************//**
-@@ -3793,7 +3859,7 @@
+@@ -3774,7 +3840,7 @@
  	ut_ad(os_aio_validate());
  	ut_ad(segment < array->n_segments);
  
@@ -718,7 +718,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	if (array == os_aio_sync_array) {
  		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
-@@ -3802,12 +3868,12 @@
+@@ -3783,12 +3849,12 @@
  		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
  		i = os_event_wait_multiple(n,
  					   (array->native_events)
@@ -733,7 +733,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	ut_a(slot->reserved);
  
-@@ -3910,10 +3976,13 @@
+@@ -3891,10 +3957,13 @@
  	os_aio_slot_t*	slot;
  	os_aio_slot_t*	slot2;
  	os_aio_slot_t*	consecutive_ios[OS_AIO_MERGE_N_CONSECUTIVE];
@@ -747,7 +747,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	ulint		biggest_age;
  	ulint		age;
  	byte*		combined_buf;
-@@ -3921,6 +3990,7 @@
+@@ -3902,6 +3971,7 @@
  	ibool		ret;
  	ulint		n;
  	ulint		i;
@@ -755,7 +755,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	/* Fix compiler warning */
  	*consecutive_ios = NULL;
-@@ -3936,7 +4006,7 @@
+@@ -3917,7 +3987,7 @@
  	ut_ad(os_aio_validate());
  	ut_ad(segment < array->n_segments);
  
@@ -764,7 +764,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	/* Look through n slots after the segment * n'th slot */
  
-@@ -3958,9 +4028,9 @@
+@@ -3939,9 +4009,9 @@
  	done */
  
  	for (i = 0; i < n; i++) {
@@ -776,7 +776,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  			if (os_aio_print_debug) {
  				fprintf(stderr,
-@@ -3982,67 +4052,57 @@
+@@ -3963,67 +4033,57 @@
  	then pick the one at the lowest offset. */
  
  	biggest_age = 0;
@@ -867,7 +867,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  		if (slot2->reserved && slot2 != slot
  		    && slot2->offset == slot->offset + slot->len
-@@ -4050,7 +4110,8 @@
+@@ -4031,7 +4091,8 @@
  		    && slot->offset + slot->len > slot->offset
  		    && slot2->offset_high == slot->offset_high
  		    && slot2->type == slot->type
@@ -877,7 +877,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  			/* Found a consecutive i/o request */
  
-@@ -4079,6 +4140,8 @@
+@@ -4060,6 +4121,8 @@
  
  	for (i = 0; i < n_consecutive; i++) {
  		total_len += consecutive_ios[i]->len;
@@ -886,7 +886,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	}
  
  	if (n_consecutive == 1) {
-@@ -4086,7 +4149,14 @@
+@@ -4067,7 +4130,14 @@
  		combined_buf = slot->buf;
  		combined_buf2 = NULL;
  	} else {
@@ -902,7 +902,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  		ut_a(combined_buf2);
  
-@@ -4097,6 +4167,9 @@
+@@ -4078,6 +4148,9 @@
  	this assumes that there is just one i/o-handler thread serving
  	a single segment of slots! */
  
@@ -912,7 +912,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	os_mutex_exit(array->mutex);
  
  	if (slot->type == OS_FILE_WRITE && n_consecutive > 1) {
-@@ -4152,16 +4225,13 @@
+@@ -4133,16 +4206,13 @@
  		}
  	}
  
@@ -931,7 +931,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	}
  
  	/* We return the messages for the first slot now, and if there were
-@@ -4171,6 +4241,8 @@
+@@ -4152,6 +4222,8 @@
  slot_io_done:
  
  	ut_a(slot->reserved);
@@ -1320,7 +1320,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  		/* Write the log but do not flush it to disk */
  
-@@ -1861,6 +1880,8 @@
+@@ -1860,6 +1879,8 @@
  	/*--------------------------------------*/
  
  	if (lsn) {
@@ -1329,7 +1329,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  		/* Depending on the my.cnf options, we may now write the log
  		buffer to the log files, making the prepared state of the
  		transaction durable if the OS does not crash. We may also
-@@ -1880,9 +1901,15 @@
+@@ -1879,9 +1900,15 @@
  
  		mutex_exit(&kernel_mutex);
  
@@ -1347,7 +1347,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
  				/* Write the log but do not flush it to disk */
  
-@@ -1894,7 +1921,7 @@
+@@ -1893,7 +1920,7 @@
  
  				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
  			}

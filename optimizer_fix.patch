@@ -160,7 +160,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-07-26 18:23:40.015145156 +0900
 +++ b/sql/sql_select.cc	2010-07-26 18:29:35.743144611 +0900
-@@ -2577,6 +2577,11 @@
+@@ -2586,6 +2586,11 @@
        table->reginfo.impossible_range=1;
        DBUG_RETURN(0);
      }

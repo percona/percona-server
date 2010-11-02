@@ -375,7 +375,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 diff -ruN a/sql/table.h b/sql/table.h
 --- a/sql/table.h	2010-08-27 15:19:09.988989663 +0900
 +++ b/sql/table.h	2010-08-27 15:30:36.987021191 +0900
-@@ -953,6 +953,7 @@
+@@ -954,6 +954,7 @@
    SCH_EVENTS,
    SCH_FILES,
    SCH_GLOBAL_STATUS,
@@ -383,7 +383,7 @@ diff -ruN a/sql/table.h b/sql/table.h
    SCH_GLOBAL_VARIABLES,
    SCH_KEY_COLUMN_USAGE,
    SCH_OPEN_TABLES,
-@@ -972,6 +973,7 @@
+@@ -973,6 +974,7 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,
    SCH_TABLE_PRIVILEGES,

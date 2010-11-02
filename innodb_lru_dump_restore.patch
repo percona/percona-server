@@ -384,7 +384,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 09:57:56.486228425 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 10:00:13.292228546 +0900
-@@ -11453,6 +11453,12 @@
+@@ -11449,6 +11449,12 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -397,7 +397,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11532,6 +11538,7 @@
+@@ -11528,6 +11534,7 @@
    MYSQL_SYSVAR(change_buffering),
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -416,7 +416,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -3040,6 +3041,36 @@
+@@ -3041,6 +3042,36 @@
  			"Hello!");
  		goto end_func;
  	}

@@ -21,7 +21,7 @@ diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
 diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-07-07 03:32:17.588972002 +0400
 +++ b/sql/log.cc	2010-07-07 03:32:18.108972002 +0400
-@@ -2429,6 +2429,11 @@
+@@ -2433,6 +2433,11 @@
            my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
          tmp_errno=errno;
      }

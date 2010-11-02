@@ -61,7 +61,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-07-26 18:29:12.285116210 +0900
 +++ b/sql/sql_class.cc	2010-07-26 18:34:10.214061153 +0900
-@@ -4117,6 +4117,7 @@
+@@ -4119,6 +4119,7 @@
                   ER_BINLOG_UNSAFE_STATEMENT,
                   ER(ER_BINLOG_UNSAFE_STATEMENT));
      if (global_system_variables.log_warnings &&

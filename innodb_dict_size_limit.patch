@@ -173,7 +173,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
 --- a/storage/innodb_plugin/dict/dict0crea.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0crea.c	2010-08-27 16:09:42.928062387 +0900
-@@ -1213,6 +1213,9 @@
+@@ -1211,6 +1211,9 @@
  		/* Foreign constraint system tables have already been
  		created, and they are ok */
  
@@ -183,7 +183,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  		mutex_exit(&(dict_sys->mutex));
  
  		return(DB_SUCCESS);
-@@ -1294,6 +1297,11 @@
+@@ -1292,6 +1295,11 @@
  
  	trx_commit_for_mysql(trx);
  
@@ -305,7 +305,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11287,6 +11289,11 @@
+@@ -11283,6 +11285,11 @@
    "Number of extra user rollback segments when create new database.",
    NULL, NULL, 0, 0, 126, 0);
  
@@ -317,7 +317,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11354,6 +11361,7 @@
+@@ -11350,6 +11357,7 @@
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),

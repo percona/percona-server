@@ -80,7 +80,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
 --- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:55:25.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:55:42.000000000 +0900
-@@ -346,17 +346,19 @@
+@@ -351,17 +351,19 @@
  	buf_page_t*	bpage)	/*!< in: buffer control block, must be
  				buf_page_in_file(bpage) and in the LRU list */
  {
@@ -104,7 +104,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	ut_print_timestamp(stderr);
  	fprintf(stderr,
  		"  InnoDB: Error: buffer block state %lu"
-@@ -364,6 +366,7 @@
+@@ -369,6 +371,7 @@
  		(ulong) buf_page_get_state(bpage));
  	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
  	putc('\n', stderr);
@@ -112,7 +112,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	return(FALSE);
  }
-@@ -1430,8 +1433,14 @@
+@@ -1428,8 +1431,14 @@
  	buf_page_t*	bpage;
  	ulint		n_replaceable;
  	ulint		distance	= 0;
@@ -128,7 +128,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -1442,7 +1451,13 @@
+@@ -1440,7 +1449,13 @@
  		   + BUF_FLUSH_EXTRA_MARGIN)
  	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
  
@@ -143,7 +143,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		mutex_enter(block_mutex);
  
-@@ -1457,11 +1472,18 @@
+@@ -1455,11 +1470,18 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -163,7 +163,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	}
  
  	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
-@@ -1476,8 +1498,9 @@
+@@ -1474,8 +1496,9 @@
  immediately, without waiting. */
  UNIV_INTERN
  void
@@ -174,7 +174,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  {
  	ulint	n_to_flush;
  	ulint	n_flushed;
-@@ -1486,7 +1509,7 @@
+@@ -1484,7 +1507,7 @@
  
  	if (n_to_flush > 0) {
  		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);

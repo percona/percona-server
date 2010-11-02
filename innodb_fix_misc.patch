@@ -5,72 +5,10 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-#
-# comment: http://lists.mysql.com/commits/112400 is applied also for innodb_plugin
-#          to pass innodb_bug53756.test by innodb_plugin
-diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
---- a/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:38:38.230059368 +0900
-+++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:59:15.262021286 +0900
-@@ -1083,6 +1083,8 @@
- 
- 	ut_ad(mutex_own(&(dict_sys->mutex)));
- 
-+	table = NULL;
-+
- 	/* NOTE that the operation of this function is protected by
- 	the dictionary mutex, and therefore no deadlocks can occur
- 	with other dictionary operations. */
-@@ -1109,15 +1111,17 @@
- 				  BTR_SEARCH_LEAF, &pcur, &mtr);
- 	rec = btr_pcur_get_rec(&pcur);
- 
--	if (!btr_pcur_is_on_user_rec(&pcur)
--	    || rec_get_deleted_flag(rec, 0)) {
-+	if (!btr_pcur_is_on_user_rec(&pcur)) {
- 		/* Not found */
-+		goto func_exit;
-+	}
- 
--		btr_pcur_close(&pcur);
--		mtr_commit(&mtr);
--		mem_heap_free(heap);
--
--		return(NULL);
-+	/* Find the first record that is not delete marked */
-+	while (rec_get_deleted_flag(rec, 0)) {
-+		if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
-+			goto func_exit;
-+		}
-+		rec = btr_pcur_get_rec(&pcur);
- 	}
- 
- 	/*---------------------------------------------------*/
-@@ -1130,19 +1134,14 @@
- 
- 	/* Check if the table id in record is the one searched for */
- 	if (ut_dulint_cmp(table_id, mach_read_from_8(field)) != 0) {
--
--		btr_pcur_close(&pcur);
--		mtr_commit(&mtr);
--		mem_heap_free(heap);
--
--		return(NULL);
-+		goto func_exit;
- 	}
- 
- 	/* Now we get the table name from the record */
- 	field = rec_get_nth_field_old(rec, 1, &len);
- 	/* Load the table definition to memory */
- 	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len));
--
-+func_exit:
- 	btr_pcur_close(&pcur);
- 	mtr_commit(&mtr);
- 	mem_heap_free(heap);
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
-@@ -11714,7 +11714,7 @@
+@@ -11710,7 +11710,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -84,7 +22,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	0
- #define INNODB_VERSION_BUGFIX	12
+ #define INNODB_VERSION_BUGFIX	13
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.1
@@ -133,17 +71,17 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0sel.c
 --- a/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:04.204866103 +0900
 +++ b/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:53.998864025 +0900
-@@ -3356,6 +3356,7 @@
- 	mem_heap_t*	heap				= NULL;
+@@ -3357,6 +3357,7 @@
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
+ 	ibool		table_lock_waited		= FALSE;
 +	ibool		problematic_use = FALSE;
  
  	rec_offs_init(offsets_);
  
-@@ -3794,6 +3795,15 @@
- 		}
- 	}
+@@ -3722,6 +3723,15 @@
+ 
+ 	/* Do some start-of-statement preparations */
  
 +	if (!prebuilt->mysql_has_locked) {
 +		fprintf(stderr, "InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock()\n");
@@ -157,7 +95,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3804,6 +3814,14 @@
+@@ -3732,6 +3742,14 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -171,7 +109,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 +			}
  			trx_print(stderr, trx, 600);
  			fputc('\n', stderr);
- 			ut_a(0);
+ 			ut_error;
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900
@@ -187,7 +125,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
 diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/trx0purge.c
 --- a/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:52:46.538653893 +0900
 +++ b/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:57:46.505530034 +0900
-@@ -1148,8 +1148,7 @@
+@@ -1144,8 +1144,7 @@
  	/* If we cannot advance the 'purge view' because of an old
  	'consistent read view', then the DML statements cannot be delayed.
  	Also, srv_max_purge_lag <= 0 means 'infinity'. */

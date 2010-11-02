@@ -428,7 +428,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -8930,6 +8966,25 @@
+@@ -8929,6 +8965,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -661,7 +661,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #include "log0recv.h"
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
-@@ -2104,22 +2106,30 @@
+@@ -2085,22 +2087,30 @@
  /*******************************************************************//**
  Does a synchronous read operation in Posix.
  @return	number of bytes read, -1 if error */
@@ -694,7 +694,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	ut_a((offset & 0xFFFFFFFFUL) == offset);
  
-@@ -2140,6 +2150,15 @@
+@@ -2121,6 +2131,15 @@
  
  	os_n_file_reads++;
  
@@ -710,7 +710,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
  	os_mutex_enter(os_file_count_mutex);
  	os_file_n_pending_preads++;
-@@ -2153,6 +2172,13 @@
+@@ -2134,6 +2153,13 @@
  	os_n_pending_reads--;
  	os_mutex_exit(os_file_count_mutex);
  
@@ -724,7 +724,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	return(n_bytes);
  #else
  	{
-@@ -2189,6 +2215,13 @@
+@@ -2170,6 +2196,13 @@
  		os_n_pending_reads--;
  		os_mutex_exit(os_file_count_mutex);
  
@@ -738,7 +738,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  		return(ret);
  	}
  #endif
-@@ -2319,7 +2352,7 @@
+@@ -2300,7 +2333,7 @@
  @return	TRUE if request was successful, FALSE if fail */
  UNIV_INTERN
  ibool
@@ -747,7 +747,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  /*=========*/
  	os_file_t	file,	/*!< in: handle to a file */
  	void*		buf,	/*!< in: buffer where to read */
-@@ -2327,7 +2360,8 @@
+@@ -2308,7 +2341,8 @@
  				offset where to read */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -757,7 +757,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  #ifdef __WIN__
  	BOOL		ret;
-@@ -2399,7 +2433,7 @@
+@@ -2380,7 +2414,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -766,7 +766,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	if ((ulint)ret == n) {
  
-@@ -3364,7 +3398,8 @@
+@@ -3345,7 +3379,8 @@
  				offset */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -776,7 +776,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_slot_t*	slot;
  #ifdef WIN_ASYNC_IO
-@@ -3648,10 +3683,11 @@
+@@ -3629,10 +3664,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -789,7 +789,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_array_t*	array;
  	os_aio_slot_t*	slot;
-@@ -3690,8 +3726,8 @@
+@@ -3671,8 +3707,8 @@
  		wait in the Windows case. */
  
  		if (type == OS_FILE_READ) {
@@ -800,7 +800,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -3724,8 +3760,13 @@
+@@ -3705,8 +3741,13 @@
  		ut_error;
  	}
  

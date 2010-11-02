@@ -138,7 +138,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		}
  	}
  
-@@ -11105,6 +11137,11 @@
+@@ -11101,6 +11133,11 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -150,7 +150,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11584,6 +11621,7 @@
+@@ -11580,6 +11617,7 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -332,7 +332,7 @@ diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0
 diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log0recv.c
 --- a/storage/innodb_plugin/log/log0recv.c	2010-08-27 16:23:31.034058951 +0900
 +++ b/storage/innodb_plugin/log/log0recv.c	2010-08-27 16:44:21.705059074 +0900
-@@ -704,8 +704,22 @@
+@@ -702,8 +702,22 @@
  
  			group->lsn = mach_read_ull(
  				buf + LOG_CHECKPOINT_LSN);

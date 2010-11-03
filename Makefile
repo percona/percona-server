@@ -1,6 +1,6 @@
 FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
-MYSQL_VERSION=5.1.51
+MYSQL_VERSION=5.1.52
 
 all: main install-lic tests misc
 	@echo ""

@@ -488,7 +488,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1354,6 +1545,9 @@
+@@ -1405,6 +1596,9 @@
    Query_cache_block_table *block_table, *block_table_end;
    ulong tot_length;
    Query_cache_query_flags flags;
@@ -498,7 +498,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    DBUG_ENTER("Query_cache::send_result_to_client");
  
    /*
-@@ -1363,8 +1557,8 @@
+@@ -1414,8 +1608,8 @@
  
      See also a note on double-check locking usage above.
    */
@@ -509,7 +509,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
      goto err;
  
    if (!thd->lex->safe_to_cache_query)
-@@ -1375,21 +1569,103 @@
+@@ -1426,21 +1620,103 @@
  
    {
      uint i= 0;
@@ -626,7 +626,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
      if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
           my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
           my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1398,7 +1674,6 @@
+@@ -1449,7 +1725,6 @@
        DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
        goto err;
      }
@@ -634,7 +634,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
      if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
      {
        /*
-@@ -1430,6 +1705,12 @@
+@@ -1481,6 +1756,12 @@
    DBUG_ASSERT(thd->net.query_cache_query == 0);
  
    Query_cache_block *query_block;
@@ -647,7 +647,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1496,6 +1777,8 @@
+@@ -1547,6 +1828,8 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  hash_search(&queries, (uchar*) sql,
  						   tot_length);
@@ -656,7 +656,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    /* Quick abort on unlocked data */
    if (query_block == 0 ||
        query_block->query()->result() == 0 ||
-@@ -1676,6 +1959,8 @@
+@@ -1727,6 +2010,8 @@
  			     my_bool using_transactions)
  {
    DBUG_ENTER("Query_cache::invalidate (table list)");
@@ -665,7 +665,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
  
    using_transactions= using_transactions &&
      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-@@ -1706,6 +1991,9 @@
+@@ -1757,6 +2042,9 @@
  void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
  {
    DBUG_ENTER("Query_cache::invalidate (changed table list)");
@@ -675,7 +675,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    THD *thd= current_thd;
    for (; tables_used; tables_used= tables_used->next)
    {
-@@ -1731,8 +2019,11 @@
+@@ -1782,8 +2070,11 @@
  */
  void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
  {
@@ -688,7 +688,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    for (; tables_used; tables_used= tables_used->next_local)
    {
      thd_proc_info(thd, "invalidating query cache entries (table)");
-@@ -1753,7 +2044,9 @@
+@@ -1804,7 +2095,9 @@
  			     my_bool using_transactions)
  {
    DBUG_ENTER("Query_cache::invalidate (table)");
@@ -699,7 +699,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    using_transactions= using_transactions &&
      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
    if (using_transactions && 
-@@ -1770,6 +2063,8 @@
+@@ -1821,6 +2114,8 @@
  			     my_bool using_transactions)
  {
    DBUG_ENTER("Query_cache::invalidate (key)");
@@ -708,7 +708,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
  
    using_transactions= using_transactions &&
      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-@@ -1788,9 +2083,11 @@
+@@ -1839,9 +2134,11 @@
  
  void Query_cache::invalidate(char *db)
  {
@@ -722,7 +722,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    /*
      Lock the query cache and queue all invalidation attempts to avoid
      the risk of a race between invalidation, cache inserts and flushes.
-@@ -1875,6 +2172,9 @@
+@@ -1926,6 +2223,9 @@
  void Query_cache::flush()
  {
    DBUG_ENTER("Query_cache::flush");
@@ -732,7 +732,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    DBUG_EXECUTE_IF("wait_in_query_cache_flush1",
                    debug_wait_for_kill("wait_in_query_cache_flush1"););
  
-@@ -1906,6 +2206,9 @@
+@@ -1957,6 +2257,9 @@
  {
    DBUG_ENTER("Query_cache::pack");
  
@@ -742,7 +742,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    /*
      If the entire qc is being invalidated we can bail out early
      instead of waiting for the lock.
-@@ -1963,6 +2266,15 @@
+@@ -2014,6 +2317,15 @@
    pthread_cond_init(&COND_cache_status_changed, NULL);
    m_cache_lock_status= Query_cache::UNLOCKED;
    initialized = 1;
@@ -758,7 +758,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -4666,3 +4978,4 @@
+@@ -4717,3 +5029,4 @@
  #endif /* DBUG_OFF */
  
  #endif /*HAVE_QUERY_CACHE*/

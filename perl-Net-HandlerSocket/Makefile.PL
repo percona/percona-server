@@ -13,6 +13,7 @@ WriteMakefile(
     LD                => 'g++ -fPIC',
     LIBS              => ['-lhsclient'], # e.g., '-lm'
     DEFINE            => '', # e.g., '-DHAVE_SOMETHING'
+    # FIXME
     INC               => '-I. -I../libhsclient',
     OPTIMIZE          => '-g -O3 -Wall -Wno-unused',
 	# Un-comment this if you add C files to link with later:

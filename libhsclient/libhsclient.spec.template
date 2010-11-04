@@ -16,6 +16,7 @@ BuildRoot: /var/tmp/%{name}-%{version}-root
 %define _use_internal_dependency_generator 0
 
 %build
+# FIXME
 TOP_SRC=`pwd`/../../..
 T=`echo $TOP_SRC | sed "s/\//\\\\\\\\\//g"`
 sed -e "s/top_srcdir =.*/top_srcdir =$T/" -e "s/top_builddir =.*/top_builddir =$T/" Makefile > Makefile.2

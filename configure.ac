@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 #AC_PREREQ([2.63b])
-AC_INIT([handlersocket-plugin], [1.0.6], [Yoshinori.Matsunobu@gmail.com])
+AC_INIT([handlersocket-plugin], [1.0.6], [https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL/issues])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_SRCDIR([libhsclient/fatal.cpp])

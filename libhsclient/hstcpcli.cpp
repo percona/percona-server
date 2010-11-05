@@ -15,6 +15,10 @@
 #include "escape.hpp"
 #include "util.hpp"
 
+#ifndef __linux__
+#define MSG_NOSIGNAL 0
+#endif
+
 #define DBG(x)
 
 namespace dena {

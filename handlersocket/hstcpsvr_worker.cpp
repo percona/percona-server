@@ -14,7 +14,9 @@
 #include <stdexcept>
 #include <signal.h>
 #include <list>
+#if __linux__
 #include <sys/epoll.h>
+#endif
 
 #include "hstcpsvr_worker.hpp"
 #include "string_buffer.hpp"
@@ -25,6 +27,10 @@
 #define DBG_FD(x)
 #define DBG_TR(x)
 #define DBG_EP(x)
+
+#ifndef __linux__
+#define MSG_NOSIGNAL 0
+#endif
 
 namespace dena {
 
@@ -242,8 +248,10 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   hstcpsvr_conns_type conns; /* conns refs dbctx */
   time_t last_check_time;
   std::vector<pollfd> pfds;
+  #ifdef __linux__
   std::vector<epoll_event> events_vec;
   auto_file epoll_fd;
+  #endif
   bool accept_enabled;
   int accept_balance;
  private:
@@ -263,6 +271,7 @@ hstcpsvr_worker::hstcpsvr_worker(const hstcpsvr_worker_arg& arg)
     dbctx(cshared.dbptr->create_context(cshared.for_write_flag)),
     last_check_time(time(0)), accept_enabled(true), accept_balance(0)
 {
+  #ifdef __linux__
   if (cshared.sockargs.use_epoll) {
     epoll_fd.reset(epoll_create(10));
     if (epoll_fd.get() < 0) {
@@ -277,6 +286,7 @@ hstcpsvr_worker::hstcpsvr_worker(const hstcpsvr_worker_arg& arg)
     }
     events_vec.resize(10240);
   }
+  #endif
   accept_balance = cshared.conf.get_int("accept_balance", 0);
 }
 
@@ -299,6 +309,7 @@ hstcpsvr_worker::run()
 {
   thr_init initobj(dbctx, vshared.shutdown);
 
+  #ifdef __linux__
   if (cshared.sockargs.use_epoll) {
     while (!vshared.shutdown && dbctx->check_alive()) {
       run_one_ep();
@@ -313,6 +324,11 @@ hstcpsvr_worker::run()
       run_one();
     }
   }
+  #else
+  while (!vshared.shutdown && dbctx->check_alive()) {
+    run_one_nb();
+  }
+  #endif
 }
 
 int
@@ -445,6 +461,7 @@ hstcpsvr_worker::run_one_nb()
   return 0;
 }
 
+#ifdef __linux__
 int
 hstcpsvr_worker::run_one_ep()
 {
@@ -616,6 +633,7 @@ hstcpsvr_worker::run_one_ep()
   }
   return 0;
 }
+#endif 
 
 int
 hstcpsvr_worker::run_one()

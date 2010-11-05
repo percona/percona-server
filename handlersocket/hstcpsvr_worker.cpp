@@ -397,7 +397,7 @@ hstcpsvr_worker::run_one_nb()
   for (hstcpsvr_conns_type::iterator i = conns.begin(); i != conns.end();
     ++i, ++j) {
     pollfd& pfd = pfds[j];
-    if ((pfd.revents & mask_in) != 0 || (*i)->cstate.readbuf.size() == 0) {
+    if ((pfd.revents & mask_in) == 0 || (*i)->cstate.readbuf.size() == 0) {
       continue;
     }
     execute_lines(**i);

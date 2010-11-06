@@ -9,7 +9,10 @@
 #ifndef DENA_MYSQL_INCL_HPP
 #define DENA_MYSQL_INCL_HPP
 
+#ifndef HAVE_CONFIG_H
 #define HAVE_CONFIG_H
+#endif
+
 #define MYSQL_DYNAMIC_PLUGIN
 #define MYSQL_SERVER 1
 

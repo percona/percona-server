@@ -47,10 +47,29 @@ mysqld/libmysql pair in some circumstances:
   - HandlerSocket client/server protocol is more compact than the 
     mysql/libmysql pair, which causes less network usage.
 
-The current version of HandlerSocket only works with GNU/Linux. There are
-a c++ and a perl library for HandlerSocket clients.
+The current version of HandlerSocket only works with GNU/Linux. The source
+archive of HandlerSocket includes a C++ and a Perl client libraries.
+Here is a list of other language bindings:
 
-See documentation files under docs-en/ (docs-ja/) for details.
+  - PHP
+    http://openpear.org/package/Net_HandlerSocket
+    http://github.com/tz-lom/HSPHP
+    http://code.google.com/p/php-handlersocket/
+  - Java
+    http://code.google.com/p/handlersocketforjava/
+  - Python
+    https://code.launchpad.net/~songofacandy/+junk/pyhandlersocket
+  - Ruby
+    https://github.com/winebarrel/ruby-handlersocket
+    https://github.com/miyucy/handlersocket
+  - JavaScript(Node.js)
+    https://github.com/koichik/node-handlersocket
+
+The home of HandlerSocket is here:
+    https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL
+
+More documents are available in docs-en/ and docs-ja/ directories.
+
 (Note: the current source tree of HandlerSocket has a lot of compilation
 problems. I'll fix them as soon as possible.)
 

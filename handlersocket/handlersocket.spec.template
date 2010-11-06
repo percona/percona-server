@@ -16,18 +16,12 @@ BuildRoot: /var/tmp/%{name}-%{version}-root
 %define _use_internal_dependency_generator 0
 
 %build
-# FIXME
-TOP_SRC=`pwd`/../../..
-T=`echo $TOP_SRC | sed "s/\//\\\\\\\\\//g"`
-sed -e "s/top_srcdir =.*/top_srcdir =$T/" -e "s/top_builddir =.*/top_builddir =$T/" Makefile > Makefile.2
-rm -f Makefile
-mv Makefile.2 Makefile
-make
+make -f Makefile.plain
 
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/%{_libdir}/mysql/plugin
-install -m 755 .libs/handlersocket.so $RPM_BUILD_ROOT/%{_libdir}/mysql/plugin/
+install -m 755 handlersocket.so $RPM_BUILD_ROOT/%{_libdir}/mysql/plugin/
 
 %files
 %defattr(-, root, root)

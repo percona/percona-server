@@ -24,6 +24,7 @@ rpm_perl: clean_perl rpm_dir
 
 rpm_c: clean_c rpm_dir
 	sed -e "s/HANDLERSOCKET_VERSION/$(VERSION)/" handlersocket/handlersocket.spec.template > handlersocket/handlersocket.spec
+	sed -e "s|HANDLERSOCKET_MYSQL_INC|$(MYSQL_INC)|" -e "s|HANDLERSOCKET_MYSQL_LIB|$(MYSQL_LIB)|" handlersocket/Makefile.plain.template > handlersocket/Makefile.plain
 	tar cvfz dist/handlersocket.tar.gz handlersocket
 	rpmbuild --define "_topdir `pwd`/dist" -ta \
 		dist/handlersocket.tar.gz

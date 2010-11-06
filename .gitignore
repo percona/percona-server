@@ -22,6 +22,7 @@ aclocal.m4
 .libs
 ltmain.sh
 *.la
+handlersocket/Makefile.plain
 handlersocket/*.spec
 libhsclient/*.spec
 perl-Net-HandlerSocket/*.spec

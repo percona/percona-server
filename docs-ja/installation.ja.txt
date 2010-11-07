@@ -1,6 +1,6 @@
 
 -----------------------------------------------------------------
-ビルド方法(RPMを使わない方法)
+HandlerSocketプラグインのビルド方法(RPMを使わない方法)
 
 以下のようにしてconfigureを実行します。
 
@@ -16,26 +16,41 @@
   $ sudo make install
 
 -----------------------------------------------------------------
+クライアントライブラリのビルド方法(RPMを使わない方法)
+
+クライアントライブラリをビルドする際には、MySQLのソースコードは
+必要ありません。またMySQLがインストールされている必要もありません。
+
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
+  $ make
+  $ sudo make install
+  $ cd perl-Net-HandlerSocket
+  $ perl Makefile.PL
+  $ make
+  $ sudo make install
+
+-----------------------------------------------------------------
 ビルド方法(RPM)
 
-単にmakeするかわりに以下のように実行すれば、rpmパッケージがビルド
-＆インストールされます。
+以下のように実行すれば、rpmパッケージがビルド＆インストールされま
+す。
 
-(mysqlサーバ側)
-  $ make clean
+(MySQLサーバ側、HandlerSocketプラグインをインストールする)
+  $ ./autogen.sh
+  $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
   $ make rpm_cli
-  $ sudo rpm -U dist/RPMS/*/*.rpm
-  $ make clean
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
   $ make rpm_c
-  $ sudo rpm -U dist/RPMS/*/*.rpm
+  $ sudo rpm -U dist/RPMS/*/handlersocket*.rpm
 
-(クライアント側)
-  $ make clean
+(クライアント側、クライアントライブラリをインストールする)
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
   $ make rpm_cli
-  $ sudo rpm -U dist/RPMS/*/*.rpm
-  $ make clean
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
   $ make rpm_perl
-  $ sudo rpm -U dist/RPMS/*/*.rpm
+  $ sudo rpm -U dist/RPMS/*/perl-Net-HandlerSocket*.rpm
 
 -----------------------------------------------------------------
 起動

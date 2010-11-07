@@ -25,7 +25,7 @@ directory where plugin libraries (*.so) are installed.
   $ make
   $ sudo make install
 
- Both libhsclient and handlersocket will be installed.
+ Both libhsclient and the handlersocket plugin will be installed.
 
  
 2. Using Handlersocket
@@ -59,6 +59,10 @@ On the client side, you need to install libhsclient for c++ apps
 and perl-Net-HandlerSocket for perl apps. They do not require
 MySQL to compile.
 
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
+  $ make
+  $ sudo make install
   $ cd perl-Net-HandlerSocket
   $ perl Makefile.PL
   $ make
@@ -66,8 +70,22 @@ MySQL to compile.
 
 -----------------------------------------------------------------
 Alternatively, you can use the rpm installation. If your OS
-supports rpms, you can simply use the following command to build
-and install handlersocket rpm packages.
+supports rpms, you can use the following commands to build and
+install handlersocket rpm packages.
 
-  $ make installrpms
+(Server side, installs HandlerSocket plugin)
+  $ ./autogen.sh
+  $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
+  $ make rpm_c
+  $ sudo rpm -U dist/RPMS/*/handlersocket*.rpm
+
+(Client side, installs client libraries)
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
+  $ make rpm_perl
+  $ sudo rpm -U dist/RPMS/*/perl-Net-HandlerSocket*.rpm
 

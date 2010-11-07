@@ -11,10 +11,8 @@ WriteMakefile(
        AUTHOR         => 'higuchi dot akira at dena dot jp>') : ()),
     CC                => 'g++ -fPIC',
     LD                => 'g++ -fPIC',
-    LIBS              => ['-L../libhsclient/.libs -lhsclient'], # e.g., '-lm'
-    DEFINE            => '', # e.g., '-DHAVE_SOMETHING'
+    LIBS              => ['-L../libhsclient -L../libhsclient/.libs -lhsclient'],
+    DEFINE            => '',
     INC               => '-I. -I../libhsclient',
     OPTIMIZE          => '-g -O3 -Wall -Wno-unused',
-	# Un-comment this if you add C files to link with later:
-    # OBJECT            => '$(O_FILES)', # link all the C files too
 );

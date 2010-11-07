@@ -6,6 +6,7 @@ AC_INIT([handlersocket-plugin], [1.0.6], [https://github.com/ahiguti/HandlerSock
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_SRCDIR([libhsclient/fatal.cpp])
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_PROG_CC
 AC_PROG_CXX
@@ -63,7 +64,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
       fi
       AC_SUBST(MYSQL_LIB)
     ],
-    [AC_MSG_ERROR([--with-mysql-bindir=PATH is required for standalone build])]
+    [AC_MSG_ERROR([--with-mysql-bindir=PATH is required to build handlersocket plugin])]
   )
 
   if test a$MYSQL_SOURCE_VERSION != a$MYSQL_BIN_VERSION ; then
@@ -95,19 +96,21 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
   )
 ])
 
-CONFIG_OPTION_MYSQL
+HANDLERSOCKET_SUBDIRS="libhsclient client"
+AC_ARG_ENABLE(handlersocket_server,
+  [  --enable-handlersocket-server    build HandlerSocket plugin (defalut=yes)])
+if test "$enable_handlersocket_server" != "no"; then
+  CONFIG_OPTION_MYSQL
+  HANDLERSOCKET_SUBDIRS="libhsclient handlersocket client"
+fi
+AC_SUBST(HANDLERSOCKET_SUBDIRS)
 
 CFLAGS="$CFLAGS -Werror"
 CXXFLAGS="$CXXFLAGS -Wall -g -fno-rtti -fno-exceptions -fPIC -DPIC"
 
-#TODO
 AC_CONFIG_FILES([Makefile
                  handlersocket/Makefile
                  libhsclient/Makefile
                  client/Makefile])
-#                 handlersocket/Makefile
-#                 libhsclient/Makefile
-#                 regtest/Makefile
-#                 regtest/test_01_lib/Makefile])
 
 AC_OUTPUT

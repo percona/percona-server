@@ -86,9 +86,11 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
       fi
     ],
     [
-      LIB_DIR_TMP1=`(cd $ac_mysql_bin_dir; ./mysql_config --libs_r)`
-      LIB_DIR_TMP2=`echo $LIB_DIR_TMP1 | sed -e "s|.* -L||" | sed -e "s| .*||"`
-      ac_mysql_plugin_dir=$LIB_DIR_TMP2/plugin
+      LIB_DIR_TMP=`(cd $ac_mysql_bin_dir; ./mysql_config --plugindir)`
+      if test ! -d "$LIB_DIR_TMP"; then
+        LIB_DIR_TMP=`(cd $ac_mysql_bin_dir; ./mysql_config --libs_r) | sed -e "s|.* -L||" | sed -e "s| .*||"`/plugin
+      fi
+      ac_mysql_plugin_dir=$LIB_DIR_TMP
       PLUGIN_DIR="$ac_mysql_plugin_dir"
       AC_SUBST(PLUGIN_DIR)
       AC_MSG_RESULT([--with-mysql-plugindir was not set. Using $ac_mysql_plugin_dir])

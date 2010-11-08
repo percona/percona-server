@@ -50,9 +50,9 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
         AC_MSG_ERROR([mysql_config not found! invalid MySQL base directory: $ac_mysql_bin_dir])
       fi
 
-      MYSQL_INC_ADD=`(cd $ac_mysql_bin_dir; ./mysql_config --include)`
-      MYSQL_INC="$MYSQL_INC $MYSQL_INC_ADD"
-      AC_SUBST(MYSQL_INC)
+      MYSQL_CFLAGS_ADD=`(cd $ac_mysql_bin_dir; ./mysql_config --cflags)`
+      MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD"
+      AC_SUBST(MYSQL_CFLAGS)
 
       MYSQL_BIN_VERSION=`(cd $ac_mysql_bin_dir; ./mysql_config --version)`
       AC_MSG_RESULT([yes: Using $ac_mysql_bin_dir, version $MYSQL_BIN_VERSION])
@@ -96,7 +96,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
   )
 ])
 
-HANDLERSOCKET_SUBDIRS="libhsclient client"
+HANDLERSOCKET_SUBDIRS="libhsclient"
 AC_ARG_ENABLE(handlersocket_server,
   [  --enable-handlersocket-server    build HandlerSocket plugin (defalut=yes)])
 if test "$enable_handlersocket_server" != "no"; then

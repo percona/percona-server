@@ -349,7 +349,8 @@ dbcontext::check_alive()
   pthread_mutex_lock(&thd->mysys_var->mutex);
   THD::killed_state st = thd->killed;
   pthread_mutex_unlock(&thd->mysys_var->mutex);
-  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d\n", (int)st));
+  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %p %p %d %zu\n", thd, &thd->killed,
+    (int)st, sizeof(*thd)));
   if (st != THD::NOT_KILLED) {
     DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d break\n", (int)st));
     return false;

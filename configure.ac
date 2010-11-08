@@ -43,7 +43,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
   MYSQL_BIN_VERSION=
   ac_mysql_bin_dir=
   AC_ARG_WITH([mysql-bindir],
-    [AS_HELP_STRING([--with-mysql-bindir=PATH], [MySQL biarny directory PATH. This should be the directory where MySQL binary executables (i.e. mysql_config) are located])],
+    [AS_HELP_STRING([--with-mysql-bindir=PATH], [MySQL binary directory PATH. This should be the directory where MySQL binary executables (i.e. mysql_config) are located])],
     [
       ac_mysql_bin_dir=`cd $withval && pwd`
       if test ! -f "$ac_mysql_bin_dir/mysql_config" ; then

@@ -278,11 +278,11 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
     const NET v = { 0 };
     thd->net = v;
     if (for_write_flag) {
-#if MYSQL_VERSION_ID >= 50505
+      #if MYSQL_VERSION_ID >= 50505
       thd->variables.option_bits |= OPTION_BIN_LOG;
-#else
+      #else
       thd->options |= OPTION_BIN_LOG;
-#endif
+      #endif
       safeFree(thd->db);
       thd->db = 0;
       thd->db = my_strdup("handlersocket", MYF(0));
@@ -381,14 +381,6 @@ dbcontext::lock_tables_if()
 	tables[num_open++] = table_vec[i].table;
       }
     }
-    // FIXME: remove
-    #if 0
-    {
-      /* lock tables as if an explicit LOCK TABLES is issued */
-      thd->lex->sql_command = SQLCOM_LOCK_TABLES;
-      thd->in_lock_tables = 1;
-    }
-    #endif
     #if MYSQL_VERSION_ID >= 50505
     lock = thd->lock = mysql_lock_tables(thd, &tables[0], num_open, 0);
     #else
@@ -406,11 +398,11 @@ dbcontext::lock_tables_if()
 	thd));
     }
     if (for_write_flag) {
-#if MYSQL_VERSION_ID >= 50505
+      #if MYSQL_VERSION_ID >= 50505
       thd->set_current_stmt_binlog_format_row();
-#else
+      #else
       thd->current_stmt_binlog_row_based = 1;
-#endif
+      #endif
     }
   }
   DBG_LOCK(fprintf(stderr, "HNDSOCK tblnum=%d\n", (int)tblnum));
@@ -559,7 +551,7 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
       Field *const fld = table->field[fn];
       fld->store(nv.begin(), nv.size(), &my_charset_bin);
     }
-    memset(buf, 0, table->s->null_bytes);
+    memset(buf, 0, table->s->null_bytes); /* TODO: allow NULL */
     const int r = hnd->ha_update_row(table->record[1], buf);
     if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
       return r;
@@ -600,7 +592,7 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   for (; *fld && i < fvalslen; ++fld, ++i) {
     (*fld)->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
   }
-  memset(buf, 0, table->s->null_bytes);
+  memset(buf, 0, table->s->null_bytes); /* TODO: allow NULL */
   const int r = hnd->ha_write_row(buf);
   return cb.dbcb_resp_short(r != 0 ? 1 : 0, "");
 }
@@ -613,10 +605,6 @@ dbcontext::cmd_sql_internal(dbcallback_i& cb, const prep_stmt& pst,
     return cb.dbcb_resp_short(2, "syntax");
   }
   return cb.dbcb_resp_short(2, "notimpl");
-  #if 0
-  const char *found_semicolon = 0;
-  mysql_parse(thd, fvals[0].begin(), fvals[0].size(), &found_semicolon);
-  #endif
 }
 
 void
@@ -674,7 +662,9 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   hnd->ha_index_or_rnd_end();
   hnd->ha_index_init(pst.get_idxnum(), 1);
-//  statistic_increment(index_exec_count, &LOCK_status);
+  #if 0
+  statistic_increment(index_exec_count, &LOCK_status);
+  #endif
   if (!modify_op_flag) {
     cb.dbcb_resp_begin(pst.get_retfields().size());
   } else {

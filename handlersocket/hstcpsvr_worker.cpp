@@ -255,10 +255,8 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   bool accept_enabled;
   int accept_balance;
  private:
-  int run_one();
   int run_one_nb();
   int run_one_ep();
-  void request_loop();
   void execute_lines(hstcpsvr_conn& conn);
   void execute_line(char *start, char *finish, hstcpsvr_conn& conn);
   void do_open_index(char *start, char *finish, hstcpsvr_conn& conn);
@@ -320,9 +318,7 @@ hstcpsvr_worker::run()
     }
   } else {
     /* UNUSED */
-    while (!vshared.shutdown && dbctx->check_alive()) {
-      run_one();
-    }
+    fatal_abort("run_one");
   }
   #else
   while (!vshared.shutdown && dbctx->check_alive()) {
@@ -634,48 +630,6 @@ hstcpsvr_worker::run_one_ep()
   return 0;
 }
 #endif 
-
-int
-hstcpsvr_worker::run_one()
-{
-  if (conns.empty()) {
-    std::auto_ptr<hstcpsvr_conn> p(new hstcpsvr_conn());
-    p->readsize = cshared.readsize;
-    conns.push_back_ptr(p);
-  }
-  hstcpsvr_conn& conn = *conns.back();
-  const int r = conn.accept(cshared);
-  if (r != 0) {
-    DBG_FD(fprintf(stderr, "err=%d fd=%d\n", r, conn.fd.get()));
-    return r;
-  }
-  request_loop();
-  DBG_FD(fprintf(stderr, "done fd=%d\n", conn.cfd.get()));
-  dbctx->close_tables_if();
-  return 0;
-}
-
-void
-hstcpsvr_worker::request_loop()
-{
-  hstcpsvr_conn& conn = *conns.back();
-  while (true) {
-    execute_lines(conn);
-    conn.write_more();
-    if (conn.cstate.writebuf.size() == 0) {
-      conn.read_more();
-      // FIXME: commit
-      if (conn.cstate.readbuf.size() > 0
-	&& conn.cstate.readbuf.begin()[0] == 'Q') {
-	vshared.shutdown = 1;
-	break;
-      }
-    }
-    if (conn.ok_to_close()) {
-      break;
-    }
-  }
-}
 
 void
 hstcpsvr_worker::execute_lines(hstcpsvr_conn& conn)

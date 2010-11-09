@@ -162,7 +162,9 @@ static SHOW_VAR hs_status_variables[] = {
   {"table_close", (char*) &close_tables_count, SHOW_LONGLONG},
   {"table_lock", (char*) &lock_tables_count, SHOW_LONGLONG},
   {"table_unlock", (char*) &unlock_tables_count, SHOW_LONGLONG},
-//  {"index_exec", (char*) &index_exec_count, SHOW_LONGLONG},
+  #if 0
+  {"index_exec", (char*) &index_exec_count, SHOW_LONGLONG},
+  #endif
   {NullS, NullS, SHOW_LONG}
 };
 

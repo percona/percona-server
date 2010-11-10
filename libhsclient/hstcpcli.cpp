@@ -15,7 +15,8 @@
 #include "escape.hpp"
 #include "util.hpp"
 
-#ifndef __linux__
+/* TODO */
+#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(MSG_NOSIGNAL)
 #define MSG_NOSIGNAL 0
 #endif
 

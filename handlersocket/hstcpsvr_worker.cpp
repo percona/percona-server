@@ -28,7 +28,8 @@
 #define DBG_TR(x)
 #define DBG_EP(x)
 
-#ifndef __linux__
+/* TODO */
+#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(MSG_NOSIGNAL)
 #define MSG_NOSIGNAL 0
 #endif
 

@@ -59,7 +59,7 @@ check_nfile(size_t nfile)
   if (r != 0) {
     fatal_abort("check_nfile: getrlimit failed");
   }
-  if (rl.rlim_cur < nfile + 1000) {
+  if (rl.rlim_cur < static_cast<rlim_t>(nfile + 1000)) {
     fprintf(stderr,
       "[Warning] handlersocket: open_files_limit is too small.\n");
   }

@@ -38,34 +38,37 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
     [AC_MSG_ERROR([--with-mysql-source=PATH is required for standalone build])]
   )
 
-  AC_MSG_CHECKING([mysql binary])
-
   MYSQL_BIN_VERSION=
-  ac_mysql_bin_dir=
+  ac_mysql_config=
   AC_ARG_WITH([mysql-bindir],
-    [AS_HELP_STRING([--with-mysql-bindir=PATH], [MySQL biarny directory PATH. This should be the directory where MySQL binary executables (i.e. mysql_config) are located])],
+    [AS_HELP_STRING([--with-mysql-bindir=PATH], [MySQL binary directory PATH. This should be the directory where mysql_config is located.])],
     [
-      ac_mysql_bin_dir=`cd $withval && pwd`
-      if test ! -f "$ac_mysql_bin_dir/mysql_config" ; then
-        AC_MSG_ERROR([mysql_config not found! invalid MySQL base directory: $ac_mysql_bin_dir])
-      fi
-
-      MYSQL_CFLAGS_ADD=`(cd $ac_mysql_bin_dir; ./mysql_config --cflags)`
-      MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD"
-      AC_SUBST(MYSQL_CFLAGS)
-
-      MYSQL_BIN_VERSION=`(cd $ac_mysql_bin_dir; ./mysql_config --version)`
-      AC_MSG_RESULT([yes: Using $ac_mysql_bin_dir, version $MYSQL_BIN_VERSION])
-
-      MYSQL_LIB=`(cd $ac_mysql_bin_dir; ./mysql_config --libs_r)`
-      LIB_DIR=`echo $MYSQL_LIB | sed -e "s|.* -L||" | sed -e "s| .*||"`
-      if test a`basename $LIB_DIR` = amysql ; then
-        MYSQL_LIB="-L`dirname $LIB_DIR` $MYSQL_LIB" 
-      fi
-      AC_SUBST(MYSQL_LIB)
+      mysql_bin_dir=`cd $withval 2> /dev/null && pwd || echo ""`
+      ac_mysql_config="$mysql_bin_dir/mysql_config"
     ],
-    [AC_MSG_ERROR([--with-mysql-bindir=PATH is required to build handlersocket plugin])]
+    [
+      AC_PATH_PROG([ac_mysql_config], [mysql_config])
+    ]
   )
+
+  AC_MSG_CHECKING([mysql binary])
+  if test ! -x "$ac_mysql_config" ; then
+    AC_MSG_ERROR([mysql_config not found! You have to specify the directory where mysql_config resides to --with-mysql-bindir=PATH.])
+  fi
+
+  MYSQL_CFLAGS_ADD=`"$ac_mysql_config" --cflags`
+  MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD"
+  AC_SUBST(MYSQL_CFLAGS)
+
+  MYSQL_BIN_VERSION=`"$ac_mysql_config" --version`
+  AC_MSG_RESULT([yes: Using $ac_mysql_config, version $MYSQL_BIN_VERSION])
+
+  MYSQL_LIB=`"$ac_mysql_config" --libs_r`
+  LIB_DIR=`echo $MYSQL_LIB | sed -e "s|.* -L||" | sed -e "s| .*||"`
+  if test a`basename "$LIB_DIR"` = amysql ; then
+    MYSQL_LIB="-L`dirname $LIB_DIR` $MYSQL_LIB" 
+  fi
+  AC_SUBST(MYSQL_LIB)
 
   if test a$MYSQL_SOURCE_VERSION != a$MYSQL_BIN_VERSION ; then
     AC_MSG_ERROR([MySQL source version does not match MySQL binary version])
@@ -86,9 +89,11 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
       fi
     ],
     [
-      LIB_DIR_TMP1=`(cd $ac_mysql_bin_dir; ./mysql_config --libs_r)`
-      LIB_DIR_TMP2=`echo $LIB_DIR_TMP1 | sed -e "s|.* -L||" | sed -e "s| .*||"`
-      ac_mysql_plugin_dir=$LIB_DIR_TMP2/plugin
+      LIB_DIR_TMP=`"$ac_mysql_config" --plugindir`
+      if test ! -d "$LIB_DIR_TMP"; then
+        LIB_DIR_TMP=`"$ac_mysql_config" --libs_r | sed -e "s|.* -L||" | sed -e "s| .*||"`/plugin
+      fi
+      ac_mysql_plugin_dir=$LIB_DIR_TMP
       PLUGIN_DIR="$ac_mysql_plugin_dir"
       AC_SUBST(PLUGIN_DIR)
       AC_MSG_RESULT([--with-mysql-plugindir was not set. Using $ac_mysql_plugin_dir])

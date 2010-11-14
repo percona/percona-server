@@ -8,18 +8,18 @@
 diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2010-08-08 14:12:42.229338865 +0400
 +++ b/client/client_priv.h	2010-08-08 14:12:43.068089277 +0400
-@@ -90,6 +90,7 @@
-   OPT_FIX_TABLE_NAMES, OPT_FIX_DB_NAMES, OPT_SSL_VERIFY_SERVER_CERT,
+@@ -84,6 +84,7 @@
    OPT_DEBUG_INFO, OPT_DEBUG_CHECK, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE,
    OPT_WRITE_BINLOG, OPT_DUMP_DATE,
+   OPT_INIT_COMMAND,
 +  OPT_SYSLOG,
-   OPT_FIRST_SLAVE,
-   OPT_ALL,
+   OPT_PLUGIN_DIR,
+   OPT_DEFAULT_PLUGIN,
    OPT_MAX_CLIENT_OPTION
 diff -ruN a/client/mysql.cc b/client/mysql.cc
 --- a/client/mysql.cc	2010-08-08 14:12:42.229338865 +0400
 +++ b/client/mysql.cc	2010-08-08 14:12:43.488088866 +0400
-@@ -43,6 +43,9 @@
+@@ -38,6 +38,9 @@
  #include "my_readline.h"
  #include <signal.h>
  #include <violite.h>
@@ -29,16 +29,16 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
  
  #if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
  #include <locale.h>
-@@ -151,7 +154,7 @@
- 	       default_charset_used= 0, opt_secure_auth= 0,
+@@ -140,7 +143,7 @@
                 default_pager_set= 0, opt_sigint_ignore= 0,
+                auto_vertical_output= 0,
                 show_warnings= 0, executing_query= 0, interrupted_query= 0,
 -               ignore_spaces= 0;
 +               opt_syslog=0, ignore_spaces= 0;
  static my_bool debug_info_flag, debug_check_flag;
  static my_bool column_types_flag;
  static my_bool preserve_comments= 0;
-@@ -206,6 +209,7 @@
+@@ -198,6 +201,7 @@
  void tee_fputs(const char *s, FILE *file);
  void tee_puts(const char *s, FILE *file);
  void tee_putc(int c, FILE *file);
@@ -54,10 +54,10 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
 +  {"syslog", OPT_SYSLOG, "Logs all queries to syslog", 0, 0, 0, GET_NO_ARG,
 +   NO_ARG, 0, 0, 0, 0, 0, 0},
 +#endif
-   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
- };
- 
-@@ -1684,6 +1692,12 @@
+   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+    (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+@@ -1665,6 +1673,12 @@
                                      opt->name);
  #endif
      break;
@@ -70,7 +70,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
    case OPT_SERVER_ARG:
  #ifdef EMBEDDED_LIBRARY
      /*
-@@ -2060,6 +2074,39 @@
+@@ -2014,6 +2028,39 @@
    DBUG_RETURN((COMMANDS *) 0);
  }
  
@@ -110,7 +110,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
  
  static bool add_line(String &buffer,char *line,char *in_string,
                       bool *ml_comment, bool truncated)
-@@ -3031,6 +3078,11 @@
+@@ -2986,6 +3033,11 @@
      fix_history(buffer);
    }
  #endif

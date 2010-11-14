@@ -2,8 +2,8 @@
 #ls -1 *.patch | grep -v repair | xargs bzr revert
 echo "Prepare source code for patch's adaptation...";
 rm -rf a b Percona-Server;
-tar zxf mysql-5.1.51.tar.gz;
-mv mysql-5.1.51 Percona-Server;
+tar zxf mysql-5.5.7-rc.tar.gz;
+mv mysql-5.5.7-rc Percona-Server;
 cp -R Percona-Server a;
 cp -R Percona-Server b;
 for patch_name in `cat series`; do

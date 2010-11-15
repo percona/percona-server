@@ -242,7 +242,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
         - Called from various places to invalidate query cache based on data-
           base, table and myisam file name. During an on going invalidation
           the query cache is temporarily disabled.
-@@ -333,6 +334,180 @@
+@@ -333,6 +334,181 @@
  #include <hash.h>
  #include "../storage/myisammrg/ha_myisammrg.h"
  #include "../storage/myisammrg/myrg_def.h"
@@ -270,6 +270,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 +  {
 +    cleanup();
 +    buffer = (char*)my_malloc(new_buffer_length,MYF(0));
++    memset(buffer,0,new_buffer_length);
 +  }
 +  uint query_position = 0;
 +  uint position = 0;

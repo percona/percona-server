@@ -1,71 +1,78 @@
 # name       : suppress_log_warning_1592.patch
 # introduced : 11 or before
-# maintainer : Yasufumi
+# maintainer : Oleg
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-26 18:31:59.056061915 +0900
-+++ b/sql/mysql_priv.h	2010-07-26 18:34:10.205015964 +0900
-@@ -2080,6 +2080,7 @@
- extern my_bool opt_readonly, lower_case_file_system;
- extern my_bool opt_userstat_running, opt_thread_statistics;
- extern my_bool opt_optimizer_fix;
-+extern my_bool opt_suppress_log_warning_1592;
- extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
- extern my_bool opt_secure_auth;
- extern char* opt_secure_file_priv;
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-26 18:33:52.988451388 +0900
-+++ b/sql/mysqld.cc	2010-07-26 18:34:10.203114167 +0900
-@@ -535,6 +535,7 @@
- my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
- my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
- my_bool opt_optimizer_fix= 0;
-+my_bool opt_suppress_log_warning_1592= 0;
- /*
-   True if there is at least one per-hour limit for some user, so we should
-   check them before each query (and possibly reset counters when hour is
-@@ -5836,6 +5837,7 @@
-   OPT_USERSTAT_RUNNING,
-   OPT_THREAD_STATISTICS,
-   OPT_OPTIMIZER_FIX,
-+  OPT_SUPPRESS_LOG_WARNING_1592,
-   OPT_USE_GLOBAL_LONG_QUERY_TIME,
-   OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
-   OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7340,6 +7342,10 @@
-    "Enable unofficial optimizer fixes.",
-    (uchar**) &opt_optimizer_fix, (uchar**) &opt_optimizer_fix,
-    0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
-+  {"suppress_log_warning_1592", OPT_SUPPRESS_LOG_WARNING_1592,
-+   "suppress warning about unsafe statements for binary logging",
-+   (uchar**) &opt_suppress_log_warning_1592, (uchar**) &opt_suppress_log_warning_1592,
-+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
-   {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-    "Causes updates to non-transactional engines using statement format to be "
-    "written directly to binary log. Before using this option, make sure that "
-diff -ruN a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-26 18:31:59.093062279 +0900
-+++ b/sql/set_var.cc	2010-07-26 18:34:10.210061358 +0900
-@@ -560,6 +560,8 @@
- 						      &opt_thread_statistics);
- static sys_var_bool_ptr		sys_optimizer_fix(&vars, "optimizer_fix",
- 						  &opt_optimizer_fix);
-+static sys_var_bool_ptr		sys_suppress_log_warning_1592(&vars, "suppress_log_warning_1592",
-+							      &opt_suppress_log_warning_1592);
- static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
- 					       &SV::read_rnd_buff_size);
- static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
+--- a/sql/mysqld.cc	2010-11-16 23:20:22.000000000 +0500
++++ b/sql/mysqld.cc	2010-11-16 23:22:07.000000000 +0500
+@@ -399,6 +399,7 @@
+ my_bool opt_enable_named_pipe= 0;
+ my_bool opt_local_infile, opt_slave_compressed_protocol;
+ my_bool opt_safe_user_create = 0;
++my_bool opt_suppress_log_warning_1592= FALSE;
+ my_bool opt_show_slave_auth_info;
+ my_bool opt_log_slave_updates= 0;
+ char *opt_slave_skip_errors;
+diff -ruN a/sql/mysqld.h b/sql/mysqld.h
+--- a/sql/mysqld.h	2010-11-16 23:20:22.000000000 +0500
++++ b/sql/mysqld.h	2010-11-16 23:21:10.000000000 +0500
+@@ -107,6 +107,7 @@
+ extern uint connection_count;
+ extern my_bool opt_safe_user_create;
+ extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
++extern my_bool opt_suppress_log_warning_1592;
+ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+ extern ulong slave_exec_mode_options;
+ extern ulonglong slave_type_conversions_options;
+diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
+--- a/sql/sys_vars.cc	2010-11-16 23:20:22.000000000 +0500
++++ b/sql/sys_vars.cc	2010-11-16 23:30:38.000000000 +0500
+@@ -1408,6 +1408,12 @@
+        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
+        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
+ 
++static Sys_var_mybool Sys_suppress_log_warning_1592(
++						    "suppress_log_warning_1592",
++						    "suppress warning about unsafe statements for binary logging",
++       GLOBAL_VAR(opt_suppress_log_warning_1592), CMD_LINE(REQUIRED_ARG),
++       DEFAULT(FALSE));
++
+ static Sys_var_ulong Sys_preload_buff_size(
+        "preload_buffer_size",
+        "The size of the buffer that is allocated when preloading indexes",
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2010-07-26 18:29:12.285116210 +0900
-+++ b/sql/sql_class.cc	2010-07-26 18:34:10.214061153 +0900
-@@ -4117,6 +4117,7 @@
-                  ER_BINLOG_UNSAFE_STATEMENT,
-                  ER(ER_BINLOG_UNSAFE_STATEMENT));
-     if (global_system_variables.log_warnings &&
-+        !opt_suppress_log_warning_1592 &&
-         !(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
-     {
-       sql_print_warning("%s Statement: %.*s",
+--- a/sql/sql_class.cc	2010-11-03 03:01:14.000000000 +0500
++++ b/sql/sql_class.cc	2010-11-17 00:06:49.000000000 +0500
+@@ -4451,7 +4451,7 @@
+                           ER_BINLOG_UNSAFE_STATEMENT,
+                           ER(ER_BINLOG_UNSAFE_STATEMENT),
+                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+-      if (global_system_variables.log_warnings)
++      if (global_system_variables.log_warnings && !opt_suppress_log_warning_1592)
+       {
+         char buf[MYSQL_ERRMSG_SIZE * 2];
+         sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
+diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
+--- a/mysql-test/r/mysqld--help-notwin.result	2010-11-03 03:01:12.000000000 +0500
++++ b/mysql-test/r/mysqld--help-notwin.result	2010-11-17 00:15:40.000000000 +0500
+@@ -657,6 +667,9 @@
+  replication.
+  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
+  for the complete list of valid sql modes
++ --suppress-log-warning-1592 
++ suppress warning about unsafe statements for binary
++ logging
+  -s, --symbolic-links 
+  Enable symbolic link support.
+  --sync-binlog=#     Synchronously flush binary log to disk after every #th
+@@ -916,6 +932,7 @@
+ sort-buffer-size 2097152
+ sporadic-binlog-dump-fail FALSE
+ sql-mode 
++suppress-log-warning-1592 FALSE
+ symbolic-links FALSE
+ sync-binlog 0
+ sync-frm TRUE

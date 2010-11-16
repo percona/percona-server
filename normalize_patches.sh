@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
 #ls -1 *.patch | grep -v repair | xargs bzr revert
-echo "Prepare source code for patch's adaptation...";
-rm -rf a b Percona-Server;
-tar zxf mysql-5.5.7-rc.tar.gz;
-mv mysql-5.5.7-rc Percona-Server;
+MYSQL_VERSION=5.5.7-rc
+MYSQL_DIR=mysql-${MYSQL_VERSION}
+MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
+echo "===== Prepare source code for patch's adaptation...";
+echo "===== Remove 'a' copy...";
+rm -rf a;
+echo "===== Remove 'b' copy..."
+rm -rf b;
+echo "===== Remove 'Percona-Server' copy..."
+rm -rf Percona-Server;
+echo "===== Unpack ${MYSQL_DIR} to Percona-Server..."
+tar zxf ${MYSQL_TAR_GZ};
+mv ${MYSQL_DIR} Percona-Server;
+echo "===== Prepare 'a' copy..."
 cp -R Percona-Server a;
+echo "===== Prepare 'b' copy..."
 cp -R Percona-Server b;
+echo "===== Ok, let's go patch adaptation..."
 for patch_name in `cat series`; do
     echo "========================================================="
     echo "===== Check patch $patch_name";
@@ -16,43 +28,20 @@ for patch_name in `cat series`; do
     echo "===== Patch $patch_name FAILED: $fail";
     echo "===== Patch $patch_name HUNK:   $hunk";
     if [ $fail -ne 0 ]; then
-	echo "==== Patch $patch_name are failed";
+	echo "===== Patch $patch_name are failed";
 	exit 1;
     fi;
     if [ $hunk -ne 0 ]; then
-	echo "==== Patch $patch_name need adaptation...";
 	find b -name "*.orig" | xargs rm;
-	patch_name_new=$patch_name.new;
-	patch_name_split=$patch_name.split;
-	rm -f $patch_name_new;
-	rm -rf $patch_name_split;
-	mkdir $patch_name_split;
-	cd $patch_name_split;
-	cat ../$patch_name | head -n7 > ../$patch_name_new
-	for filename in `splitdiff -a -d ../$patch_name | awk '{ print $2 }' | sed -e "s/>//g"`; do
-	    echo $filename;
-	    a_head=`cat $filename | head -n2 | head -n1`;
-	    b_head=`cat $filename | head -n2 | tail -n1`;
-	    echo "PATCH='$patch_name' FILE='$filename' A_HEAD='$a_head' B_HEAD='$b_head'";
-	    a_path=`echo $a_head | awk '{ print $2 }'`;
-	    b_path=`echo $b_head | awk '{ print $2 }'`;
-	    echo "A_PATH='$a_path' B_PATH='$b_path'";
-	    (cd ..; echo "diff -ruN $a_path $b_path" >> $patch_name_new);
-	    (cat $filename | head -n2 | head -n1 >> ../$patch_name_new);
-	    (cat $filename | head -n2 | tail -n1 >> ../$patch_name_new);
-	    (cd ..; diff -Nur $a_path $b_path | tail -n+3 >> $patch_name_new);
-	done;
-	cd ..;
-	cat $patch_name_new > $patch_name;
-	rm $patch_name_new;
-	rm -rf $patch_name_split;
+	./regenerate_patch.sh a b $patch_name
     fi;
     patch -p1 -d Percona-Server < $patch_name > /dev/null;
+    patch -p1 -d a < $patch_name > /dev/null;
+    echo "===== Patch $patch_name regenerated succesfully"
     if [ $hunk -ne 0 ]; then
-	rm -rf a b;
-	cp -R Percona-Server a;
+	echo "===== Remove temporary 'b' version"
+	rm -rf b;
+	echo "===== Prepare 'b' copy..."
 	cp -R Percona-Server b;
-    else 
-	patch -p1 -d a < $patch_name > /dev/null;
     fi;
 done;

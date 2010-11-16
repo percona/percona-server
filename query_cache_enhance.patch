@@ -483,7 +483,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  
 +static Sys_var_mybool Sys_query_cache_strip_comments(
 +       "query_cache_strip_comments", "Enable and disable optimisation \"strip comment for query cache\" - optimisation strip all comments from query while search query result in query cache",
-+       GLOBAL_VAR(opt_query_cache_strip_comments), CMD_LINE(OPT_ARG),
++       GLOBAL_VAR(opt_query_cache_strip_comments), CMD_LINE(REQUIRED_ARG),
 +       DEFAULT(FALSE));
 +
  static Sys_var_ulong Sys_query_cache_limit(

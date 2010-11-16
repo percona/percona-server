@@ -51,7 +51,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      close_connection(thd, ER_CON_COUNT_ERROR, 1);
 +    if (global_system_variables.log_warnings)
 +    {
-+      sql_print_warning("%s", ER(ER_CON_COUNT_ERROR));
++      sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
 +    }
      delete thd;
      DBUG_VOID_RETURN;
@@ -62,7 +62,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      {
 +      if (global_system_variables.log_warnings)
 +      {
-+        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
++        sql_print_warning("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
 +      }
        close_connection(thd, ER_OUT_OF_RESOURCES, 1);
        delete thd;
@@ -73,7 +73,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      {
 +      if (global_system_variables.log_warnings)
 +      {
-+        sql_print_warning("%s", ER(ER_OUT_OF_RESOURCES));
++        sql_print_warning("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
 +      }
        close_connection(thd, ER_OUT_OF_RESOURCES, 1);
        errmsg= 0;

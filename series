@@ -1,3 +1,4 @@
+suppress_log_warning_1592.patch
 percona_support.patch
 query_cache_enhance.patch
 log_connection_error.patch
@@ -6,4 +7,3 @@ response_time_distribution.patch
 error_pad.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
-

@@ -9,7 +9,7 @@ install_path()
     install -m 644 $1/*.inc $INSTALL_PATH/mysql-test/include/
 }
 
-install_path mysql-test "global"
+#install_path mysql-test "global"
 for test_name in `cat series`; do
     install_path mysql-test/$test_name $test_name
 done

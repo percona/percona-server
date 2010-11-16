@@ -26,6 +26,7 @@ main: mysql-$(MYSQL_VERSION).tar.gz
 	tar zxf mysql-$(MYSQL_VERSION).tar.gz
 	mv mysql-$(MYSQL_VERSION) Percona-Server
 	(cat `cat series`) | patch -p1 -d Percona-Server
+	rm Percona-Server/sql/sql_yacc.cc Percona-Server/sql/sql_yacc.h
 
 mysql-$(MYSQL_VERSION).tar.gz:
 	@echo "Downloading MySQL sources from $(MASTER_SITE)"

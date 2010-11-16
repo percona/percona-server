@@ -156,7 +156,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-07-28 16:47:58.565318871 +0400
 +++ b/sql/mysqld.h	2010-07-28 16:48:03.004544367 +0400
-@@ -182,6 +182,8 @@
+@@ -183,6 +183,8 @@
  extern ulong back_log;
  extern char language[FN_REFLEN];
  extern ulong server_id, concurrency;
@@ -180,7 +180,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #include <thr_alarm.h>
  #include <ft_global.h>
-@@ -474,6 +479,11 @@
+@@ -475,6 +480,11 @@
  ulong specialflag=0;
  ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
  ulong max_connections, max_connect_errors;
@@ -192,7 +192,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4167,6 +4177,97 @@
+@@ -4168,6 +4178,97 @@
  #define decrement_handler_count()
  #endif /* defined(_WIN32) || defined(HAVE_SMEM) */
  
@@ -290,7 +290,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifndef EMBEDDED_LIBRARY
  #ifndef DBUG_OFF
-@@ -4421,6 +4522,10 @@
+@@ -4422,6 +4523,10 @@
    test_lc_time_sz();
  #endif
  
@@ -301,7 +301,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4624,6 +4729,10 @@
+@@ -4625,6 +4730,10 @@
    }
  #endif
    clean_up(1);
@@ -312,7 +312,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    mysqld_exit(0);
  }
  
-@@ -6437,6 +6546,7 @@
+@@ -6438,6 +6547,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -358,7 +358,9 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
  			      "MAYBE_REF","ALL","range","index","fulltext",
  			      "ref_or_null","unique_subquery","index_subquery",
-@@ -267,6 +273,15 @@
+@@ -265,8 +271,17 @@
+                    ulong setup_tables_done_option)
+ {
    bool res;
 +  pid_t pid;
    register SELECT_LEX *select_lex = &lex->select_lex;
@@ -374,7 +376,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    MYSQL_SELECT_START(thd->query());
  
    if (select_lex->master_unit()->is_union() || 
-@@ -301,6 +315,12 @@
+@@ -301,6 +316,12 @@
    if (unlikely(res))
      result->abort_result_set();
  

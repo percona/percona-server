@@ -151,7 +151,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -896,6 +898,8 @@
+@@ -897,6 +899,8 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -160,7 +160,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1464,6 +1468,7 @@
+@@ -1465,6 +1469,7 @@
    my_free(opt_bin_logname);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -168,7 +168,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3930,6 +3935,8 @@
+@@ -3931,6 +3936,8 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  
@@ -807,7 +807,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1766,6 +1767,19 @@
+@@ -1772,6 +1773,19 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  
@@ -900,7 +900,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -755,6 +768,7 @@
+@@ -758,6 +768,7 @@
  delayed-queue-size 1000
  disconnect-slave-event-count 0
  div-precision-increment 4
@@ -908,7 +908,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  engine-condition-pushdown TRUE
  event-scheduler OFF
  expire-logs-days 0
-@@ -876,9 +890,11 @@
+@@ -879,9 +890,11 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0

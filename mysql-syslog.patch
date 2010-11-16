@@ -52,7 +52,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
      0, 0, 0, 0, 0, 0},
 +#ifndef __WIN__
 +  {"syslog", OPT_SYSLOG, "Logs all queries to syslog", 0, 0, 0, GET_NO_ARG,
-+   NO_ARG, 0, 0, 0, 0, 0, 0},
++   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 +#endif
    { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
  };

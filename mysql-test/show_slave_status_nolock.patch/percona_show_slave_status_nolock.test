@@ -13,6 +13,7 @@ connection slave;
 send STOP SLAVE;
 connection slave1;
 select count(*) from t;
+replace_column 2 host 3 user 4 port;
 SHOW SLAVE STATUS NOLOCK;
 select count(*) from t;
 

@@ -56,4 +56,4 @@ use_global_log_slow_control	log_slow_filter
 show global variables like 'use_global_long_query_time';
 Variable_name	Value
 use_global_long_query_time	OFF
-set global use_global_log_slow_control = none;
+set global use_global_log_slow_control = long_query_time;

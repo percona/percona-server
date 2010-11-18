@@ -168,7 +168,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 @@ -6969,6 +6977,21 @@
     "Use microsecond time's precision in slow query log",
     (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
-    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+    0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
 +  {"query_response_time_range_base", OPT_QRT_RANGE_BASE,
 +     "Select base of log for query_response_time ranges. WARNING: variable change affect only after flush",
 +   (uchar**) &opt_query_response_time_range_base, (uchar**) &opt_query_response_time_range_base,
@@ -183,7 +183,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 +  {"enable_query_response_time_stats", OPT_ENABLE_QRT_STATS,
 +   "Enable or disable query response time statisics collecting",
 +   (uchar**) &opt_enable_query_response_time_stats, (uchar**) &opt_enable_query_response_time_stats,
-+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
++   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
@@ -629,7 +629,7 @@ diff -ruN a/sql/query_response_time.h b/sql/query_response_time.h
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-01 08:43:57.000000000 +0000
 +++ b/sql/set_var.cc	2010-11-01 08:52:40.000000000 +0000
-@@ -1004,6 +1004,10 @@
+@@ -1006,6 +1006,10 @@
  static sys_var_use_global_long_query_time sys_use_global_long_query_time;
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
                                                         &opt_slow_query_log_microseconds_timestamp);

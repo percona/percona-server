@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
+diff -ruN /dev/null b/patch_info/profiling_slow.info
 --- /dev/null	1970-01-01 03:00:00.000000000 +0300
 +++ b/patch_info/profiling_slow.info	2010-07-07 03:32:18.108972002 +0400
 @@ -0,0 +1,9 @@
@@ -65,7 +65,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-07 03:32:17.588972002 +0400
 +++ b/sql/set_var.cc	2010-07-07 03:32:18.118972002 +0400
-@@ -845,6 +845,10 @@
+@@ -847,6 +847,10 @@
                                        ulonglong(OPTION_PROFILING));
  static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
  					      &SV::profiling_history_size);

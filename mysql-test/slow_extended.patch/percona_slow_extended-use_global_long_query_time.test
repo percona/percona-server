@@ -37,4 +37,4 @@ set global use_global_long_query_time = OFF;
 show global variables like 'use_global_log_slow_control';
 show global variables like 'use_global_long_query_time';
 
-set global use_global_log_slow_control = none;
+set global use_global_log_slow_control = long_query_time;

@@ -1,6 +1,6 @@
 # name       : slow_extended.patch
 # introduced : 11 or before
-# maintainer : Yasufumi
+# maintainer : Oleg
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
@@ -49,7 +49,7 @@ diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
 diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/slow_extended.info	2010-08-27 14:30:34.806092638 +0900
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,24 @@
 +File=slow_extended.patch
 +Name=Extended statistics in slow.log (not InnoDB part)
 +Version=1.3
@@ -72,6 +72,7 @@ diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 +3) Microseconds in slow query log merged (microseconds_in_slow_query_log.patch merged)
 +4) Now use_global_long_query_time and use_global_log_slow_control are synonims. Add value "all" for use_global_log_slow_control (contol-global_slow-2.patch merged)
 +5) Fix innodb_stats on replication (Bug 600684)
++6) Change variable types (system/command-line)
 +
 diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
 --- a/scripts/mysqldumpslow.sh	2010-08-04 02:24:31.000000000 +0900
@@ -610,22 +611,22 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 +  {"log_slow_sp_statements", OPT_LOG_SLOW_SP_STATEMENTS,
 +   "Log slow statements executed by stored procedure to the slow log if it is open.",
 +   (uchar**) &opt_log_slow_sp_statements, (uchar**) &opt_log_slow_sp_statements,
-+   0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
++   0, GET_BOOL, REQUIRED_ARG, 1, 0, 1, 0, 1, 0},
 +  {"log_slow_timestamp_every", OPT_LOG_SLOW_TIMESTAMP_EVERY,
 +   "Timestamp is printed for all records of the slow log even if they are same time.",
 +   (uchar**) &opt_log_slow_timestamp_every, (uchar**) &opt_log_slow_timestamp_every,
-+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
++   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
 +  {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
 +    "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
-+   0, 0, 0, GET_STR, NO_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
++   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
 +  {"use_global_long_query_time", OPT_USE_GLOBAL_LONG_QUERY_TIME,
 +   "Control always use global long_query_time or local long_query_time.",
 +   (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
-+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
++   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
 +  {"slow_query_log_microseconds_timestamp", OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
 +   "Use microsecond time's precision in slow query log",
 +   (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
-+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
++   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
@@ -685,18 +686,20 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-08-04 02:24:33.000000000 +0900
 +++ b/sql/set_var.cc	2010-08-27 14:30:34.873021323 +0900
-@@ -160,6 +160,71 @@
+@@ -160,6 +160,73 @@
  
  static sys_var_chain vars = { NULL, NULL };
  
 +void use_global_long_query_time_update(bool enable)
 +{
-+  ulong &log_slow_control           = global_system_variables.use_global_log_slow_control;
++  ulong &log_slow_control        = global_system_variables.use_global_log_slow_control;
 +  opt_use_global_long_query_time = enable;
 +  if(enable)
 +    log_slow_control = log_slow_control | SLOG_UG_LONG_QUERY_TIME;
 +  else
 +    log_slow_control = log_slow_control & (~(SLOG_UG_LONG_QUERY_TIME));
++  if(0 == log_slow_control)
++    log_slow_control = SLOG_UG_NONE;
 +}
 +
 +class sys_var_use_global_long_query_time : public sys_var_bool_ptr

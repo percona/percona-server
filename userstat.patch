@@ -79,7 +79,7 @@ diff -ruN a/include/mysql_com.h b/include/mysql_com.h
  
  /* The following can't be set with mysql_refresh() */
  #define REFRESH_READ_LOCK	16384	/* Lock tables for read */
-diff -ruN a/patch_info/userstats.info b/patch_info/userstats.info
+diff -ruN /dev/null b/patch_info/userstats.info
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/userstats.info	2010-08-27 15:10:33.744161257 +0900
 @@ -0,0 +1,11 @@
@@ -714,7 +714,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-08-27 14:43:42.004008722 +0900
 +++ b/sql/set_var.cc	2010-08-27 15:10:33.809988740 +0900
-@@ -554,6 +554,10 @@
+@@ -556,6 +556,10 @@
  static sys_var_thd_ulong	sys_read_buff_size(&vars, "read_buffer_size",
  					   &SV::read_buff_size);
  static sys_var_opt_readonly	sys_readonly(&vars, "read_only", &opt_readonly);

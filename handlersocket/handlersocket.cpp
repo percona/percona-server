@@ -38,6 +38,8 @@ static unsigned int handlersocket_rcvbuf = 0;
 static unsigned int handlersocket_readsize = 0;
 static unsigned int handlersocket_accept_balance = 0;
 static unsigned int handlersocket_wrlock_timeout = 0;
+static char *handlersocket_plain_secret = 0;
+static char *handlersocket_plain_secret_wr = 0;
 
 struct daemon_handlersocket_data {
   hstcpsvr_ptr hssvr_rd;
@@ -76,6 +78,9 @@ daemon_handlersocket_init(void *p)
   std::auto_ptr<daemon_handlersocket_data> ap(new daemon_handlersocket_data);
   if (handlersocket_port != 0 && handlersocket_port_wr != handlersocket_port) {
     conf["port"] = handlersocket_port;
+    if (handlersocket_plain_secret) {
+      conf["plain_secret"] = handlersocket_plain_secret;
+    }
     ap->hssvr_rd = hstcpsvr_i::create(conf);
     ap->hssvr_rd->start_listen();
   }
@@ -85,6 +90,10 @@ daemon_handlersocket_init(void *p)
     }
     conf["port"] = handlersocket_port_wr;
     conf["for_write"] = "1";
+    conf["plain_secret"] = "";
+    if (handlersocket_plain_secret_wr) {
+      conf["plain_secret"] = handlersocket_plain_secret_wr;
+    }
     ap->hssvr_wr = hstcpsvr_i::create(conf);
     ap->hssvr_wr->start_listen();
   }
@@ -136,6 +145,11 @@ static MYSQL_SYSVAR_UINT(accept_balance, handlersocket_accept_balance,
   PLUGIN_VAR_READONLY, "0..10000", 0, 0, 0 /* default */, 0, 10000, 0);
 static MYSQL_SYSVAR_UINT(wrlock_timeout, handlersocket_wrlock_timeout,
   PLUGIN_VAR_READONLY, "0..3600", 0, 0, 12 /* default */, 0, 3600, 0);
+static MYSQL_SYSVAR_STR(plain_secret, handlersocket_plain_secret,
+  PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC, "", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(plain_secret_wr, handlersocket_plain_secret_wr,
+  PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC, "", NULL, NULL, NULL);
+
 
 /* warning: type-punning to incomplete type might break strict-aliasing
  * rules */
@@ -154,6 +168,8 @@ static struct st_mysql_sys_var *daemon_handlersocket_system_variables[] = {
   MYSQL_SYSVAR(readsize),
   MYSQL_SYSVAR(accept_balance),
   MYSQL_SYSVAR(wrlock_timeout),
+  MYSQL_SYSVAR(plain_secret),
+  MYSQL_SYSVAR(plain_secret_wr),
   0
 };
 

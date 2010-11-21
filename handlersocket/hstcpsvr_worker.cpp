@@ -65,6 +65,7 @@ struct hstcpsvr_conn : public dbcallback_i {
   bool write_finished;
   time_t nb_last_io;
   hstcpsvr_conns_type::iterator conns_iter;
+  bool authorized;
  public:
   bool closed() const;
   bool ok_to_close() const;
@@ -84,7 +85,7 @@ struct hstcpsvr_conn : public dbcallback_i {
  public:
   hstcpsvr_conn() : addr_len(sizeof(addr)), readsize(4096),
     nonblocking(false), read_finished(false), write_finished(false),
-    nb_last_io(0) { }
+    nb_last_io(0), authorized(false) { }
 };
 
 bool
@@ -263,6 +264,7 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   void do_open_index(char *start, char *finish, hstcpsvr_conn& conn);
   void do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     char *finish, hstcpsvr_conn& conn);
+  void do_authorization(char *start, char *finish, hstcpsvr_conn& conn);
 };
 
 hstcpsvr_worker::hstcpsvr_worker(const hstcpsvr_worker_arg& arg)
@@ -663,10 +665,19 @@ hstcpsvr_worker::execute_line(char *start, char *finish, hstcpsvr_conn& conn)
   }
   if (cmd_begin + 1 == cmd_end) {
     if (cmd_begin[0] == 'P') {
+      if (cshared.require_auth && !conn.authorized) {
+	return conn.dbcb_resp_short(3, "unauth");
+      }
       return do_open_index(start, finish, conn);
+    }
+    if (cmd_begin[0] == 'A') {
+      return do_authorization(start, finish, conn);
     }
   }
   if (cmd_begin[0] >= '0' && cmd_begin[0] <= '9') {
+    if (cshared.require_auth && !conn.authorized) {
+      return conn.dbcb_resp_short(3, "unauth");
+    }
     return do_exec_on_index(cmd_begin, cmd_end, start, finish, conn);
   }
   return conn.dbcb_resp_short(2, "cmd");
@@ -765,6 +776,41 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     }
     args.uvals = uflds;
     return dbctx->cmd_exec_on_index(conn, args);
+  }
+}
+
+void
+hstcpsvr_worker::do_authorization(char *start, char *finish,
+  hstcpsvr_conn& conn)
+{
+  /* auth type */
+  char *const authtype_begin = start;
+  read_token(start, finish);
+  char *const authtype_end = start;
+  const size_t authtype_len = authtype_end - authtype_begin;
+  skip_one(start, finish);
+  /* key */
+  char *const key_begin = start;
+  read_token(start, finish);
+  char *const key_end = start;
+  const size_t key_len = key_end - key_begin;
+  authtype_end[0] = 0;
+  key_end[0] = 0;
+  char *wp = key_begin;
+  unescape_string(wp, key_begin, key_end);
+  if (authtype_len != 1 || authtype_begin[0] != '1') {
+    return conn.dbcb_resp_short(2, "authtype");
+  }
+  if (cshared.plain_secret.size() == key_len &&
+    memcmp(cshared.plain_secret.data(), key_begin, key_len) == 0) {
+    conn.authorized = true;
+  } else {
+    conn.authorized = false;
+  }
+  if (!conn.authorized) {
+    return conn.dbcb_resp_short(3, "unauth");
+  } else {
+    return conn.dbcb_resp_short(0, "");
   }
 }
 

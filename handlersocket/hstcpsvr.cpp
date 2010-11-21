@@ -84,11 +84,14 @@ hstcpsvr::hstcpsvr(const config& c)
   cshared.readsize = cshared.conf.get_int("readsize", 1);
   cshared.nb_conn_per_thread = cshared.conf.get_int("conn_per_thread", 1024);
   cshared.for_write_flag = cshared.conf.get_int("for_write", 0);
+  cshared.plain_secret = cshared.conf.get_str("plain_secret", "");
+  cshared.require_auth = !cshared.plain_secret.empty();
   cshared.sockargs.set(cshared.conf);
   cshared.dbptr = database_i::create(c);
   check_nfile(cshared.num_threads * cshared.nb_conn_per_thread);
   thread_num_conns_vec.resize(cshared.num_threads);
-  cshared.thread_num_conns = thread_num_conns_vec.empty() ? 0 : &thread_num_conns_vec[0];
+  cshared.thread_num_conns = thread_num_conns_vec.empty()
+    ? 0 : &thread_num_conns_vec[0];
 }
 
 hstcpsvr::~hstcpsvr()

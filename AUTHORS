@@ -11,3 +11,9 @@ Jeff Hodges (https://github.com/jmhodges)
 Toru Yamaguchi (https://github.com/zigorou)
   - ported to MacOS X
 
+Moriyoshi Koizumi (https://github.com/moriyoshi)
+  - fixed some autotools scripts
+
+takeda-at (https://github.com/takada-at)
+  - added simple authorization function
+

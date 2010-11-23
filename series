@@ -1,3 +1,5 @@
+ce.patch
+slow_extended.patch
 suppress_log_warning_1592.patch
 percona_support.patch
 query_cache_enhance.patch

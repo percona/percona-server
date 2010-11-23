@@ -151,7 +151,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -897,6 +899,8 @@
+@@ -901,6 +903,8 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -160,7 +160,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1465,6 +1469,7 @@
+@@ -1469,6 +1473,7 @@
    my_free(opt_bin_logname);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -168,7 +168,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3931,6 +3936,8 @@
+@@ -3935,6 +3940,8 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  
@@ -642,7 +642,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1430,23 +1431,31 @@
+@@ -1469,23 +1470,31 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -688,7 +688,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1563,6 +1572,7 @@
+@@ -1602,6 +1611,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -730,7 +730,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -7364,6 +7365,14 @@
+@@ -7373,6 +7374,14 @@
  
  */
  
@@ -745,7 +745,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7414,6 +7423,8 @@
+@@ -7423,6 +7432,8 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -813,7 +813,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  
 +static Sys_var_mybool Sys_enable_query_response_time_stats(
 +       "enable_query_response_time_stats", "Enable or disable query response time statisics collecting",
-+       GLOBAL_VAR(opt_enable_query_response_time_stats), CMD_LINE(REQUIRED_ARG),
++       GLOBAL_VAR(opt_enable_query_response_time_stats), CMD_LINE(OPT_ARG),
 +       DEFAULT(FALSE));
 +
 +static Sys_var_ulong Sys_query_response_time_range_base(
@@ -920,3 +920,41 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  range-alloc-block-size 4096
  read-buffer-size 131072
  read-only FALSE
+diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
+--- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-03 01:01:13.000000000 +0300
++++ b/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-23 20:04:40.000000000 +0300
+@@ -10,11 +10,15 @@
+ select variable_name as `There should be *no* variables listed below:` from t2
+ left join t1 on variable_name=test_name where test_name is null;
+ There should be *no* variables listed below:
++ENABLE_QUERY_RESPONSE_TIME_STATS
+ QUERY_CACHE_STRIP_COMMENTS
+ SUPPRESS_LOG_WARNING_1592
+ INNODB_FILE_FORMAT_MAX
++QUERY_RESPONSE_TIME_RANGE_BASE
++ENABLE_QUERY_RESPONSE_TIME_STATS
+ QUERY_CACHE_STRIP_COMMENTS
+ SUPPRESS_LOG_WARNING_1592
+ INNODB_FILE_FORMAT_MAX
++QUERY_RESPONSE_TIME_RANGE_BASE
+ drop table t1;
+ drop table t2;
+diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
+--- a/mysql-test/r/mysqlshow.result	2010-11-03 01:01:12.000000000 +0300
++++ b/mysql-test/r/mysqlshow.result	2010-11-23 20:07:53.000000000 +0300
+@@ -97,6 +97,7 @@
+ | PROFILING                             |
+ | REFERENTIAL_CONSTRAINTS               |
+ | ROUTINES                              |
++| QUERY_RESPONSE_TIME                   |
+ | SCHEMATA                              |
+ | SCHEMA_PRIVILEGES                     |
+ | SESSION_STATUS                        |
+@@ -139,6 +140,7 @@
+ | PROFILING                             |
+ | REFERENTIAL_CONSTRAINTS               |
+ | ROUTINES                              |
++| QUERY_RESPONSE_TIME                   |
+ | SCHEMATA                              |
+ | SCHEMA_PRIVILEGES                     |
+ | SESSION_STATUS                        |

@@ -37,7 +37,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +static Sys_var_mybool Sys_suppress_log_warning_1592(
 +						    "suppress_log_warning_1592",
 +						    "suppress warning about unsafe statements for binary logging",
-+       GLOBAL_VAR(opt_suppress_log_warning_1592), CMD_LINE(REQUIRED_ARG),
++       GLOBAL_VAR(opt_suppress_log_warning_1592), CMD_LINE(OPT_ARG),
 +       DEFAULT(FALSE));
 +
  static Sys_var_ulong Sys_preload_buff_size(
@@ -46,7 +46,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/sql_class.cc	2010-11-17 00:06:49.000000000 +0500
-@@ -4451,7 +4451,7 @@
+@@ -4503,7 +4503,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
@@ -76,3 +76,16 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  symbolic-links FALSE
  sync-binlog 0
  sync-frm TRUE
+diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
+--- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-03 01:01:13.000000000 +0300
++++ b/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-23 20:04:40.000000000 +0300
+@@ -10,7 +10,9 @@
+ select variable_name as `There should be *no* variables listed below:` from t2
+ left join t1 on variable_name=test_name where test_name is null;
+ There should be *no* variables listed below:
++SUPPRESS_LOG_WARNING_1592
+ INNODB_FILE_FORMAT_MAX
++SUPPRESS_LOG_WARNING_1592
+ INNODB_FILE_FORMAT_MAX
+ drop table t1;
+ drop table t2;

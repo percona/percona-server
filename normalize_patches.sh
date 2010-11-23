@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 #ls -1 *.patch | grep -v repair | xargs bzr revert
-MYSQL_VERSION=5.5.7-rc
-MYSQL_DIR=mysql-${MYSQL_VERSION}
-MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
+test -z ${MYSQL_VERSION} && MYSQL_VERSION=5.5.7-rc
+test -z ${MYSQL_DIR} && MYSQL_DIR=mysql-${MYSQL_VERSION}
+test -z ${MYSQL_TAR_GZ} && MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
+echo MYSQL_VERSION=$MYSQL_VERSION
+echo MYSQL_DIR=$MYSQL_DIR
+echo MYSQL_TAR_GZ=$MYSQL_TAR_GZ
 echo "===== Prepare source code for patch's adaptation...";
 echo "===== Remove 'a' copy...";
 rm -rf a;

@@ -156,7 +156,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-07-28 16:47:58.565318871 +0400
 +++ b/sql/mysqld.h	2010-07-28 16:48:03.004544367 +0400
-@@ -183,6 +183,8 @@
+@@ -187,6 +187,8 @@
  extern ulong back_log;
  extern char language[FN_REFLEN];
  extern ulong server_id, concurrency;
@@ -180,7 +180,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #include <thr_alarm.h>
  #include <ft_global.h>
-@@ -475,6 +480,11 @@
+@@ -479,6 +484,11 @@
  ulong specialflag=0;
  ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
  ulong max_connections, max_connect_errors;
@@ -192,7 +192,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4168,6 +4178,97 @@
+@@ -4172,6 +4182,97 @@
  #define decrement_handler_count()
  #endif /* defined(_WIN32) || defined(HAVE_SMEM) */
  
@@ -290,7 +290,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifndef EMBEDDED_LIBRARY
  #ifndef DBUG_OFF
-@@ -4422,6 +4523,10 @@
+@@ -4426,6 +4527,10 @@
    test_lc_time_sz();
  #endif
  
@@ -301,7 +301,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4625,6 +4730,10 @@
+@@ -4629,6 +4734,10 @@
    }
  #endif
    clean_up(1);
@@ -312,7 +312,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    mysqld_exit(0);
  }
  
-@@ -6438,6 +6547,7 @@
+@@ -6442,6 +6551,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},

@@ -266,6 +266,12 @@ fi
 echo "BUILD =================="
 echo $*
 
+MAKE_J=-j`if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi`
+if [ $MAKE_J = -j0 ]
+then
+  MAKE_J=-j1
+fi
+
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
 sh -c  "CFLAGS=\"$CFLAGS\" \
@@ -302,10 +308,21 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 %endif
 	    $OPT_DEBUG \
 	    --with-readline \
-	    ; make "
+	    ; make $MAKE_J"
 }
 # end of function definition "BuildMySQL"
 
+BuildHandlerSocket() {
+cd storage/HandlerSocket-Plugin-for-MySQL
+./autogen.sh
+CXX=g++ ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
+	--with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/scripts \
+	--with-mysql-plugindir=%{_libdir}/mysql/plugin \
+	--libdir=%{_libdir} \
+	--prefix=%{_prefix}
+make
+}
+# end of function definition "BuildHandlerSocket"
 
 BuildServer() {
 BuildMySQL "--enable-shared \
@@ -393,7 +410,7 @@ DEBUG=0
 make clean
 
 BuildServer
-
+BuildHandlerSocket
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
 	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
 fi
@@ -423,6 +440,8 @@ install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 install -d $RBR%{_libdir}/mysql/plugin
 
+make DESTDIR=$RBR benchdir_root=%{_datadir} install
+cd storage/HandlerSocket-Plugin-for-MySQL
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
 
 # install symbol files ( for stack trace resolution)
@@ -690,6 +709,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqldumpslow.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
@@ -735,6 +755,8 @@ fi
 
 %attr(755, root, root) %{_datadir}/mysql/
 
+%attr(644, root, root) %{_libdir}/mysql/plugin/*
+
 %files -n Percona-Server-client%{package_suffix}
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
@@ -749,6 +771,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
+%attr(755, root, root) %{_bindir}/hsclient
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
@@ -777,6 +800,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql
+%{_includedir}/handlersocket
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libdbug.a
 %{_libdir}/mysql/libheap.a
@@ -799,6 +823,10 @@ fi
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
+%{_libdir}/mysql/*.so*
+%{_libdir}/libhsclient.a
+%{_libdir}/libhsclient.la
+
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)

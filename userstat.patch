@@ -18,9 +18,9 @@ diff -ruN a/configure b/configure
    posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd printstack
  do
 diff -ruN a/configure.in b/configure.in
---- a/configure.in	2010-08-04 02:24:24.000000000 +0900
-+++ b/configure.in	2010-08-27 15:10:33.737073307 +0900
-@@ -2086,7 +2086,7 @@
+--- a/configure.in	2010-10-12 00:34:15.000000000 +0400
++++ b/configure.in	2010-11-24 18:00:58.000000000 +0300
+@@ -2086,13 +2086,16 @@
    realpath rename rint rwlock_init setupterm \
    shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
    sighold sigset sigthreadmask port_create sleep \
@@ -29,22 +29,58 @@ diff -ruN a/configure.in b/configure.in
    strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
    posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd printstack)
  
-diff -ruN a/include/config.h.in b/include/config.h.in
---- a/include/config.h.in	2010-08-04 02:28:40.000000000 +0900
-+++ b/include/config.h.in	2010-08-27 15:10:33.740077919 +0900
-@@ -802,6 +802,9 @@
- /* Define to 1 if you have the <stdlib.h> header file. */
- #undef HAVE_STDLIB_H
+ #
+ #
+ #
++# The following change can be safely null-merged to 5.5
++# since configure.cmake in 5.5 does the same check
++AC_CHECK_LIB(rt, clock_gettime)
+ case "$target" in
+  *-*-aix4* | *-*-sco*)
+ 	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
+--- a/include/config.h.in	2010-10-12 00:39:59.000000000 +0400
++++ b/include/config.h.in	2010-11-24 17:53:34.000000000 +0300
+@@ -491,6 +491,9 @@
+ /* Define to 1 if you have the `pthread' library (-lpthread). */
+ #undef HAVE_LIBPTHREAD
+ 
++/* Define to 1 if you have the `rt' library (-lrt). */
++#undef HAVE_LIBRT
++
+ /* Define if have -lwrap */
+ #undef HAVE_LIBWRAP
+ 
+@@ -835,6 +838,9 @@
+ /* Define to 1 if you have the `strpbrk' function. */
+ #undef HAVE_STRPBRK
  
 +/* Define to 1 if you have the `strsep' function. */
 +#undef HAVE_STRSEP
 +
- /* Define to 1 if you have the `stpcpy' function. */
- #undef HAVE_STPCPY
+ /* Define to 1 if you have the `strsignal' function. */
+ #undef HAVE_STRSIGNAL
  
-diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
---- a/include/mysql/plugin.h	2010-08-27 14:38:08.682439958 +0900
-+++ b/include/mysql/plugin.h	2010-08-27 15:10:33.742003842 +0900
+@@ -856,7 +862,7 @@
+ /* Define to 1 if you have the `strtoull' function. */
+ #undef HAVE_STRTOULL
+ 
+-/* Define to 1 if `st_rdev' is member of `struct stat'. */
++/* Define to 1 if `st_rdev' is a member of `struct stat'. */
+ #undef HAVE_STRUCT_STAT_ST_RDEV
+ 
+ /* Define to 1 if your `struct stat' has `st_rdev'. Deprecated, use
+@@ -1151,6 +1157,9 @@
+ /* Define to the one symbol short name of this package. */
+ #undef PACKAGE_TARNAME
+ 
++/* Define to the home page for this package. */
++#undef PACKAGE_URL
++
+ /* Define to the version of this package. */
+ #undef PACKAGE_VERSION
+ 
+--- a/include/mysql/plugin.h	2010-11-24 17:24:51.000000000 +0300
++++ b/include/mysql/plugin.h	2010-11-24 17:24:52.000000000 +0300
 @@ -705,6 +705,9 @@
  unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
  int thd_opt_slow_log();
@@ -55,9 +91,8 @@ diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
  /**
    Create a temporary file.
  
-diff -ruN a/include/mysql_com.h b/include/mysql_com.h
---- a/include/mysql_com.h	2010-08-04 02:24:30.000000000 +0900
-+++ b/include/mysql_com.h	2010-08-27 15:10:33.743072186 +0900
+--- a/include/mysql_com.h	2010-10-12 00:34:28.000000000 +0400
++++ b/include/mysql_com.h	2010-11-24 17:28:26.000000000 +0300
 @@ -29,6 +29,7 @@
  
  #define SERVER_VERSION_LENGTH 60
@@ -79,9 +114,8 @@ diff -ruN a/include/mysql_com.h b/include/mysql_com.h
  
  /* The following can't be set with mysql_refresh() */
  #define REFRESH_READ_LOCK	16384	/* Lock tables for read */
-diff -ruN /dev/null b/patch_info/userstats.info
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/patch_info/userstats.info	2010-08-27 15:10:33.744161257 +0900
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/patch_info/userstats.info	2010-11-24 17:24:52.000000000 +0300
 @@ -0,0 +1,11 @@
 +File=userstats.patch
 +Name=SHOW USER/TABLE/INDEX statistics
@@ -94,9 +128,8 @@ diff -ruN /dev/null b/patch_info/userstats.info
 +
 +2008-11-26
 +YK: add switch variable "userstat_running" to control INFORMATION_SCHEMA.*_STATISTICS (default:OFF)
-diff -ruN a/sql/handler.cc b/sql/handler.cc
---- a/sql/handler.cc	2010-08-04 02:24:27.000000000 +0900
-+++ b/sql/handler.cc	2010-08-27 15:10:33.749058856 +0900
+--- a/sql/handler.cc	2010-10-12 00:34:25.000000000 +0400
++++ b/sql/handler.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -1194,6 +1194,8 @@
      if (cookie)
        tc_log->unlog(cookie, xid);
@@ -244,9 +277,8 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
  
  /****************************************************************************
  ** Some general functions that isn't in the handler class
-diff -ruN a/sql/handler.h b/sql/handler.h
---- a/sql/handler.h	2010-08-04 02:24:27.000000000 +0900
-+++ b/sql/handler.h	2010-08-27 15:10:33.753058869 +0900
+--- a/sql/handler.h	2010-10-12 00:34:25.000000000 +0400
++++ b/sql/handler.h	2010-11-24 17:28:49.000000000 +0300
 @@ -30,6 +30,10 @@
  
  #define USING_TRANSACTIONS
@@ -300,9 +332,8 @@ diff -ruN a/sql/handler.h b/sql/handler.h
  
  #define CHF_CREATE_FLAG 0
  #define CHF_DELETE_FLAG 1
-diff -ruN a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2010-08-27 14:29:26.009071592 +0900
-+++ b/sql/lex.h	2010-08-27 15:10:33.755063742 +0900
+--- a/sql/lex.h	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/lex.h	2010-11-24 17:28:26.000000000 +0300
 @@ -106,6 +106,7 @@
    { "CHECKSUM",		SYM(CHECKSUM_SYM)},
    { "CIPHER",		SYM(CIPHER_SYM)},
@@ -350,9 +381,8 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "USE_FRM",		SYM(USE_FRM)},
    { "USING",		SYM(USING)},
    { "UTC_DATE",         SYM(UTC_DATE_SYM)},
-diff -ruN a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2010-08-27 14:43:41.986138797 +0900
-+++ b/sql/log.cc	2010-08-27 15:10:33.761058932 +0900
+--- a/sql/log.cc	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/log.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -826,6 +826,13 @@
      mysql_slow_log.reopen_file();
  }
@@ -485,9 +515,8 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
        if (incident && write_incident(thd, FALSE))
          goto err;
-diff -ruN a/sql/log.h b/sql/log.h
---- a/sql/log.h	2010-08-27 14:38:08.690071101 +0900
-+++ b/sql/log.h	2010-08-27 15:13:33.762976324 +0900
+--- a/sql/log.h	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/log.h	2010-11-24 17:24:52.000000000 +0300
 @@ -361,7 +361,7 @@
    bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
  
@@ -513,9 +542,8 @@ diff -ruN a/sql/log.h b/sql/log.h
    /* Perform basic logger cleanup. this will leave e.g. error log open. */
    void cleanup_base();
    /* Free memory. Nothing could be logged after this function is called */
-diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-08-27 14:38:08.699057407 +0900
-+++ b/sql/mysql_priv.h	2010-08-27 15:10:33.805058568 +0900
+--- a/sql/mysql_priv.h	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/mysql_priv.h	2010-11-24 17:31:34.000000000 +0300
 @@ -1139,7 +1139,17 @@
  bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
  void init_max_user_conn(void);
@@ -566,9 +594,8 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  
  extern const char *opt_date_time_formats[];
  extern KNOWN_DATE_TIME_FORMAT known_date_time_formats[];
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-08-27 14:43:41.996021369 +0900
-+++ b/sql/mysqld.cc	2010-08-27 15:10:33.772058694 +0900
+--- a/sql/mysqld.cc	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/mysqld.cc	2010-11-24 17:31:34.000000000 +0300
 @@ -533,6 +533,7 @@
  uint    opt_debug_sync_timeout= 0;
  #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -711,9 +738,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
     "Causes updates to non-transactional engines using statement format to be "
     "written directly to binary log. Before using this option, make sure that "
-diff -ruN a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-08-27 14:43:42.004008722 +0900
-+++ b/sql/set_var.cc	2010-08-27 15:10:33.809988740 +0900
+--- a/sql/set_var.cc	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/set_var.cc	2010-11-24 17:31:34.000000000 +0300
 @@ -556,6 +556,10 @@
  static sys_var_thd_ulong	sys_read_buff_size(&vars, "read_buffer_size",
  					   &SV::read_buff_size);
@@ -725,9 +751,8 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
  					       &SV::read_rnd_buff_size);
  static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
-diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
---- a/sql/sql_base.cc	2010-08-04 02:24:34.000000000 +0900
-+++ b/sql/sql_base.cc	2010-08-27 15:10:33.818058934 +0900
+--- a/sql/sql_base.cc	2010-10-12 00:34:33.000000000 +0400
++++ b/sql/sql_base.cc	2010-11-24 17:29:05.000000000 +0300
 @@ -1382,6 +1382,12 @@
    DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
                          table->s->table_name.str, (long) table));
@@ -750,9 +775,8 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
    free_io_cache(table);
    closefrm(table, 0);
    if (delete_table)
-diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2010-08-27 14:38:08.741990000 +0900
-+++ b/sql/sql_class.cc	2010-08-27 15:10:33.825058007 +0900
+--- a/sql/sql_class.cc	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/sql_class.cc	2010-11-24 17:31:33.000000000 +0300
 @@ -706,6 +706,13 @@
    mysys_var=0;
    binlog_evt_union.do_union= FALSE;
@@ -925,9 +949,8 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-08-27 14:43:42.008006390 +0900
-+++ b/sql/sql_class.h	2010-08-27 15:10:33.830058443 +0900
+--- a/sql/sql_class.h	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/sql_class.h	2010-11-24 17:28:57.000000000 +0300
 @@ -1435,6 +1435,8 @@
      first byte of the packet in do_command()
    */
@@ -1034,9 +1057,8 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  
  /** A short cut for thd->main_da.set_ok_status(). */
  
-diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
---- a/sql/sql_connect.cc	2010-08-27 14:38:08.750990238 +0900
-+++ b/sql/sql_connect.cc	2010-08-27 15:10:33.834058369 +0900
+--- a/sql/sql_connect.cc	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/sql_connect.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -42,6 +42,24 @@
  extern void win_install_sigabrt_handler();
  #endif
@@ -1698,9 +1720,8 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
      if (thread_scheduler.end_thread(thd,1))
        return 0;                                 // Probably no-threads
  
-diff -ruN a/sql/sql_delete.cc b/sql/sql_delete.cc
---- a/sql/sql_delete.cc	2010-08-04 02:24:34.000000000 +0900
-+++ b/sql/sql_delete.cc	2010-08-27 15:10:33.837058490 +0900
+--- a/sql/sql_delete.cc	2010-10-12 00:34:33.000000000 +0400
++++ b/sql/sql_delete.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -452,6 +452,7 @@
      my_ok(thd, (ha_rows) thd->row_count_func);
      DBUG_PRINT("info",("%ld records deleted",(long) deleted));
@@ -1717,9 +1738,8 @@ diff -ruN a/sql/sql_delete.cc b/sql/sql_delete.cc
    return 0;
  }
  
-diff -ruN a/sql/sql_insert.cc b/sql/sql_insert.cc
---- a/sql/sql_insert.cc	2010-08-04 02:24:19.000000000 +0900
-+++ b/sql/sql_insert.cc	2010-08-27 15:10:33.841059138 +0900
+--- a/sql/sql_insert.cc	2010-10-12 00:34:16.000000000 +0400
++++ b/sql/sql_insert.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -981,6 +981,7 @@
      thd->row_count_func= info.copied + info.deleted + updated;
      ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
@@ -1736,9 +1756,8 @@ diff -ruN a/sql/sql_insert.cc b/sql/sql_insert.cc
    DBUG_RETURN(0);
  }
  
-diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2010-08-27 14:29:26.030989835 +0900
-+++ b/sql/sql_lex.h	2010-08-27 15:10:33.844058293 +0900
+--- a/sql/sql_lex.h	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/sql_lex.h	2010-11-24 17:31:33.000000000 +0300
 @@ -124,6 +124,9 @@
      When a command is added here, be sure it's also added in mysqld.cc
      in "struct show_var_st status_vars[]= {" ...
@@ -1749,9 +1768,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    /* This should be the last !!! */
    SQLCOM_END
  };
-diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-08-27 14:38:08.757059579 +0900
-+++ b/sql/sql_parse.cc	2010-08-27 15:15:30.420996146 +0900
+--- a/sql/sql_parse.cc	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/sql_parse.cc	2010-11-24 17:45:19.000000000 +0300
 @@ -46,6 +46,9 @@
  static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
  static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
@@ -1876,7 +1894,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -6054,6 +6087,34 @@
+@@ -6054,6 +6087,30 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
  
@@ -1897,10 +1915,6 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
 +      start_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
 +#else
-+#warning : HAVE_CLOCK_GETTIME is disabled.
-+#warning : Most systems require librt library to use the function clock_gettime().
-+#warning : Did you set environment when ./configure ?  (e.g. "export LIBS=-lrt" for sh)
-+#endif
 +
 +    // Gets the start time, in order to measure how long this command takes.
 +    if (!(start_time_error = gettimeofday(&start_time, NULL))) {
@@ -1911,7 +1925,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
    {
      LEX *lex= thd->lex;
-@@ -6134,6 +6195,43 @@
+@@ -6134,6 +6191,43 @@
      *found_semicolon= NULL;
    }
  
@@ -1955,7 +1969,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -6999,6 +7097,13 @@
+@@ -6999,6 +7093,13 @@
      if (flush_error_log())
        result=1;
    }
@@ -1969,7 +1983,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #ifdef HAVE_QUERY_CACHE
    if (options & REFRESH_QUERY_CACHE_FREE)
    {
-@@ -7099,6 +7204,40 @@
+@@ -7099,6 +7200,40 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
@@ -2010,9 +2024,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
   *write_to_binlog= tmp_write_to_binlog;
   /*
     If the query was killed then this function must fail.
-diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
---- a/sql/sql_prepare.cc	2010-08-27 14:29:26.043058814 +0900
-+++ b/sql/sql_prepare.cc	2010-08-27 15:10:33.858058832 +0900
+--- a/sql/sql_prepare.cc	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/sql_prepare.cc	2010-11-24 17:45:09.000000000 +0300
 @@ -96,6 +96,9 @@
  #include <mysql_com.h>
  #endif
@@ -2023,7 +2036,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  /**
    A result class used to send cursor rows using the binary protocol.
  */
-@@ -2103,8 +2106,36 @@
+@@ -2103,8 +2106,32 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2044,10 +2057,6 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
 +      start_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
 +#else
-+#warning : HAVE_CLOCK_GETTIME is disabled.
-+#warning : Most systems require librt library to use the function clock_gettime().
-+#warning : Did you set environment when ./configure ?  (e.g. "export LIBS=-lrt" for sh)
-+#endif
 +
 +    // Gets the start time, in order to measure how long this command takes.
 +    if (!(start_time_error = gettimeofday(&start_time, NULL))) {
@@ -2061,7 +2070,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  
    if (thd->stmt_map.insert(thd, stmt))
    {
-@@ -2112,7 +2143,7 @@
+@@ -2112,7 +2139,7 @@
        The error is set in the insert. The statement itself
        will be also deleted there (this is how the hash works).
      */
@@ -2070,7 +2079,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    /* Reset warnings from previous command */
-@@ -2139,6 +2170,44 @@
+@@ -2139,6 +2166,44 @@
    thd->protocol= save_protocol;
  
    /* check_prepared_statemnt sends the metadata packet in case of success */
@@ -2115,7 +2124,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2489,12 +2558,36 @@
+@@ -2489,12 +2554,36 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2153,7 +2162,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
  #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-@@ -2515,6 +2608,44 @@
+@@ -2515,6 +2604,44 @@
    /* Close connection socket; for use with client testing (Bug#43560). */
    DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
  
@@ -2198,7 +2207,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  
  }
-@@ -2588,20 +2719,45 @@
+@@ -2588,20 +2715,45 @@
  
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
@@ -2246,7 +2255,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    thd->stmt_arena= stmt;
-@@ -2625,6 +2781,44 @@
+@@ -2625,6 +2777,44 @@
    thd->restore_backup_statement(stmt, &stmt_backup);
    thd->stmt_arena= thd;
  
@@ -2291,7 +2300,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2655,13 +2849,37 @@
+@@ -2655,13 +2845,37 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2330,7 +2339,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    stmt->close_cursor();
-@@ -2678,6 +2896,44 @@
+@@ -2678,6 +2892,44 @@
  
    my_ok(thd);
  
@@ -2375,9 +2384,8 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-08-27 14:48:13.050141329 +0900
-+++ b/sql/sql_show.cc	2010-08-27 15:10:33.866059533 +0900
+--- a/sql/sql_show.cc	2010-11-24 17:24:52.000000000 +0300
++++ b/sql/sql_show.cc	2010-11-24 17:31:33.000000000 +0300
 @@ -84,6 +84,40 @@
  
  static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table);
@@ -2848,9 +2856,8 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"VARIABLES", variables_fields_info, create_schema_table, fill_variables,
     make_old_format, 0, 0, -1, 1, 0},
    {"VIEWS", view_fields_info, create_schema_table, 
-diff -ruN a/sql/sql_update.cc b/sql/sql_update.cc
---- a/sql/sql_update.cc	2010-08-04 02:24:35.000000000 +0900
-+++ b/sql/sql_update.cc	2010-08-27 15:10:33.880988383 +0900
+--- a/sql/sql_update.cc	2010-10-12 00:34:16.000000000 +0400
++++ b/sql/sql_update.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -843,6 +843,7 @@
      thd->row_count_func=
        (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
@@ -2866,9 +2873,8 @@ diff -ruN a/sql/sql_update.cc b/sql/sql_update.cc
 +  thd->updated_row_count += thd->row_count_func;
    DBUG_RETURN(FALSE);
  }
-diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-08-27 14:29:26.060990130 +0900
-+++ b/sql/sql_yacc.yy	2010-08-27 15:10:33.890987529 +0900
+--- a/sql/sql_yacc.yy	2010-11-24 17:24:51.000000000 +0300
++++ b/sql/sql_yacc.yy	2010-11-24 17:31:33.000000000 +0300
 @@ -757,6 +757,7 @@
  %token  CHECK_SYM                     /* SQL-2003-R */
  %token  CIPHER_SYM
@@ -3026,9 +3032,8 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | USE_FRM                  {}
          | VARIABLES                {}
          | VIEW_SYM                 {}
-diff -ruN a/sql/structs.h b/sql/structs.h
---- a/sql/structs.h	2010-08-04 02:24:35.000000000 +0900
-+++ b/sql/structs.h	2010-08-27 15:10:33.904059058 +0900
+--- a/sql/structs.h	2010-10-12 00:34:34.000000000 +0400
++++ b/sql/structs.h	2010-11-24 17:24:52.000000000 +0300
 @@ -237,6 +237,171 @@
    USER_RESOURCES user_resources;
  } USER_CONN;
@@ -3201,9 +3206,8 @@ diff -ruN a/sql/structs.h b/sql/structs.h
  	/* Bits in form->update */
  #define REG_MAKE_DUPP		1	/* Make a copy of record when read */
  #define REG_NEW_RECORD		2	/* Write a new record if not found */
-diff -ruN a/sql/table.h b/sql/table.h
---- a/sql/table.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/sql/table.h	2010-08-27 15:10:33.906987259 +0900
+--- a/sql/table.h	2010-10-12 00:34:16.000000000 +0400
++++ b/sql/table.h	2010-11-24 17:31:33.000000000 +0300
 @@ -944,10 +944,12 @@
  enum enum_schema_tables
  {
@@ -3229,9 +3233,8 @@ diff -ruN a/sql/table.h b/sql/table.h
    SCH_VARIABLES,
    SCH_VIEWS
  };
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-08-04 02:24:20.000000000 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-08-27 15:10:33.913058592 +0900
+--- a/storage/innobase/handler/ha_innodb.cc	2010-10-12 00:34:15.000000000 +0400
++++ b/storage/innobase/handler/ha_innodb.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -4055,6 +4055,8 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
@@ -3269,9 +3272,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  	} else if (ret == DB_RECORD_NOT_FOUND) {
  		error = HA_ERR_END_OF_FILE;
-diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
---- a/storage/myisam/ha_myisam.cc	2010-08-04 02:24:27.000000000 +0900
-+++ b/storage/myisam/ha_myisam.cc	2010-08-27 15:10:33.921058182 +0900
+--- a/storage/myisam/ha_myisam.cc	2010-10-12 00:34:25.000000000 +0400
++++ b/storage/myisam/ha_myisam.cc	2010-11-24 17:24:52.000000000 +0300
 @@ -761,6 +761,7 @@
  
  int ha_myisam::write_row(uchar *buf)

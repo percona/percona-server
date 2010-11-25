@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:23:31.022060427 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:25:49.004020662 +0900
-@@ -10959,6 +10959,11 @@
+@@ -10974,6 +10974,11 @@
    "Output statistics of recovery process after it.",
    NULL, NULL, FALSE);
  
@@ -20,8 +20,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11470,6 +11475,7 @@
-   MYSQL_SYSVAR(change_buffering),
+@@ -11495,6 +11500,7 @@
+ #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
 +  MYSQL_SYSVAR(use_purge_thread),
@@ -357,7 +357,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  /** We use this mutex to test the return value of pthread_mutex_trylock
     on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-@@ -1702,6 +1702,20 @@
+@@ -1699,6 +1699,20 @@
  
  	os_thread_create(&srv_master_thread, NULL, thread_ids
  			 + (1 + SRV_MAX_N_IO_THREADS));

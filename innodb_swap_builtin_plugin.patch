@@ -24,7 +24,7 @@ diff -ruN a/configure b/configure
    Configurations:   max, max-no-ndb
  
     === MyISAM Storage Engine ===
-@@ -42174,7 +42174,8 @@
+@@ -42256,7 +42256,8 @@
  
  
  
@@ -34,7 +34,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -42186,8 +42187,7 @@
+@@ -42268,8 +42269,7 @@
  
  
  
@@ -44,7 +44,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -43602,7 +43602,7 @@
+@@ -43684,7 +43684,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -53,7 +53,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innobase" != Xyes -a \
              "X$with_plugin_innobase" != Xyes; then
  
-@@ -43628,20 +43628,11 @@
+@@ -43710,20 +43710,11 @@
      else
  
  
@@ -79,7 +79,7 @@ diff -ruN a/configure b/configure
  
  
        mysql_plugin_defs="$mysql_plugin_defs, builtin_innobase_plugin"
-@@ -43729,7 +43720,7 @@
+@@ -43811,7 +43802,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -88,7 +88,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innodb_plugin" != Xyes -a \
              "X$with_plugin_innodb_plugin" != Xyes; then
  
-@@ -43755,11 +43746,20 @@
+@@ -43837,11 +43828,20 @@
      else
  
  

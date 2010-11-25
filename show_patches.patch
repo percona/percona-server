@@ -76,7 +76,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-04-06 23:07:02.000000000 +0900
 +++ b/sql/mysql_priv.h	2010-04-28 15:29:36.000000000 +0900
-@@ -1326,6 +1326,7 @@
+@@ -1327,6 +1327,7 @@
  int mysqld_show_status(THD *thd);
  int mysqld_show_variables(THD *thd,const char *wild);
  bool mysqld_show_storage_engines(THD *thd);
@@ -189,7 +189,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-04-06 23:07:05.000000000 +0900
 +++ b/sql/sql_parse.cc	2010-04-28 15:29:36.000000000 +0900
-@@ -3466,6 +3466,9 @@
+@@ -3476,6 +3476,9 @@
    case SQLCOM_SHOW_CONTRIBUTORS:
      res= mysqld_show_contributors(thd);
      break;
@@ -287,7 +287,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | opt_storage ENGINES_SYM
            {
              LEX *lex=Lex;
-@@ -11804,6 +11810,7 @@
+@@ -11810,6 +11816,7 @@
          | PARTITIONING_SYM         {}
          | PARTITIONS_SYM           {}
          | PASSWORD                 {}

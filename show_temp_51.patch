@@ -31,7 +31,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-08-27 15:19:09.944990047 +0900
 +++ b/sql/sql_parse.cc	2010-08-27 15:30:36.949020748 +0900
-@@ -338,6 +338,9 @@
+@@ -339,6 +339,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
                                                   CF_REEXECUTION_FRAGILE);
@@ -41,7 +41,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1818,6 +1821,8 @@
+@@ -1819,6 +1822,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -50,7 +50,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2316,6 +2321,7 @@
+@@ -2317,6 +2322,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -58,7 +58,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -5440,6 +5446,8 @@
+@@ -5457,6 +5463,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:

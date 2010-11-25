@@ -683,7 +683,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11358,6 +11360,16 @@
+@@ -11373,6 +11375,16 @@
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
    NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
  
@@ -700,7 +700,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11623,6 +11635,8 @@
+@@ -11645,6 +11657,8 @@
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
@@ -1125,7 +1125,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-07-14 16:33:23.851391514 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-07-14 16:40:16.180321173 +0900
-@@ -1719,6 +1719,8 @@
+@@ -1716,6 +1716,8 @@
  		Note that this is not as heavy weight as it seems. At
  		this point there will be only ONE page in the buf_LRU
  		and there must be no page in the buf_flush list. */

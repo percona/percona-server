@@ -8,7 +8,7 @@
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-26 18:31:59.056061915 +0900
 +++ b/sql/mysql_priv.h	2010-07-26 18:34:10.205015964 +0900
-@@ -2080,6 +2080,7 @@
+@@ -2081,6 +2081,7 @@
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
  extern my_bool opt_optimizer_fix;

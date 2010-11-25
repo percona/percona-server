@@ -40,7 +40,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	ut_d(bpage->in_page_hash = FALSE);
  
  	/* relocate buf_pool->LRU */
-@@ -2923,8 +2923,8 @@
+@@ -2947,8 +2947,8 @@
  		bpage->in_zip_hash = FALSE;
  		bpage->in_flush_list = FALSE;
  		bpage->in_free_list = FALSE;
@@ -50,7 +50,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  		ut_d(bpage->in_page_hash = TRUE);
  		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
-@@ -3070,7 +3070,7 @@
+@@ -3094,7 +3094,7 @@
  	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -59,7 +59,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	frame = block->frame;
  
-@@ -3824,7 +3824,7 @@
+@@ -3848,7 +3848,7 @@
  {
  	ulint	ratio;
  
@@ -68,7 +68,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
  		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
-@@ -3832,7 +3832,7 @@
+@@ -3856,7 +3856,7 @@
  
  	/* 1 + is there to avoid division by zero */
  
@@ -112,7 +112,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	return(FALSE);
  }
-@@ -1428,8 +1431,14 @@
+@@ -1504,8 +1507,14 @@
  	buf_page_t*	bpage;
  	ulint		n_replaceable;
  	ulint		distance	= 0;
@@ -128,7 +128,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -1440,7 +1449,13 @@
+@@ -1516,7 +1525,13 @@
  		   + BUF_FLUSH_EXTRA_MARGIN)
  	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
  
@@ -143,7 +143,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		mutex_enter(block_mutex);
  
-@@ -1455,11 +1470,18 @@
+@@ -1531,11 +1546,18 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -163,7 +163,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	}
  
  	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
-@@ -1474,8 +1496,9 @@
+@@ -1550,8 +1572,9 @@
  immediately, without waiting. */
  UNIV_INTERN
  void
@@ -174,7 +174,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  {
  	ulint	n_to_flush;
  	ulint	n_flushed;
-@@ -1484,7 +1507,7 @@
+@@ -1560,7 +1583,7 @@
  
  	if (n_to_flush > 0) {
  		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);

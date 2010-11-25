@@ -4,6 +4,7 @@ MYSQL_VERSION=5.5.7-rc
 PERCONA_SERVER ?=Percona-Server
 DEBUG_DIR ?= $(PERCONA_SERVER)-debug
 RELEASE_DIR ?= $(PERCONA_SERVER)-release
+CMAKE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" cmake 
 
 all: main install-lic tests misc
 	@echo ""
@@ -20,8 +21,8 @@ all: main install-lic tests misc
 cmake:
 	rm -rf $(DEBUG_DIR)
 	rm -rf $(RELEASE_DIR)
-	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=Full ../$(PERCONA_SERVER))
-	(mkdir -p $(RELEASE_DIR); cd $(RELEASE_DIR); cmake -G "Unix Makefiles" ../$(PERCONA_SERVER))
+	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); $(CMAKE) -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=Full ../$(PERCONA_SERVER))
+	(mkdir -p $(RELEASE_DIR); cd $(RELEASE_DIR); $(CMAKE) -G "Unix Makefiles" ../$(PERCONA_SERVER))
 
 install-lic: 
 	@echo "Installing license files"

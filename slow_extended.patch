@@ -429,6 +429,19 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
+@@ -5787,10 +5791,10 @@
+    "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
+    "the slow log if it is open.", &opt_log_slow_admin_statements,
+    &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+- {"log-slow-slave-statements", 0,
++ /*{"log-slow-slave-statements", 0,
+   "Log slow statements executed by slave thread to the slow log if it is open.",
+   &opt_log_slow_slave_statements, &opt_log_slow_slave_statements,
+-  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
++  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},*/
+   {"log-slow-queries", OPT_SLOW_QUERY_LOG,
+    "Log slow queries to a table or log file. Defaults logging to table "
+    "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-11-03 01:01:14.000000000 +0300
 +++ b/sql/mysqld.h	2010-11-23 19:32:23.000000000 +0300
@@ -738,7 +751,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
                                         table_list.first);
  
 +  /* Reset the counter at all cases for the extended slow query log */
-+  thd->sent_row_count= 1;
++  thd->sent_row_count= 0;
 +
    /*
      Reset warning count for each query that uses tables

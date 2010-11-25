@@ -5,9 +5,76 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN /dev/null b/patch_info/profiling_slow.info
---- /dev/null	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/profiling_slow.info	2010-07-07 03:32:18.108972002 +0400
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/r/percona_bug643149.result	2010-11-25 23:52:28.000000000 +0300
+@@ -0,0 +1,16 @@
++SET @old_slow_query_log_file=@@global.slow_query_log_file;
++SET GLOBAL slow_query_log=on;
++SET LOCAL profiling_server=on;
++SET LOCAL long_query_time=1;
++SET GLOBAL slow_query_log_file='/Users/kaa/src/percona/release-5.1.52-12-bug643149/Percona-Server/mysql-test/var/percona_bug643149_slow.log';;
++SELECT SLEEP(2);
++SLEEP(2)
++0
++# Time: X X:X:X
++# User@Host: root[root] @ localhost []
++# Thread_id: X  Schema: test  Last_errno: X  Killed: X
++# Query_time: X.X  Lock_time: X.X  Rows_sent: X  Rows_examined: X  Rows_affected: X  Rows_read: X
++# Bytes_sent: X  Tmp_tables: X  Tmp_disk_tables: X  Tmp_table_sizes: X
++# Profile_starting: X.X Profile_starting_cpu: X.X Profile_checking_permissions: X.X Profile_checking_permissions_cpu: X.X Profile_Opening_tables: X.X Profile_Opening_tables_cpu: X.X Profile_init: X.X Profile_init_cpu: X.X Profile_optimizing: X.X Profile_optimizing_cpu: X.X Profile_executing: X.X Profile_executing_cpu: X.X Profile_User_sleep: X.X Profile_User_sleep_cpu: X.X Profile_end: X.X Profile_end_cpu: X.X Profile_query_end: X.X Profile_query_end_cpu: X.X Profile_freeing_items: X.X Profile_freeing_items_cpu: X.X Profile_logging_slow_query: X.X Profile_logging_slow_query_cpu: X.X 
++# Profile_total: X.X Profile_total_cpu: X.X 
++SET GLOBAL slow_query_log_file=@old_slow_query_log_file;
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/t/percona_bug643149.test	2010-11-25 23:52:08.000000000 +0300
+@@ -0,0 +1,46 @@
++#
++# This test suffers from server
++# Bug#38124 "general_log_file" variable silently unset when using expression
++# In short:
++#    SET GLOBAL general_log_file = @<whatever>
++#    SET GLOBAL slow_query_log = @<whatever>
++# cause that the value of these server system variables is set to default
++# instead of the assigned values. There comes no error message or warning.
++# If this bug is fixed please
++# 1. try this test with "let $fixed_bug38124 = 0;"
++# 2. remove all workarounds if 1. was successful.
++let $fixed_bug38124 = 0;
++
++SET @old_slow_query_log_file=@@global.slow_query_log_file;
++SET GLOBAL slow_query_log=on;
++SET LOCAL profiling_server=on;
++SET LOCAL long_query_time=1;
++
++let slogfile=$MYSQLTEST_VARDIR/percona_bug643149_slow.log;
++--eval SET GLOBAL slow_query_log_file='$slogfile';
++
++SELECT SLEEP(2);
++
++perl;
++  $slogfile= $ENV{'slogfile'};
++
++  open(FILE, "$slogfile") or
++    die("Unable to read slow query log file $slogfile: $!\n");
++  while(<FILE>) {
++    next if (!/^#/);
++    s/[0-9]+/X/g;
++    print;
++  }
++
++  close(FILE);
++EOF
++
++SET GLOBAL slow_query_log_file=@old_slow_query_log_file;
++
++if(!$fixed_bug38124)
++{
++  --disable_query_log
++  let $my_var = `SELECT @old_slow_query_log_file`;
++  eval SET @@global.slow_query_log_file = '$my_var';
++  --enable_query_log
++}
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/patch_info/profiling_slow.info	2010-11-24 19:33:02.000000000 +0300
 @@ -0,0 +1,9 @@
 +File=profiling_slow.info
 +Name=profiling from SHOW PROFILE to slow.log
@@ -18,9 +85,8 @@ diff -ruN /dev/null b/patch_info/profiling_slow.info
 +Changelog
 +2009-05-18
 +Initial implementation
-diff -ruN a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2010-07-07 03:32:17.588972002 +0400
-+++ b/sql/log.cc	2010-07-07 03:32:18.108972002 +0400
+--- a/sql/log.cc	2010-11-24 19:33:02.000000000 +0300
++++ b/sql/log.cc	2010-11-24 19:36:29.000000000 +0300
 @@ -2433,6 +2433,11 @@
            my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
          tmp_errno=errno;
@@ -33,9 +99,8 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-07 03:32:17.598972002 +0400
-+++ b/sql/mysqld.cc	2010-07-07 03:32:18.108972002 +0400
+--- a/sql/mysqld.cc	2010-11-24 19:33:02.000000000 +0300
++++ b/sql/mysqld.cc	2010-11-24 19:36:29.000000000 +0300
 @@ -5778,6 +5778,8 @@
    OPT_LOG_OUTPUT,
    OPT_PORT_OPEN_TIMEOUT,
@@ -62,9 +127,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #endif
    {"relay-log", OPT_RELAY_LOG,
     "The location and name to use for relay logs.",
-diff -ruN a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-07 03:32:17.588972002 +0400
-+++ b/sql/set_var.cc	2010-07-07 03:32:18.118972002 +0400
+--- a/sql/set_var.cc	2010-11-24 19:33:02.000000000 +0300
++++ b/sql/set_var.cc	2010-11-24 19:36:29.000000000 +0300
 @@ -847,6 +847,10 @@
                                        ulonglong(OPTION_PROFILING));
  static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
@@ -76,9 +140,8 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  #endif
  
  /* Local state variables */
-diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-07-07 03:32:17.588972002 +0400
-+++ b/sql/sql_class.h	2010-07-07 03:32:18.118972002 +0400
+--- a/sql/sql_class.h	2010-11-24 19:33:02.000000000 +0300
++++ b/sql/sql_class.h	2010-11-24 19:36:29.000000000 +0300
 @@ -328,6 +328,8 @@
    ulong optimizer_switch;
    ulong preload_buff_size;
@@ -88,34 +151,33 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    ulong query_cache_type;
    ulong read_buff_size;
    ulong read_rnd_buff_size;
-diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
---- a/sql/sql_profile.cc	2010-07-07 03:32:17.598972002 +0400
-+++ b/sql/sql_profile.cc	2010-07-07 03:32:18.118972002 +0400
-@@ -221,9 +221,22 @@
- */
- void PROF_MEASUREMENT::collect()
+--- a/sql/sql_profile.cc	2010-10-12 00:34:33.000000000 +0400
++++ b/sql/sql_profile.cc	2010-11-25 16:09:12.000000000 +0300
+@@ -223,8 +223,22 @@
  {
-+  struct timespec tp;
    time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
  #ifdef HAVE_GETRUSAGE
 -  getrusage(RUSAGE_SELF, &rusage);
 +  if ((profile->get_profiling())->enabled_getrusage())
 +    getrusage(RUSAGE_SELF, &rusage);
-+#endif
+ #endif
 +
 +#ifdef HAVE_CLOCK_GETTIME
++  struct timespec tp;
++
 +  if (!(clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
 +  {
 +    cpu_time_usecs= tp.tv_sec*1000000000.0 + tp.tv_nsec;
 +  } 
 +  else
++#endif
 +  {
 +    cpu_time_usecs= 0;
 +  }
- #endif
  }
  
-@@ -341,7 +354,7 @@
+ 
+@@ -341,7 +355,7 @@
      finish_current_query();
    }
  
@@ -124,7 +186,7 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
  
    if (! enabled) DBUG_VOID_RETURN;
  
-@@ -379,7 +392,8 @@
+@@ -379,7 +393,8 @@
      status_change("ending", NULL, NULL, 0);
  
      if ((enabled) &&                                    /* ON at start? */
@@ -134,13 +196,48 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
          (current->query_source != NULL) &&
          (! current->entries.is_empty()))
      {
-@@ -480,6 +494,88 @@
+@@ -480,6 +495,118 @@
    DBUG_VOID_RETURN;
  }
  
 +bool PROFILING::enabled_getrusage()
 +{
 +  return thd->variables.profiling_use_getrusage;
++}
++
++/**
++   For a given profile entry specified by a name and 2 time measurements,
++   print its normalized name (i.e. with all spaces replaced with underscores)
++   along with its wall clock and CPU time.
++*/
++
++static void my_b_print_status(IO_CACHE *log_file, const char *status,
++                              PROF_MEASUREMENT *start, PROF_MEASUREMENT *stop)
++{
++  DBUG_ENTER("my_b_print_status");
++  DBUG_ASSERT(log_file != NULL && status != NULL);
++  char query_time_buff[22+7];
++  const char *tmp;
++
++  my_b_printf(log_file, "Profile_");
++  for (tmp= status; *tmp; tmp++)
++    my_b_write_byte(log_file, *tmp == ' ' ? '_' : *tmp);
++
++  snprintf(query_time_buff, sizeof(query_time_buff), "%.6f",
++           (stop->time_usecs - start->time_usecs) / (1000.0 * 1000));
++  my_b_printf(log_file, ": %s ", query_time_buff);
++
++  my_b_printf(log_file, "Profile_");
++  for (tmp= status; *tmp; tmp++)
++    my_b_write_byte(log_file, *tmp == ' ' ? '_' : *tmp);
++  my_b_printf(log_file, "_cpu: ");
++
++  snprintf(query_time_buff, sizeof(query_time_buff), "%.6f",
++           (stop->cpu_time_usecs - start->cpu_time_usecs) /
++           (1000.0 * 1000 * 1000));
++  my_b_printf(log_file, "%s ", query_time_buff);
++
++  DBUG_VOID_RETURN;
 +}
 +
 +/**
@@ -151,8 +248,6 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
 +{
 +  DBUG_ENTER("PROFILING::print_current");
 +  ulonglong row_number= 0;
-+  char query_time_buff[22+7];
-+  char query_cpu_time_buff[22+7];
 +
 +  QUERY_PROFILE *query;
 +  /* Get current query */
@@ -163,7 +258,7 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
 +
 +  query= current;
 +
-+  my_b_printf(log_file, "# PROFILE_VALUES ");
++  my_b_printf(log_file, "# ");
 +
 +    void *entry_iterator;
 +    PROF_MEASUREMENT *entry, *previous= NULL, *first= NULL;
@@ -203,18 +298,15 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
 +        }
 +      }
 +
-+      snprintf(query_time_buff, sizeof(query_time_buff), "%.6f", (entry->time_usecs-previous->time_usecs)/(1000.0*1000));
-+      snprintf(query_cpu_time_buff, sizeof(query_cpu_time_buff), "%.6f", (entry->cpu_time_usecs-previous->cpu_time_usecs)/(1000.0*1000*1000));
-+      my_b_printf(log_file, "%s: %s (cpu: %s), ", previous->status, query_time_buff, query_cpu_time_buff);
-+
++      my_b_print_status(log_file, previous->status, previous, entry);
 +    }
 +
-+    my_b_printf(log_file, "\n");
++    my_b_write_byte(log_file, '\n');
 +    if ((entry != NULL) && (first != NULL))
 +    {
-+      snprintf(query_time_buff, sizeof(query_time_buff), "%.6f", (entry->time_usecs-first->time_usecs)/(1000.0*1000));
-+      snprintf(query_cpu_time_buff, sizeof(query_cpu_time_buff), "%.6f", (entry->cpu_time_usecs-first->cpu_time_usecs)/(1000.0*1000*1000));
-+      my_b_printf(log_file, "# PROFILE_TOTALS Total: %s (cpu: %s)\n", query_time_buff, query_cpu_time_buff);
++      my_b_printf(log_file, "# ");
++      my_b_print_status(log_file, "total", first, entry);
++      my_b_write_byte(log_file, '\n');
 +    }
 +
 +  DBUG_RETURN(0);
@@ -223,18 +315,43 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
  /**
    Fill the information schema table, "query_profile", as defined in show.cc .
    There are two ways to get to this function:  Selecting from the information
-diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
---- a/sql/sql_profile.h	2010-07-07 03:32:17.608972002 +0400
-+++ b/sql/sql_profile.h	2010-07-07 03:32:18.118972002 +0400
-@@ -180,6 +180,7 @@
+--- a/sql/sql_profile.h	2010-10-12 00:34:33.000000000 +0400
++++ b/sql/sql_profile.h	2010-11-25 15:54:48.000000000 +0300
+@@ -165,11 +165,15 @@
+ */
+ class PROF_MEASUREMENT
+ {
+-private:
+-  friend class QUERY_PROFILE;
+-  friend class PROFILING;
+-
+   QUERY_PROFILE *profile;
++
++  char *allocated_status_memory;
++
++  void set_label(const char *status_arg, const char *function_arg, 
++                  const char *file_arg, unsigned int line_arg);
++  void clean_up();
++
++public:
+   char *status;
+ #ifdef HAVE_GETRUSAGE
+   struct rusage rusage;
+@@ -180,12 +184,7 @@
    unsigned int line;
  
    double time_usecs;
+-  char *allocated_status_memory;
+-
+-  void set_label(const char *status_arg, const char *function_arg, 
+-                  const char *file_arg, unsigned int line_arg);
+-  void clean_up();
+-  
 +  double cpu_time_usecs;
-   char *allocated_status_memory;
- 
-   void set_label(const char *status_arg, const char *function_arg, 
-@@ -230,6 +231,11 @@
+   PROF_MEASUREMENT();
+   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg);
+   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg,
+@@ -230,6 +229,11 @@
  
    /* Show this profile.  This is called by PROFILING. */
    bool show(uint options);
@@ -246,7 +363,7 @@ diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
  };
  
  
-@@ -275,9 +281,11 @@
+@@ -275,9 +279,11 @@
  
    /* SHOW PROFILES */
    bool show_profiles();

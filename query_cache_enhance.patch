@@ -56,7 +56,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-28 16:47:41.144071083 +0400
 +++ b/sql/mysql_priv.h	2010-07-28 16:47:41.714068826 +0400
-@@ -2087,6 +2087,7 @@
+@@ -2088,6 +2088,7 @@
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
  extern my_bool opt_log_slow_sp_statements;
  extern my_bool opt_log_slow_timestamp_every;

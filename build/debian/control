@@ -12,7 +12,7 @@ Vcs-Bzr: bzr+ssh://bazaar.launchpad.net/~percona-dev/percona-server/release-5.1.
 Package: libmysqlclient16
 Section: libs
 Architecture: any
-Depends: percona-server-common (>= ${source:Version}), ${shlibs:Depends}
+Depends: ${shlibs:Depends}
 Replaces: libpercona-server-client16
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL database

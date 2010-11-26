@@ -1914,7 +1914,7 @@ diff -ruN a/configure.in b/configure.in
 +    /* get start cputime */
 +    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
 +      start_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
-+#else
++#endif
 +
 +    // Gets the start time, in order to measure how long this command takes.
 +    if (!(start_time_error = gettimeofday(&start_time, NULL))) {
@@ -2056,7 +2056,7 @@ diff -ruN a/configure.in b/configure.in
 +    /* get start cputime */
 +    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
 +      start_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
-+#else
++#endif
 +
 +    // Gets the start time, in order to measure how long this command takes.
 +    if (!(start_time_error = gettimeofday(&start_time, NULL))) {

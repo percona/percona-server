@@ -1,8 +1,6 @@
 SET GLOBAL SLOW_QUERY_LOG=OFF;
 drop table if exists t;
-# Create test table
 create table t(id INT PRIMARY KEY) engine=InnoDB;
-# Insert two rows to test table
 insert into t values(1);
 insert into t values(2);
 insert into t values(3);
@@ -21,5 +19,4 @@ SELECT sleep(2);
 sleep(2)
 0
 drop table if exists t;
-cat var/mysqld.1/data/percona_slow_query_log-min_examined_row_limit.log | grep Query_time | wc -l
 2

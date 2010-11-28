@@ -14,8 +14,7 @@ SELECT sleep(5);
 set global long_query_time=2;
 set global use_global_long_query_time=0;
 
-let $cmd = cat var/mysqld.1/data/percona_slow_query_log-use_global_long_query_time.log | grep Query_time | wc -l;
-echo $cmd;
+let $cmd = cat $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-use_global_long_query_time.log | grep Query_time | wc -l;
 exec $cmd;
 
 show global variables like 'use_global_log_slow_control';

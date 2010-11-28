@@ -110,7 +110,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-11-01 08:43:57.000000000 +0000
 +++ b/sql/mysql_priv.h	2010-11-01 08:52:40.000000000 +0000
-@@ -2090,6 +2090,8 @@
+@@ -2091,6 +2091,8 @@
  extern my_bool opt_query_cache_strip_comments;
  extern my_bool opt_use_global_long_query_time;
  extern my_bool opt_slow_query_log_microseconds_timestamp;
@@ -643,15 +643,15 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-11-01 08:43:57.000000000 +0000
 +++ b/sql/sql_parse.cc	2010-11-01 08:52:40.000000000 +0000
-@@ -27,6 +27,7 @@
- #include "sp_cache.h"
+@@ -28,6 +28,7 @@
  #include "events.h"
  #include "sql_trigger.h"
+ #include "debug_sync.h"
 +#include "query_response_time.h"
  
  /**
    @defgroup Runtime_Environment Runtime Environment
-@@ -1749,23 +1750,31 @@
+@@ -1750,23 +1751,31 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -697,7 +697,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1890,6 +1899,7 @@
+@@ -1891,6 +1900,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -705,7 +705,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
    case SCH_USER_PRIVILEGES:
    case SCH_SCHEMA_PRIVILEGES:
-@@ -7221,6 +7231,10 @@
+@@ -7234,6 +7244,10 @@
      init_global_index_stats();
      pthread_mutex_unlock(&LOCK_global_index_stats);
    }
@@ -785,7 +785,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -11889,6 +11899,7 @@
+@@ -11895,6 +11905,7 @@
          | PROFILES_SYM             {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}

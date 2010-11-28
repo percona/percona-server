@@ -1,3 +1,10 @@
+# name       : show_slave_status_nolock.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 diff -ruN a/patch_info/show_slave_status_nolock.patch b/patch_info/show_slave_status_nolock.patch
 --- a/patch_info/show_slave_status_nolock.patch	1970-01-01 05:00:00.000000000 +0500
 +++ b/patch_info/show_slave_status_nolock.patch	2010-10-29 14:44:13.000000000 +0600
@@ -46,7 +53,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-10-29 14:39:13.000000000 +0600
 +++ b/sql/sql_parse.cc	2010-10-29 14:42:03.000000000 +0600
-@@ -326,6 +326,7 @@
+@@ -327,6 +327,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
@@ -54,7 +61,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2538,12 +2539,16 @@
+@@ -2539,12 +2540,16 @@
      pthread_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -72,7 +79,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2554,7 +2559,10 @@
+@@ -2555,7 +2560,10 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }

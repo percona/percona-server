@@ -46,7 +46,7 @@ diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
  int mysql_tmpfile(const char *prefix);
  int thd_killed(const void* thd);
  unsigned long thd_get_thread_id(const void* thd);
-diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
+diff -ruN /dev/null b/patch_info/slow_extended.info
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/slow_extended.info	2010-08-27 14:30:34.806092638 +0900
 @@ -0,0 +1,24 @@
@@ -378,7 +378,7 @@ diff -ruN a/sql/log.h b/sql/log.h
 diff -ruN a/sql/log_event.cc b/sql/log_event.cc
 --- a/sql/log_event.cc	2010-08-04 02:24:29.000000000 +0900
 +++ b/sql/log_event.cc	2010-08-27 14:30:34.826059575 +0900
-@@ -3078,6 +3078,7 @@
+@@ -3085,6 +3085,7 @@
    LEX_STRING new_db;
    int expected_error,actual_error= 0;
    HA_CREATE_INFO db_options;
@@ -386,7 +386,7 @@ diff -ruN a/sql/log_event.cc b/sql/log_event.cc
  
    /*
      Colleagues: please never free(thd->catalog) in MySQL. This would
-@@ -3259,19 +3260,7 @@
+@@ -3266,19 +3267,7 @@
        /* Execute the query (note that we bypass dispatch_command()) */
        const char* found_semicolon= NULL;
        mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
@@ -407,7 +407,7 @@ diff -ruN a/sql/log_event.cc b/sql/log_event.cc
      }
      else
      {
-@@ -3415,11 +3404,27 @@
+@@ -3422,11 +3411,27 @@
      don't suffer from these assignments to 0 as DROP TEMPORARY
      TABLE uses the db.table syntax.
    */
@@ -546,7 +546,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  /*
    Some defines for exit codes for ::is_equal class functions.
  */
-@@ -1971,6 +2071,10 @@
+@@ -1972,6 +2072,10 @@
  extern my_bool opt_secure_auth;
  extern char* opt_secure_file_priv;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
@@ -760,7 +760,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_thd_ulong
  sys_auto_increment_increment(&vars, "auto_increment_increment",
                               &SV::auto_increment_increment, NULL, NULL,
-@@ -891,6 +956,30 @@
+@@ -891,6 +958,30 @@
                                        QUERY_LOG_GENERAL);
  static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                           QUERY_LOG_SLOW);
@@ -791,7 +791,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-@@ -3717,6 +3806,203 @@
+@@ -3717,6 +3808,203 @@
  #endif
  }
  
@@ -1093,7 +1093,7 @@ diff -ruN a/sql/set_var.h b/sql/set_var.h
 diff -ruN a/sql/slave.cc b/sql/slave.cc
 --- a/sql/slave.cc	2010-08-04 02:24:34.000000000 +0900
 +++ b/sql/slave.cc	2010-08-27 14:30:34.880987743 +0900
-@@ -1825,6 +1825,7 @@
+@@ -1834,6 +1834,7 @@
      + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
    thd->slave_thread = 1;
    thd->enable_slow_log= opt_log_slow_slave_statements;
@@ -1309,7 +1309,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-08-27 14:29:26.038021257 +0900
 +++ b/sql/sql_parse.cc	2010-08-27 14:30:34.911058889 +0900
-@@ -1684,7 +1684,10 @@
+@@ -1685,7 +1685,10 @@
    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
    DBUG_RETURN(error);
  }
@@ -1321,7 +1321,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  
  void log_slow_statement(THD *thd)
  {
-@@ -1698,6 +1701,40 @@
+@@ -1699,6 +1702,40 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -1362,7 +1362,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -2084,6 +2121,8 @@
+@@ -2085,6 +2122,8 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -1371,7 +1371,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5783,6 +5822,21 @@
+@@ -5800,6 +5839,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -1396,7 +1396,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-08-04 02:24:34.000000000 +0900
 +++ b/sql/sql_select.cc	2010-08-27 14:30:34.925058584 +0900
-@@ -6754,7 +6754,10 @@
+@@ -6764,7 +6764,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1407,7 +1407,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	else
-@@ -6768,7 +6771,10 @@
+@@ -6778,7 +6781,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1418,7 +1418,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	if (!table->no_keyread)
-@@ -9967,6 +9973,7 @@
+@@ -9977,6 +9983,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -1426,7 +1426,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -10848,6 +10855,7 @@
+@@ -10858,6 +10865,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -1434,7 +1434,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -10866,6 +10874,14 @@
+@@ -10876,6 +10884,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  

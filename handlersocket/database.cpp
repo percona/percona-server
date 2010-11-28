@@ -549,9 +549,13 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
       const string_ref& nv = args.uvals[i];
       uint32_t fn = rf[i];
       Field *const fld = table->field[fn];
-      fld->store(nv.begin(), nv.size(), &my_charset_bin);
+      if (nv.begin() == 0) {
+	fld->set_null();
+      } else {
+      	fld->set_notnull();
+	fld->store(nv.begin(), nv.size(), &my_charset_bin);
+      }
     }
-    memset(buf, 0, table->s->null_bytes); /* TODO: allow NULL */
     const int r = hnd->ha_update_row(table->record[1], buf);
     if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
       return r;
@@ -587,12 +591,16 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   handler *const hnd = table->file;
   uchar *const buf = table->record[0];
   empty_record(table);
+  memset(buf, 0, table->s->null_bytes); /* clear null flags */
   Field **fld = table->field;
   size_t i = 0;
   for (; *fld && i < fvalslen; ++fld, ++i) {
-    (*fld)->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
+    if (fvals[i].begin() == 0) {
+      (*fld)->set_null();
+    } else {
+      (*fld)->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
+    }
   }
-  memset(buf, 0, table->s->null_bytes); /* TODO: allow NULL */
   const int r = hnd->ha_write_row(buf);
   return cb.dbcb_resp_short(r != 0 ? 1 : 0, "");
 }

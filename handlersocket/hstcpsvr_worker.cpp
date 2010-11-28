@@ -771,8 +771,14 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
       read_token(start, finish);
       char *const f_end = start;
       char *wp = f_begin;
-      unescape_string(wp, f_begin, f_end);
-      uflds[i] = string_ref(f_begin, wp - f_begin);
+      if (is_null_expression(f_begin, f_end)) {
+	/* null */
+	uflds[i] = string_ref();
+      } else {
+	/* non-null */
+	unescape_string(wp, f_begin, f_end);
+	uflds[i] = string_ref(f_begin, wp - f_begin);
+      }
     }
     args.uvals = uflds;
     return dbctx->cmd_exec_on_index(conn, args);

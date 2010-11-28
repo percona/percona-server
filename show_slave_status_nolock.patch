@@ -1,4 +1,4 @@
-# name       : percona-support.patch
+# name       : show_slave_status_nolock.patch
 # introduced : 12
 # maintainer : Oleg
 #

@@ -818,14 +818,14 @@ fi
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
+%{_libdir}/libhsclient.a
+%{_libdir}/libhsclient.la
 
 %files -n Percona-Server-shared%{package_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
 %{_libdir}/mysql/*.so*
-%{_libdir}/libhsclient.a
-%{_libdir}/libhsclient.la
 
 
 %files -n Percona-Server-test%{package_suffix}

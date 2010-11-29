@@ -1,6 +1,23 @@
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_statement.inc
 -- source include/have_innodb.inc
 -- source include/master-slave.inc
+
+--echo Master
+connection master;
+show global variables like 'log_slow_slave_statements';
+show global variables like 'long_query_time';
+show global variables like 'log_slow_verbosity';
+show        variables like 'log_slow_slave_statements';
+show        variables like 'long_query_time';
+show        variables like 'log_slow_verbosity';
+--echo Slave
+connection slave;
+show global variables like 'log_slow_slave_statements';
+show global variables like 'long_query_time';
+show global variables like 'log_slow_verbosity';
+show        variables like 'log_slow_slave_statements';
+show        variables like 'long_query_time';
+show        variables like 'log_slow_verbosity';
 
 connection master;
 -- disable_warnings
@@ -41,4 +58,7 @@ connection master;
 DROP TABLE IF EXISTS t;
 sync_slave_with_master;
 
-exec cat $MYSQLTEST_VARDIR/mysqld.2/mysqld-slow.log | grep InnoDB_IO_r_ops | wc -l;
+let $cmd=cat $MYSQLTEST_VARDIR/mysqld.2/mysqld-slow.log | grep InnoDB_IO_r_ops | wc -l;
+exec $cmd;
+let $cmd=cat $MYSQLTEST_VARDIR/mysqld.2/mysqld-slow.log | grep INSERT;
+exec $cmd;

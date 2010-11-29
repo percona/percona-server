@@ -67,7 +67,7 @@ set global use_global_long_query_time=0;
 
 let $i=5;
 let $k=1;
-let $cmd=cat ./var/mysqld.1/data/percona_log_slow_slave_statements-master.log | grep;
+let $cmd=cat $MYSQLTEST_VARDIR/mysqld.1/data/percona_log_slow_slave_statements-master.log | grep;
 while($i)
 {
     let $current_cmd = $cmd "INSERT INTO t VALUES ($k)" | wc -l;
@@ -78,7 +78,7 @@ while($i)
 
 let $i=5;
 let $k=1;
-let $cmd=cat ./var/mysqld.2/data/percona_log_slow_slave_statements-slave.log | grep;
+let $cmd=cat $MYSQLTEST_VARDIR/mysqld.2/data/percona_log_slow_slave_statements-slave.log | grep;
 while($i)
 {
     let $current_cmd = $cmd "INSERT INTO t VALUES ($k)" | wc -l;

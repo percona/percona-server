@@ -20,11 +20,10 @@ sleep(5)
 0
 set global long_query_time=2;
 set global use_global_long_query_time=0;
-cat var/mysqld.1/data/percona_slow_query_log-use_global_long_query_time.log | grep Query_time | wc -l
 3
 show global variables like 'use_global_log_slow_control';
 Variable_name	Value
-use_global_log_slow_control	none
+use_global_log_slow_control	
 show global variables like 'use_global_long_query_time';
 Variable_name	Value
 use_global_long_query_time	OFF

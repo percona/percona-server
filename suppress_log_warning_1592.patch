@@ -30,7 +30,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-11-16 23:20:22.000000000 +0500
 +++ b/sql/sys_vars.cc	2010-11-16 23:30:38.000000000 +0500
-@@ -1407,6 +1407,12 @@
+@@ -1430,6 +1430,12 @@
         READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
         VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
  

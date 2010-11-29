@@ -37,3 +37,4 @@ usr/share/man/man1/mysql_tableinfo.1
 usr/share/man/man1/mysql_waitpid.1
 usr/share/man/man1/mysql_client_test.1
 usr/share/perl5/InnoDBParser.pm
+usr/bin/hsclient

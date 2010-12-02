@@ -12,7 +12,7 @@
 +SET GLOBAL slow_query_log=on;
 +SET LOCAL profiling_server=on;
 +SET LOCAL long_query_time=1;
-+SET GLOBAL slow_query_log_file='/Users/kaa/src/percona/release-5.1.52-12-bug643149/Percona-Server/mysql-test/var/percona_bug643149_slow.log';;
++SET GLOBAL slow_query_log_file='MYSQLTEST_VARDIR/percona_bug643149_slow.log';;
 +SELECT SLEEP(2);
 +SLEEP(2)
 +0
@@ -26,7 +26,7 @@
 +SET GLOBAL slow_query_log_file=@old_slow_query_log_file;
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/mysql-test/t/percona_bug643149.test	2010-11-25 23:52:08.000000000 +0300
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,47 @@
 +#
 +# This test suffers from server
 +# Bug#38124 "general_log_file" variable silently unset when using expression
@@ -46,6 +46,7 @@
 +SET LOCAL long_query_time=1;
 +
 +let slogfile=$MYSQLTEST_VARDIR/percona_bug643149_slow.log;
++--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 +--eval SET GLOBAL slow_query_log_file='$slogfile';
 +
 +SELECT SLEEP(2);

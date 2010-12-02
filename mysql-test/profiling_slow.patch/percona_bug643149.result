@@ -2,7 +2,7 @@ SET @old_slow_query_log_file=@@global.slow_query_log_file;
 SET GLOBAL slow_query_log=on;
 SET LOCAL profiling_server=on;
 SET LOCAL long_query_time=1;
-SET GLOBAL slow_query_log_file='/Users/kaa/src/percona/release-5.1.52-12-bug643149/Percona-Server/mysql-test/var/percona_bug643149_slow.log';;
+SET GLOBAL slow_query_log_file='MYSQLTEST_VARDIR/percona_bug643149_slow.log';;
 SELECT SLEEP(2);
 SLEEP(2)
 0

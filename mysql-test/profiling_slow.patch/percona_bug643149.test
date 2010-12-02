@@ -17,6 +17,7 @@ SET LOCAL profiling_server=on;
 SET LOCAL long_query_time=1;
 
 let slogfile=$MYSQLTEST_VARDIR/percona_bug643149_slow.log;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SET GLOBAL slow_query_log_file='$slogfile';
 
 SELECT SLEEP(2);

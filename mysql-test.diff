@@ -993,3 +993,54 @@ diff -ruN a/mysql-test/t/log_tables-big-master.opt b/mysql-test/t/log_tables-big
 @@ -1 +1 @@
 ---log-slow-queries
 +--log-output=table,file --log-slow-queries
+diff -Nur a/mysql-test/r/query_cache.result b/mysql-test/r/query_cache.result
+--- a/mysql-test/r/query_cache.result	2010-11-16 13:15:58.000000000 -0800
++++ b/mysql-test/r/query_cache.result	2010-11-16 13:23:30.000000000 -0800
+@@ -1708,20 +1708,3 @@
+ DROP TABLE t1;
+ SET GLOBAL query_cache_size= default;
+ End of 5.0 tests
+-SET GLOBAL query_cache_size=1024*1024*512;
+-CREATE TABLE t1 (a ENUM('rainbow'));
+-INSERT INTO t1 VALUES (),(),(),(),();
+-SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+-1
+-1
+-DROP TABLE t1;
+-CREATE TABLE t1 (a LONGBLOB);
+-INSERT INTO t1 SET a = 'aaaa';
+-INSERT INTO t1 SET a = 'aaaa';
+-SELECT 1 FROM t1 GROUP BY
+-(SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+-1
+-1
+-DROP TABLE t1;
+-SET GLOBAL query_cache_size= default;
+-End of 5.1 tests
+diff -Nur a/mysql-test/t/query_cache.test b/mysql-test/t/query_cache.test
+--- a/mysql-test/t/query_cache.test	2010-11-16 13:15:58.000000000 -0800
++++ b/mysql-test/t/query_cache.test	2010-11-16 13:23:05.000000000 -0800
+@@ -1289,23 +1289,3 @@
+ SET GLOBAL query_cache_size= default;
+ 
+ --echo End of 5.0 tests
+-
+-#
+-# Bug #31157: Crash when select+order by the avg of some field within the
+-# group by
+-#
+-SET GLOBAL query_cache_size=1024*1024*512;
+-CREATE TABLE t1 (a ENUM('rainbow'));
+-INSERT INTO t1 VALUES (),(),(),(),();
+-SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+-DROP TABLE t1;
+-CREATE TABLE t1 (a LONGBLOB);
+-INSERT INTO t1 SET a = 'aaaa';
+-INSERT INTO t1 SET a = 'aaaa';
+-SELECT 1 FROM t1 GROUP BY
+-  (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
+-DROP TABLE t1;
+-SET GLOBAL query_cache_size= default;
+-
+---echo End of 5.1 tests
+-

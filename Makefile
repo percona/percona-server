@@ -2,7 +2,7 @@ FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
 MYSQL_VERSION=5.1.53
 
-all: main install-lic tests misc
+all: main install-lic tests misc handlersocket
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to Percona-Server define variables as show below"
@@ -14,6 +14,8 @@ all: main install-lic tests misc
 	@echo "and run ./configure ... --without-plugin-innobase --with-plugin-innodb_plugin && make all install"
 	@echo ""
 
+handlersocket:
+	cp -R HandlerSocket-Plugin-for-MySQL Percona-Server/storage
 
 install-lic: 
 	@echo "Installing license files"

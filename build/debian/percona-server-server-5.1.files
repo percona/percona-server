@@ -51,3 +51,4 @@ usr/share/man/man1/innochecksum.1
 usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man8/mysqld.8
 usr/share/mysql/
+usr/lib/mysql/plugin/*

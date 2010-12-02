@@ -5,3 +5,6 @@ usr/lib/libmysqlclient.la
 usr/lib/mysql/*.a
 usr/lib/mysql/*.la
 usr/share/man/man1/mysql_config.1
+usr/lib/libhsclient.a
+usr/lib/libhsclient.la
+usr/include/handlersocket/*

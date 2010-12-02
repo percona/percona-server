@@ -8,11 +8,14 @@ include /usr/share/dpatch/dpatch.make
 
 TMP=$(CURDIR)/debian/tmp/
 
+major_version_default=12
+minor_version_default=3
+
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
 DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEBVERSION = $(shell echo "rel`if test -z \"$(major_version)\"; then echo 12; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo 1; else echo $(minor_version); fi`" )
+DEBVERSION = $(shell echo "rel`if test -z \"$(major_version)\"; then echo ${major_version_default}; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo ${minor_version_default}; else echo $(minor_version); fi`" )
 
 DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
 DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
@@ -21,12 +24,13 @@ DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//'
 DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
 
 
-DISTRIBUTION = $(shell echo "Percona Server (GPL), `if test -z \"$(major_version)\"; then echo 12; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo 1; else echo $(minor_version); fi` `if ! test -z \"$(BB_PERCONA_REVISION)\"; then echo \", Revision $(BB_PERCONA_REVISION)\"; fi`")
+DISTRIBUTION = $(shell echo "Percona Server (GPL), `if test -z \"$(major_version)\"; then echo ${major_version_default}; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo ${minor_version_default}; else echo $(minor_version); fi` `if ! test -z \"$(BB_PERCONA_REVISION)\"; then echo \", Revision $(BB_PERCONA_REVISION)\"; fi`")
 
 MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
 ifeq (${MAKE_J}, -j0)
   MAKE_J = -j1
 endif
+MYSQL_SRC = $(shell pwd)
 
 MAKE_TEST_TARGET=test-force
 ifneq ($(findstring $(DEB_BUILD_OPTIONS),fulltest),)
@@ -58,6 +62,7 @@ configure-stamp:
 ifneq ($(ARCH_OS),hurd)
 	if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
 endif
+	sh -c "./BUILD/autorun.sh"
 
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
@@ -113,7 +118,6 @@ build-stamp: configure
 	dh_testdir
 
 	$(MAKE) $(MAKE_J)
-
 ifeq ($(findstring $(DEB_BUILD_OPTIONS),nocheck),)
 	if [ ! -f testsuite-stamp ] ; then \
 	  $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
@@ -183,6 +187,15 @@ install: build
 
 	# make install (trailing slash needed for innobase)
 	$(MAKE) install DESTDIR=$(TMP)/
+	cd storage/HandlerSocket-Plugin-for-MySQL && \
+	./autogen.sh && \
+	CXX=g++ ./configure --with-mysql-source="$(MYSQL_SRC)" \
+	--with-mysql-bindir="$(MYSQL_SRC)/scripts" \
+	--with-mysql-plugindir="/usr/lib/mysql/plugin" \
+	--libdir="/usr/lib" \
+	--prefix="/usr" && \
+	$(MAKE)
+	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

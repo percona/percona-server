@@ -1,6 +1,7 @@
 usr/lib/mysql/*so*
 etc/mysql/debian-start
 etc/mysql/conf.d/mysqld_safe_syslog.cnf
+usr/bin/innochecksum
 usr/bin/msql2mysql
 usr/bin/my_print_defaults
 usr/bin/myisamchk
@@ -26,6 +27,7 @@ usr/bin/resolveip
 usr/sbin/mysqld
 usr/share/doc/percona-server-server-5.1/
 usr/share/lintian/overrides/percona-server-server-5.1
+usr/share/man/man1/innochecksum.1
 usr/share/man/man1/msql2mysql.1
 usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1

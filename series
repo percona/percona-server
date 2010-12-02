@@ -51,3 +51,4 @@ sql_no_fcache.patch
 show_slave_status_nolock.patch
 innodb_fast_shutdown.patch
 bug677407.patch
+fix-bug671764.patch

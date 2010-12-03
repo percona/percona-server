@@ -1,0 +1,557 @@
+# name       : innodb_expand_import.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
+--- a/storage/innobase/fil/fil0fil.c	2010-12-03 15:09:51.274957577 +0900
++++ b/storage/innobase/fil/fil0fil.c	2010-12-03 15:52:23.553986552 +0900
+@@ -40,6 +40,12 @@
+ #include "dict0dict.h"
+ #include "page0page.h"
+ #include "page0zip.h"
++#include "trx0trx.h"
++#include "trx0sys.h"
++#include "pars0pars.h"
++#include "row0mysql.h"
++#include "row0row.h"
++#include "que0que.h"
+ #ifndef UNIV_HOTBACKUP
+ # include "buf0lru.h"
+ # include "ibuf0ibuf.h"
+@@ -3004,7 +3010,7 @@
+ 
+ 	file = os_file_create_simple_no_error_handling(
+ 		innodb_file_data_key, filepath, OS_FILE_OPEN,
+-		OS_FILE_READ_ONLY, &success);
++		OS_FILE_READ_WRITE, &success);
+ 	if (!success) {
+ 		/* The following call prints an error message */
+ 		os_file_get_last_error(TRUE);
+@@ -3051,6 +3057,466 @@
+ 	space_id = fsp_header_get_space_id(page);
+ 	space_flags = fsp_header_get_flags(page);
+ 
++	if (srv_expand_import
++	    && (space_id != id || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
++		ibool		file_is_corrupt = FALSE;
++		byte*		buf3;
++		byte*		descr_page;
++		ibool		descr_is_corrupt = FALSE;
++		index_id_t	old_id[31];
++		index_id_t	new_id[31];
++		ulint		root_page[31];
++		ulint		n_index;
++		os_file_t	info_file = -1;
++		char*		info_file_path;
++		ulint	i;
++		int		len;
++		ib_uint64_t	current_lsn;
++		ulint		size_low, size_high, size, free_limit;
++		ib_int64_t	size_bytes, free_limit_bytes;
++		dict_table_t*	table;
++		dict_index_t*	index;
++		fil_system_t*	system;
++		fil_node_t*	node = NULL;
++		fil_space_t*	space;
++
++		buf3 = ut_malloc(2 * UNIV_PAGE_SIZE);
++		descr_page = ut_align(buf3, UNIV_PAGE_SIZE);
++
++		current_lsn = log_get_lsn();
++
++		/* check the header page's consistency */
++		if (buf_page_is_corrupted(page,
++					  dict_table_flags_to_zip_size(space_flags))) {
++			fprintf(stderr, "InnoDB: page 0 of %s seems corrupt.\n", filepath);
++			file_is_corrupt = TRUE;
++			descr_is_corrupt = TRUE;
++		}
++
++		/* store as first descr page */
++		memcpy(descr_page, page, UNIV_PAGE_SIZE);
++
++		/* get free limit (page number) of the table space */
++/* these should be same to the definition in fsp0fsp.c */
++#define FSP_HEADER_OFFSET	FIL_PAGE_DATA
++#define	FSP_FREE_LIMIT		12
++		free_limit = mach_read_from_4(FSP_HEADER_OFFSET + FSP_FREE_LIMIT + page);
++		free_limit_bytes = (ib_int64_t)free_limit * (ib_int64_t)UNIV_PAGE_SIZE;
++
++		/* overwrite fsp header */
++		fsp_header_init_fields(page, id, flags);
++		mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
++		space_id = id;
++		space_flags = flags;
++		if (mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN) > current_lsn)
++			mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
++		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
++				srv_use_checksums
++				? buf_calc_page_new_checksum(page)
++						: BUF_NO_CHECKSUM_MAGIC);
++		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
++				srv_use_checksums
++				? buf_calc_page_old_checksum(page)
++						: BUF_NO_CHECKSUM_MAGIC);
++		success = os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE);
++
++		/* get file size */
++		os_file_get_size(file, &size_low, &size_high);
++		size_bytes = (((ib_int64_t)size_high) << 32)
++				+ (ib_int64_t)size_low;
++
++		if (size_bytes < free_limit_bytes) {
++			free_limit_bytes = size_bytes;
++			if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
++				fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
++				file_is_corrupt = TRUE;
++			}
++		}
++
++		/* get cruster index information */
++		table = dict_table_get_low(name);
++		index = dict_table_get_first_index(table);
++		ut_a(index->page==3);
++
++		/* read metadata from .exp file */
++		n_index = 0;
++		memset(old_id, 0, sizeof(old_id));
++		memset(new_id, 0, sizeof(new_id));
++		memset(root_page, 0, sizeof(root_page));
++
++		info_file_path = fil_make_ibd_name(name, FALSE);
++		len = strlen(info_file_path);
++		info_file_path[len - 3] = 'e';
++		info_file_path[len - 2] = 'x';
++		info_file_path[len - 1] = 'p';
++
++		info_file = os_file_create_simple_no_error_handling(innodb_file_data_key,
++				info_file_path, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
++		if (!success) {
++			fprintf(stderr, "InnoDB: cannot open %s\n", info_file_path);
++			file_is_corrupt = TRUE;
++			goto skip_info;
++		}
++		success = os_file_read(info_file, page, 0, 0, UNIV_PAGE_SIZE);
++		if (!success) {
++			fprintf(stderr, "InnoDB: cannot read %s\n", info_file_path);
++			file_is_corrupt = TRUE;
++			goto skip_info;
++		}
++		if (mach_read_from_4(page) != 0x78706f72UL
++		    || mach_read_from_4(page + 4) != 0x74696e66UL) {
++			fprintf(stderr, "InnoDB: %s seems not to be a correct .exp file\n", info_file_path);
++			file_is_corrupt = TRUE;
++			goto skip_info;
++		}
++
++		fprintf(stderr, "InnoDB: import: extended import of %s is started.\n", name);
++
++		n_index = mach_read_from_4(page + 8);
++		fprintf(stderr, "InnoDB: import: %lu indexes are detected.\n", (ulong)n_index);
++		for (i = 0; i < n_index; i++) {
++			new_id[i] =
++				dict_table_get_index_on_name(table,
++						(char*)(page + (i + 1) * 512 + 12))->id;
++			old_id[i] = mach_read_from_8(page + (i + 1) * 512);
++			root_page[i] = mach_read_from_4(page + (i + 1) * 512 + 8);
++		}
++
++skip_info:
++		if (info_file != -1)
++			os_file_close(info_file);
++
++		/*
++		if (size_bytes >= 1024 * 1024) {
++			size_bytes = ut_2pow_round(size_bytes, 1024 * 1024);
++		}
++		*/
++		if (!(flags & DICT_TF_ZSSIZE_MASK)) {
++			mem_heap_t*	heap = NULL;
++			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
++			ulint*		offsets = offsets_;
++			ib_int64_t	offset;
++
++			size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
++			/* over write space id of all pages */
++			rec_offs_init(offsets_);
++
++			fprintf(stderr, "InnoDB: Progress in %%:");
++
++			for (offset = 0; offset < free_limit_bytes; offset += UNIV_PAGE_SIZE) {
++				ulint		checksum_field;
++				ulint		old_checksum_field;
++				ibool		page_is_corrupt;
++
++				success = os_file_read(file, page,
++							(ulint)(offset & 0xFFFFFFFFUL),
++							(ulint)(offset >> 32), UNIV_PAGE_SIZE);
++
++				page_is_corrupt = FALSE;
++
++				/* check consistency */
++				if (memcmp(page + FIL_PAGE_LSN + 4,
++					   page + UNIV_PAGE_SIZE
++					   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
++
++					page_is_corrupt = TRUE;
++				}
++
++				if (mach_read_from_4(page + FIL_PAGE_OFFSET)
++				    != offset / UNIV_PAGE_SIZE) {
++
++					page_is_corrupt = TRUE;
++				}
++
++				checksum_field = mach_read_from_4(page
++								  + FIL_PAGE_SPACE_OR_CHKSUM);
++
++				old_checksum_field = mach_read_from_4(
++					page + UNIV_PAGE_SIZE
++					- FIL_PAGE_END_LSN_OLD_CHKSUM);
++
++				if (old_checksum_field != mach_read_from_4(page
++									   + FIL_PAGE_LSN)
++				    && old_checksum_field != BUF_NO_CHECKSUM_MAGIC
++				    && old_checksum_field
++				    != buf_calc_page_old_checksum(page)) {
++
++					page_is_corrupt = TRUE;
++				}
++
++				if (checksum_field != 0
++				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
++				    && checksum_field
++				    != buf_calc_page_new_checksum(page)) {
++
++					page_is_corrupt = TRUE;
++				}
++
++				/* if it is free page, inconsistency is acceptable */
++				if (!offset) {
++					/* header page*/
++					/* it should be overwritten already */
++					ut_a(!page_is_corrupt);
++
++				} else if (!((offset / UNIV_PAGE_SIZE) % UNIV_PAGE_SIZE)) {
++					/* descr page (not header) */
++					if (page_is_corrupt) {
++						file_is_corrupt = TRUE;
++						descr_is_corrupt = TRUE;
++					} else {
++						ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES);
++						descr_is_corrupt = FALSE;
++					}
++
++					/* store as descr page */
++					memcpy(descr_page, page, UNIV_PAGE_SIZE);
++
++				} else if (descr_is_corrupt) {
++					/* unknown state of the page */
++					if (page_is_corrupt) {
++						file_is_corrupt = TRUE;
++					}
++
++				} else {
++					/* check free page or not */
++					/* These definitions should be same to fsp0fsp.c */
++#define	FSP_HEADER_SIZE		(32 + 5 * FLST_BASE_NODE_SIZE)
++
++#define	XDES_BITMAP		(FLST_NODE_SIZE + 12)
++#define	XDES_BITS_PER_PAGE	2
++#define	XDES_FREE_BIT		0
++#define	XDES_SIZE							\
++	(XDES_BITMAP + UT_BITS_IN_BYTES(FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE))
++#define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
++
++					/*descr = descr_page + XDES_ARR_OFFSET + XDES_SIZE * xdes_calc_descriptor_index(zip_size, offset)*/
++					/*xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)*/
++					byte*	descr;
++					ulint	index;
++					ulint	byte_index;
++					ulint	bit_index;
++
++					descr = descr_page + XDES_ARR_OFFSET
++						+ XDES_SIZE * (ut_2pow_remainder((offset / UNIV_PAGE_SIZE), UNIV_PAGE_SIZE) / FSP_EXTENT_SIZE);
++
++					index = XDES_FREE_BIT + XDES_BITS_PER_PAGE * ((offset / UNIV_PAGE_SIZE) % FSP_EXTENT_SIZE);
++					byte_index = index / 8;
++					bit_index = index % 8;
++
++					if (ut_bit_get_nth(mach_read_from_1(descr + XDES_BITMAP + byte_index), bit_index)) {
++						/* free page */
++						if (page_is_corrupt) {
++							goto skip_write;
++						}
++					} else {
++						/* not free */
++						if (page_is_corrupt) {
++							file_is_corrupt = TRUE;
++						}
++					}
++				}
++
++				if (page_is_corrupt) {
++					fprintf(stderr, " [errp:%lld]", offset / UNIV_PAGE_SIZE);
++
++					/* cannot treat corrupt page */
++					goto skip_write;
++				}
++
++				if (mach_read_from_4(page + FIL_PAGE_OFFSET) || !offset) {
++					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
++
++					for (i = 0; i < n_index; i++) {
++						if (offset / UNIV_PAGE_SIZE == root_page[i]) {
++							/* this is index root page */
++							mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
++											+ FSEG_HDR_SPACE, id);
++							mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
++											+ FSEG_HDR_SPACE, id);
++							break;
++						}
++					}
++
++					if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
++						index_id_t tmp = mach_read_from_8(page + (PAGE_HEADER + PAGE_INDEX_ID));
++
++						if (mach_read_from_2(page + PAGE_HEADER + PAGE_LEVEL) == 0
++						    && old_id[0] == tmp) {
++							/* leaf page of cluster index, reset trx_id of records */
++							rec_t*	rec;
++							rec_t*	supremum;
++							ulint	n_recs;
++
++							supremum = page_get_supremum_rec(page);
++							rec = page_rec_get_next(page_get_infimum_rec(page));
++							n_recs = page_get_n_recs(page);
++
++							while (rec && rec != supremum && n_recs > 0) {
++								ulint	n_fields;
++								ulint	i;
++								ulint	offset = index->trx_id_offset;
++								offsets = rec_get_offsets(rec, index, offsets,
++										ULINT_UNDEFINED, &heap);
++								n_fields = rec_offs_n_fields(offsets);
++								if (!offset) {
++									offset = row_get_trx_id_offset(rec, index, offsets);
++								}
++								trx_write_trx_id(rec + offset, 1);
++
++								for (i = 0; i < n_fields; i++) {
++									if (rec_offs_nth_extern(offsets, i)) {
++										ulint	local_len;
++										byte*	data;
++
++										data = rec_get_nth_field(rec, offsets, i, &local_len);
++
++										local_len -= BTR_EXTERN_FIELD_REF_SIZE;
++
++										mach_write_to_4(data + local_len + BTR_EXTERN_SPACE_ID, id);
++									}
++								}
++
++								rec = page_rec_get_next(rec);
++								n_recs--;
++							}
++						}
++
++						for (i = 0; i < n_index; i++) {
++							if (old_id[i] == tmp) {
++								mach_write_to_8(page + (PAGE_HEADER + PAGE_INDEX_ID), new_id[i]);
++								break;
++							}
++						}
++					}
++
++					if (mach_read_from_8(page + FIL_PAGE_LSN) > current_lsn) {
++						mach_write_to_8(page + FIL_PAGE_LSN, current_lsn);
++						mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
++										current_lsn);
++					}
++
++					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
++							srv_use_checksums
++							? buf_calc_page_new_checksum(page)
++									: BUF_NO_CHECKSUM_MAGIC);
++					mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
++							srv_use_checksums
++							? buf_calc_page_old_checksum(page)
++									: BUF_NO_CHECKSUM_MAGIC);
++
++					success = os_file_write(filepath, file, page,
++								(ulint)(offset & 0xFFFFFFFFUL),
++								(ulint)(offset >> 32), UNIV_PAGE_SIZE);
++				}
++
++skip_write:
++				if (free_limit_bytes
++				    && ((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / free_limit_bytes)
++					!= ((offset * 100) / free_limit_bytes)) {
++					fprintf(stderr, " %lu",
++						(ulong)((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / free_limit_bytes));
++				}
++			}
++
++			fprintf(stderr, " done.\n");
++
++			/* update SYS_INDEXES set root page */
++			index = dict_table_get_first_index(table);
++			while (index) {
++				for (i = 0; i < n_index; i++) {
++					if (new_id[i] == index->id) {
++						break;
++					}
++				}
++
++				if (i != n_index
++				    && root_page[i] != index->page) {
++					/* must update */
++					ulint	error;
++					trx_t*	trx;
++					pars_info_t*	info = NULL;
++
++					trx = trx_allocate_for_mysql();
++					trx->op_info = "extended import";
++
++					info = pars_info_create();
++
++					pars_info_add_ull_literal(info, "indexid", new_id[i]);
++					pars_info_add_int4_literal(info, "new_page", (lint) root_page[i]);
++
++					error = que_eval_sql(info,
++						"PROCEDURE UPDATE_INDEX_PAGE () IS\n"
++						"BEGIN\n"
++						"UPDATE SYS_INDEXES"
++						" SET PAGE_NO = :new_page"
++						" WHERE ID = :indexid;\n"
++						"COMMIT WORK;\n"
++						"END;\n",
++						FALSE, trx);
++
++					if (error != DB_SUCCESS) {
++						fprintf(stderr, "InnoDB: failed to update SYS_INDEXES\n");
++					}
++
++					trx_commit_for_mysql(trx);
++
++					trx_free_for_mysql(trx);
++
++					index->page = root_page[i];
++				}
++
++				index = dict_table_get_next_index(index);
++			}
++			if (UNIV_LIKELY_NULL(heap)) {
++				mem_heap_free(heap);
++			}
++		} else {
++			/* zip page? */
++			size = (ulint)
++			(size_bytes
++					/ dict_table_flags_to_zip_size(flags));
++			fprintf(stderr, "InnoDB: import: table %s seems to be in newer format."
++					" It may not be able to treated for now.\n", name);
++		}
++		/* .exp file should be removed */
++		success = os_file_delete(info_file_path);
++		if (!success) {
++			success = os_file_delete_if_exists(info_file_path);
++		}
++		mem_free(info_file_path);
++
++		system	= fil_system;
++		mutex_enter(&(system->mutex));
++		space = fil_space_get_by_id(id);
++		if (space)
++			node = UT_LIST_GET_FIRST(space->chain);
++		if (node && node->size < size) {
++			space->size += (size - node->size);
++			node->size = size;
++		}
++		mutex_exit(&(system->mutex));
++
++		ut_free(buf3);
++
++		if (file_is_corrupt) {
++			ut_print_timestamp(stderr);
++			fputs("  InnoDB: Error: file ",
++			      stderr);
++			ut_print_filename(stderr, filepath);
++			fprintf(stderr, " seems to be corrupt.\n"
++				"InnoDB: anyway, all not corrupt pages were tried to be converted to salvage.\n"
++				"InnoDB: ##### CAUTION #####\n"
++				"InnoDB: ## The .ibd must cause to crash InnoDB, though re-import would seem to be succeeded.\n"
++				"InnoDB: ## If you don't have knowledge about salvaging data from .ibd, you should not use the file.\n"
++				"InnoDB: ###################\n");
++			success = FALSE;
++
++			ut_free(buf2);
++
++			goto func_exit;
++		}
++	}
++
+ 	ut_free(buf2);
+ 
+ 	if (UNIV_UNLIKELY(space_id != id
+diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
+--- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:49:59.195023983 +0900
++++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:52:23.555957062 +0900
+@@ -11512,6 +11512,11 @@
+   "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
+   NULL, NULL, 0, 0, 1, 0);
+ 
++static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
++  PLUGIN_VAR_RQCMDARG,
++  "Enable/Disable converting automatically *.ibd files when import tablespace.",
++  NULL, NULL, 0, 0, 1, 0);
++
+ static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
+   PLUGIN_VAR_RQCMDARG,
+   "Number of extra user rollback segments which are used in a round-robin fashion.",
+@@ -11589,6 +11594,7 @@
+   MYSQL_SYSVAR(adaptive_checkpoint),
+   MYSQL_SYSVAR(flush_log_at_trx_commit_session),
+   MYSQL_SYSVAR(enable_unsafe_group_commit),
++  MYSQL_SYSVAR(expand_import),
+   MYSQL_SYSVAR(extra_rsegments),
+   MYSQL_SYSVAR(dict_size_limit),
+   MYSQL_SYSVAR(use_sys_malloc),
+diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
+--- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:49:59.208953604 +0900
++++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:52:23.560983850 +0900
+@@ -30,6 +30,7 @@
+ {"innodb_extra_rseg","allow to create extra rollback segments","Limit number of rollback segments to be used.","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
+ {"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
++{"innodb_expand_import","convert .ibd file automatically when import tablespace","the files are generated by xtrabackup export mode.","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {NULL, NULL, NULL, NULL}
+diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
+--- a/storage/innobase/include/srv0srv.h	2010-12-03 15:48:03.077954270 +0900
++++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:52:23.561986996 +0900
+@@ -217,6 +217,8 @@
+ extern ulint	srv_read_ahead;
+ extern ulint	srv_adaptive_checkpoint;
+ 
++extern ulint	srv_expand_import;
++
+ extern ulint	srv_extra_rsegments;
+ extern ulint	srv_dict_size_limit;
+ /*-------------------------------------------*/
+diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
+--- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:49:59.230956118 +0900
++++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:52:23.562954411 +0900
+@@ -410,6 +410,8 @@
+ UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
+ UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+ 
++UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
++
+ UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
+ UNIV_INTERN ulint	srv_dict_size_limit = 0;
+ /*-------------------------------------------*/

@@ -6,7 +6,8 @@ echo PERCONA_SERVER=${PERCONA_SERVER}
 install_path()
 {
     echo "Installing mysql-test files: $2"
-    find $1 -iname '*.opt' -o -iname '*.test' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/t/ ';'
+    find $1 -iname '*.test' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/t/ ';'
+    find $1 -iname '*.opt' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/t/ ';'
     find $1 -iname '*.result' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/r/ ';'
     find $1 -iname '*.inc' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/include/ ';'
 }

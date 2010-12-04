@@ -121,7 +121,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  
  	thr = que_fork_get_first_thr(prebuilt->ins_graph);
  
-+	if (!prebuilt->mysql_has_locked) {
++	if (!prebuilt->mysql_has_locked && !(prebuilt->table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT))) {
 +		fprintf(stderr, "InnoDB: Error: row_insert_for_mysql is called without ha_innobase::external_lock()\n");
 +		if (trx->mysql_thd != NULL) {
 +			innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
@@ -142,14 +142,16 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  
  	rec_offs_init(offsets_);
  
-@@ -3708,6 +3709,15 @@
+@@ -3708,6 +3709,17 @@
  
  	/* Do some start-of-statement preparations */
  
 +	if (!prebuilt->mysql_has_locked) {
-+		fprintf(stderr, "InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock()\n");
-+		if (trx->mysql_thd != NULL) {
-+			innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
++		if (!(prebuilt->table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT))) {
++			fprintf(stderr, "InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock()\n");
++			if (trx->mysql_thd != NULL) {
++				innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
++			}
 +		}
 +		problematic_use = TRUE;
 +	}
@@ -158,7 +160,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3718,6 +3728,14 @@
+@@ -3718,6 +3730,18 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -167,6 +169,10 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 +						"without ha_innobase::external_lock()\n"
 +						"InnoDB: For the first-aid, avoiding the crash. "
 +						"But it should be fixed ASAP.\n");
++				if (prebuilt->table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT)
++				    && trx->mysql_thd != NULL) {
++					innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
++				}
 +				prebuilt->sql_stat_start = TRUE;
 +				goto retry_check;
 +			}

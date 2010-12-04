@@ -190,7 +190,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
 --- a/sql/query_response_time.cc	1970-01-01 00:00:00.000000000 +0000
 +++ b/sql/query_response_time.cc	2010-11-02 15:34:52.000000000 +0000
-@@ -0,0 +1,362 @@
+@@ -0,0 +1,367 @@
 +#ifdef __FreeBSD__
 +#include <sys/types.h>
 +#include <machine/atomic.h>
@@ -440,6 +440,11 @@ diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
 +  }
 +  void collect(uint64 time)
 +  {
++    bool no_collect= false;
++    DBUG_EXECUTE_IF("response_time_distribution_log_only_more_300_milliseconds", {   \
++        no_collect= time < 300 * 1000; \
++      });
++    if(no_collect) return;
 +    int i= 0;
 +    for(int count= m_utility->bound_count(); count > i; ++i)
 +    {

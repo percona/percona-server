@@ -21,3 +21,11 @@ innodb_recovery_patches.patch
 innodb_admin_command_base.patch
 innodb_show_lock_name.patch
 innodb_extend_slow.patch
+innodb_lru_dump_restore.patch
+innodb_separate_doublewrite.patch
+innodb_pass_corrupt_table.patch
+innodb_fast_checksum.patch
+innodb_files_extend.patch
+innodb_fix_misc.patch
+innodb_deadlock_count.patch
+innodb_adaptive_hash_index_num.patch

@@ -1,4 +1,6 @@
 source include/have_innodb.inc;
+source include/have_debug.inc;
+SET SESSION debug="+d,response_time_distribution_log_only_more_300_milliseconds";
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 2;
@@ -63,3 +65,4 @@ SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE  =10;
+SET SESSION debug="-d,response_time_distribution_log_only_more_300_milliseconds";

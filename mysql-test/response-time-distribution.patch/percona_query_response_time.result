@@ -1,3 +1,4 @@
+SET SESSION debug="+d,response_time_distribution_log_only_more_300_milliseconds";
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1;
 Warnings:
 Warning	1292	Truncated incorrect query_response_time_range_base value: '1'
@@ -131,11 +132,10 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	15	5	44
-10	20	15	5	44
-1	20	15	5	44
-5	20	15	5	44
-3	20	15	5	44
+10	19	15	4	44
+1	19	15	4	44
+5	19	15	4	44
+3	19	15	4	44
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 44
@@ -259,9 +259,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	14
-11	20	17	3	14
-8	20	17	3	14
+11	19	17	2	14
+8	19	17	2	14
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 14
@@ -355,9 +354,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	17
-11	20	17	3	17
-8	20	17	3	17
+11	19	17	2	17
+8	19	17	2	17
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 17
@@ -454,9 +452,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	7
-11	20	17	3	7
-8	20	17	3	7
+11	19	17	2	7
+8	19	17	2	7
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 7
@@ -543,9 +540,8 @@ SELECT d.count,
 (SELECT COUNT(*)     FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME) as region_count
 FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME as d WHERE d.count > 0;
 count	query_count	query_total	not_zero_region_count	region_count
-1	20	17	3	6
-11	20	17	3	6
-8	20	17	3	6
+11	19	17	2	6
+8	19	17	2	6
 SELECT COUNT(*) as region_count FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 region_count
 6
@@ -568,3 +564,4 @@ Variable_name	Value
 query_response_time_range_base	1000
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE  =10;
+SET SESSION debug="-d,response_time_distribution_log_only_more_300_milliseconds";

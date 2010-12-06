@@ -1,11 +1,12 @@
 FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
 MYSQL_VERSION=5.1.53
+PERCONA_SERVER ?=Percona-Server
 
 all: main install-lic tests misc handlersocket autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
-	@echo "Now change directory to Percona-Server define variables as show below"
+	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
 	@echo ""
 	export CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
 	export CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
@@ -15,22 +16,22 @@ all: main install-lic tests misc handlersocket autorun
 	@echo ""
 
 autorun:
-	cd Percona-Server && ./BUILD/autorun.sh
+	cd $(PERCONA_SERVER) && ./BUILD/autorun.sh
 
 handlersocket:
-	cp -R HandlerSocket-Plugin-for-MySQL Percona-Server/storage
+	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
 
 install-lic: 
 	@echo "Installing license files"
-	install -m 644 COPYING.* Percona-Server
+	install -m 644 COPYING.* $(PERCONA_SERVER)
 
 main: mysql-$(MYSQL_VERSION).tar.gz
 	@echo "Prepare Percona Server sources"
 	rm -rf mysql-$(MYSQL_VERSION)
-	rm -rf Percona-Server
+	rm -rf $(PERCONA_SERVER)
 	tar zxf mysql-$(MYSQL_VERSION).tar.gz
-	mv mysql-$(MYSQL_VERSION) Percona-Server
-	(cat `cat series`) | patch -p1 -d Percona-Server
+	mv mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
+	(cat `cat series`) | patch -p1 -d $(PERCONA_SERVER)
 
 mysql-$(MYSQL_VERSION).tar.gz:
 	@echo "Downloading MySQL sources from $(MASTER_SITE)"
@@ -41,9 +42,9 @@ tests:
 
 misc:
 	@echo "Installing other files"
-	install -m 644 lrusort.py Percona-Server/scripts
+	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
 clean:
-	rm -rf mysql-$(MYSQL_VERSION) Percona-Server
+	rm -rf mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
 	rm -f mysql-$(MYSQL_VERSION).tar.gz
 

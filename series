@@ -29,3 +29,4 @@ innodb_files_extend.patch
 innodb_fix_misc.patch
 innodb_deadlock_count.patch
 innodb_adaptive_hash_index_num.patch
+innodb_buffer_pool_pages_i_s.patch

@@ -886,7 +886,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-04 15:55:21.351597052 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-04 16:12:48.654550708 +0900
-@@ -1477,7 +1477,7 @@
+@@ -1479,7 +1479,7 @@
  			/* To follow the latching order, we
  			have to release btr_search_latch
  			before acquiring block->latch. */
@@ -895,7 +895,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			/* When we release the search latch,
  			we must rescan all blocks, because
  			some may become hashed again. */
-@@ -1508,11 +1508,11 @@
+@@ -1510,11 +1510,11 @@
  			anything.  block->is_hashed can only
  			be set on uncompressed file pages. */
  			
@@ -909,7 +909,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			
  			ut_ad(!btr_search_enabled);
  		}
-@@ -1531,7 +1531,11 @@
+@@ -1533,7 +1533,11 @@
  	ibool		released_search_latch;
  
  #ifdef UNIV_SYNC_DEBUG

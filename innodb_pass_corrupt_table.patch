@@ -343,7 +343,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			if (!ready) {
  
  				return(block);
-@@ -2476,6 +2482,14 @@
+@@ -2478,6 +2484,14 @@
  		return(NULL);
  	}
  
@@ -358,7 +358,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&buf_pool->page_hash_latch);
-@@ -3022,6 +3036,14 @@
+@@ -3024,6 +3038,14 @@
  		return(NULL);
  	}
  
@@ -373,7 +373,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -3649,6 +3671,7 @@
+@@ -3651,6 +3673,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -381,7 +381,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #ifdef UNIV_DEBUG_FILE_ACCESSES
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES */
-@@ -4159,7 +4182,8 @@
+@@ -4161,7 +4184,8 @@
  void
  buf_page_io_complete(
  /*=================*/
@@ -391,7 +391,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  {
  	enum buf_io_fix	io_type;
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-@@ -4238,6 +4262,7 @@
+@@ -4240,6 +4264,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -399,7 +399,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -4279,6 +4304,19 @@
+@@ -4281,6 +4306,19 @@
  			      REFMAN "forcing-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -419,7 +419,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				fputs("InnoDB: Ending processing because of"
  				      " a corrupt database page.\n",
-@@ -4286,6 +4324,7 @@
+@@ -4288,6 +4326,7 @@
  				exit(1);
  			}
  		}
@@ -427,7 +427,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -4295,8 +4334,11 @@
+@@ -4297,8 +4336,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(

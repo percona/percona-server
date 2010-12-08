@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:21.358513751 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:58.243481131 +0900
-@@ -4746,9 +4746,9 @@
+@@ -4754,9 +4754,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
  	ut_ad(len > 0);

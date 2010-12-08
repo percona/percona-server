@@ -109,7 +109,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:52:23.406513743 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:53:45.020513800 +0900
-@@ -3117,7 +3117,9 @@
+@@ -3125,7 +3125,9 @@
  			mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
@@ -120,7 +120,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3249,7 +3251,8 @@
+@@ -3257,7 +3259,8 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -130,7 +130,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
  				    && checksum_field
  				    != buf_calc_page_new_checksum(page)) {
-@@ -3257,6 +3260,17 @@
+@@ -3265,6 +3268,17 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -148,7 +148,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  				/* if it is free page, inconsistency is acceptable */
  				if (!offset) {
  					/* header page*/
-@@ -3402,7 +3416,9 @@
+@@ -3410,7 +3424,9 @@
  
  					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  							srv_use_checksums

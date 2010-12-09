@@ -50,3 +50,4 @@ remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
 show_slave_status_nolock.patch
 innodb_fast_shutdown.patch
+mysql_remove_eol_carret.patch

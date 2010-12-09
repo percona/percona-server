@@ -52,3 +52,4 @@ show_slave_status_nolock.patch
 innodb_fast_shutdown.patch
 bug677407.patch
 fix-bug671764.patch
+mysql_remove_eol_carret.patch

@@ -109,7 +109,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:40:36.522990504 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:42:03.602023484 +0900
-@@ -3096,7 +3096,9 @@
+@@ -3104,7 +3104,9 @@
  			mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
@@ -120,7 +120,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3226,7 +3228,8 @@
+@@ -3234,7 +3236,8 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -130,7 +130,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
  				    && checksum_field
  				    != buf_calc_page_new_checksum(page)) {
-@@ -3234,6 +3237,17 @@
+@@ -3242,6 +3245,17 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -148,7 +148,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				/* if it is free page, inconsistency is acceptable */
  				if (!offset) {
  					/* header page*/
-@@ -3379,7 +3393,9 @@
+@@ -3387,7 +3401,9 @@
  
  					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  							srv_use_checksums

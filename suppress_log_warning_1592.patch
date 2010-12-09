@@ -1,0 +1,91 @@
+# name       : suppress_log_warning_1592.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2010-11-16 23:20:22.000000000 +0500
++++ b/sql/mysqld.cc	2010-11-16 23:22:07.000000000 +0500
+@@ -392,6 +392,7 @@
+ my_bool opt_enable_named_pipe= 0;
+ my_bool opt_local_infile, opt_slave_compressed_protocol;
+ my_bool opt_safe_user_create = 0;
++my_bool opt_suppress_log_warning_1592= FALSE;
+ my_bool opt_show_slave_auth_info;
+ my_bool opt_log_slave_updates= 0;
+ char *opt_slave_skip_errors;
+diff -ruN a/sql/mysqld.h b/sql/mysqld.h
+--- a/sql/mysqld.h	2010-11-16 23:20:22.000000000 +0500
++++ b/sql/mysqld.h	2010-11-16 23:21:10.000000000 +0500
+@@ -104,6 +104,7 @@
+ extern uint connection_count;
+ extern my_bool opt_safe_user_create;
+ extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
++extern my_bool opt_suppress_log_warning_1592;
+ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+ extern ulong slave_exec_mode_options;
+ extern ulonglong slave_type_conversions_options;
+diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
+--- a/sql/sys_vars.cc	2010-11-16 23:20:22.000000000 +0500
++++ b/sql/sys_vars.cc	2010-11-16 23:30:38.000000000 +0500
+@@ -1430,6 +1430,12 @@
+        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
+        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
+ 
++static Sys_var_mybool Sys_suppress_log_warning_1592(
++						    "suppress_log_warning_1592",
++						    "suppress warning about unsafe statements for binary logging",
++       GLOBAL_VAR(opt_suppress_log_warning_1592), CMD_LINE(OPT_ARG),
++       DEFAULT(FALSE));
++
+ static Sys_var_ulong Sys_preload_buff_size(
+        "preload_buffer_size",
+        "The size of the buffer that is allocated when preloading indexes",
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
+--- a/sql/sql_class.cc	2010-11-03 03:01:14.000000000 +0500
++++ b/sql/sql_class.cc	2010-11-17 00:06:49.000000000 +0500
+@@ -4503,7 +4503,7 @@
+                           ER_BINLOG_UNSAFE_STATEMENT,
+                           ER(ER_BINLOG_UNSAFE_STATEMENT),
+                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+-      if (global_system_variables.log_warnings)
++      if (global_system_variables.log_warnings && !opt_suppress_log_warning_1592)
+       {
+         char buf[MYSQL_ERRMSG_SIZE * 2];
+         sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
+diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
+--- a/mysql-test/r/mysqld--help-notwin.result	2010-11-03 03:01:12.000000000 +0500
++++ b/mysql-test/r/mysqld--help-notwin.result	2010-11-17 00:15:40.000000000 +0500
+@@ -657,6 +657,9 @@
+  replication.
+  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
+  for the complete list of valid sql modes
++ --suppress-log-warning-1592 
++ suppress warning about unsafe statements for binary
++ logging
+  -s, --symbolic-links 
+  Enable symbolic link support.
+  --sync-binlog=#     Synchronously flush binary log to disk after every #th
+@@ -916,6 +919,7 @@
+ sort-buffer-size 2097152
+ sporadic-binlog-dump-fail FALSE
+ sql-mode 
++suppress-log-warning-1592 FALSE
+ symbolic-links FALSE
+ sync-binlog 0
+ sync-frm TRUE
+diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
+--- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-03 01:01:13.000000000 +0300
++++ b/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-23 20:04:40.000000000 +0300
+@@ -10,7 +10,9 @@
+ select variable_name as `There should be *no* variables listed below:` from t2
+ left join t1 on variable_name=test_name where test_name is null;
+ There should be *no* variables listed below:
++SUPPRESS_LOG_WARNING_1592
+ INNODB_FILE_FORMAT_MAX
++SUPPRESS_LOG_WARNING_1592
+ INNODB_FILE_FORMAT_MAX
+ drop table t1;
+ drop table t2;

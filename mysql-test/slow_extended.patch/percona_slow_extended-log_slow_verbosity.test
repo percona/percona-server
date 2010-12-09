@@ -1,0 +1,10 @@
+source include/have_innodb.inc;
+
+SELECT sleep(2);
+
+set log_slow_verbosity=innodb;
+
+SELECT sleep(2);
+
+let $cmd = cat $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-log_slow_verbosity.log | grep "No InnoDB statistics available for this query" | wc -l;
+exec $cmd;

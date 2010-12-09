@@ -15,6 +15,23 @@ diff -ruN a/patch_info/show_patches.info b/patch_info/show_patches.info
 +Author=Jeremy Cole
 +License=N/A
 +Comment=
+diff -ruN b/sql/CMakeLists.txt Percona-Server/sql/CMakeLists.txt
+--- b/sql/CMakeLists.txt        2010-12-09 19:59:13.000000000 +0300
++++ Percona-Server/sql/CMakeLists.txt   2010-12-09 19:55:37.000000000 +0300
+@@ -27,9 +27,13 @@
+ ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+ ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+ ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
++${CMAKE_CURRENT_BINARY_DIR}/patch_info.h
+ )
+ 
+ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
++ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/patch_info.h
++                         COMMAND perl < ${CMAKE_CURRENT_SOURCE_DIR}/patch_info.h.pl > ${CMAKE_CURRENT_BINARY_DIR}/patch_info.h
++                         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+ 
+ ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER) 
+ IF(SSL_DEFINES)
 diff -ruN a/sql/Makefile.am b/sql/Makefile.am
 --- a/sql/Makefile.am	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/Makefile.am	2010-11-17 12:19:49.947459151 +0900

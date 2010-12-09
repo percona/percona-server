@@ -435,7 +435,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (trx->n_mysql_tables_in_use == 0) {
 +#ifdef EXTENDED_SLOWLOG
 +		increment_thd_innodb_stats(thd,
-+					(unsigned long long) ut_conv_dulint_to_longlong(trx->id),
++					(unsigned long long) trx->id,
 +					trx->io_reads,
 +					trx->io_read,
 +					trx->io_reads_wait_timer,

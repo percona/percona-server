@@ -822,7 +822,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       GLOBAL_VAR(opt_query_response_time_range_base),
 +       CMD_LINE(REQUIRED_ARG), VALID_RANGE(2, QRT_MAXIMUM_BASE),
 +       DEFAULT(QRT_DEFAULT_BASE),
-+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
++       BLOCK_SIZE(1));
 +
  static Sys_var_mybool Sys_secure_auth(
         "secure_auth",

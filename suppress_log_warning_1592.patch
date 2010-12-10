@@ -55,37 +55,3 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
        {
          char buf[MYSQL_ERRMSG_SIZE * 2];
          sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
-diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
---- a/mysql-test/r/mysqld--help-notwin.result	2010-11-03 03:01:12.000000000 +0500
-+++ b/mysql-test/r/mysqld--help-notwin.result	2010-11-17 00:15:40.000000000 +0500
-@@ -657,6 +657,9 @@
-  replication.
-  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
-  for the complete list of valid sql modes
-+ --suppress-log-warning-1592 
-+ suppress warning about unsafe statements for binary
-+ logging
-  -s, --symbolic-links 
-  Enable symbolic link support.
-  --sync-binlog=#     Synchronously flush binary log to disk after every #th
-@@ -916,6 +919,7 @@
- sort-buffer-size 2097152
- sporadic-binlog-dump-fail FALSE
- sql-mode 
-+suppress-log-warning-1592 FALSE
- symbolic-links FALSE
- sync-binlog 0
- sync-frm TRUE
-diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
---- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-03 01:01:13.000000000 +0300
-+++ b/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-23 20:04:40.000000000 +0300
-@@ -10,7 +10,9 @@
- select variable_name as `There should be *no* variables listed below:` from t2
- left join t1 on variable_name=test_name where test_name is null;
- There should be *no* variables listed below:
-+SUPPRESS_LOG_WARNING_1592
- INNODB_FILE_FORMAT_MAX
-+SUPPRESS_LOG_WARNING_1592
- INNODB_FILE_FORMAT_MAX
- drop table t1;
- drop table t2;

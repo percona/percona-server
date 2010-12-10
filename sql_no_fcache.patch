@@ -120,18 +120,6 @@ diff -ruN a/include/flashcache_ioctl.h b/include/flashcache_ioctl.h
 +#define FLASHCACHEDELALLWHITELIST      _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELISTALL_CMD, pid_t)
 +
 +#endif
-diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
---- a/mysql-test/r/mysqldump.result	2010-07-28 16:47:58.334083833 +0400
-+++ b/mysql-test/r/mysqldump.result	2010-07-28 16:48:14.805318437 +0400
-@@ -1832,7 +1832,7 @@
- # Bug#21288 mysqldump segmentation fault when using --where
- #
- create table t1 (a int);
--mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
-+mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ /*!50084 SQL_NO_FCACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
- mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
- 
- /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 diff -ruN a/patch_info/sql_no_fcache.info b/patch_info/sql_no_fcache.info
 --- a/patch_info/sql_no_fcache.info	1970-01-01 03:00:00.000000000 +0300
 +++ b/patch_info/sql_no_fcache.info	2010-07-28 16:47:59.915439165 +0400

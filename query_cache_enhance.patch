@@ -489,17 +489,3 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  static Sys_var_ulong Sys_query_cache_limit(
         "query_cache_limit",
         "Don't cache results that are bigger than this",
-diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
---- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-03 01:01:13.000000000 +0300
-+++ b/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-23 20:04:40.000000000 +0300
-@@ -10,8 +10,10 @@
- select variable_name as `There should be *no* variables listed below:` from t2
- left join t1 on variable_name=test_name where test_name is null;
- There should be *no* variables listed below:
-+QUERY_CACHE_STRIP_COMMENTS
- SUPPRESS_LOG_WARNING_1592
- INNODB_FILE_FORMAT_MAX
-+QUERY_CACHE_STRIP_COMMENTS
- SUPPRESS_LOG_WARNING_1592
- INNODB_FILE_FORMAT_MAX
- drop table t1;

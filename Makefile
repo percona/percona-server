@@ -5,6 +5,8 @@ PERCONA_SERVER ?=Percona-Server
 DEBUG_DIR ?= $(PERCONA_SERVER)-debug
 RELEASE_DIR ?= $(PERCONA_SERVER)-release
 CMAKE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" cmake 
+CONFIGUR=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"  LIBS=-lrt ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition
+
 
 all: main install-lic tests misc
 	@echo ""
@@ -15,8 +17,11 @@ all: main install-lic tests misc
 	export CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
 	export LIBS=-lrt
 	@echo ""
-	@echo "and run ./configure ... --without-plugin-innobase --with-plugin-innodb_plugin && make all install"
+	@echo "and run ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition && make all install"
 	@echo ""
+
+configure: all
+	(cd $(PERCONA_SERVER); bash BUILD/autorun.sh; $(CONFIGUR))
 
 cmake:
 	rm -rf $(DEBUG_DIR)

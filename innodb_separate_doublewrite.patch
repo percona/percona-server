@@ -720,9 +720,9 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
  #ifdef UNIV_LOG_ARCHIVE
  					&min_arch_log_no, &max_arch_log_no,
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -1553,6 +1693,14 @@
- 
- 	trx_sys_file_format_init();
+@@ -1686,6 +1826,14 @@
+ 		trx_sys_file_format_tag_init();
+ 	}
  
 +	if (create_new_doublewrite_file) {
 +		mtr_start(&mtr);
@@ -732,9 +732,9 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 +		trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
 +	}
 +
- 	if (create_new_db) {
+ 	if (!create_new_db && sum_of_new_sizes > 0) {
+ 		/* New data file(s) were added */
  		mtr_start(&mtr);
- 
 diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 --- a/storage/innobase/trx/trx0sys.c	2010-12-03 17:32:15.651024019 +0900
 +++ b/storage/innobase/trx/trx0sys.c	2010-12-04 15:35:58.664550291 +0900

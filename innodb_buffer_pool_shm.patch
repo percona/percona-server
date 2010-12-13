@@ -1213,7 +1213,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 20:19:29.806482628 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-07 16:10:14.964785346 +0900
-@@ -1773,6 +1773,8 @@
+@@ -1765,6 +1765,8 @@
  		Note that this is not as heavy weight as it seems. At
  		this point there will be only ONE page in the buf_LRU
  		and there must be no page in the buf_flush list. */

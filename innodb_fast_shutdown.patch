@@ -57,7 +57,7 @@
  #define SRV_AUTO_EXTEND_INCREMENT	\
 --- a/storage/innodb_plugin/log/log0log.c	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/log/log0log.c	2010-11-16 21:34:06.000000000 +0300
-@@ -3102,6 +3102,7 @@
+@@ -3103,6 +3103,7 @@
  	algorithm only works if the server is idle at shutdown */
  
  	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
@@ -159,7 +159,7 @@
  
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-11-16 21:34:06.000000000 +0300
-@@ -704,6 +704,8 @@
+@@ -707,6 +707,8 @@
  
  UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
  
@@ -168,7 +168,7 @@
  UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
  
  /* padding to prevent other memory update hotspots from residing on
-@@ -1009,6 +1011,7 @@
+@@ -1012,6 +1014,7 @@
  	}
  
  	srv_lock_timeout_thread_event = os_event_create(NULL);
@@ -176,7 +176,7 @@
  
  	for (i = 0; i < SRV_MASTER + 1; i++) {
  		srv_n_threads_active[i] = 0;
-@@ -2236,7 +2239,7 @@
+@@ -2239,7 +2242,7 @@
  	/* Wake up every 5 seconds to see if we need to print
  	monitor information. */
  
@@ -185,7 +185,7 @@
  
  	current_time = time(NULL);
  
-@@ -2378,7 +2381,7 @@
+@@ -2381,7 +2384,7 @@
  	/* When someone is waiting for a lock, we wake up every second
  	and check if a timeout has passed for a lock wait */
  
@@ -194,7 +194,7 @@
  
  	srv_lock_timeout_active = TRUE;
  
-@@ -2543,7 +2546,7 @@
+@@ -2546,7 +2549,7 @@
  
  	fflush(stderr);
  
@@ -203,7 +203,7 @@
  
  	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
  
-@@ -2587,7 +2590,7 @@
+@@ -2590,7 +2593,7 @@
  	last_dump_time = time(NULL);
  
  loop:
@@ -212,16 +212,16 @@
  
  	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
  		goto exit_func;
-@@ -2751,7 +2754,7 @@
- 
+@@ -2770,7 +2773,7 @@
  		if (!skip_sleep) {
+ 		if (next_itr_time > cur_time) {
  
--			os_thread_sleep(1000000);
-+			os_event_wait_time(srv_shutdown_event, 1000000);
+-			os_thread_sleep(ut_min(1000000, (next_itr_time - cur_time) * 1000));
++			os_event_wait_time(srv_shutdown_event, ut_min(1000000, (next_itr_time - cur_time) * 1000));
  			srv_main_sleeps++;
  
  			/*
-@@ -3337,9 +3340,10 @@
+@@ -3476,9 +3479,10 @@
  		mutex_exit(&kernel_mutex);
  
  		sleep_ms = 10;

@@ -720,9 +720,9 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  #ifdef UNIV_LOG_ARCHIVE
  					&min_arch_log_no, &max_arch_log_no,
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -1497,6 +1637,14 @@
- 
- 	trx_sys_file_format_init();
+@@ -1629,6 +1769,14 @@
+ 		trx_sys_file_format_tag_init();
+ 	}
  
 +	if (create_new_doublewrite_file) {
 +		mtr_start(&mtr);
@@ -732,9 +732,9 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
 +		trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
 +	}
 +
- 	if (create_new_db) {
+ 	if (!create_new_db && sum_of_new_sizes > 0) {
+ 		/* New data file(s) were added */
  		mtr_start(&mtr);
- 		fsp_header_init(0, sum_of_new_sizes, &mtr);
 diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0sys.c
 --- a/storage/innodb_plugin/trx/trx0sys.c	2010-08-27 16:23:31.045058700 +0900
 +++ b/storage/innodb_plugin/trx/trx0sys.c	2010-08-27 16:37:55.421992951 +0900

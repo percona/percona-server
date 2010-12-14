@@ -1044,3 +1044,11 @@ diff -Nur a/mysql-test/t/query_cache.test b/mysql-test/t/query_cache.test
 -
 ---echo End of 5.1 tests
 -
+diff -Nur a/mysql-test/suite/innodb/t/disabled.def b/mysql-test/suite/innodb/t/disabled.def
+--- a/mysql-test/suite/innodb/t/disabled.def    2010-12-03 07:45:59.000000000 -0800
++++ b/mysql-test/suite/innodb/t/disabled.def    2010-12-10 07:38:20.000000000 -0800
+@@ -9,3 +9,4 @@
+ #  Do not use any TAB characters for whitespace.
+ #
+ ##############################################################################
++innodb.innodb_bug56143   : Bug #684250 2010-12-03 akuzminsky https://bugs.launchpad.net/percona-server/+bug/684250

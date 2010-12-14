@@ -227,8 +227,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +};
 +static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
 +  PLUGIN_VAR_RQCMDARG,
-+  "Enable/Disable flushing along modified age. (none, reflex, estimate, [keep_average])",
-+  NULL, innodb_adaptive_checkpoint_update, 3, &adaptive_checkpoint_typelib);
++  "Enable/Disable flushing along modified age. (none, reflex, [estimate], keep_average)",
++  NULL, innodb_adaptive_checkpoint_update, 2, &adaptive_checkpoint_typelib);
 +
 +static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
 +  PLUGIN_VAR_RQCMDARG,

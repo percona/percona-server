@@ -64,6 +64,7 @@ have_ndbcluster	Value
 have_openssl	Value
 have_partitioning	Value
 have_query_cache	Value
+have_response_time_distribution	Value
 have_rtree_keys	Value
 have_ssl	Value
 have_symlink	Value

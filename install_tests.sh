@@ -9,6 +9,7 @@ install_path()
     find $1 -iname '*.test' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/t/ ';'
     find $1 -iname '*.opt' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/t/ ';'
     find $1 -iname '*.result' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/r/ ';'
+    find $1 -iname '*.require' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/r/ ';'
     find $1 -iname '*.inc' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/include/ ';'
 }
 

@@ -1384,7 +1384,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:37:50.605491300 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:38:18.212513722 +0900
-@@ -2023,6 +2023,13 @@
+@@ -2041,6 +2041,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);
  

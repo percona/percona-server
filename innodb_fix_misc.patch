@@ -182,7 +182,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:57:13.073495392 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 16:02:50.704884053 +0900
-@@ -2035,7 +2035,7 @@
+@@ -2053,7 +2053,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

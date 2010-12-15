@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-04 20:20:44.595483291 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-06 19:28:04.055227506 +0900
-@@ -4474,6 +4474,36 @@
+@@ -4476,6 +4476,36 @@
  	mutex_exit(block_mutex);
  }
  
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 20:20:44.614551139 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-06 19:23:47.622195800 +0900
-@@ -12002,6 +12002,9 @@
+@@ -12010,6 +12010,9 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
  i_s_innodb_admin_command,
@@ -789,7 +789,7 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 @@ -45,5 +45,6 @@
  {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_adaptive_hash_index_num","allow to use several adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_adaptive_hash_index_partitions","allow to use partitioned adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
 +{"innodb_buffer_pool_pages_i_s","Information schema of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };

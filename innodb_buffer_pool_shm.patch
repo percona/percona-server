@@ -72,7 +72,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #endif /* !UNIV_HOTBACKUP */
  
  /********************************************************************//**
-@@ -987,6 +1016,57 @@
+@@ -988,6 +1017,58 @@
  #endif /* UNIV_SYNC_DEBUG */
  }
  
@@ -89,6 +89,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +	UNIV_MEM_DESC(block->frame, UNIV_PAGE_SIZE, block);
 +
 +	block->index = NULL;
++	block->btr_search_latch = NULL;
 +
 +#ifdef UNIV_DEBUG
 +	/* recreate later */
@@ -130,7 +131,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  /********************************************************************//**
  Allocates a chunk of buffer frames.
  @return	chunk, or NULL on failure */
-@@ -1000,26 +1080,188 @@
+@@ -1001,26 +1082,188 @@
  {
  	buf_block_t*	block;
  	byte*		frame;
@@ -319,7 +320,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	/* Align a pointer to the first frame.  Note that when
  	os_large_page_size is smaller than UNIV_PAGE_SIZE,
-@@ -1027,8 +1269,13 @@
+@@ -1028,8 +1271,13 @@
  	it is bigger, we may allocate more blocks than requested. */
  
  	frame = ut_align(chunk->mem, UNIV_PAGE_SIZE);
@@ -333,7 +334,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	/* Subtract the space needed for block descriptors. */
  	{
-@@ -1042,6 +1289,98 @@
+@@ -1043,6 +1291,98 @@
  		chunk->size = size;
  	}
  
@@ -432,7 +433,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	/* Init block structs and assign frames for them. Then we
  	assign the frames to the first blocks (we already mapped the
  	memory above). */
-@@ -1067,6 +1406,11 @@
+@@ -1068,6 +1408,11 @@
  		block++;
  		frame += UNIV_PAGE_SIZE;
  	}
@@ -444,7 +445,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  #ifdef PFS_GROUP_BUFFER_SYNC
  	pfs_register_buffer_block(chunk);
-@@ -1248,6 +1592,8 @@
+@@ -1249,6 +1594,8 @@
  		UNIV_MEM_UNDESC(block);
  	}
  
@@ -453,7 +454,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	os_mem_free_large(chunk->mem, chunk->mem_size);
  }
  
-@@ -1334,7 +1680,10 @@
+@@ -1335,7 +1682,10 @@
  		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
  
  		buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
@@ -464,7 +465,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		
  		buf_pool->last_printout_time = ut_time();
  	}
-@@ -1353,6 +1702,86 @@
+@@ -1354,6 +1704,86 @@
  
  	/* All fields are initialized by mem_zalloc(). */
  
@@ -551,7 +552,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	mutex_exit(&buf_pool->LRU_list_mutex);
  	rw_lock_x_unlock(&buf_pool->page_hash_latch);
  	buf_pool_mutex_exit(buf_pool);
-@@ -1372,6 +1801,42 @@
+@@ -1373,6 +1803,42 @@
  	buf_chunk_t*	chunk;
  	buf_chunk_t*	chunks;
  
@@ -594,7 +595,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	chunks = buf_pool->chunks;
  	chunk = chunks + buf_pool->n_chunks;
  
-@@ -1380,10 +1845,13 @@
+@@ -1381,10 +1847,13 @@
  		would fail at shutdown. */
  		os_mem_free_large(chunk->mem, chunk->mem_size);
  	}
@@ -608,7 +609,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	mem_free(buf_pool);
  	buf_pool = NULL;
  }
-@@ -1669,6 +2137,11 @@
+@@ -1670,6 +2139,11 @@
  	//buf_pool_mutex_enter(buf_pool);
  	mutex_enter(&buf_pool->LRU_list_mutex);
  
@@ -620,7 +621,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  shrink_again:
  	if (buf_pool->n_chunks <= 1) {
  
-@@ -1849,7 +2322,7 @@
+@@ -1850,7 +2324,7 @@
  	zip_hash = hash_create(2 * buf_pool->curr_size);
  
  	HASH_MIGRATE(buf_pool->zip_hash, zip_hash, buf_page_t, hash,
@@ -629,7 +630,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	hash_table_free(buf_pool->zip_hash);
  	buf_pool->zip_hash = zip_hash;
-@@ -2131,6 +2604,11 @@
+@@ -2132,6 +2606,11 @@
  	ulint	change_size;
  	ulint	min_change_size = 1048576 * srv_buf_pool_instances;
  
@@ -749,7 +750,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11609,6 +11619,16 @@
+@@ -11617,6 +11627,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -766,7 +767,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11883,6 +11903,8 @@
+@@ -11891,6 +11911,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
@@ -780,7 +781,7 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 +++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-07 16:26:37.429760207 +0900
 @@ -46,5 +46,6 @@
  {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_adaptive_hash_index_num","allow to use several adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
+ {"innodb_adaptive_hash_index_partitions","allow to use partitioned adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_buffer_pool_pages_i_s","Information schema of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
 +{"innodb_buffer_pool_shm","Put buffer pool contents to shared memory segment and reuse it at clean restart [experimental]","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
@@ -796,7 +797,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  
  /** @name Modes for buf_page_get_gen */
  /* @{ */
-@@ -1504,9 +1505,12 @@
+@@ -1505,9 +1506,12 @@
  /**********************************************************************//**
  Compute the hash fold value for blocks in buf_pool->zip_hash. */
  /* @{ */

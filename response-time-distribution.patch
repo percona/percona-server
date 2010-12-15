@@ -222,7 +222,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
 --- a/sql/query_response_time.cc	1970-01-01 00:00:00.000000000 +0000
 +++ b/sql/query_response_time.cc	2010-11-02 15:34:52.000000000 +0000
-@@ -0,0 +1,365 @@
+@@ -0,0 +1,369 @@
 +#ifdef __FreeBSD__
 +#include <sys/types.h>
 +#include <machine/atomic.h>

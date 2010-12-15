@@ -1354,7 +1354,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:38:38.290021700 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:39:03.052021423 +0900
-@@ -1955,6 +1955,13 @@
+@@ -1974,6 +1974,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);
  

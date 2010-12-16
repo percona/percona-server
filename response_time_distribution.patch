@@ -642,7 +642,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1456,23 +1457,31 @@
+@@ -1468,23 +1469,31 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -688,7 +688,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1591,6 +1600,7 @@
+@@ -1603,6 +1612,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -807,7 +807,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1795,6 +1796,19 @@
+@@ -1772,6 +1773,19 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  

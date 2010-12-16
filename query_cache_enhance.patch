@@ -477,7 +477,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/sys_vars.cc	2010-11-13 15:34:59.000000000 +0500
-@@ -1744,6 +1744,11 @@
+@@ -1721,6 +1721,11 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_query_cache_size));
  

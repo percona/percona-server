@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 diff -ruN a/include/mysql/plugin_audit.h.pp b/include/mysql/plugin_audit.h.pp
 --- a/include/mysql/plugin_audit.h.pp	2010-11-03 01:01:11.000000000 +0300
-+++ b/include/mysql/plugin_audit.h.pp	2010-11-28 17:38:42.000000000 +0300
++++ b/include/mysql/plugin_audit.h.pp	2010-12-16 04:27:46.000000000 +0300
 @@ -178,6 +178,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
@@ -27,7 +27,7 @@ diff -ruN a/include/mysql/plugin_audit.h.pp b/include/mysql/plugin_audit.h.pp
  unsigned long thd_get_thread_id(const void* thd);
 diff -ruN a/include/mysql/plugin_auth.h.pp b/include/mysql/plugin_auth.h.pp
 --- a/include/mysql/plugin_auth.h.pp	2010-11-03 01:01:11.000000000 +0300
-+++ b/include/mysql/plugin_auth.h.pp	2010-11-28 17:38:42.000000000 +0300
++++ b/include/mysql/plugin_auth.h.pp	2010-12-16 04:27:46.000000000 +0300
 @@ -178,6 +178,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
@@ -47,7 +47,7 @@ diff -ruN a/include/mysql/plugin_auth.h.pp b/include/mysql/plugin_auth.h.pp
  unsigned long thd_get_thread_id(const void* thd);
 diff -ruN a/include/mysql/plugin_ftparser.h.pp b/include/mysql/plugin_ftparser.h.pp
 --- a/include/mysql/plugin_ftparser.h.pp	2010-11-03 01:01:11.000000000 +0300
-+++ b/include/mysql/plugin_ftparser.h.pp	2010-11-28 17:38:42.000000000 +0300
++++ b/include/mysql/plugin_ftparser.h.pp	2010-12-16 04:27:46.000000000 +0300
 @@ -131,6 +131,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
@@ -67,7 +67,7 @@ diff -ruN a/include/mysql/plugin_ftparser.h.pp b/include/mysql/plugin_ftparser.h
  unsigned long thd_get_thread_id(const void* thd);
 diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
 --- a/include/mysql/plugin.h	2010-11-03 01:01:11.000000000 +0300
-+++ b/include/mysql/plugin.h	2010-11-28 17:38:42.000000000 +0300
++++ b/include/mysql/plugin.h	2010-12-16 04:27:46.000000000 +0300
 @@ -536,6 +536,17 @@
  /* Increments the row counter, see THD::row_count */
  void thd_inc_row_count(MYSQL_THD thd);
@@ -88,7 +88,7 @@ diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
  
 diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 --- a/patch_info/slow_extended.info	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/slow_extended.info	2010-11-28 17:38:42.000000000 +0300
++++ b/patch_info/slow_extended.info	2010-12-16 04:27:46.000000000 +0300
 @@ -0,0 +1,24 @@
 +File=slow_extended.patch
 +Name=Extended statistics in slow.log (not InnoDB part)
@@ -116,7 +116,7 @@ diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 +
 diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
 --- a/scripts/mysqldumpslow.sh	2010-11-03 01:01:13.000000000 +0300
-+++ b/scripts/mysqldumpslow.sh	2010-11-28 17:38:42.000000000 +0300
++++ b/scripts/mysqldumpslow.sh	2010-12-16 04:27:46.000000000 +0300
 @@ -83,8 +83,8 @@
      s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
      my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
@@ -130,7 +130,7 @@ diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
      # remove fluff that mysqld writes to log when it (re)starts:
 diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
 --- a/sql/event_scheduler.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/event_scheduler.cc	2010-11-28 17:38:42.000000000 +0300
++++ b/sql/event_scheduler.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -195,6 +195,7 @@
    thd->client_capabilities|= CLIENT_MULTI_RESULTS;
    mysql_mutex_lock(&LOCK_thread_count);
@@ -141,7 +141,7 @@ diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
    /*
 diff -ruN a/sql/filesort.cc b/sql/filesort.cc
 --- a/sql/filesort.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/filesort.cc	2010-11-28 17:38:42.000000000 +0300
++++ b/sql/filesort.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -197,6 +197,7 @@
    {
      status_var_increment(thd->status_var.filesort_scan_count);
@@ -167,8 +167,8 @@ diff -ruN a/sql/filesort.cc b/sql/filesort.cc
    {
      killed= &not_killable;
 diff -ruN a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/log.cc	2010-11-28 17:38:42.000000000 +0300
+--- a/sql/log.cc	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/log.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -630,11 +630,13 @@
  */
  
@@ -382,7 +382,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      {						// Database changed
 diff -ruN a/sql/log.h b/sql/log.h
 --- a/sql/log.h	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/log.h	2010-11-28 17:38:42.000000000 +0300
++++ b/sql/log.h	2010-12-16 04:27:46.000000000 +0300
 @@ -234,7 +234,7 @@
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
@@ -420,8 +420,8 @@ diff -ruN a/sql/log.h b/sql/log.h
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/mysqld.cc	2010-11-28 18:27:55.000000000 +0300
+--- a/sql/mysqld.cc	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/mysqld.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -416,6 +416,11 @@
  char* opt_secure_file_priv;
  my_bool opt_log_slow_admin_statements= 0;
@@ -448,8 +448,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
---- a/sql/mysqld.h	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/mysqld.h	2010-11-28 18:27:39.000000000 +0300
+--- a/sql/mysqld.h	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/mysqld.h	2010-12-16 04:27:46.000000000 +0300
 @@ -115,6 +115,11 @@
  extern char* opt_secure_backup_file_priv;
  extern size_t opt_secure_backup_file_priv_len;
@@ -464,7 +464,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern uint opt_crash_binlog_innodb;
 diff -ruN a/sql/slave.cc b/sql/slave.cc
 --- a/sql/slave.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/slave.cc	2010-11-28 17:38:42.000000000 +0300
++++ b/sql/slave.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -2019,6 +2019,7 @@
      + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
    thd->slave_thread = 1;
@@ -474,8 +474,8 @@ diff -ruN a/sql/slave.cc b/sql/slave.cc
    thd->client_capabilities = CLIENT_LOCAL_FILES;
    mysql_mutex_lock(&LOCK_thread_count);
 diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
---- a/sql/sp_head.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sp_head.cc	2010-11-28 17:38:42.000000000 +0300
+--- a/sql/sp_head.cc	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/sp_head.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -2136,7 +2136,7 @@
      DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                         m_name.str));
@@ -487,7 +487,7 @@ diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
      save_enable_slow_log= true;
 diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 --- a/sql/sql_cache.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sql_cache.cc	2010-11-28 17:38:42.000000000 +0300
++++ b/sql/sql_cache.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -1756,6 +1756,7 @@
      response, we can't handle it anyway.
    */
@@ -506,7 +506,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
  }
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sql_class.cc	2010-11-28 17:38:42.000000000 +0300
++++ b/sql/sql_class.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -367,6 +367,37 @@
    thd->warning_info->inc_current_row_for_warning();
  }
@@ -595,8 +595,8 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sql_class.h	2010-11-28 18:26:41.000000000 +0300
+--- a/sql/sql_class.h	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/sql_class.h	2010-12-16 04:27:46.000000000 +0300
 @@ -60,6 +60,18 @@
  enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
  enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -678,7 +678,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sql_connect.cc	2010-11-28 17:38:42.000000000 +0300
++++ b/sql/sql_connect.cc	2010-12-16 04:27:46.000000000 +0300
 @@ -738,6 +738,15 @@
  
      prepare_new_connection_state(thd);
@@ -696,8 +696,8 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
             !(thd->killed == THD::KILL_CONNECTION))
      {
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sql_parse.cc	2010-11-29 01:55:31.000000000 +0300
+--- a/sql/sql_parse.cc	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/sql_parse.cc	2010-12-16 04:47:41.000000000 +0300
 @@ -1417,7 +1417,6 @@
    DBUG_RETURN(error);
  }
@@ -706,7 +706,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  void log_slow_statement(THD *thd)
  {
    DBUG_ENTER("log_slow_statement");
-@@ -1430,6 +1429,29 @@
+@@ -1430,6 +1429,41 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -725,6 +725,18 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +  */
 +
 +  ulonglong end_utime_of_query= thd->current_utime();
++#define USE_GLOBAL_UPDATE(variable_name,enum_value_name)                \
++  if (opt_use_global_log_slow_control & (ULL(1) << enum_value_name))    \
++  {                                                                     \
++    thd->variables. variable_name=                                      \
++      global_system_variables. variable_name;                           \
++  }
++  USE_GLOBAL_UPDATE(log_slow_filter,SLOG_UG_LOG_SLOW_FILTER);
++  USE_GLOBAL_UPDATE(log_slow_rate_limit,SLOG_UG_LOG_SLOW_RATE_LIMIT);
++  USE_GLOBAL_UPDATE(log_slow_verbosity,SLOG_UG_LOG_SLOW_VERBOSITY);
++  USE_GLOBAL_UPDATE(long_query_time,SLOG_UG_LONG_QUERY_TIME);
++  USE_GLOBAL_UPDATE(min_examined_row_limit,SLOG_UG_MIN_EXAMINED_ROW_LIMIT);
++#undef USE_GLOBAL_UPDATE
 +
 +  /* Do not log this thread's queries due to rate limiting. */
 +  if (thd->write_to_slow_log != TRUE
@@ -736,7 +748,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -1817,6 +1839,9 @@
+@@ -1817,6 +1851,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -746,7 +758,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5246,6 +5271,21 @@
+@@ -5246,6 +5283,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -769,8 +781,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    thd->binlog_unsafe_warning_flags= 0;
  
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sql_select.cc	2010-11-28 17:38:42.000000000 +0300
+--- a/sql/sql_select.cc	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/sql_select.cc	2010-12-16 04:27:47.000000000 +0300
 @@ -6854,7 +6854,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
@@ -825,8 +837,8 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    ha_release_temporary_latches(thd);
  
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sql_show.cc	2010-11-28 17:38:43.000000000 +0300
+--- a/sql/sql_show.cc	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/sql_show.cc	2010-12-16 04:27:47.000000000 +0300
 @@ -1935,8 +1935,17 @@
          table->field[4]->store(command_name[tmp->command].str,
                                 command_name[tmp->command].length, cs);
@@ -848,68 +860,14 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
        if ((val= thread_state_info(tmp)))
        {
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
---- a/sql/sys_vars.cc	2010-11-03 01:01:14.000000000 +0300
-+++ b/sql/sys_vars.cc	2010-11-29 02:07:08.000000000 +0300
-@@ -941,6 +941,15 @@
-        CMD_LINE(OPT_ARG, 'W'),
-        VALID_RANGE(0, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
- 
-+static void update_long_query_time_check_global(THD *thd)
-+{
-+  bool use_global= (0 != (opt_use_global_log_slow_control & (ULL(1) << SLOG_UG_LONG_QUERY_TIME)));
-+  if(use_global)
-+  {
-+    thd->variables.long_query_time_double= global_system_variables.long_query_time_double;
-+    thd->variables.long_query_time= global_system_variables.long_query_time;
-+  }
-+}
- static bool update_cached_long_query_time(sys_var *self, THD *thd,
-                                           enum_var_type type)
- {
-@@ -950,6 +959,7 @@
-   else
-     global_system_variables.long_query_time=
-       double2ulonglong(global_system_variables.long_query_time_double * 1e6);
-+  update_long_query_time_check_global(thd);
-   return false;
- }
- 
-@@ -1226,13 +1236,26 @@
-        "After this many write locks, allow some read locks to run in between",
-        GLOBAL_VAR(max_write_lock_count), CMD_LINE(REQUIRED_ARG),
-        VALID_RANGE(1, ULONG_MAX), DEFAULT(ULONG_MAX), BLOCK_SIZE(1));
--
-+#define SLOG_UPDATE(variable_name,enum_value_name)                      \
-+  static bool update_##variable_name(sys_var */*self*/, THD *thd,     \
-+                                       enum_var_type type)              \
-+  {                                                                     \
-+    if (opt_use_global_log_slow_control & (ULL(1) << enum_value_name))  \
-+    {                                                                   \
-+      thd->variables. variable_name=                                    \
-+        global_system_variables. variable_name;                         \
-+    }                                                                   \
-+    return false;                                                       \
-+  }
-+SLOG_UPDATE(min_examined_row_limit,SLOG_UG_MIN_EXAMINED_ROW_LIMIT);
- static Sys_var_ulong Sys_min_examined_row_limit(
-        "min_examined_row_limit",
-        "Don't write queries to slow log that examine fewer rows "
-        "than that",
-        SESSION_VAR(min_examined_row_limit), CMD_LINE(REQUIRED_ARG),
--       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
-+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
-+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-+       ON_UPDATE(update_min_examined_row_limit));
- 
- #ifdef _WIN32
- static Sys_var_mybool Sys_named_pipe(
-@@ -2837,6 +2860,149 @@
+--- a/sql/sys_vars.cc	2010-12-16 04:27:10.000000000 +0300
++++ b/sql/sys_vars.cc	2010-12-16 04:36:12.000000000 +0300
+@@ -2837,6 +2836,133 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  
 +const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
 +                                      "tmp_table", "tmp_table_on_disk", "filesort", "filesort_on_disk", 0};
-+SLOG_UPDATE(log_slow_filter,SLOG_UG_LOG_SLOW_FILTER);
 +static Sys_var_set Sys_log_slow_filter(
 +       "log_slow_filter",
 +       "Log only the queries that followed certain execution plan. "
@@ -917,16 +875,11 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       "[qc_miss, full_scan, full_join, tmp_table, tmp_table_on_disk, "
 +       "filesort, filesort_on_disk]",
 +       SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG),
-+       log_slow_filter_name, DEFAULT(0),
-+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-+       ON_UPDATE(update_log_slow_filter));
-+SLOG_UPDATE(log_slow_rate_limit,SLOG_UG_LOG_SLOW_RATE_LIMIT);
++       log_slow_filter_name, DEFAULT(0));
 +static Sys_var_ulong sys_log_slow_rate_limit(
 +       "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
 +       SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
-+       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1),
-+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-+       ON_UPDATE(update_log_slow_rate_limit));
++       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
 +const char* log_slow_verbosity_name[] = { "microtime", "query_plan", "innodb", "minimal", "standard", "full", 0 };
 +static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong what, ulonglong by)
 +{
@@ -959,10 +912,6 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +  value= update_log_slow_verbosity_replace(value,minimal,microtime);
 +  value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
 +  value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
-+  if(opt_use_global_log_slow_control & (ULL(1) << SLOG_UG_LOG_SLOW_VERBOSITY))
-+  {
-+    thd->variables.log_slow_verbosity= global_system_variables.log_slow_verbosity;
-+  }
 +  return false;
 +}
 +static Sys_var_set Sys_log_slow_verbosity(
@@ -1006,11 +955,6 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +  {
 +    opt_use_global_long_query_time= FALSE;
 +  }
-+  update_long_query_time_check_global(thd);
-+  update_log_slow_filter(self,thd,type);
-+  update_log_slow_rate_limit(self,thd,type);
-+  update_log_slow_verbosity(self,thd,type);
-+  update_min_examined_row_limit(self,thd,type);
 +  return false;
 +}
 +static Sys_var_set Sys_use_global_log_slow_control(
@@ -1033,7 +977,6 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +    {
 +      opt_use_global_log_slow_control &= ~(ULL(1) << SLOG_UG_LONG_QUERY_TIME);
 +    }
-+    update_long_query_time_check_global(thd);
 +  }
 +  return false;
 +}

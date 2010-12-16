@@ -125,7 +125,7 @@ let $sync_result = `SELECT MASTER_POS_WAIT('$binlog_file',$binlog_position)`;
 -- echo # Analyse master slow_query_log
 let $i=7;
 let $k=1;
-let $cmd=cat ./var/mysqld.1/data/percona_log_slow_slave_statements-master.log | grep;
+let $cmd=cat $MYSQLTEST_VARDIR/mysqld.1/data/percona_log_slow_slave_statements-master.log | grep;
 while($i)
 {
     let $current_cmd = $cmd "INSERT INTO t VALUES ($k)" | wc -l;
@@ -137,7 +137,7 @@ while($i)
 -- echo # Analyse slave slow_query_log
 let $i=7;
 let $k=1;
-let $cmd=cat ./var/mysqld.2/data/percona_log_slow_slave_statements-slave.log | grep;
+let $cmd=cat $MYSQLTEST_VARDIR/mysqld.2/data/percona_log_slow_slave_statements-slave.log | grep;
 while($i)
 {
     let $current_cmd = $cmd "INSERT INTO t VALUES ($k)" | wc -l;

@@ -67,7 +67,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
 --- a/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:22:04.223059346 +0900
 +++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:37:55.363104692 +0900
-@@ -395,7 +395,7 @@
+@@ -396,7 +396,7 @@
  
  		mtr_commit(&mtr);
  
@@ -76,7 +76,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  			/* The system tablespace always exists. */
  		} else if (in_crash_recovery) {
  			/* Check that the tablespace (the .ibd file) really
-@@ -903,7 +903,7 @@
+@@ -904,7 +904,7 @@
  	space = mach_read_from_4(field);
  
  	/* Check if the tablespace exists and has the right name */
@@ -85,7 +85,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  		flags = dict_sys_tables_get_flags(rec);
  
  		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-@@ -956,7 +956,7 @@
+@@ -957,7 +957,7 @@
  	}
  
  	/* See if the tablespace is available. */
@@ -97,7 +97,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:36:03.494411641 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:37:55.367990277 +0900
-@@ -616,7 +616,7 @@
+@@ -617,7 +617,7 @@
  
  	UT_LIST_ADD_LAST(chain, space->chain, node);
  
@@ -106,7 +106,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  		fil_system->max_assigned_id = id;
  	}
-@@ -679,14 +679,14 @@
+@@ -680,14 +680,14 @@
  		size_bytes = (((ib_int64_t)size_high) << 32)
  			+ (ib_int64_t)size_low;
  #ifdef UNIV_HOTBACKUP
@@ -123,7 +123,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
  			fprintf(stderr,
-@@ -732,7 +732,7 @@
+@@ -733,7 +733,7 @@
  		}
  
  		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
@@ -132,7 +132,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  			fprintf(stderr,
  				"InnoDB: Error: tablespace id %lu"
  				" in file %s is not sensible\n",
-@@ -794,7 +794,7 @@
+@@ -795,7 +795,7 @@
  
  	system->n_open++;
  
@@ -141,7 +141,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* Put the node to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -827,7 +827,7 @@
+@@ -828,7 +828,7 @@
  	ut_a(system->n_open > 0);
  	system->n_open--;
  
@@ -150,7 +150,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
  
  		/* The node is in the LRU list, remove it */
-@@ -913,7 +913,7 @@
+@@ -914,7 +914,7 @@
  retry:
  	mutex_enter(&fil_system->mutex);
  
@@ -159,7 +159,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* We keep log files and system tablespace files always open;
  		this is important in preventing deadlocks in this module, as
  		a page read completion often performs another read from the
-@@ -1143,7 +1143,7 @@
+@@ -1145,7 +1145,7 @@
  			" tablespace memory cache!\n",
  			(ulong) space->id);
  
@@ -168,7 +168,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  			mutex_exit(&fil_system->mutex);
  
-@@ -1204,6 +1204,7 @@
+@@ -1207,6 +1207,7 @@
  	space->mark = FALSE;
  
  	if (UNIV_LIKELY(purpose == FIL_TABLESPACE && !recv_recovery_on)
@@ -176,7 +176,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	    && UNIV_UNLIKELY(id > fil_system->max_assigned_id)) {
  		if (!fil_system->space_id_reuse_warned) {
  			fil_system->space_id_reuse_warned = TRUE;
-@@ -1287,7 +1288,7 @@
+@@ -1290,7 +1291,7 @@
  			(ulong) SRV_LOG_SPACE_FIRST_ID);
  	}
  
@@ -203,7 +203,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  			node = UT_LIST_GET_FIRST(space->chain);
  
  			while (node != NULL) {
-@@ -1661,6 +1664,10 @@
+@@ -1663,6 +1666,10 @@
  		ut_error;
  	}
  
@@ -214,7 +214,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	mutex_enter(&fil_system->mutex);
  
  	if (fil_system->max_assigned_id < max_id) {
-@@ -1679,6 +1686,7 @@
+@@ -1681,6 +1688,7 @@
  ulint
  fil_write_lsn_and_arch_no_to_file(
  /*==============================*/
@@ -222,7 +222,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ulint		sum_of_sizes,	/*!< in: combined size of previous files
  					in space, in database pages */
  	ib_uint64_t	lsn,		/*!< in: lsn to write */
-@@ -1688,14 +1696,16 @@
+@@ -1690,14 +1698,16 @@
  	byte*	buf1;
  	byte*	buf;
  
@@ -241,7 +241,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  	mem_free(buf1);
  
-@@ -1731,7 +1741,7 @@
+@@ -1733,7 +1743,7 @@
  		always open. */
  
  		if (space->purpose == FIL_TABLESPACE
@@ -250,7 +250,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  			sum_of_sizes = 0;
  
  			node = UT_LIST_GET_FIRST(space->chain);
-@@ -1739,7 +1749,7 @@
+@@ -1741,7 +1751,7 @@
  				mutex_exit(&fil_system->mutex);
  
  				err = fil_write_lsn_and_arch_no_to_file(
@@ -259,7 +259,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				if (err != DB_SUCCESS) {
  
  					return(err);
-@@ -3736,7 +3746,7 @@
+@@ -3782,7 +3792,7 @@
  	}
  
  #ifndef UNIV_HOTBACKUP
@@ -268,7 +268,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		fprintf(stderr,
  			"InnoDB: Error: tablespace id %lu in file %s"
  			" is not sensible\n",
-@@ -3745,7 +3755,7 @@
+@@ -3791,7 +3801,7 @@
  		goto func_exit;
  	}
  #else
@@ -277,7 +277,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		char*	new_path;
  
  		fprintf(stderr,
-@@ -4566,7 +4576,7 @@
+@@ -4612,7 +4622,7 @@
  	}
  
  	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
@@ -286,7 +286,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node is in the LRU list, remove it */
  
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
-@@ -4612,7 +4622,7 @@
+@@ -4658,7 +4668,7 @@
  	}
  
  	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
@@ -295,7 +295,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5225,7 +5235,7 @@
+@@ -5271,7 +5281,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
@@ -349,7 +349,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
-@@ -11329,6 +11332,11 @@
+@@ -11321,6 +11324,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -361,7 +361,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11495,6 +11503,7 @@
+@@ -11487,6 +11495,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -521,7 +521,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:22:04.287058274 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:37:55.410993060 +0900
-@@ -3363,7 +3363,7 @@
+@@ -3365,7 +3365,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  
@@ -712,7 +712,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  	ibool		log_file_created;
  	ibool		log_created	= FALSE;
  	ibool		log_opened	= FALSE;
-@@ -1381,6 +1520,7 @@
+@@ -1401,6 +1540,7 @@
  	}
  
  	err = open_or_create_data_files(&create_new_db,
@@ -720,7 +720,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  #ifdef UNIV_LOG_ARCHIVE
  					&min_arch_log_no, &max_arch_log_no,
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -1504,6 +1644,15 @@
+@@ -1524,6 +1664,15 @@
  		mtr_commit(&mtr);
  
  		trx_sys_create();
@@ -736,7 +736,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  		dict_create();
  		srv_startup_is_before_trx_rollback_phase = FALSE;
  
-@@ -1541,6 +1690,13 @@
+@@ -1561,6 +1710,13 @@
  		recv_recovery_from_archive_finish();
  #endif /* UNIV_LOG_ARCHIVE */
  	} else {
@@ -750,7 +750,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  		/* Check if we support the max format that is stamped
  		on the system tablespace. 
-@@ -1627,6 +1783,17 @@
+@@ -1647,6 +1803,17 @@
  		we have finished the recovery process so that the
  		image of TRX_SYS_PAGE_NO is not stale. */
  		trx_sys_file_format_tag_init();

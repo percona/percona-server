@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:43:11.941989968 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:44:21.668058937 +0900
-@@ -4730,9 +4730,9 @@
+@@ -4776,9 +4776,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
  	ut_ad(len > 0);
@@ -152,7 +152,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7006,9 +7065,9 @@
+@@ -7004,9 +7063,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -165,7 +165,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		}
  	}
  
-@@ -11124,6 +11183,16 @@
+@@ -11116,6 +11175,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -182,7 +182,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11612,6 +11681,8 @@
+@@ -11604,6 +11673,8 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -348,7 +348,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -384,7 +388,7 @@
+@@ -387,7 +391,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -357,7 +357,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -487,4 +491,6 @@
+@@ -490,4 +494,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  
@@ -516,7 +516,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:40:36.602058774 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:44:21.720021228 +0900
-@@ -1486,10 +1486,12 @@
+@@ -1506,10 +1506,12 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -531,7 +531,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  		return(DB_ERROR);
  	}
-@@ -1498,7 +1500,7 @@
+@@ -1518,7 +1520,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

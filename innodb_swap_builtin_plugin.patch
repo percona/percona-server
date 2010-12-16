@@ -8,7 +8,7 @@
 diff -ruN a/configure b/configure
 --- a/configure	2010-04-06 23:13:20.000000000 +0900
 +++ b/configure	2010-04-28 19:12:59.000000000 +0900
-@@ -2068,13 +2068,13 @@
+@@ -2056,13 +2056,13 @@
     === InnoDB Storage Engine ===
    Plugin Name:      innobase
    Description:      Transactional Tables using InnoDB
@@ -24,7 +24,7 @@ diff -ruN a/configure b/configure
    Configurations:   max, max-no-ndb
  
     === MyISAM Storage Engine ===
-@@ -42256,7 +42256,8 @@
+@@ -41803,7 +41803,8 @@
  
  
  
@@ -34,7 +34,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -42268,8 +42269,7 @@
+@@ -41815,8 +41816,7 @@
  
  
  
@@ -44,7 +44,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -43684,7 +43684,7 @@
+@@ -43104,7 +43104,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -53,7 +53,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innobase" != Xyes -a \
              "X$with_plugin_innobase" != Xyes; then
  
-@@ -43710,20 +43710,11 @@
+@@ -43130,20 +43130,11 @@
      else
  
  
@@ -79,7 +79,7 @@ diff -ruN a/configure b/configure
  
  
        mysql_plugin_defs="$mysql_plugin_defs, builtin_innobase_plugin"
-@@ -43811,7 +43802,7 @@
+@@ -43231,7 +43222,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -88,7 +88,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innodb_plugin" != Xyes -a \
              "X$with_plugin_innodb_plugin" != Xyes; then
  
-@@ -43837,11 +43828,20 @@
+@@ -43257,11 +43248,20 @@
      else
  
  
@@ -164,7 +164,7 @@ diff -ruN a/mysql-test/include/read_many_rows.inc b/mysql-test/include/read_many
 diff -ruN a/mysql-test/lib/mtr_cases.pm b/mysql-test/lib/mtr_cases.pm
 --- a/mysql-test/lib/mtr_cases.pm	2010-07-09 21:34:53.000000000 +0900
 +++ b/mysql-test/lib/mtr_cases.pm	2010-07-26 21:23:05.378120605 +0900
-@@ -939,7 +939,7 @@
+@@ -944,7 +944,7 @@
      push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
    }
  
@@ -173,7 +173,7 @@ diff -ruN a/mysql-test/lib/mtr_cases.pm b/mysql-test/lib/mtr_cases.pm
    {
      # This is a test that needs innodb
      if ( $::mysqld_variables{'innodb'} eq "OFF" ||
-@@ -951,36 +951,6 @@
+@@ -956,36 +956,6 @@
        return $tinfo;
      }
    }

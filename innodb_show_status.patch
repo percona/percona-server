@@ -33,7 +33,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-29 15:28:56.000000000 +0900
-@@ -4787,3 +4787,30 @@
+@@ -4833,3 +4833,30 @@
  
  	fil_system = NULL;
  }
@@ -67,7 +67,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:20.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:56.000000000 +0900
-@@ -10748,6 +10748,16 @@
+@@ -10740,6 +10740,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -84,7 +84,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -10930,7 +10940,7 @@
+@@ -10922,7 +10932,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -93,7 +93,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11008,6 +11018,8 @@
+@@ -11000,6 +11010,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -115,9 +115,9 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
 --- a/storage/innodb_plugin/include/fil0fil.h	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/include/fil0fil.h	2010-04-29 15:28:56.000000000 +0900
-@@ -716,6 +716,16 @@
- /*==============*/
- 	const byte*	page);	/*!< in: file page */
+@@ -725,6 +725,17 @@
+ /*============================*/
+ 	ulint		id);	/*!< in: space id */
  
 +/*************************************************************************
 +Return local hash table informations. */
@@ -129,9 +129,10 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
 +ulint
 +fil_system_hash_nodes(void);
 +/*========================*/
- 
++
  typedef	struct fil_space_struct	fil_space_t;
  
+ #endif
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-29 15:28:56.000000000 +0900
@@ -408,7 +409,7 @@ diff -ruN a/storage/innodb_plugin/thr/thr0loc.c b/storage/innodb_plugin/thr/thr0
  
  /** Thread local data */
  typedef struct thr_local_struct thr_local_t;
-@@ -197,6 +198,7 @@
+@@ -216,6 +217,7 @@
  		    os_thread_pf(os_thread_get_curr_id()),
  		    local);
  
@@ -416,7 +417,7 @@ diff -ruN a/storage/innodb_plugin/thr/thr0loc.c b/storage/innodb_plugin/thr/thr0
  	mutex_exit(&thr_local_mutex);
  }
  
-@@ -224,6 +226,7 @@
+@@ -244,6 +246,7 @@
  
  	HASH_DELETE(thr_local_t, hash, thr_local_hash,
  		    os_thread_pf(id), local);
@@ -424,7 +425,7 @@ diff -ruN a/storage/innodb_plugin/thr/thr0loc.c b/storage/innodb_plugin/thr/thr0
  
  	mutex_exit(&thr_local_mutex);
  
-@@ -277,3 +280,29 @@
+@@ -299,3 +302,29 @@
  	hash_table_free(thr_local_hash);
  	thr_local_hash = NULL;
  }

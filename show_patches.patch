@@ -21,7 +21,7 @@ diff -ruN a/patch_info/show_patches.info b/patch_info/show_patches.info
 diff -ruN a/sql/Makefile.am b/sql/Makefile.am
 --- a/sql/Makefile.am	2010-04-06 23:06:05.000000000 +0900
 +++ b/sql/Makefile.am	2010-04-28 15:29:36.000000000 +0900
-@@ -146,7 +146,7 @@
+@@ -145,7 +145,7 @@
  			@DEFS@
  
  BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
@@ -30,7 +30,7 @@ diff -ruN a/sql/Makefile.am b/sql/Makefile.am
  EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
  			nt_servc.cc nt_servc.h \
  			message.mc  message.h message.rc MSG00001.bin \
-@@ -183,6 +183,9 @@
+@@ -182,6 +182,9 @@
  udf_example_la_SOURCES= udf_example.c
  udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
  
@@ -43,7 +43,7 @@ diff -ruN a/sql/Makefile.am b/sql/Makefile.am
 diff -ruN a/sql/Makefile.in b/sql/Makefile.in
 --- a/sql/Makefile.in	2010-04-06 23:12:51.000000000 +0900
 +++ b/sql/Makefile.in	2010-04-28 15:29:36.000000000 +0900
-@@ -635,7 +635,7 @@
+@@ -630,7 +630,7 @@
  mysql_tzinfo_to_sql_SOURCES = tztime.cc
  mysql_tzinfo_to_sql_CXXFLAGS = -DTZINFO2SQL
  BUILT_MAINT_SRC = sql_yacc.cc sql_yacc.h
@@ -52,7 +52,7 @@ diff -ruN a/sql/Makefile.in b/sql/Makefile.in
  EXTRA_DIST = udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
  			nt_servc.cc nt_servc.h \
  			message.mc  message.h message.rc MSG00001.bin \
-@@ -1320,6 +1320,9 @@
+@@ -1315,6 +1315,9 @@
  	test ! -f mysqld-debug.sym.gz   || $(INSTALL_DATA)    mysqld-debug.sym.gz   $(DESTDIR)$(pkglibdir)
  	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
  
@@ -87,7 +87,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-04-06 23:07:02.000000000 +0900
 +++ b/sql/mysqld.cc	2010-04-28 15:29:36.000000000 +0900
-@@ -3193,6 +3193,7 @@
+@@ -3183,6 +3183,7 @@
    {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
    {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
    {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
@@ -221,7 +221,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "authors.h"
  #include "contributors.h"
  #ifdef HAVE_EVENT_SCHEDULER
-@@ -7250,3 +7251,42 @@
+@@ -7244,3 +7245,42 @@
      status and client connection will be closed.
    */
  }

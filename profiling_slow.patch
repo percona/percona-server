@@ -5,6 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
+diff -ruN a/mysql-test/r/percona_bug643149.result b/mysql-test/r/percona_bug643149.result
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/mysql-test/r/percona_bug643149.result	2010-11-25 23:52:28.000000000 +0300
 @@ -0,0 +1,16 @@
@@ -24,9 +25,10 @@
 +# Profile_starting: X.X Profile_starting_cpu: X.X Profile_checking_permissions: X.X Profile_checking_permissions_cpu: X.X Profile_Opening_tables: X.X Profile_Opening_tables_cpu: X.X Profile_init: X.X Profile_init_cpu: X.X Profile_optimizing: X.X Profile_optimizing_cpu: X.X Profile_executing: X.X Profile_executing_cpu: X.X Profile_User_sleep: X.X Profile_User_sleep_cpu: X.X Profile_end: X.X Profile_end_cpu: X.X Profile_query_end: X.X Profile_query_end_cpu: X.X Profile_freeing_items: X.X Profile_freeing_items_cpu: X.X Profile_logging_slow_query: X.X Profile_logging_slow_query_cpu: X.X 
 +# Profile_total: X.X Profile_total_cpu: X.X 
 +SET GLOBAL slow_query_log_file=@old_slow_query_log_file;
+diff -ruN a/mysql-test/t/percona_bug643149.test b/mysql-test/t/percona_bug643149.test
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/mysql-test/t/percona_bug643149.test	2010-11-25 23:52:08.000000000 +0300
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,50 @@
 +#
 +# This test suffers from server
 +# Bug#38124 "general_log_file" variable silently unset when using expression
@@ -77,6 +79,7 @@
 +  eval SET @@global.slow_query_log_file = '$my_var';
 +  --enable_query_log
 +}
+diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/patch_info/profiling_slow.info	2010-11-24 19:33:02.000000000 +0300
 @@ -0,0 +1,9 @@
@@ -89,6 +92,7 @@
 +Changelog
 +2009-05-18
 +Initial implementation
+diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/log.cc	2010-11-24 19:36:29.000000000 +0300
 @@ -2433,6 +2433,11 @@
@@ -103,9 +107,10 @@
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/mysqld.cc	2010-11-24 19:36:29.000000000 +0300
-@@ -5778,6 +5778,8 @@
+@@ -5768,6 +5768,8 @@
    OPT_LOG_OUTPUT,
    OPT_PORT_OPEN_TIMEOUT,
    OPT_PROFILING,
@@ -114,7 +119,7 @@
    OPT_KEEP_FILES_ON_CREATE,
    OPT_GENERAL_LOG,
    OPT_SLOW_LOG,
-@@ -6390,6 +6392,16 @@
+@@ -6381,6 +6383,16 @@
     &global_system_variables.profiling_history_size,
     &max_system_variables.profiling_history_size,
     0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
@@ -131,6 +136,7 @@
  #endif
    {"relay-log", OPT_RELAY_LOG,
     "The location and name to use for relay logs.",
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/set_var.cc	2010-11-24 19:36:29.000000000 +0300
 @@ -847,6 +847,10 @@
@@ -144,6 +150,7 @@
  #endif
  
  /* Local state variables */
+diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/sql_class.h	2010-11-24 19:36:29.000000000 +0300
 @@ -328,6 +328,8 @@
@@ -155,6 +162,7 @@
    ulong query_cache_type;
    ulong read_buff_size;
    ulong read_rnd_buff_size;
+diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
 --- a/sql/sql_profile.cc	2010-10-12 00:34:33.000000000 +0400
 +++ b/sql/sql_profile.cc	2010-11-25 16:09:12.000000000 +0300
 @@ -223,8 +223,22 @@
@@ -319,6 +327,7 @@
  /**
    Fill the information schema table, "query_profile", as defined in show.cc .
    There are two ways to get to this function:  Selecting from the information
+diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
 --- a/sql/sql_profile.h	2010-10-12 00:34:33.000000000 +0400
 +++ b/sql/sql_profile.h	2010-11-25 15:54:48.000000000 +0300
 @@ -165,11 +165,15 @@

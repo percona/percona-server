@@ -272,7 +272,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  Estimates the number of different key values in a given index, for
  each n-column prefix of the index where n <= dict_index_get_n_unique(index).
  The estimates are stored in the array index->stat_n_diff_key_vals. */
-@@ -3238,18 +3488,40 @@
+@@ -3238,18 +3488,38 @@
  	ulint		offsets_next_rec_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets_rec	= offsets_rec_;
  	ulint*		offsets_next_rec= offsets_next_rec_;
@@ -290,11 +290,9 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
 +		effective_pages = btr_estimate_n_pages_not_null(index, 1 /*k*/, first_rec_path);
 +
 +		if (!effective_pages) {
-+			dict_index_stat_mutex_enter(index);
 +			for (j = 0; j <= n_cols; j++) {
 +				index->stat_n_diff_key_vals[j] = (ib_int64_t)index->stat_n_leaf_pages;
 +			}
-+			dict_index_stat_mutex_exit(index);
 +			return;
 +		} else if (effective_pages > index->stat_n_leaf_pages) {
 +			effective_pages = index->stat_n_leaf_pages;
@@ -316,7 +314,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  		} else {
  			n_sample_pages = 1;
  		}
-@@ -3261,9 +3533,15 @@
+@@ -3261,9 +3531,15 @@
  
  	for (i = 0; i < n_sample_pages; i++) {
  		rec_t*	supremum;
@@ -332,7 +330,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  
  		/* Count the number of different key values for each prefix of
  		the key on this index page. If the prefix does not determine
-@@ -3274,7 +3552,13 @@
+@@ -3274,7 +3550,13 @@
  		page = btr_cur_get_page(&cursor);
  
  		supremum = page_get_supremum_rec(page);
@@ -346,7 +344,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  
  		if (rec != supremum) {
  			not_empty_flag = 1;
-@@ -3283,7 +3567,8 @@
+@@ -3283,7 +3565,8 @@
  		}
  
  		while (rec != supremum) {
@@ -356,7 +354,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  			if (next_rec == supremum) {
  				break;
  			}
-@@ -3297,7 +3582,10 @@
+@@ -3297,7 +3580,10 @@
  			cmp_rec_rec_with_match(rec, next_rec,
  					       offsets_rec, offsets_next_rec,
  					       index, &matched_fields,
@@ -368,7 +366,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  
  			for (j = matched_fields + 1; j <= n_cols; j++) {
  				/* We add one if this index record has
-@@ -3360,7 +3648,7 @@
+@@ -3358,7 +3644,7 @@
  	for (j = 0; j <= n_cols; j++) {
  		index->stat_n_diff_key_vals[j]
  			= ((n_diff[j]
@@ -377,7 +375,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  			    + n_sample_pages - 1
  			    + total_external_size
  			    + not_empty_flag)
-@@ -3375,7 +3663,7 @@
+@@ -3373,7 +3659,7 @@
  		different key values, or even more. Let us try to approximate
  		that: */
  
@@ -386,7 +384,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  			/ (10 * (n_sample_pages
  				 + total_external_size));
  
-@@ -3384,6 +3672,15 @@
+@@ -3382,6 +3668,15 @@
  		}
  
  		index->stat_n_diff_key_vals[j] += add_on;
@@ -401,7 +399,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
 +		}
  	}
  
- 	dict_index_stat_mutex_exit(index);
+ 	mem_free(n_diff);
 diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/dict0boot.c
 --- a/storage/innodb_plugin/dict/dict0boot.c	2010-08-27 16:11:12.152990021 +0900
 +++ b/storage/innodb_plugin/dict/dict0boot.c	2010-08-27 16:16:49.202982244 +0900
@@ -738,16 +736,16 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
 --- a/storage/innodb_plugin/dict/dict0dict.c	2010-08-27 16:11:12.155144214 +0900
 +++ b/storage/innodb_plugin/dict/dict0dict.c	2010-08-27 16:16:49.213982476 +0900
-@@ -708,7 +708,7 @@
- 			/* If table->ibd_file_missing == TRUE, this will
- 			print an error message and return without doing
- 			anything. */
--			dict_update_statistics(table);
-+			dict_update_statistics(table, FALSE);
- 		}
+@@ -739,7 +739,7 @@
+ 		print an error message and return without doing
+ 		anything. */
+ 		dict_update_statistics(table, TRUE /* only update stats
+-				       if they have not been initialized */);
++				       if they have not been initialized */, FALSE);
  	}
  
-@@ -4246,6 +4246,259 @@
+ 	return(table);
+@@ -4276,6 +4276,255 @@
  }
  
  /*********************************************************************//**
@@ -870,11 +868,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 +	btr_pcur_close(&pcur);
 +	mtr_commit(&mtr);
 +
-+	dict_index_stat_mutex_enter(index);
 +	for (i = 0; i <= n_cols; i++) {
 +		index->stat_n_diff_key_vals[i] = stat_n_diff_key_vals_tmp[i];
 +	}
-+	dict_index_stat_mutex_exit(index);
 +}
 +/*===========================================*/
 +
@@ -928,11 +924,9 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 +	n_cols = dict_index_get_n_unique(index);
 +	stat_n_diff_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
 +
-+	dict_index_stat_mutex_enter(index);
 +	for (i = 0; i <= n_cols; i++) {
 +		stat_n_diff_key_vals_tmp[i] = index->stat_n_diff_key_vals[i];
 +	}
-+	dict_index_stat_mutex_exit(index);
 +
 +	sys_stats = dict_sys->sys_stats;
 +	sys_index = UT_LIST_GET_FIRST(sys_stats->indexes);
@@ -1007,23 +1001,26 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4253,9 +4506,10 @@
- dict_update_statistics_low(
- /*=======================*/
+@@ -4283,10 +4532,11 @@
+ dict_update_statistics(
+ /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
--	ibool		has_dict_mutex __attribute__((unused)))
-+	ibool		has_dict_mutex __attribute__((unused)),
- 					/*!< in: TRUE if the caller has the
- 					dictionary mutex */
+-	ibool		only_calc_if_missing_stats)/*!< in: only
++	ibool		only_calc_if_missing_stats,	/*!< in: only
+ 					update/recalc the stats if they have
+ 					not been initialized yet, otherwise
+ 					do nothing */
 +	ibool		sync)		/*!< in: TRUE if must update SYS_STATS */
  {
  	dict_index_t*	index;
  	ulint		sum_of_index_sizes	= 0;
-@@ -4272,6 +4526,23 @@
+@@ -4303,6 +4553,27 @@
  		return;
  	}
  
 +	if (srv_use_sys_stats_table && !((table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY) && !sync) {
++		dict_table_stats_lock(table, RW_X_LATCH);
++
 +		/* reload statistics from SYS_STATS table */
 +		if (dict_reload_statistics(table, &sum_of_index_sizes)) {
 +			/* success */
@@ -1033,6 +1030,8 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 +#endif
 +			goto end;
 +		}
++
++		dict_table_stats_unlock(table, RW_X_LATCH);
 +	}
 +#ifdef UNIV_DEBUG
 +	fprintf(stderr, "InnoDB: DEBUG: update_statistics for %s.\n",
@@ -1043,7 +1042,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4326,6 +4597,11 @@
+@@ -4363,6 +4634,11 @@
  		index = dict_table_get_next_index(index);
  	} while (index);
  
@@ -1054,41 +1053,25 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 +end:
  	index = dict_table_get_first_index(table);
  
- 	dict_index_stat_mutex_enter(index);
-@@ -4352,9 +4628,10 @@
- void
- dict_update_statistics(
- /*===================*/
--	dict_table_t*	table)	/*!< in/out: table */
-+	dict_table_t*	table,	/*!< in/out: table */
-+	ibool		sync)
- {
--	dict_update_statistics_low(table, FALSE);
-+	dict_update_statistics_low(table, FALSE, sync);
- }
- 
- /**********************************************************************//**
-@@ -4434,7 +4711,8 @@
+ 	table->stat_n_rows = index->stat_n_diff_key_vals[
+@@ -4457,7 +4733,7 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
--	dict_update_statistics_low(table, TRUE);
-+	if (srv_stats_auto_update)
-+		dict_update_statistics_low(table, TRUE, FALSE);
+-	dict_update_statistics(table, FALSE /* update even if initialized */);
++	dict_update_statistics(table, FALSE /* update even if initialized */, FALSE);
  
- 	fprintf(stderr,
- 		"--------------------------------------\n"
+ 	dict_table_stats_lock(table, RW_S_LATCH);
+ 
 diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
 --- a/storage/innodb_plugin/dict/dict0load.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:16:49.218982387 +0900
-@@ -221,8 +221,8 @@
- 			/* The table definition was corrupt if there
- 			is no index */
+@@ -223,7 +223,7 @@
  
--			if (dict_table_get_first_index(table)) {
--				dict_update_statistics_low(table, TRUE);
-+			if (srv_stats_auto_update && dict_table_get_first_index(table)) {
-+				dict_update_statistics_low(table, TRUE, FALSE);
+ 			if (dict_table_get_first_index(table)) {
+ 				dict_update_statistics(table, FALSE /* update
+-						       even if initialized */);
++						       even if initialized */, FALSE);
  			}
  
  			dict_table_print_low(table);
@@ -1157,7 +1140,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -7791,9 +7811,29 @@
+@@ -7783,11 +7803,31 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1183,12 +1166,14 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +
  			prebuilt->trx->op_info = "updating table statistics";
  
--			dict_update_statistics(ib_table);
-+			dict_update_statistics(ib_table, called_from_analyze);
+ 			dict_update_statistics(ib_table,
+ 					       FALSE /* update even if stats
+-						     are initialized */);
++						     are initialized */, called_from_analyze);
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -7866,7 +7906,7 @@
+@@ -7865,7 +7905,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1197,7 +1182,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
  			remain. delete_length is initialized to 0 in
-@@ -11053,6 +11093,45 @@
+@@ -11045,6 +11085,45 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1243,7 +1228,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11371,6 +11450,10 @@
+@@ -11363,6 +11442,10 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1254,7 +1239,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11435,6 +11518,8 @@
+@@ -11427,6 +11510,8 @@
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,
@@ -1743,28 +1728,20 @@ diff -ruN a/storage/innodb_plugin/include/dict0crea.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
 --- a/storage/innodb_plugin/include/dict0dict.h	2010-08-27 16:11:12.177142545 +0900
 +++ b/storage/innodb_plugin/include/dict0dict.h	2010-08-27 16:16:49.263981911 +0900
-@@ -1056,8 +1056,9 @@
- dict_update_statistics_low(
- /*=======================*/
- 	dict_table_t*	table,		/*!< in/out: table */
--	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
-+	ibool		has_dict_mutex,	/*!< in: TRUE if the caller has the
- 					dictionary mutex */
-+	ibool		sync);
- /*********************************************************************//**
- Calculates new estimates for table and index statistics. The statistics
- are used in query optimization. */
-@@ -1065,7 +1066,8 @@
- void
+@@ -1057,10 +1057,11 @@
  dict_update_statistics(
  /*===================*/
--	dict_table_t*	table);	/*!< in/out: table */
-+	dict_table_t*	table,	/*!< in/out: table */
+ 	dict_table_t*	table,		/*!< in/out: table */
+-	ibool		only_calc_if_missing_stats);/*!< in: only
++	ibool		only_calc_if_missing_stats,	/*!< in: only
+ 					update/recalc the stats if they have
+ 					not been initialized yet, otherwise
+ 					do nothing */
 +	ibool		sync);
  /********************************************************************//**
  Reserves the dictionary system mutex for MySQL. */
  UNIV_INTERN
-@@ -1176,6 +1178,7 @@
+@@ -1175,6 +1176,7 @@
  	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
  	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
  	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
@@ -2046,16 +2023,16 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	/* Calculate new statistics if 1 / 16 of table has been modified
  	since the last time a statistics batch was run, or if
  	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
-@@ -871,7 +874,7 @@
- 	if (counter > 2000000000
+@@ -872,7 +875,7 @@
  	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
  
--		dict_update_statistics(table);
-+		dict_update_statistics(table, TRUE);
+ 		dict_update_statistics(table, FALSE /* update even if stats
+-						    are initialized */);
++						    are initialized */, TRUE);
  	}
  }
  
-@@ -2045,6 +2048,45 @@
+@@ -2046,6 +2049,45 @@
  }
  
  /*********************************************************************//**
@@ -2101,16 +2078,16 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  Scans a table create SQL string and adds to the data dictionary
  the foreign key constraints declared in the string. This function
  should be called after the indexes for a table have been created.
-@@ -2964,7 +3006,7 @@
- 	dict_table_autoinc_lock(table);
+@@ -2966,7 +3008,7 @@
  	dict_table_autoinc_initialize(table, 1);
  	dict_table_autoinc_unlock(table);
--	dict_update_statistics(table);
-+	dict_update_statistics(table, TRUE);
+ 	dict_update_statistics(table, FALSE /* update even if stats are
+-					    initialized */);
++					    initialized */, TRUE);
  
  	trx_commit_for_mysql(trx);
  
-@@ -3266,6 +3308,8 @@
+@@ -3268,6 +3310,8 @@
  			   "       IF (SQL % NOTFOUND) THEN\n"
  			   "               found := 0;\n"
  			   "       ELSE\n"

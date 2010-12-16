@@ -302,7 +302,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:32:40.298411400 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:34:33.868058362 +0900
-@@ -4869,6 +4869,78 @@
+@@ -4915,6 +4915,78 @@
  	return(DB_SUCCESS);
  }
  
@@ -384,7 +384,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 09:57:56.486228425 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 10:00:13.292228546 +0900
-@@ -11481,6 +11481,12 @@
+@@ -11473,6 +11473,12 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -397,7 +397,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11563,6 +11569,7 @@
+@@ -11555,6 +11561,7 @@
  #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -667,7 +667,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  /** We use this mutex to test the return value of pthread_mutex_trylock
     on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-@@ -1680,6 +1680,10 @@
+@@ -1700,6 +1700,10 @@
  	os_thread_create(&srv_monitor_thread, NULL,
  			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
  
@@ -678,7 +678,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  	srv_is_being_started = FALSE;
  
  	if (trx_doublewrite == NULL) {
-@@ -1704,13 +1708,13 @@
+@@ -1724,13 +1728,13 @@
  		ulint i;
  
  		os_thread_create(&srv_purge_thread, NULL, thread_ids

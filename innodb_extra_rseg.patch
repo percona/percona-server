@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 15:56:27.388990435 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 15:57:21.943242617 +0900
-@@ -11097,6 +11097,11 @@
+@@ -11089,6 +11089,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11161,6 +11166,7 @@
+@@ -11153,6 +11158,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -28,7 +28,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(change_buffering),
  #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-@@ -11186,6 +11192,7 @@
+@@ -11178,6 +11184,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -300,7 +300,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 15:54:18.103988092 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 15:57:21.959058733 +0900
-@@ -1507,6 +1507,14 @@
+@@ -1527,6 +1527,14 @@
  		dict_create();
  		srv_startup_is_before_trx_rollback_phase = FALSE;
  

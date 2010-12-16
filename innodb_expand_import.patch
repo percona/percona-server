@@ -513,7 +513,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11305,6 +11313,11 @@
+@@ -11307,6 +11315,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -525,7 +525,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "Number of extra user rollback segments when create new database.",
-@@ -11381,6 +11394,7 @@
+@@ -11383,6 +11396,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),

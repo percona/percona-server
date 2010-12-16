@@ -90,7 +90,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
 +	srv_read_ahead &= 3;
-+	srv_adaptive_checkpoint %= 3;
++	srv_adaptive_checkpoint %= 4;
 +
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
@@ -115,7 +115,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
-@@ -10967,6 +10991,100 @@
+@@ -10967,6 +10991,102 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -185,17 +185,19 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +  void*        var_ptr,
 +  const void*  save)
 +{
-+  *(long *)var_ptr= (*(long *)save) % 3;
++  *(long *)var_ptr= (*(long *)save) % 4;
 +}
 +const char *adaptive_checkpoint_names[]=
 +{
 +  "none", /* 0 */
 +  "reflex", /* 1 */
 +  "estimate", /* 2 */
++  "keep_average", /* 3 */
 +  /* For compatibility of the older patch */
-+  "0", /* 3 ("none" + 3) */
-+  "1", /* 4 ("reflex" + 3) */
-+  "2", /* 5 ("estimate" + 3) */
++  "0", /* 4 ("none" + 3) */
++  "1", /* 5 ("reflex" + 3) */
++  "2", /* 6 ("estimate" + 3) */
++  "3", /* 7 ("keep_average" + 4) */
 +  NullS
 +};
 +TYPELIB adaptive_checkpoint_typelib=
@@ -205,7 +207,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +};
 +static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
 +  PLUGIN_VAR_RQCMDARG,
-+  "Enable/Disable flushing along modified age. ([none], reflex, estimate)",
++  "Enable/Disable flushing along modified age. ([none], reflex, estimate, keep_average)",
 +  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
 +
 +static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
@@ -216,7 +218,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11021,6 +11139,15 @@
+@@ -11021,6 +11141,15 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -961,10 +963,30 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2486,6 +2497,10 @@
+@@ -2477,15 +2488,30 @@
+ 	ulint		n_pages_purged	= 0;
+ 	ulint		n_bytes_merged;
+ 	ulint		n_pages_flushed;
++	ulint		n_pages_flushed_prev = 0;
+ 	ulint		n_bytes_archived;
+ 	ulint		n_tables_to_drop;
+ 	ulint		n_ios;
+ 	ulint		n_ios_old;
+ 	ulint		n_ios_very_old;
+ 	ulint		n_pend_ios;
++	ulint		next_itr_time;
++	ulint		prev_adaptive_checkpoint = ULINT_UNDEFINED;
++	ulint		inner_loop = 0;
  	ibool		skip_sleep	= FALSE;
  	ulint		i;
  
++	struct t_prev_flush_info_struct {
++		ulint		count;
++		unsigned	space:32;
++		unsigned	offset:32;
++		ib_uint64_t	oldest_modification;
++	} prev_flush_info;
++
 +	ib_uint64_t	lsn_old;
 +
 +	ib_uint64_t	oldest_lsn;
@@ -972,7 +994,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
  		os_thread_pf(os_thread_get_curr_id()));
-@@ -2501,6 +2516,9 @@
+@@ -2501,6 +2527,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -982,9 +1004,25 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2538,6 +2556,19 @@
+@@ -2528,16 +2557,38 @@
+ 	srv_last_log_flush_time = time(NULL);
+ 	skip_sleep = FALSE;
  
- 			os_thread_sleep(1000000);
++	next_itr_time = ut_time_ms() + 1000;
++
+ 	for (i = 0; i < 10; i++) {
++		ulint	cur_time = ut_time_ms();
++
+ 		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
+ 			+ buf_pool->stat.n_pages_written;
+ 		srv_main_thread_op_info = "sleeping";
+ 		srv_main_1_second_loops++;
+ 
+ 		if (!skip_sleep) {
++		if (next_itr_time > cur_time) {
+ 
+-			os_thread_sleep(1000000);
++			os_thread_sleep(ut_min(1000000, (next_itr_time - cur_time) * 1000));
  			srv_main_sleeps++;
 +
 +			/*
@@ -999,10 +1037,14 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +				(lsn - oldest_lsn) * 100 / log_sys->max_checkpoint_age,
 +				lsn - lsn_old);
 +			*/
++		}
++
++		/* Each iteration should happen at 1 second interval. */
++		next_itr_time = ut_time_ms() + 1000;
  		}
  
  		skip_sleep = FALSE;
-@@ -2574,7 +2605,7 @@
+@@ -2574,7 +2625,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -1011,7 +1053,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2598,6 +2629,10 @@
+@@ -2598,6 +2649,11 @@
  			iteration of this loop. */
  
  			skip_sleep = TRUE;
@@ -1019,10 +1061,11 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +			mutex_enter(&(log_sys->mutex));
 +			lsn_old = log_sys->lsn;
 +			mutex_exit(&(log_sys->mutex));
++			prev_adaptive_checkpoint = ULINT_UNDEFINED;
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2619,6 +2654,140 @@
+@@ -2619,6 +2675,255 @@
  					skip_sleep = TRUE;
  				}
  			}
@@ -1030,6 +1073,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +			mutex_enter(&(log_sys->mutex));
 +			lsn_old = log_sys->lsn;
 +			mutex_exit(&(log_sys->mutex));
++			prev_adaptive_checkpoint = ULINT_UNDEFINED;
 +		} else if (srv_adaptive_checkpoint == 1) {
 +			/* adaptive_flushing option is prior to adaptive_checkpoint option, for now */
 +
@@ -1073,6 +1117,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +					mutex_exit(&(log_sys->mutex));
 +				}
 +			}
++			prev_adaptive_checkpoint = 1;
 +		} else if (srv_adaptive_checkpoint == 2) {
 +
 +			/* Try to keep modified age not to exceed
@@ -1155,15 +1200,128 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +					mutex_exit(&(log_sys->mutex));
 +				}
 +			}
++			prev_adaptive_checkpoint = 2;
++		} else if (srv_adaptive_checkpoint == 3) {
++			buf_page_t*	bpage;
++			ib_uint64_t	lsn;
 +
++			mutex_enter(&(log_sys->mutex));
++			oldest_lsn = buf_pool_get_oldest_modification();
++			lsn = log_sys->lsn;
++			mutex_exit(&(log_sys->mutex));
++
++			/* upper loop/sec. (x10) */
++			next_itr_time -= 900; /* 1000 - 900 == 100 */
++			inner_loop++;
++			if (inner_loop < 10) {
++				i--;
++			} else {
++				inner_loop = 0;
++			}
++
++			if (prev_adaptive_checkpoint == 3) {
++				lint	n_flush;
++				lint	blocks_sum, new_blocks_sum, flushed_blocks_sum;
++
++				blocks_sum = new_blocks_sum = flushed_blocks_sum = 0;
++
++				/* prev_flush_info should be the previous loop's */
++				{
++					lint	blocks_num, new_blocks_num, flushed_blocks_num;
++					ibool	found;
++
++					blocks_num = UT_LIST_GET_LEN(buf_pool->flush_list);
++					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
++					new_blocks_num = 0;
++
++					found = FALSE;
++					while (bpage != NULL) {
++						if (prev_flush_info.space == bpage->space
++						    && prev_flush_info.offset == bpage->offset
++						    && prev_flush_info.oldest_modification
++								== bpage->oldest_modification) {
++							found = TRUE;
++							break;
++						}
++						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
++						new_blocks_num++;
++					}
++					if (!found) {
++						new_blocks_num = blocks_num;
++					}
++
++					flushed_blocks_num = new_blocks_num + prev_flush_info.count
++								- blocks_num;
++					if (flushed_blocks_num < 0) {
++						flushed_blocks_num = 0;
++					}
++
++					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
++
++					prev_flush_info.count = UT_LIST_GET_LEN(buf_pool->flush_list);
++					if (bpage) {
++						prev_flush_info.space = bpage->space;
++						prev_flush_info.offset = bpage->offset;
++						prev_flush_info.oldest_modification = bpage->oldest_modification;
++					} else {
++						prev_flush_info.space = 0;
++						prev_flush_info.offset = 0;
++						prev_flush_info.oldest_modification = 0;
++					}
++
++					new_blocks_sum += new_blocks_num;
++					flushed_blocks_sum += flushed_blocks_num;
++					blocks_sum += blocks_num;
++				}
++
++				n_flush = blocks_sum * (lsn - lsn_old) / log_sys->max_modified_age_async;
++				if (flushed_blocks_sum > n_pages_flushed_prev) {
++					n_flush -= (flushed_blocks_sum - n_pages_flushed_prev);
++				}
++
++				if (n_flush > 0) {
++					n_flush++;
++					n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, n_flush,
++									  oldest_lsn + (lsn - lsn_old));
++				} else {
++					n_pages_flushed = 0;
++				}					
++			} else {
++				/* store previous first pages of the flush_list */
++				{
++					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
++
++					prev_flush_info.count = UT_LIST_GET_LEN(buf_pool->flush_list);
++					if (bpage) {
++						prev_flush_info.space = bpage->space;
++						prev_flush_info.offset = bpage->offset;
++						prev_flush_info.oldest_modification = bpage->oldest_modification;
++					} else {
++						prev_flush_info.space = 0;
++						prev_flush_info.offset = 0;
++						prev_flush_info.oldest_modification = 0;
++					}
++				}
++				n_pages_flushed = 0;
++			}
++
++			lsn_old = lsn;
++			prev_adaptive_checkpoint = 3;
 +		} else {
 +			mutex_enter(&(log_sys->mutex));
 +			lsn_old = log_sys->lsn;
 +			mutex_exit(&(log_sys->mutex));
++			prev_adaptive_checkpoint = ULINT_UNDEFINED;
++		}
++
++		if (n_pages_flushed == ULINT_UNDEFINED) {
++			n_pages_flushed_prev = 0;
++		} else {
++			n_pages_flushed_prev = n_pages_flushed;
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2667,7 +2836,7 @@
+@@ -2667,7 +2972,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1172,7 +1330,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2792,7 +2961,7 @@
+@@ -2792,7 +3097,7 @@
  		buf_flush_batch below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,

@@ -4055,7 +4055,7 @@ diff -ruN a/storage/innodb_plugin/mtr/mtr0mtr.c b/storage/innodb_plugin/mtr/mtr0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:11:12.194989878 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:11:40.634022489 +0900
-@@ -2829,7 +2829,7 @@
+@@ -2852,7 +2852,7 @@
  
  					mutex_exit(&(log_sys->mutex));
  
@@ -4064,7 +4064,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  					level = 0;
  					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-@@ -2851,7 +2851,7 @@
+@@ -2874,7 +2874,7 @@
  						bpl = 0;
  					}
  

@@ -40,7 +40,7 @@ diff -ruN a/patch_info/response-time-distribution.info b/patch_info/response-tim
 diff -ruN a/sql/Makefile.am b/sql/Makefile.am
 --- a/sql/Makefile.am	2010-11-01 08:43:52.000000000 +0000
 +++ b/sql/Makefile.am	2010-11-01 08:52:40.000000000 +0000
-@@ -67,7 +67,7 @@
+@@ -66,7 +66,7 @@
  			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
  			log_event.h rpl_record.h \
  			log_event_old.h rpl_record_old.h \
@@ -49,7 +49,7 @@ diff -ruN a/sql/Makefile.am b/sql/Makefile.am
  			spatial.h gstream.h client_settings.h tzfile.h \
  			tztime.h my_decimal.h\
  			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
-@@ -90,7 +90,7 @@
+@@ -89,7 +89,7 @@
  			sql_string.cc sql_manager.cc sql_map.cc \
  			mysqld.cc password.c hash_filo.cc hostname.cc \
  			sql_connect.cc scheduler.cc sql_parse.cc \
@@ -70,7 +70,7 @@ diff -ruN a/sql/Makefile.in b/sql/Makefile.in
  	sql_base.$(OBJEXT) table.$(OBJEXT) sql_select.$(OBJEXT) \
  	sql_insert.$(OBJEXT) sql_profile.$(OBJEXT) \
  	sql_prepare.$(OBJEXT) sql_error.$(OBJEXT) sql_locale.$(OBJEXT) \
-@@ -567,7 +567,7 @@
+@@ -562,7 +562,7 @@
  			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
  			log_event.h rpl_record.h \
  			log_event_old.h rpl_record_old.h \
@@ -79,7 +79,7 @@ diff -ruN a/sql/Makefile.in b/sql/Makefile.in
  			spatial.h gstream.h client_settings.h tzfile.h \
  			tztime.h my_decimal.h\
  			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
-@@ -590,7 +590,7 @@
+@@ -585,7 +585,7 @@
  			sql_string.cc sql_manager.cc sql_map.cc \
  			mysqld.cc password.c hash_filo.cc hostname.cc \
  			sql_connect.cc scheduler.cc sql_parse.cc \
@@ -88,7 +88,7 @@ diff -ruN a/sql/Makefile.in b/sql/Makefile.in
  			sql_base.cc table.cc sql_select.cc sql_insert.cc \
  			sql_profile.cc \
  			sql_prepare.cc sql_error.cc sql_locale.cc \
-@@ -833,6 +833,7 @@
+@@ -828,6 +828,7 @@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/password.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/procedure.Po@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/protocol.Po@am__quote@
@@ -133,7 +133,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_SYS_PRCTL_H
  #include <sys/prctl.h>
  #endif
-@@ -530,6 +531,10 @@
+@@ -528,6 +529,10 @@
  my_bool opt_query_cache_strip_comments = 0;
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
@@ -144,7 +144,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_myisam_use_mmap= 0;
-@@ -675,6 +680,7 @@
+@@ -673,6 +678,7 @@
  MY_LOCALE *my_default_lc_time_names;
  
  SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
@@ -152,7 +152,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  SHOW_COMP_OPTION have_geometry, have_rtree_keys;
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_community_features;
-@@ -1385,6 +1391,9 @@
+@@ -1383,6 +1389,9 @@
    free_global_thread_stats();
    free_global_table_stats();
    free_global_index_stats();
@@ -162,7 +162,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -4087,6 +4096,9 @@
+@@ -4077,6 +4086,9 @@
  
    init_global_table_stats();
    init_global_index_stats();
@@ -172,7 +172,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
-@@ -5900,6 +5912,10 @@
+@@ -5890,6 +5902,10 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -183,7 +183,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD
-@@ -6969,6 +6985,23 @@
+@@ -6960,6 +6976,23 @@
     "Use microsecond time's precision in slow query log",
     (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
     0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
@@ -207,7 +207,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-@@ -8183,6 +8216,11 @@
+@@ -8174,6 +8207,11 @@
  #else
    have_query_cache=SHOW_OPTION_NO;
  #endif
@@ -779,7 +779,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "debug_sync.h"
  
  #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
-@@ -7467,6 +7468,13 @@
+@@ -7461,6 +7462,13 @@
  
  */
  
@@ -793,7 +793,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7521,6 +7529,13 @@
+@@ -7515,6 +7523,13 @@
     1, 9, 0, OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -869,7 +869,7 @@ diff -ruN a/sql/table.h b/sql/table.h
 diff -ruN a/configure.in b/configure.in
 --- a/configure.in	2010-12-07 19:19:42.000000000 +0300
 +++ b/configure.in	2010-12-07 19:21:39.000000000 +0300
-@@ -2718,7 +2718,16 @@
+@@ -2678,7 +2678,16 @@
  AC_SUBST(readline_link)
  AC_SUBST(readline_h_ln_cmd)
  

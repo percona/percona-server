@@ -1,6 +1,6 @@
 FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
-MYSQL_VERSION=5.1.53
+MYSQL_VERSION=5.1.54
 PERCONA_SERVER ?=Percona-Server
 
 all: main install-lic tests misc handlersocket autorun

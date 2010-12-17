@@ -322,6 +322,13 @@ CXX=g++ ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--prefix=%{_prefix}
 make
 }
+
+BuildUDF() {
+cd UDF
+autoreconf --install
+CXX=g++ ./configure --libdir=%{_libdir}
+make all install
+}
 # end of function definition "BuildHandlerSocket"
 
 BuildServer() {
@@ -470,7 +477,7 @@ touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 install -m600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
 	$RBR%{_datadir}/mysql/SELinux/RHEL4
 
-
+BuildUDF
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################

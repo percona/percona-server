@@ -706,7 +706,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  void log_slow_statement(THD *thd)
  {
    DBUG_ENTER("log_slow_statement");
-@@ -1430,6 +1429,41 @@
+@@ -1430,6 +1429,42 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -735,6 +735,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +  USE_GLOBAL_UPDATE(log_slow_rate_limit,SLOG_UG_LOG_SLOW_RATE_LIMIT);
 +  USE_GLOBAL_UPDATE(log_slow_verbosity,SLOG_UG_LOG_SLOW_VERBOSITY);
 +  USE_GLOBAL_UPDATE(long_query_time,SLOG_UG_LONG_QUERY_TIME);
++  USE_GLOBAL_UPDATE(long_query_time_double,SLOG_UG_LONG_QUERY_TIME);
 +  USE_GLOBAL_UPDATE(min_examined_row_limit,SLOG_UG_MIN_EXAMINED_ROW_LIMIT);
 +#undef USE_GLOBAL_UPDATE
 +

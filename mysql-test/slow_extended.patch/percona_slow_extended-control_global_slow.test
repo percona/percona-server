@@ -7,4 +7,3 @@ set global use_global_log_slow_control='';
 set global log_slow_verbosity=microtime;
 let $cmd = cat $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-control_global_slow.log | grep "No InnoDB statistics available for this query" | wc -l;
 exec $cmd;
-set global log_slow_verbosity='';

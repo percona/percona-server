@@ -1,230 +1,91 @@
+# Activate master-slave replication
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+# Make table t for test
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
+# Start slave replication
+START SLAVE;
 INSERT INTO t VALUES (1);
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	OFF
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	OFF
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
+# Read and change log_slow_slave_statements to ON on slave
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
 set global log_slow_slave_statements=ON;
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
 INSERT INTO t VALUES (2);
+# Restart slave
 STOP SLAVE;
 START SLAVE;
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
 INSERT INTO t VALUES (3);
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	OFF
 set global long_query_time=0;
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	OFF
 INSERT INTO t VALUES (4);
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-set global use_global_long_query_time=1;
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	long_query_time
-USE_GLOBAL_LONG_QUERY_TIME	ON
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	long_query_time
-USE_GLOBAL_LONG_QUERY_TIME	ON
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	OFF
+set global  use_global_long_query_time=1;
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	ON
 INSERT INTO t VALUES (5);
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	long_query_time
-USE_GLOBAL_LONG_QUERY_TIME	ON
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	0.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	long_query_time
-USE_GLOBAL_LONG_QUERY_TIME	ON
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	ON
 set global long_query_time=1;
 set global use_global_long_query_time=0;
-SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE
-(Variable_name =  'log_slow_slave_statements')
-or (Variable_name = 'long_query_time')
-or (Variable_name = 'use_global_log_slow_control')
-or (Variable_name = 'use_global_long_query_time')
-ORDER BY Variable_name;
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_SLAVE_STATEMENTS	ON
-LONG_QUERY_TIME	1.000000
-USE_GLOBAL_LOG_SLOW_CONTROL	
-USE_GLOBAL_LONG_QUERY_TIME	OFF
-Master	'INSERT INTO t VALUES(1)'	0
-Master	'INSERT INTO t VALUES(2)'	0
-Master	'INSERT INTO t VALUES(3)'	0
-Master	'INSERT INTO t VALUES(4)'	0
-Master	'INSERT INTO t VALUES(5)'	0
-Slave	'INSERT INTO t VALUES(1)'	0
-Slave	'INSERT INTO t VALUES(2)'	0
-Slave	'INSERT INTO t VALUES(3)'	0
-Slave	'INSERT INTO t VALUES(4)'	0
-Slave	'INSERT INTO t VALUES(5)'	1
+# Analyse master slow_query_log
+0
+0
+0
+0
+0
+# Analyse slave slow_query_log
+0
+0
+0
+0
+1
 set global log_slow_slave_statements=OFF;
 DROP TABLE t;

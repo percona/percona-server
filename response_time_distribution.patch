@@ -642,7 +642,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1468,23 +1469,31 @@
+@@ -1469,23 +1470,31 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -688,7 +688,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1603,6 +1612,7 @@
+@@ -1604,6 +1613,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:

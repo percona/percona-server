@@ -8,7 +8,7 @@
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-11-16 23:20:22.000000000 +0500
 +++ b/sql/mysqld.cc	2010-11-16 23:22:07.000000000 +0500
-@@ -392,6 +392,7 @@
+@@ -393,6 +393,7 @@
  my_bool opt_enable_named_pipe= 0;
  my_bool opt_local_infile, opt_slave_compressed_protocol;
  my_bool opt_safe_user_create = 0;
@@ -46,7 +46,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/sql_class.cc	2010-11-17 00:06:49.000000000 +0500
-@@ -4503,7 +4503,7 @@
+@@ -4544,7 +4544,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));

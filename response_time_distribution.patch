@@ -40,7 +40,7 @@ diff -ruN a/patch_info/response-time-distribution.info b/patch_info/response-tim
 diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
 --- a/sql/CMakeLists.txt	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/CMakeLists.txt	2010-11-14 16:50:47.000000000 +0500
-@@ -55,7 +55,7 @@
+@@ -51,7 +51,7 @@
                 message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                 mysqld.cc net_serv.cc  keycaches.cc
                 ../sql-common/client_plugin.c
@@ -49,7 +49,7 @@ diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
                 ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                 protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
                 slave.cc sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
-@@ -63,7 +63,7 @@
+@@ -59,7 +59,7 @@
                 sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                 sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                 sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
@@ -61,7 +61,7 @@ diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/handler.h	2010-11-14 16:44:23.000000000 +0500
-@@ -578,6 +578,7 @@
+@@ -580,6 +580,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,
    SCH_PROCEDURES,
@@ -83,62 +83,9 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/Makefile.am b/sql/Makefile.am
 --- a/sql/Makefile.am	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/Makefile.am	2010-11-14 16:41:02.000000000 +0500
-@@ -113,7 +113,7 @@
- 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
- 			log_event.h rpl_record.h sql_const.h \
- 			log_event_old.h rpl_record_old.h \
--			sql_sort.h sql_cache.h set_var.h sys_vars_shared.h \
-+			sql_sort.h sql_cache.h set_var.h query_response_time.h sys_vars_shared.h \
- 			spatial.h gstream.h client_settings.h tzfile.h \
- 			tztime.h my_decimal.h keycaches.h \
- 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
-@@ -139,7 +139,7 @@
- 			lock.cc sql_string.cc sql_manager.cc \
- 			main.cc mysqld.cc password.c hash_filo.cc hostname.cc \
- 			sql_connect.cc scheduler.cc sql_parse.cc \
--			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
-+			keycaches.cc set_var.cc query_response_time.cc sql_yacc.yy sys_vars.cc \
- 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
- 			sql_reload.cc datadict.cc sql_profile.cc \
- 			sql_prepare.cc sql_error.cc sql_locale.cc \
 diff -ruN a/sql/Makefile.in b/sql/Makefile.in
 --- a/sql/Makefile.in	2010-11-03 03:01:37.000000000 +0500
 +++ b/sql/Makefile.in	2010-11-14 16:41:09.000000000 +0500
-@@ -125,7 +125,7 @@
- 	sql_state.$(OBJEXT) lock.$(OBJEXT) sql_string.$(OBJEXT) \
- 	sql_manager.$(OBJEXT) main.$(OBJEXT) mysqld.$(OBJEXT) \
- 	password.$(OBJEXT) hash_filo.$(OBJEXT) hostname.$(OBJEXT) \
--	sql_connect.$(OBJEXT) scheduler.$(OBJEXT) sql_parse.$(OBJEXT) \
-+	sql_connect.$(OBJEXT) scheduler.$(OBJEXT) sql_parse.$(OBJEXT) query_response_time.${OBJEXT} \
- 	keycaches.$(OBJEXT) set_var.$(OBJEXT) sql_yacc.$(OBJEXT) \
- 	sys_vars.$(OBJEXT) sql_base.$(OBJEXT) table.$(OBJEXT) \
- 	sql_select.$(OBJEXT) sql_insert.$(OBJEXT) sql_reload.$(OBJEXT) \
-@@ -626,7 +626,7 @@
- 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
- 			log_event.h rpl_record.h sql_const.h \
- 			log_event_old.h rpl_record_old.h \
--			sql_sort.h sql_cache.h set_var.h sys_vars_shared.h \
-+			sql_sort.h sql_cache.h set_var.h query_response_time.h sys_vars_shared.h \
- 			spatial.h gstream.h client_settings.h tzfile.h \
- 			tztime.h my_decimal.h keycaches.h \
- 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
-@@ -652,7 +652,7 @@
- 			lock.cc sql_string.cc sql_manager.cc \
- 			main.cc mysqld.cc password.c hash_filo.cc hostname.cc \
- 			sql_connect.cc scheduler.cc sql_parse.cc \
--			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
-+			keycaches.cc set_var.cc query_response_time.cc sql_yacc.yy sys_vars.cc \
- 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
- 			sql_reload.cc datadict.cc sql_profile.cc \
- 			sql_prepare.cc sql_error.cc sql_locale.cc \
-@@ -905,6 +905,7 @@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/password.Po@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/procedure.Po@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/protocol.Po@am__quote@
-+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/query_response_time.Po@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/records.Po@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/repl_failsafe.Po@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rpl_filter.Po@am__quote@
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-11-13 18:11:01.000000000 +0500
 +++ b/sql/mysqld.cc	2010-11-14 16:41:20.000000000 +0500
@@ -168,7 +115,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3939,6 +3944,8 @@
+@@ -3933,6 +3938,8 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  
@@ -634,7 +581,7 @@ diff -ruN a/sql/query_response_time.h b/sql/query_response_time.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/sql_parse.cc	2010-11-14 17:24:19.000000000 +0500
-@@ -91,6 +91,7 @@
+@@ -88,6 +88,7 @@
  #include "sp_cache.h"
  #include "events.h"
  #include "sql_trigger.h"
@@ -642,7 +589,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1469,23 +1470,31 @@
+@@ -1477,22 +1478,30 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -652,8 +599,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 -    ulonglong end_utime_of_query= thd->current_utime();
 -    thd_proc_info(thd, "logging slow query");
 -
--    if (((end_utime_of_query - thd->utime_after_lock) >
--         thd->variables.long_query_time ||
+-    if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
 -         ((thd->server_status &
 -           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
 -          opt_log_queries_not_using_indexes &&
@@ -672,8 +618,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 -      slow_log_print(thd, thd->query(), thd->query_length(), 
 -                     end_utime_of_query);
 +
-+      if ((query_execution_time >
-+           thd->variables.long_query_time ||
++      if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
 +           ((thd->server_status &
 +             (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
 +            opt_log_queries_not_using_indexes &&
@@ -688,7 +633,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1604,6 +1613,7 @@
+@@ -1611,6 +1620,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -722,7 +667,7 @@ diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/sql_show.cc	2010-11-14 16:42:40.000000000 +0500
-@@ -49,6 +49,7 @@
+@@ -51,6 +51,7 @@
  #include "event_data_objects.h"
  #endif
  #include <my_dir.h>
@@ -730,7 +675,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -7623,6 +7624,14 @@
+@@ -7642,6 +7643,14 @@
  
  */
  
@@ -745,7 +690,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7676,6 +7685,8 @@
+@@ -7695,6 +7704,8 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -765,7 +710,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -11096,6 +11097,13 @@
+@@ -11095,6 +11096,13 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -779,7 +724,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11332,6 +11340,8 @@
+@@ -11331,6 +11339,8 @@
            { Lex->type|= REFRESH_STATUS; }
          | SLAVE
            { Lex->type|= REFRESH_SLAVE; }
@@ -788,7 +733,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12609,6 +12619,7 @@
+@@ -12617,6 +12627,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}
@@ -807,7 +752,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1772,6 +1773,19 @@
+@@ -1781,6 +1782,19 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  

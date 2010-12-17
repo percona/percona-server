@@ -321,6 +321,7 @@ CXX=g++ ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--libdir=%{_libdir} \
 	--prefix=%{_prefix}
 make
+cd -
 }
 
 BuildUDF() {
@@ -688,7 +689,6 @@ fi
 %doc support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
-
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*

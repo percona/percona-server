@@ -20,6 +20,7 @@ autorun:
 
 handlersocket:
 	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
+	patch -p0 -d $(PERCONA_SERVER)/storage/HandlerSocket-Plugin-for-MySQL < handlersocket.patch
 
 install-lic: 
 	@echo "Installing license files"

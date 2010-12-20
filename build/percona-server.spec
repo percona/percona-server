@@ -846,12 +846,12 @@ fi
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
 # Maatkit UDF libs
-%{_libdir}/libfnv1a_udf.a
-%{_libdir}/libfnv1a_udf.la
-%{_libdir}/libfnv_udf.a
-%{_libdir}/libfnv_udf.la
-%{_libdir}/libmurmur_udf.a
-%{_libdir}/libmurmur_udf.la
+%{_libdir}/mysql/plugin/libfnv1a_udf.a
+%{_libdir}/mysql/plugin/libfnv1a_udf.la
+%{_libdir}/mysql/plugin/libfnv_udf.a
+%{_libdir}/mysql/plugin/libfnv_udf.la
+%{_libdir}/mysql/plugin/libmurmur_udf.a
+%{_libdir}/mysql/plugin/libmurmur_udf.la
 
 %{_libdir}/mysql/*.so*
 

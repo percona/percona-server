@@ -3,7 +3,7 @@ MASTER_SITE=http://www.percona.com/downloads/community
 MYSQL_VERSION=5.1.54
 PERCONA_SERVER ?=Percona-Server
 
-all: main install-lic tests misc handlersocket autorun
+all: main install-lic tests misc handlersocket maatkit-udf autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -20,6 +20,11 @@ autorun:
 
 handlersocket:
 	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
+	patch -p0 -d $(PERCONA_SERVER)/storage/HandlerSocket-Plugin-for-MySQL < handlersocket.patch
+
+maatkit-udf:
+	cp -R UDF "$(PERCONA_SERVER)"
+	cd "$(PERCONA_SERVER)"/UDF && autoreconf --install
 
 install-lic: 
 	@echo "Installing license files"

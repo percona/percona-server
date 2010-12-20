@@ -1,10 +1,6 @@
-#! /bin/sh /usr/share/dpatch/dpatch-run
-
-@DPATCH@
-
-diff -Nur a/storage/HandlerSocket-Plugin-for-MySQL/configure.ac b/storage/HandlerSocket-Plugin-for-MySQL/configure.ac
---- a/storage/HandlerSocket-Plugin-for-MySQL/configure.ac	2010-11-29 11:08:46.000000000 +0000
-+++ b/storage/HandlerSocket-Plugin-for-MySQL/configure.ac	2010-11-29 11:08:52.000000000 +0000
+diff -Nur configure.ac.orig configure.ac
+--- configure.ac.orig	2010-11-29 11:08:46.000000000 +0000
++++ configure.ac	2010-11-29 11:08:52.000000000 +0000
 @@ -79,14 +79,10 @@
    AC_ARG_WITH([mysql-plugindir],
      [AS_HELP_STRING([--with-mysql-plugindir=PATH], [MySQL plugin directory where handlersocket.so to be copied])],

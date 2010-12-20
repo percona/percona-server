@@ -4,4 +4,3 @@
 44_scripts__mysql_config__libs.dpatch
 50_mysql-test__db_test.dpatch
 60_percona_support.dpatch
-70_handlersocket.dpatch

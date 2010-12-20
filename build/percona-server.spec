@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.52
+%define mysqlversion 5.1.53
 %define majorversion 12
-%define minorversion 3
+%define minorversion 4
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -838,6 +838,14 @@ fi
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
+# Maatkit UDF libs
+%{_libdir}/libfnv1a_udf.a
+%{_libdir}/libfnv1a_udf.la
+%{_libdir}/libfnv_udf.a
+%{_libdir}/libfnv_udf.la
+%{_libdir}/libmurmur_udf.a
+%{_libdir}/libmurmur_udf.la
+
 %{_libdir}/mysql/*.so*
 
 

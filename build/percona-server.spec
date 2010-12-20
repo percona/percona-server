@@ -326,7 +326,7 @@ cd -
 
 BuildUDF() {
 cd UDF
-CXX=g++ ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}
+CXX=g++ ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
 make all
 cd -
 }

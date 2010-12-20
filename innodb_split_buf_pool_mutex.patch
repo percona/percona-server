@@ -838,7 +838,12 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
  		bpage = &buf_pool->watch[i];
  
-@@ -1897,6 +1947,8 @@
+@@ -1893,10 +1943,12 @@
+ 			bpage->space = space;
+ 			bpage->offset = offset;
+ 			bpage->buf_fix_count = 1;
+-
++			bpage->buf_pool = buf_pool;
  			ut_d(bpage->in_page_hash = TRUE);
  			HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
  				    fold, bpage);

@@ -326,9 +326,9 @@ cd -
 
 BuildUDF() {
 cd UDF
-autoreconf --install
 CXX=g++ ./configure --libdir=%{_libdir}
-make all install
+make all
+cd -
 }
 # end of function definition "BuildHandlerSocket"
 
@@ -419,6 +419,7 @@ make clean
 
 BuildServer
 BuildHandlerSocket
+BuildUDF
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
 	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
 fi
@@ -450,7 +451,11 @@ install -d $RBR%{_libdir}/mysql/plugin
 
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
 cd storage/HandlerSocket-Plugin-for-MySQL
+cd -
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
+cd UDF
+make DESTDIR=$RBR benchdir_root=%{_datadir} install
+cd -
 
 # install symbol files ( for stack trace resolution)
 #install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
@@ -478,7 +483,6 @@ touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 install -m600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
 	$RBR%{_datadir}/mysql/SELinux/RHEL4
 
-BuildUDF
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################

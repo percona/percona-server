@@ -451,8 +451,8 @@ install -d $RBR%{_libdir}/mysql/plugin
 
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
 cd storage/HandlerSocket-Plugin-for-MySQL
-cd -
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
+cd -
 cd UDF
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
 cd -

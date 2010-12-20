@@ -59,12 +59,15 @@ Here is a list of client libraries for other languages:
     http://code.google.com/p/hs4j/
     http://code.google.com/p/handlersocketforjava/
   - Python
+    http://pypi.python.org/pypi/python-handler-socket/0.1.0
     https://code.launchpad.net/~songofacandy/+junk/pyhandlersocket
   - Ruby
     https://github.com/winebarrel/ruby-handlersocket
     https://github.com/miyucy/handlersocket
-  - JavaScript(Node.js)
+  - JavaScript
     https://github.com/koichik/node-handlersocket
+  - Scala
+    https://github.com/fujohnwang/hs2client
 
 The home of HandlerSocket is here:
     https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL

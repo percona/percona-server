@@ -1,12 +1,21 @@
-diff -ruN a/configure.in b/configure.in
+diff -Nur a/configure.in b/configure.in
 --- a/configure.in	2010-11-29 18:45:47.000000000 +0000
 +++ b/configure.in	2010-11-29 18:45:51.000000000 +0000
-@@ -2837,7 +2837,7 @@
+@@ -2737,7 +2737,7 @@
+     MAN_DROP="$MAN_DROP embedded"
+     grep -v 'embedded' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
+   fi
+-  if test X"$with_plugin_innobase" != Xyes
++  if test X"$with_plugin_innodb_plugin" != Xyes
+   then
+     MAN_DROP="$MAN_DROP innodb"
+     grep -v 'inno' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
+@@ -2816,7 +2816,7 @@
  fi
- 
+
  # "innochecksum" is not in the "innobase/" subdirectory, but should be switched
 -AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$with_plugin_innobase" = Xyes])
 +AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$with_plugin_innodb_plugin" = Xyes])
- 
+
  # IMPORTANT - do not modify LIBS past this line - this hack is the only way
  # I know to add the static NSS magic if we have static NSS libraries with

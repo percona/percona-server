@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.52
+%define mysqlversion 5.1.53
 %define majorversion 12
-%define minorversion 3
+%define minorversion 4
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -321,6 +321,14 @@ CXX=g++ ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--libdir=%{_libdir} \
 	--prefix=%{_prefix}
 make
+cd -
+}
+
+BuildUDF() {
+cd UDF
+CXX=g++ ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
+make all
+cd -
 }
 # end of function definition "BuildHandlerSocket"
 
@@ -411,6 +419,7 @@ make clean
 
 BuildServer
 BuildHandlerSocket
+BuildUDF
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
 	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
 fi
@@ -443,6 +452,10 @@ install -d $RBR%{_libdir}/mysql/plugin
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
 cd storage/HandlerSocket-Plugin-for-MySQL
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
+cd -
+cd UDF
+make DESTDIR=$RBR benchdir_root=%{_datadir} install
+cd -
 
 # install symbol files ( for stack trace resolution)
 #install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
@@ -469,7 +482,6 @@ touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 # Install SELinux files in datadir
 install -m600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
 	$RBR%{_datadir}/mysql/SELinux/RHEL4
-
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -646,6 +658,13 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 	sleep 2
 fi
 
+echo "Percona Server is distributed with several useful UDF (User Defined Function) from Maatkit"
+echo "Run following command to create these functions:"
+echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
+echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
+echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
+echo "See http://code.google.com/p/maatkit/source/browse/trunk/udf for more details"
+
 # Allow mysqld_safe to start mysqld and print a message before we exit
 sleep 2
 
@@ -681,7 +700,6 @@ fi
 %doc support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
-
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
@@ -827,6 +845,14 @@ fi
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so*
+# Maatkit UDF libs
+%{_libdir}/mysql/plugin/libfnv1a_udf.a
+%{_libdir}/mysql/plugin/libfnv1a_udf.la
+%{_libdir}/mysql/plugin/libfnv_udf.a
+%{_libdir}/mysql/plugin/libfnv_udf.la
+%{_libdir}/mysql/plugin/libmurmur_udf.a
+%{_libdir}/mysql/plugin/libmurmur_udf.la
+
 %{_libdir}/mysql/*.so*
 
 

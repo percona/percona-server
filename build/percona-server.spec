@@ -660,9 +660,9 @@ fi
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Maatkit"
 echo "Run following command to create these functions:"
-echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'fnv1a_udf.so'\""
-echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'fnv_udf.so'\""
-echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'murmur_udf.so'\""
+echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
+echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
+echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
 echo "See http://code.google.com/p/maatkit/source/browse/trunk/udf for more details"
 
 # Allow mysqld_safe to start mysqld and print a message before we exit

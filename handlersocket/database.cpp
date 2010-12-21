@@ -306,9 +306,13 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
   set_thread_message("hs:listening");
   DBG_THR(fprintf(stderr, "HNDSOCK x1 %p\n", thd));
 
-  #if MYSQL_VERSION_ID >= 50505
-  mdl_request = MDL_request::create(MDL_key::TABLE, "", "", for_write_flag ?
-                  MDL_SHARED_WRITE : MDL_SHARED_READ, thd->mem_root);
+  #if MYSQL_VERSION_ID >= 50508
+  mdl_request = new(thd->mem_root) MDL_request;
+  mdl_request->init(MDL_key::TABLE, "", "",
+    for_write_flag ?  MDL_SHARED_WRITE : MDL_SHARED_READ, MDL_STATEMENT);
+  #elif MYSQL_VERSION_ID >= 50505
+  mdl_request = MDL_request::create(MDL_key::TABLE, "", "",
+    for_write_flag ?  MDL_SHARED_WRITE : MDL_SHARED_READ, thd->mem_root);
   #endif
 
   lex_start(thd);

@@ -112,3 +112,6 @@ echo "Running automake ..."
 $AUTOMAKE --add-missing --copy
 echo "Running autoconf ..."
 $AUTOCONF
+
+mkdir m4 2> /dev/null
+

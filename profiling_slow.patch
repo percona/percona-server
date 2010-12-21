@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
+diff -ruN /dev/null b/patch_info/profiling_slow.info
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/profiling_slow.info	2010-12-02 19:23:07.768064078 +0900
 @@ -0,0 +1,9 @@
@@ -21,7 +21,7 @@ diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
 diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/log.cc	2010-12-02 19:28:31.337989417 +0900
-@@ -2587,6 +2587,11 @@
+@@ -2600,6 +2600,11 @@
                      (ulong) thd->sent_row_count,
                      (ulong) thd->examined_row_count) == (uint) -1)
        tmp_errno= errno;
@@ -36,7 +36,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sql_class.h	2010-12-02 20:14:36.335072621 +0900
-@@ -411,6 +411,8 @@
+@@ -446,6 +446,8 @@
    ulong optimizer_search_depth;
    ulong preload_buff_size;
    ulong profiling_history_size;
@@ -280,7 +280,7 @@ diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sys_vars.cc	2010-12-02 20:19:19.907356956 +0900
-@@ -2381,6 +2381,16 @@
+@@ -2390,6 +2390,16 @@
         "profiling_history_size", "Limit of query profiling memory",
         SESSION_VAR(profiling_history_size), CMD_LINE(REQUIRED_ARG),
         VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1));

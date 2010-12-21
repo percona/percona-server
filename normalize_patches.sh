@@ -3,9 +3,11 @@
 test -z ${MYSQL_VERSION} && MYSQL_VERSION=5.5.8
 test -z ${MYSQL_DIR} && MYSQL_DIR=mysql-${MYSQL_VERSION}
 test -z ${MYSQL_TAR_GZ} && MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
+test -z ${SERIES} && SERIES=series
 echo MYSQL_VERSION=$MYSQL_VERSION
 echo MYSQL_DIR=$MYSQL_DIR
 echo MYSQL_TAR_GZ=$MYSQL_TAR_GZ
+echo SERIES=$SERIES
 echo "===== Prepare source code for patch's adaptation...";
 echo "===== Remove 'a' copy...";
 rm -rf a;
@@ -21,7 +23,7 @@ cp -R Percona-Server a;
 echo "===== Prepare 'b' copy..."
 cp -R Percona-Server b;
 echo "===== Ok, let's go patch adaptation..."
-for patch_name in `cat series`; do
+for patch_name in `cat ${SERIES}`; do
     echo "========================================================="
     echo "===== Check patch $patch_name";
     echo "===== Apply patch $patch_name...";

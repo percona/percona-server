@@ -40,7 +40,7 @@ diff -ruN a/patch_info/response-time-distribution.info b/patch_info/response-tim
 diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
 --- a/sql/CMakeLists.txt	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/CMakeLists.txt	2010-11-14 16:50:47.000000000 +0500
-@@ -51,7 +51,7 @@
+@@ -55,7 +55,7 @@
                 message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                 mysqld.cc net_serv.cc  keycaches.cc
                 ../sql-common/client_plugin.c
@@ -49,7 +49,7 @@ diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
                 ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                 protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
                 slave.cc sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
-@@ -59,7 +59,7 @@
+@@ -63,7 +63,7 @@
                 sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                 sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                 sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
@@ -98,7 +98,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -903,6 +905,8 @@
+@@ -902,6 +904,8 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -107,7 +107,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1471,6 +1475,7 @@
+@@ -1470,6 +1474,7 @@
    my_free(opt_bin_logname);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -115,7 +115,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3933,6 +3938,8 @@
+@@ -3932,6 +3937,8 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  

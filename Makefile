@@ -4,6 +4,7 @@ MYSQL_VERSION=5.5.8
 PERCONA_SERVER ?=Percona-Server
 DEBUG_DIR ?= $(PERCONA_SERVER)-debug
 RELEASE_DIR ?= $(PERCONA_SERVER)-release
+SERIES ?=series
 CMAKE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" cmake 
 CONFIGUR=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"  LIBS=-lrt ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition
 
@@ -26,7 +27,7 @@ configure: all
 cmake:
 	rm -rf $(DEBUG_DIR)
 	rm -rf $(RELEASE_DIR)
-	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); $(CMAKE) -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=Full ../$(PERCONA_SERVER))
+	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); $(CMAKE) -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=Full -DMYSQL_MAINTAINER_MODE=OFF ../$(PERCONA_SERVER))
 	(mkdir -p $(RELEASE_DIR); cd $(RELEASE_DIR); $(CMAKE) -G "Unix Makefiles" ../$(PERCONA_SERVER))
 
 install-lic: 
@@ -39,7 +40,7 @@ main: mysql-$(MYSQL_VERSION).tar.gz
 	rm -rf $(PERCONA_SERVER);
 	tar zxf mysql-$(MYSQL_VERSION).tar.gz
 	mv mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
-	(cat `cat series`) | patch -p1 -d $(PERCONA_SERVER)
+	(cat `cat $(SERIES)`) | patch -p1 -d $(PERCONA_SERVER)
 	rm $(PERCONA_SERVER)/sql/sql_yacc.cc $(PERCONA_SERVER)/sql/sql_yacc.h
 
 mysql-$(MYSQL_VERSION).tar.gz:

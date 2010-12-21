@@ -8,7 +8,7 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/handler.h	2010-12-03 13:51:04.727293058 +0900
-@@ -192,6 +192,19 @@
+@@ -194,6 +194,19 @@
  #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
  #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
  #define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
@@ -31,7 +31,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-12-02 20:31:56.200956501 +0900
 +++ b/sql/sql_class.h	2010-12-03 13:51:04.744953174 +0900
-@@ -448,6 +448,8 @@
+@@ -483,6 +483,8 @@
    my_bool engine_condition_pushdown;
    my_bool keep_files_on_create;
  
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 --- a/sql/sql_table.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sql_table.cc	2010-12-03 13:51:04.768955495 +0900
-@@ -6049,6 +6049,10 @@
+@@ -6107,6 +6107,10 @@
      uint  *idx_end_p;
  
      alter_flags= table->file->alter_table_flags(alter_info->flags);
@@ -74,7 +74,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-02 21:23:05.569356468 +0900
 +++ b/sql/sys_vars.cc	2010-12-03 14:05:28.857356603 +0900
-@@ -2115,6 +2115,13 @@
+@@ -2124,6 +2124,13 @@
         GLOBAL_VAR(opt_optimizer_fix),
         NO_CMD_LINE, DEFAULT(TRUE));
  

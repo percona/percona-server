@@ -45,11 +45,11 @@ sync_slave_with_master;
 connection slave;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_long_query_time';
+show global variables like 'use_global_log_slow_control';
 set global long_query_time=0;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_long_query_time';
+show global variables like 'use_global_log_slow_control';
 
 #-- echo # Make insert(4) on master
 connection master;
@@ -58,11 +58,11 @@ sync_slave_with_master;
 connection slave;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_long_query_time';
-set global  use_global_long_query_time=1;
+show global variables like 'use_global_log_slow_control';
+set global use_global_log_slow_control='long_query_time';
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_long_query_time';
+show global variables like 'use_global_log_slow_control';
 
 #-- echo # Make insert(5) on master
 connection master;
@@ -71,9 +71,9 @@ sync_slave_with_master;
 connection slave;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_long_query_time';
+show global variables like 'use_global_log_slow_control';
 set global long_query_time=1;
-set global use_global_long_query_time=0;
+set global use_global_log_slow_control='';
 
 -- echo # Analyse master slow_query_log
 let $i=5;

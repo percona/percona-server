@@ -77,12 +77,12 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
 +void write_syslog(char *line){
 +#ifndef __WIN__
 +  char buff[901];
-+  int i, buff_pos=0;
++  uint i, buff_pos=0;
 +  for (i=0;i < strlen(line); i++){
 +    buff[buff_pos] = line[i];
 +    buff_pos++;
 +    if (buff_pos >= 900){
-+      buff[900] = NULL;
++      buff[900] = 0;
 +      buff_pos = 0;
 +      syslog(LOG_INFO, "SYSTEM_USER:%s, MYSQL_USER:%s, CONNECTION_ID:%lu, DB_SERVER:%s, DB:%s, QUERY:%s",
 +             getenv("SUDO_USER") ? getenv("SUDO_USER") :
@@ -95,7 +95,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
 +    }
 +  }
 +  if (buff_pos > 0){
-+    buff[buff_pos] = NULL;
++    buff[buff_pos] = 0;
 +    syslog(LOG_INFO, "SYSTEM_USER:%s, MYSQL_USER:%s, CONNECTION_ID:%lu, DB_SERVER:%s, DB:%s, QUERY:%s",
 +           getenv("SUDO_USER") ? getenv("SUDO_USER") :
 +           getenv("USER") ? getenv("USER") : "--",

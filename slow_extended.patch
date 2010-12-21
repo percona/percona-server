@@ -422,19 +422,18 @@ diff -ruN a/sql/log.h b/sql/log.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/mysqld.cc	2010-12-16 04:27:46.000000000 +0300
-@@ -418,6 +418,11 @@
+@@ -418,6 +418,10 @@
  char* opt_secure_file_priv;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
 +my_bool opt_log_slow_sp_statements= 0;
 +my_bool opt_log_slow_timestamp_every= 0;
-+my_bool opt_use_global_long_query_time= 0;
 +ulonglong opt_use_global_log_slow_control= 0;
 +my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5790,10 +5795,10 @@
+@@ -5790,10 +5794,10 @@
     "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
     "the slow log if it is open.", &opt_log_slow_admin_statements,
     &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -447,16 +446,35 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
+@@ -7183,6 +7187,10 @@
+ 
+ C_MODE_END
+ 
++/* defined in sys_vars.cc */
++extern void init_log_slow_verbosity();
++extern void init_use_global_log_slow_control();
++
+ /**
+   Get server options from the command line,
+   and perform related server initializations.
+@@ -7322,6 +7330,8 @@
+   global_system_variables.long_query_time= (ulonglong)
+     (global_system_variables.long_query_time_double * 1e6);
+ 
++  init_log_slow_verbosity();
++  init_use_global_log_slow_control();
+   if (opt_short_log_format)
+     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
+ 
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/mysqld.h	2010-12-16 04:27:46.000000000 +0300
-@@ -116,6 +116,11 @@
+@@ -116,6 +116,10 @@
  extern char* opt_secure_backup_file_priv;
  extern size_t opt_secure_backup_file_priv_len;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 +extern my_bool opt_log_slow_sp_statements;
 +extern my_bool opt_log_slow_timestamp_every;
-+extern my_bool opt_use_global_long_query_time;
 +extern ulonglong opt_use_global_log_slow_control;
 +extern my_bool opt_slow_query_log_microseconds_timestamp;
  extern my_bool sp_automatic_privileges, opt_noacl;
@@ -863,7 +881,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sys_vars.cc	2010-12-16 04:36:12.000000000 +0300
-@@ -2846,6 +2846,133 @@
+@@ -2846,6 +2846,112 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  
@@ -891,18 +909,8 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +  }
 +  return value;
 +}
-+static bool update_log_slow_verbosity(sys_var */*self*/, THD *thd,
-+                                          enum_var_type type)
++void update_log_slow_verbosity(ulonglong* value_ptr)
 +{
-+  ulonglong *value_ptr= 0;
-+  if(type == OPT_SESSION)
-+  {
-+    value_ptr= &(thd->variables.log_slow_verbosity);
-+  }
-+  else
-+  {
-+    value_ptr= &(global_system_variables.log_slow_verbosity);
-+  }
 +  ulonglong &value    = *value_ptr;
 +  ulonglong microtime= ULL(1) << SLOG_V_MICROTIME;
 +  ulonglong query_plan= ULL(1) << SLOG_V_QUERY_PLAN;
@@ -913,7 +921,23 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +  value= update_log_slow_verbosity_replace(value,minimal,microtime);
 +  value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
 +  value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
++}
++static bool update_log_slow_verbosity_helper(sys_var */*self*/, THD *thd,
++                                          enum_var_type type)
++{
++  if(type == OPT_SESSION)
++  {
++    update_log_slow_verbosity(&(thd->variables.log_slow_verbosity));
++  }
++  else
++  {
++    update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
++  }
 +  return false;
++}
++void init_use_global_log_slow_control()
++{
++  update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
 +}
 +static Sys_var_set Sys_log_slow_verbosity(
 +        "log_slow_verbosity",
@@ -922,7 +946,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +        SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
 +        log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME),
 +        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-+        ON_UPDATE(update_log_slow_verbosity));
++        ON_UPDATE(update_log_slow_verbosity_helper));
 +static Sys_var_mybool Sys_log_slow_slave_statements(
 +       "log_slow_slave_statements",
 +       "Log queries replayed be the slave SQL thread",
@@ -939,8 +963,8 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       GLOBAL_VAR(opt_log_slow_timestamp_every), CMD_LINE(OPT_ARG),
 +       DEFAULT(FALSE));
 +const char *use_global_log_slow_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
-+static bool update_use_global_log_slow_control(sys_var *self, THD *thd,
-+                                               enum_var_type type)
++static bool update_use_global_log_slow_control(sys_var */*self*/, THD */*thd*/,
++                                               enum_var_type /*type*/)
 +{
 +  if(opt_use_global_log_slow_control & (ULL(1) << SLOG_UG_ALL))
 +  {
@@ -948,15 +972,11 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +      SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY |
 +      SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT;
 +  }
-+  if(opt_use_global_log_slow_control & (ULL(1) << SLOG_UG_LONG_QUERY_TIME))
-+  {
-+    opt_use_global_long_query_time= TRUE;
-+  }
-+  else
-+  {
-+    opt_use_global_long_query_time= FALSE;
-+  }
 +  return false;
++}
++void init_log_slow_verbosity()
++{
++  update_use_global_log_slow_control(0,0,OPT_GLOBAL);
 +}
 +static Sys_var_set Sys_use_global_log_slow_control(
 +       "use_global_log_slow_control",
@@ -965,29 +985,6 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       use_global_log_slow_control_name, DEFAULT(0),
 +        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
 +       ON_UPDATE(update_use_global_log_slow_control));
-+static bool update_use_global_long_query_time(sys_var *self, THD *thd,
-+                                          enum_var_type type)
-+{
-+  if(type == OPT_GLOBAL)
-+  {
-+    if(opt_use_global_long_query_time)
-+    {
-+      opt_use_global_log_slow_control |= ULL(1) << SLOG_UG_LONG_QUERY_TIME;
-+    }
-+    else
-+    {
-+      opt_use_global_log_slow_control &= ~(ULL(1) << SLOG_UG_LONG_QUERY_TIME);
-+    }
-+  }
-+  return false;
-+}
-+static Sys_var_mybool  Sys_use_global_long_query_time(
-+       "use_global_long_query_time",
-+       "Control always use global long_query_time or local long_query_time.",
-+       GLOBAL_VAR(opt_use_global_long_query_time), CMD_LINE(OPT_ARG),
-+       DEFAULT(FALSE),
-+        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-+       ON_UPDATE(update_use_global_long_query_time));
 +static Sys_var_mybool Sys_slow_query_log_microseconds_timestamp(
 +       "slow_query_log_microseconds_timestamp",
 +       "Log slow statements executed by stored procedure to the slow log if it is open.",

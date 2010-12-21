@@ -187,6 +187,7 @@ install: build
 
 	# make install (trailing slash needed for innobase)
 	$(MAKE) install DESTDIR=$(TMP)/
+	# build HandlerSockect
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
 	./autogen.sh && \
 	CXX=g++ ./configure --with-mysql-source="$(MYSQL_SRC)" \
@@ -196,6 +197,8 @@ install: build
 	--prefix="/usr" && \
 	$(MAKE)
 	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
+	# build Maatkit UDF
+	cd UDF/ && CXX=g++ ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

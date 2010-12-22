@@ -670,7 +670,7 @@ diff -ruN a/sql/query_response_time.h b/sql/query_response_time.h
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-01 08:43:57.000000000 +0000
 +++ b/sql/set_var.cc	2010-11-01 08:52:40.000000000 +0000
-@@ -1006,6 +1006,14 @@
+@@ -1007,6 +1007,14 @@
  static sys_var_use_global_long_query_time sys_use_global_long_query_time;
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
                                                         &opt_slow_query_log_microseconds_timestamp);

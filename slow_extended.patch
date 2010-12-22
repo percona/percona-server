@@ -84,7 +84,7 @@ diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
 -    s/^# Query_time: ([0-9.]+)\s+Lock_time: ([0-9.]+)\s+Rows_sent: ([0-9.]+).*\n//;
 -    my ($t, $l, $r) = ($1, $2, $3);
 +    s/^# Query_time: (\d+(\.\d+)?)  Lock_time: (\d+(\.\d+)?)  Rows_sent: (\d+(\.\d+)?).*\n//;
-+    my ($t, $l, $r) = ($1, $3, $5);
++    my ($t, $l, $r)= ($1, $3, $5);
      $t -= $l unless $opt{l};
  
      # remove fluff that mysqld writes to log when it (re)starts:
@@ -95,7 +95,7 @@ diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
    thd->client_capabilities|= CLIENT_MULTI_RESULTS;
    pthread_mutex_lock(&LOCK_thread_count);
    thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-+  thd->write_to_slow_log = TRUE;
++  thd->write_to_slow_log= TRUE;
    pthread_mutex_unlock(&LOCK_thread_count);
  
    /*
@@ -325,13 +325,13 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +                      (ulong) thd->innodb_io_read,
 +                      buf[0], buf[1], buf[2],
 +                      (ulong) thd->innodb_page_access) == (uint) -1)
-+        tmp_errno=errno;
++        tmp_errno= errno;
 +    } 
 +    else
 +    {
 +      if ((thd->variables.log_slow_verbosity & SLOG_V_INNODB) &&
 +          my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
-+        tmp_errno=errno;
++        tmp_errno= errno;
 +    }
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
@@ -382,7 +382,7 @@ diff -ruN a/sql/log_event.cc b/sql/log_event.cc
    LEX_STRING new_db;
    int expected_error,actual_error= 0;
    HA_CREATE_INFO db_options;
-+  bool process_log_slow_statement = false;
++  bool process_log_slow_statement= false;
  
    /*
      Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -403,7 +403,7 @@ diff -ruN a/sql/log_event.cc b/sql/log_event.cc
 -        opt_log_slow_admin_statements).
 -      */
 -      thd->enable_slow_log= opt_log_slow_slave_statements;
-+      process_log_slow_statement = true;
++      process_log_slow_statement= true;
      }
      else
      {
@@ -452,12 +452,12 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 +};
 +
 +/* use global log slow control */
-+#define SLOG_UG_NONE                        1 << 0
-+#define SLOG_UG_LOG_SLOW_FILTER             1 << 1
-+#define SLOG_UG_LOG_SLOW_RATE_LIMIT         1 << 2
-+#define SLOG_UG_LOG_SLOW_VERBOSITY          1 << 3
-+#define SLOG_UG_LONG_QUERY_TIME             1 << 4
-+#define SLOG_UG_MIN_EXAMINED_ROW_LIMIT      1 << 5
++#define SLOG_UG_NONE                        (1UL << 0)
++#define SLOG_UG_LOG_SLOW_FILTER             (1UL << 1)
++#define SLOG_UG_LOG_SLOW_RATE_LIMIT         (1UL << 2)
++#define SLOG_UG_LOG_SLOW_VERBOSITY          (1UL << 3)
++#define SLOG_UG_LONG_QUERY_TIME             (1UL << 4)
++#define SLOG_UG_MIN_EXAMINED_ROW_LIMIT      (1UL << 5)
 +#define SLOG_UG_ALL                         SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY | SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT
 +/* ... */
 +#define SLOG_UG_INVALID                     1##UL << 31
@@ -636,12 +636,12 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
 +
 +  global_system_variables.log_slow_verbosity= SLOG_V_MICROTIME;
-+  global_system_variables.use_global_log_slow_control = SLOG_UG_NONE;
++  global_system_variables.use_global_log_slow_control= SLOG_UG_NONE;
 +  global_system_variables.log_slow_filter= SLOG_F_NONE;
    /*
      Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
      when collecting index statistics for MyISAM tables.
-@@ -8449,6 +8495,41 @@
+@@ -8449,6 +8498,44 @@
    case OPT_BOOTSTRAP:
      opt_noacl=opt_bootstrap=1;
      break;
@@ -663,21 +663,24 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 +      exit(1);
 +    }
 +    break;
++  case OPT_USE_GLOBAL_LONG_QUERY_TIME:
++    use_global_long_query_time_update(opt_use_global_long_query_time);
++    break;
 +  case OPT_USE_GLOBAL_LOG_SLOW_CONTROL:
 +    {
-+      ulong &v = global_system_variables.use_global_log_slow_control;
-+      v =  msl_flag_resolve_by_name(slog_use_global, argument, SLOG_UG_NONE, SLOG_UG_INVALID);
++      ulong &v= global_system_variables.use_global_log_slow_control;
++      v= msl_flag_resolve_by_name(slog_use_global, argument, SLOG_UG_NONE, SLOG_UG_INVALID);
 +      if (v != SLOG_UG_NONE)
 +      {
-+	ulong mask = SLOG_UG_NONE;
-+	mask = ~mask;
-+	v = v & mask;
++        v&= ~SLOG_UG_NONE;
 +      }
 +      if (v == SLOG_UG_INVALID)
 +      {
-+	fprintf(stderr,"Invalid argument in use_global_log_slow_control: %s\n", argument);
-+	exit(1);
++        fprintf(stderr,"Invalid argument in use_global_log_slow_control: %s\n", argument);
++        exit(1);
 +      }
++      use_global_long_query_time_update
++        (global_system_variables.use_global_log_slow_control & SLOG_UG_LONG_QUERY_TIME);
 +      break;
 +    }
    case OPT_SERVER_ID:
@@ -686,20 +689,21 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-29 13:37:59.000000000 +0300
 +++ b/sql/set_var.cc	2010-12-21 17:04:38.000000000 +0300
-@@ -160,6 +160,73 @@
+@@ -160,6 +160,74 @@
  
  static sys_var_chain vars = { NULL, NULL };
  
 +void use_global_long_query_time_update(bool enable)
 +{
-+  ulong &log_slow_control        = global_system_variables.use_global_log_slow_control;
-+  opt_use_global_long_query_time = enable;
-+  if(enable)
-+    log_slow_control = log_slow_control | SLOG_UG_LONG_QUERY_TIME;
++  ulong &log_slow_control= global_system_variables.use_global_log_slow_control;
++  opt_use_global_long_query_time= enable;
++  if (enable)
++    log_slow_control|= SLOG_UG_LONG_QUERY_TIME;
 +  else
-+    log_slow_control = log_slow_control & (~(SLOG_UG_LONG_QUERY_TIME));
-+  if(0 == log_slow_control)
-+    log_slow_control = SLOG_UG_NONE;
++    log_slow_control&= ~SLOG_UG_LONG_QUERY_TIME;
++  log_slow_control&= ~SLOG_UG_NONE;
++  if (log_slow_control == 0)
++    log_slow_control= SLOG_UG_NONE;
 +}
 +
 +class sys_var_use_global_long_query_time : public sys_var_bool_ptr
@@ -752,7 +756,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 +private:
 +  void sync()
 +  {
-+    ulong const &variable = global_system_variables.use_global_log_slow_control;
++    ulong const &variable= global_system_variables.use_global_log_slow_control;
 +    use_global_long_query_time_update((variable & SLOG_UG_LONG_QUERY_TIME));
 +  }
 +};
@@ -760,7 +764,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_thd_ulong
  sys_auto_increment_increment(&vars, "auto_increment_increment",
                               &SV::auto_increment_increment, NULL, NULL,
-@@ -891,6 +958,30 @@
+@@ -891,6 +959,30 @@
                                        QUERY_LOG_GENERAL);
  static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                           QUERY_LOG_SLOW);
@@ -791,7 +795,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-@@ -3717,6 +3808,203 @@
+@@ -3717,6 +3809,203 @@
  #endif
  }
  
@@ -998,10 +1002,12 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/set_var.h b/sql/set_var.h
 --- a/sql/set_var.h	2010-11-29 13:38:17.000000000 +0300
 +++ b/sql/set_var.h	2010-12-21 17:04:38.000000000 +0300
-@@ -567,6 +567,80 @@
+@@ -567,6 +567,82 @@
  };
  
  
++extern void use_global_long_query_time_update(bool enable);
++
 +class sys_var_thd_msl_option :public sys_var_thd
 +{
 +protected:
@@ -1343,9 +1349,9 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +
 +  /* use_global_log_slow_control */
 +  {
-+    system_variables const &g     = global_system_variables; // global                                                           
-+    system_variables       &s     = thd->variables;          // session                                                          
-+    ulong const            &value = g.use_global_log_slow_control;
++    system_variables const &g= global_system_variables; // global                                                           
++    system_variables       &s= thd->variables;          // session                                                          
++    ulong const            &value= g.use_global_log_slow_control;
 +    SLOG_UG_SETUP(s.log_slow_filter,           value, SLOG_UG_LOG_SLOW_FILTER,             g.log_slow_filter);
 +    SLOG_UG_SETUP(s.log_slow_rate_limit,       value, SLOG_UG_LOG_SLOW_RATE_LIMIT,         g.log_slow_rate_limit);
 +    SLOG_UG_SETUP(s.log_slow_verbosity,        value, SLOG_UG_LOG_SLOW_VERBOSITY,          g.log_slow_verbosity);

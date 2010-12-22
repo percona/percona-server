@@ -5,7 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/mysql-test/r/percona_bug643149.result b/mysql-test/r/percona_bug643149.result
+diff -ruN /dev/null b/mysql-test/r/percona_bug643149.result
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/mysql-test/r/percona_bug643149.result	2010-11-25 23:52:28.000000000 +0300
 @@ -0,0 +1,16 @@
@@ -25,7 +25,7 @@ diff -ruN a/mysql-test/r/percona_bug643149.result b/mysql-test/r/percona_bug6431
 +# Profile_starting: X.X Profile_starting_cpu: X.X Profile_checking_permissions: X.X Profile_checking_permissions_cpu: X.X Profile_Opening_tables: X.X Profile_Opening_tables_cpu: X.X Profile_init: X.X Profile_init_cpu: X.X Profile_optimizing: X.X Profile_optimizing_cpu: X.X Profile_executing: X.X Profile_executing_cpu: X.X Profile_User_sleep: X.X Profile_User_sleep_cpu: X.X Profile_end: X.X Profile_end_cpu: X.X Profile_query_end: X.X Profile_query_end_cpu: X.X Profile_freeing_items: X.X Profile_freeing_items_cpu: X.X Profile_logging_slow_query: X.X Profile_logging_slow_query_cpu: X.X 
 +# Profile_total: X.X Profile_total_cpu: X.X 
 +SET GLOBAL slow_query_log_file=@old_slow_query_log_file;
-diff -ruN a/mysql-test/t/percona_bug643149.test b/mysql-test/t/percona_bug643149.test
+diff -ruN /dev/null b/mysql-test/t/percona_bug643149.test
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/mysql-test/t/percona_bug643149.test	2010-11-25 23:52:08.000000000 +0300
 @@ -0,0 +1,50 @@
@@ -79,7 +79,7 @@ diff -ruN a/mysql-test/t/percona_bug643149.test b/mysql-test/t/percona_bug643149
 +  eval SET @@global.slow_query_log_file = '$my_var';
 +  --enable_query_log
 +}
-diff -ruN a/patch_info/profiling_slow.info b/patch_info/profiling_slow.info
+diff -ruN /dev/null b/patch_info/profiling_slow.info
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/patch_info/profiling_slow.info	2010-11-24 19:33:02.000000000 +0300
 @@ -0,0 +1,9 @@
@@ -139,7 +139,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/set_var.cc	2010-11-24 19:36:29.000000000 +0300
-@@ -847,6 +847,10 @@
+@@ -848,6 +848,10 @@
                                        ulonglong(OPTION_PROFILING));
  static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
  					      &SV::profiling_history_size);

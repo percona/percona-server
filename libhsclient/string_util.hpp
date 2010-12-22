@@ -34,6 +34,7 @@ string_wref get_token(char *& wp, char *wp_end, char delim);
 uint32_t atoi_uint32_nocheck(const char *start, const char *finish);
 std::string to_stdstring(uint32_t v);
 void append_uint32(string_buffer& buf, uint32_t v);
+long long atoll_nocheck(const char *start, const char *finish);
 
 int errno_string(const char *s, int en, std::string& err_r);
 

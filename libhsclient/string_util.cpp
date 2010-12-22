@@ -41,10 +41,44 @@ atoi_tmpl_nocheck(const char *start, const char *finish)
   return v;
 }
 
+template <typename T> T
+atoi_signed_tmpl_nocheck(const char *start, const char *finish)
+{
+  T v = 0;
+  bool negative = false;
+  if (start != finish) {
+    if (start[0] == '-') {
+      ++start;
+      negative = true;
+    } else if (start[0] == '+') {
+      ++start;
+    }
+  }
+  for (; start != finish; ++start) {
+    const char c = *start;
+    if (c < '0' || c > '9') {
+      break;
+    }
+    v *= 10;
+    if (negative) {
+      v -= static_cast<T>(c - '0');
+    } else {
+      v += static_cast<T>(c - '0');
+    }
+  }
+  return v;
+}
+
 uint32_t
 atoi_uint32_nocheck(const char *start, const char *finish)
 {
   return atoi_tmpl_nocheck<uint32_t>(start, finish);
+}
+
+long long
+atoll_nocheck(const char *start, const char *finish)
+{
+  return atoi_signed_tmpl_nocheck<long long>(start, finish);
 }
 
 void

@@ -588,10 +588,7 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
 	continue;
       }
       const long long pval = fld->val_int();
-      char buf[nv.size() + 1];
-      memcpy(buf, nv.begin(), nv.size());
-      buf[nv.size()] = 0;
-      const long long llv = atoll(buf);
+      const long long llv = atoll_nocheck(nv.begin(), nv.end());
       long long nval = 0;
       if (mod_op == '+') {
 	/* increment */

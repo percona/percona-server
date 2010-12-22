@@ -186,7 +186,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 @@ -6960,6 +6976,23 @@
     "Use microsecond time's precision in slow query log",
     (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
-    0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
+    0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
 +  {"query_response_time_range_base", OPT_QRT_RANGE_BASE,
 +     "Select base of log for query_response_time ranges. WARNING: variable change affect only after flush",
@@ -670,7 +670,7 @@ diff -ruN a/sql/query_response_time.h b/sql/query_response_time.h
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-01 08:43:57.000000000 +0000
 +++ b/sql/set_var.cc	2010-11-01 08:52:40.000000000 +0000
-@@ -1006,6 +1006,14 @@
+@@ -1007,6 +1007,14 @@
  static sys_var_use_global_long_query_time sys_use_global_long_query_time;
  static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
                                                         &opt_slow_query_log_microseconds_timestamp);

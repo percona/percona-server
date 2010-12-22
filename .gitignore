@@ -5,6 +5,7 @@ Makefile
 *.lo
 *.o
 INSTALL
+m4
 stamp-h1
 libtool
 ltmain.sh

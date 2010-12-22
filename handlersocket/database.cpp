@@ -556,7 +556,7 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
       if (nv.begin() == 0) {
 	fld->set_null();
       } else {
-      	fld->set_notnull();
+	fld->set_notnull();
 	fld->store(nv.begin(), nv.size(), &my_charset_bin);
       }
     }
@@ -570,6 +570,43 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
     handler *const hnd = table->file;
     const int r = hnd->ha_delete_row(table->record[0]);
     if (r != 0) {
+      return r;
+    }
+    ++success_count;
+  } else if (mod_op == '+' || mod_op == '-') {
+    /* increment/decrement */
+    handler *const hnd = table->file;
+    uchar *const buf = table->record[0];
+    store_record(table, record[1]);
+    const prep_stmt::retfields_type& rf = pst.get_retfields();
+    const size_t n = rf.size();
+    for (size_t i = 0; i < n; ++i) {
+      const string_ref& nv = args.uvals[i];
+      uint32_t fn = rf[i];
+      Field *const fld = table->field[fn];
+      if (fld->is_null() || nv.begin() == 0) {
+	continue;
+      }
+      const long long pval = fld->val_int();
+      char buf[nv.size() + 1];
+      memcpy(buf, nv.begin(), nv.size());
+      buf[nv.size()] = 0;
+      const long long llv = atoll(buf);
+      long long nval = 0;
+      if (mod_op == '+') {
+	/* increment */
+	nval = pval + llv;
+      } else {
+	/* decrement */
+	nval = pval - llv;
+	if ((pval < 0) != (nval < 0)) {
+	  nval = 0; /* crip */
+	}
+      }
+      fld->store(nval, false);
+    }
+    const int r = hnd->ha_update_row(table->record[1], buf);
+    if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
       return r;
     }
     ++success_count;
@@ -624,14 +661,22 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   ha_rkey_function find_flag, const cmd_exec_args& args)
 {
   const bool debug_out = (verbose_level >= 100);
-  const bool modify_op_flag = (args.mod_op.size() != 0);
+  bool need_resp_record = true;
   char mod_op = 0;
-  if (modify_op_flag && !for_write_flag) {
-    return cb.dbcb_resp_short(2, "readonly");
-  }
-  if (modify_op_flag) {
-    mod_op = args.mod_op.begin()[0];
-    if (mod_op != 'U' && mod_op != 'D') {
+  const string_ref& mod_op_str = args.mod_op;
+  if (mod_op_str.size() != 0) {
+    if (!for_write_flag) {
+      return cb.dbcb_resp_short(2, "readonly");
+    }
+    mod_op = mod_op_str.begin()[0];
+    need_resp_record = mod_op_str.size() > 1 && mod_op_str.begin()[1] == '?';
+    switch (mod_op) {
+    case 'U': /* update */
+    case 'D': /* delete */
+    case '+': /* increment */
+    case '-': /* decrement */
+      break;
+    default:
       return cb.dbcb_resp_short(2, "modop");
     }
   }
@@ -677,10 +722,8 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   #if 0
   statistic_increment(index_exec_count, &LOCK_status);
   #endif
-  if (!modify_op_flag) {
+  if (need_resp_record) {
     cb.dbcb_resp_begin(pst.get_retfields().size());
-  } else {
-    /* nothing to do */
   }
   const uint32_t limit = args.limit ? args.limit : 1;
   uint32_t skip = args.skip;
@@ -719,9 +762,10 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     } else if (skip > 0) {
       --skip;
     } else {
-      if (!modify_op_flag) {
+      if (need_resp_record) {
 	resp_record(cb, table, pst);
-      } else {
+      }
+      if (mod_op != 0) {
 	r = modify_record(cb, table, pst, args, mod_op, mod_success_count);
       }
     }
@@ -733,14 +777,14 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   if (r != 0 && r != HA_ERR_RECORD_DELETED && r != HA_ERR_KEY_NOT_FOUND &&
     r != HA_ERR_END_OF_FILE) {
     /* failed */
-    if (!modify_op_flag) {
+    if (need_resp_record) {
       /* revert dbcb_resp_begin() and dbcb_resp_entry() */
       cb.dbcb_resp_cancel();
     }
     cb.dbcb_resp_short_num(2, r);
   } else {
     /* succeeded */
-    if (!modify_op_flag) {
+    if (need_resp_record) {
       cb.dbcb_resp_end();
     } else {
       cb.dbcb_resp_short_num(0, mod_success_count);

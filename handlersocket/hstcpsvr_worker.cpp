@@ -703,16 +703,21 @@ hstcpsvr_worker::do_open_index(char *start, char *finish, hstcpsvr_conn& conn)
   read_token(start, finish);
   char *const idxname_end = start;
   skip_one(start, finish);
-  /* fields */
-  char *const flds_begin = start;
+  /* retfields */
+  char *const retflds_begin = start;
   read_token(start, finish);
-  char *const flds_end = start;
+  char *const retflds_end = start;
+  /* filfields */
+  char *const filflds_begin = start;
+  read_token(start, finish);
+  char *const filflds_end = start;
   dbname_end[0] = 0;
   tblname_end[0] = 0;
   idxname_end[0] = 0;
-  flds_end[0] = 0;
+  retflds_end[0] = 0;
+  filflds_end[0] = 0;
   return dbctx->cmd_open_index(conn, pst_id, dbname_begin, tblname_begin,
-    idxname_begin, flds_begin);
+    idxname_begin, retflds_begin, filflds_begin);
 }
 
 void
@@ -763,7 +768,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     read_token(start, finish);
     char *const mod_op_end = start;
     args.mod_op = string_ref(mod_op_begin, mod_op_end);
-    const size_t num_uvals = args.pst->get_retfields().size();
+    const size_t num_uvals = args.pst->get_ret_fields().size();
     string_ref uflds[num_uvals]; /* GNU */
     for (size_t i = 0; i < num_uvals; ++i) {
       skip_one(start, finish);

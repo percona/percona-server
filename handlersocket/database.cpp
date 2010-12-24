@@ -39,8 +39,8 @@ prep_stmt::prep_stmt()
 {
 }
 prep_stmt::prep_stmt(dbcontext_i *c, size_t tbl, size_t idx,
-  const retfields_type& rf)
-  : dbctx(c), table_id(tbl), idxnum(idx), retfields(rf)
+  const fields_type& rf, const fields_type& ff)
+  : dbctx(c), table_id(tbl), idxnum(idx), ret_fields(rf), filter_fields(ff)
 {
   if (dbctx) {
     dbctx->table_addref(table_id);
@@ -55,7 +55,7 @@ prep_stmt::~prep_stmt()
 
 prep_stmt::prep_stmt(const prep_stmt& x)
   : dbctx(x.dbctx), table_id(x.table_id), idxnum(x.idxnum),
-  retfields(x.retfields)
+  ret_fields(x.ret_fields), filter_fields(x.filter_fields)
 {
   if (dbctx) {
     dbctx->table_addref(table_id);
@@ -72,7 +72,8 @@ prep_stmt::operator =(const prep_stmt& x)
     dbctx = x.dbctx;
     table_id = x.table_id;
     idxnum = x.idxnum;
-    retfields = x.retfields;
+    ret_fields = x.ret_fields;
+    filter_fields = x.ret_fields;
     if (dbctx) {
       dbctx->table_addref(table_id);
     }
@@ -138,12 +139,15 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   virtual void table_addref(size_t tbl_id);
   virtual void table_release(size_t tbl_id);
   virtual void cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
-    const char *tbl, const char *idx, const char *retflds);
+    const char *tbl, const char *idx, const char *retflds,
+    const char *filflds);
   virtual void cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args);
   virtual void set_statistics(size_t num_conns, size_t num_active);
  private:
   int set_thread_message(const char *fmt, ...)
     __attribute__((format (printf, 2, 3)));
+  bool parse_fields(TABLE *const table, const char *str,
+    prep_stmt::fields_type& flds);
   void cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
     const string_ref *fvals, size_t fvalslen);
   void cmd_sql_internal(dbcallback_i& cb, const prep_stmt& pst,
@@ -489,7 +493,7 @@ dbcontext::resp_record(dbcallback_i& cb, TABLE *const table,
 {
   char rwpstr_buf[64];
   String rwpstr(rwpstr_buf, sizeof(rwpstr_buf), &my_charset_bin);
-  const prep_stmt::retfields_type& rf = pst.get_retfields();
+  const prep_stmt::fields_type& rf = pst.get_ret_fields();
   const size_t n = rf.size();
   for (size_t i = 0; i < n; ++i) {
     uint32_t fn = rf[i];
@@ -519,7 +523,7 @@ dbcontext::dump_record(dbcallback_i& cb, TABLE *const table,
 {
   char rwpstr_buf[64];
   String rwpstr(rwpstr_buf, sizeof(rwpstr_buf), &my_charset_bin);
-  const prep_stmt::retfields_type& rf = pst.get_retfields();
+  const prep_stmt::fields_type& rf = pst.get_ret_fields();
   const size_t n = rf.size();
   for (size_t i = 0; i < n; ++i) {
     uint32_t fn = rf[i];
@@ -547,7 +551,7 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
     handler *const hnd = table->file;
     uchar *const buf = table->record[0];
     store_record(table, record[1]);
-    const prep_stmt::retfields_type& rf = pst.get_retfields();
+    const prep_stmt::fields_type& rf = pst.get_ret_fields();
     const size_t n = rf.size();
     for (size_t i = 0; i < n; ++i) {
       const string_ref& nv = args.uvals[i];
@@ -578,7 +582,7 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
     handler *const hnd = table->file;
     uchar *const buf = table->record[0];
     store_record(table, record[1]);
-    const prep_stmt::retfields_type& rf = pst.get_retfields();
+    const prep_stmt::fields_type& rf = pst.get_ret_fields();
     const size_t n = rf.size();
     for (size_t i = 0; i < n; ++i) {
       const string_ref& nv = args.uvals[i];
@@ -720,7 +724,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   statistic_increment(index_exec_count, &LOCK_status);
   #endif
   if (need_resp_record) {
-    cb.dbcb_resp_begin(pst.get_retfields().size());
+    cb.dbcb_resp_begin(pst.get_ret_fields().size());
   }
   const uint32_t limit = args.limit ? args.limit : 1;
   uint32_t skip = args.skip;
@@ -791,7 +795,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
 
 void
 dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
-  const char *tbl, const char *idx, const char *retflds)
+  const char *tbl, const char *idx, const char *retflds, const char *filflds)
 {
   unlock_tables_if();
   const table_name_type k = std::make_pair(std::string(dbn), std::string(tbl));
@@ -856,14 +860,29 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
   if (idxnum == size_t(-1)) {
     return cb.dbcb_resp_short(2, "idxnum");
   }
-  string_ref retflds_sr(retflds, strlen(retflds));
-  std::vector<string_ref> fldnms;
-  if (retflds_sr.size() != 0) {
-    split(',', retflds_sr, fldnms);
+  prep_stmt::fields_type rf;
+  prep_stmt::fields_type ff;
+  if (!parse_fields(table_vec[tblnum].table, retflds, rf)) {
+    return cb.dbcb_resp_short(2, "fld");
   }
-  prep_stmt::retfields_type rf;
+  if (!parse_fields(table_vec[tblnum].table, filflds, ff)) {
+    return cb.dbcb_resp_short(2, "fld");
+  }
+  prep_stmt p(this, tblnum, idxnum, rf, ff);
+  cb.dbcb_set_prep_stmt(pst_id, p);
+  return cb.dbcb_resp_short(0, "");
+}
+
+bool
+dbcontext::parse_fields(TABLE *const table, const char *str,
+  prep_stmt::fields_type& flds)
+{
+  string_ref flds_sr(str, strlen(str));
+  std::vector<string_ref> fldnms;
+  if (flds_sr.size() != 0) {
+    split(',', flds_sr, fldnms);
+  }
   for (size_t i = 0; i < fldnms.size(); ++i) {
-    TABLE *const table = table_vec[tblnum].table;
     Field **fld = 0;
     size_t j = 0;
     for (fld = table->field; *fld; ++fld, ++j) {
@@ -876,14 +895,12 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     if (*fld == 0) {
       DBG_FLD(fprintf(stderr, "UNKNOWN FLD %s [%s]\n", retflds,
 	std::string(fldnms[i].begin(), fldnms[i].size()).c_str()));
-      return cb.dbcb_resp_short(2, "fld");
+      return false;
     }
     DBG_FLD(fprintf(stderr, "FLD %s %zu\n", (*fld)->field_name, j));
-    rf.push_back(j);
+    flds.push_back(j);
   }
-  prep_stmt p(this, tblnum, idxnum, rf);
-  cb.dbcb_set_prep_stmt(pst_id, p);
-  return cb.dbcb_resp_short(0, "");
+  return true;
 }
 
 enum db_write_op {

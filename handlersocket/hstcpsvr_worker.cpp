@@ -256,6 +256,7 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   #endif
   bool accept_enabled;
   int accept_balance;
+  std::vector<record_filter> filters_work;
  private:
   int run_one_nb();
   int run_one_ep();
@@ -759,35 +760,87 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   skip_one(start, finish);
   args.skip = read_ui32(start, finish);
   if (start == finish) {
-    /* no modification */
-    return dbctx->cmd_exec_on_index(conn, args);
-  } else {
-    /* update or delete */
-    skip_one(start, finish);
-    char *const mod_op_begin = start;
-    read_token(start, finish);
-    char *const mod_op_end = start;
-    args.mod_op = string_ref(mod_op_begin, mod_op_end);
-    const size_t num_uvals = args.pst->get_ret_fields().size();
-    string_ref uflds[num_uvals]; /* GNU */
-    for (size_t i = 0; i < num_uvals; ++i) {
-      skip_one(start, finish);
-      char *const f_begin = start;
-      read_token(start, finish);
-      char *const f_end = start;
-      char *wp = f_begin;
-      if (is_null_expression(f_begin, f_end)) {
-	/* null */
-	uflds[i] = string_ref();
-      } else {
-	/* non-null */
-	unescape_string(wp, f_begin, f_end);
-	uflds[i] = string_ref(f_begin, wp - f_begin);
-      }
-    }
-    args.uvals = uflds;
+    /* simple query */
     return dbctx->cmd_exec_on_index(conn, args);
   }
+  /* has filters or modops */
+  skip_one(start, finish);
+  /* filters */
+  size_t filters_count = 0;
+  while (start != finish && (start[0] == 'W' || start[0] == 'F')) {
+    char *const filter_type_begin = start;
+    read_token(start, finish);
+    char *const filter_type_end = start;
+    skip_one(start, finish);
+    char *const filter_op_begin = start;
+    read_token(start, finish);
+    char *const filter_op_end = start;
+    skip_one(start, finish);
+    const uint32_t row = read_ui32(start, finish);
+    skip_one(start, finish);
+    char *const filter_val_begin = start;
+    read_token(start, finish);
+    char *const filter_val_end = start;
+    skip_one(start, finish);
+    if (filters_work.size() <= filters_count) {
+      filters_work.resize(filters_count + 1);
+    }
+    record_filter& fi = filters_work[filters_count];
+    if (filter_type_end != filter_type_begin + 1) {
+      return conn.dbcb_resp_short(2, "filtertype");
+    }
+    fi.filter_type = (filter_type_begin[0] == 'W')
+      ? record_filter_type_break : record_filter_type_skip;
+    const uint32_t num_filflds = args.pst->get_filter_fields().size();
+    if (row >= num_filflds) {
+      return conn.dbcb_resp_short(2, "filterfld");
+    }
+    fi.op = string_ref(filter_op_begin, filter_op_end);
+    fi.row = row;
+    if (is_null_expression(filter_val_begin, filter_val_end)) {
+      /* null */
+      fi.val = string_ref();
+    } else {
+      /* non-null */
+      char *wp = filter_val_begin;
+      unescape_string(wp, filter_val_begin, filter_val_end);
+      fi.val = string_ref(filter_val_begin, wp - filter_val_begin);
+    }
+    ++filters_count;
+  }
+  if (filters_work.size() <= filters_count) {
+    filters_work.resize(filters_count + 1);
+  }
+  filters_work[filters_count].op = string_ref(); /* sentinel */
+  args.filters = &filters_work[0];
+  if (start == finish) {
+    /* no modops */
+    return dbctx->cmd_exec_on_index(conn, args);
+  }
+  /* has modops */
+  char *const mod_op_begin = start;
+  read_token(start, finish);
+  char *const mod_op_end = start;
+  args.mod_op = string_ref(mod_op_begin, mod_op_end);
+  const size_t num_uvals = args.pst->get_ret_fields().size();
+  string_ref uflds[num_uvals]; /* GNU */
+  for (size_t i = 0; i < num_uvals; ++i) {
+    skip_one(start, finish);
+    char *const f_begin = start;
+    read_token(start, finish);
+    char *const f_end = start;
+    if (is_null_expression(f_begin, f_end)) {
+      /* null */
+      uflds[i] = string_ref();
+    } else {
+      /* non-null */
+      char *wp = f_begin;
+      unescape_string(wp, f_begin, f_end);
+      uflds[i] = string_ref(f_begin, wp - f_begin);
+    }
+  }
+  args.uvals = uflds;
+  return dbctx->cmd_exec_on_index(conn, args);
 }
 
 void

@@ -776,7 +776,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     read_token(start, finish);
     char *const filter_op_end = start;
     skip_one(start, finish);
-    const uint32_t row = read_ui32(start, finish);
+    const uint32_t ff_offset = read_ui32(start, finish);
     skip_one(start, finish);
     char *const filter_val_begin = start;
     read_token(start, finish);
@@ -792,11 +792,11 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     fi.filter_type = (filter_type_begin[0] == 'W')
       ? record_filter_type_break : record_filter_type_skip;
     const uint32_t num_filflds = args.pst->get_filter_fields().size();
-    if (row >= num_filflds) {
+    if (ff_offset >= num_filflds) {
       return conn.dbcb_resp_short(2, "filterfld");
     }
     fi.op = string_ref(filter_op_begin, filter_op_end);
-    fi.row = row;
+    fi.ff_offset = ff_offset;
     if (is_null_expression(filter_val_begin, filter_val_end)) {
       /* null */
       fi.val = string_ref();
@@ -808,11 +808,15 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     }
     ++filters_count;
   }
-  if (filters_work.size() <= filters_count) {
-    filters_work.resize(filters_count + 1);
+  if (filters_count > 0) {
+    if (filters_work.size() <= filters_count) {
+      filters_work.resize(filters_count + 1);
+    }
+    filters_work[filters_count].op = string_ref(); /* sentinel */
+    args.filters = &filters_work[0];
+  } else {
+    args.filters = 0;
   }
-  filters_work[filters_count].op = string_ref(); /* sentinel */
-  args.filters = &filters_work[0];
   if (start == finish) {
     /* no modops */
     return dbctx->cmd_exec_on_index(conn, args);

@@ -154,6 +154,8 @@ struct dbcontext : public dbcontext_i, private noncopyable {
     const string_ref *fvals, size_t fvalslen);
   void cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     ha_rkey_function find_flag, const cmd_exec_args& args);
+  int check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
+    const cmd_exec_args& args, const uchar *filter_buf);
   void resp_record(dbcallback_i& cb, TABLE *const table, const prep_stmt& pst);
   void dump_record(dbcallback_i& cb, TABLE *const table, const prep_stmt& pst);
   int modify_record(dbcallback_i& cb, TABLE *const table,
@@ -689,6 +691,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     return cb.dbcb_resp_short(2, "tblnum");
   }
   TABLE *const table = table_vec[pst.get_table_id()].table;
+  /* keys */
   if (pst.get_idxnum() >= table->s->keys) {
     return cb.dbcb_resp_short(2, "idxnum");
   }
@@ -713,6 +716,39 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     }
     key_copy(key_buf, table->record[0], &kinfo, kplen_sum);
   }
+  /* filters */
+  uchar *filter_buf = 0;
+  if (args.filters != 0) {
+    /* calculate length */
+    size_t filter_buf_len = 0;
+    for (const record_filter *f = args.filters; f->op.begin() != 0; ++f) {
+      if (f->val.begin() == 0) {
+	continue;
+      }
+      const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+      filter_buf_len += table->field[fn]->pack_length();
+    }
+    /* pack values */
+    filter_buf = reinterpret_cast<uchar *>(alloca(filter_buf_len));
+      /* FIXME: TEST */
+    memset(filter_buf, 0, filter_buf_len);
+    size_t pos = 0;
+    for (const record_filter *f = args.filters; f->op.begin() != 0; ++f) {
+      if (f->val.begin() == 0) {
+	continue;
+      }
+      const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+      Field *const fld = table->field[fn];
+      if ((fld->flags & BLOB_FLAG) != 0) {
+	return cb.dbcb_resp_short(2, "filterblob");
+      }
+      const size_t packlen = fld->pack_length();
+      memcpy(fld->ptr, filter_buf + pos, packlen);
+      pos += packlen;
+    }
+    /* assert(pos == filter_buf_len); */
+  }
+  /* handler */
   table->read_set = &table->s->all_set;
   handler *const hnd = table->file;
   if (!for_write_flag) {
@@ -758,8 +794,14 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
 	dump_record(cb, table, pst);
       }
     }
+    int filter_res = 0;
     if (r != 0) {
       /* no-count */
+    } else if (args.filters != 0 && (filter_res = check_filter(cb, table, 
+      pst, args, filter_buf)) != 0) {
+      if (filter_res < 0) {
+	break;
+      }
     } else if (skip > 0) {
       --skip;
     } else {
@@ -791,6 +833,13 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       cb.dbcb_resp_short_num(0, mod_success_count);
     }
   }
+}
+
+int
+dbcontext::check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
+  const cmd_exec_args& args, const uchar *filter_buf)
+{
+  return 0;
 }
 
 void

@@ -76,9 +76,9 @@ enum record_filter_type {
 struct record_filter {
   record_filter_type filter_type;
   string_ref op;
-  uint32_t row; /* offset in filter_fields */
+  uint32_t ff_offset; /* offset in filter_fields */
   string_ref val;
-  record_filter() : filter_type(record_filter_type_skip), row(0) { }
+  record_filter() : filter_type(record_filter_type_skip), ff_offset(0) { }
 };
 
 struct cmd_exec_args {

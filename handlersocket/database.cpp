@@ -154,8 +154,12 @@ struct dbcontext : public dbcontext_i, private noncopyable {
     const string_ref *fvals, size_t fvalslen);
   void cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     ha_rkey_function find_flag, const cmd_exec_args& args);
+  size_t calc_filter_buf_size(TABLE *table, const prep_stmt& pst,
+    const record_filter *filters);
+  bool fill_filter_buf(TABLE *table, const prep_stmt& pst,
+    const record_filter *filters, uchar *filter_buf, size_t len);
   int check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
-    const cmd_exec_args& args, const uchar *filter_buf);
+    const record_filter *filters, const uchar *filter_buf);
   void resp_record(dbcallback_i& cb, TABLE *const table, const prep_stmt& pst);
   void dump_record(dbcallback_i& cb, TABLE *const table, const prep_stmt& pst);
   int modify_record(dbcallback_i& cb, TABLE *const table,
@@ -719,34 +723,14 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   /* filters */
   uchar *filter_buf = 0;
   if (args.filters != 0) {
-    /* calculate length */
-    size_t filter_buf_len = 0;
-    for (const record_filter *f = args.filters; f->op.begin() != 0; ++f) {
-      if (f->val.begin() == 0) {
-	continue;
-      }
-      const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
-      filter_buf_len += table->field[fn]->pack_length();
-    }
-    /* pack values */
+    const size_t filter_buf_len = calc_filter_buf_size(table, pst,
+      args.filters);
     filter_buf = reinterpret_cast<uchar *>(alloca(filter_buf_len));
       /* FIXME: TEST */
-    memset(filter_buf, 0, filter_buf_len);
-    size_t pos = 0;
-    for (const record_filter *f = args.filters; f->op.begin() != 0; ++f) {
-      if (f->val.begin() == 0) {
-	continue;
-      }
-      const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
-      Field *const fld = table->field[fn];
-      if ((fld->flags & BLOB_FLAG) != 0) {
-	return cb.dbcb_resp_short(2, "filterblob");
-      }
-      const size_t packlen = fld->pack_length();
-      memcpy(fld->ptr, filter_buf + pos, packlen);
-      pos += packlen;
+    if (!fill_filter_buf(table, pst, args.filters, filter_buf,
+      filter_buf_len)) {
+      return cb.dbcb_resp_short(2, "filterblob");
     }
-    /* assert(pos == filter_buf_len); */
   }
   /* handler */
   table->read_set = &table->s->all_set;
@@ -798,7 +782,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     if (r != 0) {
       /* no-count */
     } else if (args.filters != 0 && (filter_res = check_filter(cb, table, 
-      pst, args, filter_buf)) != 0) {
+      pst, args.filters, filter_buf)) != 0) {
       if (filter_res < 0) {
 	break;
       }
@@ -835,10 +819,100 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
 }
 
+size_t
+dbcontext::calc_filter_buf_size(TABLE *table, const prep_stmt& pst,
+  const record_filter *filters)
+{
+  size_t filter_buf_len = 0;
+  for (const record_filter *f = filters; f->op.begin() != 0; ++f) {
+    if (f->val.begin() == 0) {
+      continue;
+    }
+    const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+    filter_buf_len += table->field[fn]->pack_length();
+  }
+  return filter_buf_len;
+}
+
+bool
+dbcontext::fill_filter_buf(TABLE *table, const prep_stmt& pst,
+  const record_filter *filters, uchar *filter_buf, size_t len)
+{
+  memset(filter_buf, 0, len);
+  size_t pos = 0;
+  for (const record_filter *f = filters; f->op.begin() != 0; ++f) {
+    if (f->val.begin() == 0) {
+      continue;
+    }
+    const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+    Field *const fld = table->field[fn];
+    if ((fld->flags & BLOB_FLAG) != 0) {
+      return false;
+    }
+    fld->store(f->val.begin(), f->val.size(), &my_charset_bin);
+    const size_t packlen = fld->pack_length();
+    memcpy(filter_buf + pos, fld->ptr, packlen);
+    pos += packlen;
+  }
+  return true;
+}
+
 int
 dbcontext::check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
-  const cmd_exec_args& args, const uchar *filter_buf)
+  const record_filter *filters, const uchar *filter_buf)
 {
+  size_t pos = 0;
+  for (const record_filter *f = filters; f->op.begin() != 0; ++f) {
+    const string_ref& val = f->val;
+    const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+    Field *const fld = table->field[fn];
+    const size_t packlen = fld->pack_length();
+    const uchar *const bval = filter_buf + pos;
+    int cv = 0;
+    if (fld->is_null()) {
+      cv = (val.begin() == 0) ? 0 : -1;
+    } else {
+      cv = (val.begin() == 0) ? 1 : fld->cmp(bval);
+    }
+    bool cond = true;
+    if (val.size() == 1) {
+      switch (val.begin()[0]) {
+      case '>':
+	cond = (cv > 0);
+	break;
+      case '<':
+	cond = (cv < 0);
+	break;
+      case '=':
+	cond = (cv == 0);
+	break;
+      default:
+	cond = false; /* FIXME: error */
+	break;
+      }
+    } else if (val.size() == 2 && val.begin()[1] == '=') {
+      switch (val.begin()[0]) {
+      case '>':
+	cond = (cv >= 0);
+	break;
+      case '<':
+	cond = (cv <= 0);
+	break;
+      case '!':
+	cond = (cv != 0);
+	break;
+      default:
+	cond = false; /* FIXME: error */
+	break;
+      }
+    }
+    if (!cond) {
+      return (f->filter_type == record_filter_type_skip) ? -1 : 1;
+    }
+    if (val.begin() != 0) {
+      pos += packlen;
+    }
+  }
   return 0;
 }
 

@@ -120,6 +120,38 @@ av_to_strrefarr(AV *av, std::vector<dena::string_ref>& a_r)
   }
 }
 
+static dena::string_ref
+sv_to_string_ref(SV *sv)
+{
+  if (sv == 0) {
+    return dena::string_ref();
+  }
+  STRLEN vlen = 0;
+  char *const v = SvPV(sv, vlen);
+  return dena::string_ref(v, vlen);
+}
+
+static void
+av_to_filters(AV *av, std::vector<dena::hstcpcli_filter>& f_r)
+{
+  if (av == 0) {
+    return;
+  }
+  const I32 len = av_len(av) + 1;
+  for (I32 i = 0; i < len; ++i) {
+    AV *const earr = arr_get_arrval(av, len, i);
+    if (earr == 0) {
+      continue;
+    }
+    const I32 earrlen = av_len(earr) + 1;
+    dena::hstcpcli_filter fe;
+    fe.filter_action = sv_to_string_ref(arr_get_entry(earr, earrlen, 0));
+    fe.filter_op = sv_to_string_ref(arr_get_entry(earr, earrlen, 1));
+    fe.value = sv_to_string_ref(arr_get_entry(earr, earrlen, 2));
+    f_r.push_back(fe);
+  }
+}
+
 static void
 set_process_verbose_level(const std::map<std::string, std::string>& m)
 {
@@ -131,22 +163,26 @@ set_process_verbose_level(const std::map<std::string, std::string>& m)
 
 static AV *
 execute_internal(SV *obj, int id, const char *op, AV *keys, int limit,
-  int skip, const char *modop, AV *modvals)
+  int skip, const char *modop, AV *modvals, AV *filters)
 {
   AV *retval = (AV *)&PL_sv_undef;
   dena::hstcpcli_i *const ptr =
     reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
   do {
     std::vector<dena::string_ref> keyarr, mvarr;
+    std::vector<dena::hstcpcli_filter> farr;
     av_to_strrefarr(keys, keyarr);
     dena::string_ref modop_ref;
     if (modop != 0) {
       modop_ref = dena::string_ref(modop, strlen(modop));
       av_to_strrefarr(modvals, mvarr);
     }
+    if (filters != 0) {
+      av_to_filters(filters, farr);
+    }
     ptr->request_buf_exec_generic(id, dena::string_ref(op, strlen(op)),
       &keyarr[0], keyarr.size(), limit, skip, modop_ref, &mvarr[0],
-      mvarr.size());
+      mvarr.size(), &farr[0], farr.size());
     AV *const av = newAV();
     retval = av;
     if (ptr->request_send() != 0) {
@@ -194,8 +230,9 @@ struct execute_arg {
   int skip;
   const char *modop;
   AV *modvals;
+  AV *filters;
   execute_arg() : id(0), op(0), keys(0), limit(0), skip(0), modop(0),
-    modvals(0) { }
+    modvals(0), filters(0) { }
 };
 
 static AV *
@@ -206,6 +243,7 @@ execute_multi_internal(SV *obj, const execute_arg *args, size_t num_args)
   /* appends multiple requests to the send buffer */
   for (size_t i = 0; i < num_args; ++i) {
     std::vector<dena::string_ref> keyarr, mvarr;
+    std::vector<dena::hstcpcli_filter> farr;
     const execute_arg& arg = args[i];
     av_to_strrefarr(arg.keys, keyarr);
     dena::string_ref modop_ref;
@@ -213,9 +251,13 @@ execute_multi_internal(SV *obj, const execute_arg *args, size_t num_args)
       modop_ref = dena::string_ref(arg.modop, strlen(arg.modop));
       av_to_strrefarr(arg.modvals, mvarr);
     }
+    if (arg.filters != 0) {
+      av_to_filters(arg.filters, farr);
+    }
     ptr->request_buf_exec_generic(arg.id,
       dena::string_ref(arg.op, strlen(arg.op)), &keyarr[0], keyarr.size(),
-      arg.limit, arg.skip, modop_ref, &mvarr[0], mvarr.size());
+      arg.limit, arg.skip, modop_ref, &mvarr[0], mvarr.size(), &farr[0],
+      farr.size());
   }
   AV *const retval = newAV();
   /* sends the requests */
@@ -296,14 +338,16 @@ CODE:
     reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
   delete ptr;
 
-void close(obj)
+void
+close(obj)
   SV *obj
 CODE:
   dena::hstcpcli_i *const ptr =
     reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
   ptr->close();
 
-int reconnect(obj)
+int
+reconnect(obj)
   SV *obj
 CODE:
   RETVAL = 0;
@@ -379,7 +423,7 @@ OUTPUT:
   RETVAL
 
 AV *
-execute_single(obj, id, op, keys, limit, skip, modop = 0, modvals = 0)
+execute_single(obj, id, op, keys, limit, skip, modop = 0, modvals = 0, filters = 0)
   SV *obj
   int id
   const char *op
@@ -388,9 +432,10 @@ execute_single(obj, id, op, keys, limit, skip, modop = 0, modvals = 0)
   int skip
   const char *modop
   AV *modvals
+  AV *filters
 CODE:
   RETVAL = execute_internal(obj, id, op, keys, limit, skip, modop,
-    modvals);
+    modvals, filters);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
@@ -430,7 +475,7 @@ OUTPUT:
   RETVAL
 
 AV *
-execute_find(obj, id, op, keys, limit, skip, modop = 0, modvals = 0)
+execute_find(obj, id, op, keys, limit, skip, modop = 0, modvals = 0, filters = 0)
   SV *obj
   int id
   const char *op
@@ -439,15 +484,16 @@ execute_find(obj, id, op, keys, limit, skip, modop = 0, modvals = 0)
   int skip
   const char *modop
   AV *modvals
+  AV *filters
 CODE:
   RETVAL = execute_internal(obj, id, op, keys, limit, skip, modop,
-    modvals);
+    modvals, filters);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
 
 AV *
-execute_update(obj, id, op, keys, limit, skip, modvals)
+execute_update(obj, id, op, keys, limit, skip, modvals, filters = 0)
   SV *obj
   int id
   const char *op
@@ -455,23 +501,25 @@ execute_update(obj, id, op, keys, limit, skip, modvals)
   int limit
   int skip
   AV *modvals
+  AV *filters
 CODE:
   RETVAL = execute_internal(obj, id, op, keys, limit, skip, "U",
-    modvals);
+    modvals, filters);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
 
 AV *
-execute_delete(obj, id, op, keys, limit, skip)
+execute_delete(obj, id, op, keys, limit, skip, filters = 0)
   SV *obj
   int id
   const char *op
   AV *keys
   int limit
   int skip
+  AV *filters
 CODE:
-  RETVAL = execute_internal(obj, id, op, keys, limit, skip, "D", 0);
+  RETVAL = execute_internal(obj, id, op, keys, limit, skip, "D", 0, filters);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
@@ -482,7 +530,7 @@ execute_insert(obj, id, fvals)
   int id
   AV *fvals
 CODE:
-  RETVAL = execute_internal(obj, id, "+", fvals, 0, 0, 0, 0);
+  RETVAL = execute_internal(obj, id, "+", fvals, 0, 0, 0, 0, 0);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL

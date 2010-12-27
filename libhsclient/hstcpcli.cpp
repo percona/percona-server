@@ -199,7 +199,7 @@ hstcpcli::request_buf_open_index(size_t pst_id, const char *dbn,
 namespace {
 
 void
-append_value(string_buffer& buf, const char *start, const char *finish)
+append_delim_value(string_buffer& buf, const char *start, const char *finish)
 {
   if (start == 0) {
     /* null */
@@ -232,7 +232,7 @@ hstcpcli::request_buf_exec_generic(size_t pst_id, const string_ref& op,
   append_uint32(writebuf, kvslen); // FIXME size_t ?
   for (size_t i = 0; i < kvslen; ++i) {
     const string_ref& kv = kvs[i];
-    append_value(writebuf, kv.begin(), kv.end());
+    append_delim_value(writebuf, kv.begin(), kv.end());
   }
   if (limit != 0 || skip != 0 || mod_op.size() != 0 || filslen != 0) {
     writebuf.append_literal("\t");
@@ -244,18 +244,19 @@ hstcpcli::request_buf_exec_generic(size_t pst_id, const string_ref& op,
     for (size_t i = 0; i < filslen; ++i) {
       const hstcpcli_filter& f = fils[i];
       writebuf.append_literal("\t");
-      writebuf.append(f.filter_action.begin(), f.filter_action.end());
+      writebuf.append(f.filter_type.begin(), f.filter_type.end());
       writebuf.append_literal("\t");
-      writebuf.append(f.filter_op.begin(), f.filter_op.end());
+      writebuf.append(f.op.begin(), f.op.end());
       writebuf.append_literal("\t");
-      append_value(writebuf, f.value.begin(), f.value.end());
+      append_uint32(writebuf, f.ff_offset);
+      append_delim_value(writebuf, f.val.begin(), f.val.end());
     }
     if (mod_op.size() != 0) {
       writebuf.append_literal("\t");
       writebuf.append(mod_op.begin(), mod_op.end());
       for (size_t i = 0; i < mvslen; ++i) {
 	const string_ref& mv = mvs[i];
-	append_value(writebuf, mv.begin(), mv.end());
+	append_delim_value(writebuf, mv.begin(), mv.end());
       }
     }
   }

@@ -708,6 +708,7 @@ hstcpsvr_worker::do_open_index(char *start, char *finish, hstcpsvr_conn& conn)
   char *const retflds_begin = start;
   read_token(start, finish);
   char *const retflds_end = start;
+  skip_one(start, finish);
   /* filfields */
   char *const filflds_begin = start;
   read_token(start, finish);

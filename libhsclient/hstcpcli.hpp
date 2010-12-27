@@ -22,9 +22,11 @@
 namespace dena {
 
 struct hstcpcli_filter {
-  string_ref filter_action;
-  string_ref filter_op;
-  string_ref value;
+  string_ref filter_type;
+  string_ref op;
+  size_t ff_offset;
+  string_ref val;
+  hstcpcli_filter() : ff_offset(0) { }
 };
 
 struct hstcpcli_i;

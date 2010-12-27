@@ -21,6 +21,7 @@
 #define DBG_THR(x)
 #define DBG_CMP(x)
 #define DBG_FLD(x)
+#define DBG_FILTER(x)
 #define DBG_REFCNT(x)
 #define DBG_DELETED
 
@@ -73,7 +74,7 @@ prep_stmt::operator =(const prep_stmt& x)
     table_id = x.table_id;
     idxnum = x.idxnum;
     ret_fields = x.ret_fields;
-    filter_fields = x.ret_fields;
+    filter_fields = x.filter_fields;
     if (dbctx) {
       dbctx->table_addref(table_id);
     }
@@ -684,6 +685,9 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     case '-': /* decrement */
       break;
     default:
+      if (debug_out) {
+	fprintf(stderr, "unknown modop: %c\n", mod_op);
+      }
       return cb.dbcb_resp_short(2, "modop");
     }
   }
@@ -861,8 +865,10 @@ int
 dbcontext::check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
   const record_filter *filters, const uchar *filter_buf)
 {
+  DBG_FILTER(fprintf(stderr, "check_filter\n"));
   size_t pos = 0;
   for (const record_filter *f = filters; f->op.begin() != 0; ++f) {
+    const string_ref& op = f->op;
     const string_ref& val = f->val;
     const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
     Field *const fld = table->field[fn];
@@ -874,40 +880,50 @@ dbcontext::check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
     } else {
       cv = (val.begin() == 0) ? 1 : fld->cmp(bval);
     }
+    DBG_FILTER(fprintf(stderr, "check_filter cv=%d\n", cv));
     bool cond = true;
-    if (val.size() == 1) {
-      switch (val.begin()[0]) {
+    if (op.size() == 1) {
+      switch (op.begin()[0]) {
       case '>':
+	DBG_FILTER(fprintf(stderr, "check_filter op: >\n"));
 	cond = (cv > 0);
 	break;
       case '<':
+	DBG_FILTER(fprintf(stderr, "check_filter op: <\n"));
 	cond = (cv < 0);
 	break;
       case '=':
+	DBG_FILTER(fprintf(stderr, "check_filter op: =\n"));
 	cond = (cv == 0);
 	break;
       default:
+	DBG_FILTER(fprintf(stderr, "check_filter op: unknown\n"));
 	cond = false; /* FIXME: error */
 	break;
       }
-    } else if (val.size() == 2 && val.begin()[1] == '=') {
-      switch (val.begin()[0]) {
+    } else if (op.size() == 2 && op.begin()[1] == '=') {
+      switch (op.begin()[0]) {
       case '>':
+	DBG_FILTER(fprintf(stderr, "check_filter op: >=\n"));
 	cond = (cv >= 0);
 	break;
       case '<':
+	DBG_FILTER(fprintf(stderr, "check_filter op: <=\n"));
 	cond = (cv <= 0);
 	break;
       case '!':
+	DBG_FILTER(fprintf(stderr, "check_filter op: !=\n"));
 	cond = (cv != 0);
 	break;
       default:
+	DBG_FILTER(fprintf(stderr, "check_filter op: unknown\n"));
 	cond = false; /* FIXME: error */
 	break;
       }
     }
+    DBG_FILTER(fprintf(stderr, "check_filter cond: %d\n", (int)cond));
     if (!cond) {
-      return (f->filter_type == record_filter_type_skip) ? -1 : 1;
+      return (f->filter_type == record_filter_type_skip) ? 1 : -1;
     }
     if (val.begin() != 0) {
       pos += packlen;

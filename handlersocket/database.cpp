@@ -97,7 +97,8 @@ struct database : public database_i, private noncopyable {
 struct tablevec_entry {
   TABLE *table;
   size_t refcount;
-  tablevec_entry() : table(0), refcount(0) { }
+  bool modified;
+  tablevec_entry() : table(0), refcount(0), modified(false) { }
 };
 
 struct expr_user_lock : private noncopyable {
@@ -395,6 +396,7 @@ dbcontext::lock_tables_if()
       if (table_vec[i].refcount > 0) {
 	tables[num_open++] = table_vec[i].table;
       }
+      table_vec[i].modified = false;
     }
     #if MYSQL_VERSION_ID >= 50505
     lock = thd->lock = mysql_lock_tables(thd, &tables[0], num_open, 0);
@@ -429,6 +431,12 @@ dbcontext::unlock_tables_if()
   if (lock != 0) {
     DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK unlock tables\n"));
     if (for_write_flag) {
+      for (size_t i = 0; i < table_vec.size(); ++i) {
+	if (table_vec[i].modified) {
+	  query_cache_invalidate3(thd, table_vec[i].table, 0);
+	    /* invalidate immediately */
+	}
+      }
       bool suc = true;
       #if MYSQL_VERSION_ID >= 50505
       suc = (trans_commit_stmt(thd) == 0);
@@ -619,6 +627,7 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
     }
     ++success_count;
   }
+  table_vec[pst.get_table_id()].modified = true;
   return 0;
 }
 
@@ -653,6 +662,7 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   table->next_number_field = table->found_next_number_field;
   const int r = hnd->ha_write_row(buf);
   table->next_number_field = 0;
+  table_vec[pst.get_table_id()].modified = true;
   return cb.dbcb_resp_short(r != 0 ? 1 : 0, "");
 }
 

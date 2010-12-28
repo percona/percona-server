@@ -14,7 +14,7 @@ connection slave;
 send STOP SLAVE;
 connection slave1;
 select count(*) from t;
-replace_column 2 host 3 user 4 port;
+replace_column 1 <STATE> 2 <HOST> 3 <USER> 4 <PORT>;
 SHOW SLAVE STATUS NOLOCK;
 select count(*) from t;
 

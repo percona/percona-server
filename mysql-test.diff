@@ -627,27 +627,6 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
  variable_value
  16384
-diff -ruN a/mysql-test/suite/innodb/r/innodb_bug57904.result b/mysql-test/suite/innodb/r/innodb_bug57904.result
---- a/mysql-test/suite/innodb/r/innodb_bug57904.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/suite/innodb/r/innodb_bug57904.result	2010-12-10 16:48:11.029053158 +0900
-@@ -24,7 +24,7 @@
- UPDATE_RULE	CASCADE
- DELETE_RULE	RESTRICT
- TABLE_NAME	product_order
--REFERENCED_TABLE_NAME	pro
-+REFERENCED_TABLE_NAME	product
- CONSTRAINT_CATALOG	def
- CONSTRAINT_SCHEMA	test
- CONSTRAINT_NAME	product_order_ibfk_2
-@@ -35,7 +35,7 @@
- UPDATE_RULE	RESTRICT
- DELETE_RULE	RESTRICT
- TABLE_NAME	product_order
--REFERENCED_TABLE_NAME	cus
-+REFERENCED_TABLE_NAME	custome
- DROP TABLE product_order;
- DROP TABLE product;
- DROP TABLE customer;
 diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
 --- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-03 07:01:13.000000000 +0900
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result	2010-12-10 16:48:11.030053040 +0900

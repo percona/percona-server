@@ -650,7 +650,9 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
       (*fld)->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
     }
   }
+  table->next_number_field = table->found_next_number_field;
   const int r = hnd->ha_write_row(buf);
+  table->next_number_field = 0;
   return cb.dbcb_resp_short(r != 0 ? 1 : 0, "");
 }
 

@@ -34,6 +34,7 @@
 #include <mysql/plugin.h>
 #include <transaction.h>
 #include <sql_base.h>
+// FIXME FIXME FIXME
 #define safeFree(X) my_free(X)
 #define pthread_cond_timedwait  mysql_cond_timedwait
 #define  pthread_mutex_lock  mysql_mutex_lock

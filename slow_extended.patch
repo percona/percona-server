@@ -195,7 +195,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      }
      else
      {
-@@ -1010,8 +1026,20 @@
+@@ -1010,8 +1026,21 @@
        query_length= command_name[thd->command].length;
      }
  
@@ -203,6 +203,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +    {
 +      thd->sent_row_count= thd->examined_row_count= 0;
 +      thd->row_count= 0;
++      thd->orig_row_count= 0;
 +      thd->bytes_sent_old= thd->status_var.bytes_sent;
 +      thd->tmp_tables_used= thd->tmp_tables_disk_used= 0;
 +      thd->tmp_tables_size= 0;
@@ -217,7 +218,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
                                              user_host_buff, user_host_len,
                                              query_utime, lock_utime, is_command,
                                              query, query_length) || error;
-@@ -2280,12 +2308,13 @@
+@@ -2280,12 +2309,13 @@
      TRUE - error occured
  */
  
@@ -232,7 +233,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
    bool error= 0;
    DBUG_ENTER("MYSQL_QUERY_LOG::write");
  
-@@ -2307,17 +2336,28 @@
+@@ -2307,17 +2337,28 @@
  
      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
      {
@@ -268,7 +269,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
          /* Note that my_b_write() assumes it knows the length for this */
          if (my_b_write(&log_file, (uchar*) buff, buff_len))
-@@ -2335,12 +2375,64 @@
+@@ -2335,12 +2376,64 @@
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
      if (my_b_printf(&log_file,
@@ -284,7 +285,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 -                    (ulong) thd->examined_row_count) == (uint) -1)
 +                    (ulong) thd->examined_row_count,
 +                    ((long) thd->row_count_func > 0 ) ? (ulong) thd->row_count_func : 0,
-+                    (ulong) thd->row_count,
++                    thd->row_count - thd->orig_row_count + 1,
 +                    (ulong) (thd->status_var.bytes_sent - thd->bytes_sent_old),
 +                    (ulong) thd->tmp_tables_used,
 +                    (ulong) thd->tmp_tables_disk_used,
@@ -1079,7 +1080,7 @@ diff -ruN a/sql/set_var.h b/sql/set_var.h
  class sys_var_thd_storage_engine :public sys_var_thd
  {
  protected:
-@@ -1466,3 +1540,10 @@
+@@ -1466,3 +1542,10 @@
  bool process_key_caches(process_key_cache_t func);
  void delete_elements(I_List<NAMED_LIST> *list,
  		     void (*free_element)(const char*, uchar*));
@@ -1287,6 +1288,18 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    /* <> 0 if we are inside of trigger or stored function. */
    uint in_sub_stmt;
    /* TRUE when the current top has SQL_LOG_BIN ON */
+@@ -1777,6 +1817,11 @@
+     create_sort_index(); may differ from examined_row_count.
+   */
+   ulong      row_count;
++  /*
++    Original row_count value at the start of query execution
++    (used by the slow_extended patch).
++  */
++  ulong      orig_row_count;
+   pthread_t  real_id;                           /* For debugging */
+   my_thread_id  thread_id;
+   uint	     tmp_table, global_read_lock;
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2010-08-04 02:24:34.000000000 +0900
 +++ b/sql/sql_connect.cc	2010-08-27 14:30:34.905058444 +0900
@@ -1362,16 +1375,17 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -2085,6 +2122,8 @@
+@@ -2085,6 +2122,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
-+  /* Reset the counter at all cases for the extended slow query log */
-+  thd->row_count= 1;
++  /* Save the original row_count value for extended stats in slow query log */
++  thd->orig_row_count= thd->row_count;
++
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5800,6 +5839,21 @@
+@@ -5800,6 +5840,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  

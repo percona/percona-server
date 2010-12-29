@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
 --- a/storage/innobase/btr/btr0cur.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/btr/btr0cur.c	2010-12-03 15:48:29.268957148 +0900
-@@ -4042,7 +4042,8 @@
+@@ -4039,7 +4039,8 @@
  
  	mtr_commit(mtr);
  
@@ -18,7 +18,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	mutex_enter(&block->mutex);
  
  	/* Only free the block if it is still allocated to
-@@ -4053,17 +4054,22 @@
+@@ -4050,17 +4051,22 @@
  	    && buf_block_get_space(block) == space
  	    && buf_block_get_page_no(block) == page_no) {
  
@@ -706,7 +706,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_mutex_exit(buf_pool);
  
  	return(DB_SUCCESS);
-@@ -1469,7 +1495,11 @@
+@@ -1467,7 +1493,11 @@
  	ulint		fold;
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
  
@@ -719,7 +719,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
  	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
  	ut_a(bpage->buf_fix_count == 0);
-@@ -1556,7 +1586,8 @@
+@@ -1554,7 +1584,8 @@
  
  try_again:
  	btr_search_disable(); /* Empty the adaptive hash index again */
@@ -729,7 +729,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  shrink_again:
  	if (buf_pool->n_chunks <= 1) {
-@@ -1627,7 +1658,7 @@
+@@ -1625,7 +1656,7 @@
  
  				buf_LRU_make_block_old(&block->page);
  				dirty++;
@@ -738,7 +738,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  				   != BUF_LRU_FREED) {
  				nonfree++;
  			}
-@@ -1635,7 +1666,8 @@
+@@ -1633,7 +1664,8 @@
  			mutex_exit(&block->mutex);
  		}
  
@@ -748,7 +748,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		/* Request for a flush of the chunk if it helps.
  		Do not flush if there are non-free blocks, since
-@@ -1685,7 +1717,8 @@
+@@ -1683,7 +1715,8 @@
  func_done:
  	buf_pool->old_pool_size = buf_pool->curr_pool_size;
  func_exit:
@@ -758,7 +758,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	btr_search_enable();
  }
  
-@@ -1726,7 +1759,9 @@
+@@ -1724,7 +1757,9 @@
  	hash_table_t*	zip_hash;
  	hash_table_t*	page_hash;
  
@@ -769,7 +769,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	/* Free, create, and populate the hash table. */
  	hash_table_free(buf_pool->page_hash);
-@@ -1767,8 +1802,9 @@
+@@ -1765,8 +1800,9 @@
  	All such blocks are either in buf_pool->zip_clean or
  	in buf_pool->flush_list. */
  
@@ -780,7 +780,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
  		ut_ad(!b->in_flush_list);
  		ut_ad(b->in_LRU_list);
-@@ -1778,10 +1814,11 @@
+@@ -1776,10 +1812,11 @@
  		HASH_INSERT(buf_page_t, hash, page_hash,
  			    buf_page_address_fold(b->space, b->offset), b);
  	}
@@ -793,7 +793,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		ut_ad(b->in_flush_list);
  		ut_ad(b->in_LRU_list);
  		ut_ad(b->in_page_hash);
-@@ -1808,7 +1845,9 @@
+@@ -1806,7 +1843,9 @@
  	}
  
  	buf_flush_list_mutex_exit(buf_pool);
@@ -804,7 +804,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  }
  
  /********************************************************************
-@@ -1855,21 +1894,32 @@
+@@ -1853,21 +1892,32 @@
  	buf_page_t*	bpage;
  	ulint		i;
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
@@ -838,12 +838,12 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
  		bpage = &buf_pool->watch[i];
  
-@@ -1893,10 +1943,12 @@
+@@ -1891,10 +1941,12 @@
  			bpage->space = space;
  			bpage->offset = offset;
  			bpage->buf_fix_count = 1;
 -
-+			bpage->buf_pool = buf_pool;
++			bpage->buf_pool_index = buf_pool_index(buf_pool);
  			ut_d(bpage->in_page_hash = TRUE);
  			HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
  				    fold, bpage);
@@ -852,7 +852,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			return(NULL);
  		case BUF_BLOCK_ZIP_PAGE:
  			ut_ad(bpage->in_page_hash);
-@@ -1914,6 +1966,8 @@
+@@ -1912,6 +1964,8 @@
  	ut_error;
  
  	/* Fix compiler warning */
@@ -861,7 +861,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	return(NULL);
  }
  
-@@ -1943,6 +1997,8 @@
+@@ -1941,6 +1995,8 @@
  	buf_chunk_t*	chunks;
  	buf_chunk_t*	chunk;
  
@@ -870,7 +870,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_mutex_enter(buf_pool);
  	chunks = mem_alloc((buf_pool->n_chunks + 1) * sizeof *chunks);
  
-@@ -1961,6 +2017,8 @@
+@@ -1959,6 +2015,8 @@
  		buf_pool->n_chunks++;
  	}
  
@@ -879,7 +879,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_mutex_exit(buf_pool);
  }
  
-@@ -2048,7 +2106,11 @@
+@@ -2046,7 +2104,11 @@
  					space, offset) */
  	buf_page_t*	watch)		/*!< in/out: sentinel for watch */
  {
@@ -892,7 +892,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, watch);
  	ut_d(watch->in_page_hash = FALSE);
-@@ -2070,28 +2132,31 @@
+@@ -2068,28 +2130,31 @@
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  	ulint		fold = buf_page_address_fold(space, offset);
  
@@ -928,7 +928,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  }
  
  /****************************************************************//**
-@@ -2111,14 +2176,16 @@
+@@ -2109,14 +2174,16 @@
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  	ulint		fold	= buf_page_address_fold(space, offset);
  
@@ -947,7 +947,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	return(ret);
  }
-@@ -2135,13 +2202,15 @@
+@@ -2133,13 +2200,15 @@
  {
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
  
@@ -965,7 +965,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  }
  
  /********************************************************************//**
-@@ -2165,14 +2234,20 @@
+@@ -2163,14 +2232,20 @@
  	ut_a(buf_page_in_file(bpage));
  
  	if (buf_page_peek_if_too_old(bpage)) {
@@ -990,7 +990,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	}
  }
  
-@@ -2189,7 +2264,8 @@
+@@ -2187,7 +2262,8 @@
  	buf_block_t*	block;
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
@@ -1000,7 +1000,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	block = (buf_block_t*) buf_page_hash_get(buf_pool, space, offset);
  
-@@ -2198,7 +2274,8 @@
+@@ -2196,7 +2272,8 @@
  		block->check_index_page_at_flush = FALSE;
  	}
  
@@ -1010,7 +1010,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  }
  
  /********************************************************************//**
-@@ -2217,7 +2294,8 @@
+@@ -2215,7 +2292,8 @@
  	ibool		is_hashed;
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
@@ -1020,7 +1020,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	block = (buf_block_t*) buf_page_hash_get(buf_pool, space, offset);
  
-@@ -2228,7 +2306,8 @@
+@@ -2226,7 +2304,8 @@
  		is_hashed = block->is_hashed;
  	}
  
@@ -1030,7 +1030,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	return(is_hashed);
  }
-@@ -2250,7 +2329,8 @@
+@@ -2248,7 +2327,8 @@
  	buf_page_t*	bpage;
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
@@ -1040,7 +1040,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	bpage = buf_page_hash_get(buf_pool, space, offset);
  
-@@ -2259,7 +2339,8 @@
+@@ -2257,7 +2337,8 @@
  		bpage->file_page_was_freed = TRUE;
  	}
  
@@ -1050,7 +1050,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	return(bpage);
  }
-@@ -2280,7 +2361,8 @@
+@@ -2278,7 +2359,8 @@
  	buf_page_t*	bpage;
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
@@ -1060,7 +1060,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	bpage = buf_page_hash_get(buf_pool, space, offset);
  
-@@ -2289,7 +2371,8 @@
+@@ -2287,7 +2369,8 @@
  		bpage->file_page_was_freed = FALSE;
  	}
  
@@ -1070,7 +1070,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	return(bpage);
  }
-@@ -2324,8 +2407,9 @@
+@@ -2322,8 +2405,9 @@
  	buf_pool->stat.n_page_gets++;
  
  	for (;;) {
@@ -1081,7 +1081,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		bpage = buf_page_hash_get(buf_pool, space, offset);
  		if (bpage) {
  			ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
-@@ -2334,7 +2418,8 @@
+@@ -2332,7 +2416,8 @@
  
  		/* Page not in buf_pool: needs to be read from file */
  
@@ -1091,7 +1091,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		buf_read_page(space, zip_size, offset);
  
-@@ -2346,10 +2431,15 @@
+@@ -2344,10 +2429,15 @@
  	if (UNIV_UNLIKELY(!bpage->zip.data)) {
  		/* There is no compressed page. */
  err_exit:
@@ -1108,7 +1108,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
  
  	switch (buf_page_get_state(bpage)) {
-@@ -2358,19 +2448,19 @@
+@@ -2356,19 +2446,19 @@
  	case BUF_BLOCK_MEMORY:
  	case BUF_BLOCK_REMOVE_HASH:
  	case BUF_BLOCK_ZIP_FREE:
@@ -1133,7 +1133,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		    == BUF_LRU_FREED) {
  
  			mutex_exit(block_mutex);
-@@ -2389,7 +2479,7 @@
+@@ -2387,7 +2477,7 @@
  	must_read = buf_page_get_io_fix(bpage) == BUF_IO_READ;
  	access_time = buf_page_is_accessed(bpage);
  
@@ -1142,7 +1142,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	mutex_exit(block_mutex);
  
-@@ -2698,7 +2788,7 @@
+@@ -2696,7 +2786,7 @@
  	const buf_block_t*	block)		/*!< in: pointer to block,
  						not dereferenced */
  {
@@ -1151,7 +1151,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	if (UNIV_UNLIKELY((((ulint) block) % sizeof *block) != 0)) {
  		/* The pointer should be aligned. */
-@@ -2734,6 +2824,7 @@
+@@ -2732,6 +2822,7 @@
  	ulint		fix_type;
  	ibool		must_read;
  	ulint		retries = 0;
@@ -1159,7 +1159,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2755,9 +2846,11 @@
+@@ -2753,9 +2844,11 @@
  	fold = buf_page_address_fold(space, offset);
  loop:
  	block = guess;
@@ -1172,7 +1172,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		/* If the guess is a compressed page descriptor that
  		has been allocated by buf_buddy_alloc(), it may have
  		been invalidated by buf_buddy_relocate().  In that
-@@ -2766,11 +2859,15 @@
+@@ -2764,11 +2857,15 @@
  		the guess may be pointing to a buffer pool chunk that
  		has been released when resizing the buffer pool. */
  
@@ -1189,7 +1189,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			block = guess = NULL;
  		} else {
  			ut_ad(!block->page.in_zip_hash);
-@@ -2779,12 +2876,19 @@
+@@ -2777,12 +2874,19 @@
  	}
  
  	if (block == NULL) {
@@ -1209,7 +1209,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		block = NULL;
  	}
  
-@@ -2796,12 +2900,14 @@
+@@ -2794,12 +2898,14 @@
  				space, offset, fold);
  
  			if (UNIV_LIKELY_NULL(block)) {
@@ -1226,7 +1226,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		if (mode == BUF_GET_IF_IN_POOL
  		    || mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
-@@ -2849,7 +2955,8 @@
+@@ -2847,7 +2953,8 @@
  		/* The page is being read to buffer pool,
  		but we cannot wait around for the read to
  		complete. */
@@ -1236,7 +1236,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		return(NULL);
  	}
-@@ -2859,38 +2966,49 @@
+@@ -2857,38 +2964,49 @@
  		ibool		success;
  
  	case BUF_BLOCK_FILE_PAGE:
@@ -1293,7 +1293,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		{
  			buf_page_t*	hash_bpage;
-@@ -2903,35 +3021,47 @@
+@@ -2901,35 +3019,47 @@
  				while buf_pool->mutex was released.
  				Free the block that was allocated. */
  
@@ -1347,7 +1347,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		buf_block_init_low(block);
  		block->lock_hash_val = lock_rec_hash(space, offset);
  
-@@ -2940,7 +3070,7 @@
+@@ -2938,7 +3068,7 @@
  
  		if (buf_page_get_state(&block->page)
  		    == BUF_BLOCK_ZIP_PAGE) {
@@ -1356,7 +1356,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  				       &block->page);
  			ut_ad(!block->page.in_flush_list);
  		} else {
-@@ -2957,19 +3087,24 @@
+@@ -2955,19 +3085,24 @@
  		/* Insert at the front of unzip_LRU list */
  		buf_unzip_LRU_add_block(block, FALSE);
  
@@ -1384,7 +1384,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		/* Decompress the page and apply buffered operations
  		while not holding buf_pool->mutex or block->mutex. */
-@@ -2982,12 +3117,15 @@
+@@ -2980,12 +3115,15 @@
  		}
  
  		/* Unfix and unlatch the block. */
@@ -1403,7 +1403,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		rw_lock_x_unlock(&block->lock);
  
  		break;
-@@ -3003,7 +3141,7 @@
+@@ -3001,7 +3139,7 @@
  
  	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
  
@@ -1412,7 +1412,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #if UNIV_WORD_SIZE == 4
  	/* On 32-bit systems, there is no padding in buf_page_t.  On
  	other systems, Valgrind could complain about uninitialized pad
-@@ -3013,13 +3151,14 @@
+@@ -3051,13 +3189,14 @@
  
  	buf_block_buf_fix_inc(block, file, line);
  
@@ -1429,7 +1429,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	buf_page_set_accessed_make_young(&block->page, access_time);
  
-@@ -3252,9 +3391,11 @@
+@@ -3290,9 +3429,11 @@
  	buf_pool = buf_pool_from_block(block);
  
  	if (mode == BUF_MAKE_YOUNG && buf_page_peek_if_too_old(&block->page)) {
@@ -1443,7 +1443,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	} else if (!buf_page_is_accessed(&block->page)) {
  		/* Above, we do a dirty read on purpose, to avoid
  		mutex contention.  The field buf_page_t::access_time
-@@ -3262,9 +3403,11 @@
+@@ -3300,9 +3441,11 @@
  		field must be protected by mutex, however. */
  		ulint	time_ms = ut_time_ms();
  
@@ -1457,7 +1457,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	}
  
  	ut_ad(!ibuf_inside() || (mode == BUF_KEEP_OLD));
-@@ -3331,18 +3474,21 @@
+@@ -3369,18 +3512,21 @@
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
  
@@ -1482,7 +1482,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-@@ -3431,7 +3577,10 @@
+@@ -3469,7 +3615,10 @@
  	buf_page_t*	hash_page;
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
@@ -1494,7 +1494,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	ut_ad(mutex_own(&(block->mutex)));
  	ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
  
-@@ -3460,11 +3609,14 @@
+@@ -3498,11 +3647,14 @@
  	if (UNIV_LIKELY(!hash_page)) {
  	} else if (buf_pool_watch_is_sentinel(buf_pool, hash_page)) {
  		/* Preserve the reference count. */
@@ -1510,7 +1510,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	} else {
  		fprintf(stderr,
  			"InnoDB: Error: page %lu %lu already found"
-@@ -3474,7 +3626,8 @@
+@@ -3512,7 +3664,8 @@
  			(const void*) hash_page, (const void*) block);
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  		mutex_exit(&block->mutex);
@@ -1520,7 +1520,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		buf_print();
  		buf_LRU_print();
  		buf_validate();
-@@ -3558,7 +3711,9 @@
+@@ -3596,7 +3749,9 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -1531,7 +1531,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	watch_page = buf_page_hash_get_low(buf_pool, space, offset, fold);
  	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
-@@ -3567,9 +3722,15 @@
+@@ -3605,9 +3760,15 @@
  err_exit:
  		if (block) {
  			mutex_enter(&block->mutex);
@@ -1548,7 +1548,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		bpage = NULL;
  		goto func_exit;
-@@ -3592,6 +3753,8 @@
+@@ -3630,6 +3791,8 @@
  
  		buf_page_init(space, offset, fold, block);
  
@@ -1557,7 +1557,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		/* The block must be put to the LRU list, to the old blocks */
  		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
  
-@@ -3619,7 +3782,7 @@
+@@ -3657,7 +3820,7 @@
  			been added to buf_pool->LRU and
  			buf_pool->page_hash. */
  			mutex_exit(&block->mutex);
@@ -1566,7 +1566,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			mutex_enter(&block->mutex);
  			block->page.zip.data = data;
  
-@@ -3632,6 +3795,7 @@
+@@ -3670,6 +3833,7 @@
  			buf_unzip_LRU_add_block(block, TRUE);
  		}
  
@@ -1574,7 +1574,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		mutex_exit(&block->mutex);
  	} else {
  		/* Defer buf_buddy_alloc() until after the block has
-@@ -3643,8 +3807,8 @@
+@@ -3681,8 +3845,8 @@
  		control block (bpage), in order to avoid the
  		invocation of buf_buddy_relocate_block() on
  		uninitialized data. */
@@ -1584,8 +1584,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +		bpage = buf_buddy_alloc(buf_pool, sizeof *bpage, &lru, TRUE);
  
  		/* Initialize the buf_pool pointer. */
- 		bpage->buf_pool = buf_pool;
-@@ -3663,8 +3827,11 @@
+ 		bpage->buf_pool_index = buf_pool_index(buf_pool);
+@@ -3701,8 +3865,11 @@
  
  				/* The block was added by some other thread. */
  				watch_page = NULL;
@@ -1599,7 +1599,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  				bpage = NULL;
  				goto func_exit;
-@@ -3708,18 +3875,24 @@
+@@ -3746,18 +3913,24 @@
  		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold,
  			    bpage);
  
@@ -1625,7 +1625,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
  
-@@ -3761,7 +3934,9 @@
+@@ -3799,7 +3972,9 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -1636,7 +1636,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	block = (buf_block_t*) buf_page_hash_get_low(
  		buf_pool, space, offset, fold);
-@@ -3777,7 +3952,9 @@
+@@ -3815,7 +3990,9 @@
  #endif /* UNIV_DEBUG_FILE_ACCESSES */
  
  		/* Page can be found in buf_pool */
@@ -1647,7 +1647,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		buf_block_free(free_block);
  
-@@ -3799,6 +3976,7 @@
+@@ -3837,6 +4014,7 @@
  	mutex_enter(&block->mutex);
  
  	buf_page_init(space, offset, fold, block);
@@ -1655,7 +1655,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	/* The block must be put to the LRU list */
  	buf_LRU_add_block(&block->page, FALSE);
-@@ -3825,7 +4003,7 @@
+@@ -3863,7 +4041,7 @@
  		the reacquisition of buf_pool->mutex.  We also must
  		defer this operation until after the block descriptor
  		has been added to buf_pool->LRU and buf_pool->page_hash. */
@@ -1664,7 +1664,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		mutex_enter(&block->mutex);
  		block->page.zip.data = data;
  
-@@ -3843,7 +4021,8 @@
+@@ -3881,7 +4059,8 @@
  
  	buf_page_set_accessed(&block->page, time_ms);
  
@@ -1674,7 +1674,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	mtr_memo_push(mtr, block, MTR_MEMO_BUF_FIX);
  
-@@ -3894,6 +4073,8 @@
+@@ -3932,6 +4111,8 @@
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
  	const ibool	uncompressed = (buf_page_get_state(bpage)
  					== BUF_BLOCK_FILE_PAGE);
@@ -1683,7 +1683,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	ut_a(buf_page_in_file(bpage));
  
-@@ -4027,8 +4208,26 @@
+@@ -4065,8 +4246,26 @@
  		}
  	}
  
@@ -1711,7 +1711,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
  	if (io_type == BUF_IO_WRITE || uncompressed) {
-@@ -4051,6 +4250,7 @@
+@@ -4089,6 +4288,7 @@
  		the x-latch to this OS thread: do not let this confuse you in
  		debugging! */
  
@@ -1719,7 +1719,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		ut_ad(buf_pool->n_pend_reads > 0);
  		buf_pool->n_pend_reads--;
  		buf_pool->stat.n_pages_read++;
-@@ -4068,6 +4268,9 @@
+@@ -4106,6 +4306,9 @@
  
  		buf_flush_write_complete(bpage);
  
@@ -1729,7 +1729,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		if (uncompressed) {
  			rw_lock_s_unlock_gen(&((buf_block_t*) bpage)->lock,
  					     BUF_IO_WRITE);
-@@ -4090,8 +4293,8 @@
+@@ -4128,8 +4331,8 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -1739,7 +1739,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  }
  
  /*********************************************************************//**
-@@ -4108,7 +4311,9 @@
+@@ -4146,7 +4349,9 @@
  
  	ut_ad(buf_pool);
  
@@ -1750,7 +1750,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	chunk = buf_pool->chunks;
  
-@@ -4125,7 +4330,9 @@
+@@ -4163,7 +4368,9 @@
  		}
  	}
  
@@ -1761,7 +1761,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	return(TRUE);
  }
-@@ -4173,7 +4380,8 @@
+@@ -4211,7 +4418,8 @@
  		freed = buf_LRU_search_and_free_block(buf_pool, 100);
  	}
  
@@ -1771,7 +1771,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
  	ut_ad(UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0);
-@@ -4186,7 +4394,8 @@
+@@ -4224,7 +4432,8 @@
  	memset(&buf_pool->stat, 0x00, sizeof(buf_pool->stat));
  	buf_refresh_io_stats(buf_pool);
  
@@ -1781,7 +1781,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  }
  
  /*********************************************************************//**
-@@ -4228,7 +4437,10 @@
+@@ -4266,7 +4475,10 @@
  
  	ut_ad(buf_pool);
  
@@ -1793,7 +1793,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	chunk = buf_pool->chunks;
  
-@@ -4323,7 +4535,7 @@
+@@ -4361,7 +4573,7 @@
  	/* Check clean compressed-only blocks. */
  
  	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
@@ -1802,7 +1802,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
  		switch (buf_page_get_io_fix(b)) {
  		case BUF_IO_NONE:
-@@ -4354,7 +4566,7 @@
+@@ -4392,7 +4604,7 @@
  
  	buf_flush_list_mutex_enter(buf_pool);
  	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
@@ -1811,7 +1811,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		ut_ad(b->in_flush_list);
  		ut_a(b->oldest_modification);
  		n_flush++;
-@@ -4413,6 +4625,8 @@
+@@ -4451,6 +4663,8 @@
  	}
  
  	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
@@ -1820,7 +1820,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
  		fprintf(stderr, "Free list len %lu, free blocks %lu\n",
  			(ulong) UT_LIST_GET_LEN(buf_pool->free),
-@@ -4423,8 +4637,11 @@
+@@ -4461,8 +4675,11 @@
  	ut_a(buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] == n_single_flush);
  	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
  	ut_a(buf_pool->n_flush[BUF_FLUSH_LRU] == n_lru_flush);
@@ -1833,7 +1833,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	ut_a(buf_LRU_validate());
  	ut_a(buf_flush_validate(buf_pool));
-@@ -4480,7 +4697,9 @@
+@@ -4518,7 +4735,9 @@
  	index_ids = mem_alloc(size * sizeof *index_ids);
  	counts = mem_alloc(sizeof(ulint) * size);
  
@@ -1844,7 +1844,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_flush_list_mutex_enter(buf_pool);
  
  	fprintf(stderr,
-@@ -4549,7 +4768,9 @@
+@@ -4587,7 +4806,9 @@
  		}
  	}
  
@@ -1855,7 +1855,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	for (i = 0; i < n_found; i++) {
  		index = dict_index_get_if_in_cache(index_ids[i]);
-@@ -4606,7 +4827,7 @@
+@@ -4644,7 +4865,7 @@
  	buf_chunk_t*	chunk;
  	ulint		fixed_pages_number = 0;
  
@@ -1864,7 +1864,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	chunk = buf_pool->chunks;
  
-@@ -4640,7 +4861,7 @@
+@@ -4678,7 +4899,7 @@
  	/* Traverse the lists of clean and dirty compressed-only blocks. */
  
  	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
@@ -1873,7 +1873,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
  		ut_a(buf_page_get_io_fix(b) != BUF_IO_WRITE);
  
-@@ -4652,7 +4873,7 @@
+@@ -4690,7 +4911,7 @@
  
  	buf_flush_list_mutex_enter(buf_pool);
  	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
@@ -1882,7 +1882,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		ut_ad(b->in_flush_list);
  
  		switch (buf_page_get_state(b)) {
-@@ -4678,7 +4899,7 @@
+@@ -4716,7 +4937,7 @@
  
  	buf_flush_list_mutex_exit(buf_pool);
  	mutex_exit(&buf_pool->zip_mutex);
@@ -1891,7 +1891,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	return(fixed_pages_number);
  }
-@@ -4772,6 +4993,8 @@
+@@ -4810,6 +5031,8 @@
  
  	ut_ad(buf_pool);
  
@@ -1900,7 +1900,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_mutex_enter(buf_pool);
  	buf_flush_list_mutex_enter(buf_pool);
  
-@@ -4875,6 +5098,8 @@
+@@ -4913,6 +5136,8 @@
  		buf_LRU_stat_sum.unzip, buf_LRU_stat_cur.unzip);
  
  	buf_refresh_io_stats(buf_pool);
@@ -1909,7 +1909,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_mutex_exit(buf_pool);
  }
  
-@@ -4994,11 +5219,13 @@
+@@ -5032,11 +5257,13 @@
  {
  	ulint	len;
  
@@ -2057,7 +2057,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  	ut_ad(!buf_flush_list_mutex_own(buf_pool));
  	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
  	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_WRITE);
-@@ -1155,12 +1156,18 @@
+@@ -1232,12 +1233,18 @@
  	ibool		is_uncompressed;
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
@@ -2077,7 +2077,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  	ut_ad(buf_flush_ready_for_flush(bpage, flush_type));
  
  	buf_page_set_io_fix(bpage, BUF_IO_WRITE);
-@@ -1322,14 +1329,16 @@
+@@ -1399,14 +1406,16 @@
  
  		buf_pool = buf_pool_get(space, i);
  
@@ -2096,21 +2096,21 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  			continue;
  		}
  
-@@ -1341,11 +1350,9 @@
+@@ -1418,11 +1427,9 @@
  		if (flush_type != BUF_FLUSH_LRU
  		    || i == offset
  		    || buf_page_is_old(bpage)) {
 -			mutex_t* block_mutex = buf_page_get_mutex(bpage);
+-
+-			mutex_enter(block_mutex);
 +			mutex_t* block_mutex = buf_page_get_mutex_enter(bpage);
  
--			mutex_enter(block_mutex);
--
 -			if (buf_flush_ready_for_flush(bpage, flush_type)
 +			if (block_mutex && buf_flush_ready_for_flush(bpage, flush_type)
  			    && (i == offset || !bpage->buf_fix_count)) {
  				/* We only try to flush those
  				neighbors != offset where the buf fix
-@@ -1361,11 +1368,12 @@
+@@ -1438,11 +1445,12 @@
  				ut_ad(!buf_pool_mutex_own(buf_pool));
  				count++;
  				continue;
@@ -2125,7 +2125,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  	}
  
  	return(count);
-@@ -1398,21 +1406,25 @@
+@@ -1475,21 +1483,25 @@
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
  #endif /* UNIV_DEBUG */
  
@@ -2157,7 +2157,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  		/* These fields are protected by both the
  		buffer pool mutex and block mutex. */
-@@ -1428,13 +1440,18 @@
+@@ -1505,13 +1517,18 @@
  						  *count,
  						  n_to_flush);
  
@@ -2179,7 +2179,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	return(flushed);
  }
-@@ -1455,7 +1472,8 @@
+@@ -1532,7 +1549,8 @@
  	buf_page_t*	bpage;
  	ulint		count = 0;
  
@@ -2189,7 +2189,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	do {
  		/* Start from the end of the list looking for a
-@@ -1477,7 +1495,8 @@
+@@ -1554,7 +1572,8 @@
  	should be flushed, we factor in this value. */
  	buf_lru_flush_page_count += count;
  
@@ -2199,7 +2199,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	return(count);
  }
-@@ -1505,9 +1524,10 @@
+@@ -1582,9 +1601,10 @@
  {
  	ulint		len;
  	buf_page_t*	bpage;
@@ -2211,7 +2211,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	/* If we have flushed enough, leave the loop */
  	do {
-@@ -1526,6 +1546,7 @@
+@@ -1603,6 +1623,7 @@
  
  		if (bpage) {
  			ut_a(bpage->oldest_modification > 0);
@@ -2219,7 +2219,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  		}
  
  		if (!bpage || bpage->oldest_modification >= lsn_limit) {
-@@ -1567,9 +1588,17 @@
+@@ -1644,9 +1665,17 @@
  				break;
  			}
  
@@ -2239,7 +2239,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  			buf_flush_list_mutex_exit(buf_pool);
  
-@@ -1578,7 +1607,7 @@
+@@ -1655,7 +1684,7 @@
  
  	} while (count < min_n && bpage != NULL && len > 0);
  
@@ -2248,7 +2248,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	return(count);
  }
-@@ -1617,13 +1646,15 @@
+@@ -1694,13 +1723,15 @@
  	      || sync_thread_levels_empty_gen(TRUE));
  #endif /* UNIV_SYNC_DEBUG */
  
@@ -2265,7 +2265,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  		break;
  	case BUF_FLUSH_LIST:
  		count = buf_flush_flush_list_batch(buf_pool, min_n, lsn_limit);
-@@ -1632,7 +1663,7 @@
+@@ -1709,7 +1740,7 @@
  		ut_error;
  	}
  
@@ -2274,7 +2274,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	buf_flush_buffered_writes();
  
-@@ -1888,7 +1919,7 @@
+@@ -1965,7 +1996,7 @@
  retry:
  	//buf_pool_mutex_enter(buf_pool);
  	if (have_LRU_mutex)
@@ -2283,7 +2283,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -1905,15 +1936,15 @@
+@@ -1982,15 +2013,15 @@
  			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
  			continue;
  		}
@@ -2304,7 +2304,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  		distance++;
  
-@@ -1922,7 +1953,7 @@
+@@ -1999,7 +2030,7 @@
  
  	//buf_pool_mutex_exit(buf_pool);
  	if (have_LRU_mutex)
@@ -2313,7 +2313,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN(buf_pool)) {
  
-@@ -2121,7 +2152,7 @@
+@@ -2198,7 +2229,7 @@
  
  	ut_ad(buf_flush_list_mutex_own(buf_pool));
  
@@ -2322,7 +2322,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  			 ut_ad(ut_list_node_313->in_flush_list));
  
  	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-@@ -2161,7 +2192,7 @@
+@@ -2238,7 +2269,7 @@
  			rnode = rbt_next(buf_pool->flush_rbt, rnode);
  		}
  
@@ -3287,7 +3287,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:48:03.048955897 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:48:29.304024564 +0900
-@@ -250,6 +250,10 @@
+@@ -245,6 +245,10 @@
  #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
  	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
  	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
@@ -3298,7 +3298,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
  	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
  	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
-@@ -301,6 +305,7 @@
+@@ -295,6 +299,7 @@
  	{&archive_lock_key, "archive_lock", 0},
  #  endif /* UNIV_LOG_ARCHIVE */
  	{&btr_search_latch_key, "btr_search_latch", 0},
@@ -3342,7 +3342,7 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
 --- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:03.068954202 +0900
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:29.335988682 +0900
-@@ -3700,9 +3700,11 @@
+@@ -3705,9 +3705,11 @@
  		ulint		fold = buf_page_address_fold(space, page_no);
  		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
  
@@ -3499,16 +3499,16 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  /*********************************************************************//**
  Get the flush type of a page.
  @return	flush type */
-@@ -1227,7 +1250,7 @@
- 	All these are protected by buf_pool_mutex. */
+@@ -1242,7 +1265,7 @@
+ 	All these are protected by buf_pool->mutex. */
  	/* @{ */
  
 -	UT_LIST_NODE_T(buf_page_t) list;
 +	/* UT_LIST_NODE_T(buf_page_t) list; */
  					/*!< based on state, this is a
  					list node, protected either by
- 					buf_pool_mutex or by
-@@ -1254,6 +1277,10 @@
+ 					buf_pool->mutex or by
+@@ -1270,6 +1293,10 @@
  					BUF_BLOCK_REMOVE_HASH or
  					BUF_BLOCK_READY_IN_USE. */
  
@@ -3518,8 +3518,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 +	UT_LIST_NODE_T(buf_page_t) zip_list; /* zip_clean or zip_free[] */
  #ifdef UNIV_DEBUG
  	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
- 					when flush_list_mutex is free, the
-@@ -1347,11 +1374,11 @@
+ 					when buf_pool->flush_list_mutex is
+@@ -1362,11 +1389,11 @@
  					a block is in the unzip_LRU list
  					if page.state == BUF_BLOCK_FILE_PAGE
  					and page.zip.data != NULL */
@@ -3533,7 +3533,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	mutex_t		mutex;		/*!< mutex protecting this block:
  					state (also protected by the buffer
  					pool mutex), io_fix, buf_fix_count,
-@@ -1517,6 +1544,11 @@
+@@ -1532,6 +1559,11 @@
  					pool instance, protects compressed
  					only pages (of type buf_page_t, not
  					buf_block_t */
@@ -3548,7 +3548,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0buf.ic
 --- a/storage/innobase/include/buf0buf.ic	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.ic	2010-12-03 15:48:29.345024524 +0900
-@@ -232,7 +232,7 @@
+@@ -274,7 +274,7 @@
  	case BUF_BLOCK_ZIP_FREE:
  		/* This is a free page in buf_pool->zip_free[].
  		Such pages should only be accessed by the buddy allocator. */
@@ -3557,7 +3557,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  		break;
  	case BUF_BLOCK_ZIP_PAGE:
  	case BUF_BLOCK_ZIP_DIRTY:
-@@ -275,9 +275,14 @@
+@@ -317,9 +317,14 @@
  {
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
  
@@ -3573,7 +3573,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  		return(NULL);
  	case BUF_BLOCK_ZIP_PAGE:
  	case BUF_BLOCK_ZIP_DIRTY:
-@@ -287,6 +292,28 @@
+@@ -329,6 +334,28 @@
  	}
  }
  
@@ -3602,7 +3602,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  /*********************************************************************//**
  Get the flush type of a page.
  @return	flush type */
-@@ -383,8 +410,8 @@
+@@ -425,8 +452,8 @@
  	enum buf_io_fix	io_fix)	/*!< in: io_fix state */
  {
  #ifdef UNIV_DEBUG
@@ -3613,7 +3613,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  #endif
  	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
  
-@@ -414,14 +441,14 @@
+@@ -456,14 +483,14 @@
  	const buf_page_t*	bpage)	/*!< control block being relocated */
  {
  #ifdef UNIV_DEBUG
@@ -3632,7 +3632,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  	       && bpage->buf_fix_count == 0);
  }
  
-@@ -435,8 +462,8 @@
+@@ -477,8 +504,8 @@
  	const buf_page_t*	bpage)	/*!< in: control block */
  {
  #ifdef UNIV_DEBUG
@@ -3643,7 +3643,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  #endif
  	ut_ad(buf_page_in_file(bpage));
  
-@@ -456,7 +483,8 @@
+@@ -498,7 +525,8 @@
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
  #endif /* UNIV_DEBUG */
  	ut_a(buf_page_in_file(bpage));
@@ -3653,7 +3653,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  	ut_ad(bpage->in_LRU_list);
  
  #ifdef UNIV_LRU_DEBUG
-@@ -503,9 +531,10 @@
+@@ -545,9 +573,10 @@
  	ulint		time_ms)	/*!< in: ut_time_ms() */
  {
  #ifdef UNIV_DEBUG
@@ -3666,7 +3666,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  	ut_a(buf_page_in_file(bpage));
  
  	if (!bpage->access_time) {
-@@ -719,19 +748,19 @@
+@@ -761,19 +790,19 @@
  /*===========*/
  	buf_block_t*	block)	/*!< in, own: block to be freed */
  {
@@ -3690,7 +3690,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  }
  #endif /* !UNIV_HOTBACKUP */
  
-@@ -779,17 +808,17 @@
+@@ -821,17 +850,17 @@
  					page frame */
  {
  	ib_uint64_t	lsn;
@@ -3713,7 +3713,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  
  	return(lsn);
  }
-@@ -807,7 +836,7 @@
+@@ -849,7 +878,7 @@
  #ifdef UNIV_SYNC_DEBUG
  	buf_pool_t*	buf_pool = buf_pool_from_bpage((buf_page_t*)block);
  
@@ -3722,7 +3722,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  	       && (block->page.buf_fix_count == 0))
  	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
  #endif /* UNIV_SYNC_DEBUG */
-@@ -962,7 +991,11 @@
+@@ -979,7 +1008,11 @@
  	buf_page_t*	bpage;
  
  	ut_ad(buf_pool);
@@ -3735,7 +3735,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  	ut_ad(fold == buf_page_address_fold(space, offset));
  
  	/* Look for the page in the hash table */
-@@ -1047,11 +1080,13 @@
+@@ -1064,11 +1097,13 @@
  	const buf_page_t*	bpage;
  	buf_pool_t*		buf_pool = buf_pool_get(space, offset);
  
@@ -3751,7 +3751,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  
  	return(bpage != NULL);
  }
-@@ -1179,4 +1214,38 @@
+@@ -1196,4 +1231,38 @@
  		buf_pool_mutex_exit(buf_pool);
  	}
  }
@@ -3841,7 +3841,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  extern mysql_pfs_key_t	cache_last_read_mutex_key;
  extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
  extern mysql_pfs_key_t	dict_sys_mutex_key;
-@@ -661,7 +665,7 @@
+@@ -660,7 +664,7 @@
  #define	SYNC_TRX_LOCK_HEAP	298
  #define SYNC_TRX_SYS_HEADER	290
  #define SYNC_LOG		170
@@ -3850,7 +3850,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  #define SYNC_RECV		168
  #define	SYNC_WORK_QUEUE		162
  #define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
-@@ -671,8 +675,13 @@
+@@ -670,8 +674,13 @@
  					SYNC_SEARCH_SYS, as memory allocation
  					can call routines there! Otherwise
  					the level is SYNC_MEM_HASH. */
@@ -3865,7 +3865,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
  #define SYNC_DOUBLEWRITE	140
  #define	SYNC_ANY_LATCH		135
-@@ -704,7 +713,7 @@
+@@ -703,7 +712,7 @@
  		os_fast_mutex;	/*!< We use this OS mutex in place of lock_word
  				when atomic operations are not enabled */
  #endif
@@ -3877,7 +3877,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:03.080956216 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:29.355023766 +0900
-@@ -3065,7 +3065,7 @@
+@@ -3088,7 +3088,7 @@
  								level += log_sys->max_checkpoint_age
  									 - (lsn - oldest_modification);
  							}
@@ -3886,7 +3886,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  							n_blocks++;
  						}
  
-@@ -3150,7 +3150,7 @@
+@@ -3173,7 +3173,7 @@
  							found = TRUE;
  							break;
  						}
@@ -3945,7 +3945,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  		/* We can have multiple mutexes of this type therefore we
  		can only check whether the greater than condition holds. */
 @@ -1211,7 +1226,8 @@
- 		buffer block (block->mutex or buf_pool_zip_mutex). */
+ 		buffer block (block->mutex or buf_pool->zip_mutex). */
  		if (!sync_thread_levels_g(array, level, FALSE)) {
  			ut_a(sync_thread_levels_g(array, level - 1, TRUE));
 -			ut_a(sync_thread_levels_contain(array, SYNC_BUF_POOL));

@@ -21,7 +21,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #ifndef UNIV_HOTBACKUP
  # include "buf0lru.h"
  # include "ibuf0ibuf.h"
-@@ -3004,7 +3010,7 @@
+@@ -3050,7 +3056,7 @@
  
  	file = os_file_create_simple_no_error_handling(
  		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -30,7 +30,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	if (!success) {
  		/* The following call prints an error message */
  		os_file_get_last_error(TRUE);
-@@ -3051,6 +3057,466 @@
+@@ -3097,6 +3103,466 @@
  	space_id = fsp_header_get_space_id(page);
  	space_flags = fsp_header_get_flags(page);
  
@@ -500,7 +500,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:49:59.195023983 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:52:23.555957062 +0900
-@@ -7306,6 +7306,14 @@
+@@ -7328,6 +7328,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
  		err = row_import_tablespace_for_mysql(dict_table->name, trx);
@@ -515,7 +515,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11512,6 +11520,11 @@
+@@ -11539,6 +11547,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -527,7 +527,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
    PLUGIN_VAR_RQCMDARG,
    "Number of extra user rollback segments which are used in a round-robin fashion.",
-@@ -11589,6 +11602,7 @@
+@@ -11616,6 +11629,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -549,7 +549,7 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:48:03.077954270 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:52:23.561986996 +0900
-@@ -217,6 +217,8 @@
+@@ -226,6 +226,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_checkpoint;
  

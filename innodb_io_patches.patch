@@ -27,7 +27,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 --- a/storage/innobase/buf/buf0flu.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0flu.c	2010-12-03 15:10:08.934990091 +0900
-@@ -1271,7 +1271,7 @@
+@@ -1348,7 +1348,7 @@
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -53,7 +53,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:09:51.283956391 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:10:08.963980444 +0900
-@@ -431,6 +431,12 @@
+@@ -425,6 +425,12 @@
    "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
    NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
  
@@ -66,7 +66,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static handler *innobase_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-@@ -823,6 +829,17 @@
+@@ -817,6 +823,17 @@
  	}
  }
  
@@ -84,7 +84,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2361,6 +2378,9 @@
+@@ -2388,6 +2405,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -94,10 +94,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -10084,6 +10104,10 @@
- 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
- 	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
- 	{
+@@ -10105,6 +10125,10 @@
+ 	    && (all
+ 		|| !thd_test_options(
+ 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 +		if (srv_enable_unsafe_group_commit && !THDVAR(thd, support_xa)) {
 +			/* choose group commit rather than binlog order */
 +			return(error);
@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  		/* For ibbackup to work the order of transactions in binlog
  		and InnoDB must be the same. Consider the situation
-@@ -10894,9 +10918,9 @@
+@@ -10915,9 +10939,9 @@
  
  static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -10986,7 +11010,7 @@
+@@ -11007,7 +11031,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
    PLUGIN_VAR_NOCMDARG,
    "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
@@ -126,7 +126,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
    PLUGIN_VAR_RQCMDARG,
-@@ -11038,7 +11062,7 @@
+@@ -11059,7 +11083,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -135,7 +135,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11176,6 +11200,102 @@
+@@ -11204,6 +11228,102 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -238,7 +238,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11232,6 +11352,15 @@
+@@ -11260,6 +11380,15 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -267,7 +267,7 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
 --- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:10:09.073984282 +0900
-@@ -518,8 +518,10 @@
+@@ -524,8 +524,10 @@
  	grow in size, as the references on the upper levels of the tree can
  	change */
  
@@ -280,7 +280,7 @@ diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.
  
  	mutex_create(ibuf_pessimistic_insert_mutex_key,
  		     &ibuf_pessimistic_insert_mutex,
-@@ -2645,9 +2647,11 @@
+@@ -2651,9 +2653,11 @@
  	size = ibuf->size;
  	max_size = ibuf->max_size;
  
@@ -324,7 +324,7 @@ diff -ruN a/storage/innobase/include/ha_prototypes.h b/storage/innobase/include/
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:09:51.291955835 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:10:09.079029047 +0900
-@@ -205,6 +205,16 @@
+@@ -214,6 +214,16 @@
  extern ulong	srv_max_purge_lag;
  
  extern ulong	srv_replication_delay;
@@ -341,7 +341,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -378,8 +388,9 @@
+@@ -387,8 +397,9 @@
  				when writing data files, but do flush
  				after writing to log files */
  	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
@@ -355,7 +355,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
 --- a/storage/innobase/include/trx0trx.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/trx0trx.h	2010-12-03 15:10:09.081029243 +0900
-@@ -487,6 +487,7 @@
+@@ -501,6 +501,7 @@
  					FALSE, one can save CPU time and about
  					150 bytes in the undo log size as then
  					we skip XA steps */
@@ -468,7 +468,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  		/* A checkpoint is not urgent: do it asynchronously */
  
  		do_checkpoint = TRUE;
-@@ -3342,6 +3372,17 @@
+@@ -3349,6 +3379,17 @@
  		log_sys->flushed_to_disk_lsn,
  		log_sys->last_checkpoint_lsn);
  
@@ -506,7 +506,7 @@ diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
 diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 --- a/storage/innobase/os/os0file.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/os/os0file.c	2010-12-03 15:10:09.093023540 +0900
-@@ -1558,6 +1558,11 @@
+@@ -1560,6 +1560,11 @@
  		os_file_set_nocache(file, name, mode_str);
  	}
  
@@ -539,7 +539,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2668,6 +2679,7 @@
+@@ -2690,6 +2701,7 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -547,7 +547,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	ulint		n_bytes_archived;
  	ulint		n_tables_to_drop;
  	ulint		n_ios;
-@@ -2675,7 +2687,20 @@
+@@ -2697,7 +2709,20 @@
  	ulint		n_ios_very_old;
  	ulint		n_pend_ios;
  	ulint		next_itr_time;
@@ -568,7 +568,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
-@@ -2697,6 +2722,9 @@
+@@ -2719,6 +2744,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -578,7 +578,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2727,6 +2755,8 @@
+@@ -2749,6 +2777,8 @@
  	/* Sleep for 1 second on entrying the for loop below the first time. */
  	next_itr_time = ut_time_ms() + 1000;
  
@@ -587,15 +587,15 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	for (i = 0; i < 10; i++) {
  		ulint	cur_time = ut_time_ms();
  
-@@ -2738,6 +2768,7 @@
+@@ -2775,6 +2805,7 @@
  		srv_main_thread_op_info = "sleeping";
  		srv_main_1_second_loops++;
  
 +		if (!skip_sleep) {
- 		if (next_itr_time > cur_time) {
+ 		if (next_itr_time > cur_time
+ 		    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
  
- 			/* Get sleep interval in micro seconds. We use
-@@ -2747,10 +2778,26 @@
+@@ -2785,10 +2816,26 @@
  					(next_itr_time - cur_time)
  					 * 1000));
  			srv_main_sleeps++;
@@ -620,9 +620,9 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +
 +		skip_sleep = FALSE;
  
- 		/* ALTER TABLE in MySQL requires on Unix that the table handler
- 		can drop tables lazily after there no longer are SELECT
-@@ -2785,7 +2832,7 @@
+ 		/* Flush logs if needed */
+ 		srv_sync_log_buffer_in_background();
+@@ -2808,7 +2855,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -631,7 +631,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2802,6 +2849,10 @@
+@@ -2825,6 +2872,10 @@
  			n_pages_flushed = buf_flush_list(
  				PCT_IO(100), IB_ULONGLONG_MAX);
  
@@ -642,7 +642,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2818,6 +2869,267 @@
+@@ -2841,6 +2892,267 @@
  						n_flush,
  						IB_ULONGLONG_MAX);
  			}
@@ -910,7 +910,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2866,7 +3178,7 @@
+@@ -2889,7 +3201,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -919,7 +919,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2972,7 +3284,7 @@
+@@ -2997,7 +3309,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -928,7 +928,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-@@ -3118,6 +3430,7 @@
+@@ -3143,6 +3455,7 @@
  	srv_slot_t*	slot;
  	ulint		slot_no = ULINT_UNDEFINED;
  	ulint		n_total_purged = ULINT_UNDEFINED;
@@ -936,7 +936,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	ut_a(srv_n_purge_threads == 1);
  
-@@ -3140,9 +3453,12 @@
+@@ -3165,9 +3478,12 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -949,7 +949,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  		/* If there are very few records to purge or the last
  		purge didn't purge any records then wait for activity.
-@@ -3183,6 +3499,16 @@
+@@ -3208,6 +3524,16 @@
  		} while (n_pages_purged > 0 && !srv_fast_shutdown);
  
  		srv_sync_log_buffer_in_background();
@@ -969,7 +969,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-03 15:10:09.103023543 +0900
-@@ -1205,6 +1205,9 @@
+@@ -1184,6 +1184,9 @@
  	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT")) {
  		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
  
@@ -982,7 +982,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 15:10:09.106023937 +0900
-@@ -114,6 +114,8 @@
+@@ -118,6 +118,8 @@
  
  	trx->support_xa = TRUE;
  
@@ -991,7 +991,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	trx->check_foreigns = TRUE;
  	trx->check_unique_secondary = TRUE;
  
-@@ -706,6 +708,9 @@
+@@ -709,6 +711,9 @@
  	generated by the same transaction, doesn't. */
  	trx->support_xa = thd_supports_xa(trx->mysql_thd);
  
@@ -1001,7 +1001,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	ret = trx_start_low(trx, rseg_id);
-@@ -863,6 +868,7 @@
+@@ -865,6 +870,7 @@
  	trx->read_view = NULL;
  
  	if (lsn) {
@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  		mutex_exit(&kernel_mutex);
  
-@@ -871,6 +877,12 @@
+@@ -873,6 +879,12 @@
  			trx_undo_insert_cleanup(trx);
  		}
  
@@ -1022,7 +1022,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  		/* NOTE that we could possibly make a group commit more
  		efficient here: call os_thread_yield here to allow also other
  		trxs to come to commit! */
-@@ -902,9 +914,9 @@
+@@ -904,9 +916,9 @@
  		if (trx->flush_log_later) {
  			/* Do nothing yet */
  			trx->must_flush_log_later = TRUE;
@@ -1034,7 +1034,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
  				/* Write the log but do not flush it to disk */
  
-@@ -916,7 +928,7 @@
+@@ -918,7 +930,7 @@
  
  				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
  			}
@@ -1043,7 +1043,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  			/* Write the log but do not flush it to disk */
  
-@@ -1580,16 +1592,23 @@
+@@ -1582,16 +1594,23 @@
  	trx_t*	trx)	/*!< in: trx handle */
  {
  	ib_uint64_t	lsn	= trx->commit_lsn;
@@ -1069,7 +1069,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  		if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
  			/* Write the log but do not flush it to disk */
  
-@@ -1600,7 +1619,7 @@
+@@ -1602,7 +1621,7 @@
  
  			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
  		}
@@ -1078,7 +1078,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  		/* Write the log but do not flush it to disk */
  
-@@ -1853,6 +1872,8 @@
+@@ -1855,6 +1874,8 @@
  	/*--------------------------------------*/
  
  	if (lsn) {
@@ -1087,7 +1087,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  		/* Depending on the my.cnf options, we may now write the log
  		buffer to the log files, making the prepared state of the
  		transaction durable if the OS does not crash. We may also
-@@ -1872,9 +1893,15 @@
+@@ -1874,9 +1895,15 @@
  
  		mutex_exit(&kernel_mutex);
  
@@ -1105,7 +1105,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
  				/* Write the log but do not flush it to disk */
  
-@@ -1886,7 +1913,7 @@
+@@ -1888,7 +1915,7 @@
  
  				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
  			}

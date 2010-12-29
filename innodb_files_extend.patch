@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:21.358513751 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:58.243481131 +0900
-@@ -4754,9 +4754,9 @@
+@@ -4800,9 +4800,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
  	ut_ad(len > 0);
@@ -67,7 +67,7 @@ diff -ruN a/storage/innobase/fsp/fsp0fsp.c b/storage/innobase/fsp/fsp0fsp.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:55:21.367482924 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:55:58.248549631 +0900
-@@ -153,6 +153,9 @@
+@@ -148,6 +148,9 @@
  static ulong innobase_write_io_threads;
  static long innobase_buffer_pool_instances = 1;
  
@@ -77,7 +77,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2240,6 +2243,62 @@
+@@ -2267,6 +2270,62 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -140,7 +140,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7202,9 +7261,9 @@
+@@ -7210,9 +7269,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -153,7 +153,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		}
  	}
  
-@@ -11313,6 +11372,16 @@
+@@ -11330,6 +11389,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -170,7 +170,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11809,6 +11878,8 @@
+@@ -11833,6 +11902,8 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -192,7 +192,7 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 15:55:21.375482937 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:55:58.258469088 +0900
-@@ -1587,7 +1587,7 @@
+@@ -1602,7 +1602,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -201,7 +201,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1683,7 +1683,7 @@
+@@ -1698,7 +1698,7 @@
  	/* @{ */
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
@@ -210,7 +210,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1691,9 +1691,9 @@
+@@ -1706,9 +1706,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  
@@ -339,7 +339,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -398,7 +402,7 @@
+@@ -401,7 +405,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -348,7 +348,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -501,4 +505,6 @@
+@@ -504,4 +508,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  
@@ -507,7 +507,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:52:23.502513556 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:55:58.285550583 +0900
-@@ -1542,10 +1542,12 @@
+@@ -1521,10 +1521,12 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -522,7 +522,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
  
  		return(DB_ERROR);
  	}
-@@ -1554,7 +1556,7 @@
+@@ -1533,7 +1535,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

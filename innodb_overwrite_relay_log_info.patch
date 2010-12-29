@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:37:45.516105468 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:38:20.318952987 +0900
-@@ -43,6 +43,8 @@
+@@ -42,6 +42,8 @@
  #pragma implementation				// gcc: Class implementation
  #endif
  
@@ -17,7 +17,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
  			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
  
-@@ -53,6 +55,15 @@
+@@ -52,6 +54,15 @@
  #include <mysql/innodb_priv.h>
  #include <mysql/psi/psi.h>
  
@@ -33,7 +33,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /** @file ha_innodb.cc */
  
  /* Include necessary InnoDB headers */
-@@ -92,6 +103,14 @@
+@@ -91,6 +102,14 @@
  #include "ha_innodb.h"
  #include "i_s.h"
  
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  # ifndef MYSQL_PLUGIN_IMPORT
  #  define MYSQL_PLUGIN_IMPORT /* nothing */
  # endif /* MYSQL_PLUGIN_IMPORT */
-@@ -168,6 +187,7 @@
+@@ -163,6 +182,7 @@
  static my_bool	innobase_use_doublewrite		= TRUE;
  static my_bool	innobase_use_checksums			= TRUE;
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
@@ -56,7 +56,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
-@@ -2172,6 +2192,89 @@
+@@ -2199,6 +2219,89 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -146,7 +146,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Check that values don't overflow on 32-bit systems. */
  	if (sizeof(ulint) == 4) {
  		if (innobase_buffer_pool_size > UINT_MAX32) {
-@@ -2470,6 +2573,76 @@
+@@ -2497,6 +2600,76 @@
  		goto mem_free_and_error;
  	}
  
@@ -223,34 +223,33 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
  		innobase_old_blocks_pct, TRUE);
  
-@@ -2586,6 +2759,26 @@
- 		return;
- 	}
- 
+@@ -2609,6 +2782,25 @@
+ 	trx_t*	trx)	/*!< in: transaction handle */
+ {
+ 	if (trx_is_started(trx)) {
 +#ifdef HAVE_REPLICATION
 +#ifdef MYSQL_SERVER
-+	THD *thd=current_thd;
++		THD *thd=current_thd;
 +
-+	if (thd && thd->slave_thread) {
-+		/* Update the replication position info inside InnoDB */
-+		trx->mysql_master_log_file_name
-+			= active_mi->rli.group_master_log_name;
-+		trx->mysql_master_log_pos
-+			= ((ib_int64_t)active_mi->rli.group_master_log_pos +
-+			   ((ib_int64_t)active_mi->rli.future_event_relay_log_pos -
-+			    (ib_int64_t)active_mi->rli.group_relay_log_pos));
-+		trx->mysql_relay_log_file_name
-+			= active_mi->rli.group_relay_log_name;
-+		trx->mysql_relay_log_pos
-+			= (ib_int64_t)active_mi->rli.future_event_relay_log_pos;
-+	}
++		if (thd && thd->slave_thread) {
++			/* Update the replication position info inside InnoDB */
++			trx->mysql_master_log_file_name
++				= active_mi->rli.group_master_log_name;
++			trx->mysql_master_log_pos
++				= ((ib_int64_t)active_mi->rli.group_master_log_pos +
++				   ((ib_int64_t)active_mi->rli.future_event_relay_log_pos -
++				    (ib_int64_t)active_mi->rli.group_relay_log_pos));
++			trx->mysql_relay_log_file_name
++				= active_mi->rli.group_relay_log_name;
++			trx->mysql_relay_log_pos
++				= (ib_int64_t)active_mi->rli.future_event_relay_log_pos;
++		}
 +#endif /* MYSQL_SERVER */
 +#endif /* HAVE_REPLICATION */
-+
- 	trx_commit_for_mysql(trx);
- }
  
-@@ -10896,6 +11089,12 @@
+ 		trx_commit_for_mysql(trx);
+ 	}
+@@ -10917,6 +11109,12 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -263,7 +262,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11340,6 +11539,7 @@
+@@ -11368,6 +11566,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -323,7 +322,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
 diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
 --- a/storage/innobase/include/trx0trx.h	2010-12-03 15:18:48.894955550 +0900
 +++ b/storage/innobase/include/trx0trx.h	2010-12-03 15:38:20.323953416 +0900
-@@ -559,6 +559,21 @@
+@@ -570,6 +570,21 @@
  	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
  					contains the end offset of the binlog
  					entry */
@@ -449,7 +448,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:37:45.549028990 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 15:38:20.328957217 +0900
-@@ -134,6 +134,10 @@
+@@ -137,6 +137,10 @@
  
  	trx->mysql_log_file_name = NULL;
  	trx->mysql_log_offset = 0;
@@ -460,7 +459,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
  
-@@ -734,6 +738,7 @@
+@@ -737,6 +741,7 @@
  	trx_rseg_t*	rseg;
  	trx_undo_t*	undo;
  	mtr_t		mtr;
@@ -468,7 +467,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  
-@@ -790,13 +795,35 @@
+@@ -792,13 +797,35 @@
  
  		if (trx->mysql_log_file_name
  		    && trx->mysql_log_file_name[0] != '\0') {

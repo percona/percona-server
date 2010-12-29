@@ -11,7 +11,7 @@
 diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
 --- a/storage/innobase/dict/dict0load.c	2010-12-04 15:37:50.559480289 +0900
 +++ b/storage/innobase/dict/dict0load.c	2010-12-04 15:57:53.078513745 +0900
-@@ -1850,6 +1850,8 @@
+@@ -1851,6 +1851,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	/* NOTE that the operation of this function is protected by
  	the dictionary mutex, and therefore no deadlocks can occur
  	with other dictionary operations. */
-@@ -1876,15 +1878,17 @@
+@@ -1877,15 +1879,17 @@
  				  BTR_SEARCH_LEAF, &pcur, &mtr);
  	rec = btr_pcur_get_rec(&pcur);
  
@@ -45,7 +45,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/*---------------------------------------------------*/
-@@ -1897,12 +1901,7 @@
+@@ -1898,12 +1902,7 @@
  
  	/* Check if the table id in record is the one searched for */
  	if (table_id != mach_read_from_8(field)) {
@@ -59,7 +59,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/* Now we get the table name from the record */
-@@ -1910,7 +1909,7 @@
+@@ -1911,7 +1910,7 @@
  	/* Load the table definition to memory */
  	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
  				TRUE);
@@ -71,7 +71,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -11974,7 +11974,7 @@
+@@ -12001,7 +12001,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -85,7 +85,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:57:53.091592933 +0900
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	1
- #define INNODB_VERSION_BUGFIX	3
+ #define INNODB_VERSION_BUGFIX	4
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.1
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 --- a/storage/innobase/row/row0mysql.c	2010-12-04 15:37:50.598481116 +0900
 +++ b/storage/innobase/row/row0mysql.c	2010-12-04 15:57:53.092563335 +0900
-@@ -1193,6 +1193,13 @@
+@@ -1194,6 +1194,13 @@
  
  	thr = que_fork_get_first_thr(prebuilt->ins_graph);
  
@@ -134,7 +134,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 --- a/storage/innobase/row/row0sel.c	2010-12-04 15:52:23.494514495 +0900
 +++ b/storage/innobase/row/row0sel.c	2010-12-04 16:01:38.320883699 +0900
-@@ -3343,6 +3343,7 @@
+@@ -3366,6 +3366,7 @@
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
  	ibool		table_lock_waited		= FALSE;
@@ -142,7 +142,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  
  	rec_offs_init(offsets_);
  
-@@ -3708,6 +3709,17 @@
+@@ -3732,6 +3733,17 @@
  
  	/* Do some start-of-statement preparations */
  
@@ -160,7 +160,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3718,6 +3730,18 @@
+@@ -3742,6 +3754,18 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -182,7 +182,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:57:13.073495392 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 16:02:50.704884053 +0900
-@@ -2053,7 +2053,7 @@
+@@ -2032,7 +2032,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

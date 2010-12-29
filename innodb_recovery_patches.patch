@@ -109,7 +109,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:30:16.261955714 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:30:41.584971130 +0900
-@@ -187,6 +187,7 @@
+@@ -182,6 +182,7 @@
  #endif /* UNIV_LOG_ARCHIVE */
  static my_bool	innobase_use_doublewrite		= TRUE;
  static my_bool	innobase_use_checksums			= TRUE;
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
-@@ -2500,6 +2501,8 @@
+@@ -2527,6 +2528,8 @@
  
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
@@ -126,7 +126,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  
-@@ -11151,6 +11154,11 @@
+@@ -11168,6 +11171,11 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -138,7 +138,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11628,6 +11636,7 @@
+@@ -11652,6 +11660,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
@@ -202,7 +202,7 @@ diff -ruN a/storage/innobase/include/log0recv.h b/storage/innobase/include/log0r
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 17:30:16.321953515 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 17:30:41.593985184 +0900
-@@ -120,6 +120,8 @@
+@@ -129,6 +129,8 @@
  extern ulint*	srv_data_file_sizes;
  extern ulint*	srv_data_file_is_raw_partition;
  
@@ -451,7 +451,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
  # include "os0thread.h"
-@@ -4219,6 +4220,18 @@
+@@ -4237,6 +4238,18 @@
  		os_thread_exit(NULL);
  	}
  

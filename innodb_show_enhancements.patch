@@ -5,32 +5,10 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/Makefile.am b/storage/innobase/Makefile.am
---- a/storage/innobase/Makefile.am	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/Makefile.am	2010-12-03 14:57:59.221983065 +0900
-@@ -224,6 +224,7 @@
- 			include/ut0vec.h	\
- 			include/ut0vec.ic	\
- 			include/ut0wqueue.h	\
-+			handler/innodb_patch_info.h	\
- 			mem/mem0dbg.c
- 
- EXTRA_LIBRARIES=	libinnobase.a
-diff -ruN a/storage/innobase/Makefile.in b/storage/innobase/Makefile.in
---- a/storage/innobase/Makefile.in	2010-11-03 07:01:39.000000000 +0900
-+++ b/storage/innobase/Makefile.in	2010-12-03 14:57:59.227036625 +0900
-@@ -772,6 +772,7 @@
- 			include/ut0vec.h	\
- 			include/ut0vec.ic	\
- 			include/ut0wqueue.h	\
-+			handler/innodb_patch_info.h	\
- 			mem/mem0dbg.c
- 
- EXTRA_LIBRARIES = libinnobase.a
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:00:24.433289518 +0900
-@@ -11251,7 +11251,8 @@
+@@ -11282,7 +11282,8 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,

@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-04 20:20:44.595483291 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-06 19:28:04.055227506 +0900
-@@ -4476,6 +4476,36 @@
+@@ -4514,6 +4514,36 @@
  	mutex_exit(block_mutex);
  }
  
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 20:20:44.614551139 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-06 19:23:47.622195800 +0900
-@@ -12010,6 +12010,9 @@
+@@ -12037,6 +12037,9 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
  i_s_innodb_admin_command,
@@ -796,10 +796,10 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 19:46:40.197471531 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-06 19:23:47.638195824 +0900
-@@ -1063,6 +1063,14 @@
- 	ulint	space,	/*!< in: space id */
- 	ulint	offset)	/*!< in: offset of the page within space */
- 	__attribute__((const));
+@@ -1072,6 +1072,14 @@
+ /*===========*/
+ 	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
+ 	__attribute__((nonnull, const));
 +/********************************************************************//**
 +*/
 +UNIV_INTERN

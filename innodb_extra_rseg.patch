@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:18:48.879955903 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:22:53.779955671 +0900
-@@ -11296,6 +11296,11 @@
+@@ -11324,6 +11324,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11361,6 +11366,7 @@
+@@ -11389,6 +11394,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -28,7 +28,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
-@@ -11386,6 +11392,7 @@
+@@ -11417,6 +11423,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -238,7 +238,7 @@ diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/hand
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:18:48.894029379 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:22:53.786986025 +0900
-@@ -215,6 +215,8 @@
+@@ -224,6 +224,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_checkpoint;
  
@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:18:48.918982105 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 15:22:53.792983193 +0900
-@@ -618,7 +618,7 @@
+@@ -621,7 +621,7 @@
  
  	rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
  
@@ -271,7 +271,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  		rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
  	}
  
-@@ -626,7 +626,8 @@
+@@ -629,7 +629,8 @@
  	it */
  
  	if ((rseg->id == TRX_SYS_SYSTEM_RSEG_ID)

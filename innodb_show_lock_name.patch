@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:34:35.285040381 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:35:12.974975252 +0900
-@@ -9473,8 +9473,8 @@
+@@ -9489,8 +9489,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -19,7 +19,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9489,9 +9489,8 @@
+@@ -9505,9 +9505,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -31,7 +31,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9520,8 +9519,8 @@
+@@ -9536,8 +9535,8 @@
  			continue;
  		}
  
@@ -42,7 +42,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9535,9 +9534,8 @@
+@@ -9551,9 +9550,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -150,7 +150,7 @@ diff -ruN a/storage/innobase/include/sync0rw.ic b/storage/innobase/include/sync0
 diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
 --- a/storage/innobase/include/sync0sync.h	2010-12-03 15:49:59.227955503 +0900
 +++ b/storage/innobase/include/sync0sync.h	2010-12-03 17:35:12.982023946 +0900
-@@ -167,7 +167,7 @@
+@@ -166,7 +166,7 @@
  #  endif/* UNIV_SYNC_DEBUG */
  # else
  #  define mutex_create(K, M, level)				\
@@ -159,7 +159,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  # endif	/* UNIV_DEBUG */
  
  # define mutex_enter(M)						\
-@@ -194,7 +194,7 @@
+@@ -193,7 +193,7 @@
  #  endif /* UNIV_SYNC_DEBUG */
  # else /* UNIV_DEBUG */
  #  define mutex_create(K, M, level)				\
@@ -168,7 +168,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  # endif	/* UNIV_DEBUG */
  
  # define mutex_enter(M)	mutex_enter_func((M), __FILE__, __LINE__)
-@@ -218,8 +218,8 @@
+@@ -217,8 +217,8 @@
  mutex_create_func(
  /*==============*/
  	mutex_t*	mutex,		/*!< in: pointer to memory */
@@ -178,7 +178,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
-@@ -292,8 +292,8 @@
+@@ -291,8 +291,8 @@
  /*==================*/
  	PSI_mutex_key	key,		/*!< in: Performance Schema key */
  	mutex_t*	mutex,		/*!< in: pointer to memory */
@@ -188,7 +188,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  #  ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  #  endif /* UNIV_SYNC_DEBUG */
-@@ -724,9 +724,9 @@
+@@ -723,9 +723,9 @@
  	ulint	line;		/*!< Line where the mutex was locked */
  	ulint	level;		/*!< Level in the global latching order */
  #endif /* UNIV_SYNC_DEBUG */
@@ -199,7 +199,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  	os_thread_id_t thread_id; /*!< The thread id of the thread
  				which locked the mutex. */
  	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-@@ -741,9 +741,9 @@
+@@ -740,9 +740,9 @@
  	ulong		count_os_yield;	/*!< count of os_wait */
  	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
  	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */

@@ -606,10 +606,10 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +	if (!srv_buffer_pool_shm_key) {
  	hash_table_free(buf_pool->zip_hash);
 +	}
- 	mem_free(buf_pool);
- 	buf_pool = NULL;
  }
-@@ -1670,6 +2139,11 @@
+ 
+ /********************************************************************//**
+@@ -1668,6 +2137,11 @@
  	//buf_pool_mutex_enter(buf_pool);
  	mutex_enter(&buf_pool->LRU_list_mutex);
  
@@ -621,7 +621,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  shrink_again:
  	if (buf_pool->n_chunks <= 1) {
  
-@@ -1850,7 +2324,7 @@
+@@ -1848,7 +2322,7 @@
  	zip_hash = hash_create(2 * buf_pool->curr_size);
  
  	HASH_MIGRATE(buf_pool->zip_hash, zip_hash, buf_page_t, hash,
@@ -630,7 +630,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	hash_table_free(buf_pool->zip_hash);
  	buf_pool->zip_hash = zip_hash;
-@@ -2132,6 +2606,11 @@
+@@ -2130,6 +2604,11 @@
  	ulint	change_size;
  	ulint	min_change_size = 1048576 * srv_buf_pool_instances;
  
@@ -719,7 +719,7 @@ diff -ruN a/storage/innobase/ha/hash0hash.c b/storage/innobase/ha/hash0hash.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-06 20:16:21.733263627 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-07 17:56:28.316139830 +0900
-@@ -199,6 +199,7 @@
+@@ -194,6 +194,7 @@
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
  static my_bool	innobase_use_sys_stats_table		= FALSE;
@@ -727,7 +727,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2591,6 +2592,14 @@
+@@ -2618,6 +2619,14 @@
  	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
  	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
  
@@ -742,7 +742,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
  
  	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
-@@ -2607,6 +2616,7 @@
+@@ -2634,6 +2643,7 @@
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  	srv_fast_checksum = (ibool) innobase_fast_checksum;
@@ -750,7 +750,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11617,6 +11627,16 @@
+@@ -11634,6 +11644,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -767,7 +767,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11891,6 +11911,8 @@
+@@ -11915,6 +11935,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
@@ -797,7 +797,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  
  /** @name Modes for buf_page_get_gen */
  /* @{ */
-@@ -1505,9 +1506,12 @@
+@@ -1520,9 +1521,12 @@
  /**********************************************************************//**
  Compute the hash fold value for blocks in buf_pool->zip_hash. */
  /* @{ */
@@ -945,7 +945,7 @@ diff -ruN a/storage/innobase/include/os0proc.h b/storage/innobase/include/os0pro
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-04 20:20:28.016566697 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-07 16:10:14.956717659 +0900
-@@ -161,6 +161,10 @@
+@@ -170,6 +170,10 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
  
@@ -1214,7 +1214,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 20:19:29.806482628 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-07 16:10:14.964785346 +0900
-@@ -1780,6 +1780,8 @@
+@@ -1759,6 +1759,8 @@
  		Note that this is not as heavy weight as it seems. At
  		this point there will be only ONE page in the buf_LRU
  		and there must be no page in the buf_flush list. */

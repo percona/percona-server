@@ -925,7 +925,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	block->is_hashed = FALSE;
  
-@@ -1479,7 +1480,7 @@
+@@ -1477,7 +1478,7 @@
  			/* To follow the latching order, we
  			have to release btr_search_latch
  			before acquiring block->latch. */
@@ -934,7 +934,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			/* When we release the search latch,
  			we must rescan all blocks, because
  			some may become hashed again. */
-@@ -1510,11 +1511,11 @@
+@@ -1508,11 +1509,11 @@
  			anything.  block->is_hashed can only
  			be set on uncompressed file pages. */
  			
@@ -948,7 +948,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			
  			ut_ad(!btr_search_enabled);
  		}
-@@ -1533,7 +1534,11 @@
+@@ -1531,7 +1532,11 @@
  	ibool		released_search_latch;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -961,7 +961,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2637,6 +2642,7 @@
+@@ -2635,6 +2640,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;
@@ -984,7 +984,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.c
 --- a/storage/innobase/dict/dict0dict.c	2010-12-04 15:52:23.398513916 +0900
 +++ b/storage/innobase/dict/dict0dict.c	2010-12-04 16:12:48.662550715 +0900
-@@ -1772,7 +1772,7 @@
+@@ -1802,7 +1802,7 @@
  	zero. */
  
  	for (;;) {
@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innobase/ha/ha0ha.c b/storage/innobase/ha/ha0ha.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:20.185850734 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:48.674552412 +0900
-@@ -11586,6 +11586,11 @@
+@@ -11603,6 +11603,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1021,7 +1021,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -11932,6 +11937,7 @@
+@@ -11956,6 +11961,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1227,7 +1227,7 @@ diff -ruN a/storage/innobase/include/btr0sea.ic b/storage/innobase/include/btr0s
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-15 19:00:07.713604580 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-15 20:58:03.546839883 +0900
-@@ -1458,7 +1458,7 @@
+@@ -1473,7 +1473,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1236,7 +1236,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1472,6 +1472,7 @@
+@@ -1487,6 +1487,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */
@@ -1292,7 +1292,7 @@ diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
 diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 --- a/storage/innobase/row/row0sel.c	2010-12-04 16:09:53.204513572 +0900
 +++ b/storage/innobase/row/row0sel.c	2010-12-04 16:12:48.722551273 +0900
-@@ -1198,7 +1198,7 @@
+@@ -1210,7 +1210,7 @@
  	ut_ad(plan->unique_search);
  	ut_ad(!plan->must_get_clust);
  #ifdef UNIV_SYNC_DEBUG
@@ -1301,7 +1301,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  #endif /* UNIV_SYNC_DEBUG */
  
  	row_sel_open_pcur(plan, TRUE, mtr);
-@@ -1369,10 +1369,10 @@
+@@ -1381,10 +1381,10 @@
  	    && !plan->must_get_clust
  	    && !plan->table->big_rows) {
  		if (!search_latch_locked) {
@@ -1314,7 +1314,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  
  			/* There is an x-latch request waiting: release the
  			s-latch for a moment; as an s-latch here is often
-@@ -1381,8 +1381,8 @@
+@@ -1393,8 +1393,8 @@
  			from acquiring an s-latch for a long time, lowering
  			performance significantly in multiprocessors. */
  
@@ -1325,7 +1325,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  		}
  
  		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
-@@ -1405,7 +1405,7 @@
+@@ -1417,7 +1417,7 @@
  	}
  
  	if (search_latch_locked) {
@@ -1334,7 +1334,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  
  		search_latch_locked = FALSE;
  	}
-@@ -1981,7 +1981,7 @@
+@@ -1993,7 +1993,7 @@
  
  func_exit:
  	if (search_latch_locked) {
@@ -1343,7 +1343,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  	}
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-@@ -3333,6 +3333,8 @@
+@@ -3356,6 +3356,8 @@
  	/* if the returned record was locked and we did a semi-consistent
  	read (fetch the newest committed version), then this is set to
  	TRUE */
@@ -1352,7 +1352,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  #ifdef UNIV_SEARCH_DEBUG
  	ulint		cnt				= 0;
  #endif /* UNIV_SEARCH_DEBUG */
-@@ -3418,18 +3420,32 @@
+@@ -3441,18 +3443,32 @@
  	/* PHASE 0: Release a possible s-latch we are holding on the
  	adaptive hash index latch if there is someone waiting behind */
  
@@ -1389,7 +1389,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  	}
  
  	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
-@@ -3580,9 +3596,11 @@
+@@ -3603,9 +3619,11 @@
  			hash index semaphore! */
  
  #ifndef UNIV_SEARCH_DEBUG
@@ -1404,7 +1404,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  			}
  #endif
  			switch (row_sel_try_search_shortcut_for_mysql(
-@@ -3642,7 +3660,11 @@
+@@ -3666,7 +3684,11 @@
  
  					trx->search_latch_timeout--;
  
@@ -1417,7 +1417,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  					trx->has_search_latch = FALSE;
  				}
  
-@@ -3666,7 +3688,12 @@
+@@ -3690,7 +3712,12 @@
  	/* PHASE 3: Open or restore index cursor position */
  
  	if (trx->has_search_latch) {
@@ -1434,7 +1434,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:20.231484679 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:48.726551018 +0900
-@@ -1993,7 +1993,9 @@
+@@ -2005,7 +2005,9 @@
  	      "-------------------------------------\n", file);
  	ibuf_print(file);
  
@@ -1445,7 +1445,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	fprintf(file,
  		"%.2f hash searches/s, %.2f non-hash searches/s\n",
-@@ -2018,14 +2020,15 @@
+@@ -2030,14 +2032,15 @@
  			ut_total_allocated_memory,
  			mem_pool_get_reserved(mem_comm_pool));
  	/* Calcurate reserved memories */
@@ -1465,7 +1465,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	lock_sys_subtotal = 0;
  	if (trx_sys) {
-@@ -2052,10 +2055,10 @@
+@@ -2064,10 +2067,10 @@
  			"    Threads             %lu \t(%lu + %lu)\n",
  
  			(ulong) (btr_search_sys
@@ -1500,7 +1500,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 17:49:11.623953784 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-04 16:12:48.731513275 +0900
-@@ -265,8 +265,14 @@
+@@ -268,8 +268,14 @@
  /*=================================*/
  	trx_t*	   trx) /*!< in: transaction */
  {

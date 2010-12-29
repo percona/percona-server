@@ -18,4 +18,5 @@ SELECT sleep(5);
 sleep(5)
 0
 set long_query_time=2;
+FLUSH LOGS;
 3

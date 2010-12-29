@@ -40,4 +40,5 @@ response_time_distribution.patch
 error_pad.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
+show_slave_status_nolock.patch
 mysql-test.diff

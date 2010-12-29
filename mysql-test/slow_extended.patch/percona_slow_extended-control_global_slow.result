@@ -8,4 +8,5 @@ sleep(2)
 0
 set global use_global_log_slow_control=none;
 set global log_slow_verbosity=microtime;
+FLUSH LOGS;
 1

@@ -14,6 +14,7 @@ SELECT sleep(5);
 set global long_query_time=2;
 set global use_global_long_query_time=0;
 
+FLUSH LOGS;
 --let grep_file = $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-use_global_long_query_time.log
 --let grep_pattern = Query_time
 --source include/grep.inc

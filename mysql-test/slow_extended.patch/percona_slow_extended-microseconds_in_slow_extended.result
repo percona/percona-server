@@ -6,5 +6,6 @@ SELECT sleep(2);
 sleep(2)
 0
 set global slow_query_log_microseconds_timestamp=OFF;
+FLUSH LOGS;
 1
 2

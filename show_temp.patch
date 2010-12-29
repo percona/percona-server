@@ -27,7 +27,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-02 21:23:05.495293844 +0900
 +++ b/sql/mysqld.cc	2010-12-03 14:25:40.317039327 +0900
-@@ -3039,6 +3039,7 @@
+@@ -3038,6 +3038,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -50,7 +50,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-12-02 19:22:40.046023936 +0900
 +++ b/sql/sql_parse.cc	2010-12-03 14:09:53.471950455 +0900
-@@ -350,6 +350,9 @@
+@@ -349,6 +349,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
                                                   CF_REEXECUTION_FRAGILE);
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1505,6 +1508,8 @@
+@@ -1504,6 +1507,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -69,7 +69,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2012,6 +2017,7 @@
+@@ -2011,6 +2016,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -77,7 +77,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4791,6 +4797,8 @@
+@@ -4787,6 +4793,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -89,7 +89,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-12-03 13:38:47.493070606 +0900
 +++ b/sql/sql_show.cc	2010-12-03 14:27:04.590939717 +0900
-@@ -2686,6 +2686,7 @@
+@@ -2685,6 +2685,7 @@
      break;
    case SQLCOM_SHOW_TABLES:
    case SQLCOM_SHOW_TABLE_STATUS:
@@ -97,7 +97,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      thd->make_lex_string(&lookup_field_values->db_value, 
-@@ -3174,6 +3175,228 @@
+@@ -3173,6 +3174,228 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -326,7 +326,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
     Try acquire high priority share metadata lock on a table (with
-@@ -6803,6 +7026,25 @@
+@@ -6802,6 +7025,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -352,7 +352,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7417,6 +7659,9 @@
+@@ -7416,6 +7658,9 @@
     hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -362,7 +362,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7466,6 +7711,9 @@
+@@ -7465,6 +7710,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
@@ -375,7 +375,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-12-02 19:22:40.077024170 +0900
 +++ b/sql/sql_yacc.yy	2010-12-03 14:09:53.496023791 +0900
-@@ -10870,6 +10870,15 @@
+@@ -10869,6 +10869,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }

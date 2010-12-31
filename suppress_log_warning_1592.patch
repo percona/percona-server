@@ -46,7 +46,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/sql_class.cc	2010-11-17 00:06:49.000000000 +0500
-@@ -4544,7 +4544,7 @@
+@@ -4660,7 +4660,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));

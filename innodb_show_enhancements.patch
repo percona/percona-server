@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:00:24.433289518 +0900
-@@ -11282,7 +11282,8 @@
+@@ -11291,7 +11291,8 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,

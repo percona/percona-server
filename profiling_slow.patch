@@ -21,7 +21,7 @@ diff -ruN /dev/null b/patch_info/profiling_slow.info
 diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/log.cc	2010-12-02 19:28:31.337989417 +0900
-@@ -2600,6 +2600,11 @@
+@@ -2607,6 +2607,11 @@
                      (ulong) thd->sent_row_count,
                      (ulong) thd->examined_row_count) == (uint) -1)
        tmp_errno= errno;
@@ -280,7 +280,7 @@ diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sys_vars.cc	2010-12-02 20:19:19.907356956 +0900
-@@ -2390,6 +2390,16 @@
+@@ -2401,6 +2401,16 @@
         "profiling_history_size", "Limit of query profiling memory",
         SESSION_VAR(profiling_history_size), CMD_LINE(REQUIRED_ARG),
         VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1));

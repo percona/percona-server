@@ -20,10 +20,10 @@ diff -ruN /dev/null b/patch_info/optimizer_fix.info
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-02 19:22:40.027024953 +0900
 +++ b/sql/mysqld.cc	2010-12-02 20:51:50.811356434 +0900
-@@ -427,6 +427,7 @@
- uint    opt_debug_sync_timeout= 0;
+@@ -428,6 +428,7 @@
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+ my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
 +my_bool opt_optimizer_fix= 0;
  /*
    True if there is at least one per-hour limit for some user, so we should
@@ -31,10 +31,10 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/mysqld.h	2010-12-02 20:51:10.392070356 +0900
-@@ -109,6 +109,7 @@
- extern ulonglong slave_type_conversions_options;
+@@ -110,6 +110,7 @@
  extern my_bool read_only, opt_readonly;
  extern my_bool lower_case_file_system;
+ extern my_bool opt_userstat_running, opt_thread_statistics;
 +extern my_bool opt_optimizer_fix;
  extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
  extern my_bool opt_secure_auth;
@@ -144,7 +144,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-02 20:31:56.208023606 +0900
 +++ b/sql/sys_vars.cc	2010-12-02 21:17:44.618120277 +0900
-@@ -2118,6 +2118,12 @@
+@@ -2129,6 +2129,12 @@
         VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
         DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
  

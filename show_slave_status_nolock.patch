@@ -18,7 +18,7 @@ diff -ruN a/patch_info/show_slave_status_nolock.patch b/patch_info/show_slave_st
 diff -ruN a/sql/lex.h b/sql/lex.h
 --- a/sql/lex.h	2010-12-29 20:27:19.000000000 +0300
 +++ b/sql/lex.h	2010-12-29 20:28:57.000000000 +0300
-@@ -378,6 +378,7 @@
+@@ -380,6 +380,7 @@
    { "NONE",		SYM(NONE_SYM)},
    { "NOT",		SYM(NOT_SYM)},
    { "NO_WRITE_TO_BINLOG",  SYM(NO_WRITE_TO_BINLOG)},
@@ -29,14 +29,14 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-29 20:27:19.000000000 +0300
 +++ b/sql/mysqld.cc	2010-12-29 20:29:19.000000000 +0300
-@@ -3055,6 +3055,7 @@
+@@ -3072,6 +3072,7 @@
    {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
 +  {"show_slave_status_nolock", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_NOLOCK_STAT]), SHOW_LONG_STATUS},
    {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
-   {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
+   {"show_table_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATS]), SHOW_LONG_STATUS},
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2010-12-29 20:27:19.000000000 +0300
 +++ b/sql/sql_lex.h	2010-12-29 20:32:26.000000000 +0300
@@ -52,7 +52,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-12-29 20:27:19.000000000 +0300
 +++ b/sql/sql_parse.cc	2010-12-29 20:34:50.000000000 +0300
-@@ -336,6 +336,7 @@
+@@ -339,6 +339,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2256,12 +2257,16 @@
+@@ -2276,12 +2277,16 @@
      mysql_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -78,7 +78,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2272,7 +2277,10 @@
+@@ -2292,7 +2297,10 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }
@@ -93,7 +93,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-12-29 20:27:19.000000000 +0300
 +++ b/sql/sql_yacc.yy	2010-12-29 20:36:40.000000000 +0300
-@@ -1292,6 +1292,7 @@
+@@ -1294,6 +1294,7 @@
  %token  STARTS_SYM
  %token  START_SYM                     /* SQL-2003-R */
  %token  STATUS_SYM
@@ -101,9 +101,9 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
  %token  STD_SYM
  %token  STOP_SYM
-@@ -11095,6 +11096,10 @@
-           {
-             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
+@@ -11135,6 +11136,10 @@
+            if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
+              MYSQL_YYABORT;
            }
 +        | SLAVE STATUS_SYM NOLOCK_SYM
 +          {

@@ -8,7 +8,7 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-12-03 14:09:14.406955791 +0900
 +++ b/sql/handler.h	2010-12-03 14:29:16.533356953 +0900
-@@ -569,6 +569,7 @@
+@@ -575,6 +575,7 @@
    SCH_EVENTS,
    SCH_FILES,
    SCH_GLOBAL_STATUS,
@@ -16,25 +16,25 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_GLOBAL_VARIABLES,
    SCH_KEY_COLUMN_USAGE,
    SCH_OPEN_TABLES,
-@@ -590,6 +591,7 @@
+@@ -596,6 +597,7 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,
    SCH_TABLE_PRIVILEGES,
 +  SCH_TEMPORARY_TABLES,
+   SCH_TABLE_STATS,
+   SCH_THREAD_STATS,
    SCH_TRIGGERS,
-   SCH_USER_PRIVILEGES,
-   SCH_VARIABLES,
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-02 21:23:05.495293844 +0900
 +++ b/sql/mysqld.cc	2010-12-03 14:25:40.317039327 +0900
-@@ -3038,6 +3038,7 @@
-   {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
+@@ -3056,6 +3056,7 @@
+   {"show_table_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATS]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
 +  {"show_temporary_tables",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TEMPORARY_TABLES]), SHOW_LONG_STATUS},
+   {"show_thread_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_THREAD_STATS]), SHOW_LONG_STATUS},
    {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
-   {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
-   {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
+   {"show_user_statistics", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_USER_STATS]), SHOW_LONG_STATUS},
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2010-12-02 19:22:40.040023288 +0900
 +++ b/sql/sql_lex.h	2010-12-03 14:09:53.465292483 +0900
@@ -50,7 +50,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-12-02 19:22:40.046023936 +0900
 +++ b/sql/sql_parse.cc	2010-12-03 14:09:53.471950455 +0900
-@@ -349,6 +349,9 @@
+@@ -352,6 +352,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
                                                   CF_REEXECUTION_FRAGILE);
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1504,6 +1507,8 @@
+@@ -1516,6 +1519,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -69,7 +69,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2011,6 +2016,7 @@
+@@ -2031,6 +2036,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -77,7 +77,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4787,6 +4793,8 @@
+@@ -4809,6 +4815,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -89,7 +89,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-12-03 13:38:47.493070606 +0900
 +++ b/sql/sql_show.cc	2010-12-03 14:27:04.590939717 +0900
-@@ -2685,6 +2685,7 @@
+@@ -2994,6 +2994,7 @@
      break;
    case SQLCOM_SHOW_TABLES:
    case SQLCOM_SHOW_TABLE_STATUS:
@@ -97,7 +97,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      thd->make_lex_string(&lookup_field_values->db_value, 
-@@ -3173,6 +3174,228 @@
+@@ -3482,6 +3483,228 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -326,7 +326,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
     Try acquire high priority share metadata lock on a table (with
-@@ -6802,6 +7025,25 @@
+@@ -7111,6 +7334,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -352,7 +352,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7416,6 +7658,9 @@
+@@ -7827,6 +8069,9 @@
     hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -362,20 +362,20 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7465,6 +7710,9 @@
+@@ -7874,6 +8119,9 @@
+    OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
+   {"TABLE_NAMES", table_names_fields_info, create_schema_table,
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
-   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
-    fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
 +  {"TEMPORARY_TABLES", temporary_table_fields_info, create_schema_table,
 +   fill_temporary_tables, make_temporary_tables_old_format, 0, 2, 3, 0,
 +   OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
-   {"TRIGGERS", triggers_fields_info, create_schema_table,
-    get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0,
-    OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
+   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
+    fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
+   {"TABLE_STATISTICS", table_stats_fields_info, create_schema_table,
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-12-02 19:22:40.077024170 +0900
 +++ b/sql/sql_yacc.yy	2010-12-03 14:09:53.496023791 +0900
-@@ -10869,6 +10869,15 @@
+@@ -10874,6 +10874,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }

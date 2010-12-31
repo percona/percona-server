@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:18:48.879955903 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:22:53.779955671 +0900
-@@ -11324,6 +11324,11 @@
+@@ -11333,6 +11333,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11389,6 +11394,7 @@
+@@ -11398,6 +11403,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -28,7 +28,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
-@@ -11417,6 +11423,7 @@
+@@ -11426,6 +11432,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },

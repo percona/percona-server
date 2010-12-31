@@ -500,7 +500,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:49:59.195023983 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:52:23.555957062 +0900
-@@ -7328,6 +7328,14 @@
+@@ -7337,6 +7337,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
  		err = row_import_tablespace_for_mysql(dict_table->name, trx);
@@ -515,7 +515,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11539,6 +11547,11 @@
+@@ -11548,6 +11556,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -527,7 +527,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
    PLUGIN_VAR_RQCMDARG,
    "Number of extra user rollback segments which are used in a round-robin fashion.",
-@@ -11616,6 +11629,7 @@
+@@ -11625,6 +11638,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),

@@ -852,7 +852,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5332,6 +5355,10 @@
+@@ -5336,6 +5359,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -863,7 +863,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_RETURN(error_result);
  }
  
-@@ -5508,6 +5535,10 @@
+@@ -5512,6 +5539,10 @@
  
  	ha_statistic_increment(&SSV::ha_update_count);
  
@@ -874,7 +874,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
  		table->timestamp_field->set_time();
  
-@@ -5597,6 +5628,10 @@
+@@ -5601,6 +5632,10 @@
  
  	innobase_active_small();
  
@@ -885,7 +885,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_RETURN(error);
  }
  
-@@ -5618,6 +5653,10 @@
+@@ -5622,6 +5657,10 @@
  
  	ha_statistic_increment(&SSV::ha_delete_count);
  
@@ -896,7 +896,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (!prebuilt->upd_node) {
  		row_get_prebuilt_update_vector(prebuilt);
  	}
-@@ -5644,6 +5683,10 @@
+@@ -5650,6 +5689,10 @@
  
  	innobase_active_small();
  
@@ -907,7 +907,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_RETURN(error);
  }
  
-@@ -5883,6 +5926,10 @@
+@@ -5889,6 +5932,10 @@
  
  	ha_statistic_increment(&SSV::ha_read_key_count);
  
@@ -918,7 +918,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	index = prebuilt->index;
  
  	if (UNIV_UNLIKELY(index == NULL)) {
-@@ -5948,6 +5995,10 @@
+@@ -5954,6 +6001,10 @@
  		ret = DB_UNSUPPORTED;
  	}
  
@@ -929,7 +929,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -6058,6 +6109,10 @@
+@@ -6067,6 +6118,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -940,7 +940,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -6148,6 +6203,10 @@
+@@ -6157,6 +6212,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -951,7 +951,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -6157,6 +6216,10 @@
+@@ -6166,6 +6225,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -962,7 +962,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7422,10 +7485,18 @@
+@@ -7431,10 +7494,18 @@
  
  	update_thd(ha_thd());
  
@@ -981,7 +981,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7938,6 +8009,16 @@
+@@ -7947,6 +8018,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -998,7 +998,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -8056,7 +8137,7 @@
+@@ -8065,7 +8146,7 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -1007,7 +1007,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8347,10 +8428,18 @@
+@@ -8356,10 +8437,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -1026,7 +1026,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	return(0);
  }
  
-@@ -8532,6 +8621,10 @@
+@@ -8541,6 +8630,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1037,7 +1037,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9302,6 +9395,10 @@
+@@ -9311,6 +9404,10 @@
  
  	update_thd(thd);
  
@@ -1048,7 +1048,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11716,6 +11813,14 @@
+@@ -11725,6 +11822,14 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1063,7 +1063,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11803,6 +11908,7 @@
+@@ -11812,6 +11917,7 @@
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),

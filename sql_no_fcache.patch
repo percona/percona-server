@@ -133,7 +133,7 @@ diff -ruN a/patch_info/sql_no_fcache.info b/patch_info/sql_no_fcache.info
 diff -ruN a/sql/lex.h b/sql/lex.h
 --- a/sql/lex.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/lex.h	2010-07-28 16:48:00.134078469 +0400
-@@ -516,6 +516,7 @@
+@@ -518,6 +518,7 @@
    { "SQL_CACHE",        SYM(SQL_CACHE_SYM)},
    { "SQL_CALC_FOUND_ROWS", SYM(SQL_CALC_FOUND_ROWS)},
    { "SQL_NO_CACHE",	SYM(SQL_NO_CACHE_SYM)},
@@ -144,7 +144,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-07-28 16:47:58.565318871 +0400
 +++ b/sql/mysqld.h	2010-07-28 16:48:03.004544367 +0400
-@@ -189,6 +189,8 @@
+@@ -191,6 +191,8 @@
  extern ulong back_log;
  extern char language[FN_REFLEN];
  extern ulong server_id, concurrency;
@@ -168,10 +168,10 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #include <thr_alarm.h>
  #include <ft_global.h>
-@@ -482,6 +487,11 @@
- ulong specialflag=0;
+@@ -484,6 +489,11 @@
  ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
  ulong max_connections, max_connect_errors;
+ ulonglong denied_connections = 0;
 +
 +/* flashcache */
 +int cachedev_fd;
@@ -180,7 +180,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4168,6 +4178,97 @@
+@@ -4198,6 +4208,97 @@
  #define decrement_handler_count()
  #endif /* defined(_WIN32) || defined(HAVE_SMEM) */
  
@@ -278,7 +278,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifndef EMBEDDED_LIBRARY
  #ifndef DBUG_OFF
-@@ -4422,6 +4523,10 @@
+@@ -4452,6 +4553,10 @@
    test_lc_time_sz();
  #endif
  
@@ -289,7 +289,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4625,6 +4730,10 @@
+@@ -4655,6 +4760,10 @@
    }
  #endif
    clean_up(1);
@@ -300,7 +300,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    mysqld_exit(0);
  }
  
-@@ -6444,6 +6553,7 @@
+@@ -6475,6 +6584,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -322,7 +322,7 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/sql_lex.h	2010-07-28 16:48:08.405691834 +0400
-@@ -2300,6 +2300,7 @@
+@@ -2303,6 +2303,7 @@
    */
    bool view_prepare_mode;
    bool safe_to_cache_query;
@@ -380,7 +380,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-07-28 16:47:58.565318871 +0400
 +++ b/sql/sql_yacc.yy	2010-07-28 16:48:14.205317990 +0400
-@@ -1283,6 +1283,7 @@
+@@ -1285,6 +1285,7 @@
  %token  SQL_CACHE_SYM
  %token  SQL_CALC_FOUND_ROWS
  %token  SQL_NO_CACHE_SYM
@@ -388,7 +388,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  SQL_SMALL_RESULT
  %token  SQL_SYM                       /* SQL-2003-R */
  %token  SQL_THREAD
-@@ -7349,6 +7350,10 @@
+@@ -7354,6 +7355,10 @@
                Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
              }
            }

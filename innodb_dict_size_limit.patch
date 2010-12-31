@@ -311,7 +311,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11537,6 +11539,11 @@
+@@ -11546,6 +11548,11 @@
    "Number of extra user rollback segments which are used in a round-robin fashion.",
    NULL, NULL, 127, 0, 127, 0);
  
@@ -323,7 +323,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11605,6 +11612,7 @@
+@@ -11614,6 +11621,7 @@
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),

@@ -140,7 +140,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7210,9 +7269,9 @@
+@@ -7219,9 +7278,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -153,7 +153,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		}
  	}
  
-@@ -11330,6 +11389,16 @@
+@@ -11339,6 +11398,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -170,7 +170,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11833,6 +11902,8 @@
+@@ -11842,6 +11911,8 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {

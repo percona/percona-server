@@ -311,7 +311,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11546,6 +11548,11 @@
+@@ -11537,6 +11539,11 @@
    "Number of extra user rollback segments which are used in a round-robin fashion.",
    NULL, NULL, 127, 0, 127, 0);
  
@@ -323,7 +323,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11614,6 +11621,7 @@
+@@ -11605,6 +11612,7 @@
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),
@@ -331,16 +331,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:43:57.295999622 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:45:47.549023712 +0900
-@@ -30,5 +30,6 @@
- {"innodb_extra_rseg","allow to create extra rollback segments","Limit number of rollback segments to be used.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
- {"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
-+{"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
 --- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:18:48.889024455 +0900
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:45:47.553025057 +0900

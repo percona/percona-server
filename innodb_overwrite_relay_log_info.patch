@@ -249,7 +249,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  		trx_commit_for_mysql(trx);
  	}
-@@ -10926,6 +11118,12 @@
+@@ -10917,6 +11109,12 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11377,6 +11575,7 @@
+@@ -11368,6 +11566,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -270,16 +270,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
    MYSQL_SYSVAR(stats_sample_pages),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:37:45.542023754 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:38:20.319953579 +0900
-@@ -28,5 +28,6 @@
- {"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_extra_rseg","allow to create extra rollback segments","Limit number of rollback segments to be used.","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sys.h
 --- a/storage/innobase/include/trx0sys.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/trx0sys.h	2010-12-03 15:38:20.321953297 +0900

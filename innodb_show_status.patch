@@ -67,7 +67,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:06:58.727955654 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:07:31.799376984 +0900
-@@ -10984,6 +10984,16 @@
+@@ -10975,6 +10975,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -84,7 +84,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11171,7 +11181,7 @@
+@@ -11162,7 +11172,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -93,7 +93,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11256,6 +11266,8 @@
+@@ -11247,6 +11257,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -102,16 +102,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(version),
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:06:58.745967863 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:07:31.811024360 +0900
-@@ -24,5 +24,6 @@
-        const char *link;
- }innodb_enhancements[] = {
- {"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
 --- a/storage/innobase/include/fil0fil.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/fil0fil.h	2010-12-03 15:07:31.812028575 +0900

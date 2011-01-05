@@ -732,7 +732,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
 	kpt.field->set_notnull();
       }
       kpt.field->store(kval.begin(), kval.size(), &my_charset_bin);
-      kplen_sum += kpt.length;
+      kplen_sum += kpt.store_length;
     }
     key_copy(key_buf, table->record[0], &kinfo, kplen_sum);
   }

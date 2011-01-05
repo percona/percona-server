@@ -59,7 +59,7 @@ Here is a list of client libraries for other languages:
     http://code.google.com/p/hs4j/
     http://code.google.com/p/handlersocketforjava/
   - Python
-    http://pypi.python.org/pypi/python-handler-socket/0.1.0
+    http://pypi.python.org/pypi/python-handler-socket
     https://code.launchpad.net/~songofacandy/+junk/pyhandlersocket
   - Ruby
     https://github.com/winebarrel/ruby-handlersocket

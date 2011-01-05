@@ -6,6 +6,9 @@ SUBDIRS = @HANDLERSOCKET_SUBDIRS@
 perl:
 	cd perl-Net-HandlerSocket && perl Makefile.PL && make
 
+install_perl:
+	cd perl-Net-HandlerSocket && make install
+
 rpms: rpm_cli rpm_perl rpm_c
 
 rpm_dir:

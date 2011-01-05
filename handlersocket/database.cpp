@@ -166,7 +166,7 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   void dump_record(dbcallback_i& cb, TABLE *const table, const prep_stmt& pst);
   int modify_record(dbcallback_i& cb, TABLE *const table,
     const prep_stmt& pst, const cmd_exec_args& args, char mod_op,
-    size_t& success_count);
+    size_t& modified_count);
  private:
   typedef std::vector<tablevec_entry> table_vec_type;
   typedef std::pair<std::string, std::string> table_name_type;
@@ -559,7 +559,7 @@ dbcontext::dump_record(dbcallback_i& cb, TABLE *const table,
 int
 dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
   const prep_stmt& pst, const cmd_exec_args& args, char mod_op,
-  size_t& success_count)
+  size_t& modified_count)
 {
   if (mod_op == 'U') {
     /* update */
@@ -579,19 +579,21 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
 	fld->store(nv.begin(), nv.size(), &my_charset_bin);
       }
     }
+    table_vec[pst.get_table_id()].modified = true;
     const int r = hnd->ha_update_row(table->record[1], buf);
     if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
       return r;
     }
-    ++success_count;
+    ++modified_count; /* TODO: HA_ERR_RECORD_IS_THE_SAME? */
   } else if (mod_op == 'D') {
     /* delete */
     handler *const hnd = table->file;
+    table_vec[pst.get_table_id()].modified = true;
     const int r = hnd->ha_delete_row(table->record[0]);
     if (r != 0) {
       return r;
     }
-    ++success_count;
+    ++modified_count;
   } else if (mod_op == '+' || mod_op == '-') {
     /* increment/decrement */
     handler *const hnd = table->file;
@@ -599,7 +601,8 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
     store_record(table, record[1]);
     const prep_stmt::fields_type& rf = pst.get_ret_fields();
     const size_t n = rf.size();
-    for (size_t i = 0; i < n; ++i) {
+    size_t i = 0;
+    for (i = 0; i < n; ++i) {
       const string_ref& nv = args.uvals[i];
       uint32_t fn = rf[i];
       Field *const fld = table->field[fn];
@@ -608,6 +611,7 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
       }
       const long long pval = fld->val_int();
       const long long llv = atoll_nocheck(nv.begin(), nv.end());
+      /* TODO: llv == 0? */
       long long nval = 0;
       if (mod_op == '+') {
 	/* increment */
@@ -615,19 +619,25 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
       } else {
 	/* decrement */
 	nval = pval - llv;
+	if ((pval < 0 && nval > 0) || (pval > 0 && nval < 0)) {
+	  break; /* don't modify */
+	}
 	if ((pval < 0) != (nval < 0)) {
 	  nval = 0; /* crip */
 	}
       }
       fld->store(nval, false);
     }
-    const int r = hnd->ha_update_row(table->record[1], buf);
-    if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
-      return r;
+    if (i == n) {
+      /* modify */
+      table_vec[pst.get_table_id()].modified = true;
+      const int r = hnd->ha_update_row(table->record[1], buf);
+      if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
+	return r;
+      }
+      ++modified_count;
     }
-    ++success_count;
   }
-  table_vec[pst.get_table_id()].modified = true;
   return 0;
 }
 
@@ -764,7 +774,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   const uint32_t limit = args.limit ? args.limit : 1;
   uint32_t skip = args.skip;
-  size_t mod_success_count = 0;
+  size_t modified_count = 0;
   int r = 0;
   for (uint32_t i = 0; i < limit + skip; ++i) {
     if (i == 0) {
@@ -809,7 +819,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
 	resp_record(cb, table, pst);
       }
       if (mod_op != 0) {
-	r = modify_record(cb, table, pst, args, mod_op, mod_success_count);
+	r = modify_record(cb, table, pst, args, mod_op, modified_count);
       }
     }
     if (r != 0 && r != HA_ERR_RECORD_DELETED) {
@@ -830,7 +840,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     if (need_resp_record) {
       cb.dbcb_resp_end();
     } else {
-      cb.dbcb_resp_short_num(0, mod_success_count);
+      cb.dbcb_resp_short_num(0, modified_count);
     }
   }
 }

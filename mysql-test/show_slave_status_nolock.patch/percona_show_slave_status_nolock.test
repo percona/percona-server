@@ -7,14 +7,18 @@ DROP TABLE IF EXISTS t;
 -- enable_warnings
 CREATE TABLE t(id INT);
 sync_slave_with_master;
+
 connection master;
 send INSERT INTO t SELECT SLEEP(5);
-sleep 1;
+
 connection slave;
+sleep 2;
 send STOP SLAVE;
+sleep 2;
+
 connection slave1;
 select count(*) from t;
-replace_column 2 host 3 user 4 port;
+replace_column 2 host 3 user 4 port 11 Slave_IO_Running 12 Slave_SQL_Running;
 SHOW SLAVE STATUS NOLOCK;
 select count(*) from t;
 

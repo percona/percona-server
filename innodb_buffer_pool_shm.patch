@@ -454,6 +454,15 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	os_mem_free_large(chunk->mem, chunk->mem_size);
  }
  
+@@ -1289,7 +1636,7 @@
+ 	ulint		instance_no)	/*!< in: id of the instance */
+ {
+ 	ulint		i;
+-	buf_chunk_t*	chunk;
++	buf_chunk_t*	chunk = NULL;
+ 
+ 	/* 1. Initialize general fields
+ 	------------------------------- */
 @@ -1335,7 +1682,10 @@
  		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
  
@@ -469,7 +478,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	/* All fields are initialized by mem_zalloc(). */
  
-+	if (srv_buffer_pool_shm_key) {
++	if (chunk && srv_buffer_pool_shm_key) {
 +		buf_shm_info_t*	shm_info;
 +
 +		ut_a((byte*)chunk->blocks == (byte*)chunk->mem + sizeof(buf_shm_info_t));

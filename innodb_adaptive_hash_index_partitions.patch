@@ -500,7 +500,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 +		rw_lock_t*	btr_search_latch;
 +
 +		/* FIXME: This may be optimistic implementation still. */
-+		btr_search_latch = block->btr_search_latch;
++		btr_search_latch = (rw_lock_t*)(block->btr_search_latch);
 +		if (UNIV_LIKELY(!btr_search_latch)) {
 +			if (block->is_hashed) {
 +				goto retry;

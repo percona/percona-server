@@ -162,7 +162,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 +	ulint		req = 0;
 +	ibool		terminated = FALSE;
 +	ibool		ret = FALSE;
-+	dump_record_t*	records;
++	dump_record_t*	records = NULL;
 +	ulint		size;
 +	ulint		size_high;
 +	ulint		length;

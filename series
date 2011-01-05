@@ -31,7 +31,6 @@ innodb_buffer_pool_pages_i_s.patch
 innodb_buffer_pool_shm.patch
 userstat.patch
 slow_extended.patch
-suppress_log_warning_1592.patch
 percona_support.patch
 query_cache_enhance.patch
 log_connection_error.patch
@@ -41,4 +40,5 @@ error_pad.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
 show_slave_status_nolock.patch
+log_warnings_silence.patch
 mysql-test.diff

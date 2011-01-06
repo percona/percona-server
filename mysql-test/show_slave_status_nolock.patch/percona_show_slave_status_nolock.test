@@ -18,7 +18,7 @@ sleep 2;
 
 connection slave1;
 select count(*) from t;
-replace_column 2 host 3 user 4 port 11 Slave_IO_Running 12 Slave_SQL_Running;
+replace_column 1 <STATE> 2 <HOST> 3 <USER> 4 <PORT> 11 <Slave_IO_Running> 12 <Slave_SQL_Running>;
 SHOW SLAVE STATUS NOLOCK;
 select count(*) from t;
 

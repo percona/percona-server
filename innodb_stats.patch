@@ -1621,7 +1621,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +	 STRUCT_FLD(old_name,		""),
 +	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 +
-+	{STRUCT_FLD(field_name,		"row_per_keys"),
++	{STRUCT_FLD(field_name,		"rows_per_key"),
 +	 STRUCT_FLD(field_length,	256),
 +	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 +	 STRUCT_FLD(value,		0),

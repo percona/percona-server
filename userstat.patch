@@ -34,10 +34,19 @@ diff -ruN a/configure.in b/configure.in
  #
 +# The following change can be safely null-merged to 5.5
 +# since configure.cmake in 5.5 does the same check
-+AC_CHECK_LIB(rt, clock_gettime)
++AC_SEARCH_LIBS(clock_gettime, rt, LIBRT="-lrt")
  case "$target" in
   *-*-aix4* | *-*-sco*)
  	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
+@@ -2749,7 +2752,7 @@
+ fi
+ sql_client_dirs="$sql_client_dirs client"
+ 
+-CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
++CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $LIBRT $STATIC_NSS_FLAGS"
+ 
+ AC_SUBST(CLIENT_LIBS)
+ AC_SUBST(CLIENT_THREAD_LIBS)
 diff -ruN a/include/config.h.in b/include/config.h.in
 --- a/include/config.h.in	2010-10-12 00:39:59.000000000 +0400
 +++ b/include/config.h.in	2010-11-24 17:53:34.000000000 +0300

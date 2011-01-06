@@ -9,10 +9,10 @@ connection master;
   sync_slave_with_master;
 
 connection master;
-  send INSERT INTO t SELECT SLEEP(2);
+  send INSERT INTO t SELECT SLEEP(10);
 
 connection slave;
-  sleep 3;
+  sleep 15;
   send STOP SLAVE;
 
 connection master;

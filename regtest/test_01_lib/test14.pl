@@ -3,6 +3,7 @@
 # vim:sw=2:ai
 
 # test for bugfix: commit/c88efe637f6a184b55d2bd8d060bda3e556572d8
+# (some trailing bytes were dropped for varlen or nullable key fields)
 
 BEGIN {
 	push @INC, "../common/";

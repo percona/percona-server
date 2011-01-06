@@ -23,6 +23,7 @@
 #define DBG_FLD(x)
 #define DBG_FILTER(x)
 #define DBG_REFCNT(x)
+#define DBG_KEYLEN(x)
 #define DBG_DELETED
 
 /* status variables */
@@ -743,8 +744,12 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       }
       kpt.field->store(kval.begin(), kval.size(), &my_charset_bin);
       kplen_sum += kpt.store_length;
+      DBG_KEYLEN(fprintf(stderr, "l=%u sl=%zu\n", kpt.length,
+	kpt.store_length));
     }
     key_copy(key_buf, table->record[0], &kinfo, kplen_sum);
+    DBG_KEYLEN(fprintf(stderr, "sum=%zu flen=%u\n", kplen_sum,
+      kinfo.key_length));
   }
   /* filters */
   uchar *filter_buf = 0;

@@ -1,7 +1,0 @@
---- a/mysql-test/suite/innodb/t/disabled.def    2010-11-03 14:21:31.000000000 +0000
-+++ b/mysql-test/suite/innodb/t/disabled.def    2010-12-10 21:01:21.270722471 +0000
-@@ -9,3 +9,4 @@
- #  Do not use any TAB characters for whitespace.
- #
- ##############################################################################
-+innodb_bug56143: BUG#56143 2010-12-10 ignacio-nin Expected to fail: https://bugs.launchpad.net/percona-server/+bug/684250

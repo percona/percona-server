@@ -8,7 +8,6 @@ optimizer_fix.patch
 mysql_dump_ignore_ct.patch
 show_temp_51.patch
 suppress_log_warning_1592.patch
-innodb_bug56413_test_disable.patch
 innodb_show_enhancements.patch
 innodb_show_status.patch
 innodb_io_patches.patch

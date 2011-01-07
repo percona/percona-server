@@ -734,7 +734,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  				buf_LRU_make_block_old(&block->page);
  				dirty++;
 -			} else if (buf_LRU_free_block(&block->page, TRUE, NULL)
-+			} else if (buf_LRU_free_block(&block->page, TRUE, NULL, FALSE)
++			} else if (buf_LRU_free_block(&block->page, TRUE, NULL, TRUE)
  				   != BUF_LRU_FREED) {
  				nonfree++;
  			}
@@ -1412,6 +1412,15 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #if UNIV_WORD_SIZE == 4
  	/* On 32-bit systems, there is no padding in buf_page_t.  On
  	other systems, Valgrind could complain about uninitialized pad
+@@ -3014,7 +3152,7 @@
+ 		/* Try to evict the block from the buffer pool, to use the
+ 		insert buffer (change buffer) as much as possible. */
+ 
+-		if (buf_LRU_free_block(&block->page, TRUE, NULL)
++		if (buf_LRU_free_block(&block->page, TRUE, NULL, FALSE)
+ 		    == BUF_LRU_FREED) {
+ 			mutex_exit(&block->mutex);
+ 			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 @@ -3051,13 +3189,14 @@
  
  	buf_block_buf_fix_inc(block, file, line);

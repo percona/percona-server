@@ -785,16 +785,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(checksums),
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-06 20:16:21.775383925 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-07 16:26:37.429760207 +0900
-@@ -46,5 +46,6 @@
- {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_adaptive_hash_index_partitions","allow to use partitioned adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_buffer_pool_pages_i_s","Information schema of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_buffer_pool_shm","Put buffer pool contents to shared memory segment and reuse it at clean restart [experimental]","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-06 20:16:21.778264552 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-07 17:56:28.322749380 +0900

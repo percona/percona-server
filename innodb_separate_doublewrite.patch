@@ -369,16 +369,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
    MYSQL_SYSVAR(recovery_stats),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:35:29.169510050 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:35:58.643584582 +0900
-@@ -40,5 +40,6 @@
- {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/mtr0log.ic b/storage/innobase/include/mtr0log.ic
 --- a/storage/innobase/include/mtr0log.ic	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/mtr0log.ic	2010-12-04 15:35:58.644607059 +0900

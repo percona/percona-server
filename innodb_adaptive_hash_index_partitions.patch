@@ -1029,16 +1029,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(replication_delay),
    MYSQL_SYSVAR(status_file),
    MYSQL_SYSVAR(strict_mode),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:57:13.040514096 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-04 16:12:48.706550944 +0900
-@@ -44,5 +44,6 @@
- {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_adaptive_hash_index_partitions","allow to use partitioned adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/btr0sea.h b/storage/innobase/include/btr0sea.h
 --- a/storage/innobase/include/btr0sea.h	2010-12-03 15:48:03.070987226 +0900
 +++ b/storage/innobase/include/btr0sea.h	2010-12-04 16:12:48.707551382 +0900

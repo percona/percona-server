@@ -3,7 +3,6 @@ optimizer_fix.patch
 mysql_dump_ignore_ct.patch
 control_online_alter_index.patch
 show_temp.patch
-innodb_show_enhancements.patch
 innodb_show_status.patch
 innodb_io_patches.patch
 innodb_opt_lru_count.patch

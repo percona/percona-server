@@ -1090,16 +1090,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.h b/storage/innobase/handler/ha_i
  
  	int write_row(uchar * buf);
  	int update_row(const uchar * old_data, uchar * new_data);
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:37:50.589550667 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:38:18.160552639 +0900
-@@ -41,5 +41,6 @@
- {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/btr0btr.ic b/storage/innobase/include/btr0btr.ic
 --- a/storage/innobase/include/btr0btr.ic	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/btr0btr.ic	2010-12-04 15:38:18.162515035 +0900

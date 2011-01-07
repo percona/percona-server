@@ -47,16 +47,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
    MYSQL_SYSVAR(show_verbose_locks),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:41:52.046214776 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:42:11.568959457 +0900
-@@ -29,5 +29,6 @@
- {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_extra_rseg","allow to create extra rollback segments","Limit number of rollback segments to be used.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
-+{"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:37:45.543027751 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:42:11.571024631 +0900

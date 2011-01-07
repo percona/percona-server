@@ -39,7 +39,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-03 15:06:58.742986460 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-03 15:33:08.790070078 +0900
-@@ -46,6 +46,8 @@
+@@ -45,6 +45,8 @@
  #include "srv0start.h" /* for srv_was_started */
  #include "trx0i_s.h"
  #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -1941,3 +1943,166 @@
+@@ -1782,3 +1784,166 @@
  
  	DBUG_RETURN(0);
  }
@@ -218,23 +218,13 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 --- a/storage/innobase/handler/i_s.h	2010-12-03 15:06:58.744953398 +0900
 +++ b/storage/innobase/handler/i_s.h	2010-12-03 15:22:53.783953418 +0900
-@@ -34,5 +34,6 @@
+@@ -33,5 +33,6 @@
+ extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
  extern struct st_mysql_plugin	i_s_innodb_cmpmem;
  extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
- extern struct st_mysql_plugin	i_s_innodb_patches;
-+extern struct st_mysql_plugin   i_s_innodb_rseg;
++extern struct st_mysql_plugin	i_s_innodb_rseg;
  
  #endif /* i_s_h */
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:22:36.324955510 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:22:53.784986921 +0900
-@@ -27,5 +27,6 @@
- {"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_extra_rseg","allow to create extra rollback segments","Limit number of rollback segments to be used.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:18:48.894029379 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:22:53.786986025 +0900

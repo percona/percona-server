@@ -146,16 +146,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(fast_shutdown),
    MYSQL_SYSVAR(file_io_threads),
    MYSQL_SYSVAR(read_io_threads),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:30:16.302955743 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:30:41.592220283 +0900
-@@ -35,5 +35,6 @@
- {"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_show_sys_tables","i_s for sys_xxx tables internal","revived from mysql-5.5.6-rc","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/log0recv.h b/storage/innobase/include/log0recv.h
 --- a/storage/innobase/include/log0recv.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/log0recv.h	2010-12-03 17:30:41.592958318 +0900

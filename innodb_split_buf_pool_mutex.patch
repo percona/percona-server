@@ -3309,7 +3309,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-03 15:37:45.517105700 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-03 15:48:29.331024462 +0900
-@@ -1725,7 +1725,8 @@
+@@ -1566,7 +1566,8 @@
  
  		buf_pool = buf_pool_from_array(i);
  
@@ -3319,7 +3319,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  
  		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
  			buf_buddy_stat_t*	buddy_stat;
-@@ -1755,7 +1756,8 @@
+@@ -1596,7 +1597,8 @@
  			}
  		}
  
@@ -3329,16 +3329,6 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  
  		if (status) {
  			break;
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:48:03.064995674 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:48:29.331955850 +0900
-@@ -31,5 +31,6 @@
- {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
- {"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
- {"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
 --- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:03.068954202 +0900
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:29.335988682 +0900

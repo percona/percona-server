@@ -415,7 +415,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-03 17:34:35.286211349 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-04 15:33:37.677480733 +0900
-@@ -51,6 +51,7 @@
+@@ -50,6 +50,7 @@
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
  #include "dict0dict.h" /* for dict_sys */
@@ -423,7 +423,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -4414,6 +4415,36 @@
+@@ -4255,6 +4256,36 @@
  			"Hello!");
  		goto end_func;
  	}
@@ -460,16 +460,6 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  
  	field_store_string(i_s_table->field[0],
  		"Undefined XTRA_* command.");
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:49:11.595986992 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:33:37.680480846 +0900
-@@ -39,5 +39,6 @@
- {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/buf0lru.h b/storage/innobase/include/buf0lru.h
 --- a/storage/innobase/include/buf0lru.h	2010-12-03 15:49:59.223956070 +0900
 +++ b/storage/innobase/include/buf0lru.h	2010-12-04 15:33:37.681481467 +0900

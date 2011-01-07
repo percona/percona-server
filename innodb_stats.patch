@@ -1302,20 +1302,22 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11675,6 +11758,9 @@
+@@ -11674,7 +11757,10 @@
+ i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
- i_s_innodb_sys_foreign_cols,
+-i_s_innodb_sys_foreign_cols
++i_s_innodb_sys_foreign_cols,
 +i_s_innodb_sys_stats,
 +i_s_innodb_table_stats,
-+i_s_innodb_index_stats,
- i_s_innodb_patches
++i_s_innodb_index_stats
  mysql_declare_plugin_end;
  
+ /** @brief Initialize the default value of innodb_commit_concurrency.
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-03 17:17:03.666956117 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-03 17:19:24.880964526 +0900
-@@ -50,6 +50,7 @@
+@@ -49,6 +49,7 @@
  #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
@@ -1323,7 +1325,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -3617,6 +3618,203 @@
+@@ -3458,6 +3459,203 @@
  	STRUCT_FLD(__reserved1, NULL)
  };
  
@@ -1527,7 +1529,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  /***********************************************************************
  */
  static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
-@@ -3779,3 +3977,347 @@
+@@ -3620,3 +3818,347 @@
  	/* void* */
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -1878,25 +1880,15 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 --- a/storage/innobase/handler/i_s.h	2010-12-03 17:17:03.668953884 +0900
 +++ b/storage/innobase/handler/i_s.h	2010-12-03 17:19:24.882947826 +0900
-@@ -42,5 +42,8 @@
+@@ -41,5 +41,8 @@
+ extern struct st_mysql_plugin   i_s_innodb_sys_foreign;
  extern struct st_mysql_plugin   i_s_innodb_sys_foreign_cols;
- extern struct st_mysql_plugin	i_s_innodb_patches;
- extern struct st_mysql_plugin   i_s_innodb_rseg;
+ extern struct st_mysql_plugin	i_s_innodb_rseg;
 +extern struct st_mysql_plugin	i_s_innodb_sys_stats;
 +extern struct st_mysql_plugin	i_s_innodb_table_stats;
 +extern struct st_mysql_plugin	i_s_innodb_index_stats;
  
  #endif /* i_s_h */
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:17:03.668953884 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:25:03.003039802 +0900
-@@ -34,5 +34,6 @@
- {"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_show_sys_tables","i_s for sys_xxx tables internal","revived from mysql-5.5.6-rc","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/dict0boot.h b/storage/innobase/include/dict0boot.h
 --- a/storage/innobase/include/dict0boot.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/dict0boot.h	2010-12-03 17:19:24.885947372 +0900

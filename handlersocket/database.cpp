@@ -623,9 +623,6 @@ dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
 	if ((pval < 0 && nval > 0) || (pval > 0 && nval < 0)) {
 	  break; /* don't modify */
 	}
-	if ((pval < 0) != (nval < 0)) {
-	  nval = 0; /* crip */
-	}
       }
       fld->store(nval, false);
     }

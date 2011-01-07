@@ -68,9 +68,9 @@ diff -ruN a/include/mysql/plugin_ftparser.h.pp b/include/mysql/plugin_ftparser.h
 diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
 --- a/include/mysql/plugin.h	2010-11-03 01:01:11.000000000 +0300
 +++ b/include/mysql/plugin.h	2010-12-16 04:27:46.000000000 +0300
-@@ -538,6 +538,17 @@
- 
- #define EXTENDED_FOR_USERSTAT
+@@ -536,6 +536,17 @@
+ /* Increments the row counter, see THD::row_count */
+ void thd_inc_row_count(MYSQL_THD thd);
  
 +void increment_thd_innodb_stats(MYSQL_THD thd,
 +                    unsigned long long trx_id,
@@ -89,7 +89,7 @@ diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
 diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 --- a/patch_info/slow_extended.info	1970-01-01 03:00:00.000000000 +0300
 +++ b/patch_info/slow_extended.info	2010-12-16 04:27:46.000000000 +0300
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,25 @@
 +File=slow_extended.patch
 +Name=Extended statistics in slow.log (not InnoDB part)
 +Version=1.3
@@ -113,7 +113,8 @@ diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 +4) Now use_global_long_query_time and use_global_log_slow_control are synonims. Add value "all" for use_global_log_slow_control (contol-global_slow-2.patch merged)
 +5) Fix innodb_stats on replication (Bug 600684)
 +6) Change variable types (system/command-line)
-+
++2010-01
++Patch profiling_slow.patch was merged
 diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
 --- a/scripts/mysqldumpslow.sh	2010-11-03 01:01:13.000000000 +0300
 +++ b/scripts/mysqldumpslow.sh	2010-12-16 04:27:46.000000000 +0300
@@ -167,8 +168,8 @@ diff -ruN a/sql/filesort.cc b/sql/filesort.cc
    {
      killed= &not_killable;
 diff -ruN a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2010-12-16 04:27:10.000000000 +0300
-+++ b/sql/log.cc	2010-12-16 04:27:46.000000000 +0300
+--- a/sql/log.cc	2010-11-03 07:01:14.000000000 +0900
++++ b/sql/log.cc	2010-12-02 19:28:31.337989417 +0900
 @@ -630,11 +630,13 @@
  */
  
@@ -201,7 +202,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
                                      user_host, user_host_len,
                                      query_utime, lock_utime, is_command,
                                      sql_text, sql_text_len);
-@@ -1138,7 +1140,7 @@
+@@ -1131,7 +1133,7 @@
      /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
      user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                               sctx->priv_user ? sctx->priv_user : "", "[",
@@ -210,7 +211,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
                               sctx->host ? sctx->host : "", " [",
                               sctx->ip ? sctx->ip : "", "]", NullS) -
                      user_host_buff);
-@@ -1146,8 +1148,22 @@
+@@ -1139,8 +1141,22 @@
      current_time= my_time_possible_from_micro(current_utime);
      if (thd->start_utime)
      {
@@ -235,7 +236,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      }
      else
      {
-@@ -1161,8 +1177,20 @@
+@@ -1154,8 +1170,20 @@
        query_length= command_name[thd->command].length;
      }
  
@@ -257,7 +258,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
                                              user_host_buff, user_host_len,
                                              query_utime, lock_utime, is_command,
                                              query, query_length) || error;
-@@ -2546,12 +2574,13 @@
+@@ -2539,12 +2567,13 @@
      TRUE - error occured
  */
  
@@ -272,7 +273,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
    bool error= 0;
    DBUG_ENTER("MYSQL_QUERY_LOG::write");
  
-@@ -2573,17 +2602,28 @@
+@@ -2566,17 +2595,28 @@
  
      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
      {
@@ -308,7 +309,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
          /* Note that my_b_write() assumes it knows the length for this */
          if (my_b_write(&log_file, (uchar*) buff, buff_len))
-@@ -2601,16 +2641,68 @@
+@@ -2594,12 +2634,69 @@
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
      if (my_b_printf(&log_file,
@@ -330,10 +331,10 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +                    (ulong) thd->tmp_tables_disk_used,
 +                    (ulong) thd->tmp_tables_size) == (uint) -1)
        tmp_errno= errno;
- 
- #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-     thd->profiling.print_current(&log_file);
- #endif
++
++#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
++    thd->profiling.print_current(&log_file);
++#endif
 +    if (thd->innodb_was_used)
 +    {
 +      char buf[20];
@@ -377,9 +378,10 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +          my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
 +        tmp_errno=errno;
 +    }
- 
++
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
+       if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
 diff -ruN a/sql/log.h b/sql/log.h
 --- a/sql/log.h	2010-11-03 01:01:14.000000000 +0300
 +++ b/sql/log.h	2010-12-16 04:27:46.000000000 +0300
@@ -433,7 +435,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5820,10 +5824,10 @@
+@@ -5789,10 +5793,10 @@
     "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
     "the slow log if it is open.", &opt_log_slow_admin_statements,
     &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -446,7 +448,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7213,6 +7217,10 @@
+@@ -7182,6 +7186,10 @@
  
  C_MODE_END
  
@@ -457,7 +459,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7352,6 +7360,8 @@
+@@ -7321,6 +7329,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -469,7 +471,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/mysqld.h	2010-12-16 04:27:46.000000000 +0300
-@@ -117,6 +117,10 @@
+@@ -116,6 +116,10 @@
  extern char* opt_secure_backup_file_priv;
  extern size_t opt_secure_backup_file_priv_len;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
@@ -563,7 +565,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /**
    Dumps a text description of a thread, its security context
-@@ -668,6 +699,7 @@
+@@ -661,6 +692,7 @@
      *cond_hdl= NULL;
      return FALSE;
    }
@@ -571,7 +573,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    for (Internal_error_handler *error_handler= m_internal_handler;
         error_handler;
-@@ -3471,6 +3503,12 @@
+@@ -3355,6 +3387,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -584,7 +586,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3491,6 +3529,14 @@
+@@ -3375,6 +3413,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -599,7 +601,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -3553,6 +3599,12 @@
+@@ -3437,6 +3483,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -615,12 +617,16 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sql_class.h	2010-12-16 04:27:46.000000000 +0300
-@@ -60,6 +60,18 @@
+@@ -60,6 +60,26 @@
  enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
  enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
  			    DELAY_KEY_WRITE_ALL };
 +enum enum_use_global_log_slow_control { SLOG_UG_LOG_SLOW_FILTER, SLOG_UG_LOG_SLOW_RATE_LIMIT, SLOG_UG_LOG_SLOW_VERBOSITY, SLOG_UG_LONG_QUERY_TIME, SLOG_UG_MIN_EXAMINED_ROW_LIMIT, SLOG_UG_ALL };
-+enum enum_log_slow_verbosity { SLOG_V_MICROTIME, SLOG_V_QUERY_PLAN, SLOG_V_INNODB, SLOG_V_MINIMAL, SLOG_V_STANDARD, SLOG_V_FULL };
++enum enum_log_slow_verbosity { 
++  SLOG_V_MICROTIME, SLOG_V_QUERY_PLAN, SLOG_V_INNODB, 
++  SLOG_V_PROFILING, SLOG_V_PROFILING_USE_GETRUSAGE,
++  SLOG_V_MINIMAL, SLOG_V_STANDARD, SLOG_V_FULL
++};
 +#define QPLAN_NONE            0
 +#define QPLAN_QC              1 << 0
 +#define QPLAN_QC_NO           1 << 1
@@ -630,11 +636,15 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 +#define QPLAN_TMP_DISK        1 << 5
 +#define QPLAN_FILESORT        1 << 6
 +#define QPLAN_FILESORT_DISK   1 << 7
-+enum enum_log_slow_filter { SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN, SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT, SLOG_F_FILESORT_DISK};
++enum enum_log_slow_filter {
++  SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN,
++  SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
++  SLOG_F_FILESORT_DISK
++};
  enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                              SLAVE_EXEC_MODE_IDEMPOTENT,
                              SLAVE_EXEC_MODE_LAST_BIT};
-@@ -510,6 +522,17 @@
+@@ -508,6 +528,17 @@
  
    my_bool sysdate_is_now;
  
@@ -652,7 +662,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    double long_query_time_double;
  
  } SV;
-@@ -1142,6 +1165,14 @@
+@@ -1140,6 +1171,14 @@
    uint in_sub_stmt;
    bool enable_slow_log;
    bool last_insert_id_used;
@@ -667,7 +677,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1579,6 +1610,26 @@
+@@ -1575,6 +1614,26 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -697,7 +707,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2010-11-03 01:01:14.000000000 +0300
 +++ b/sql/sql_connect.cc	2010-12-16 04:27:46.000000000 +0300
-@@ -1328,6 +1328,15 @@
+@@ -738,6 +738,15 @@
  
      prepare_new_connection_state(thd);
  
@@ -716,7 +726,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sql_parse.cc	2010-12-16 04:47:41.000000000 +0300
-@@ -1436,7 +1436,6 @@
+@@ -1424,7 +1424,6 @@
    DBUG_RETURN(error);
  }
  
@@ -724,7 +734,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  void log_slow_statement(THD *thd)
  {
    DBUG_ENTER("log_slow_statement");
-@@ -1449,6 +1448,42 @@
+@@ -1437,6 +1436,42 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -767,7 +777,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -1832,6 +1867,9 @@
+@@ -1812,6 +1847,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -777,7 +787,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5262,6 +5300,21 @@
+@@ -5238,6 +5276,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -858,7 +868,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sql_show.cc	2010-12-16 04:27:47.000000000 +0300
-@@ -1977,8 +1977,17 @@
+@@ -1942,8 +1942,17 @@
          table->field[4]->store(command_name[tmp->command].str,
                                 command_name[tmp->command].length, cs);
        /* MYSQL_TIME */
@@ -881,7 +891,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sys_vars.cc	2010-12-16 04:36:12.000000000 +0300
-@@ -2857,6 +2857,112 @@
+@@ -2836,6 +2836,116 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  
@@ -899,7 +909,11 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
 +       SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
 +       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
-+const char* log_slow_verbosity_name[] = { "microtime", "query_plan", "innodb", "minimal", "standard", "full", 0 };
++const char* log_slow_verbosity_name[] = { 
++  "microtime", "query_plan", "innodb", 
++  "profiling", "profling_get_rusage", 
++  "minimal", "standard", "full", 0
++};
 +static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong what, ulonglong by)
 +{
 +  if((value & what) == what)
@@ -942,7 +956,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +static Sys_var_set Sys_log_slow_verbosity(
 +        "log_slow_verbosity",
 +        "Choose how verbose the messages to your slow log will be. "
-+        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb]",
++        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb, profiling, profiling_get_rusage]",
 +        SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
 +        log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME),
 +        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
@@ -994,3 +1008,236 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static Sys_var_mybool Sys_log_slow(
         "log_slow_queries",
+diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
+--- a/sql/sql_profile.cc	2010-11-03 07:01:14.000000000 +0900
++++ b/sql/sql_profile.cc	2010-12-02 20:26:35.448357413 +0900
+@@ -243,7 +243,8 @@
+ {
+   time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
+ #ifdef HAVE_GETRUSAGE
+-  getrusage(RUSAGE_SELF, &rusage);
++  if ((profile->get_profiling())->enabled_getrusage())
++    getrusage(RUSAGE_SELF, &rusage);
+ #elif defined(_WIN32)
+   FILETIME ftDummy;
+   // NOTE: Get{Process|Thread}Times has a granularity of the clock interval,
+@@ -251,6 +252,19 @@
+   // measurable by this function.
+   GetProcessTimes(GetCurrentProcess(), &ftDummy, &ftDummy, &ftKernel, &ftUser);
+ #endif
++
++#ifdef HAVE_CLOCK_GETTIME
++  struct timespec tp;
++
++  if (!(clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
++  {
++    cpu_time_usecs= tp.tv_sec*1000000000.0 + tp.tv_nsec;
++  }
++  else
++#endif
++  {
++    cpu_time_usecs= 0;
++  }
+ }
+ 
+ 
+@@ -366,7 +380,8 @@
+     finish_current_query();
+   }
+ 
+-  enabled= ((thd->variables.option_bits & OPTION_PROFILING) != 0);
++  enabled= ((thd->variables.option_bits & OPTION_PROFILING) != 0) ||
++            ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_PROFILING)) != 0);
+ 
+   if (! enabled) DBUG_VOID_RETURN;
+ 
+@@ -404,7 +419,8 @@
+     status_change("ending", NULL, NULL, 0);
+ 
+     if ((enabled) &&                                    /* ON at start? */
+-        ((thd->variables.option_bits & OPTION_PROFILING) != 0) &&   /* and ON at end? */
++        (((thd->variables.option_bits & OPTION_PROFILING) != 0) ||
++          ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_PROFILING)) != 0)) &&   /* and ON at end? */
+         (current->query_source != NULL) &&
+         (! current->entries.is_empty()))
+     {
+@@ -505,6 +521,118 @@
+   DBUG_VOID_RETURN;
+ }
+ 
++bool PROFILING::enabled_getrusage()
++{
++  return ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_PROFILING_USE_GETRUSAGE)) != 0);
++}
++
++/**
++   For a given profile entry specified by a name and 2 time measurements,
++   print its normalized name (i.e. with all spaces replaced with underscores)
++   along with its wall clock and CPU time.
++*/
++
++static void my_b_print_status(IO_CACHE *log_file, const char *status,
++                              PROF_MEASUREMENT *start, PROF_MEASUREMENT *stop)
++{
++  DBUG_ENTER("my_b_print_status");
++  DBUG_ASSERT(log_file != NULL && status != NULL);
++  char query_time_buff[22+7];
++  const char *tmp;
++
++  my_b_printf(log_file, "Profile_");
++  for (tmp= status; *tmp; tmp++)
++    my_b_write_byte(log_file, *tmp == ' ' ? '_' : *tmp);
++
++  snprintf(query_time_buff, sizeof(query_time_buff), "%.6f",
++           (stop->time_usecs - start->time_usecs) / (1000.0 * 1000));
++  my_b_printf(log_file, ": %s ", query_time_buff);
++
++  my_b_printf(log_file, "Profile_");
++  for (tmp= status; *tmp; tmp++)
++    my_b_write_byte(log_file, *tmp == ' ' ? '_' : *tmp);
++  my_b_printf(log_file, "_cpu: ");
++
++  snprintf(query_time_buff, sizeof(query_time_buff), "%.6f",
++           (stop->cpu_time_usecs - start->cpu_time_usecs) /
++           (1000.0 * 1000 * 1000));
++  my_b_printf(log_file, "%s ", query_time_buff);
++
++  DBUG_VOID_RETURN;
++}
++
++/**
++  Print output for current query to file 
++*/
++
++int PROFILING::print_current(IO_CACHE *log_file)
++{
++  DBUG_ENTER("PROFILING::print_current");
++  ulonglong row_number= 0;
++
++  QUERY_PROFILE *query;
++  /* Get current query */
++  if (current == NULL)
++  {
++    DBUG_RETURN(0);
++  }
++
++  query= current;
++
++  my_b_printf(log_file, "# ");
++
++    void *entry_iterator;
++    PROF_MEASUREMENT *entry= NULL, *previous= NULL, *first= NULL;
++    /* ...and for each query, go through all its state-change steps. */
++    for (entry_iterator= query->entries.new_iterator();
++         entry_iterator != NULL;
++         entry_iterator= query->entries.iterator_next(entry_iterator),
++         previous=entry, row_number++)
++    {
++      entry= query->entries.iterator_value(entry_iterator);
++
++      /* Skip the first.  We count spans of fence, not fence-posts. */
++      if (previous == NULL) {first= entry; continue;}
++
++      if (thd->lex->sql_command == SQLCOM_SHOW_PROFILE)
++      {
++        /*
++          We got here via a SHOW command.  That means that we stored
++          information about the query we wish to show and that isn't
++          in a WHERE clause at a higher level to filter out rows we
++          wish to exclude.
++
++          Because that functionality isn't available in the server yet,
++          we must filter here, at the wrong level.  Once one can con-
++          struct where and having conditions at the SQL layer, then this
++          condition should be ripped out.
++        */
++        if (thd->lex->profile_query_id == 0) /* 0 == show final query */
++        {
++          if (query != last)
++            continue;
++        }
++        else
++        {
++          if (thd->lex->profile_query_id != query->profiling_query_id)
++            continue;
++        }
++      }
++
++      my_b_print_status(log_file, previous->status, previous, entry);
++    }
++
++    my_b_write_byte(log_file, '\n');
++    if ((entry != NULL) && (first != NULL))
++    {
++      my_b_printf(log_file, "# ");
++      my_b_print_status(log_file, "total", first, entry);
++      my_b_write_byte(log_file, '\n');
++    }
++
++  DBUG_RETURN(0);
++}
++
+ /**
+   Fill the information schema table, "query_profile", as defined in show.cc .
+   There are two ways to get to this function:  Selecting from the information
+diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
+--- a/sql/sql_profile.h	2010-11-03 07:01:14.000000000 +0900
++++ b/sql/sql_profile.h	2010-12-02 19:23:07.823955510 +0900
+@@ -164,11 +164,15 @@
+ */
+ class PROF_MEASUREMENT
+ {
+-private:
+-  friend class QUERY_PROFILE;
+-  friend class PROFILING;
+-
+   QUERY_PROFILE *profile;
++
++  char *allocated_status_memory;
++
++  void set_label(const char *status_arg, const char *function_arg, 
++                  const char *file_arg, unsigned int line_arg);
++  void clean_up();
++
++public:
+   char *status;
+ #ifdef HAVE_GETRUSAGE
+   struct rusage rusage;
+@@ -181,12 +185,7 @@
+   unsigned int line;
+ 
+   double time_usecs;
+-  char *allocated_status_memory;
+-
+-  void set_label(const char *status_arg, const char *function_arg, 
+-                  const char *file_arg, unsigned int line_arg);
+-  void clean_up();
+-  
++  double cpu_time_usecs;
+   PROF_MEASUREMENT();
+   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg);
+   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg,
+@@ -231,6 +230,11 @@
+ 
+   /* Show this profile.  This is called by PROFILING. */
+   bool show(uint options);
++
++public:
++
++  inline PROFILING * get_profiling() { return profiling; };
++
+ };
+ 
+ 
+@@ -276,9 +280,11 @@
+ 
+   /* SHOW PROFILES */
+   bool show_profiles();
++  bool enabled_getrusage();
+ 
+   /* ... from INFORMATION_SCHEMA.PROFILING ... */
+   int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
++  int print_current(IO_CACHE *log_file);
+ };
+ 
+ #  endif /* HAVE_PROFILING */

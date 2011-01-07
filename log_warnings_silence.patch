@@ -20,7 +20,7 @@ diff -ruN a/patch_info/log_warnings_silence.patch b/patch_info/log_warnings_sile
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/mysqld.cc	2011-01-05 20:32:34.000000000 +0300
-@@ -619,6 +619,8 @@
+@@ -617,6 +617,8 @@
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
  
@@ -32,7 +32,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/mysqld.h	2011-01-05 20:32:35.000000000 +0300
-@@ -230,6 +230,8 @@
+@@ -222,6 +222,8 @@
  extern TYPELIB thread_handling_typelib;
  extern my_decimal decimal_zero;
  
@@ -44,7 +44,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-01-05 20:31:32.000000000 +0300
 +++ b/sql/sql_class.cc	2011-01-05 20:32:34.000000000 +0300
-@@ -4660,7 +4660,7 @@
+@@ -4544,7 +4544,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
@@ -56,10 +56,10 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/sql_class.h	2011-01-05 20:32:37.000000000 +0300
-@@ -75,6 +75,7 @@
- #define QPLAN_FILESORT        1 << 6
- #define QPLAN_FILESORT_DISK   1 << 7
- enum enum_log_slow_filter { SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN, SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT, SLOG_F_FILESORT_DISK};
+@@ -83,6 +83,7 @@
+   SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
+   SLOG_F_FILESORT_DISK
+ };
 +enum enum_log_warnings_silence { log_warnings_silence_1592 };
  enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                              SLAVE_EXEC_MODE_IDEMPOTENT,

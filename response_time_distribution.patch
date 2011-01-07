@@ -8,7 +8,7 @@
 diff -ruN a/include/mysql_com.h b/include/mysql_com.h
 --- a/include/mysql_com.h	2010-11-03 03:01:11.000000000 +0500
 +++ b/include/mysql_com.h	2010-11-14 16:40:34.000000000 +0500
-@@ -143,10 +143,11 @@
+@@ -137,10 +137,11 @@
  #define REFRESH_FAST		32768	/* Intern flag */
  
  /* RESET (remove all queries) from query cache */
@@ -61,7 +61,7 @@ diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/handler.h	2010-11-14 16:44:23.000000000 +0500
-@@ -586,6 +586,7 @@
+@@ -580,6 +580,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,
    SCH_PROCEDURES,
@@ -72,7 +72,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/lex.h b/sql/lex.h
 --- a/sql/lex.h	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/lex.h	2010-11-14 16:40:48.000000000 +0500
-@@ -428,6 +428,7 @@
+@@ -426,6 +426,7 @@
    { "PURGE",		SYM(PURGE)},
    { "QUARTER",          SYM(QUARTER_SYM)},
    { "QUERY",		SYM(QUERY_SYM)},
@@ -80,6 +80,12 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "QUICK",	        SYM(QUICK)},
    { "RANGE",            SYM(RANGE_SYM)},
    { "READ",		SYM(READ_SYM)},
+diff -ruN a/sql/Makefile.am b/sql/Makefile.am
+--- a/sql/Makefile.am	2010-11-03 03:01:14.000000000 +0500
++++ b/sql/Makefile.am	2010-11-14 16:41:02.000000000 +0500
+diff -ruN a/sql/Makefile.in b/sql/Makefile.in
+--- a/sql/Makefile.in	2010-11-03 03:01:37.000000000 +0500
++++ b/sql/Makefile.in	2010-11-14 16:41:09.000000000 +0500
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-11-13 18:11:01.000000000 +0500
 +++ b/sql/mysqld.cc	2010-11-14 16:41:20.000000000 +0500
@@ -92,7 +98,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -908,6 +910,8 @@
+@@ -901,6 +903,8 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -101,22 +107,23 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1481,6 +1485,7 @@
-   free_global_thread_stats();
-   free_global_table_stats();
-   free_global_index_stats();
+@@ -1469,6 +1473,7 @@
+   my_free(opt_bin_logname);
+   bitmap_free(&temp_pool);
+   free_max_user_conn();
 +  query_response_time_free();
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3942,5 +3947,7 @@
-   init_global_table_stats();
-   init_global_index_stats();
+@@ -3930,6 +3935,8 @@
+   if (!DEFAULT_ERRMSGS[0][0])
+     unireg_abort(1);  
  
 +  query_response_time_init();
 +
- /* We have to initialize the storage engines before CSV logging */
+   /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
+   {
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2010-11-13 18:11:01.000000000 +0500
 +++ b/sql/mysqld.h	2010-11-14 16:42:11.000000000 +0500
@@ -582,7 +589,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1488,22 +1489,30 @@
+@@ -1476,22 +1477,30 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -626,7 +633,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1629,6 +1638,7 @@
+@@ -1610,6 +1619,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -646,10 +653,10 @@ diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
  
  /**
    Reload/resets privileges and the different caches.
-@@ -308,6 +308,10 @@
-     }
-     mysql_mutex_unlock(&LOCK_global_user_client_stats);
-   }
+@@ -274,6 +274,10 @@
+ #endif
+  if (options & REFRESH_USER_RESOURCES)
+    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
 + if (options & REFRESH_QUERY_RESPONSE_TIME)
 + {
 +   query_response_time_flush();
@@ -668,7 +675,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -8048,6 +8049,14 @@
+@@ -7641,6 +7642,14 @@
  
  */
  
@@ -683,7 +690,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -8105,6 +8114,8 @@
+@@ -7694,6 +7703,8 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -695,7 +702,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 --- a/sql/sql_yacc.yy	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/sql_yacc.yy	2010-11-15 16:43:41.000000000 +0500
-@@ -1195,6 +1195,7 @@
+@@ -1193,6 +1193,7 @@
  %token  PURGE
  %token  QUARTER_SYM
  %token  QUERY_SYM
@@ -703,9 +710,9 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -11129,6 +11130,13 @@
-            if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
-              MYSQL_YYABORT;
+@@ -11089,6 +11090,13 @@
+           {
+             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
 +        | QUERY_RESPONSE_TIME_SYM wild_and_where
 +         {
@@ -717,16 +724,16 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11375,6 +11383,8 @@
-           { Lex->type|= REFRESH_TABLE_STATS; }
-         | INDEX_STATS_SYM
-           { Lex->type|= REFRESH_INDEX_STATS; }
+@@ -11325,6 +11333,8 @@
+           { Lex->type|= REFRESH_STATUS; }
+         | SLAVE
+           { Lex->type|= REFRESH_SLAVE; }
 +        | QUERY_RESPONSE_TIME_SYM
 +          { Lex->type|= REFRESH_QUERY_RESPONSE_TIME; }
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12662,6 +12672,7 @@
+@@ -12610,6 +12620,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}
@@ -745,7 +752,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1792,6 +1793,19 @@
+@@ -1775,6 +1776,19 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  

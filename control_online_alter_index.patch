@@ -31,7 +31,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-12-02 20:31:56.200956501 +0900
 +++ b/sql/sql_class.h	2010-12-03 13:51:04.744953174 +0900
-@@ -483,6 +483,8 @@
+@@ -481,6 +481,8 @@
    my_bool engine_condition_pushdown;
    my_bool keep_files_on_create;
  

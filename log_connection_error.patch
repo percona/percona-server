@@ -18,7 +18,7 @@ diff -ruN a/patch_info/log_connection_error.patch b/patch_info/log_connection_er
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-28 16:47:47.105319218 +0400
 +++ b/sql/mysqld.cc	2010-07-28 16:47:47.644101813 +0400
-@@ -4996,6 +4996,10 @@
+@@ -4995,6 +4995,10 @@
  
      DBUG_PRINT("error",("Too many connections"));
      close_connection(thd, ER_CON_COUNT_ERROR, 1);
@@ -29,7 +29,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      delete thd;
      DBUG_VOID_RETURN;
    }
-@@ -5376,6 +5380,10 @@
+@@ -5375,6 +5379,10 @@
      if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
  	my_net_init(&thd->net, thd->net.vio))
      {
@@ -40,7 +40,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
        close_connection(thd, ER_OUT_OF_RESOURCES, 1);
        delete thd;
        continue;
-@@ -5571,6 +5579,10 @@
+@@ -5570,6 +5578,10 @@
                                                     event_conn_closed)) ||
                          my_net_init(&thd->net, thd->net.vio))
      {

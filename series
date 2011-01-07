@@ -1,4 +1,3 @@
-profiling_slow.patch
 microsec_process.patch
 optimizer_fix.patch
 mysql_dump_ignore_ct.patch

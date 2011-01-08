@@ -434,8 +434,7 @@ dbcontext::unlock_tables_if()
     if (for_write_flag) {
       for (size_t i = 0; i < table_vec.size(); ++i) {
 	if (table_vec[i].modified) {
-	  query_cache_invalidate3(thd, table_vec[i].table, 0);
-	    /* invalidate immediately */
+	  query_cache_invalidate3(thd, table_vec[i].table, 1);
 	}
       }
       bool suc = true;

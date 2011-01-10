@@ -27,7 +27,7 @@
 
 %define mysql_version   5.5.8
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 13
+%define majorversion 20
 %define minorversion 0
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	%{majorversion}.%{minorversion}

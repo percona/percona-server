@@ -95,9 +95,9 @@ diff -ruN /dev/null b/patch_info/profiling_slow.info
 diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/log.cc	2010-11-24 19:36:29.000000000 +0300
-@@ -2433,6 +2433,11 @@
+@@ -2434,6 +2434,11 @@
            my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
-         tmp_errno=errno;
+         tmp_errno= errno;
      }
 +
 +#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)

@@ -436,7 +436,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
  /*
    Log slow query with all enabled log event handlers
-@@ -4495,6 +4517,8 @@
+@@ -4496,6 +4518,8 @@
                               thd->first_successful_insert_id_in_prev_stmt_for_binlog);
            if (e.write(file))
              goto err;
@@ -445,7 +445,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
          }
          if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
          {
-@@ -4506,12 +4530,16 @@
+@@ -4507,12 +4531,16 @@
                               minimum());
            if (e.write(file))
              goto err;
@@ -462,7 +462,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
          }
          if (thd->user_var_events.elements)
          {
-@@ -4527,6 +4555,8 @@
+@@ -4528,6 +4556,8 @@
                                   user_var_event->charset_number);
              if (e.write(file))
                goto err;
@@ -471,7 +471,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
            }
          }
        }
-@@ -4539,6 +4569,8 @@
+@@ -4540,6 +4570,8 @@
      if (event_info->write(file) || 
          DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
        goto err;
@@ -480,7 +480,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
      if (file == &log_file) // we are writing to the real log (disk)
      {
-@@ -4684,7 +4716,7 @@
+@@ -4685,7 +4717,7 @@
      be reset as a READ_CACHE to be able to read the contents from it.
   */
  
@@ -489,7 +489,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  {
    Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
  
-@@ -4732,6 +4764,7 @@
+@@ -4733,6 +4765,7 @@
        /* write the first half of the split header */
        if (my_b_write(&log_file, header, carry))
          return ER_ERROR_ON_WRITE;
@@ -497,7 +497,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
        /*
          copy fixed second half of header to cache so the correct
-@@ -4800,6 +4833,7 @@
+@@ -4801,6 +4834,7 @@
      /* Write data to the binary log file */
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
@@ -505,7 +505,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      cache->read_pos=cache->read_end;		// Mark buffer used up
    } while ((length= my_b_fill(cache)));
  
-@@ -4922,21 +4956,24 @@
+@@ -4923,21 +4957,24 @@
        */
        if (qinfo.write(&log_file))
          goto err;
@@ -984,7 +984,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    uint32     server_id;
    uint32     file_id;			// for LOAD DATA INFILE
    /* remote (peer) port */
-@@ -1828,6 +1830,8 @@
+@@ -1833,6 +1835,8 @@
    /* variables.transaction_isolation is reset to this after each commit */
    enum_tx_isolation session_tx_isolation;
    enum_check_fields count_cuted_fields;
@@ -993,7 +993,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  
    DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
    MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
-@@ -1916,6 +1920,49 @@
+@@ -1921,6 +1925,49 @@
    */
    LOG_INFO*  current_linfo;
    NET*       slave_net;			// network connection from slave -> m.
@@ -1043,7 +1043,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    /* Used by the sys_var class to store temporary values */
    union
    {
-@@ -1981,6 +2028,11 @@
+@@ -1986,6 +2033,11 @@
      alloc_root. 
    */
    void init_for_queries();
@@ -1055,7 +1055,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    void change_user(void);
    void cleanup(void);
    void cleanup_after_query();
-@@ -2351,9 +2403,15 @@
+@@ -2356,9 +2408,15 @@
      *p_db= strmake(db, db_length);
      *p_db_length= db_length;
      return FALSE;
@@ -1071,7 +1071,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  public:
    inline Internal_error_handler *get_internal_handler()
    { return m_internal_handler; }
-@@ -2437,6 +2495,9 @@
+@@ -2442,6 +2500,9 @@
    LEX_STRING invoker_host;
  };
  
@@ -1854,7 +1854,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
        DBUG_RETURN(TRUE);
      }
-@@ -5348,6 +5368,7 @@
+@@ -5349,6 +5369,7 @@
        if (!no_errors)
        {
          const char *db_name= db ? db : thd->db;
@@ -1862,7 +1862,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
          my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                   sctx->priv_user, sctx->priv_host, db_name);
        }
-@@ -5380,12 +5401,15 @@
+@@ -5381,12 +5402,15 @@
    {						// We can never grant this
      DBUG_PRINT("error",("No possible access"));
      if (!no_errors)
@@ -1878,7 +1878,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      DBUG_RETURN(TRUE);				/* purecov: tested */
    }
  
-@@ -5411,11 +5435,15 @@
+@@ -5412,11 +5436,15 @@
  
    DBUG_PRINT("error",("Access denied"));
    if (!no_errors)
@@ -1894,7 +1894,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_RETURN(TRUE);				/* purecov: tested */
  }
  
-@@ -5444,6 +5472,7 @@
+@@ -5445,6 +5473,7 @@
  
      if (!thd->col_access && check_grant_db(thd, dst_db_name))
      {
@@ -1902,7 +1902,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                 thd->security_ctx->priv_user,
                 thd->security_ctx->priv_host,
-@@ -5525,9 +5554,12 @@
+@@ -5526,9 +5555,12 @@
          (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
      {
        if (!no_errors)
@@ -1915,7 +1915,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        return TRUE;
      }
      /*
-@@ -5690,6 +5722,7 @@
+@@ -5691,6 +5723,7 @@
    if ((thd->security_ctx->master_access & want_access))
      return 0;
    get_privilege_desc(command, sizeof(command), want_access);
@@ -1923,7 +1923,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -6071,6 +6104,30 @@
+@@ -6072,6 +6105,30 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
  
@@ -1954,7 +1954,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
    {
      LEX *lex= thd->lex;
-@@ -6151,6 +6208,43 @@
+@@ -6152,6 +6209,43 @@
      *found_semicolon= NULL;
    }
  
@@ -1998,7 +1998,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -7016,6 +7110,13 @@
+@@ -7017,6 +7111,13 @@
      if (flush_error_log())
        result=1;
    }
@@ -2012,7 +2012,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #ifdef HAVE_QUERY_CACHE
    if (options & REFRESH_QUERY_CACHE_FREE)
    {
-@@ -7116,6 +7217,40 @@
+@@ -7117,6 +7218,40 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */

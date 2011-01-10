@@ -1,7 +1,8 @@
 FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
 MYSQL_VERSION=5.5.8
-PERCONA_SERVER ?=Percona-Server
+PERCONA_SERVER_VERSION=13.0
+PERCONA_SERVER ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
 DEBUG_DIR ?= $(PERCONA_SERVER)-debug
 RELEASE_DIR ?= $(PERCONA_SERVER)-release
 SERIES ?=series
@@ -9,7 +10,7 @@ CMAKE=CC=gcc CXX=gcc CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-p
 CONFIGUR=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"  LIBS=-lrt ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition
 
 
-all: main install-lic tests misc
+all: main handlersocket maatkit-udf install-lic tests misc
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -18,8 +19,16 @@ all: main install-lic tests misc
 	export CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
 	export LIBS=-lrt
 	@echo ""
-	@echo "and run ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition && make all install"
+	@echo "and run ./configure --prefix=/usr/local/$(PERCONA_SERVER) --with-plugin-innobase --with-plugin-partition && make all install"
 	@echo ""
+
+handlersocket:
+	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
+	patch -p0 -d $(PERCONA_SERVER)/storage/HandlerSocket-Plugin-for-MySQL < handlersocket.patch
+
+maatkit-udf:
+	cp -R UDF "$(PERCONA_SERVER)"
+	cd "$(PERCONA_SERVER)"/UDF && autoreconf --install
 
 configure: all
 	(cd $(PERCONA_SERVER); bash BUILD/autorun.sh; $(CONFIGUR))
@@ -57,7 +66,7 @@ mysql-$(MYSQL_VERSION).tar.gz:
 	$(FETCH_CMD) $(MASTER_SITE)/mysql-$(MYSQL_VERSION).tar.gz
 
 tests:
-	./install_tests.sh
+	PERCONA_SERVER=${PERCONA_SERVER} source ./install_tests.sh
 
 misc:
 	@echo "Installing other files"

@@ -24,11 +24,15 @@ all: main install-lic tests misc
 configure: all
 	(cd $(PERCONA_SERVER); bash BUILD/autorun.sh; $(CONFIGUR))
 
-cmake:
-	rm -rf $(DEBUG_DIR)
+cmake: cmake_release cmake_debug
+
+cmake_release:
 	rm -rf $(RELEASE_DIR)
-	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); $(CMAKE) -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=Full -DMYSQL_MAINTAINER_MODE=OFF ../$(PERCONA_SERVER))
 	(mkdir -p $(RELEASE_DIR); cd $(RELEASE_DIR); $(CMAKE) -G "Unix Makefiles" ../$(PERCONA_SERVER))
+
+cmake_debug:
+	rm -rf $(DEBUG_DIR)
+	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); $(CMAKE) -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=Full -DMYSQL_MAINTAINER_MODE=OFF ../$(PERCONA_SERVER))
 
 binary:
 	(cd $(PERCONA_SERVER); ${CMAKE} . -DBUILD_CONFIG=mysql_release  \

@@ -54,9 +54,19 @@ diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
  drop table t1;
  create table t1 like information_schema.character_sets;
 diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_schema.result
---- a/mysql-test/r/information_schema.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/information_schema.result	2010-12-10 16:48:11.004969423 +0900
-@@ -54,6 +54,7 @@
+--- a/mysql-test/r/information_schema.result	2010-12-03 20:58:24.000000000 +0300
++++ b/mysql-test/r/information_schema.result	2011-01-10 23:02:09.000000000 +0300
+@@ -46,14 +46,17 @@
+ select * from v1;
+ c
+ CHARACTER_SETS
++CLIENT_STATISTICS
+ COLLATIONS
+ COLLATION_CHARACTER_SET_APPLICABILITY
+ COLUMNS
+ COLUMN_PRIVILEGES
++INDEX_STATISTICS
+ ENGINES
  EVENTS
  FILES
  GLOBAL_STATUS
@@ -64,7 +74,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  GLOBAL_VARIABLES
  KEY_COLUMN_USAGE
  PARAMETERS
-@@ -63,6 +64,7 @@
+@@ -63,6 +66,7 @@
  PROFILING
  REFERENTIAL_CONSTRAINTS
  ROUTINES
@@ -72,68 +82,90 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  SCHEMATA
  SCHEMA_PRIVILEGES
  SESSION_STATUS
-@@ -72,9 +74,12 @@
+@@ -72,9 +76,14 @@
  TABLESPACES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TABLE_STATISTICS
 +TEMPORARY_TABLES
++THREAD_STATISTICS
  TRIGGERS
  USER_PRIVILEGES
++USER_STATISTICS
  VIEWS
-+XTRADB_ENHANCEMENTS
 +XTRADB_ADMIN_COMMAND
  columns_priv
  db
  event
-@@ -112,6 +117,7 @@
+@@ -112,6 +121,9 @@
  TABLESPACES	TABLESPACES
  TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
  TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
 +TEMPORARY_TABLES	TEMPORARY_TABLES
++THREAD_STATISTICS	THREAD_STATISTICS
  TRIGGERS	TRIGGERS
  tables_priv	tables_priv
  time_zone	time_zone
-@@ -132,6 +138,7 @@
+@@ -132,6 +144,9 @@
  TABLESPACES	TABLESPACES
  TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
  TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
 +TEMPORARY_TABLES	TEMPORARY_TABLES
++THREAD_STATISTICS	THREAD_STATISTICS
  TRIGGERS	TRIGGERS
  tables_priv	tables_priv
  time_zone	time_zone
-@@ -152,6 +159,7 @@
+@@ -152,6 +167,9 @@
  TABLESPACES	TABLESPACES
  TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
  TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
 +TEMPORARY_TABLES	TEMPORARY_TABLES
++THREAD_STATISTICS	THREAD_STATISTICS
  TRIGGERS	TRIGGERS
  tables_priv	tables_priv
  time_zone	time_zone
-@@ -641,6 +649,7 @@
+@@ -634,13 +652,16 @@
+ where table_schema='information_schema' limit 2;
+ TABLE_NAME	TABLE_TYPE	ENGINE
+ CHARACTER_SETS	SYSTEM VIEW	MEMORY
+-COLLATIONS	SYSTEM VIEW	MEMORY
++CLIENT_STATISTICS	SYSTEM VIEW	MEMORY
+ show tables from information_schema like "T%";
+ Tables_in_information_schema (T%)
+ TABLES
  TABLESPACES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TABLE_STATISTICS
 +TEMPORARY_TABLES
++THREAD_STATISTICS
  TRIGGERS
  create database information_schema;
  ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-@@ -651,6 +660,7 @@
+@@ -651,6 +672,9 @@
  TABLESPACES	SYSTEM VIEW
  TABLE_CONSTRAINTS	SYSTEM VIEW
  TABLE_PRIVILEGES	SYSTEM VIEW
++TABLE_STATISTICS	SYSTEM VIEW
 +TEMPORARY_TABLES	SYSTEM VIEW
++THREAD_STATISTICS	SYSTEM VIEW
  TRIGGERS	SYSTEM VIEW
  create table t1(a int);
  ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
-@@ -664,6 +674,7 @@
+@@ -664,6 +688,9 @@
  TABLESPACES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TABLE_STATISTICS
 +TEMPORARY_TABLES
++THREAD_STATISTICS
  TRIGGERS
  select table_name from tables where table_name='user';
  table_name
-@@ -806,6 +817,8 @@
+@@ -806,6 +833,8 @@
  FILES	CREATE_TIME	datetime
  FILES	UPDATE_TIME	datetime
  FILES	CHECK_TIME	datetime
@@ -142,7 +174,7 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  PARTITIONS	CREATE_TIME	datetime
  PARTITIONS	UPDATE_TIME	datetime
  PARTITIONS	CHECK_TIME	datetime
-@@ -814,6 +827,8 @@
+@@ -814,6 +843,8 @@
  TABLES	CREATE_TIME	datetime
  TABLES	UPDATE_TIME	datetime
  TABLES	CHECK_TIME	datetime
@@ -151,18 +183,21 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  TRIGGERS	CREATED	datetime
  event	execute_at	datetime
  event	last_executed	datetime
-@@ -855,6 +870,7 @@
+@@ -854,7 +885,9 @@
+ TABLE_NAME	COLUMN_NAME	PRIVILEGES
  COLUMNS	TABLE_NAME	select
  COLUMN_PRIVILEGES	TABLE_NAME	select
++INDEX_STATISTICS	TABLE_NAME	select
  FILES	TABLE_NAME	select
 +GLOBAL_TEMPORARY_TABLES	TABLE_NAME	select
  KEY_COLUMN_USAGE	TABLE_NAME	select
  PARTITIONS	TABLE_NAME	select
  REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
-@@ -862,7 +878,10 @@
+@@ -862,7 +895,11 @@
  TABLES	TABLE_NAME	select
  TABLE_CONSTRAINTS	TABLE_NAME	select
  TABLE_PRIVILEGES	TABLE_NAME	select
++TABLE_STATISTICS	TABLE_NAME	select
 +TEMPORARY_TABLES	TABLE_NAME	select
  VIEWS	TABLE_NAME	select
 +INNODB_TABLE_STATS	table_name	select
@@ -170,39 +205,48 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  delete from mysql.user where user='mysqltest_4';
  delete from mysql.db where user='mysqltest_4';
  flush privileges;
-@@ -871,7 +890,7 @@
+@@ -871,7 +908,7 @@
  AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
  GROUP BY TABLE_SCHEMA;
  table_schema	count(*)
 -information_schema	30
-+information_schema	35
++information_schema	39
  mysql	23
  create table t1 (i int, j int);
  create trigger trg1 before insert on t1 for each row
-@@ -1245,12 +1264,12 @@
+@@ -1245,12 +1282,12 @@
  DROP USER mysql_bug20230@localhost;
  SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
  MAX(table_name)
 -VIEWS
-+XTRADB_ENHANCEMENTS
++XTRADB_ADMIN_COMMAND
  SELECT table_name from information_schema.tables
  WHERE table_name=(SELECT MAX(table_name)
  FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
  table_name
 -VIEWS
-+XTRADB_ENHANCEMENTS
++XTRADB_ADMIN_COMMAND
  DROP TABLE IF EXISTS bug23037;
  DROP FUNCTION IF EXISTS get_value;
  SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
-@@ -1319,6 +1338,7 @@
+@@ -1311,6 +1348,7 @@
+ group by t.table_name order by num1, t.table_name;
+ table_name	group_concat(t.table_schema, '.', t.table_name)	num1
+ CHARACTER_SETS	information_schema.CHARACTER_SETS	1
++CLIENT_STATISTICS	information_schema.CLIENT_STATISTICS	1
+ COLLATIONS	information_schema.COLLATIONS	1
+ COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
+ COLUMNS	information_schema.COLUMNS	1
+@@ -1319,13 +1357,16 @@
  EVENTS	information_schema.EVENTS	1
  FILES	information_schema.FILES	1
  GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
 +GLOBAL_TEMPORARY_TABLES	information_schema.GLOBAL_TEMPORARY_TABLES	1
  GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
++INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
  KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
  PARAMETERS	information_schema.PARAMETERS	1
-@@ -1326,6 +1346,7 @@
+ PARTITIONS	information_schema.PARTITIONS	1
  PLUGINS	information_schema.PLUGINS	1
  PROCESSLIST	information_schema.PROCESSLIST	1
  PROFILING	information_schema.PROFILING	1
@@ -210,22 +254,33 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
  ROUTINES	information_schema.ROUTINES	1
  SCHEMATA	information_schema.SCHEMATA	1
-@@ -1337,9 +1358,11 @@
+@@ -1337,8 +1378,12 @@
  TABLESPACES	information_schema.TABLESPACES	1
  TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
  TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
++TABLE_STATISTICS	information_schema.TABLE_STATISTICS	1
 +TEMPORARY_TABLES	information_schema.TEMPORARY_TABLES	1
++THREAD_STATISTICS	information_schema.THREAD_STATISTICS	1
  TRIGGERS	information_schema.TRIGGERS	1
  USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
++USER_STATISTICS	information_schema.USER_STATISTICS	1
  VIEWS	information_schema.VIEWS	1
-+XTRADB_ENHANCEMENTS	information_schema.XTRADB_ENHANCEMENTS	1
  create table t1(f1 int);
  create view v1 as select f1+1 as a from t1;
- create table t2 (f1 int, f2 int);
 diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information_schema_db.result
---- a/mysql-test/r/information_schema_db.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/information_schema_db.result	2010-12-10 16:48:11.007015483 +0900
-@@ -14,6 +14,7 @@
+--- a/mysql-test/r/information_schema_db.result	2010-12-03 20:58:24.000000000 +0300
++++ b/mysql-test/r/information_schema_db.result	2011-01-10 23:06:43.000000000 +0300
+@@ -6,14 +6,17 @@
+ show tables where Tables_in_information_schema NOT LIKE 'Innodb%';
+ Tables_in_information_schema
+ CHARACTER_SETS
++CLIENT_STATISTICS
+ COLLATIONS
+ COLLATION_CHARACTER_SET_APPLICABILITY
+ COLUMNS
+ COLUMN_PRIVILEGES
++INDEX_STATISTICS
+ ENGINES
  EVENTS
  FILES
  GLOBAL_STATUS
@@ -233,7 +288,7 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
  GLOBAL_VARIABLES
  KEY_COLUMN_USAGE
  PARAMETERS
-@@ -23,6 +24,7 @@
+@@ -23,6 +26,7 @@
  PROFILING
  REFERENTIAL_CONSTRAINTS
  ROUTINES
@@ -241,15 +296,17 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
  SCHEMATA
  SCHEMA_PRIVILEGES
  SESSION_STATUS
-@@ -32,15 +34,19 @@
+@@ -32,15 +36,23 @@
  TABLESPACES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TABLE_STATISTICS
 +TEMPORARY_TABLES
++THREAD_STATISTICS
  TRIGGERS
  USER_PRIVILEGES
++USER_STATISTICS
  VIEWS
-+XTRADB_ENHANCEMENTS
 +XTRADB_ADMIN_COMMAND
  show tables from INFORMATION_SCHEMA like 'T%';
  Tables_in_information_schema (T%)
@@ -257,13 +314,15 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
  TABLESPACES
  TABLE_CONSTRAINTS
  TABLE_PRIVILEGES
++TABLE_STATISTICS
 +TEMPORARY_TABLES
++THREAD_STATISTICS
  TRIGGERS
  create database `inf%`;
  create database mbase;
 diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
---- a/mysql-test/r/mysqld--help-notwin.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/mysqld--help-notwin.result	2010-12-10 16:48:11.010052122 +0900
+--- a/mysql-test/r/mysqld--help-notwin.result	2010-12-03 20:58:24.000000000 +0300
++++ b/mysql-test/r/mysqld--help-notwin.result	2011-01-10 23:34:28.000000000 +0300
 @@ -125,6 +125,9 @@
   --div-precision-increment=# 
   Precision of the result of '/' operator will be increased
@@ -274,7 +333,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --engine-condition-pushdown 
   Push supported query conditions to the storage engine.
   Deprecated, use --optimizer-switch instead.
-@@ -244,15 +247,33 @@
+@@ -244,21 +247,43 @@
   --log-slow-admin-statements 
   Log slow OPTIMIZE, ANALYZE, ALTER and other
   administrative statements to the slow log if it is open.
@@ -306,21 +365,21 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
 + --log-slow-verbosity=name 
 + Choose how verbose the messages to your slow log will be.
 + Multiple flags allowed in a comma-separated string.
-+ [microtime, query_plan, innodb]
++ [microtime, query_plan, innodb, profiling,
++ profiling_get_rusage]
   --log-tc=name       Path to transaction coordinator log (used for
   transactions that affect more than one storage engine,
   when binary log is disabled).
-@@ -456,6 +477,9 @@
-  indexes
-  --profiling-history-size=# 
-  Limit of query profiling memory
-+ --profiling-server  Enable profiling of all threads
-+ --profiling-use-getrusage 
-+ Enable getrusage function call for profiling
-  --query-alloc-block-size=# 
-  Allocation block size for query parsing and execution
-  --query-cache-limit=# 
-@@ -464,6 +488,10 @@
+  --log-tc-size=#     Size of transaction coordinator log.
+  -W, --log-warnings[=#] 
+  Log some not critical warnings to the log file
++ --log-warnings-silence=name 
++ disable logging of enumerated warnings: 1592: unsafe
++ statements for binary logging; possible values : [1592]
+  --long-query-time=# Log all queries that have taken more than long_query_time
+  seconds to execute to file. The argument will be treated
+  as a decimal value with microsecond precision
+@@ -464,6 +489,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -331,7 +390,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -472,6 +500,9 @@
+@@ -472,6 +501,9 @@
   Invalidate queries in query cache on LOCK for write
   --query-prealloc-size=# 
   Persistent buffer for query parsing and execution
@@ -341,7 +400,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -649,6 +680,9 @@
+@@ -649,6 +681,9 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
@@ -351,17 +410,16 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --socket=name       Socket file to use for connection
   --sort-buffer-size=# 
   Each thread that needs to do a sort allocates a buffer of
-@@ -658,6 +692,9 @@
-  replication.
-  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
-  for the complete list of valid sql modes
-+ --suppress-log-warning-1592 
-+ suppress warning about unsafe statements for binary
-+ logging
-  -s, --symbolic-links 
-  Enable symbolic link support.
-  --sync-binlog=#     Synchronously flush binary log to disk after every #th
-@@ -715,11 +752,28 @@
+@@ -691,6 +726,8 @@
+  Define threads usage for handling queries, one of
+  one-thread-per-connection, no-threads, loaded-dynamically
+  --thread-stack=#    The stack size for each thread
++ --thread-statistics Control TABLE_STATISTICS running, when userstat_running
++ is enabled
+  --time-format=name  The TIME format (ignored)
+  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
+  currently supported)
+@@ -715,11 +752,24 @@
   Prohibit update of a VIEW, which does not contain a key
   of the underlying table and the query uses a LIMIT clause
   (usually get from GUI tools)
@@ -371,10 +429,10 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
 + [none, log_slow_filter, log_slow_rate_limit,
 + log_slow_verbosity, long_query_time,
 + min_examined_row_limit, all]
-+ --use-global-long-query-time 
-+ Control always use global long_query_time or local
-+ long_query_time.
   -u, --user=name     Run mysqld daemon as user.
++ --userstat-running  Control USER_STATISTICS, CLIENT_STATISTICS,
++ THREAD_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS
++ running
   -v, --verbose       Used with --help option for detailed help.
   -V, --version       Output version information and exit.
   --wait-timeout=#    The number of seconds the server waits for activity on a
@@ -383,14 +441,10 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
 + Enable or disable XTRADB_ADMIN_COMMAND plugin. Possible
 + values are ON, OFF, FORCE (don't start if the plugin
 + fails to load).
-+ --xtradb-enhancements[=name] 
-+ Enable or disable XTRADB_ENHANCEMENTS plugin. Possible
-+ values are ON, OFF, FORCE (don't start if the plugin
-+ fails to load).
  
  Variables (--variable-name=value)
  abort-slave-event-count 0
-@@ -756,6 +810,7 @@
+@@ -756,6 +806,7 @@
  delayed-queue-size 1000
  disconnect-slave-event-count 0
  div-precision-increment 4
@@ -398,7 +452,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  engine-condition-pushdown TRUE
  event-scheduler OFF
  expire-logs-days 0
-@@ -800,7 +855,12 @@
+@@ -800,10 +851,16 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
@@ -411,13 +465,11 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  log-tc tc.log
  log-tc-size 24576
  log-warnings 1
-@@ -873,13 +933,17 @@
- port-open-timeout 0
- preload-buffer-size 32768
- profiling-history-size 15
-+profiling-server FALSE
-+profiling-use-getrusage FALSE
- query-alloc-block-size 8192
++log-warnings-silence 
+ long-query-time 10
+ low-priority-updates FALSE
+ lower-case-table-names 1
+@@ -877,9 +934,11 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0
@@ -429,7 +481,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  range-alloc-block-size 4096
  read-buffer-size 131072
  read-only FALSE
-@@ -914,9 +978,11 @@
+@@ -914,6 +973,7 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE
@@ -437,20 +489,23 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  sort-buffer-size 2097152
  sporadic-binlog-dump-fail FALSE
  sql-mode 
-+suppress-log-warning-1592 FALSE
- symbolic-links FALSE
- sync-binlog 0
- sync-frm TRUE
-@@ -938,8 +1004,12 @@
+@@ -931,6 +991,7 @@
+ thread-cache-size 0
+ thread-handling one-thread-per-connection
+ thread-stack 262144
++thread-statistics FALSE
+ time-format %H:%i:%s
+ timed-mutexes FALSE
+ tmp-table-size 16777216
+@@ -938,8 +999,11 @@
  transaction-isolation REPEATABLE-READ
  transaction-prealloc-size 4096
  updatable-views-with-limit YES
 +use-global-log-slow-control 
-+use-global-long-query-time FALSE
++userstat-running FALSE
  verbose TRUE
  wait-timeout 28800
 +xtradb-admin-command ON
-+xtradb-enhancements ON
  
  To see what values a running MySQL server is using, type
  'mysqladmin variables' instead of 'mysqld --verbose --help'.
@@ -467,9 +522,19 @@ diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
  
  /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
---- a/mysql-test/r/mysqlshow.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/mysqlshow.result	2010-12-10 16:48:11.018052711 +0900
-@@ -88,6 +88,7 @@
+--- a/mysql-test/r/mysqlshow.result	2010-12-03 20:58:24.000000000 +0300
++++ b/mysql-test/r/mysqlshow.result	2011-01-11 16:41:03.000000000 +0300
+@@ -80,14 +80,17 @@
+ |                Tables                 |
+ +---------------------------------------+
+ | CHARACTER_SETS                        |
++| CLIENT_STATISTICS                     |
+ | COLLATIONS                            |
+ | COLLATION_CHARACTER_SET_APPLICABILITY |
+ | COLUMNS                               |
+ | COLUMN_PRIVILEGES                     |
++| INDEX_STATISTICS                      |
+ | ENGINES                               |
  | EVENTS                                |
  | FILES                                 |
  | GLOBAL_STATUS                         |
@@ -477,7 +542,7 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  | GLOBAL_VARIABLES                      |
  | KEY_COLUMN_USAGE                      |
  | PARAMETERS                            |
-@@ -97,6 +98,7 @@
+@@ -97,6 +100,7 @@
  | PROFILING                             |
  | REFERENTIAL_CONSTRAINTS               |
  | ROUTINES                              |
@@ -485,13 +550,16 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  | SCHEMATA                              |
  | SCHEMA_PRIVILEGES                     |
  | SESSION_STATUS                        |
-@@ -106,16 +108,33 @@
+@@ -106,30 +110,52 @@
  | TABLESPACES                           |
  | TABLE_CONSTRAINTS                     |
  | TABLE_PRIVILEGES                      |
++| TABLE_STATISTICS                      |
 +| TEMPORARY_TABLES                      |
++| THREAD_STATISTICS                     |
  | TRIGGERS                              |
  | USER_PRIVILEGES                       |
++| USER_STATISTICS                       |
  | VIEWS                                 |
 -| INNODB_CMP_RESET                      |
 +| INNODB_SYS_COLUMNS                    |
@@ -499,11 +567,11 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
 +| INNODB_CMP                            |
  | INNODB_TRX                            |
 -| INNODB_CMPMEM_RESET                   |
-+| XTRADB_ENHANCEMENTS                   |
++| INNODB_SYS_TABLESTATS                 |
  | INNODB_LOCK_WAITS                     |
 -| INNODB_CMPMEM                         |
 -| INNODB_CMP                            |
-+| INNODB_SYS_TABLESTATS                 |
++| XTRADB_ADMIN_COMMAND                  |
  | INNODB_LOCKS                          |
 +| INNODB_SYS_FOREIGN_COLS               |
 +| INNODB_CMP_RESET                      |
@@ -515,15 +583,23 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
 +| INNODB_CMPMEM_RESET                   |
 +| INNODB_SYS_FIELDS                     |
 +| INNODB_TABLE_STATS                    |
-+| INNODB_INDEX_STATS                    |
 +| INNODB_SYS_STATS                      |
 +| INNODB_SYS_FOREIGN                    |
 +| INNODB_SYS_INDEXES                    |
-+| XTRADB_ADMIN_COMMAND                  |
++| INNODB_INDEX_STATS                    |
  +---------------------------------------+
  Database: INFORMATION_SCHEMA
  +---------------------------------------+
-@@ -130,6 +149,7 @@
+ |                Tables                 |
+ +---------------------------------------+
+ | CHARACTER_SETS                        |
++| CLIENT_STATISTICS                     |
+ | COLLATIONS                            |
+ | COLLATION_CHARACTER_SET_APPLICABILITY |
+ | COLUMNS                               |
+ | COLUMN_PRIVILEGES                     |
++| INDEX_STATISTICS                      |
+ | ENGINES                               |
  | EVENTS                                |
  | FILES                                 |
  | GLOBAL_STATUS                         |
@@ -531,7 +607,7 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  | GLOBAL_VARIABLES                      |
  | KEY_COLUMN_USAGE                      |
  | PARAMETERS                            |
-@@ -139,6 +159,7 @@
+@@ -139,6 +165,7 @@
  | PROFILING                             |
  | REFERENTIAL_CONSTRAINTS               |
  | ROUTINES                              |
@@ -539,13 +615,16 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  | SCHEMATA                              |
  | SCHEMA_PRIVILEGES                     |
  | SESSION_STATUS                        |
-@@ -148,16 +169,33 @@
+@@ -148,16 +175,35 @@
  | TABLESPACES                           |
  | TABLE_CONSTRAINTS                     |
  | TABLE_PRIVILEGES                      |
++| TABLE_STATISTICS                      |
 +| TEMPORARY_TABLES                      |
++| THREAD_STATISTICS                     |
  | TRIGGERS                              |
  | USER_PRIVILEGES                       |
++| USER_STATISTICS                       |
  | VIEWS                                 |
 -| INNODB_CMP_RESET                      |
 +| INNODB_SYS_COLUMNS                    |
@@ -553,11 +632,11 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
 +| INNODB_CMP                            |
  | INNODB_TRX                            |
 -| INNODB_CMPMEM_RESET                   |
-+| XTRADB_ENHANCEMENTS                   |
++| INNODB_SYS_TABLESTATS                 |
  | INNODB_LOCK_WAITS                     |
 -| INNODB_CMPMEM                         |
 -| INNODB_CMP                            |
-+| INNODB_SYS_TABLESTATS                 |
++| XTRADB_ADMIN_COMMAND                  |
  | INNODB_LOCKS                          |
 +| INNODB_SYS_FOREIGN_COLS               |
 +| INNODB_CMP_RESET                      |
@@ -569,43 +648,13 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
 +| INNODB_CMPMEM_RESET                   |
 +| INNODB_SYS_FIELDS                     |
 +| INNODB_TABLE_STATS                    |
-+| INNODB_INDEX_STATS                    |
 +| INNODB_SYS_STATS                      |
 +| INNODB_SYS_FOREIGN                    |
 +| INNODB_SYS_INDEXES                    |
-+| XTRADB_ADMIN_COMMAND                  |
++| INNODB_INDEX_STATS                    |
  +---------------------------------------+
  Wildcard: inf_rmation_schema
  +--------------------+
-diff -ruN a/mysql-test/r/profiling.result b/mysql-test/r/profiling.result
---- a/mysql-test/r/profiling.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/profiling.result	2010-12-10 16:48:11.019053241 +0900
-@@ -6,6 +6,8 @@
- Variable_name	Value
- profiling	OFF
- profiling_history_size	15
-+profiling_server	OFF
-+profiling_use_getrusage	OFF
- select @@profiling;
- @@profiling
- 0
-@@ -15,12 +17,16 @@
- Variable_name	Value
- profiling	OFF
- profiling_history_size	100
-+profiling_server	OFF
-+profiling_use_getrusage	OFF
- set session profiling = ON;
- set session profiling_history_size=30;
- show session variables like 'profil%';
- Variable_name	Value
- profiling	ON
- profiling_history_size	30
-+profiling_server	OFF
-+profiling_use_getrusage	OFF
- select @@profiling;
- @@profiling
- 1
 diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
 --- a/mysql-test/r/select.result	2010-11-03 07:01:12.000000000 +0900
 +++ b/mysql-test/r/select.result	2010-12-10 16:48:11.023052909 +0900
@@ -635,26 +684,25 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
  variable_value
  16384
 diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
---- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-11-03 07:01:13.000000000 +0900
-+++ b/mysql-test/suite/sys_vars/r/all_vars.result	2010-12-10 16:48:11.030053040 +0900
-@@ -11,7 +11,101 @@
+--- a/mysql-test/suite/sys_vars/r/all_vars.result	2010-12-03 20:58:25.000000000 +0300
++++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-01-10 23:09:13.000000000 +0300
+@@ -11,7 +11,99 @@
  select variable_name as `There should be *no* variables listed below:` from t2
  left join t1 on variable_name=test_name where test_name is null;
  There should be *no* variables listed below:
-+QUERY_RESPONSE_TIME_RANGE_BASE
++INNODB_BUFFER_POOL_SHM_KEY
 +LOG_SLOW_SP_STATEMENTS
-+LOG_SLOW_FILTER
++INNODB_DOUBLEWRITE_FILE
 +INNODB_THREAD_CONCURRENCY_TIMER_BASED
 +LOG_SLOW_TIMESTAMP_EVERY
 +INNODB_READ_AHEAD
 +INNODB_PASS_CORRUPT_TABLE
++INNODB_RECOVERY_STATS
 +INNODB_FLUSH_NEIGHBOR_PAGES
 +INNODB_BUFFER_POOL_SHM_CHECKSUM
-+USE_GLOBAL_LONG_QUERY_TIME
-+SUPPRESS_LOG_WARNING_1592
 +INNODB_FLUSH_LOG_AT_TRX_COMMIT_SESSION
-+ENABLE_QUERY_RESPONSE_TIME_STATS
 +LOG_SLOW_VERBOSITY
++ENABLE_QUERY_RESPONSE_TIME_STATS
 +OPTIMIZER_FIX
 +INNODB_ADAPTIVE_CHECKPOINT
 +INNODB_SHOW_LOCKS_HELD
@@ -662,47 +710,46 @@ diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_v
 +INNODB_EXPAND_IMPORT
 +QUERY_CACHE_STRIP_COMMENTS
 +INNODB_CHECKPOINT_AGE_TARGET
-+INNODB_ADAPTIVE_HASH_INDEX_NUM
 +INNODB_STATS_METHOD
 +LOG_SLOW_RATE_LIMIT
 +INNODB_PAGE_SIZE
++USERSTAT_RUNNING
 +FAST_INDEX_CREATION
-+INNODB_ENABLE_UNSAFE_GROUP_COMMIT
- INNODB_FILE_FORMAT_MAX
-+SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP
-+INNODB_BUFFER_POOL_SHM_KEY
-+PROFILING_SERVER
 +USE_GLOBAL_LOG_SLOW_CONTROL
-+INNODB_RECOVERY_STATS
++INNODB_ENABLE_UNSAFE_GROUP_COMMIT
++INNODB_SHOW_VERBOSE_LOCKS
++INNODB_ADAPTIVE_HASH_INDEX_PARTITIONS
++SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP
++INNODB_LOG_BLOCK_SIZE
 +INNODB_USE_SYS_STATS_TABLE
-+INNODB_DOUBLEWRITE_FILE
 +INNODB_STATS_UPDATE_NEED_LOCK
++QUERY_RESPONSE_TIME_RANGE_BASE
 +INNODB_STATS_AUTO_UPDATE
 +INNODB_IBUF_ACTIVE_CONTRACT
+ INNODB_FILE_FORMAT_MAX
 +INNODB_AUTO_LRU_DUMP
-+INNODB_FAST_CHECKSUM
++LOG_WARNINGS_SILENCE
++LOG_SLOW_FILTER
 +INNODB_DICT_SIZE_LIMIT
-+INNODB_LOG_BLOCK_SIZE
-+INNODB_SHOW_VERBOSE_LOCKS
 +INNODB_IBUF_MAX_SIZE
-+PROFILING_USE_GETRUSAGE
++INNODB_FAST_CHECKSUM
++LOG_SLOW_SLAVE_STATEMENTS
 +INNODB_OVERWRITE_RELAY_LOG_INFO
 +INNODB_EXTRA_RSEGMENTS
-+LOG_SLOW_SLAVE_STATEMENTS
-+QUERY_RESPONSE_TIME_RANGE_BASE
++THREAD_STATISTICS
++INNODB_BUFFER_POOL_SHM_KEY
 +LOG_SLOW_SP_STATEMENTS
-+LOG_SLOW_FILTER
++INNODB_DOUBLEWRITE_FILE
 +INNODB_THREAD_CONCURRENCY_TIMER_BASED
 +LOG_SLOW_TIMESTAMP_EVERY
 +INNODB_READ_AHEAD
 +INNODB_PASS_CORRUPT_TABLE
++INNODB_RECOVERY_STATS
 +INNODB_FLUSH_NEIGHBOR_PAGES
 +INNODB_BUFFER_POOL_SHM_CHECKSUM
-+USE_GLOBAL_LONG_QUERY_TIME
-+SUPPRESS_LOG_WARNING_1592
 +INNODB_FLUSH_LOG_AT_TRX_COMMIT_SESSION
-+ENABLE_QUERY_RESPONSE_TIME_STATS
 +LOG_SLOW_VERBOSITY
++ENABLE_QUERY_RESPONSE_TIME_STATS
 +OPTIMIZER_FIX
 +INNODB_ADAPTIVE_CHECKPOINT
 +INNODB_SHOW_LOCKS_HELD
@@ -710,33 +757,33 @@ diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_v
 +INNODB_EXPAND_IMPORT
 +QUERY_CACHE_STRIP_COMMENTS
 +INNODB_CHECKPOINT_AGE_TARGET
-+INNODB_ADAPTIVE_HASH_INDEX_NUM
 +INNODB_STATS_METHOD
 +LOG_SLOW_RATE_LIMIT
 +INNODB_PAGE_SIZE
++USERSTAT_RUNNING
 +FAST_INDEX_CREATION
-+INNODB_ENABLE_UNSAFE_GROUP_COMMIT
- INNODB_FILE_FORMAT_MAX
-+SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP
-+INNODB_BUFFER_POOL_SHM_KEY
-+PROFILING_SERVER
 +USE_GLOBAL_LOG_SLOW_CONTROL
-+INNODB_RECOVERY_STATS
++INNODB_ENABLE_UNSAFE_GROUP_COMMIT
++INNODB_SHOW_VERBOSE_LOCKS
++INNODB_ADAPTIVE_HASH_INDEX_PARTITIONS
++SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP
++INNODB_LOG_BLOCK_SIZE
 +INNODB_USE_SYS_STATS_TABLE
-+INNODB_DOUBLEWRITE_FILE
 +INNODB_STATS_UPDATE_NEED_LOCK
++QUERY_RESPONSE_TIME_RANGE_BASE
 +INNODB_STATS_AUTO_UPDATE
 +INNODB_IBUF_ACTIVE_CONTRACT
+ INNODB_FILE_FORMAT_MAX
 +INNODB_AUTO_LRU_DUMP
-+INNODB_FAST_CHECKSUM
++LOG_WARNINGS_SILENCE
++LOG_SLOW_FILTER
 +INNODB_DICT_SIZE_LIMIT
-+INNODB_LOG_BLOCK_SIZE
-+INNODB_SHOW_VERBOSE_LOCKS
 +INNODB_IBUF_MAX_SIZE
-+PROFILING_USE_GETRUSAGE
++INNODB_FAST_CHECKSUM
++LOG_SLOW_SLAVE_STATEMENTS
 +INNODB_OVERWRITE_RELAY_LOG_INFO
 +INNODB_EXTRA_RSEGMENTS
-+LOG_SLOW_SLAVE_STATEMENTS
++THREAD_STATISTICS
  drop table t1;
  drop table t2;
 diff -ruN a/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_basic.result b/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_basic.result

@@ -332,7 +332,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 +                    (ulong) thd->tmp_tables_size) == (uint) -1)
        tmp_errno= errno;
 +
-+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
++#if defined(ENABLED_PROFILING)
 +    thd->profiling.print_current(&log_file);
 +#endif
 +    if (thd->innodb_was_used)

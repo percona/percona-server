@@ -109,7 +109,7 @@ hv_to_strmap(HV *hv, std::map<std::string, std::string>& m_r)
 static void
 strrefarr_push_back(std::vector<dena::string_ref>& a_r, SV *sv)
 {
-  if (sv == 0 || SvTYPE(sv) == SVt_NULL) {
+  if (sv == 0 || SvTYPE(sv) == SVt_NULL) { /* !SvPOK()? */
     DBG(fprintf(stderr, "strrefarr_push_back: null\n"));
     return a_r.push_back(dena::string_ref());
   }
@@ -135,7 +135,7 @@ av_to_strrefarr(AV *av, std::vector<dena::string_ref>& a_r)
 static dena::string_ref
 sv_get_string_ref(SV *sv)
 {
-  if (sv == 0) {
+  if (sv == 0 || SvTYPE(sv) == SVt_NULL) { /* !SvPOK()? */
     return dena::string_ref();
   }
   STRLEN vlen = 0;

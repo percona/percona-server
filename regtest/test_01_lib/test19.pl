@@ -10,6 +10,7 @@ BEGIN {
 
 use strict;
 use warnings;
+use bigint;
 use hstest;
 
 my $numeric_types = [

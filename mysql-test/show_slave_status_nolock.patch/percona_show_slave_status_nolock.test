@@ -2,8 +2,6 @@
 --source include/master-slave.inc
 
 connection slave;
-SET @slave_old_suppress_log_warning_1592 = @@suppress_log_warning_1592;
-SET GLOBAL SUPPRESS_LOG_WARNING_1592 = 1;
 connection master;
 -- disable_warnings
 DROP TABLE IF EXISTS t;
@@ -34,6 +32,3 @@ connection master;
 reap;
 DROP TABLE t;
 sync_slave_with_master;
-
-connection slave;
-SET GLOBAL suppress_log_warning_1592 = @slave_old_suppress_log_warning_1592;

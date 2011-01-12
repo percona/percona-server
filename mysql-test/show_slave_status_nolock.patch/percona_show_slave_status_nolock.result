@@ -4,8 +4,6 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-SET @slave_old_suppress_log_warning_1592 = @@suppress_log_warning_1592;
-SET GLOBAL SUPPRESS_LOG_WARNING_1592 = 1;
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
 INSERT INTO t SELECT SLEEP(5);
@@ -23,4 +21,3 @@ START SLAVE;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 DROP TABLE t;
-SET GLOBAL suppress_log_warning_1592 = @slave_old_suppress_log_warning_1592;

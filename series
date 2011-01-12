@@ -40,4 +40,5 @@ sql_no_fcache.patch
 show_slave_status_nolock.patch
 log_warnings_silence.patch
 userstat.patch
+bug580324.patch
 mysql-test.diff

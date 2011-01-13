@@ -738,7 +738,8 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   args.op = string_ref(op_begin, op_end);
   skip_one(start, finish);
   const uint32_t fldnum = read_ui32(start, finish);
-  string_ref flds[fldnum]; /* GNU */
+  string_ref *const flds = DENA_ALLOCA_ALLOCATE(string_ref, fldnum);
+  auto_alloca_free<string_ref> flds_autofree(flds);
   args.kvals = flds;
   args.kvalslen = fldnum;
   for (size_t i = 0; i < fldnum; ++i) {
@@ -828,7 +829,8 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   char *const mod_op_end = start;
   args.mod_op = string_ref(mod_op_begin, mod_op_end);
   const size_t num_uvals = args.pst->get_ret_fields().size();
-  string_ref uflds[num_uvals]; /* GNU */
+  string_ref *const uflds = DENA_ALLOCA_ALLOCATE(string_ref, num_uvals);
+  auto_alloca_free<string_ref> uflds_autofree(uflds);
   for (size_t i = 0; i < num_uvals; ++i) {
     skip_one(start, finish);
     char *const f_begin = start;

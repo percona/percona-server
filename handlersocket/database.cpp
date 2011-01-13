@@ -391,7 +391,7 @@ dbcontext::lock_tables_if()
   }
   if (lock == 0) {
     const size_t num_max = table_vec.size();
-    TABLE *tables[num_max ? num_max : 1]; /* GNU */
+    TABLE **const tables = DENA_ALLOCA_ALLOCATE(TABLE *, num_max + 1);
     size_t num_open = 0;
     for (size_t i = 0; i < num_max; ++i) {
       if (table_vec[i].refcount > 0) {
@@ -422,6 +422,7 @@ dbcontext::lock_tables_if()
       thd->current_stmt_binlog_row_based = 1;
       #endif
     }
+    DENA_ALLOCA_FREE(tables);
   }
   DBG_LOCK(fprintf(stderr, "HNDSOCK tblnum=%d\n", (int)tblnum));
 }
@@ -728,7 +729,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   if (args.kvalslen > kinfo.key_parts) {
     return cb.dbcb_resp_short(2, "kpnum");
   }
-  uchar key_buf[kinfo.key_length]; /* GNU */
+  uchar *const key_buf = DENA_ALLOCA_ALLOCATE(uchar, kinfo.key_length);
   size_t kplen_sum = 0;
   {
     DBG_KEY(fprintf(stderr, "SLOW\n"));
@@ -754,8 +755,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   if (args.filters != 0) {
     const size_t filter_buf_len = calc_filter_buf_size(table, pst,
       args.filters);
-    filter_buf = reinterpret_cast<uchar *>(alloca(filter_buf_len));
-      /* FIXME: TEST */
+    filter_buf = DENA_ALLOCA_ALLOCATE(uchar, filter_buf_len);
     if (!fill_filter_buf(table, pst, args.filters, filter_buf,
       filter_buf_len)) {
       return cb.dbcb_resp_short(2, "filterblob");
@@ -846,6 +846,8 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       cb.dbcb_resp_short_num(0, modified_count);
     }
   }
+  DENA_ALLOCA_FREE(filter_buf);
+  DENA_ALLOCA_FREE(key_buf);
 }
 
 size_t
@@ -860,6 +862,9 @@ dbcontext::calc_filter_buf_size(TABLE *table, const prep_stmt& pst,
     const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
     filter_buf_len += table->field[fn]->pack_length();
   }
+  ++filter_buf_len;
+    /* Field_medium::cmp() calls uint3korr(), which may read 4 bytes.
+       Allocate 1 more byte for safety. */
   return filter_buf_len;
 }
 

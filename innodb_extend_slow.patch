@@ -379,7 +379,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:36:44.293955189 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:42:42.090024586 +0900
-@@ -1524,6 +1524,16 @@
+@@ -1526,6 +1526,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_VOID_RETURN;
  }
  
-@@ -1578,6 +1588,32 @@
+@@ -1580,6 +1590,32 @@
  	return(trx);
  }
  
@@ -429,7 +429,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9198,6 +9234,25 @@
+@@ -9200,6 +9236,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -885,7 +885,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* This is set to TRUE if the MySQL user has set it in MySQL; currently
  affects only FOREIGN KEY definition parsing */
  UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-@@ -1216,6 +1219,10 @@
+@@ -1217,6 +1220,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -896,7 +896,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1292,6 +1299,7 @@
+@@ -1293,6 +1300,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -904,7 +904,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		trx->op_info = "";
-@@ -1347,6 +1355,13 @@
+@@ -1348,6 +1356,13 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  
@@ -918,7 +918,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
-@@ -1355,6 +1370,12 @@
+@@ -1356,6 +1371,12 @@
  
  	trx->op_info = "";
  

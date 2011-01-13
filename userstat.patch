@@ -422,7 +422,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  {
    Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
  
-@@ -5103,6 +5120,7 @@
+@@ -5103,6 +5121,7 @@
        /* write the first half of the split header */
        if (my_b_write(&log_file, header, carry))
          return ER_ERROR_ON_WRITE;
@@ -430,7 +430,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
        /*
          copy fixed second half of header to cache so the correct
-@@ -5171,6 +5189,7 @@
+@@ -5171,6 +5190,7 @@
      /* Write data to the binary log file */
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
@@ -438,7 +438,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      cache->read_pos=cache->read_end;		// Mark buffer used up
    } while ((length= my_b_fill(cache)));
  
-@@ -5281,20 +5300,23 @@
+@@ -5281,20 +5301,23 @@
        Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE, TRUE, 0);
        if (qinfo.write(&log_file))
          goto err;
@@ -477,7 +477,7 @@ diff -ruN a/sql/log.h b/sql/log.h
    void set_write_error(THD *thd);
    bool check_write_error(THD *thd);
  
-@@ -566,6 +566,7 @@
+@@ -566,6 +567,7 @@
                             const char *sql_text, uint sql_text_len,
                             CHARSET_INFO *client_cs);
    void flush();
@@ -582,8 +582,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    sp_cache_init();
  #ifdef HAVE_EVENT_SCHEDULER
    Events::init_mutexes();
-@@ -3950,7 +3975,10 @@
- 
+@@ -3951,6 +3976,9 @@
    query_response_time_init();
  
    /* We have to initialize the storage engines before CSV logging */
@@ -854,7 +853,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /*
    Init THD for query processing.
-@@ -1688,6 +1774,32 @@
+@@ -1688,6 +1784,32 @@
  }
  #endif
  
@@ -887,7 +886,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  struct Item_change_record: public ilink
  {
-@@ -1864,6 +1976,7 @@
+@@ -1864,6 +1986,7 @@
    }
  
    thd->sent_row_count++;
@@ -895,7 +894,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if (thd->vio_ok())
      DBUG_RETURN(protocol->write());
-@@ -1956,6 +2069,7 @@
+@@ -1956,6 +2079,7 @@
  select_export::~select_export()
  {
    thd->sent_row_count=row_count;
@@ -903,7 +902,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -2979,6 +3093,7 @@
+@@ -2979,6 +3103,7 @@
    if (likely(thd != 0))
    { /* current_thd==0 when close_connection() calls net_send_error() */
      thd->status_var.bytes_sent+= length;
@@ -911,7 +910,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
    }
  }
  
-@@ -2986,6 +3101,7 @@
+@@ -2986,6 +3111,7 @@
  void thd_increment_bytes_received(ulong length)
  {
    current_thd->status_var.bytes_received+= length;
@@ -1018,7 +1017,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  public:
    inline Internal_error_handler *get_internal_handler()
    { return m_internal_handler; }
-@@ -2913,6 +2973,10 @@
+@@ -2913,6 +2974,10 @@
    LEX_STRING invoker_host;
  };
  
@@ -1644,7 +1643,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
  
  /*
    check if user has already too many connections
-@@ -169,6 +747,7 @@
+@@ -169,6 +767,7 @@
    if (error)
    {
      uc->connections--; // no need for decrease_user_connections() here
@@ -1652,7 +1651,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
      /*
        The thread may returned back to the pool and assigned to a user
        that doesn't have a limit. Ensure the user is not using resources
-@@ -565,11 +1144,18 @@
+@@ -565,11 +1164,18 @@
        my_sleep(1000);				/* must wait after eof() */
  #endif
      statistic_increment(aborted_connects,&LOCK_status);
@@ -1671,7 +1670,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    DBUG_RETURN(0);
  }
  
-@@ -599,6 +1192,7 @@
+@@ -599,6 +1205,7 @@
    if (thd->killed || (net->error && net->vio != 0))
    {
      statistic_increment(aborted_threads,&LOCK_status);
@@ -1679,7 +1678,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
    }
  
    if (net->error && net->vio != 0)
-@@ -728,10 +1322,14 @@
+@@ -728,10 +1335,14 @@
    for (;;)
    {
      NET *net= &thd->net;
@@ -1694,7 +1693,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
  
      MYSQL_CONNECTION_START(thd->thread_id, thd->security_ctx->priv_user,
                             (char *) thd->security_ctx->host_or_ip);
-@@ -758,6 +1356,8 @@
+@@ -758,6 +1369,8 @@
     
  end_thread:
      close_connection(thd, 0, 1);
@@ -1813,7 +1812,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Commands which always take a long time are logged into
      the slow log only if opt_log_slow_admin_statements is set.
-@@ -1613,6 +1625,13 @@
+@@ -1613,6 +1626,13 @@
      thd->profiling.discard_current_query();
  #endif
      break;
@@ -1827,7 +1826,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_OPEN_TABLES:
    case SCH_VARIABLES:
    case SCH_STATUS:
-@@ -1770,6 +1789,7 @@
+@@ -1770,6 +1790,7 @@
                         thd->security_ctx->priv_host)) &&
          check_global_access(thd, SUPER_ACL))
      {
@@ -1835,7 +1834,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
        DBUG_RETURN(TRUE);
      }
-@@ -4699,6 +4719,7 @@
+@@ -4699,6 +4720,7 @@
        case ACL_INTERNAL_ACCESS_DENIED:
          if (! no_errors)
          {
@@ -1843,7 +1842,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
            my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                     sctx->priv_user, sctx->priv_host, db);
          }
-@@ -4749,6 +4770,7 @@
+@@ -4749,6 +4771,7 @@
      DBUG_PRINT("error",("No possible access"));
      if (!no_errors)
      {
@@ -1851,7 +1850,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        if (thd->password == 2)
          my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
                   sctx->priv_user,
-@@ -4865,6 +4887,7 @@
+@@ -4865,6 +4888,7 @@
  
      if (!thd->col_access && check_grant_db(thd, dst_db_name))
      {
@@ -1859,7 +1858,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                 thd->security_ctx->priv_user,
                 thd->security_ctx->priv_host,
-@@ -5135,6 +5158,7 @@
+@@ -5135,6 +5159,7 @@
    if ((thd->security_ctx->master_access & want_access))
      return 0;
    get_privilege_desc(command, sizeof(command), want_access);
@@ -1867,11 +1866,10 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -5522,6 +5546,32 @@
-   */
+@@ -5523,6 +5548,32 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
-+
+ 
 +  int start_time_error=   0;
 +  int end_time_error=     0;
 +  struct timeval start_time, end_time;
@@ -1897,10 +1895,11 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
 +    }
 +  }
- 
++
    if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
    {
-@@ -5591,6 +5639,52 @@
+     LEX *lex= thd->lex;
+@@ -5591,6 +5642,52 @@
      DBUG_ASSERT(thd->change_list.is_empty());
    }
  
@@ -2002,7 +2001,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  
    if (thd->stmt_map.insert(thd, stmt))
    {
-@@ -2182,7 +2209,7 @@
+@@ -2182,7 +2211,7 @@
        The error is set in the insert. The statement itself
        will be also deleted there (this is how the hash works).
      */
@@ -2011,7 +2010,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    thd->protocol= &thd->protocol_binary;
-@@ -2196,6 +2223,53 @@
+@@ -2196,6 +2225,53 @@
    thd->protocol= save_protocol;
  
    /* check_prepared_statemnt sends the metadata packet in case of success */
@@ -2065,7 +2064,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2553,12 +2618,38 @@
+@@ -2553,12 +2629,38 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2105,7 +2104,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
  #if defined(ENABLED_PROFILING)
-@@ -2576,6 +2665,53 @@
+@@ -2576,6 +2678,53 @@
    /* Close connection socket; for use with client testing (Bug#43560). */
    DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
  
@@ -2159,7 +2158,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2648,20 +2775,47 @@
+@@ -2648,20 +2797,47 @@
  
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
@@ -2209,7 +2208,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    thd->stmt_arena= stmt;
-@@ -2678,6 +2830,52 @@
+@@ -2678,6 +2854,52 @@
    thd->restore_backup_statement(stmt, &stmt_backup);
    thd->stmt_arena= thd;
  
@@ -2262,7 +2261,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2708,13 +2898,39 @@
+@@ -2708,13 +2930,39 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2303,7 +2302,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    stmt->close_cursor();
-@@ -2731,6 +2945,53 @@
+@@ -2731,6 +2979,53 @@
  
    my_ok(thd);
  
@@ -2456,7 +2455,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  /***************************************************************************
  ** List all table types supported
  ***************************************************************************/
-@@ -799,6 +833,7 @@
+@@ -799,6 +836,7 @@
  		sctx->master_access);
    if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
    {
@@ -2464,7 +2463,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
      my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
               sctx->priv_user, sctx->host_or_ip, dbname);
      general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-@@ -2351,6 +2386,284 @@
+@@ -2351,6 +2389,284 @@
    DBUG_RETURN(res);
  }
  
@@ -2749,7 +2748,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /* collect status for all running threads */
  
-@@ -7465,6 +7774,104 @@
+@@ -7465,6 +7781,104 @@
  };
  
  
@@ -2854,7 +2853,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_FIELD_INFO processlist_fields_info[]=
  {
    {"ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Id", SKIP_OPEN_TABLE},
-@@ -7654,6 +8061,8 @@
+@@ -7654,6 +8068,8 @@
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
     fill_schema_charsets, make_character_sets_old_format, 0, -1, -1, 0, 0},
@@ -2863,7 +2862,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"COLLATIONS", collation_fields_info, create_schema_table, 
     fill_schema_collation, make_old_format, 0, -1, -1, 0, 0},
    {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
-@@ -7663,6 +8072,8 @@
+@@ -7663,6 +8079,8 @@
     OPTIMIZE_I_S_TABLE|OPEN_VIEW_FULL},
    {"COLUMN_PRIVILEGES", column_privileges_fields_info, create_schema_table,
     fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
@@ -2872,7 +2871,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"ENGINES", engines_fields_info, create_schema_table,
     fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
  #ifdef HAVE_EVENT_SCHEDULER
-@@ -7730,14 +8141,20 @@
+@@ -7730,14 +8148,20 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
@@ -3328,7 +3327,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1569,6 +1587,14 @@
+@@ -1569,6 +1588,14 @@
    ha_statistic_increment(&SSV::ha_read_key_count);
    int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3343,7 +3342,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1583,6 +1608,14 @@
+@@ -1583,6 +1610,14 @@
    int error=mi_rkey(file, buf, active_index, key, keypart_map,
                      HA_READ_PREFIX_LAST);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3358,7 +3357,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    DBUG_RETURN(error);
  }
-@@ -1594,6 +1626,13 @@
+@@ -1594,6 +1629,13 @@
    ha_statistic_increment(&SSV::ha_read_next_count);
    int error=mi_rnext(file,buf,active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3372,7 +3371,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1605,6 +1644,13 @@
+@@ -1605,6 +1647,13 @@
    ha_statistic_increment(&SSV::ha_read_prev_count);
    int error=mi_rprev(file,buf, active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3386,7 +3385,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1616,6 +1662,14 @@
+@@ -1616,6 +1665,14 @@
    ha_statistic_increment(&SSV::ha_read_first_count);
    int error=mi_rfirst(file, buf, active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3401,7 +3400,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1627,6 +1680,14 @@
+@@ -1627,6 +1684,14 @@
    ha_statistic_increment(&SSV::ha_read_last_count);
    int error=mi_rlast(file, buf, active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3416,7 +3415,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1644,6 +1704,14 @@
+@@ -1644,6 +1709,14 @@
      error= mi_rnext_same(file,buf);
    } while (error == HA_ERR_RECORD_DELETED);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3431,7 +3430,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1663,6 +1730,8 @@
+@@ -1663,6 +1736,8 @@
    ha_statistic_increment(&SSV::ha_read_rnd_next_count);
    int error=mi_scan(file, buf);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3440,7 +3439,7 @@ diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
    MYSQL_READ_ROW_DONE(error);
    return error;
  }
-@@ -1679,6 +1748,8 @@
+@@ -1679,6 +1754,8 @@
    ha_statistic_increment(&SSV::ha_read_rnd_count);
    int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
    table->status=error ? STATUS_NOT_FOUND: 0;

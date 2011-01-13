@@ -66,7 +66,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static handler *innobase_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-@@ -817,6 +823,17 @@
+@@ -819,6 +825,17 @@
  	}
  }
  
@@ -84,7 +84,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2388,6 +2405,9 @@
+@@ -2390,6 +2407,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -94,7 +94,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -10105,6 +10125,10 @@
+@@ -10107,6 +10127,10 @@
  	    && (all
  		|| !thd_test_options(
  			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  		/* For ibbackup to work the order of transactions in binlog
  		and InnoDB must be the same. Consider the situation
-@@ -10915,9 +10939,9 @@
+@@ -10917,9 +10941,9 @@
  
  static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -11007,7 +11031,7 @@
+@@ -11009,7 +11033,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
    PLUGIN_VAR_NOCMDARG,
    "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
@@ -126,7 +126,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
    PLUGIN_VAR_RQCMDARG,
-@@ -11059,7 +11083,7 @@
+@@ -11061,7 +11085,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -135,7 +135,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11204,6 +11228,102 @@
+@@ -11206,6 +11230,102 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -238,7 +238,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11260,6 +11380,15 @@
+@@ -11262,6 +11382,15 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -331,7 +331,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -387,8 +397,9 @@
+@@ -389,8 +399,9 @@
  				when writing data files, but do flush
  				after writing to log files */
  	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
@@ -511,7 +511,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:09:51.301987792 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:13:29.369986988 +0900
-@@ -397,6 +397,17 @@
+@@ -398,6 +398,17 @@
  
  UNIV_INTERN ulong	srv_replication_delay		= 0;
  
@@ -529,7 +529,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2690,6 +2701,7 @@
+@@ -2692,6 +2703,7 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -537,7 +537,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	ulint		n_bytes_archived;
  	ulint		n_tables_to_drop;
  	ulint		n_ios;
-@@ -2697,7 +2709,20 @@
+@@ -2699,7 +2711,20 @@
  	ulint		n_ios_very_old;
  	ulint		n_pend_ios;
  	ulint		next_itr_time;
@@ -558,7 +558,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
-@@ -2719,6 +2744,9 @@
+@@ -2721,6 +2746,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -568,7 +568,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2749,9 +2777,13 @@
+@@ -2751,9 +2779,13 @@
  	/* Sleep for 1 second on entrying the for loop below the first time. */
  	next_itr_time = ut_time_ms() + 1000;
  
@@ -582,7 +582,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		/* ALTER TABLE in MySQL requires on Unix that the table handler
  		can drop tables lazily after there no longer are SELECT
  		queries to them. */
-@@ -2775,6 +2807,7 @@
+@@ -2777,6 +2809,7 @@
  		srv_main_thread_op_info = "sleeping";
  		srv_main_1_second_loops++;
  
@@ -590,7 +590,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		if (next_itr_time > cur_time
  		    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
  
-@@ -2785,10 +2818,26 @@
+@@ -2787,10 +2820,26 @@
  					(next_itr_time - cur_time)
  					 * 1000));
  			srv_main_sleeps++;
@@ -617,7 +617,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  		/* Flush logs if needed */
  		srv_sync_log_buffer_in_background();
-@@ -2808,7 +2857,7 @@
+@@ -2810,7 +2859,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -626,7 +626,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2825,6 +2874,10 @@
+@@ -2827,6 +2876,10 @@
  			n_pages_flushed = buf_flush_list(
  				PCT_IO(100), IB_ULONGLONG_MAX);
  
@@ -637,7 +637,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2841,6 +2894,267 @@
+@@ -2843,6 +2896,267 @@
  						n_flush,
  						IB_ULONGLONG_MAX);
  			}
@@ -905,7 +905,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2889,7 +3203,7 @@
+@@ -2891,7 +3205,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -914,7 +914,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2997,7 +3311,7 @@
+@@ -2999,7 +3313,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -923,7 +923,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-@@ -3143,6 +3457,7 @@
+@@ -3145,6 +3459,7 @@
  	srv_slot_t*	slot;
  	ulint		slot_no = ULINT_UNDEFINED;
  	ulint		n_total_purged = ULINT_UNDEFINED;
@@ -931,7 +931,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	ut_a(srv_n_purge_threads == 1);
  
-@@ -3165,9 +3480,12 @@
+@@ -3167,9 +3482,12 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -944,7 +944,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  		/* If there are very few records to purge or the last
  		purge didn't purge any records then wait for activity.
-@@ -3208,6 +3526,16 @@
+@@ -3210,6 +3528,16 @@
  		} while (n_pages_purged > 0 && !srv_fast_shutdown);
  
  		srv_sync_log_buffer_in_background();

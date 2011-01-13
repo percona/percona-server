@@ -302,7 +302,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:43:57.294986852 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:45:47.534959966 +0900
-@@ -653,6 +653,8 @@
+@@ -655,6 +655,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
@@ -311,7 +311,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11537,6 +11539,11 @@
+@@ -11539,6 +11541,11 @@
    "Number of extra user rollback segments which are used in a round-robin fashion.",
    NULL, NULL, 127, 0, 127, 0);
  
@@ -323,7 +323,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11605,6 +11612,7 @@
+@@ -11607,6 +11614,7 @@
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),
@@ -417,7 +417,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -697,6 +697,7 @@
+@@ -699,6 +699,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */
@@ -428,7 +428,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:43:57.301024390 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:45:47.565023830 +0900
-@@ -411,6 +411,7 @@
+@@ -412,6 +412,7 @@
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
  UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
@@ -436,7 +436,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2179,6 +2180,7 @@
+@@ -2180,6 +2181,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

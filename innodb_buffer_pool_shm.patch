@@ -172,7 +172,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +		ut_a(buf_pool->n_chunks == 1);
 +
 +		fprintf(stderr,
-+		"InnoDB: Warning: The innodb_buffer_pool_shm_key option has been specified.\n"
++		"InnoDB: Notice: The innodb_buffer_pool_shm_key option has been specified.\n"
 +		"InnoDB: Do not change the following between restarts of the server while this option is being used:\n"
 +		"InnoDB:   * the mysqld executable between restarts of the server.\n"
 +		"InnoDB:   * the value of innodb_buffer_pool_size.\n"

@@ -319,6 +319,7 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
   set_thread_message("hs:listening");
   DBG_THR(fprintf(stderr, "HNDSOCK x1 %p\n", thd));
 
+  /* TODO: implement proper metadata locking */
   #if MYSQL_VERSION_ID >= 50508
   mdl_request = new(thd->mem_root) MDL_request;
   mdl_request->init(MDL_key::TABLE, "", "",

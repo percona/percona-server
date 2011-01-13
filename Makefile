@@ -5,21 +5,15 @@ PERCONA_SERVER ?=Percona-Server
 DEBUG_DIR ?= $(PERCONA_SERVER)-debug
 RELEASE_DIR ?= $(PERCONA_SERVER)-release
 SERIES ?=series
-CMAKE=CC=gcc CXX=gcc CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing -DDBUG_OFF" CXXFLAGS="-fno-exceptions  -fPIC -Wall -Wno-unused-parameter -fno-implicit-templates -fno-exceptions -fno-rtti -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing -DDBUG_OFF" cmake 
+CMAKE=CC=gcc44 CXX=gcc44 CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing -DDBUG_OFF" CXXFLAGS="-fno-exceptions  -fPIC -Wall -Wno-unused-parameter -fno-implicit-templates -fno-exceptions -fno-rtti -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing -DDBUG_OFF" cmake 
 CONFIGUR=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"  LIBS=-lrt ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition
 
+REVS = $(shell bzr log | grep rev | head -1   )
+REV  = $(word 2, $(REVS) )
 
 all: main install-lic tests misc
 	@echo ""
 	@echo "Percona Server source code is ready"
-	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
-	@echo ""
-	export CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
-	export CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
-	export LIBS=-lrt
-	@echo ""
-	@echo "and run ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition && make all install"
-	@echo ""
 
 configure: all
 	(cd $(PERCONA_SERVER); bash BUILD/autorun.sh; $(CONFIGUR))
@@ -37,11 +31,11 @@ cmake_debug:
 binary:
 	(cd $(PERCONA_SERVER); ${CMAKE} . -DBUILD_CONFIG=mysql_release  \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	   -DCMAKE_INSTALL_PREFIX="/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION)" \
+	   -DCMAKE_INSTALL_PREFIX="/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION)-$(REV)" \
            -DFEATURE_SET="community" \
 	   -DWITH_EMBEDDED_SERVER=OFF \
            -DCOMPILATION_COMMENT="Percona-Server" \
-           -DMYSQL_SERVER_SUFFIX="${MYSQL_VERSION}" )
+           -DMYSQL_SERVER_SUFFIX="-$(REV)" )
 
 install-lic: 
 	@echo "Installing license files"

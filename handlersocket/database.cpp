@@ -185,11 +185,6 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   std::vector<char> info_message_buf;
   table_vec_type table_vec;
   table_map_type table_map;
-  #if MYSQL_VERSION_ID >= 50505
-  MDL_request *mdl_request;
-  #else
-  void *mdl_request;
-  #endif
 };
 
 database::database(const config& c)
@@ -228,7 +223,7 @@ database_i::create(const config& conf)
 dbcontext::dbcontext(volatile database *d, bool for_write)
   : dbref(d), for_write_flag(for_write), thd(0), lock(0), lock_failed(false),
     user_level_lock_timeout(0), user_level_lock_locked(false),
-    commit_error(false), mdl_request(0)
+    commit_error(false)
 {
   info_message_buf.resize(8192);
   user_level_lock_timeout = d->get_conf().get_int("wrlock_timeout", 12);
@@ -275,6 +270,8 @@ wait_server_to_start(THD *thd, volatile int& shutdown_flag)
 
 }; // namespace
 
+#define DENA_THR_OFFSETOF(fld) ((char *)(&thd->fld) - (char *)thd)
+
 void
 dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
 {
@@ -283,9 +280,17 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
     my_thread_init();
     thd = new THD;
     thd->thread_stack = (char *)stack_bottom;
-    DBG_THR(const size_t of = (char *)(&thd->thread_stack) - (char *)thd);
-    DBG_THR(fprintf(stderr, "thread_stack = %p sz=%zu of=%zu\n",
-      thd->thread_stack, sizeof(THD), of));
+    DBG_THR(fprintf(stderr,
+      "thread_stack = %p sizeof(THD)=%zu sizeof(mtx)=%zu "
+      "O: %zu %zu %zu %zu %zu %zu %zu\n",
+      thd->thread_stack, sizeof(THD), sizeof(LOCK_thread_count),
+      DENA_THR_OFFSETOF(mdl_context),
+      DENA_THR_OFFSETOF(net),
+      DENA_THR_OFFSETOF(LOCK_thd_data),
+      DENA_THR_OFFSETOF(mysys_var),
+      DENA_THR_OFFSETOF(stmt_arena),
+      DENA_THR_OFFSETOF(limit_found_rows),
+      DENA_THR_OFFSETOF(locked_tables_list)));
     thd->store_globals();
     thd->system_thread = static_cast<enum_thread_type>(1<<30UL);
     const NET v = { 0 };
@@ -318,16 +323,6 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
   thd_proc_info(thd, &info_message_buf[0]);
   set_thread_message("hs:listening");
   DBG_THR(fprintf(stderr, "HNDSOCK x1 %p\n", thd));
-
-  /* TODO: implement proper metadata locking */
-  #if MYSQL_VERSION_ID >= 50508
-  mdl_request = new(thd->mem_root) MDL_request;
-  mdl_request->init(MDL_key::TABLE, "", "",
-    for_write_flag ?  MDL_SHARED_WRITE : MDL_SHARED_READ, MDL_STATEMENT);
-  #elif MYSQL_VERSION_ID >= 50505
-  mdl_request = MDL_request::create(MDL_key::TABLE, "", "",
-    for_write_flag ?  MDL_SHARED_WRITE : MDL_SHARED_READ, thd->mem_root);
-  #endif
 
   lex_start(thd);
 
@@ -432,13 +427,17 @@ void
 dbcontext::unlock_tables_if()
 {
   if (lock != 0) {
-    DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK unlock tables\n"));
+    DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK unlock tables %p %p\n",
+      thd, thd->lock));
     if (for_write_flag) {
       for (size_t i = 0; i < table_vec.size(); ++i) {
 	if (table_vec[i].modified) {
 	  query_cache_invalidate3(thd, table_vec[i].table, 1);
+	  table_vec[i].table->file->ha_release_auto_increment();
 	}
       }
+    }
+    {
       bool suc = true;
       #if MYSQL_VERSION_ID >= 50505
       suc = (trans_commit_stmt(thd) == 0);
@@ -482,6 +481,9 @@ dbcontext::close_tables_if()
   if (!table_vec.empty()) {
     DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK close tables\n"));
     close_thread_tables(thd);
+    #if MYSQL_VERSION_ID >= 50505
+    thd->mdl_context.release_transactional_locks();
+    #endif
     statistic_increment(close_tables_count, &LOCK_status);
     table_vec.clear();
     table_map.clear();
@@ -547,7 +549,6 @@ dbcontext::dump_record(dbcallback_i& cb, TABLE *const table,
     Field *const fld = table->field[fn];
     if (fld->is_null()) {
       /* null */
-      cb.dbcb_resp_entry(0, 0);
       fprintf(stderr, "NULL");
     } else {
       fld->val_str(&rwpstr, &rwpstr);
@@ -983,8 +984,9 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     #if MYSQL_VERSION_ID >= 50505
     tables.init_one_table(dbn, strlen(dbn), tbl, strlen(tbl), tbl,
       lock_type);
-    tables.mdl_request = mdl_request;
-    Open_table_context ot_act(thd, MYSQL_OPEN_REOPEN);
+    tables.mdl_request.init(MDL_key::TABLE, dbn, tbl,
+      for_write_flag ? MDL_SHARED_WRITE : MDL_SHARED_READ, MDL_TRANSACTION);
+    Open_table_context ot_act(thd, 0);
     if (!open_table(thd, &tables, thd->mem_root, &ot_act)) {
       table = tables.table;
     }

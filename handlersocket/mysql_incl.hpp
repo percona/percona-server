@@ -17,9 +17,6 @@
 #define MYSQL_SERVER 1
 
 #include <my_config.h>
-#ifdef DBUG_ON
-#define SAFE_MUTEX
-#endif
 
 #include <mysql_version.h>
 

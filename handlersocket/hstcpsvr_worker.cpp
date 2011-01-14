@@ -78,6 +78,7 @@ struct hstcpsvr_conn : public dbcallback_i {
   virtual const prep_stmt *dbcb_get_prep_stmt(size_t pst_id) const;
   virtual void dbcb_resp_short(uint32_t code, const char *msg);
   virtual void dbcb_resp_short_num(uint32_t code, uint32_t value);
+  virtual void dbcb_resp_short_num64(uint32_t code, uint64_t value);
   virtual void dbcb_resp_begin(size_t num_flds);
   virtual void dbcb_resp_entry(const char *fld, size_t fldlen);
   virtual void dbcb_resp_end();
@@ -202,6 +203,15 @@ hstcpsvr_conn::dbcb_resp_short_num(uint32_t code, uint32_t value)
   write_ui32(cstate.writebuf, code);
   cstate.writebuf.append_literal("\t1\t");
   write_ui32(cstate.writebuf, value);
+  cstate.writebuf.append_literal("\n");
+}
+
+void
+hstcpsvr_conn::dbcb_resp_short_num64(uint32_t code, uint64_t value)
+{
+  write_ui32(cstate.writebuf, code);
+  cstate.writebuf.append_literal("\t1\t");
+  write_ui64(cstate.writebuf, value);
   cstate.writebuf.append_literal("\n");
 }
 

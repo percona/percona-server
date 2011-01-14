@@ -39,6 +39,9 @@ for (my $i = 0; $i < $tablesize; ++$i) {
   if ($err != 0) {
     my $err_str = $r->[1];
     print "$err $err_str\n";
+  } else {
+    my $id = $r->[1];
+    print "$id $v1\n";
   }
 }
 

@@ -62,6 +62,7 @@ struct dbcallback_i {
   virtual const prep_stmt *dbcb_get_prep_stmt(size_t pst_id) const = 0;
   virtual void dbcb_resp_short(uint32_t code, const char *msg) = 0;
   virtual void dbcb_resp_short_num(uint32_t code, uint32_t value) = 0;
+  virtual void dbcb_resp_short_num64(uint32_t code, uint64_t value) = 0;
   virtual void dbcb_resp_begin(size_t num_flds) = 0;
   virtual void dbcb_resp_entry(const char *fld, size_t fldlen) = 0;
   virtual void dbcb_resp_end() = 0;

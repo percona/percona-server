@@ -672,9 +672,14 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
     }
   }
   table->next_number_field = table->found_next_number_field;
+    /* FIXME: test */
   const int r = hnd->ha_write_row(buf);
+  const ulonglong insert_id = table->file->insert_id_for_cur_row;
   table->next_number_field = 0;
   table_vec[pst.get_table_id()].modified = true;
+  if (r == 0 && table->found_next_number_field != 0) {
+    return cb.dbcb_resp_short_num64(0, insert_id);
+  }
   return cb.dbcb_resp_short(r != 0 ? 1 : 0, "");
 }
 

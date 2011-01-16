@@ -2,7 +2,7 @@
 
 # vim:sw=2:ai
 
-# test for auto_increment
+# tests that columns to be inserted are specified by open_index
 
 BEGIN {
 	push @INC, "../common/";

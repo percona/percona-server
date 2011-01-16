@@ -41,4 +41,5 @@ show_slave_status_nolock.patch
 log_warnings_silence.patch
 userstat.patch
 bug580324.patch
+mysql_remove_eol_carret.patch
 mysql-test.diff

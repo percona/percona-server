@@ -56,11 +56,11 @@ for (my $i = 0; $i <= 30; ++$i) {
   shift(@$r);
   ($rk, $rv1, $rv2) = @$r;
   print "PK $rk $rv1 $rv2\n";
-  my $r = $hs->execute_single(2, '=', [ $v1 ], 1, 0);
+  $r = $hs->execute_single(2, '=', [ $v1 ], 1, 0);
   shift(@$r);
   ($rk, $rv1, $rv2) = @$r;
   print "I1 $rk $rv1 $rv2\n";
-  my $r = $hs->execute_single(3, '=', [ $v2, $v1 ], 1, 0);
+  $r = $hs->execute_single(3, '=', [ $v2, $v1 ], 1, 0);
   shift(@$r);
   ($rk, $rv1, $rv2) = @$r;
   print "I2 $rk $rv1 $rv2\n";

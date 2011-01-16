@@ -657,13 +657,15 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   uchar *const buf = table->record[0];
   empty_record(table);
   memset(buf, 0, table->s->null_bytes); /* clear null flags */
-  Field **fld = table->field;
-  size_t i = 0;
-  for (; *fld && i < fvalslen; ++fld, ++i) {
+  const prep_stmt::fields_type& rf = pst.get_ret_fields();
+  const size_t n = rf.size();
+  for (size_t i = 0; i < n; ++i) {
+    uint32_t fn = rf[i];
+    Field *const fld = table->field[fn];
     if (fvals[i].begin() == 0) {
-      (*fld)->set_null();
+      fld->set_null();
     } else {
-      (*fld)->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
+      fld->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
     }
   }
   table->next_number_field = table->found_next_number_field;

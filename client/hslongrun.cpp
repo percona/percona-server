@@ -258,14 +258,23 @@ hs_longrun_thread_hs::run()
   while (arg.sh.running) {
     if (cli.get() == 0 || !cli->stable_point()) {
       cli = hstcpcli_i::create(sockargs);
-      if (check_hs_error("connect", 0) != 0) { continue; }
+      if (check_hs_error("connect", 0) != 0) {
+	cli.reset();
+	continue;
+      }
       cli->request_buf_open_index(0, "hstestdb", "hstesttbl", "PRIMARY",
 	"k,v1,v2,v3", "k,v1,v2,v3");
       cli->request_send();
-      if (check_hs_error("openindex_send", 0) != 0) { continue; }
+      if (check_hs_error("openindex_send", 0) != 0) {
+	cli.reset();
+	continue;
+      }
       size_t num_flds = 0;
       cli->response_recv(num_flds);
-      if (check_hs_error("openindex_recv", 0) != 0) { continue; }
+      if (check_hs_error("openindex_recv", 0) != 0) {
+	cli.reset();
+	continue;
+      }
       cli->response_buf_remove();
     }
     const size_t rec_id = rand_record();
@@ -311,6 +320,11 @@ hs_longrun_thread_hs::op_insert(record_value& rec)
   if (check_hs_error("op_insert_send", &rec) != 0) { return 1; }
   size_t numflds = 0;
   cli->response_recv(numflds);
+  if (arg.sh.verbose > 10) {
+    const string_ref *row = cli->get_next_row();
+    fprintf(stderr, "HS op=+ errrcode=%d errmess=[%s]\n", cli->get_error_code(),
+      row ? to_string(row[0]).c_str() : "");
+  }
   const bool op_success = cli->get_error_code() == 0;
   int ret = 0;
   if (!rec.unknown_state) {
@@ -576,6 +590,165 @@ hs_longrun_thread_hs::check_hs_error(const char *mess, record_value *rec)
   return 1;
 }
 
+struct hs_longrun_thread_my : public hs_longrun_thread_base {
+  hs_longrun_thread_my(const arg_type& arg)
+    : hs_longrun_thread_base(arg), connected(false) { }
+  void run();
+  void show_mysql_error(const char *mess, record_value *rec);
+  int op_insert(record_value& rec);
+  int op_delete(record_value& rec);
+  int op_update(record_value& rec);
+  int op_read(record_value& rec);
+  auto_mysql db;
+  bool connected;
+};
+
+void
+hs_longrun_thread_my::run()
+{
+  const std::string mysql_host = arg.sh.conf.get_str("host", "localhost");
+  const std::string mysql_user = arg.sh.conf.get_str("mysqluser", "root");
+  const std::string mysql_passwd = arg.sh.conf.get_str("mysqlpass", "");
+  const std::string mysql_dbname = "hstestdb";
+
+  while (arg.sh.running) {
+    if (!connected) {
+      if (!mysql_real_connect(db, mysql_host.c_str(), mysql_user.c_str(),
+	mysql_passwd.c_str(), mysql_dbname.c_str(), mysql_port, 0, 0)) {
+	show_mysql_error("mysql_real_connect", 0);
+	continue;
+      }
+    }
+    connected = true;
+    const size_t rec_id = rand_record();
+    record_value& rec = *arg.sh.records[rec_id];
+    lock_guard g(rec.lock);
+    int e = 0;
+    switch (arg.op) {
+    #if 0
+    case 'I':
+      e = op_insert(rec);
+      break;
+    case 'D':
+      e = op_delete(rec);
+      break;
+    case 'U':
+      e = op_update(rec);
+      break;
+    #endif
+    case 'R':
+      e = op_read(rec);
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+int
+hs_longrun_thread_my::op_read(record_value& rec)
+{
+  const std::string k = rec.key;
+  char query[1024] = { 0 };
+  const int len = snprintf(query, 1024,
+    "select k,v1,v2,v3 from hstesttbl where k='%s'", k.c_str());
+  const int r = mysql_real_query(db, query, len > 0 ? len : 0);
+  if (r != 0) {
+    show_mysql_error(query, 0);
+    return 1;
+  }
+  MYSQL_ROW row = 0;
+  unsigned long *lengths = 0;
+  unsigned int numflds = 0;
+  auto_mysql_res res(db);
+  if (res != 0) {
+    numflds = mysql_num_fields(res);
+    row = mysql_fetch_row(res);
+    if (row != 0) {
+      lengths = mysql_fetch_lengths(res);
+    }
+  }
+  const bool op_success = (row != 0);
+  int ret = 0;
+  if (!rec.unknown_state) {
+    if (!rec.deleted && !op_success) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_read_failure\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str());
+      }
+      ret = 1;
+    } else if (rec.deleted && op_success) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_read_success\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str());
+      }
+      ret = 1;
+    } else if (numflds != 4) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_read_fldnum %d\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str(),
+	  static_cast<int>(numflds));
+      }
+      ret = 1;
+    } else if (rec.deleted) {
+      /* nothing to verify */
+    } else {
+      int diff = 0;
+      for (size_t i = 0; i < 4; ++i) {
+	const std::string& expected = rec.values[i];
+	if (expected.size() == lengths[i] &&
+	  memcmp(expected.data(), row[i], lengths[i]) == 0) {
+	  /* ok */
+	} else {
+	  diff = 1;
+	}
+      }
+      if (diff) {
+	std::string mess;
+	for (size_t i = 0; i < 4; ++i) {
+	  const std::string& expected = rec.values[i];
+	  const std::string val(row[i], lengths[i]);
+	  mess += " " + val + "/" + expected;
+	}
+	if (arg.sh.verbose > 0) {
+	  fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	    "unexpected_read_value %s\n",
+	    arg.worker_type.c_str(), arg.id, k.c_str(), mess.c_str());
+	}
+	ret = 1;
+      }
+    }
+  }
+  if (arg.sh.verbose >= 100 && ret == 0) {
+    fprintf(stderr, "MY_READ %s\n", k.c_str());
+  }
+  if (ret == 0 && !rec.unknown_state) {
+    ++stat.success_count;
+  }
+  return ret;
+}
+
+void
+hs_longrun_thread_my::show_mysql_error(const char *mess, record_value *rec)
+{
+  ++stat.runtime_error_count;
+  if (arg.sh.verbose > 0) {
+    fprintf(stderr, "RUNTIME_ERROR: op=%c wid=%d [%s]: %s\n",
+      arg.op, arg.id, mess, mysql_error(db));
+  }
+  if (rec) {
+    rec->unknown_state = true;
+  }
+  db.reset();
+  connected = false;
+}
+
 void
 mysql_do(MYSQL *db, const char *query)
 {
@@ -594,9 +767,8 @@ hs_longrun_init_table(const config& conf, int num_prepare,
   const std::string mysql_passwd = conf.get_str("mysqlpass", "");
   const std::string mysql_dbname = "";
   auto_mysql db;
-  if (!mysql_real_connect(db, mysql_host.c_str(),
-    mysql_user.c_str(), mysql_user.empty() ? 0 : mysql_passwd.c_str(),
-    mysql_dbname.c_str(), mysql_port, 0, 0)) {
+  if (!mysql_real_connect(db, mysql_host.c_str(), mysql_user.c_str(),
+    mysql_passwd.c_str(), mysql_dbname.c_str(), mysql_port, 0, 0)) {
     fprintf(stderr, "mysql: error=[%s]\n", mysql_error(db));
     fatal_exit("hs_longrun_init_table");
   }
@@ -648,6 +820,7 @@ hs_longrun_main(int argc, char **argv)
   const int num_hsdelete = shared.conf.get_int("num_hsdelete", 10);
   const int num_hsupdate = shared.conf.get_int("num_hsupdate", 10);
   const int num_hsread = shared.conf.get_int("num_hsread", 10);
+  const int num_myread = shared.conf.get_int("num_myread", 10);
   hs_longrun_init_table(shared.conf, num_hsinsert == 0 ? table_size : 0,
     shared);
   /* create worker threads */
@@ -675,6 +848,12 @@ hs_longrun_main(int argc, char **argv)
     int id = thrs.size();
     const hs_longrun_thread_hs::arg_type arg(id, "hsread", 'R', shared);
     std::auto_ptr<hs_longrun_thread_base> thr(new hs_longrun_thread_hs(arg));
+    thrs.push_back_ptr(thr);
+  }
+  for (int i = 0; i < num_myread; ++i) {
+    int id = thrs.size();
+    const hs_longrun_thread_hs::arg_type arg(id, "myread", 'R', shared);
+    std::auto_ptr<hs_longrun_thread_base> thr(new hs_longrun_thread_my(arg));
     thrs.push_back_ptr(thr);
   }
   shared.num_threads = thrs.size();

@@ -592,7 +592,7 @@ hs_longrun_init_table(const config& conf, int num_prepare,
   const std::string mysql_host = conf.get_str("host", "localhost");
   const std::string mysql_user = conf.get_str("mysqluser", "root");
   const std::string mysql_passwd = conf.get_str("mysqlpass", "");
-  const std::string mysql_dbname = "hstestdb";
+  const std::string mysql_dbname = "";
   auto_mysql db;
   if (!mysql_real_connect(db, mysql_host.c_str(),
     mysql_user.c_str(), mysql_user.empty() ? 0 : mysql_passwd.c_str(),

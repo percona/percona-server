@@ -7,5 +7,6 @@ SELECT sleep(2);
 sleep(2)
 0
 set global use_global_log_slow_control='';
-set global log_slow_verbosity=microtime;
+set global log_slow_verbosity='';
+FLUSH LOGS;
 1

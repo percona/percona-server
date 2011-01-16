@@ -1,17 +1,13 @@
-# Activate master-slave replication
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-# Make table t for test
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
-# Start slave replication
 START SLAVE;
 INSERT INTO t VALUES (1);
-# Read and change log_slow_slave_statements to ON on slave
 show variables like 'log_slow_slave_statements';
 Variable_name	Value
 log_slow_slave_statements	OFF
@@ -20,7 +16,6 @@ show variables like 'log_slow_slave_statements';
 Variable_name	Value
 log_slow_slave_statements	ON
 INSERT INTO t VALUES (2);
-# Restart slave
 STOP SLAVE;
 START SLAVE;
 INSERT INTO t VALUES (3);
@@ -75,12 +70,14 @@ Variable_name	Value
 use_global_log_slow_control	long_query_time
 set global long_query_time=1;
 set global use_global_log_slow_control='';
+FLUSH LOGS;
 # Analyse master slow_query_log
 0
 0
 0
 0
 0
+FLUSH LOGS;
 # Analyse slave slow_query_log
 0
 0

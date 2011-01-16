@@ -911,7 +911,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
 +const char* log_slow_verbosity_name[] = { 
 +  "microtime", "query_plan", "innodb", 
-+  "profiling", "profling_get_rusage", 
++  "profiling", "profling_use_getrusage", 
 +  "minimal", "standard", "full", 0
 +};
 +static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong what, ulonglong by)
@@ -956,7 +956,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +static Sys_var_set Sys_log_slow_verbosity(
 +        "log_slow_verbosity",
 +        "Choose how verbose the messages to your slow log will be. "
-+        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb, profiling, profiling_get_rusage]",
++        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb, profiling, profiling_use_getrusage]",
 +        SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
 +        log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME),
 +        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),

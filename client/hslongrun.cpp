@@ -815,6 +815,7 @@ hs_longrun_main(int argc, char **argv)
     rec->key = to_stdstring(i);
     shared.records.push_back_ptr(rec);
   }
+  mysql_library_init(0, 0, 0);
   const int duration = shared.conf.get_int("duration", 10);
   const int num_hsinsert = shared.conf.get_int("num_hsinsert", 10);
   const int num_hsdelete = shared.conf.get_int("num_hsdelete", 10);
@@ -824,37 +825,30 @@ hs_longrun_main(int argc, char **argv)
   hs_longrun_init_table(shared.conf, num_hsinsert == 0 ? table_size : 0,
     shared);
   /* create worker threads */
+  static const struct thrtmpl_type {
+    const char *type; char op; int num; int hs;
+  } thrtmpl[] = {
+    { "hsinsert", 'I', num_hsinsert, 1 },
+    { "hsdelete", 'D', num_hsdelete, 1 },
+    { "hsupdate", 'U', num_hsupdate, 1 },
+    { "hsread", 'R', num_hsread, 1 },
+    { "myread", 'R', num_myread, 0 },
+  };
   typedef auto_ptrcontainer< std::vector<hs_longrun_thread_base *> > thrs_type;
   thrs_type thrs;
-  for (int i = 0; i < num_hsinsert; ++i) {
-    int id = thrs.size();
-    const hs_longrun_thread_hs::arg_type arg(id, "hsinsert", 'I', shared);
-    std::auto_ptr<hs_longrun_thread_base> thr(new hs_longrun_thread_hs(arg));
-    thrs.push_back_ptr(thr);
-  }
-  for (int i = 0; i < num_hsdelete; ++i) {
-    int id = thrs.size();
-    const hs_longrun_thread_hs::arg_type arg(id, "hsdelete", 'D', shared);
-    std::auto_ptr<hs_longrun_thread_base> thr(new hs_longrun_thread_hs(arg));
-    thrs.push_back_ptr(thr);
-  }
-  for (int i = 0; i < num_hsupdate; ++i) {
-    int id = thrs.size();
-    const hs_longrun_thread_hs::arg_type arg(id, "hsupdate", 'U', shared);
-    std::auto_ptr<hs_longrun_thread_base> thr(new hs_longrun_thread_hs(arg));
-    thrs.push_back_ptr(thr);
-  }
-  for (int i = 0; i < num_hsread; ++i) {
-    int id = thrs.size();
-    const hs_longrun_thread_hs::arg_type arg(id, "hsread", 'R', shared);
-    std::auto_ptr<hs_longrun_thread_base> thr(new hs_longrun_thread_hs(arg));
-    thrs.push_back_ptr(thr);
-  }
-  for (int i = 0; i < num_myread; ++i) {
-    int id = thrs.size();
-    const hs_longrun_thread_hs::arg_type arg(id, "myread", 'R', shared);
-    std::auto_ptr<hs_longrun_thread_base> thr(new hs_longrun_thread_my(arg));
-    thrs.push_back_ptr(thr);
+  for (size_t i = 0; i < sizeof(thrtmpl)/sizeof(thrtmpl[0]); ++i) {
+    const thrtmpl_type& e = thrtmpl[i];
+    for (int j = 0; j < e.num; ++j) {
+      int id = thrs.size();
+      const hs_longrun_thread_hs::arg_type arg(id, e.type, e.op, shared);
+      std::auto_ptr<hs_longrun_thread_base> thr;
+      if (e.hs) {
+      	thr.reset(new hs_longrun_thread_hs(arg));
+      } else {
+	thr.reset(new hs_longrun_thread_my(arg));
+      }
+      thrs.push_back_ptr(thr);
+    }
   }
   shared.num_threads = thrs.size();
   /* start threads */
@@ -882,20 +876,33 @@ hs_longrun_main(int argc, char **argv)
   }
   hs_longrun_stat total;
   for (stat_map::const_iterator i = sm.begin(); i != sm.end(); ++i) {
-    fprintf(stderr, "%s verify_error %llu\n", i->first.c_str(),
-      i->second.verify_error_count);
-    fprintf(stderr, "%s runtime_error %llu\n", i->first.c_str(),
-      i->second.runtime_error_count);
-    fprintf(stderr, "%s unknown %llu\n", i->first.c_str(),
-      i->second.unknown_count);
+    if (i->second.verify_error_count != 0) {
+      fprintf(stderr, "%s verify_error %llu\n", i->first.c_str(),
+	i->second.verify_error_count);
+    }
+    if (i->second.runtime_error_count) {
+      fprintf(stderr, "%s runtime_error %llu\n", i->first.c_str(),
+	i->second.runtime_error_count);
+    }
+    if (i->second.unknown_count) {
+      fprintf(stderr, "%s unknown %llu\n", i->first.c_str(),
+	i->second.unknown_count);
+    }
     fprintf(stderr, "%s success %llu\n", i->first.c_str(),
       i->second.success_count);
     total.add(i->second);
   }
-  fprintf(stderr, "TOTAL verify_error %llu\n", total.verify_error_count);
-  fprintf(stderr, "TOTAL runtime_error %llu\n", total.runtime_error_count);
-  fprintf(stderr, "TOTAL unknown %llu\n", total.unknown_count);
+  if (total.verify_error_count != 0) {
+    fprintf(stderr, "TOTAL verify_error %llu\n", total.verify_error_count);
+  }
+  if (total.runtime_error_count != 0) {
+    fprintf(stderr, "TOTAL runtime_error %llu\n", total.runtime_error_count);
+  }
+  if (total.unknown_count != 0) {
+    fprintf(stderr, "TOTAL unknown %llu\n", total.unknown_count);
+  }
   fprintf(stderr, "TOTAL success %llu\n", total.success_count);
+  mysql_library_end();
   return 0;
 }
 

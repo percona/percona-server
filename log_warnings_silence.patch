@@ -32,7 +32,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/mysqld.h	2011-01-05 20:32:35.000000000 +0300
-@@ -222,6 +222,8 @@
+@@ -224,6 +224,8 @@
  extern TYPELIB thread_handling_typelib;
  extern my_decimal decimal_zero;
  

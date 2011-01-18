@@ -181,10 +181,12 @@ struct hs_longrun_thread_base : public thread_base {
     int id;
     std::string worker_type;
     char op;
+    int lock_flag;
     const hs_longrun_shared& sh;
-    arg_type(int id, const std::string& worker_type, char op,
+    arg_type(int id, const std::string& worker_type, char op, int lock_flag,
       const hs_longrun_shared& sh)
-      : id(id), worker_type(worker_type), op(op), sh(sh) { }
+      : id(id), worker_type(worker_type), op(op), lock_flag(lock_flag),
+	sh(sh) { }
   };
   arg_type arg;
   hs_longrun_stat stat;
@@ -207,7 +209,152 @@ struct hs_longrun_thread_base : public thread_base {
     }
     return r;
   }
+  int verify_update(const std::string& k, const std::string& v1,
+    const std::string& v2, const std::string& v3, record_value& rec,
+    uint32_t num_rows, bool cur_unknown_state);
+  int verify_read(const std::string& k, uint32_t num_rows, uint32_t num_flds,
+    const std::string rrec[4], record_value& rec);
+  int verify_readnolock(const std::string& k, uint32_t num_rows,
+    uint32_t num_flds, const std::string rrec[4]);
 };
+
+int
+hs_longrun_thread_base::verify_update(const std::string& k,
+  const std::string& v1, const std::string& v2, const std::string& v3,
+  record_value& rec, uint32_t num_rows, bool cur_unknown_state)
+{
+  const bool op_success = num_rows == 1;
+  int ret = 0;
+  if (!rec.unknown_state) {
+    if (!rec.deleted && !op_success) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_update_failure\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str());
+      }
+      ret = 1;
+    } else if (rec.deleted && op_success) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_update_success\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str());
+      }
+      ret = 1;
+    }
+  }
+  if (op_success) {
+    rec.values.resize(4);
+    rec.values[0] = k;
+    rec.values[1] = v1;
+    rec.values[2] = v2;
+    rec.values[3] = v3;
+    if (ret == 0 && !rec.unknown_state) {
+      ++stat.success_count;
+    }
+  }
+  rec.unknown_state = cur_unknown_state;
+  if (arg.sh.verbose >= 100 && ret == 0) {
+    fprintf(stderr, "%s %s %s %s %s\n", arg.worker_type.c_str(),
+      k.c_str(), v1.c_str(), v2.c_str(), v3.c_str());
+  }
+  return ret;
+}
+
+int
+hs_longrun_thread_base::verify_read(const std::string& k,
+  uint32_t num_rows, uint32_t num_flds, const std::string rrec[4],
+  record_value& rec)
+{
+  const bool op_success = num_rows != 0;
+  int ret = 0;
+  if (!rec.unknown_state) {
+    if (!rec.deleted && !op_success) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_read_failure\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str());
+      }
+      ret = 1;
+    } else if (rec.deleted && op_success) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_read_success\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str());
+      }
+      ret = 1;
+    } else if (num_flds != 4) {
+      ++stat.verify_error_count;
+      if (arg.sh.verbose > 0) {
+	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	  "unexpected_read_fldnum %d\n",
+	  arg.worker_type.c_str(), arg.id, k.c_str(),
+	  static_cast<int>(num_flds));
+      }
+      ret = 1;
+    } else if (rec.deleted) {
+      /* nothing to verify */
+    } else {
+      int diff = 0;
+      for (size_t i = 0; i < 4; ++i) {
+	if (rec.values[i] == rrec[i]) {
+	  /* ok */
+	} else {
+	  diff = 1;
+	}
+      }
+      if (diff) {
+	std::string mess;
+	for (size_t i = 0; i < 4; ++i) {
+	  const std::string& expected = rec.values[i];
+	  const std::string& val = rrec[i];
+	  mess += " " + val + "/" + expected;
+	}
+	if (arg.sh.verbose > 0) {
+	  fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	    "unexpected_read_value %s\n",
+	    arg.worker_type.c_str(), arg.id, k.c_str(), mess.c_str());
+	}
+	ret = 1;
+      }
+    }
+  }
+  if (arg.sh.verbose >= 100 && ret == 0) {
+    fprintf(stderr, "%s %s\n", arg.worker_type.c_str(), k.c_str());
+  }
+  if (ret == 0 && !rec.unknown_state) {
+    ++stat.success_count;
+  }
+  return ret;
+}
+
+int
+hs_longrun_thread_base::verify_readnolock(const std::string& k,
+  uint32_t num_rows, uint32_t num_flds, const std::string rrec[4])
+{
+  int ret = 0;
+  if (num_rows != 1 || num_flds != 4) {
+    ++stat.verify_error_count;
+    if (arg.sh.verbose > 0) {
+      fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
+	"unexpected_read_failure\n",
+	arg.worker_type.c_str(), arg.id, k.c_str());
+    }
+    ret = 1;
+  }
+  if (arg.sh.verbose >= 100 && ret == 0) {
+    fprintf(stderr, "%s -> %s %s %s %s %s\n", arg.worker_type.c_str(),
+      k.c_str(), rrec[0].c_str(), rrec[1].c_str(), rrec[2].c_str(),
+      rrec[3].c_str());
+  }
+  if (ret == 0) {
+    ++stat.success_count;
+  }
+  return ret;
+}
 
 struct hs_longrun_thread_hs : public hs_longrun_thread_base {
   hs_longrun_thread_hs(const arg_type& arg)
@@ -218,6 +365,7 @@ struct hs_longrun_thread_hs : public hs_longrun_thread_base {
   int op_delete(record_value& rec);
   int op_update(record_value& rec);
   int op_read(record_value& rec);
+  int op_readnolock(int k);
   hstcpcli_ptr cli;
   socket_args sockargs;
 };
@@ -248,7 +396,7 @@ void
 hs_longrun_thread_hs::run()
 {
   config c = arg.sh.conf;
-  if (arg.op == 'R') {
+  if (arg.op == 'R' || arg.op == 'N') {
     c["port"] = to_stdstring(arg.sh.conf.get_int("hsport", 9998));
   } else {
     c["port"] = to_stdstring(arg.sh.conf.get_int("hsport_wr", 9999));
@@ -278,24 +426,35 @@ hs_longrun_thread_hs::run()
       cli->response_buf_remove();
     }
     const size_t rec_id = rand_record();
-    record_value& rec = *arg.sh.records[rec_id];
-    lock_guard g(rec.lock);
-    int e = 0;
-    switch (arg.op) {
-    case 'I':
-      e = op_insert(rec);
-      break;
-    case 'D':
-      e = op_delete(rec);
-      break;
-    case 'U':
-      e = op_update(rec);
-      break;
-    case 'R':
-      e = op_read(rec);
-      break;
-    default:
-      break;
+    if (arg.lock_flag) {
+      record_value& rec = *arg.sh.records[rec_id];
+      lock_guard g(rec.lock);
+      int e = 0;
+      switch (arg.op) {
+      case 'I':
+	e = op_insert(rec);
+	break;
+      case 'D':
+	e = op_delete(rec);
+	break;
+      case 'U':
+	e = op_update(rec);
+	break;
+      case 'R':
+	e = op_read(rec);
+	break;
+      default:
+	break;
+      }
+    } else {
+      int e = 0;
+      switch (arg.op) {
+      case 'N':
+	e = op_readnolock(rec_id);
+	break;
+      default:
+	break;
+      }
     }
   }
 }
@@ -447,45 +606,11 @@ hs_longrun_thread_hs::op_update(record_value& rec)
   cli->response_recv(numflds);
   if (check_hs_error("op_update_recv", &rec) != 0) { return 1; }
   const string_ref *row = cli->get_next_row();
-  const bool op_success = (numflds > 0 && row != 0 &&
-    to_string(row[0]) == "1");
-  int ret = 0;
-  if (!rec.unknown_state) {
-    if (!rec.deleted && !op_success) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_update_failure\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str());
-      }
-      ret = 1;
-    } else if (rec.deleted && op_success) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_update_success\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str());
-      }
-      ret = 1;
-    }
-  }
+  uint32_t num_rows = row
+    ? atoi_uint32_nocheck(row[0].begin(), row[0].end()) : 0;
   cli->response_buf_remove();
-  if (op_success) {
-    rec.values.resize(4);
-    rec.values[0] = k;
-    rec.values[1] = v1;
-    rec.values[2] = v2;
-    rec.values[3] = v3;
-    if (ret == 0 && !rec.unknown_state) {
-      ++stat.success_count;
-    }
-    rec.unknown_state = false;
-  }
-  if (arg.sh.verbose >= 100 && ret == 0) {
-    fprintf(stderr, "HS_UPDATE %s %s %s %s\n", k.c_str(), v1.c_str(),
-      v2.c_str(), v3.c_str());
-  }
-  return ret;
+  const bool cur_unknown_state = (num_rows == 1);
+  return verify_update(k, v1, v2, v3, rec, num_rows, cur_unknown_state);
 }
 
 int
@@ -500,75 +625,56 @@ hs_longrun_thread_hs::op_read(record_value& rec)
     string_ref(), 0, 0, 0, 0);
   cli->request_send();
   if (check_hs_error("op_read_send", 0) != 0) { return 1; }
-  size_t numflds = 0;
-  cli->response_recv(numflds);
+  size_t num_flds = 0;
+  size_t num_rows = 0;
+  cli->response_recv(num_flds);
   if (check_hs_error("op_read_recv", 0) != 0) { return 1; }
   const string_ref *row = cli->get_next_row();
-  const bool op_success = (row != 0);
-  int ret = 0;
-  if (!rec.unknown_state) {
-    if (!rec.deleted && !op_success) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_read_failure\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str());
-      }
-      ret = 1;
-    } else if (rec.deleted && op_success) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_read_success\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str());
-      }
-      ret = 1;
-    } else if (numflds != 4) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_read_fldnum %d\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str(),
-	  static_cast<int>(numflds));
-      }
-      ret = 1;
-    } else if (rec.deleted) {
-      /* nothing to verify */
-    } else {
-      int diff = 0;
-      for (size_t i = 0; i < 4; ++i) {
-	const std::string& expected = rec.values[i];
-	if (expected.size() == row[i].size() &&
-	  memcmp(expected.data(), row[i].begin(), row[i].size()) == 0) {
-	  /* ok */
-	} else {
-	  diff = 1;
-	}
-      }
-      if (diff) {
-	std::string mess;
-	for (size_t i = 0; i < 4; ++i) {
-	  const std::string& expected = rec.values[i];
-	  const std::string val = to_string(row[i]);
-	  mess += " " + val + "/" + expected;
-	}
-	if (arg.sh.verbose > 0) {
-	  fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	    "unexpected_read_value %s\n",
-	    arg.worker_type.c_str(), arg.id, k.c_str(), mess.c_str());
-	}
-	ret = 1;
-      }
+  std::string rrec[4];
+  if (row != 0 && num_flds == 4) {
+    for (int i = 0; i < 4; ++i) {
+      rrec[i] = to_string(row[i]);
     }
+    ++num_rows;
+  }
+  row = cli->get_next_row();
+  if (row != 0) {
+    ++num_rows;
   }
   cli->response_buf_remove();
-  if (arg.sh.verbose >= 100 && ret == 0) {
-    fprintf(stderr, "HS_READ %s\n", k.c_str());
+  return verify_read(k, num_rows, num_flds, rrec, rec);
+}
+
+int
+hs_longrun_thread_hs::op_readnolock(int key)
+{
+  const std::string k = to_stdstring(key);
+  const string_ref op_ref("=", 1);
+  const string_ref op_args[1] = {
+    to_string_ref(k),
+  };
+  cli->request_buf_exec_generic(0, op_ref, op_args, 1, 1, 0,
+    string_ref(), 0, 0, 0, 0);
+  cli->request_send();
+  if (check_hs_error("op_read_send", 0) != 0) { return 1; }
+  size_t num_flds = 0;
+  size_t num_rows = 0;
+  cli->response_recv(num_flds);
+  if (check_hs_error("op_read_recv", 0) != 0) { return 1; }
+  const string_ref *row = cli->get_next_row();
+  std::string rrec[4];
+  if (row != 0 && num_flds == 4) {
+    for (int i = 0; i < 4; ++i) {
+      rrec[i] = to_string(row[i]);
+    }
+    ++num_rows;
   }
-  if (ret == 0 && !rec.unknown_state) {
-    ++stat.success_count;
+  row = cli->get_next_row();
+  if (row != 0) {
+    ++num_rows;
   }
-  return ret;
+  cli->response_buf_remove();
+  return verify_readnolock(k, num_rows, num_flds, rrec);
 }
 
 int
@@ -598,6 +704,7 @@ struct hs_longrun_thread_my : public hs_longrun_thread_base {
   int op_insert(record_value& rec);
   int op_delete(record_value& rec);
   int op_update(record_value& rec);
+  int op_delins(record_value& rec);
   int op_read(record_value& rec);
   auto_mysql db;
   bool connected;
@@ -636,6 +743,9 @@ hs_longrun_thread_my::run()
       e = op_update(rec);
       break;
     #endif
+    case 'T':
+      e = op_delins(rec);
+      break;
     case 'R':
       e = op_read(rec);
       break;
@@ -643,6 +753,63 @@ hs_longrun_thread_my::run()
       break;
     }
   }
+}
+
+int
+hs_longrun_thread_my::op_delins(record_value& rec)
+{
+  const std::string k = rec.key;
+  const std::string v1 = "div1_" + k + "_" + to_stdstring(arg.id);
+  const std::string v2 = "div2_" + k + "_" + to_stdstring(arg.id);
+  const std::string v3 = "div3_" + k + "_" + to_stdstring(arg.id);
+  int success = 0;
+  bool cur_unknown_state = false;
+  do {
+    char query[1024];
+    #if 1
+    if (mysql_query(db, "begin") != 0) {
+      if (arg.sh.verbose >= 20) {
+	fprintf(stderr, "mysql: e=[%s] q=[%s]\n", mysql_error(db), "begin");
+      }
+      break;
+    }
+    #endif
+    cur_unknown_state = true;
+    snprintf(query, 1024,
+      "delete from hstesttbl where k = '%s'", k.c_str());
+    if (mysql_query(db, query) != 0) {
+      if (arg.sh.verbose >= 20) {
+	fprintf(stderr, "mysql: e=[%s] q=[%s]\n", mysql_error(db), query);
+      }
+      break;
+    }
+    if (mysql_affected_rows(db) != 1) {
+      if (arg.sh.verbose >= 20) {
+	fprintf(stderr, "mysql: notfound: [%s]\n", query);
+      }
+      break;
+    }
+    snprintf(query, 1024,
+      "insert into hstesttbl values ('%s', '%s', '%s', '%s')",
+      k.c_str(), v1.c_str(), v2.c_str(), v3.c_str());
+    if (mysql_query(db, query) != 0) {
+      if (arg.sh.verbose >= 20) {
+	fprintf(stderr, "mysql: e=[%s] q=[%s]\n", mysql_error(db), query);
+      }
+      break;
+    }
+    #if 1
+    if (mysql_query(db, "commit") != 0) {
+      if (arg.sh.verbose >= 20) {
+	fprintf(stderr, "mysql: e=[%s] q=[%s]\n", mysql_error(db), "commit");
+      }
+      break;
+    }
+    #endif
+    success = true;
+    cur_unknown_state = false;
+  } while (false);
+  return verify_update(k, v1, v2, v3, rec, (success != 0), cur_unknown_state);
 }
 
 int
@@ -659,79 +826,28 @@ hs_longrun_thread_my::op_read(record_value& rec)
   }
   MYSQL_ROW row = 0;
   unsigned long *lengths = 0;
-  unsigned int numflds = 0;
+  unsigned int num_rows = 0;
+  unsigned int num_flds = 0;
   auto_mysql_res res(db);
+  std::string rrec[4];
   if (res != 0) {
-    numflds = mysql_num_fields(res);
+    num_flds = mysql_num_fields(res);
     row = mysql_fetch_row(res);
     if (row != 0) {
       lengths = mysql_fetch_lengths(res);
-    }
-  }
-  const bool op_success = (row != 0);
-  int ret = 0;
-  if (!rec.unknown_state) {
-    if (!rec.deleted && !op_success) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_read_failure\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str());
-      }
-      ret = 1;
-    } else if (rec.deleted && op_success) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_read_success\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str());
-      }
-      ret = 1;
-    } else if (numflds != 4) {
-      ++stat.verify_error_count;
-      if (arg.sh.verbose > 0) {
-	fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	  "unexpected_read_fldnum %d\n",
-	  arg.worker_type.c_str(), arg.id, k.c_str(),
-	  static_cast<int>(numflds));
-      }
-      ret = 1;
-    } else if (rec.deleted) {
-      /* nothing to verify */
-    } else {
-      int diff = 0;
-      for (size_t i = 0; i < 4; ++i) {
-	const std::string& expected = rec.values[i];
-	if (expected.size() == lengths[i] &&
-	  memcmp(expected.data(), row[i], lengths[i]) == 0) {
-	  /* ok */
-	} else {
-	  diff = 1;
+      if (num_flds == 4) {
+	for (int i = 0; i < 4; ++i) {
+	  rrec[i] = std::string(row[i], lengths[i]);
 	}
       }
-      if (diff) {
-	std::string mess;
-	for (size_t i = 0; i < 4; ++i) {
-	  const std::string& expected = rec.values[i];
-	  const std::string val(row[i], lengths[i]);
-	  mess += " " + val + "/" + expected;
-	}
-	if (arg.sh.verbose > 0) {
-	  fprintf(stderr, "VERIFY_ERROR: %s wid=%d k=%s "
-	    "unexpected_read_value %s\n",
-	    arg.worker_type.c_str(), arg.id, k.c_str(), mess.c_str());
-	}
-	ret = 1;
+      ++num_rows;
+      row = mysql_fetch_row(res);
+      if (row != 0) {
+	++num_rows;
       }
     }
   }
-  if (arg.sh.verbose >= 100 && ret == 0) {
-    fprintf(stderr, "MY_READ %s\n", k.c_str());
-  }
-  if (ret == 0 && !rec.unknown_state) {
-    ++stat.success_count;
-  }
-  return ret;
+  return verify_read(k, num_rows, num_flds, rrec, rec);
 }
 
 void
@@ -822,17 +938,25 @@ hs_longrun_main(int argc, char **argv)
   const int num_hsupdate = shared.conf.get_int("num_hsupdate", 10);
   const int num_hsread = shared.conf.get_int("num_hsread", 10);
   const int num_myread = shared.conf.get_int("num_myread", 10);
-  hs_longrun_init_table(shared.conf, num_hsinsert == 0 ? table_size : 0,
+  const int num_mydelins = shared.conf.get_int("num_mydelins", 10);
+  int num_hsreadnolock = shared.conf.get_int("num_hsreadnolock", 10);
+  const bool always_filled = (num_hsinsert == 0 && num_hsdelete == 0);
+  if (!always_filled) {
+    num_hsreadnolock = 0;
+  }
+  hs_longrun_init_table(shared.conf, always_filled ? table_size : 0,
     shared);
   /* create worker threads */
   static const struct thrtmpl_type {
-    const char *type; char op; int num; int hs;
+    const char *type; char op; int num; int hs; int lock;
   } thrtmpl[] = {
-    { "hsinsert", 'I', num_hsinsert, 1 },
-    { "hsdelete", 'D', num_hsdelete, 1 },
-    { "hsupdate", 'U', num_hsupdate, 1 },
-    { "hsread", 'R', num_hsread, 1 },
-    { "myread", 'R', num_myread, 0 },
+    { "hsinsert", 'I', num_hsinsert, 1, 1 },
+    { "hsdelete", 'D', num_hsdelete, 1, 1 },
+    { "hsupdate", 'U', num_hsupdate, 1, 1 },
+    { "hsread", 'R', num_hsread, 1, 1 },
+    { "hsreadnolock", 'N', num_hsreadnolock, 1, 0 },
+    { "myread", 'R', num_myread, 0, 1 },
+    { "mydelins", 'T', num_mydelins, 0, 1 },
   };
   typedef auto_ptrcontainer< std::vector<hs_longrun_thread_base *> > thrs_type;
   thrs_type thrs;
@@ -840,7 +964,8 @@ hs_longrun_main(int argc, char **argv)
     const thrtmpl_type& e = thrtmpl[i];
     for (int j = 0; j < e.num; ++j) {
       int id = thrs.size();
-      const hs_longrun_thread_hs::arg_type arg(id, e.type, e.op, shared);
+      const hs_longrun_thread_hs::arg_type arg(id, e.type, e.op, e.lock,
+	shared);
       std::auto_ptr<hs_longrun_thread_base> thr;
       if (e.hs) {
       	thr.reset(new hs_longrun_thread_hs(arg));

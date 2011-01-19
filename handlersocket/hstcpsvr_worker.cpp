@@ -880,7 +880,7 @@ hstcpsvr_worker::do_authorization(char *start, char *finish,
   char *wp = key_begin;
   unescape_string(wp, key_begin, key_end);
   if (authtype_len != 1 || authtype_begin[0] != '1') {
-    return conn.dbcb_resp_short(2, "authtype");
+    return conn.dbcb_resp_short(3, "authtype");
   }
   if (cshared.plain_secret.size() == key_len &&
     memcmp(cshared.plain_secret.data(), key_begin, key_len) == 0) {

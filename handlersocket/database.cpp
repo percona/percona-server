@@ -650,7 +650,7 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   lock_tables_if();
   if (lock == 0) {
-    return cb.dbcb_resp_short(2, "lock_tables");
+    return cb.dbcb_resp_short(1, "lock_tables");
   }
   if (pst.get_table_id() >= table_vec.size()) {
     return cb.dbcb_resp_short(2, "tblnum");
@@ -680,7 +680,10 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   if (r == 0 && table->found_next_number_field != 0) {
     return cb.dbcb_resp_short_num64(0, insert_id);
   }
-  return cb.dbcb_resp_short(r != 0 ? 1 : 0, "");
+  if (r != 0) {
+    return cb.dbcb_resp_short_num(1, r);
+  }
+  return cb.dbcb_resp_short(0, "");
 }
 
 void
@@ -722,7 +725,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   lock_tables_if();
   if (lock == 0) {
-    return cb.dbcb_resp_short(2, "lock_tables");
+    return cb.dbcb_resp_short(1, "lock_tables");
   }
   if (pst.get_table_id() >= table_vec.size()) {
     return cb.dbcb_resp_short(2, "tblnum");
@@ -844,7 +847,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       /* revert dbcb_resp_begin() and dbcb_resp_entry() */
       cb.dbcb_resp_cancel();
     }
-    cb.dbcb_resp_short_num(2, r);
+    cb.dbcb_resp_short_num(1, r);
   } else {
     /* succeeded */
     if (need_resp_record) {
@@ -1004,7 +1007,7 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
       DENA_VERBOSE(10, fprintf(stderr,
 	"HNDSOCK failed to open %p [%s] [%s] [%d]\n",
 	thd, dbn, tbl, static_cast<int>(refresh)));
-      return cb.dbcb_resp_short(2, "open_table");
+      return cb.dbcb_resp_short(1, "open_table");
     }
     statistic_increment(open_tables_count, &LOCK_status);
     table->reginfo.lock_type = lock_type;
@@ -1113,7 +1116,7 @@ dbcontext::cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
       wrop = db_write_op_sql;
       break;
     default:
-      return cb.dbcb_resp_short(1, "op");
+      return cb.dbcb_resp_short(2, "op");
     }
   } else if (args.op.size() == 2 && args.op.begin()[1] == '=') {
     switch (args.op.begin()[0]) {
@@ -1124,10 +1127,10 @@ dbcontext::cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
       find_flag = HA_READ_KEY_OR_PREV;
       break;
     default:
-      return cb.dbcb_resp_short(1, "op");
+      return cb.dbcb_resp_short(2, "op");
     }
   } else {
-    return cb.dbcb_resp_short(1, "op");
+    return cb.dbcb_resp_short(2, "op");
   }
   if (args.kvalslen <= 0) {
     return cb.dbcb_resp_short(2, "klen");

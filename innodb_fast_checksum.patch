@@ -291,7 +291,7 @@ diff -ruN a/storage/innobase/include/ut0rnd.ic b/storage/innobase/include/ut0rnd
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:52:23.498513634 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:53:45.053550283 +0900
-@@ -411,6 +411,7 @@
+@@ -412,6 +412,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

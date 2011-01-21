@@ -552,7 +552,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:09:51.301987792 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:13:29.369986988 +0900
-@@ -187,7 +187,8 @@
+@@ -188,7 +188,8 @@
  UNIV_INTERN ulint	srv_log_file_size	= ULINT_MAX;
  /* size in database pages */
  UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
@@ -562,7 +562,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  /* Try to flush dirty pages so as to avoid IO bursts at
  the checkpoints. */
-@@ -398,6 +399,17 @@
+@@ -399,6 +400,17 @@
  
  UNIV_INTERN ulong	srv_replication_delay		= 0;
  
@@ -580,7 +580,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2692,6 +2704,7 @@
+@@ -2703,6 +2715,7 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -588,7 +588,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	ulint		n_bytes_archived;
  	ulint		n_tables_to_drop;
  	ulint		n_ios;
-@@ -2699,7 +2712,20 @@
+@@ -2710,7 +2723,20 @@
  	ulint		n_ios_very_old;
  	ulint		n_pend_ios;
  	ulint		next_itr_time;
@@ -609,7 +609,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
-@@ -2721,6 +2747,9 @@
+@@ -2732,6 +2758,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -619,7 +619,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2751,9 +2780,13 @@
+@@ -2762,9 +2791,13 @@
  	/* Sleep for 1 second on entrying the for loop below the first time. */
  	next_itr_time = ut_time_ms() + 1000;
  
@@ -633,7 +633,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		/* ALTER TABLE in MySQL requires on Unix that the table handler
  		can drop tables lazily after there no longer are SELECT
  		queries to them. */
-@@ -2777,6 +2810,7 @@
+@@ -2788,6 +2821,7 @@
  		srv_main_thread_op_info = "sleeping";
  		srv_main_1_second_loops++;
  
@@ -641,7 +641,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		if (next_itr_time > cur_time
  		    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
  
-@@ -2787,10 +2821,26 @@
+@@ -2798,10 +2832,26 @@
  					(next_itr_time - cur_time)
  					 * 1000));
  			srv_main_sleeps++;
@@ -668,7 +668,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  		/* Flush logs if needed */
  		srv_sync_log_buffer_in_background();
-@@ -2810,7 +2860,7 @@
+@@ -2821,7 +2871,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -677,7 +677,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2827,7 +2877,11 @@
+@@ -2838,7 +2888,11 @@
  			n_pages_flushed = buf_flush_list(
  				PCT_IO(100), IB_ULONGLONG_MAX);
  
@@ -690,7 +690,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  			/* Try to keep the rate of flushing of dirty
  			pages such that redo log generation does not
-@@ -2843,6 +2897,223 @@
+@@ -2854,6 +2908,223 @@
  						n_flush,
  						IB_ULONGLONG_MAX);
  			}
@@ -914,7 +914,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2891,7 +3162,7 @@
+@@ -2902,7 +3173,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -923,7 +923,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2999,7 +3270,7 @@
+@@ -3010,7 +3281,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -932,7 +932,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-@@ -3145,6 +3416,7 @@
+@@ -3156,6 +3427,7 @@
  	srv_slot_t*	slot;
  	ulint		slot_no = ULINT_UNDEFINED;
  	ulint		n_total_purged = ULINT_UNDEFINED;
@@ -940,7 +940,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	ut_a(srv_n_purge_threads == 1);
  
-@@ -3167,9 +3439,12 @@
+@@ -3178,9 +3450,12 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -953,7 +953,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  		/* If there are very few records to purge or the last
  		purge didn't purge any records then wait for activity.
-@@ -3210,6 +3485,16 @@
+@@ -3221,6 +3496,16 @@
  		} while (n_pages_purged > 0 && !srv_fast_shutdown);
  
  		srv_sync_log_buffer_in_background();

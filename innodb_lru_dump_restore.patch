@@ -582,7 +582,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 17:49:11.620986661 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:33:37.708550811 +0900
-@@ -326,6 +326,9 @@
+@@ -327,6 +327,9 @@
  reading of a disk page */
  UNIV_INTERN ulint srv_buf_pool_reads = 0;
  
@@ -592,7 +592,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* structure to pass status variables to MySQL */
  UNIV_INTERN export_struc export_vars;
  
-@@ -2652,6 +2655,56 @@
+@@ -2663,6 +2666,56 @@
  	/* We count the number of threads in os_thread_exit(). A created
  	thread should always use that to exit and not use return() to exit. */
  

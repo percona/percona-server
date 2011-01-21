@@ -62,7 +62,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:37:45.546023493 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:42:11.574955879 +0900
-@@ -343,6 +343,7 @@
+@@ -344,6 +344,7 @@
  computer. Bigger computers need bigger values. Value 0 will disable the
  concurrency check. */
  
@@ -70,7 +70,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  UNIV_INTERN ulong	srv_thread_concurrency	= 0;
  
  /* this mutex protects srv_conc data structures */
-@@ -1129,6 +1130,75 @@
+@@ -1130,6 +1131,75 @@
  /*********************************************************************//**
  Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -146,7 +146,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  UNIV_INTERN
  void
  srv_conc_enter_innodb(
-@@ -1159,6 +1229,13 @@
+@@ -1160,6 +1230,13 @@
  		return;
  	}
  
@@ -160,7 +160,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	os_fast_mutex_lock(&srv_conc_mutex);
  retry:
  	if (trx->declared_to_be_inside_innodb) {
-@@ -1304,6 +1381,14 @@
+@@ -1305,6 +1382,14 @@
  	}
  
  	ut_ad(srv_conc_n_threads >= 0);
@@ -175,7 +175,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	os_fast_mutex_lock(&srv_conc_mutex);
  
-@@ -1337,6 +1422,13 @@
+@@ -1338,6 +1423,13 @@
  		return;
  	}
  

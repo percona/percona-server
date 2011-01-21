@@ -1198,7 +1198,7 @@ diff -ruN a/storage/innobase/os/os0proc.c b/storage/innobase/os/os0proc.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 20:20:44.687550693 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-07 16:10:14.962785720 +0900
-@@ -232,6 +232,11 @@
+@@ -233,6 +233,11 @@
  UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
  UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
  

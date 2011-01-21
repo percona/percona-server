@@ -480,7 +480,7 @@ diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:21.384486344 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:58.282550845 +0900
-@@ -238,6 +238,13 @@
+@@ -239,6 +239,13 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
  

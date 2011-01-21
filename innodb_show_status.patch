@@ -126,7 +126,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
 --- a/storage/innobase/include/fil0fil.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/fil0fil.h	2010-12-03 15:07:31.812028575 +0900
-000 +0300
 @@ -726,6 +726,17 @@
  /*============================*/
  	ulint		id);	/*!< in: space id */
@@ -145,6 +144,17 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
  typedef	struct fil_space_struct	fil_space_t;
  
  #endif
+diff -ruN a/storage/innobase/include/read0read.h b/storage/innobase/include/read0read.h
+--- a/storage/innobase/include/read0read.h	2010-12-04 02:58:26.000000000 +0900
++++ b/storage/innobase/include/read0read.h	2011-01-21 19:35:44.127631727 +0900
+@@ -88,6 +88,7 @@
+ void
+ read_view_print(
+ /*============*/
++	FILE*			file,
+ 	const read_view_t*	view);	/*!< in: read view */
+ /*********************************************************************//**
+ Create a consistent cursor view for mysql to be used in cursors. In this
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:07:31.813958103 +0900
@@ -235,10 +245,64 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  		      " SUPPRESSING FURTHER PRINTS\n",
  		      file);
  
+diff -ruN a/storage/innobase/read/read0read.c b/storage/innobase/read/read0read.c
+--- a/storage/innobase/read/read0read.c	2010-12-04 02:58:26.000000000 +0900
++++ b/storage/innobase/read/read0read.c	2011-01-21 19:37:08.292650181 +0900
+@@ -357,34 +357,35 @@
+ void
+ read_view_print(
+ /*============*/
++	FILE*			file,
+ 	const read_view_t*	view)	/*!< in: read view */
+ {
+ 	ulint	n_ids;
+ 	ulint	i;
+ 
+ 	if (view->type == VIEW_HIGH_GRANULARITY) {
+-		fprintf(stderr,
++		fprintf(file,
+ 			"High-granularity read view undo_n:o %llu\n",
+ 			(ullint) view->undo_no);
+ 	} else {
+-		fprintf(stderr, "Normal read view\n");
++		fprintf(file, "Normal read view\n");
+ 	}
+ 
+-	fprintf(stderr, "Read view low limit trx n:o " TRX_ID_FMT "\n",
++	fprintf(file, "Read view low limit trx n:o " TRX_ID_FMT "\n",
+ 		(ullint) view->low_limit_no);
+ 
+-	fprintf(stderr, "Read view up limit trx id " TRX_ID_FMT "\n",
++	fprintf(file, "Read view up limit trx id " TRX_ID_FMT "\n",
+ 		(ullint) view->up_limit_id);
+ 
+-	fprintf(stderr, "Read view low limit trx id " TRX_ID_FMT "\n",
++	fprintf(file, "Read view low limit trx id " TRX_ID_FMT "\n",
+ 		(ullint) view->low_limit_id);
+ 
+-	fprintf(stderr, "Read view individually stored trx ids:\n");
++	fprintf(file, "Read view individually stored trx ids:\n");
+ 
+ 	n_ids = view->n_trx_ids;
+ 
+ 	for (i = 0; i < n_ids; i++) {
+-		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
++		fprintf(file, "Read view trx id " TRX_ID_FMT "\n",
+ 			(ullint) read_view_get_nth_trx_id(view, i));
+ 	}
+ }
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:07:31.824022673 +0900
-@@ -193,6 +193,9 @@
+@@ -84,6 +84,7 @@
+ #include "ha_prototypes.h"
+ #include "trx0i_s.h"
+ #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
++#include "read0read.h"
+ #include "mysql/plugin.h"
+ #include "mysql/service_thd_wait.h"
+ 
+@@ -193,6 +194,9 @@
  the checkpoints. */
  UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
  
@@ -248,7 +312,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /** Maximum number of times allowed to conditionally acquire
  mutex before switching to blocking wait on the mutex */
  #define MAX_MUTEX_NOWAIT	20
-@@ -311,6 +314,7 @@
+@@ -311,6 +315,7 @@
  /* variable to count the number of pages that were written from buffer
  pool to the disk */
  UNIV_INTERN ulint srv_buf_pool_flushed = 0;
@@ -256,7 +320,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  /** Number of buffer pool reads that led to the
  reading of a disk page */
-@@ -1787,6 +1791,13 @@
+@@ -1787,6 +1792,13 @@
  	ulint	n_reserved;
  	ibool	ret;
  
@@ -270,7 +334,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	mutex_enter(&srv_innodb_monitor_mutex);
  
  	current_time = time(NULL);
-@@ -1835,31 +1846,6 @@
+@@ -1835,31 +1847,6 @@
  
  	mutex_exit(&dict_foreign_err_mutex);
  
@@ -302,7 +366,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("--------\n"
  	      "FILE I/O\n"
  	      "--------\n", file);
-@@ -1890,10 +1876,84 @@
+@@ -1890,10 +1877,84 @@
  	      "BUFFER POOL AND MEMORY\n"
  	      "----------------------\n", file);
  	fprintf(file,
@@ -391,7 +455,24 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
  		dict_sys->size);
  
-@@ -1952,6 +2012,31 @@
+@@ -1909,6 +1970,16 @@
+ 	fprintf(file, "%lu read views open inside InnoDB\n",
+ 		UT_LIST_GET_LEN(trx_sys->view_list));
+ 
++	if (UT_LIST_GET_LEN(trx_sys->view_list)) {
++		read_view_t*	view = UT_LIST_GET_LAST(trx_sys->view_list);
++
++		if (view) {
++			fprintf(file, "---OLDEST VIEW---\n");
++			read_view_print(file, view);
++			fprintf(file, "-----------------\n");
++		}
++	}
++
+ 	n_reserved = fil_space_get_n_reserved_extents(0);
+ 	if (n_reserved > 0) {
+ 		fprintf(file,
+@@ -1952,6 +2023,31 @@
  	srv_n_rows_deleted_old = srv_n_rows_deleted;
  	srv_n_rows_read_old = srv_n_rows_read;
  
@@ -423,7 +504,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("----------------------------\n"
  	      "END OF INNODB MONITOR OUTPUT\n"
  	      "============================\n", file);
-@@ -1995,6 +2080,7 @@
+@@ -1995,6 +2091,7 @@
  		= srv_buf_pool_write_requests;
  	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
  	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
@@ -500,3 +581,15 @@ diff -ruN a/storage/innobase/thr/thr0loc.c b/storage/innobase/thr/thr0loc.c
 +		return 0;
 +	}
 +}
+diff -ruN a/storage/innobase/trx/trx0purge.c b/storage/innobase/trx/trx0purge.c
+--- a/storage/innobase/trx/trx0purge.c	2010-12-04 02:58:26.000000000 +0900
++++ b/storage/innobase/trx/trx0purge.c	2011-01-21 19:40:42.086683671 +0900
+@@ -1201,7 +1201,7 @@
+ /*=====================*/
+ {
+ 	fprintf(stderr, "InnoDB: Purge system view:\n");
+-	read_view_print(purge_sys->view);
++	read_view_print(stderr, purge_sys->view);
+ 
+ 	fprintf(stderr, "InnoDB: Purge trx n:o " TRX_ID_FMT
+ 		", undo n:o " TRX_ID_FMT "\n",

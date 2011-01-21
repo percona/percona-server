@@ -28,6 +28,7 @@ innodb_deadlock_count.patch
 innodb_adaptive_hash_index_partitions.patch
 innodb_buffer_pool_pages_i_s.patch
 innodb_buffer_pool_shm.patch
+innodb_show_status_extend.patch
 slow_extended.patch
 percona_support.patch
 query_cache_enhance.patch

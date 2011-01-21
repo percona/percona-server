@@ -523,7 +523,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:35:29.180483212 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:35:58.656550107 +0900
-@@ -167,6 +167,8 @@
+@@ -168,6 +168,8 @@
  /* size in database pages */
  UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
  

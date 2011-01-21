@@ -3876,7 +3876,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:03.080956216 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:29.355023766 +0900
-@@ -3092,7 +3092,7 @@
+@@ -3049,7 +3049,7 @@
  								level += log_sys->max_checkpoint_age
  									 - (lsn - oldest_modification);
  							}
@@ -3885,7 +3885,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  							n_blocks++;
  						}
  
-@@ -3177,7 +3177,7 @@
+@@ -3134,7 +3134,7 @@
  							found = TRUE;
  							break;
  						}

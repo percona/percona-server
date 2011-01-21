@@ -170,7 +170,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11835,6 +11904,8 @@
+@@ -11839,6 +11908,8 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -480,7 +480,7 @@ diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:21.384486344 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:58.282550845 +0900
-@@ -237,6 +237,13 @@
+@@ -238,6 +238,13 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
  

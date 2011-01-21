@@ -1048,7 +1048,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11718,6 +11815,14 @@
+@@ -11722,6 +11819,14 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1063,7 +1063,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11805,6 +11910,7 @@
+@@ -11809,6 +11914,7 @@
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
@@ -1285,8 +1285,8 @@ diff -ruN a/storage/innobase/include/page0zip.h b/storage/innobase/include/page0
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-04 15:37:50.591516341 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-04 15:38:18.180563749 +0900
-@@ -241,6 +241,7 @@
- extern ulint	srv_adaptive_checkpoint;
+@@ -242,6 +242,7 @@
+ extern ulint	srv_adaptive_flushing_method;
  
  extern ulint	srv_expand_import;
 +extern ulint	srv_pass_corrupt_table;
@@ -1360,8 +1360,8 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:37:50.602481253 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:38:18.209513823 +0900
-@@ -426,6 +426,7 @@
- UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+@@ -427,6 +427,7 @@
+ UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
 +UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */

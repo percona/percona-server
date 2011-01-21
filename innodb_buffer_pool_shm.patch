@@ -759,7 +759,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11636,6 +11646,16 @@
+@@ -11642,6 +11652,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -776,7 +776,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11917,6 +11937,8 @@
+@@ -11921,6 +11941,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
@@ -862,10 +862,11 @@ diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash
  \
  			HASH_INSERT(NODE_TYPE, PTR_NAME, (NEW_TABLE),\
  				fold2222, node2222);\
-@@ -328,6 +350,33 @@
+@@ -327,6 +349,33 @@
+ 		}\
  	}\
  } while (0)
- 
++
 +/********************************************************************//**
 +Align nodes with moving location.*/
 +#define HASH_OFFSET(TABLE, NODE_TYPE, PTR_NAME, FADDR, FOFFSET, BOFFSET) \
@@ -892,10 +893,9 @@ diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash
 +		}\
 +	}\
 +} while (0)
-+
+ 
  /************************************************************//**
  Gets the mutex index for a fold value in a hash table.
- @return	mutex number */
 diff -ruN a/storage/innobase/include/os0proc.h b/storage/innobase/include/os0proc.h
 --- a/storage/innobase/include/os0proc.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/os0proc.h	2010-12-07 16:10:14.955718750 +0900
@@ -944,7 +944,7 @@ diff -ruN a/storage/innobase/include/os0proc.h b/storage/innobase/include/os0pro
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-04 20:20:28.016566697 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-07 16:10:14.956717659 +0900
-@@ -170,6 +170,10 @@
+@@ -171,6 +171,10 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
  
@@ -1198,7 +1198,7 @@ diff -ruN a/storage/innobase/os/os0proc.c b/storage/innobase/os/os0proc.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 20:20:44.687550693 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-07 16:10:14.962785720 +0900
-@@ -231,6 +231,11 @@
+@@ -232,6 +232,11 @@
  UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
  UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
  

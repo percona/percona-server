@@ -515,7 +515,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11541,6 +11549,11 @@
+@@ -11545,6 +11553,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -527,9 +527,9 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
    PLUGIN_VAR_RQCMDARG,
    "Number of extra user rollback segments which are used in a round-robin fashion.",
-@@ -11618,6 +11631,7 @@
-   MYSQL_SYSVAR(adaptive_checkpoint),
-   MYSQL_SYSVAR(flush_log_at_trx_commit_session),
+@@ -11622,6 +11635,7 @@
+   MYSQL_SYSVAR(read_ahead),
+   MYSQL_SYSVAR(adaptive_flushing_method),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
 +  MYSQL_SYSVAR(expand_import),
    MYSQL_SYSVAR(extra_rsegments),
@@ -538,9 +538,9 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:48:03.077954270 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:52:23.561986996 +0900
-@@ -226,6 +226,8 @@
+@@ -227,6 +227,8 @@
  extern ulint	srv_read_ahead;
- extern ulint	srv_adaptive_checkpoint;
+ extern ulint	srv_adaptive_flushing_method;
  
 +extern ulint	srv_expand_import;
 +
@@ -550,9 +550,9 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:49:59.230956118 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:52:23.562954411 +0900
-@@ -411,6 +411,8 @@
+@@ -412,6 +412,8 @@
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
- UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+ UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
 +UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
 +

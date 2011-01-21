@@ -665,10 +665,16 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1184,6 +1318,66 @@
- }
+@@ -1178,6 +1312,66 @@
+ 		return(NULL);
+ 	}
  
- /****************************************************************//**
++	thr->run_node = que_node_get_parent(node);
++
++	return(thr);
++}
++
++/****************************************************************//**
 +*/
 +UNIV_INTERN
 +que_thr_t*
@@ -723,15 +729,9 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
 +		return(NULL);
 +	}
 +
-+	thr->run_node = que_node_get_parent(node);
-+
-+	return(thr);
-+}
-+
-+/****************************************************************//**
- Creates the foreign key constraints system tables inside InnoDB
- at database creation or database start if they are not found or are
- not of the right form.
+ 	thr->run_node = que_node_get_parent(node);
+ 
+ 	return(thr);
 diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.c
 --- a/storage/innobase/dict/dict0dict.c	2010-12-03 15:48:03.040222428 +0900
 +++ b/storage/innobase/dict/dict0dict.c	2010-12-03 17:19:24.841947690 +0900
@@ -1076,10 +1076,11 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	return(NULL);
-@@ -566,6 +568,61 @@
+@@ -565,6 +567,61 @@
+ 
  	return(NULL);
  }
- /********************************************************************//**
++/********************************************************************//**
 +This function parses a SYS_STATS record and extract necessary
 +information from the record and return to caller.
 +@return error message, or NULL on success */
@@ -1134,10 +1135,9 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 +
 +	return(NULL);
 +}
-+/********************************************************************//**
+ /********************************************************************//**
  Determine the flags of a table described in SYS_TABLES.
  @return compressed page size in kilobytes; or 0 if the tablespace is
- uncompressed, ULINT_UNDEFINED on error */
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:17:03.665960357 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:22:21.586939783 +0900
@@ -1245,7 +1245,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
  			remain. delete_length is initialized to 0 in
-@@ -11277,6 +11317,45 @@
+@@ -11283,6 +11323,45 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1291,7 +1291,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11606,6 +11685,10 @@
+@@ -11611,6 +11690,10 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1302,7 +1302,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11676,7 +11759,10 @@
+@@ -11680,7 +11763,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -2126,7 +2126,7 @@ diff -ruN a/storage/innobase/include/row0mysql.h b/storage/innobase/include/row0
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:53:54.622036720 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 17:19:24.906953188 +0900
-@@ -208,6 +208,13 @@
+@@ -209,6 +209,13 @@
  extern ibool	srv_innodb_status;
  
  extern unsigned long long	srv_stats_sample_pages;
@@ -2391,7 +2391,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:53:54.625288512 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:19:24.922953561 +0900
-@@ -393,6 +393,10 @@
+@@ -394,6 +394,10 @@
  /* When estimating number of different key values in an index, sample
  this many index pages */
  UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;

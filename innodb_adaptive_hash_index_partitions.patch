@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innobase/ha/ha0ha.c b/storage/innobase/ha/ha0ha.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:20.185850734 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:48.674552412 +0900
-@@ -11605,6 +11605,11 @@
+@@ -11611,6 +11611,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1021,7 +1021,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -11958,6 +11963,7 @@
+@@ -11963,6 +11968,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1424,7 +1424,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:20.231484679 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:48.726551018 +0900
-@@ -2006,7 +2006,9 @@
+@@ -2007,7 +2007,9 @@
  	      "-------------------------------------\n", file);
  	ibuf_print(file);
  
@@ -1435,7 +1435,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	fprintf(file,
  		"%.2f hash searches/s, %.2f non-hash searches/s\n",
-@@ -2031,14 +2033,15 @@
+@@ -2032,14 +2034,15 @@
  			ut_total_allocated_memory,
  			mem_pool_get_reserved(mem_comm_pool));
  	/* Calcurate reserved memories */
@@ -1455,7 +1455,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	lock_sys_subtotal = 0;
  	if (trx_sys) {
-@@ -2065,10 +2068,10 @@
+@@ -2066,10 +2069,10 @@
  			"    Threads             %lu \t(%lu + %lu)\n",
  
  			(ulong) (btr_search_sys
@@ -1490,7 +1490,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 17:49:11.623953784 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-04 16:12:48.731513275 +0900
-@@ -268,8 +268,14 @@
+@@ -266,8 +266,14 @@
  /*=================================*/
  	trx_t*	   trx) /*!< in: transaction */
  {

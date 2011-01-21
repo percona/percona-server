@@ -194,7 +194,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11829,6 +11840,7 @@
+@@ -11833,6 +11844,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),
@@ -231,7 +231,7 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-04 15:52:23.474482590 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-04 15:53:45.048512100 +0900
-@@ -225,6 +225,7 @@
+@@ -226,6 +226,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
@@ -291,7 +291,7 @@ diff -ruN a/storage/innobase/include/ut0rnd.ic b/storage/innobase/include/ut0rnd
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:52:23.498513634 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:53:45.053550283 +0900
-@@ -410,6 +410,7 @@
+@@ -411,6 +411,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

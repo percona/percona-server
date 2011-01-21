@@ -658,7 +658,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
 --- a/storage/innobase/include/trx0trx.h	2010-12-03 15:41:52.049372966 +0900
 +++ b/storage/innobase/include/trx0trx.h	2010-12-03 17:42:42.107024532 +0900
-@@ -739,6 +739,17 @@
+@@ -738,6 +738,17 @@
  	/*------------------------------*/
  	char detailed_error[256];	/*!< detailed error message for last
  					error, or empty. */
@@ -885,7 +885,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* This is set to TRUE if the MySQL user has set it in MySQL; currently
  affects only FOREIGN KEY definition parsing */
  UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-@@ -1217,6 +1220,10 @@
+@@ -1218,6 +1221,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -896,7 +896,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1293,6 +1300,7 @@
+@@ -1294,6 +1301,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -904,7 +904,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		trx->op_info = "";
-@@ -1348,6 +1356,13 @@
+@@ -1349,6 +1357,13 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  
@@ -918,7 +918,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
-@@ -1356,6 +1371,12 @@
+@@ -1357,6 +1372,12 @@
  
  	trx->op_info = "";
  
@@ -934,7 +934,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:41:52.053955669 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 17:42:42.127023410 +0900
-@@ -187,6 +187,15 @@
+@@ -185,6 +185,15 @@
  	trx->global_read_view = NULL;
  	trx->read_view = NULL;
  
@@ -950,7 +950,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	/* Set X/Open XA transaction identification to NULL */
  	memset(&trx->xid, 0, sizeof(trx->xid));
  	trx->xid.formatID = -1;
-@@ -224,6 +233,11 @@
+@@ -222,6 +231,11 @@
  
  	trx->mysql_process_no = os_proc_get_number();
  
@@ -962,7 +962,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	return(trx);
  }
  
-@@ -355,6 +369,12 @@
+@@ -353,6 +367,12 @@
  /*===============*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -975,7 +975,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
-@@ -376,6 +396,12 @@
+@@ -374,6 +394,12 @@
  /*====================*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -988,7 +988,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	trx_free(trx);
-@@ -1096,6 +1122,9 @@
+@@ -1091,6 +1117,9 @@
  	trx_t*	trx)	/*!< in: transaction */
  {
  	que_thr_t*	thr;
@@ -998,7 +998,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1110,6 +1139,11 @@
+@@ -1105,6 +1134,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  
@@ -1010,7 +1010,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	trx->que_state = TRX_QUE_RUNNING;
  }
  
-@@ -1123,6 +1157,9 @@
+@@ -1118,6 +1152,9 @@
  	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
  {
  	que_thr_t*	thr;
@@ -1020,7 +1020,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1137,6 +1174,11 @@
+@@ -1132,6 +1169,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  

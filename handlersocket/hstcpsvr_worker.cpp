@@ -728,8 +728,14 @@ hstcpsvr_worker::do_open_index(char *start, char *finish, hstcpsvr_conn& conn)
   idxname_end[0] = 0;
   retflds_end[0] = 0;
   filflds_end[0] = 0;
-  return dbctx->cmd_open_index(conn, pst_id, dbname_begin, tblname_begin,
-    idxname_begin, retflds_begin, filflds_begin);
+  cmd_open_args args;
+  args.pst_id = pst_id;
+  args.dbn = dbname_begin;
+  args.tbl = tblname_begin;
+  args.idx = idxname_begin;
+  args.retflds = retflds_begin;
+  args.filflds = filflds_begin;
+  return dbctx->cmd_open(conn, args);
 }
 
 void
@@ -773,7 +779,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   args.skip = read_ui32(start, finish);
   if (start == finish) {
     /* simple query */
-    return dbctx->cmd_exec_on_index(conn, args);
+    return dbctx->cmd_exec(conn, args);
   }
   /* has filters or modops */
   skip_one(start, finish);
@@ -831,7 +837,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
   }
   if (start == finish) {
     /* no modops */
-    return dbctx->cmd_exec_on_index(conn, args);
+    return dbctx->cmd_exec(conn, args);
   }
   /* has modops */
   char *const mod_op_begin = start;
@@ -857,7 +863,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     }
   }
   args.uvals = uflds;
-  return dbctx->cmd_exec_on_index(conn, args);
+  return dbctx->cmd_exec(conn, args);
 }
 
 void

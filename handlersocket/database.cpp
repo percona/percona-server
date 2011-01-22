@@ -141,10 +141,8 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   virtual void close_tables_if();
   virtual void table_addref(size_t tbl_id);
   virtual void table_release(size_t tbl_id);
-  virtual void cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
-    const char *tbl, const char *idx, const char *retflds,
-    const char *filflds);
-  virtual void cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args);
+  virtual void cmd_open(dbcallback_i& cb, const cmd_open_args& args);
+  virtual void cmd_exec(dbcallback_i& cb, const cmd_exec_args& args);
   virtual void set_statistics(size_t num_conns, size_t num_active);
  private:
   int set_thread_message(const char *fmt, ...)
@@ -973,11 +971,11 @@ dbcontext::check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
 }
 
 void
-dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
-  const char *tbl, const char *idx, const char *retflds, const char *filflds)
+dbcontext::cmd_open(dbcallback_i& cb, const cmd_open_args& arg)
 {
   unlock_tables_if();
-  const table_name_type k = std::make_pair(std::string(dbn), std::string(tbl));
+  const table_name_type k = std::make_pair(std::string(arg.dbn),
+    std::string(arg.tbl));
   const table_map_type::const_iterator iter = table_map.find(k);
   uint32_t tblnum = 0;
   if (iter != table_map.end()) {
@@ -990,23 +988,23 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     bool refresh = true;
     const thr_lock_type lock_type = for_write_flag ? TL_WRITE : TL_READ;
     #if MYSQL_VERSION_ID >= 50505
-    tables.init_one_table(dbn, strlen(dbn), tbl, strlen(tbl), tbl,
-      lock_type);
-    tables.mdl_request.init(MDL_key::TABLE, dbn, tbl,
+    tables.init_one_table(arg.dbn, strlen(arg.dbn), arg.tbl, strlen(arg.tbl),
+      arg.tbl, lock_type);
+    tables.mdl_request.init(MDL_key::TABLE, arg.dbn, arg.tbl,
       for_write_flag ? MDL_SHARED_WRITE : MDL_SHARED_READ, MDL_TRANSACTION);
     Open_table_context ot_act(thd, 0);
     if (!open_table(thd, &tables, thd->mem_root, &ot_act)) {
       table = tables.table;
     }
     #else
-    tables.init_one_table(dbn, tbl, lock_type);
+    tables.init_one_table(arg.dbn, arg.tbl, lock_type);
     table = open_table(thd, &tables, thd->mem_root, &refresh,
       OPEN_VIEW_NO_PARSE);
     #endif
     if (table == 0) {
       DENA_VERBOSE(10, fprintf(stderr,
 	"HNDSOCK failed to open %p [%s] [%s] [%d]\n",
-	thd, dbn, tbl, static_cast<int>(refresh)));
+	thd, arg.dbn, arg.tbl, static_cast<int>(refresh)));
       return cb.dbcb_resp_short(1, "open_table");
     }
     statistic_increment(open_tables_count, &LOCK_status);
@@ -1019,15 +1017,16 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     table_map[k] = tblnum;
   }
   size_t idxnum = static_cast<size_t>(-1);
-  if (idx[0] >= '0' && idx[0] <= '9') {
+  if (arg.idx[0] >= '0' && arg.idx[0] <= '9') {
     /* numeric */
     TABLE *const table = table_vec[tblnum].table;
-    idxnum = atoi(idx);
+    idxnum = atoi(arg.idx);
     if (idxnum >= table->s->keys) {
       return cb.dbcb_resp_short(2, "idxnum");
     }
   } else {
-    const char *const idx_name_to_open = idx[0]  == '\0' ? "PRIMARY" : idx;
+    const char *const idx_name_to_open =
+      arg.idx[0]  == '\0' ? "PRIMARY" : arg.idx;
     TABLE *const table = table_vec[tblnum].table;
     for (uint i = 0; i < table->s->keys; ++i) {
       KEY& kinfo = table->key_info[i];
@@ -1042,14 +1041,14 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
   }
   prep_stmt::fields_type rf;
   prep_stmt::fields_type ff;
-  if (!parse_fields(table_vec[tblnum].table, retflds, rf)) {
+  if (!parse_fields(table_vec[tblnum].table, arg.retflds, rf)) {
     return cb.dbcb_resp_short(2, "fld");
   }
-  if (!parse_fields(table_vec[tblnum].table, filflds, ff)) {
+  if (!parse_fields(table_vec[tblnum].table, arg.filflds, ff)) {
     return cb.dbcb_resp_short(2, "fld");
   }
   prep_stmt p(this, tblnum, idxnum, rf, ff);
-  cb.dbcb_set_prep_stmt(pst_id, p);
+  cb.dbcb_set_prep_stmt(arg.pst_id, p);
   return cb.dbcb_resp_short(0, "");
 }
 
@@ -1090,7 +1089,7 @@ enum db_write_op {
 };
 
 void
-dbcontext::cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
+dbcontext::cmd_exec(dbcallback_i& cb, const cmd_exec_args& args)
 {
   const prep_stmt& p = *args.pst;
   if (p.get_table_id() == static_cast<size_t>(-1)) {

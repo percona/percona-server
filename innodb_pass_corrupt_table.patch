@@ -1378,8 +1378,8 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 +	if (!srv_file_per_table_original_value
 +	    && srv_pass_corrupt_table) {
 +		fprintf(stderr, "InnoDB: Warning:"
-+			" innodb_file_per_table is diabled."
-+			" So innodb_pass_corrupt_table doesn't make sence\n");
++			" The option innodb_file_per_table is disabled,"
++			" so using the option innodb_pass_corrupt_table doesn't make sense.\n");
 +	}
 +
  	if (srv_print_verbose_log) {

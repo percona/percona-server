@@ -78,7 +78,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +
 +	fprintf(stderr,
 +		"InnoDB: Warning: innodb_overwrite_relay_log_info is enabled."
-+		" Updates in other storage engines may have problem with consistency.\n");
++		" Updates by other storage engines may not be synchronized.\n");
 +
 +	bzero((char*) &info_file, sizeof(info_file));
 +	fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
@@ -156,7 +156,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +	/* If InnoDB progressed from relay-log.info, overwrite it */
 +	if (fname[0] == '\0') {
 +		fprintf(stderr,
-+			"InnoDB: something wrong with relay-info.log. InnoDB will not overwrite it.\n");
++			"InnoDB: Something is wrong with the file relay-info.log. InnoDB will not overwrite it.\n");
 +	} else if (0 != strcmp(fname, trx_sys_mysql_master_log_name)
 +		   || pos != trx_sys_mysql_master_log_pos) {
 +		/* Overwrite relay-log.info */
@@ -207,10 +207,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +skip_overwrite:
 +		if (error) {
 +			fprintf(stderr,
-+				"InnoDB: ERROR: error occured during overwriting relay-log.info.\n");
++				"InnoDB: ERROR: An error occured while overwriting relay-log.info.\n");
 +		} else {
 +			fprintf(stderr,
-+				"InnoDB: relay-log.info was overwritten.\n");
++				 "InnoDB: The file relay-log.info was successfully overwritten.\n");
 +		}
 +	} else {
 +		fprintf(stderr,

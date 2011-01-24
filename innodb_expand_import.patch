@@ -130,27 +130,27 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +		info_file = os_file_create_simple_no_error_handling(innodb_file_data_key,
 +				info_file_path, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 +		if (!success) {
-+			fprintf(stderr, "InnoDB: cannot open %s\n", info_file_path);
++			fprintf(stderr, "InnoDB: Cannot open the file: %s\n", info_file_path);
 +			file_is_corrupt = TRUE;
 +			goto skip_info;
 +		}
 +		success = os_file_read(info_file, page, 0, 0, UNIV_PAGE_SIZE);
 +		if (!success) {
-+			fprintf(stderr, "InnoDB: cannot read %s\n", info_file_path);
++			fprintf(stderr, "Cannot read the file: %s\n", info_file_path);
 +			file_is_corrupt = TRUE;
 +			goto skip_info;
 +		}
 +		if (mach_read_from_4(page) != 0x78706f72UL
 +		    || mach_read_from_4(page + 4) != 0x74696e66UL) {
-+			fprintf(stderr, "InnoDB: %s seems not to be a correct .exp file\n", info_file_path);
++			fprintf(stderr, "InnoDB: %s seems to be an incorrect .exp file.\n", info_file_path);
 +			file_is_corrupt = TRUE;
 +			goto skip_info;
 +		}
 +
-+		fprintf(stderr, "InnoDB: import: extended import of %s is started.\n", name);
++		fprintf(stderr, "InnoDB: Import: The extended import of %s is being started.\n", name);
 +
 +		n_index = mach_read_from_4(page + 8);
-+		fprintf(stderr, "InnoDB: import: %lu indexes are detected.\n", (ulong)n_index);
++		fprintf(stderr, "InnoDB: Import: %lu indexes have been detected.\n", (ulong)n_index);
 +		for (i = 0; i < n_index; i++) {
 +			new_id[i] =
 +				dict_table_get_index_on_name(table,
@@ -452,8 +452,8 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +			size = (ulint)
 +			(size_bytes
 +					/ dict_table_flags_to_zip_size(flags));
-+			fprintf(stderr, "InnoDB: import: table %s seems to be in newer format."
-+					" It may not be able to treated for now.\n", name);
++			fprintf(stderr, "InnoDB: Import: The table %s seems to be in a newer format."
++					" It may not be possible to process it.\n", name);
 +		}
 +		/* .exp file should be removed */
 +		success = os_file_delete(info_file_path);
@@ -481,11 +481,11 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +			      stderr);
 +			ut_print_filename(stderr, filepath);
 +			fprintf(stderr, " seems to be corrupt.\n"
-+				"InnoDB: anyway, all not corrupt pages were tried to be converted to salvage.\n"
-+				"InnoDB: ##### CAUTION #####\n"
-+				"InnoDB: ## The .ibd must cause to crash InnoDB, though re-import would seem to be succeeded.\n"
-+				"InnoDB: ## If you don't have knowledge about salvaging data from .ibd, you should not use the file.\n"
-+				"InnoDB: ###################\n");
++                               "InnoDB: An attempt to convert and salvage all corrupt pages was not made.\n"
++                               "InnoDB: ##### CAUTION #####\n"
++                               "InnoDB: ## The .ibd file may cause InnoDB to crash, even though its re-import seems to have succeeded.\n"
++                               "InnoDB: ## If you don't know how to salvage data from a .ibd, you should not use the file.\n"
++                               "InnoDB: ###################\n");
 +			success = FALSE;
 +
 +			ut_free(buf2);

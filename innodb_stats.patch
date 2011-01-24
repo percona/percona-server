@@ -831,7 +831,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +			!= index->id) {
 +			/* not found: even 1 if not found should not be alowed */
 +			fprintf(stderr, "InnoDB: Warning: stats for %s/%s (%lu/%lu)"
-+				        " not fonund in SYS_STATS\n",
++				        " not found in SYS_STATS\n",
 +					index->table_name, index->name, i, n_cols);
 +			btr_pcur_close(&pcur);
 +			mtr_commit(&mtr);
@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +		if (dict_reload_statistics(table, &sum_of_index_sizes)) {
 +			/* success */
 +#ifdef UNIV_DEBUG
-+			fprintf(stderr, "InnoDB: DEBUG: reload_statistics is scceeded for %s.\n",
++			fprintf(stderr, "InnoDB: DEBUG: reload_statistics  succeeded for %s.\n",
 +					table->name);
 +#endif
 +			goto end;

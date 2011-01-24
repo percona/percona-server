@@ -348,7 +348,7 @@ diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
 +		ulint	i;
 +
 +		fprintf(stderr,
-+			"InnoDB: Applying log records was done. Its statistics are followings.\n");
++			"InnoDB: Log records have been applied. The statistics that were gathered follow.\n");
 +
 +		fprintf(stderr,
 +			"============================================================\n"

@@ -98,7 +98,7 @@ diff -ruN a/extra/comp_err.c b/extra/comp_err.c
 -	DBUG_RETURN(0);
 +        if (!(current_error= parse_padd_string(str, rcount)))
 +        {
-+          fprintf(stderr, "Failed to parse the error padd string\n");
++          fprintf(stderr, "Failed to parse the error pad string\n");
 +          DBUG_RETURN(0);
 +        }
 +        rcount= current_error->d_code - er_offset;  /* Count number of unique errors */
@@ -174,7 +174,7 @@ diff -ruN a/extra/comp_err.c b/extra/comp_err.c
 -  if (!(new_error->er_name= get_word(&str)))
 +  if (!(d_code= parse_error_offset(start)))
 +  {
-+    fprintf(stderr, "Failed to parse the error padd string '%s' '%s' (d_code doesn't parse)!\n",er_name,str);
++    fprintf(stderr, "Failed to parse the error pad string '%s' '%s' (d_code doesn't parse)!\n",er_name,str);
 +    DBUG_RETURN(0);
 +  }
 +  if (d_code < (uint)(er_offset + er_count))

@@ -690,7 +690,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  			/* Try to keep the rate of flushing of dirty
  			pages such that redo log generation does not
-@@ -2854,6 +2908,230 @@
+@@ -2854,6 +2908,223 @@
  						n_flush,
  						IB_ULONGLONG_MAX);
  			}
@@ -794,13 +794,6 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +			buf_page_t*	bpage;
 +			ib_uint64_t	lsn;
 +			ulint		j;
-+
-+			if (srv_flush_neighbor_pages) {
-+				srv_flush_neighbor_pages = 0;
-+				fprintf(stderr,
-+					"InnoDB: Notice: innodb_flush_neighbor_pages option is disabled automatically.\n"
-+					"  Because it strains the estimation to flush by innodb_adaptive_flushing_method=keep_average.\n");
-+			}
 +
 +			mutex_enter(&(log_sys->mutex));
 +			oldest_lsn = buf_pool_get_oldest_modification();
@@ -921,7 +914,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2902,7 +3180,7 @@
+@@ -2902,7 +3173,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -930,7 +923,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -3010,7 +3288,7 @@
+@@ -3010,7 +3281,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -939,7 +932,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-@@ -3156,6 +3434,7 @@
+@@ -3156,6 +3427,7 @@
  	srv_slot_t*	slot;
  	ulint		slot_no = ULINT_UNDEFINED;
  	ulint		n_total_purged = ULINT_UNDEFINED;
@@ -947,7 +940,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	ut_a(srv_n_purge_threads == 1);
  
-@@ -3178,9 +3457,12 @@
+@@ -3178,9 +3450,12 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -960,7 +953,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  		/* If there are very few records to purge or the last
  		purge didn't purge any records then wait for activity.
-@@ -3221,6 +3503,16 @@
+@@ -3221,6 +3496,16 @@
  		} while (n_pages_purged > 0 && !srv_fast_shutdown);
  
  		srv_sync_log_buffer_in_background();

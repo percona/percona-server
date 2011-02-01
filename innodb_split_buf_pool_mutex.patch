@@ -48,38 +48,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
 diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 --- a/storage/innobase/btr/btr0sea.c	2010-12-03 15:48:03.033037049 +0900
 +++ b/storage/innobase/btr/btr0sea.c	2010-12-03 15:48:29.271024260 +0900
-@@ -1211,7 +1211,7 @@
- 	ulint*		offsets;
- 
- 	rw_lock_x_lock(&btr_search_latch);
--	buf_pool_mutex_enter_all();
-+	//buf_pool_mutex_enter_all();
- 
- 	table = btr_search_sys->hash_index;
- 
-@@ -1220,6 +1220,8 @@
- 
- 		buf_pool = buf_pool_from_array(j);
- 
-+		mutex_enter(&buf_pool->LRU_list_mutex);
-+
- 		bpage = UT_LIST_GET_LAST(buf_pool->LRU);
- 
- 		while (bpage != NULL) {
-@@ -1301,9 +1303,11 @@
- 
- 			bpage = UT_LIST_GET_PREV(LRU, bpage);
- 		}
-+
-+		mutex_exit(&buf_pool->LRU_list_mutex);
- 	}
- 
--	buf_pool_mutex_exit_all();
-+	//buf_pool_mutex_exit_all();
- 	rw_lock_x_unlock(&btr_search_latch);
- 
- 	if (UNIV_LIKELY_NULL(heap)) {
-@@ -1896,7 +1900,7 @@
+@@ -1943,7 +1943,7 @@
  	rec_offs_init(offsets_);
  
  	rw_lock_x_lock(&btr_search_latch);
@@ -88,7 +57,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
  
-@@ -1904,11 +1908,11 @@
+@@ -1951,11 +1951,11 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if ((i != 0) && ((i % chunk_size) == 0)) {
@@ -102,7 +71,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  		}
  
  		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
-@@ -2019,11 +2023,11 @@
+@@ -2066,11 +2066,11 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if (i != 0) {
@@ -116,7 +85,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  		}
  
  		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
-@@ -2031,7 +2035,7 @@
+@@ -2078,7 +2078,7 @@
  		}
  	}
  
@@ -3532,7 +3501,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	mutex_t		mutex;		/*!< mutex protecting this block:
  					state (also protected by the buffer
  					pool mutex), io_fix, buf_fix_count,
-@@ -1532,6 +1559,11 @@
+@@ -1541,6 +1568,11 @@
  					pool instance, protects compressed
  					only pages (of type buf_page_t, not
  					buf_block_t */

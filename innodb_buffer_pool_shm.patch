@@ -41,9 +41,9 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  /* prototypes for new functions added to ha_innodb.cc */
  trx_t* innobase_get_trx();
 @@ -342,6 +346,31 @@
- 					was allocated for the frames */
- 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
- };
+ //					was allocated for the frames */
+ //	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+ //};
 +
 +/* Buffer pool shared memory segment information */
 +typedef	struct buf_shm_info_struct	buf_shm_info_t;
@@ -811,7 +811,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 +#define BUF_POOL_ZIP_FOLD_BPAGE(bpool, b) BUF_POOL_ZIP_FOLD(bpool, (buf_block_t*) (b))
  /* @} */
  
- /** @brief The buffer pool statistics structure. */
+ /** A chunk of buffers.  The buffer pool is allocated in chunks. */
 diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash0hash.h
 --- a/storage/innobase/include/hash0hash.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/hash0hash.h	2010-12-07 17:56:28.324726446 +0900

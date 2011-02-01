@@ -34,8 +34,8 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	space_id = fsp_header_get_space_id(page);
  	space_flags = fsp_header_get_flags(page);
  
-+	if (srv_expand_import
-+	    && (space_id != id || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
++	if (srv_expand_import) {
++
 +		ibool		file_is_corrupt = FALSE;
 +		byte*		buf3;
 +		byte*		descr_page;

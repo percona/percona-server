@@ -8,8 +8,8 @@
 diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2010-07-06 15:06:50.000000000 -0700
 +++ b/client/client_priv.h	2010-07-06 15:07:18.000000000 -0700
-@@ -93,5 +93,6 @@
-   OPT_SYSLOG,
+@@ -95,5 +95,6 @@
+ #endif
    OPT_FIRST_SLAVE,
    OPT_ALL,
 +  OPT_NO_REMOVE_EOL_CARRET,
@@ -18,7 +18,7 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
 diff -ruN a/client/mysql.cc b/client/mysql.cc
 --- a/client/mysql.cc	2010-06-03 08:50:02.000000000 -0700
 +++ b/client/mysql.cc	2010-07-06 15:07:18.000000000 -0700
-@@ -143,6 +143,8 @@
+@@ -145,6 +145,8 @@
  enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
  typedef enum enum_info_type INFO_TYPE;
  
@@ -27,7 +27,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
  static MYSQL mysql;			/* The connection */
  static my_bool ignore_errors=0,wait_flag=0,quick=0,
                 connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-@@ -1437,6 +1439,10 @@
+@@ -1439,6 +1441,10 @@
     NO_ARG, 1, 0, 0, 0, 0, 0},  
    {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},

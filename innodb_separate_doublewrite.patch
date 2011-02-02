@@ -561,10 +561,10 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 +		srv_normalize_path_for_win(srv_doublewrite_file);
 +
 +		fprintf(stderr,
-+			"InnoDB: Notice: innodb_doublewrite_file is specified.\n"
-+			"InnoDB: This is for expert only. Don't use if you don't understand what is it 'WELL'.\n"
-+			"InnoDB: ### Don't specify older file than the last checkpoint ###\n"
-+			"InnoDB: otherwise the older doublewrite buffer will break your data during recovery!\n");
++			"InnoDB: Note: The innodb_doublewrite_file option has been specified.\n"
++			"InnoDB: This option is for experts only. Don't use it unless you understand WELL what it is.\n"
++			"InnoDB: ### Don't specify a file older than the last checkpoint. ###\n"
++			"InnoDB: Otherwise, the older doublewrite buffer will break your data during recovery!\n");
 +
 +		strcpy(name, srv_doublewrite_file);
 +
@@ -645,7 +645,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 +			ut_print_timestamp(stderr);
 +			fprintf(stderr,
 +				"  InnoDB: Doublewrite buffer file %s did not"
-+				" exist: new to be created\n",
++				" exist. It will be be created.\n",
 +				name);
 +
 +			if (*create_new_db == FALSE) {
@@ -787,17 +787,17 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 +	} else {
 +		fprintf(stderr,
 +			"InnoDB: Doublewrite buffer not found in the doublewrite file:"
-+			" creating new\n");
++			" creating new doublewrite buffer.\n");
 +
 +		if (buf_pool_get_curr_size()
 +		    < ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 +			+ FSP_EXTENT_SIZE / 2 + 100)
 +		       * UNIV_PAGE_SIZE)) {
 +			fprintf(stderr,
-+				"InnoDB: Cannot create doublewrite buffer:"
-+				" you must\n"
++				"InnoDB: Cannot create the doublewrite buffer:"
++				" You must\n"
 +				"InnoDB: increase your buffer pool size.\n"
-+				"InnoDB: Cannot continue operation.\n");
++				"InnoDB: Cannot continue processing.\n");
 +
 +			exit(1);
 +		}
@@ -813,10 +813,10 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 +
 +		if (block2 == NULL) {
 +			fprintf(stderr,
-+				"InnoDB: Cannot create doublewrite buffer:"
-+				" you must\n"
++				"InnoDB: Cannot create the doublewrite buffer:"
++				" You must\n"
 +				"InnoDB: increase your tablespace size.\n"
-+				"InnoDB: Cannot continue operation.\n");
++				"InnoDB: Cannot continue processing.\n");
 +
 +			/* We exit without committing the mtr to prevent
 +			its modifications to the database getting to disk */
@@ -835,8 +835,8 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 +						       FSP_UP, &mtr);
 +			if (page_no == FIL_NULL) {
 +				fprintf(stderr,
-+					"InnoDB: Cannot create doublewrite"
-+					" buffer: you must\n"
++					"InnoDB: Cannot create the doublewrite"
++					" buffer: You must\n"
 +					"InnoDB: increase your"
 +					" tablespace size.\n"
 +					"InnoDB: Cannot continue operation.\n"

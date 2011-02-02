@@ -117,8 +117,8 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 +					/* Corruption */
 +					ut_print_timestamp(stderr);
 +					fprintf(stderr,
-+"  InnoDB: Corruption of adaptive hash index. After dropping\n"
-+"InnoDB: the hash index to a page of %s, still %lu hash nodes remain.\n",
++"InnoDB: The adaptive hash index is corrupted. After dropping\n"
++"InnoDB: the hash index to a page of %s, %lu hash nodes still remain.\n",
 +						index->name, (ulong) block->n_pointers);
 +				}
 +#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */

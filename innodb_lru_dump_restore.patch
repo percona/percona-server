@@ -35,8 +35,8 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 +		if (strstr(srv_data_file_names[i], LRU_DUMP_FILE) != NULL) {
 +			fprintf(stderr,
 +				" InnoDB: The name '%s' seems to be used for"
-+				" innodb_data_file_path. Dumping LRU list is not"
-+				" done for safeness.\n", LRU_DUMP_FILE);
++				" innodb_data_file_path. For safety, dumping of the LRU list"
++				" is not being done.\n", LRU_DUMP_FILE);
 +			goto end;
 +		}
 +	}
@@ -197,8 +197,8 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 +				UNIV_PAGE_SIZE);
 +		if (!success) {
 +			fprintf(stderr,
-+				" InnoDB: cannot read page %lu of %s,"
-+				" or meet unexpected terminal.\n",
++				" InnoDB: either could not read page %lu of %s,"
++				" or terminated unexpectedly.\n",
 +				buffers, LRU_DUMP_FILE);
 +			goto end;
 +		}
@@ -429,7 +429,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  	}
 +	else if (!strncasecmp("XTRA_LRU_DUMP", ptr, 13)) {
 +		ut_print_timestamp(stderr);
-+		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_DUMP'"
++		fprintf(stderr, " InnoDB: Administrative command 'XTRA_LRU_DUMP'"
 +				" was detected.\n");
 +
 +		if (buf_LRU_file_dump()) {
@@ -444,7 +444,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +	}
 +	else if (!strncasecmp("XTRA_LRU_RESTORE", ptr, 16)) {
 +		ut_print_timestamp(stderr);
-+		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_RESTORE'"
++		fprintf(stderr, " InnoDB: Administrative command 'XTRA_LRU_RESTORE'"
 +				" was detected.\n");
 +
 +		if (buf_LRU_file_restore()) {
@@ -618,7 +618,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +	time_t	time_elapsed;
 +
 +#ifdef UNIV_DEBUG_THREAD_CREATION
-+	fprintf(stderr, "LRU dump/restore thread starts, id %lu\n",
++	fprintf(stderr, "The LRU dump/restore thread has started, id %lu\n",
 +		os_thread_pf(os_thread_get_curr_id()));
 +#endif
 +

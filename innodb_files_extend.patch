@@ -106,7 +106,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +
 +	if (!srv_page_size_shift) {
 +		fprintf(stderr,
-+			"InnoDB: Error: %lu is not valid value for innodb_page_size.\n",
++			"InnoDB: Error: %lu is not a valid value for innodb_page_size.\n"
++			"InnoDB: Error: Valid values are 4096, 8192, and 16384 (default=16384).\n",
 +			innobase_page_size);
 +		goto error;
 +	}
@@ -132,7 +133,9 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +
 +	if (!srv_log_block_size) {
 +		fprintf(stderr,
-+			"InnoDB: Error: %lu is not valid value for innodb_log_block_size.\n",
++			"InnoDB: Error: %lu is not a valid value for innodb_log_block_size.\n"
++			"InnoDB: Error: A valid value for innodb_log_block_size is\n"
++			"InnoDB: Error: a power of 2 from 512 to 16384.\n",
 +			innobase_log_block_size);
 +		goto error;
 +	}
@@ -445,7 +448,8 @@ diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
 +	if (log_hdr_log_block_size != srv_log_block_size) {
 +		fprintf(stderr,
 +			"InnoDB: Error: The block size of ib_logfile (%lu) "
-+			"is not equal to innodb_log_block_size.\n",
++			"is not equal to innodb_log_block_size.\n"
++			"InnoDB: Error: Suggestion - Recreate log files.\n",
 +			log_hdr_log_block_size);
 +		return(DB_ERROR);
 +	}

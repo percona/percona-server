@@ -963,7 +963,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2477,15 +2488,30 @@
+@@ -2477,15 +2488,31 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -985,7 +985,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +		unsigned	space:32;
 +		unsigned	offset:32;
 +		ib_uint64_t	oldest_modification;
-+	} prev_flush_info;
++	};
++	struct t_prev_flush_info_struct prev_flush_info = {0,0,0,0};
 +
 +	ib_uint64_t	lsn_old;
 +
@@ -994,7 +995,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
  		os_thread_pf(os_thread_get_curr_id()));
-@@ -2501,6 +2527,9 @@
+@@ -2501,6 +2528,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -1004,7 +1005,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2528,16 +2557,38 @@
+@@ -2528,16 +2558,40 @@
  	srv_last_log_flush_time = time(NULL);
  	skip_sleep = FALSE;
  
@@ -1012,6 +1013,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +
  	for (i = 0; i < 10; i++) {
 +		ulint	cur_time = ut_time_ms();
++
++		n_pages_flushed = 0; /* initialize */
 +
  		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
  			+ buf_pool->stat.n_pages_written;
@@ -1044,7 +1047,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		skip_sleep = FALSE;
-@@ -2574,7 +2625,7 @@
+@@ -2574,7 +2628,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -1053,7 +1056,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2598,6 +2649,11 @@
+@@ -2598,6 +2652,11 @@
  			iteration of this loop. */
  
  			skip_sleep = TRUE;
@@ -1065,7 +1068,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2619,6 +2675,255 @@
+@@ -2619,6 +2678,256 @@
  					skip_sleep = TRUE;
  				}
  			}
@@ -1221,7 +1224,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +
 +			if (prev_adaptive_checkpoint == 3) {
 +				lint	n_flush;
-+				lint	blocks_sum, new_blocks_sum, flushed_blocks_sum;
++				lint	blocks_sum;
++				ulint	new_blocks_sum, flushed_blocks_sum;
 +
 +				blocks_sum = new_blocks_sum = flushed_blocks_sum = 0;
 +
@@ -1321,7 +1325,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2667,7 +2972,7 @@
+@@ -2667,7 +2976,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1330,7 +1334,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2792,7 +3097,7 @@
+@@ -2792,7 +3101,7 @@
  		buf_flush_batch below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,

@@ -273,7 +273,7 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
 +  my_b_printf(log_file, "# ");
 +
 +    void *entry_iterator;
-+    PROF_MEASUREMENT *entry, *previous= NULL, *first= NULL;
++    PROF_MEASUREMENT *entry= NULL, *previous= NULL, *first= NULL;
 +    /* ...and for each query, go through all its state-change steps. */
 +    for (entry_iterator= query->entries.new_iterator();
 +         entry_iterator != NULL;

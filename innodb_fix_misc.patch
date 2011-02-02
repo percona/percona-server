@@ -51,10 +51,30 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
  
+diff -ruN a/storage/innodb_plugin/mtr/mtr0log.c b/storage/innodb_plugin/mtr/mtr0log.c
+--- a/storage/innodb_plugin/mtr/mtr0log.c	2010-11-29 19:38:03.000000000 +0900
++++ b/storage/innodb_plugin/mtr/mtr0log.c	2011-02-02 23:31:34.000000000 +0900
+@@ -408,7 +408,7 @@
+ 	ptr += 2;
+ 
+ 	if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
+-			|| UNIV_UNLIKELY(len + offset) > UNIV_PAGE_SIZE) {
++			|| UNIV_UNLIKELY(len + offset > UNIV_PAGE_SIZE)) {
+ 		recv_sys->found_corrupt_log = TRUE;
+ 
+ 		return(NULL);
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:04.097866666 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:53.995828763 +0900
-@@ -1135,6 +1135,13 @@
+@@ -51,6 +51,7 @@
+ #include "btr0sea.h"
+ #include "fil0fil.h"
+ #include "ibuf0ibuf.h"
++#include "ha_prototypes.h"
+ 
+ /** Provide optional 4.x backwards compatibility for 5.0 and above */
+ UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
+@@ -1135,6 +1136,13 @@
  
  	thr = que_fork_get_first_thr(prebuilt->ins_graph);
  

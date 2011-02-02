@@ -67,7 +67,15 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
 --- a/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:22:04.223059346 +0900
 +++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:37:55.363104692 +0900
-@@ -396,7 +396,7 @@
+@@ -40,6 +40,7 @@
+ #include "rem0cmp.h"
+ #include "srv0start.h"
+ #include "srv0srv.h"
++#include "trx0sys.h"
+ 
+ /****************************************************************//**
+ Compare the name of an index column.
+@@ -396,7 +397,7 @@
  
  		mtr_commit(&mtr);
  
@@ -76,7 +84,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  			/* The system tablespace always exists. */
  		} else if (in_crash_recovery) {
  			/* Check that the tablespace (the .ibd file) really
-@@ -904,7 +904,7 @@
+@@ -904,7 +905,7 @@
  	space = mach_read_from_4(field);
  
  	/* Check if the tablespace exists and has the right name */
@@ -85,7 +93,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  		flags = dict_sys_tables_get_flags(rec);
  
  		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-@@ -957,7 +957,7 @@
+@@ -957,7 +958,7 @@
  	}
  
  	/* See if the tablespace is available. */
@@ -295,7 +303,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5271,7 +5281,7 @@
+@@ -5263,7 +5273,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);

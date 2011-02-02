@@ -1134,7 +1134,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		table->status = 0;
 +#ifdef EXTENDED_FOR_USERSTAT
 +		rows_read++;
-+		if (active_index >= 0 && active_index < MAX_KEY)
++		if (active_index < MAX_KEY)
 +			index_rows_read[active_index]++;
 +#endif
  		break;

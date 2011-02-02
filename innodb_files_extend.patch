@@ -185,7 +185,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 15:55:21.375482937 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:55:58.258469088 +0900
-@@ -1602,7 +1602,7 @@
+@@ -1611,7 +1611,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -194,7 +194,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1698,7 +1698,7 @@
+@@ -1707,7 +1707,7 @@
  	/* @{ */
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
@@ -203,7 +203,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1706,9 +1706,9 @@
+@@ -1715,9 +1715,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  

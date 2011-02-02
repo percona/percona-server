@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 --- a/storage/innobase/btr/btr0sea.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/btr/btr0sea.c	2010-12-03 15:45:47.503988924 +0900
-@@ -1185,6 +1185,132 @@
+@@ -1185,6 +1185,179 @@
  	mem_free(folds);
  }
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 +/*=====================================*/
 +	dict_index_t*	index)		/* in: record descriptor */
 +{
-+	buf_page_t*	bpage;
++
 +	hash_table_t*	table;
 +	buf_block_t*	block;
 +	ulint		n_fields;
@@ -36,9 +36,9 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 +	ulint		i, j;
 +	mem_heap_t*	heap	= NULL;
 +	ulint*		offsets;
++	ibool		released_search_latch;
 +
-+	rw_lock_x_lock(&btr_search_latch);
-+	buf_pool_mutex_enter_all();
++	rw_lock_s_lock(&btr_search_latch);
 +
 +	table = btr_search_sys->hash_index;
 +
@@ -47,91 +47,138 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 +
 +		buf_pool = buf_pool_from_array(j);
 +
-+		bpage = UT_LIST_GET_LAST(buf_pool->LRU);
++		do {
++			buf_chunk_t*	chunks	= buf_pool->chunks;
++			buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
 +
-+		while (bpage != NULL) {
-+			block = (buf_block_t*) bpage;
-+			if (block->index == index && block->is_hashed) {
-+				page = block->frame;
++			released_search_latch = FALSE;
 +
-+				/* from btr_search_drop_page_hash_index() */
-+				n_fields = block->curr_n_fields;
-+				n_bytes = block->curr_n_bytes;
++			while (--chunk >= chunks) {
++				block	= chunk->blocks;
++				i	= chunk->size;
 +
-+				ut_a(n_fields + n_bytes > 0);
-+
-+				n_recs = page_get_n_recs(page);
-+
-+				/* Calculate and cache fold values into an array for fast deletion
-+				from the hash index */
-+
-+				folds = mem_alloc(n_recs * sizeof(ulint));
-+
-+				n_cached = 0;
-+
-+				rec = page_get_infimum_rec(page);
-+				rec = page_rec_get_next_low(rec, page_is_comp(page));
-+
-+				index_id = btr_page_get_index_id(page);
-+	
-+				ut_a(index_id == index->id);
-+
-+				prev_fold = 0;
-+
-+				offsets = NULL;
-+
-+				while (!page_rec_is_supremum(rec)) {
-+					offsets = rec_get_offsets(rec, index, offsets,
-+								n_fields + (n_bytes > 0), &heap);
-+					ut_a(rec_offs_n_fields(offsets) == n_fields + (n_bytes > 0));
-+					fold = rec_fold(rec, offsets, n_fields, n_bytes, index_id);
-+
-+					if (fold == prev_fold && prev_fold != 0) {
-+
-+						goto next_rec;
++retry:
++				for (; i--; block++) {
++					if (buf_block_get_state(block)
++					    != BUF_BLOCK_FILE_PAGE
++					    || block->index != index
++					    || !block->is_hashed) {
++						continue;
 +					}
 +
-+					/* Remove all hash nodes pointing to this page from the
-+					hash chain */
++					page = block->frame;
 +
-+					folds[n_cached] = fold;
-+					n_cached++;
-+next_rec:
-+					rec = page_rec_get_next_low(rec, page_rec_is_comp(rec));
-+					prev_fold = fold;
-+				}
++					/* from btr_search_drop_page_hash_index() */
++					n_fields = block->curr_n_fields;
++					n_bytes = block->curr_n_bytes;
 +
-+				for (i = 0; i < n_cached; i++) {
 +
-+					ha_remove_all_nodes_to_page(table, folds[i], page);
-+				}
++					/* keeping latch order */
++					rw_lock_s_unlock(&btr_search_latch);
++					released_search_latch = TRUE;
++					rw_lock_x_lock(&block->lock);
 +
-+				ut_a(index->search_info->ref_count > 0);
-+				index->search_info->ref_count--;
 +
-+				block->is_hashed = FALSE;
-+				block->index = NULL;
++					ut_a(n_fields + n_bytes > 0);
++
++					n_recs = page_get_n_recs(page);
++
++					/* Calculate and cache fold values into an array for fast deletion
++					from the hash index */
++
++					folds = mem_alloc(n_recs * sizeof(ulint));
++
++					n_cached = 0;
++
++					rec = page_get_infimum_rec(page);
++					rec = page_rec_get_next_low(rec, page_is_comp(page));
++
++					index_id = btr_page_get_index_id(page);
 +	
++					ut_a(index_id == index->id);
++
++					prev_fold = 0;
++
++					offsets = NULL;
++
++					while (!page_rec_is_supremum(rec)) {
++						offsets = rec_get_offsets(rec, index, offsets,
++									n_fields + (n_bytes > 0), &heap);
++						ut_a(rec_offs_n_fields(offsets) == n_fields + (n_bytes > 0));
++						fold = rec_fold(rec, offsets, n_fields, n_bytes, index_id);
++
++						if (fold == prev_fold && prev_fold != 0) {
++
++							goto next_rec;
++						}
++
++						/* Remove all hash nodes pointing to this page from the
++						hash chain */
++
++						folds[n_cached] = fold;
++						n_cached++;
++next_rec:
++						rec = page_rec_get_next_low(rec, page_rec_is_comp(rec));
++						prev_fold = fold;
++					}
++
++					if (UNIV_LIKELY_NULL(heap)) {
++						mem_heap_empty(heap);
++					}
++
++					rw_lock_x_lock(&btr_search_latch);
++
++					if (UNIV_UNLIKELY(!block->is_hashed)) {
++						goto cleanup;
++					}
++
++					ut_a(block->index == index);
++
++					if (UNIV_UNLIKELY(block->curr_n_fields != n_fields)
++					    || UNIV_UNLIKELY(block->curr_n_bytes != n_bytes)) {
++						rw_lock_x_unlock(&btr_search_latch);
++						rw_lock_x_unlock(&block->lock);
++
++						mem_free(folds);
++
++						rw_lock_s_lock(&btr_search_latch);
++						goto retry;
++					}
++
++					for (i = 0; i < n_cached; i++) {
++
++						ha_remove_all_nodes_to_page(table, folds[i], page);
++					}
++
++					ut_a(index->search_info->ref_count > 0);
++					index->search_info->ref_count--;
++
++					block->is_hashed = FALSE;
++					block->index = NULL;
++
++cleanup:
 +#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-+				if (UNIV_UNLIKELY(block->n_pointers)) {
-+					/* Corruption */
-+					ut_print_timestamp(stderr);
-+					fprintf(stderr,
++					if (UNIV_UNLIKELY(block->n_pointers)) {
++						/* Corruption */
++						ut_print_timestamp(stderr);
++						fprintf(stderr,
 +"InnoDB: The adaptive hash index is corrupted. After dropping\n"
 +"InnoDB: the hash index to a page of %s, %lu hash nodes still remain.\n",
-+						index->name, (ulong) block->n_pointers);
-+				}
++							index->name, (ulong) block->n_pointers);
++					}
 +#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
++					rw_lock_x_unlock(&btr_search_latch);
++					rw_lock_x_unlock(&block->lock);
 +
-+				mem_free(folds);
++					mem_free(folds);
++
++					rw_lock_s_lock(&btr_search_latch);
++				}
 +			}
-+
-+			bpage = UT_LIST_GET_PREV(LRU, bpage);
-+		}
++		} while (released_search_latch);
 +	}
 +
-+	buf_pool_mutex_exit_all();
-+	rw_lock_x_unlock(&btr_search_latch);
++	rw_lock_s_unlock(&btr_search_latch);
 +
 +	if (UNIV_LIKELY_NULL(heap)) {
 +		mem_heap_free(heap);
@@ -141,6 +188,32 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  /********************************************************************//**
  Drops a page hash index when a page is freed from a fseg to the file system.
  Drops possible hash index if the page happens to be in the buffer pool. */
+diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
+--- a/storage/innobase/buf/buf0buf.c	2011-02-01 18:00:03.000000000 +0900
++++ b/storage/innobase/buf/buf0buf.c	2011-02-01 18:01:59.000000000 +0900
+@@ -294,14 +294,14 @@
+ # endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+ #endif /* UNIV_PFS_MUTEX || UNIV_PFS_RWLOCK */
+ 
+-/** A chunk of buffers.  The buffer pool is allocated in chunks. */
+-struct buf_chunk_struct{
+-	ulint		mem_size;	/*!< allocated size of the chunk */
+-	ulint		size;		/*!< size of frames[] and blocks[] */
+-	void*		mem;		/*!< pointer to the memory area which
+-					was allocated for the frames */
+-	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+-};
++/** A chunk of buffers.  The buffer pool is allocated in chunks. (moved to buf0buf.h)*/
++//struct buf_chunk_struct{
++//	ulint		mem_size;	/*!< allocated size of the chunk */
++//	ulint		size;		/*!< size of frames[] and blocks[] */
++//	void*		mem;		/*!< pointer to the memory area which
++//					was allocated for the frames */
++//	buf_block_t*	blocks;		/*!< array of buffer control blocks */
++//};
+ #endif /* !UNIV_HOTBACKUP */
+ 
+ /********************************************************************//**
 diff -ruN a/storage/innobase/dict/dict0boot.c b/storage/innobase/dict/dict0boot.c
 --- a/storage/innobase/dict/dict0boot.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/dict/dict0boot.c	2010-12-03 15:45:47.503988924 +0900
@@ -359,6 +432,25 @@ diff -ruN a/storage/innobase/include/btr0sea.h b/storage/innobase/include/btr0se
  /********************************************************************//**
  Drops a page hash index when a page is freed from a fseg to the file system.
  Drops possible hash index if the page happens to be in the buffer pool. */
+diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
+--- a/storage/innobase/include/buf0buf.h	2011-02-01 18:00:03.000000000 +0900
++++ b/storage/innobase/include/buf0buf.h	2011-02-01 18:03:29.000000000 +0900
+@@ -1482,6 +1482,15 @@
+ #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
+ /* @} */
+ 
++/** A chunk of buffers.  The buffer pool is allocated in chunks. */
++struct buf_chunk_struct{
++	ulint		mem_size;	/*!< allocated size of the chunk */
++	ulint		size;		/*!< size of frames[] and blocks[] */
++	void*		mem;		/*!< pointer to the memory area which
++					was allocated for the frames */
++	buf_block_t*	blocks;		/*!< array of buffer control blocks */
++};
++
+ /** @brief The buffer pool statistics structure. */
+ struct buf_pool_stat_struct{
+ 	ulint	n_page_gets;	/*!< number of page gets performed;
 diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
 --- a/storage/innobase/include/dict0dict.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/dict0dict.h	2010-12-03 15:45:47.558024515 +0900

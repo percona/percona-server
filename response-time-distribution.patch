@@ -369,7 +369,7 @@ diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
 +  buffer[string_positive_power_length]= '.';
 +  ulonglong second=      (value / MILLION);
 +  ulonglong microsecond= (value % MILLION);
-+  std::size_t result_length= snprintf(buffer,buffer_size,format,second,microsecond);
++  int result_length= snprintf(buffer, buffer_size, format, second, microsecond);
 +  if(result_length < 0)
 +  {
 +    assert(sizeof(STRING_OVERFLOW) <= buffer_size);
@@ -514,7 +514,7 @@ diff -ruN a/sql/query_response_time.cc b/sql/query_response_time.cc
 +    DBUG_ENTER("fill_schema_query_response_time");
 +    TABLE        *table= static_cast<TABLE*>(tables->table);
 +    Field        **fields= table->field;
-+    for(int i= 0, count= bound_count() + 1 /* with overflow */; count > i; ++i)
++    for(uint i= 0, count= bound_count() + 1 /* with overflow */; count > i; ++i)
 +    {
 +      char time[TIME_STRING_BUFFER_LENGTH];
 +      char total[TOTAL_STRING_BUFFER_LENGTH];
@@ -755,7 +755,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
    case SCH_USER_PRIVILEGES:
    case SCH_SCHEMA_PRIVILEGES:
-@@ -7234,6 +7250,12 @@
+@@ -7235,6 +7251,12 @@
      init_global_index_stats();
      pthread_mutex_unlock(&LOCK_global_index_stats);
    }

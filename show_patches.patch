@@ -160,7 +160,7 @@ diff -ruN a/sql/patch_info.h.pl b/sql/patch_info.h.pl
 +	const char *comment;
 +}patches[] = {
 +$output
-+{NULL, NULL, NULL, NULL}
++{NULL, NULL, NULL, NULL, NULL, NULL}
 +};	
 +
 +HEADER

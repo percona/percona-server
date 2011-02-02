@@ -50,7 +50,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2317,6 +2322,7 @@
+@@ -2318,6 +2323,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -58,7 +58,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -5457,6 +5463,8 @@
+@@ -5458,6 +5464,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:

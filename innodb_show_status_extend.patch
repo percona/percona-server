@@ -156,6 +156,81 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {NullS, NullS, SHOW_LONG}
  };
  
+diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
+--- a/storage/innobase/ibuf/ibuf0ibuf.c	2011-02-03 15:05:04.000000000 +0900
++++ b/storage/innobase/ibuf/ibuf0ibuf.c	2011-02-03 15:19:47.000000000 +0900
+@@ -479,6 +479,45 @@
+ }
+ 
+ /******************************************************************//**
++Function to pass ibuf status variables */
++UNIV_INTERN
++void
++ibuf_export_ibuf_status(
++/*====================*/
++	ulint*	size,
++	ulint*	free_list,
++	ulint*	segment_size,
++	ulint*	merges,
++	ulint*	merged_inserts,
++	ulint*	merged_delete_marks,
++	ulint*	merged_deletes,
++	ulint*	discarded_inserts,
++	ulint*	discarded_delete_marks,
++	ulint*	discarded_deletes)
++{
++	*size
++		= ibuf->size;
++	*free_list
++		= ibuf->free_list_len;
++	*segment_size
++		= ibuf->seg_size;
++	*merges
++		= ibuf->n_merges;
++	*merged_inserts
++		= ibuf->n_merged_ops[IBUF_OP_INSERT];
++	*merged_delete_marks
++		= ibuf->n_merged_ops[IBUF_OP_DELETE_MARK];
++	*merged_deletes
++		= ibuf->n_merged_ops[IBUF_OP_DELETE];
++	*discarded_inserts
++		= ibuf->n_discarded_ops[IBUF_OP_INSERT];
++	*discarded_delete_marks
++		= ibuf->n_discarded_ops[IBUF_OP_DELETE_MARK];
++	*discarded_deletes
++		= ibuf->n_discarded_ops[IBUF_OP_DELETE];
++}
++
++/******************************************************************//**
+ Updates the size information of the ibuf, assuming the segment size has not
+ changed. */
+ static
+diff -ruN a/storage/innobase/include/ibuf0ibuf.h b/storage/innobase/include/ibuf0ibuf.h
+--- a/storage/innobase/include/ibuf0ibuf.h	2010-12-04 02:58:26.000000000 +0900
++++ b/storage/innobase/include/ibuf0ibuf.h	2011-02-03 15:19:47.000000000 +0900
+@@ -391,6 +391,22 @@
+ void
+ ibuf_close(void);
+ /*============*/
++/******************************************************************//**
++Function to pass ibuf status variables */
++UNIV_INTERN
++void
++ibuf_export_ibuf_status(
++/*====================*/
++	ulint*	size,
++	ulint*	free_list,
++	ulint*	segment_size,
++	ulint*	merges,
++	ulint*	merged_inserts,
++	ulint*	merged_delete_marks,
++	ulint*	merged_deletes,
++	ulint*	discarded_inserts,
++	ulint*	discarded_delete_marks,
++	ulint*	discarded_deletes);
+ 
+ #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
+ #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
 diff -ruN a/storage/innobase/include/lock0lock.h b/storage/innobase/include/lock0lock.h
 --- a/storage/innobase/include/lock0lock.h	2011-01-21 19:52:38.967683738 +0900
 +++ b/storage/innobase/include/lock0lock.h	2011-01-21 19:54:44.660599140 +0900
@@ -366,7 +441,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	export_vars.innodb_data_pending_reads
  		= os_n_pending_reads;
  	export_vars.innodb_data_pending_writes
-@@ -2269,6 +2306,101 @@
+@@ -2269,6 +2306,92 @@
  
  	export_vars.innodb_buffer_pool_pages_misc
  	       	= buf_pool_get_n_pages() - LRU_len - free_len;
@@ -391,26 +466,17 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +		  : log_sys->max_checkpoint_age_async;
 +	export_vars.innodb_history_list_length
 +		= trx_sys->rseg_history_len;
-+	export_vars.innodb_ibuf_size
-+		= ibuf->size;
-+	export_vars.innodb_ibuf_free_list
-+		= ibuf->free_list_len;
-+	export_vars.innodb_ibuf_segment_size
-+		= ibuf->seg_size;
-+	export_vars.innodb_ibuf_merges
-+		= ibuf->n_merges;
-+	export_vars.innodb_ibuf_merged_inserts
-+		= ibuf->n_merged_ops[IBUF_OP_INSERT];
-+	export_vars.innodb_ibuf_merged_delete_marks
-+		= ibuf->n_merged_ops[IBUF_OP_DELETE_MARK];
-+	export_vars.innodb_ibuf_merged_deletes
-+		= ibuf->n_merged_ops[IBUF_OP_DELETE];
-+	export_vars.innodb_ibuf_discarded_inserts
-+		= ibuf->n_discarded_ops[IBUF_OP_INSERT];
-+	export_vars.innodb_ibuf_discarded_delete_marks
-+		= ibuf->n_discarded_ops[IBUF_OP_DELETE_MARK];
-+	export_vars.innodb_ibuf_discarded_deletes
-+		= ibuf->n_discarded_ops[IBUF_OP_DELETE];
++	ibuf_export_ibuf_status(
++			&export_vars.innodb_ibuf_size,
++			&export_vars.innodb_ibuf_free_list,
++			&export_vars.innodb_ibuf_segment_size,
++			&export_vars.innodb_ibuf_merges,
++			&export_vars.innodb_ibuf_merged_inserts,
++			&export_vars.innodb_ibuf_merged_delete_marks,
++			&export_vars.innodb_ibuf_merged_deletes,
++			&export_vars.innodb_ibuf_discarded_inserts,
++			&export_vars.innodb_ibuf_discarded_delete_marks,
++			&export_vars.innodb_ibuf_discarded_deletes);
 +	export_vars.innodb_lsn_current
 +		= log_sys->lsn;
 +	export_vars.innodb_lsn_flushed

@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-12-03 15:49:59.185023424 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-04 15:33:37.626482350 +0900
-@@ -2250,6 +2250,285 @@
+@@ -2250,6 +2250,284 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  
@@ -258,8 +258,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 +			continue;
 +		}
 +
-+		if (fil_area_is_exist(space_id, zip_size, page_no, 0,
-+				      zip_size ? zip_size : UNIV_PAGE_SIZE)) {
++		if (fil_is_exist(space_id, page_no)) {
 +
 +			tablespace_version = fil_space_get_version(space_id);
 +
@@ -309,7 +308,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-03 17:49:11.581025127 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:33:37.632482885 +0900
-@@ -4939,6 +4939,78 @@
+@@ -4939,6 +4939,70 @@
  	return(DB_SUCCESS);
  }
  
@@ -317,18 +316,10 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +Confirm whether the parameters are valid or not */
 +UNIV_INTERN
 +ibool
-+fil_area_is_exist(
++fil_is_exist(
 +/*==============*/
 +	ulint	space_id,	/*!< in: space id */
-+	ulint	zip_size,	/*!< in: compressed page size in bytes;
-+				0 for uncompressed pages */
-+	ulint	block_offset,	/*!< in: offset in number of blocks */
-+	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-+				aio this must be divisible by the OS block
-+				size */
-+	ulint	len)		/*!< in: how many bytes to read or write; this
-+				must not cross a file boundary; in aio this
-+				must be a block size multiple */
++	ulint	block_offset)	/*!< in: offset in number of blocks */
 +{
 +	fil_space_t*	space;
 +	fil_node_t*	node;
@@ -526,7 +517,7 @@ diff -ruN a/storage/innobase/include/buf0rea.h b/storage/innobase/include/buf0re
 diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
 --- a/storage/innobase/include/fil0fil.h	2010-12-03 17:49:11.597953501 +0900
 +++ b/storage/innobase/include/fil0fil.h	2010-12-04 15:33:37.684551372 +0900
-@@ -644,6 +644,22 @@
+@@ -644,6 +644,14 @@
  	void*	message,	/*!< in: message for aio handler if non-sync
  				aio used, else ignored */
  	trx_t*	trx);
@@ -534,18 +525,10 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
 +Confirm whether the parameters are valid or not */
 +UNIV_INTERN
 +ibool
-+fil_area_is_exist(
++fil_is_exist(
 +/*==============*/
 +	ulint	space_id,	/*!< in: space id */
-+	ulint	zip_size,	/*!< in: compressed page size in bytes;
-+				0 for uncompressed pages */
-+	ulint	block_offset,	/*!< in: offset in number of blocks */
-+	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-+				aio this must be divisible by the OS block
-+				size */
-+	ulint	len);		/*!< in: how many bytes to read or write; this
-+				must not cross a file boundary; in aio this
-+				must be a block size multiple */
++	ulint	block_offset);	/*!< in: offset in number of blocks */
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
  handler for completed requests. The aio array of pending requests is divided

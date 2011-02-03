@@ -1088,7 +1088,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 +const char*
 +dict_process_sys_stats_rec(
 +/*=============================*/
-+	mem_heap_t*	heap,		/*!< in/out: heap memory */
++	mem_heap_t*	heap __attribute__((unused)),		/*!< in/out: heap memory */
 +	const rec_t*	rec,		/*!< in: current SYS_STATS rec */
 +	index_id_t*	index_id,	/*!< out: INDEX_ID */
 +	ulint*		key_cols,	/*!< out: KEY_COLS */

@@ -37,9 +37,9 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +					block->page.offset, DPAH_SIZE << 3);
 +	block_hash_byte = block_hash >> 3;
 +	block_hash_offset = (byte) block_hash & 0x07;
-+	if (block_hash_byte < 0 || block_hash_byte >= DPAH_SIZE)
++	if (block_hash_byte >= DPAH_SIZE)
 +		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
-+	if (block_hash_offset < 0 || block_hash_offset > 7)
++	if (block_hash_offset > 7)
 +		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
 +	if ((trx->distinct_page_access_hash[block_hash_byte] & ((byte) 0x01 << block_hash_offset)) == 0)
 +		trx->distinct_page_access++;
@@ -823,17 +823,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((ulint)ret == n) {
  
-@@ -3619,7 +3650,8 @@
- 				offset */
- 	ulint		offset_high, /*!< in: most significant 32 bits of
- 				offset */
--	ulint		len)	/*!< in: length of the block to read or write */
-+	ulint		len,	/*!< in: length of the block to read or write */
-+	trx_t*		trx)
- {
- 	os_aio_slot_t*	slot = NULL;
- #ifdef WIN_ASYNC_IO
-@@ -3991,10 +4023,11 @@
+@@ -3991,10 +4022,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -846,7 +836,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_array_t*	array;
  	os_aio_slot_t*	slot;
-@@ -4035,8 +4068,8 @@
+@@ -4035,8 +4067,8 @@
  		wait in the Windows case. */
  
  		if (type == OS_FILE_READ) {
@@ -857,7 +847,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -4074,8 +4107,13 @@
+@@ -4074,6 +4106,11 @@
  		ut_error;
  	}
  
@@ -867,11 +857,8 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 +		trx->io_read += n;
 +	}
  	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
--					 name, buf, offset, offset_high, n);
-+					 name, buf, offset, offset_high, n, trx);
+ 					 name, buf, offset, offset_high, n);
  	if (type == OS_FILE_READ) {
- 		if (srv_use_native_aio) {
- 			os_n_file_reads++;
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 17:32:15.648024399 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:45:05.067023254 +0900

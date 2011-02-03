@@ -638,7 +638,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5080,7 +5101,7 @@
+@@ -5072,7 +5093,7 @@
  
  	if (fil_node->space->purpose == FIL_TABLESPACE) {
  		srv_set_io_thread_op_info(segment, "complete io for buf page");
@@ -647,7 +647,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	} else {
  		srv_set_io_thread_op_info(segment, "complete io for log");
  		log_io_complete(message);
-@@ -5434,3 +5455,46 @@
+@@ -5426,3 +5447,46 @@
                 return 0;
         }
  }
@@ -1201,7 +1201,7 @@ diff -ruN a/storage/innobase/include/dict0mem.h b/storage/innobase/include/dict0
 diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
 --- a/storage/innobase/include/fil0fil.h	2010-12-04 15:35:29.175520016 +0900
 +++ b/storage/innobase/include/fil0fil.h	2010-12-04 15:38:18.172483391 +0900
-@@ -757,6 +757,19 @@
+@@ -749,6 +749,19 @@
  fil_system_hash_nodes(void);
  /*========================*/
  

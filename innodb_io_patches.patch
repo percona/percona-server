@@ -376,7 +376,15 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
 --- a/storage/innobase/log/log0log.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/log/log0log.c	2010-12-03 15:10:09.084023562 +0900
-@@ -359,6 +359,33 @@
+@@ -48,6 +48,7 @@
+ #include "srv0start.h"
+ #include "trx0sys.h"
+ #include "trx0trx.h"
++#include "ha_prototypes.h"
+ 
+ /*
+ General philosophy of InnoDB redo-logs:
+@@ -359,6 +360,33 @@
  }
  
  /************************************************************//**
@@ -410,7 +418,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  Closes the log.
  @return	lsn */
  UNIV_INTERN
-@@ -427,7 +454,7 @@
+@@ -427,7 +455,7 @@
  		}
  	}
  
@@ -419,7 +427,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  
  		goto function_exit;
  	}
-@@ -435,8 +462,8 @@
+@@ -435,8 +463,8 @@
  	oldest_lsn = buf_pool_get_oldest_modification();
  
  	if (!oldest_lsn
@@ -430,7 +438,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  
  		log->check_flush_or_checkpoint = TRUE;
  	}
-@@ -1100,6 +1127,7 @@
+@@ -1100,6 +1128,7 @@
  		group = (log_group_t*)((ulint)group - 1);
  
  		if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
@@ -438,7 +446,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
  
  			fil_flush(group->space_id);
-@@ -1121,8 +1149,9 @@
+@@ -1121,8 +1150,9 @@
  			logs and cannot end up here! */
  
  	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
@@ -449,7 +457,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  
  		fil_flush(group->space_id);
  	}
-@@ -1501,7 +1530,8 @@
+@@ -1501,7 +1531,8 @@
  
  	mutex_exit(&(log_sys->mutex));
  
@@ -459,7 +467,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  		/* O_DSYNC means the OS did not buffer the log file at all:
  		so we have also flushed to disk what we have written */
  
-@@ -2120,10 +2150,10 @@
+@@ -2120,10 +2151,10 @@
  
  		sync = TRUE;
  		advance = 2 * (age - log->max_modified_age_sync);
@@ -472,7 +480,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  	} else {
  		advance = 0;
  	}
-@@ -2137,7 +2167,7 @@
+@@ -2137,7 +2168,7 @@
  
  		do_checkpoint = TRUE;
  
@@ -481,7 +489,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  		/* A checkpoint is not urgent: do it asynchronously */
  
  		do_checkpoint = TRUE;
-@@ -3349,6 +3379,17 @@
+@@ -3349,6 +3380,17 @@
  		log_sys->flushed_to_disk_lsn,
  		log_sys->last_checkpoint_lsn);
  
@@ -690,7 +698,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  			/* Try to keep the rate of flushing of dirty
  			pages such that redo log generation does not
-@@ -2854,6 +2908,223 @@
+@@ -2854,6 +2908,224 @@
  						n_flush,
  						IB_ULONGLONG_MAX);
  			}
@@ -811,7 +819,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +
 +			if (prev_adaptive_flushing_method == 2) {
 +				lint	n_flush;
-+				lint	blocks_sum, new_blocks_sum, flushed_blocks_sum;
++				lint	blocks_sum;
++				ulint	new_blocks_sum, flushed_blocks_sum;
 +
 +				blocks_sum = new_blocks_sum = flushed_blocks_sum = 0;
 +
@@ -914,7 +923,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2902,7 +3173,7 @@
+@@ -2902,7 +3174,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -923,7 +932,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -3010,7 +3281,7 @@
+@@ -3010,7 +3282,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -932,7 +941,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-@@ -3156,6 +3427,7 @@
+@@ -3156,6 +3428,7 @@
  	srv_slot_t*	slot;
  	ulint		slot_no = ULINT_UNDEFINED;
  	ulint		n_total_purged = ULINT_UNDEFINED;
@@ -940,7 +949,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	ut_a(srv_n_purge_threads == 1);
  
-@@ -3178,9 +3450,12 @@
+@@ -3178,9 +3451,12 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -953,7 +962,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  		/* If there are very few records to purge or the last
  		purge didn't purge any records then wait for activity.
-@@ -3221,6 +3496,16 @@
+@@ -3221,6 +3497,16 @@
  		} while (n_pages_purged > 0 && !srv_fast_shutdown);
  
  		srv_sync_log_buffer_in_background();

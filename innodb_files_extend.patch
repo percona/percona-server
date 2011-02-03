@@ -8,6 +8,42 @@
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:21.358513751 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:58.243481131 +0900
+@@ -701,7 +701,7 @@
+ 		ut_a(space->purpose != FIL_LOG);
+ 		ut_a(!trx_sys_sys_space(space->id));
+ 
+-		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
++		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+ 			fprintf(stderr,
+ 				"InnoDB: Error: the size of single-table"
+ 				" tablespace file %s\n"
+@@ -3188,7 +3188,7 @@
+ 
+ 		if (size_bytes < free_limit_bytes) {
+ 			free_limit_bytes = size_bytes;
+-			if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
++			if (size_bytes >= (lint)FSP_EXTENT_SIZE * (lint)UNIV_PAGE_SIZE) {
+ 				fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
+ 				file_is_corrupt = TRUE;
+ 			}
+@@ -3802,7 +3802,7 @@
+ 
+ 	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
+ #ifndef UNIV_HOTBACKUP
+-	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
++	if (size < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+ 		fprintf(stderr,
+ 			"InnoDB: Error: the size of single-table tablespace"
+ 			" file %s\n"
+@@ -3822,7 +3822,7 @@
+ 	/* Align the memory for file i/o if we might have O_DIRECT set */
+ 	page = ut_align(buf2, UNIV_PAGE_SIZE);
+ 
+-	if (size >= FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
++	if (size >= FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+ 		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
+ 
+ 		/* We have to read the tablespace id from the file */
 @@ -4800,9 +4800,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
@@ -24,28 +60,36 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/fsp/fsp0fsp.c b/storage/innobase/fsp/fsp0fsp.c
 --- a/storage/innobase/fsp/fsp0fsp.c	2010-12-04 15:52:23.411513754 +0900
 +++ b/storage/innobase/fsp/fsp0fsp.c	2010-12-04 15:55:58.244514273 +0900
-@@ -657,15 +657,16 @@
+@@ -656,16 +656,18 @@
+ 				0 for uncompressed pages */
  	ulint	offset)		/*!< in: page offset */
  {
- #ifndef DOXYGEN /* Doxygen gets confused of these */
+-#ifndef DOXYGEN /* Doxygen gets confused of these */
 -# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
 -		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 -#  error
 -# endif
+-# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
+-		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+-#  error
+-# endif
+-#endif /* !DOXYGEN */
++//#ifndef DOXYGEN /* Doxygen gets confused of these */
 +//# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET
 +//		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 +//#  error
 +//# endif
- # if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
- 		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
- #  error
- # endif
- #endif /* !DOXYGEN */
++//# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET
++//		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
++//#  error
++//# endif
++//#endif /* !DOXYGEN */
 +	ut_a(UNIV_PAGE_SIZE > XDES_ARR_OFFSET + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
++	ut_a(PAGE_ZIP_MIN_SIZE > XDES_ARR_OFFSET + (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
  	ut_ad(ut_is_2pow(zip_size));
  
  	if (!zip_size) {
-@@ -1464,12 +1465,12 @@
+@@ -1464,12 +1466,12 @@
  							   mtr);
  		xdes_init(descr, mtr);
  
@@ -219,7 +263,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 diff -ruN a/storage/innobase/include/buf0types.h b/storage/innobase/include/buf0types.h
 --- a/storage/innobase/include/buf0types.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/buf0types.h	2010-12-04 15:55:58.259482590 +0900
-@@ -72,6 +72,7 @@
+@@ -72,12 +72,13 @@
  					buddy system; must be at least
  					sizeof(buf_page_t) */
  #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
@@ -227,6 +271,25 @@ diff -ruN a/storage/innobase/include/buf0types.h b/storage/innobase/include/buf0
  					/*!< number of buddy sizes */
  
  /** twice the maximum block size of the buddy system;
+ the underlying memory is aligned by this amount:
+ this must be equal to UNIV_PAGE_SIZE */
+-#define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
++#define BUF_BUDDY_HIGH	((ulint)BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
+ /* @} */
+ 
+ #endif
+diff -ruN a/storage/innobase/include/fsp0types.h b/storage/innobase/include/fsp0types.h
+--- a/storage/innobase/include/fsp0types.h	2010-12-04 02:58:26.000000000 +0900
++++ b/storage/innobase/include/fsp0types.h	2011-02-03 15:14:21.000000000 +0900
+@@ -42,7 +42,7 @@
+ /* @} */
+ 
+ /** File space extent size (one megabyte) in pages */
+-#define	FSP_EXTENT_SIZE		(1 << (20 - UNIV_PAGE_SIZE_SHIFT))
++#define	FSP_EXTENT_SIZE		((ulint)1 << (20 - UNIV_PAGE_SIZE_SHIFT))
+ 
+ /** On a page of any file segment, data may be put starting from this
+ offset */
 diff -ruN a/storage/innobase/include/log0log.h b/storage/innobase/include/log0log.h
 --- a/storage/innobase/include/log0log.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/log0log.h	2010-12-09 18:16:47.737728305 +0900
@@ -351,7 +414,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
 --- a/storage/innobase/log/log0log.c	2010-12-03 15:18:48.899986203 +0900
 +++ b/storage/innobase/log/log0log.c	2010-12-04 15:55:58.266551567 +0900
-@@ -603,7 +603,9 @@
+@@ -604,7 +604,9 @@
  
  	offset = (gr_lsn_size_offset + difference) % group_size;
  
@@ -361,7 +424,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  
  	/* fprintf(stderr,
  	"Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
-@@ -1200,6 +1202,9 @@
+@@ -1201,6 +1203,9 @@
  	/* Wipe over possible label of ibbackup --restore */
  	memcpy(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "    ", 4);
  
@@ -371,7 +434,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  	dest_offset = nth_file * group->file_size;
  
  #ifdef UNIV_DEBUG
-@@ -1793,9 +1798,7 @@
+@@ -1794,9 +1799,7 @@
  	ulint		i;
  
  	ut_ad(mutex_own(&(log_sys->mutex)));
@@ -382,7 +445,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  
  	buf = group->checkpoint_buf;
  
-@@ -1809,6 +1812,7 @@
+@@ -1810,6 +1813,7 @@
  	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
  
  #ifdef UNIV_LOG_ARCHIVE
@@ -390,7 +453,7 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  	if (log_sys->archiving_state == LOG_ARCH_OFF) {
  		archived_lsn = IB_ULONGLONG_MAX;
  	} else {
-@@ -1822,7 +1826,9 @@
+@@ -1823,7 +1827,9 @@
  
  	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
  #else /* UNIV_LOG_ARCHIVE */

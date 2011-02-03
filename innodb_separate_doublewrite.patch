@@ -67,7 +67,15 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
 --- a/storage/innobase/dict/dict0load.c	2010-12-03 17:30:16.252956569 +0900
 +++ b/storage/innobase/dict/dict0load.c	2010-12-04 15:35:58.627482825 +0900
-@@ -781,7 +781,7 @@
+@@ -40,6 +40,7 @@
+ #include "rem0cmp.h"
+ #include "srv0start.h"
+ #include "srv0srv.h"
++#include "trx0sys.h"
+ 
+ 
+ /** Following are six InnoDB system tables */
+@@ -781,7 +782,7 @@
  
  		mtr_commit(&mtr);
  
@@ -76,7 +84,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  			/* The system tablespace always exists. */
  		} else if (in_crash_recovery) {
  			/* Check that the tablespace (the .ibd file) really
-@@ -1578,7 +1578,7 @@
+@@ -1578,7 +1579,7 @@
  	space = mach_read_from_4(field);
  
  	/* Check if the tablespace exists and has the right name */
@@ -85,7 +93,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  		flags = dict_sys_tables_get_flags(rec);
  
  		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-@@ -1728,7 +1728,7 @@
+@@ -1728,7 +1729,7 @@
  		goto err_exit;
  	}
  
@@ -295,7 +303,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5298,7 +5308,7 @@
+@@ -5290,7 +5300,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);

@@ -11,7 +11,7 @@
 diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
 --- a/storage/innobase/dict/dict0load.c	2010-12-04 15:37:50.559480289 +0900
 +++ b/storage/innobase/dict/dict0load.c	2010-12-04 15:57:53.078513745 +0900
-@@ -1851,6 +1851,8 @@
+@@ -1852,6 +1852,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	/* NOTE that the operation of this function is protected by
  	the dictionary mutex, and therefore no deadlocks can occur
  	with other dictionary operations. */
-@@ -1877,15 +1879,17 @@
+@@ -1878,15 +1880,17 @@
  				  BTR_SEARCH_LEAF, &pcur, &mtr);
  	rec = btr_pcur_get_rec(&pcur);
  
@@ -45,7 +45,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/*---------------------------------------------------*/
-@@ -1898,12 +1902,7 @@
+@@ -1899,12 +1903,7 @@
  
  	/* Check if the table id in record is the one searched for */
  	if (table_id != mach_read_from_8(field)) {
@@ -59,7 +59,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/* Now we get the table name from the record */
-@@ -1911,7 +1910,7 @@
+@@ -1912,7 +1911,7 @@
  	/* Load the table definition to memory */
  	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
  				TRUE);
@@ -114,10 +114,30 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
  
+diff -ruN a/storage/innobase/mtr/mtr0log.c b/storage/innobase/mtr/mtr0log.c
+--- a/storage/innobase/mtr/mtr0log.c	2010-12-04 02:58:26.000000000 +0900
++++ b/storage/innobase/mtr/mtr0log.c	2011-02-03 15:17:14.000000000 +0900
+@@ -408,7 +408,7 @@
+ 	ptr += 2;
+ 
+ 	if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
+-			|| UNIV_UNLIKELY(len + offset) > UNIV_PAGE_SIZE) {
++			|| UNIV_UNLIKELY(len + offset > UNIV_PAGE_SIZE)) {
+ 		recv_sys->found_corrupt_log = TRUE;
+ 
+ 		return(NULL);
 diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 --- a/storage/innobase/row/row0mysql.c	2010-12-04 15:37:50.598481116 +0900
 +++ b/storage/innobase/row/row0mysql.c	2010-12-04 15:57:53.092563335 +0900
-@@ -1194,6 +1194,13 @@
+@@ -51,6 +51,7 @@
+ #include "btr0sea.h"
+ #include "fil0fil.h"
+ #include "ibuf0ibuf.h"
++#include "ha_prototypes.h"
+ 
+ /** Provide optional 4.x backwards compatibility for 5.0 and above */
+ UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
+@@ -1194,6 +1195,13 @@
  
  	thr = que_fork_get_first_thr(prebuilt->ins_graph);
  

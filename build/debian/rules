@@ -1,0 +1,55 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS=--list-missing
+
+CMAKE=cmake
+TMP=$(CURDIR)/debian/tmp/
+
+feature_set="community"
+compilation_comment_release="Percona Server (GPL), Release 12.5"
+server_suffix="-55"
+prefix="/opt/percona/percona-server-5.5"
+#prefix="/usr"
+
+clean:
+	dh clean
+	rm -rf CMakeFiles
+
+build:
+	echo "Building Percona Server 12.5"
+	dh_testdir
+	$(CMAKE) . -DBUILD_CONFIG=mysql_release \
+	   -DINSTALL_LAYOUT=DEB \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DWITH_EMBEDDED_SERVER=OFF \
+           -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
+           -DFEATURE_SET=$(feature_set) \
+           -DCOMPILATION_COMMENT=$(compilation_comment_release) \
+           -DMYSQL_SERVER_SUFFIX=$(server_suffix)
+	dh_auto_build
+	dh_auto_test
+
+#binary:
+#	echo "Installing Percona Server 12.5"
+#	install -m 0755 debian/additions/innotop/innotop $(TMP)/$(prefix)/bin/
+#	install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/$(prefix)/man/man1/
+#	install -m 0644 -D debian/additions/innotop/InnoDBParser.pm $(TMP)/$(prefix)/share/perl5/InnoDBParser.pm
+#	dh install --list-missing
+
+#binary: binary-arch binary-indep install
+#	echo "Making binary"
+#	dh binary
+
+#binary-arch:
+#	echo "Making binary-arch"
+#	dh binary-arch
+
+#binary-indep:
+#	echo "Making binary-indep"
+#	dh binary-indep
+
+%:
+	dh $@ 

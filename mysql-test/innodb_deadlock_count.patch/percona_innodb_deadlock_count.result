@@ -1,0 +1,15 @@
+drop table if exists t;
+create table t(a INT UNIQUE PRIMARY KEY,c INT) engine=InnoDB;
+insert into t values(1,1);
+insert into t values(2,1);
+BEGIN;
+UPDATE t SET c=2 WHERE a=1;
+BEGIN;
+UPDATE t SET c=3 WHERE a=2;
+UPDATE t SET c=2 WHERE a=2;
+UPDATE t SET c=3 WHERE a=1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+ROLLBACK;
+Innodb_deadlocks changes is 1
+drop table t;

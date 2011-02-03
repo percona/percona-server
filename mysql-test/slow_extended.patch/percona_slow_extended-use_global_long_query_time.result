@@ -20,6 +20,7 @@ sleep(5)
 0
 set global long_query_time=2;
 set global use_global_log_slow_control='';
+FLUSH LOGS;
 3
 show global variables like 'use_global_log_slow_control';
 Variable_name	Value

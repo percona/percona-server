@@ -1,10 +1,8 @@
-profiling_slow.patch
 microsec_process.patch
 optimizer_fix.patch
 mysql_dump_ignore_ct.patch
 control_online_alter_index.patch
 show_temp.patch
-innodb_show_enhancements.patch
 innodb_show_status.patch
 innodb_io_patches.patch
 innodb_opt_lru_count.patch
@@ -30,8 +28,8 @@ innodb_deadlock_count.patch
 innodb_adaptive_hash_index_partitions.patch
 innodb_buffer_pool_pages_i_s.patch
 innodb_buffer_pool_shm.patch
+innodb_show_status_extend.patch
 slow_extended.patch
-suppress_log_warning_1592.patch
 percona_support.patch
 query_cache_enhance.patch
 log_connection_error.patch
@@ -41,4 +39,8 @@ error_pad.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
 show_slave_status_nolock.patch
+log_warnings_silence.patch
+userstat.patch
+bug580324.patch
+mysql_remove_eol_carret.patch
 mysql-test.diff

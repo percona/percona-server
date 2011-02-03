@@ -8,18 +8,20 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:32:15.624039043 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:32:35.424957827 +0900
-@@ -11770,6 +11770,7 @@
+@@ -11775,7 +11775,8 @@
+ i_s_innodb_sys_foreign_cols,
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
- i_s_innodb_index_stats,
-+i_s_innodb_admin_command,
- i_s_innodb_patches
+-i_s_innodb_index_stats
++i_s_innodb_index_stats,
++i_s_innodb_admin_command
  mysql_declare_plugin_end;
  
+ /** @brief Initialize the default value of innodb_commit_concurrency.
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-03 17:30:16.299955549 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-03 17:32:35.425989972 +0900
-@@ -4321,3 +4321,139 @@
+@@ -4162,3 +4162,139 @@
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -162,20 +164,10 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 --- a/storage/innobase/handler/i_s.h	2010-12-03 17:30:16.301987692 +0900
 +++ b/storage/innobase/handler/i_s.h	2010-12-03 17:32:35.426954555 +0900
-@@ -45,5 +45,6 @@
+@@ -44,5 +44,6 @@
  extern struct st_mysql_plugin	i_s_innodb_sys_stats;
  extern struct st_mysql_plugin	i_s_innodb_table_stats;
  extern struct st_mysql_plugin	i_s_innodb_index_stats;
 +extern struct st_mysql_plugin	i_s_innodb_admin_command;
  
  #endif /* i_s_h */
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:32:15.632038505 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:32:35.427955556 +0900
-@@ -36,5 +36,6 @@
- {"innodb_show_sys_tables","i_s for sys_xxx tables internal","revived from mysql-5.5.6-rc","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };

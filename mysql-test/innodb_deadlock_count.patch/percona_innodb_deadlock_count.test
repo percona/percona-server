@@ -1,0 +1,43 @@
+--source include/have_innodb.inc
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+connection con1;
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+disable_abort_on_error;
+
+create table t(a INT UNIQUE PRIMARY KEY,c INT) engine=InnoDB;
+insert into t values(1,1);
+insert into t values(2,1);
+let $current = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
+
+connection con2;
+BEGIN; UPDATE t SET c=2 WHERE a=1;
+connection con3;
+BEGIN; UPDATE t SET c=3 WHERE a=2;
+
+connection con2;
+SEND UPDATE t SET c=2 WHERE a=2;
+connection con3;
+SEND UPDATE t SET c=3 WHERE a=1;
+
+connection con2;
+reap;
+connection con3;
+reap;
+
+connection con2;
+ROLLBACK;
+connection con3;
+ROLLBACK;
+
+connection con1;
+let $result = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
+let $diff = `SELECT $result - $current`;
+echo Innodb_deadlocks changes is $diff;
+
+drop table t;

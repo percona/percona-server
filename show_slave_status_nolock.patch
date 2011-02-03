@@ -29,7 +29,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-29 20:27:19.000000000 +0300
 +++ b/sql/mysqld.cc	2010-12-29 20:29:19.000000000 +0300
-@@ -3055,6 +3055,7 @@
+@@ -3058,6 +3058,7 @@
    {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2256,12 +2257,16 @@
+@@ -2262,12 +2263,16 @@
      mysql_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -78,7 +78,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2272,7 +2277,10 @@
+@@ -2278,7 +2283,10 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }
@@ -111,4 +111,4 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
 +          }
          | QUERY_RESPONSE_TIME_SYM wild_and_where
           {
-            LEX *lex= Lex;
+ #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION

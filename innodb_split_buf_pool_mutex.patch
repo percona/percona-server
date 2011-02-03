@@ -48,38 +48,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
 diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 --- a/storage/innobase/btr/btr0sea.c	2010-12-03 15:48:03.033037049 +0900
 +++ b/storage/innobase/btr/btr0sea.c	2010-12-03 15:48:29.271024260 +0900
-@@ -1211,7 +1211,7 @@
- 	ulint*		offsets;
- 
- 	rw_lock_x_lock(&btr_search_latch);
--	buf_pool_mutex_enter_all();
-+	//buf_pool_mutex_enter_all();
- 
- 	table = btr_search_sys->hash_index;
- 
-@@ -1220,6 +1220,8 @@
- 
- 		buf_pool = buf_pool_from_array(j);
- 
-+		mutex_enter(&buf_pool->LRU_list_mutex);
-+
- 		bpage = UT_LIST_GET_LAST(buf_pool->LRU);
- 
- 		while (bpage != NULL) {
-@@ -1301,9 +1303,11 @@
- 
- 			bpage = UT_LIST_GET_PREV(LRU, bpage);
- 		}
-+
-+		mutex_exit(&buf_pool->LRU_list_mutex);
- 	}
- 
--	buf_pool_mutex_exit_all();
-+	//buf_pool_mutex_exit_all();
- 	rw_lock_x_unlock(&btr_search_latch);
- 
- 	if (UNIV_LIKELY_NULL(heap)) {
-@@ -1896,7 +1900,7 @@
+@@ -1943,7 +1943,7 @@
  	rec_offs_init(offsets_);
  
  	rw_lock_x_lock(&btr_search_latch);
@@ -88,7 +57,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
  
-@@ -1904,11 +1908,11 @@
+@@ -1951,11 +1951,11 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if ((i != 0) && ((i % chunk_size) == 0)) {
@@ -102,7 +71,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  		}
  
  		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
-@@ -2019,11 +2023,11 @@
+@@ -2066,11 +2066,11 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if (i != 0) {
@@ -116,7 +85,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  		}
  
  		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
-@@ -2031,7 +2035,7 @@
+@@ -2078,7 +2078,7 @@
  		}
  	}
  
@@ -734,7 +703,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  				buf_LRU_make_block_old(&block->page);
  				dirty++;
 -			} else if (buf_LRU_free_block(&block->page, TRUE, NULL)
-+			} else if (buf_LRU_free_block(&block->page, TRUE, NULL, FALSE)
++			} else if (buf_LRU_free_block(&block->page, TRUE, NULL, TRUE)
  				   != BUF_LRU_FREED) {
  				nonfree++;
  			}
@@ -1412,6 +1381,15 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #if UNIV_WORD_SIZE == 4
  	/* On 32-bit systems, there is no padding in buf_page_t.  On
  	other systems, Valgrind could complain about uninitialized pad
+@@ -3014,7 +3152,7 @@
+ 		/* Try to evict the block from the buffer pool, to use the
+ 		insert buffer (change buffer) as much as possible. */
+ 
+-		if (buf_LRU_free_block(&block->page, TRUE, NULL)
++		if (buf_LRU_free_block(&block->page, TRUE, NULL, FALSE)
+ 		    == BUF_LRU_FREED) {
+ 			mutex_exit(&block->mutex);
+ 			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 @@ -3051,13 +3189,14 @@
  
  	buf_block_buf_fix_inc(block, file, line);
@@ -3309,7 +3287,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-03 15:37:45.517105700 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-03 15:48:29.331024462 +0900
-@@ -1725,7 +1725,8 @@
+@@ -1566,7 +1566,8 @@
  
  		buf_pool = buf_pool_from_array(i);
  
@@ -3319,7 +3297,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  
  		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
  			buf_buddy_stat_t*	buddy_stat;
-@@ -1755,7 +1756,8 @@
+@@ -1596,7 +1597,8 @@
  			}
  		}
  
@@ -3329,16 +3307,6 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  
  		if (status) {
  			break;
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:48:03.064995674 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:48:29.331955850 +0900
-@@ -31,5 +31,6 @@
- {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
- {"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
- {"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
 --- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:03.068954202 +0900
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:29.335988682 +0900
@@ -3533,7 +3501,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	mutex_t		mutex;		/*!< mutex protecting this block:
  					state (also protected by the buffer
  					pool mutex), io_fix, buf_fix_count,
-@@ -1532,6 +1559,11 @@
+@@ -1541,6 +1568,11 @@
  					pool instance, protects compressed
  					only pages (of type buf_page_t, not
  					buf_block_t */
@@ -3877,7 +3845,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:03.080956216 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:29.355023766 +0900
-@@ -3088,7 +3088,7 @@
+@@ -3060,7 +3060,7 @@
  								level += log_sys->max_checkpoint_age
  									 - (lsn - oldest_modification);
  							}
@@ -3886,7 +3854,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  							n_blocks++;
  						}
  
-@@ -3173,7 +3173,7 @@
+@@ -3145,7 +3145,7 @@
  							found = TRUE;
  							break;
  						}

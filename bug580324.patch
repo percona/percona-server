@@ -6,10 +6,10 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
---- a/sql/sql_base.cc	2010-05-27 19:54:18.000000000 +0400
-+++ b/sql/sql_base.cc	2010-05-27 19:55:20.000000000 +0400
-@@ -233,8 +233,12 @@
- uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
+--- a/sql/sql_base.cc	2011-01-11 21:35:26.000000000 +0300
++++ b/sql/sql_base.cc	2011-01-11 21:42:02.000000000 +0300
+@@ -251,8 +251,12 @@
+                           const TABLE_LIST *table_list,
                            bool tmp_table)
  {
 -  uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
@@ -24,62 +24,66 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
    {
      int4store(key + key_length, thd->server_id);
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-05-27 19:54:18.000000000 +0400
-+++ b/sql/sql_parse.cc	2010-05-27 20:03:20.000000000 +0400
-@@ -1326,10 +1326,12 @@
+--- a/sql/sql_parse.cc	2011-01-11 21:35:26.000000000 +0300
++++ b/sql/sql_parse.cc	2011-01-11 21:48:50.000000000 +0300
+@@ -1110,11 +1110,18 @@
      break;
  #else
    {
 -    char *fields, *packet_end= packet + packet_length, *arg_end;
-+    char *fields, *packet_end= packet + packet_length, *wildcard;
++    char *fields;
++    char *packet_end= packet + packet_length;
++    char *wildcard;
      /* Locked closure of all tables */
      TABLE_LIST table_list;
--    LEX_STRING conv_name;
-+    char db_buff[NAME_LEN+1];
-+    uint32 db_length;
++    char table_name_buff[NAME_LEN+1];
+     LEX_STRING table_name;
 +    uint dummy_errors;
- 
-     /* used as fields initializator */
-     lex_start(thd);
-@@ -1341,26 +1343,22 @@
+     LEX_STRING db;
++
++    table_name.str= table_name_buff;
++    table_name.length= 0;
+     /*
+       SHOW statements should not add the used tables to the list of tables
+       used in a transaction.
+@@ -1127,24 +1134,23 @@
      /*
        We have name + wildcard in packet, separated by endzero
      */
 -    arg_end= strend(packet);
 -    uint arg_length= arg_end - packet;
--    
+-
 -    /* Check given table name length. */
 -    if (arg_length >= packet_length || arg_length > NAME_LEN)
 +    wildcard= strend(packet);
-+    db_length= wildcard - packet;
++    table_name.length= wildcard - packet;
 +    wildcard++;
 +    uint query_length= (uint) (packet_end - wildcard); // Don't count end \0
-+    if (db_length > NAME_LEN || query_length > NAME_LEN)
++    if (table_name.length > NAME_LEN || query_length > NAME_LEN)
      {
        my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
        break;
      }
--    thd->convert_string(&conv_name, system_charset_info,
+-    thd->convert_string(&table_name, system_charset_info,
 -			packet, arg_length, thd->charset());
--    if (check_table_name(conv_name.str, conv_name.length, FALSE))
+-    if (check_table_name(table_name.str, table_name.length, FALSE))
 -    {
 -      /* this is OK due to convert_string() null-terminating the string */
--      my_error(ER_WRONG_TABLE_NAME, MYF(0), conv_name.str);
-+    db_length= copy_and_convert(db_buff, sizeof(db_buff)-1,
-+                                system_charset_info, packet, db_length,
-+                                thd->charset(), &dummy_errors);
-+    db_buff[db_length]= '\0';
-+    table_list.alias= table_list.table_name= db_buff;
+-      my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
++    table_name.length= copy_and_convert(table_name.str,
++                                        sizeof(table_name_buff)-1,
++                                        system_charset_info,
++                                        packet, table_name.length,
++                                        thd->charset(), &dummy_errors);
++    table_name.str[table_name.length]= '\0';
 +    if (!(fields= (char *) thd->memdup(wildcard, query_length + 1)))
        break;
 -    }
--
--    table_list.alias= table_list.table_name= conv_name.str;
 -    packet= arg_end + 1;
- 
-     if (is_schema_db(table_list.db, table_list.db_length))
-     {
-@@ -1369,9 +1367,6 @@
+     mysql_reset_thd_for_next_command(thd);
+     lex_start(thd);
+     /* Must be before we init the table list. */
+@@ -1169,9 +1175,6 @@
          table_list.schema_table= schema_table;
      }
  
@@ -88,11 +92,11 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 -      break;
      thd->set_query(fields, query_length);
      general_log_print(thd, command, "%s %s", table_list.table_name, fields);
-     if (lower_case_table_names)
+ 
 diff -ruN a/strings/ctype-utf8.c b/strings/ctype-utf8.c
---- a/strings/ctype-utf8.c	2010-05-06 19:28:05.000000000 +0400
-+++ b/strings/ctype-utf8.c	2010-05-27 20:04:20.000000000 +0400
-@@ -4116,6 +4116,10 @@
+--- a/strings/ctype-utf8.c	2010-12-03 20:58:26.000000000 +0300
++++ b/strings/ctype-utf8.c	2011-01-11 21:42:02.000000000 +0300
+@@ -4212,6 +4212,10 @@
  {
    int code;
    char hex[]= "0123456789abcdef";

@@ -41,9 +41,9 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  /* prototypes for new functions added to ha_innodb.cc */
  trx_t* innobase_get_trx();
 @@ -342,6 +346,31 @@
- 					was allocated for the frames */
- 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
- };
+ //					was allocated for the frames */
+ //	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+ //};
 +
 +/* Buffer pool shared memory segment information */
 +typedef	struct buf_shm_info_struct	buf_shm_info_t;
@@ -172,7 +172,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +		ut_a(buf_pool->n_chunks == 1);
 +
 +		fprintf(stderr,
-+		"InnoDB: Warning: The innodb_buffer_pool_shm_key option has been specified.\n"
++		"InnoDB: Notice: The innodb_buffer_pool_shm_key option has been specified.\n"
 +		"InnoDB: Do not change the following between restarts of the server while this option is being used:\n"
 +		"InnoDB:   * the mysqld executable between restarts of the server.\n"
 +		"InnoDB:   * the value of innodb_buffer_pool_size.\n"
@@ -454,6 +454,15 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	os_mem_free_large(chunk->mem, chunk->mem_size);
  }
  
+@@ -1289,7 +1636,7 @@
+ 	ulint		instance_no)	/*!< in: id of the instance */
+ {
+ 	ulint		i;
+-	buf_chunk_t*	chunk;
++	buf_chunk_t*	chunk = NULL;
+ 
+ 	/* 1. Initialize general fields
+ 	------------------------------- */
 @@ -1335,7 +1682,10 @@
  		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
  
@@ -469,7 +478,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	/* All fields are initialized by mem_zalloc(). */
  
-+	if (srv_buffer_pool_shm_key) {
++	if (chunk && srv_buffer_pool_shm_key) {
 +		buf_shm_info_t*	shm_info;
 +
 +		ut_a((byte*)chunk->blocks == (byte*)chunk->mem + sizeof(buf_shm_info_t));
@@ -727,7 +736,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2618,6 +2619,14 @@
+@@ -2620,6 +2621,14 @@
  	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
  	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
  
@@ -742,7 +751,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
  
  	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
-@@ -2634,6 +2643,7 @@
+@@ -2636,6 +2645,7 @@
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  	srv_fast_checksum = (ibool) innobase_fast_checksum;
@@ -750,7 +759,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11634,6 +11644,16 @@
+@@ -11642,6 +11652,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -767,7 +776,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11915,6 +11935,8 @@
+@@ -11921,6 +11941,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
@@ -776,16 +785,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(checksums),
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-06 20:16:21.775383925 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-07 16:26:37.429760207 +0900
-@@ -46,5 +46,6 @@
- {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_adaptive_hash_index_partitions","allow to use partitioned adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_buffer_pool_pages_i_s","Information schema of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_buffer_pool_shm","Put buffer pool contents to shared memory segment and reuse it at clean restart [experimental]","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-06 20:16:21.778264552 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-07 17:56:28.322749380 +0900
@@ -812,7 +811,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 +#define BUF_POOL_ZIP_FOLD_BPAGE(bpool, b) BUF_POOL_ZIP_FOLD(bpool, (buf_block_t*) (b))
  /* @} */
  
- /** @brief The buffer pool statistics structure. */
+ /** A chunk of buffers.  The buffer pool is allocated in chunks. */
 diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash0hash.h
 --- a/storage/innobase/include/hash0hash.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/hash0hash.h	2010-12-07 17:56:28.324726446 +0900
@@ -945,7 +944,7 @@ diff -ruN a/storage/innobase/include/os0proc.h b/storage/innobase/include/os0pro
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-04 20:20:28.016566697 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-07 16:10:14.956717659 +0900
-@@ -170,6 +170,10 @@
+@@ -171,6 +171,10 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
  
@@ -1199,7 +1198,7 @@ diff -ruN a/storage/innobase/os/os0proc.c b/storage/innobase/os/os0proc.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 20:20:44.687550693 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-07 16:10:14.962785720 +0900
-@@ -231,6 +231,11 @@
+@@ -233,6 +233,11 @@
  UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
  UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
  

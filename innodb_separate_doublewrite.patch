@@ -340,7 +340,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  /* The highest file format being used in the database. The value can be
  set by user, however, it will be adjusted to the newer file format if
-@@ -2423,6 +2424,8 @@
+@@ -2425,6 +2426,8 @@
  		goto error;
  	}
  
@@ -349,7 +349,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
  
  	/* -------------- Log files ---------------------------*/
-@@ -11545,6 +11548,11 @@
+@@ -11553,6 +11556,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -361,7 +361,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11717,6 +11725,7 @@
+@@ -11723,6 +11731,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -369,16 +369,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
    MYSQL_SYSVAR(recovery_stats),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:35:29.169510050 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-04 15:35:58.643584582 +0900
-@@ -40,5 +40,6 @@
- {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/mtr0log.ic b/storage/innobase/include/mtr0log.ic
 --- a/storage/innobase/include/mtr0log.ic	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/mtr0log.ic	2010-12-04 15:35:58.644607059 +0900
@@ -533,7 +523,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:35:29.180483212 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:35:58.656550107 +0900
-@@ -167,6 +167,8 @@
+@@ -168,6 +168,8 @@
  /* size in database pages */
  UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
  

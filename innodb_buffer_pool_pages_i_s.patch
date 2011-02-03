@@ -48,20 +48,20 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 20:20:44.614551139 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-06 19:23:47.622195800 +0900
-@@ -12037,6 +12037,9 @@
+@@ -12042,6 +12042,9 @@
+ i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
- i_s_innodb_admin_command,
 +i_s_innodb_buffer_pool_pages,
 +i_s_innodb_buffer_pool_pages_index,
 +i_s_innodb_buffer_pool_pages_blob,
- i_s_innodb_patches
+ i_s_innodb_admin_command
  mysql_declare_plugin_end;
  
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-04 19:46:39.786513783 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-06 19:28:52.270226921 +0900
-@@ -52,6 +52,7 @@
+@@ -51,6 +51,7 @@
  #include "trx0sys.h" /* for trx_sys */
  #include "dict0dict.h" /* for dict_sys */
  #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
@@ -69,7 +69,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -4488,3 +4489,701 @@
+@@ -4329,3 +4330,701 @@
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -774,7 +774,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 --- a/storage/innobase/handler/i_s.h	2010-12-04 19:46:39.657513849 +0900
 +++ b/storage/innobase/handler/i_s.h	2010-12-06 19:23:47.635192988 +0900
-@@ -46,5 +46,8 @@
+@@ -45,5 +45,8 @@
  extern struct st_mysql_plugin	i_s_innodb_table_stats;
  extern struct st_mysql_plugin	i_s_innodb_index_stats;
  extern struct st_mysql_plugin	i_s_innodb_admin_command;
@@ -783,16 +783,6 @@ diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 +extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob;
  
  #endif /* i_s_h */
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-04 20:20:44.667550357 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-06 19:23:47.635192988 +0900
-@@ -45,5 +45,6 @@
- {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_adaptive_hash_index_partitions","allow to use partitioned adaptive hash indexes","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_buffer_pool_pages_i_s","Information schema of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 19:46:40.197471531 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-06 19:23:47.638195824 +0900

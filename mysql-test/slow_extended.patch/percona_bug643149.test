@@ -9,11 +9,12 @@
 # If this bug is fixed please
 # 1. try this test with "let $fixed_bug38124 = 0;"
 # 2. remove all workarounds if 1. was successful.
+--source include/have_profiling.inc
 let $fixed_bug38124 = 0;
 
 SET @old_slow_query_log_file=@@global.slow_query_log_file;
 SET GLOBAL slow_query_log=on;
-SET LOCAL profiling_server=on;
+SET LOCAL log_slow_verbosity='profiling';
 SET LOCAL long_query_time=1;
 
 let slogfile=$MYSQLTEST_VARDIR/percona_bug643149_slow.log;

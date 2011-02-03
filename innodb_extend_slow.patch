@@ -379,7 +379,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:36:44.293955189 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:42:42.090024586 +0900
-@@ -1524,6 +1524,16 @@
+@@ -1526,6 +1526,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_VOID_RETURN;
  }
  
-@@ -1578,6 +1588,32 @@
+@@ -1580,6 +1590,32 @@
  	return(trx);
  }
  
@@ -429,7 +429,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9198,6 +9234,25 @@
+@@ -9200,6 +9236,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -455,16 +455,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  		trx->mysql_n_tables_locked = 0;
  		prebuilt->used_in_HANDLER = FALSE;
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:36:44.293955189 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 17:42:42.094955866 +0900
-@@ -38,5 +38,6 @@
- {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
-+{"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/buf0rea.h b/storage/innobase/include/buf0rea.h
 --- a/storage/innobase/include/buf0rea.h	2010-12-03 15:18:48.891024406 +0900
 +++ b/storage/innobase/include/buf0rea.h	2010-12-03 17:42:42.096026873 +0900
@@ -668,7 +658,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
 --- a/storage/innobase/include/trx0trx.h	2010-12-03 15:41:52.049372966 +0900
 +++ b/storage/innobase/include/trx0trx.h	2010-12-03 17:42:42.107024532 +0900
-@@ -739,6 +739,17 @@
+@@ -738,6 +738,17 @@
  	/*------------------------------*/
  	char detailed_error[256];	/*!< detailed error message for last
  					error, or empty. */
@@ -885,7 +875,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 17:32:15.648024399 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:45:05.067023254 +0900
-@@ -87,6 +87,9 @@
+@@ -88,6 +88,9 @@
  #include "mysql/plugin.h"
  #include "mysql/service_thd_wait.h"
  
@@ -895,7 +885,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* This is set to TRUE if the MySQL user has set it in MySQL; currently
  affects only FOREIGN KEY definition parsing */
  UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-@@ -1216,6 +1219,10 @@
+@@ -1219,6 +1222,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -906,7 +896,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1292,6 +1299,7 @@
+@@ -1295,6 +1302,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -914,7 +904,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		trx->op_info = "";
-@@ -1347,6 +1355,13 @@
+@@ -1350,6 +1358,13 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  
@@ -928,7 +918,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
-@@ -1355,6 +1370,12 @@
+@@ -1358,6 +1373,12 @@
  
  	trx->op_info = "";
  
@@ -944,7 +934,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:41:52.053955669 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 17:42:42.127023410 +0900
-@@ -187,6 +187,15 @@
+@@ -185,6 +185,15 @@
  	trx->global_read_view = NULL;
  	trx->read_view = NULL;
  
@@ -960,7 +950,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	/* Set X/Open XA transaction identification to NULL */
  	memset(&trx->xid, 0, sizeof(trx->xid));
  	trx->xid.formatID = -1;
-@@ -224,6 +233,11 @@
+@@ -222,6 +231,11 @@
  
  	trx->mysql_process_no = os_proc_get_number();
  
@@ -972,7 +962,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	return(trx);
  }
  
-@@ -355,6 +369,12 @@
+@@ -353,6 +367,12 @@
  /*===============*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -985,7 +975,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
-@@ -376,6 +396,12 @@
+@@ -374,6 +394,12 @@
  /*====================*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -998,7 +988,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	trx_free(trx);
-@@ -1096,6 +1122,9 @@
+@@ -1091,6 +1117,9 @@
  	trx_t*	trx)	/*!< in: transaction */
  {
  	que_thr_t*	thr;
@@ -1008,7 +998,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1110,6 +1139,11 @@
+@@ -1105,6 +1134,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  
@@ -1020,7 +1010,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	trx->que_state = TRX_QUE_RUNNING;
  }
  
-@@ -1123,6 +1157,9 @@
+@@ -1118,6 +1152,9 @@
  	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
  {
  	que_thr_t*	thr;
@@ -1030,7 +1020,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1137,6 +1174,11 @@
+@@ -1132,6 +1169,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  

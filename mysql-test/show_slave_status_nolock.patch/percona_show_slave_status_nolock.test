@@ -1,39 +1,47 @@
---source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+
+connection master;
+  --disable_warnings
+  DROP TABLE IF EXISTS t;
+  --enable_warnings
+  CREATE TABLE t(id INT);
+  sync_slave_with_master;
+
+connection master;
+  send INSERT INTO t SELECT SLEEP(10);
 
 connection slave;
-SET @slave_old_suppress_log_warning_1592 = @@suppress_log_warning_1592;
-SET GLOBAL SUPPRESS_LOG_WARNING_1592 = 1;
-connection master;
--- disable_warnings
-DROP TABLE IF EXISTS t;
--- enable_warnings
-CREATE TABLE t(id INT);
-sync_slave_with_master;
-connection master;
-send INSERT INTO t SELECT SLEEP(5);
+  sleep 15;
+  send STOP SLAVE;
 
-sleep 2;
-connection slave;
-send STOP SLAVE;
-sleep 2;
+connection master;
+  reap;
+
+  --disable_query_log
+  select "master",count(*) from t;
+  --enable_query_log
 
 connection slave1;
-select count(*) from t;
-replace_column 1 status 2 host 3 user 4 port;
-SHOW SLAVE STATUS NOLOCK;
-select count(*) from t;
+  --disable_query_log
+  select "slave",count(*) from t;
+  --enable_query_log
+
+  --disable_result_log
+  SHOW SLAVE STATUS NOLOCK;
+  --enable_result_log
 
 connection slave;
-reap;
---source include/wait_for_slave_to_stop.inc
-START SLAVE;
---source include/wait_for_slave_to_start.inc
+  reap;
+
+  --source include/wait_for_slave_to_stop.inc
+  START SLAVE;
+  --source include/wait_for_slave_to_start.inc
+
+  --disable_query_log
+  select "slave",count(*) from t;
+  --enable_query_log
 
 connection master;
-reap;
-DROP TABLE t;
+  DROP TABLE t;
 sync_slave_with_master;
-
-connection slave;
-SET GLOBAL suppress_log_warning_1592 = @slave_old_suppress_log_warning_1592;

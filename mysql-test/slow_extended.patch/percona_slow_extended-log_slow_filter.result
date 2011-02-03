@@ -21,4 +21,5 @@ SELECT sleep(2);
 sleep(2)
 0
 drop table if exists t;
+FLUSH LOGS;
 2

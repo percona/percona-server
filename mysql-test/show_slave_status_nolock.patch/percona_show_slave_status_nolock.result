@@ -4,23 +4,18 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-SET @slave_old_suppress_log_warning_1592 = @@suppress_log_warning_1592;
-SET GLOBAL SUPPRESS_LOG_WARNING_1592 = 1;
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
-INSERT INTO t SELECT SLEEP(5);
+INSERT INTO t SELECT SLEEP(10);
 STOP SLAVE;
-select count(*) from t;
-count(*)
-0
-SHOW SLAVE STATUS NOLOCK;
-Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Master_SSL_Verify_Server_Cert	Last_IO_Errno	Last_IO_Error	Last_SQL_Errno	Last_SQL_Error	Replicate_Ignore_Server_Ids	Master_Server_Id
-status	host	user	port	1	master-bin.000001	305	slave-relay-bin.000003	452	master-bin.000001	No	No							0		0	305	608	None		0	No						NULL	No	0		0			1
-select count(*) from t;
-count(*)
-0
-START SLAVE;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+master	count(*)
+master	1
+slave	count(*)
+slave	0
+SHOW SLAVE STATUS NOLOCK;
+START SLAVE;
+slave	count(*)
+slave	1
 DROP TABLE t;
-SET GLOBAL suppress_log_warning_1592 = @slave_old_suppress_log_warning_1592;

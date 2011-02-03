@@ -16,7 +16,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
  /** Percentage of the buffer pool to reserve for 'old' blocks.
-@@ -2494,6 +2495,9 @@
+@@ -2496,6 +2497,9 @@
  	srv_n_log_files = (ulint) innobase_log_files_in_group;
  	srv_log_file_size = (ulint) innobase_log_file_size;
  
@@ -26,7 +26,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  	srv_log_archive_on = (ulint) innobase_log_archive;
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -11365,6 +11369,12 @@
+@@ -11373,6 +11377,12 @@
    "Maximum delay between polling for a spin lock (6 by default)",
    NULL, NULL, 6L, 0L, ~0L, 0);
  
@@ -39,7 +39,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-@@ -11579,6 +11589,7 @@
+@@ -11586,6 +11596,7 @@
    MYSQL_SYSVAR(spin_wait_delay),
    MYSQL_SYSVAR(table_locks),
    MYSQL_SYSVAR(thread_concurrency),
@@ -47,20 +47,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
    MYSQL_SYSVAR(show_verbose_locks),
-diff -ruN a/storage/innobase/handler/innodb_patch_info.h b/storage/innobase/handler/innodb_patch_info.h
---- a/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:41:52.046214776 +0900
-+++ b/storage/innobase/handler/innodb_patch_info.h	2010-12-03 15:42:11.568959457 +0900
-@@ -29,5 +29,6 @@
- {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_extra_rseg","allow to create extra rollback segments","Limit number of rollback segments to be used.","http://www.percona.com/docs/wiki/percona-xtradb"},
- {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
-+{"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
- {NULL, NULL, NULL, NULL}
- };
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:37:45.543027751 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:42:11.571024631 +0900
-@@ -163,6 +163,8 @@
+@@ -164,6 +164,8 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
  
@@ -72,7 +62,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:37:45.546023493 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:42:11.574955879 +0900
-@@ -341,6 +341,7 @@
+@@ -344,6 +344,7 @@
  computer. Bigger computers need bigger values. Value 0 will disable the
  concurrency check. */
  
@@ -80,7 +70,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  UNIV_INTERN ulong	srv_thread_concurrency	= 0;
  
  /* this mutex protects srv_conc data structures */
-@@ -1127,6 +1128,75 @@
+@@ -1130,6 +1131,75 @@
  /*********************************************************************//**
  Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -156,7 +146,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  UNIV_INTERN
  void
  srv_conc_enter_innodb(
-@@ -1157,6 +1227,13 @@
+@@ -1160,6 +1230,13 @@
  		return;
  	}
  
@@ -170,7 +160,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	os_fast_mutex_lock(&srv_conc_mutex);
  retry:
  	if (trx->declared_to_be_inside_innodb) {
-@@ -1302,6 +1379,14 @@
+@@ -1305,6 +1382,14 @@
  	}
  
  	ut_ad(srv_conc_n_threads >= 0);
@@ -185,7 +175,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	os_fast_mutex_lock(&srv_conc_mutex);
  
-@@ -1335,6 +1420,13 @@
+@@ -1338,6 +1423,13 @@
  		return;
  	}
  

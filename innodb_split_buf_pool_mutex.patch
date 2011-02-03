@@ -366,20 +366,33 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  	ut_ad(!mutex_own(&buf_pool->zip_mutex));
  	ut_ad(!ut_align_offset(src, size));
  	ut_ad(!ut_align_offset(dst, size));
-@@ -438,6 +479,12 @@
+@@ -437,6 +478,13 @@
+ 	if (size >= PAGE_ZIP_MIN_SIZE) {
  		/* This is a compressed page. */
  		mutex_t*	mutex;
- 
++		ulint		space, page_no;
++
 +		if (!have_page_hash_mutex) {
 +			mutex_exit(&buf_pool->zip_free_mutex);
 +			mutex_enter(&buf_pool->LRU_list_mutex);
 +			rw_lock_x_lock(&buf_pool->page_hash_latch);
 +		}
-+
+ 
  		/* The src block may be split into smaller blocks,
  		some of which may be free.  Thus, the
- 		mach_read_from_4() calls below may attempt to read
-@@ -462,6 +509,11 @@
+@@ -446,9 +494,9 @@
+ 		pool), so there is nothing wrong about this.  The
+ 		mach_read_from_4() calls here will only trigger bogus
+ 		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
+-		ulint		space	= mach_read_from_4(
++		space	= mach_read_from_4(
+ 			(const byte*) src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+-		ulint		page_no	= mach_read_from_4(
++		page_no	= mach_read_from_4(
+ 			(const byte*) src + FIL_PAGE_OFFSET);
+ 		/* Suppress Valgrind warnings about conditional jump
+ 		on uninitialized value. */
+@@ -462,6 +510,11 @@
  			added to buf_pool->page_hash yet.  Obviously,
  			it cannot be relocated. */
  
@@ -391,7 +404,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  			return(FALSE);
  		}
  
-@@ -473,18 +525,27 @@
+@@ -473,18 +526,27 @@
  			For the sake of simplicity, give up. */
  			ut_ad(page_zip_get_size(&bpage->zip) < size);
  
@@ -422,7 +435,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  			/* Relocate the compressed page. */
  			ut_a(bpage->zip.data == src);
  			memcpy(dst, src, size);
-@@ -499,10 +560,22 @@
+@@ -499,10 +561,22 @@
  				buddy_stat->relocated_usec
  					+= ut_time_us(NULL) - usec;
  			}
@@ -446,7 +459,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
  		/* This must be a buf_page_t object. */
  #if UNIV_WORD_SIZE == 4
-@@ -511,10 +584,31 @@
+@@ -511,10 +585,31 @@
  		about uninitialized pad bytes. */
  		UNIV_MEM_ASSERT_RW(src, size);
  #endif
@@ -478,7 +491,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  	}
  
  	return(FALSE);
-@@ -529,13 +623,15 @@
+@@ -529,13 +624,15 @@
  	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
  	void*		buf,		/*!< in: block to be freed, must not be
  					pointed to by the buffer pool */
@@ -496,7 +509,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  	ut_ad(!mutex_own(&buf_pool->zip_mutex));
  	ut_ad(i <= BUF_BUDDY_SIZES);
  	ut_ad(buf_pool->buddy_stat[i].used > 0);
-@@ -546,7 +642,9 @@
+@@ -546,7 +643,9 @@
  	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);
  
  	if (i == BUF_BUDDY_SIZES) {
@@ -507,7 +520,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  		return;
  	}
  
-@@ -591,7 +689,7 @@
+@@ -591,7 +690,7 @@
  		ut_a(bpage != buf);
  
  		{
@@ -516,7 +529,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  			UNIV_MEM_ASSERT_AND_FREE(bpage, BUF_BUDDY_LOW << i);
  			bpage = next;
  		}
-@@ -600,13 +698,13 @@
+@@ -600,13 +699,13 @@
  #ifndef UNIV_DEBUG_VALGRIND
  buddy_nonfree:
  	/* Valgrind would complain about accessing free memory. */
@@ -532,7 +545,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  
  	if (bpage) {
  		/* Remove the block from the free list, because a successful
-@@ -616,7 +714,7 @@
+@@ -616,7 +715,7 @@
  		buf_buddy_remove_from_free(buf_pool, bpage, i);
  
  		/* Try to relocate the buddy of buf to the free block. */
@@ -541,7 +554,7 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  
  			ut_d(buddy->state = BUF_BLOCK_ZIP_FREE);
  			goto buddy_free2;
-@@ -636,14 +734,14 @@
+@@ -636,14 +735,14 @@
  
  		(Parts of the buddy can be free in
  		buf_pool->zip_free[j] with j < i.) */
@@ -3854,7 +3867,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  							n_blocks++;
  						}
  
-@@ -3145,7 +3145,7 @@
+@@ -3146,7 +3146,7 @@
  							found = TRUE;
  							break;
  						}

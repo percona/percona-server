@@ -81,6 +81,6 @@ misc:
 	@echo "Installing other files"
 	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
-clean: env
+clean:
 	rm -rf mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
 	rm -f mysql-$(MYSQL_VERSION).tar.gz

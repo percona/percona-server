@@ -370,20 +370,33 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  	ut_ad(!mutex_own(&buf_pool_zip_mutex));
  	ut_ad(!ut_align_offset(src, size));
  	ut_ad(!ut_align_offset(dst, size));
-@@ -434,6 +476,12 @@
+@@ -433,6 +475,13 @@
+ 	if (size >= PAGE_ZIP_MIN_SIZE) {
  		/* This is a compressed page. */
  		mutex_t*	mutex;
- 
++		ulint		space, page_no;
++
 +		if (!have_page_hash_mutex) {
 +			mutex_exit(&zip_free_mutex);
 +			mutex_enter(&LRU_list_mutex);
 +			rw_lock_x_lock(&page_hash_latch);
 +		}
-+
+ 
  		/* The src block may be split into smaller blocks,
  		some of which may be free.  Thus, the
- 		mach_read_from_4() calls below may attempt to read
-@@ -458,6 +506,11 @@
+@@ -442,9 +491,9 @@
+ 		pool), so there is nothing wrong about this.  The
+ 		mach_read_from_4() calls here will only trigger bogus
+ 		Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
+-		ulint		space	= mach_read_from_4(
++		space	= mach_read_from_4(
+ 			(const byte*) src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+-		ulint		page_no	= mach_read_from_4(
++		page_no	= mach_read_from_4(
+ 			(const byte*) src + FIL_PAGE_OFFSET);
+ 		/* Suppress Valgrind warnings about conditional jump
+ 		on uninitialized value. */
+@@ -458,6 +507,11 @@
  			added to buf_pool->page_hash yet.  Obviously,
  			it cannot be relocated. */
  
@@ -395,7 +408,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  			return(FALSE);
  		}
  
-@@ -467,18 +520,27 @@
+@@ -467,18 +521,27 @@
  			For the sake of simplicity, give up. */
  			ut_ad(page_zip_get_size(&bpage->zip) < size);
  
@@ -426,7 +439,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  			/* Relocate the compressed page. */
  			ut_a(bpage->zip.data == src);
  			memcpy(dst, src, size);
-@@ -493,10 +555,22 @@
+@@ -493,10 +556,22 @@
  				buddy_stat->relocated_usec
  					+= ut_time_us(NULL) - usec;
  			}
@@ -450,7 +463,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
  		/* This must be a buf_page_t object. */
  #if UNIV_WORD_SIZE == 4
-@@ -505,10 +579,31 @@
+@@ -505,10 +580,31 @@
  		about uninitialized pad bytes. */
  		UNIV_MEM_ASSERT_RW(src, size);
  #endif
@@ -482,7 +495,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  	}
  
  	return(FALSE);
-@@ -522,13 +617,15 @@
+@@ -522,13 +618,15 @@
  /*===============*/
  	void*	buf,	/*!< in: block to be freed, must not be
  			pointed to by the buffer pool */
@@ -500,7 +513,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  	ut_ad(!mutex_own(&buf_pool_zip_mutex));
  	ut_ad(i <= BUF_BUDDY_SIZES);
  	ut_ad(buf_buddy_stat[i].used > 0);
-@@ -539,7 +636,9 @@
+@@ -539,7 +637,9 @@
  	ut_d(((buf_page_t*) buf)->state = BUF_BLOCK_ZIP_FREE);
  
  	if (i == BUF_BUDDY_SIZES) {
@@ -511,7 +524,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  		return;
  	}
  
-@@ -584,7 +683,7 @@
+@@ -584,7 +684,7 @@
  		ut_a(bpage != buf);
  
  		{
@@ -520,7 +533,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  			UNIV_MEM_ASSERT_AND_FREE(bpage, BUF_BUDDY_LOW << i);
  			bpage = next;
  		}
-@@ -593,13 +692,13 @@
+@@ -593,13 +693,13 @@
  #ifndef UNIV_DEBUG_VALGRIND
  buddy_nonfree:
  	/* Valgrind would complain about accessing free memory. */
@@ -536,7 +549,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  
  	if (bpage) {
  		/* Remove the block from the free list, because a successful
-@@ -609,7 +708,7 @@
+@@ -609,7 +709,7 @@
  		buf_buddy_remove_from_free(bpage, i);
  
  		/* Try to relocate the buddy of buf to the free block. */
@@ -545,7 +558,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  
  			ut_d(buddy->state = BUF_BLOCK_ZIP_FREE);
  			goto buddy_free2;
-@@ -629,14 +728,14 @@
+@@ -629,14 +729,14 @@
  
  		(Parts of the buddy can be free in
  		buf_pool->zip_free[j] with j < i.) */
@@ -1265,6 +1278,15 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  #if UNIV_WORD_SIZE == 4
  	/* On 32-bit systems, there is no padding in buf_page_t.  On
  	other systems, Valgrind could complain about uninitialized pad
+@@ -2283,7 +2395,7 @@
+ 		/* Try to evict the block from the buffer pool, to use the
+ 		insert buffer as much as possible. */
+ 
+-		if (buf_LRU_free_block(&block->page, TRUE, NULL)
++		if (buf_LRU_free_block(&block->page, TRUE, NULL, FALSE)
+ 		    == BUF_LRU_FREED) {
+ 			buf_pool_mutex_exit();
+ 			mutex_exit(&block->mutex);
 @@ -2305,13 +2417,14 @@
  
  	buf_block_buf_fix_inc(block, file, line);
@@ -3785,7 +3807,15 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/inc
  
  	return(bpage != NULL);
  }
-@@ -1038,11 +1076,14 @@
+@@ -1031,18 +1069,21 @@
+ 	buf_block_t*	block,		/*!< in: buffer block */
+ 	ulint		rw_latch,	/*!< in: RW_S_LATCH, RW_X_LATCH,
+ 					RW_NO_LATCH */
+-	mtr_t*		mtr)		/*!< in: mtr */
++	mtr_t*		mtr __attribute__((unused)))		/*!< in: mtr */
+ {
+ 	ut_ad(block);
+ 
  	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
  	ut_a(block->page.buf_fix_count > 0);
  
@@ -3957,7 +3987,15 @@ diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/mtr/mtr0mtr.c b/storage/innodb_plugin/mtr/mtr0mtr.c
 --- a/storage/innodb_plugin/mtr/mtr0mtr.c	2010-08-04 02:24:20.000000000 +0900
 +++ b/storage/innodb_plugin/mtr/mtr0mtr.c	2010-08-27 16:11:40.631020912 +0900
-@@ -105,6 +105,38 @@
+@@ -33,6 +33,7 @@
+ #include "page0types.h"
+ #include "mtr0log.h"
+ #include "log0log.h"
++#include "buf0flu.h"
+ 
+ #ifndef UNIV_HOTBACKUP
+ # include "log0recv.h"
+@@ -105,6 +106,38 @@
  	}
  }
  
@@ -3996,7 +4034,7 @@ diff -ruN a/storage/innodb_plugin/mtr/mtr0mtr.c b/storage/innodb_plugin/mtr/mtr0
  /************************************************************//**
  Writes the contents of a mini-transaction log, if any, to the database log. */
  static
-@@ -188,6 +220,8 @@
+@@ -188,6 +221,8 @@
  
  	if (write_log) {
  		mtr_log_reserve_and_write(mtr);
@@ -4005,7 +4043,7 @@ diff -ruN a/storage/innodb_plugin/mtr/mtr0mtr.c b/storage/innodb_plugin/mtr/mtr0
  	}
  
  	/* We first update the modification info to buffer pages, and only
-@@ -198,11 +232,13 @@
+@@ -198,11 +233,13 @@
  	required when we insert modified buffer pages in to the flush list
  	which must be sorted on oldest_modification. */
  
@@ -4021,7 +4059,7 @@ diff -ruN a/storage/innodb_plugin/mtr/mtr0mtr.c b/storage/innodb_plugin/mtr/mtr0
  #endif /* !UNIV_HOTBACKUP */
  
  	ut_d(mtr->state = MTR_COMMITTED);
-@@ -273,6 +309,12 @@
+@@ -273,6 +310,12 @@
  		slot = dyn_array_get_element(memo, offset);
  
  		if ((object == slot->object) && (type == slot->type)) {
@@ -4037,7 +4075,7 @@ diff -ruN a/storage/innodb_plugin/mtr/mtr0mtr.c b/storage/innodb_plugin/mtr/mtr0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:11:12.194989878 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:11:40.634022489 +0900
-@@ -2852,7 +2852,7 @@
+@@ -2855,7 +2855,7 @@
  
  					mutex_exit(&(log_sys->mutex));
  
@@ -4046,7 +4084,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  					level = 0;
  					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-@@ -2874,7 +2874,7 @@
+@@ -2877,7 +2877,7 @@
  						bpl = 0;
  					}
  

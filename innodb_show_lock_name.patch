@@ -67,25 +67,38 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/include/sync0rw.h
 --- a/storage/innodb_plugin/include/sync0rw.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/sync0rw.h	2010-08-27 16:29:24.325059383 +0900
-@@ -120,7 +120,7 @@
+@@ -113,14 +113,14 @@
+ #ifdef UNIV_DEBUG
+ # ifdef UNIV_SYNC_DEBUG
+ #  define rw_lock_create(L, level) 					\
+-	rw_lock_create_func((L), (level), #L, __FILE__, __LINE__)
++	rw_lock_create_func((L), (level), __FILE__, __LINE__, #L)
+ # else /* UNIV_SYNC_DEBUG */
+ #  define rw_lock_create(L, level) 					\
+-	rw_lock_create_func((L), #L, __FILE__, __LINE__)
++	rw_lock_create_func((L), __FILE__, __LINE__, #L)
  # endif /* UNIV_SYNC_DEBUG */
  #else /* UNIV_DEBUG */
  # define rw_lock_create(L, level) 					\
 -	rw_lock_create_func((L), __FILE__, __LINE__)
-+	rw_lock_create_func((L), #L, NULL, 0)
++	rw_lock_create_func((L), #L)
  #endif /* UNIV_DEBUG */
  
  /******************************************************************//**
-@@ -137,8 +137,8 @@
+@@ -137,10 +137,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
 -	const char*	cmutex_name, 	/*!< in: mutex name */
- #endif /* UNIV_DEBUG */
-+	const char*	cmutex_name, 	/*!< in: mutex name */
+-#endif /* UNIV_DEBUG */
  	const char*	cfile_name,	/*!< in: file name where created */
- 	ulint 		cline);		/*!< in: file line where created */
+-	ulint 		cline);		/*!< in: file line where created */
++	ulint		cline,		/*!< in: file line where created */
++#endif /* UNIV_DEBUG */
++	const char*	cmutex_name);	/*!< in: mutex name */
  /******************************************************************//**
+ Calling this function is obligatory only if the memory buffer containing
+ the rw-lock is freed. Removes an rw-lock object from the global list. The
 @@ -541,7 +541,8 @@
  	ulint	level;		/*!< Level in the global latching order. */
  #endif /* UNIV_SYNC_DEBUG */
@@ -108,25 +121,41 @@ diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/include/sync0sync.h
 --- a/storage/innodb_plugin/include/sync0sync.h	2010-08-27 16:13:11.087074844 +0900
 +++ b/storage/innodb_plugin/include/sync0sync.h	2010-08-27 16:29:24.327059254 +0900
-@@ -80,7 +80,7 @@
+@@ -73,14 +73,14 @@
+ #ifdef UNIV_DEBUG
+ # ifdef UNIV_SYNC_DEBUG
+ #  define mutex_create(M, level)					\
+-	mutex_create_func((M), #M, (level), __FILE__, __LINE__)
++	mutex_create_func((M), (level), __FILE__, __LINE__, #M)
+ # else
+ #  define mutex_create(M, level)					\
+-	mutex_create_func((M), #M, __FILE__, __LINE__)
++	mutex_create_func((M), __FILE__, __LINE__, #M)
  # endif
  #else
  # define mutex_create(M, level)					\
 -	mutex_create_func((M), __FILE__, __LINE__)
-+	mutex_create_func((M), #M, NULL, 0)
++	mutex_create_func((M), #M)
  #endif
  
  /******************************************************************//**
-@@ -93,8 +93,8 @@
- mutex_create_func(
+@@ -94,13 +94,13 @@
  /*==============*/
  	mutex_t*	mutex,		/*!< in: pointer to memory */
--#ifdef UNIV_DEBUG
- 	const char*	cmutex_name,	/*!< in: mutex name */
-+#ifdef UNIV_DEBUG
+ #ifdef UNIV_DEBUG
+-	const char*	cmutex_name,	/*!< in: mutex name */
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
+-#endif /* UNIV_DEBUG */
+ 	const char*	cfile_name,	/*!< in: file name where created */
+-	ulint		cline);		/*!< in: file line where created */
++	ulint		cline,		/*!< in: file line where created */
++#endif /* UNIV_DEBUG */
++	const char*	cmutex_name);	/*!< in: mutex name */
+ 
+ #undef mutex_free			/* Fix for MacOS X */
+ 
 @@ -536,9 +536,9 @@
  	ulint	line;		/*!< Line where the mutex was locked */
  	ulint	level;		/*!< Level in the global latching order */
@@ -182,16 +211,20 @@ diff -ruN a/storage/innodb_plugin/sync/sync0arr.c b/storage/innodb_plugin/sync/s
 diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sync0rw.c
 --- a/storage/innodb_plugin/sync/sync0rw.c	2010-08-04 02:24:20.000000000 +0900
 +++ b/storage/innodb_plugin/sync/sync0rw.c	2010-08-27 16:29:24.331058289 +0900
-@@ -231,8 +231,8 @@
+@@ -231,10 +231,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
 -	const char*	cmutex_name, 	/*!< in: mutex name */
- #endif /* UNIV_DEBUG */
-+	const char*	cmutex_name, 	/*!< in: mutex name */
+-#endif /* UNIV_DEBUG */
  	const char*	cfile_name,	/*!< in: file name where created */
- 	ulint		cline)		/*!< in: file line where created */
+-	ulint		cline)		/*!< in: file line where created */
++	ulint		cline,		/*!< in: file line where created */
++#endif /* UNIV_DEBUG */
++	const char*	cmutex_name) 	/*!< in: mutex name */
  {
+ 	/* If this is the very first time a synchronization object is
+ 	created, then the following call initializes the sync system. */
 @@ -242,14 +242,15 @@
  #ifndef INNODB_RW_LOCKS_USE_ATOMICS
  	mutex_create(rw_lock_get_mutex(lock), SYNC_NO_ORDER_CHECK);
@@ -275,16 +308,23 @@ diff -ruN a/storage/innodb_plugin/sync/sync0rw.c b/storage/innodb_plugin/sync/sy
 diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/sync0sync.c
 --- a/storage/innodb_plugin/sync/sync0sync.c	2010-08-27 16:13:11.113988290 +0900
 +++ b/storage/innodb_plugin/sync/sync0sync.c	2010-08-27 16:29:24.333058256 +0900
-@@ -238,8 +238,8 @@
- mutex_create_func(
+@@ -239,13 +239,13 @@
  /*==============*/
  	mutex_t*	mutex,		/*!< in: pointer to memory */
--#ifdef UNIV_DEBUG
- 	const char*	cmutex_name,	/*!< in: mutex name */
-+#ifdef UNIV_DEBUG
+ #ifdef UNIV_DEBUG
+-	const char*	cmutex_name,	/*!< in: mutex name */
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
+-#endif /* UNIV_DEBUG */
+ 	const char*	cfile_name,	/*!< in: file name where created */
+-	ulint		cline)		/*!< in: file line where created */
++	ulint		cline,		/*!< in: file line where created */
++#endif /* UNIV_DEBUG */
++	const char*	cmutex_name)	/*!< in: mutex name */
+ {
+ #if defined(HAVE_ATOMIC_BUILTINS)
+ 	mutex_reset_lock_word(mutex);
 @@ -263,11 +263,13 @@
  	mutex->file_name = "not yet reserved";
  	mutex->level = level;

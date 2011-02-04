@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0sea.c b/storage/innodb_plugin/btr/btr0
 +/*=====================================*/
 +	dict_index_t*	index)		/* in: record descriptor */
 +{
-+	buf_page_t*	bpage;
++
 +	hash_table_t*	table;
 +	buf_block_t*	block;
 +	ulint		n_fields;

@@ -608,7 +608,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5053,7 +5074,7 @@
+@@ -5045,7 +5066,7 @@
  
  	if (fil_node->space->purpose == FIL_TABLESPACE) {
  		srv_set_io_thread_op_info(segment, "complete io for buf page");
@@ -617,7 +617,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	} else {
  		srv_set_io_thread_op_info(segment, "complete io for log");
  		log_io_complete(message);
-@@ -5407,3 +5428,46 @@
+@@ -5399,3 +5420,46 @@
                 return 0;
         }
  }
@@ -1184,7 +1184,7 @@ diff -ruN a/storage/innodb_plugin/include/dict0mem.h b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
 --- a/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:36:03.499987483 +0900
 +++ b/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:39:03.015021314 +0900
-@@ -756,6 +756,19 @@
+@@ -748,6 +748,19 @@
  fil_system_hash_nodes(void);
  /*========================*/
  

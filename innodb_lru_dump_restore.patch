@@ -42,7 +42,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
 --- a/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:13:11.070058073 +0900
 +++ b/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:34:33.860400549 +0900
-@@ -2122,6 +2122,278 @@
+@@ -2122,6 +2122,277 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  
@@ -285,8 +285,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +			continue;
 +		}
 +
-+		if (fil_area_is_exist(space_id, zip_size, page_no, 0,
-+				      zip_size ? zip_size : UNIV_PAGE_SIZE)) {
++		if (fil_is_exist(space_id, page_no)) {
 +
 +			tablespace_version = fil_space_get_version(space_id);
 +
@@ -336,7 +335,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:32:40.298411400 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:34:33.868058362 +0900
-@@ -4915,6 +4915,78 @@
+@@ -4915,6 +4915,70 @@
  	return(DB_SUCCESS);
  }
  
@@ -344,18 +343,10 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +Confirm whether the parameters are valid or not */
 +UNIV_INTERN
 +ibool
-+fil_area_is_exist(
++fil_is_exist(
 +/*==============*/
 +	ulint	space_id,	/*!< in: space id */
-+	ulint	zip_size,	/*!< in: compressed page size in bytes;
-+				0 for uncompressed pages */
-+	ulint	block_offset,	/*!< in: offset in number of blocks */
-+	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-+				aio this must be divisible by the OS block
-+				size */
-+	ulint	len)		/*!< in: how many bytes to read or write; this
-+				must not cross a file boundary; in aio this
-+				must be a block size multiple */
++	ulint	block_offset)	/*!< in: offset in number of blocks */
 +{
 +	fil_space_t*	space;
 +	fil_node_t*	node;
@@ -563,7 +554,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
 --- a/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:32:40.315012507 +0900
 +++ b/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:34:33.878063455 +0900
-@@ -643,6 +643,22 @@
+@@ -643,6 +643,14 @@
  	void*	message,	/*!< in: message for aio handler if non-sync
  				aio used, else ignored */
  	trx_t*	trx);
@@ -571,18 +562,10 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
 +Confirm whether the parameters are valid or not */
 +UNIV_INTERN
 +ibool
-+fil_area_is_exist(
++fil_is_exist(
 +/*==============*/
 +	ulint	space_id,	/*!< in: space id */
-+	ulint	zip_size,	/*!< in: compressed page size in bytes;
-+				0 for uncompressed pages */
-+	ulint	block_offset,	/*!< in: offset in number of blocks */
-+	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
-+				aio this must be divisible by the OS block
-+				size */
-+	ulint	len);		/*!< in: how many bytes to read or write; this
-+				must not cross a file boundary; in aio this
-+				must be a block size multiple */
++	ulint	block_offset);	/*!< in: offset in number of blocks */
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
  handler for completed requests. The aio array of pending requests is divided

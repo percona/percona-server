@@ -20,6 +20,33 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:43:11.941989968 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:44:21.668058937 +0900
+@@ -690,7 +690,7 @@
+ 		ut_a(space->purpose != FIL_LOG);
+ 		ut_a(!trx_sys_sys_space(space->id));
+ 
+-		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
++		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+ 			fprintf(stderr,
+ 				"InnoDB: Error: the size of single-table"
+ 				" tablespace file %s\n"
+@@ -3778,7 +3778,7 @@
+ 
+ 	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
+ #ifndef UNIV_HOTBACKUP
+-	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
++	if (size < FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+ 		fprintf(stderr,
+ 			"InnoDB: Error: the size of single-table tablespace"
+ 			" file %s\n"
+@@ -3798,7 +3798,7 @@
+ 	/* Align the memory for file i/o if we might have O_DIRECT set */
+ 	page = ut_align(buf2, UNIV_PAGE_SIZE);
+ 
+-	if (size >= FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
++	if (size >= FIL_IBD_FILE_INITIAL_SIZE * (lint)UNIV_PAGE_SIZE) {
+ 		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
+ 
+ 		/* We have to read the tablespace id from the file */
 @@ -4776,9 +4776,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
@@ -36,28 +63,36 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0fsp.c
 --- a/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-27 16:40:36.528021375 +0900
 +++ b/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-27 16:44:21.673058570 +0900
-@@ -658,15 +658,16 @@
+@@ -657,16 +657,18 @@
+ 				0 for uncompressed pages */
  	ulint	offset)		/*!< in: page offset */
  {
- #ifndef DOXYGEN /* Doxygen gets confused of these */
+-#ifndef DOXYGEN /* Doxygen gets confused of these */
 -# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
 -		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 -#  error
 -# endif
+-# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
+-		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+-#  error
+-# endif
+-#endif /* !DOXYGEN */
++//#ifndef DOXYGEN /* Doxygen gets confused of these */
 +//# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET
 +//		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 +//#  error
 +//# endif
- # if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
- 		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
- #  error
- # endif
- #endif /* !DOXYGEN */
++//# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET
++//		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
++//#  error
++//# endif
++//#endif /* !DOXYGEN */
 +	ut_a(UNIV_PAGE_SIZE > XDES_ARR_OFFSET + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
++	ut_a(PAGE_ZIP_MIN_SIZE > XDES_ARR_OFFSET + (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
  	ut_ad(ut_is_2pow(zip_size));
  
  	if (!zip_size) {
-@@ -1465,12 +1466,12 @@
+@@ -1465,12 +1467,12 @@
  							   mtr);
  		xdes_init(descr, mtr);
  
@@ -235,7 +270,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/buf0types.h b/storage/innodb_plugin/include/buf0types.h
 --- a/storage/innodb_plugin/include/buf0types.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/buf0types.h	2010-08-27 16:44:21.692071229 +0900
-@@ -70,6 +70,7 @@
+@@ -70,12 +70,13 @@
  					buddy system; must be at least
  					sizeof(buf_page_t) */
  #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
@@ -243,6 +278,25 @@ diff -ruN a/storage/innodb_plugin/include/buf0types.h b/storage/innodb_plugin/in
  					/*!< number of buddy sizes */
  
  /** twice the maximum block size of the buddy system;
+ the underlying memory is aligned by this amount:
+ this must be equal to UNIV_PAGE_SIZE */
+-#define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
++#define BUF_BUDDY_HIGH	((ulint)BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
+ /* @} */
+ 
+ #endif
+diff -ruN a/storage/innodb_plugin/include/fsp0types.h b/storage/innodb_plugin/include/fsp0types.h
+--- a/storage/innodb_plugin/include/fsp0types.h	2010-11-29 19:38:03.000000000 +0900
++++ b/storage/innodb_plugin/include/fsp0types.h	2011-02-02 23:29:13.000000000 +0900
+@@ -42,7 +42,7 @@
+ /* @} */
+ 
+ /** File space extent size (one megabyte) in pages */
+-#define	FSP_EXTENT_SIZE		(1 << (20 - UNIV_PAGE_SIZE_SHIFT))
++#define	FSP_EXTENT_SIZE		((ulint)1 << (20 - UNIV_PAGE_SIZE_SHIFT))
+ 
+ /** On a page of any file segment, data may be put starting from this
+ offset */
 diff -ruN a/storage/innodb_plugin/include/log0log.h b/storage/innodb_plugin/include/log0log.h
 --- a/storage/innodb_plugin/include/log0log.h	2010-11-03 22:39:54.000000000 +0900
 +++ b/storage/innodb_plugin/include/log0log.h	2010-12-13 20:17:00.600329611 +0900

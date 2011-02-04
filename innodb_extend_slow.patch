@@ -37,9 +37,9 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 +					block->page.offset, DPAH_SIZE << 3);
 +	block_hash_byte = block_hash >> 3;
 +	block_hash_offset = (byte) block_hash & 0x07;
-+	if (block_hash_byte < 0 || block_hash_byte >= DPAH_SIZE)
++	if (block_hash_byte >= DPAH_SIZE)
 +		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
-+	if (block_hash_offset < 0 || block_hash_offset > 7)
++	if (block_hash_offset > 7)
 +		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
 +	if ((trx->distinct_page_access_hash[block_hash_byte] & ((byte) 0x01 << block_hash_offset)) == 0)
 +		trx->distinct_page_access++;
@@ -766,16 +766,6 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	if ((ulint)ret == n) {
  
-@@ -3356,7 +3390,8 @@
- 				offset */
- 	ulint		offset_high, /*!< in: most significant 32 bits of
- 				offset */
--	ulint		len)	/*!< in: length of the block to read or write */
-+	ulint		len,	/*!< in: length of the block to read or write */
-+	trx_t*		trx)
- {
- 	os_aio_slot_t*	slot;
- 	ulint		i;
 @@ -3642,10 +3677,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
@@ -800,7 +790,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -3721,8 +3757,13 @@
+@@ -3721,6 +3757,11 @@
  		ut_error;
  	}
  
@@ -810,11 +800,8 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
 +		trx->io_read += n;
 +	}
  	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
--					 name, buf, offset, offset_high, n);
-+					 name, buf, offset, offset_high, n, trx);
+ 					 name, buf, offset, offset_high, n);
  	if (type == OS_FILE_READ) {
- 		if (os_aio_use_native_aio) {
- #ifdef WIN_ASYNC_IO
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:27:30.233022109 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:30:47.384058509 +0900

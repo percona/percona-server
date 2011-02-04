@@ -1923,7 +1923,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -6072,6 +6105,30 @@
+@@ -6072,6 +6105,32 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
  
@@ -1934,7 +1934,9 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +  double end_usecs = 0;
 +  /* cpu time */
 +  int cputime_error = 0;
++#ifdef HAVE_CLOCK_GETTIME
 +  struct timespec tp;
++#endif
 +  double start_cpu_nsecs = 0;
 +  double end_cpu_nsecs = 0;
 +
@@ -1954,7 +1956,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
    {
      LEX *lex= thd->lex;
-@@ -6152,6 +6209,43 @@
+@@ -6152,6 +6211,43 @@
      *found_semicolon= NULL;
    }
  
@@ -1998,7 +2000,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -7017,6 +7111,13 @@
+@@ -7017,6 +7113,13 @@
      if (flush_error_log())
        result=1;
    }
@@ -2012,7 +2014,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #ifdef HAVE_QUERY_CACHE
    if (options & REFRESH_QUERY_CACHE_FREE)
    {
-@@ -7117,6 +7218,40 @@
+@@ -7117,6 +7220,40 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
@@ -2066,7 +2068,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  /**
    A result class used to send cursor rows using the binary protocol.
  */
-@@ -2103,8 +2106,32 @@
+@@ -2103,8 +2106,34 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2077,7 +2079,9 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double end_usecs = 0;
 +  /* cpu time */
 +  int cputime_error = 0;
++#ifdef HAVE_CLOCK_GETTIME
 +  struct timespec tp;
++#endif
 +  double start_cpu_nsecs = 0;
 +  double end_cpu_nsecs = 0;
 +
@@ -2100,7 +2104,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  
    if (thd->stmt_map.insert(thd, stmt))
    {
-@@ -2112,7 +2139,7 @@
+@@ -2112,7 +2141,7 @@
        The error is set in the insert. The statement itself
        will be also deleted there (this is how the hash works).
      */
@@ -2109,7 +2113,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    /* Reset warnings from previous command */
-@@ -2139,6 +2166,44 @@
+@@ -2139,6 +2168,44 @@
    thd->protocol= save_protocol;
  
    /* check_prepared_statemnt sends the metadata packet in case of success */
@@ -2154,7 +2158,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2489,12 +2554,36 @@
+@@ -2489,12 +2556,38 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2165,7 +2169,9 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double end_usecs = 0;
 +  /* cpu time */
 +  int cputime_error = 0;
++#ifdef HAVE_CLOCK_GETTIME
 +  struct timespec tp;
++#endif
 +  double start_cpu_nsecs = 0;
 +  double end_cpu_nsecs = 0;
 +
@@ -2192,7 +2198,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
  #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-@@ -2515,6 +2604,44 @@
+@@ -2515,6 +2608,44 @@
    /* Close connection socket; for use with client testing (Bug#43560). */
    DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
  
@@ -2237,7 +2243,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  
  }
-@@ -2588,20 +2715,45 @@
+@@ -2588,20 +2719,47 @@
  
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
@@ -2249,7 +2255,9 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double end_usecs = 0;
 +  /* cpu time */
 +  int cputime_error = 0;
++#ifdef HAVE_CLOCK_GETTIME
 +  struct timespec tp;
++#endif
 +  double start_cpu_nsecs = 0;
 +  double end_cpu_nsecs = 0;
 +
@@ -2285,7 +2293,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    thd->stmt_arena= stmt;
-@@ -2625,6 +2777,44 @@
+@@ -2625,6 +2783,44 @@
    thd->restore_backup_statement(stmt, &stmt_backup);
    thd->stmt_arena= thd;
  
@@ -2330,7 +2338,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -2655,13 +2845,37 @@
+@@ -2655,13 +2851,39 @@
    /* First of all clear possible warnings from the previous command */
    mysql_reset_thd_for_next_command(thd);
  
@@ -2341,7 +2349,9 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double end_usecs = 0;
 +  /* cpu time */
 +  int cputime_error = 0;
++#ifdef HAVE_CLOCK_GETTIME
 +  struct timespec tp;
++#endif
 +  double start_cpu_nsecs = 0;
 +  double end_cpu_nsecs = 0;
 +
@@ -2369,7 +2379,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    }
  
    stmt->close_cursor();
-@@ -2678,6 +2892,44 @@
+@@ -2678,6 +2900,44 @@
  
    my_ok(thd);
  

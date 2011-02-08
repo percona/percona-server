@@ -212,7 +212,7 @@
  
  	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
  		goto exit_func;
-@@ -2770,7 +2773,7 @@
+@@ -2773,7 +2776,7 @@
  		if (!skip_sleep) {
  		if (next_itr_time > cur_time) {
  
@@ -221,7 +221,7 @@
  			srv_main_sleeps++;
  
  			/*
-@@ -3476,9 +3479,10 @@
+@@ -3480,9 +3483,10 @@
  		mutex_exit(&kernel_mutex);
  
  		sleep_ms = 10;

@@ -13,7 +13,7 @@ diff -ruN a/mysql-test/r/connect.result b/mysql-test/r/connect.result
  drop table if exists t1,t2;
  show tables;
  Tables_in_mysql
-@@ -218,3 +219,4 @@
+@@ -229,3 +230,4 @@
  # ------------------------------------------------------------------
  # -- End of 5.1 tests
  # ------------------------------------------------------------------
@@ -27,7 +27,7 @@ diff -ruN a/mysql-test/t/connect.test b/mysql-test/t/connect.test
  # This test is to check various cases of connections
  # with right and wrong password, with and without database
  # Unfortunately the check is incomplete as we can't connect without database
-@@ -300,3 +302,4 @@
+@@ -328,3 +330,4 @@
  # Wait till all disconnects are completed
  --source include/wait_until_count_sessions.inc
  
@@ -45,7 +45,7 @@ diff -ruN a/patch_info/log_connection_error.patch b/patch_info/log_connection_er
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-28 16:47:47.105319218 +0400
 +++ b/sql/mysqld.cc	2010-07-28 16:47:47.644101813 +0400
-@@ -5044,6 +5044,10 @@
+@@ -5046,6 +5046,10 @@
  
      DBUG_PRINT("error",("Too many connections"));
      close_connection(thd, ER_CON_COUNT_ERROR, 1);
@@ -56,7 +56,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      statistic_increment(denied_connections, &LOCK_status);
      delete thd;
      DBUG_VOID_RETURN;
-@@ -5431,6 +5435,10 @@
+@@ -5433,6 +5437,10 @@
      if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
  	my_net_init(&thd->net, thd->net.vio))
      {
@@ -67,7 +67,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
        close_connection(thd, ER_OUT_OF_RESOURCES, 1);
        delete thd;
        continue;
-@@ -5626,6 +5634,10 @@
+@@ -5628,6 +5636,10 @@
                                                     event_conn_closed)) ||
                          my_net_init(&thd->net, thd->net.vio))
      {

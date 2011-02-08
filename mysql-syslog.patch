@@ -121,7 +121,7 @@ diff -ruN a/client/mysql.cc c/client/mysql.cc
  
  static bool add_line(String &buffer,char *line,char *in_string,
                       bool *ml_comment, bool truncated)
-@@ -3031,6 +3080,11 @@
+@@ -3035,6 +3076,11 @@
      fix_history(buffer);
    }
  #endif

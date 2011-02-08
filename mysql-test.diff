@@ -858,7 +858,7 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb-autoinc.test b/mysql-test/suite/inn
  #
  # Bug #34335
  #
-@@ -674,3 +676,6 @@
+@@ -637,3 +639,6 @@
  -- source include/restart_mysqld.inc
  SHOW CREATE TABLE t1;
  DROP TABLE t1;

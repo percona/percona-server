@@ -1,6 +1,10 @@
 # name       : bug677407
 # introduced : 13
 # maintainer : Alexey
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
 
 LP bug#677407 / MySQL Bug#48883: Stale data from INNODB_LOCKS table.
 
@@ -49,7 +53,6 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
---- a/storage/innodb_plugin/trx/trx0i_s.c	2010-11-03 16:39:54.000000000 +0300
 diff -ruN a/storage/innodb_plugin/trx/trx0i_s.c b/storage/innodb_plugin/trx/trx0i_s.c
 --- a/storage/innodb_plugin/trx/trx0i_s.c	2010-11-03 16:39:54.000000000 +0300
 +++ b/storage/innodb_plugin/trx/trx0i_s.c	2010-11-30 13:57:03.000000000 +0300
@@ -64,7 +67,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0i_s.c b/storage/innodb_plugin/trx/trx0
  	i_s_table_cache_t innodb_trx;	/*!< innodb_trx table */
  	i_s_table_cache_t innodb_locks;	/*!< innodb_locks table */
  	i_s_table_cache_t innodb_lock_waits;/*!< innodb_lock_waits table */
-@@ -1141,13 +1137,6 @@
+@@ -1142,13 +1138,6 @@
  {
  	ullint	now;
  
@@ -78,7 +81,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0i_s.c b/storage/innodb_plugin/trx/trx0
  #ifdef UNIV_SYNC_DEBUG
  	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
  #endif
-@@ -1245,6 +1234,12 @@
+@@ -1246,6 +1235,12 @@
  /*===================================*/
  	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
  {
@@ -91,7 +94,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0i_s.c b/storage/innodb_plugin/trx/trx0
  	if (!can_cache_be_updated(cache)) {
  
  		return(1);
-@@ -1257,6 +1252,10 @@
+@@ -1258,6 +1253,10 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -102,7 +105,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0i_s.c b/storage/innodb_plugin/trx/trx0
  	return(0);
  }
  
-@@ -1287,16 +1286,12 @@
+@@ -1288,16 +1287,12 @@
  	release kernel_mutex
  	release trx_i_s_cache_t::rw_lock
  	acquire trx_i_s_cache_t::rw_lock, S
@@ -119,7 +122,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0i_s.c b/storage/innodb_plugin/trx/trx0
  	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
  	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
  	table_cache_init(&cache->innodb_lock_waits,
-@@ -1347,18 +1342,10 @@
+@@ -1348,18 +1343,10 @@
  /*===================*/
  	trx_i_s_cache_t*	cache)	/*!< in: cache */
  {

@@ -180,7 +180,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4371,6 +4381,97 @@
+@@ -4373,6 +4383,97 @@
  }
  #endif//DBUG_OFF
  
@@ -278,7 +278,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifdef __WIN__
  int win_main(int argc, char **argv)
-@@ -4475,6 +4576,10 @@
+@@ -4477,6 +4578,10 @@
    test_lc_time_sz();
  #endif
  
@@ -289,7 +289,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4676,6 +4781,10 @@
+@@ -4678,6 +4783,10 @@
    clean_up_mutexes();
    my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
@@ -300,7 +300,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    exit(0);
    return(0);					/* purecov: deadcode */
  }
-@@ -7833,6 +7942,7 @@
+@@ -7835,6 +7944,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -311,7 +311,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/mysql_priv.h	2010-07-28 16:48:05.505952089 +0400
-@@ -794,6 +794,8 @@
+@@ -819,6 +819,8 @@
  */
  extern ulong server_id, concurrency;
  
@@ -326,7 +326,7 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
 @@ -306,6 +306,7 @@
    lex->describe= 0;
    lex->subqueries= FALSE;
-   lex->view_prepare_mode= FALSE;
+   lex->context_analysis_only= 0;
 +  lex->disable_flashcache= FALSE;
    lex->derived_tables= 0;
    lex->lock_option= TL_READ;
@@ -334,9 +334,9 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2010-07-28 16:47:58.575318748 +0400
 +++ b/sql/sql_lex.h	2010-07-28 16:48:08.405691834 +0400
-@@ -1728,6 +1728,7 @@
-   */
-   bool view_prepare_mode;
+@@ -1722,6 +1722,7 @@
+ 
+   uint8 context_analysis_only;
    bool safe_to_cache_query;
 +  bool disable_flashcache;
    bool subqueries, ignore;
@@ -379,7 +379,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    if (select_lex->master_unit()->is_union() || 
        select_lex->master_unit()->fake_select_lex)
      res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
-@@ -274,6 +289,12 @@
+@@ -274,6 +291,12 @@
    if (unlikely(res))
      result->abort();
  

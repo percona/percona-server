@@ -1,6 +1,6 @@
 # name       : suppress_log_warning_1592.patch
 # introduced : 11 or before
-# maintainer : Yasufumi
+# maintainer : Oleg
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
@@ -8,7 +8,7 @@
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-26 18:31:59.056061915 +0900
 +++ b/sql/mysql_priv.h	2010-07-26 18:34:10.205015964 +0900
-@@ -2081,6 +2081,7 @@
+@@ -2106,6 +2106,7 @@
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
  extern my_bool opt_optimizer_fix;
@@ -27,7 +27,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5826,6 +5827,7 @@
+@@ -5828,6 +5829,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -35,7 +35,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7331,6 +7333,10 @@
+@@ -7333,6 +7335,10 @@
     "Enable unofficial optimizer fixes.",
     (uchar**) &opt_optimizer_fix, (uchar**) &opt_optimizer_fix,
     0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},

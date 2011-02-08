@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #ls -1 *.patch | grep -v repair | xargs bzr revert
-MYSQL_VERSION=5.1.54
+MYSQL_VERSION=5.1.55
 MYSQL_DIR=mysql-${MYSQL_VERSION}
 MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
 echo "===== Prepare source code for patch's adaptation...";

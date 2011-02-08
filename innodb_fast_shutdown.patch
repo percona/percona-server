@@ -11,6 +11,7 @@
 # suite.
 #
 # The patch also implements os_event_wait_time() for POSIX systems.
+diff -ruN /dev/null b/COPYING.innodb_fast_shutdown
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/COPYING.innodb_fast_shutdown	2010-11-16 21:37:51.000000000 +0300
 @@ -0,0 +1,10 @@
@@ -24,6 +25,7 @@
 +    * Neither the name of the author nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 +
 +THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+diff -ruN a/storage/innodb_plugin/include/os0sync.h b/storage/innodb_plugin/include/os0sync.h
 --- a/storage/innodb_plugin/include/os0sync.h	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/include/os0sync.h	2010-11-16 21:34:06.000000000 +0300
 @@ -189,14 +189,14 @@
@@ -43,6 +45,7 @@
  				OS_SYNC_INFINITE_TIME */
  #ifdef __WIN__
  /**********************************************************//**
+diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-11-16 21:34:06.000000000 +0300
 @@ -57,6 +57,9 @@
@@ -55,6 +58,7 @@
  /* If the last data file is auto-extended, we add this many pages to it
  at a time */
  #define SRV_AUTO_EXTEND_INCREMENT	\
+diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
 --- a/storage/innodb_plugin/log/log0log.c	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/log/log0log.c	2010-11-16 21:34:06.000000000 +0300
 @@ -3103,6 +3103,7 @@
@@ -65,6 +69,7 @@
  loop:
  	os_thread_sleep(100000);
  
+diff -ruN a/storage/innodb_plugin/os/os0sync.c b/storage/innodb_plugin/os/os0sync.c
 --- a/storage/innodb_plugin/os/os0sync.c	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/os/os0sync.c	2010-11-16 21:34:06.000000000 +0300
 @@ -31,6 +31,9 @@
@@ -157,6 +162,7 @@
  #endif
  }
  
+diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-11-16 21:34:06.000000000 +0300
 @@ -707,6 +707,8 @@
@@ -212,7 +218,7 @@
  
  	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
  		goto exit_func;
-@@ -2770,7 +2773,7 @@
+@@ -2773,7 +2776,7 @@
  		if (!skip_sleep) {
  		if (next_itr_time > cur_time) {
  
@@ -221,7 +227,7 @@
  			srv_main_sleeps++;
  
  			/*
-@@ -3476,9 +3479,10 @@
+@@ -3480,9 +3483,10 @@
  		mutex_exit(&kernel_mutex);
  
  		sleep_ms = 10;

@@ -1191,7 +1191,19 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -6106,6 +6121,11 @@
+@@ -5897,6 +5912,11 @@
+ 	case DB_SUCCESS:
+ 		error = 0;
+ 		table->status = 0;
++#ifdef EXTENDED_FOR_USERSTAT
++		rows_read++;
++		if (active_index >= 0 && active_index < MAX_KEY)
++			index_rows_read[active_index]++;
++#endif
+ 		break;
+ 	case DB_RECORD_NOT_FOUND:
+ 		error = HA_ERR_KEY_NOT_FOUND;
+@@ -6106,6 +6126,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -1203,7 +1215,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8000,11 +8020,31 @@
+@@ -8000,11 +8025,31 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1236,7 +1248,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8082,7 +8122,7 @@
+@@ -8082,7 +8127,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1245,7 +1257,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
  			remain. delete_length is initialized to 0 in
-@@ -11283,6 +11323,45 @@
+@@ -11283,6 +11328,45 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1291,7 +1303,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11611,6 +11690,10 @@
+@@ -11611,6 +11695,10 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1302,7 +1314,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11680,7 +11763,10 @@
+@@ -11680,7 +11768,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,

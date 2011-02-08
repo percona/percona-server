@@ -124,7 +124,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #endif
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
 +ulong   opt_query_response_time_range_base  = QRT_DEFAULT_BASE;
-+my_bool opt_enable_query_response_time_stats= 0;
++my_bool opt_query_response_time_stats= 0;
 +#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
  
  my_bool opt_use_ssl  = 0;
@@ -170,7 +170,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern bool opt_ignore_builtin_innodb;
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
 +extern ulong   opt_query_response_time_range_base;
-+extern my_bool opt_enable_query_response_time_stats;
++extern my_bool opt_query_response_time_stats;
 +#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
  extern my_bool opt_character_set_client_handshake;
  extern bool volatile abort_loop;
@@ -653,7 +653,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      set.
    */
 +  #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
-+  if (opt_enable_query_response_time_stats || thd->enable_slow_log)
++  if (opt_query_response_time_stats || thd->enable_slow_log)
 +#else // HAVE_RESPONSE_TIME_DISTRIBUTION
    if (thd->enable_slow_log)
 +#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
@@ -670,7 +670,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +    ulonglong end_utime_of_query   = thd->current_utime();
 +    ulonglong query_execution_time = end_utime_of_query - thd->utime_after_lock;
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
-+    if(opt_enable_query_response_time_stats)
++    if(opt_query_response_time_stats)
 +    {
 +      query_response_time_collect(query_execution_time);
 +    }
@@ -839,16 +839,16 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       READ_ONLY GLOBAL_VAR(have_response_time_distribution), NO_CMD_LINE);
 +
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
-+static Sys_var_mybool Sys_enable_query_response_time_stats(
-+       "enable_query_response_time_stats", "Enable or disable query response time statisics collecting",
-+       GLOBAL_VAR(opt_enable_query_response_time_stats), CMD_LINE(OPT_ARG),
++static Sys_var_mybool Sys_query_response_time_stats(
++       "query_response_time_stats", "Enable or disable query response time statisics collecting",
++       GLOBAL_VAR(opt_query_response_time_stats), CMD_LINE(OPT_ARG),
 +       DEFAULT(FALSE));
 +
 +static Sys_var_ulong Sys_query_response_time_range_base(
 +       "query_response_time_range_base",
 +       "Select base of log for query_response_time ranges. WARNING: variable change affect only after flush",
 +       GLOBAL_VAR(opt_query_response_time_range_base),
-+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(2, QRT_MAXIMUM_BASE),
++       CMD_LINE(OPT_ARG), VALID_RANGE(2, QRT_MAXIMUM_BASE),
 +       DEFAULT(QRT_DEFAULT_BASE),
 +       BLOCK_SIZE(1));
 +#endif // HAVE_RESPONSE_TIME_DISTRIBUTION

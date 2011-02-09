@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0cur.c
 --- a/storage/innodb_plugin/btr/btr0cur.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/btr/btr0cur.c	2010-08-27 16:11:40.593021205 +0900
-@@ -3760,7 +3760,8 @@
+@@ -3656,7 +3656,8 @@
  
  	mtr_commit(mtr);
  
@@ -18,7 +18,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  	mutex_enter(&block->mutex);
  
  	/* Only free the block if it is still allocated to
-@@ -3771,17 +3772,22 @@
+@@ -3667,17 +3668,22 @@
  	    && buf_block_get_space(block) == space
  	    && buf_block_get_page_no(block) == page_no) {
  
@@ -3240,7 +3240,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  	} else {
  		buf_LRU_old_ratio = ratio;
  	}
-@@ -1948,7 +2099,8 @@
+@@ -1949,7 +2100,8 @@
  		goto func_exit;
  	}
  
@@ -3250,9 +3250,9 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  	/* Update the index. */
  	item = &buf_LRU_stat_arr[buf_LRU_stat_arr_ind];
-@@ -1962,7 +2114,8 @@
+@@ -1970,7 +2122,8 @@
  	/* Put current entry in the array. */
- 	memcpy(item, &buf_LRU_stat_cur, sizeof *item);
+ 	memcpy(item, &cur_stat, sizeof *item);
  
 -	buf_pool_mutex_exit();
 +	//buf_pool_mutex_exit();
@@ -3260,7 +3260,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  func_exit:
  	/* Clear the current entry. */
-@@ -1984,7 +2137,8 @@
+@@ -1992,7 +2145,8 @@
  	ulint		new_len;
  
  	ut_ad(buf_pool);
@@ -3270,7 +3270,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
  
-@@ -2044,16 +2198,22 @@
+@@ -2052,16 +2206,22 @@
  
  	ut_a(buf_pool->LRU_old_len == old_len);
  
@@ -3295,7 +3295,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
  			 ut_ad(ut_list_node_313->in_unzip_LRU_list
  			       && ut_list_node_313->page.in_LRU_list));
-@@ -2067,7 +2227,8 @@
+@@ -2075,7 +2235,8 @@
  		ut_a(buf_page_belongs_to_unzip_LRU(&block->page));
  	}
  
@@ -3305,7 +3305,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  	return(TRUE);
  }
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-@@ -2083,7 +2244,8 @@
+@@ -2091,7 +2252,8 @@
  	const buf_page_t*	bpage;
  
  	ut_ad(buf_pool);
@@ -3315,7 +3315,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
  
-@@ -2140,6 +2302,7 @@
+@@ -2148,6 +2310,7 @@
  		bpage = UT_LIST_GET_NEXT(LRU, bpage);
  	}
  
@@ -3397,7 +3397,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
 --- a/storage/innodb_plugin/handler/i_s.cc	2010-08-27 15:59:21.753412068 +0900
 +++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:11:40.617020805 +0900
-@@ -2230,7 +2230,8 @@
+@@ -2229,7 +2229,8 @@
  
  	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
  
@@ -3407,7 +3407,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  
  	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
  		buf_buddy_stat_t*	buddy_stat = &buf_buddy_stat[x];
-@@ -2256,7 +2257,8 @@
+@@ -2255,7 +2256,8 @@
  		}
  	}
  

@@ -428,7 +428,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -8945,6 +8981,25 @@
+@@ -8953,6 +8989,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -629,7 +629,7 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  
  	ut_a(que_thr_stop(thr));
  
-@@ -3695,6 +3701,8 @@
+@@ -3767,6 +3773,8 @@
  {
  	lock_t*	lock;
  	trx_t*	trx;
@@ -638,7 +638,7 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  
  	ut_ad(mutex_own(&kernel_mutex));
  
-@@ -3750,6 +3758,10 @@
+@@ -3822,6 +3830,10 @@
  		return(DB_SUCCESS);
  	}
  

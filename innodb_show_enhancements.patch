@@ -30,7 +30,7 @@ diff -ruN a/storage/innodb_plugin/Makefile.in b/storage/innodb_plugin/Makefile.i
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:22:39.000000000 +0900
-@@ -11032,7 +11032,8 @@
+@@ -11040,7 +11040,8 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
@@ -220,7 +220,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_trx */
  static ST_FIELD_INFO	innodb_trx_fields_info[] =
  {
-@@ -401,10 +564,6 @@
+@@ -409,10 +572,6 @@
  	DBUG_RETURN(0);
  }
  

@@ -20,7 +20,7 @@ diff -ruN /dev/null b/patch_info/optimizer_fix.info
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-26 18:29:12.224113574 +0900
 +++ b/sql/mysql_priv.h	2010-07-26 18:29:35.697144981 +0900
-@@ -2080,6 +2080,7 @@
+@@ -2105,6 +2105,7 @@
  extern ulong slave_exec_mode_options;
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
@@ -39,7 +39,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5823,6 +5824,7 @@
+@@ -5825,6 +5826,7 @@
    OPT_SLOW_QUERY_LOG_FILE,
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
@@ -47,7 +47,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7324,6 +7326,10 @@
+@@ -7326,6 +7328,10 @@
     "Control TABLE_STATISTICS running, when userstat_running is enabled",
     (uchar**) &opt_thread_statistics, (uchar**) &opt_thread_statistics,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -160,7 +160,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-07-26 18:23:40.015145156 +0900
 +++ b/sql/sql_select.cc	2010-07-26 18:29:35.743144611 +0900
-@@ -2596,6 +2596,11 @@
+@@ -2597,6 +2597,11 @@
        table->reginfo.impossible_range=1;
        DBUG_RETURN(0);
      }

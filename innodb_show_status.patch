@@ -67,7 +67,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:20.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:56.000000000 +0900
-@@ -10740,6 +10740,16 @@
+@@ -10748,6 +10748,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -84,7 +84,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -10922,7 +10932,7 @@
+@@ -10930,7 +10940,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -93,7 +93,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11000,6 +11010,8 @@
+@@ -11008,6 +11018,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -170,7 +170,7 @@ diff -ruN a/storage/innodb_plugin/include/thr0loc.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/lock0lock.c
 --- a/storage/innodb_plugin/lock/lock0lock.c	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/lock/lock0lock.c	2010-04-29 15:33:51.000000000 +0900
-@@ -4307,6 +4307,7 @@
+@@ -4379,6 +4379,7 @@
  
  	putc('\n', file);
  
@@ -178,7 +178,7 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  	block = buf_page_try_get(space, page_no, &mtr);
  
  	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
-@@ -4333,6 +4334,7 @@
+@@ -4405,6 +4406,7 @@
  
  		putc('\n', file);
  	}
@@ -186,7 +186,7 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  
  	mtr_commit(&mtr);
  	if (UNIV_LIKELY_NULL(heap)) {
-@@ -4518,7 +4520,7 @@
+@@ -4590,7 +4592,7 @@
  		}
  	}
  
@@ -195,7 +195,7 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  		nth_trx++;
  		goto loop;
  	}
-@@ -4590,8 +4592,8 @@
+@@ -4662,8 +4664,8 @@
  
  	nth_lock++;
  

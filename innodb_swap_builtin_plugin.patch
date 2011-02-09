@@ -24,7 +24,7 @@ diff -ruN a/configure b/configure
    Configurations:   max, max-no-ndb
  
     === MyISAM Storage Engine ===
-@@ -41803,7 +41803,8 @@
+@@ -41806,7 +41806,8 @@
  
  
  
@@ -34,7 +34,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -41815,8 +41816,7 @@
+@@ -41818,8 +41819,7 @@
  
  
  
@@ -44,7 +44,7 @@ diff -ruN a/configure b/configure
  
  
  
-@@ -43104,7 +43104,7 @@
+@@ -43107,7 +43107,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -53,7 +53,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innobase" != Xyes -a \
              "X$with_plugin_innobase" != Xyes; then
  
-@@ -43130,20 +43130,11 @@
+@@ -43133,20 +43133,11 @@
      else
  
  
@@ -79,7 +79,7 @@ diff -ruN a/configure b/configure
  
  
        mysql_plugin_defs="$mysql_plugin_defs, builtin_innobase_plugin"
-@@ -43231,7 +43222,7 @@
+@@ -43234,7 +43225,7 @@
      { $as_echo "$as_me:$LINENO: result: no" >&5
  $as_echo "no" >&6; }
    else
@@ -88,7 +88,7 @@ diff -ruN a/configure b/configure
      if test "X$mysql_plugin_innodb_plugin" != Xyes -a \
              "X$with_plugin_innodb_plugin" != Xyes; then
  
-@@ -43257,11 +43248,20 @@
+@@ -43260,11 +43251,20 @@
      else
  
  
@@ -261,8 +261,7 @@ diff -ruN a/storage/innobase/plug.in b/storage/innobase/plug.in
 diff -ruN a/storage/innodb_plugin/plug.in b/storage/innodb_plugin/plug.in
 --- a/storage/innodb_plugin/plug.in	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/plug.in	2010-04-28 19:12:59.000000000 +0900
-@@ -17,7 +17,8 @@
- MYSQL_PLUGIN_DIRECTORY(innodb_plugin, [storage/innodb_plugin])
+@@ -20,6 +20,7 @@
  # Enable if you know what you are doing (trying to link both InnoDB and
  # InnoDB Plugin statically into MySQL does not work).
  #MYSQL_PLUGIN_STATIC(innodb_plugin, [libinnobase.a])

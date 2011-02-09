@@ -95,7 +95,7 @@ diff -ruN /dev/null b/patch_info/profiling_slow.info
 diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/log.cc	2010-11-24 19:36:29.000000000 +0300
-@@ -2434,6 +2434,11 @@
+@@ -2436,6 +2436,11 @@
            my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
          tmp_errno= errno;
      }
@@ -110,7 +110,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/mysqld.cc	2010-11-24 19:36:29.000000000 +0300
-@@ -5768,6 +5768,8 @@
+@@ -5770,6 +5770,8 @@
    OPT_LOG_OUTPUT,
    OPT_PORT_OPEN_TIMEOUT,
    OPT_PROFILING,
@@ -119,7 +119,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_KEEP_FILES_ON_CREATE,
    OPT_GENERAL_LOG,
    OPT_SLOW_LOG,
-@@ -6381,6 +6383,16 @@
+@@ -6383,6 +6385,16 @@
     &global_system_variables.profiling_history_size,
     &max_system_variables.profiling_history_size,
     0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},

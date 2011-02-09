@@ -428,7 +428,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -8940,6 +8976,25 @@
+@@ -8945,6 +8981,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -766,7 +766,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	if ((ulint)ret == n) {
  
-@@ -3642,10 +3677,11 @@
+@@ -3642,10 +3676,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -779,7 +779,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_array_t*	array;
  	os_aio_slot_t*	slot;
-@@ -3687,8 +3723,8 @@
+@@ -3687,8 +3722,8 @@
  		wait in the Windows case. */
  
  		if (type == OS_FILE_READ) {
@@ -790,7 +790,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -3721,6 +3757,11 @@
+@@ -3721,6 +3756,11 @@
  		ut_error;
  	}
  

@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
-@@ -11770,7 +11770,7 @@
+@@ -11775,7 +11775,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",

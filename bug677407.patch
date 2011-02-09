@@ -1,10 +1,6 @@
 # name       : bug677407
 # introduced : 13
 # maintainer : Alexey
-#
-#!!! notice !!!
-# Any small change to this file in the main branch
-# should be done or reviewed by the maintainer!
 
 LP bug#677407 / MySQL Bug#48883: Stale data from INNODB_LOCKS table.
 

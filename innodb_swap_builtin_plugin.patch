@@ -261,10 +261,10 @@ diff -ruN a/storage/innobase/plug.in b/storage/innobase/plug.in
 diff -ruN a/storage/innodb_plugin/plug.in b/storage/innodb_plugin/plug.in
 --- a/storage/innodb_plugin/plug.in	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/plug.in	2010-04-28 19:12:59.000000000 +0900
-@@ -20,6 +20,7 @@
+@@ -20,6 +20,6 @@
  # Enable if you know what you are doing (trying to link both InnoDB and
  # InnoDB Plugin statically into MySQL does not work).
- #MYSQL_PLUGIN_STATIC(innodb_plugin, [libinnobase.a])
+-#MYSQL_PLUGIN_STATIC(innodb_plugin, [libinnobase.a])
 +MYSQL_PLUGIN_STATIC(innodb_plugin,   [libinnobase.a])
  MYSQL_PLUGIN_DYNAMIC(innodb_plugin,  [ha_innodb_plugin.la])
  MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [

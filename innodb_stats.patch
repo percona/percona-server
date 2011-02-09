@@ -940,8 +940,8 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +		    || mach_read_from_8(rec_get_nth_field_old(rec, 0, &len))
 +			!= index->id) {
 +			/* not found */
-+			btr_pcur_close(&pcur);
-+			mtr_commit(&mtr);
++
++
 +			break;
 +		}
 +

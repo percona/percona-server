@@ -27,7 +27,7 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
      if (!(test_flags & TEST_BLOCKING))
      {
        my_bool old_mode;
-@@ -642,7 +642,7 @@
+@@ -632,7 +632,7 @@
      if ((long) (length= vio_write(net->vio,pos,(size_t) (end-pos))) <= 0)
      {
        my_bool interrupted = vio_should_retry(net->vio);
@@ -36,7 +36,7 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
        if ((interrupted || length == 0) && !thr_alarm_in_use(&alarmed))
        {
          if (!thr_alarm(&alarmed, net->write_timeout, &alarm_buff))
-@@ -680,7 +680,7 @@
+@@ -670,7 +670,7 @@
  		  my_progname);
  #endif /* EXTRA_DEBUG */
        }
@@ -45,7 +45,7 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
        if (vio_errno(net->vio) == SOCKET_EINTR)
        {
  	DBUG_PRINT("warning",("Interrupted write. Retrying..."));
-@@ -698,7 +698,7 @@
+@@ -688,7 +688,7 @@
      pos+=length;
      update_statistics(thd_increment_bytes_sent(length));
    }
@@ -54,7 +54,7 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
   end:
  #endif
  #ifdef HAVE_COMPRESS
-@@ -830,6 +830,7 @@
+@@ -820,6 +820,7 @@
      thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
  #else
    /* Read timeout is set in my_net_set_read_timeout */
@@ -62,7 +62,7 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
  #endif /* NO_ALARM */
  
      pos = net->buff + net->where_b;		/* net->packet -4 */
-@@ -844,7 +845,7 @@
+@@ -834,7 +835,7 @@
  
  	  DBUG_PRINT("info",("vio_read returned %ld  errno: %d",
  			     (long) length, vio_errno(net->vio)));
@@ -71,7 +71,7 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
  	  /*
  	    We got an error that there was no data on the socket. We now set up
  	    an alarm to not 'read forever', change the socket to non blocking
-@@ -891,7 +892,7 @@
+@@ -881,7 +882,7 @@
  		    my_progname,vio_errno(net->vio));
  #endif /* EXTRA_DEBUG */
  	  }

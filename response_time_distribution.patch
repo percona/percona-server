@@ -8,7 +8,7 @@
 diff -ruN a/CMakeLists.txt b/CMakeLists.txt
 --- a/CMakeLists.txt	2010-12-03 20:58:24.000000000 +0300
 +++ b/CMakeLists.txt	2011-01-16 20:11:28.000000000 +0300
-@@ -171,7 +171,12 @@
+@@ -165,7 +165,12 @@
  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
  MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
  
@@ -109,7 +109,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -600,7 +602,7 @@
+@@ -603,7 +605,7 @@
  MY_LOCALE *my_default_lc_messages;
  MY_LOCALE *my_default_lc_time_names;
  
@@ -118,7 +118,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  SHOW_COMP_OPTION have_geometry, have_rtree_keys;
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
-@@ -901,6 +903,10 @@
+@@ -904,6 +906,10 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -129,7 +129,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1469,6 +1475,9 @@
+@@ -1472,6 +1478,9 @@
    my_free(opt_bin_logname);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -139,7 +139,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3930,6 +3939,9 @@
+@@ -3925,6 +3934,9 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  
@@ -149,7 +149,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
    {
-@@ -6800,6 +6812,11 @@
+@@ -6797,6 +6809,11 @@
  #else
    have_query_cache=SHOW_OPTION_NO;
  #endif
@@ -648,7 +648,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1476,22 +1477,36 @@
+@@ -1483,22 +1484,36 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -697,7 +697,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1610,6 +1625,7 @@
+@@ -1617,6 +1632,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -717,7 +717,7 @@ diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
  
  /**
    Reload/resets privileges and the different caches.
-@@ -274,6 +274,12 @@
+@@ -282,6 +282,12 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
@@ -727,9 +727,9 @@ diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
 +   query_response_time_flush();
 + }
 +#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
-  *write_to_binlog= tmp_write_to_binlog;
+  if (*write_to_binlog != -1)
+    *write_to_binlog= tmp_write_to_binlog;
   /*
-    If the query was killed then this function must fail.
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2011-01-16 18:53:35.000000000 +0300
 +++ b/sql/sql_show.cc	2011-01-17 02:17:44.000000000 +0300
@@ -741,7 +741,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -7641,6 +7642,14 @@
+@@ -7688,6 +7689,14 @@
  
  */
  
@@ -756,7 +756,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7694,6 +7703,13 @@
+@@ -7741,6 +7750,13 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -829,7 +829,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1775,6 +1776,26 @@
+@@ -1791,6 +1792,26 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  

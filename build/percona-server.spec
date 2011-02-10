@@ -195,13 +195,6 @@
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
-# Avoid debuginfo RPMs, leaves binaries unstripped
-%define debug_package   %{nil}
-
-# Hack to work around bug in RHEL5 __os_install_post macro, wrong inverted
-# test for __debug_package
-%define __strip         /bin/true
-
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
 # ----------------------------------------------------------------------------
@@ -1126,6 +1119,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Thu Feb 10 2011 Ignacio Nin <ignacio.nin@percona.com>
+
+- Removed lines which prevented -debuginfo packages from being built.
+
 * Tue Nov 23 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - EXCEPTIONS-CLIENT has been deleted, remove it from here too

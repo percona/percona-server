@@ -129,7 +129,7 @@ diff -ruN a/sql/opt_range.cc b/sql/opt_range.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sql_select.cc	2010-12-02 20:47:55.813953789 +0900
-@@ -2610,6 +2610,11 @@
+@@ -2611,6 +2611,11 @@
        table->reginfo.impossible_range=1;
        DBUG_RETURN(0);
      }
@@ -144,7 +144,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-02 20:31:56.208023606 +0900
 +++ b/sql/sys_vars.cc	2010-12-02 21:17:44.618120277 +0900
-@@ -2118,6 +2118,12 @@
+@@ -2134,6 +2134,12 @@
         VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
         DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
  

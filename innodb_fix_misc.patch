@@ -11,7 +11,7 @@
 diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
 --- a/storage/innobase/dict/dict0load.c	2010-12-04 15:37:50.559480289 +0900
 +++ b/storage/innobase/dict/dict0load.c	2010-12-04 15:57:53.078513745 +0900
-@@ -1852,6 +1852,8 @@
+@@ -1868,6 +1868,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	/* NOTE that the operation of this function is protected by
  	the dictionary mutex, and therefore no deadlocks can occur
  	with other dictionary operations. */
-@@ -1878,15 +1880,17 @@
+@@ -1894,15 +1896,17 @@
  				  BTR_SEARCH_LEAF, &pcur, &mtr);
  	rec = btr_pcur_get_rec(&pcur);
  
@@ -45,7 +45,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/*---------------------------------------------------*/
-@@ -1899,12 +1903,7 @@
+@@ -1915,12 +1919,7 @@
  
  	/* Check if the table id in record is the one searched for */
  	if (table_id != mach_read_from_8(field)) {
@@ -59,7 +59,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/* Now we get the table name from the record */
-@@ -1912,7 +1911,7 @@
+@@ -1928,7 +1927,7 @@
  	/* Load the table definition to memory */
  	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
  				TRUE);
@@ -71,7 +71,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -12015,7 +12015,7 @@
+@@ -12017,7 +12017,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -83,9 +83,9 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 --- a/storage/innobase/include/univ.i	2010-12-04 15:57:13.050485224 +0900
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:57:53.091592933 +0900
-@@ -48,6 +48,11 @@
+@@ -53,6 +53,11 @@
  #define INNODB_VERSION_MINOR	1
- #define INNODB_VERSION_BUGFIX	4
+ #define INNODB_VERSION_BUGFIX	5
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.1
@@ -95,25 +95,16 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  /* The following is the InnoDB version as shown in
  SELECT plugin_version FROM information_schema.plugins;
  calculated in make_version_string() in sql/sql_show.cc like this:
-@@ -58,13 +63,15 @@
- 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
- 
- /* auxiliary macros to help creating the version as string */
--#define __INNODB_VERSION(a, b, c)	(#a "." #b "." #c)
--#define _INNODB_VERSION(a, b, c)	__INNODB_VERSION(a, b, c)
-+#define __INNODB_VERSION(a, b, c, d)   (#a "." #b "." #c "-" #d)
-+#define _INNODB_VERSION(a, b, c, d)    __INNODB_VERSION(a, b, c, d)
-+
- 
+@@ -65,7 +70,8 @@
  #define INNODB_VERSION_STR			\
- 	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
- 			INNODB_VERSION_MINOR,	\
--			INNODB_VERSION_BUGFIX)
-+			INNODB_VERSION_BUGFIX,  \
-+			PERCONA_INNODB_VERSION)
+ 	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
+ 	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
+-	IB_TO_STR(INNODB_VERSION_BUGFIX)
++	IB_TO_STR(INNODB_VERSION_BUGFIX) "-"	\
++	IB_TO_STR(PERCONA_INNODB_VERSION)
  
- #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
- 
+ #define REFMAN "http://dev.mysql.com/doc/refman/"	\
+ 	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
 diff -ruN a/storage/innobase/mtr/mtr0log.c b/storage/innobase/mtr/mtr0log.c
 --- a/storage/innobase/mtr/mtr0log.c	2010-12-04 02:58:26.000000000 +0900
 +++ b/storage/innobase/mtr/mtr0log.c	2011-02-03 15:17:14.000000000 +0900
@@ -202,11 +193,11 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:57:13.073495392 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 16:02:50.704884053 +0900
-@@ -2032,7 +2032,7 @@
+@@ -2153,7 +2153,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
--			"  InnoDB: %s started; "
+-			" InnoDB: %s started; "
 +			" Percona XtraDB (http://www.percona.com) %s started; "
  			"log sequence number %llu\n",
  			INNODB_VERSION_STR, srv_start_lsn);

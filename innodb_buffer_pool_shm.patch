@@ -182,7 +182,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +
 +		/* FIXME: This is vague id still */
 +		binary_id = (ulint) ((byte*)mtr_commit - (byte*)btr_root_get)
-+			  + (ulint) ((byte*)os_get_os_version - (byte*)buf_calc_page_new_checksum)
++			  + (ulint) ((byte*)os_file_get_last_error - (byte*)buf_calc_page_new_checksum)
 +			  + (ulint) ((byte*)page_dir_find_owner_slot - (byte*)dfield_data_is_binary_equal)
 +			  + (ulint) ((byte*)que_graph_publish - (byte*)dict_casedn_str)
 +			  + (ulint) ((byte*)read_view_oldest_copy_or_open_new - (byte*)fil_space_get_version)
@@ -736,7 +736,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2623,6 +2624,14 @@
+@@ -2624,6 +2625,14 @@
  	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
  	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
  
@@ -751,7 +751,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
  
  	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
-@@ -2639,6 +2648,7 @@
+@@ -2640,6 +2649,7 @@
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  	srv_fast_checksum = (ibool) innobase_fast_checksum;
@@ -759,7 +759,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11650,6 +11660,16 @@
+@@ -11652,6 +11662,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -776,7 +776,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -11929,6 +11949,8 @@
+@@ -11931,6 +11951,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
@@ -796,7 +796,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  
  /** @name Modes for buf_page_get_gen */
  /* @{ */
-@@ -1520,9 +1521,12 @@
+@@ -1591,9 +1592,12 @@
  /**********************************************************************//**
  Compute the hash fold value for blocks in buf_pool->zip_hash. */
  /* @{ */
@@ -1198,7 +1198,7 @@ diff -ruN a/storage/innobase/os/os0proc.c b/storage/innobase/os/os0proc.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 20:20:44.687550693 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-07 16:10:14.962785720 +0900
-@@ -233,6 +233,11 @@
+@@ -235,6 +235,11 @@
  UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
  UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
  
@@ -1213,7 +1213,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 20:19:29.806482628 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-07 16:10:14.964785346 +0900
-@@ -1759,6 +1759,8 @@
+@@ -1835,6 +1835,8 @@
  		Note that this is not as heavy weight as it seems. At
  		this point there will be only ONE page in the buf_LRU
  		and there must be no page in the buf_flush list. */

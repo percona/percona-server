@@ -8,8 +8,25 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-03 15:07:31.786968193 +0900
-@@ -4812,14 +4812,16 @@
- 	buf_flush_list_mutex_enter(buf_pool);
+@@ -4814,6 +4814,7 @@
+ 	}
+ 
+ 	total_info->pool_size += pool_info->pool_size;
++	total_info->pool_size_bytes += pool_info->pool_size_bytes;
+ 	total_info->lru_len += pool_info->lru_len;
+ 	total_info->old_lru_len += pool_info->old_lru_len;
+ 	total_info->free_list_len += pool_info->free_list_len;
+@@ -4877,6 +4878,8 @@
+ 
+ 	pool_info->pool_size = buf_pool->curr_size;
+ 
++	pool_info->pool_size_bytes = buf_pool->curr_pool_size;
++
+ 	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+ 
+ 	pool_info->old_lru_len = buf_pool->LRU_old_len;
+@@ -4993,14 +4996,16 @@
+ 	ut_ad(pool_info);
  
  	fprintf(file,
 -		"Buffer pool size   %lu\n"
@@ -25,11 +42,11 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 +		"Modified db pages       %lu\n"
  		"Pending reads %lu\n"
  		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
- 		(ulong) buf_pool->curr_size,
-+		(ulong) buf_pool->curr_size * UNIV_PAGE_SIZE,
- 		(ulong) UT_LIST_GET_LEN(buf_pool->free),
- 		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
- 		(ulong) buf_pool->LRU_old_len,
+ 		pool_info->pool_size,
++		pool_info->pool_size_bytes,
+ 		pool_info->free_list_len,
+ 		pool_info->lru_len,
+ 		pool_info->old_lru_len,
 diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 --- a/storage/innobase/buf/buf0flu.c	2010-12-03 20:58:26.000000000 +0300
 +++ b/storage/innobase/buf/buf0flu.c	2011-01-07 03:37:41.000000000 +0300
@@ -45,7 +62,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-03 15:07:31.790357112 +0900
-@@ -4858,3 +4858,30 @@
+@@ -4886,3 +4886,30 @@
  
  	fil_system = NULL;
  }
@@ -79,7 +96,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:06:58.727955654 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:07:31.799376984 +0900
-@@ -584,6 +584,8 @@
+@@ -585,6 +585,8 @@
    (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG},
    {"buffer_pool_pages_flushed",
    (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
@@ -88,7 +105,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"buffer_pool_pages_free",
    (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
  #ifdef UNIV_DEBUG
-@@ -10975,6 +10977,16 @@
+@@ -10977,6 +10979,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -105,7 +122,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11162,7 +11174,7 @@
+@@ -11164,7 +11176,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -114,7 +131,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11247,6 +11259,8 @@
+@@ -11249,6 +11261,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -123,6 +140,17 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(version),
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
+diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
+--- a/storage/innobase/include/buf0buf.h	2011-01-20 07:37:08.000000000 +0900
++++ b/storage/innobase/include/buf0buf.h	2011-02-14 15:25:20.859126532 +0900
+@@ -123,6 +123,7 @@
+ 	/* General buffer pool info */
+ 	ulint	pool_unique_id;		/*!< Buffer Pool ID */
+ 	ulint	pool_size;		/*!< Buffer Pool size in pages */
++	ulint	pool_size_bytes;
+ 	ulint	lru_len;		/*!< Length of buf_pool->LRU */
+ 	ulint	old_lru_len;		/*!< buf_pool->LRU_old_len */
+ 	ulint	free_list_len;		/*!< Length of buf_pool->free list */
 diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
 --- a/storage/innobase/include/fil0fil.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/fil0fil.h	2010-12-03 15:07:31.812028575 +0900
@@ -177,7 +205,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /** Number of buffer pool reads that led to the
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
-@@ -691,6 +696,7 @@
+@@ -699,6 +704,7 @@
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
  	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
@@ -209,7 +237,7 @@ diff -ruN a/storage/innobase/include/thr0loc.h b/storage/innobase/include/thr0lo
 diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
 --- a/storage/innobase/lock/lock0lock.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/lock/lock0lock.c	2010-12-03 15:07:31.819023998 +0900
-@@ -4302,6 +4302,7 @@
+@@ -4374,6 +4374,7 @@
  
  	putc('\n', file);
  
@@ -217,7 +245,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  	block = buf_page_try_get(space, page_no, &mtr);
  
  	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
-@@ -4328,6 +4329,7 @@
+@@ -4400,6 +4401,7 @@
  
  		putc('\n', file);
  	}
@@ -225,7 +253,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	mtr_commit(&mtr);
  	if (UNIV_LIKELY_NULL(heap)) {
-@@ -4511,7 +4513,7 @@
+@@ -4583,7 +4585,7 @@
  		}
  	}
  
@@ -234,7 +262,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  		nth_trx++;
  		goto loop;
  	}
-@@ -4583,8 +4585,8 @@
+@@ -4655,8 +4657,8 @@
  
  	nth_lock++;
  
@@ -302,7 +330,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  #include "mysql/plugin.h"
  #include "mysql/service_thd_wait.h"
  
-@@ -193,6 +194,9 @@
+@@ -195,6 +196,9 @@
  the checkpoints. */
  UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
  
@@ -312,7 +340,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /** Maximum number of times allowed to conditionally acquire
  mutex before switching to blocking wait on the mutex */
  #define MAX_MUTEX_NOWAIT	20
-@@ -311,6 +315,7 @@
+@@ -313,6 +317,7 @@
  /* variable to count the number of pages that were written from buffer
  pool to the disk */
  UNIV_INTERN ulint srv_buf_pool_flushed = 0;
@@ -320,7 +348,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  /** Number of buffer pool reads that led to the
  reading of a disk page */
-@@ -1787,6 +1792,13 @@
+@@ -1821,6 +1826,13 @@
  	ulint	n_reserved;
  	ibool	ret;
  
@@ -334,7 +362,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	mutex_enter(&srv_innodb_monitor_mutex);
  
  	current_time = time(NULL);
-@@ -1835,31 +1847,6 @@
+@@ -1869,31 +1881,6 @@
  
  	mutex_exit(&dict_foreign_err_mutex);
  
@@ -366,7 +394,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("--------\n"
  	      "FILE I/O\n"
  	      "--------\n", file);
-@@ -1890,10 +1877,84 @@
+@@ -1924,10 +1911,84 @@
  	      "BUFFER POOL AND MEMORY\n"
  	      "----------------------\n", file);
  	fprintf(file,
@@ -455,7 +483,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
  		dict_sys->size);
  
-@@ -1909,6 +1970,16 @@
+@@ -1943,6 +2004,16 @@
  	fprintf(file, "%lu read views open inside InnoDB\n",
  		UT_LIST_GET_LEN(trx_sys->view_list));
  
@@ -472,7 +500,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	n_reserved = fil_space_get_n_reserved_extents(0);
  	if (n_reserved > 0) {
  		fprintf(file,
-@@ -1952,6 +2023,31 @@
+@@ -1986,6 +2057,31 @@
  	srv_n_rows_deleted_old = srv_n_rows_deleted;
  	srv_n_rows_read_old = srv_n_rows_read;
  
@@ -504,7 +532,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("----------------------------\n"
  	      "END OF INNODB MONITOR OUTPUT\n"
  	      "============================\n", file);
-@@ -1995,6 +2091,7 @@
+@@ -2029,6 +2125,7 @@
  		= srv_buf_pool_write_requests;
  	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
  	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;

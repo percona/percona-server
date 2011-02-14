@@ -110,7 +110,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	}
  }
  
-@@ -2059,7 +2059,7 @@
+@@ -2060,7 +2060,7 @@
  			btr_search_update_hash_on_delete(cursor);
  		}
  
@@ -119,7 +119,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	}
  
  	if (!(flags & BTR_KEEP_SYS_FLAG)) {
-@@ -2073,7 +2073,7 @@
+@@ -2074,7 +2074,7 @@
  	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
  
  	if (block->is_hashed) {
@@ -128,8 +128,8 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	}
  
  	if (page_zip && !dict_index_is_clust(index)
-@@ -2857,7 +2857,7 @@
- 	block = btr_cur_get_block(cursor);
+@@ -2852,7 +2852,7 @@
+ 	}
  
  	if (block->is_hashed) {
 -		rw_lock_x_lock(&btr_search_latch);
@@ -137,7 +137,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	}
  
  	page_zip = buf_block_get_page_zip(block);
-@@ -2872,7 +2872,7 @@
+@@ -2867,7 +2867,7 @@
  	}
  
  	if (block->is_hashed) {
@@ -146,7 +146,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	}
  
  	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
-@@ -3003,13 +3003,13 @@
+@@ -2994,13 +2994,13 @@
  	      == dict_table_is_comp(cursor->index->table));
  
  	if (block->is_hashed) {
@@ -1029,7 +1029,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.c
 --- a/storage/innobase/dict/dict0dict.c	2010-12-04 15:52:23.398513916 +0900
 +++ b/storage/innobase/dict/dict0dict.c	2010-12-04 16:12:48.662550715 +0900
-@@ -1802,7 +1802,7 @@
+@@ -1806,7 +1806,7 @@
  	zero. */
  
  	for (;;) {
@@ -1054,7 +1054,7 @@ diff -ruN a/storage/innobase/ha/ha0ha.c b/storage/innobase/ha/ha0ha.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:20.185850734 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:48.674552412 +0900
-@@ -11619,6 +11619,11 @@
+@@ -11621,6 +11621,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1066,7 +1066,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -11971,6 +11976,7 @@
+@@ -11973,6 +11978,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1262,7 +1262,7 @@ diff -ruN a/storage/innobase/include/btr0sea.ic b/storage/innobase/include/btr0s
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-15 19:00:07.713604580 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-15 20:58:03.546839883 +0900
-@@ -1473,7 +1473,7 @@
+@@ -1544,7 +1544,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1271,7 +1271,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1487,6 +1487,7 @@
+@@ -1558,6 +1558,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */
@@ -1469,7 +1469,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:20.231484679 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:48.726551018 +0900
-@@ -2008,7 +2008,9 @@
+@@ -2042,7 +2042,9 @@
  	      "-------------------------------------\n", file);
  	ibuf_print(file);
  
@@ -1480,7 +1480,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	fprintf(file,
  		"%.2f hash searches/s, %.2f non-hash searches/s\n",
-@@ -2033,14 +2035,15 @@
+@@ -2067,14 +2069,15 @@
  			ut_total_allocated_memory,
  			mem_pool_get_reserved(mem_comm_pool));
  	/* Calcurate reserved memories */
@@ -1500,7 +1500,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	lock_sys_subtotal = 0;
  	if (trx_sys) {
-@@ -2067,10 +2070,10 @@
+@@ -2101,10 +2104,10 @@
  			"    Threads             %lu \t(%lu + %lu)\n",
  
  			(ulong) (btr_search_sys

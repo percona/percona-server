@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:18:48.879955903 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:22:53.779955671 +0900
-@@ -11330,6 +11330,11 @@
+@@ -11332,6 +11332,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11395,6 +11400,7 @@
+@@ -11397,6 +11402,7 @@
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -28,7 +28,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
-@@ -11423,6 +11429,7 @@
+@@ -11425,6 +11431,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -1782,3 +1784,166 @@
+@@ -1781,3 +1783,166 @@
  
  	DBUG_RETURN(0);
  }
@@ -240,7 +240,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:18:48.913956140 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:22:53.789987037 +0900
-@@ -411,6 +411,8 @@
+@@ -413,6 +413,8 @@
  UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */

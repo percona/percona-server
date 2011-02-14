@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:21.358513751 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:58.243481131 +0900
-@@ -701,7 +701,7 @@
+@@ -729,7 +729,7 @@
  		ut_a(space->purpose != FIL_LOG);
  		ut_a(!trx_sys_sys_space(space->id));
  
@@ -17,7 +17,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  			fprintf(stderr,
  				"InnoDB: Error: the size of single-table"
  				" tablespace file %s\n"
-@@ -3188,7 +3188,7 @@
+@@ -3216,7 +3216,7 @@
  
  		if (size_bytes < free_limit_bytes) {
  			free_limit_bytes = size_bytes;
@@ -26,7 +26,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  				fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
  				file_is_corrupt = TRUE;
  			}
-@@ -3802,7 +3802,7 @@
+@@ -3830,7 +3830,7 @@
  
  	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
  #ifndef UNIV_HOTBACKUP
@@ -35,7 +35,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		fprintf(stderr,
  			"InnoDB: Error: the size of single-table tablespace"
  			" file %s\n"
-@@ -3822,7 +3822,7 @@
+@@ -3850,7 +3850,7 @@
  	/* Align the memory for file i/o if we might have O_DIRECT set */
  	page = ut_align(buf2, UNIV_PAGE_SIZE);
  
@@ -44,7 +44,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
  
  		/* We have to read the tablespace id from the file */
-@@ -4800,9 +4800,9 @@
+@@ -4828,9 +4828,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
  	ut_ad(len > 0);
@@ -54,7 +54,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +//#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
 +//# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
 +//#endif
- 	ut_ad(fil_validate());
+ 	ut_ad(fil_validate_skip());
  #ifndef UNIV_HOTBACKUP
  # ifndef UNIV_LOG_DEBUG
 diff -ruN a/storage/innobase/fsp/fsp0fsp.c b/storage/innobase/fsp/fsp0fsp.c
@@ -121,9 +121,9 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2269,6 +2272,65 @@
+@@ -2270,6 +2273,65 @@
  	}
- #endif /* UNIV_DEBUG */
+ #endif /* DBUG_OFF */
  
 +	srv_page_size = 0;
 +	srv_page_size_shift = 0;
@@ -187,7 +187,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7217,9 +7279,9 @@
+@@ -7222,9 +7284,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -200,7 +200,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		}
  	}
  
-@@ -11337,6 +11399,16 @@
+@@ -11339,6 +11401,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -217,7 +217,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11844,6 +11916,8 @@
+@@ -11846,6 +11918,8 @@
    NULL, NULL, 0, 0, 1, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -229,7 +229,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 15:55:21.375482937 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:55:58.258469088 +0900
-@@ -1611,7 +1611,7 @@
+@@ -1682,7 +1682,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -238,7 +238,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1707,7 +1707,7 @@
+@@ -1778,7 +1778,7 @@
  	/* @{ */
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
@@ -247,7 +247,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1715,9 +1715,9 @@
+@@ -1786,9 +1786,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  
@@ -379,7 +379,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
 diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 --- a/storage/innobase/include/univ.i	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:55:58.263549721 +0900
-@@ -292,9 +292,13 @@
+@@ -295,9 +295,13 @@
  */
  
  /* The 2-logarithm of UNIV_PAGE_SIZE: */
@@ -395,7 +395,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -401,7 +405,7 @@
+@@ -416,7 +420,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -404,7 +404,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -504,4 +508,6 @@
+@@ -519,4 +523,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  
@@ -547,7 +547,7 @@ diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:21.384486344 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:58.282550845 +0900
-@@ -239,6 +239,13 @@
+@@ -241,6 +241,13 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
  
@@ -564,7 +564,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:52:23.502513556 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:55:58.285550583 +0900
-@@ -1521,10 +1521,12 @@
+@@ -1553,11 +1553,13 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -572,19 +572,20 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 +	if (sizeof(ulint) == 4
 +	    && srv_n_log_files * srv_log_file_size
 +	       >= ((ulint)1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
+ 		ut_print_timestamp(stderr);
  		fprintf(stderr,
- 			"InnoDB: Error: combined size of log files"
+ 			" InnoDB: Error: combined size of log files"
 -			" must be < 4 GB\n");
 +			" must be < 4 GB on 32-bit systems\n");
  
  		return(DB_ERROR);
  	}
-@@ -1533,7 +1535,7 @@
+@@ -1566,7 +1568,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__
 -		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= 262144) {
 +		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= ((ulint)1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
+ 			ut_print_timestamp(stderr);
  			fprintf(stderr,
- 				"InnoDB: Error: file size must be < 4 GB"
- 				" with this MySQL binary\n"
+ 				" InnoDB: Error: file size must be < 4 GB"

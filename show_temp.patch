@@ -27,7 +27,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-02 21:23:05.495293844 +0900
 +++ b/sql/mysqld.cc	2010-12-03 14:25:40.317039327 +0900
-@@ -3038,6 +3038,7 @@
+@@ -3033,6 +3033,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1504,6 +1507,8 @@
+@@ -1511,6 +1514,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -69,7 +69,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2011,6 +2016,7 @@
+@@ -2018,6 +2023,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -77,7 +77,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4787,6 +4793,8 @@
+@@ -4807,6 +4813,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -326,7 +326,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
     Try acquire high priority share metadata lock on a table (with
-@@ -6802,6 +7025,25 @@
+@@ -6849,6 +7072,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -352,7 +352,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7416,6 +7658,9 @@
+@@ -7463,6 +7705,9 @@
     hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -362,7 +362,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7465,6 +7710,9 @@
+@@ -7512,6 +7757,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},

@@ -95,7 +95,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 --- a/storage/innobase/buf/buf0flu.c	2010-12-04 15:37:50.555568346 +0900
 +++ b/storage/innobase/buf/buf0flu.c	2010-12-04 15:53:45.015513917 +0900
-@@ -1027,7 +1027,9 @@
+@@ -1055,7 +1055,9 @@
  
  	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  			srv_use_checksums
@@ -109,7 +109,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:52:23.406513743 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:53:45.020513800 +0900
-@@ -3171,7 +3171,9 @@
+@@ -3199,7 +3199,9 @@
  			mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
@@ -120,7 +120,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3303,7 +3305,8 @@
+@@ -3331,7 +3333,8 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -130,7 +130,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
  				    && checksum_field
  				    != buf_calc_page_new_checksum(page)) {
-@@ -3311,6 +3314,17 @@
+@@ -3339,6 +3342,17 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -148,7 +148,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  				/* if it is free page, inconsistency is acceptable */
  				if (!offset) {
  					/* header page*/
-@@ -3456,7 +3470,9 @@
+@@ -3484,7 +3498,9 @@
  
  					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  							srv_use_checksums
@@ -170,7 +170,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_recovery_stats			= TRUE;
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
-@@ -2573,6 +2574,7 @@
+@@ -2574,6 +2575,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -178,7 +178,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11326,6 +11328,15 @@
+@@ -11328,6 +11330,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -194,7 +194,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11838,6 +11849,7 @@
+@@ -11840,6 +11851,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),
@@ -205,7 +205,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 15:52:23.458514045 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:53:45.044514150 +0900
-@@ -531,6 +531,11 @@
+@@ -602,6 +602,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */
@@ -291,7 +291,7 @@ diff -ruN a/storage/innobase/include/ut0rnd.ic b/storage/innobase/include/ut0rnd
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:52:23.498513634 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:53:45.053550283 +0900
-@@ -412,6 +412,7 @@
+@@ -414,6 +414,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

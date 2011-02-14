@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:34:35.285040381 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:35:12.974975252 +0900
-@@ -9496,8 +9496,8 @@
+@@ -9498,8 +9498,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -19,7 +19,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9512,9 +9512,8 @@
+@@ -9514,9 +9514,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -31,7 +31,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9543,8 +9542,8 @@
+@@ -9545,8 +9544,8 @@
  			continue;
  		}
  
@@ -42,7 +42,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9558,9 +9557,8 @@
+@@ -9560,9 +9559,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -57,7 +57,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0rw.h
 --- a/storage/innobase/include/sync0rw.h	2010-12-03 15:49:59.225953164 +0900
 +++ b/storage/innobase/include/sync0rw.h	2010-12-03 17:35:12.978024458 +0900
-@@ -137,14 +137,14 @@
+@@ -138,14 +138,14 @@
  # ifdef UNIV_DEBUG
  #  ifdef UNIV_SYNC_DEBUG
  #   define rw_lock_create(K, L, level)				\
@@ -75,7 +75,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  # endif	/* UNIV_DEBUG */
  
  /**************************************************************//**
-@@ -190,14 +190,14 @@
+@@ -191,14 +191,14 @@
  # ifdef UNIV_DEBUG
  #  ifdef UNIV_SYNC_DEBUG
  #   define rw_lock_create(K, L, level)				\
@@ -93,7 +93,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  # endif	/* UNIV_DEBUG */
  
  /******************************************************************
-@@ -255,10 +255,10 @@
+@@ -256,10 +256,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
@@ -107,7 +107,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  /******************************************************************//**
  Calling this function is obligatory only if the memory buffer containing
  the rw-lock is freed. Removes an rw-lock object from the global list. The
-@@ -609,7 +609,8 @@
+@@ -610,7 +610,8 @@
  	struct PSI_rwlock *pfs_psi;/*!< The instrumentation hook */
  #endif
  	ulint count_os_wait;	/*!< Count of os_waits. May not be accurate */
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
          /* last s-lock file/line is not guaranteed to be correct */
  	const char*	last_s_file_name;/*!< File name where last s-locked */
  	const char*	last_x_file_name;/*!< File name where last x-locked */
-@@ -620,7 +621,7 @@
+@@ -621,7 +622,7 @@
  				are at the start of this struct, thus we can
  				peek this field without causing much memory
  				bus traffic */
@@ -126,7 +126,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
  	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
  #ifdef UNIV_DEBUG
-@@ -690,10 +691,10 @@
+@@ -691,10 +692,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */

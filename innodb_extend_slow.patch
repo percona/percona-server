@@ -117,9 +117,9 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2840,6 +2900,9 @@
- #ifndef UNIV_LOG_DEBUG
- 	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
+@@ -2841,6 +2901,9 @@
+ 	ut_ad(!ibuf_inside() || ibuf_page_low(space, zip_size, offset,
+ 					      FALSE, file, line, NULL));
  #endif
 +	if (innobase_get_slow_log()) {
 +		trx = innobase_get_trx();
@@ -127,7 +127,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool->stat.n_page_gets++;
  	fold = buf_page_address_fold(space, offset);
  loop:
-@@ -2913,7 +2976,7 @@
+@@ -2914,7 +2977,7 @@
  			return(NULL);
  		}
  
@@ -136,7 +136,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			retries = 0;
  		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
  			++retries;
-@@ -3216,6 +3279,13 @@
+@@ -3217,6 +3280,13 @@
  			/* Let us wait until the read operation
  			completes */
  
@@ -150,7 +150,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			for (;;) {
  				enum buf_io_fix	io_fix;
  
-@@ -3230,6 +3300,12 @@
+@@ -3231,6 +3301,12 @@
  					break;
  				}
  			}
@@ -163,7 +163,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		}
  
  		fix_type = MTR_MEMO_BUF_FIX;
-@@ -3255,13 +3331,17 @@
+@@ -3256,13 +3332,17 @@
  		/* In the case of a first access, try to apply linear
  		read-ahead */
  
@@ -182,7 +182,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	return(block);
  }
  
-@@ -3285,6 +3365,7 @@
+@@ -3286,6 +3366,7 @@
  	unsigned	access_time;
  	ibool		success;
  	ulint		fix_type;
@@ -190,7 +190,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	ut_ad(block);
  	ut_ad(mtr);
-@@ -3362,13 +3443,17 @@
+@@ -3363,13 +3444,17 @@
  #ifdef UNIV_DEBUG_FILE_ACCESSES
  	ut_a(block->page.file_page_was_freed == FALSE);
  #endif
@@ -209,7 +209,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -3378,6 +3463,9 @@
+@@ -3379,6 +3464,9 @@
  	buf_pool = buf_pool_from_block(block);
  	buf_pool->stat.n_page_gets++;
  
@@ -219,7 +219,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	return(TRUE);
  }
  
-@@ -3400,6 +3488,7 @@
+@@ -3401,6 +3489,7 @@
  	buf_pool_t*	buf_pool;
  	ibool		success;
  	ulint		fix_type;
@@ -227,7 +227,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
-@@ -3486,6 +3575,11 @@
+@@ -3487,6 +3576,11 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  
@@ -338,7 +338,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-03 15:53:54.610037199 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-03 17:42:42.079064198 +0900
-@@ -4395,7 +4395,7 @@
+@@ -4423,7 +4423,7 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -347,7 +347,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #endif
  		if (success) {
  			node->size += n_pages;
-@@ -4722,7 +4722,7 @@
+@@ -4750,7 +4750,7 @@
  i/o on a tablespace which does not exist */
  UNIV_INTERN
  ulint
@@ -356,7 +356,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  /*===*/
  	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
  				ORed to OS_FILE_LOG, if a log i/o
-@@ -4747,8 +4747,9 @@
+@@ -4775,8 +4775,9 @@
  	void*	buf,		/*!< in/out: buffer where to store read data
  				or from where to write; in aio this must be
  				appropriately aligned */
@@ -367,7 +367,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  {
  	ulint		mode;
  	fil_space_t*	space;
-@@ -4918,7 +4919,7 @@
+@@ -4946,7 +4947,7 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -379,7 +379,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:36:44.293955189 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:42:42.090024586 +0900
-@@ -1526,6 +1526,16 @@
+@@ -1527,6 +1527,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_VOID_RETURN;
  }
  
-@@ -1580,6 +1590,32 @@
+@@ -1581,6 +1591,32 @@
  	return(trx);
  }
  
@@ -429,7 +429,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9205,6 +9241,25 @@
+@@ -9207,6 +9243,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -566,7 +566,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  
  # define os_file_read_no_error_handling(file, buf, offset,		\
  				       offset_high, n)			\
-@@ -690,6 +698,7 @@
+@@ -692,6 +700,7 @@
  	ulint		offset_high,/*!< in: most significant 32 bits of
  				offset */
  	ulint		n,	/*!< in: number of bytes to read */
@@ -574,7 +574,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  	const char*	src_file,/*!< in: file name where func invoked */
  	ulint		src_line);/*!< in: line where the func invoked */
  
-@@ -744,6 +753,7 @@
+@@ -746,6 +755,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
                                  OS_AIO_SYNC */
@@ -582,7 +582,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  	const char*	src_file,/*!< in: file name where func invoked */
  	ulint		src_line);/*!< in: line where the func invoked */
  /*******************************************************************//**
-@@ -885,7 +895,8 @@
+@@ -887,7 +897,8 @@
  				offset where to read */
  	ulint		offset_high,/*!< in: most significant 32 bits of
  				offset */
@@ -592,7 +592,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  /*******************************************************************//**
  Rewind file to its start, read at most size - 1 bytes from it to str, and
  NUL-terminate str. All errors are silently ignored. This function is
-@@ -1044,10 +1055,11 @@
+@@ -1046,10 +1057,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -652,8 +652,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 +/* prototypes for new functions added to ha_innodb.cc */
 +ibool	innobase_get_slow_log();
 +
- /* This is set to TRUE if the MySQL user has set it in MySQL */
- extern ibool	srv_lower_case_table_names;
+ /* This is set to the MySQL server value for this variable. */
+ extern uint	srv_lower_case_table_names;
  
 diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
 --- a/storage/innobase/include/trx0trx.h	2010-12-03 15:41:52.049372966 +0900
@@ -699,7 +699,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	ut_a(que_thr_stop(thr));
  
-@@ -3692,6 +3698,8 @@
+@@ -3764,6 +3770,8 @@
  {
  	lock_t*	lock;
  	trx_t*	trx;
@@ -708,7 +708,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	ut_ad(mutex_own(&kernel_mutex));
  
-@@ -3747,6 +3755,10 @@
+@@ -3819,6 +3827,10 @@
  		return(DB_SUCCESS);
  	}
  
@@ -731,7 +731,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #include "log0recv.h"
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
-@@ -2177,13 +2179,18 @@
+@@ -2202,13 +2204,18 @@
  	ulint		n,	/*!< in: number of bytes to read */
  	ulint		offset,	/*!< in: least significant 32 bits of file
  				offset from where to read */
@@ -751,7 +751,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	ut_a((offset & 0xFFFFFFFFUL) == offset);
  
-@@ -2204,6 +2211,15 @@
+@@ -2229,6 +2236,15 @@
  
  	os_n_file_reads++;
  
@@ -767,7 +767,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
  	os_mutex_enter(os_file_count_mutex);
  	os_file_n_pending_preads++;
-@@ -2217,6 +2233,13 @@
+@@ -2242,6 +2258,13 @@
  	os_n_pending_reads--;
  	os_mutex_exit(os_file_count_mutex);
  
@@ -781,7 +781,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	return(n_bytes);
  #else
  	{
-@@ -2253,6 +2276,13 @@
+@@ -2278,6 +2301,13 @@
  		os_n_pending_reads--;
  		os_mutex_exit(os_file_count_mutex);
  
@@ -795,7 +795,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		return(ret);
  	}
  #endif
-@@ -2393,7 +2423,8 @@
+@@ -2418,7 +2448,8 @@
  				offset where to read */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -805,7 +805,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  #ifdef __WIN__
  	BOOL		ret;
-@@ -2468,7 +2499,7 @@
+@@ -2493,7 +2524,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -814,7 +814,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((ulint)ret == n) {
  
-@@ -2597,7 +2628,7 @@
+@@ -2622,7 +2653,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -823,7 +823,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((ulint)ret == n) {
  
-@@ -3991,10 +4022,11 @@
+@@ -4016,10 +4047,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -836,7 +836,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_array_t*	array;
  	os_aio_slot_t*	slot;
-@@ -4035,8 +4067,8 @@
+@@ -4060,8 +4092,8 @@
  		wait in the Windows case. */
  
  		if (type == OS_FILE_READ) {
@@ -847,7 +847,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -4074,6 +4106,11 @@
+@@ -4099,6 +4131,11 @@
  		ut_error;
  	}
  
@@ -869,10 +869,10 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +/* prototypes for new functions added to ha_innodb.cc */
 +ibool	innobase_get_slow_log();
 +
- /* This is set to TRUE if the MySQL user has set it in MySQL; currently
- affects only FOREIGN KEY definition parsing */
- UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-@@ -1219,6 +1222,10 @@
+ /* This is set to the MySQL server value for this variable.  It is only
+ needed for FOREIGN KEY definition parsing since FOREIGN KEY names are not
+ stored in the server metadata. The server stores and enforces it for
+@@ -1253,6 +1256,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -883,7 +883,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1295,6 +1302,7 @@
+@@ -1329,6 +1336,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -891,7 +891,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		trx->op_info = "";
-@@ -1350,6 +1358,13 @@
+@@ -1384,6 +1392,13 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  
@@ -905,7 +905,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
-@@ -1358,6 +1373,12 @@
+@@ -1392,6 +1407,12 @@
  
  	trx->op_info = "";
  

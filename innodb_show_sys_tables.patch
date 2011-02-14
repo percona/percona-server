@@ -5,10 +5,43 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
+diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
+--- a/storage/innobase/dict/dict0load.c	2011-01-20 07:37:08.000000000 +0900
++++ b/storage/innobase/dict/dict0load.c	2011-02-14 18:59:40.774162959 +0900
+@@ -437,7 +437,7 @@
+ 
+ }
+ 
+-#ifdef FOREIGN_NOT_USED
++//#ifdef FOREIGN_NOT_USED
+ /********************************************************************//**
+ This function parses a SYS_FOREIGN record and populate a dict_foreign_t
+ structure with the information from the record. For detail information
+@@ -513,9 +513,9 @@
+ 
+ 	return(NULL);
+ }
+-#endif  /* FOREIGN_NOT_USED */
++//#endif  /* FOREIGN_NOT_USED */
+ 
+-#ifdef FOREIGN_NOT_USED
++//#ifdef FOREIGN_NOT_USED
+ /********************************************************************//**
+ This function parses a SYS_FOREIGN_COLS record and extract necessary
+ information from the record and return to caller.
+@@ -579,7 +579,7 @@
+ 
+ 	return(NULL);
+ }
+-#endif  /* FOREIGN_NOT_USED */
++//#endif  /* FOREIGN_NOT_USED */
+ 
+ /********************************************************************//**
+ Determine the flags of a table described in SYS_TABLES.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:53:54.615040167 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 16:07:26.851357007 +0900
-@@ -11673,7 +11673,14 @@
+@@ -11675,7 +11675,14 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
@@ -39,7 +72,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  #include "dict0mem.h"
  #include "dict0types.h"
  #include "ha_prototypes.h" /* for innobase_convert_name() */
-@@ -1787,6 +1789,1675 @@
+@@ -1786,6 +1788,1675 @@
  	DBUG_RETURN(0);
  }
  

@@ -277,7 +277,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
 diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.c
 --- a/storage/innobase/dict/dict0dict.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/dict/dict0dict.c	2010-12-03 15:45:47.525953769 +0900
-@@ -625,6 +625,8 @@
+@@ -627,6 +627,8 @@
  
  	table = dict_table_get_on_id_low(table_id);
  
@@ -286,7 +286,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	mutex_exit(&(dict_sys->mutex));
  
  	return(table);
-@@ -743,6 +745,8 @@
+@@ -745,6 +747,8 @@
  		table->n_mysql_handles_opened++;
  	}
  
@@ -295,7 +295,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	mutex_exit(&(dict_sys->mutex));
  
  	if (table != NULL) {
-@@ -1256,6 +1260,64 @@
+@@ -1260,6 +1264,64 @@
  	dict_mem_table_free(table);
  }
  
@@ -360,7 +360,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  /****************************************************************//**
  If the given column name is reserved for InnoDB system columns, return
  TRUE.
-@@ -1719,6 +1781,11 @@
+@@ -1723,6 +1785,11 @@
  	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -375,7 +375,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:43:57.294986852 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:45:47.534959966 +0900
-@@ -655,6 +655,8 @@
+@@ -656,6 +656,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
@@ -384,7 +384,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11543,6 +11545,11 @@
+@@ -11545,6 +11547,11 @@
    "Number of extra user rollback segments which are used in a round-robin fashion.",
    NULL, NULL, 127, 0, 127, 0);
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11611,6 +11618,7 @@
+@@ -11613,6 +11620,7 @@
    MYSQL_SYSVAR(adaptive_flushing_method),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),
@@ -435,7 +435,7 @@ diff -ruN a/storage/innobase/include/btr0sea.h b/storage/innobase/include/btr0se
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-02-01 18:00:03.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-01 18:03:29.000000000 +0900
-@@ -1482,6 +1482,15 @@
+@@ -1553,6 +1553,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  
@@ -509,7 +509,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -700,6 +700,7 @@
+@@ -708,6 +708,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */
@@ -520,7 +520,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:43:57.301024390 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:45:47.565023830 +0900
-@@ -414,6 +414,7 @@
+@@ -416,6 +416,7 @@
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
  UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
@@ -528,7 +528,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2192,6 +2193,7 @@
+@@ -2226,6 +2227,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

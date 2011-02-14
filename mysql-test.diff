@@ -323,7 +323,7 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
 diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
 --- a/mysql-test/r/mysqld--help-notwin.result	2010-12-03 20:58:24.000000000 +0300
 +++ b/mysql-test/r/mysqld--help-notwin.result	2011-01-10 23:34:28.000000000 +0300
-@@ -125,6 +125,9 @@
+@@ -130,6 +130,9 @@
   --div-precision-increment=# 
   Precision of the result of '/' operator will be increased
   on that value
@@ -333,7 +333,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --engine-condition-pushdown 
   Push supported query conditions to the storage engine.
   Deprecated, use --optimizer-switch instead.
-@@ -244,21 +247,43 @@
+@@ -249,21 +252,43 @@
   --log-slow-admin-statements 
   Log slow OPTIMIZE, ANALYZE, ALTER and other
   administrative statements to the slow log if it is open.
@@ -379,7 +379,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --long-query-time=# Log all queries that have taken more than long_query_time
   seconds to execute to file. The argument will be treated
   as a decimal value with microsecond precision
-@@ -464,6 +489,10 @@
+@@ -470,6 +495,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -390,7 +390,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -472,6 +501,9 @@
+@@ -478,6 +507,9 @@
   Invalidate queries in query cache on LOCK for write
   --query-prealloc-size=# 
   Persistent buffer for query parsing and execution
@@ -400,7 +400,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -649,6 +681,9 @@
+@@ -655,6 +687,9 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
@@ -410,7 +410,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --socket=name       Socket file to use for connection
   --sort-buffer-size=# 
   Each thread that needs to do a sort allocates a buffer of
-@@ -691,6 +726,8 @@
+@@ -697,6 +732,8 @@
   Define threads usage for handling queries, one of
   one-thread-per-connection, no-threads, loaded-dynamically
   --thread-stack=#    The stack size for each thread
@@ -419,7 +419,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --time-format=name  The TIME format (ignored)
   --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
   currently supported)
-@@ -715,11 +752,24 @@
+@@ -721,11 +758,24 @@
   Prohibit update of a VIEW, which does not contain a key
   of the underlying table and the query uses a LIMIT clause
   (usually get from GUI tools)
@@ -444,7 +444,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  
  Variables (--variable-name=value)
  abort-slave-event-count 0
-@@ -756,6 +806,7 @@
+@@ -763,6 +813,7 @@
  delayed-queue-size 1000
  disconnect-slave-event-count 0
  div-precision-increment 4
@@ -452,7 +452,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  engine-condition-pushdown TRUE
  event-scheduler OFF
  expire-logs-days 0
-@@ -800,10 +851,16 @@
+@@ -807,10 +858,16 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
@@ -469,7 +469,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  long-query-time 10
  low-priority-updates FALSE
  lower-case-table-names 1
-@@ -877,9 +934,11 @@
+@@ -885,9 +942,11 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0
@@ -481,7 +481,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  range-alloc-block-size 4096
  read-buffer-size 131072
  read-only FALSE
-@@ -914,6 +973,7 @@
+@@ -922,6 +981,7 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE
@@ -489,7 +489,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  sort-buffer-size 2097152
  sporadic-binlog-dump-fail FALSE
  sql-mode 
-@@ -931,6 +991,7 @@
+@@ -939,6 +999,7 @@
  thread-cache-size 0
  thread-handling one-thread-per-connection
  thread-stack 262144
@@ -497,7 +497,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  time-format %H:%i:%s
  timed-mutexes FALSE
  tmp-table-size 16777216
-@@ -938,8 +999,11 @@
+@@ -946,8 +1007,11 @@
  transaction-isolation REPEATABLE-READ
  transaction-prealloc-size 4096
  updatable-views-with-limit YES
@@ -674,7 +674,7 @@ diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
 diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/innodb.result
 --- a/mysql-test/suite/innodb/r/innodb.result	2010-11-03 07:01:12.000000000 +0900
 +++ b/mysql-test/suite/innodb/r/innodb.result	2010-12-10 16:48:11.026994635 +0900
-@@ -1661,7 +1661,7 @@
+@@ -1664,7 +1664,7 @@
  drop table t1;
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
  variable_value

@@ -20,7 +20,7 @@ diff -ruN a/patch_info/log_warnings_silence.patch b/patch_info/log_warnings_sile
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/mysqld.cc	2011-01-05 20:32:34.000000000 +0300
-@@ -617,6 +617,8 @@
+@@ -620,6 +620,8 @@
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
  
@@ -32,7 +32,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/mysqld.h	2011-01-05 20:32:35.000000000 +0300
-@@ -224,6 +224,8 @@
+@@ -226,6 +226,8 @@
  extern TYPELIB thread_handling_typelib;
  extern my_decimal decimal_zero;
  
@@ -44,7 +44,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-01-05 20:31:32.000000000 +0300
 +++ b/sql/sql_class.cc	2011-01-05 20:32:34.000000000 +0300
-@@ -4544,7 +4544,7 @@
+@@ -4578,7 +4578,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
@@ -67,7 +67,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/sys_vars.cc	2011-01-05 20:32:38.000000000 +0300
-@@ -1408,6 +1408,15 @@
+@@ -1424,6 +1424,15 @@
         READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
         VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
  

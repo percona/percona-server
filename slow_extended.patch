@@ -118,7 +118,7 @@ diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
 --- a/scripts/mysqldumpslow.sh	2010-11-03 01:01:13.000000000 +0300
 +++ b/scripts/mysqldumpslow.sh	2010-12-16 04:27:46.000000000 +0300
-@@ -83,8 +83,8 @@
+@@ -101,8 +101,8 @@
      s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
      my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
  
@@ -143,7 +143,7 @@ diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
 diff -ruN a/sql/filesort.cc b/sql/filesort.cc
 --- a/sql/filesort.cc	2010-11-03 01:01:14.000000000 +0300
 +++ b/sql/filesort.cc	2010-12-16 04:27:46.000000000 +0300
-@@ -197,6 +197,7 @@
+@@ -193,6 +193,7 @@
    {
      status_var_increment(thd->status_var.filesort_scan_count);
    }
@@ -151,7 +151,7 @@ diff -ruN a/sql/filesort.cc b/sql/filesort.cc
  #ifdef CAN_TRUST_RANGE
    if (select && select->quick && select->quick->records > 0L)
    {
-@@ -262,6 +263,7 @@
+@@ -258,6 +259,7 @@
    }
    else
    {
@@ -159,7 +159,7 @@ diff -ruN a/sql/filesort.cc b/sql/filesort.cc
      if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
      {
        my_free(table_sort.buffpek);
-@@ -1201,6 +1203,7 @@
+@@ -1197,6 +1199,7 @@
    DBUG_ENTER("merge_buffers");
  
    status_var_increment(current_thd->status_var.filesort_merge_passes);
@@ -170,7 +170,7 @@ diff -ruN a/sql/filesort.cc b/sql/filesort.cc
 diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/log.cc	2010-12-02 19:28:31.337989417 +0900
-@@ -630,11 +630,13 @@
+@@ -715,11 +715,13 @@
  */
  
  bool Log_to_csv_event_handler::
@@ -185,7 +185,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
    TABLE_LIST table_list;
    TABLE *table;
    bool result= TRUE;
-@@ -850,14 +852,14 @@
+@@ -935,14 +937,14 @@
  /** Wrapper around MYSQL_LOG::write() for slow log. */
  
  bool Log_to_file_event_handler::
@@ -202,7 +202,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
                                      user_host, user_host_len,
                                      query_utime, lock_utime, is_command,
                                      sql_text, sql_text_len);
-@@ -1131,7 +1133,7 @@
+@@ -1216,7 +1218,7 @@
      /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
      user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                               sctx->priv_user ? sctx->priv_user : "", "[",
@@ -211,7 +211,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
                               sctx->host ? sctx->host : "", " [",
                               sctx->ip ? sctx->ip : "", "]", NullS) -
                      user_host_buff);
-@@ -1139,8 +1141,22 @@
+@@ -1224,8 +1226,22 @@
      current_time= my_time_possible_from_micro(current_utime);
      if (thd->start_utime)
      {
@@ -236,7 +236,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      }
      else
      {
-@@ -1154,8 +1170,20 @@
+@@ -1239,8 +1255,20 @@
        query_length= command_name[thd->command].length;
      }
  
@@ -258,7 +258,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
                                              user_host_buff, user_host_len,
                                              query_utime, lock_utime, is_command,
                                              query, query_length) || error;
-@@ -2539,12 +2567,13 @@
+@@ -2656,12 +2684,13 @@
      TRUE - error occured
  */
  
@@ -273,7 +273,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
    bool error= 0;
    DBUG_ENTER("MYSQL_QUERY_LOG::write");
  
-@@ -2566,17 +2595,28 @@
+@@ -2683,17 +2712,28 @@
  
      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
      {
@@ -309,7 +309,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
          /* Note that my_b_write() assumes it knows the length for this */
          if (my_b_write(&log_file, (uchar*) buff, buff_len))
-@@ -2594,12 +2634,69 @@
+@@ -2711,12 +2751,69 @@
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
      if (my_b_printf(&log_file,
@@ -435,7 +435,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5789,10 +5793,10 @@
+@@ -5784,10 +5788,10 @@
     "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
     "the slow log if it is open.", &opt_log_slow_admin_statements,
     &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -448,7 +448,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7182,6 +7186,10 @@
+@@ -7179,6 +7183,10 @@
  
  C_MODE_END
  
@@ -459,7 +459,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7321,6 +7329,8 @@
+@@ -7318,6 +7326,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -485,7 +485,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 diff -ruN a/sql/slave.cc b/sql/slave.cc
 --- a/sql/slave.cc	2010-11-03 01:01:14.000000000 +0300
 +++ b/sql/slave.cc	2010-12-16 04:27:46.000000000 +0300
-@@ -2037,6 +2037,7 @@
+@@ -2038,6 +2038,7 @@
      + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
    thd->slave_thread = 1;
    thd->enable_slow_log= opt_log_slow_slave_statements;
@@ -573,7 +573,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    for (Internal_error_handler *error_handler= m_internal_handler;
         error_handler;
-@@ -3355,6 +3387,12 @@
+@@ -3389,6 +3421,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -586,7 +586,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3375,6 +3413,14 @@
+@@ -3409,6 +3447,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -601,7 +601,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -3437,6 +3483,12 @@
+@@ -3471,6 +3517,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -707,7 +707,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2010-11-03 01:01:14.000000000 +0300
 +++ b/sql/sql_connect.cc	2010-12-16 04:27:46.000000000 +0300
-@@ -738,6 +738,15 @@
+@@ -741,6 +741,15 @@
  
      prepare_new_connection_state(thd);
  
@@ -726,7 +726,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sql_parse.cc	2010-12-16 04:47:41.000000000 +0300
-@@ -1424,7 +1424,6 @@
+@@ -1431,7 +1431,6 @@
    DBUG_RETURN(error);
  }
  
@@ -734,7 +734,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  void log_slow_statement(THD *thd)
  {
    DBUG_ENTER("log_slow_statement");
-@@ -1437,6 +1436,42 @@
+@@ -1444,6 +1443,42 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -777,7 +777,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -1812,6 +1847,9 @@
+@@ -1819,6 +1854,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -787,7 +787,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5238,6 +5276,21 @@
+@@ -5258,6 +5296,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -812,7 +812,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sql_select.cc	2010-12-16 04:27:47.000000000 +0300
-@@ -6870,7 +6870,10 @@
+@@ -6872,7 +6872,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -823,7 +823,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	else
-@@ -6884,7 +6887,10 @@
+@@ -6886,7 +6889,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -834,7 +834,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	if (!table->no_keyread)
-@@ -10210,6 +10216,7 @@
+@@ -10217,6 +10223,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -842,7 +842,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -11107,6 +11114,7 @@
+@@ -11115,6 +11122,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -850,7 +850,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -11125,6 +11133,14 @@
+@@ -11133,6 +11141,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  
@@ -891,7 +891,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-16 04:27:10.000000000 +0300
 +++ b/sql/sys_vars.cc	2010-12-16 04:36:12.000000000 +0300
-@@ -2836,6 +2836,116 @@
+@@ -2852,6 +2852,116 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  

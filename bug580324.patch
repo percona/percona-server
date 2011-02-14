@@ -26,7 +26,7 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2011-01-11 21:35:26.000000000 +0300
 +++ b/sql/sql_parse.cc	2011-01-11 21:48:50.000000000 +0300
-@@ -1110,11 +1110,18 @@
+@@ -1113,11 +1113,18 @@
      break;
  #else
    {
@@ -46,7 +46,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      /*
        SHOW statements should not add the used tables to the list of tables
        used in a transaction.
-@@ -1127,24 +1134,23 @@
+@@ -1130,24 +1137,23 @@
      /*
        We have name + wildcard in packet, separated by endzero
      */
@@ -83,7 +83,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      mysql_reset_thd_for_next_command(thd);
      lex_start(thd);
      /* Must be before we init the table list. */
-@@ -1169,9 +1175,6 @@
+@@ -1172,9 +1178,6 @@
          table_list.schema_table= schema_table;
      }
  

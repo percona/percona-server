@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:34:35.285040381 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:35:12.974975252 +0900
-@@ -9491,8 +9491,8 @@
+@@ -9496,8 +9496,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -19,7 +19,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9507,9 +9507,8 @@
+@@ -9512,9 +9512,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -31,7 +31,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9538,8 +9537,8 @@
+@@ -9543,8 +9542,8 @@
  			continue;
  		}
  
@@ -42,7 +42,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9553,9 +9552,8 @@
+@@ -9558,9 +9557,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,

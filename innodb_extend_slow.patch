@@ -429,7 +429,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9200,6 +9236,25 @@
+@@ -9205,6 +9241,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {

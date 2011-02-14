@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 20:20:44.614551139 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-06 19:23:47.622195800 +0900
-@@ -12045,6 +12045,9 @@
+@@ -12050,6 +12050,9 @@
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,

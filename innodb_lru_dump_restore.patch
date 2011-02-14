@@ -382,7 +382,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:49:11.589956135 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:33:37.645555490 +0900
-@@ -11708,6 +11708,12 @@
+@@ -11713,6 +11713,12 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -395,7 +395,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11791,6 +11797,7 @@
+@@ -11796,6 +11802,7 @@
  #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),

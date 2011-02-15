@@ -381,7 +381,7 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
-export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
+export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
 
 # Build debug mysqld and libmysqld.a
 mkdir debug
@@ -453,11 +453,20 @@ then
   fi
 fi
 
+# Move temporarily the saved files to the BUILD directory since the BUILDROOT
+# dir will be cleaned at the start of the install phase
+mkdir -p "$(dirname $RPM_BUILD_DIR/%{_libdir})"
+mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
+
 ##############################################################################
 %install
 
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/%{src_dir}
+
+# Move back the libdir from BUILD dir to BUILDROOT
+mkdir -p "$(dirname $RBR%{_libdir})"
+mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}

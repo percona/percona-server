@@ -8,7 +8,7 @@ RELEASE_DIR ?= $(PERCONA_SERVER)-release
 SERIES ?=series
 CFLAGS=-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing
 CXXFLAGS=-fno-exceptions -fPIC -Wall -Wno-unused-parameter -fno-implicit-templates -fno-exceptions -fno-rtti -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing
-CMAKE=CC=gcc44 CXX=gcc44 cmake $(ADDITIONAL)
+CMAKE=CC=gcc CXX=gcc cmake $(ADDITIONAL)
 ADDITIONAL ?=
 CONFIGURE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"  LIBS=-lrt ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition
 

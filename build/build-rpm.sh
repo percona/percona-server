@@ -62,6 +62,13 @@ REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \
     cut -d ' ' -f 2)"
 REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 
+# Compilation flags
+export CC=gcc
+export CXX=gcc
+export CFLAGS='-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer'
+export CXXFLAGS='-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions'
+export MAKE_JFLAG=-j4
+
 # Create directories for rpmbuild if these don't exist
 (cd "$WORKDIR" && mkdir -p BUILD RPMS SOURCES SPECS SRPMS)
 

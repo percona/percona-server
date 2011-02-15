@@ -1048,7 +1048,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11729,6 +11826,14 @@
+@@ -11720,6 +11817,14 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1063,7 +1063,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11816,6 +11921,7 @@
+@@ -11806,6 +11911,7 @@
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),

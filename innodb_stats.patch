@@ -1257,7 +1257,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11285,6 +11330,45 @@
+@@ -11281,6 +11326,45 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1303,7 +1303,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11613,6 +11697,10 @@
+@@ -11604,6 +11688,10 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1314,7 +1314,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(replication_delay),
-@@ -11682,7 +11770,10 @@
+@@ -11672,7 +11760,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,

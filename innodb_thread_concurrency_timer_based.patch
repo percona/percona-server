@@ -26,7 +26,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  	srv_log_archive_on = (ulint) innobase_log_archive;
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -11375,6 +11379,12 @@
+@@ -11371,6 +11375,12 @@
    "Maximum delay between polling for a spin lock (6 by default)",
    NULL, NULL, 6L, 0L, ~0L, 0);
  
@@ -39,7 +39,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-@@ -11588,6 +11598,7 @@
+@@ -11579,6 +11589,7 @@
    MYSQL_SYSVAR(spin_wait_delay),
    MYSQL_SYSVAR(table_locks),
    MYSQL_SYSVAR(thread_concurrency),

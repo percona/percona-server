@@ -249,7 +249,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  		trx_commit_for_mysql(trx);
  	}
-@@ -10921,6 +11113,12 @@
+@@ -10917,6 +11109,12 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11377,6 +11575,7 @@
+@@ -11368,6 +11566,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),

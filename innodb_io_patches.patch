@@ -94,18 +94,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -10109,6 +10129,10 @@
- 	    && (all
- 		|| !thd_test_options(
- 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-+		if (srv_enable_unsafe_group_commit && !THDVAR(thd, support_xa)) {
-+			/* choose group commit rather than binlog order */
-+			return(error);
-+		}
- 
- 		/* For ibbackup to work the order of transactions in binlog
- 		and InnoDB must be the same. Consider the situation
-@@ -10919,9 +10943,9 @@
+@@ -10919,9 +10939,9 @@
  
  static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -117,7 +106,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -10963,12 +10987,18 @@
+@@ -10963,12 +10983,18 @@
    innodb_file_format_max_validate,
    innodb_file_format_max_update, "Antelope");
  
@@ -142,7 +131,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11063,7 +11093,7 @@
+@@ -11063,7 +11089,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -151,7 +140,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11208,6 +11238,100 @@
+@@ -11208,6 +11234,95 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -244,15 +233,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +  "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
 +  NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
 +
-+static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
-+  PLUGIN_VAR_RQCMDARG,
-+  "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
-+  NULL, NULL, 0, 0, 1, 0);
-+
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11228,6 +11352,7 @@
+@@ -11228,6 +11343,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -260,7 +244,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(locks_unsafe_for_binlog),
-@@ -11264,6 +11389,14 @@
+@@ -11264,6 +11380,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -271,7 +255,6 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +  MYSQL_SYSVAR(flush_neighbor_pages),
 +  MYSQL_SYSVAR(read_ahead),
 +  MYSQL_SYSVAR(adaptive_flushing_method),
-+  MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),

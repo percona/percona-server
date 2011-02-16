@@ -36,7 +36,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         beta%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -99,10 +99,10 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release beta%{majorversion}.%{minorversion}, Revision %{gotrevision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_release     Percona Server (GPL), Release beta%{majorversion}.%{minorversion}, Revision %{gotrevision}
 %endif
 
 # ----------------------------------------------------------------------------
@@ -256,7 +256,7 @@ For more information visist our web site http://www.percona.com/
 %package -n Percona-Server-server%{product_suffix}
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
-Requires:       %{distro_requires}
+Requires:       %{distro_requires} Percona-Server-shared%{product_suffix}
 Provides:       mysql-server MySQL-server
 
 %description -n Percona-Server-server%{product_suffix}
@@ -279,6 +279,7 @@ package "Percona-Server-client%{product_suffix}" as well!
 %package -n Percona-Server-client%{product_suffix}
 Summary:        Percona Server - Client
 Group:          Applications/Databases
+Requires:      Percona-Server-shared%{product_suffix}
 Provides:       mysql-client MySQL-client mysql MySQL
 
 %description -n Percona-Server-client%{product_suffix}
@@ -410,7 +411,7 @@ mkdir debug
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
-  make ${MAKE_JFLAG} VERBOSE=1
+  make ${MAKE_JFLAG}
 )
 # Build full release
 mkdir release
@@ -426,7 +427,7 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
-  make ${MAKE_JFLAG} VERBOSE=1
+  make ${MAKE_JFLAG}
   cd ../%{src_dir}
   d="`pwd`"
   BuildHandlerSocket

@@ -5,7 +5,7 @@
    fi
  
 -  MYSQL_CFLAGS_ADD=`"$ac_mysql_config" --cflags`
-+  MYSQL_CFLAGS_ADD=`-g -fmessage-length=0 -D_FORTIFY_SOURCE=2 -DUNIV_LINUX`
++  MYSQL_CFLAGS_ADD='-g -fmessage-length=0 -D_FORTIFY_SOURCE=2 -DUNIV_LINUX'
    MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD -DFORCE_DBUG_OFF"
      # FIXME
    AC_SUBST(MYSQL_CFLAGS)

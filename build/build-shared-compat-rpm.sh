@@ -15,6 +15,33 @@
 # Bail out on errors, be strict
 set -ue
 
+# Examine parameters
+TARGET=''
+TARGET_ARG=''
+TARGET_CFLAGS=''
+
+# Check if we have a functional getopt(1)
+if ! getopt --test
+then
+    go_out="$(getopt --options="i" --longoptions=i686 \
+        --name="$(basename "$0")" -- "$@")"
+    test $? -eq 0 || exit 1
+    eval set -- $go_out
+fi
+
+for arg
+do
+    case "$arg" in
+    -- ) shift; break;;
+    -i | --i686 )
+        shift
+        TARGET='i686'
+        TARGET_ARG="--target i686"
+        TARGET_CFLAGS="-m32 -march=i686"
+        ;;
+    esac
+done
+
 # Working directory
 if test "$#" -eq 0
 then
@@ -65,8 +92,8 @@ REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 # Compilation flags
 export CC=gcc
 export CXX=gcc
-export CFLAGS='-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer'
-export CXXFLAGS='-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions'
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS"
 export MAKE_JFLAG=-j4
 
 # Create directories for rpmbuild if these don't exist
@@ -77,7 +104,10 @@ export MAKE_JFLAG=-j4
     cd "$WORKDIR/SOURCES/"
  
     # Download the sources from the community site
-    if test "x$(uname -m)" = "xx86_64"
+    if test "x$TARGET" = "xi686"
+    then
+        RPMVER=i386
+    elif test "x$(uname -m)" = "xx86_64"
     then
         RPMVER=x86_64
     else
@@ -98,7 +128,8 @@ export MAKE_JFLAG=-j4
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \
         --define "gotrevision $REVISION" \
-        --define "release $PERCONA_SERVER_VERSION"
+        --define "release $PERCONA_SERVER_VERSION" \
+        $TARGET_ARG
 
 )
 

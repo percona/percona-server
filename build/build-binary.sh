@@ -12,6 +12,31 @@
 # Bail out on errors, be strict
 set -ue
 
+# Examine parameters
+TARGET="$(uname -m)"
+TARGET_CFLAGS=''
+
+# Check if we have a functional getopt(1)
+if ! getopt --test
+then
+    go_out="$(getopt --options="i" --longoptions=i686 \
+        --name="$(basename "$0")" -- "$@")"
+    test $? -eq 0 || exit 1
+    eval set -- $go_out
+fi
+
+for arg
+do
+    case "$arg" in
+    -- ) shift; break;;
+    -i | --i686 )
+        shift
+        TARGET="i686"
+        TARGET_CFLAGS="-m32 -march=i686"
+        ;;
+    esac
+done
+
 # Working directory
 if test "$#" -eq 0
 then
@@ -56,16 +81,16 @@ PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
 REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
-PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-beta$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL-$REVISION.$(uname -s).$(uname -m)"
-COMMENT="Percona Server with XtraDB (GPL), Release beta$PERCONA_SERVER_VERSION"
+PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
+PRODUCT_FULL="$PRODUCT_FULL-$REVISION.$(uname -s).$TARGET"
+COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
 COMMENT="$COMMENT, Revision $REVISION"
 
 # Compilation flags
 export CC=gcc
 export CXX=gcc
-export CFLAGS='-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer'
-export CXXFLAGS='-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions'
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS"
 export MAKE_JFLAG=-j4
 
 # Create a temporary working directory
@@ -86,7 +111,7 @@ echo "$INSTALLDIR"
         -DFEATURE_SET=community \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
-        -DMYSQL_SERVER_SUFFIX="-beta$PERCONA_SERVER_VERSION" \
+        -DMYSQL_SERVER_SUFFIX="-$PERCONA_SERVER_VERSION" \
         -DCOMPILATION_COMMENT="$COMMENT"
 
     make $MAKE_JFLAG VERBOSE=1

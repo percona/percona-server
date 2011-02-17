@@ -30,7 +30,7 @@
 %define majorversion 20
 %define minorversion 0
 %define distribution  rhel%{redhatversion}
-%define percona_server_version	%{majorversion}.%{minorversion}
+%define percona_server_version	beta%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql

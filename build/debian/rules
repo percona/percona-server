@@ -33,7 +33,7 @@ endif
 MYSQL_SRC = $(shell pwd)
 
 MAKE_TEST_TARGET=test-force
-ifneq ($(findstring $(DEB_BUILD_OPTIONS),fulltest),)
+ifneq ($(findstring fulltest,$(DEB_BUILD_OPTIONS)),)
 # make test-bt is the testsuite run by the MySQL build team 
 # before a release, but it is long
     MAKE_TEST_TARGET=test-bt
@@ -118,7 +118,7 @@ build-stamp: configure
 	dh_testdir
 
 	$(MAKE) $(MAKE_J)
-ifeq ($(findstring $(DEB_BUILD_OPTIONS),nocheck),)
+ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
 	if [ ! -f testsuite-stamp ] ; then \
 	  $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
 	fi

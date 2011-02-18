@@ -5,8 +5,8 @@ PERCONA_SERVER ?=Percona-Server
 DEBUG_DIR ?= $(PERCONA_SERVER)-debug
 RELEASE_DIR ?= $(PERCONA_SERVER)-release
 SERIES ?=series
-CFLAGS=-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing
-CXXFLAGS=-fno-exceptions -fPIC -Wall -Wno-unused-parameter -fno-implicit-templates -fno-exceptions -fno-rtti -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing
+CFLAGS=-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing -DDBUG_OFF -DMY_PTHREAD_FASTMUTEX=1
+CXXFLAGS=-fno-exceptions  -fPIC -Wall -Wno-unused-parameter -fno-implicit-templates -fno-exceptions -fno-rtti -O3 -g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing -DDBUG_OFF -DMY_PTHREAD_FASTMUTEX=1
 CMAKE=CC=gcc44 CXX=gcc44 cmake $(ADDITIONAL)
 ADDITIONAL ?=
 CONFIGURE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"  LIBS=-lrt ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition
@@ -32,7 +32,7 @@ cmake_debug:
 	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" $(CMAKE) -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=ON -DMYSQL_MAINTAINER_MODE=OFF ../$(PERCONA_SERVER))
 
 binary:
-	(cd $(PERCONA_SERVER); ${CMAKE} . -DBUILD_CONFIG=mysql_release  \
+	(cd $(PERCONA_SERVER); CFLAGS="${CFLAGS}" CXXFLAGS="${CXXFLAGS}" ${CMAKE} . -DBUILD_CONFIG=mysql_release  \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DCMAKE_INSTALL_PREFIX="/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION)-$(REV)" \
            -DFEATURE_SET="community" \

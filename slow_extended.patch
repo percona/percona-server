@@ -110,7 +110,7 @@ diff -ruN a/patch_info/slow_extended.info b/patch_info/slow_extended.info
 +1) Fix overflow of query time and lock time (Bug 600360) (slow_extended_fix_overflow.patch merged)
 +2) Control global slow feature merged (control_global_slow.patch merged)
 +3) Microseconds in slow query log merged (microseconds_in_slow_query_log.patch merged)
-+4) Now use_global_long_query_time and use_global_log_slow_control are synonims. Add value "all" for use_global_log_slow_control (contol-global_slow-2.patch merged)
++4) Now use_global_long_query_time and slow_query_log_use_global_control are synonims. Add value "all" for slow_query_log_use_global_control (contol-global_slow-2.patch merged)
 +5) Fix innodb_stats on replication (Bug 600684)
 +6) Change variable types (system/command-line)
 +2010-01
@@ -278,7 +278,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
      {
 -      if (current_time != last_time)
-+      if (opt_log_slow_timestamp_every || current_time != last_time)
++      if (opt_log_slow_timestamp_always || current_time != last_time)
        {
          last_time= current_time;
          struct tm start;
@@ -429,8 +429,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
 +my_bool opt_log_slow_sp_statements= 0;
-+my_bool opt_log_slow_timestamp_every= 0;
-+ulonglong opt_use_global_log_slow_control= 0;
++my_bool opt_log_slow_timestamp_always= 0;
++ulonglong opt_slow_query_log_use_global_control= 0;
 +my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
@@ -454,7 +454,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
 +/* defined in sys_vars.cc */
 +extern void init_log_slow_verbosity();
-+extern void init_use_global_log_slow_control();
++extern void init_slow_query_log_use_global_control();
 +
  /**
    Get server options from the command line,
@@ -464,7 +464,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      (global_system_variables.long_query_time_double * 1e6);
  
 +  init_log_slow_verbosity();
-+  init_use_global_log_slow_control();
++  init_slow_query_log_use_global_control();
    if (opt_short_log_format)
      opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
  
@@ -476,8 +476,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern size_t opt_secure_backup_file_priv_len;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 +extern my_bool opt_log_slow_sp_statements;
-+extern my_bool opt_log_slow_timestamp_every;
-+extern ulonglong opt_use_global_log_slow_control;
++extern my_bool opt_log_slow_timestamp_always;
++extern ulonglong opt_slow_query_log_use_global_control;
 +extern my_bool opt_slow_query_log_microseconds_timestamp;
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
@@ -621,7 +621,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
  enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
  			    DELAY_KEY_WRITE_ALL };
-+enum enum_use_global_log_slow_control { SLOG_UG_LOG_SLOW_FILTER, SLOG_UG_LOG_SLOW_RATE_LIMIT, SLOG_UG_LOG_SLOW_VERBOSITY, SLOG_UG_LONG_QUERY_TIME, SLOG_UG_MIN_EXAMINED_ROW_LIMIT, SLOG_UG_ALL };
++enum enum_slow_query_log_use_global_control { SLOG_UG_LOG_SLOW_FILTER, SLOG_UG_LOG_SLOW_RATE_LIMIT, SLOG_UG_LOG_SLOW_VERBOSITY, SLOG_UG_LONG_QUERY_TIME, SLOG_UG_MIN_EXAMINED_ROW_LIMIT, SLOG_UG_ALL };
 +enum enum_log_slow_verbosity { 
 +  SLOG_V_MICROTIME, SLOG_V_QUERY_PLAN, SLOG_V_INNODB, 
 +  SLOG_V_PROFILING, SLOG_V_PROFILING_USE_GETRUSAGE,
@@ -754,7 +754,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +
 +  ulonglong end_utime_of_query= thd->current_utime();
 +#define USE_GLOBAL_UPDATE(variable_name,enum_value_name)                \
-+  if (opt_use_global_log_slow_control & (ULL(1) << enum_value_name))    \
++  if (opt_slow_query_log_use_global_control & (ULL(1) << enum_value_name))    \
 +  {                                                                     \
 +    thd->variables. variable_name=                                      \
 +      global_system_variables. variable_name;                           \
@@ -906,7 +906,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG),
 +       log_slow_filter_name, DEFAULT(0));
 +static Sys_var_ulong sys_log_slow_rate_limit(
-+       "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
++       "log_slow_rate_limit","Rate limit statement writes to slow log to only those from always (1/log_slow_rate_limit) session.",
 +       SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
 +       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
 +const char* log_slow_verbosity_name[] = { 
@@ -949,7 +949,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +  }
 +  return false;
 +}
-+void init_use_global_log_slow_control()
++void init_slow_query_log_use_global_control()
 +{
 +  update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
 +}
@@ -971,18 +971,18 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +       "Log slow statements executed by stored procedure to the slow log if it is open.",
 +       GLOBAL_VAR(opt_log_slow_sp_statements), CMD_LINE(OPT_ARG),
 +       DEFAULT(TRUE));
-+static Sys_var_mybool Sys_log_slow_timestamp_every(
-+       "log_slow_timestamp_every",
++static Sys_var_mybool Sys_log_slow_timestamp_always(
++       "log_slow_timestamp_always",
 +       "Timestamp is printed for all records of the slow log even if they are same time.",
-+       GLOBAL_VAR(opt_log_slow_timestamp_every), CMD_LINE(OPT_ARG),
++       GLOBAL_VAR(opt_log_slow_timestamp_always), CMD_LINE(OPT_ARG),
 +       DEFAULT(FALSE));
-+const char *use_global_log_slow_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
-+static bool update_use_global_log_slow_control(sys_var */*self*/, THD */*thd*/,
++const char *slow_query_log_use_global_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
++static bool update_slow_query_log_use_global_control(sys_var */*self*/, THD */*thd*/,
 +                                               enum_var_type /*type*/)
 +{
-+  if(opt_use_global_log_slow_control & (ULL(1) << SLOG_UG_ALL))
++  if(opt_slow_query_log_use_global_control & (ULL(1) << SLOG_UG_ALL))
 +  {
-+    opt_use_global_log_slow_control=
++    opt_slow_query_log_use_global_control=
 +      SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY |
 +      SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT;
 +  }
@@ -990,15 +990,15 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 +}
 +void init_log_slow_verbosity()
 +{
-+  update_use_global_log_slow_control(0,0,OPT_GLOBAL);
++  update_slow_query_log_use_global_control(0,0,OPT_GLOBAL);
 +}
-+static Sys_var_set Sys_use_global_log_slow_control(
-+       "use_global_log_slow_control",
++static Sys_var_set Sys_slow_query_log_use_global_control(
++       "slow_query_log_use_global_control",
 +       "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
-+       GLOBAL_VAR(opt_use_global_log_slow_control), CMD_LINE(REQUIRED_ARG),
-+       use_global_log_slow_control_name, DEFAULT(0),
++       GLOBAL_VAR(opt_slow_query_log_use_global_control), CMD_LINE(REQUIRED_ARG),
++       slow_query_log_use_global_control_name, DEFAULT(0),
 +        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-+       ON_UPDATE(update_use_global_log_slow_control));
++       ON_UPDATE(update_slow_query_log_use_global_control));
 +static Sys_var_mybool Sys_slow_query_log_microseconds_timestamp(
 +       "slow_query_log_microseconds_timestamp",
 +       "Log slow statements executed by stored procedure to the slow log if it is open.",

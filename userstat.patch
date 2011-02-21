@@ -55,7 +55,7 @@ diff -ruN a/patch_info/userstats.patch b/patch_info/userstats.patch
 +YK: fix behavior for prepared statements
 +
 +2008-11-26
-+YK: add switch variable "userstat_running" to control INFORMATION_SCHEMA.*_STATISTICS (default:OFF)
++YK: add switch variable "userstat" to control INFORMATION_SCHEMA.*_STATISTICS (default:OFF)
 +2010-12-31
 +Ported to 5.5.8
 +2011-1-5
@@ -105,7 +105,7 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
 +// Updates the global table stats with the TABLE this handler represents.
 +void handler::update_global_table_stats()
 +{
-+  if (!opt_userstat_running)
++  if (!opt_userstat)
 +  {
 +    rows_read= rows_changed= 0;
 +    return;
@@ -167,7 +167,7 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
 +  if (!table->s || !table->s->table_cache_key.str || !table->s->table_name.str)
 +    return;
 +
-+  if (!opt_userstat_running)
++  if (!opt_userstat)
 +  {
 +    for (uint x= 0; x < table->s->keys; ++x)
 +    {
@@ -492,7 +492,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  uint    opt_debug_sync_timeout= 0;
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
-+my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
++my_bool opt_userstat= 0, opt_thread_statistics= 0;
  my_bool opt_optimizer_fix= 0;
  /*
    True if there is at least one per-hour limit for some user, so we should
@@ -504,7 +504,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  /* flashcache */
  int cachedev_fd;
-@@ -633,7 +635,9 @@
+@@ -631,7 +633,9 @@
    LOCK_crypt,
    LOCK_global_system_variables,
    LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
@@ -515,7 +515,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    The below lock protects access to two global server variables:
    max_prepared_stmt_count and prepared_stmt_count. These variables
-@@ -1493,6 +1497,11 @@
+@@ -1491,6 +1495,11 @@
  #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
    query_response_time_free();
  #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
@@ -527,7 +527,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -1596,6 +1605,10 @@
+@@ -1594,6 +1603,10 @@
    mysql_cond_destroy(&COND_thread_cache);
    mysql_cond_destroy(&COND_flush_thread_cache);
    mysql_cond_destroy(&COND_manager);
@@ -538,7 +538,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  }
  #endif /*EMBEDDED_LIBRARY*/
  
-@@ -3019,6 +3032,7 @@
+@@ -3017,6 +3030,7 @@
    {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
    {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
@@ -546,7 +546,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
    {"show_contributors",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CONTRIBUTORS]), SHOW_LONG_STATUS},
    {"show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
-@@ -3039,6 +3053,7 @@
+@@ -3037,6 +3051,7 @@
  #endif
    {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
    {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
@@ -554,7 +554,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
    {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
    {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
-@@ -3058,10 +3073,13 @@
+@@ -3056,10 +3071,13 @@
    {"show_slave_status_nolock", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_NOLOCK_STAT]), SHOW_LONG_STATUS},
    {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
@@ -568,7 +568,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
    {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
    {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
-@@ -3582,6 +3600,13 @@
+@@ -3580,6 +3598,13 @@
    mysql_mutex_init(key_LOCK_server_started,
                     &LOCK_server_started, MY_MUTEX_INIT_FAST);
    mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
@@ -582,7 +582,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    sp_cache_init();
  #ifdef HAVE_EVENT_SCHEDULER
    Events::init_mutexes();
-@@ -3951,6 +3976,9 @@
+@@ -3949,6 +3974,9 @@
    query_response_time_init();
  #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
    /* We have to initialize the storage engines before CSV logging */
@@ -592,7 +592,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    if (ha_init())
    {
      sql_print_error("Can't init databases");
-@@ -4087,6 +4115,9 @@
+@@ -4085,6 +4113,9 @@
  
    init_max_user_conn();
    init_update_queries();
@@ -602,7 +602,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    DBUG_RETURN(0);
  }
  
-@@ -5118,6 +5149,7 @@
+@@ -5116,6 +5147,7 @@
      {
        sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
      }
@@ -610,7 +610,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      delete thd;
      DBUG_VOID_RETURN;
    }
-@@ -7817,6 +7849,8 @@
+@@ -7815,6 +7847,8 @@
    key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
    key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
    key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
@@ -619,7 +619,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    key_LOCK_gdl, key_LOCK_global_system_variables,
    key_LOCK_manager,
    key_LOCK_prepared_stmt_count,
-@@ -7854,6 +7888,13 @@
+@@ -7852,6 +7886,13 @@
    { &key_LOCK_delayed_insert, "LOCK_delayed_insert", PSI_FLAG_GLOBAL},
    { &key_LOCK_delayed_status, "LOCK_delayed_status", PSI_FLAG_GLOBAL},
    { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
@@ -648,7 +648,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern ulonglong slave_type_conversions_options;
  extern my_bool read_only, opt_readonly;
  extern my_bool lower_case_file_system;
-+extern my_bool opt_userstat_running, opt_thread_statistics;
++extern my_bool opt_userstat, opt_thread_statistics;
  extern my_bool opt_optimizer_fix;
  extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
  extern my_bool opt_secure_auth;
@@ -672,7 +672,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern const char *opt_date_time_formats[];
  extern handlerton *partition_hton;
  extern handlerton *myisam_hton;
-@@ -244,6 +252,8 @@
+@@ -242,6 +250,8 @@
    key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
    key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
    key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
@@ -681,7 +681,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
    key_LOCK_gdl, key_LOCK_global_system_variables,
    key_LOCK_logger, key_LOCK_manager,
    key_LOCK_prepared_stmt_count,
-@@ -340,7 +350,9 @@
+@@ -338,7 +348,9 @@
         LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
         LOCK_slave_list, LOCK_active_mi, LOCK_manager,
         LOCK_global_system_variables, LOCK_user_conn,
@@ -692,7 +692,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern MYSQL_PLUGIN_IMPORT mysql_mutex_t LOCK_thread_count;
  #ifdef HAVE_OPENSSL
  extern mysql_mutex_t LOCK_des_key_file;
-@@ -452,6 +464,16 @@
+@@ -450,6 +462,16 @@
    return id;
  }
  
@@ -795,7 +795,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 +// Updates 'diff' stats of a THD.
 +void THD::update_stats(bool ran_command)
 +{
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +  diff_total_busy_time+=            busy_time;
 +  diff_total_cpu_time+=             cpu_time;
@@ -921,7 +921,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h	2010-12-03 20:58:26.000000000 +0300
 +++ b/sql/sql_class.h	2010-12-31 05:15:57.000000000 +0300
-@@ -1610,6 +1610,8 @@
+@@ -1609,6 +1609,8 @@
    */
    enum enum_server_command command;
    uint32     server_id;
@@ -930,7 +930,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    uint32     file_id;			// for LOAD DATA INFILE
    /* remote (peer) port */
    uint16 peer_port;
-@@ -2081,6 +2083,8 @@
+@@ -2080,6 +2082,8 @@
    */
    enum_tx_isolation tx_isolation;
    enum_check_fields count_cuted_fields;
@@ -939,7 +939,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  
    DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
    MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
-@@ -2176,6 +2180,49 @@
+@@ -2175,6 +2179,49 @@
    */
    LOG_INFO*  current_linfo;
    NET*       slave_net;			// network connection from slave -> m.
@@ -989,7 +989,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    /* Used by the sys_var class to store temporary values */
    union
    {
-@@ -2256,6 +2303,11 @@
+@@ -2255,6 +2302,11 @@
      alloc_root. 
    */
    void init_for_queries();
@@ -1001,7 +1001,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    void change_user(void);
    void cleanup(void);
    void cleanup_after_query();
-@@ -2727,6 +2779,15 @@
+@@ -2726,6 +2778,15 @@
    }
    thd_scheduler scheduler;
  
@@ -1017,7 +1017,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  public:
    inline Internal_error_handler *get_internal_handler()
    { return m_internal_handler; }
-@@ -2914,6 +2975,10 @@
+@@ -2913,6 +2974,10 @@
    LEX_STRING invoker_host;
  };
  
@@ -1475,7 +1475,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 +  const char* client_string= get_client_host(thd);
 +  int return_value=          0;
 +
-+  if (!opt_userstat_running)
++  if (!opt_userstat)
 +    return return_value;
 +
 +  if (use_lock)
@@ -1563,7 +1563,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 +// Updates the global stats of a user or client
 +void update_global_user_stats(THD* thd, bool create_user, time_t now)
 +{
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +    char* user_string=         get_valid_user_string(thd->main_security_ctx.user);
 +    const char* client_string= get_client_host(thd);
@@ -1883,7 +1883,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +  double start_cpu_nsecs= 0;
 +  double end_cpu_nsecs=   0;
 +
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +#ifdef HAVE_CLOCK_GETTIME
 +    /* get start cputime */
@@ -1905,7 +1905,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      DBUG_ASSERT(thd->change_list.is_empty());
    }
  
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +    // Gets the end time.
 +    if (!(end_time_error= gettimeofday(&end_time, NULL)))
@@ -1982,7 +1982,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double start_cpu_nsecs= 0;
 +  double end_cpu_nsecs=   0;
 +
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +#ifdef HAVE_CLOCK_GETTIME
 +    /* get start cputime */
@@ -2017,7 +2017,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  
    /* check_prepared_statemnt sends the metadata packet in case of success */
 +end:
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +    // Gets the end time.
 +    if (!(end_time_error= gettimeofday(&end_time, NULL)))
@@ -2081,7 +2081,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double start_cpu_nsecs= 0;
 +  double end_cpu_nsecs=   0;
 +
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +#ifdef HAVE_CLOCK_GETTIME
 +    /* get start cputime */
@@ -2111,7 +2111,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
  
 +end:
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +    // Gets the end time.
 +    if (!(end_time_error= gettimeofday(&end_time, NULL)))
@@ -2176,7 +2176,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double start_cpu_nsecs= 0;
 +  double end_cpu_nsecs=   0;
 +
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +#ifdef HAVE_CLOCK_GETTIME
 +    /* get start cputime */
@@ -2215,7 +2215,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    thd->stmt_arena= thd;
  
 +end:
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +    // Gets the end time.
 +    if (!(end_time_error = gettimeofday(&end_time, NULL)))
@@ -2278,7 +2278,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
 +  double start_cpu_nsecs= 0;
 +  double end_cpu_nsecs=   0;
 +
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +#ifdef HAVE_CLOCK_GETTIME
 +    /* get start cputime */
@@ -2309,7 +2309,7 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    my_ok(thd);
  
 +end:
-+  if (opt_userstat_running)
++  if (opt_userstat)
 +  {
 +    // Gets the end time.
 +    if (!(end_time_error = gettimeofday(&end_time, NULL)))
@@ -3244,19 +3244,19 @@ diff -ruN a/sql/structs.h b/sql/structs.h
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-03 20:58:26.000000000 +0300
 +++ b/sql/sys_vars.cc	2010-12-30 02:22:25.000000000 +0300
-@@ -1563,6 +1563,17 @@
+@@ -1554,6 +1554,17 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
  
-+static Sys_var_mybool Sys_userstat_running(
-+       "userstat_running",
++static Sys_var_mybool Sys_userstat(
++       "userstat",
 +       "Control USER_STATISTICS, CLIENT_STATISTICS, THREAD_STATISTICS, "
 +       "INDEX_STATISTICS and TABLE_STATISTICS running",
-+       GLOBAL_VAR(opt_userstat_running), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
++       GLOBAL_VAR(opt_userstat), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 +
 +static Sys_var_mybool Sys_thread_statistics(
 +       "thread_statistics",
-+       "Control TABLE_STATISTICS running, when userstat_running is enabled",
++       "Control TABLE_STATISTICS running, when userstat is enabled",
 +       GLOBAL_VAR(opt_thread_statistics), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 +
  // Small lower limit to be able to test MRR

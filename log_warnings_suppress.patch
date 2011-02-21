@@ -1,22 +1,23 @@
-# name       : log_warnings_silence.patch
+# name       : log_warnings_suppress.patch
 # introduced : 11 or before
 # maintainer : Oleg
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/log_warnings_silence.patch b/patch_info/log_warnings_silence.patch
---- a/patch_info/log_warnings_silence.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/log_warnings_silence.patch	2011-01-05 20:35:46.000000000 +0300
+diff -ruN a/patch_info/log_warnings_suppress.patch b/patch_info/log_warnings_suppress.patch
+--- a/patch_info/log_warnings_suppress.patch	1970-01-01 03:00:00.000000000 +0300
++++ b/patch_info/log_warnings_suppress.patch	2011-01-05 20:35:46.000000000 +0300
 @@ -0,0 +1,8 @@
-+File=log_warnings_silence.patch
++File=log_warnings_suppress.patch
 +Name=Disable log warnings for enumerated warnings (old name:suppress_log_warning_1592.patch)
 +Version=1.0
 +Author=Percona <info@percona.com>
 +License=GPL
 +Comment=
 +Changelog
-+2011-01-05 rename patch suppress_log_warning_1592.patch to log_warnings_silence/patch. Also remove boolean system variable "suppress_log_warning_1592" and add set varbile "log_warnings_silence" (possible values: 1592)
++2011-01-05 rename patch suppress_log_warning_1592.patch to log_warnings_silence.patch. Also remove boolean system variable "suppress_log_warning_1592" and add set varbile "log_warnings_silence" (possible values: 1592)
++2011-02-21 rename patch log_warning_silence.patch to log_warnings_suppress.patch. Also rename variable "log_warning_silence" to "log_warning_suppress".
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/mysqld.cc	2011-01-05 20:32:34.000000000 +0300
@@ -24,7 +25,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
  
-+ulonglong opt_log_warnings_silence= 0;
++ulonglong opt_log_warnings_suppress= 0;
 +
  /* Thread specific variables */
  
@@ -36,7 +37,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern TYPELIB thread_handling_typelib;
  extern my_decimal decimal_zero;
  
-+extern ulonglong opt_log_warnings_silence;
++extern ulonglong opt_log_warnings_suppress;
 +
  extern pthread_key(MEM_ROOT**,THR_MALLOC);
  
@@ -49,7 +50,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
 -      if (global_system_variables.log_warnings)
-+      if (global_system_variables.log_warnings && ((opt_log_warnings_silence & (ULL(1) << log_warnings_silence_1592)) == 0))
++      if (global_system_variables.log_warnings && ((opt_log_warnings_suppress & (ULL(1) << log_warnings_suppress_1592)) == 0))
        {
          char buf[MYSQL_ERRMSG_SIZE * 2];
          sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
@@ -60,7 +61,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
    SLOG_F_FILESORT_DISK
  };
-+enum enum_log_warnings_silence { log_warnings_silence_1592 };
++enum enum_log_warnings_suppress { log_warnings_suppress_1592 };
  enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                              SLAVE_EXEC_MODE_IDEMPOTENT,
                              SLAVE_EXEC_MODE_LAST_BIT};
@@ -71,14 +72,14 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
         READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
         VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
  
-+const char *log_warnings_silence_name[]= { "1592" };
-+static Sys_var_set Sys_log_warnings_silence(
-+       "log_warnings_silence",
++const char *log_warnings_suppress_name[]= { "1592" };
++static Sys_var_set Sys_log_warnings_suppress(
++       "log_warnings_suppress",
 +       "disable logging of enumerated warnings: "
 +       "1592: unsafe statements for binary logging; "
 +       "possible values : [1592]",
-+       GLOBAL_VAR(opt_log_warnings_silence), CMD_LINE(REQUIRED_ARG),
-+       log_warnings_silence_name, DEFAULT(0));
++       GLOBAL_VAR(opt_log_warnings_suppress), CMD_LINE(REQUIRED_ARG),
++       log_warnings_suppress_name, DEFAULT(0));
 +
  static Sys_var_ulong Sys_preload_buff_size(
         "preload_buffer_size",

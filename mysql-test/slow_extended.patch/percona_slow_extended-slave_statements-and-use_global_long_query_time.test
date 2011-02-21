@@ -39,11 +39,11 @@ sync_slave_with_master;
 connection slave;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 set global long_query_time=0;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 
 connection master;
 INSERT INTO t VALUES (4);
@@ -52,11 +52,11 @@ sync_slave_with_master;
 connection slave;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_log_slow_control';
-set global use_global_log_slow_control='long_query_time';
+show global variables like 'slow_query_log_use_global_control';
+set global slow_query_log_use_global_control='long_query_time';
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 
 #-- echo # Make insert(5) on master
 connection master;
@@ -65,9 +65,9 @@ sync_slave_with_master;
 connection slave;
 show        variables like 'long_query_time';
 show global variables like 'long_query_time';
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 set global long_query_time=1;
-set global use_global_log_slow_control='';
+set global slow_query_log_use_global_control='';
 
 connection master;
 FLUSH LOGS;

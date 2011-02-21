@@ -25,9 +25,9 @@ long_query_time	1.000000
 show global variables like 'long_query_time';
 Variable_name	Value
 long_query_time	1.000000
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	
+slow_query_log_use_global_control	
 set global long_query_time=0;
 show        variables like 'long_query_time';
 Variable_name	Value
@@ -35,9 +35,9 @@ long_query_time	1.000000
 show global variables like 'long_query_time';
 Variable_name	Value
 long_query_time	0.000000
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	
+slow_query_log_use_global_control	
 INSERT INTO t VALUES (4);
 show        variables like 'long_query_time';
 Variable_name	Value
@@ -45,19 +45,19 @@ long_query_time	1.000000
 show global variables like 'long_query_time';
 Variable_name	Value
 long_query_time	0.000000
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	
-set global use_global_log_slow_control='long_query_time';
+slow_query_log_use_global_control	
+set global slow_query_log_use_global_control='long_query_time';
 show        variables like 'long_query_time';
 Variable_name	Value
 long_query_time	0.000000
 show global variables like 'long_query_time';
 Variable_name	Value
 long_query_time	0.000000
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	long_query_time
+slow_query_log_use_global_control	long_query_time
 INSERT INTO t VALUES (5);
 show        variables like 'long_query_time';
 Variable_name	Value
@@ -65,11 +65,11 @@ long_query_time	0.000000
 show global variables like 'long_query_time';
 Variable_name	Value
 long_query_time	0.000000
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	long_query_time
+slow_query_log_use_global_control	long_query_time
 set global long_query_time=1;
-set global use_global_log_slow_control='';
+set global slow_query_log_use_global_control='';
 FLUSH LOGS;
 # Analyse master slow_query_log
 0

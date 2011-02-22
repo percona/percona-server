@@ -12,7 +12,7 @@ CXXFLAGS=-fno-exceptions  -fPIC -Wall -Wno-unused-parameter -fno-implicit-templa
 CFLAGS_RELEASE=$(CFLAGS) -DDBUG_OFF -DMY_PTHREAD_FASTMUTEX=1
 CXXFLAGS_RELEASE=$(CXXFLAGS) -DDBUG_OFF -DMY_PTHREAD_FASTMUTEX=1
 
-CMAKE=CC=gcc44 CXX=gcc44 cmake $(ADDITIONAL)
+CMAKE=CC=gcc CXX=gcc cmake $(ADDITIONAL)
 ADDITIONAL ?=
 CONFIGURE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"  LIBS=-lrt ./configure --prefix=/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION) --with-plugin-innobase --with-plugin-partition
 

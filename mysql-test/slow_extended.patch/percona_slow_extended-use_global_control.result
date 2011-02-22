@@ -2,11 +2,11 @@ SELECT sleep(2);
 sleep(2)
 0
 set global log_slow_verbosity=innodb;
-set global use_global_log_slow_control="log_slow_verbosity,long_query_time";
+set global slow_query_log_use_global_control="log_slow_verbosity,long_query_time";
 SELECT sleep(2);
 sleep(2)
 0
-set global use_global_log_slow_control='';
+set global slow_query_log_use_global_control='';
 set global log_slow_verbosity='';
 FLUSH LOGS;
 1

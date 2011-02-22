@@ -1,11 +1,11 @@
 SELECT sleep(2);
 sleep(2)
 0
-set global slow_query_log_microseconds_timestamp=ON;
+set global slow_query_log_timestamp_precision='microsecond';
 SELECT sleep(2);
 sleep(2)
 0
-set global slow_query_log_microseconds_timestamp=OFF;
+set global slow_query_log_timestamp_precision='second';
 FLUSH LOGS;
 1
 2

@@ -39,7 +39,7 @@ error_pad.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
 show_slave_status_nolock.patch
-log_warnings_silence.patch
+log_warnings_suppress.patch
 userstat.patch
 bug580324.patch
 mysql_remove_eol_carret.patch

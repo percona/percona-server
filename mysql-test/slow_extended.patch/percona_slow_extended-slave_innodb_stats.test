@@ -46,3 +46,6 @@ FLUSH LOGS;
 --let grep_file = $MYSQLTEST_VARDIR/mysqld.2/mysqld-slow.log
 --let grep_pattern =  InnoDB_IO_r_ops
 --source include/grep.inc
+
+STOP SLAVE;
+-- source include/wait_for_slave_to_stop.inc

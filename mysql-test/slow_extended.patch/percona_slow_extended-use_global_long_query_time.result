@@ -8,7 +8,7 @@ SELECT sleep(5);
 sleep(5)
 0
 set global long_query_time=4;
-set global use_global_log_slow_control='long_query_time';
+set global slow_query_log_use_global_control='long_query_time';
 SELECT sleep(1);
 sleep(1)
 0
@@ -19,26 +19,26 @@ SELECT sleep(5);
 sleep(5)
 0
 set global long_query_time=2;
-set global use_global_log_slow_control='';
+set global slow_query_log_use_global_control='';
 FLUSH LOGS;
 3
-show global variables like 'use_global_log_slow_control';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	
-set global use_global_log_slow_control='long_query_time';
-show global variables like 'use_global_log_slow_control';
+slow_query_log_use_global_control	
+set global slow_query_log_use_global_control='long_query_time';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	long_query_time
-set global use_global_log_slow_control='log_slow_filter,long_query_time';
-show global variables like 'use_global_log_slow_control';
+slow_query_log_use_global_control	long_query_time
+set global slow_query_log_use_global_control='log_slow_filter,long_query_time';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	log_slow_filter,long_query_time
-set global use_global_log_slow_control='log_slow_filter';
-show global variables like 'use_global_log_slow_control';
+slow_query_log_use_global_control	log_slow_filter,long_query_time
+set global slow_query_log_use_global_control='log_slow_filter';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	log_slow_filter
-set global use_global_log_slow_control='';
-show global variables like 'use_global_log_slow_control';
+slow_query_log_use_global_control	log_slow_filter
+set global slow_query_log_use_global_control='';
+show global variables like 'slow_query_log_use_global_control';
 Variable_name	Value
-use_global_log_slow_control	
-set global use_global_log_slow_control='long_query_time';
+slow_query_log_use_global_control	
+set global slow_query_log_use_global_control='long_query_time';

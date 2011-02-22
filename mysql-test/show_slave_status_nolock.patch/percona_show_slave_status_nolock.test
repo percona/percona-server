@@ -1,6 +1,8 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
-
+--disable_query_log
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement:");
+--enable_query_log
 connection master;
   --disable_warnings
   DROP TABLE IF EXISTS t;
@@ -45,3 +47,6 @@ connection slave;
 connection master;
   DROP TABLE t;
 sync_slave_with_master;
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
+ 

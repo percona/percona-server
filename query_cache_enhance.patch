@@ -464,7 +464,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  
  class Reprepare_observer;
  class Relay_log_info;
-@@ -758,6 +761,9 @@
+@@ -765,6 +768,9 @@
      statement lifetime. FIXME: must be const
    */
     ulong id;

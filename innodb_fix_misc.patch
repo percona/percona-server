@@ -4,7 +4,7 @@
 #
 # Bug fix for
 # http://bugs.mysql.com/56433 (always: because good for all users, and safe)
-# and http://bugs.mysql.com/51325 (optional: innodb_soft_delete_tablespace)
+# and http://bugs.mysql.com/51325 (optional: innodb_lazy_drop_table)
 # were added. They may be removed in the future when will be fixed officially.
 #
 #!!! notice !!!
@@ -108,7 +108,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->open);
 -	ut_a(node->n_pending == 0);
-+	ut_a(node->n_pending == 0 || srv_soft_delete_tablespace);
++	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
  	ut_a(node->n_pending_flushes == 0);
  	ut_a(node->modification_counter == node->flush_counter);
  
@@ -117,7 +117,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 -	ut_a(node->n_pending == 0);
-+	ut_a(node->n_pending == 0 || srv_soft_delete_tablespace);
++	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
  
  	if (node->open) {
  		/* We fool the assertion in fil_node_close_file() to think
@@ -133,7 +133,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	completely and permanently. The flag is_being_deleted also prevents
  	fil_flush() from being applied to this tablespace. */
  
-+	if (srv_soft_delete_tablespace) {
++	if (srv_lazy_drop_table) {
 +		buf_LRU_mark_space_was_deleted(id);
 +	} else {
  	buf_LRU_invalidate_tablespace(id);
@@ -286,7 +286,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    "except for the deletion.",
    NULL, NULL, 0, 0, 1, 0);
  
-+static MYSQL_SYSVAR_ULONG(soft_delete_tablespace, srv_soft_delete_tablespace,
++static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
 +  PLUGIN_VAR_RQCMDARG,
 +  "At deleting tablespace, only miminum needed processes at the time are done. "
 +  "e.g. for http://bugs.mysql.com/51325",
@@ -299,7 +299,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
    MYSQL_SYSVAR(pass_corrupt_table),
-+  MYSQL_SYSVAR(soft_delete_tablespace),
++  MYSQL_SYSVAR(lazy_drop_table),
    NULL
  };
  
@@ -390,7 +390,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
 +
-+extern ulint	srv_soft_delete_tablespace;
++extern ulint	srv_lazy_drop_table;
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
@@ -608,7 +608,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
 +
-+UNIV_INTERN ulint	srv_soft_delete_tablespace = 0;
++UNIV_INTERN ulint	srv_lazy_drop_table = 0;
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;

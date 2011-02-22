@@ -772,50 +772,17 @@ diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_v
 +THREAD_STATISTICS
  drop table t1;
  drop table t2;
-diff -ruN a/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_basic.result b/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_basic.result
---- a/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_basic.result	2010-11-03 07:01:13.000000000 +0900
-+++ b/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_basic.result	2010-12-10 16:48:11.031065741 +0900
-@@ -1,28 +1,28 @@
- SET @start_global_value = @@global.innodb_adaptive_flushing;
- SELECT @start_global_value;
- @start_global_value
--1
-+0
- Valid values are 'ON' and 'OFF' 
- select @@global.innodb_adaptive_flushing in (0, 1);
- @@global.innodb_adaptive_flushing in (0, 1)
+diff -ruN a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result
+--- a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-01-20 07:37:09.000000000 +0900
++++ b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-02-22 19:02:33.970779775 +0900
+@@ -10,7 +10,6 @@
  1
- select @@global.innodb_adaptive_flushing;
- @@global.innodb_adaptive_flushing
--1
-+0
- select @@session.innodb_adaptive_flushing;
- ERROR HY000: Variable 'innodb_adaptive_flushing' is a GLOBAL variable
- show global variables like 'innodb_adaptive_flushing';
- Variable_name	Value
--innodb_adaptive_flushing	ON
-+innodb_adaptive_flushing	OFF
- show session variables like 'innodb_adaptive_flushing';
- Variable_name	Value
--innodb_adaptive_flushing	ON
-+innodb_adaptive_flushing	OFF
- select * from information_schema.global_variables where variable_name='innodb_adaptive_flushing';
- VARIABLE_NAME	VARIABLE_VALUE
--INNODB_ADAPTIVE_FLUSHING	ON
-+INNODB_ADAPTIVE_FLUSHING	OFF
- select * from information_schema.session_variables where variable_name='innodb_adaptive_flushing';
- VARIABLE_NAME	VARIABLE_VALUE
--INNODB_ADAPTIVE_FLUSHING	ON
-+INNODB_ADAPTIVE_FLUSHING	OFF
- set global innodb_adaptive_flushing='OFF';
- select @@global.innodb_adaptive_flushing;
- @@global.innodb_adaptive_flushing
-@@ -89,4 +89,4 @@
- SET @@global.innodb_adaptive_flushing = @start_global_value;
- SELECT @@global.innodb_adaptive_flushing;
- @@global.innodb_adaptive_flushing
--1
-+0
+ '#---------------------FN_DYNVARS_046_02-------------------------#'
+ SET innodb_flush_log_at_trx_commit = 1;
+-ERROR HY000: Variable 'innodb_flush_log_at_trx_commit' is a GLOBAL variable and should be set with SET GLOBAL
+ SELECT @@innodb_flush_log_at_trx_commit;
+ @@innodb_flush_log_at_trx_commit
+ 1
 diff -ruN a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result b/mysql-test/suite/sys_vars/r/plugin_dir_basic.result
 --- a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2010-11-03 07:01:13.000000000 +0900
 +++ b/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2010-12-10 16:48:11.033057415 +0900
@@ -845,6 +812,18 @@ diff -ruN a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result b/mysql-test/sui
  set global plugin_dir=1;
  ERROR HY000: Variable 'plugin_dir' is a read only variable
  set session plugin_dir=1;
+diff -ruN a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test
+--- a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-01-20 07:37:09.000000000 +0900
++++ b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-02-22 19:03:02.490792783 +0900
+@@ -56,7 +56,7 @@
+ # Check if variable can be accessed with and without @@ sign                  #
+ ###############################################################################
+ 
+---Error ER_GLOBAL_VARIABLE
++#--Error ER_GLOBAL_VARIABLE
+ SET innodb_flush_log_at_trx_commit = 1;
+ SELECT @@innodb_flush_log_at_trx_commit;
+ 
 diff -ruN a/mysql-test/t/connect.test b/mysql-test/t/connect.test
 --- a/mysql-test/t/connect.test	2010-11-03 07:01:12.000000000 +0900
 +++ b/mysql-test/t/connect.test	2010-12-10 16:48:11.034065111 +0900

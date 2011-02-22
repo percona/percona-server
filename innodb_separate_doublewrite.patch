@@ -658,7 +658,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 +
 +			if (*create_new_db == FALSE) {
 +				fprintf(stderr,
-+					"InnoDB: Warning: Previous version's ibdata files may cause crash.\n"
++					"InnoDB: Notice: Previous version's ibdata files may cause crash.\n"
 +					"        If you use that, please use the ibdata files of this version.\n");
 +			}
 +

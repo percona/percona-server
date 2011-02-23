@@ -2,12 +2,106 @@
 # introduced : 11 or before
 # maintainer : Yasufumi
 #
+# Bug fix for
+# http://bugs.mysql.com/56433 (always: because good for all users, and safe)
+# and http://bugs.mysql.com/51325 (optional: innodb_lazy_drop_table)
+# were added. They may be removed in the future when will be fixed officially.
+#
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 #
 # comment: http://lists.mysql.com/commits/112400 is applied also for innodb_plugin
 #          to pass innodb_bug53756.test by innodb_plugin
+diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
+--- a/storage/innobase/buf/buf0buf.c	2011-02-23 19:00:48.178696354 +0900
++++ b/storage/innobase/buf/buf0buf.c	2011-02-23 19:01:19.138826278 +0900
+@@ -4043,6 +4043,7 @@
+ 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
+ 		bpage->space	= space;
+ 		bpage->offset	= offset;
++		bpage->space_was_being_deleted = FALSE;
+ 
+ 
+ #ifdef UNIV_DEBUG
+diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
+--- a/storage/innobase/buf/buf0flu.c	2011-02-23 19:00:48.182659256 +0900
++++ b/storage/innobase/buf/buf0flu.c	2011-02-23 19:01:19.138826278 +0900
+@@ -439,7 +439,7 @@
+ 
+ 	if (UNIV_LIKELY(bpage->in_LRU_list && buf_page_in_file(bpage))) {
+ 
+-		return(bpage->oldest_modification == 0
++		return((bpage->oldest_modification == 0 || bpage->space_was_being_deleted)
+ 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
+ 		       && bpage->buf_fix_count == 0);
+ 	}
+@@ -481,6 +481,13 @@
+ 	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
+ 		ut_ad(bpage->in_flush_list);
+ 
++		if (bpage->space_was_being_deleted) {
++			/* should be removed from flush_list here */
++			/* because buf_flush_try_neighbors() cannot flush without fil_space_get_size(space) */
++			buf_flush_remove(bpage);
++			return(FALSE);
++		}
++
+ 		if (flush_type != BUF_FLUSH_LRU) {
+ 
+ 			return(TRUE);
+diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
+--- a/storage/innobase/buf/buf0lru.c	2011-02-23 19:00:47.939695791 +0900
++++ b/storage/innobase/buf/buf0lru.c	2011-02-23 19:01:19.142741970 +0900
+@@ -554,6 +554,37 @@
+ 	}
+ }
+ 
++/******************************************************************//**
++*/
++UNIV_INTERN
++void
++buf_LRU_mark_space_was_deleted(
++/*===========================*/
++	ulint	id)	/*!< in: space id */
++{
++	ulint	i;
++
++	for (i = 0; i < srv_buf_pool_instances; i++) {
++		buf_pool_t*	buf_pool;
++		buf_page_t*	bpage;
++
++		buf_pool = buf_pool_from_array(i);
++
++		mutex_enter(&buf_pool->LRU_list_mutex);
++
++		bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
++
++		while (bpage != NULL) {
++			if (buf_page_get_space(bpage) == id) {
++				bpage->space_was_being_deleted = TRUE;
++			}
++			bpage = UT_LIST_GET_NEXT(LRU, bpage);
++		}
++
++		mutex_exit(&buf_pool->LRU_list_mutex);
++	}
++}
++
+ /********************************************************************//**
+ Insert a compressed block into buf_pool->zip_clean in the LRU order. */
+ UNIV_INTERN
+@@ -1568,6 +1599,10 @@
+ 		return(BUF_LRU_NOT_FREED);
+ 	}
+ 
++	if (bpage->space_was_being_deleted && bpage->oldest_modification != 0) {
++		buf_flush_remove(bpage);
++	}
++
+ #ifdef UNIV_IBUF_COUNT_DEBUG
+ 	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
+ #endif /* UNIV_IBUF_COUNT_DEBUG */
 diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
 --- a/storage/innobase/dict/dict0load.c	2010-12-04 15:37:50.559480289 +0900
 +++ b/storage/innobase/dict/dict0load.c	2010-12-04 15:57:53.078513745 +0900
@@ -68,10 +162,223 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	btr_pcur_close(&pcur);
  	mtr_commit(&mtr);
  	mem_heap_free(heap);
+diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
+--- a/storage/innobase/fil/fil0fil.c	2011-02-23 19:00:48.223696428 +0900
++++ b/storage/innobase/fil/fil0fil.c	2011-02-23 19:01:19.147655510 +0900
+@@ -252,6 +252,7 @@
+ struct fil_system_struct {
+ #ifndef UNIV_HOTBACKUP
+ 	mutex_t		mutex;		/*!< The mutex protecting the cache */
++	mutex_t		file_extend_mutex;
+ #endif /* !UNIV_HOTBACKUP */
+ 	hash_table_t*	spaces;		/*!< The hash table of spaces in the
+ 					system; they are hashed on the space
+@@ -861,7 +862,7 @@
+ 	ut_ad(node && system);
+ 	ut_ad(mutex_own(&(system->mutex)));
+ 	ut_a(node->open);
+-	ut_a(node->n_pending == 0);
++	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
+ 	ut_a(node->n_pending_flushes == 0);
+ 	ut_a(node->modification_counter == node->flush_counter);
+ 
+@@ -1073,7 +1074,7 @@
+ 	ut_ad(node && system && space);
+ 	ut_ad(mutex_own(&(system->mutex)));
+ 	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
+-	ut_a(node->n_pending == 0);
++	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
+ 
+ 	if (node->open) {
+ 		/* We fool the assertion in fil_node_close_file() to think
+@@ -1595,6 +1596,8 @@
+ 
+ 	mutex_create(fil_system_mutex_key,
+ 		     &fil_system->mutex, SYNC_ANY_LATCH);
++	mutex_create(fil_system_mutex_key,
++		     &fil_system->file_extend_mutex, SYNC_OUTER_ANY_LATCH);
+ 
+ 	fil_system->spaces = hash_create(hash_size);
+ 	fil_system->name_hash = hash_create(hash_size);
+@@ -2341,7 +2344,11 @@
+ 	completely and permanently. The flag is_being_deleted also prevents
+ 	fil_flush() from being applied to this tablespace. */
+ 
++	if (srv_lazy_drop_table) {
++		buf_LRU_mark_space_was_deleted(id);
++	} else {
+ 	buf_LRU_invalidate_tablespace(id);
++	}
+ #endif
+ 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
+ 
+@@ -4400,6 +4407,10 @@
+ 	ulint		page_size;
+ 	ibool		success		= TRUE;
+ 
++	/* file_extend_mutex is for http://bugs.mysql.com/56433 */
++	/* to protect from the other fil_extend_space_to_desired_size() */
++	/* during temprary releasing &fil_system->mutex */
++	mutex_enter(&fil_system->file_extend_mutex);
+ 	fil_mutex_enter_and_prepare_for_io(space_id);
+ 
+ 	space = fil_space_get_by_id(space_id);
+@@ -4411,6 +4422,7 @@
+ 		*actual_size = space->size;
+ 
+ 		mutex_exit(&fil_system->mutex);
++		mutex_exit(&fil_system->file_extend_mutex);
+ 
+ 		return(TRUE);
+ 	}
+@@ -4443,6 +4455,8 @@
+ 		offset_low  = ((start_page_no - file_start_page_no)
+ 			       % (4096 * ((1024 * 1024) / page_size)))
+ 			* page_size;
++
++		mutex_exit(&fil_system->mutex);
+ #ifdef UNIV_HOTBACKUP
+ 		success = os_file_write(node->name, node->handle, buf,
+ 					offset_low, offset_high,
+@@ -4452,8 +4466,10 @@
+ 				 node->name, node->handle, buf,
+ 				 offset_low, offset_high,
+ 				 page_size * n_pages,
+-				 NULL, NULL, NULL);
++				 NULL, NULL, space_id, NULL);
+ #endif
++		mutex_enter(&fil_system->mutex);
++
+ 		if (success) {
+ 			node->size += n_pages;
+ 			space->size += n_pages;
+@@ -4499,6 +4515,7 @@
+ 	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
+ 	size_after_extend, *actual_size); */
+ 	mutex_exit(&fil_system->mutex);
++	mutex_exit(&fil_system->file_extend_mutex);
+ 
+ 	fil_flush(space_id);
+ 
+@@ -4863,6 +4880,22 @@
+ 		srv_data_written+= len;
+ 	}
+ 
++	/* if the table space was already deleted, space might not exist already. */
++	if (message
++	    && space_id < SRV_LOG_SPACE_FIRST_ID
++	    && ((buf_page_t*)message)->space_was_being_deleted) {
++
++		if (mode == OS_AIO_NORMAL) {
++			buf_page_io_complete(message, trx);
++			return(DB_SUCCESS); /*fake*/
++		}
++		if (type == OS_FILE_READ) {
++			return(DB_TABLESPACE_DELETED);
++		} else {
++			return(DB_SUCCESS); /*fake*/
++		}
++	}
++
+ 	/* Reserve the fil_system mutex and make sure that we can open at
+ 	least one file while holding it, if the file is not already open */
+ 
+@@ -4992,10 +5025,24 @@
+ #else
+ 	/* Queue the aio request */
+ 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
+-		     offset_low, offset_high, len, node, message, trx);
++		     offset_low, offset_high, len, node, message, space_id, trx);
+ #endif
+ 	} /**/
+ 
++	/* if the table space was already deleted, space might not exist already. */
++	if (message
++	    && space_id < SRV_LOG_SPACE_FIRST_ID
++	    && ((buf_page_t*)message)->space_was_being_deleted) {
++
++		if (mode == OS_AIO_SYNC) {
++			if (type == OS_FILE_READ) {
++				return(DB_TABLESPACE_DELETED);
++			} else {
++				return(DB_SUCCESS); /*fake*/
++			}
++		}
++	}
++
+ 	ut_a(ret);
+ 
+ 	if (mode == OS_AIO_SYNC) {
+@@ -5095,6 +5142,7 @@
+ 	fil_node_t*	fil_node;
+ 	void*		message;
+ 	ulint		type;
++	ulint		space_id = 0;
+ 
+ 	ut_ad(fil_validate_skip());
+ 
+@@ -5102,10 +5150,10 @@
+ 		srv_set_io_thread_op_info(segment, "native aio handle");
+ #ifdef WIN_ASYNC_IO
+ 		ret = os_aio_windows_handle(segment, 0, &fil_node,
+-					    &message, &type);
++					    &message, &type, &space_id);
+ #elif defined(LINUX_NATIVE_AIO)
+ 		ret = os_aio_linux_handle(segment, &fil_node,
+-					  &message, &type);
++					  &message, &type, &space_id);
+ #else
+ 		ret = 0; /* Eliminate compiler warning */
+ 		ut_error;
+@@ -5114,7 +5162,22 @@
+ 		srv_set_io_thread_op_info(segment, "simulated aio handle");
+ 
+ 		ret = os_aio_simulated_handle(segment, &fil_node,
+-					      &message, &type);
++					      &message, &type, &space_id);
++	}
++
++	/* if the table space was already deleted, fil_node might not exist already. */
++	if (message
++	    && space_id < SRV_LOG_SPACE_FIRST_ID
++	    && ((buf_page_t*)message)->space_was_being_deleted) {
++
++		/* intended not to be uncompress read page */
++		ut_a(buf_page_get_io_fix(message) == BUF_IO_WRITE
++		     || !buf_page_get_zip_size(message)
++		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
++
++		srv_set_io_thread_op_info(segment, "complete io for buf page");
++		buf_page_io_complete(message, NULL);
++		return;
+ 	}
+ 
+ 	ut_a(ret);
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -12007,7 +12007,7 @@
+@@ -11908,6 +11908,12 @@
+   "except for the deletion.",
+   NULL, NULL, 0, 0, 1, 0);
+ 
++static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
++  PLUGIN_VAR_RQCMDARG,
++  "At deleting tablespace, only miminum needed processes at the time are done. "
++  "e.g. for http://bugs.mysql.com/51325",
++  NULL, NULL, 0, 0, 1, 0);
++
+ static struct st_mysql_sys_var* innobase_system_variables[]= {
+   MYSQL_SYSVAR(page_size),
+   MYSQL_SYSVAR(log_block_size),
+@@ -11998,6 +12004,7 @@
+   MYSQL_SYSVAR(purge_threads),
+   MYSQL_SYSVAR(purge_batch_size),
+   MYSQL_SYSVAR(pass_corrupt_table),
++  MYSQL_SYSVAR(lazy_drop_table),
+   NULL
+ };
+ 
+@@ -12007,7 +12014,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -80,6 +387,161 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    PLUGIN_LICENSE_GPL,
    innobase_init, /* Plugin Init */
    NULL, /* Plugin Deinit */
+diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
+--- a/storage/innobase/include/buf0buf.h	2011-02-23 19:00:48.252696774 +0900
++++ b/storage/innobase/include/buf0buf.h	2011-02-23 19:01:19.182655902 +0900
+@@ -1437,6 +1437,7 @@
+ 					0 if the block was never accessed
+ 					in the buffer pool */
+ 	/* @} */
++	ibool		space_was_being_deleted;
+ 	ibool		is_corrupt;
+ # ifdef UNIV_DEBUG_FILE_ACCESSES
+ 	ibool		file_page_was_freed;
+diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0buf.ic
+--- a/storage/innobase/include/buf0buf.ic	2011-02-23 19:00:48.130659154 +0900
++++ b/storage/innobase/include/buf0buf.ic	2011-02-23 19:01:19.185655906 +0900
+@@ -406,6 +406,7 @@
+ 	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
+ 	block->page.space = space;
+ 	block->page.offset = page_no;
++	block->page.space_was_being_deleted = FALSE;
+ }
+ 
+ /*********************************************************************//**
+diff -ruN a/storage/innobase/include/buf0lru.h b/storage/innobase/include/buf0lru.h
+--- a/storage/innobase/include/buf0lru.h	2011-02-23 19:00:47.977658923 +0900
++++ b/storage/innobase/include/buf0lru.h	2011-02-23 19:01:19.188625768 +0900
+@@ -85,6 +85,13 @@
+ buf_LRU_invalidate_tablespace(
+ /*==========================*/
+ 	ulint	id);	/*!< in: space id */
++/******************************************************************//**
++*/
++UNIV_INTERN
++void
++buf_LRU_mark_space_was_deleted(
++/*===========================*/
++	ulint	id);	/*!< in: space id */
+ /********************************************************************//**
+ Insert a compressed block into buf_pool->zip_clean in the LRU order. */
+ UNIV_INTERN
+diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0file.h
+--- a/storage/innobase/include/os0file.h	2011-02-23 19:00:48.260696646 +0900
++++ b/storage/innobase/include/os0file.h	2011-02-23 19:01:19.190656054 +0900
+@@ -280,9 +280,9 @@
+ 	pfs_os_file_close_func(file, __FILE__, __LINE__)
+ 
+ # define os_aio(type, mode, name, file, buf, offset, offset_high,	\
+-		n, message1, message2, trx)				\
++		n, message1, message2, space_id, trx)			\
+ 	pfs_os_aio_func(type, mode, name, file, buf, offset,		\
+-			offset_high, n, message1, message2, trx,	\
++			offset_high, n, message1, message2, space_id, trx,\
+ 			__FILE__, __LINE__)
+ 
+ # define os_file_read(file, buf, offset, offset_high, n)		\
+@@ -326,9 +326,9 @@
+ # define os_file_close(file)	os_file_close_func(file)
+ 
+ # define os_aio(type, mode, name, file, buf, offset, offset_high,	\
+-	       n, message1, message2, trx)				\
++	       n, message1, message2, space_id, trx)			\
+ 	os_aio_func(type, mode, name, file, buf, offset, offset_high, n,\
+-		    message1, message2, trx)
++		    message1, message2, space_id, trx)
+ 
+ # define os_file_read(file, buf, offset, offset_high, n)		\
+ 	os_file_read_func(file, buf, offset, offset_high, n, NULL)
+@@ -757,6 +757,7 @@
+ 				(can be used to identify a completed
+ 				aio operation); ignored if mode is
+                                 OS_AIO_SYNC */
++	ulint		space_id,
+ 	trx_t*		trx,
+ 	const char*	src_file,/*!< in: file name where func invoked */
+ 	ulint		src_line);/*!< in: line where the func invoked */
+@@ -1063,6 +1064,7 @@
+ 				(can be used to identify a completed
+ 				aio operation); ignored if mode is
+ 				OS_AIO_SYNC */
++	ulint		space_id,
+ 	trx_t*		trx);
+ /************************************************************************//**
+ Wakes up all async i/o threads so that they know to exit themselves in
+@@ -1123,7 +1125,8 @@
+ 				parameters are valid and can be used to
+ 				restart the operation, for example */
+ 	void**	message2,
+-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	space_id);
+ #endif
+ 
+ /**********************************************************************//**
+@@ -1145,7 +1148,8 @@
+ 				parameters are valid and can be used to
+ 				restart the operation, for example */
+ 	void**	message2,
+-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	space_id);
+ /**********************************************************************//**
+ Validates the consistency of the aio system.
+ @return	TRUE if ok */
+@@ -1224,7 +1228,8 @@
+ 				aio operation failed, these output
+ 				parameters are valid and can be used to
+ 				restart the operation. */
+-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	space_id);
+ #endif /* LINUX_NATIVE_AIO */
+ 
+ #ifndef UNIV_NONINL
+diff -ruN a/storage/innobase/include/os0file.ic b/storage/innobase/include/os0file.ic
+--- a/storage/innobase/include/os0file.ic	2011-02-23 19:00:47.915696756 +0900
++++ b/storage/innobase/include/os0file.ic	2011-02-23 19:01:19.191625891 +0900
+@@ -229,6 +229,7 @@
+ 				(can be used to identify a completed
+ 				aio operation); ignored if mode is
+                                 OS_AIO_SYNC */
++	ulint		space_id,
+ 	trx_t*		trx,
+ 	const char*	src_file,/*!< in: file name where func invoked */
+ 	ulint		src_line)/*!< in: line where the func invoked */
+@@ -245,7 +246,7 @@
+ 				   src_file, src_line);
+ 
+ 	result = os_aio_func(type, mode, name, file, buf, offset, offset_high,
+-			     n, message1, message2, trx);
++			     n, message1, message2, space_id, trx);
+ 
+ 	register_pfs_file_io_end(locker, n);
+ 
+diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
+--- a/storage/innobase/include/srv0srv.h	2011-02-23 19:00:48.212625715 +0900
++++ b/storage/innobase/include/srv0srv.h	2011-02-23 19:01:19.193655990 +0900
+@@ -247,6 +247,8 @@
+ 
+ extern ulint	srv_extra_rsegments;
+ extern ulint	srv_dict_size_limit;
++
++extern ulint	srv_lazy_drop_table;
+ /*-------------------------------------------*/
+ 
+ extern ulint	srv_n_rows_inserted;
+diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
+--- a/storage/innobase/include/sync0sync.h	2011-02-23 19:00:47.875625940 +0900
++++ b/storage/innobase/include/sync0sync.h	2011-02-23 19:01:19.195703856 +0900
+@@ -683,6 +683,7 @@
+ #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
+ #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
+ #define SYNC_DOUBLEWRITE	140
++#define	SYNC_OUTER_ANY_LATCH	136
+ #define	SYNC_ANY_LATCH		135
+ #define SYNC_THR_LOCAL		133
+ #define	SYNC_MEM_HASH		131
 diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 --- a/storage/innobase/include/univ.i	2010-12-04 15:57:13.050485224 +0900
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:57:53.091592933 +0900
@@ -117,6 +579,106 @@ diff -ruN a/storage/innobase/mtr/mtr0log.c b/storage/innobase/mtr/mtr0log.c
  		recv_sys->found_corrupt_log = TRUE;
  
  		return(NULL);
+diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
+--- a/storage/innobase/os/os0file.c	2011-02-23 19:00:47.928696481 +0900
++++ b/storage/innobase/os/os0file.c	2011-02-23 19:01:19.200696353 +0900
+@@ -180,6 +180,7 @@
+ 					made and only the slot message
+ 					needs to be passed to the caller
+ 					of os_aio_simulated_handle */
++	ulint		space_id;
+ 	fil_node_t*	message1;	/*!< message which is given by the */
+ 	void*		message2;	/*!< the requester of an aio operation
+ 					and which can be used to identify
+@@ -3675,7 +3676,8 @@
+ 				offset */
+ 	ulint		offset_high, /*!< in: most significant 32 bits of
+ 				offset */
+-	ulint		len)	/*!< in: length of the block to read or write */
++	ulint		len,	/*!< in: length of the block to read or write */
++	ulint		space_id)
+ {
+ 	os_aio_slot_t*	slot = NULL;
+ #ifdef WIN_ASYNC_IO
+@@ -3764,6 +3766,7 @@
+ 	slot->offset   = offset;
+ 	slot->offset_high = offset_high;
+ 	slot->io_already_done = FALSE;
++	slot->space_id = space_id;
+ 
+ #ifdef WIN_ASYNC_IO
+ 	control = &(slot->control);
+@@ -4051,6 +4054,7 @@
+ 				(can be used to identify a completed
+ 				aio operation); ignored if mode is
+ 				OS_AIO_SYNC */
++	ulint		space_id,
+ 	trx_t*		trx)
+ {
+ 	os_aio_array_t*	array;
+@@ -4137,7 +4141,7 @@
+ 		trx->io_read += n;
+ 	}
+ 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
+-					 name, buf, offset, offset_high, n);
++					 name, buf, offset, offset_high, n, space_id);
+ 	if (type == OS_FILE_READ) {
+ 		if (srv_use_native_aio) {
+ 			os_n_file_reads++;
+@@ -4256,7 +4260,8 @@
+ 				parameters are valid and can be used to
+ 				restart the operation, for example */
+ 	void**	message2,
+-	ulint*	type)		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	space_id)
+ {
+ 	ulint		orig_seg	= segment;
+ 	os_aio_array_t*	array;
+@@ -4329,6 +4334,7 @@
+ 	*message2 = slot->message2;
+ 
+ 	*type = slot->type;
++	*space_id = slot->space_id;
+ 
+ 	if (ret && len == slot->len) {
+ 		ret_val = TRUE;
+@@ -4569,7 +4575,8 @@
+ 				aio operation failed, these output
+ 				parameters are valid and can be used to
+ 				restart the operation. */
+-	ulint*	type)		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	space_id)
+ {
+ 	ulint		segment;
+ 	os_aio_array_t*	array;
+@@ -4627,6 +4634,7 @@
+ 	*message2 = slot->message2;
+ 
+ 	*type = slot->type;
++	*space_id = slot->space_id;
+ 
+ 	if ((slot->ret == 0) && (slot->n_bytes == (long)slot->len)) {
+ 		ret = TRUE;
+@@ -4680,7 +4688,8 @@
+ 				parameters are valid and can be used to
+ 				restart the operation, for example */
+ 	void**	message2,
+-	ulint*	type)		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
++	ulint*	space_id)
+ {
+ 	os_aio_array_t*	array;
+ 	ulint		segment;
+@@ -4958,6 +4967,7 @@
+ 	*message2 = slot->message2;
+ 
+ 	*type = slot->type;
++	*space_id = slot->space_id;
+ 
+ 	os_mutex_exit(array->mutex);
+ 
 diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 --- a/storage/innobase/row/row0mysql.c	2010-12-04 15:37:50.598481116 +0900
 +++ b/storage/innobase/row/row0mysql.c	2010-12-04 15:57:53.092563335 +0900
@@ -190,6 +752,18 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  			trx_print(stderr, trx, 600);
  			fputc('\n', stderr);
  			ut_error;
+diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
+--- a/storage/innobase/srv/srv0srv.c	2011-02-23 19:00:48.283695497 +0900
++++ b/storage/innobase/srv/srv0srv.c	2011-02-23 19:01:19.204696643 +0900
+@@ -442,6 +442,8 @@
+ 
+ UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
+ UNIV_INTERN ulint	srv_dict_size_limit = 0;
++
++UNIV_INTERN ulint	srv_lazy_drop_table = 0;
+ /*-------------------------------------------*/
+ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
+ UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:57:13.073495392 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 16:02:50.704884053 +0900

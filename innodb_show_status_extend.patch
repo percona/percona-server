@@ -245,7 +245,7 @@ diff -ruN a/storage/innobase/include/lock0lock.h b/storage/innobase/include/lock
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2011-01-21 19:53:42.380638228 +0900
 +++ b/storage/innobase/include/srv0srv.h	2011-01-21 19:54:44.662600032 +0900
-@@ -735,6 +735,11 @@
+@@ -737,6 +737,11 @@
  
  /** Status variables to be passed to MySQL */
  struct export_var_struct{
@@ -257,7 +257,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  	ulint innodb_data_pending_reads;	/*!< Pending reads */
  	ulint innodb_data_pending_writes;	/*!< Pending writes */
  	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
-@@ -752,6 +757,9 @@
+@@ -754,6 +759,9 @@
  #ifdef UNIV_DEBUG
  	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
  #endif /* UNIV_DEBUG */
@@ -267,7 +267,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
-@@ -760,13 +768,43 @@
+@@ -762,13 +770,43 @@
  	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
@@ -311,7 +311,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  	ulint innodb_os_log_written;		/*!< srv_os_log_written */
  	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
  	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
-@@ -775,6 +813,8 @@
+@@ -777,6 +815,8 @@
  	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
  	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
  	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
@@ -320,7 +320,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
  	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
  	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
-@@ -784,11 +824,18 @@
+@@ -786,11 +826,18 @@
  						/ srv_n_lock_wait_count */
  	ulint innodb_row_lock_time_max;		/*!< srv_n_lock_max_wait_time
  						/ 1000 */
@@ -342,7 +342,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
 --- a/storage/innobase/include/sync0sync.h	2011-01-21 19:48:45.982637372 +0900
 +++ b/storage/innobase/include/sync0sync.h	2011-01-21 19:54:44.664638235 +0900
-@@ -760,6 +760,10 @@
+@@ -761,6 +761,10 @@
  
  #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
  
@@ -391,7 +391,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2011-01-21 19:53:42.390637840 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2011-01-21 19:54:44.673637084 +0900
-@@ -2261,12 +2261,49 @@
+@@ -2263,12 +2263,49 @@
  	ulint		LRU_len;
  	ulint		free_len;
  	ulint		flush_list_len;
@@ -441,7 +441,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	export_vars.innodb_data_pending_reads
  		= os_n_pending_reads;
  	export_vars.innodb_data_pending_writes
-@@ -2303,6 +2340,92 @@
+@@ -2305,6 +2342,92 @@
  
  	export_vars.innodb_buffer_pool_pages_misc
  	       	= buf_pool_get_n_pages() - LRU_len - free_len;

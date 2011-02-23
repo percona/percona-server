@@ -130,8 +130,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +  (char*) &export_vars.innodb_purge_undo_no,		  SHOW_LONGLONG},
    {"row_lock_current_waits",
    (char*) &export_vars.innodb_row_lock_current_waits,	  SHOW_LONG},
-+  {"row_lock_numbers",
-+  (char*) &export_vars.innodb_row_lock_numbers,		  SHOW_LONG},
++  {"current_row_locks",
++  (char*) &export_vars.innodb_current_row_locks,		  SHOW_LONG},
    {"row_lock_time",
    (char*) &export_vars.innodb_row_lock_time,		  SHOW_LONGLONG},
    {"row_lock_time_avg",
@@ -324,7 +324,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  						/ srv_n_lock_wait_count */
  	ulint innodb_row_lock_time_max;		/*!< srv_n_lock_max_wait_time
  						/ 1000 */
-+	ulint innodb_row_lock_numbers;
++	ulint innodb_current_row_locks;
  	ulint innodb_rows_read;			/*!< srv_n_rows_read */
  	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
  	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
@@ -528,7 +528,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +		= purge_sys->purge_trx_no;
 +	export_vars.innodb_purge_undo_no
 +		= purge_sys->purge_undo_no;
-+	export_vars.innodb_row_lock_numbers
++	export_vars.innodb_current_row_locks
 +		= lock_sys->rec_num;
 +
  #ifdef HAVE_ATOMIC_BUILTINS

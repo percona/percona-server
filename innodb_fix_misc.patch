@@ -624,6 +624,17 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  			"log sequence number %llu\n",
  			INNODB_VERSION_STR, srv_start_lsn);
  	}
+diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/sync0sync.c
+--- a/storage/innodb_plugin/sync/sync0sync.c	2011-02-25 14:09:57.710270419 +0900
++++ b/storage/innodb_plugin/sync/sync0sync.c	2011-02-25 14:12:20.138232965 +0900
+@@ -1161,6 +1161,7 @@
+ 	case SYNC_LOG:
+ 	case SYNC_THR_LOCAL:
+ 	case SYNC_ANY_LATCH:
++	case SYNC_OUTER_ANY_LATCH:
+ 	case SYNC_TRX_SYS_HEADER:
+ 	case SYNC_FILE_FORMAT_TAG:
+ 	case SYNC_DOUBLEWRITE:
 diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/trx0purge.c
 --- a/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:52:46.538653893 +0900
 +++ b/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:57:46.505530034 +0900

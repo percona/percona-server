@@ -1516,15 +1516,15 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
 --- a/storage/innobase/sync/sync0sync.c	2010-12-03 17:36:44.300986571 +0900
 +++ b/storage/innobase/sync/sync0sync.c	2010-12-04 16:12:48.729513564 +0900
-@@ -1183,7 +1183,6 @@
- 	case SYNC_ANY_LATCH:
+@@ -1184,7 +1184,6 @@
+ 	case SYNC_OUTER_ANY_LATCH:
  	case SYNC_FILE_FORMAT_TAG:
  	case SYNC_DOUBLEWRITE:
 -	case SYNC_SEARCH_SYS:
  	case SYNC_SEARCH_SYS_CONF:
  	case SYNC_TRX_LOCK_HEAP:
  	case SYNC_KERNEL:
-@@ -1204,6 +1203,7 @@
+@@ -1205,6 +1204,7 @@
  			ut_error;
  		}
  		break;

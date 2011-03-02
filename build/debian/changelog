@@ -1,3 +1,9 @@
+percona-server-dfsg-5.1 (5.1.55-rel12.6) lenny; urgency=low
+
+  * Added readline to configure options (LP #631667)
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Wed, 02 Mar 2011 17:29:27 +0300
+
 percona-server-dfsg-5.1 (5.1.47-11.0) lenny; urgency=low
 
   * Percona Server 11.0

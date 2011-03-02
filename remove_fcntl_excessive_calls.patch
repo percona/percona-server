@@ -18,6 +18,15 @@ diff -ruN a/patch_info/remove_fcntl_excessive_calls.info b/patch_info/remove_fcn
 diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
 --- a/sql/net_serv.cc	2010-06-03 19:50:27.000000000 +0400
 +++ b/sql/net_serv.cc	2010-07-22 21:40:30.680424001 +0400
+@@ -61,7 +61,7 @@
+   the client should have a bigger max_allowed_packet.
+ */
+ 
+-#if defined(__WIN__) || !defined(MYSQL_SERVER)
++#if (defined(__WIN__) || !defined(MYSQL_SERVER)) && !defined(NO_ALARM)
+   /* The following is because alarms doesn't work on windows. */
+ #ifndef NO_ALARM
+ #define NO_ALARM
 @@ -133,7 +133,7 @@
    if (vio != 0)					/* If real connection */
    {
@@ -36,15 +45,6 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
        if ((interrupted || length == 0) && !thr_alarm_in_use(&alarmed))
        {
          if (!thr_alarm(&alarmed, net->write_timeout, &alarm_buff))
-@@ -670,7 +670,7 @@
- 		  my_progname);
- #endif /* EXTRA_DEBUG */
-       }
--#if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
-+#if defined(THREAD_SAFE_CLIENT) && defined(NO_ALARM)
-       if (vio_errno(net->vio) == SOCKET_EINTR)
-       {
- 	DBUG_PRINT("warning",("Interrupted write. Retrying..."));
 @@ -688,7 +688,7 @@
      pos+=length;
      update_statistics(thd_increment_bytes_sent(length));
@@ -71,12 +71,3 @@ diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
  	  /*
  	    We got an error that there was no data on the socket. We now set up
  	    an alarm to not 'read forever', change the socket to non blocking
-@@ -881,7 +882,7 @@
- 		    my_progname,vio_errno(net->vio));
- #endif /* EXTRA_DEBUG */
- 	  }
--#if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
-+#if defined(THREAD_SAFE_CLIENT) && defined(NO_ALARM)
- 	  if (vio_errno(net->vio) == SOCKET_EINTR)
- 	  {
- 	    DBUG_PRINT("warning",("Interrupted read. Retrying..."));

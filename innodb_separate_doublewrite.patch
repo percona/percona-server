@@ -267,7 +267,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				if (err != DB_SUCCESS) {
  
  					return(err);
-@@ -3782,7 +3792,7 @@
+@@ -3784,7 +3794,7 @@
  	}
  
  #ifndef UNIV_HOTBACKUP
@@ -276,7 +276,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		fprintf(stderr,
  			"InnoDB: Error: tablespace id %lu in file %s"
  			" is not sensible\n",
-@@ -3791,7 +3801,7 @@
+@@ -3793,7 +3803,7 @@
  		goto func_exit;
  	}
  #else
@@ -285,7 +285,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		char*	new_path;
  
  		fprintf(stderr,
-@@ -4612,7 +4622,7 @@
+@@ -4614,7 +4624,7 @@
  	}
  
  	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
@@ -294,7 +294,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node is in the LRU list, remove it */
  
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
-@@ -4658,7 +4668,7 @@
+@@ -4660,7 +4670,7 @@
  	}
  
  	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
@@ -303,7 +303,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5263,7 +5273,7 @@
+@@ -5265,7 +5275,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);

@@ -120,7 +120,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3280,7 +3282,8 @@
+@@ -3282,7 +3284,8 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -130,7 +130,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
  				    && checksum_field
  				    != buf_calc_page_new_checksum(page)) {
-@@ -3288,6 +3291,17 @@
+@@ -3290,6 +3293,17 @@
  					page_is_corrupt = TRUE;
  				}
  
@@ -148,7 +148,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  				/* if it is free page, inconsistency is acceptable */
  				if (!offset) {
  					/* header page*/
-@@ -3433,7 +3447,9 @@
+@@ -3435,7 +3449,9 @@
  
  					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  							srv_use_checksums

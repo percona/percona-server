@@ -241,7 +241,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +						file_is_corrupt = TRUE;
 +						descr_is_corrupt = TRUE;
 +					} else {
-+						ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES);
++						ut_ad(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES);
 +						descr_is_corrupt = FALSE;
 +					}
 +

@@ -99,4 +99,6 @@ export DEB_BUILD_OPTIONS='nostrip debug nocheck'
 
     )
 
+    rm -rf Percona-Server
+
 )

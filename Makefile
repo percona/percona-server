@@ -1,7 +1,7 @@
 FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
 MYSQL_VERSION=5.1.55
-PATCHSET=12.6
+PERCONA_SERVER_VERSION=rel12.6
 PERCONA_SERVER ?=Percona-Server
 
 all: main install-lic tests misc handlersocket maatkit-udf autorun

@@ -63,7 +63,7 @@ test -e "$SOURCEDIR/Makefile" || exit 2
 # Extract version from the Makefile
 MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
     | cut -d = -f 2)"
-PATCHSET="$(grep ^PATCHSET= "$SOURCEDIR/Makefile" | cut -d = -f 2)"
+PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= "$SOURCEDIR/Makefile" | cut -d = -f 2)"
 PRODUCT="Percona-Server-$MYSQL_VERSION"
 DEBIAN_VERSION="$(lsb_release -sc)"
 
@@ -93,7 +93,7 @@ export DEB_BUILD_OPTIONS='nostrip debug nocheck'
         chmod +x debian/rules
 
         # Update distribution name
-        dch -m -v "$MYSQL_VERSION-$PATCHSET-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
+        dch -m -v "$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
 
         dpkg-buildpackage -rfakeroot $BUILDPKG_KEY
 

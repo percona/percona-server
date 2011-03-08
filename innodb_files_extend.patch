@@ -217,8 +217,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11837,6 +11909,8 @@
-   NULL, NULL, 0, 0, 1, 0);
+@@ -11848,6 +11920,8 @@
+   NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
 +  MYSQL_SYSVAR(page_size),

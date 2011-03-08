@@ -253,7 +253,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
-+static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
++static MYSQL_SYSVAR_BOOL(recovery_update_relay_log, innobase_overwrite_relay_log_info,
 +  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
 +  "During InnoDB crash recovery on slave overwrite relay-log.info "
 +  "to align master log file position if information in InnoDB and relay-log.info is different.",
@@ -266,7 +266,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
-+  MYSQL_SYSVAR(overwrite_relay_log_info),
++  MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
    MYSQL_SYSVAR(stats_sample_pages),

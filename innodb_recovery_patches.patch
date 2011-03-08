@@ -135,7 +135,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +  "Output statistics of recovery process after it.",
 +  NULL, NULL, FALSE);
 +
- static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
+ static MYSQL_SYSVAR_BOOL(recovery_update_relay_log, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
 @@ -11656,6 +11664,7 @@

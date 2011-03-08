@@ -1304,7 +1304,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
 @@ -11604,6 +11688,10 @@
-   MYSQL_SYSVAR(overwrite_relay_log_info),
+   MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
 +  MYSQL_SYSVAR(stats_method),

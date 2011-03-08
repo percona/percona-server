@@ -357,9 +357,9 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -11908,6 +11908,12 @@
+@@ -11919,6 +11919,12 @@
    "except for the deletion.",
-   NULL, NULL, 0, 0, 1, 0);
+   NULL, NULL, 0, &corrupt_table_action_typelib);
  
 +static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
 +  PLUGIN_VAR_RQCMDARG,
@@ -370,15 +370,15 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -11998,6 +12004,7 @@
+@@ -12009,6 +12015,7 @@
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
-   MYSQL_SYSVAR(pass_corrupt_table),
+   MYSQL_SYSVAR(corrupt_table_action),
 +  MYSQL_SYSVAR(lazy_drop_table),
    NULL
  };
  
-@@ -12007,7 +12014,7 @@
+@@ -12018,7 +12025,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",

@@ -519,7 +519,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
-+static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
++static MYSQL_SYSVAR_ULONG(import_table_from_xtrabackup, srv_expand_import,
 +  PLUGIN_VAR_RQCMDARG,
 +  "Enable/Disable converting automatically *.ibd files when import tablespace.",
 +  NULL, NULL, 0, 0, 1, 0);
@@ -531,7 +531,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
-+  MYSQL_SYSVAR(expand_import),
++  MYSQL_SYSVAR(import_table_from_xtrabackup),
    MYSQL_SYSVAR(extra_rsegments),
    MYSQL_SYSVAR(dict_size_limit),
    MYSQL_SYSVAR(use_sys_malloc),

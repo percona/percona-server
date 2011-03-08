@@ -386,7 +386,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
-+static MYSQL_SYSVAR_UINT(auto_lru_dump, srv_auto_lru_dump,
++static MYSQL_SYSVAR_UINT(buffer_pool_restore_at_startup, srv_auto_lru_dump,
 +  PLUGIN_VAR_RQCMDARG,
 +  "Time in seconds between automatic buffer pool dumps. "
 +  "0 (the default) disables automatic dumps.",
@@ -399,7 +399,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
-+  MYSQL_SYSVAR(auto_lru_dump),
++  MYSQL_SYSVAR(buffer_pool_restore_at_startup),
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
    NULL

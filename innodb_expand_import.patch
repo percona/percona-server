@@ -241,7 +241,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +						file_is_corrupt = TRUE;
 +						descr_is_corrupt = TRUE;
 +					} else {
-+						ut_ad(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES); /* The check should be for >5.1.7 file */
++
 +						descr_is_corrupt = FALSE;
 +					}
 +

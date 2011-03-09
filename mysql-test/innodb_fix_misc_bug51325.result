@@ -2,11 +2,11 @@ DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table=ON;
 SHOW VARIABLES LIKE 'innodb_lazy_drop_table';
 Variable_name   Value
-innodb_lazy_drop_table  OFF
-SET GLOBAL innodb_lazy_drop_table=ON;
+innodb_lazy_drop_table  0
+SET GLOBAL innodb_lazy_drop_table=1;
 SHOW VARIABLES LIKE 'innodb_lazy_drop_table';
 Variable_name   Value
-innodb_lazy_drop_table  OFF
+innodb_lazy_drop_table  1
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 DROP TABLE t1;
 SET GLOBAL innodb_lazy_drop_table=default;

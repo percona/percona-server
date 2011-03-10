@@ -576,7 +576,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
  
  	mutex_exit(&fil_system->mutex);
-@@ -4893,6 +4896,22 @@
+@@ -4895,6 +4898,22 @@
  	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
  	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
  
@@ -599,7 +599,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #ifdef UNIV_HOTBACKUP
  	/* In ibbackup do normal i/o, not aio */
  	if (type == OS_FILE_READ) {
-@@ -4907,6 +4926,8 @@
+@@ -4909,6 +4928,8 @@
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
  		     offset_low, offset_high, len, node, message, trx);
  #endif
@@ -608,7 +608,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5045,7 +5066,7 @@
+@@ -5047,7 +5068,7 @@
  
  	if (fil_node->space->purpose == FIL_TABLESPACE) {
  		srv_set_io_thread_op_info(segment, "complete io for buf page");
@@ -617,7 +617,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	} else {
  		srv_set_io_thread_op_info(segment, "complete io for log");
  		log_io_complete(message);
-@@ -5399,3 +5420,46 @@
+@@ -5401,3 +5422,46 @@
                 return 0;
         }
  }

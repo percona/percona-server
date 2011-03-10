@@ -30,7 +30,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	if (!success) {
  		/* The following call prints an error message */
  		os_file_get_last_error(TRUE);
-@@ -3076,6 +3082,464 @@
+@@ -3076,6 +3082,466 @@
  	space_id = fsp_header_get_space_id(page);
  	space_flags = fsp_header_get_flags(page);
  
@@ -104,8 +104,10 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +
 +		if (size_bytes < free_limit_bytes) {
 +			free_limit_bytes = size_bytes;
-+			fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
-+			file_is_corrupt = TRUE;
++			if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
++				fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
++				file_is_corrupt = TRUE;
++			}
 +		}
 +
 +		/* get cruster index information */
@@ -239,7 +241,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +						file_is_corrupt = TRUE;
 +						descr_is_corrupt = TRUE;
 +					} else {
-+						ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES);
++
 +						descr_is_corrupt = FALSE;
 +					}
 +

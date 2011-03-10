@@ -337,7 +337,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:15:55.187400372 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:30:47.346992376 +0900
-@@ -4371,7 +4371,7 @@
+@@ -4373,7 +4373,7 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -346,7 +346,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #endif
  		if (success) {
  			node->size += n_pages;
-@@ -4698,7 +4698,7 @@
+@@ -4700,7 +4700,7 @@
  i/o on a tablespace which does not exist */
  UNIV_INTERN
  ulint
@@ -355,7 +355,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  /*===*/
  	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
  				ORed to OS_FILE_LOG, if a log i/o
-@@ -4723,8 +4723,9 @@
+@@ -4725,8 +4725,9 @@
  	void*	buf,		/*!< in/out: buffer where to store read data
  				or from where to write; in aio this must be
  				appropriately aligned */
@@ -366,7 +366,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  {
  	ulint		mode;
  	fil_space_t*	space;
-@@ -4894,7 +4895,7 @@
+@@ -4896,7 +4897,7 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,

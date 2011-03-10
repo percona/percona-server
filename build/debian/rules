@@ -97,6 +97,7 @@ endif
 		--with-unix-socket-path=/var/run/mysqld/mysqld.sock \
 	       	--with-mysqld-user=mysql \
 		--with-libwrap \
+		--with-readline \
 		$(USE_STATIC_MYSQLD) \
 		--with-ssl \
 	    	--without-docs \

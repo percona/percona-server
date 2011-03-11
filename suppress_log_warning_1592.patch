@@ -27,7 +27,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5828,6 +5829,7 @@
+@@ -5846,6 +5847,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -35,7 +35,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7333,6 +7335,10 @@
+@@ -7351,6 +7353,10 @@
     "Enable unofficial optimizer fixes.",
     (uchar**) &opt_optimizer_fix, (uchar**) &opt_optimizer_fix,
     0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},

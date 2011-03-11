@@ -31,7 +31,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-21 22:49:54.011529414 +0900
 +++ b/sql/mysqld.cc	2010-07-21 22:50:24.112527179 +0900
-@@ -5874,6 +5874,7 @@
+@@ -5892,6 +5892,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -39,7 +39,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_SUPPRESS_LOG_WARNING_1592,
    OPT_QUERY_CACHE_STRIP_COMMENTS,
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
-@@ -5905,6 +5906,13 @@
+@@ -5923,6 +5924,13 @@
     "from libc.so",
     &opt_allow_suspicious_udfs, &opt_allow_suspicious_udfs,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -83,7 +83,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 --- a/sql/sql_partition.cc	2010-06-04 00:50:11.000000000 +0900
 +++ b/sql/sql_partition.cc	2010-07-21 22:50:24.140530183 +0900
-@@ -4359,7 +4359,12 @@
+@@ -4381,7 +4381,12 @@
          alter_info->no_parts= curr_part_no - new_part_no;
        }
      }

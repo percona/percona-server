@@ -54,7 +54,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 15:52:14.318058668 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 15:52:29.291123270 +0900
-@@ -313,6 +313,12 @@
+@@ -332,6 +332,12 @@
    "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
    NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
  
@@ -67,7 +67,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static handler *innobase_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-@@ -689,6 +695,17 @@
+@@ -708,6 +714,17 @@
  	return(THDVAR((THD*) thd, lock_wait_timeout));
  }
  
@@ -85,7 +85,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2213,6 +2230,9 @@
+@@ -2232,6 +2249,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -95,7 +95,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -9859,6 +9879,10 @@
+@@ -9932,6 +9952,10 @@
  	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
  	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
  	{
@@ -106,7 +106,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  		/* For ibbackup to work the order of transactions in binlog
  		and InnoDB must be the same. Consider the situation
-@@ -10832,7 +10856,7 @@
+@@ -10905,7 +10929,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -115,7 +115,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
-@@ -10967,6 +10991,102 @@
+@@ -11047,6 +11071,102 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -218,7 +218,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11021,6 +11141,15 @@
+@@ -11102,6 +11222,15 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -306,7 +306,7 @@ diff -ruN a/storage/innodb_plugin/include/ha_prototypes.h b/storage/innodb_plugi
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 15:52:14.326071475 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 15:52:29.304059342 +0900
-@@ -199,6 +199,16 @@
+@@ -204,6 +204,16 @@
  extern ulong	srv_max_purge_lag;
  
  extern ulong	srv_replication_delay;
@@ -323,7 +323,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -332,8 +342,9 @@
+@@ -337,8 +347,9 @@
  				when writing data files, but do flush
  				after writing to log files */
  	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
@@ -945,7 +945,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 15:52:14.337059014 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 15:52:29.323059046 +0900
-@@ -370,6 +370,17 @@
+@@ -375,6 +375,17 @@
  
  UNIV_INTERN ulong	srv_replication_delay		= 0;
  
@@ -963,7 +963,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2477,15 +2488,31 @@
+@@ -2482,15 +2493,31 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -995,7 +995,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
  		os_thread_pf(os_thread_get_curr_id()));
-@@ -2501,6 +2528,9 @@
+@@ -2506,6 +2533,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -1005,7 +1005,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2528,16 +2558,40 @@
+@@ -2533,16 +2563,40 @@
  	srv_last_log_flush_time = time(NULL);
  	skip_sleep = FALSE;
  
@@ -1047,7 +1047,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		skip_sleep = FALSE;
-@@ -2574,7 +2628,7 @@
+@@ -2579,7 +2633,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -1056,7 +1056,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2598,6 +2652,11 @@
+@@ -2603,6 +2657,11 @@
  			iteration of this loop. */
  
  			skip_sleep = TRUE;
@@ -1068,7 +1068,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2619,6 +2678,256 @@
+@@ -2624,6 +2683,256 @@
  					skip_sleep = TRUE;
  				}
  			}
@@ -1325,7 +1325,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2667,7 +2976,7 @@
+@@ -2672,7 +2981,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1334,7 +1334,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2792,7 +3101,7 @@
+@@ -2797,7 +3106,7 @@
  		buf_flush_batch below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,

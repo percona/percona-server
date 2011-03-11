@@ -5,401 +5,6 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0cur.c
---- a/storage/innodb_plugin/btr/btr0cur.c	2010-08-27 16:13:11.049975230 +0900
-+++ b/storage/innodb_plugin/btr/btr0cur.c	2010-08-27 16:16:49.201984615 +0900
-@@ -892,6 +892,108 @@
- 	}
- }
- 
-+/**********************************************************************//**
-+Positions a cursor at a randomly chosen position within a B-tree
-+after the given path
-+@return TRUE if the position is at the first page, and cursor must point
-+        the first record for used by the caller.*/
-+UNIV_INTERN
-+ibool
-+btr_cur_open_at_rnd_pos_after_path(
-+/*====================*/
-+	dict_index_t*	index,		/*!< in: index */
-+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
-+	btr_path_t*	first_rec_path,
-+	btr_cur_t*	cursor,		/*!< in/out: B-tree cursor */
-+	mtr_t*		mtr)		/*!< in: mtr */
-+{
-+	page_cur_t*	page_cursor;
-+	btr_path_t*	slot;
-+	ibool		is_first_rec	= TRUE;
-+	ulint		page_no;
-+	ulint		space;
-+	ulint		zip_size;
-+	ulint		height;
-+	rec_t*		node_ptr;
-+	mem_heap_t*	heap		= NULL;
-+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-+	ulint*		offsets		= offsets_;
-+	rec_offs_init(offsets_);
-+
-+	if (latch_mode == BTR_MODIFY_TREE) {
-+		mtr_x_lock(dict_index_get_lock(index), mtr);
-+	} else {
-+		mtr_s_lock(dict_index_get_lock(index), mtr);
-+	}
-+
-+	page_cursor = btr_cur_get_page_cur(cursor);
-+	cursor->index = index;
-+
-+	space = dict_index_get_space(index);
-+	zip_size = dict_table_zip_size(index->table);
-+	page_no = dict_index_get_page(index);
-+
-+	height = ULINT_UNDEFINED;
-+	slot = first_rec_path;
-+
-+	for (;;) {
-+		buf_block_t*	block;
-+		page_t*		page;
-+
-+		block = buf_page_get_gen(space, zip_size, page_no,
-+					 RW_NO_LATCH, NULL, BUF_GET,
-+					 __FILE__, __LINE__, mtr);
-+		page = buf_block_get_frame(block);
-+		ut_ad(0 == ut_dulint_cmp(index->id,
-+					 btr_page_get_index_id(page)));
-+
-+		if (height == ULINT_UNDEFINED) {
-+			/* We are in the root node */
-+
-+			height = btr_page_get_level(page, mtr);
-+		}
-+
-+		if (height == 0) {
-+			btr_cur_latch_leaves(page, space, zip_size, page_no,
-+					     latch_mode, cursor, mtr);
-+		}
-+
-+		if (is_first_rec && slot->nth_rec != ULINT_UNDEFINED) {
-+			if (height == 0) {
-+				/* must open the first rec */
-+				page_cur_open_on_nth_user_rec(block, page_cursor, slot->nth_rec);
-+			} else {
-+				is_first_rec = page_cur_open_on_rnd_user_rec_after_nth(block,
-+								page_cursor, slot->nth_rec);
-+			}
-+		} else {
-+			is_first_rec = FALSE;
-+			page_cur_open_on_rnd_user_rec(block, page_cursor);
-+		}
-+
-+		if (height == 0) {
-+			break;
-+		}
-+
-+		ut_ad(height > 0);
-+
-+		height--;
-+		slot++;
-+
-+		node_ptr = page_cur_get_rec(page_cursor);
-+		offsets = rec_get_offsets(node_ptr, cursor->index, offsets,
-+					  ULINT_UNDEFINED, &heap);
-+		/* Go to the child node */
-+		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
-+	}
-+
-+	if (UNIV_LIKELY_NULL(heap)) {
-+		mem_heap_free(heap);
-+	}
-+
-+	return (is_first_rec);
-+}
-+
- /*==================== B-TREE INSERT =========================*/
- 
- /*************************************************************//**
-@@ -3201,6 +3303,154 @@
- }
- 
- /*******************************************************************//**
-+Estimates the number of pages which have not null value of the key of n_cols.
-+@return	estimated number of pages */
-+UNIV_INTERN
-+ulint
-+btr_estimate_n_pages_not_null(
-+/*=========================*/
-+	dict_index_t*	index,	/*!< in: index */
-+	ulint		n_cols,	/*!< in: The cols should be not null */
-+	btr_path_t*	path1)	/*!< in: path1[BTR_PATH_ARRAY_N_SLOTS] */
-+{
-+	dtuple_t*	tuple1;
-+	btr_path_t	path2[BTR_PATH_ARRAY_N_SLOTS];
-+	btr_cur_t	cursor;
-+	btr_path_t*	slot1;
-+	btr_path_t*	slot2;
-+	ibool		diverged;
-+	ibool		diverged_lot;
-+	ulint		divergence_level;
-+	ulint		n_pages;
-+	ulint		i;
-+	mtr_t		mtr;
-+	mem_heap_t*	heap;
-+
-+	heap = mem_heap_create(n_cols * sizeof(dfield_t)
-+				+ sizeof(dtuple_t));
-+
-+	/* make tuple1 (NULL,NULL,,,) from n_cols */
-+	tuple1 = dtuple_create(heap, n_cols);
-+	dict_index_copy_types(tuple1, index, n_cols);
-+
-+	for (i = 0; i < n_cols; i++) {
-+		dfield_set_null(dtuple_get_nth_field(tuple1, i));
-+	}
-+
-+	mtr_start(&mtr);
-+
-+	cursor.path_arr = path1;
-+
-+	btr_cur_search_to_nth_level(index, 0, tuple1, PAGE_CUR_G,
-+				    BTR_SEARCH_LEAF | BTR_ESTIMATE,
-+				    &cursor, 0, __FILE__, __LINE__, &mtr);
-+
-+	mtr_commit(&mtr);
-+
-+
-+
-+	mtr_start(&mtr);
-+
-+	cursor.path_arr = path2;
-+
-+	btr_cur_open_at_index_side(FALSE, index,
-+				   BTR_SEARCH_LEAF | BTR_ESTIMATE,
-+				   &cursor, &mtr);
-+
-+	mtr_commit(&mtr);
-+
-+	mem_heap_free(heap);
-+
-+	/* We have the path information for the range in path1 and path2 */
-+
-+	n_pages = 1;
-+	diverged = FALSE;	    /* This becomes true when the path is not
-+				    the same any more */
-+	diverged_lot = FALSE;	    /* This becomes true when the paths are
-+				    not the same or adjacent any more */
-+	divergence_level = 1000000; /* This is the level where paths diverged
-+				    a lot */
-+	for (i = 0; ; i++) {
-+		ut_ad(i < BTR_PATH_ARRAY_N_SLOTS);
-+
-+		slot1 = path1 + i;
-+		slot2 = path2 + i;
-+
-+		if ((slot1 + 1)->nth_rec == ULINT_UNDEFINED
-+		    || (slot2 + 1)->nth_rec == ULINT_UNDEFINED) {
-+
-+			if (i > divergence_level + 1) {
-+				/* In trees whose height is > 1 our algorithm
-+				tends to underestimate: multiply the estimate
-+				by 2: */
-+
-+				n_pages = n_pages * 2;
-+			}
-+
-+			/* Do not estimate the number of rows in the range
-+			to over 1 / 2 of the estimated rows in the whole
-+			table */
-+
-+			if (n_pages > index->stat_n_leaf_pages / 2) {
-+				n_pages = index->stat_n_leaf_pages / 2;
-+
-+				/* If there are just 0 or 1 rows in the table,
-+				then we estimate all rows are in the range */
-+
-+				if (n_pages == 0) {
-+					n_pages = index->stat_n_leaf_pages;
-+				}
-+			}
-+
-+			return(n_pages);
-+		}
-+
-+		if (!diverged && slot1->nth_rec != slot2->nth_rec) {
-+
-+			diverged = TRUE;
-+
-+			if (slot1->nth_rec < slot2->nth_rec) {
-+				n_pages = slot2->nth_rec - slot1->nth_rec;
-+
-+				if (n_pages > 1) {
-+					diverged_lot = TRUE;
-+					divergence_level = i;
-+				}
-+			} else {
-+				/* Maybe the tree has changed between
-+				searches */
-+
-+				return(10);
-+			}
-+
-+		} else if (diverged && !diverged_lot) {
-+
-+			if (slot1->nth_rec < slot1->n_recs
-+			    || slot2->nth_rec > 1) {
-+
-+				diverged_lot = TRUE;
-+				divergence_level = i;
-+
-+				n_pages = 0;
-+
-+				if (slot1->nth_rec < slot1->n_recs) {
-+					n_pages += slot1->n_recs
-+						- slot1->nth_rec;
-+				}
-+
-+				if (slot2->nth_rec > 1) {
-+					n_pages += slot2->nth_rec - 1;
-+				}
-+			}
-+		} else if (diverged_lot) {
-+
-+			n_pages = (n_pages * (slot1->n_recs + slot2->n_recs))
-+				/ 2;
-+		}
-+	}
-+}
-+
-+/*******************************************************************//**
- Estimates the number of different key values in a given index, for
- each n-column prefix of the index where n <= dict_index_get_n_unique(index).
- The estimates are stored in the array index->stat_n_diff_key_vals. */
-@@ -3229,18 +3479,38 @@
- 	ulint		offsets_next_rec_[REC_OFFS_NORMAL_SIZE];
- 	ulint*		offsets_rec	= offsets_rec_;
- 	ulint*		offsets_next_rec= offsets_next_rec_;
-+	ulint		stats_method	= srv_stats_method;
-+	btr_path_t	first_rec_path[BTR_PATH_ARRAY_N_SLOTS];
-+	ulint		effective_pages; /* effective leaf pages */
- 	rec_offs_init(offsets_rec_);
- 	rec_offs_init(offsets_next_rec_);
- 
- 	n_cols = dict_index_get_n_unique(index);
- 
-+	if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
-+		/* estimate effective pages and path for the first effective record */
-+		/* TODO: make it work also for n_cols > 1. */
-+		effective_pages = btr_estimate_n_pages_not_null(index, 1 /*k*/, first_rec_path);
-+
-+		if (!effective_pages) {
-+			for (j = 0; j <= n_cols; j++) {
-+				index->stat_n_diff_key_vals[j] = (ib_int64_t)index->stat_n_leaf_pages;
-+			}
-+			return;
-+		} else if (effective_pages > index->stat_n_leaf_pages) {
-+			effective_pages = index->stat_n_leaf_pages;
-+		}
-+	} else {
-+		effective_pages = index->stat_n_leaf_pages;
-+	}
-+
- 	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
- 
- 	/* It makes no sense to test more pages than are contained
- 	in the index, thus we lower the number if it is too high */
--	if (srv_stats_sample_pages > index->stat_index_size) {
--		if (index->stat_index_size > 0) {
--			n_sample_pages = index->stat_index_size;
-+	if (srv_stats_sample_pages > effective_pages) {
-+		if (effective_pages > 0) {
-+			n_sample_pages = effective_pages;
- 		} else {
- 			n_sample_pages = 1;
- 		}
-@@ -3252,9 +3522,15 @@
- 
- 	for (i = 0; i < n_sample_pages; i++) {
- 		rec_t*	supremum;
-+		ibool	is_first_page = TRUE;
- 		mtr_start(&mtr);
- 
-+		if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
-+			is_first_page = btr_cur_open_at_rnd_pos_after_path(index, BTR_SEARCH_LEAF,
-+									first_rec_path, &cursor, &mtr);
-+		} else {
- 		btr_cur_open_at_rnd_pos(index, BTR_SEARCH_LEAF, &cursor, &mtr);
-+		}
- 
- 		/* Count the number of different key values for each prefix of
- 		the key on this index page. If the prefix does not determine
-@@ -3265,7 +3541,13 @@
- 		page = btr_cur_get_page(&cursor);
- 
- 		supremum = page_get_supremum_rec(page);
-+		if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS && is_first_page) {
-+			/* the cursor should be the first record of the page. */
-+			/* Counting should be started from here. */
-+			rec = btr_cur_get_rec(&cursor);
-+		} else {
- 		rec = page_rec_get_next(page_get_infimum_rec(page));
-+		}
- 
- 		if (rec != supremum) {
- 			not_empty_flag = 1;
-@@ -3274,7 +3556,8 @@
- 		}
- 
- 		while (rec != supremum) {
--			rec_t*	next_rec = page_rec_get_next(rec);
-+			rec_t*  next_rec;
-+			next_rec = page_rec_get_next(rec);
- 			if (next_rec == supremum) {
- 				break;
- 			}
-@@ -3288,7 +3571,10 @@
- 			cmp_rec_rec_with_match(rec, next_rec,
- 					       offsets_rec, offsets_next_rec,
- 					       index, &matched_fields,
--					       &matched_bytes);
-+					       &matched_bytes,
-+				(stats_method==SRV_STATS_METHOD_NULLS_NOT_EQUAL) ?
-+				SRV_STATS_METHOD_NULLS_NOT_EQUAL :
-+				SRV_STATS_METHOD_NULLS_EQUAL);
- 
- 			for (j = matched_fields + 1; j <= n_cols; j++) {
- 				/* We add one if this index record has
-@@ -3349,7 +3635,7 @@
- 	for (j = 0; j <= n_cols; j++) {
- 		index->stat_n_diff_key_vals[j]
- 			= ((n_diff[j]
--			    * (ib_int64_t)index->stat_n_leaf_pages
-+			    * (ib_int64_t)effective_pages
- 			    + n_sample_pages - 1
- 			    + total_external_size
- 			    + not_empty_flag)
-@@ -3364,7 +3650,7 @@
- 		different key values, or even more. Let us try to approximate
- 		that: */
- 
--		add_on = index->stat_n_leaf_pages
-+		add_on = effective_pages
- 			/ (10 * (n_sample_pages
- 				 + total_external_size));
- 
-@@ -3373,6 +3659,15 @@
- 		}
- 
- 		index->stat_n_diff_key_vals[j] += add_on;
-+
-+		if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS) {
-+			/* index->stat_n_diff_key_vals[k] is used for calc rec_per_key,
-+			as "stats.records / index->stat_n_diff_key_vals[x]".
-+			So it should be adjusted to the value which is based on whole of the index. */
-+			index->stat_n_diff_key_vals[j] =
-+				index->stat_n_diff_key_vals[j] * (ib_int64_t)index->stat_n_leaf_pages
-+					/ (ib_int64_t)effective_pages;
-+		}
- 	}
- 
- 	mem_free(n_diff);
 diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/dict0boot.c
 --- a/storage/innodb_plugin/dict/dict0boot.c	2010-08-27 16:11:12.152990021 +0900
 +++ b/storage/innodb_plugin/dict/dict0boot.c	2010-08-27 16:16:49.202982244 +0900
@@ -745,7 +350,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	}
  
  	return(table);
-@@ -4276,6 +4276,255 @@
+@@ -4282,6 +4282,255 @@
  }
  
  /*********************************************************************//**
@@ -1001,7 +606,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4283,10 +4532,11 @@
+@@ -4289,10 +4538,11 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -1014,7 +619,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  {
  	dict_index_t*	index;
  	ulint		sum_of_index_sizes	= 0;
-@@ -4303,6 +4553,27 @@
+@@ -4309,6 +4559,27 @@
  		return;
  	}
  
@@ -1042,7 +647,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4363,6 +4634,11 @@
+@@ -4373,6 +4644,11 @@
  		index = dict_table_get_next_index(index);
  	} while (index);
  
@@ -1054,7 +659,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  	index = dict_table_get_first_index(table);
  
  	table->stat_n_rows = index->stat_n_diff_key_vals[
-@@ -4457,7 +4733,7 @@
+@@ -4467,7 +4743,7 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -1086,7 +691,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  static char*	internal_innobase_data_file_path	= NULL;
  
-@@ -2211,6 +2212,8 @@
+@@ -2230,6 +2231,8 @@
  
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
@@ -1095,7 +700,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -4981,6 +4984,10 @@
+@@ -5000,6 +5003,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -1106,7 +711,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5317,6 +5324,10 @@
+@@ -5336,6 +5343,10 @@
  		}
  	}
  
@@ -1117,7 +722,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5370,6 +5381,10 @@
+@@ -5389,6 +5400,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -1128,7 +733,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5688,6 +5703,11 @@
+@@ -5707,6 +5722,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -1140,7 +745,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_KEY_NOT_FOUND;
-@@ -5897,6 +5917,11 @@
+@@ -5916,6 +5936,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -1152,7 +757,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -7791,11 +7816,31 @@
+@@ -7869,11 +7894,31 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1185,7 +790,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -7873,7 +7918,7 @@
+@@ -7951,7 +7996,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1194,29 +799,10 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
  			remain. delete_length is initialized to 0 in
-@@ -11053,6 +11098,45 @@
+@@ -11126,6 +11171,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
-+const char *innobase_stats_method_names[]=
-+{
-+  "nulls_equal",
-+  "nulls_unequal",
-+  "nulls_ignored",
-+  NullS
-+};
-+TYPELIB innobase_stats_method_typelib=
-+{
-+  array_elements(innobase_stats_method_names) - 1, "innobase_stats_method_typelib",
-+  innobase_stats_method_names, NULL
-+};
-+static MYSQL_SYSVAR_ENUM(stats_method, srv_stats_method,
-+  PLUGIN_VAR_RQCMDARG,
-+  "Specifies how InnoDB index statistics collection code should threat NULLs. "
-+  "Possible values of name are same to for 'myisam_stats_method'. "
-+  "This is startup parameter.",
-+  NULL, NULL, 0, &innobase_stats_method_typelib);
-+
 +static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
 +  PLUGIN_VAR_RQCMDARG,
 +  "Enable/Disable InnoDB's auto update statistics of indexes. "
@@ -1240,18 +826,17 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11371,6 +11455,10 @@
+@@ -11451,6 +11516,9 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
-+  MYSQL_SYSVAR(stats_method),
 +  MYSQL_SYSVAR(stats_auto_update),
 +  MYSQL_SYSVAR(stats_update_need_lock),
 +  MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
-   MYSQL_SYSVAR(replication_delay),
-@@ -11435,6 +11523,8 @@
+   MYSQL_SYSVAR(stats_method),
+@@ -11516,6 +11584,8 @@
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,
@@ -1761,32 +1346,6 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/in
  };
  #endif /* !UNIV_HOTBACKUP */
  
-diff -ruN a/storage/innodb_plugin/include/page0cur.h b/storage/innodb_plugin/include/page0cur.h
---- a/storage/innodb_plugin/include/page0cur.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/page0cur.h	2010-08-27 16:16:49.265984316 +0900
-@@ -293,6 +293,22 @@
- /*==========================*/
- 	buf_block_t*	block,	/*!< in: page */
- 	page_cur_t*	cursor);/*!< out: page cursor */
-+
-+UNIV_INTERN
-+void
-+page_cur_open_on_nth_user_rec(
-+/*==========================*/
-+	buf_block_t*	block,	/*!< in: page */
-+	page_cur_t*	cursor,	/*!< out: page cursor */
-+	ulint		nth);
-+
-+UNIV_INTERN
-+ibool
-+page_cur_open_on_rnd_user_rec_after_nth(
-+/*==========================*/
-+	buf_block_t*	block,	/*!< in: page */
-+	page_cur_t*	cursor,	/*!< out: page cursor */
-+	ulint		nth);
- #endif /* !UNIV_HOTBACKUP */
- /***********************************************************//**
- Parses a log record of a record insert on a page.
 diff -ruN a/storage/innodb_plugin/include/que0que.h b/storage/innodb_plugin/include/que0que.h
 --- a/storage/innodb_plugin/include/que0que.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/que0que.h	2010-08-27 16:16:49.266982471 +0900
@@ -1799,32 +1358,6 @@ diff -ruN a/storage/innodb_plugin/include/que0que.h b/storage/innodb_plugin/incl
  /* Query thread states */
  #define QUE_THR_RUNNING		1
  #define QUE_THR_PROCEDURE_WAIT	2
-diff -ruN a/storage/innodb_plugin/include/rem0cmp.h b/storage/innodb_plugin/include/rem0cmp.h
---- a/storage/innodb_plugin/include/rem0cmp.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/rem0cmp.h	2010-08-27 16:16:49.268976969 +0900
-@@ -169,10 +169,11 @@
- 				matched fields; when the function returns,
- 				contains the value the for current
- 				comparison */
--	ulint*		matched_bytes);/*!< in/out: number of already matched
-+	ulint*		matched_bytes, /*!< in/out: number of already matched
- 				bytes within the first field not completely
- 				matched; when the function returns, contains
- 				the value for the current comparison */
-+	ulint		stats_method);
- /*************************************************************//**
- This function is used to compare two physical records. Only the common
- first fields are compared.
-diff -ruN a/storage/innodb_plugin/include/rem0cmp.ic b/storage/innodb_plugin/include/rem0cmp.ic
---- a/storage/innodb_plugin/include/rem0cmp.ic	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/rem0cmp.ic	2010-08-27 16:16:49.269986562 +0900
-@@ -87,5 +87,5 @@
- 	ulint	match_b		= 0;
- 
- 	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
--				      &match_f, &match_b));
-+				      &match_f, &match_b, 0));
- }
 diff -ruN a/storage/innodb_plugin/include/row0mysql.h b/storage/innodb_plugin/include/row0mysql.h
 --- a/storage/innodb_plugin/include/row0mysql.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/row0mysql.h	2010-08-27 16:16:49.271982518 +0900
@@ -1846,98 +1379,16 @@ diff -ruN a/storage/innodb_plugin/include/row0mysql.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:15:55.197989840 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:16:49.285142419 +0900
-@@ -192,6 +192,13 @@
+@@ -197,6 +197,9 @@
  extern ibool	srv_innodb_status;
  
  extern unsigned long long	srv_stats_sample_pages;
-+extern ulint	srv_stats_method;
-+#define SRV_STATS_METHOD_NULLS_EQUAL     0
-+#define SRV_STATS_METHOD_NULLS_NOT_EQUAL 1
-+#define SRV_STATS_METHOD_IGNORE_NULLS    2
 +extern ulint	srv_stats_auto_update;
 +extern ulint	srv_stats_update_need_lock;
 +extern ibool	srv_use_sys_stats_table;
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
-diff -ruN a/storage/innodb_plugin/page/page0cur.c b/storage/innodb_plugin/page/page0cur.c
---- a/storage/innodb_plugin/page/page0cur.c	2010-08-04 02:24:20.000000000 +0900
-+++ b/storage/innodb_plugin/page/page0cur.c	2010-08-27 16:16:49.289982393 +0900
-@@ -564,6 +564,74 @@
- 	} while (rnd--);
- }
- 
-+UNIV_INTERN
-+void
-+page_cur_open_on_nth_user_rec(
-+/*==========================*/
-+	buf_block_t*	block,	/*!< in: page */
-+	page_cur_t*	cursor,	/*!< out: page cursor */
-+	ulint		nth)
-+{
-+	ulint	n_recs = page_get_n_recs(buf_block_get_frame(block));
-+
-+	page_cur_set_before_first(block, cursor);
-+
-+	if (UNIV_UNLIKELY(n_recs == 0)) {
-+
-+		return;
-+	}
-+
-+	nth--;
-+
-+	if (nth >= n_recs) {
-+		nth = n_recs - 1;
-+	}
-+
-+	do {
-+		page_cur_move_to_next(cursor);
-+	} while (nth--);
-+}
-+
-+UNIV_INTERN
-+ibool
-+page_cur_open_on_rnd_user_rec_after_nth(
-+/*==========================*/
-+	buf_block_t*	block,	/*!< in: page */
-+	page_cur_t*	cursor,	/*!< out: page cursor */
-+	ulint		nth)
-+{
-+	ulint	rnd;
-+	ulint	n_recs = page_get_n_recs(buf_block_get_frame(block));
-+	ibool	ret;
-+
-+	page_cur_set_before_first(block, cursor);
-+
-+	if (UNIV_UNLIKELY(n_recs == 0)) {
-+
-+		return (FALSE);
-+	}
-+
-+	nth--;
-+
-+	if (nth >= n_recs) {
-+		nth = n_recs - 1;
-+	}
-+
-+	rnd = (ulint) (nth + page_cur_lcg_prng() % (n_recs - nth));
-+
-+	if (rnd == nth) {
-+		ret = TRUE;
-+	} else {
-+		ret = FALSE;
-+	}
-+
-+	do {
-+		page_cur_move_to_next(cursor);
-+	} while (rnd--);
-+
-+	return (ret);
-+}
-+
- /***********************************************************//**
- Writes the log record of a record insert on a page. */
- static
 diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0que.c
 --- a/storage/innodb_plugin/que/que0que.c	2010-08-04 02:24:20.000000000 +0900
 +++ b/storage/innodb_plugin/que/que0que.c	2010-08-27 16:16:49.291984923 +0900
@@ -1981,35 +1432,6 @@ diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0
  	} else if (type == QUE_NODE_ROW_PRINTF) {
  		thr = row_printf_step(thr);
  	} else {
-diff -ruN a/storage/innodb_plugin/rem/rem0cmp.c b/storage/innodb_plugin/rem/rem0cmp.c
---- a/storage/innodb_plugin/rem/rem0cmp.c	2010-08-04 02:24:20.000000000 +0900
-+++ b/storage/innodb_plugin/rem/rem0cmp.c	2010-08-27 16:16:49.292984980 +0900
-@@ -866,10 +866,11 @@
- 				matched fields; when the function returns,
- 				contains the value the for current
- 				comparison */
--	ulint*		matched_bytes) /*!< in/out: number of already matched
-+	ulint*		matched_bytes, /*!< in/out: number of already matched
- 				bytes within the first field not completely
- 				matched; when the function returns, contains
- 				the value for the current comparison */
-+	ulint		stats_method)
- {
- 	ulint		rec1_n_fields;	/* the number of fields in rec */
- 	ulint		rec1_f_len;	/* length of current field in rec */
-@@ -962,7 +963,11 @@
- 
- 				if (rec1_f_len == rec2_f_len) {
- 
--					goto next_field;
-+					if (stats_method == SRV_STATS_METHOD_NULLS_EQUAL) {
-+						goto next_field;
-+					} else {
-+						ret = -1;
-+					}
- 
- 				} else if (rec2_f_len == UNIV_SQL_NULL) {
- 
 diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/row0merge.c
 --- a/storage/innodb_plugin/row/row0merge.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0merge.c	2010-08-27 16:16:49.295984498 +0900
@@ -2111,11 +1533,10 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:15:55.198987678 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:16:49.311984856 +0900
-@@ -364,6 +364,10 @@
+@@ -369,6 +369,9 @@
  /* When estimating number of different key values in an index, sample
  this many index pages */
  UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
-+UNIV_INTERN ulint	srv_stats_method = 0;
 +UNIV_INTERN ulint	srv_stats_auto_update = 1;
 +UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 +UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;

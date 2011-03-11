@@ -328,7 +328,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  /****************************************************************//**
  If the given column name is reserved for InnoDB system columns, return
  TRUE.
-@@ -1703,6 +1765,11 @@
+@@ -1709,6 +1771,11 @@
  	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -343,7 +343,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:09:22.832057795 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:09:42.939059876 +0900
-@@ -541,6 +541,8 @@
+@@ -560,6 +560,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
@@ -352,7 +352,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11310,6 +11312,11 @@
+@@ -11390,6 +11392,11 @@
    "Number of extra user rollback segments when create new database.",
    NULL, NULL, 0, 0, 126, 0);
  
@@ -364,7 +364,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11377,6 +11384,7 @@
+@@ -11458,6 +11465,7 @@
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
    MYSQL_SYSVAR(extra_rsegments),
@@ -459,7 +459,7 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.ic b/storage/innodb_plugin/i
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:09:22.833022367 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:09:42.957104575 +0900
-@@ -214,7 +214,7 @@
+@@ -219,7 +219,7 @@
  extern ulint	srv_adaptive_checkpoint;
  
  extern ulint	srv_extra_rsegments;
@@ -468,7 +468,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -607,6 +607,7 @@
+@@ -625,6 +625,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */
@@ -479,7 +479,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:09:22.834056830 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:09:42.960059093 +0900
-@@ -386,6 +386,7 @@
+@@ -391,6 +391,7 @@
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
@@ -487,7 +487,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2086,6 +2087,7 @@
+@@ -2091,6 +2092,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

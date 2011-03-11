@@ -81,7 +81,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  /********************************************************************//**
  Insert a compressed block into buf_pool->zip_clean in the LRU order. */
  UNIV_INTERN
-@@ -1498,6 +1522,10 @@
+@@ -1472,6 +1496,10 @@
  		return(BUF_LRU_NOT_FREED);
  	}
  
@@ -282,7 +282,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
-@@ -11685,6 +11685,12 @@
+@@ -11746,6 +11746,12 @@
    "except for the deletion.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -295,7 +295,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -11774,6 +11780,7 @@
+@@ -11835,6 +11841,7 @@
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
    MYSQL_SYSVAR(pass_corrupt_table),
@@ -303,7 +303,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    NULL
  };
  
-@@ -11783,7 +11790,7 @@
+@@ -11844,7 +11851,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -315,13 +315,13 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:31:57.863983187 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:32:39.537912716 +0900
-@@ -1156,6 +1156,7 @@
+@@ -1154,6 +1154,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
 +	ibool		space_was_being_deleted;
  	ibool		is_corrupt;
- # ifdef UNIV_DEBUG_FILE_ACCESSES
+ # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ibool		file_page_was_freed;
 diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/include/buf0buf.ic
 --- a/storage/innodb_plugin/include/buf0buf.ic	2011-02-21 20:31:57.725983812 +0900
@@ -385,7 +385,7 @@ diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2011-02-21 20:31:57.824983518 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2011-02-21 20:32:39.541913033 +0900
-@@ -235,6 +235,8 @@
+@@ -236,6 +236,8 @@
  
  extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
@@ -439,18 +439,6 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
  
-diff -ruN a/storage/innodb_plugin/mtr/mtr0log.c b/storage/innodb_plugin/mtr/mtr0log.c
---- a/storage/innodb_plugin/mtr/mtr0log.c	2010-11-29 19:38:03.000000000 +0900
-+++ b/storage/innodb_plugin/mtr/mtr0log.c	2011-02-02 23:31:34.000000000 +0900
-@@ -408,7 +408,7 @@
- 	ptr += 2;
- 
- 	if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
--			|| UNIV_UNLIKELY(len + offset) > UNIV_PAGE_SIZE) {
-+			|| UNIV_UNLIKELY(len + offset > UNIV_PAGE_SIZE)) {
- 		recv_sys->found_corrupt_log = TRUE;
- 
- 		return(NULL);
 diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0file.c
 --- a/storage/innodb_plugin/os/os0file.c	2011-02-21 20:31:57.437945953 +0900
 +++ b/storage/innodb_plugin/os/os0file.c	2011-02-21 20:32:39.546945763 +0900
@@ -603,7 +591,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2011-02-21 20:31:57.900982316 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2011-02-21 20:32:39.549912950 +0900
-@@ -414,6 +414,8 @@
+@@ -418,6 +418,8 @@
  
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;

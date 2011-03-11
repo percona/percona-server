@@ -8,7 +8,7 @@
 diff -ruN a/configure b/configure
 --- a/configure	2010-08-27 14:28:05.621275596 +0900
 +++ b/configure	2010-08-27 15:10:33.736074033 +0900
-@@ -37899,7 +37899,7 @@
+@@ -38265,7 +38265,7 @@
    realpath rename rint rwlock_init setupterm \
    shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
    sighold sigset sigthreadmask port_create sleep \
@@ -20,7 +20,7 @@ diff -ruN a/configure b/configure
 diff -ruN a/configure.in b/configure.in
 --- a/configure.in	2010-10-12 00:34:15.000000000 +0400
 +++ b/configure.in	2010-11-24 18:00:58.000000000 +0300
-@@ -2055,13 +2055,16 @@
+@@ -2064,13 +2064,16 @@
    realpath rename rint rwlock_init setupterm \
    shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
    sighold sigset sigthreadmask port_create sleep \
@@ -38,7 +38,7 @@ diff -ruN a/configure.in b/configure.in
  case "$target" in
   *-*-aix4* | *-*-sco*)
  	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
-@@ -2749,7 +2752,7 @@
+@@ -2758,7 +2761,7 @@
  fi
  sql_client_dirs="$sql_client_dirs client"
  
@@ -666,7 +666,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  }
  
  #endif /*EMBEDDED_LIBRARY*/
-@@ -3164,6 +3179,7 @@
+@@ -3177,6 +3192,7 @@
    {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
    {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
@@ -674,7 +674,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
    {"show_column_types",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLUMN_TYPES]), SHOW_LONG_STATUS},
    {"show_contributors",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CONTRIBUTORS]), SHOW_LONG_STATUS},
-@@ -3185,6 +3201,7 @@
+@@ -3198,6 +3214,7 @@
  #endif
    {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
    {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
@@ -682,7 +682,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
    {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
    {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
-@@ -3203,9 +3220,12 @@
+@@ -3216,9 +3233,12 @@
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
    {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
@@ -695,7 +695,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
    {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
    {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
-@@ -3644,6 +3664,10 @@
+@@ -3662,6 +3682,10 @@
  #endif
    (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
    (void) pthread_cond_init(&COND_server_started,NULL);
@@ -706,7 +706,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    sp_cache_init();
  #ifdef HAVE_EVENT_SCHEDULER
    Events::init_mutexes();
-@@ -4045,6 +4069,9 @@
+@@ -4063,6 +4087,9 @@
    if (!errmesg[0][0])
      unireg_abort(1);
  
@@ -716,7 +716,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
    {
-@@ -4191,6 +4218,9 @@
+@@ -4209,6 +4236,9 @@
  
    init_max_user_conn();
    init_update_queries();
@@ -726,7 +726,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    DBUG_RETURN(0);
  }
  
-@@ -5008,6 +5038,7 @@
+@@ -5026,6 +5056,7 @@
  
      DBUG_PRINT("error",("Too many connections"));
      close_connection(thd, ER_CON_COUNT_ERROR, 1);
@@ -734,7 +734,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      delete thd;
      DBUG_VOID_RETURN;
    }
-@@ -5792,6 +5823,8 @@
+@@ -5810,6 +5841,8 @@
    OPT_SLAVE_EXEC_MODE,
    OPT_GENERAL_LOG_FILE,
    OPT_SLOW_QUERY_LOG_FILE,
@@ -743,7 +743,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7285,6 +7318,14 @@
+@@ -7303,6 +7336,14 @@
     &max_system_variables.net_wait_timeout, 0, GET_ULONG,
     REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
     0, 1, 0},
@@ -3281,7 +3281,7 @@ diff -ruN a/sql/table.h b/sql/table.h
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-10-12 00:34:15.000000000 +0400
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-11-24 17:24:52.000000000 +0300
-@@ -4055,6 +4055,8 @@
+@@ -4074,6 +4074,8 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -3290,7 +3290,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -4392,6 +4394,8 @@
+@@ -4411,6 +4413,8 @@
  		}
  	}
  
@@ -3299,7 +3299,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error, user_thd);
-@@ -4444,6 +4448,8 @@
+@@ -4463,6 +4467,8 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -3308,7 +3308,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error, user_thd);
-@@ -4923,6 +4929,9 @@
+@@ -4942,6 +4948,9 @@
  	if (ret == DB_SUCCESS) {
  		error = 0;
  		table->status = 0;

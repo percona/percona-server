@@ -186,7 +186,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
 --- a/storage/innodb_plugin/buf/buf0lru.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0lru.c	2010-04-29 15:55:42.000000000 +0900
-@@ -952,7 +952,7 @@
+@@ -932,7 +932,7 @@
  
  	/* No free block was found: try to flush the LRU list */
  
@@ -195,7 +195,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  	++srv_buf_pool_wait_free;
  
  	os_aio_simulated_wake_handler_threads();
-@@ -1143,7 +1143,7 @@
+@@ -1123,7 +1123,7 @@
  
  	/* Remove the block from the LRU list */
  	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
@@ -204,7 +204,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  	buf_unzip_LRU_remove_block_if_needed(bpage);
  
-@@ -1218,7 +1218,7 @@
+@@ -1198,7 +1198,7 @@
  
  	ut_ad(!bpage->in_LRU_list);
  	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
@@ -213,7 +213,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1286,7 +1286,7 @@
+@@ -1266,7 +1266,7 @@
  		buf_pool->LRU_old_len++;
  	}
  
@@ -222,7 +222,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1533,7 +1533,7 @@
+@@ -1509,7 +1509,7 @@
  				buf_page_set_old(b, buf_page_is_old(b));
  #endif /* UNIV_LRU_DEBUG */
  			} else {
@@ -283,7 +283,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-04-29 15:55:42.000000000 +0900
-@@ -1118,11 +1118,11 @@
+@@ -1116,11 +1116,11 @@
  
  	UT_LIST_NODE_T(buf_page_t) LRU;
  					/*!< node of the LRU list */

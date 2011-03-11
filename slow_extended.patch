@@ -572,7 +572,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_myisam_use_mmap= 0;
-@@ -5774,6 +5778,11 @@
+@@ -5792,6 +5796,11 @@
    OPT_SECURE_FILE_PRIV,
    OPT_MIN_EXAMINED_ROW_LIMIT,
    OPT_LOG_SLOW_SLAVE_STATEMENTS,
@@ -584,7 +584,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #if defined(ENABLED_DEBUG_SYNC)
    OPT_DEBUG_SYNC_TIMEOUT,
  #endif /* defined(ENABLED_DEBUG_SYNC) */
-@@ -5781,6 +5790,9 @@
+@@ -5799,6 +5808,9 @@
    OPT_SLAVE_EXEC_MODE,
    OPT_GENERAL_LOG_FILE,
    OPT_SLOW_QUERY_LOG_FILE,
@@ -594,7 +594,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD
-@@ -6800,6 +6812,36 @@
+@@ -6818,6 +6830,36 @@
     "microsecond precision.",
     &long_query_time, &long_query_time, 0, GET_DOUBLE,
     REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
@@ -631,7 +631,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-@@ -7950,6 +7992,10 @@
+@@ -7968,6 +8010,10 @@
    global_system_variables.old_passwords= 0;
    global_system_variables.old_alter_table= 0;
    global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
@@ -642,7 +642,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
      when collecting index statistics for MyISAM tables.
-@@ -8451,6 +8497,44 @@
+@@ -8469,6 +8515,44 @@
    case OPT_BOOTSTRAP:
      opt_noacl=opt_bootstrap=1;
      break;
@@ -1416,7 +1416,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-11-29 13:38:01.000000000 +0300
 +++ b/sql/sql_select.cc	2010-12-24 13:57:45.000000000 +0300
-@@ -6768,7 +6768,10 @@
+@@ -6790,7 +6790,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1427,7 +1427,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	else
-@@ -6782,7 +6785,10 @@
+@@ -6804,7 +6807,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1438,7 +1438,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	if (!table->no_keyread)
-@@ -9986,6 +9992,7 @@
+@@ -10008,6 +10014,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -1446,7 +1446,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -10867,6 +10874,7 @@
+@@ -10889,6 +10896,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -1454,7 +1454,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -10885,6 +10893,14 @@
+@@ -10907,6 +10915,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  

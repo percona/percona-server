@@ -16,7 +16,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
  /** Percentage of the buffer pool to reserve for 'old' blocks.
-@@ -2322,6 +2323,9 @@
+@@ -2341,6 +2342,9 @@
  	srv_n_log_files = (ulint) innobase_log_files_in_group;
  	srv_log_file_size = (ulint) innobase_log_file_size;
  
@@ -26,7 +26,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  #ifdef UNIV_LOG_ARCHIVE
  	srv_log_archive_on = (ulint) innobase_log_archive;
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -11143,6 +11147,12 @@
+@@ -11216,6 +11220,12 @@
    "Maximum delay between polling for a spin lock (6 by default)",
    NULL, NULL, 6L, 0L, ~0L, 0);
  
@@ -39,7 +39,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-@@ -11351,6 +11361,7 @@
+@@ -11432,6 +11442,7 @@
    MYSQL_SYSVAR(spin_wait_delay),
    MYSQL_SYSVAR(table_locks),
    MYSQL_SYSVAR(thread_concurrency),
@@ -72,7 +72,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 16:39:34.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 16:43:53.000000000 +0900
-@@ -313,6 +313,7 @@
+@@ -318,6 +318,7 @@
  computer. Bigger computers need bigger values. Value 0 will disable the
  concurrency check. */
  
@@ -80,7 +80,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN ulong	srv_thread_concurrency	= 0;
  
  /* this mutex protects srv_conc data structures */
-@@ -1064,6 +1065,75 @@
+@@ -1069,6 +1070,75 @@
  /*********************************************************************//**
  Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -156,7 +156,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN
  void
  srv_conc_enter_innodb(
-@@ -1094,6 +1164,13 @@
+@@ -1099,6 +1169,13 @@
  		return;
  	}
  
@@ -170,7 +170,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	os_fast_mutex_lock(&srv_conc_mutex);
  retry:
  	if (trx->declared_to_be_inside_innodb) {
-@@ -1237,6 +1314,14 @@
+@@ -1242,6 +1319,14 @@
  	}
  
  	ut_ad(srv_conc_n_threads >= 0);
@@ -185,7 +185,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	os_fast_mutex_lock(&srv_conc_mutex);
  
-@@ -1270,6 +1355,13 @@
+@@ -1275,6 +1360,13 @@
  		return;
  	}
  

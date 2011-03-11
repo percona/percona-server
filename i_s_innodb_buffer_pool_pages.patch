@@ -26,7 +26,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:55:25.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:04:05.000000000 +0900
-@@ -11175,6 +11175,9 @@
+@@ -11256,6 +11256,9 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -779,7 +779,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-07-14 15:57:23.333331973 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-07-14 16:03:45.885392395 +0900
-@@ -1286,6 +1286,15 @@
+@@ -1284,6 +1284,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  

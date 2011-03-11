@@ -170,7 +170,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool	innobase_extra_undoslots		= FALSE;
  static my_bool	innobase_fast_recovery			= FALSE;
  static my_bool	innobase_recovery_stats			= TRUE;
-@@ -2394,6 +2395,7 @@
+@@ -2413,6 +2414,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -178,7 +178,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11118,6 +11120,15 @@
+@@ -11191,6 +11193,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -194,7 +194,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11610,6 +11621,7 @@
+@@ -11671,6 +11682,7 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(checksums),
@@ -215,7 +215,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:40:36.563059330 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:42:03.638058638 +0900
-@@ -477,6 +477,11 @@
+@@ -475,6 +475,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */
@@ -241,7 +241,7 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:40:36.580092150 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:42:03.640988120 +0900
-@@ -211,6 +211,7 @@
+@@ -212,6 +212,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
@@ -301,7 +301,7 @@ diff -ruN a/storage/innodb_plugin/include/ut0rnd.ic b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:40:36.599058304 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:42:03.647012289 +0900
-@@ -383,6 +383,7 @@
+@@ -387,6 +387,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

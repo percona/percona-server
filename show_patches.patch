@@ -87,7 +87,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-04-06 23:07:02.000000000 +0900
 +++ b/sql/mysqld.cc	2010-04-28 15:29:36.000000000 +0900
-@@ -3185,6 +3185,7 @@
+@@ -3198,6 +3198,7 @@
    {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
    {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
    {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},

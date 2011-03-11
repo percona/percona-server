@@ -76,7 +76,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0
 diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0cur.c
 --- a/storage/innodb_plugin/btr/btr0cur.c	2010-08-27 16:22:04.211409467 +0900
 +++ b/storage/innodb_plugin/btr/btr0cur.c	2010-08-27 16:39:02.934087429 +0900
-@@ -227,6 +227,11 @@
+@@ -239,6 +239,11 @@
  	case BTR_MODIFY_LEAF:
  		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
  		get_block = btr_block_get(space, zip_size, page_no, mode, mtr);
@@ -88,7 +88,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
  #endif /* UNIV_BTR_DEBUG */
-@@ -240,6 +245,11 @@
+@@ -252,6 +257,11 @@
  			get_block = btr_block_get(space, zip_size,
  						  left_page_no,
  						  RW_X_LATCH, mtr);
@@ -100,7 +100,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  			ut_a(page_is_comp(get_block->frame)
  			     == page_is_comp(page));
-@@ -251,6 +261,11 @@
+@@ -263,6 +273,11 @@
  
  		get_block = btr_block_get(space, zip_size, page_no,
  					  RW_X_LATCH, mtr);
@@ -112,7 +112,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
  #endif /* UNIV_BTR_DEBUG */
-@@ -262,6 +277,11 @@
+@@ -274,6 +289,11 @@
  			get_block = btr_block_get(space, zip_size,
  						  right_page_no,
  						  RW_X_LATCH, mtr);
@@ -124,7 +124,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  			ut_a(page_is_comp(get_block->frame)
  			     == page_is_comp(page));
-@@ -283,6 +303,11 @@
+@@ -295,6 +315,11 @@
  			get_block = btr_block_get(space, zip_size,
  						  left_page_no, mode, mtr);
  			cursor->left_block = get_block;
@@ -136,7 +136,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  			ut_a(page_is_comp(get_block->frame)
  			     == page_is_comp(page));
-@@ -293,6 +318,11 @@
+@@ -305,6 +330,11 @@
  		}
  
  		get_block = btr_block_get(space, zip_size, page_no, mode, mtr);
@@ -148,7 +148,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
  #endif /* UNIV_BTR_DEBUG */
-@@ -524,6 +554,16 @@
+@@ -536,6 +566,16 @@
  					 rw_latch, guess, buf_mode,
  					 file, line, mtr);
  		if (block == NULL) {
@@ -165,7 +165,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  			/* This must be a search to perform an insert;
  			try insert to the insert buffer */
  
-@@ -551,6 +591,16 @@
+@@ -563,6 +603,16 @@
  
  		page = buf_block_get_frame(block);
  
@@ -182,7 +182,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  		block->check_index_page_at_flush = TRUE;
  
  		if (rw_latch != RW_NO_LATCH) {
-@@ -734,6 +784,17 @@
+@@ -746,6 +796,17 @@
  					 RW_NO_LATCH, NULL, BUF_GET,
  					 file, line, mtr);
  		page = buf_block_get_frame(block);
@@ -200,7 +200,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  		ut_ad(0 == ut_dulint_cmp(index->id,
  					 btr_page_get_index_id(page)));
  
-@@ -855,6 +916,14 @@
+@@ -867,6 +928,14 @@
  					 RW_NO_LATCH, NULL, BUF_GET,
  					 file, line, mtr);
  		page = buf_block_get_frame(block);
@@ -215,7 +215,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  		ut_ad(0 == ut_dulint_cmp(index->id,
  					 btr_page_get_index_id(page)));
  
-@@ -1171,6 +1240,12 @@
+@@ -1081,6 +1150,12 @@
  	*big_rec = NULL;
  
  	block = btr_cur_get_block(cursor);
@@ -228,7 +228,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  	page = buf_block_get_frame(block);
  	index = cursor->index;
  	zip_size = buf_block_get_zip_size(block);
-@@ -2895,6 +2970,11 @@
+@@ -2805,6 +2880,11 @@
  
  	block = btr_cur_get_block(cursor);
  
@@ -240,7 +240,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  	ut_ad(page_is_leaf(buf_block_get_frame(block)));
  
  	rec = btr_cur_get_rec(cursor);
-@@ -3540,6 +3620,11 @@
+@@ -3349,6 +3429,11 @@
  
  		page = btr_cur_get_page(&cursor);
  
@@ -249,9 +249,9 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
 +		}
 +		ut_a(page);
 +
- 		supremum = page_get_supremum_rec(page);
- 		if (stats_method == SRV_STATS_METHOD_IGNORE_NULLS && is_first_page) {
- 			/* the cursor should be the first record of the page. */
+ 		rec = page_rec_get_next(page_get_infimum_rec(page));
+ 
+ 		if (!page_rec_is_supremum(rec)) {
 diff -ruN a/storage/innodb_plugin/btr/btr0pcur.c b/storage/innodb_plugin/btr/btr0pcur.c
 --- a/storage/innodb_plugin/btr/btr0pcur.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/btr/btr0pcur.c	2010-08-27 16:39:02.936071298 +0900
@@ -340,7 +340,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			if (!ready) {
  
  				return(block);
-@@ -1803,6 +1809,14 @@
+@@ -1805,6 +1811,14 @@
  		return(NULL);
  	}
  
@@ -355,7 +355,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&page_hash_latch);
-@@ -2264,6 +2278,14 @@
+@@ -2265,6 +2279,14 @@
  		return(NULL);
  	}
  
@@ -375,9 +375,9 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
 +	bpage->is_corrupt = FALSE;
- #ifdef UNIV_DEBUG_FILE_ACCESSES
+ #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	bpage->file_page_was_freed = FALSE;
- #endif /* UNIV_DEBUG_FILE_ACCESSES */
+ #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 @@ -3365,7 +3388,8 @@
  void
  buf_page_io_complete(
@@ -489,7 +489,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4593,6 +4594,11 @@
+@@ -4599,6 +4600,11 @@
  	}
  
  	do {
@@ -501,7 +501,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		if (UNIV_LIKELY
  		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-@@ -5320,4 +5326,42 @@
+@@ -5330,4 +5336,42 @@
  		rw_lock_free(&dict_table_stats_latches[i]);
  	}
  }
@@ -778,7 +778,7 @@ diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:38:38.249059616 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:39:02.960021471 +0900
-@@ -3716,6 +3716,12 @@
+@@ -3735,6 +3735,12 @@
  		DBUG_RETURN(1);
  	}
  
@@ -791,7 +791,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Create buffers for packing the fields of a record. Why
  	table->reclength did not work here? Obviously, because char
  	fields when packed actually became 1 byte longer, when we also
-@@ -3743,6 +3749,19 @@
+@@ -3762,6 +3768,19 @@
  	/* Get pointer to a table object in InnoDB dictionary cache */
  	ib_table = dict_table_get(norm_name, TRUE);
  	
@@ -811,7 +811,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
  			++retries;
-@@ -4909,6 +4928,10 @@
+@@ -4928,6 +4947,10 @@
  
  	ha_statistic_increment(&SSV::ha_write_count);
  
@@ -822,7 +822,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5126,6 +5149,10 @@
+@@ -5145,6 +5168,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -833,7 +833,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error_result);
  }
  
-@@ -5302,6 +5329,10 @@
+@@ -5321,6 +5348,10 @@
  
  	ha_statistic_increment(&SSV::ha_update_count);
  
@@ -844,7 +844,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
  		table->timestamp_field->set_time();
  
-@@ -5391,6 +5422,10 @@
+@@ -5410,6 +5441,10 @@
  
  	innobase_active_small();
  
@@ -855,7 +855,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error);
  }
  
-@@ -5412,6 +5447,10 @@
+@@ -5431,6 +5466,10 @@
  
  	ha_statistic_increment(&SSV::ha_delete_count);
  
@@ -866,7 +866,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (!prebuilt->upd_node) {
  		row_get_prebuilt_update_vector(prebuilt);
  	}
-@@ -5438,6 +5477,10 @@
+@@ -5457,6 +5496,10 @@
  
  	innobase_active_small();
  
@@ -877,7 +877,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(error);
  }
  
-@@ -5677,6 +5720,10 @@
+@@ -5696,6 +5739,10 @@
  
  	ha_statistic_increment(&SSV::ha_read_key_count);
  
@@ -888,7 +888,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	index = prebuilt->index;
  
  	if (UNIV_UNLIKELY(index == NULL)) {
-@@ -5742,6 +5789,10 @@
+@@ -5761,6 +5808,10 @@
  		ret = DB_UNSUPPORTED;
  	}
  
@@ -899,7 +899,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -5857,6 +5908,10 @@
+@@ -5876,6 +5927,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -910,7 +910,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -5947,6 +6002,10 @@
+@@ -5966,6 +6021,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -921,7 +921,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -5956,6 +6015,10 @@
+@@ -5975,6 +6034,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -932,7 +932,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7214,6 +7277,10 @@
+@@ -7233,6 +7296,10 @@
  		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
  	}
  
@@ -943,7 +943,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7222,6 +7289,10 @@
+@@ -7241,6 +7308,10 @@
  		goto fallback;
  	}
  
@@ -954,7 +954,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7734,6 +7805,16 @@
+@@ -7753,6 +7824,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -971,7 +971,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -7855,7 +7936,7 @@
+@@ -7933,7 +8014,7 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -980,7 +980,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8146,10 +8227,18 @@
+@@ -8219,10 +8300,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -999,7 +999,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	return(0);
  }
  
-@@ -8331,6 +8420,10 @@
+@@ -8404,6 +8493,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1010,7 +1010,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9056,6 +9149,10 @@
+@@ -9129,6 +9222,10 @@
  
  	update_thd(thd);
  
@@ -1021,7 +1021,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11500,6 +11597,14 @@
+@@ -11561,6 +11658,14 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1036,7 +1036,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11585,6 +11690,7 @@
+@@ -11646,6 +11751,7 @@
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
@@ -1099,7 +1099,7 @@ diff -ruN a/storage/innodb_plugin/include/btr0btr.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:13:11.081058676 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:39:03.007006842 +0900
-@@ -850,7 +850,7 @@
+@@ -848,7 +848,7 @@
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  	__attribute__((pure));
  #else /* UNIV_DEBUG */
@@ -1108,7 +1108,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  #endif /* UNIV_DEBUG */
  /*********************************************************************//**
  Gets the space id of a block.
-@@ -982,7 +982,8 @@
+@@ -980,7 +980,8 @@
  void
  buf_page_io_complete(
  /*=================*/
@@ -1118,12 +1118,12 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  /********************************************************************//**
  Calculates a folded value of a file page address to use in the page hash
  table.
-@@ -1150,6 +1151,7 @@
+@@ -1148,6 +1149,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
 +	ibool		is_corrupt;
- # ifdef UNIV_DEBUG_FILE_ACCESSES
+ # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ibool		file_page_was_freed;
  					/*!< this is set to TRUE when fsp
 diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/include/buf0buf.ic
@@ -1173,7 +1173,7 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/dict0mem.h b/storage/innodb_plugin/include/dict0mem.h
 --- a/storage/innodb_plugin/include/dict0mem.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/dict0mem.h	2010-08-27 16:39:03.013021149 +0900
-@@ -560,6 +560,7 @@
+@@ -566,6 +566,7 @@
  				the AUTOINC lock on this table. */
  				/* @} */
  	/*----------------------*/
@@ -1268,7 +1268,7 @@ diff -ruN a/storage/innodb_plugin/include/page0zip.h b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:38:38.275010935 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:39:03.030004790 +0900
-@@ -230,6 +230,7 @@
+@@ -231,6 +231,7 @@
  extern ulint	srv_adaptive_checkpoint;
  
  extern ulint	srv_expand_import;
@@ -1343,7 +1343,7 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:38:38.286989546 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:39:03.048990992 +0900
-@@ -402,6 +402,7 @@
+@@ -406,6 +406,7 @@
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */

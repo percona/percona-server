@@ -49,7 +49,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
-@@ -2021,6 +2040,89 @@
+@@ -2040,6 +2059,89 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -139,7 +139,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Check that values don't overflow on 32-bit systems. */
  	if (sizeof(ulint) == 4) {
  		if (innobase_buffer_pool_size > UINT_MAX32) {
-@@ -2289,6 +2391,76 @@
+@@ -2308,6 +2410,76 @@
  		goto mem_free_and_error;
  	}
  
@@ -216,7 +216,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	innobase_open_tables = hash_create(200);
  	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
  	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
-@@ -2403,6 +2575,26 @@
+@@ -2422,6 +2594,26 @@
  		return;
  	}
  
@@ -243,7 +243,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	trx_commit_for_mysql(trx);
  }
  
-@@ -10722,6 +10914,12 @@
+@@ -10795,6 +10987,12 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -256,7 +256,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11140,6 +11338,7 @@
+@@ -11220,6 +11418,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),

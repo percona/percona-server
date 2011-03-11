@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:45:46.194411503 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:49:26.171990559 +0900
-@@ -11806,6 +11806,9 @@
+@@ -11867,6 +11867,9 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
  i_s_innodb_admin_command,

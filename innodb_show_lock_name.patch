@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:29:12.539982446 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:29:24.322059309 +0900
-@@ -9246,8 +9246,8 @@
+@@ -9319,8 +9319,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -19,7 +19,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9262,9 +9262,8 @@
+@@ -9335,9 +9335,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -31,7 +31,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9293,8 +9292,8 @@
+@@ -9366,8 +9365,8 @@
  			continue;
  		}
  
@@ -42,7 +42,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9308,9 +9307,8 @@
+@@ -9381,9 +9380,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -99,7 +99,7 @@ diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/incl
  /******************************************************************//**
  Calling this function is obligatory only if the memory buffer containing
  the rw-lock is freed. Removes an rw-lock object from the global list. The
-@@ -541,7 +541,8 @@
+@@ -542,7 +542,8 @@
  	ulint	level;		/*!< Level in the global latching order. */
  #endif /* UNIV_SYNC_DEBUG */
  	ulint count_os_wait;	/*!< Count of os_waits. May not be accurate */
@@ -109,7 +109,7 @@ diff -ruN a/storage/innodb_plugin/include/sync0rw.h b/storage/innodb_plugin/incl
          /* last s-lock file/line is not guaranteed to be correct */
  	const char*	last_s_file_name;/*!< File name where last s-locked */
  	const char*	last_x_file_name;/*!< File name where last x-locked */
-@@ -552,7 +553,7 @@
+@@ -553,7 +554,7 @@
  				are at the start of this struct, thus we can
  				peek this field without causing much memory
  				bus traffic */

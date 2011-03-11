@@ -39,7 +39,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5825,6 +5826,7 @@
+@@ -5843,6 +5844,7 @@
    OPT_SLOW_QUERY_LOG_FILE,
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
@@ -47,7 +47,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7326,6 +7328,10 @@
+@@ -7344,6 +7346,10 @@
     "Control TABLE_STATISTICS running, when userstat_running is enabled",
     (uchar**) &opt_thread_statistics, (uchar**) &opt_thread_statistics,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},

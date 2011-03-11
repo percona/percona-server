@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 15:56:27.388990435 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 15:57:21.943242617 +0900
-@@ -11097,6 +11097,11 @@
+@@ -11177,6 +11177,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11161,6 +11166,7 @@
+@@ -11242,6 +11247,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -28,7 +28,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(change_buffering),
  #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-@@ -11186,6 +11192,7 @@
+@@ -11267,6 +11273,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -238,7 +238,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
 --- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 15:56:27.391059197 +0900
 +++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 15:57:21.949178913 +0900
-@@ -211,6 +211,8 @@
+@@ -216,6 +216,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_checkpoint;
  
@@ -288,7 +288,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 15:56:27.393071672 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 15:57:21.956058333 +0900
-@@ -383,6 +383,8 @@
+@@ -388,6 +388,8 @@
  UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */

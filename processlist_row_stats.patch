@@ -1,20 +1,10 @@
-# name       : slow_extended.patch
+# name       : processlist_row_stats.patch
 # introduced : 11 or before
-# maintainer : Oleg (or Laurynas?)
+# maintainer : Oleg
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/processlist_row_stats.patch b/patch_info/processlist_row_stats.patch
---- a/patch_info/processlist_row_stats.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/processlist_row_stats.patch	2011-03-09 17:12:09.379289365 +0200
-@@ -0,0 +1,6 @@
-+File=processlist_row_stats.patch
-+Name=PROCESSLIST rows stats
-+Version=1.0
-+Author=Percona
-+License=GPL
-+Comment=Add counters into SHOW PROCESSLIST for Rows_examined, Rows_sent, Rows_read
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-03-09 17:07:26.221709282 +0200
 +++ b/sql/sql_class.cc	2011-03-09 17:07:44.900164285 +0200

@@ -242,12 +242,11 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 %description
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server
-is intended for mission-critical, heavy-load production systems as well
-as for embedding into mass-deployed software.
-MySQL is a trademark of %{mysql_vendor}
+is intended for mission-critical, heavy-load production systems.
 
-Percona Inc. provides commercial support of Percona Server.
-For more information visist our web site http://www.percona.com/
+Percona recommends that all production deployments be protected with a support
+contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,
+be eligible for hot fixes, and boost your team's productivity.
 
 ##############################################################################
 # Sub package definition
@@ -262,15 +261,14 @@ Provides:       mysql-server MySQL-server
 %description -n Percona-Server-server%{product_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. Percona Server
-is intended for mission-critical, heavy-load production systems as well
-as for embedding into mass-deployed software.
-MySQL is a trademark of %{mysql_vendor}
+is intended for mission-critical, heavy-load production systems.
 
-Percona Inc. provides commercial support of Percona Server.
-For more information visist our web site http://www.percona.com/
+Percona recommends that all production deployments be protected with a support
+contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,
+be eligible for hot fixes, and boost your team's productivity.
 
-This package includes the Percona Server binary as well as related utilities
-to run and administer a Percona Server.
+This package includes the Percona Server with XtraDB binary 
+as well as related utilities to run and administer Percona Server.
 
 If you want to access and work with the database, you have to install
 package "Percona-Server-client%{product_suffix}" as well!
@@ -283,7 +281,7 @@ Requires:      Percona-Server-shared%{product_suffix}
 Provides:       mysql-client MySQL-client mysql MySQL
 
 %description -n Percona-Server-client%{product_suffix}
-This package contains the standard Percona-Server clients and administration tools.
+This package contains the standard Percona Server client and administration tools.
 
 For a description of Percona Server see http://www.percona.com/software/percona-server/
 
@@ -809,8 +807,8 @@ if [ "$SERVER_TO_START" = "true" ] ; then
 	fi
 fi
 
-echo "Percona Server is distributed with several useful UDF (User Defined Function) from Maatkit"
-echo "Run following command to create these functions:"
+echo "Percona Server is distributed with several useful UDF (User Defined Function) from Maatkit."
+echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""

@@ -162,7 +162,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -4079,6 +4088,9 @@
+@@ -4097,6 +4106,9 @@
  
    init_global_table_stats();
    init_global_index_stats();
@@ -172,7 +172,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
-@@ -5892,6 +5904,10 @@
+@@ -5910,6 +5922,10 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -183,7 +183,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD
-@@ -6962,6 +6978,23 @@
+@@ -6980,6 +6996,23 @@
     "Use microsecond time's precision in slow query log",
     (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
     0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
@@ -207,7 +207,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-@@ -8176,6 +8209,11 @@
+@@ -8194,6 +8227,11 @@
  #else
    have_query_cache=SHOW_OPTION_NO;
  #endif
@@ -869,7 +869,7 @@ diff -ruN a/sql/table.h b/sql/table.h
 diff -ruN a/configure.in b/configure.in
 --- a/configure.in	2010-12-07 19:19:42.000000000 +0300
 +++ b/configure.in	2010-12-07 19:21:39.000000000 +0300
-@@ -2678,7 +2678,16 @@
+@@ -2687,7 +2687,16 @@
  AC_SUBST(readline_link)
  AC_SUBST(readline_h_ln_cmd)
  

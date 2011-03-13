@@ -27,7 +27,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
  static MYSQL mysql;			/* The connection */
  static my_bool ignore_errors=0,wait_flag=0,quick=0,
                 connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-@@ -1439,6 +1441,10 @@
+@@ -1441,6 +1443,10 @@
     NO_ARG, 1, 0, 0, 0, 0, 0},  
    {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -41,8 +41,8 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
 diff -ruN a/client/readline.cc b/client/readline.cc
 --- a/client/readline.cc	2010-06-03 08:50:23.000000000 -0700
 +++ b/client/readline.cc	2010-07-06 15:07:18.000000000 -0700
-@@ -20,6 +20,8 @@
- #include <m_string.h>
+@@ -21,6 +21,8 @@
+ #include <my_dir.h>
  #include "my_readline.h"
  
 +extern my_bool opt_no_remove_eol_carret;
@@ -50,8 +50,8 @@ diff -ruN a/client/readline.cc b/client/readline.cc
  static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
  			    ulong max_size);
  static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
-@@ -51,7 +53,7 @@
-   if (!(pos=intern_read_line(line_buff,&out_length, truncated)))
+@@ -60,7 +62,7 @@
+   if (!(pos=intern_read_line(line_buff, &out_length)))
      return 0;
    if (out_length && pos[out_length-1] == '\n')
 -    if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */

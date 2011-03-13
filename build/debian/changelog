@@ -1,0 +1,5 @@
+percona-server-5.5 (5.5.8-20.0-1) unstable; urgency=low
+
+  * Initial release (Closes: #609883)
+
+ -- Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>  Tue, 11 Jan 2011 07:17:08 -0800

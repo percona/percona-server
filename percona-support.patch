@@ -12,7 +12,9 @@ diff -ruN a/scripts/mysql_install_db.sh b/scripts/mysql_install_db.sh
    echo
    echo "Please report any problems with the $scriptdir/mysqlbug script!"
    echo
-+  echo "For commercial support please contact Percona at http://www.percona.com/contacts.html"
++  echo "Percona recommends that all production deployments be protected with a support"
++  echo "contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,"
++  echo "be eligible for hot fixes, and boost your team's productivity."
 +  echo
  fi
 

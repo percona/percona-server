@@ -165,7 +165,7 @@ diff -ruN a/storage/innodb_plugin/os/os0sync.c b/storage/innodb_plugin/os/os0syn
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-11-16 21:33:00.000000000 +0300
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-11-16 21:34:06.000000000 +0300
-@@ -709,6 +709,8 @@
+@@ -713,6 +713,8 @@
  
  UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
  
@@ -174,7 +174,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
  
  /* padding to prevent other memory update hotspots from residing on
-@@ -1014,6 +1016,7 @@
+@@ -1018,6 +1020,7 @@
  	}
  
  	srv_lock_timeout_thread_event = os_event_create(NULL);
@@ -182,7 +182,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	for (i = 0; i < SRV_MASTER + 1; i++) {
  		srv_n_threads_active[i] = 0;
-@@ -2241,7 +2244,7 @@
+@@ -2245,7 +2248,7 @@
  	/* Wake up every 5 seconds to see if we need to print
  	monitor information. */
  
@@ -191,7 +191,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	current_time = time(NULL);
  
-@@ -2383,7 +2386,7 @@
+@@ -2387,7 +2390,7 @@
  	/* When someone is waiting for a lock, we wake up every second
  	and check if a timeout has passed for a lock wait */
  
@@ -200,7 +200,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	srv_lock_timeout_active = TRUE;
  
-@@ -2548,7 +2551,7 @@
+@@ -2552,7 +2555,7 @@
  
  	fflush(stderr);
  
@@ -209,7 +209,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
  
-@@ -2592,7 +2595,7 @@
+@@ -2596,7 +2599,7 @@
  	last_dump_time = time(NULL);
  
  loop:
@@ -218,7 +218,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
  		goto exit_func;
-@@ -2775,7 +2778,7 @@
+@@ -2779,7 +2782,7 @@
  		if (!skip_sleep) {
  		if (next_itr_time > cur_time) {
  
@@ -227,7 +227,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  			srv_main_sleeps++;
  
  			/*
-@@ -3482,9 +3485,10 @@
+@@ -3486,9 +3489,10 @@
  		mutex_exit(&kernel_mutex);
  
  		sleep_ms = 10;

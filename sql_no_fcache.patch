@@ -35,7 +35,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    /*
      As we're going to set SQL_MODE, it would be lost on reconnect, so we
      cannot reconnect.
-@@ -3166,7 +3179,12 @@
+@@ -3175,7 +3188,12 @@
  
      /* now build the query string */
  
@@ -49,7 +49,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
      dynstr_append_checked(&query_string, filename);
      dynstr_append_checked(&query_string, "'");
  
-@@ -3216,7 +3234,12 @@
+@@ -3225,7 +3243,12 @@
        check_io(md_result_file);
      }
      
@@ -180,7 +180,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4373,6 +4383,97 @@
+@@ -4391,6 +4401,97 @@
  }
  #endif//DBUG_OFF
  
@@ -278,7 +278,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifdef __WIN__
  int win_main(int argc, char **argv)
-@@ -4477,6 +4578,10 @@
+@@ -4495,6 +4596,10 @@
    test_lc_time_sz();
  #endif
  
@@ -289,7 +289,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4678,6 +4783,10 @@
+@@ -4696,6 +4801,10 @@
    clean_up_mutexes();
    my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
@@ -300,7 +300,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    exit(0);
    return(0);					/* purecov: deadcode */
  }
-@@ -7835,6 +7944,7 @@
+@@ -7853,6 +7962,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},

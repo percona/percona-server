@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #ls -1 *.patch | grep -v repair | xargs bzr revert
-MYSQL_VERSION=5.1.55
+MYSQL_VERSION=5.1.56
 MYSQL_DIR=mysql-${MYSQL_VERSION}
 MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
 echo "===== Prepare source code for patch's adaptation...";
@@ -32,7 +32,6 @@ for patch_name in `cat series`; do
 	exit 1;
     fi;
     if [ $hunk -ne 0 ]; then
-	find b -name "*.orig" | xargs rm;
 	./regenerate_patch.sh a b $patch_name
     fi;
     patch -p1 -d Percona-Server < $patch_name > /dev/null;

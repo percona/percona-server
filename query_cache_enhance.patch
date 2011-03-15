@@ -34,7 +34,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
-@@ -5874,6 +5875,7 @@
+@@ -5892,6 +5893,7 @@
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
    OPT_SUPPRESS_LOG_WARNING_1592,
@@ -42,7 +42,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -6928,6 +6930,10 @@
+@@ -6946,6 +6948,10 @@
    {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
      "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
     0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},

@@ -80,7 +80,7 @@ mysql-$(MYSQL_VERSION).tar.gz:
 	$(FETCH_CMD) $(MASTER_SITE)/mysql-$(MYSQL_VERSION).tar.gz
 
 tests:
-	PERCONA_SERVER=${PERCONA_SERVER} source ./install_tests.sh
+	PERCONA_SERVER=${PERCONA_SERVER} sh install_tests.sh
 
 misc:
 	@echo "Installing other files"

@@ -53,6 +53,8 @@ then
         exit 1
     fi
 
+    WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
+
 elif test "$#" -eq 1
 then
     WORKDIR="$1"

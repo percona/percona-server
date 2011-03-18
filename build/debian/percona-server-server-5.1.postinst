@@ -115,10 +115,10 @@ EOF
     # The mysql_datadir must not be writable by the mysql user under any
     # circumstances as it contains scripts that are executed by root.
     set +e
-    chown -R 0:0 $mysql_datadir
-    chown -R mysql $mysql_statedir
-    chown -R mysql $mysql_rundir
-    chown -R mysql:adm $mysql_newlogdir;	chmod 2750 $mysql_newlogdir;
+    chown -RL 0:0 $mysql_datadir
+    chown -RL mysql $mysql_statedir
+    chown -RL mysql $mysql_rundir
+    chown -RL mysql:adm $mysql_newlogdir;	chmod 2750 $mysql_newlogdir;
     for i in log err; do
       touch             $mysql_logdir/mysql.$i
       chown mysql:adm   $mysql_logdir/mysql.$i
@@ -139,6 +139,9 @@ EOF
     # Debian: can safely run on upgrades with existing databases 
     set +e
     /bin/bash /usr/bin/mysql_install_db --rpm 2>&1 | $ERR_LOGGER
+    chown -RL mysql $mysql_statedir
+    chown -RL mysql $mysql_rundir
+    chown -RL mysql:adm $mysql_newlogdir;	chmod 2750 $mysql_newlogdir;
     if [ "$?" != "0" ]; then
       echo "ATTENTION: An error has occured. More info is in the syslog!"
     fi

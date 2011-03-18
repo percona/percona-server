@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.54
+%define mysqlversion 5.1.56
 %define majorversion 12
-%define minorversion 5
+%define minorversion 7
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -133,7 +133,7 @@ URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server Percona-XtraDB-server
-BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
+BuildRequires:  gperf perl gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
 
 # Think about what you use here since the first step is to
 # run a rm -rf

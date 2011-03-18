@@ -19,11 +19,12 @@ set -ue
 TARGET=''
 TARGET_ARG=''
 TARGET_CFLAGS=''
+SIGN='--sign'
 
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="i" --longoptions=i686 \
+    go_out="$(getopt --options="iK" --longoptions=i686,nosign \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -38,6 +39,10 @@ do
         TARGET='i686'
         TARGET_ARG="--target i686"
         TARGET_CFLAGS="-m32 -march=i686"
+        ;;
+    -K | --nosign )
+        shift
+        SIGN=''
         ;;
     esac
 done
@@ -125,7 +130,7 @@ export MAKE_JFLAG=-j4
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild --sign -ba --clean --with yassl \
+    rpmbuild -ba --clean --with yassl $SIGN \
         "$SOURCEDIR/build/percona-shared-compat.spec" \
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \

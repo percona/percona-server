@@ -18,11 +18,12 @@ set -ue
 # Examine parameters
 TARGET=''
 TARGET_CFLAGS=''
+SIGN='--sign' # We sign by default
 
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="i" --longoptions=i686 \
+    go_out="$(getopt --options="iK" --longoptions=i686,nosign \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -36,6 +37,10 @@ do
         shift
         TARGET="--target i686"
         TARGET_CFLAGS="-m32 -march=i686"
+        ;;
+    -K | --nosign )
+        shift
+        SIGN=''
         ;;
     esac
 done
@@ -121,7 +126,7 @@ export MAKE_JFLAG=-j4
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild --sign -ba --clean --with yassl $TARGET \
+    rpmbuild -ba --clean --with yassl $TARGET $SIGN \
         "$SOURCEDIR/build/percona-server.spec" \
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \

@@ -1,3 +1,10 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: 40_scripts__mysql_install_db.sh__no_test.patch by  <ch@debian.org>
+
+@DPATCH@
+
 40_scripts__mysql_install_db.sh__no_test.patch by  <ch@debian.org>
 
 scripts__mysql_install_db.sh__no_test

@@ -1,2 +1,2 @@
-opt/percona/percona-server-5.5/share/mysql/mysql-test/mysql-test-run.pl opt/percona/percona-server-5.5/share/mysql/mysql-test/mysql-test-run
-opt/percona/percona-server-5.5/share/mysql/mysql-test/mysql-test-run.pl opt/percona/percona-server-5.5/share/mysql/mysql-test/mtr
+usr/share/Percona-Server-5.5/mysql-test/mysql-test-run.pl usr/share/Percona-Server-5.5/mysql-test/mysql-test-run
+usr/share/Percona-Server-5.5/mysql-test/mysql-test-run.pl usr/share/Percona-Server-5.5/mysql-test/mtr

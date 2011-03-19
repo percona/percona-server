@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.9-20.1) unstable; urgency=low
+
+  * Update packaging to 5.5.9.
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Fri, 25 Mar 2011 15:23:04 -0300
+
 percona-server-5.5 (5.5.8-20.0-1) unstable; urgency=low
 
   * Initial release (Closes: #609883)

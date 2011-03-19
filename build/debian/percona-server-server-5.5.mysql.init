@@ -16,9 +16,9 @@
 set -e
 set -u
 ${DEBIAN_SCRIPT_DEBUG:+ set -v -x}
-PERCONA_PREFIX=/opt/percona/percona-server-5.5
+PERCONA_PREFIX=/usr
 
-test -x "${PERCONA_PREFIX}"/bin/mysqld || exit 0
+test -x "${PERCONA_PREFIX}"/sbin/mysqld || exit 0
 
 . /lib/lsb/init-functions
 
@@ -42,7 +42,7 @@ export HOME=/etc/mysql/
 #
 # Usage: void mysqld_get_param option
 mysqld_get_param() {
-	"${PERCONA_PREFIX}"/bin/mysqld --print-defaults \
+	"${PERCONA_PREFIX}"/sbin/mysqld --print-defaults \
 		| tr " " "\n" \
 		| grep -- "--$1" \
 		| tail -n 1 \
@@ -52,10 +52,11 @@ mysqld_get_param() {
 ## Do some sanity checks before even trying to start mysqld.
 sanity_checks() {
   # check for config file
-  if [ ! -r /etc/mysql/my.cnf ]; then
-    log_warning_msg "$0: WARNING: /etc/mysql/my.cnf cannot be read. See README.Debian.gz"
-    echo                "WARNING: /etc/mysql/my.cnf cannot be read. See README.Debian.gz" | $ERR_LOGGER
-  fi
+  # DISABLED: We do not install my.cnf
+  #if [ ! -r /etc/mysql/my.cnf ]; then
+  #  log_warning_msg "$0: WARNING: /etc/mysql/my.cnf cannot be read. See README.Debian.gz"
+  #  echo                "WARNING: /etc/mysql/my.cnf cannot be read. See README.Debian.gz" | $ERR_LOGGER
+  #fi
 
   # check for diskspace shortage
   datadir=`mysqld_get_param datadir`

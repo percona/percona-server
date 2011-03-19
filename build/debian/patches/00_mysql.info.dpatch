@@ -1,3 +1,10 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Added INFO-DIR-SECTION to the mysql.info file as requires lintian
+
+@DPATCH@
+
 Added INFO-DIR-SECTION to the mysql.info file as requires lintian
 --- a/Docs/mysql.info
 +++ b/Docs/mysql.info

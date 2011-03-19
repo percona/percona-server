@@ -1,3 +1,10 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: 50_mysql-test__db_test.patch by Christian Hammers <ch@debian.org>
+
+@DPATCH@
+
 50_mysql-test__db_test.patch by Christian Hammers <ch@debian.org>
 
 Patch 20_scripts__mysql_create_system_tables__no_test.patch removes the

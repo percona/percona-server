@@ -1,25 +1,25 @@
 #!/usr/bin/make -f
 
-export DH_VERBOSE=1
+#export DH_VERBOSE=1
 
-# This has to be exported to make some magic below work.
-export DH_OPTIONS=--list-missing
+include /usr/share/dpatch/dpatch.make
 
 CMAKE=cmake
 TMP=$(CURDIR)/debian/tmp/
 
 feature_set="community"
-compilation_comment_release="Percona Server (GPL), Release 12.5"
+compilation_comment_release="Percona Server (GPL), Release 20.1"
 server_suffix="-55"
-prefix="/opt/percona/percona-server-5.5"
-#prefix="/usr"
+prefix="/usr"
 
-clean:
+clean: clean-patched unpatch
+
+clean-patched:
 	dh clean
 	rm -rf CMakeFiles
 
-build:
-	echo "Building Percona Server 12.5"
+build: patch
+	echo "Building Percona Server 20.1"
 	dh_testdir
 	$(CMAKE) . -DBUILD_CONFIG=mysql_release \
 	   -DINSTALL_LAYOUT=DEB \
@@ -39,17 +39,22 @@ build:
 #	install -m 0644 -D debian/additions/innotop/InnoDBParser.pm $(TMP)/$(prefix)/share/perl5/InnoDBParser.pm
 #	dh install --list-missing
 
-#binary: binary-arch binary-indep install
-#	echo "Making binary"
-#	dh binary
+binary: binary-arch binary-indep install
+	echo "Making binary"
+	dh binary
 
-#binary-arch:
-#	echo "Making binary-arch"
-#	dh binary-arch
+binary-arch:
+	echo "Making binary-arch"
+	dh binary-arch
 
-#binary-indep:
-#	echo "Making binary-indep"
-#	dh binary-indep
+binary-indep:
+	echo "Making binary-indep"
+	dh binary-indep
 
-%:
-	dh $@ 
+install:
+	echo "Making install"
+	dh install
+
+override_dh_installinit:
+	dh_installinit --name=mysql
+

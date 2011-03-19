@@ -34,7 +34,7 @@ Description: Percona Server database development files - empty transitional
 Package: libmysqlclient-dev
 Architecture: any
 Section: libdevel
-Depends: libmysqlclient16 (= ${binary:Version}), zlib1g-dev, , ${shlibs:Depends}, ${misc:Depends}
+Depends: libmysqlclient16 (= ${binary:Version}), zlib1g-dev, ${misc:Depends}
 Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev
 Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libpercona-xtradb-client-dev
 Description: Percona Server database development files
@@ -45,7 +45,7 @@ Description: Percona Server database development files
  .
  This package includes development libraries and header files.
 
-Package: percona-server-common
+Package: percona-server-common-5.5
 Section: database
 Architecture: all
 Depends: ${misc:Depends}
@@ -61,9 +61,9 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  This package includes files needed by all versions of the client library
  (e.g. /etc/mysql/my.cnf).
 
-Package: percona-server-test
+Package: percona-server-test-5.5
 Architecture: all
-Depends: percona-server-client (>= ${source:Version}), percona-server-server (>= ${source:Version})
+Depends: percona-server-client-5.5 (>= ${source:Version}), percona-server-server-5.5 (>= ${source:Version})
 Provides: mysql-client
 Description: Percona Server database test suite
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
@@ -77,7 +77,7 @@ Description: Percona Server database test suite
 
 Package: percona-server-client-5.5
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, percona-server-common (>= ${source:Version}), libmysqlclient16 (>= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.5 (>= ${source:Version}), libmysqlclient16 (>= ${source:Version}), ${shlib:Depends}, ${misc:Depends}
 Provides: mysql-client
 Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0, percona-server-client-5.1
 Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0, percona-server-client-5.1
@@ -93,7 +93,7 @@ Description: Percona Server database client binaries
 Package: percona-server-server-5.5
 Architecture: any
 Suggests: tinyca
-Depends: percona-server-client (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), percona-server-common (>= ${source:Version}), adduser (>= 3.40), debconf
+Depends: percona-server-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), percona-server-common-5.5 (>= ${source:Version}), adduser (>= 3.40), debconf
 Conflicts: mysql-server (<< ${source:Version}), mysql-server-4.1, percona-xtradb-server-5.0, percona-server-server-5.1
 Provides: mysql-server
 Replaces: mysql-server (<< ${source:Version}), mysql-server-5.0, percona-xtradb-server-5.0, percona-server-server-5.1

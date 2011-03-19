@@ -12,7 +12,7 @@
 if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
 ${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
 
-PERCONA_PREFIX=/opt/percona/percona-server-5.5
+PERCONA_PREFIX=/usr
 export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin:$PERCONA_PREFIX/bin
 
 MYADMIN="${PERCONA_PREFIX}/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
@@ -58,7 +58,7 @@ if dpkg --compare-versions `uname -r` lt 2.6; then
 fi
 
 # Abort if an NDB cluster is in use.
-if egrep -q -r '^[^#]*ndb.connectstring' /etc/mysql/; then
+if test -d /etc/mysql/ && egrep -q -r '^[^#]*ndb.connectstring' /etc/mysql/; then
   db_fset percona-server-server/no_upgrade_when_using_ndb seen false || true
   db_input high percona-server-server/no_upgrade_when_using_ndb || true
   db_go

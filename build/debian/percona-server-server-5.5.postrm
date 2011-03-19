@@ -5,7 +5,7 @@ if [ -f /usr/share/debconf/confmodule ]; then
   . /usr/share/debconf/confmodule
 fi
 
-PERCONA_PREFIX=/opt/percona/percona-server-5.5
+PERCONA_PREFIX=/usr
 export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin:$PERCONA_PREFIX/bin
 
 if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi

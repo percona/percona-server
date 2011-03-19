@@ -1,34 +1,34 @@
-debian/additions/innotop/innotop opt/percona/percona-server-5.5/bin
-debian/additions/innotop/innotop.1 opt/percona/percona-server-5.5/man/man1
+debian/additions/innotop/innotop usr/bin
+debian/additions/innotop/innotop.1 usr/share/man/man1
 debian/additions/innotop/InnoDBParser.pm /usr/share/perl5
-opt/percona/percona-server-5.5/bin/myisam_ftdump
-opt/percona/percona-server-5.5/bin/mysql
-opt/percona/percona-server-5.5/bin/mysqlaccess
-opt/percona/percona-server-5.5/bin/mysqladmin
-opt/percona/percona-server-5.5/bin/mysqlbug
-opt/percona/percona-server-5.5/bin/mysqlcheck
-opt/percona/percona-server-5.5/bin/mysql_client_test
-opt/percona/percona-server-5.5/bin/mysqldump
-opt/percona/percona-server-5.5/bin/mysqldumpslow
-opt/percona/percona-server-5.5/bin/mysql_find_rows
-opt/percona/percona-server-5.5/bin/mysql_fix_extensions
-opt/percona/percona-server-5.5/bin/mysqlimport
-opt/percona/percona-server-5.5/bin/mysqlshow
-opt/percona/percona-server-5.5/bin/mysql_waitpid
-opt/percona/percona-server-5.5/bin/mysqlslap
-opt/percona/percona-server-5.5/bin/mysqlaccess.conf
-opt/percona/percona-server-5.5/man/man1/myisam_ftdump.1
-opt/percona/percona-server-5.5/man/man1/mysql.1
-opt/percona/percona-server-5.5/man/man1/mysqlaccess.1
-opt/percona/percona-server-5.5/man/man1/mysqladmin.1
-opt/percona/percona-server-5.5/man/man1/mysqlbug.1
-opt/percona/percona-server-5.5/man/man1/mysqlcheck.1
-opt/percona/percona-server-5.5/man/man1/mysqldump.1
-opt/percona/percona-server-5.5/man/man1/mysqldumpslow.1
-opt/percona/percona-server-5.5/man/man1/mysql_find_rows.1
-opt/percona/percona-server-5.5/man/man1/mysql_fix_extensions.1
-opt/percona/percona-server-5.5/man/man1/mysqlimport.1
-opt/percona/percona-server-5.5/man/man1/mysqlshow.1
-opt/percona/percona-server-5.5/man/man1/mysql_waitpid.1
-opt/percona/percona-server-5.5/man/man1/mysql_client_test.1
-opt/percona/percona-server-5.5/man/man1/mysqlslap.1
+usr/bin/myisam_ftdump
+usr/bin/mysql
+usr/bin/mysqlaccess
+usr/bin/mysqladmin
+usr/bin/mysqlbug
+usr/bin/mysqlcheck
+usr/bin/mysql_client_test
+usr/bin/mysqldump
+usr/bin/mysqldumpslow
+usr/bin/mysql_find_rows
+usr/bin/mysql_fix_extensions
+usr/bin/mysqlimport
+usr/bin/mysqlshow
+usr/bin/mysql_waitpid
+usr/bin/mysqlslap
+usr/bin/mysqlaccess.conf
+usr/share/man/man1/myisam_ftdump.1
+usr/share/man/man1/mysql.1
+usr/share/man/man1/mysqlaccess.1
+usr/share/man/man1/mysqladmin.1
+usr/share/man/man1/mysqlbug.1
+usr/share/man/man1/mysqlcheck.1
+usr/share/man/man1/mysqldump.1
+usr/share/man/man1/mysqldumpslow.1
+usr/share/man/man1/mysql_find_rows.1
+usr/share/man/man1/mysql_fix_extensions.1
+usr/share/man/man1/mysqlimport.1
+usr/share/man/man1/mysqlshow.1
+usr/share/man/man1/mysql_waitpid.1
+usr/share/man/man1/mysql_client_test.1
+usr/share/man/man1/mysqlslap.1

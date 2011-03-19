@@ -1,6 +1,6 @@
-opt/percona/percona-server-5.5/bin/mysql_config
-opt/percona/percona-server-5.5/include
-opt/percona/percona-server-5.5/lib/libmysqlclient.a
-opt/percona/percona-server-5.5/lib/libmysqlclient_r.a
-opt/percona/percona-server-5.5/lib/libmysqlservices.a
-opt/percona/percona-server-5.5/man/man1/mysql_config.1
+usr/bin/mysql_config
+usr/include
+usr/lib/libmysqlclient.a
+usr/lib/libmysqlclient_r.a
+usr/lib/libmysqlservices.a
+usr/share/man/man1/mysql_config.1

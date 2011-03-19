@@ -1,0 +1,53 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Fixed prefix to /usr
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server-5.5.9-beta20.1~/cmake/install_layout.cmake Percona-Server-5.5.9-beta20.1/cmake/install_layout.cmake
+--- Percona-Server-5.5.9-beta20.1~/cmake/install_layout.cmake	2011-01-19 20:37:08.000000000 -0200
++++ Percona-Server-5.5.9-beta20.1/cmake/install_layout.cmake	2011-03-17 20:08:14.399500879 -0300
+@@ -74,7 +74,7 @@
+   IF(INSTALL_LAYOUT MATCHES "RPM")
+     SET(default_prefix "/usr")
+   ELSEIF(INSTALL_LAYOUT MATCHES "DEB")
+-    SET(default_prefix "/opt/mysql/server-${MYSQL_BASE_VERSION}")
++    SET(default_prefix "/usr")
+     # This is required to avoid "cpack -GDEB" default of prefix=/usr
+     SET(CPACK_SET_DESTDIR ON)
+   ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")
+@@ -157,8 +157,8 @@
+ # DEB layout
+ #
+ SET(INSTALL_BINDIR_DEB                  "bin")
+-SET(INSTALL_SBINDIR_DEB                 "bin")
+-SET(INSTALL_SCRIPTDIR_DEB               "scripts")
++SET(INSTALL_SBINDIR_DEB                 "sbin")
++SET(INSTALL_SCRIPTDIR_DEB               "bin")
+ #
+ SET(INSTALL_LIBDIR_DEB                  "lib")
+ SET(INSTALL_PLUGINDIR_DEB               "lib/plugin")
+@@ -167,16 +167,16 @@
+ #
+ SET(INSTALL_DOCDIR_DEB                  "docs")
+ SET(INSTALL_DOCREADMEDIR_DEB            ".")
+-SET(INSTALL_MANDIR_DEB                  "man")
+-SET(INSTALL_INFODIR_DEB                 "docs")
++SET(INSTALL_MANDIR_DEB                  "share/man")
++SET(INSTALL_INFODIR_DEB                 "share/info")
+ #
+ SET(INSTALL_SHAREDIR_DEB                "share")
+-SET(INSTALL_MYSQLSHAREDIR_DEB           "share")
+-SET(INSTALL_MYSQLTESTDIR_DEB            "mysql-test")
+-SET(INSTALL_SQLBENCHDIR_DEB             ".")
+-SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
++SET(INSTALL_MYSQLSHAREDIR_DEB           "share/Percona-Server-5.5")
++SET(INSTALL_MYSQLTESTDIR_DEB            "share/Percona-Server-5.5/mysql-test")
++SET(INSTALL_SQLBENCHDIR_DEB             "share/Percona-Server-5.5/sql-bench")
++SET(INSTALL_SUPPORTFILESDIR_DEB         "share/Percona-Server-5.5")
+ #
+-SET(INSTALL_MYSQLDATADIR_DEB            "data")
++SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
+ 
+ #
+ # SVR4 layout

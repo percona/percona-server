@@ -5,8 +5,8 @@
 # Changes to this file will be preserved when updating the Debian package.
 #
 
-PERCONA_PREFIX=/opt/percona/percona-server-5.5
-source "${PERCONA_PREFIX}"/share/debian-start.inc.sh
+PERCONA_PREFIX=/usr
+source "${PERCONA_PREFIX}"/share/Percona-Server-5.5/debian-start.inc.sh
 
 MYSQL="${PERCONA_PREFIX}/bin/mysql --defaults-file=/etc/mysql/debian.cnf"
 MYADMIN="${PERCONA_PREFIX}/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"

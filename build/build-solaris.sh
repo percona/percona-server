@@ -1,0 +1,10 @@
+# 64bit:
+
+export PATH=/opt/SUNWspro/bin:$PATH
+export LD_LIBRARY_PATH=/opt/SUNWspro/lib/amd64/
+CC=/opt/SUNWspro/bin/cc CXX=/opt/SUNWspro/bin/CC CFLAGS="-xarch=generic64 -g -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt  -DHAVE_RWLOCK_T -DUNIV_SOLARIS -DUNIV_SOLARIS -xprefetch=auto -xprefetch_level=3" CXXFLAGS="-xarch=generic64 -g0 -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xprefetch=auto -xprefetch_level=3 -features=no%except -xlibmil -xlibmopt  -DHAVE_RWLOCK_T"  LDFLAGS="-lmtmalloc -lCrun" ./configure '--prefix=/opt/percona-server-5.1.55-rel12.6-200-amd64' '--with-server-suffix=-rel12.6' '--without-plugin-innobase' '--with-plugin-innodb_plugin' '--without-embedded-server' '--with-zlib-dir=bundled' '--with-big-tables' '--enable-local-infile' '--with-mysqld-user=mysql' '--with-extra-charsets=complex' '--enable-thread-safe-client' '--enable-static' '--with-comment=Percona Server with XtraDB (GPL), Release 12.6, Revision 200' '--with-readline' --without-response-time-distribution --with-ssl
+
+# 32bit:
+#export PATH=/opt/SUNWspro/bin:$PATH
+#export LD_LIBRARY_PATH=/opt/SUNWspro/lib/
+#CC=/opt/SUNWspro/bin/cc CXX=/opt/SUNWspro/bin/CC CFLAGS="-g -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt  -DHAVE_RWLOCK_T -DUNIV_SOLARIS -DUNIV_SOLARIS -xprefetch=auto -xprefetch_level=3" CXXFLAGS="-g0 -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xprefetch=auto -xprefetch_level=3 -features=no%except -xlibmil -xlibmopt  -DHAVE_RWLOCK_T"  LDFLAGS="-lmtmalloc -lCrun" ./configure '--prefix=/opt/percona-server-5.1.55-rel12.6-200-32bit' '--with-server-suffix=-rel12.6' '--without-plugin-innobase' '--with-plugin-innodb_plugin' '--without-embedded-server' '--with-zlib-dir=bundled' '--with-big-tables' '--enable-local-infile' '--with-mysqld-user=mysql' '--with-extra-charsets=complex' '--enable-thread-safe-client' '--enable-static' '--with-comment=Percona Server with XtraDB (GPL), Release 12.6, Revision 200' '--with-readline' --without-response-time-distribution --with-ssl

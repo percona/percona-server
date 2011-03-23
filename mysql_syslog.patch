@@ -16,8 +16,8 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
 +  OPT_SYSLOG,
 +#endif
    OPT_PLUGIN_DIR,
+   OPT_DEFAULT_AUTH,
    OPT_DEFAULT_PLUGIN,
-   OPT_MAX_CLIENT_OPTION
 diff -ruN a/client/mysql.cc b/client/mysql.cc
 --- a/client/mysql.cc	2010-12-03 20:58:26.000000000 +0300
 +++ b/client/mysql.cc	2011-01-13 18:38:21.000000000 +0300
@@ -50,7 +50,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
  static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
  /* The names of functions that actually do the manipulation. */
  static int get_options(int argc,char **argv);
-@@ -1561,6 +1567,10 @@
+@@ -1563,6 +1569,10 @@
    {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
      &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
      0, 0, 0, 0, 0, 0},
@@ -61,7 +61,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
    {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-@@ -1665,6 +1675,11 @@
+@@ -1667,6 +1677,11 @@
                                      opt->name);
  #endif
      break;
@@ -73,7 +73,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
    case OPT_SERVER_ARG:
  #ifdef EMBEDDED_LIBRARY
      /*
-@@ -2014,6 +2029,40 @@
+@@ -2020,6 +2035,40 @@
    DBUG_RETURN((COMMANDS *) 0);
  }
  
@@ -114,7 +114,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
  
  static bool add_line(String &buffer,char *line,char *in_string,
                       bool *ml_comment, bool truncated)
-@@ -2990,6 +3039,11 @@
+@@ -2996,6 +3045,11 @@
      fix_history(buffer);
    }
  #endif

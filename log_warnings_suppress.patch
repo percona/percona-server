@@ -21,7 +21,7 @@ diff -ruN a/patch_info/log_warnings_suppress.patch b/patch_info/log_warnings_sup
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-01-05 20:31:33.000000000 +0300
 +++ b/sql/mysqld.cc	2011-01-05 20:32:34.000000000 +0300
-@@ -620,6 +620,8 @@
+@@ -621,6 +621,8 @@
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
  
@@ -45,7 +45,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-01-05 20:31:32.000000000 +0300
 +++ b/sql/sql_class.cc	2011-01-05 20:32:34.000000000 +0300
-@@ -4578,7 +4578,7 @@
+@@ -4579,7 +4579,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));

@@ -29,7 +29,7 @@ diff -ruN a/sql/lex.h b/sql/lex.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-29 20:27:19.000000000 +0300
 +++ b/sql/mysqld.cc	2010-12-29 20:29:19.000000000 +0300
-@@ -3053,6 +3053,7 @@
+@@ -3067,6 +3067,7 @@
    {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},

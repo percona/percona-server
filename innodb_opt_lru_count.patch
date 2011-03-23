@@ -190,7 +190,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-03 15:20:49.602952786 +0900
-@@ -1016,7 +1016,7 @@
+@@ -992,7 +992,7 @@
  
  	/* No free block was found: try to flush the LRU list */
  
@@ -199,7 +199,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  	++srv_buf_pool_wait_free;
  
  	os_aio_simulated_wake_handler_threads();
-@@ -1213,7 +1213,7 @@
+@@ -1189,7 +1189,7 @@
  
  	/* Remove the block from the LRU list */
  	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
@@ -208,7 +208,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	buf_unzip_LRU_remove_block_if_needed(bpage);
  
-@@ -1292,7 +1292,7 @@
+@@ -1268,7 +1268,7 @@
  
  	ut_ad(!bpage->in_LRU_list);
  	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
@@ -217,7 +217,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1362,7 +1362,7 @@
+@@ -1338,7 +1338,7 @@
  		buf_pool->LRU_old_len++;
  	}
  
@@ -226,7 +226,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1617,7 +1617,7 @@
+@@ -1589,7 +1589,7 @@
  				buf_page_set_old(b, buf_page_is_old(b));
  #endif /* UNIV_LRU_DEBUG */
  			} else {

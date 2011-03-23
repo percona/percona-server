@@ -49,7 +49,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  /*
  		IMPLEMENTATION OF THE BUFFER POOL
-@@ -2397,11 +2431,19 @@
+@@ -2399,11 +2433,19 @@
  	mutex_t*	block_mutex;
  	ibool		must_read;
  	unsigned	access_time;
@@ -69,7 +69,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool->stat.n_page_gets++;
  
  	for (;;) {
-@@ -2419,7 +2461,7 @@
+@@ -2421,7 +2463,7 @@
  		//buf_pool_mutex_exit(buf_pool);
  		rw_lock_s_unlock(&buf_pool->page_hash_latch);
  
@@ -78,7 +78,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  		ut_a(++buf_dbg_counter % 37 || buf_validate());
-@@ -2497,6 +2539,13 @@
+@@ -2498,6 +2540,13 @@
  		/* Let us wait until the read operation
  		completes */
  
@@ -92,7 +92,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		for (;;) {
  			enum buf_io_fix	io_fix;
  
-@@ -2511,6 +2560,12 @@
+@@ -2512,6 +2561,12 @@
  				break;
  			}
  		}
@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2823,6 +2878,11 @@
+@@ -2824,6 +2879,11 @@
  	ibool		must_read;
  	ulint		retries = 0;
  	mutex_t*	block_mutex = NULL;
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2841,6 +2901,9 @@
+@@ -2842,6 +2902,9 @@
  	ut_ad(!ibuf_inside() || ibuf_page_low(space, zip_size, offset,
  					      FALSE, file, line, NULL));
  #endif
@@ -127,7 +127,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool->stat.n_page_gets++;
  	fold = buf_page_address_fold(space, offset);
  loop:
-@@ -2914,7 +2977,7 @@
+@@ -2915,7 +2978,7 @@
  			return(NULL);
  		}
  
@@ -191,7 +191,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	ut_ad(block);
  	ut_ad(mtr);
 @@ -3363,13 +3444,17 @@
- #ifdef UNIV_DEBUG_FILE_ACCESSES
+ #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ut_a(block->page.file_page_was_freed == FALSE);
  #endif
 +	if (innobase_get_slow_log()) {
@@ -379,7 +379,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:36:44.293955189 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:42:42.090024586 +0900
-@@ -1527,6 +1527,16 @@
+@@ -1546,6 +1546,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_VOID_RETURN;
  }
  
-@@ -1581,6 +1591,32 @@
+@@ -1600,6 +1610,32 @@
  	return(trx);
  }
  
@@ -429,7 +429,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9207,6 +9243,25 @@
+@@ -9280,6 +9316,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -872,7 +872,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* This is set to the MySQL server value for this variable.  It is only
  needed for FOREIGN KEY definition parsing since FOREIGN KEY names are not
  stored in the server metadata. The server stores and enforces it for
-@@ -1253,6 +1256,10 @@
+@@ -1257,6 +1260,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -883,7 +883,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1329,6 +1336,7 @@
+@@ -1333,6 +1340,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -891,7 +891,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		trx->op_info = "";
-@@ -1384,6 +1392,13 @@
+@@ -1388,6 +1396,13 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  
@@ -905,7 +905,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
-@@ -1392,6 +1407,12 @@
+@@ -1396,6 +1411,12 @@
  
  	trx->op_info = "";
  

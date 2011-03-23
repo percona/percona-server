@@ -38,7 +38,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    {"lines-terminated-by", OPT_LTB,
     "Lines in the output file are terminated by the given string.",
     &lines_terminated, &lines_terminated, 0, GET_STR,
-@@ -2293,13 +2296,21 @@
+@@ -2302,13 +2305,21 @@
        /* Make an sql-file, if path was given iow. option -T was given */
        char buff[20+FN_REFLEN];
        MYSQL_FIELD *field;

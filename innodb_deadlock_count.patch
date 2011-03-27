@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:09:53.145500265 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:10:24.605515894 +0900
-@@ -668,6 +668,8 @@
+@@ -687,6 +687,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
@@ -31,7 +31,7 @@ diff -ruN a/storage/innobase/include/lock0lock.h b/storage/innobase/include/lock
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-04 15:55:21.378480843 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-04 16:10:24.606550983 +0900
-@@ -760,6 +760,7 @@
+@@ -774,6 +774,7 @@
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
  	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
  	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
@@ -53,7 +53,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:57:13.069513371 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 16:10:24.610593039 +0900
-@@ -469,6 +469,7 @@
+@@ -473,6 +473,7 @@
  static ulint	srv_n_rows_deleted_old		= 0;
  static ulint	srv_n_rows_read_old		= 0;
  
@@ -61,7 +61,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
  UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
  UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-@@ -2287,6 +2288,7 @@
+@@ -2291,6 +2292,7 @@
  	export_vars.innodb_buffer_pool_pages_data = LRU_len;
  	export_vars.innodb_buffer_pool_pages_dirty = flush_list_len;
  	export_vars.innodb_buffer_pool_pages_free = free_len;

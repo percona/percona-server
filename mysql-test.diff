@@ -33,23 +33,29 @@ diff -ruN a/mysql-test/r/connect.result b/mysql-test/r/connect.result
 diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
 --- a/mysql-test/r/create.result	2010-11-03 07:01:12.000000000 +0900
 +++ b/mysql-test/r/create.result	2010-12-10 16:48:11.001009442 +0900
-@@ -1741,7 +1741,8 @@
+@@ -1741,7 +1741,11 @@
    `COMMAND` varchar(16) NOT NULL DEFAULT '',
    `TIME` int(7) NOT NULL DEFAULT '0',
    `STATE` varchar(64) DEFAULT NULL,
 -  `INFO` longtext
 +  `INFO` longtext,
-+  `TIME_MS` bigint(21) NOT NULL DEFAULT '0'
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
++  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_READ` bigint(21) unsigned NOT NULL DEFAULT '0'
  ) ENGINE=MyISAM DEFAULT CHARSET=utf8
  drop table t1;
  create temporary table t1 like information_schema.processlist;
-@@ -1755,7 +1756,8 @@
+@@ -1755,7 +1759,11 @@
    `COMMAND` varchar(16) NOT NULL DEFAULT '',
    `TIME` int(7) NOT NULL DEFAULT '0',
    `STATE` varchar(64) DEFAULT NULL,
 -  `INFO` longtext
 +  `INFO` longtext,
-+  `TIME_MS` bigint(21) NOT NULL DEFAULT '0'
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
++  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_READ` bigint(21) unsigned NOT NULL DEFAULT '0'
  ) ENGINE=MyISAM DEFAULT CHARSET=utf8
  drop table t1;
  create table t1 like information_schema.character_sets;
@@ -323,7 +329,7 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
 diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
 --- a/mysql-test/r/mysqld--help-notwin.result	2011-01-20 00:37:09.000000000 +0200
 +++ b/mysql-test/r/mysqld--help-notwin.result	2011-02-18 13:14:44.701736864 +0200
-@@ -249,21 +249,43 @@
+@@ -250,21 +250,43 @@
   --log-slow-admin-statements 
   Log slow OPTIMIZE, ANALYZE, ALTER and other
   administrative statements to the slow log if it is open.
@@ -369,7 +375,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --long-query-time=# Log all queries that have taken more than long_query_time
   seconds to execute to file. The argument will be treated
   as a decimal value with microsecond precision
-@@ -470,6 +492,10 @@
+@@ -471,6 +493,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -380,7 +386,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -478,6 +504,12 @@
+@@ -479,6 +505,12 @@
   Invalidate queries in query cache on LOCK for write
   --query-prealloc-size=# 
   Persistent buffer for query parsing and execution
@@ -393,7 +399,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -655,6 +687,9 @@
+@@ -656,6 +688,9 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
@@ -403,7 +409,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --socket=name       Socket file to use for connection
   --sort-buffer-size=# 
   Each thread that needs to do a sort allocates a buffer of
-@@ -697,6 +732,8 @@
+@@ -698,6 +733,8 @@
   Define threads usage for handling queries, one of
   one-thread-per-connection, no-threads, loaded-dynamically
   --thread-stack=#    The stack size for each thread
@@ -412,7 +418,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --time-format=name  The TIME format (ignored)
   --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
   currently supported)
-@@ -721,11 +758,24 @@
+@@ -722,11 +759,24 @@
   Prohibit update of a VIEW, which does not contain a key
   of the underlying table and the query uses a LIMIT clause
   (usually get from GUI tools)
@@ -437,7 +443,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  
  Variables (--variable-name=value)
  abort-slave-event-count 0
-@@ -807,10 +857,16 @@
+@@ -809,10 +859,16 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
@@ -454,7 +460,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  long-query-time 10
  low-priority-updates FALSE
  lower-case-table-names 1
-@@ -885,9 +941,12 @@
+@@ -887,9 +943,12 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0
@@ -467,7 +473,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  range-alloc-block-size 4096
  read-buffer-size 131072
  read-only FALSE
-@@ -922,6 +981,7 @@
+@@ -924,6 +983,7 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE
@@ -475,7 +481,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  sort-buffer-size 2097152
  sporadic-binlog-dump-fail FALSE
  sql-mode 
-@@ -939,6 +999,7 @@
+@@ -941,6 +1001,7 @@
  thread-cache-size 0
  thread-handling one-thread-per-connection
  thread-stack 262144
@@ -483,7 +489,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  time-format %H:%i:%s
  timed-mutexes FALSE
  tmp-table-size 16777216
-@@ -946,8 +1007,11 @@
+@@ -948,8 +1009,11 @@
  transaction-isolation REPEATABLE-READ
  transaction-prealloc-size 4096
  updatable-views-with-limit YES
@@ -672,7 +678,7 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
 diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
 --- a/mysql-test/suite/sys_vars/r/all_vars.result	2011-01-20 00:37:09.000000000 +0200
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-02-21 02:01:47.873337692 +0200
-@@ -11,7 +11,99 @@
+@@ -11,9 +11,99 @@
  select variable_name as `There should be *no* variables listed below:` from t2
  left join t1 on variable_name=test_name where test_name is null;
  There should be *no* variables listed below:
@@ -697,7 +703,7 @@ diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_v
 +INNODB_CHECKPOINT_AGE_TARGET
 +LOG_SLOW_SLAVE_STATEMENTS
 +INNODB_ADAPTIVE_FLUSHING_METHOD
-+INNODB_STATS_METHOD
+ INNODB_STATS_METHOD
 +HAVE_RESPONSE_TIME_DISTRIBUTION
 +LOG_SLOW_RATE_LIMIT
 +OPTIMIZER_FIX
@@ -744,7 +750,7 @@ diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_v
 +INNODB_CHECKPOINT_AGE_TARGET
 +LOG_SLOW_SLAVE_STATEMENTS
 +INNODB_ADAPTIVE_FLUSHING_METHOD
-+INNODB_STATS_METHOD
+ INNODB_STATS_METHOD
 +HAVE_RESPONSE_TIME_DISTRIBUTION
 +LOG_SLOW_RATE_LIMIT
 +OPTIMIZER_FIX
@@ -838,3 +844,75 @@ diff -ruN a/mysql-test/t/connect.test b/mysql-test/t/connect.test
  --source include/wait_until_count_sessions.inc
  
 +set global log_warnings=1;
+diff -ruN a/mysql-test/r/show_check.result b/mysql-test/r/show_check.result
+--- a/mysql-test/r/show_check.result	2011-01-20 00:37:09.000000000 +0200
++++ b/mysql-test/r/show_check.result	2011-03-09 13:05:40.506397491 +0200
+@@ -1537,14 +1537,14 @@
+ SET NAMES latin1;
+ SELECT GET_LOCK('t',1000) AS 'óóóó';;
+ SHOW PROCESSLIST;
+-Id	User	Host	db	Command	Time	State	Info
+-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
++###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'	###	###	###
+ SET NAMES utf8;
+ SHOW PROCESSLIST;
+-Id	User	Host	db	Command	Time	State	Info
+-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
++###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'	###	###	###
+ SELECT RELEASE_LOCK('t');
+ RELEASE_LOCK('t')
+ 1
+diff -ruN a/mysql-test/r/sp-threads.result b/mysql-test/r/sp-threads.result
+--- a/mysql-test/r/sp-threads.result	2011-01-20 00:37:09.000000000 +0200
++++ b/mysql-test/r/sp-threads.result	2011-03-09 13:05:40.507397405 +0200
+@@ -33,11 +33,11 @@
+ lock tables t2 write;
+ call bug9486();
+ show processlist;
+-Id	User	Host	db	Command	Time	State	Info
+-#	root	localhost	test	Sleep	#		NULL
+-#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2
+-#	root	localhost	test	Query	#	NULL	show processlist
+-#	root	localhost	test	Sleep	#		NULL
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++#	root	localhost	test	Sleep	#		NULL	#	#	#
++#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2	#	#	#
++#	root	localhost	test	Query	#	NULL	show processlist	#	#	#
++#	root	localhost	test	Sleep	#		NULL	#	#	#
+ unlock tables;
+ drop procedure bug9486;
+ drop table t1, t2;
+diff -ruN a/mysql-test/t/show_check.test b/mysql-test/t/show_check.test
+--- a/mysql-test/t/show_check.test	2011-01-20 00:37:09.000000000 +0200
++++ b/mysql-test/t/show_check.test	2011-03-09 13:05:40.500398012 +0200
+@@ -1375,10 +1375,10 @@
+ let $wait_timeout= 10;
+ let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
+ --source include/wait_condition.inc
+---replace_column 1 ### 3 ### 6 ### 7 ###
++--replace_column 1 ### 3 ### 6 ### 7 ### 9 ### 10 ### 11 ###
+ SHOW PROCESSLIST;
+ SET NAMES utf8;
+---replace_column 1 ### 3 ### 6 ### 7 ###
++--replace_column 1 ### 3 ### 6 ### 7 ### 9 ### 10 ### 11 ###
+ SHOW PROCESSLIST;
+ SELECT RELEASE_LOCK('t');
+ --connection con1
+diff -ruN a/mysql-test/t/sp-threads.test b/mysql-test/t/sp-threads.test
+--- a/mysql-test/t/sp-threads.test	2011-01-20 00:37:09.000000000 +0200
++++ b/mysql-test/t/sp-threads.test	2011-03-09 13:05:40.501397925 +0200
+@@ -81,7 +81,7 @@
+ connection con2root;
+ --sleep 2
+ # There should be call statement in locked state.
+---replace_column 1 # 3 localhost 6 #
++--replace_column 1 # 3 localhost 6 # 9 # 10 # 11 #
+ show processlist;
+ unlock tables;
+ connection con1root;

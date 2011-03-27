@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:18:48.879955903 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:22:53.779955671 +0900
-@@ -11323,6 +11323,11 @@
+@@ -11403,6 +11403,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11387,6 +11392,7 @@
+@@ -11468,6 +11473,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -28,7 +28,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
-@@ -11415,6 +11421,7 @@
+@@ -11496,6 +11502,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -228,7 +228,7 @@ diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:18:48.894029379 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:22:53.786986025 +0900
-@@ -225,6 +225,8 @@
+@@ -230,6 +230,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_flushing_method;
  
@@ -240,7 +240,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:18:48.913956140 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:22:53.789987037 +0900
-@@ -413,6 +413,8 @@
+@@ -418,6 +418,8 @@
  UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */

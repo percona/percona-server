@@ -10,7 +10,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
 +++ b/client/mysqldump.c	2010-07-28 16:47:59.604985656 +0400
 @@ -139,6 +139,8 @@
  static uint opt_protocol= 0;
- static char *opt_plugin_dir= 0, *opt_default_auth;
+ static char *opt_plugin_dir= 0, *opt_default_auth= 0;
  
 +static my_bool server_supports_sql_no_fcache= FALSE;
 +
@@ -35,7 +35,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    /*
      As we're going to set SQL_MODE, it would be lost on reconnect, so we
      cannot reconnect.
-@@ -3158,7 +3171,12 @@
+@@ -3167,7 +3180,12 @@
  
      /* now build the query string */
  
@@ -49,7 +49,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
      dynstr_append_checked(&query_string, filename);
      dynstr_append_checked(&query_string, "'");
  
-@@ -3208,7 +3226,12 @@
+@@ -3217,7 +3235,12 @@
        check_io(md_result_file);
      }
      
@@ -168,7 +168,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #include <thr_alarm.h>
  #include <ft_global.h>
-@@ -484,6 +489,11 @@
+@@ -485,6 +490,11 @@
  ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
  ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
  ulong max_connections, max_connect_errors;
@@ -180,7 +180,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4167,6 +4177,97 @@
+@@ -4186,6 +4196,97 @@
  #define decrement_handler_count()
  #endif /* defined(_WIN32) || defined(HAVE_SMEM) */
  
@@ -278,7 +278,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifndef EMBEDDED_LIBRARY
  #ifndef DBUG_OFF
-@@ -4421,6 +4522,10 @@
+@@ -4442,6 +4543,10 @@
    test_lc_time_sz();
  #endif
  
@@ -289,7 +289,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4624,6 +4729,10 @@
+@@ -4645,6 +4750,10 @@
    }
  #endif
    clean_up(1);
@@ -300,7 +300,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    mysqld_exit(0);
  }
  
-@@ -6445,6 +6554,7 @@
+@@ -6467,6 +6576,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},

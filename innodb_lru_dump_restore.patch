@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-12-03 15:49:59.185023424 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-04 15:33:37.626482350 +0900
-@@ -2258,6 +2258,284 @@
+@@ -2224,6 +2224,284 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  
@@ -382,7 +382,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:49:11.589956135 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:33:37.645555490 +0900
-@@ -11706,6 +11706,12 @@
+@@ -11767,6 +11767,12 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -395,7 +395,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11788,6 +11794,7 @@
+@@ -11849,6 +11855,7 @@
  #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -454,7 +454,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/include/buf0lru.h b/storage/innobase/include/buf0lru.h
 --- a/storage/innobase/include/buf0lru.h	2010-12-03 15:49:59.223956070 +0900
 +++ b/storage/innobase/include/buf0lru.h	2010-12-04 15:33:37.681481467 +0900
-@@ -219,6 +219,18 @@
+@@ -215,6 +215,18 @@
  void
  buf_LRU_stat_update(void);
  /*=====================*/
@@ -535,7 +535,7 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 17:49:11.603969747 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-04 15:33:37.685550816 +0900
-@@ -356,6 +356,9 @@
+@@ -357,6 +357,9 @@
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
  
@@ -545,7 +545,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /** Status variables to be passed to MySQL */
  typedef struct export_var_struct export_struc;
  
-@@ -663,6 +666,16 @@
+@@ -677,6 +680,16 @@
  /*=====================*/
  	void*	arg);	/*!< in: a dummy parameter required by
  			os_thread_create */
@@ -565,7 +565,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 17:49:11.620986661 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:33:37.708550811 +0900
-@@ -329,6 +329,9 @@
+@@ -334,6 +334,9 @@
  reading of a disk page */
  UNIV_INTERN ulint srv_buf_pool_reads = 0;
  
@@ -575,7 +575,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* structure to pass status variables to MySQL */
  UNIV_INTERN export_struc export_vars;
  
-@@ -2697,6 +2700,56 @@
+@@ -2701,6 +2704,56 @@
  	/* We count the number of threads in os_thread_exit(). A created
  	thread should always use that to exit and not use return() to exit. */
  
@@ -647,7 +647,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
  
  /** We use this mutex to test the return value of pthread_mutex_trylock
     on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-@@ -1813,6 +1813,10 @@
+@@ -1816,6 +1816,10 @@
  	os_thread_create(&srv_monitor_thread, NULL,
  			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
  

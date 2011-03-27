@@ -78,7 +78,7 @@ diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2011-01-16 18:53:33.000000000 +0300
 +++ b/sql/handler.h	2011-01-16 18:54:00.000000000 +0300
-@@ -580,6 +580,7 @@
+@@ -572,6 +572,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,
    SCH_PROCEDURES,
@@ -109,7 +109,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -603,7 +605,7 @@
+@@ -604,7 +606,7 @@
  MY_LOCALE *my_default_lc_messages;
  MY_LOCALE *my_default_lc_time_names;
  
@@ -118,7 +118,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  SHOW_COMP_OPTION have_geometry, have_rtree_keys;
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
-@@ -904,6 +906,10 @@
+@@ -905,6 +907,10 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -129,7 +129,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1472,6 +1478,9 @@
+@@ -1473,6 +1479,9 @@
    my_free(opt_bin_logname);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -139,7 +139,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3925,6 +3934,9 @@
+@@ -3944,6 +3953,9 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  
@@ -149,7 +149,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
    {
-@@ -6797,6 +6809,11 @@
+@@ -6819,6 +6831,11 @@
  #else
    have_query_cache=SHOW_OPTION_NO;
  #endif
@@ -741,7 +741,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -7688,6 +7689,14 @@
+@@ -7689,6 +7690,14 @@
  
  */
  
@@ -756,7 +756,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7741,6 +7750,13 @@
+@@ -7742,6 +7751,13 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},

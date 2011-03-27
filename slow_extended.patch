@@ -165,7 +165,7 @@ diff -ruN a/sql/filesort.cc b/sql/filesort.cc
      if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
      {
        my_free(table_sort.buffpek);
-@@ -1197,6 +1199,7 @@
+@@ -1216,6 +1218,7 @@
    DBUG_ENTER("merge_buffers");
  
    status_var_increment(current_thd->status_var.filesort_merge_passes);
@@ -315,7 +315,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
  
          /* Note that my_b_write() assumes it knows the length for this */
          if (my_b_write(&log_file, (uchar*) buff, buff_len))
-@@ -2711,12 +2752,69 @@
+@@ -2711,12 +2751,69 @@
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
      if (my_b_printf(&log_file,
@@ -430,7 +430,7 @@ diff -ruN a/sql/log.h b/sql/log.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-02-21 22:57:24.442081625 +0200
 +++ b/sql/mysqld.cc	2011-02-21 22:59:30.845699981 +0200
-@@ -418,6 +418,10 @@
+@@ -419,6 +419,10 @@
  char* opt_secure_file_priv;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -441,7 +441,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5784,10 +5788,10 @@
+@@ -5806,10 +5810,10 @@
     "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
     "the slow log if it is open.", &opt_log_slow_admin_statements,
     &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -454,7 +454,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7179,6 +7183,10 @@
+@@ -7194,6 +7198,10 @@
  
  C_MODE_END
  
@@ -465,7 +465,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7318,6 +7326,8 @@
+@@ -7335,6 +7343,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -533,7 +533,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-01-20 00:37:09.000000000 +0200
 +++ b/sql/sql_class.cc	2011-02-21 22:57:48.843760997 +0200
-@@ -367,6 +367,37 @@
+@@ -368,6 +368,37 @@
    thd->warning_info->inc_current_row_for_warning();
  }
  
@@ -571,7 +571,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /**
    Dumps a text description of a thread, its security context
-@@ -661,6 +692,7 @@
+@@ -662,6 +693,7 @@
      *cond_hdl= NULL;
      return FALSE;
    }
@@ -579,7 +579,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    for (Internal_error_handler *error_handler= m_internal_handler;
         error_handler;
-@@ -3389,6 +3421,12 @@
+@@ -3390,6 +3422,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -592,7 +592,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3409,6 +3447,14 @@
+@@ -3410,6 +3448,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -607,7 +607,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -3471,6 +3517,12 @@
+@@ -3472,6 +3518,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -825,7 +825,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2011-02-21 22:57:24.411087114 +0200
 +++ b/sql/sql_select.cc	2011-02-21 22:57:48.867756749 +0200
-@@ -6872,7 +6872,10 @@
+@@ -6894,7 +6894,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -836,7 +836,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	else
-@@ -6886,7 +6889,10 @@
+@@ -6908,7 +6911,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -847,7 +847,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	if (!table->no_keyread)
-@@ -10217,6 +10223,7 @@
+@@ -10239,6 +10245,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -855,7 +855,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -11115,6 +11122,7 @@
+@@ -11137,6 +11144,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -863,7 +863,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -11133,6 +11141,14 @@
+@@ -11155,6 +11163,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  
@@ -881,7 +881,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2011-02-21 22:57:24.456079146 +0200
 +++ b/sql/sql_show.cc	2011-02-21 22:57:48.873755686 +0200
-@@ -1942,8 +1942,17 @@
+@@ -1943,8 +1943,17 @@
          table->field[4]->store(command_name[tmp->command].str,
                                 command_name[tmp->command].length, cs);
        /* MYSQL_TIME */

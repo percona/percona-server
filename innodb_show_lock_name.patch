@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:34:35.285040381 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:35:12.974975252 +0900
-@@ -9498,8 +9498,8 @@
+@@ -9571,8 +9571,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -19,7 +19,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9514,9 +9514,8 @@
+@@ -9587,9 +9587,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -31,7 +31,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9545,8 +9544,8 @@
+@@ -9618,8 +9617,8 @@
  			continue;
  		}
  
@@ -42,7 +42,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9560,9 +9559,8 @@
+@@ -9633,9 +9632,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -107,7 +107,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  /******************************************************************//**
  Calling this function is obligatory only if the memory buffer containing
  the rw-lock is freed. Removes an rw-lock object from the global list. The
-@@ -610,7 +610,8 @@
+@@ -611,7 +611,8 @@
  	struct PSI_rwlock *pfs_psi;/*!< The instrumentation hook */
  #endif
  	ulint count_os_wait;	/*!< Count of os_waits. May not be accurate */
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
          /* last s-lock file/line is not guaranteed to be correct */
  	const char*	last_s_file_name;/*!< File name where last s-locked */
  	const char*	last_x_file_name;/*!< File name where last x-locked */
-@@ -621,7 +622,7 @@
+@@ -622,7 +623,7 @@
  				are at the start of this struct, thus we can
  				peek this field without causing much memory
  				bus traffic */
@@ -126,7 +126,7 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
  	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
  #ifdef UNIV_DEBUG
-@@ -691,10 +692,10 @@
+@@ -692,10 +693,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
@@ -433,7 +433,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
 diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
 --- a/storage/innobase/sync/sync0sync.c	2010-12-03 15:49:59.233955565 +0900
 +++ b/storage/innobase/sync/sync0sync.c	2010-12-03 17:35:12.989024400 +0900
-@@ -250,13 +250,13 @@
+@@ -269,13 +269,13 @@
  /*==============*/
  	mutex_t*	mutex,		/*!< in: pointer to memory */
  #ifdef UNIV_DEBUG
@@ -450,7 +450,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  {
  #if defined(HAVE_ATOMIC_BUILTINS)
  	mutex_reset_lock_word(mutex);
-@@ -274,11 +274,13 @@
+@@ -293,11 +293,13 @@
  	mutex->file_name = "not yet reserved";
  	mutex->level = level;
  #endif /* UNIV_SYNC_DEBUG */
@@ -465,7 +465,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  	mutex->count_using=	  0;
  	mutex->mutex_type=	  0;
  	mutex->lspent_time=	  0;
-@@ -532,9 +534,9 @@
+@@ -551,9 +553,9 @@
  #ifdef UNIV_SRV_PRINT_LATCH_WAITS
  	fprintf(stderr,
  		"Thread %lu spin wait mutex at %p"
@@ -477,7 +477,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  #endif
  
  	mutex_spin_round_count += i;
-@@ -609,9 +611,9 @@
+@@ -628,9 +630,9 @@
  
  #ifdef UNIV_SRV_PRINT_LATCH_WAITS
  	fprintf(stderr,
@@ -489,15 +489,14 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  #endif
  
  	mutex_os_wait_count++;
-@@ -913,9 +915,8 @@
+@@ -878,8 +880,8 @@
  
- 				if (mutex->magic_n == MUTEX_MAGIC_N) {
- 					fprintf(stderr,
--						"Mutex created at %s %lu\n",
--						mutex->cfile_name,
--						(ulong) mutex->cline);
-+						"Mutex '%s'\n",
-+						mutex->cmutex_name);
+ 	if (mutex->magic_n == MUTEX_MAGIC_N) {
+ 		fprintf(stderr,
+-			"Mutex created at %s %lu\n",
+-			mutex->cfile_name, (ulong) mutex->cline);
++			"Mutex '%s'\n",
++			mutex->cmutex_name);
  
- 					if (mutex_get_lock_word(mutex) != 0) {
- 						const char*	file_name;
+ 		if (mutex_get_lock_word(mutex) != 0) {
+ 			ulint		line;

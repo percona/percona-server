@@ -121,7 +121,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2270,6 +2273,65 @@
+@@ -2289,6 +2292,65 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -187,7 +187,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7222,9 +7284,9 @@
+@@ -7241,9 +7303,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -200,7 +200,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		}
  	}
  
-@@ -11335,6 +11397,16 @@
+@@ -11408,6 +11470,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -217,7 +217,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11848,6 +11920,8 @@
+@@ -11909,6 +11981,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -379,7 +379,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
 diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 --- a/storage/innobase/include/univ.i	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:55:58.263549721 +0900
-@@ -295,9 +295,13 @@
+@@ -296,9 +296,13 @@
  */
  
  /* The 2-logarithm of UNIV_PAGE_SIZE: */
@@ -395,7 +395,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -416,7 +420,7 @@
+@@ -417,7 +421,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -404,7 +404,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -519,4 +523,6 @@
+@@ -520,4 +524,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  
@@ -564,7 +564,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:52:23.502513556 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:55:58.285550583 +0900
-@@ -1553,11 +1553,13 @@
+@@ -1556,11 +1556,13 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -580,7 +580,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
  
  		return(DB_ERROR);
  	}
-@@ -1566,7 +1568,7 @@
+@@ -1569,7 +1571,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

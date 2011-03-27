@@ -27,7 +27,7 @@ diff -ruN a/patch_info/query_cache_enhance.patch b/patch_info/query_cache_enhanc
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-11-03 03:01:14.000000000 +0500
 +++ b/sql/mysqld.cc	2010-11-13 15:34:40.000000000 +0500
-@@ -896,6 +896,7 @@
+@@ -897,6 +897,7 @@
  #endif
  #ifdef HAVE_QUERY_CACHE
  ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;

@@ -1,0 +1,104 @@
+# name       : processlist_row_stats.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
+--- a/sql/sql_class.cc	2011-03-09 17:07:26.221709282 +0200
++++ b/sql/sql_class.cc	2011-03-09 17:07:44.900164285 +0200
+@@ -2022,6 +2022,7 @@
+ 
+   thd->sent_row_count++;
+   thd->sent_row_count_2++;
++  DEBUG_SYNC(thd, "sent_row");
+ 
+   if (thd->vio_ok())
+     DBUG_RETURN(protocol->write());
+diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
+--- a/sql/sql_show.cc	2011-03-09 17:07:26.251706801 +0200
++++ b/sql/sql_show.cc	2011-03-09 17:07:44.904163954 +0200
+@@ -1759,7 +1759,8 @@
+ 
+ /****************************************************************************
+   Return info about all processes
+-  returns for each thread: thread id, user, host, db, command, info
++  returns for each thread: thread id, user, host, db, command, info,
++  rows_sent, rows_examined, rows_read
+ ****************************************************************************/
+ 
+ class thread_info :public ilink {
+@@ -1777,6 +1778,7 @@
+   uint   command;
+   const char *user,*host,*db,*proc_info,*state_info;
+   CSET_STRING query_string;
++  ulonglong rows_sent, rows_examined, rows_read;
+ };
+ 
+ #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+@@ -1829,6 +1831,15 @@
+   field->maybe_null=1;
+   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
+   field->maybe_null=1;
++  field_list.push_back(field= new Item_return_int("Rows_sent",
++                                                  MY_INT64_NUM_DECIMAL_DIGITS,
++                                                  MYSQL_TYPE_LONGLONG));
++  field_list.push_back(field= new Item_return_int("Rows_examined",
++                                                  MY_INT64_NUM_DECIMAL_DIGITS,
++                                                  MYSQL_TYPE_LONGLONG));
++  field_list.push_back(field= new Item_return_int("Rows_read",
++                                                  MY_INT64_NUM_DECIMAL_DIGITS,
++                                                  MYSQL_TYPE_LONGLONG));
+   if (protocol->send_result_set_metadata(&field_list,
+                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+     DBUG_VOID_RETURN;
+@@ -1882,6 +1893,9 @@
+           thd_info->query_string=
+             CSET_STRING(q, q ? length : 0, tmp->query_charset());
+         }
++        thd_info->rows_sent= tmp->sent_row_count;
++        thd_info->rows_examined= tmp->examined_row_count;
++        thd_info->rows_read= tmp->warning_info->current_row_for_warning();
+         mysql_mutex_unlock(&tmp->LOCK_thd_data);
+         thd_info->start_time= tmp->start_time;
+         thread_infos.append(thd_info);
+@@ -1910,6 +1924,9 @@
+     protocol->store(thd_info->state_info, system_charset_info);
+     protocol->store(thd_info->query_string.str(),
+                     thd_info->query_string.charset());
++    protocol->store(thd_info->rows_sent);
++    protocol->store(thd_info->rows_examined);
++    protocol->store(thd_info->rows_read);
+     if (protocol->write())
+       break; /* purecov: inspected */
+   }
+@@ -2020,6 +2037,15 @@
+       table->field[8]->store(((tmp->start_utime ?
+                                now_utime - tmp->start_utime : 0)/ 1000));
+ 
++      mysql_mutex_lock(&tmp->LOCK_thd_data);
++      /* ROWS_SENT */
++      table->field[9]->store((ulonglong) tmp->sent_row_count);
++      /* ROWS_EXAMINED */
++      table->field[10]->store((ulonglong) tmp->examined_row_count);
++      /* ROWS_READ */
++      table->field[11]->store((ulonglong) tmp->warning_info->current_row_for_warning());
++      mysql_mutex_unlock(&tmp->LOCK_thd_data);
++
+       if (schema_table_store_record(thd, table))
+       {
+         mysql_mutex_unlock(&LOCK_thread_count);
+@@ -7941,6 +7967,12 @@
+    SKIP_OPEN_TABLE},
+   {"TIME_MS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
+    0, 0, "Time_ms", SKIP_OPEN_TABLE},
++  {"ROWS_SENT", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
++   MY_I_S_UNSIGNED, "Rows_sent", SKIP_OPEN_TABLE},
++  {"ROWS_EXAMINED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
++   MY_I_S_UNSIGNED, "Rows_examined", SKIP_OPEN_TABLE},
++  {"ROWS_READ", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
++   MY_I_S_UNSIGNED, "Rows_read", SKIP_OPEN_TABLE},
+   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+ };
+ 

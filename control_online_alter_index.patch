@@ -8,23 +8,12 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/handler.h	2010-12-03 13:51:04.727293058 +0900
-@@ -194,6 +194,19 @@
- #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
- #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
- #define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+@@ -197,6 +197,8 @@
+ #define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
+ #define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
+ #define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
 +
-+#define HA_ONLINE_ALTER_INDEX_MASK	(HA_ONLINE_ADD_INDEX_NO_WRITES \
-+						| HA_ONLINE_DROP_INDEX_NO_WRITES \
-+						| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES \
-+						| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES \
-+						| HA_ONLINE_ADD_PK_INDEX_NO_WRITES \
-+						| HA_ONLINE_DROP_PK_INDEX_NO_WRITES \
-+						| HA_ONLINE_ADD_INDEX \
-+						| HA_ONLINE_DROP_INDEX \
-+						| HA_ONLINE_ADD_UNIQUE_INDEX \
-+						| HA_ONLINE_DROP_UNIQUE_INDEX \
-+						| HA_ONLINE_ADD_PK_INDEX \
-+						| HA_ONLINE_DROP_PK_INDEX)
++#define HA_INPLACE_ALTER_INDEX_MASK                ((1L << 12) - 1)
  /*
    HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
    supported at all.
@@ -51,7 +40,7 @@ diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 +    flags= new_table->file->alter_table_flags(alter_info->flags);
 +    if (!thd->variables.online_alter_index)
 +    {
-+      flags&= ~((uint)HA_ONLINE_ALTER_INDEX_MASK);
++      flags&= ~((uint)HA_INPLACE_ALTER_INDEX_MASK);
 +    }
 +    if (!flags)
      {
@@ -66,7 +55,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
      alter_flags= table->file->alter_table_flags(alter_info->flags);
 +    if (!thd->variables.online_alter_index)
 +    {
-+      alter_flags&= ~((ulong)HA_ONLINE_ALTER_INDEX_MASK);
++      alter_flags&= ~((ulong)HA_INPLACE_ALTER_INDEX_MASK);
 +    }
      DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
      /* Check dropped indexes. */

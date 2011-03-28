@@ -476,12 +476,12 @@ void
 dbcontext::close_tables_if()
 {
   unlock_tables_if();
+  DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK close tables\n"));
+  close_thread_tables(thd);
+  #if MYSQL_VERSION_ID >= 50505
+  thd->mdl_context.release_transactional_locks();
+  #endif
   if (!table_vec.empty()) {
-    DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK close tables\n"));
-    close_thread_tables(thd);
-    #if MYSQL_VERSION_ID >= 50505
-    thd->mdl_context.release_transactional_locks();
-    #endif
     statistic_increment(close_tables_count, &LOCK_status);
     table_vec.clear();
     table_map.clear();

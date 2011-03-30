@@ -47,21 +47,25 @@ diff -ruN a/storage/innobase/dict/dict0boot.c b/storage/innobase/dict/dict0boot.
  
  	index = dict_mem_index_create("SYS_FIELDS", "CLUST_IND",
  				      DICT_HDR_SPACE,
-@@ -442,6 +465,41 @@
+@@ -442,6 +465,45 @@
  					FALSE);
  	ut_a(error == DB_SUCCESS);
  
 +	/*-------------------------*/
-+	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 3, 0);
++	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 4, 0);
 +	table->n_mysql_handles_opened = 1; /* for pin */
 +
 +	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
 +	dict_mem_table_add_col(table, heap, "KEY_COLS", DATA_INT, 0, 4);
 +	dict_mem_table_add_col(table, heap, "DIFF_VALS", DATA_BINARY, 0, 0);
++	dict_mem_table_add_col(table, heap, "NON_NULL_VALS", DATA_BINARY, 0, 0);
 +
 +	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
 +#if DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2
 +#error "DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2"
++#endif
++#if DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2
++#error "DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2"
 +#endif
 +
 +	table->id = DICT_STATS_ID;
@@ -89,7 +93,7 @@ diff -ruN a/storage/innobase/dict/dict0boot.c b/storage/innobase/dict/dict0boot.
  	mtr_commit(&mtr);
  	/*-------------------------*/
  
-@@ -455,6 +513,7 @@
+@@ -455,6 +517,7 @@
  	dict_load_sys_table(dict_sys->sys_columns);
  	dict_load_sys_table(dict_sys->sys_indexes);
  	dict_load_sys_table(dict_sys->sys_fields);
@@ -100,7 +104,7 @@ diff -ruN a/storage/innobase/dict/dict0boot.c b/storage/innobase/dict/dict0boot.
 diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.c
 --- a/storage/innobase/dict/dict0crea.c	2010-12-03 15:48:03.036081059 +0900
 +++ b/storage/innobase/dict/dict0crea.c	2010-12-03 17:19:24.836964976 +0900
-@@ -508,6 +508,51 @@
+@@ -508,6 +508,56 @@
  }
  
  /*****************************************************************//**
@@ -125,7 +129,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
 +
 +	sys_stats = dict_sys->sys_stats;
 +
-+	entry = dtuple_create(heap, 3 + DATA_N_SYS_COLS);
++	entry = dtuple_create(heap, 4 + DATA_N_SYS_COLS);
 +
 +	dict_table_copy_types(entry, sys_stats);
 +
@@ -144,6 +148,11 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
 +	ptr = mem_heap_alloc(heap, 8);
 +	mach_write_to_8(ptr, 0); /* initial value is 0 */
 +	dfield_set_data(dfield, ptr, 8);
++	/* 5: NON_NULL_VALS ------------------*/
++	dfield = dtuple_get_nth_field(entry, 3/*NON_NULL_VALS*/);
++	ptr = mem_heap_alloc(heap, 8);
++	mach_write_to_8(ptr, 0); /* initial value is 0 */
++	dfield_set_data(dfield, ptr, 8);
 +
 +	return(entry);
 +}
@@ -152,7 +161,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  Creates the tuple with which the index entry is searched for writing the index
  tree root page number, if such a tree is created.
  @return	the tuple for search */
-@@ -617,6 +662,27 @@
+@@ -617,6 +667,27 @@
  }
  
  /***************************************************************//**
@@ -180,7 +189,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  Creates an index tree for the index if it is not a member of a cluster.
  @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
  static
-@@ -937,6 +1003,49 @@
+@@ -937,6 +1008,49 @@
  					  dict_sys->sys_fields, heap);
  	node->field_def->common.parent = node;
  
@@ -230,7 +239,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  	node->commit_node = commit_node_create(heap);
  	node->commit_node->common.parent = node;
  
-@@ -1087,6 +1196,7 @@
+@@ -1087,6 +1201,7 @@
  
  		node->state = INDEX_BUILD_FIELD_DEF;
  		node->field_no = 0;
@@ -238,7 +247,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  
  		thr->run_node = node->ind_def;
  
-@@ -1132,7 +1242,31 @@
+@@ -1132,7 +1247,31 @@
  			goto function_exit;
  		}
  
@@ -271,7 +280,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1178,6 +1312,66 @@
+@@ -1178,6 +1317,66 @@
  		return(NULL);
  	}
  
@@ -350,7 +359,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	}
  
  	return(table);
-@@ -4310,6 +4310,240 @@
+@@ -4310,6 +4310,289 @@
  }
  
  /*********************************************************************//**
@@ -402,15 +411,18 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +	ulint		key_cols;
 +	ulint		n_cols;
 +	const rec_t*	rec;
++	ulint		n_fields;
 +	const byte*	field;
 +	ulint		len;
 +	ib_int64_t*	stat_n_diff_key_vals_tmp;
++	ib_int64_t*	stat_n_non_null_key_vals_tmp;
 +	byte*		buf;
 +	ulint		i;
 +	mtr_t		mtr;
 +
 +	n_cols = dict_index_get_n_unique(index);
 +	stat_n_diff_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
++	stat_n_non_null_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
 +
 +	sys_stats = dict_sys->sys_stats;
 +	sys_index = UT_LIST_GET_FIRST(sys_stats->indexes);
@@ -446,8 +458,12 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +		}
 +
 +		if (rec_get_deleted_flag(rec, 0)) {
++			/* don't count */
++			i--;
 +			goto next_rec;
 +		}
++
++		n_fields = rec_get_n_fields_old(rec);
 +
 +		field = rec_get_nth_field_old(rec, 1, &len);
 +		ut_a(len == 4);
@@ -460,6 +476,21 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +		ut_a(len == 8);
 +
 +		stat_n_diff_key_vals_tmp[i] = mach_read_from_8(field);
++
++		if (n_fields > DICT_SYS_STATS_NON_NULL_VALS_FIELD) {
++			field = rec_get_nth_field_old(rec, DICT_SYS_STATS_NON_NULL_VALS_FIELD, &len);
++			ut_a(len == 8);
++
++			stat_n_non_null_key_vals_tmp[i] = mach_read_from_8(field);
++		} else {
++			/* not enough fields: should be older */
++			fprintf(stderr, "InnoDB: Notice: stats for %s/%s (%lu/%lu)"
++					" in SYS_STATS seems older format. "
++					"Please execute ANALYZE TABLE for it.\n",
++					index->table_name, index->name, i, n_cols);
++
++			stat_n_non_null_key_vals_tmp[i] = ((ib_int64_t)(-1));
++		}
 +next_rec:
 +		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 +	}
@@ -469,6 +500,12 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +
 +	for (i = 0; i <= n_cols; i++) {
 +		index->stat_n_diff_key_vals[i] = stat_n_diff_key_vals_tmp[i];
++		if (stat_n_non_null_key_vals_tmp[i] == ((ib_int64_t)(-1))) {
++			/* approximate value */
++			index->stat_n_non_null_key_vals[i] = stat_n_diff_key_vals_tmp[n_cols];
++		} else {
++			index->stat_n_non_null_key_vals[i] = stat_n_non_null_key_vals_tmp[i];
++		}
 +	}
 +}
 +/*===========================================*/
@@ -507,18 +544,22 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +	ulint		n_cols;
 +	ulint		rests;
 +	const rec_t*	rec;
++	ulint		n_fields;
 +	const byte*	field;
 +	ulint		len;
 +	ib_int64_t*	stat_n_diff_key_vals_tmp;
++	ib_int64_t*	stat_n_non_null_key_vals_tmp;
 +	byte*		buf;
 +	ulint		i;
 +	mtr_t		mtr;
 +
 +	n_cols = dict_index_get_n_unique(index);
 +	stat_n_diff_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
++	stat_n_non_null_key_vals_tmp = mem_heap_zalloc(heap, (n_cols + 1) * sizeof(ib_int64_t));
 +
 +	for (i = 0; i <= n_cols; i++) {
 +		stat_n_diff_key_vals_tmp[i] = index->stat_n_diff_key_vals[i];
++		stat_n_non_null_key_vals_tmp[i] = index->stat_n_non_null_key_vals[i];
 +	}
 +
 +	sys_stats = dict_sys->sys_stats;
@@ -552,6 +593,18 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +		}
 +
 +		if (rec_get_deleted_flag(rec, 0)) {
++			/* don't count */
++			i--;
++			goto next_rec;
++		}
++
++		n_fields = rec_get_n_fields_old(rec);
++
++		if (n_fields <= DICT_SYS_STATS_NON_NULL_VALS_FIELD) {
++			/* not update for the older smaller format */
++			fprintf(stderr, "InnoDB: Notice: stats for %s/%s (%lu/%lu)"
++					" in SYS_STATS seems older format. Please ANALYZE TABLE it.\n",
++					index->table_name, index->name, i, n_cols);
 +			goto next_rec;
 +		}
 +
@@ -564,6 +617,11 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +		ut_a(len == 8);
 +
 +		mlog_write_ull((byte*)field, stat_n_diff_key_vals_tmp[key_cols], &mtr);
++
++		field = rec_get_nth_field_old(rec, DICT_SYS_STATS_NON_NULL_VALS_FIELD, &len);
++		ut_a(len == 8);
++
++		mlog_write_ull((byte*)field, stat_n_non_null_key_vals_tmp[key_cols], &mtr);
 +
 +		rests--;
 +
@@ -591,7 +649,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4317,10 +4551,11 @@
+@@ -4317,10 +4600,11 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -604,7 +662,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  {
  	dict_index_t*	index;
  	ulint		sum_of_index_sizes	= 0;
-@@ -4337,6 +4572,27 @@
+@@ -4337,6 +4621,27 @@
  		return;
  	}
  
@@ -632,7 +690,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4401,6 +4657,11 @@
+@@ -4401,6 +4706,11 @@
  		index = dict_table_get_next_index(index);
  	} while (index);
  
@@ -644,7 +702,86 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	index = dict_table_get_first_index(table);
  
  	table->stat_n_rows = index->stat_n_diff_key_vals[
-@@ -4495,7 +4756,8 @@
+@@ -4418,6 +4728,78 @@
+ 	dict_table_stats_unlock(table, RW_X_LATCH);
+ }
+ 
++/*********************************************************************//**
++*/
++UNIV_INTERN
++ibool
++dict_is_older_statistics(
++/*=====================*/
++	dict_index_t*	index)
++{
++	mem_heap_t*	heap;
++	dict_table_t*	sys_stats;
++	dict_index_t*	sys_index;
++	btr_pcur_t	pcur;
++	dtuple_t*	tuple;
++	dfield_t*	dfield;
++	const rec_t*	rec;
++	ulint		n_fields;
++	ulint		len;
++	byte*		buf;
++	mtr_t		mtr;
++
++	heap = mem_heap_create(100);
++
++	sys_stats = dict_sys->sys_stats;
++	sys_index = UT_LIST_GET_FIRST(sys_stats->indexes);
++	ut_a(!dict_table_is_comp(sys_stats));
++
++	tuple = dtuple_create(heap, 1);
++	dfield = dtuple_get_nth_field(tuple, 0);
++
++	buf = mem_heap_alloc(heap, 8);
++	mach_write_to_8(buf, index->id);
++
++	dfield_set_data(dfield, buf, 8);
++	dict_index_copy_types(tuple, sys_index, 1);
++
++	mtr_start(&mtr);
++
++	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
++				  BTR_SEARCH_LEAF, &pcur, &mtr);
++
++next_rec:
++	rec = btr_pcur_get_rec(&pcur);
++
++	if (!btr_pcur_is_on_user_rec(&pcur)
++	    || mach_read_from_8(rec_get_nth_field_old(rec, 0, &len))
++		!= index->id) {
++		/* not found */
++		btr_pcur_close(&pcur);
++		mtr_commit(&mtr);
++		mem_heap_free(heap);
++		/* no statistics == not older statistics */
++		return(FALSE);
++	}
++
++	if (rec_get_deleted_flag(rec, 0)) {
++		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
++		goto next_rec;
++	}
++
++	n_fields = rec_get_n_fields_old(rec);
++
++	btr_pcur_close(&pcur);
++	mtr_commit(&mtr);
++	mem_heap_free(heap);
++
++	if (n_fields > DICT_SYS_STATS_NON_NULL_VALS_FIELD) {
++		return(FALSE);
++	} else {
++		return(TRUE);
++	}
++}
++
+ /**********************************************************************//**
+ Prints info of a foreign key constraint. */
+ static
+@@ -4495,7 +4877,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -682,7 +819,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	return(NULL);
-@@ -582,6 +584,61 @@
+@@ -582,6 +584,75 @@
  //#endif  /* FOREIGN_NOT_USED */
  
  /********************************************************************//**
@@ -697,16 +834,20 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 +	const rec_t*	rec,		/*!< in: current SYS_STATS rec */
 +	index_id_t*	index_id,	/*!< out: INDEX_ID */
 +	ulint*		key_cols,	/*!< out: KEY_COLS */
-+	ib_uint64_t*	diff_vals)	/*!< out: DIFF_VALS */
++	ib_uint64_t*	diff_vals,	/*!< out: DIFF_VALS */
++	ib_uint64_t*	non_null_vals)	/*!< out: NON_NULL_VALS */
 +{
 +	ulint		len;
 +	const byte*	field;
++	ulint		n_fields;
 +
 +	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 +		return("delete-marked record in SYS_STATS");
 +	}
 +
-+	if (UNIV_UNLIKELY(rec_get_n_fields_old(rec) != 5)) {
++	n_fields = rec_get_n_fields_old(rec);
++
++	if (UNIV_UNLIKELY(n_fields < 5)) {
 +		return("wrong number of columns in SYS_STATS record");
 +	}
 +
@@ -737,6 +878,16 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 +		goto err_len;
 +	}
 +	*diff_vals = mach_read_from_8(field);
++
++	if (n_fields < 6) {
++		*non_null_vals = ((ib_uint64_t)(-1));
++	} else {
++		field = rec_get_nth_field_old(rec, 5/*NON_NULL_VALS*/, &len);
++		if (UNIV_UNLIKELY(len != 8)) {
++			goto err_len;
++		}
++		*non_null_vals = mach_read_from_8(field);
++	}
 +
 +	return(NULL);
 +}
@@ -821,7 +972,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8077,11 +8102,31 @@
+@@ -8077,11 +8102,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -838,6 +989,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +				for (index = dict_table_get_first_index(ib_table);
 +				     index != NULL;
 +				     index = dict_table_get_next_index(index)) {
++					if (dict_is_older_statistics(index)) {
++						row_delete_stats_for_mysql(index, prebuilt->trx);
++						innobase_commit_low(prebuilt->trx);
++					}
 +					row_insert_stats_for_mysql(index, prebuilt->trx);
 +					innobase_commit_low(prebuilt->trx);
 +				}
@@ -854,7 +1009,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8159,7 +8204,7 @@
+@@ -8159,7 +8208,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -863,7 +1018,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11354,6 +11399,26 @@
+@@ -11354,6 +11403,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -890,7 +1045,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11684,6 +11749,9 @@
+@@ -11684,6 +11753,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -900,7 +1055,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11753,7 +11821,10 @@
+@@ -11753,7 +11825,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -923,7 +1078,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -3457,6 +3458,203 @@
+@@ -3457,6 +3458,221 @@
  	STRUCT_FLD(__reserved1, NULL)
  };
  
@@ -957,6 +1112,15 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +	 STRUCT_FLD(old_name,		""),
 +	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 +
++#define SYS_STATS_NON_NULL_VALS	3
++	{STRUCT_FLD(field_name,		"NON_NULL_VALS"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
 +	END_OF_ST_FIELD_INFO
 +};
 +/**********************************************************************//**
@@ -970,6 +1134,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +	index_id_t	index_id,	/*!< in: INDEX_ID */
 +	ulint		key_cols,	/*!< in: KEY_COLS */
 +	ib_uint64_t	diff_vals,	/*!< in: DIFF_VALS */
++	ib_uint64_t	non_null_vals,	/*!< in: NON_NULL_VALS */
 +	TABLE*		table_to_fill)  /*!< in/out: fill this table */
 +{
 +	Field**		fields;
@@ -983,6 +1148,13 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +	OK(fields[SYS_STATS_KEY_COLS]->store(key_cols));
 +
 +	OK(fields[SYS_STATS_DIFF_VALS]->store(longlong(diff_vals), TRUE));
++
++	if (non_null_vals == ((ib_uint64_t)(-1))) {
++		fields[SYS_STATS_NON_NULL_VALS]->set_null();
++	} else {
++		OK(fields[SYS_STATS_NON_NULL_VALS]->store(longlong(non_null_vals), TRUE));
++		fields[SYS_STATS_NON_NULL_VALS]->set_notnull();
++	}
 +
 +	OK(schema_table_store_record(thd, table_to_fill));
 +
@@ -1022,17 +1194,18 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +		index_id_t	index_id;
 +		ulint		key_cols;
 +		ib_uint64_t	diff_vals;
++		ib_uint64_t	non_null_vals;
 +
 +		/* Extract necessary information from a SYS_FOREIGN_COLS row */
 +		err_msg = dict_process_sys_stats_rec(
-+			heap, rec, &index_id, &key_cols, &diff_vals);
++			heap, rec, &index_id, &key_cols, &diff_vals, &non_null_vals);
 +
 +		mtr_commit(&mtr);
 +		mutex_exit(&dict_sys->mutex);
 +
 +		if (!err_msg) {
 +			i_s_dict_fill_sys_stats(
-+				thd, index_id, key_cols, diff_vals,
++				thd, index_id, key_cols, diff_vals, non_null_vals,
 +				tables->table);
 +		} else {
 +			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -1127,7 +1300,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  /***********************************************************************
  */
  static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
-@@ -3619,3 +3817,347 @@
+@@ -3619,3 +3835,347 @@
  	/* void* */
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -1512,11 +1685,12 @@ diff -ruN a/storage/innobase/include/dict0boot.h b/storage/innobase/include/dict
  /*-------------------------------------------------------------*/
  
  /* The field number of the page number field in the sys_indexes table
-@@ -144,11 +148,15 @@
+@@ -144,11 +148,16 @@
  #define DICT_SYS_INDEXES_TYPE_FIELD	 6
  #define DICT_SYS_INDEXES_NAME_FIELD	 4
  
 +#define DICT_SYS_STATS_DIFF_VALS_FIELD	 4
++#define DICT_SYS_STATS_NON_NULL_VALS_FIELD	5
 +
  /* When a row id which is zero modulo this number (which must be a power of
  two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
@@ -1587,7 +1761,7 @@ diff -ruN a/storage/innobase/include/dict0crea.h b/storage/innobase/include/dict
 diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
 --- a/storage/innobase/include/dict0dict.h	2010-12-03 15:48:03.073024387 +0900
 +++ b/storage/innobase/include/dict0dict.h	2010-12-03 17:19:24.888965622 +0900
-@@ -1084,10 +1084,11 @@
+@@ -1084,10 +1084,18 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -1597,10 +1771,17 @@ diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict
  					not been initialized yet, otherwise
  					do nothing */
 +	ibool		sync);
++/*********************************************************************//**
++*/
++UNIV_INTERN
++ibool
++dict_is_older_statistics(
++/*=====================*/
++	dict_index_t*	index);
  /********************************************************************//**
  Reserves the dictionary system mutex for MySQL. */
  UNIV_INTERN
-@@ -1202,6 +1203,7 @@
+@@ -1202,6 +1210,7 @@
  	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
  	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
  	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
@@ -1619,7 +1800,7 @@ diff -ruN a/storage/innobase/include/dict0load.h b/storage/innobase/include/dict
  
  	/* This must be last item. Defines the number of system tables. */
  	SYS_NUM_SYSTEM_TABLES
-@@ -319,6 +320,19 @@
+@@ -319,6 +320,20 @@
  	const char**	ref_col_name,	/*!< out: referenced column name
  					in referenced table */
  	ulint*		pos);		/*!< out: column position */
@@ -1635,7 +1816,8 @@ diff -ruN a/storage/innobase/include/dict0load.h b/storage/innobase/include/dict
 +	const rec_t*	rec,		/*!< in: current SYS_STATS rec */
 +	index_id_t*	index_id,	/*!< out: INDEX_ID */
 +	ulint*		key_cols,	/*!< out: KEY_COLS */
-+	ib_uint64_t*	diff_vals);	/*!< out: DIFF_VALS */
++	ib_uint64_t*	diff_vals,	/*!< out: DIFF_VALS */
++	ib_uint64_t*	non_null_vals);	/*!< out: NON_NULL_VALS */
  #ifndef UNIV_NONINL
  #include "dict0load.ic"
  #endif
@@ -1654,7 +1836,7 @@ diff -ruN a/storage/innobase/include/que0que.h b/storage/innobase/include/que0qu
 diff -ruN a/storage/innobase/include/row0mysql.h b/storage/innobase/include/row0mysql.h
 --- a/storage/innobase/include/row0mysql.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/row0mysql.h	2010-12-03 17:19:24.904973020 +0900
-@@ -387,6 +387,14 @@
+@@ -387,6 +387,22 @@
  					then checked for not being too
  					large. */
  /*********************************************************************//**
@@ -1662,6 +1844,14 @@ diff -ruN a/storage/innobase/include/row0mysql.h b/storage/innobase/include/row0
 +UNIV_INTERN
 +int
 +row_insert_stats_for_mysql(
++/*=======================*/
++	dict_index_t*	index,
++	trx_t*		trx);
++/*********************************************************************//**
++*/
++UNIV_INTERN
++int
++row_delete_stats_for_mysql(
 +/*=======================*/
 +	dict_index_t*	index,
 +	trx_t*		trx);
@@ -1725,6 +1915,18 @@ diff -ruN a/storage/innobase/que/que0que.c b/storage/innobase/que/que0que.c
  	} else if (type == QUE_NODE_ROW_PRINTF) {
  		thr = row_printf_step(thr);
  	} else {
+diff -ruN a/storage/innobase/row/row0ins.c b/storage/innobase/row/row0ins.c
+--- a/storage/innobase/row/row0ins.c	2011-03-10 00:11:38.000000000 +0900
++++ b/storage/innobase/row/row0ins.c	2011-03-30 11:44:58.000000000 +0900
+@@ -2012,6 +2012,8 @@
+ 	}
+ 
+ #ifdef UNIV_DEBUG
++	if (!srv_use_sys_stats_table
++	    || index != UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes))
+ 	{
+ 		page_t*	page = btr_cur_get_page(&cursor);
+ 		rec_t*	first_rec = page_rec_get_next(
 diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
 --- a/storage/innobase/row/row0merge.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/row/row0merge.c	2010-12-03 17:19:24.914955391 +0900
@@ -1759,7 +1961,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  	}
  }
  
-@@ -2105,6 +2108,45 @@
+@@ -2105,6 +2108,71 @@
  }
  
  /*********************************************************************//**
@@ -1802,10 +2004,36 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 +}
 +
 +/*********************************************************************//**
++*/
++UNIV_INTERN
++int
++row_delete_stats_for_mysql(
++/*=============================*/
++	dict_index_t*	index,
++	trx_t*		trx)
++{
++	pars_info_t*	info	= pars_info_create();
++
++	trx->op_info = "delete rows from SYS_STATS";
++
++	trx_start_if_not_started(trx);
++	trx->error_state = DB_SUCCESS;
++
++	pars_info_add_ull_literal(info, "indexid", index->id);
++
++	return((int) que_eval_sql(info,
++				  "PROCEDURE DELETE_STATISTICS_PROC () IS\n"
++				  "BEGIN\n"
++				  "DELETE FROM SYS_STATS WHERE INDEX_ID = :indexid;\n"
++				  "END;\n"
++				  , TRUE, trx));
++}
++
++/*********************************************************************//**
  Scans a table create SQL string and adds to the data dictionary
  the foreign key constraints declared in the string. This function
  should be called after the indexes for a table have been created.
-@@ -3024,7 +3066,7 @@
+@@ -3024,7 +3092,7 @@
  	dict_table_autoinc_initialize(table, 1);
  	dict_table_autoinc_unlock(table);
  	dict_update_statistics(table, FALSE /* update even if stats are
@@ -1814,7 +2042,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  
  	trx_commit_for_mysql(trx);
  
-@@ -3326,6 +3368,8 @@
+@@ -3326,6 +3394,8 @@
  			   "       IF (SQL % NOTFOUND) THEN\n"
  			   "               found := 0;\n"
  			   "       ELSE\n"
@@ -1823,6 +2051,74 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  			   "               DELETE FROM SYS_FIELDS\n"
  			   "               WHERE INDEX_ID = index_id;\n"
  			   "               DELETE FROM SYS_INDEXES\n"
+diff -ruN a/storage/innobase/row/row0row.c b/storage/innobase/row/row0row.c
+--- a/storage/innobase/row/row0row.c	2011-03-10 00:11:38.000000000 +0900
++++ b/storage/innobase/row/row0row.c	2011-03-30 11:44:58.000000000 +0900
+@@ -347,6 +347,14 @@
+ 
+ 	rec_len = rec_offs_n_fields(offsets);
+ 
++	if (srv_use_sys_stats_table
++	    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)) {
++		if (rec_len < dict_index_get_n_fields(index)) {
++			/* the new record should be extended */
++			rec_len = dict_index_get_n_fields(index);
++		}
++	}
++
+ 	entry = dtuple_create(heap, rec_len);
+ 
+ 	dtuple_set_n_fields_cmp(entry,
+@@ -358,6 +366,14 @@
+ 	for (i = 0; i < rec_len; i++) {
+ 
+ 		dfield = dtuple_get_nth_field(entry, i);
++
++		if (srv_use_sys_stats_table
++		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)
++		    && i >= rec_offs_n_fields(offsets)) {
++			dfield_set_null(dfield);
++			continue;
++		}
++
+ 		field = rec_get_nth_field(rec, offsets, i, &len);
+ 
+ 		dfield_set_data(dfield, field, len);
+diff -ruN a/storage/innobase/row/row0upd.c b/storage/innobase/row/row0upd.c
+--- a/storage/innobase/row/row0upd.c	2011-03-10 00:11:38.000000000 +0900
++++ b/storage/innobase/row/row0upd.c	2011-03-30 11:44:58.000000000 +0900
+@@ -439,6 +439,12 @@
+ 				0);
+ 		}
+ 
++		if (srv_use_sys_stats_table
++		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)
++		    && upd_field->field_no >= rec_offs_n_fields(offsets)) {
++			return(TRUE);
++		}
++
+ 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
+ 
+ 		if (rec_offs_comp(offsets)
+@@ -844,6 +850,18 @@
+ 
+ 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
+ 
++		if (srv_use_sys_stats_table
++		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)
++		    && i >= rec_offs_n_fields(offsets)) {
++			dfield = dtuple_get_nth_field(entry, i);
++
++			upd_field = upd_get_nth_field(update, n_diff);
++			dfield_copy(&(upd_field->new_val), dfield);
++			upd_field_set_field_no(upd_field, i, index, trx);
++			n_diff++;
++			goto skip_compare;
++		}
++
+ 		data = rec_get_nth_field(rec, offsets, i, &len);
+ 
+ 		dfield = dtuple_get_nth_field(entry, i);
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:53:54.625288512 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:19:24.922953561 +0900
@@ -1836,3 +2132,48 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;
+diff -ruN a/storage/innobase/trx/trx0rec.c b/storage/innobase/trx/trx0rec.c
+--- a/storage/innobase/trx/trx0rec.c	2011-03-10 00:11:38.000000000 +0900
++++ b/storage/innobase/trx/trx0rec.c	2011-03-30 11:44:58.000000000 +0900
+@@ -665,14 +665,31 @@
+ 	/* Save to the undo log the old values of the columns to be updated. */
+ 
+ 	if (update) {
++		ulint	extended = 0;
++
+ 		if (trx_undo_left(undo_page, ptr) < 5) {
+ 
+ 			return(0);
+ 		}
+ 
+-		ptr += mach_write_compressed(ptr, upd_get_n_fields(update));
++		if (srv_use_sys_stats_table
++		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)) {
++			for (i = 0; i < upd_get_n_fields(update); i++) {
++				ulint	pos = upd_get_nth_field(update, i)->field_no;
++
++				if (pos >= rec_offs_n_fields(offsets)) {
++					extended++;
++				}
++			}
++		}
++
++		if (upd_get_n_fields(update) == extended) {
++			goto skip;
++		}
++
++		ptr += mach_write_compressed(ptr, upd_get_n_fields(update) - extended);
+ 
+-		for (i = 0; i < upd_get_n_fields(update); i++) {
++		for (i = 0; i < upd_get_n_fields(update) - extended; i++) {
+ 
+ 			ulint	pos = upd_get_nth_field(update, i)->field_no;
+ 
+@@ -724,6 +741,7 @@
+ 			}
+ 		}
+ 	}
++skip:
+ 
+ 	/*----------------------------------------*/
+ 	/* In the case of a delete marking, and also in the case of an update

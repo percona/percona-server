@@ -330,26 +330,28 @@ and applications need to dynamically load and use Percona Server.
 # Be strict about variables, bail at earliest opportunity, etc.
 set -u
 BuildHandlerSocket() {
-cd storage/HandlerSocket-Plugin-for-MySQL
-bash -x ./autogen.sh
-echo "Configuring HandlerSocket"
-CXX=g++ CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-	./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir}/%{src_dir} \
+    cd storage/HandlerSocket-Plugin-for-MySQL
+    bash -x ./autogen.sh
+    echo "Configuring HandlerSocket"
+    CXX="${HS_CXX:-g++}" \
+        CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
+        ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir}/%{src_dir} \
         --with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/release/scripts \
         --with-mysql-plugindir=%{_libdir}/mysql/plugin \
         --libdir=%{_libdir} \
         --prefix=%{_prefix}
-make
-cd -
+    make
+    cd -
 }
 
 BuildUDF() {
-cd UDF
-CXX=g++ CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-	./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/%{src_dir}/include \
-	--libdir=%{_libdir}/mysql/plugin
-make all
-cd -
+    cd UDF
+    CXX="${UDF_CXX:-g++}"\
+        CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
+        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/%{src_dir}/include \
+        --libdir=%{_libdir}/mysql/plugin
+    make all
+    cd -
 }
 
 # Optional package files

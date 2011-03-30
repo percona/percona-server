@@ -16,6 +16,9 @@ set -ue
 TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 
+# Some programs that may be overriden
+TAR=${TAR:-tar}
+
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
@@ -87,15 +90,15 @@ COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
 COMMENT="$COMMENT, Revision $REVISION"
 
 # Compilation flags
-export CC=gcc
-export CXX=gcc
-export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS"
+export CC=${CC:-gcc}
+export CXX=${CXX:-gcc}
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS ${CFLAGS:-}"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
 
 # Create a temporary working directory
-INSTALLDIR="$(TMPDIR="$WORKDIR_ABS" mktemp -d)"
-echo "$INSTALLDIR"
+INSTALLDIR="$(cd "$WORKDIR" && TMPDIR="$WORKDIR_ABS" mktemp -d percona-build.XXXXXX)"
+INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
 
 # Build
 (
@@ -123,8 +126,8 @@ echo "$INSTALLDIR"
 (
     cd "$INSTALLDIR/usr/local/"
 
-    tar czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" \
-        --owner=root --group=root "$PRODUCT_FULL/"
+    $TAR czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" \
+        --owner=0 --group=0 "$PRODUCT_FULL/"
     
 )
 

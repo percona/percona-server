@@ -19,11 +19,12 @@ set -ue
 TARGET=''
 TARGET_CFLAGS=''
 SIGN='--sign' # We sign by default
+QUIET=''
 
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iK" --longoptions=i686,nosign \
+    go_out="$(getopt --options="iKq" --longoptions=i686,nosign,quiet \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -41,6 +42,10 @@ do
     -K | --nosign )
         shift
         SIGN=''
+        ;;
+    -q | --quiet )
+        shift
+        QUIET='--quiet'
         ;;
     esac
 done
@@ -95,10 +100,12 @@ REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \
 REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 
 # Compilation flags
-export CC=gcc
-export CXX=gcc
-export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS"
+export CC=${CC:-gcc}
+export CXX=${CXX:-gcc}
+export HS_CXX=${HS_CXX:-g++}
+export UDF_CXX=${UDF_CXX:-g++}
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS ${CFLAGS:-}"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
 
 # Create directories for rpmbuild if these don't exist
@@ -126,7 +133,7 @@ export MAKE_JFLAG=-j4
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild -ba --clean --with yassl $TARGET $SIGN \
+    rpmbuild -ba --clean --with yassl $TARGET $SIGN $QUIET \
         "$SOURCEDIR/build/percona-server.spec" \
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \

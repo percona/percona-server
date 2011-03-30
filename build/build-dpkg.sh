@@ -12,7 +12,7 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "k:" --longoptions key: \
+go_out="$(getopt --options "kK:" --longoptions key:,nosign \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
@@ -24,6 +24,7 @@ do
     case "$arg" in
     -- ) shift; break;;
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
+    -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
     esac
 done
 
@@ -72,6 +73,13 @@ DEBIAN_VERSION="$(lsb_release -sc)"
 export BB_PERCONA_REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 export DEB_BUILD_OPTIONS='nostrip debug nocheck'
 
+# Compilation flags
+export CC=${CC:-gcc}
+export CXX=${CXX:-gcc}
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer ${CFLAGS:-}"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions ${CXXFLAGS:-}"
+export MAKE_JFLAG=-j4
+
 # Prepare sources
 (
     cd "$SOURCEDIR"
@@ -95,7 +103,8 @@ export DEB_BUILD_OPTIONS='nostrip debug nocheck'
         # Update distribution name
         dch -m -v "$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
 
-        dpkg-buildpackage -rfakeroot $BUILDPKG_KEY
+        DEB_CFLAGS_APPEND="$CFLAGS" DEB_CXXFLAGS_APPEND="$CXXFLAGS" \
+                dpkg-buildpackage -rfakeroot $BUILDPKG_KEY
 
     )
 

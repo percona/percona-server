@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:23:31.022060427 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:25:49.004020662 +0900
-@@ -11060,6 +11060,11 @@
+@@ -11064,6 +11064,11 @@
    "Output statistics of recovery process after it.",
    NULL, NULL, FALSE);
  
@@ -20,7 +20,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11571,6 +11576,7 @@
+@@ -11575,6 +11580,7 @@
  #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),

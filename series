@@ -45,3 +45,4 @@ bug580324.patch
 mysql_remove_eol_carret.patch
 processlist_row_stats.patch
 mysql-test.diff
+start-stop-messages.patch

@@ -550,7 +550,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  #define INNODB_VERSION_BUGFIX	5
  
 +#ifndef PERCONA_INNODB_VERSION
-+#define PERCONA_INNODB_VERSION 20.0
++#define PERCONA_INNODB_VERSION 20.1
 +#endif
 +
 +

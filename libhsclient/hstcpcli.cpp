@@ -31,6 +31,7 @@ struct hstcpcli : public hstcpcli_i, private noncopyable {
   virtual bool stable_point();
   virtual void request_buf_open_index(size_t pst_id, const char *dbn,
     const char *tbl, const char *idx, const char *retflds, const char *filflds);
+  virtual void request_buf_auth(const char *secret);
   #if 0
   virtual void request_buf_find(size_t pst_id, const string_ref& op,
     const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip);
@@ -192,6 +193,21 @@ hstcpcli::request_buf_open_index(size_t pst_id, const char *dbn,
     writebuf.append_literal("\t");
     writebuf.append(fls_ref.begin(), fls_ref.end());
   }
+  writebuf.append_literal("\n");
+  ++num_req_bufd;
+}
+
+void
+hstcpcli::request_buf_auth(const char *secret)
+{
+  if (num_req_sent > 0 || num_req_rcvd > 0) {
+    close();
+    set_error(-1, "request_buf_auth: protocol out of sync");
+    return;
+  }
+  const string_ref secret_ref(secret, strlen(secret));
+  writebuf.append_literal("A\t1\t");
+  writebuf.append(secret_ref.begin(), secret_ref.end());
   writebuf.append_literal("\n");
   ++num_req_bufd;
 }

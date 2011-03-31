@@ -104,7 +104,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +
 +		if (size_bytes < free_limit_bytes) {
 +			free_limit_bytes = size_bytes;
-+			if (size_bytes >= FSP_EXTENT_SIZE * UNIV_PAGE_SIZE) {
++			if (size_bytes >= (ib_int64_t) (FSP_EXTENT_SIZE * UNIV_PAGE_SIZE)) {
 +				fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
 +				file_is_corrupt = TRUE;
 +			}

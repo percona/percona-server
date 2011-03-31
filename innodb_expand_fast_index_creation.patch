@@ -1,0 +1,720 @@
+# name       : innodb_expand_fast_index_creation.patch
+# maintainer : Alexey
+#
+# Expands the applicability of InnoDB fast index creation to mysqldump,
+# ALTER TABLE and OPTIMIZE TABLE.
+#
+--- a/client/client_priv.h	2011-03-31 12:04:39.000000000 +0400
++++ b/client/client_priv.h	2011-03-31 12:10:21.000000000 +0400
+@@ -96,5 +96,6 @@
+   OPT_FIRST_SLAVE,
+   OPT_ALL,
+   OPT_NO_REMOVE_EOL_CARRET,
++  OPT_INNODB_OPTIMIZE_KEYS,
+   OPT_MAX_CLIENT_OPTION
+ };
+--- a/client/mysqldump.c	2011-03-31 12:04:37.000000000 +0400
++++ b/client/mysqldump.c	2011-03-31 12:05:39.000000000 +0400
+@@ -45,6 +45,7 @@
+ #include <m_ctype.h>
+ #include <hash.h>
+ #include <stdarg.h>
++#include <my_list.h>
+ 
+ #include "client_priv.h"
+ #include "mysql.h"
+@@ -134,6 +135,8 @@
+ 
+ static my_bool server_supports_sql_no_fcache= FALSE;
+ 
++static my_bool opt_innodb_optimize_keys= FALSE;
++
+ /*
+ Dynamic_string wrapper functions. In this file use these
+ wrappers, they will terminate the process if there is
+@@ -179,6 +182,8 @@
+ 
+ HASH ignore_table;
+ 
++LIST *skipped_keys_list;
++
+ static struct my_option my_long_options[] =
+ {
+   {"all", OPT_ALL, "Deprecated. Use --create-options instead.",
+@@ -325,6 +330,11 @@
+    "be specified with both database and table names, e.g., "
+    "--ignore-table=database.table.",
+    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
++  {"innodb-optimize-keys", OPT_INNODB_OPTIMIZE_KEYS,
++   "Use InnoDB fast index creation by creating secondary indexes after "
++   "dumping the data.",
++   &opt_innodb_optimize_keys, &opt_innodb_optimize_keys, 0, GET_BOOL, NO_ARG,
++   0, 0, 0, 0, 0, 0},
+   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
+    &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+    0, 0},
+@@ -2240,6 +2250,77 @@
+ }
+ 
+ /*
++  Remove secondary/foreign key definitions from a given SHOW CREATE TABLE string
++  and store them into a temporary list to be used later.
++
++  SYNOPSIS
++    skip_secondary_keys()
++    create_str                SHOW CREATE TABLE output
++
++
++  DESCRIPTION
++
++    Stores all lines starting with "KEY" or "UNIQUE KEY" or "CONSTRAINT"
++    into skipped_keys_list and removes them from the input string.
++    Ignoring FOREIGN KEYS constraints when creating the table is ok, because
++    mysqldump sets foreign_key_checks to 0 anyway.
++*/
++
++static void skip_secondary_keys(char *create_str)
++{
++  char *ptr, *strend;
++  char *last_comma = NULL;
++
++  strend= create_str + strlen(create_str);
++
++  ptr= create_str;
++  while (*ptr)
++  {
++    char *tmp, *orig_ptr;
++
++    orig_ptr= ptr;
++    /* Skip leading whitespace */
++    while (*ptr && my_isspace(charset_info, *ptr))
++      ptr++;
++
++    /* Read the next line */
++    for (tmp= ptr; *tmp != '\n' && *tmp != '\0'; tmp++);
++
++    /* Is it a secondary index definition? */
++    if (*tmp == '\n' &&
++        (!strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ") - 1) ||
++         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1) ||
++         !strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1)))
++    {
++      char *data, *end= tmp - 1;
++
++      /* Remove the trailing comma */
++      if (*end == ',')
++        end--;
++      data= my_strndup(ptr, end - ptr + 1, MYF(MY_FAE));
++      skipped_keys_list= list_cons(data, skipped_keys_list);
++
++      memmove(orig_ptr, tmp + 1, strend - tmp);
++      ptr= orig_ptr;
++      strend-= tmp + 1 - ptr;
++
++      /* Remove the comma on the previos line */
++      if (last_comma != NULL)
++      {
++        *last_comma= ' ';
++        last_comma = NULL;
++      }
++    }
++    else
++    {
++      if (tmp[-1] == ',')
++        last_comma= tmp - 1;
++      ptr= (*tmp == '\0') ? tmp : tmp + 1;
++    }
++  }
++}
++
++/*
+   get_table_structure -- retrievs database structure, prints out corresponding
+   CREATE statement and fills out insert_pat if the table is the type we will
+   be dumping.
+@@ -2480,6 +2561,9 @@
+ 
+       row= mysql_fetch_row(result);
+ 
++      if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
++        skip_secondary_keys(row[1]);
++
+       fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
+               "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
+               "/*!40101 SET character_set_client = utf8 */;\n"
+@@ -3572,6 +3656,27 @@
+       goto err;
+     }
+ 
++    /* Perform delayed secondary index creation for --innodb-optimize-keys */
++    if (skipped_keys_list)
++    {
++      uint keys;
++      skipped_keys_list= list_reverse(skipped_keys_list);
++      fprintf(md_result_file, "ALTER TABLE %s ", opt_quoted_table);
++      for (keys= list_length(skipped_keys_list); keys > 0; keys--)
++      {
++        LIST *node= skipped_keys_list;
++        char *def= node->data;
++
++        fprintf(md_result_file, "ADD %s%s", def, (keys > 1) ? ", " : ";\n");
++
++        skipped_keys_list= list_delete(skipped_keys_list, node);
++        my_free(def, MYF(0));
++        my_free(node, MYF(0));
++      }
++
++      DBUG_ASSERT(skipped_keys_list == NULL);
++    }
++
+     /* Moved enable keys to before unlock per bug 15977 */
+     if (opt_disable_keys)
+     {
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result	2011-03-31 12:05:39.000000000 +0400
+@@ -0,0 +1,109 @@
++#
++# Test the --innodb-optimize-keys option.
++#
++CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, KEY(b)) ENGINE=MyISAM;
++######################################
++
++/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
++/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
++/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
++/*!40101 SET NAMES utf8 */;
++/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
++/*!40103 SET TIME_ZONE='+00:00' */;
++/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
++/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
++/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
++/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
++DROP TABLE IF EXISTS `t1`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t1` (
++  `a` int(11) NOT NULL,
++  `b` int(11) DEFAULT NULL,
++  PRIMARY KEY (`a`),
++  KEY `b` (`b`)
++) ENGINE=MyISAM DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t1` WRITE;
++/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
++/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
++UNLOCK TABLES;
++/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
++
++/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
++/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
++/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
++/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
++/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
++/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
++/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
++
++######################################
++DROP TABLE t1;
++CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
++INSERT INTO t2 VALUES (0), (1), (2);
++CREATE TABLE t1 (
++id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
++a INT, b VARCHAR(255), c DECIMAL(10,3),
++KEY (b),
++UNIQUE KEY uniq(c,a),
++FOREIGN KEY (a) REFERENCES t2(a) ON DELETE CASCADE
++) ENGINE=InnoDB;
++INSERT INTO t1(a,b,c) VALUES (0, "0", 0.0), (1, "1", 1.1), (2, "2", 2.2);
++######################################
++
++/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
++/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
++/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
++/*!40101 SET NAMES utf8 */;
++/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
++/*!40103 SET TIME_ZONE='+00:00' */;
++/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
++/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
++/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
++/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
++DROP TABLE IF EXISTS `t1`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t1` (
++  `id` int(11) NOT NULL AUTO_INCREMENT,
++  `a` int(11) DEFAULT NULL,
++  `b` varchar(255) DEFAULT NULL,
++  `c` decimal(10,3) DEFAULT NULL,
++  PRIMARY KEY (`id`) 
++) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t1` WRITE;
++/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
++INSERT INTO `t1` VALUES (1,0,'0','0.000'),(2,1,'1','1.100'),(3,2,'2','2.200');
++ALTER TABLE `t1` ADD UNIQUE KEY `uniq` (`c`,`a`), ADD KEY `b` (`b`), ADD KEY `a` (`a`), ADD CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE CASCADE;
++/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
++UNLOCK TABLES;
++DROP TABLE IF EXISTS `t2`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t2` (
++  `a` int(11) NOT NULL,
++  PRIMARY KEY (`a`)
++) ENGINE=InnoDB DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t2` WRITE;
++/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
++INSERT INTO `t2` VALUES (0),(1),(2);
++/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
++UNLOCK TABLES;
++/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
++
++/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
++/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
++/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
++/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
++/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
++/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
++/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
++
++######################################
++DROP TABLE t1, t2;
+--- a/mysql-test/suite/innodb_plugin/r/innodb.result	2011-03-31 12:04:33.000000000 +0400
++++ b/mysql-test/suite/innodb_plugin/r/innodb.result	2011-03-31 12:05:39.000000000 +0400
+@@ -1679,7 +1679,7 @@
+ 71
+ SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
+ variable_value - @innodb_rows_inserted_orig
+-1067
++1109
+ SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
+ variable_value - @innodb_rows_updated_orig
+ 866
+--- a/mysql-test/suite/innodb_plugin/t/innodb-index.test	2011-02-11 22:49:34.000000000 +0300
++++ b/mysql-test/suite/innodb_plugin/t/innodb-index.test	2011-03-31 12:05:39.000000000 +0400
+@@ -38,6 +38,11 @@
+ show create table t1;
+ --error ER_MULTIPLE_PRI_KEY
+ alter table t1 add primary key (c);
++# Suppress the error log messages occuring on duplicate key error
++# during ALTER TABLE when using fast index creation
++--disable_query_log
++call mtr.add_suppression("Cannot find index PRIMARY in InnoDB index translation table.");
++--enable_query_log
+ --error ER_DUP_ENTRY
+ alter table t1 drop primary key, add primary key (b);
+ create unique index c on t1 (c);
+--- a/mysql-test/suite/innodb_plugin/t/innodb.test	2011-02-11 22:49:35.000000000 +0300
++++ b/mysql-test/suite/innodb_plugin/t/innodb.test	2011-03-31 12:05:39.000000000 +0400
+@@ -15,6 +15,12 @@
+ 
+ -- source include/have_innodb_plugin.inc
+ 
++# Suppress the error log message occuring on duplicate key error
++# during ALTER TABLE when using fast index creation
++--disable_query_log
++call mtr.add_suppression("Cannot find index v_2 in InnoDB index translation table.");
++--enable_query_log
++
+ let $MYSQLD_DATADIR= `select @@datadir`;
+ 
+ # Save the original values of some variables in order to be able to
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test	2011-03-31 12:05:39.000000000 +0400
+@@ -0,0 +1,62 @@
++# Embedded server doesn't support external clients
++--source include/not_embedded.inc
++
++# Fast index creation is only available in InnoDB plugin
++--source include/have_innodb_plugin.inc
++
++# Save the initial number of concurrent sessions
++--source include/count_sessions.inc
++
++--echo #
++--echo # Test the --innodb-optimize-keys option.
++--echo #
++
++--let $file=$MYSQLTEST_VARDIR/tmp/t1.sql
++
++# First test that the option has no effect on non-InnoDB tables
++
++CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, KEY(b)) ENGINE=MyISAM;
++
++--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
++
++--echo ######################################
++--cat_file $file
++--echo ######################################
++
++--remove_file $file
++
++DROP TABLE t1;
++
++
++# Check that for InnoDB tables secondary and foreign keys are created
++# after the data is dumped
++
++CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
++INSERT INTO t2 VALUES (0), (1), (2);
++
++CREATE TABLE t1 (
++  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
++  a INT, b VARCHAR(255), c DECIMAL(10,3),
++  KEY (b),
++  UNIQUE KEY uniq(c,a),
++  FOREIGN KEY (a) REFERENCES t2(a) ON DELETE CASCADE
++) ENGINE=InnoDB;
++
++INSERT INTO t1(a,b,c) VALUES (0, "0", 0.0), (1, "1", 1.1), (2, "2", 2.2);
++
++--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t2 >$file
++
++--echo ######################################
++--cat_file $file
++--echo ######################################
++
++# Check that the resulting dump can be imported back
++
++--exec $MYSQL test < $file
++
++--remove_file $file
++
++DROP TABLE t1, t2;
++
++# Wait till we reached the initial number of concurrent sessions
++--source include/wait_until_count_sessions.inc
+--- a/sql/sql_lex.cc	2011-03-31 12:04:37.000000000 +0400
++++ b/sql/sql_lex.cc	2011-03-31 12:13:39.000000000 +0400
+@@ -1494,6 +1494,9 @@
+   alter_list(rhs.alter_list, mem_root),
+   key_list(rhs.key_list, mem_root),
+   create_list(rhs.create_list, mem_root),
++  delayed_key_list(rhs.delayed_key_list, mem_root),
++  delayed_key_info(rhs.delayed_key_info),
++  delayed_key_count(rhs.delayed_key_count),
+   flags(rhs.flags),
+   keys_onoff(rhs.keys_onoff),
+   tablespace_op(rhs.tablespace_op),
+@@ -1516,6 +1519,7 @@
+   list_copy_and_replace_each_value(alter_list, mem_root);
+   list_copy_and_replace_each_value(key_list, mem_root);
+   list_copy_and_replace_each_value(create_list, mem_root);
++  list_copy_and_replace_each_value(delayed_key_list, mem_root);
+   /* partition_names are not deeply copied currently */
+ }
+ 
+--- a/sql/sql_lex.h	2011-03-31 12:04:38.000000000 +0400
++++ b/sql/sql_lex.h	2011-03-31 12:14:36.000000000 +0400
+@@ -896,6 +896,9 @@
+   List<Alter_column>            alter_list;
+   List<Key>                     key_list;
+   List<Create_field>            create_list;
++  List<Key>                     delayed_key_list;
++  KEY                           *delayed_key_info;
++  uint                          delayed_key_count;
+   uint                          flags;
+   enum enum_enable_or_disable   keys_onoff;
+   enum tablespace_op_type       tablespace_op;
+@@ -907,6 +910,8 @@
+ 
+ 
+   Alter_info() :
++    delayed_key_info(NULL),
++    delayed_key_count(0),
+     flags(0),
+     keys_onoff(LEAVE_AS_IS),
+     tablespace_op(NO_TABLESPACE_OP),
+@@ -922,6 +927,9 @@
+     alter_list.empty();
+     key_list.empty();
+     create_list.empty();
++    delayed_key_list.empty();
++    delayed_key_info= NULL;
++    delayed_key_count= 0;
+     flags= 0;
+     keys_onoff= LEAVE_AS_IS;
+     tablespace_op= NO_TABLESPACE_OP;
+--- a/sql/sql_table.cc	2011-03-31 12:04:35.000000000 +0400
++++ b/sql/sql_table.cc	2011-03-31 12:05:39.000000000 +0400
+@@ -2558,7 +2558,7 @@
+       file                      The handler for the new table.
+       key_info_buffer     OUT   An array of KEY structs for the indexes.
+       key_count           OUT   The number of elements in the array.
+-      select_field_count        The number of fields coming from a select table.
++      select_field_count        The number of fields coming from a select table. 
+ 
+   DESCRIPTION
+     Prepares the table and key structures for table creation.
+@@ -2913,7 +2913,6 @@
+   }
+ 
+   /* Create keys */
+-
+   List_iterator<Key> key_iterator(alter_info->key_list);
+   List_iterator<Key> key_iterator2(alter_info->key_list);
+   uint key_parts=0, fk_key_count=0;
+@@ -3013,6 +3012,14 @@
+   if (!*key_info_buffer || ! key_part_info)
+     DBUG_RETURN(TRUE);				// Out of memory
+ 
++  List_iterator<Key> delayed_key_iterator(alter_info->delayed_key_list);
++  alter_info->delayed_key_count= 0;
++  if (alter_info->delayed_key_list.elements > 0)
++  {
++    alter_info->delayed_key_info= (KEY *) sql_calloc(sizeof(KEY) *
++                                                     (*key_count));
++  }
++
+   key_iterator.rewind();
+   key_number=0;
+   for (; (key=key_iterator++) ; key_number++)
+@@ -3382,8 +3389,26 @@
+       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
+       DBUG_RETURN(TRUE);
+     }
++
++    if (alter_info->delayed_key_list.elements > 0)
++    {
++      Key *delayed_key;
++
++      delayed_key_iterator.rewind();
++      while ((delayed_key= delayed_key_iterator++))
++      {
++        if (delayed_key == key)
++        {
++         alter_info->delayed_key_info[alter_info->delayed_key_count++]=
++           *key_info;
++         break;
++        }
++      }
++    }
++
+     key_info++;
+   }
++
+   if (!unique_key && !primary_key &&
+       (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
+   {
+@@ -6081,6 +6106,10 @@
+   List<Create_field> new_create_list;
+   /* New key definitions are added here */
+   List<Key> new_key_list;
++  /* List with secondary keys which should be created after copying the data */
++  List<Key> delayed_key_list;
++  /* Foreign key list returned by handler::get_foreign_key_list() */
++  List<FOREIGN_KEY_INFO> f_key_list;
+   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
+   List_iterator<Create_field> def_it(alter_info->create_list);
+   List_iterator<Alter_column> alter_it(alter_info->alter_list);
+@@ -6093,6 +6122,7 @@
+   uint used_fields= create_info->used_fields;
+   KEY *key_info=table->key_info;
+   bool rc= TRUE;
++  bool skip_secondary;
+ 
+   DBUG_ENTER("mysql_prepare_alter_table");
+ 
+@@ -6120,6 +6150,7 @@
+     char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
+     /*
+        Regular alter table of disk stored table (no tablespace/storage change)
++
+        Copy tablespace name
+     */
+     if (tablespace &&
+@@ -6270,7 +6301,23 @@
+   /*
+     Collect all keys which isn't in drop list. Add only those
+     for which some fields exists.
+-  */
++
++    We also skip secondary keys for InnoDB tables and store them in
++    delayed_key_list to create them later after copying the data to make use of
++    the InnoDB fast index creation. The following conditions must be met:
++
++    - we are going to create an InnoDB table;
++    - the key most be a non-UNIQUE one;
++    - there are no foreign keys. This can be optimized later to exclude only
++      those keys which are a part of foreign key constraints. Currently we
++      simply disable this optimization for all keys if there are any foreign
++      key constraints in the table.
++  */
++
++  skip_secondary=
++    !my_strcasecmp(system_charset_info, table->file->table_type(), "InnoDB") &&
++    !table->file->get_foreign_key_list(thd, &f_key_list) &&
++    f_key_list.elements == 0;
+ 
+   for (uint i=0 ; i < table->s->keys ; i++,key_info++)
+   {
+@@ -6373,6 +6420,8 @@
+                    test(key_info->flags & HA_GENERATED_KEY),
+                    key_parts);
+       new_key_list.push_back(key);
++      if (skip_secondary && key_type == Key::MULTIPLE)
++        delayed_key_list.push_back(key);
+     }
+   }
+   {
+@@ -6380,7 +6429,21 @@
+     while ((key=key_it++))			// Add new keys
+     {
+       if (key->type != Key::FOREIGN_KEY)
+-        new_key_list.push_back(key);
++      {
++          new_key_list.push_back(key);
++        if (skip_secondary && key->type == Key::MULTIPLE)
++          delayed_key_list.push_back(key);
++      }
++      else if (skip_secondary)
++      {
++        /*
++          We are adding a foreign key so disable the secondary keys
++          optimization.
++        */
++        skip_secondary= FALSE;
++        delayed_key_list.empty();
++      }
++
+       if (key->name &&
+ 	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
+       {
+@@ -6429,12 +6492,100 @@
+   rc= FALSE;
+   alter_info->create_list.swap(new_create_list);
+   alter_info->key_list.swap(new_key_list);
++  alter_info->delayed_key_list.swap(delayed_key_list);
+ err:
+   DBUG_RETURN(rc);
+ }
+ 
+ 
+ /*
++  Temporarily remove secondary keys previously stored in
++  alter_info->delayed_key_info.
++*/
++static int
++remove_secondary_keys(THD *thd, TABLE *table, Alter_info *alter_info)
++{
++  uint *key_numbers;
++  uint key_counter= 0;
++  uint i;
++  int error;
++  DBUG_ENTER("remove_secondary_keys");
++  DBUG_ASSERT(alter_info->delayed_key_count > 0);
++
++  key_numbers= (uint *) thd->alloc(sizeof(uint) *
++                                   alter_info->delayed_key_count);
++  for (i= 0; i < alter_info->delayed_key_count; i++)
++  {
++    KEY *key= alter_info->delayed_key_info + i;
++    uint j;
++
++    for (j= 0; j < table->s->keys; j++)
++    {
++      if (!strcmp(table->key_info[j].name, key->name))
++      {
++        key_numbers[key_counter++]= j;
++        break;
++      }
++    }
++  }
++
++  DBUG_ASSERT(key_counter == alter_info->delayed_key_count);
++
++  if ((error= table->file->prepare_drop_index(table, key_numbers,
++                                              key_counter)) ||
++      (error= table->file->final_drop_index(table)))
++  {
++    table->file->print_error(error, MYF(0));
++  }
++
++  DBUG_RETURN(error);
++}
++
++/*
++  Restore secondary keys previously removed in remove_secondary_keys.
++*/
++
++static int
++restore_secondary_keys(THD *thd, TABLE *table, Alter_info *alter_info)
++{
++  uint i;
++  int error;
++  DBUG_ENTER("restore_secondary_keys");
++  DBUG_ASSERT(alter_info->delayed_key_count > 0);
++
++  thd_proc_info(thd, "restoring secondary keys");
++
++  /* Fix the key parts */
++  for (i= 0; i < alter_info->delayed_key_count; i++)
++  {
++    KEY *key = alter_info->delayed_key_info + i;
++    KEY_PART_INFO *key_part;
++    KEY_PART_INFO *part_end;
++
++    part_end= key->key_part + key->key_parts;
++    for (key_part= key->key_part; key_part < part_end; key_part++)
++      key_part->field= table->field[key_part->fieldnr];
++  }
++
++  if ((error= table->file->add_index(table, alter_info->delayed_key_info,
++                                     alter_info->delayed_key_count)))
++  {
++    /*
++      Exchange the key_info for the error message. If we exchange
++      key number by key name in the message later, we need correct info.
++    */
++    KEY *save_key_info= table->key_info;
++    table->key_info= alter_info->delayed_key_info;
++    table->file->print_error(error, MYF(0));
++    table->key_info= save_key_info;
++
++    DBUG_RETURN(error);
++  }
++
++  DBUG_RETURN(0);
++}
++
++/*
+   Alter table
+ 
+   SYNOPSIS
+@@ -7218,6 +7369,12 @@
+   else
+     create_info->data_file_name=create_info->index_file_name=0;
+ 
++  /*
++    Postpone secondary index creation for InnoDB tables if the data has to be
++    copied.
++    TODO: is there a better way to check for InnoDB?
++  */
++
+   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
+   /*
+     Create a table with a temporary name.
+@@ -7277,12 +7434,21 @@
+     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
+     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
+     new_table->next_number_field=new_table->found_next_number_field;
++
++    if (alter_info->delayed_key_count > 0)
++    {
++      /* ignore the error */
++      error= remove_secondary_keys(thd, new_table, alter_info);
++    }
++
+     thd_proc_info(thd, "copy to tmp table");
+     error= copy_data_between_tables(table, new_table,
+                                     alter_info->create_list, ignore,
+                                     order_num, order, &copied, &deleted,
+                                     alter_info->keys_onoff,
+                                     alter_info->error_if_not_empty);
++    if (!error && alter_info->delayed_key_count > 0)
++      error= restore_secondary_keys(thd, new_table, alter_info);
+   }
+   else
+   {

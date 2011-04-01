@@ -2165,11 +2165,3 @@ diff -ruN a/storage/innobase/trx/trx0rec.c b/storage/innobase/trx/trx0rec.c
  
  			ulint	pos = upd_get_nth_field(update, i)->field_no;
  
-@@ -724,6 +737,7 @@
- 			}
- 		}
- 	}
-+skip:
- 
- 	/*----------------------------------------*/
- 	/* In the case of a delete marking, and also in the case of an update

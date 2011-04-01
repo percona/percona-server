@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
 --- a/storage/innobase/dict/dict0load.c	2010-12-04 15:37:50.559480289 +0900
 +++ b/storage/innobase/dict/dict0load.c	2010-12-04 15:57:53.078513745 +0900
-@@ -1868,6 +1868,8 @@
+@@ -1882,6 +1882,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -114,7 +114,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	/* NOTE that the operation of this function is protected by
  	the dictionary mutex, and therefore no deadlocks can occur
  	with other dictionary operations. */
-@@ -1894,15 +1896,17 @@
+@@ -1908,15 +1910,17 @@
  				  BTR_SEARCH_LEAF, &pcur, &mtr);
  	rec = btr_pcur_get_rec(&pcur);
  
@@ -139,7 +139,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/*---------------------------------------------------*/
-@@ -1915,12 +1919,7 @@
+@@ -1929,12 +1933,7 @@
  
  	/* Check if the table id in record is the one searched for */
  	if (table_id != mach_read_from_8(field)) {
@@ -153,7 +153,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  	}
  
  	/* Now we get the table name from the record */
-@@ -1928,7 +1927,7 @@
+@@ -1942,7 +1941,7 @@
  	/* Load the table definition to memory */
  	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
  				TRUE);
@@ -357,7 +357,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -11980,6 +11980,12 @@
+@@ -11984,6 +11984,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -370,7 +370,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12070,6 +12076,7 @@
+@@ -12074,6 +12080,7 @@
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -378,7 +378,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    NULL
  };
  
-@@ -12079,7 +12086,7 @@
+@@ -12083,7 +12090,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",

@@ -1,13 +1,5 @@
-# name       : mysql-test.diff
-# introduced : ???
-# maintainer : ???
-#
-#!!! notice !!!
-# Any small change to this file in the main branch
-# should be done or reviewed by the maintainer!
-diff -ruN a/mysql-test/include/default_mysqld.cnf b/mysql-test/include/default_mysqld.cnf
---- a/mysql-test/include/default_mysqld.cnf	2010-11-03 07:01:11.000000000 +0900
-+++ b/mysql-test/include/default_mysqld.cnf	2010-12-10 16:48:10.996387047 +0900
+--- a/mysql-test/include/default_mysqld.cnf	2011-03-09 07:11:38.000000000 -0800
++++ b/mysql-test/include/default_mysqld.cnf	2011-03-27 12:51:04.000000000 -0700
 @@ -29,7 +29,7 @@
  max_heap_table_size=        1M
  
@@ -17,9 +9,8 @@ diff -ruN a/mysql-test/include/default_mysqld.cnf b/mysql-test/include/default_m
  loose-innodb_write_io_threads=    2
  loose-innodb_read_io_threads=     2
  loose-innodb_log_buffer_size=     1M
-diff -ruN a/mysql-test/r/connect.result b/mysql-test/r/connect.result
---- a/mysql-test/r/connect.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/connect.result	2010-12-10 16:48:10.997386982 +0900
+--- a/mysql-test/r/connect.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/connect.result	2011-03-27 12:51:04.000000000 -0700
 @@ -1,3 +1,4 @@
 +set global log_warnings=0;
  drop table if exists t1,t2;
@@ -30,9 +21,8 @@ diff -ruN a/mysql-test/r/connect.result b/mysql-test/r/connect.result
  # -- End of 5.1 tests
  # ------------------------------------------------------------------
 +set global log_warnings=1;
-diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
---- a/mysql-test/r/create.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/create.result	2010-12-10 16:48:11.001009442 +0900
+--- a/mysql-test/r/create.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/create.result	2011-03-27 12:51:04.000000000 -0700
 @@ -1741,7 +1741,11 @@
    `COMMAND` varchar(16) NOT NULL DEFAULT '',
    `TIME` int(7) NOT NULL DEFAULT '0',
@@ -59,9 +49,8 @@ diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
  ) ENGINE=MyISAM DEFAULT CHARSET=utf8
  drop table t1;
  create table t1 like information_schema.character_sets;
-diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_schema.result
---- a/mysql-test/r/information_schema.result	2010-12-03 20:58:24.000000000 +0300
-+++ b/mysql-test/r/information_schema.result	2011-01-10 23:02:09.000000000 +0300
+--- a/mysql-test/r/information_schema.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/information_schema.result	2011-03-27 12:51:04.000000000 -0700
 @@ -46,14 +46,17 @@
  select * from v1;
  c
@@ -273,9 +262,8 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  VIEWS	information_schema.VIEWS	1
  create table t1(f1 int);
  create view v1 as select f1+1 as a from t1;
-diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information_schema_db.result
---- a/mysql-test/r/information_schema_db.result	2010-12-03 20:58:24.000000000 +0300
-+++ b/mysql-test/r/information_schema_db.result	2011-01-10 23:06:43.000000000 +0300
+--- a/mysql-test/r/information_schema_db.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/information_schema_db.result	2011-03-27 12:51:04.000000000 -0700
 @@ -6,14 +6,17 @@
  show tables where Tables_in_information_schema NOT LIKE 'Innodb%';
  Tables_in_information_schema
@@ -326,10 +314,9 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
  TRIGGERS
  create database `inf%`;
  create database mbase;
-diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
---- a/mysql-test/r/mysqld--help-notwin.result	2011-01-20 00:37:09.000000000 +0200
-+++ b/mysql-test/r/mysqld--help-notwin.result	2011-02-18 13:14:44.701736864 +0200
-@@ -250,21 +250,43 @@
+--- a/mysql-test/r/mysqld--help-notwin.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/mysqld--help-notwin.result	2011-03-27 12:52:51.000000000 -0700
+@@ -250,21 +250,40 @@
   --log-slow-admin-statements 
   Log slow OPTIMIZE, ANALYZE, ALTER and other
   administrative statements to the slow log if it is open.
@@ -355,9 +342,6 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
 + Log slow statements executed by stored procedure to the
 + slow log if it is open.
 + (Defaults to on; use --skip-log-slow-sp-statements to disable.)
-+ --log-slow-timestamp-every 
-+ Timestamp is printed for all records of the slow log even
-+ if they are same time.
 + --log-slow-verbosity=name 
 + Choose how verbose the messages to your slow log will be.
 + Multiple flags allowed in a comma-separated string.
@@ -369,13 +353,13 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --log-tc-size=#     Size of transaction coordinator log.
   -W, --log-warnings[=#] 
   Log some not critical warnings to the log file
-+ --log-warnings-silence=name 
++ --log-warnings-suppress=name 
 + disable logging of enumerated warnings: 1592: unsafe
 + statements for binary logging; possible values : [1592]
   --long-query-time=# Log all queries that have taken more than long_query_time
   seconds to execute to file. The argument will be treated
   as a decimal value with microsecond precision
-@@ -471,6 +493,10 @@
+@@ -471,6 +490,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -386,7 +370,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -479,6 +505,12 @@
+@@ -479,6 +502,12 @@
   Invalidate queries in query cache on LOCK for write
   --query-prealloc-size=# 
   Persistent buffer for query parsing and execution
@@ -399,37 +383,39 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -656,6 +688,9 @@
+@@ -656,6 +685,18 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
-+ --slow-query-log-microseconds-timestamp 
++ --slow-query-log-timestamp-always 
++ Timestamp is printed for all records of the slow log even
++ if they are same time.
++ --slow-query-log-timestamp-precision=name 
 + Log slow statements executed by stored procedure to the
-+ slow log if it is open.
-  --socket=name       Socket file to use for connection
-  --sort-buffer-size=# 
-  Each thread that needs to do a sort allocates a buffer of
-@@ -698,6 +733,8 @@
-  Define threads usage for handling queries, one of
-  one-thread-per-connection, no-threads, loaded-dynamically
-  --thread-stack=#    The stack size for each thread
-+ --thread-statistics Control TABLE_STATISTICS running, when userstat_running
-+ is enabled
-  --time-format=name  The TIME format (ignored)
-  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
-  currently supported)
-@@ -722,11 +759,24 @@
-  Prohibit update of a VIEW, which does not contain a key
-  of the underlying table and the query uses a LIMIT clause
-  (usually get from GUI tools)
-+ --use-global-log-slow-control=name 
++ slow log if it is open. [second, microsecond]
++ --slow-query-log-use-global-control=name 
 + Choose flags, wich always use the global variables.
 + Multiple flags allowed in a comma-separated string.
 + [none, log_slow_filter, log_slow_rate_limit,
 + log_slow_verbosity, long_query_time,
 + min_examined_row_limit, all]
+  --socket=name       Socket file to use for connection
+  --sort-buffer-size=# 
+  Each thread that needs to do a sort allocates a buffer of
+@@ -698,6 +739,8 @@
+  Define threads usage for handling queries, one of
+  one-thread-per-connection, no-threads, loaded-dynamically
+  --thread-stack=#    The stack size for each thread
++ --thread-statistics Control TABLE_STATISTICS running, when userstat is
++ enabled
+  --time-format=name  The TIME format (ignored)
+  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
+  currently supported)
+@@ -723,10 +766,17 @@
+  of the underlying table and the query uses a LIMIT clause
+  (usually get from GUI tools)
   -u, --user=name     Run mysqld daemon as user.
-+ --userstat-running  Control USER_STATISTICS, CLIENT_STATISTICS,
++ --userstat          Control USER_STATISTICS, CLIENT_STATISTICS,
 + THREAD_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS
 + running
   -v, --verbose       Used with --help option for detailed help.
@@ -443,7 +429,7 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  
  Variables (--variable-name=value)
  abort-slave-event-count 0
-@@ -809,10 +859,16 @@
+@@ -809,10 +859,15 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
@@ -451,16 +437,15 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
 +log-slow-rate-limit 1
  log-slow-slave-statements FALSE
 +log-slow-sp-statements TRUE
-+log-slow-timestamp-every FALSE
 +log-slow-verbosity 
  log-tc tc.log
  log-tc-size 24576
  log-warnings 1
-+log-warnings-silence 
++log-warnings-suppress 
  long-query-time 10
  low-priority-updates FALSE
  lower-case-table-names 1
-@@ -887,9 +943,12 @@
+@@ -887,9 +942,12 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0
@@ -473,15 +458,17 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  range-alloc-block-size 4096
  read-buffer-size 131072
  read-only FALSE
-@@ -924,6 +983,7 @@
+@@ -924,6 +982,9 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE
-+slow-query-log-microseconds-timestamp FALSE
++slow-query-log-timestamp-always FALSE
++slow-query-log-timestamp-precision second
++slow-query-log-use-global-control 
  sort-buffer-size 2097152
  sporadic-binlog-dump-fail FALSE
  sql-mode 
-@@ -941,6 +1001,7 @@
+@@ -941,6 +1002,7 @@
  thread-cache-size 0
  thread-handling one-thread-per-connection
  thread-stack 262144
@@ -489,21 +476,19 @@ diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-
  time-format %H:%i:%s
  timed-mutexes FALSE
  tmp-table-size 16777216
-@@ -948,8 +1009,11 @@
+@@ -948,8 +1010,10 @@
  transaction-isolation REPEATABLE-READ
  transaction-prealloc-size 4096
  updatable-views-with-limit YES
-+use-global-log-slow-control 
-+userstat-running FALSE
++userstat FALSE
  verbose TRUE
  wait-timeout 28800
 +xtradb-admin-command ON
  
  To see what values a running MySQL server is using, type
  'mysqladmin variables' instead of 'mysqld --verbose --help'.
-diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
---- a/mysql-test/r/mysqldump.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/mysqldump.result	2010-12-10 16:48:11.013968901 +0900
+--- a/mysql-test/r/mysqldump.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/mysqldump.result	2011-03-27 12:51:04.000000000 -0700
 @@ -1832,7 +1832,7 @@
  # Bug#21288 mysqldump segmentation fault when using --where
  #
@@ -513,9 +498,8 @@ diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
  mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
  
  /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
---- a/mysql-test/r/mysqlshow.result	2010-12-03 20:58:24.000000000 +0300
-+++ b/mysql-test/r/mysqlshow.result	2011-01-11 16:41:03.000000000 +0300
+--- a/mysql-test/r/mysqlshow.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/mysqlshow.result	2011-03-27 12:51:04.000000000 -0700
 @@ -80,14 +80,17 @@
  |                Tables                 |
  +---------------------------------------+
@@ -647,9 +631,8 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  +---------------------------------------+
  Wildcard: inf_rmation_schema
  +--------------------+
-diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
---- a/mysql-test/r/select.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/r/select.result	2010-12-10 16:48:11.023052909 +0900
+--- a/mysql-test/r/select.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/select.result	2011-03-27 12:51:04.000000000 -0700
 @@ -2196,10 +2196,10 @@
  select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
  a	a
@@ -663,9 +646,50 @@ diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
  3	3
  select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
  a	a
-diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/innodb.result
---- a/mysql-test/suite/innodb/r/innodb.result	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/suite/innodb/r/innodb.result	2010-12-10 16:48:11.026994635 +0900
+--- a/mysql-test/r/show_check.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/show_check.result	2011-03-27 12:51:04.000000000 -0700
+@@ -1537,14 +1537,14 @@
+ SET NAMES latin1;
+ SELECT GET_LOCK('t',1000) AS 'óóóó';;
+ SHOW PROCESSLIST;
+-Id	User	Host	db	Command	Time	State	Info
+-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
++###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'	###	###	###
+ SET NAMES utf8;
+ SHOW PROCESSLIST;
+-Id	User	Host	db	Command	Time	State	Info
+-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
++###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'	###	###	###
+ SELECT RELEASE_LOCK('t');
+ RELEASE_LOCK('t')
+ 1
+--- a/mysql-test/r/sp-threads.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/r/sp-threads.result	2011-03-27 12:51:04.000000000 -0700
+@@ -33,11 +33,11 @@
+ lock tables t2 write;
+ call bug9486();
+ show processlist;
+-Id	User	Host	db	Command	Time	State	Info
+-#	root	localhost	test	Sleep	#		NULL
+-#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2
+-#	root	localhost	test	Query	#	NULL	show processlist
+-#	root	localhost	test	Sleep	#		NULL
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++#	root	localhost	test	Sleep	#		NULL	#	#	#
++#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2	#	#	#
++#	root	localhost	test	Query	#	NULL	show processlist	#	#	#
++#	root	localhost	test	Sleep	#		NULL	#	#	#
+ unlock tables;
+ drop procedure bug9486;
+ drop table t1, t2;
+--- a/mysql-test/suite/innodb/r/innodb.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/suite/innodb/r/innodb.result	2011-03-27 12:51:04.000000000 -0700
 @@ -1664,7 +1664,7 @@
  drop table t1;
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
@@ -675,112 +699,112 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
  variable_value
  16384
-diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
---- a/mysql-test/suite/sys_vars/r/all_vars.result	2011-01-20 00:37:09.000000000 +0200
-+++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-02-21 02:01:47.873337692 +0200
-@@ -11,9 +11,99 @@
+--- a/mysql-test/suite/sys_vars/r/all_vars.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-03-27 12:54:05.000000000 -0700
+@@ -11,9 +11,101 @@
  select variable_name as `There should be *no* variables listed below:` from t2
  left join t1 on variable_name=test_name where test_name is null;
  There should be *no* variables listed below:
-+USE_GLOBAL_LOG_SLOW_CONTROL
 +LOG_SLOW_SP_STATEMENTS
-+INNODB_FAST_CHECKSUM
++SLOW_QUERY_LOG_TIMESTAMP_PRECISION
++THREAD_STATISTICS
++SLOW_QUERY_LOG_TIMESTAMP_ALWAYS
 +INNODB_THREAD_CONCURRENCY_TIMER_BASED
-+LOG_SLOW_TIMESTAMP_EVERY
++INNODB_LOG_BLOCK_SIZE
 +INNODB_SHOW_VERBOSE_LOCKS
 +INNODB_READ_AHEAD
 +INNODB_USE_GLOBAL_FLUSH_LOG_AT_TRX_COMMIT
-+INNODB_PASS_CORRUPT_TABLE
++LOG_WARNINGS_SUPPRESS
 +FAST_INDEX_CREATION
++INNODB_CORRUPT_TABLE_ACTION
 +INNODB_FLUSH_NEIGHBOR_PAGES
++INNODB_LAZY_DROP_TABLE
 +INNODB_BUFFER_POOL_SHM_CHECKSUM
 +LOG_SLOW_VERBOSITY
 +QUERY_RESPONSE_TIME_STATS
 +QUERY_CACHE_STRIP_COMMENTS
 +INNODB_SHOW_LOCKS_HELD
 +INNODB_IBUF_ACCEL_RATE
-+INNODB_EXPAND_IMPORT
++INNODB_IBUF_MAX_SIZE
 +INNODB_CHECKPOINT_AGE_TARGET
-+LOG_SLOW_SLAVE_STATEMENTS
++INNODB_IMPORT_TABLE_FROM_XTRABACKUP
 +INNODB_ADAPTIVE_FLUSHING_METHOD
  INNODB_STATS_METHOD
 +HAVE_RESPONSE_TIME_DISTRIBUTION
-+LOG_SLOW_RATE_LIMIT
++INNODB_RECOVERY_UPDATE_RELAY_LOG
 +OPTIMIZER_FIX
-+INNODB_STATS_AUTO_UPDATE
++INNODB_BUFFER_POOL_RESTORE_AT_STARTUP
 +INNODB_PAGE_SIZE
-+INNODB_LOG_BLOCK_SIZE
++INNODB_FAST_CHECKSUM
++SLOW_QUERY_LOG_USE_GLOBAL_CONTROL
 +INNODB_ADAPTIVE_HASH_INDEX_PARTITIONS
-+SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP
++USERSTAT
 +INNODB_BUFFER_POOL_SHM_KEY
 +INNODB_USE_SYS_STATS_TABLE
 +INNODB_RECOVERY_STATS
 +INNODB_DOUBLEWRITE_FILE
 +INNODB_STATS_UPDATE_NEED_LOCK
-+USERSTAT_RUNNING
 +QUERY_RESPONSE_TIME_RANGE_BASE
++LOG_SLOW_RATE_LIMIT
 +INNODB_IBUF_ACTIVE_CONTRACT
-+INNODB_AUTO_LRU_DUMP
++INNODB_STATS_AUTO_UPDATE
++LOG_SLOW_SLAVE_STATEMENTS
  INNODB_FILE_FORMAT_MAX
 +INNODB_DICT_SIZE_LIMIT
-+LOG_WARNINGS_SILENCE
 +LOG_SLOW_FILTER
-+INNODB_IBUF_MAX_SIZE
-+INNODB_OVERWRITE_RELAY_LOG_INFO
 +INNODB_EXTRA_RSEGMENTS
-+THREAD_STATISTICS
-+USE_GLOBAL_LOG_SLOW_CONTROL
 +LOG_SLOW_SP_STATEMENTS
-+INNODB_FAST_CHECKSUM
++SLOW_QUERY_LOG_TIMESTAMP_PRECISION
++THREAD_STATISTICS
++SLOW_QUERY_LOG_TIMESTAMP_ALWAYS
 +INNODB_THREAD_CONCURRENCY_TIMER_BASED
-+LOG_SLOW_TIMESTAMP_EVERY
++INNODB_LOG_BLOCK_SIZE
 +INNODB_SHOW_VERBOSE_LOCKS
 +INNODB_READ_AHEAD
 +INNODB_USE_GLOBAL_FLUSH_LOG_AT_TRX_COMMIT
-+INNODB_PASS_CORRUPT_TABLE
++LOG_WARNINGS_SUPPRESS
 +FAST_INDEX_CREATION
++INNODB_CORRUPT_TABLE_ACTION
 +INNODB_FLUSH_NEIGHBOR_PAGES
++INNODB_LAZY_DROP_TABLE
 +INNODB_BUFFER_POOL_SHM_CHECKSUM
 +LOG_SLOW_VERBOSITY
 +QUERY_RESPONSE_TIME_STATS
 +QUERY_CACHE_STRIP_COMMENTS
 +INNODB_SHOW_LOCKS_HELD
 +INNODB_IBUF_ACCEL_RATE
-+INNODB_EXPAND_IMPORT
++INNODB_IBUF_MAX_SIZE
 +INNODB_CHECKPOINT_AGE_TARGET
-+LOG_SLOW_SLAVE_STATEMENTS
++INNODB_IMPORT_TABLE_FROM_XTRABACKUP
 +INNODB_ADAPTIVE_FLUSHING_METHOD
  INNODB_STATS_METHOD
 +HAVE_RESPONSE_TIME_DISTRIBUTION
-+LOG_SLOW_RATE_LIMIT
++INNODB_RECOVERY_UPDATE_RELAY_LOG
 +OPTIMIZER_FIX
-+INNODB_STATS_AUTO_UPDATE
++INNODB_BUFFER_POOL_RESTORE_AT_STARTUP
 +INNODB_PAGE_SIZE
-+INNODB_LOG_BLOCK_SIZE
++INNODB_FAST_CHECKSUM
++SLOW_QUERY_LOG_USE_GLOBAL_CONTROL
 +INNODB_ADAPTIVE_HASH_INDEX_PARTITIONS
-+SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP
++USERSTAT
 +INNODB_BUFFER_POOL_SHM_KEY
 +INNODB_USE_SYS_STATS_TABLE
 +INNODB_RECOVERY_STATS
 +INNODB_DOUBLEWRITE_FILE
 +INNODB_STATS_UPDATE_NEED_LOCK
-+USERSTAT_RUNNING
 +QUERY_RESPONSE_TIME_RANGE_BASE
++LOG_SLOW_RATE_LIMIT
 +INNODB_IBUF_ACTIVE_CONTRACT
-+INNODB_AUTO_LRU_DUMP
++INNODB_STATS_AUTO_UPDATE
++LOG_SLOW_SLAVE_STATEMENTS
  INNODB_FILE_FORMAT_MAX
 +INNODB_DICT_SIZE_LIMIT
-+LOG_WARNINGS_SILENCE
 +LOG_SLOW_FILTER
-+INNODB_IBUF_MAX_SIZE
-+INNODB_OVERWRITE_RELAY_LOG_INFO
 +INNODB_EXTRA_RSEGMENTS
-+THREAD_STATISTICS
  drop table t1;
  drop table t2;
-diff -ruN a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result
---- a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-01-20 07:37:09.000000000 +0900
-+++ b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-02-22 19:02:33.970779775 +0900
+--- a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-03-27 12:51:04.000000000 -0700
 @@ -10,7 +10,6 @@
  1
  '#---------------------FN_DYNVARS_046_02-------------------------#'
@@ -789,9 +813,8 @@ diff -ruN a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.res
  SELECT @@innodb_flush_log_at_trx_commit;
  @@innodb_flush_log_at_trx_commit
  1
-diff -ruN a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result b/mysql-test/suite/sys_vars/r/plugin_dir_basic.result
---- a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2010-11-03 07:01:13.000000000 +0900
-+++ b/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2010-12-10 16:48:11.033057415 +0900
+--- a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2011-03-27 12:51:04.000000000 -0700
 @@ -1,20 +1,20 @@
  select @@global.plugin_dir;
  @@global.plugin_dir
@@ -818,9 +841,8 @@ diff -ruN a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result b/mysql-test/sui
  set global plugin_dir=1;
  ERROR HY000: Variable 'plugin_dir' is a read only variable
  set session plugin_dir=1;
-diff -ruN a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test
---- a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-01-20 07:37:09.000000000 +0900
-+++ b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-02-22 19:03:02.490792783 +0900
+--- a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-03-27 12:51:04.000000000 -0700
 @@ -56,7 +56,7 @@
  # Check if variable can be accessed with and without @@ sign                  #
  ###############################################################################
@@ -830,9 +852,8 @@ diff -ruN a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.tes
  SET innodb_flush_log_at_trx_commit = 1;
  SELECT @@innodb_flush_log_at_trx_commit;
  
-diff -ruN a/mysql-test/t/connect.test b/mysql-test/t/connect.test
---- a/mysql-test/t/connect.test	2010-11-03 07:01:12.000000000 +0900
-+++ b/mysql-test/t/connect.test	2010-12-10 16:48:11.034065111 +0900
+--- a/mysql-test/t/connect.test	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/t/connect.test	2011-03-27 12:51:04.000000000 -0700
 @@ -1,3 +1,5 @@
 +set global log_warnings=0;
 +
@@ -844,53 +865,8 @@ diff -ruN a/mysql-test/t/connect.test b/mysql-test/t/connect.test
  --source include/wait_until_count_sessions.inc
  
 +set global log_warnings=1;
-diff -ruN a/mysql-test/r/show_check.result b/mysql-test/r/show_check.result
---- a/mysql-test/r/show_check.result	2011-01-20 00:37:09.000000000 +0200
-+++ b/mysql-test/r/show_check.result	2011-03-09 13:05:40.506397491 +0200
-@@ -1537,14 +1537,14 @@
- SET NAMES latin1;
- SELECT GET_LOCK('t',1000) AS 'óóóó';;
- SHOW PROCESSLIST;
--Id	User	Host	db	Command	Time	State	Info
--###	root	###	test	Query	###	###	SHOW PROCESSLIST
--###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
-+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
-+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
-+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'	###	###	###
- SET NAMES utf8;
- SHOW PROCESSLIST;
--Id	User	Host	db	Command	Time	State	Info
--###	root	###	test	Query	###	###	SHOW PROCESSLIST
--###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
-+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
-+###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
-+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'	###	###	###
- SELECT RELEASE_LOCK('t');
- RELEASE_LOCK('t')
- 1
-diff -ruN a/mysql-test/r/sp-threads.result b/mysql-test/r/sp-threads.result
---- a/mysql-test/r/sp-threads.result	2011-01-20 00:37:09.000000000 +0200
-+++ b/mysql-test/r/sp-threads.result	2011-03-09 13:05:40.507397405 +0200
-@@ -33,11 +33,11 @@
- lock tables t2 write;
- call bug9486();
- show processlist;
--Id	User	Host	db	Command	Time	State	Info
--#	root	localhost	test	Sleep	#		NULL
--#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2
--#	root	localhost	test	Query	#	NULL	show processlist
--#	root	localhost	test	Sleep	#		NULL
-+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
-+#	root	localhost	test	Sleep	#		NULL	#	#	#
-+#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2	#	#	#
-+#	root	localhost	test	Query	#	NULL	show processlist	#	#	#
-+#	root	localhost	test	Sleep	#		NULL	#	#	#
- unlock tables;
- drop procedure bug9486;
- drop table t1, t2;
-diff -ruN a/mysql-test/t/show_check.test b/mysql-test/t/show_check.test
---- a/mysql-test/t/show_check.test	2011-01-20 00:37:09.000000000 +0200
-+++ b/mysql-test/t/show_check.test	2011-03-09 13:05:40.500398012 +0200
+--- a/mysql-test/t/show_check.test	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/t/show_check.test	2011-03-27 12:51:04.000000000 -0700
 @@ -1375,10 +1375,10 @@
  let $wait_timeout= 10;
  let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
@@ -904,9 +880,8 @@ diff -ruN a/mysql-test/t/show_check.test b/mysql-test/t/show_check.test
  SHOW PROCESSLIST;
  SELECT RELEASE_LOCK('t');
  --connection con1
-diff -ruN a/mysql-test/t/sp-threads.test b/mysql-test/t/sp-threads.test
---- a/mysql-test/t/sp-threads.test	2011-01-20 00:37:09.000000000 +0200
-+++ b/mysql-test/t/sp-threads.test	2011-03-09 13:05:40.501397925 +0200
+--- a/mysql-test/t/sp-threads.test	2011-03-09 07:11:39.000000000 -0800
++++ b/mysql-test/t/sp-threads.test	2011-03-27 12:51:04.000000000 -0700
 @@ -81,7 +81,7 @@
  connection con2root;
  --sleep 2

@@ -75,7 +75,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  
  
  /** Following are six InnoDB system tables */
-@@ -797,7 +798,7 @@
+@@ -811,7 +812,7 @@
  
  		mtr_commit(&mtr);
  
@@ -84,7 +84,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  			/* The system tablespace always exists. */
  		} else if (in_crash_recovery) {
  			/* Check that the tablespace (the .ibd file) really
-@@ -1594,7 +1595,7 @@
+@@ -1608,7 +1609,7 @@
  	space = mach_read_from_4(field);
  
  	/* Check if the tablespace exists and has the right name */
@@ -93,7 +93,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  		flags = dict_sys_tables_get_flags(rec);
  
  		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-@@ -1744,7 +1745,7 @@
+@@ -1758,7 +1759,7 @@
  		goto err_exit;
  	}
  
@@ -357,7 +357,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
  
  	/* -------------- Log files ---------------------------*/
-@@ -11610,6 +11613,11 @@
+@@ -11614,6 +11617,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -369,7 +369,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11782,6 +11790,7 @@
+@@ -11786,6 +11794,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -519,7 +519,7 @@ diff -ruN a/storage/innobase/include/trx0sys.ic b/storage/innobase/include/trx0s
 diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 --- a/storage/innobase/row/row0mysql.c	2010-12-03 17:30:16.334989510 +0900
 +++ b/storage/innobase/row/row0mysql.c	2010-12-04 15:35:58.652496484 +0900
-@@ -3423,7 +3423,7 @@
+@@ -3449,7 +3449,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  

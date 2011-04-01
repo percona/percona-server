@@ -200,7 +200,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		}
  	}
  
-@@ -11408,6 +11470,16 @@
+@@ -11412,6 +11474,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -217,7 +217,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11909,6 +11981,8 @@
+@@ -11913,6 +11985,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {

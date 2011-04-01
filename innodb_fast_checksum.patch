@@ -178,7 +178,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11397,6 +11399,15 @@
+@@ -11401,6 +11403,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -194,7 +194,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11903,6 +11914,7 @@
+@@ -11907,6 +11918,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),

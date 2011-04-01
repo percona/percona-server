@@ -428,7 +428,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -9026,6 +9062,25 @@
+@@ -9030,6 +9066,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {

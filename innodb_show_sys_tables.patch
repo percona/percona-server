@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:45:46.194411503 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:49:26.171990559 +0900
-@@ -11867,6 +11867,9 @@
+@@ -11871,6 +11871,9 @@
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
  i_s_innodb_admin_command,
@@ -29,7 +29,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
  }
  
-@@ -3111,6 +3112,664 @@
+@@ -3111,6 +3112,685 @@
  	STRUCT_FLD(deinit, i_s_common_deinit),
  	STRUCT_FLD(version, 0x0100 /* 1.0 */),
  	STRUCT_FLD(status_vars, NULL),
@@ -198,6 +198,14 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 +	 STRUCT_FLD(value,		0),
 +	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
++	 STRUCT_FLD(old_name,		""),
++	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
++
++	{STRUCT_FLD(field_name,		"NON_NULL_VALS"),
++	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
++	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
++	 STRUCT_FLD(value,		0),
++	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
 +	 STRUCT_FLD(old_name,		""),
 +	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 +
@@ -469,6 +477,9 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +{
 +	int	status;
 +	int	field;
++	ulint	n_fields;
++
++	n_fields = rec_get_n_fields_old(rec);
 +
 +	/* INDEX_ID */
 +	field = dict_index_get_nth_col_pos(index, 0);
@@ -487,6 +498,16 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	status = copy_id_field(table, 2, rec, field);
 +	if (status) {
 +		return status;
++	}
++	/* NON_NULL_VALS */
++	if (n_fields < 6) {
++		table->field[3]->set_null();
++	} else {
++		field = dict_index_get_nth_col_pos(index, 3);
++		status = copy_id_field(table, 3, rec, field);
++		if (status) {
++			return status;
++		}
 +	}
 +
 +	return 0;

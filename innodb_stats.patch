@@ -1812,7 +1812,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/trx/trx0rec.c b/storage/innodb_plugin/trx/trx0rec.c
 --- a/storage/innodb_plugin/trx/trx0rec.c	2011-02-12 04:20:26.000000000 +0900
 +++ b/storage/innodb_plugin/trx/trx0rec.c	2011-03-30 15:57:54.000000000 +0900
-@@ -665,14 +665,31 @@
+@@ -665,14 +665,27 @@
  	/* Save to the undo log the old values of the columns to be updated. */
  
  	if (update) {
@@ -1835,10 +1835,6 @@ diff -ruN a/storage/innodb_plugin/trx/trx0rec.c b/storage/innodb_plugin/trx/trx0
 +			}
 +		}
 +
-+		if (upd_get_n_fields(update) == extended) {
-+			goto skip;
-+		}
-+
 +		ptr += mach_write_compressed(ptr, upd_get_n_fields(update) - extended);
  
 -		for (i = 0; i < upd_get_n_fields(update); i++) {
@@ -1846,7 +1842,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0rec.c b/storage/innodb_plugin/trx/trx0
  
  			ulint	pos = upd_get_nth_field(update, i)->field_no;
  
-@@ -724,6 +741,7 @@
+@@ -724,6 +737,7 @@
  			}
  		}
  	}

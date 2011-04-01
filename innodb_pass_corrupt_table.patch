@@ -505,7 +505,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  		size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  		index->stat_index_size = size;
-@@ -4452,6 +4459,12 @@
+@@ -4480,6 +4487,12 @@
  	heap = mem_heap_create(1000);
  
  	while (index) {
@@ -518,7 +518,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  /*===========================================*/
  {
  	dict_table_t*	sys_stats;
-@@ -4617,6 +4630,12 @@
+@@ -4666,6 +4679,12 @@
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
  			 && dict_index_is_clust(index)))) {
  			ulint	size;
@@ -531,7 +531,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  			size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  			index->stat_index_size = size;
-@@ -5341,4 +5360,42 @@
+@@ -5462,4 +5481,42 @@
  		rw_lock_free(&dict_table_stats_latches[i]);
  	}
  }
@@ -1007,7 +1007,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8429,10 +8510,18 @@
+@@ -8433,10 +8514,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -1026,7 +1026,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	return(0);
  }
  
-@@ -8614,6 +8703,10 @@
+@@ -8618,6 +8707,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1037,7 +1037,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9384,6 +9477,10 @@
+@@ -9388,6 +9481,10 @@
  
  	update_thd(thd);
  
@@ -1048,7 +1048,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11781,6 +11878,25 @@
+@@ -11785,6 +11882,25 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1074,7 +1074,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11867,6 +11983,7 @@
+@@ -11871,6 +11987,7 @@
    MYSQL_SYSVAR(buffer_pool_restore_at_startup),
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
@@ -1182,7 +1182,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
 diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
 --- a/storage/innobase/include/dict0dict.h	2010-12-03 17:30:16.306955940 +0900
 +++ b/storage/innobase/include/dict0dict.h	2010-12-04 15:38:18.169513750 +0900
-@@ -1226,6 +1226,15 @@
+@@ -1233,6 +1233,15 @@
  dict_close(void);
  /*============*/
  

@@ -1054,7 +1054,7 @@ diff -ruN a/storage/innobase/ha/ha0ha.c b/storage/innobase/ha/ha0ha.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:20.185850734 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:48.674552412 +0900
-@@ -11671,6 +11671,11 @@
+@@ -11675,6 +11675,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1066,7 +1066,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12041,6 +12046,7 @@
+@@ -12045,6 +12050,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),

@@ -30,13 +30,13 @@
 %define majorversion 20
 %define minorversion 1
 %define distribution  rhel%{redhatversion}
-%define percona_server_version	beta%{majorversion}.%{minorversion}
+%define percona_server_version	rc%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         beta%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rc%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -99,10 +99,10 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release beta%{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release rc%{majorversion}.%{minorversion}, Revision %{gotrevision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release beta%{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_release     Percona Server (GPL), Release rc%{majorversion}.%{minorversion}, Revision %{gotrevision}
 %endif
 
 # ----------------------------------------------------------------------------

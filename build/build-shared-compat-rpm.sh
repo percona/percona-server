@@ -121,7 +121,7 @@ export MAKE_JFLAG=-j4
         RPMVER=i386
     fi
 
-    wget "http://www.percona.com/downloads/community/shared-compat/MySQL-shared-compat-5.5.9-1.linux2.6.$RPMVER.rpm"
+    wget "http://www.percona.com/downloads/community/shared-compat/MySQL-shared-compat-5.5.10-1.linux2.6.$RPMVER.rpm"
 
 )
 

@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:32:15.624039043 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:32:35.424957827 +0900
-@@ -11833,7 +11833,8 @@
+@@ -11837,7 +11837,8 @@
  i_s_innodb_sys_foreign_cols,
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
@@ -21,7 +21,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 --- a/storage/innobase/handler/i_s.cc	2010-12-03 17:30:16.299955549 +0900
 +++ b/storage/innobase/handler/i_s.cc	2010-12-03 17:32:35.425989972 +0900
-@@ -4161,3 +4161,139 @@
+@@ -4179,3 +4179,139 @@
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
  };

@@ -357,7 +357,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
-@@ -11388,6 +11391,11 @@
+@@ -11392,6 +11395,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -369,7 +369,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11561,6 +11569,7 @@
+@@ -11565,6 +11573,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -529,7 +529,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:22:04.287058274 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:37:55.410993060 +0900
-@@ -3365,7 +3365,7 @@
+@@ -3391,7 +3391,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  

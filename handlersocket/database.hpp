@@ -103,8 +103,11 @@ struct cmd_exec_args {
   string_ref mod_op;
   const string_ref *uvals; /* size must be pst->retfieelds.size() */
   const record_filter *filters;
+  int invalues_keypart;
+  const string_ref *invalues;
+  size_t invalueslen;
   cmd_exec_args() : pst(0), kvals(0), kvalslen(0), limit(0), skip(0),
-    uvals(0), filters(0) { }
+    uvals(0), filters(0), invalues_keypart(-1), invalues(0), invalueslen(0) { }
 };
 
 struct dbcontext_i {

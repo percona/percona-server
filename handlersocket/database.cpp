@@ -694,6 +694,35 @@ dbcontext::cmd_sql_internal(dbcallback_i& cb, const prep_stmt& pst,
   return cb.dbcb_resp_short(2, "notimpl");
 }
 
+static size_t
+prepare_keybuf(const cmd_exec_args& args, uchar *key_buf, TABLE *table,
+  KEY& kinfo, size_t invalues_index)
+{
+  size_t kplen_sum = 0;
+  DBG_KEY(fprintf(stderr, "SLOW\n"));
+  for (size_t i = 0; i < args.kvalslen; ++i) {
+    const KEY_PART_INFO & kpt = kinfo.key_part[i];
+    string_ref kval = args.kvals[i];
+    if (args.invalues_keypart >= 0 &&
+      static_cast<size_t>(args.invalues_keypart) == i) {
+      kval = args.invalues[invalues_index];
+    }
+    if (kval.begin() == 0) {
+      kpt.field->set_null();
+    } else {
+      kpt.field->set_notnull();
+    }
+    kpt.field->store(kval.begin(), kval.size(), &my_charset_bin);
+    kplen_sum += kpt.store_length;
+    DBG_KEYLEN(fprintf(stderr, "l=%u sl=%zu\n", kpt.length,
+      kpt.store_length));
+  }
+  key_copy(key_buf, table->record[0], &kinfo, kplen_sum);
+  DBG_KEYLEN(fprintf(stderr, "sum=%zu flen=%u\n", kplen_sum,
+    kinfo.key_length));
+  return kplen_sum;
+}
+
 void
 dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   ha_rkey_function find_flag, const cmd_exec_args& args)
@@ -738,26 +767,8 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     return cb.dbcb_resp_short(2, "kpnum");
   }
   uchar *const key_buf = DENA_ALLOCA_ALLOCATE(uchar, kinfo.key_length);
-  size_t kplen_sum = 0;
-  {
-    DBG_KEY(fprintf(stderr, "SLOW\n"));
-    for (size_t i = 0; i < args.kvalslen; ++i) {
-      const KEY_PART_INFO & kpt = kinfo.key_part[i];
-      const string_ref& kval = args.kvals[i];
-      if (kval.begin() == 0) {
-	kpt.field->set_null();
-      } else {
-	kpt.field->set_notnull();
-      }
-      kpt.field->store(kval.begin(), kval.size(), &my_charset_bin);
-      kplen_sum += kpt.store_length;
-      DBG_KEYLEN(fprintf(stderr, "l=%u sl=%zu\n", kpt.length,
-	kpt.store_length));
-    }
-    key_copy(key_buf, table->record[0], &kinfo, kplen_sum);
-    DBG_KEYLEN(fprintf(stderr, "sum=%zu flen=%u\n", kplen_sum,
-      kinfo.key_length));
-  }
+  size_t invalues_idx = 0;
+  size_t kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
   /* filters */
   uchar *filter_buf = 0;
   if (args.filters != 0) {
@@ -787,8 +798,17 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   uint32_t skip = args.skip;
   size_t modified_count = 0;
   int r = 0;
-  for (uint32_t i = 0; i < limit + skip; ++i) {
-    if (i == 0) {
+  bool is_first = true;
+  for (uint32_t cnt = 0; cnt < limit + skip;) {
+    if (is_first) {
+      is_first = false;
+      const key_part_map kpm = (1U << args.kvalslen) - 1;
+      r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+    } else if (args.invalues_keypart >= 0) {
+      if (++invalues_idx >= args.invalueslen) {
+	break;
+      }
+      kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
       const key_part_map kpm = (1U << args.kvalslen) - 1;
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
     } else {
@@ -826,12 +846,17 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     } else if (skip > 0) {
       --skip;
     } else {
+      /* hit */
       if (need_resp_record) {
 	resp_record(cb, table, pst);
       }
       if (mod_op != 0) {
 	r = modify_record(cb, table, pst, args, mod_op, modified_count);
       }
+      ++cnt;
+    }
+    if (args.invalues_keypart >= 0 && r == HA_ERR_KEY_NOT_FOUND) {
+      continue;
     }
     if (r != 0 && r != HA_ERR_RECORD_DELETED) {
       break;

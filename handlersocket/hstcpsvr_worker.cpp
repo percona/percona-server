@@ -266,6 +266,7 @@ struct hstcpsvr_worker : public hstcpsvr_worker_i, private noncopyable {
   #endif
   bool accept_enabled;
   int accept_balance;
+  std::vector<string_ref> invalues_work;
   std::vector<record_filter> filters_work;
  private:
   int run_one_nb();
@@ -781,8 +782,36 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
     /* simple query */
     return dbctx->cmd_exec(conn, args);
   }
-  /* has filters or modops */
+  /* has more options */
   skip_one(start, finish);
+  /* in-clause */
+  if (start[0] == '@') {
+    read_token(start, finish); /* '@' */
+    skip_one(start, finish);
+    args.invalues_keypart = read_ui32(start, finish);
+    skip_one(start, finish);
+    args.invalueslen = read_ui32(start, finish);
+    if (args.invalueslen <= 0) {
+      return conn.dbcb_resp_short(2, "invalueslen");
+    }
+    if (invalues_work.size() < args.invalueslen) {
+      invalues_work.resize(args.invalueslen);
+    }
+    args.invalues = &invalues_work[0];
+    for (uint32_t i = 0; i < args.invalueslen; ++i) {
+      skip_one(start, finish);
+      char *const invalue_begin = start;
+      read_token(start, finish);
+      char *const invalue_end = start;
+      char *wp = invalue_begin;
+      unescape_string(wp, invalue_begin, invalue_end);
+      invalues_work[i] = string_ref(invalue_begin, wp - invalue_begin);
+    }
+  }
+  if (start == finish) {
+    /* no more options */
+    return dbctx->cmd_exec(conn, args);
+  }
   /* filters */
   size_t filters_count = 0;
   while (start != finish && (start[0] == 'W' || start[0] == 'F')) {

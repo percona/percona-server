@@ -45,7 +45,8 @@ struct hstcpcli : public hstcpcli_i, private noncopyable {
   virtual void request_buf_exec_generic(size_t pst_id, const string_ref& op,
     const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip,
     const string_ref& mod_op, const string_ref *mvs, size_t mvslen,
-    const hstcpcli_filter *fils, size_t filslen);
+    const hstcpcli_filter *fils, size_t filslen, int invalues_keypart,
+    const string_ref *invalues, size_t invalueslen);
   virtual int request_send();
   virtual int response_recv(size_t& num_flds_r);
   virtual const string_ref *get_next_row();
@@ -218,7 +219,8 @@ void
 hstcpcli::request_buf_exec_generic(size_t pst_id, const string_ref& op,
   const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip,
   const string_ref& mod_op, const string_ref *mvs, size_t mvslen,
-  const hstcpcli_filter *fils, size_t filslen)
+  const hstcpcli_filter *fils, size_t filslen, int invalues_keypart,
+  const string_ref *invalues, size_t invalueslen)
 {
   if (num_req_sent > 0 || num_req_rcvd > 0) {
     close();
@@ -234,12 +236,25 @@ hstcpcli::request_buf_exec_generic(size_t pst_id, const string_ref& op,
     const string_ref& kv = kvs[i];
     append_delim_value(writebuf, kv.begin(), kv.end());
   }
-  if (limit != 0 || skip != 0 || mod_op.size() != 0 || filslen != 0) {
+  if (limit != 0 || skip != 0 || invalues_keypart >= 0 ||
+    mod_op.size() != 0 || filslen != 0) {
+    /* has more option */
     writebuf.append_literal("\t");
     append_uint32(writebuf, limit); // FIXME size_t ?
-    if (skip != 0 || mod_op.size() != 0 || filslen != 0) {
+    if (skip != 0 || invalues_keypart >= 0 ||
+      mod_op.size() != 0 || filslen != 0) {
       writebuf.append_literal("\t");
       append_uint32(writebuf, skip); // FIXME size_t ?
+    }
+    if (invalues_keypart >= 0) {
+      writebuf.append_literal("\t@\t");
+      append_uint32(writebuf, invalues_keypart);
+      writebuf.append_literal("\t");
+      append_uint32(writebuf, invalueslen);
+      for (size_t i = 0; i < invalueslen; ++i) {
+	const string_ref& s = invalues[i];
+	append_delim_value(writebuf, s.begin(), s.end());
+      }
     }
     for (size_t i = 0; i < filslen; ++i) {
       const hstcpcli_filter& f = fils[i];

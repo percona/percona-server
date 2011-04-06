@@ -807,6 +807,7 @@ hstcpsvr_worker::do_exec_on_index(char *cmd_begin, char *cmd_end, char *start,
       unescape_string(wp, invalue_begin, invalue_end);
       invalues_work[i] = string_ref(invalue_begin, wp - invalue_begin);
     }
+    skip_one(start, finish);
   }
   if (start == finish) {
     /* no more options */

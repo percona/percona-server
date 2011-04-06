@@ -34,6 +34,7 @@ my $hs = hstest::get_hs_connection();
 my $dbname = $hstest::conf{dbname};
 $hs->open_index(1, $dbname, $table, '', 'k,v');
 my $vs = [ 'k10', 'k20x', 'k30', 'k40', 'k50' ];
+# select k,v from $table where k in $vs
 my $r = $hs->execute_single(1, '=', [ '' ], 10000, 0, undef, undef, undef,
   0, $vs);
 shift(@$r);

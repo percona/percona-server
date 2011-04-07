@@ -9,10 +9,10 @@ Homepage: http://www.percona.com/software/percona-server/
 Vcs-Bzr: bzr+ssh://bazaar.launchpad.net/~percona-dev/percona-server/release-5.5.8-20/
 Vcs-Browser: http://bazaar.launchpad.net/~percona-dev/percona-server/release-5.5.8-20/files
 
-Package: libmysqlclient16
+Package: libmysqlclient18
 Section: libs
 Architecture: any
-Replaces: libpercona-server-client16
+Replaces: libpercona-server-client18
 Depends: ${misc:Depends}
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 
@@ -34,9 +34,9 @@ Description: Percona Server database development files - empty transitional
 Package: libmysqlclient-dev
 Architecture: any
 Section: libdevel
-Depends: libmysqlclient16 (= ${binary:Version}), zlib1g-dev, ${misc:Depends}
-Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev
-Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libpercona-xtradb-client-dev
+Depends: libmysqlclient18 (= ${binary:Version}), zlib1g-dev, ${misc:Depends}
+Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev
+Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev, libpercona-xtradb-client-dev
 Description: Percona Server database development files
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL 
  database server. SQL (Structured Query Language) is the most popular 
@@ -77,7 +77,7 @@ Description: Percona Server database test suite
 
 Package: percona-server-client-5.5
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.5 (>= ${source:Version}), libmysqlclient16 (>= ${source:Version}), ${shlib:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.5 (>= ${source:Version}), libmysqlclient18 (>= ${source:Version}), ${shlib:Depends}, ${misc:Depends}
 Provides: mysql-client
 Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0, percona-server-client-5.1
 Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0, percona-server-client-5.1

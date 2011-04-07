@@ -62,7 +62,7 @@ set +e; invoke stop; set -e
     
 case "$1" in
   configure)
-    mysql_datadir=${PERCONA_PREFIX}/share/Percona-Server-5.5
+    mysql_datadir=${PERCONA_PREFIX}/share/mysql
     mysql_statedir=/var/lib/mysql
     mysql_rundir=/var/run/mysqld
     mysql_logdir=/var/log

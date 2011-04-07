@@ -48,8 +48,8 @@ usr/share/man/man1/mysql.server.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/mysqlman.1
 usr/share/man/man8/mysqld.8
-usr/share/Percona-Server-5.5/
+usr/share/mysql/
 debian/percona-server-server-5.5.mysql.init etc/init.d/percona-server
 #debian/percona-server-server-5.5.logrotate etc/logrotate.d/percona-server
 debian/additions/debian-start etc/mysql/
-debian/additions/debian-start.inc.sh usr/share/Percona-Server-5.5
+debian/additions/debian-start.inc.sh usr/share/mysql

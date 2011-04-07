@@ -1,2 +1,2 @@
-usr/share/Percona-Server-5.5/sql-bench
-usr/share/Percona-Server-5.5/mysql-test
+usr/share/mysql/sql-bench
+usr/share/mysql/mysql-test

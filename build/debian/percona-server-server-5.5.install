@@ -1,4 +1,4 @@
-usr/lib/plugin
+usr/lib/mysql/plugin
 usr/bin/innochecksum
 usr/bin/msql2mysql
 usr/bin/my_print_defaults

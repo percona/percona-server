@@ -29,7 +29,27 @@ build: patch
            -DFEATURE_SET=$(feature_set) \
            -DCOMPILATION_COMMENT=$(compilation_comment_release) \
            -DMYSQL_SERVER_SUFFIX=$(server_suffix)
-	dh_auto_build
+	make
+	
+	# Build HandlerSocket
+	echo "Configuring HandlerSocket"
+	cd storage/HandlerSocket-Plugin-for-MySQL && \
+	bash -x autogen.sh && \
+	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
+		./configure --with-mysql-source=$(CURDIR) \
+			--with-mysql-bindir=$(CURDIR)/scripts \
+			--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
+			--libdir=$(prefix)/lib \
+			--prefix=$(prefix) && \
+	make
+	
+	# Build UDF
+	cd UDF && \
+	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
+		./configure --includedir=$(CURDIR)/include \
+			--libdir=$(prefix)/lib/mysql/plugin && \
+	make
+	
 	dh_auto_test
 
 #binary:
@@ -57,4 +77,9 @@ install:
 
 override_dh_installinit:
 	dh_installinit --name=mysql
+
+override_dh_auto_install:
+	dh_auto_install
+	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
+	cd UDF && make DESTDIR=$(TMP) install
 

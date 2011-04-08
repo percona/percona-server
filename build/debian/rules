@@ -52,34 +52,43 @@ build: patch
 	
 	dh_auto_test
 
-#binary:
-#	echo "Installing Percona Server 12.5"
-#	install -m 0755 debian/additions/innotop/innotop $(TMP)/$(prefix)/bin/
-#	install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/$(prefix)/man/man1/
-#	install -m 0644 -D debian/additions/innotop/InnoDBParser.pm $(TMP)/$(prefix)/share/perl5/InnoDBParser.pm
-#	dh install --list-missing
-
-binary: binary-arch binary-indep install
+binary:
 	echo "Making binary"
-	dh binary
-
-binary-arch:
-	echo "Making binary-arch"
-	dh binary-arch
-
-binary-indep:
-	echo "Making binary-indep"
-	dh binary-indep
-
-install:
-	echo "Making install"
-	dh install
-
-override_dh_installinit:
-	dh_installinit --name=mysql
-
-override_dh_auto_install:
+	dh --before dh_auto_install binary
 	dh_auto_install
 	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
 	cd UDF && make DESTDIR=$(TMP) install
+	dh --after dh_auto_install --before dh_installinit binary
+	dh_installinit --name=mysql
+	dh --after dh_installinit binary
 
+
+binary-arch:
+	echo "Making binary"
+	dh --before dh_auto_install binary-arch
+	dh_auto_install
+	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
+	cd UDF && make DESTDIR=$(TMP) install
+	dh --after dh_auto_install --before dh_installinit binary-arch
+	dh_installinit --name=mysql
+	dh --after dh_installinit binary-arch
+
+binary-indep:
+	echo "Making binary"
+	dh --before dh_auto_install binary-indep
+	dh_auto_install
+	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
+	cd UDF && make DESTDIR=$(TMP) install
+	dh --after dh_auto_install --before dh_installinit binary-indep
+	dh_installinit --name=mysql
+	dh --after dh_installinit binary-indep
+
+install:
+	echo "Making binary"
+	dh --before dh_auto_install install
+	dh_auto_install
+	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
+	cd UDF && make DESTDIR=$(TMP) install
+	dh --after dh_auto_install --before dh_installinit install
+	dh_installinit --name=mysql
+	dh --after dh_installinit install

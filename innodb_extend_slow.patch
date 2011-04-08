@@ -872,7 +872,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* This is set to the MySQL server value for this variable.  It is only
  needed for FOREIGN KEY definition parsing since FOREIGN KEY names are not
  stored in the server metadata. The server stores and enforces it for
-@@ -1257,6 +1260,10 @@
+@@ -1259,6 +1262,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -883,7 +883,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1333,6 +1340,7 @@
+@@ -1335,6 +1342,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -891,7 +891,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		trx->op_info = "";
-@@ -1388,6 +1396,13 @@
+@@ -1390,6 +1398,13 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  
@@ -905,7 +905,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
-@@ -1396,6 +1411,12 @@
+@@ -1398,6 +1413,12 @@
  
  	trx->op_info = "";
  
@@ -921,7 +921,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:41:52.053955669 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 17:42:42.127023410 +0900
-@@ -185,6 +185,15 @@
+@@ -186,6 +186,15 @@
  	trx->global_read_view = NULL;
  	trx->read_view = NULL;
  
@@ -937,7 +937,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	/* Set X/Open XA transaction identification to NULL */
  	memset(&trx->xid, 0, sizeof(trx->xid));
  	trx->xid.formatID = -1;
-@@ -222,6 +231,11 @@
+@@ -223,6 +232,11 @@
  
  	trx->mysql_process_no = os_proc_get_number();
  
@@ -949,7 +949,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	return(trx);
  }
  
-@@ -353,6 +367,12 @@
+@@ -354,6 +368,12 @@
  /*===============*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -962,7 +962,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
-@@ -374,6 +394,12 @@
+@@ -375,6 +395,12 @@
  /*====================*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -975,7 +975,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	trx_free(trx);
-@@ -1091,6 +1117,9 @@
+@@ -1153,6 +1179,9 @@
  	trx_t*	trx)	/*!< in: transaction */
  {
  	que_thr_t*	thr;
@@ -985,7 +985,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1105,6 +1134,11 @@
+@@ -1167,6 +1196,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  
@@ -997,7 +997,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	trx->que_state = TRX_QUE_RUNNING;
  }
  
-@@ -1118,6 +1152,9 @@
+@@ -1180,6 +1214,9 @@
  	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
  {
  	que_thr_t*	thr;
@@ -1007,7 +1007,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1132,6 +1169,11 @@
+@@ -1194,6 +1231,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  

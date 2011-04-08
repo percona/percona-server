@@ -370,7 +370,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  # endif
  #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
  
-@@ -280,8 +281,7 @@
+@@ -283,8 +284,7 @@
  
  	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
  
@@ -380,7 +380,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  
  	lock->count_os_wait = 0;
  	lock->last_s_file_name = "not yet reserved";
-@@ -401,10 +401,10 @@
+@@ -404,10 +404,10 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu spin wait rw-s-lock at %p"
@@ -393,7 +393,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  	}
  
  	/* We try once again to obtain the lock */
-@@ -437,10 +437,9 @@
+@@ -440,10 +440,9 @@
  		if (srv_print_latch_waits) {
  			fprintf(stderr,
  				"Thread %lu OS wait rw-s-lock at %p"
@@ -406,7 +406,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  		}
  
  		/* these stats may not be accurate */
-@@ -659,9 +658,9 @@
+@@ -662,9 +661,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu spin wait rw-x-lock at %p"
@@ -418,7 +418,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  	}
  
  	sync_array_reserve_cell(sync_primary_wait_array,
-@@ -682,9 +681,9 @@
+@@ -685,9 +684,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu OS wait for rw-x-lock at %p"

@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
 --- a/storage/innobase/btr/btr0btr.c	2010-12-04 15:52:23.355483176 +0900
 +++ b/storage/innobase/btr/btr0btr.c	2010-12-04 16:12:48.639514256 +0900
-@@ -954,7 +954,7 @@
+@@ -1518,7 +1518,7 @@
  	}
  	ut_a(block);
  
@@ -17,7 +17,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  
  	header = buf_block_get_frame(block) + PAGE_HEADER + PAGE_BTR_SEG_TOP;
  #ifdef UNIV_BTR_DEBUG
-@@ -1023,7 +1023,7 @@
+@@ -1587,7 +1587,7 @@
  
  #ifndef UNIV_HOTBACKUP
  	if (UNIV_LIKELY(!recovery)) {
@@ -26,16 +26,16 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  	}
  
  	block->check_index_page_at_flush = TRUE;
-@@ -1188,7 +1188,7 @@
+@@ -1755,7 +1755,7 @@
  	ut_a(!page_zip || page_zip_validate(page_zip, page));
  #endif /* UNIV_ZIP_DEBUG */
  
 -	btr_search_drop_page_hash_index(block);
 +	btr_search_drop_page_hash_index(block, index);
+ 	btr_blob_dbg_remove(page, index, "btr_page_empty");
  
  	/* Recreate the page: note that global data on page (possible
- 	segment headers, next page-field, etc.) is preserved intact */
-@@ -2497,7 +2497,7 @@
+@@ -3065,7 +3065,7 @@
  		mem_heap_free(heap);
  	}
  
@@ -44,7 +44,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  
  	/* Make the father empty */
  	btr_page_empty(father_block, father_page_zip, index, page_level, mtr);
-@@ -2720,7 +2720,7 @@
+@@ -3289,7 +3289,7 @@
  			goto err_exit;
  		}
  
@@ -53,7 +53,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  
  		/* Remove the page from the level list */
  		btr_level_list_remove(space, zip_size, page, mtr);
-@@ -2761,7 +2761,7 @@
+@@ -3330,7 +3330,7 @@
  			goto err_exit;
  		}
  
@@ -62,7 +62,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  
  #ifdef UNIV_BTR_DEBUG
  		if (UNIV_LIKELY_NULL(merge_page_zip)) {
-@@ -2875,7 +2875,7 @@
+@@ -3445,7 +3445,7 @@
  		ut_a(btr_page_get_next(page, mtr) == FIL_NULL);
  
  		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -71,7 +71,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  
  		btr_page_get_father(index, block, mtr, &cursor);
  		father = btr_cur_get_block(&cursor);
-@@ -2980,7 +2980,7 @@
+@@ -3550,7 +3550,7 @@
  
  	page = buf_block_get_frame(block);
  	ut_a(page_is_comp(merge_page) == page_is_comp(page));
@@ -137,7 +137,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	}
  
  	page_zip = buf_block_get_page_zip(block);
-@@ -2778,7 +2778,7 @@
+@@ -2779,7 +2779,7 @@
  	}
  
  	if (block->is_hashed) {
@@ -146,7 +146,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	}
  
  	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
-@@ -2905,13 +2905,13 @@
+@@ -2906,13 +2906,13 @@
  	      == dict_table_is_comp(cursor->index->table));
  
  	if (block->is_hashed) {
@@ -1054,7 +1054,7 @@ diff -ruN a/storage/innobase/ha/ha0ha.c b/storage/innobase/ha/ha0ha.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:20.185850734 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:48.674552412 +0900
-@@ -11675,6 +11675,11 @@
+@@ -11682,6 +11682,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1066,7 +1066,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12045,6 +12050,7 @@
+@@ -12047,6 +12052,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1469,7 +1469,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:20.231484679 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:48.726551018 +0900
-@@ -2048,7 +2048,9 @@
+@@ -2050,7 +2050,9 @@
  	      "-------------------------------------\n", file);
  	ibuf_print(file);
  
@@ -1480,7 +1480,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	fprintf(file,
  		"%.2f hash searches/s, %.2f non-hash searches/s\n",
-@@ -2073,14 +2075,15 @@
+@@ -2075,14 +2077,15 @@
  			ut_total_allocated_memory,
  			mem_pool_get_reserved(mem_comm_pool));
  	/* Calcurate reserved memories */
@@ -1500,7 +1500,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	lock_sys_subtotal = 0;
  	if (trx_sys) {
-@@ -2107,10 +2110,10 @@
+@@ -2109,10 +2112,10 @@
  			"    Threads             %lu \t(%lu + %lu)\n",
  
  			(ulong) (btr_search_sys
@@ -1535,7 +1535,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 17:49:11.623953784 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-04 16:12:48.731513275 +0900
-@@ -266,8 +266,14 @@
+@@ -267,8 +267,14 @@
  /*=================================*/
  	trx_t*	   trx) /*!< in: transaction */
  {

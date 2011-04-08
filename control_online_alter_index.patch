@@ -8,7 +8,7 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/handler.h	2010-12-03 13:51:04.727293058 +0900
-@@ -197,6 +197,8 @@
+@@ -203,6 +203,8 @@
  #define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
  #define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
  #define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
@@ -63,7 +63,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-02 21:23:05.569356468 +0900
 +++ b/sql/sys_vars.cc	2010-12-03 14:05:28.857356603 +0900
-@@ -2140,6 +2140,13 @@
+@@ -2150,6 +2150,13 @@
         GLOBAL_VAR(opt_optimizer_fix),
         NO_CMD_LINE, DEFAULT(TRUE));
  

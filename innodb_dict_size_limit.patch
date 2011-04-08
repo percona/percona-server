@@ -384,9 +384,9 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11616,6 +11618,11 @@
-   "Number of extra user rollback segments which are used in a round-robin fashion.",
-   NULL, NULL, 127, 0, 127, 0);
+@@ -11618,6 +11620,11 @@
+   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
+   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
 +static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
 +  PLUGIN_VAR_RQCMDARG,
@@ -396,10 +396,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11684,6 +11691,7 @@
+@@ -11685,6 +11692,7 @@
+   MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
-   MYSQL_SYSVAR(extra_rsegments),
 +  MYSQL_SYSVAR(dict_size_limit),
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
@@ -454,7 +454,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
 --- a/storage/innobase/include/dict0dict.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/dict0dict.h	2010-12-03 15:45:47.558024515 +0900
-@@ -1158,6 +1158,12 @@
+@@ -1170,6 +1170,12 @@
  /*====================================*/
  	dict_table_t*	table,	/*!< in: table */
  	const char*	name);	/*!< in: name of the index to find */
@@ -484,7 +484,7 @@ diff -ruN a/storage/innobase/include/dict0dict.ic b/storage/innobase/include/dic
  	return(table);
  }
  
-@@ -877,6 +884,12 @@
+@@ -905,6 +912,12 @@
  		table = dict_load_table_on_id(table_id);
  	}
  
@@ -500,16 +500,15 @@ diff -ruN a/storage/innobase/include/dict0dict.ic b/storage/innobase/include/dic
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:43:57.297067100 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:45:47.562024404 +0900
-@@ -233,7 +233,7 @@
+@@ -232,6 +232,7 @@
+ extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_flushing_method;
  
- extern ulint	srv_extra_rsegments;
--
 +extern ulint	srv_dict_size_limit;
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -726,6 +726,7 @@
+@@ -727,6 +728,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */
@@ -520,15 +519,16 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:43:57.301024390 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:45:47.565023830 +0900
-@@ -421,6 +421,7 @@
+@@ -422,6 +422,8 @@
+ UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
+ UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
- 
- UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
++
 +UNIV_INTERN ulint	srv_dict_size_limit = 0;
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2231,6 +2232,7 @@
+@@ -2232,6 +2234,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

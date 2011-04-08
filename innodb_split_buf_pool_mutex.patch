@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
 --- a/storage/innobase/btr/btr0cur.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/btr/btr0cur.c	2010-12-03 15:48:29.268957148 +0900
-@@ -4066,7 +4066,8 @@
+@@ -4069,7 +4069,8 @@
  
  	mtr_commit(mtr);
  
@@ -18,7 +18,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	mutex_enter(&block->mutex);
  
  	/* Only free the block if it is still allocated to
-@@ -4077,16 +4078,21 @@
+@@ -4080,16 +4081,21 @@
  	    && buf_block_get_space(block) == space
  	    && buf_block_get_page_no(block) == page_no) {
  
@@ -3797,8 +3797,8 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
  extern mysql_pfs_key_t	dict_sys_mutex_key;
 @@ -660,7 +664,7 @@
- #define	SYNC_TRX_LOCK_HEAP	298
  #define SYNC_TRX_SYS_HEADER	290
+ #define	SYNC_PURGE_QUEUE	200
  #define SYNC_LOG		170
 -#define SYNC_LOG_FLUSH_ORDER	147
 +#define SYNC_LOG_FLUSH_ORDER	156
@@ -3832,7 +3832,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:03.080956216 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:29.355023766 +0900
-@@ -3099,7 +3099,7 @@
+@@ -3101,7 +3101,7 @@
  								level += log_sys->max_checkpoint_age
  									 - (lsn - oldest_modification);
  							}
@@ -3841,7 +3841,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  							n_blocks++;
  						}
  
-@@ -3185,7 +3185,7 @@
+@@ -3187,7 +3187,7 @@
  							found = TRUE;
  							break;
  						}

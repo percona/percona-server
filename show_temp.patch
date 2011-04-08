@@ -8,7 +8,7 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-12-03 14:09:14.406955791 +0900
 +++ b/sql/handler.h	2010-12-03 14:29:16.533356953 +0900
-@@ -561,6 +561,7 @@
+@@ -567,6 +567,7 @@
    SCH_EVENTS,
    SCH_FILES,
    SCH_GLOBAL_STATUS,
@@ -16,7 +16,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_GLOBAL_VARIABLES,
    SCH_KEY_COLUMN_USAGE,
    SCH_OPEN_TABLES,
-@@ -582,6 +583,7 @@
+@@ -588,6 +589,7 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,
    SCH_TABLE_PRIVILEGES,
@@ -27,7 +27,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-02 21:23:05.495293844 +0900
 +++ b/sql/mysqld.cc	2010-12-03 14:25:40.317039327 +0900
-@@ -3047,6 +3047,7 @@
+@@ -3055,6 +3055,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -50,7 +50,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-12-02 19:22:40.046023936 +0900
 +++ b/sql/sql_parse.cc	2010-12-03 14:09:53.471950455 +0900
-@@ -349,6 +349,9 @@
+@@ -348,6 +348,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
                                                   CF_REEXECUTION_FRAGILE);
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1511,6 +1514,8 @@
+@@ -1510,6 +1513,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -69,7 +69,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2018,6 +2023,7 @@
+@@ -2017,6 +2022,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -77,7 +77,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4807,6 +4813,8 @@
+@@ -4797,6 +4803,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:

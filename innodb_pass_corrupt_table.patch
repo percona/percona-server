@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
 --- a/storage/innobase/btr/btr0btr.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/btr/btr0btr.c	2010-12-04 15:38:18.110513593 +0900
-@@ -137,6 +137,12 @@
+@@ -691,6 +691,12 @@
  	root_page_no = dict_index_get_page(index);
  
  	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
@@ -21,7 +21,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  	ut_a((ibool)!!page_is_comp(buf_block_get_frame(block))
  	     == dict_table_is_comp(index->table));
  #ifdef UNIV_BTR_DEBUG
-@@ -422,6 +428,12 @@
+@@ -977,6 +983,12 @@
  
  	root = btr_root_get(index, &mtr);
  
@@ -34,7 +34,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  	if (flag == BTR_N_LEAF_PAGES) {
  		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
  
-@@ -869,6 +881,13 @@
+@@ -1433,6 +1445,13 @@
  	mtr_start(&mtr);
  
  	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, &mtr);
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  #ifdef UNIV_BTR_DEBUG
  	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
  				    + root, space));
-@@ -891,6 +910,12 @@
+@@ -1455,6 +1474,12 @@
  	mtr_start(&mtr);
  
  	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, &mtr);
@@ -61,7 +61,7 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  #ifdef UNIV_BTR_DEBUG
  	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
  				    + root, space));
-@@ -924,6 +949,11 @@
+@@ -1488,6 +1513,11 @@
  
  	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
  
@@ -231,7 +231,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	page = buf_block_get_frame(block);
  	index = cursor->index;
  	zip_size = buf_block_get_zip_size(block);
-@@ -2924,6 +3002,11 @@
+@@ -2925,6 +3003,11 @@
  
  	block = btr_cur_get_block(cursor);
  
@@ -243,7 +243,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	ut_ad(page_is_leaf(buf_block_get_frame(block)));
  
  	rec = btr_cur_get_rec(cursor);
-@@ -3627,6 +3710,11 @@
+@@ -3628,6 +3711,11 @@
  
  		page = btr_cur_get_page(&cursor);
  
@@ -577,7 +577,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 diff -ruN a/storage/innobase/dict/dict0mem.c b/storage/innobase/dict/dict0mem.c
 --- a/storage/innobase/dict/dict0mem.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/dict/dict0mem.c	2010-12-04 15:38:18.126549463 +0900
-@@ -94,6 +94,8 @@
+@@ -97,6 +97,8 @@
  	/* The number of transactions that are either waiting on the
  	AUTOINC lock or have been granted the lock. */
  	table->n_waiting_or_granted_auto_inc_locks = 0;
@@ -1048,7 +1048,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11785,6 +11882,25 @@
+@@ -11787,6 +11884,25 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1074,10 +1074,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11871,6 +11987,7 @@
-   MYSQL_SYSVAR(buffer_pool_restore_at_startup),
+@@ -11873,6 +11989,7 @@
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
+   MYSQL_SYSVAR(rollback_segments),
 +  MYSQL_SYSVAR(corrupt_table_action),
    NULL
  };
@@ -1182,7 +1182,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
 diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
 --- a/storage/innobase/include/dict0dict.h	2010-12-03 17:30:16.306955940 +0900
 +++ b/storage/innobase/include/dict0dict.h	2010-12-04 15:38:18.169513750 +0900
-@@ -1233,6 +1233,15 @@
+@@ -1245,6 +1245,15 @@
  dict_close(void);
  /*============*/
  
@@ -1201,7 +1201,7 @@ diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict
 diff -ruN a/storage/innobase/include/dict0mem.h b/storage/innobase/include/dict0mem.h
 --- a/storage/innobase/include/dict0mem.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/dict0mem.h	2010-12-04 15:38:18.171513956 +0900
-@@ -625,6 +625,7 @@
+@@ -636,6 +636,7 @@
  				the AUTOINC lock on this table. */
  				/* @} */
  	/*----------------------*/
@@ -1302,8 +1302,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  extern ulint	srv_expand_import;
 +extern ulint	srv_pass_corrupt_table;
  
- extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
+ /*-------------------------------------------*/
 diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
 --- a/storage/innobase/page/page0zip.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/page/page0zip.c	2010-12-04 15:38:18.195515935 +0900
@@ -1371,18 +1371,18 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:37:50.602481253 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:38:18.209513823 +0900
-@@ -434,6 +434,7 @@
+@@ -437,6 +437,7 @@
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
 +UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
  
- UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
+ /*-------------------------------------------*/
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:37:50.605491300 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:38:18.212513722 +0900
-@@ -2144,6 +2144,13 @@
+@@ -2150,6 +2150,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);
  

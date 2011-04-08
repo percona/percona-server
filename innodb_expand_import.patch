@@ -515,7 +515,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11618,6 +11626,11 @@
+@@ -11625,6 +11633,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -524,17 +524,17 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +  "Enable/Disable converting automatically *.ibd files when import tablespace.",
 +  NULL, NULL, 0, 0, 1, 0);
 +
- static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
+ static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
    PLUGIN_VAR_RQCMDARG,
-   "Number of extra user rollback segments which are used in a round-robin fashion.",
-@@ -11695,6 +11708,7 @@
+   "Limit the allocated memory for dictionary cache. (0: unlimited)",
+@@ -11697,6 +11710,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
 +  MYSQL_SYSVAR(import_table_from_xtrabackup),
-   MYSQL_SYSVAR(extra_rsegments),
    MYSQL_SYSVAR(dict_size_limit),
    MYSQL_SYSVAR(use_sys_malloc),
+   MYSQL_SYSVAR(use_native_aio),
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:48:03.077954270 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:52:23.561986996 +0900
@@ -544,18 +544,18 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  
 +extern ulint	srv_expand_import;
 +
- extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
  /*-------------------------------------------*/
+ 
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:49:59.230956118 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:52:23.562954411 +0900
-@@ -420,6 +420,8 @@
+@@ -423,6 +423,8 @@
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
 +UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
 +
- UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
  /*-------------------------------------------*/
+ UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;

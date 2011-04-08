@@ -1018,7 +1018,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11354,6 +11403,26 @@
+@@ -11361,6 +11410,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1045,7 +1045,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11684,6 +11753,9 @@
+@@ -11686,6 +11755,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1055,7 +1055,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11753,7 +11825,10 @@
+@@ -11755,7 +11827,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -1761,7 +1761,7 @@ diff -ruN a/storage/innobase/include/dict0crea.h b/storage/innobase/include/dict
 diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
 --- a/storage/innobase/include/dict0dict.h	2010-12-03 15:48:03.073024387 +0900
 +++ b/storage/innobase/include/dict0dict.h	2010-12-03 17:19:24.888965622 +0900
-@@ -1084,10 +1084,18 @@
+@@ -1096,10 +1096,18 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -1781,7 +1781,7 @@ diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict
  /********************************************************************//**
  Reserves the dictionary system mutex for MySQL. */
  UNIV_INTERN
-@@ -1202,6 +1210,7 @@
+@@ -1214,6 +1222,7 @@
  	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
  	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
  	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
@@ -1800,7 +1800,7 @@ diff -ruN a/storage/innobase/include/dict0load.h b/storage/innobase/include/dict
  
  	/* This must be last item. Defines the number of system tables. */
  	SYS_NUM_SYSTEM_TABLES
-@@ -319,6 +320,20 @@
+@@ -322,6 +323,20 @@
  	const char**	ref_col_name,	/*!< out: referenced column name
  					in referenced table */
  	ulint*		pos);		/*!< out: column position */
@@ -2100,7 +2100,7 @@ diff -ruN a/storage/innobase/row/row0upd.c b/storage/innobase/row/row0upd.c
  		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
  
  		if (rec_offs_comp(offsets)
-@@ -844,6 +850,18 @@
+@@ -879,6 +885,18 @@
  
  	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
  
@@ -2122,7 +2122,7 @@ diff -ruN a/storage/innobase/row/row0upd.c b/storage/innobase/row/row0upd.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:53:54.625288512 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:19:24.922953561 +0900
-@@ -402,6 +402,9 @@
+@@ -405,6 +405,9 @@
  /* When estimating number of different key values in an index, sample
  this many index pages */
  UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;

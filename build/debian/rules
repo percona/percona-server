@@ -102,7 +102,7 @@ endif
 		--with-ssl \
 	    	--without-docs \
 		--with-extra-charsets=all \
-		--with-plugins=max-no-ndb \
+		--with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
 		\
 		--without-embedded-server \
 		--with-embedded-privilege-control'

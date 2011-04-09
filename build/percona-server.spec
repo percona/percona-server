@@ -115,7 +115,7 @@
 
 %define lic_type GNU GPL v2
 %define lic_files COPYING README
-%define src_dir Percona-Server
+%define src_dir Percona-Server-%{mysqlversion}
 
 ##############################################################################
 # Main spec file section
@@ -128,12 +128,12 @@ Version:	%{mysqlversion}
 Release:	%{release}
 Distribution:	Red Hat Enterprise Linux %{redhatversion}
 License:    GPL	version 2 http://www.gnu.org/licenses/gpl-2.0.html
-Source:		Percona-Server.tar.gz
+Source:		Percona-Server-%{mysqlversion}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server Percona-XtraDB-server
-BuildRequires:  gperf perl gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
+BuildRequires:  gperf perl gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time bison
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -279,6 +279,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	LDFLAGS=\"$LDFLAGS\" \
 	./configure \
  	    $* \
+	    --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
 	    --enable-assembler \
 	    --enable-local-infile \
             --with-mysqld-user=%{mysqld_user} \
@@ -334,13 +335,6 @@ cd -
 BuildServer() {
 BuildMySQL "--enable-shared \
         --with-server-suffix='%{server_suffix}' \
-		--without-plugin-innobase \
-		--with-plugin-innodb_plugin \
-		--with-plugin-partition \
-		--with-plugin-csv \
-		--with-plugin-archive \
-		--with-plugin-blackhole \
-		--with-plugin-federated \
 		--without-embedded-server \
 		--without-bench \
 		--with-zlib-dir=bundled \

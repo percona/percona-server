@@ -1,15 +1,15 @@
 #!/bin/sh
 #
-# Execute this tool to setup and build the shared-compat RPM starting
+# Execute this tool to setup and build RPMs for Percona-Server starting
 # from a fresh tree
 #
-# Usage: build-shared-compat-rpm.sh [target dir]
+# Usage: build-rpm.sh [--i686] [--nosign] [--test] [target dir]
 # The default target directory is the current directory. If it is not
 # supplied and the current directory is not empty, it will issue an error in
 # order to avoid polluting the current directory after a test run.
 #
-# The program will setup the rpm building environment, download the sources
-# and ultimately call rpmbuild with the appropiate parameters.
+# The program will setup the rpm building environment and ultimately call
+# rpmbuild with the appropiate parameters.
 #
 
 # Bail out on errors, be strict
@@ -17,14 +17,14 @@ set -ue
 
 # Examine parameters
 TARGET=''
-TARGET_ARG=''
 TARGET_CFLAGS=''
-SIGN='--sign'
+SIGN='--sign'  # We sign by default
+TEST='no'    # We don't test by default
 
-# Check if we have a functional getopt(1)
+# Check if we have got a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iK" --longoptions=i686,nosign \
+    go_out="$(getopt --options="iKt" --longoptions=i686,nosign,test \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -36,13 +36,16 @@ do
     -- ) shift; break;;
     -i | --i686 )
         shift
-        TARGET='i686'
-        TARGET_ARG="--target i686"
+        TARGET="--target i686"
         TARGET_CFLAGS="-m32 -march=i686"
         ;;
     -K | --nosign )
         shift
         SIGN=''
+        ;;
+    -t | --test )
+        shift
+        TEST='yes'
         ;;
     esac
 done
@@ -51,7 +54,7 @@ done
 if test "$#" -eq 0
 then
     WORKDIR="$(pwd)"
-    
+
     # Check that the current directory is not empty
     if test "x$(echo *)" != "x*"
     then
@@ -87,13 +90,12 @@ test -e "$SOURCEDIR/Makefile" || exit 2
 # Extract version from the Makefile
 MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
     | cut -d = -f 2)"
-PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
-    "$SOURCEDIR/Makefile" | cut -d = -f 2)"
-PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
+PRODUCT="Percona-Server-$MYSQL_VERSION"
 
 # Build information
 REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \
     cut -d ' ' -f 2)"
+PATCHSET="$(grep ^PATCHSET= "$SOURCEDIR/Makefile" | cut -d = -f 2)"
 REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 
 # Compilation flags
@@ -103,40 +105,30 @@ export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET
 export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS"
 export MAKE_JFLAG=-j4
 
+export MYSQL_RPMBUILD_TEST="$TEST"
+
 # Create directories for rpmbuild if these don't exist
-(cd "$WORKDIR" && mkdir -p BUILD RPMS SOURCES SPECS SRPMS)
+(cd "$WORKDIR" && mkdir -p BUILD RPMS SOURCES SPECS SRPMS) || false
 
-# Prepare sources
 (
-    cd "$WORKDIR/SOURCES/"
- 
-    # Download the sources from the community site
-    if test "x$TARGET" = "xi686"
-    then
-        RPMVER=i386
-    elif test "x$(uname -m)" = "xx86_64"
-    then
-        RPMVER=x86_64
-    else
-        RPMVER=i386
-    fi
+    cd "$SOURCEDIR"
 
-    wget "http://www.percona.com/downloads/community/shared-compat/MySQL-shared-compat-5.1.56-1.glibc23.$RPMVER.rpm"
+    # Download mysql, prepare patches
+    make clean all
 
-)
+    # Create tarball for build
+    tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"
 
-# Issue rpmbuild command
+) || false
+
 (
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild $SIGN -ba --clean --with yassl \
-        "$SOURCEDIR/build/percona-shared-compat.spec" \
+    rpmbuild -ba --clean --with yassl $TARGET $SIGN \
+        "$SOURCEDIR/build/percona-server.spec" \
         --define "_topdir $WORKDIR_ABS" \
-        --define "redhat_version $REDHAT_RELEASE" \
-        --define "gotrevision $REVISION" \
-        --define "release $PERCONA_SERVER_VERSION" \
-        $TARGET_ARG
+        --define "gotrevision $REVISION"
 
 )
 

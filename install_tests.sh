@@ -1,7 +1,10 @@
 #!/bin/sh
 
-test -z ${PERCONA_SERVER} && export PERCONA_SERVER=Percona-Server
-echo PERCONA_SERVER=${PERCONA_SERVER}
+set -ue
+
+MYSQL_VERSION="$(grep ^MYSQL_VERSION= "Makefile" \
+    | cut -d = -f 2)"
+export PERCONA_SERVER="Percona-Server-$MYSQL_VERSION"
 
 install_path()
 {

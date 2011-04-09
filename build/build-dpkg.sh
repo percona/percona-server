@@ -12,7 +12,7 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "k:" --longoptions key: \
+go_out="$(getopt --options "k:K" --longoptions key:,nosign \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
@@ -24,6 +24,7 @@ do
     case "$arg" in
     -- ) shift; break;;
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
+    -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
     esac
 done
 
@@ -71,6 +72,8 @@ DEBIAN_VERSION="$(lsb_release -sc)"
 # Build information
 export BB_PERCONA_REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 export DEB_BUILD_OPTIONS='nostrip debug nocheck'
+export MYSQL_BUILD_CC='gcc'
+export MYSQL_BUILD_CXX='gcc'
 
 # Prepare sources
 (
@@ -84,9 +87,9 @@ export DEB_BUILD_OPTIONS='nostrip debug nocheck'
     cd "$WORKDIR"
 
     rm -rf Percona-Server
-    cp -a "$SOURCEDIR/Percona-Server/" .
+    cp -a "$SOURCEDIR/$PRODUCT/" .
     (
-        cd "Percona-Server/"
+        cd "$PRODUCT/"
 
         # Copy debian files from source
         cp -R "$SOURCEDIR/build/debian" .
@@ -99,6 +102,6 @@ export DEB_BUILD_OPTIONS='nostrip debug nocheck'
 
     )
 
-    rm -rf Percona-Server
+    rm -rf "$PRODUCT/"
 
 )

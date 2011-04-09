@@ -5,9 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/log_warnings_suppress.patch b/patch_info/log_warnings_suppress.patch
---- a/patch_info/log_warnings_suppress.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/log_warnings_suppress.patch	2011-01-05 20:35:46.000000000 +0300
+diff -ruN /dev/null b/patch_info/log_warnings_suppress.patch
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/patch_info/log_warnings_suppress.patch	2011-04-09 18:48:59.000000000 +0400
 @@ -0,0 +1,9 @@
 +File=log_warnings_suppress.patch
 +Name=Disable log warnings for enumerated warnings (old name:suppress_log_warning_1592.patch)
@@ -19,9 +19,9 @@ diff -ruN a/patch_info/log_warnings_suppress.patch b/patch_info/log_warnings_sup
 +2011-01-05 rename patch suppress_log_warning_1592.patch to log_warnings_silence.patch. Also remove boolean system variable "suppress_log_warning_1592" and add set varbile "log_warnings_silence" (possible values: 1592)
 +2011-02-21 rename patch log_warning_silence.patch to log_warnings_suppress.patch. Also rename variable "log_warning_silence" to "log_warning_suppress".
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2011-01-05 20:31:33.000000000 +0300
-+++ b/sql/mysqld.cc	2011-01-05 20:32:34.000000000 +0300
-@@ -621,6 +621,8 @@
+--- a/sql/mysqld.cc	2011-04-09 18:48:59.000000000 +0400
++++ b/sql/mysqld.cc	2011-04-09 18:48:59.000000000 +0400
+@@ -627,6 +627,8 @@
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
  
@@ -31,9 +31,9 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  pthread_key(MEM_ROOT**,THR_MALLOC);
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
---- a/sql/mysqld.h	2011-01-05 20:31:33.000000000 +0300
-+++ b/sql/mysqld.h	2011-01-05 20:32:35.000000000 +0300
-@@ -226,6 +226,8 @@
+--- a/sql/mysqld.h	2011-04-09 18:48:58.000000000 +0400
++++ b/sql/mysqld.h	2011-04-09 18:48:59.000000000 +0400
+@@ -227,6 +227,8 @@
  extern TYPELIB thread_handling_typelib;
  extern my_decimal decimal_zero;
  
@@ -43,8 +43,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  
  #ifdef HAVE_PSI_INTERFACE
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2011-01-05 20:31:32.000000000 +0300
-+++ b/sql/sql_class.cc	2011-01-05 20:32:34.000000000 +0300
+--- a/sql/sql_class.cc	2011-04-09 18:48:50.000000000 +0400
++++ b/sql/sql_class.cc	2011-04-09 18:48:59.000000000 +0400
 @@ -4579,7 +4579,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
@@ -55,8 +55,8 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
          char buf[MYSQL_ERRMSG_SIZE * 2];
          sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2011-01-05 20:31:33.000000000 +0300
-+++ b/sql/sql_class.h	2011-01-05 20:32:37.000000000 +0300
+--- a/sql/sql_class.h	2011-04-09 18:48:53.000000000 +0400
++++ b/sql/sql_class.h	2011-04-09 18:48:59.000000000 +0400
 @@ -90,6 +90,7 @@
    SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
    SLOG_F_FILESORT_DISK
@@ -66,9 +66,9 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
                              SLAVE_EXEC_MODE_IDEMPOTENT,
                              SLAVE_EXEC_MODE_LAST_BIT};
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
---- a/sql/sys_vars.cc	2011-01-05 20:31:33.000000000 +0300
-+++ b/sql/sys_vars.cc	2011-01-05 20:32:38.000000000 +0300
-@@ -1424,6 +1424,15 @@
+--- a/sql/sys_vars.cc	2011-04-09 18:48:55.000000000 +0400
++++ b/sql/sys_vars.cc	2011-04-09 18:48:59.000000000 +0400
+@@ -1434,6 +1434,15 @@
         READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
         VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
  

@@ -6,8 +6,8 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
---- a/storage/innobase/buf/buf0buddy.c	2010-12-04 19:46:39.372513543 +0900
-+++ b/storage/innobase/buf/buf0buddy.c	2010-12-07 17:56:28.302087851 +0900
+--- a/storage/innobase/buf/buf0buddy.c	2011-04-09 18:48:28.000000000 +0400
++++ b/storage/innobase/buf/buf0buddy.c	2011-04-09 18:48:48.000000000 +0400
 @@ -183,7 +183,7 @@
  	void*		buf,		/*!< in: buffer frame to deallocate */
  	ibool		have_page_hash_mutex)
@@ -27,8 +27,8 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  	ut_ad(!mutex_own(&buf_pool->zip_mutex));
  	ut_ad(buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2010-12-06 20:16:21.726195340 +0900
-+++ b/storage/innobase/buf/buf0buf.c	2010-12-07 20:40:30.824749814 +0900
+--- a/storage/innobase/buf/buf0buf.c	2011-04-09 18:48:47.000000000 +0400
++++ b/storage/innobase/buf/buf0buf.c	2011-04-09 18:48:48.000000000 +0400
 @@ -53,6 +53,10 @@
  #include "page0zip.h"
  #include "trx0trx.h"
@@ -658,8 +658,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
    
    	if (srv_buf_pool_old_size == srv_buf_pool_size) {
 diff -ruN a/storage/innobase/ha/hash0hash.c b/storage/innobase/ha/hash0hash.c
---- a/storage/innobase/ha/hash0hash.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/ha/hash0hash.c	2010-12-07 16:10:14.937749140 +0900
+--- a/storage/innobase/ha/hash0hash.c	2011-04-09 18:48:05.000000000 +0400
++++ b/storage/innobase/ha/hash0hash.c	2011-04-09 18:48:48.000000000 +0400
 @@ -133,6 +133,70 @@
  }
  
@@ -732,8 +732,8 @@ diff -ruN a/storage/innobase/ha/hash0hash.c b/storage/innobase/ha/hash0hash.c
  UNIV_INTERN
  void
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-06 20:16:21.733263627 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-07 17:56:28.316139830 +0900
+--- a/storage/innobase/handler/ha_innodb.cc	2011-04-09 18:48:47.000000000 +0400
++++ b/storage/innobase/handler/ha_innodb.cc	2011-04-09 18:48:48.000000000 +0400
 @@ -194,6 +194,7 @@
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
@@ -792,8 +792,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2010-12-06 20:16:21.778264552 +0900
-+++ b/storage/innobase/include/buf0buf.h	2010-12-07 17:56:28.322749380 +0900
+--- a/storage/innobase/include/buf0buf.h	2011-04-09 18:48:47.000000000 +0400
++++ b/storage/innobase/include/buf0buf.h	2011-04-09 18:48:48.000000000 +0400
 @@ -36,6 +36,7 @@
  #ifndef UNIV_HOTBACKUP
  #include "ut0rbt.h"
@@ -819,8 +819,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  
  /** A chunk of buffers.  The buffer pool is allocated in chunks. */
 diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash0hash.h
---- a/storage/innobase/include/hash0hash.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/hash0hash.h	2010-12-07 17:56:28.324726446 +0900
+--- a/storage/innobase/include/hash0hash.h	2011-04-09 18:48:05.000000000 +0400
++++ b/storage/innobase/include/hash0hash.h	2011-04-09 18:48:48.000000000 +0400
 @@ -49,6 +49,28 @@
  hash_create(
  /*========*/
@@ -868,11 +868,10 @@ diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash
  \
  			HASH_INSERT(NODE_TYPE, PTR_NAME, (NEW_TABLE),\
  				fold2222, node2222);\
-@@ -327,6 +349,33 @@
- 		}\
+@@ -328,6 +350,33 @@
  	}\
  } while (0)
-+
+ 
 +/********************************************************************//**
 +Align nodes with moving location.*/
 +#define HASH_OFFSET(TABLE, NODE_TYPE, PTR_NAME, FADDR, FOFFSET, BOFFSET) \
@@ -899,12 +898,13 @@ diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash
 +		}\
 +	}\
 +} while (0)
- 
++
  /************************************************************//**
  Gets the mutex index for a fold value in a hash table.
+ @return	mutex number */
 diff -ruN a/storage/innobase/include/os0proc.h b/storage/innobase/include/os0proc.h
---- a/storage/innobase/include/os0proc.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/os0proc.h	2010-12-07 16:10:14.955718750 +0900
+--- a/storage/innobase/include/os0proc.h	2011-04-09 18:48:05.000000000 +0400
++++ b/storage/innobase/include/os0proc.h	2011-04-09 18:48:48.000000000 +0400
 @@ -32,6 +32,11 @@
  #ifdef UNIV_LINUX
  #include <sys/ipc.h>
@@ -948,8 +948,8 @@ diff -ruN a/storage/innobase/include/os0proc.h b/storage/innobase/include/os0pro
  #include "os0proc.ic"
  #endif
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-04 20:20:28.016566697 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-07 16:10:14.956717659 +0900
+--- a/storage/innobase/include/srv0srv.h	2011-04-09 18:48:45.000000000 +0400
++++ b/storage/innobase/include/srv0srv.h	2011-04-09 18:48:48.000000000 +0400
 @@ -171,6 +171,10 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
@@ -962,8 +962,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  
  extern ulint	srv_n_file_io_threads;
 diff -ruN a/storage/innobase/include/ut0lst.h b/storage/innobase/include/ut0lst.h
---- a/storage/innobase/include/ut0lst.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/ut0lst.h	2010-12-07 16:10:14.957785525 +0900
+--- a/storage/innobase/include/ut0lst.h	2011-04-09 18:48:05.000000000 +0400
++++ b/storage/innobase/include/ut0lst.h	2011-04-09 18:48:48.000000000 +0400
 @@ -257,5 +257,48 @@
  	ut_a(ut_list_node_313 == NULL);					\
  } while (0)
@@ -1014,8 +1014,8 @@ diff -ruN a/storage/innobase/include/ut0lst.h b/storage/innobase/include/ut0lst.
  #endif
  
 diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
---- a/storage/innobase/log/log0recv.c	2010-12-04 19:46:40.212513377 +0900
-+++ b/storage/innobase/log/log0recv.c	2010-12-07 16:10:14.959785817 +0900
+--- a/storage/innobase/log/log0recv.c	2011-04-09 18:48:42.000000000 +0400
++++ b/storage/innobase/log/log0recv.c	2011-04-09 18:48:48.000000000 +0400
 @@ -2912,6 +2912,7 @@
  /*==========================*/
  {
@@ -1025,8 +1025,8 @@ diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
  	recv_needed_recovery = TRUE;
  
 diff -ruN a/storage/innobase/os/os0proc.c b/storage/innobase/os/os0proc.c
---- a/storage/innobase/os/os0proc.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/os/os0proc.c	2010-12-07 16:10:14.960800123 +0900
+--- a/storage/innobase/os/os0proc.c	2011-04-09 18:48:05.000000000 +0400
++++ b/storage/innobase/os/os0proc.c	2011-04-09 18:48:48.000000000 +0400
 @@ -229,3 +229,173 @@
  	}
  #endif
@@ -1202,8 +1202,8 @@ diff -ruN a/storage/innobase/os/os0proc.c b/storage/innobase/os/os0proc.c
 +#endif /* HAVE_SYS_IPC_H && HAVE_SYS_SHM_H */
 +}
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-04 20:20:44.687550693 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-07 16:10:14.962785720 +0900
+--- a/storage/innobase/srv/srv0srv.c	2011-04-09 18:48:46.000000000 +0400
++++ b/storage/innobase/srv/srv0srv.c	2011-04-09 18:48:48.000000000 +0400
 @@ -235,6 +235,11 @@
  UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
  UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
@@ -1217,8 +1217,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  instead. */
  UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
---- a/storage/innobase/srv/srv0start.c	2010-12-04 20:19:29.806482628 +0900
-+++ b/storage/innobase/srv/srv0start.c	2010-12-07 16:10:14.964785346 +0900
+--- a/storage/innobase/srv/srv0start.c	2011-04-09 18:48:43.000000000 +0400
++++ b/storage/innobase/srv/srv0start.c	2011-04-09 18:48:48.000000000 +0400
 @@ -1844,6 +1844,8 @@
  		Note that this is not as heavy weight as it seems. At
  		this point there will be only ONE page in the buf_LRU

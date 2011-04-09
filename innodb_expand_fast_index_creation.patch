@@ -4,9 +4,10 @@
 # Expands the applicability of InnoDB fast index creation to mysqldump,
 # ALTER TABLE and OPTIMIZE TABLE.
 #
---- a/client/client_priv.h	2011-03-31 13:59:26.000000000 +0400
-+++ b/client/client_priv.h	2011-03-31 16:04:28.000000000 +0400
-@@ -92,6 +92,7 @@
+diff -ruN a/client/client_priv.h b/client/client_priv.h
+--- a/client/client_priv.h	2011-04-09 18:49:03.000000000 +0400
++++ b/client/client_priv.h	2011-04-09 18:49:04.000000000 +0400
+@@ -89,6 +89,7 @@
    OPT_NO_REMOVE_EOL_CARRET,
    OPT_DEFAULT_AUTH,
    OPT_DEFAULT_PLUGIN,
@@ -14,8 +15,9 @@
    OPT_MAX_CLIENT_OPTION
  };
  
---- a/client/mysqldump.c	2011-03-31 13:59:24.000000000 +0400
-+++ b/client/mysqldump.c	2011-03-31 16:05:40.000000000 +0400
+diff -ruN a/client/mysqldump.c b/client/mysqldump.c
+--- a/client/mysqldump.c	2011-04-09 18:48:58.000000000 +0400
++++ b/client/mysqldump.c	2011-04-09 18:49:04.000000000 +0400
 @@ -45,6 +45,7 @@
  #include <m_ctype.h>
  #include <hash.h>
@@ -54,7 +56,7 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2230,6 +2240,77 @@
+@@ -2236,6 +2246,77 @@
  }
  
  /*
@@ -132,7 +134,7 @@
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2470,6 +2551,9 @@
+@@ -2476,6 +2557,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -142,7 +144,7 @@
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3564,6 +3648,27 @@
+@@ -3570,6 +3654,27 @@
        goto err;
      }
  
@@ -170,8 +172,9 @@
      /* Moved enable keys to before unlock per bug 15977 */
      if (opt_disable_keys)
      {
+diff -ruN /dev/null b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result	2011-03-31 16:03:41.000000000 +0400
++++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result	2011-04-09 18:49:04.000000000 +0400
 @@ -0,0 +1,109 @@
 +#
 +# Test the --innodb-optimize-keys option.
@@ -282,8 +285,9 @@
 +
 +######################################
 +DROP TABLE t1, t2;
---- a/mysql-test/suite/innodb/r/innodb.result	2011-03-31 13:59:27.000000000 +0400
-+++ b/mysql-test/suite/innodb/r/innodb.result	2011-03-31 16:06:56.000000000 +0400
+diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/innodb.result
+--- a/mysql-test/suite/innodb/r/innodb.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/suite/innodb/r/innodb.result	2011-04-09 18:49:04.000000000 +0400
 @@ -1673,7 +1673,7 @@
  71
  SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
@@ -293,8 +297,9 @@
  SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
  variable_value - @innodb_rows_updated_orig
  866
---- a/mysql-test/suite/innodb/t/innodb-index.test	2011-03-09 18:11:39.000000000 +0300
-+++ b/mysql-test/suite/innodb/t/innodb-index.test	2011-03-31 16:03:41.000000000 +0400
+diff -ruN a/mysql-test/suite/innodb/t/innodb-index.test b/mysql-test/suite/innodb/t/innodb-index.test
+--- a/mysql-test/suite/innodb/t/innodb-index.test	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/suite/innodb/t/innodb-index.test	2011-04-09 18:49:04.000000000 +0400
 @@ -28,6 +28,11 @@
  show create table t1;
  --error ER_MULTIPLE_PRI_KEY
@@ -307,8 +312,9 @@
  --error ER_DUP_ENTRY
  alter table t1 drop primary key, add primary key (b);
  create unique index c on t1 (c);
---- a/mysql-test/suite/innodb/t/innodb.test	2011-03-09 18:11:39.000000000 +0300
-+++ b/mysql-test/suite/innodb/t/innodb.test	2011-03-31 16:03:41.000000000 +0400
+diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/innodb.test
+--- a/mysql-test/suite/innodb/t/innodb.test	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/suite/innodb/t/innodb.test	2011-04-09 18:49:04.000000000 +0400
 @@ -21,6 +21,12 @@
  
  -- source include/have_innodb.inc
@@ -322,8 +328,9 @@
  let $MYSQLD_DATADIR= `select @@datadir`;
  
  # Save the original values of some variables in order to be able to
+diff -ruN /dev/null b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test	2011-03-31 16:03:41.000000000 +0400
++++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test	2011-04-09 18:49:04.000000000 +0400
 @@ -0,0 +1,62 @@
 +# Embedded server doesn't support external clients
 +--source include/not_embedded.inc
@@ -387,8 +394,9 @@
 +
 +# Wait till we reached the initial number of concurrent sessions
 +--source include/wait_until_count_sessions.inc
---- a/sql/sql_lex.cc	2011-03-31 13:59:24.000000000 +0400
-+++ b/sql/sql_lex.cc	2011-03-31 16:03:41.000000000 +0400
+diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
+--- a/sql/sql_lex.cc	2011-04-09 18:48:58.000000000 +0400
++++ b/sql/sql_lex.cc	2011-04-09 18:49:04.000000000 +0400
 @@ -1630,6 +1630,9 @@
    alter_list(rhs.alter_list, mem_root),
    key_list(rhs.key_list, mem_root),
@@ -407,9 +415,10 @@
    /* partition_names are not deeply copied currently */
  }
  
---- a/sql/sql_lex.h	2011-03-31 13:59:25.000000000 +0400
-+++ b/sql/sql_lex.h	2011-03-31 16:03:41.000000000 +0400
-@@ -1004,6 +1004,9 @@
+diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
+--- a/sql/sql_lex.h	2011-04-09 18:49:00.000000000 +0400
++++ b/sql/sql_lex.h	2011-04-09 18:49:04.000000000 +0400
+@@ -1002,6 +1002,9 @@
    List<Alter_column>            alter_list;
    List<Key>                     key_list;
    List<Create_field>            create_list;
@@ -419,7 +428,7 @@
    uint                          flags;
    enum enum_enable_or_disable   keys_onoff;
    enum tablespace_op_type       tablespace_op;
-@@ -1015,6 +1018,8 @@
+@@ -1013,6 +1016,8 @@
  
  
    Alter_info() :
@@ -428,7 +437,7 @@
      flags(0),
      keys_onoff(LEAVE_AS_IS),
      tablespace_op(NO_TABLESPACE_OP),
-@@ -1030,6 +1035,9 @@
+@@ -1028,6 +1033,9 @@
      alter_list.empty();
      key_list.empty();
      create_list.empty();
@@ -438,8 +447,9 @@
      flags= 0;
      keys_onoff= LEAVE_AS_IS;
      tablespace_op= NO_TABLESPACE_OP;
---- a/sql/sql_table.cc	2011-03-31 13:59:12.000000000 +0400
-+++ b/sql/sql_table.cc	2011-03-31 16:13:40.000000000 +0400
+diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
+--- a/sql/sql_table.cc	2011-04-09 18:48:19.000000000 +0400
++++ b/sql/sql_table.cc	2011-04-09 18:49:04.000000000 +0400
 @@ -2773,7 +2773,7 @@
        file                      The handler for the new table.
        key_info_buffer     OUT   An array of KEY structs for the indexes.

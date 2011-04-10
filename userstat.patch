@@ -6,8 +6,8 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
---- a/include/mysql/plugin.h	2011-04-10 11:28:51.000000000 +0400
-+++ b/include/mysql/plugin.h	2011-04-10 11:29:08.000000000 +0400
+--- a/include/mysql/plugin.h	2011-04-10 12:23:47.000000000 +0400
++++ b/include/mysql/plugin.h	2011-04-10 12:24:34.000000000 +0400
 @@ -547,6 +547,9 @@
  unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
  int thd_opt_slow_log();
@@ -19,8 +19,8 @@ diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
    Create a temporary file.
  
 diff -ruN a/include/mysql_com.h b/include/mysql_com.h
---- a/include/mysql_com.h	2011-04-10 11:28:51.000000000 +0400
-+++ b/include/mysql_com.h	2011-04-10 11:29:08.000000000 +0400
+--- a/include/mysql_com.h	2011-04-10 12:23:52.000000000 +0400
++++ b/include/mysql_com.h	2011-04-10 12:24:34.000000000 +0400
 @@ -31,6 +31,7 @@
  
  #define SERVER_VERSION_LENGTH 60
@@ -43,7 +43,7 @@ diff -ruN a/include/mysql_com.h b/include/mysql_com.h
  #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
 diff -ruN /dev/null b/patch_info/userstats.patch
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/patch_info/userstats.patch	2011-04-10 11:29:08.000000000 +0400
++++ b/patch_info/userstats.patch	2011-04-10 12:24:34.000000000 +0400
 @@ -0,0 +1,17 @@
 +File=userstats.patch
 +Name=SHOW USER/TABLE/INDEX statistics
@@ -63,8 +63,8 @@ diff -ruN /dev/null b/patch_info/userstats.patch
 +2011-02
 +Rename variable USERSTAT_RUNNING => USERSTAT
 diff -ruN a/sql/handler.cc b/sql/handler.cc
---- a/sql/handler.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/handler.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/handler.cc	2011-04-10 12:16:42.000000000 +0400
++++ b/sql/handler.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -1243,6 +1243,8 @@
          goto end;
        }
@@ -229,8 +229,8 @@ diff -ruN a/sql/handler.cc b/sql/handler.cc
  /****************************************************************************
  ** Some general functions that isn't in the handler class
 diff -ruN a/sql/handler.h b/sql/handler.h
---- a/sql/handler.h	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/handler.h	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/handler.h	2011-04-10 12:23:52.000000000 +0400
++++ b/sql/handler.h	2011-04-10 12:24:34.000000000 +0400
 @@ -33,6 +33,10 @@
  #include <ft_global.h>
  #include <keycache.h>
@@ -312,8 +312,8 @@ diff -ruN a/sql/handler.h b/sql/handler.h
  #define CHF_CREATE_FLAG 0
  #define CHF_DELETE_FLAG 1
 diff -ruN a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2011-04-10 11:29:06.000000000 +0400
-+++ b/sql/lex.h	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/lex.h	2011-04-10 12:23:55.000000000 +0400
++++ b/sql/lex.h	2011-04-10 12:24:34.000000000 +0400
 @@ -111,6 +111,7 @@
    { "CIPHER",		SYM(CIPHER_SYM)},
    { "CLASS_ORIGIN",     SYM(CLASS_ORIGIN_SYM)},
@@ -354,8 +354,8 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "USING",		SYM(USING)},
    { "UTC_DATE",         SYM(UTC_DATE_SYM)},
 diff -ruN a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/log.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/log.cc	2011-04-10 12:23:47.000000000 +0400
++++ b/sql/log.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -1007,6 +1007,13 @@
      mysql_slow_log.reopen_file();
  }
@@ -467,8 +467,8 @@ diff -ruN a/sql/log.cc b/sql/log.cc
        if (incident && write_incident(thd, FALSE))
          goto err;
 diff -ruN a/sql/log.h b/sql/log.h
---- a/sql/log.h	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/log.h	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/log.h	2011-04-10 12:23:47.000000000 +0400
++++ b/sql/log.h	2011-04-10 12:24:34.000000000 +0400
 @@ -437,7 +437,8 @@
    bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
    bool write_incident(THD *thd, bool lock);
@@ -488,8 +488,8 @@ diff -ruN a/sql/log.h b/sql/log.h
    MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
    MYSQL_QUERY_LOG *get_mysql_log() { return &mysql_log; }
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2011-04-10 11:29:07.000000000 +0400
-+++ b/sql/mysqld.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/mysqld.cc	2011-04-10 12:23:56.000000000 +0400
++++ b/sql/mysqld.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -440,6 +440,7 @@
  uint    opt_debug_sync_timeout= 0;
  #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -636,8 +636,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
    { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
---- a/sql/mysqld.h	2011-04-10 11:29:07.000000000 +0400
-+++ b/sql/mysqld.h	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/mysqld.h	2011-04-10 12:23:56.000000000 +0400
++++ b/sql/mysqld.h	2011-04-10 12:24:34.000000000 +0400
 @@ -23,6 +23,7 @@
  #include "my_atomic.h"                     /* my_atomic_rwlock_t */
  #include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
@@ -712,8 +712,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  /*
    TODO: Replace this with an inline function.
 diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
---- a/sql/sql_base.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_base.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_base.cc	2011-04-10 12:16:42.000000000 +0400
++++ b/sql/sql_base.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -1524,6 +1524,11 @@
    table->mdl_ticket= NULL;
  
@@ -736,8 +736,8 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
    closefrm(table, 0);
    if (delete_table)
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2011-04-10 11:29:07.000000000 +0400
-+++ b/sql/sql_class.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_class.cc	2011-04-10 12:23:56.000000000 +0400
++++ b/sql/sql_class.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -602,6 +602,13 @@
    mysys_var=0;
    binlog_evt_union.do_union= FALSE;
@@ -921,8 +921,8 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2011-04-10 11:29:07.000000000 +0400
-+++ b/sql/sql_class.h	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_class.h	2011-04-10 12:23:56.000000000 +0400
++++ b/sql/sql_class.h	2011-04-10 12:24:34.000000000 +0400
 @@ -1617,6 +1617,8 @@
    */
    enum enum_server_command command;
@@ -1031,8 +1031,8 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  /** A short cut for thd->stmt_da->set_ok_status(). */
  
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
---- a/sql/sql_connect.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_connect.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_connect.cc	2011-04-10 12:23:47.000000000 +0400
++++ b/sql/sql_connect.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -55,6 +55,24 @@
  #define MIN_HANDSHAKE_SIZE      6
  #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
@@ -1707,8 +1707,8 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
        return;                                 // Probably no-threads
  
 diff -ruN a/sql/sql_delete.cc b/sql/sql_delete.cc
---- a/sql/sql_delete.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_delete.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_delete.cc	2011-04-10 12:16:42.000000000 +0400
++++ b/sql/sql_delete.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -411,6 +411,7 @@
      my_ok(thd, deleted);
      DBUG_PRINT("info",("%ld records deleted",(long) deleted));
@@ -1726,8 +1726,8 @@ diff -ruN a/sql/sql_delete.cc b/sql/sql_delete.cc
  }
  
 diff -ruN a/sql/sql_insert.cc b/sql/sql_insert.cc
---- a/sql/sql_insert.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_insert.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_insert.cc	2011-04-10 12:16:42.000000000 +0400
++++ b/sql/sql_insert.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -1069,13 +1069,14 @@
  
    if (error)
@@ -1767,12 +1767,12 @@ diff -ruN a/sql/sql_insert.cc b/sql/sql_insert.cc
  }
  
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2011-04-10 11:29:06.000000000 +0400
-+++ b/sql/sql_lex.h	2011-04-10 11:29:08.000000000 +0400
-@@ -196,6 +196,9 @@
-     When a command is added here, be sure it's also added in mysqld.cc
+--- a/sql/sql_lex.h	2011-04-10 12:23:55.000000000 +0400
++++ b/sql/sql_lex.h	2011-04-10 12:25:07.000000000 +0400
+@@ -197,6 +197,9 @@
      in "struct show_var_st status_vars[]= {" ...
    */
+   SQLCOM_SHOW_TEMPORARY_TABLES,
 +  // TODO(mcallaghan): update status_vars in mysqld to export these
 +  SQLCOM_SHOW_USER_STATS, SQLCOM_SHOW_TABLE_STATS, SQLCOM_SHOW_INDEX_STATS,
 +  SQLCOM_SHOW_CLIENT_STATS, SQLCOM_SHOW_THREAD_STATS,
@@ -1780,8 +1780,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    SQLCOM_END
  };
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2011-04-10 11:29:06.000000000 +0400
-+++ b/sql/sql_parse.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_parse.cc	2011-04-10 12:23:55.000000000 +0400
++++ b/sql/sql_parse.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -116,6 +116,9 @@
  static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
  static void sql_kill(THD *thd, ulong id, bool only_kill_query);
@@ -1957,8 +1957,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  }
  
 diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
---- a/sql/sql_prepare.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_prepare.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_prepare.cc	2011-04-10 12:16:42.000000000 +0400
++++ b/sql/sql_prepare.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -114,6 +114,9 @@
  #endif
  #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
@@ -2361,8 +2361,8 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
  }
  
 diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
---- a/sql/sql_reload.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_reload.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_reload.cc	2011-04-10 12:23:52.000000000 +0400
++++ b/sql/sql_reload.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -294,14 +294,48 @@
     mysql_mutex_unlock(&LOCK_active_mi);
   }
@@ -2415,8 +2415,8 @@ diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
     *write_to_binlog= tmp_write_to_binlog;
   /*
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_show.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_show.cc	2011-04-10 12:23:52.000000000 +0400
++++ b/sql/sql_show.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -114,6 +114,43 @@
  
  static COND * make_cond_for_info_schema(COND *cond, TABLE_LIST *table);
@@ -2899,8 +2899,8 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
     make_old_format, 0, 0, -1, 1, 0},
    {"VIEWS", view_fields_info, create_schema_table, 
 diff -ruN a/sql/sql_update.cc b/sql/sql_update.cc
---- a/sql/sql_update.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/sql_update.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_update.cc	2011-04-10 12:16:42.000000000 +0400
++++ b/sql/sql_update.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -900,8 +900,10 @@
      my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                  (ulong) updated,
@@ -2927,8 +2927,8 @@ diff -ruN a/sql/sql_update.cc b/sql/sql_update.cc
    DBUG_RETURN(FALSE);
  }
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2011-04-10 11:29:06.000000000 +0400
-+++ b/sql/sql_yacc.yy	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sql_yacc.yy	2011-04-10 12:23:55.000000000 +0400
++++ b/sql/sql_yacc.yy	2011-04-10 12:24:34.000000000 +0400
 @@ -864,6 +864,7 @@
  %token  CIPHER_SYM
  %token  CLASS_ORIGIN_SYM              /* SQL-2003-N */
@@ -3061,8 +3061,8 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | VARIABLES                {}
          | VIEW_SYM                 {}
 diff -ruN a/sql/structs.h b/sql/structs.h
---- a/sql/structs.h	2011-04-10 11:28:51.000000000 +0400
-+++ b/sql/structs.h	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/structs.h	2011-04-10 12:16:42.000000000 +0400
++++ b/sql/structs.h	2011-04-10 12:24:34.000000000 +0400
 @@ -25,6 +25,7 @@
  #include "my_time.h"                   /* enum_mysql_timestamp_type */
  #include "thr_lock.h"                  /* thr_lock_type */
@@ -3244,8 +3244,8 @@ diff -ruN a/sql/structs.h b/sql/structs.h
  #define REG_MAKE_DUPP		1	/* Make a copy of record when read */
  #define REG_NEW_RECORD		2	/* Write a new record if not found */
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
---- a/sql/sys_vars.cc	2011-04-10 11:29:07.000000000 +0400
-+++ b/sql/sys_vars.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/sql/sys_vars.cc	2011-04-10 12:23:56.000000000 +0400
++++ b/sql/sys_vars.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -1573,6 +1573,17 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
@@ -3265,8 +3265,8 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  static Sys_var_ulong Sys_read_rnd_buff_size(
         "read_rnd_buffer_size",
 diff -ruN a/storage/myisam/ha_myisam.cc b/storage/myisam/ha_myisam.cc
---- a/storage/myisam/ha_myisam.cc	2011-04-10 11:28:51.000000000 +0400
-+++ b/storage/myisam/ha_myisam.cc	2011-04-10 11:29:08.000000000 +0400
+--- a/storage/myisam/ha_myisam.cc	2011-04-10 12:16:42.000000000 +0400
++++ b/storage/myisam/ha_myisam.cc	2011-04-10 12:24:34.000000000 +0400
 @@ -768,6 +768,7 @@
  
  int ha_myisam::write_row(uchar *buf)

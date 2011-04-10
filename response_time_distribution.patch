@@ -6,8 +6,8 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/CMakeLists.txt b/CMakeLists.txt
---- a/CMakeLists.txt	2011-04-09 18:48:04.000000000 +0400
-+++ b/CMakeLists.txt	2011-04-09 18:48:55.000000000 +0400
+--- a/CMakeLists.txt	2011-03-31 17:36:18.000000000 +0400
++++ b/CMakeLists.txt	2011-04-09 19:12:12.000000000 +0400
 @@ -165,7 +165,12 @@
  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
  MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
@@ -23,8 +23,8 @@ diff -ruN a/CMakeLists.txt b/CMakeLists.txt
  IF(ENABLE_DEBUG_SYNC) 
    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
 diff -ruN a/include/mysql_com.h b/include/mysql_com.h
---- a/include/mysql_com.h	2011-04-09 18:48:04.000000000 +0400
-+++ b/include/mysql_com.h	2011-04-09 18:48:55.000000000 +0400
+--- a/include/mysql_com.h	2011-03-31 17:36:18.000000000 +0400
++++ b/include/mysql_com.h	2011-04-10 11:28:51.000000000 +0400
 @@ -137,10 +137,11 @@
  #define REFRESH_FAST		32768	/* Intern flag */
  
@@ -43,7 +43,7 @@ diff -ruN a/include/mysql_com.h b/include/mysql_com.h
  #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
 diff -ruN /dev/null b/patch_info/response-time-distribution.info
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/patch_info/response-time-distribution.info	2011-04-09 18:48:55.000000000 +0400
++++ b/patch_info/response-time-distribution.info	2011-04-09 19:12:12.000000000 +0400
 @@ -0,0 +1,9 @@
 +File=response-time-distribution.patch
 +Name=Response time distribution
@@ -55,8 +55,8 @@ diff -ruN /dev/null b/patch_info/response-time-distribution.info
 +2010-07-02 first version avaliable
 +2010-09-15 add column 'total'
 diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
---- a/sql/CMakeLists.txt	2011-04-09 18:48:04.000000000 +0400
-+++ b/sql/CMakeLists.txt	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/CMakeLists.txt	2011-03-31 17:36:18.000000000 +0400
++++ b/sql/CMakeLists.txt	2011-04-09 19:12:12.000000000 +0400
 @@ -51,7 +51,7 @@
                 message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                 mysqld.cc net_serv.cc  keycaches.cc
@@ -76,8 +76,8 @@ diff -ruN a/sql/CMakeLists.txt b/sql/CMakeLists.txt
                 debug_sync.cc debug_sync.h
                 sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 
 diff -ruN a/sql/handler.h b/sql/handler.h
---- a/sql/handler.h	2011-04-09 18:48:20.000000000 +0400
-+++ b/sql/handler.h	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/handler.h	2011-04-09 19:11:54.000000000 +0400
++++ b/sql/handler.h	2011-04-10 11:28:51.000000000 +0400
 @@ -578,6 +578,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,
@@ -87,8 +87,8 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_SCHEMA_PRIVILEGES,
    SCH_SESSION_STATUS,
 diff -ruN a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2011-04-09 18:48:04.000000000 +0400
-+++ b/sql/lex.h	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/lex.h	2011-03-31 17:36:18.000000000 +0400
++++ b/sql/lex.h	2011-04-10 11:28:52.000000000 +0400
 @@ -426,6 +426,7 @@
    { "PURGE",		SYM(PURGE)},
    { "QUARTER",          SYM(QUARTER_SYM)},
@@ -98,8 +98,8 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "RANGE",            SYM(RANGE_SYM)},
    { "READ",		SYM(READ_SYM)},
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2011-04-09 18:48:54.000000000 +0400
-+++ b/sql/mysqld.cc	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/mysqld.cc	2011-04-09 19:12:11.000000000 +0400
++++ b/sql/mysqld.cc	2011-04-10 11:28:52.000000000 +0400
 @@ -69,6 +69,8 @@
  #include "debug_sync.h"
  #include "sql_callback.h"
@@ -162,8 +162,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    have_geometry=SHOW_OPTION_YES;
  #else
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
---- a/sql/mysqld.h	2011-04-09 18:48:53.000000000 +0400
-+++ b/sql/mysqld.h	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/mysqld.h	2011-04-09 19:12:11.000000000 +0400
++++ b/sql/mysqld.h	2011-04-10 11:28:52.000000000 +0400
 @@ -98,6 +98,10 @@
  extern bool opt_disable_networking, opt_skip_show_db;
  extern bool opt_skip_name_resolve;
@@ -177,8 +177,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern bool in_bootstrap;
 diff -ruN /dev/null b/sql/query_response_time.cc
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/sql/query_response_time.cc	2011-04-09 18:48:55.000000000 +0400
-@@ -0,0 +1,372 @@
++++ b/sql/query_response_time.cc	2011-04-10 00:27:11.000000000 +0400
+@@ -0,0 +1,367 @@
 +#include "mysql_version.h"
 +#ifdef __FreeBSD__
 +#include <sys/types.h>
@@ -432,18 +432,13 @@ diff -ruN /dev/null b/sql/query_response_time.cc
 +  }
 +  void collect(uint64 time)
 +  {
-+    bool no_collect= false;
-+    DBUG_EXECUTE_IF("response_time_distribution_log_only_more_300_milliseconds", {   \
-+        no_collect= time < 300 * 1000; \
-+      });
-+    if(no_collect) return;
 +    int i= 0;
 +    for(int count= m_utility->bound_count(); count > i; ++i)
 +    {
 +      if(m_utility->bound(i) > time)
 +      {
 +        __sync_fetch_and_add(&(m_count[i]),(uint32)1);
-+	 add_time_atomic(&(m_total[i]),time);
++        add_time_atomic(&(m_total[i]),time);
 +        break;
 +      }
 +    }
@@ -553,7 +548,7 @@ diff -ruN /dev/null b/sql/query_response_time.cc
 +#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
 diff -ruN /dev/null b/sql/query_response_time.h
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/sql/query_response_time.h	2011-04-09 18:48:55.000000000 +0400
++++ b/sql/query_response_time.h	2011-04-09 19:12:12.000000000 +0400
 @@ -0,0 +1,71 @@
 +#ifndef QUERY_RESPONSE_TIME_H
 +#define QUERY_RESPONSE_TIME_H
@@ -627,8 +622,8 @@ diff -ruN /dev/null b/sql/query_response_time.h
 +
 +#endif // QUERY_RESPONSE_TIME_H
 diff -ruN a/sql/set_var.h b/sql/set_var.h
---- a/sql/set_var.h	2011-04-09 18:48:04.000000000 +0400
-+++ b/sql/set_var.h	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/set_var.h	2011-03-31 17:36:18.000000000 +0400
++++ b/sql/set_var.h	2011-04-09 19:12:12.000000000 +0400
 @@ -293,6 +293,7 @@
  
  extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
@@ -638,8 +633,8 @@ diff -ruN a/sql/set_var.h b/sql/set_var.h
  extern SHOW_COMP_OPTION have_crypt;
  extern SHOW_COMP_OPTION have_compress;
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2011-04-09 18:48:50.000000000 +0400
-+++ b/sql/sql_parse.cc	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/sql_parse.cc	2011-04-09 19:12:10.000000000 +0400
++++ b/sql/sql_parse.cc	2011-04-10 11:28:51.000000000 +0400
 @@ -88,6 +88,7 @@
  #include "sp_cache.h"
  #include "events.h"
@@ -648,7 +643,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1482,22 +1483,36 @@
+@@ -1482,22 +1483,74 @@
      Do not log administrative statements unless the appropriate option is
      set.
    */
@@ -660,16 +655,53 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    {
 -    ulonglong end_utime_of_query= thd->current_utime();
 -    thd_proc_info(thd, "logging slow query");
--
++    ulonglong end_utime_of_query   = thd->current_utime();
++    ulonglong query_execution_time = end_utime_of_query - thd->utime_after_lock;
++#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
++
++#define DBUG_TEST_QRT(t,v)                              \
++      DBUG_EXECUTE_IF(t,                                \
++                      {                                 \
++                        query_execution_time= v;        \
++                        DBUG_SET("-d,"t);               \
++                      })
++
++    DBUG_EXECUTE_IF("query_exec_time_debug", query_execution_time= 0; );
++
++    DBUG_TEST_QRT("query_exec_time_0.31", 310000UL);
++    DBUG_TEST_QRT("query_exec_time_0.32", 320000UL);
++    DBUG_TEST_QRT("query_exec_time_0.33", 330000UL);
++    DBUG_TEST_QRT("query_exec_time_0.34", 340000UL);
++    DBUG_TEST_QRT("query_exec_time_0.35", 350000UL);
++    DBUG_TEST_QRT("query_exec_time_0.36", 360000UL);
++    DBUG_TEST_QRT("query_exec_time_0.37", 370000UL);
++    DBUG_TEST_QRT("query_exec_time_0.38", 380000UL);
++    DBUG_TEST_QRT("query_exec_time_0.39", 390000UL);
++    DBUG_TEST_QRT("query_exec_time_0.4",  400000UL);
++    DBUG_TEST_QRT("query_exec_time_0.5",  500000UL);
++    DBUG_TEST_QRT("query_exec_time_1.1",  1100000UL);
++    DBUG_TEST_QRT("query_exec_time_1.2",  1200000UL);
++    DBUG_TEST_QRT("query_exec_time_1.3",  1300000UL);
++    DBUG_TEST_QRT("query_exec_time_1.4",  1400000UL);
++    DBUG_TEST_QRT("query_exec_time_1.5",  1500000UL);
++    DBUG_TEST_QRT("query_exec_time_2.1",  2100000UL);
++    DBUG_TEST_QRT("query_exec_time_2.3",  2300000UL);
++    DBUG_TEST_QRT("query_exec_time_2.5",  2500000UL);
++
++    DBUG_EXECUTE_IF("query_exec_time_debug",
++                    if (query_execution_time == 0)
++                      opt_query_response_time_stats= 0;
++                    else
++                      opt_query_response_time_stats= 1;);
+ 
 -    if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
 -         ((thd->server_status &
 -           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
 -          opt_log_queries_not_using_indexes &&
 -           !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
 -        thd->examined_row_count >= thd->variables.min_examined_row_limit)
-+    ulonglong end_utime_of_query   = thd->current_utime();
-+    ulonglong query_execution_time = end_utime_of_query - thd->utime_after_lock;
-+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
++#undef DBUG_TEST_QRT
++
 +    if(opt_query_response_time_stats)
 +    {
 +      query_response_time_collect(query_execution_time);
@@ -697,7 +729,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      }
    }
    DBUG_VOID_RETURN;
-@@ -1616,6 +1631,7 @@
+@@ -1616,6 +1669,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -706,8 +738,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_USER_PRIVILEGES:
    case SCH_SCHEMA_PRIVILEGES:
 diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
---- a/sql/sql_reload.cc	2011-04-09 18:48:04.000000000 +0400
-+++ b/sql/sql_reload.cc	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/sql_reload.cc	2011-03-31 17:36:18.000000000 +0400
++++ b/sql/sql_reload.cc	2011-04-10 11:28:51.000000000 +0400
 @@ -25,7 +25,7 @@
  #include "hostname.h"    // hostname_cache_refresh
  #include "sql_repl.h"    // reset_master, reset_slave
@@ -731,8 +763,8 @@ diff -ruN a/sql/sql_reload.cc b/sql/sql_reload.cc
     *write_to_binlog= tmp_write_to_binlog;
   /*
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2011-04-09 18:48:50.000000000 +0400
-+++ b/sql/sql_show.cc	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/sql_show.cc	2011-04-09 19:12:10.000000000 +0400
++++ b/sql/sql_show.cc	2011-04-10 11:28:51.000000000 +0400
 @@ -50,6 +50,7 @@
  #include "event_data_objects.h"
  #endif
@@ -771,8 +803,8 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
     fill_schema_schemata, make_schemata_old_format, 0, 1, -1, 0, 0},
    {"SCHEMA_PRIVILEGES", schema_privileges_fields_info, create_schema_table,
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2011-04-09 18:48:20.000000000 +0400
-+++ b/sql/sql_yacc.yy	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/sql_yacc.yy	2011-04-09 19:11:54.000000000 +0400
++++ b/sql/sql_yacc.yy	2011-04-10 11:28:52.000000000 +0400
 @@ -1193,6 +1193,7 @@
  %token  PURGE
  %token  QUARTER_SYM
@@ -819,8 +851,8 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | READ_ONLY_SYM            {}
          | REBUILD_SYM              {}
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
---- a/sql/sys_vars.cc	2011-04-09 18:48:53.000000000 +0400
-+++ b/sql/sys_vars.cc	2011-04-09 18:48:55.000000000 +0400
+--- a/sql/sys_vars.cc	2011-04-09 19:12:11.000000000 +0400
++++ b/sql/sys_vars.cc	2011-04-10 11:28:51.000000000 +0400
 @@ -49,6 +49,7 @@
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */

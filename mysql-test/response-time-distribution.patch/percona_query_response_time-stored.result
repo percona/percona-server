@@ -1,16 +1,9 @@
-SET SESSION debug="+d,response_time_distribution_log_only_more_300_milliseconds";
+SET GLOBAL debug="d,query_exec_time_debug";
 CREATE FUNCTION test_f()
 RETURNS CHAR(30) DETERMINISTIC
 BEGIN
-DECLARE first  VARCHAR(5);
-DECLARE second VARCHAR(5);
-DECLARE result VARCHAR(20);
-SELECT SLEEP(1.11) INTO first;
-SET first= 'Hello';
-SET second=', ';
-SET result= CONCAT(first,second);
-SET result= CONCAT(result,'world!');
-RETURN result;
+SET SESSION debug="+d,query_exec_time_1.1";
+RETURN 'Hello, world!';
 END/
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1;
 Warnings:
@@ -310,4 +303,4 @@ query_response_time_range_base	1000
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE  =10;
 DROP FUNCTION test_f;
-SET SESSION debug="-d,response_time_distribution_log_only_more_300_milliseconds";
+SET GLOBAL debug=default;

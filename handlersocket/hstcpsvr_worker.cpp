@@ -27,6 +27,7 @@
 #define DBG_FD(x)
 #define DBG_TR(x)
 #define DBG_EP(x)
+#define DBG_MULTI(x)
 
 /* TODO */
 #if !defined(__linux__) && !defined(__FreeBSD__) && !defined(MSG_NOSIGNAL)
@@ -40,13 +41,15 @@ struct dbconnstate {
   string_buffer writebuf;
   std::vector<prep_stmt> prep_stmts;
   size_t resp_begin_pos;
+  size_t find_nl_pos;
   void reset() {
     readbuf.clear();
     writebuf.clear();
     prep_stmts.clear();
     resp_begin_pos = 0;
+    find_nl_pos = 0;
   }
-  dbconnstate() : resp_begin_pos(0) { }
+  dbconnstate() : resp_begin_pos(0), find_nl_pos(0) { }
 };
 
 struct hstcpsvr_conn;
@@ -395,6 +398,7 @@ hstcpsvr_worker::run_one_nb()
 	  vshared.shutdown = 1;
 	} else if (ch == '/') {
 	  conn.cstate.readbuf.clear();
+	  conn.cstate.find_nl_pos = 0;
 	  conn.cstate.writebuf.clear();
 	  conn.read_finished = true;
 	  conn.write_finished = true;
@@ -542,6 +546,7 @@ hstcpsvr_worker::run_one_ep()
       vshared.shutdown = 1;
     } else if (ch == '/') {
       conn->cstate.readbuf.clear();
+      conn->cstate.find_nl_pos = 0;
       conn->cstate.writebuf.clear();
       conn->read_finished = true;
       conn->write_finished = true;
@@ -649,19 +654,24 @@ hstcpsvr_worker::run_one_ep()
 void
 hstcpsvr_worker::execute_lines(hstcpsvr_conn& conn)
 {
+  DBG_MULTI(int cnt = 0);
   dbconnstate& cstate = conn.cstate;
   char *buf_end = cstate.readbuf.end();
   char *line_begin = cstate.readbuf.begin();
+  char *find_pos = line_begin + cstate.find_nl_pos;
   while (true) {
-    char *const nl = memchr_char(line_begin, '\n', buf_end - line_begin);
+    char *const nl = memchr_char(find_pos, '\n', buf_end - find_pos);
     if (nl == 0) {
       break;
     }
     char *const lf = (line_begin != nl && nl[-1] == '\r') ? nl - 1 : nl;
+    DBG_MULTI(cnt++);
     execute_line(line_begin, lf, conn);
-    line_begin = nl + 1;
+    find_pos = line_begin = nl + 1;
   }
   cstate.readbuf.erase_front(line_begin - cstate.readbuf.begin());
+  cstate.find_nl_pos = cstate.readbuf.size();
+  DBG_MULTI(fprintf(stderr, "cnt=%d\n", cnt));
 }
 
 void

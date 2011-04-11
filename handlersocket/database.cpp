@@ -788,9 +788,6 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   hnd->ha_index_or_rnd_end();
   hnd->ha_index_init(pst.get_idxnum(), 1);
-  #if 0
-  statistic_increment(index_exec_count, &LOCK_status);
-  #endif
   if (need_resp_record) {
     cb.dbcb_resp_begin(pst.get_ret_fields().size());
   }

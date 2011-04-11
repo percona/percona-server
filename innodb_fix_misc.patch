@@ -338,7 +338,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0buf.ic
 --- a/storage/innobase/include/buf0buf.ic	2011-02-23 19:00:48.130659154 +0900
 +++ b/storage/innobase/include/buf0buf.ic	2011-02-23 19:01:19.185655906 +0900
-@@ -406,6 +406,7 @@
+@@ -408,6 +408,7 @@
  	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
  	block->page.space = space;
  	block->page.offset = page_no;

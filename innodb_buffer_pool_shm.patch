@@ -868,10 +868,11 @@ diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash
  \
  			HASH_INSERT(NODE_TYPE, PTR_NAME, (NEW_TABLE),\
  				fold2222, node2222);\
-@@ -328,6 +350,33 @@
+@@ -327,6 +349,33 @@
+ 		}\
  	}\
  } while (0)
- 
++
 +/********************************************************************//**
 +Align nodes with moving location.*/
 +#define HASH_OFFSET(TABLE, NODE_TYPE, PTR_NAME, FADDR, FOFFSET, BOFFSET) \
@@ -898,10 +899,9 @@ diff -ruN a/storage/innobase/include/hash0hash.h b/storage/innobase/include/hash
 +		}\
 +	}\
 +} while (0)
-+
+ 
  /************************************************************//**
  Gets the mutex index for a fold value in a hash table.
- @return	mutex number */
 diff -ruN a/storage/innobase/include/os0proc.h b/storage/innobase/include/os0proc.h
 --- a/storage/innobase/include/os0proc.h	2011-04-09 18:48:05.000000000 +0400
 +++ b/storage/innobase/include/os0proc.h	2011-04-09 18:48:48.000000000 +0400

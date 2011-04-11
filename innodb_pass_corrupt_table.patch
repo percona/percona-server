@@ -1166,7 +1166,7 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  /*********************************************************************//**
  Gets the current size of buffer buf_pool in bytes.
  @return size in bytes */
-@@ -617,6 +617,12 @@
+@@ -619,6 +619,12 @@
  /*================*/
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  {

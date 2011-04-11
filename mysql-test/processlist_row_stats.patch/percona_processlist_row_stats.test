@@ -21,15 +21,19 @@ echo Issuing operation that should not return any rows and stopping the thread #
 SET DEBUG_SYNC= 'locked_table_name SIGNAL thread1_ready WAIT_FOR threads_dumped';
 send CREATE TABLE t1 (a INT);
 
+--connection default
+SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
+--echo Thread #1 stopped
+
 --connection conn2
 echo Issuing row-returning query and stopping the thread #2 at the end of query;
 SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped';
 send SELECT a FROM t2 WHERE a > 15;
 
 --connection default
-SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
-echo Threads #1 and #2 stopped, look at their state;
+--echo Thread #2 stopped
+--echo Look at thread states
 
 --replace_column 1 ### 3 ### 6 ### 7 ###
 SHOW PROCESSLIST;

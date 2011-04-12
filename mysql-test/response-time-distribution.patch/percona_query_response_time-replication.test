@@ -5,7 +5,6 @@
 --disable_query_log
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement:");
 --enable_query_log
-SET SESSION debug="+d,response_time_distribution_log_only_more_300_milliseconds";
 
 connection master;
 -- disable_warnings
@@ -57,7 +56,6 @@ sync_slave_with_master;
 connection slave;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=OFF;
-SET SESSION debug="-d,response_time_distribution_log_only_more_300_milliseconds";
 
 STOP SLAVE;
 -- source include/wait_for_slave_to_stop.inc

@@ -1,5 +1,6 @@
---- a/mysql-test/include/default_mysqld.cnf	2011-03-09 07:11:38.000000000 -0800
-+++ b/mysql-test/include/default_mysqld.cnf	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/include/default_mysqld.cnf b/mysql-test/include/default_mysqld.cnf
+--- a/mysql-test/include/default_mysqld.cnf	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/include/default_mysqld.cnf	2011-04-09 18:49:05.000000000 +0400
 @@ -29,7 +29,7 @@
  max_heap_table_size=        1M
  
@@ -9,8 +10,9 @@
  loose-innodb_write_io_threads=    2
  loose-innodb_read_io_threads=     2
  loose-innodb_log_buffer_size=     1M
---- a/mysql-test/r/connect.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/connect.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/connect.result b/mysql-test/r/connect.result
+--- a/mysql-test/r/connect.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/connect.result	2011-04-09 18:49:05.000000000 +0400
 @@ -1,3 +1,4 @@
 +set global log_warnings=0;
  drop table if exists t1,t2;
@@ -21,8 +23,9 @@
  # -- End of 5.1 tests
  # ------------------------------------------------------------------
 +set global log_warnings=1;
---- a/mysql-test/r/create.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/create.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
+--- a/mysql-test/r/create.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/create.result	2011-04-09 18:49:05.000000000 +0400
 @@ -1741,7 +1741,11 @@
    `COMMAND` varchar(16) NOT NULL DEFAULT '',
    `TIME` int(7) NOT NULL DEFAULT '0',
@@ -49,8 +52,9 @@
  ) ENGINE=MyISAM DEFAULT CHARSET=utf8
  drop table t1;
  create table t1 like information_schema.character_sets;
---- a/mysql-test/r/information_schema.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/information_schema.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_schema.result
+--- a/mysql-test/r/information_schema.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/information_schema.result	2011-04-09 18:49:05.000000000 +0400
 @@ -46,14 +46,17 @@
  select * from v1;
  c
@@ -262,8 +266,9 @@
  VIEWS	information_schema.VIEWS	1
  create table t1(f1 int);
  create view v1 as select f1+1 as a from t1;
---- a/mysql-test/r/information_schema_db.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/information_schema_db.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information_schema_db.result
+--- a/mysql-test/r/information_schema_db.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/information_schema_db.result	2011-04-09 18:49:05.000000000 +0400
 @@ -6,14 +6,17 @@
  show tables where Tables_in_information_schema NOT LIKE 'Innodb%';
  Tables_in_information_schema
@@ -314,8 +319,9 @@
  TRIGGERS
  create database `inf%`;
  create database mbase;
---- a/mysql-test/r/mysqld--help-notwin.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/mysqld--help-notwin.result	2011-03-27 12:52:51.000000000 -0700
+diff -ruN a/mysql-test/r/mysqld--help-notwin.result b/mysql-test/r/mysqld--help-notwin.result
+--- a/mysql-test/r/mysqld--help-notwin.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/mysqld--help-notwin.result	2011-04-09 18:49:05.000000000 +0400
 @@ -250,21 +250,40 @@
   --log-slow-admin-statements 
   Log slow OPTIMIZE, ANALYZE, ALTER and other
@@ -359,7 +365,7 @@
   --long-query-time=# Log all queries that have taken more than long_query_time
   seconds to execute to file. The argument will be treated
   as a decimal value with microsecond precision
-@@ -471,6 +490,10 @@
+@@ -475,6 +494,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -370,7 +376,7 @@
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -479,6 +502,12 @@
+@@ -483,6 +506,12 @@
   Invalidate queries in query cache on LOCK for write
   --query-prealloc-size=# 
   Persistent buffer for query parsing and execution
@@ -383,7 +389,7 @@
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -656,6 +685,18 @@
+@@ -660,6 +689,18 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
@@ -402,7 +408,7 @@
   --socket=name       Socket file to use for connection
   --sort-buffer-size=# 
   Each thread that needs to do a sort allocates a buffer of
-@@ -698,6 +739,8 @@
+@@ -702,6 +743,8 @@
   Define threads usage for handling queries, one of
   one-thread-per-connection, no-threads, loaded-dynamically
   --thread-stack=#    The stack size for each thread
@@ -411,7 +417,7 @@
   --time-format=name  The TIME format (ignored)
   --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
   currently supported)
-@@ -723,10 +766,17 @@
+@@ -727,10 +770,17 @@
   of the underlying table and the query uses a LIMIT clause
   (usually get from GUI tools)
   -u, --user=name     Run mysqld daemon as user.
@@ -429,7 +435,7 @@
  
  Variables (--variable-name=value)
  abort-slave-event-count 0
-@@ -809,10 +859,15 @@
+@@ -813,10 +863,15 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
@@ -445,7 +451,7 @@
  long-query-time 10
  low-priority-updates FALSE
  lower-case-table-names 1
-@@ -887,9 +942,12 @@
+@@ -892,9 +947,12 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0
@@ -458,7 +464,7 @@
  range-alloc-block-size 4096
  read-buffer-size 131072
  read-only FALSE
-@@ -924,6 +982,9 @@
+@@ -929,6 +987,9 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE
@@ -468,7 +474,7 @@
  sort-buffer-size 2097152
  sporadic-binlog-dump-fail FALSE
  sql-mode 
-@@ -941,6 +1002,7 @@
+@@ -946,6 +1007,7 @@
  thread-cache-size 0
  thread-handling one-thread-per-connection
  thread-stack 262144
@@ -476,7 +482,7 @@
  time-format %H:%i:%s
  timed-mutexes FALSE
  tmp-table-size 16777216
-@@ -948,8 +1010,10 @@
+@@ -953,8 +1015,10 @@
  transaction-isolation REPEATABLE-READ
  transaction-prealloc-size 4096
  updatable-views-with-limit YES
@@ -487,8 +493,9 @@
  
  To see what values a running MySQL server is using, type
  'mysqladmin variables' instead of 'mysqld --verbose --help'.
---- a/mysql-test/r/mysqldump.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/mysqldump.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
+--- a/mysql-test/r/mysqldump.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/mysqldump.result	2011-04-09 18:49:05.000000000 +0400
 @@ -1832,7 +1832,7 @@
  # Bug#21288 mysqldump segmentation fault when using --where
  #
@@ -498,8 +505,9 @@
  mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
  
  /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
---- a/mysql-test/r/mysqlshow.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/mysqlshow.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
+--- a/mysql-test/r/mysqlshow.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/mysqlshow.result	2011-04-09 18:49:05.000000000 +0400
 @@ -80,14 +80,17 @@
  |                Tables                 |
  +---------------------------------------+
@@ -631,8 +639,9 @@
  +---------------------------------------+
  Wildcard: inf_rmation_schema
  +--------------------+
---- a/mysql-test/r/select.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/select.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
+--- a/mysql-test/r/select.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/select.result	2011-04-09 18:49:05.000000000 +0400
 @@ -2196,10 +2196,10 @@
  select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
  a	a
@@ -646,8 +655,9 @@
  3	3
  select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
  a	a
---- a/mysql-test/r/show_check.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/show_check.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/show_check.result b/mysql-test/r/show_check.result
+--- a/mysql-test/r/show_check.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/show_check.result	2011-04-09 18:49:05.000000000 +0400
 @@ -1537,14 +1537,14 @@
  SET NAMES latin1;
  SELECT GET_LOCK('t',1000) AS 'óóóó';;
@@ -669,8 +679,9 @@
  SELECT RELEASE_LOCK('t');
  RELEASE_LOCK('t')
  1
---- a/mysql-test/r/sp-threads.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/r/sp-threads.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/r/sp-threads.result b/mysql-test/r/sp-threads.result
+--- a/mysql-test/r/sp-threads.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/r/sp-threads.result	2011-04-09 18:49:05.000000000 +0400
 @@ -33,11 +33,11 @@
  lock tables t2 write;
  call bug9486();
@@ -688,8 +699,9 @@
  unlock tables;
  drop procedure bug9486;
  drop table t1, t2;
---- a/mysql-test/suite/innodb/r/innodb.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/suite/innodb/r/innodb.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/innodb.result
+--- a/mysql-test/suite/innodb/r/innodb.result	2011-04-09 18:49:04.000000000 +0400
++++ b/mysql-test/suite/innodb/r/innodb.result	2011-04-09 18:49:05.000000000 +0400
 @@ -1664,7 +1664,7 @@
  drop table t1;
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
@@ -699,112 +711,9 @@
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
  variable_value
  16384
---- a/mysql-test/suite/sys_vars/r/all_vars.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-03-27 12:54:05.000000000 -0700
-@@ -11,9 +11,101 @@
- select variable_name as `There should be *no* variables listed below:` from t2
- left join t1 on variable_name=test_name where test_name is null;
- There should be *no* variables listed below:
-+LOG_SLOW_SP_STATEMENTS
-+SLOW_QUERY_LOG_TIMESTAMP_PRECISION
-+THREAD_STATISTICS
-+SLOW_QUERY_LOG_TIMESTAMP_ALWAYS
-+INNODB_THREAD_CONCURRENCY_TIMER_BASED
-+INNODB_LOG_BLOCK_SIZE
-+INNODB_SHOW_VERBOSE_LOCKS
-+INNODB_READ_AHEAD
-+INNODB_USE_GLOBAL_FLUSH_LOG_AT_TRX_COMMIT
-+LOG_WARNINGS_SUPPRESS
-+FAST_INDEX_CREATION
-+INNODB_CORRUPT_TABLE_ACTION
-+INNODB_FLUSH_NEIGHBOR_PAGES
-+INNODB_LAZY_DROP_TABLE
-+INNODB_BUFFER_POOL_SHM_CHECKSUM
-+LOG_SLOW_VERBOSITY
-+QUERY_RESPONSE_TIME_STATS
-+QUERY_CACHE_STRIP_COMMENTS
-+INNODB_SHOW_LOCKS_HELD
-+INNODB_IBUF_ACCEL_RATE
-+INNODB_IBUF_MAX_SIZE
-+INNODB_CHECKPOINT_AGE_TARGET
-+INNODB_IMPORT_TABLE_FROM_XTRABACKUP
-+INNODB_ADAPTIVE_FLUSHING_METHOD
- INNODB_STATS_METHOD
-+HAVE_RESPONSE_TIME_DISTRIBUTION
-+INNODB_RECOVERY_UPDATE_RELAY_LOG
-+OPTIMIZER_FIX
-+INNODB_BUFFER_POOL_RESTORE_AT_STARTUP
-+INNODB_PAGE_SIZE
-+INNODB_FAST_CHECKSUM
-+SLOW_QUERY_LOG_USE_GLOBAL_CONTROL
-+INNODB_ADAPTIVE_HASH_INDEX_PARTITIONS
-+USERSTAT
-+INNODB_BUFFER_POOL_SHM_KEY
-+INNODB_USE_SYS_STATS_TABLE
-+INNODB_RECOVERY_STATS
-+INNODB_DOUBLEWRITE_FILE
-+INNODB_STATS_UPDATE_NEED_LOCK
-+QUERY_RESPONSE_TIME_RANGE_BASE
-+LOG_SLOW_RATE_LIMIT
-+INNODB_IBUF_ACTIVE_CONTRACT
-+INNODB_STATS_AUTO_UPDATE
-+LOG_SLOW_SLAVE_STATEMENTS
- INNODB_FILE_FORMAT_MAX
-+INNODB_DICT_SIZE_LIMIT
-+LOG_SLOW_FILTER
-+INNODB_EXTRA_RSEGMENTS
-+LOG_SLOW_SP_STATEMENTS
-+SLOW_QUERY_LOG_TIMESTAMP_PRECISION
-+THREAD_STATISTICS
-+SLOW_QUERY_LOG_TIMESTAMP_ALWAYS
-+INNODB_THREAD_CONCURRENCY_TIMER_BASED
-+INNODB_LOG_BLOCK_SIZE
-+INNODB_SHOW_VERBOSE_LOCKS
-+INNODB_READ_AHEAD
-+INNODB_USE_GLOBAL_FLUSH_LOG_AT_TRX_COMMIT
-+LOG_WARNINGS_SUPPRESS
-+FAST_INDEX_CREATION
-+INNODB_CORRUPT_TABLE_ACTION
-+INNODB_FLUSH_NEIGHBOR_PAGES
-+INNODB_LAZY_DROP_TABLE
-+INNODB_BUFFER_POOL_SHM_CHECKSUM
-+LOG_SLOW_VERBOSITY
-+QUERY_RESPONSE_TIME_STATS
-+QUERY_CACHE_STRIP_COMMENTS
-+INNODB_SHOW_LOCKS_HELD
-+INNODB_IBUF_ACCEL_RATE
-+INNODB_IBUF_MAX_SIZE
-+INNODB_CHECKPOINT_AGE_TARGET
-+INNODB_IMPORT_TABLE_FROM_XTRABACKUP
-+INNODB_ADAPTIVE_FLUSHING_METHOD
- INNODB_STATS_METHOD
-+HAVE_RESPONSE_TIME_DISTRIBUTION
-+INNODB_RECOVERY_UPDATE_RELAY_LOG
-+OPTIMIZER_FIX
-+INNODB_BUFFER_POOL_RESTORE_AT_STARTUP
-+INNODB_PAGE_SIZE
-+INNODB_FAST_CHECKSUM
-+SLOW_QUERY_LOG_USE_GLOBAL_CONTROL
-+INNODB_ADAPTIVE_HASH_INDEX_PARTITIONS
-+USERSTAT
-+INNODB_BUFFER_POOL_SHM_KEY
-+INNODB_USE_SYS_STATS_TABLE
-+INNODB_RECOVERY_STATS
-+INNODB_DOUBLEWRITE_FILE
-+INNODB_STATS_UPDATE_NEED_LOCK
-+QUERY_RESPONSE_TIME_RANGE_BASE
-+LOG_SLOW_RATE_LIMIT
-+INNODB_IBUF_ACTIVE_CONTRACT
-+INNODB_STATS_AUTO_UPDATE
-+LOG_SLOW_SLAVE_STATEMENTS
- INNODB_FILE_FORMAT_MAX
-+INNODB_DICT_SIZE_LIMIT
-+LOG_SLOW_FILTER
-+INNODB_EXTRA_RSEGMENTS
- drop table t1;
- drop table t2;
---- a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result
+--- a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result	2011-04-09 18:49:05.000000000 +0400
 @@ -10,7 +10,6 @@
  1
  '#---------------------FN_DYNVARS_046_02-------------------------#'
@@ -813,36 +722,9 @@
  SELECT @@innodb_flush_log_at_trx_commit;
  @@innodb_flush_log_at_trx_commit
  1
---- a/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/suite/sys_vars/r/plugin_dir_basic.result	2011-03-27 12:51:04.000000000 -0700
-@@ -1,20 +1,20 @@
- select @@global.plugin_dir;
- @@global.plugin_dir
--MYSQL_LIBDIR/plugin
-+MYSQL_LIBDIR64/plugin
- select @@session.plugin_dir;
- ERROR HY000: Variable 'plugin_dir' is a GLOBAL variable
- show global variables like 'plugin_dir';
- Variable_name	Value
--plugin_dir	MYSQL_LIBDIR/plugin
-+plugin_dir	MYSQL_LIBDIR64/plugin
- show session variables like 'plugin_dir';
- Variable_name	Value
--plugin_dir	MYSQL_LIBDIR/plugin
-+plugin_dir	MYSQL_LIBDIR64/plugin
- select * from information_schema.global_variables where variable_name='plugin_dir';
- VARIABLE_NAME	VARIABLE_VALUE
--PLUGIN_DIR	MYSQL_LIBDIR/plugin
-+PLUGIN_DIR	MYSQL_LIBDIR64/plugin
- select * from information_schema.session_variables where variable_name='plugin_dir';
- VARIABLE_NAME	VARIABLE_VALUE
--PLUGIN_DIR	MYSQL_LIBDIR/plugin
-+PLUGIN_DIR	MYSQL_LIBDIR64/plugin
- set global plugin_dir=1;
- ERROR HY000: Variable 'plugin_dir' is a read only variable
- set session plugin_dir=1;
---- a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test
+--- a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test	2011-04-09 18:49:05.000000000 +0400
 @@ -56,7 +56,7 @@
  # Check if variable can be accessed with and without @@ sign                  #
  ###############################################################################
@@ -852,8 +734,9 @@
  SET innodb_flush_log_at_trx_commit = 1;
  SELECT @@innodb_flush_log_at_trx_commit;
  
---- a/mysql-test/t/connect.test	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/t/connect.test	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/t/connect.test b/mysql-test/t/connect.test
+--- a/mysql-test/t/connect.test	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/t/connect.test	2011-04-09 18:49:05.000000000 +0400
 @@ -1,3 +1,5 @@
 +set global log_warnings=0;
 +
@@ -865,8 +748,9 @@
  --source include/wait_until_count_sessions.inc
  
 +set global log_warnings=1;
---- a/mysql-test/t/show_check.test	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/t/show_check.test	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/t/show_check.test b/mysql-test/t/show_check.test
+--- a/mysql-test/t/show_check.test	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/t/show_check.test	2011-04-09 18:49:05.000000000 +0400
 @@ -1375,10 +1375,10 @@
  let $wait_timeout= 10;
  let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
@@ -880,8 +764,9 @@
  SHOW PROCESSLIST;
  SELECT RELEASE_LOCK('t');
  --connection con1
---- a/mysql-test/t/sp-threads.test	2011-03-09 07:11:39.000000000 -0800
-+++ b/mysql-test/t/sp-threads.test	2011-03-27 12:51:04.000000000 -0700
+diff -ruN a/mysql-test/t/sp-threads.test b/mysql-test/t/sp-threads.test
+--- a/mysql-test/t/sp-threads.test	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/t/sp-threads.test	2011-04-09 18:49:05.000000000 +0400
 @@ -81,7 +81,7 @@
  connection con2root;
  --sleep 2
@@ -891,3 +776,569 @@
  show processlist;
  unlock tables;
  connection con1root;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/log_slow_sp_statements_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/log_slow_sp_statements_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_sp_statements;
++@@global.log_slow_sp_statements
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/log_slow_sp_statements_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/log_slow_sp_statements_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_sp_statements;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/fast_index_creation_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/fast_index_creation_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.fast_index_creation;
++@@global.fast_index_creation
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/have_response_time_distribution_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/have_response_time_distribution_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.have_response_time_distribution;
++@@global.have_response_time_distribution
++YES
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_method_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_method_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_adaptive_flushing_method;
++@@global.innodb_adaptive_flushing_method
++estimate
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_adaptive_hash_index_partitions_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_adaptive_hash_index_partitions_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_adaptive_hash_index_partitions;
++@@global.innodb_adaptive_hash_index_partitions
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_restore_at_startup_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_restore_at_startup_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_buffer_pool_restore_at_startup;
++@@global.innodb_buffer_pool_restore_at_startup
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_shm_checksum_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_shm_checksum_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_buffer_pool_shm_checksum;
++@@global.innodb_buffer_pool_shm_checksum
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_shm_key_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_shm_key_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_buffer_pool_shm_key;
++@@global.innodb_buffer_pool_shm_key
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_checkpoint_age_target_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_checkpoint_age_target_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_checkpoint_age_target;
++@@global.innodb_checkpoint_age_target
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_corrupt_table_action_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_corrupt_table_action_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_corrupt_table_action;
++@@global.innodb_corrupt_table_action
++assert
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_dict_size_limit_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_dict_size_limit_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_dict_size_limit;
++@@global.innodb_dict_size_limit
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_doublewrite_file_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_doublewrite_file_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_doublewrite_file;
++@@global.innodb_doublewrite_file
++NULL
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_fast_checksum_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_fast_checksum_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_fast_checksum;
++@@global.innodb_fast_checksum
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_flush_neighbor_pages_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_flush_neighbor_pages_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_flush_neighbor_pages;
++@@global.innodb_flush_neighbor_pages
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_ibuf_accel_rate_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_ibuf_accel_rate_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_ibuf_accel_rate;
++@@global.innodb_ibuf_accel_rate
++100
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_ibuf_active_contract_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_ibuf_active_contract_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_ibuf_active_contract;
++@@global.innodb_ibuf_active_contract
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_ibuf_max_size_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_ibuf_max_size_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_ibuf_max_size;
++@@global.innodb_ibuf_max_size
++16760832
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_import_table_from_xtrabackup_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_import_table_from_xtrabackup_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_import_table_from_xtrabackup;
++@@global.innodb_import_table_from_xtrabackup
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_lazy_drop_table_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_lazy_drop_table_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_lazy_drop_table;
++@@global.innodb_lazy_drop_table
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_log_block_size_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_log_block_size_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_log_block_size;
++@@global.innodb_log_block_size
++512
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_page_size_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_page_size_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_page_size;
++@@global.innodb_page_size
++16384
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_read_ahead_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_read_ahead_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_read_ahead;
++@@global.innodb_read_ahead
++linear
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_recovery_stats_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_recovery_stats_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_recovery_stats;
++@@global.innodb_recovery_stats
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_recovery_update_relay_log_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_recovery_update_relay_log_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_recovery_update_relay_log;
++@@global.innodb_recovery_update_relay_log
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_show_locks_held_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_show_locks_held_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_show_locks_held;
++@@global.innodb_show_locks_held
++10
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_show_verbose_locks_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_show_verbose_locks_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_show_verbose_locks;
++@@global.innodb_show_verbose_locks
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_stats_auto_update_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_stats_auto_update_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_stats_auto_update;
++@@global.innodb_stats_auto_update
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_stats_update_need_lock_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_stats_update_need_lock_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_stats_update_need_lock;
++@@global.innodb_stats_update_need_lock
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_thread_concurrency_timer_based_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_thread_concurrency_timer_based_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_thread_concurrency_timer_based;
++@@global.innodb_thread_concurrency_timer_based
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_use_global_flush_log_at_trx_commit_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_use_global_flush_log_at_trx_commit_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_use_global_flush_log_at_trx_commit;
++@@global.innodb_use_global_flush_log_at_trx_commit
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/innodb_use_sys_stats_table_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/innodb_use_sys_stats_table_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_use_sys_stats_table;
++@@global.innodb_use_sys_stats_table
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/log_slow_filter_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/log_slow_filter_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_filter;
++@@global.log_slow_filter
++
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/log_slow_rate_limit_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/log_slow_rate_limit_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_rate_limit;
++@@global.log_slow_rate_limit
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/log_slow_slave_statements_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/log_slow_slave_statements_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_slave_statements;
++@@global.log_slow_slave_statements
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/log_slow_verbosity_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/log_slow_verbosity_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_verbosity;
++@@global.log_slow_verbosity
++
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/log_warnings_suppress_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/log_warnings_suppress_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.log_warnings_suppress;
++@@global.log_warnings_suppress
++
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/optimizer_fix_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/optimizer_fix_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.optimizer_fix;
++@@global.optimizer_fix
++1
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/query_cache_strip_comments_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/query_cache_strip_comments_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.query_cache_strip_comments;
++@@global.query_cache_strip_comments
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/query_response_time_range_base_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/query_response_time_range_base_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.query_response_time_range_base;
++@@global.query_response_time_range_base
++10
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/query_response_time_stats_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/query_response_time_stats_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.query_response_time_stats;
++@@global.query_response_time_stats
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/slow_query_log_timestamp_always_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/slow_query_log_timestamp_always_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.slow_query_log_timestamp_always;
++@@global.slow_query_log_timestamp_always
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/slow_query_log_timestamp_precision_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/slow_query_log_timestamp_precision_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.slow_query_log_timestamp_precision;
++@@global.slow_query_log_timestamp_precision
++second
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/slow_query_log_use_global_control_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/slow_query_log_use_global_control_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.slow_query_log_use_global_control;
++@@global.slow_query_log_use_global_control
++
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/thread_statistics_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/thread_statistics_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.thread_statistics;
++@@global.thread_statistics
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/r/userstat_basic.result
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/r/userstat_basic.result	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1,3 @@
++SELECT @@global.userstat;
++@@global.userstat
++0
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/fast_index_creation_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/fast_index_creation_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.fast_index_creation;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/have_response_time_distribution_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/have_response_time_distribution_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.have_response_time_distribution;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_adaptive_flushing_method_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_adaptive_flushing_method_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_adaptive_flushing_method;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_adaptive_hash_index_partitions_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_adaptive_hash_index_partitions_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_adaptive_hash_index_partitions;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_restore_at_startup_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_restore_at_startup_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_buffer_pool_restore_at_startup;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_shm_checksum_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_shm_checksum_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_buffer_pool_shm_checksum;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_shm_key_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_shm_key_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_buffer_pool_shm_key;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_checkpoint_age_target_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_checkpoint_age_target_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_checkpoint_age_target;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_corrupt_table_action_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_corrupt_table_action_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_corrupt_table_action;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_dict_size_limit_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_dict_size_limit_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_dict_size_limit;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_doublewrite_file_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_doublewrite_file_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_doublewrite_file;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_fast_checksum_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_fast_checksum_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_fast_checksum;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_flush_neighbor_pages_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_flush_neighbor_pages_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_flush_neighbor_pages;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_ibuf_accel_rate_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_ibuf_accel_rate_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_ibuf_accel_rate;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_ibuf_active_contract_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_ibuf_active_contract_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_ibuf_active_contract;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_ibuf_max_size_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_ibuf_max_size_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_ibuf_max_size;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_import_table_from_xtrabackup_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_import_table_from_xtrabackup_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_import_table_from_xtrabackup;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_lazy_drop_table_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_lazy_drop_table_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_lazy_drop_table;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_log_block_size_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_log_block_size_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_log_block_size;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_page_size_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_page_size_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_page_size;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_read_ahead_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_read_ahead_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_read_ahead;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_recovery_stats_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_recovery_stats_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_recovery_stats;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_recovery_update_relay_log_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_recovery_update_relay_log_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_recovery_update_relay_log;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_show_locks_held_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_show_locks_held_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_show_locks_held;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_show_verbose_locks_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_show_verbose_locks_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_show_verbose_locks;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_stats_auto_update_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_stats_auto_update_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_stats_auto_update;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_stats_update_need_lock_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_stats_update_need_lock_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_stats_update_need_lock;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_thread_concurrency_timer_based_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_thread_concurrency_timer_based_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_thread_concurrency_timer_based;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_use_global_flush_log_at_trx_commit_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_use_global_flush_log_at_trx_commit_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_use_global_flush_log_at_trx_commit;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/innodb_use_sys_stats_table_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/innodb_use_sys_stats_table_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.innodb_use_sys_stats_table;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/log_slow_filter_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/log_slow_filter_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_filter;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/log_slow_rate_limit_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/log_slow_rate_limit_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_rate_limit;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/log_slow_slave_statements_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/log_slow_slave_statements_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_slave_statements;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/log_slow_verbosity_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/log_slow_verbosity_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_verbosity;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/log_warnings_suppress_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/log_warnings_suppress_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.log_warnings_suppress;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/optimizer_fix_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/optimizer_fix_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.optimizer_fix;
+diff -ruN a/mysql-test/suite/sys_vars/t/plugin_dir_basic.test b/mysql-test/suite/sys_vars/t/plugin_dir_basic.test
+--- a/mysql-test/suite/sys_vars/t/plugin_dir_basic.test	2011-04-09 18:48:03.000000000 +0400
++++ b/mysql-test/suite/sys_vars/t/plugin_dir_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -6,17 +6,17 @@
+ # on windows it's <basedir>/lib/plugin
+ # on unix it's <basedir>/lib/mysql/plugin
+ #
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ select @@global.plugin_dir;
+ --error ER_INCORRECT_GLOBAL_LOCAL_VAR
+ select @@session.plugin_dir;
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ show global variables like 'plugin_dir';
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ show session variables like 'plugin_dir';
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ select * from information_schema.global_variables where variable_name='plugin_dir';
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ select * from information_schema.session_variables where variable_name='plugin_dir';
+ 
+ #
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/query_cache_strip_comments_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/query_cache_strip_comments_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.query_cache_strip_comments;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/query_response_time_range_base_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/query_response_time_range_base_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.query_response_time_range_base;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/query_response_time_stats_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/query_response_time_stats_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.query_response_time_stats;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/slow_query_log_timestamp_always_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/slow_query_log_timestamp_always_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.slow_query_log_timestamp_always;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/slow_query_log_timestamp_precision_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/slow_query_log_timestamp_precision_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.slow_query_log_timestamp_precision;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/slow_query_log_use_global_control_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/slow_query_log_use_global_control_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.slow_query_log_use_global_control;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/thread_statistics_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/thread_statistics_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.thread_statistics;
+diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/userstat_basic.test
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/mysql-test/suite/sys_vars/t/userstat_basic.test	2011-04-09 18:49:05.000000000 +0400
+@@ -0,0 +1 @@
++SELECT @@global.userstat;

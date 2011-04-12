@@ -8,7 +8,7 @@
 diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2010-11-03 07:01:14.000000000 +0900
 +++ b/client/client_priv.h	2010-12-03 13:39:32.317046060 +0900
-@@ -58,6 +58,7 @@
+@@ -55,6 +55,7 @@
    OPT_MYSQL_LOCK_DIRECTORY,
    OPT_USE_THREADS,
    OPT_IMPORT_USE_THREADS,
@@ -38,7 +38,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    {"lines-terminated-by", OPT_LTB,
     "Lines in the output file are terminated by the given string.",
     &lines_terminated, &lines_terminated, 0, GET_STR,
-@@ -2302,13 +2305,21 @@
+@@ -2308,13 +2311,21 @@
        /* Make an sql-file, if path was given iow. option -T was given */
        char buff[20+FN_REFLEN];
        MYSQL_FIELD *field;

@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.11-rel20.2) unstable; urgency=low
+
+  * Update versions to 5.5.11
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Sun, 17 Apr 2011 13:17:02 -0300
+
 percona-server-5.5 (5.5.10-rc20.1) unstable; urgency=low
 
   * Update versions to 5.5.10

@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11448,6 +11646,7 @@
+@@ -11450,6 +11648,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -273,7 +273,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sys.h
 --- a/storage/innobase/include/trx0sys.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/trx0sys.h	2010-12-03 15:38:20.321953297 +0900
-@@ -52,6 +52,9 @@
+@@ -53,6 +53,9 @@
  extern ib_int64_t	trx_sys_mysql_master_log_pos;
  /* @} */
  
@@ -283,7 +283,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
  /** If this MySQL server uses binary logging, after InnoDB has been inited
  and if it has done a crash recovery, we store the binlog file name and position
  here. */
-@@ -293,7 +296,8 @@
+@@ -287,7 +290,8 @@
  void
  trx_sys_update_mysql_binlog_offset(
  /*===============================*/
@@ -293,7 +293,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
  	ib_int64_t	offset,	/*!< in: position in that log file */
  	ulint		field,	/*!< in: offset of the MySQL log info field in
  				the trx sys header */
-@@ -488,6 +492,7 @@
+@@ -482,6 +486,7 @@
  @see trx_sys_mysql_master_log_name
  @see trx_sys_mysql_bin_log_name */
  #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
@@ -301,7 +301,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
  
-@@ -497,6 +502,7 @@
+@@ -491,6 +496,7 @@
  /** The offset of the MySQL replication info in the trx system header;
  this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
  #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
@@ -438,7 +438,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:37:45.549028990 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 15:38:20.328957217 +0900
-@@ -135,6 +135,10 @@
+@@ -136,6 +136,10 @@
  
  	trx->mysql_log_file_name = NULL;
  	trx->mysql_log_offset = 0;
@@ -449,47 +449,52 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
  
-@@ -732,6 +736,7 @@
- 	trx_rseg_t*	rseg;
- 	trx_undo_t*	undo;
+@@ -766,6 +770,7 @@
+ {
  	mtr_t		mtr;
+ 	trx_rseg_t*	rseg;
 +	trx_sysf_t*	sys_header = NULL;
  
- 	ut_ad(mutex_own(&kernel_mutex));
+ 	ut_ad(!mutex_own(&kernel_mutex));
  
-@@ -787,13 +792,35 @@
+@@ -819,8 +824,12 @@
  
- 		if (trx->mysql_log_file_name
- 		    && trx->mysql_log_file_name[0] != '\0') {
-+			if (!sys_header) {
-+				sys_header = trx_sysf_get(&mtr);
-+			}
- 			trx_sys_update_mysql_binlog_offset(
-+				sys_header,
- 				trx->mysql_log_file_name,
- 				trx->mysql_log_offset,
- 				TRX_SYS_MYSQL_LOG_INFO, &mtr);
- 			trx->mysql_log_file_name = NULL;
- 		}
+ 	if (trx->mysql_log_file_name
+ 	    && trx->mysql_log_file_name[0] != '\0') {
++		if (!sys_header) {
++			sys_header = trx_sysf_get(&mtr);
++		}
  
-+		if (trx->mysql_master_log_file_name[0] != '\0') {
-+			/* This database server is a MySQL replication slave */
-+			if (!sys_header) {
-+				sys_header = trx_sysf_get(&mtr);
-+			}
-+			trx_sys_update_mysql_binlog_offset(
-+				sys_header,
-+				trx->mysql_relay_log_file_name,
-+				trx->mysql_relay_log_pos,
-+				TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
-+			trx_sys_update_mysql_binlog_offset(
-+				sys_header,
-+				trx->mysql_master_log_file_name,
-+				trx->mysql_master_log_pos,
-+				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
-+			trx->mysql_master_log_file_name = "";
+ 		trx_sys_update_mysql_binlog_offset(
++			sys_header,
+ 			trx->mysql_log_file_name,
+ 			trx->mysql_log_offset,
+ 			TRX_SYS_MYSQL_LOG_INFO, &mtr);
+@@ -828,6 +837,27 @@
+ 		trx->mysql_log_file_name = NULL;
+ 	}
+ 
++	if (trx->mysql_master_log_file_name[0] != '\0') {
++		/* This database server is a MySQL replication slave */
++		if (!sys_header) {
++			sys_header = trx_sysf_get(&mtr);
 +		}
 +
- 		/* The following call commits the mini-transaction, making the
- 		whole transaction committed in the file-based world, at this
- 		log sequence number. The transaction becomes 'durable' when
++		trx_sys_update_mysql_binlog_offset(
++			sys_header,
++			trx->mysql_relay_log_file_name,
++			trx->mysql_relay_log_pos,
++			TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
++
++		trx_sys_update_mysql_binlog_offset(
++			sys_header,
++			trx->mysql_master_log_file_name,
++			trx->mysql_master_log_pos,
++			TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
++
++		trx->mysql_master_log_file_name = "";
++	}
++
+ 	/* The following call commits the mini-transaction, making the
+ 	whole transaction committed in the file-based world, at this
+ 	log sequence number. The transaction becomes 'durable' when

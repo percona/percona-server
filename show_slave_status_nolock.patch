@@ -5,9 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/show_slave_status_nolock.patch b/patch_info/show_slave_status_nolock.patch
---- a/patch_info/show_slave_status_nolock.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/show_slave_status_nolock.patch	2010-12-29 20:38:13.000000000 +0300
+diff -ruN /dev/null b/patch_info/show_slave_status_nolock.patch
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/patch_info/show_slave_status_nolock.patch	2011-04-10 11:29:06.000000000 +0400
 @@ -0,0 +1,6 @@
 +File=show_slave_status_nolock.patch
 +Name= SHOW SLAVE STATUS NOLOCK
@@ -16,8 +16,8 @@ diff -ruN a/patch_info/show_slave_status_nolock.patch b/patch_info/show_slave_st
 +License=GPL
 +Comment= Implement SHOW SLAVE STATUS without lock (STOP SLAVE lock the same mutex what lock SHOW SLAVE STATUS)
 diff -ruN a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2010-12-29 20:27:19.000000000 +0300
-+++ b/sql/lex.h	2010-12-29 20:28:57.000000000 +0300
+--- a/sql/lex.h	2011-04-10 11:29:05.000000000 +0400
++++ b/sql/lex.h	2011-04-10 11:29:06.000000000 +0400
 @@ -378,6 +378,7 @@
    { "NONE",		SYM(NONE_SYM)},
    { "NOT",		SYM(NOT_SYM)},
@@ -27,9 +27,9 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "NUMERIC",		SYM(NUMERIC_SYM)},
    { "NVARCHAR",		SYM(NVARCHAR_SYM)},
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-12-29 20:27:19.000000000 +0300
-+++ b/sql/mysqld.cc	2010-12-29 20:29:19.000000000 +0300
-@@ -3067,6 +3067,7 @@
+--- a/sql/mysqld.cc	2011-04-10 11:29:05.000000000 +0400
++++ b/sql/mysqld.cc	2011-04-10 11:29:06.000000000 +0400
+@@ -3075,6 +3075,7 @@
    {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
@@ -38,8 +38,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2010-12-29 20:27:19.000000000 +0300
-+++ b/sql/sql_lex.h	2010-12-29 20:32:26.000000000 +0300
+--- a/sql/sql_lex.h	2011-04-10 11:29:05.000000000 +0400
++++ b/sql/sql_lex.h	2011-04-10 11:29:06.000000000 +0400
 @@ -190,6 +190,8 @@
    SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
    SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
@@ -50,9 +50,9 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
      When a command is added here, be sure it's also added in mysqld.cc
      in "struct show_var_st status_vars[]= {" ...
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-12-29 20:27:19.000000000 +0300
-+++ b/sql/sql_parse.cc	2010-12-29 20:34:50.000000000 +0300
-@@ -336,6 +336,7 @@
+--- a/sql/sql_parse.cc	2011-04-10 11:28:51.000000000 +0400
++++ b/sql/sql_parse.cc	2011-04-10 11:29:06.000000000 +0400
+@@ -335,6 +335,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
@@ -60,7 +60,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2269,12 +2270,16 @@
+@@ -2293,12 +2294,16 @@
      mysql_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -78,7 +78,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2285,7 +2290,10 @@
+@@ -2309,7 +2314,10 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }
@@ -91,8 +91,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    }
    case SQLCOM_SHOW_MASTER_STAT:
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-12-29 20:27:19.000000000 +0300
-+++ b/sql/sql_yacc.yy	2010-12-29 20:36:40.000000000 +0300
+--- a/sql/sql_yacc.yy	2011-04-10 11:29:05.000000000 +0400
++++ b/sql/sql_yacc.yy	2011-04-10 11:29:06.000000000 +0400
 @@ -1292,6 +1292,7 @@
  %token  STARTS_SYM
  %token  START_SYM                     /* SQL-2003-R */
@@ -101,7 +101,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
  %token  STD_SYM
  %token  STOP_SYM
-@@ -11095,6 +11096,10 @@
+@@ -11082,6 +11083,10 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }

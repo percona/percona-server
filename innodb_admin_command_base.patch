@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:32:15.624039043 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:32:35.424957827 +0900
-@@ -11837,7 +11837,8 @@
+@@ -11839,7 +11839,8 @@
  i_s_innodb_sys_foreign_cols,
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,

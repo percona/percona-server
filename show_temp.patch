@@ -6,9 +6,9 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/sql/handler.h b/sql/handler.h
---- a/sql/handler.h	2010-12-03 14:09:14.406955791 +0900
-+++ b/sql/handler.h	2010-12-03 14:29:16.533356953 +0900
-@@ -561,6 +561,7 @@
+--- a/sql/handler.h	2011-04-09 19:11:53.000000000 +0400
++++ b/sql/handler.h	2011-04-10 12:16:43.000000000 +0400
+@@ -567,6 +567,7 @@
    SCH_EVENTS,
    SCH_FILES,
    SCH_GLOBAL_STATUS,
@@ -16,7 +16,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_GLOBAL_VARIABLES,
    SCH_KEY_COLUMN_USAGE,
    SCH_OPEN_TABLES,
-@@ -582,6 +583,7 @@
+@@ -588,6 +589,7 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,
    SCH_TABLE_PRIVILEGES,
@@ -25,9 +25,9 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_USER_PRIVILEGES,
    SCH_VARIABLES,
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-12-02 21:23:05.495293844 +0900
-+++ b/sql/mysqld.cc	2010-12-03 14:25:40.317039327 +0900
-@@ -3047,6 +3047,7 @@
+--- a/sql/mysqld.cc	2011-04-09 19:11:52.000000000 +0400
++++ b/sql/mysqld.cc	2011-04-10 12:16:44.000000000 +0400
+@@ -3055,6 +3055,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -36,21 +36,20 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
    {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2010-12-02 19:22:40.040023288 +0900
-+++ b/sql/sql_lex.h	2010-12-03 14:09:53.465292483 +0900
-@@ -186,7 +186,7 @@
-   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
-   SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
-   SQLCOM_SHOW_CREATE_TRIGGER,
--  SQLCOM_ALTER_DB_UPGRADE,
-+  SQLCOM_ALTER_DB_UPGRADE, SQLCOM_SHOW_TEMPORARY_TABLES,
-   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
-   SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
-   SQLCOM_SHOW_RELAYLOG_EVENTS, 
+--- a/sql/sql_lex.h	2011-03-31 17:36:18.000000000 +0400
++++ b/sql/sql_lex.h	2011-04-10 12:22:19.000000000 +0400
+@@ -194,6 +194,7 @@
+     When a command is added here, be sure it's also added in mysqld.cc
+     in "struct show_var_st status_vars[]= {" ...
+   */
++  SQLCOM_SHOW_TEMPORARY_TABLES,
+   /* This should be the last !!! */
+   SQLCOM_END
+ };
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-12-02 19:22:40.046023936 +0900
-+++ b/sql/sql_parse.cc	2010-12-03 14:09:53.471950455 +0900
-@@ -349,6 +349,9 @@
+--- a/sql/sql_parse.cc	2011-03-31 17:36:18.000000000 +0400
++++ b/sql/sql_parse.cc	2011-04-10 12:16:44.000000000 +0400
+@@ -348,6 +348,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
                                                   CF_REEXECUTION_FRAGILE);
@@ -60,7 +59,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1511,6 +1514,8 @@
+@@ -1510,6 +1513,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -69,7 +68,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2018,6 +2023,7 @@
+@@ -2017,6 +2022,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -77,7 +76,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4807,6 +4813,8 @@
+@@ -4797,6 +4803,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -87,8 +86,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_TRIGGERS:
    case SCH_EVENTS:
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-12-03 13:38:47.493070606 +0900
-+++ b/sql/sql_show.cc	2010-12-03 14:27:04.590939717 +0900
+--- a/sql/sql_show.cc	2011-04-09 19:11:52.000000000 +0400
++++ b/sql/sql_show.cc	2011-04-10 12:16:44.000000000 +0400
 @@ -2686,6 +2686,7 @@
      break;
    case SQLCOM_SHOW_TABLES:
@@ -373,8 +372,8 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
     get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0,
     OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-12-02 19:22:40.077024170 +0900
-+++ b/sql/sql_yacc.yy	2010-12-03 14:09:53.496023791 +0900
+--- a/sql/sql_yacc.yy	2011-03-31 17:36:18.000000000 +0400
++++ b/sql/sql_yacc.yy	2011-04-10 12:16:43.000000000 +0400
 @@ -10869,6 +10869,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;

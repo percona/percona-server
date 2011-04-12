@@ -10,13 +10,10 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-#
-# comment: http://lists.mysql.com/commits/112400 is applied also for innodb_plugin
-#          to pass innodb_bug53756.test by innodb_plugin
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2011-02-23 19:00:48.178696354 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2011-02-23 19:01:19.138826278 +0900
-@@ -4043,6 +4043,7 @@
+@@ -4046,6 +4046,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -102,66 +99,6 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  #ifdef UNIV_IBUF_COUNT_DEBUG
  	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
  #endif /* UNIV_IBUF_COUNT_DEBUG */
-diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
---- a/storage/innobase/dict/dict0load.c	2010-12-04 15:37:50.559480289 +0900
-+++ b/storage/innobase/dict/dict0load.c	2010-12-04 15:57:53.078513745 +0900
-@@ -1882,6 +1882,8 @@
- 
- 	ut_ad(mutex_own(&(dict_sys->mutex)));
- 
-+	table = NULL;
-+
- 	/* NOTE that the operation of this function is protected by
- 	the dictionary mutex, and therefore no deadlocks can occur
- 	with other dictionary operations. */
-@@ -1908,15 +1910,17 @@
- 				  BTR_SEARCH_LEAF, &pcur, &mtr);
- 	rec = btr_pcur_get_rec(&pcur);
- 
--	if (!btr_pcur_is_on_user_rec(&pcur)
--	    || rec_get_deleted_flag(rec, 0)) {
-+	if (!btr_pcur_is_on_user_rec(&pcur)) {
- 		/* Not found */
-+		goto func_exit;
-+	}
- 
--		btr_pcur_close(&pcur);
--		mtr_commit(&mtr);
--		mem_heap_free(heap);
--
--		return(NULL);
-+	/* Find the first record that is not delete marked */
-+	while (rec_get_deleted_flag(rec, 0)) {
-+		if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
-+			goto func_exit;
-+		}
-+		rec = btr_pcur_get_rec(&pcur);
- 	}
- 
- 	/*---------------------------------------------------*/
-@@ -1929,12 +1933,7 @@
- 
- 	/* Check if the table id in record is the one searched for */
- 	if (table_id != mach_read_from_8(field)) {
--
--		btr_pcur_close(&pcur);
--		mtr_commit(&mtr);
--		mem_heap_free(heap);
--
--		return(NULL);
-+		goto func_exit;
- 	}
- 
- 	/* Now we get the table name from the record */
-@@ -1942,7 +1941,7 @@
- 	/* Load the table definition to memory */
- 	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
- 				TRUE);
--
-+func_exit:
- 	btr_pcur_close(&pcur);
- 	mtr_commit(&mtr);
- 	mem_heap_free(heap);
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2011-02-23 19:00:48.223696428 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2011-02-23 19:01:19.147655510 +0900
@@ -357,7 +294,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -11984,6 +11984,12 @@
+@@ -11986,6 +11986,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -370,15 +307,15 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12074,6 +12080,7 @@
-   MYSQL_SYSVAR(purge_threads),
+@@ -12076,6 +12082,7 @@
    MYSQL_SYSVAR(purge_batch_size),
+   MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
 +  MYSQL_SYSVAR(lazy_drop_table),
    NULL
  };
  
-@@ -12083,7 +12090,7 @@
+@@ -12085,7 +12092,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -401,7 +338,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0buf.ic
 --- a/storage/innobase/include/buf0buf.ic	2011-02-23 19:00:48.130659154 +0900
 +++ b/storage/innobase/include/buf0buf.ic	2011-02-23 19:01:19.185655906 +0900
-@@ -406,6 +406,7 @@
+@@ -408,6 +408,7 @@
  	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
  	block->page.space = space;
  	block->page.offset = page_no;
@@ -522,9 +459,9 @@ diff -ruN a/storage/innobase/include/os0file.ic b/storage/innobase/include/os0fi
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2011-02-23 19:00:48.212625715 +0900
 +++ b/storage/innobase/include/srv0srv.h	2011-02-23 19:01:19.193655990 +0900
-@@ -248,6 +248,8 @@
+@@ -247,6 +247,8 @@
+ extern ulint	srv_pass_corrupt_table;
  
- extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
 +
 +extern ulint	srv_lazy_drop_table;
@@ -547,7 +484,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:57:53.091592933 +0900
 @@ -53,6 +53,11 @@
  #define INNODB_VERSION_MINOR	1
- #define INNODB_VERSION_BUGFIX	5
+ #define INNODB_VERSION_BUGFIX	6
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 20.1
@@ -743,9 +680,9 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2011-02-23 19:00:48.283695497 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2011-02-23 19:01:19.204696643 +0900
-@@ -446,6 +446,8 @@
+@@ -448,6 +448,8 @@
+ UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
  
- UNIV_INTERN ulint	srv_extra_rsegments = 127; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
 +
 +UNIV_INTERN ulint	srv_lazy_drop_table = 0;
@@ -755,7 +692,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:57:13.073495392 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 16:02:50.704884053 +0900
-@@ -2156,7 +2156,7 @@
+@@ -2162,7 +2162,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
@@ -778,7 +715,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
 diff -ruN a/storage/innobase/trx/trx0purge.c b/storage/innobase/trx/trx0purge.c
 --- a/storage/innobase/trx/trx0purge.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/trx/trx0purge.c	2010-12-04 15:57:53.106551154 +0900
-@@ -1131,8 +1131,7 @@
+@@ -1149,8 +1149,7 @@
  	/* If we cannot advance the 'purge view' because of an old
  	'consistent read view', then the DML statements cannot be delayed.
  	Also, srv_max_purge_lag <= 0 means 'infinity'. */

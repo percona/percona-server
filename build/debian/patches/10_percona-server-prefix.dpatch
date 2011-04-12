@@ -4,9 +4,9 @@
 ## DP: Fixed prefix to /usr
 
 @DPATCH@
-diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server-5.5.10-rc20.1~/cmake/install_layout.cmake Percona-Server-5.5.10-rc20.1/cmake/install_layout.cmake
---- Percona-Server-5.5.10-rc20.1~/cmake/install_layout.cmake	2011-03-09 13:11:38.000000000 -0200
-+++ Percona-Server-5.5.10-rc20.1/cmake/install_layout.cmake	2011-03-19 07:26:20.148677239 -0300
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server-5.5.11-rel20.2~/cmake/install_layout.cmake Percona-Server-5.5.11-rel20.2/cmake/install_layout.cmake
+--- Percona-Server-5.5.11-rel20.2~/cmake/install_layout.cmake	2011-03-31 10:36:18.000000000 -0300
++++ Percona-Server-5.5.11-rel20.2/cmake/install_layout.cmake	2011-04-12 03:34:54.001637002 -0300
 @@ -74,7 +74,7 @@
    IF(INSTALL_LAYOUT MATCHES "RPM")
      SET(default_prefix "/usr")
@@ -42,8 +42,8 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
 -SET(INSTALL_SQLBENCHDIR_DEB             ".")
 -SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
 +SET(INSTALL_MYSQLSHAREDIR_DEB           "share/mysql")
-+SET(INSTALL_MYSQLTESTDIR_DEB            "share/mysql/mysql-test")
-+SET(INSTALL_SQLBENCHDIR_DEB             "share/mysql/sql-bench")
++SET(INSTALL_MYSQLTESTDIR_DEB            "share/mysql-test")
++SET(INSTALL_SQLBENCHDIR_DEB             "share/sql-bench")
 +SET(INSTALL_SUPPORTFILESDIR_DEB         "share/mysql")
  #
 -SET(INSTALL_MYSQLDATADIR_DEB            "data")

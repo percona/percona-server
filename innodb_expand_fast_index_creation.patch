@@ -4,9 +4,10 @@
 # Expands the applicability of InnoDB fast index creation to mysqldump,
 # ALTER TABLE and OPTIMIZE TABLE.
 #
---- a/client/client_priv.h	2011-03-31 13:59:26.000000000 +0400
-+++ b/client/client_priv.h	2011-03-31 16:04:28.000000000 +0400
-@@ -92,6 +92,7 @@
+diff -ruN a/client/client_priv.h b/client/client_priv.h
+--- a/client/client_priv.h	2011-04-11 08:57:20.000000000 +0400
++++ b/client/client_priv.h	2011-04-11 08:57:21.000000000 +0400
+@@ -89,6 +89,7 @@
    OPT_NO_REMOVE_EOL_CARRET,
    OPT_DEFAULT_AUTH,
    OPT_DEFAULT_PLUGIN,
@@ -14,8 +15,9 @@
    OPT_MAX_CLIENT_OPTION
  };
  
---- a/client/mysqldump.c	2011-03-31 13:59:24.000000000 +0400
-+++ b/client/mysqldump.c	2011-03-31 16:05:40.000000000 +0400
+diff -ruN a/client/mysqldump.c b/client/mysqldump.c
+--- a/client/mysqldump.c	2011-04-11 08:57:17.000000000 +0400
++++ b/client/mysqldump.c	2011-04-11 08:57:21.000000000 +0400
 @@ -45,6 +45,7 @@
  #include <m_ctype.h>
  #include <hash.h>
@@ -54,7 +56,7 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2230,6 +2240,77 @@
+@@ -2236,6 +2246,77 @@
  }
  
  /*
@@ -132,7 +134,7 @@
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2470,6 +2551,9 @@
+@@ -2476,6 +2557,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -142,7 +144,7 @@
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3564,6 +3648,27 @@
+@@ -3570,6 +3654,27 @@
        goto err;
      }
  
@@ -170,8 +172,9 @@
      /* Moved enable keys to before unlock per bug 15977 */
      if (opt_disable_keys)
      {
+diff -ruN /dev/null b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result	2011-03-31 16:03:41.000000000 +0400
++++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result	2011-04-11 08:57:21.000000000 +0400
 @@ -0,0 +1,109 @@
 +#
 +# Test the --innodb-optimize-keys option.
@@ -282,8 +285,9 @@
 +
 +######################################
 +DROP TABLE t1, t2;
---- a/mysql-test/suite/innodb/r/innodb.result	2011-03-31 13:59:27.000000000 +0400
-+++ b/mysql-test/suite/innodb/r/innodb.result	2011-03-31 16:06:56.000000000 +0400
+diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/innodb.result
+--- a/mysql-test/suite/innodb/r/innodb.result	2011-03-31 17:36:17.000000000 +0400
++++ b/mysql-test/suite/innodb/r/innodb.result	2011-04-11 23:26:45.000000000 +0400
 @@ -1673,7 +1673,7 @@
  71
  SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
@@ -293,8 +297,9 @@
  SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
  variable_value - @innodb_rows_updated_orig
  866
---- a/mysql-test/suite/innodb/t/innodb-index.test	2011-03-09 18:11:39.000000000 +0300
-+++ b/mysql-test/suite/innodb/t/innodb-index.test	2011-03-31 16:03:41.000000000 +0400
+diff -ruN a/mysql-test/suite/innodb/t/innodb-index.test b/mysql-test/suite/innodb/t/innodb-index.test
+--- a/mysql-test/suite/innodb/t/innodb-index.test	2011-03-31 17:36:17.000000000 +0400
++++ b/mysql-test/suite/innodb/t/innodb-index.test	2011-04-11 08:57:21.000000000 +0400
 @@ -28,6 +28,11 @@
  show create table t1;
  --error ER_MULTIPLE_PRI_KEY
@@ -307,8 +312,9 @@
  --error ER_DUP_ENTRY
  alter table t1 drop primary key, add primary key (b);
  create unique index c on t1 (c);
---- a/mysql-test/suite/innodb/t/innodb.test	2011-03-09 18:11:39.000000000 +0300
-+++ b/mysql-test/suite/innodb/t/innodb.test	2011-03-31 16:03:41.000000000 +0400
+diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/innodb.test
+--- a/mysql-test/suite/innodb/t/innodb.test	2011-03-31 17:36:17.000000000 +0400
++++ b/mysql-test/suite/innodb/t/innodb.test	2011-04-11 08:57:21.000000000 +0400
 @@ -21,6 +21,12 @@
  
  -- source include/have_innodb.inc
@@ -322,8 +328,9 @@
  let $MYSQLD_DATADIR= `select @@datadir`;
  
  # Save the original values of some variables in order to be able to
+diff -ruN /dev/null b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test	2011-03-31 16:03:41.000000000 +0400
++++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test	2011-04-11 08:57:21.000000000 +0400
 @@ -0,0 +1,62 @@
 +# Embedded server doesn't support external clients
 +--source include/not_embedded.inc
@@ -387,8 +394,9 @@
 +
 +# Wait till we reached the initial number of concurrent sessions
 +--source include/wait_until_count_sessions.inc
---- a/sql/sql_lex.cc	2011-03-31 13:59:24.000000000 +0400
-+++ b/sql/sql_lex.cc	2011-03-31 16:03:41.000000000 +0400
+diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
+--- a/sql/sql_lex.cc	2011-04-11 08:57:17.000000000 +0400
++++ b/sql/sql_lex.cc	2011-04-11 08:57:21.000000000 +0400
 @@ -1630,6 +1630,9 @@
    alter_list(rhs.alter_list, mem_root),
    key_list(rhs.key_list, mem_root),
@@ -407,9 +415,10 @@
    /* partition_names are not deeply copied currently */
  }
  
---- a/sql/sql_lex.h	2011-03-31 13:59:25.000000000 +0400
-+++ b/sql/sql_lex.h	2011-03-31 16:03:41.000000000 +0400
-@@ -1004,6 +1004,9 @@
+diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
+--- a/sql/sql_lex.h	2011-04-11 08:57:19.000000000 +0400
++++ b/sql/sql_lex.h	2011-04-11 08:57:21.000000000 +0400
+@@ -1003,6 +1003,9 @@
    List<Alter_column>            alter_list;
    List<Key>                     key_list;
    List<Create_field>            create_list;
@@ -419,7 +428,7 @@
    uint                          flags;
    enum enum_enable_or_disable   keys_onoff;
    enum tablespace_op_type       tablespace_op;
-@@ -1015,6 +1018,8 @@
+@@ -1014,6 +1017,8 @@
  
  
    Alter_info() :
@@ -428,7 +437,7 @@
      flags(0),
      keys_onoff(LEAVE_AS_IS),
      tablespace_op(NO_TABLESPACE_OP),
-@@ -1030,6 +1035,9 @@
+@@ -1029,6 +1034,9 @@
      alter_list.empty();
      key_list.empty();
      create_list.empty();
@@ -438,8 +447,9 @@
      flags= 0;
      keys_onoff= LEAVE_AS_IS;
      tablespace_op= NO_TABLESPACE_OP;
---- a/sql/sql_table.cc	2011-03-31 13:59:12.000000000 +0400
-+++ b/sql/sql_table.cc	2011-03-31 16:13:40.000000000 +0400
+diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
+--- a/sql/sql_table.cc	2011-04-11 08:56:57.000000000 +0400
++++ b/sql/sql_table.cc	2011-04-11 23:30:02.000000000 +0400
 @@ -2773,7 +2773,7 @@
        file                      The handler for the new table.
        key_info_buffer     OUT   An array of KEY structs for the indexes.
@@ -528,11 +538,12 @@
      for which some fields exists.
 -  */
 +
-+    We also skip secondary keys for InnoDB tables and store them in
-+    delayed_key_list to create them later after copying the data to make use of
-+    the InnoDB fast index creation. The following conditions must be met:
++    We also store secondary keys in delayed_key_list to make use of
++    the InnoDB fast index creation. The following conditions must be
++    met:
 +
-+    - we are going to create an InnoDB table;
++    - we are going to create an InnoDB table (this is checked later when the
++      target engine is known);
 +    - the key most be a non-UNIQUE one;
 +    - there are no foreign keys. This can be optimized later to exclude only
 +      those keys which are a part of foreign key constraints. Currently we
@@ -541,7 +552,6 @@
 +  */
 +
 +  skip_secondary=
-+    !my_strcasecmp(system_charset_info, table->file->table_type(), "InnoDB") &&
 +    !table->file->get_foreign_key_list(thd, &f_key_list) &&
 +    f_key_list.elements == 0;
  
@@ -679,38 +689,41 @@
    Alter table
  
    SYNOPSIS
-@@ -6345,6 +6494,12 @@
-   else
-     create_info->data_file_name=create_info->index_file_name=0;
- 
-+  /*
-+    Postpone secondary index creation for InnoDB tables if the data has to be
-+    copied.
-+    TODO: is there a better way to check for InnoDB?
-+  */
-+
-   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
-   DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
-                   my_sleep(100000););
-@@ -6408,6 +6563,13 @@
+@@ -6405,19 +6554,38 @@
+   */
+   if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
+   {
++    /*
++      Check if we can temporarily remove secondary indexes from the table
++      before copying the data and recreate them later to utilize InnoDB fast
++      index creation.
++      TODO: is there a better way to check for InnoDB?
++    */
++    bool optimize_keys= (alter_info->delayed_key_count > 0) &&
++      !my_strcasecmp(system_charset_info,
++                     new_table->file->table_type(), "InnoDB");
      /* We don't want update TIMESTAMP fields during ALTER TABLE. */
      new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
      new_table->next_number_field=new_table->found_next_number_field;
 +
-+    if (alter_info->delayed_key_count > 0)
+     thd_proc_info(thd, "copy to tmp table");
+     DBUG_EXECUTE_IF("abort_copy_table", {
+         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+         goto err_new_table_cleanup;
+       });
++
++    if (optimize_keys)
 +    {
 +      /* ignore the error */
 +      error= remove_secondary_keys(thd, new_table, alter_info);
 +    }
 +
-     thd_proc_info(thd, "copy to tmp table");
-     DBUG_EXECUTE_IF("abort_copy_table", {
-         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
-@@ -6418,6 +6580,8 @@
+     error= copy_data_between_tables(table, new_table,
+                                     alter_info->create_list, ignore,
                                      order_num, order, &copied, &deleted,
                                      alter_info->keys_onoff,
                                      alter_info->error_if_not_empty);
-+    if (!error && alter_info->delayed_key_count > 0)
++    if (!error && optimize_keys)
 +      error= restore_secondary_keys(thd, new_table, alter_info);
    }
    else

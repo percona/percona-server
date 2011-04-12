@@ -41,7 +41,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:53:54.615040167 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 16:07:26.851357007 +0900
-@@ -11746,7 +11746,14 @@
+@@ -11748,7 +11748,14 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,

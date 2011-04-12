@@ -25,18 +25,18 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.10
+%define mysql_version   5.5.11
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 20
-%define minorversion 1
+%define minorversion 2
 %define distribution  rhel%{redhatversion}
-%define percona_server_version	rc%{majorversion}.%{minorversion}
+%define percona_server_version	rel%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rc%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -99,10 +99,10 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release rc%{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{majorversion}.%{minorversion}, Revision %{gotrevision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release rc%{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_release     Percona Server (GPL), Release rel%{majorversion}.%{minorversion}, Revision %{gotrevision}
 %endif
 
 # ----------------------------------------------------------------------------

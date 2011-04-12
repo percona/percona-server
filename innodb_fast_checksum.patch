@@ -194,7 +194,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11907,6 +11918,7 @@
+@@ -11909,6 +11920,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),
@@ -291,7 +291,7 @@ diff -ruN a/storage/innobase/include/ut0rnd.ic b/storage/innobase/include/ut0rnd
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:52:23.498513634 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:53:45.053550283 +0900
-@@ -418,6 +418,7 @@
+@@ -421,6 +421,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

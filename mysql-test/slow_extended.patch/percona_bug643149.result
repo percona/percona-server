@@ -6,7 +6,7 @@ SET GLOBAL slow_query_log_file='MYSQLTEST_VARDIR/percona_bug643149_slow.log';;
 SELECT SLEEP(2);
 SLEEP(2)
 0
-# Time: X  X:X:X
+# Time: X X:X:X
 # User@Host: root[root] @ localhost []
 # Thread_id: X  Schema: test  Last_errno: X  Killed: X
 # Query_time: X.X  Lock_time: X.X  Rows_sent: X  Rows_examined: X  Rows_affected: X  Rows_read: X

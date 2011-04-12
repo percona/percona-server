@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"buffer_pool_pages_free",
    (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
  #ifdef UNIV_DEBUG
-@@ -11050,6 +11052,16 @@
+@@ -11057,6 +11059,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -122,7 +122,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11237,7 +11249,7 @@
+@@ -11244,7 +11256,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -131,7 +131,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11330,6 +11342,8 @@
+@@ -11337,6 +11349,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -196,7 +196,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /* The sort order table of the MySQL latin1_swedish_ci character set
  collation */
  extern const byte*	srv_latin1_ordering;
-@@ -323,6 +326,8 @@
+@@ -326,6 +329,8 @@
  buffer pool to disk */
  extern ulint srv_buf_pool_flushed;
  
@@ -205,7 +205,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /** Number of buffer pool reads that led to the
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
-@@ -717,6 +722,7 @@
+@@ -720,6 +725,7 @@
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
  	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
@@ -340,7 +340,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /** Maximum number of times allowed to conditionally acquire
  mutex before switching to blocking wait on the mutex */
  #define MAX_MUTEX_NOWAIT	20
-@@ -318,6 +322,7 @@
+@@ -321,6 +325,7 @@
  /* variable to count the number of pages that were written from buffer
  pool to the disk */
  UNIV_INTERN ulint srv_buf_pool_flushed = 0;
@@ -348,7 +348,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  /** Number of buffer pool reads that led to the
  reading of a disk page */
-@@ -1826,6 +1831,13 @@
+@@ -1829,6 +1834,13 @@
  	ulint	n_reserved;
  	ibool	ret;
  
@@ -362,7 +362,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	mutex_enter(&srv_innodb_monitor_mutex);
  
  	current_time = time(NULL);
-@@ -1874,31 +1886,6 @@
+@@ -1877,31 +1889,6 @@
  
  	mutex_exit(&dict_foreign_err_mutex);
  
@@ -394,7 +394,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("--------\n"
  	      "FILE I/O\n"
  	      "--------\n", file);
-@@ -1929,10 +1916,84 @@
+@@ -1932,10 +1919,84 @@
  	      "BUFFER POOL AND MEMORY\n"
  	      "----------------------\n", file);
  	fprintf(file,
@@ -483,7 +483,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
  		dict_sys->size);
  
-@@ -1948,6 +2009,16 @@
+@@ -1951,6 +2012,16 @@
  	fprintf(file, "%lu read views open inside InnoDB\n",
  		UT_LIST_GET_LEN(trx_sys->view_list));
  
@@ -500,7 +500,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	n_reserved = fil_space_get_n_reserved_extents(0);
  	if (n_reserved > 0) {
  		fprintf(file,
-@@ -1991,6 +2062,31 @@
+@@ -1994,6 +2065,31 @@
  	srv_n_rows_deleted_old = srv_n_rows_deleted;
  	srv_n_rows_read_old = srv_n_rows_read;
  
@@ -532,7 +532,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("----------------------------\n"
  	      "END OF INNODB MONITOR OUTPUT\n"
  	      "============================\n", file);
-@@ -2034,6 +2130,7 @@
+@@ -2037,6 +2133,7 @@
  		= srv_buf_pool_write_requests;
  	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
  	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
@@ -612,7 +612,7 @@ diff -ruN a/storage/innobase/thr/thr0loc.c b/storage/innobase/thr/thr0loc.c
 diff -ruN a/storage/innobase/trx/trx0purge.c b/storage/innobase/trx/trx0purge.c
 --- a/storage/innobase/trx/trx0purge.c	2010-12-04 02:58:26.000000000 +0900
 +++ b/storage/innobase/trx/trx0purge.c	2011-01-21 19:40:42.086683671 +0900
-@@ -1201,7 +1201,7 @@
+@@ -1212,7 +1212,7 @@
  /*=====================*/
  {
  	fprintf(stderr, "InnoDB: Purge system view:\n");

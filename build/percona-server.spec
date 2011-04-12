@@ -356,6 +356,10 @@ fi
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
+# Move the test suite to /usr/share/mysql
+sed -i 's@[$][(]prefix[)]@\0/share@' mysql-test/Makefile.am \
+    mysql-test/lib/My/SafeProcess/Makefile.am
+
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
 mkdir -p $RBR%{_libdir}/mysql $RBR%{_sbindir}
@@ -443,7 +447,7 @@ mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
-install -d $RBR/mysql-test
+install -d $RBR%{_datadir}/mysql-test
 install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
@@ -860,7 +864,7 @@ fi
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)
-/usr/mysql-test/*
+/usr/share/mysql-test/*
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*

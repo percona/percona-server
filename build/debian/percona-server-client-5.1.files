@@ -12,6 +12,7 @@ usr/bin/mysql_find_rows
 usr/bin/mysql_fix_extensions
 usr/bin/mysqlimport
 usr/bin/mysqlreport
+usr/bin/mysqlslap
 usr/bin/mysqlshow
 usr/bin/mysql_waitpid
 usr/sbin/mysqlmanager

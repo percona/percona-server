@@ -712,6 +712,15 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
  variable_value
  16384
+@@ -1671,7 +1673,7 @@
+ 71
+ SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
+ variable_value - @innodb_rows_inserted_orig
+-1063
++1102
+ SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
+ variable_value - @innodb_rows_updated_orig
+ 865
 @@ -1690,9 +1692,10 @@
  SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
  variable_value - @innodb_row_lock_time_avg_orig

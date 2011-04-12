@@ -972,6 +972,22 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
  	} else if (0 == ut_strcmp(srv_file_flush_method_str, "littlesync")) {
  		srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
  
+diff -ruN a/storage/innobase/trx/trx0purge.c b/storage/innobase/trx/trx0purge.c
+--- a/storage/innobase/trx/trx0purge.c	2011-04-12 14:14:14.000000000 +0900
++++ b/storage/innobase/trx/trx0purge.c	2011-04-12 14:15:44.000000000 +0900
+@@ -392,10 +392,10 @@
+ 	trx_sys->rseg_history_len++;
+ 	mutex_exit(&kernel_mutex);
+ 
+-	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) {
++//	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) { /*should wake up always*/
+ 		/* Inform the purge thread that there is work to do. */
+ 		srv_wake_purge_thread_if_not_active();
+-	}
++//	}
+ }
+ 
+ /**********************************************************************//**
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 15:10:09.106023937 +0900

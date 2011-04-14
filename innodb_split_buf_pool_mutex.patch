@@ -1277,15 +1277,19 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  #if UNIV_WORD_SIZE == 4
  	/* On 32-bit systems, there is no padding in buf_page_t.  On
  	other systems, Valgrind could complain about uninitialized pad
-@@ -2284,7 +2396,7 @@
+@@ -2284,9 +2396,9 @@
  		/* Try to evict the block from the buffer pool, to use the
  		insert buffer as much as possible. */
  
 -		if (buf_LRU_free_block(&block->page, TRUE) == BUF_LRU_FREED) {
+-			buf_pool_mutex_exit();
+-			mutex_exit(&block->mutex);
 +		if (buf_LRU_free_block(&block->page, TRUE, FALSE) == BUF_LRU_FREED) {
- 			buf_pool_mutex_exit();
- 			mutex_exit(&block->mutex);
++			//buf_pool_mutex_exit();
++			mutex_exit(block_mutex);
  			fprintf(stderr,
+ 				"innodb_change_buffering_debug evict %u %u\n",
+ 				(unsigned) space, (unsigned) offset);
 @@ -2305,13 +2417,14 @@
  
  	buf_block_buf_fix_inc(block, file, line);
@@ -2039,7 +2043,28 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
  	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_WRITE);
  	ut_ad(bpage->oldest_modification != 0);
-@@ -1137,12 +1155,19 @@
+@@ -1055,7 +1073,7 @@
+ /*===============*/
+ 	buf_block_t*	block)		/*!< in/out: buffer control block */
+ {
+-	ut_ad(buf_pool_mutex_own());
++	//ut_ad(buf_pool_mutex_own());
+ 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+ 	ut_ad(mutex_own(&block->mutex));
+ 
+@@ -1063,8 +1081,11 @@
+ 		return(FALSE);
+ 	}
+ 
++	buf_pool_mutex_enter();
++
+ 	if (buf_pool->n_flush[BUF_FLUSH_LRU] > 0
+ 	    || buf_pool->init_flush[BUF_FLUSH_LRU]) {
++		buf_pool_mutex_exit();
+ 		/* There is already a flush batch of the same type running */
+ 		return(FALSE);
+ 	}
+@@ -1137,12 +1158,19 @@
  	ibool		is_uncompressed;
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
@@ -2060,7 +2085,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	ut_ad(buf_flush_ready_for_flush(bpage, flush_type));
  
  	buf_page_set_io_fix(bpage, BUF_IO_WRITE);
-@@ -1173,7 +1198,8 @@
+@@ -1173,7 +1201,8 @@
  		}
  
  		mutex_exit(block_mutex);
@@ -2070,7 +2095,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		/* Even though bpage is not protected by any mutex at
  		this point, it is safe to access bpage, because it is
-@@ -1210,7 +1236,8 @@
+@@ -1210,7 +1239,8 @@
  		immediately. */
  
  		mutex_exit(block_mutex);
@@ -2080,7 +2105,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  		break;
  
  	default:
-@@ -1275,7 +1302,8 @@
+@@ -1275,7 +1305,8 @@
  		high = fil_space_get_size(space);
  	}
  
@@ -2090,7 +2115,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	for (i = low; i < high; i++) {
  
-@@ -1294,11 +1322,9 @@
+@@ -1294,11 +1325,9 @@
  		if (flush_type != BUF_FLUSH_LRU
  		    || i == offset
  		    || buf_page_is_old(bpage)) {
@@ -2104,7 +2129,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  			    && (i == offset || !bpage->buf_fix_count)) {
  				/* We only try to flush those
  				neighbors != offset where the buf fix count is
-@@ -1312,14 +1338,16 @@
+@@ -1312,14 +1341,16 @@
  				ut_ad(!mutex_own(block_mutex));
  				count++;
  
@@ -2124,7 +2149,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	return(count);
  }
-@@ -1350,9 +1378,11 @@
+@@ -1350,9 +1381,11 @@
  					min_n), otherwise ignored */
  {
  	buf_page_t*	bpage;
@@ -2136,7 +2161,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	ut_ad((flush_type == BUF_FLUSH_LRU)
  	      || (flush_type == BUF_FLUSH_LIST));
-@@ -1360,20 +1390,28 @@
+@@ -1360,20 +1393,28 @@
  	ut_ad((flush_type != BUF_FLUSH_LIST)
  	      || sync_thread_levels_empty_gen(TRUE));
  #endif /* UNIV_SYNC_DEBUG */
@@ -2167,7 +2192,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	for (;;) {
  flush_next:
  		/* If we have flushed enough, leave the loop */
-@@ -1390,7 +1428,13 @@
+@@ -1390,7 +1431,13 @@
  		} else {
  			ut_ad(flush_type == BUF_FLUSH_LIST);
  
@@ -2181,7 +2206,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  			if (!bpage
  			    || bpage->oldest_modification >= lsn_limit) {
  				/* We have flushed enough */
-@@ -1407,26 +1451,35 @@
+@@ -1407,26 +1454,35 @@
  		function a pointer to a block in the list! */
  
  		do {
@@ -2224,7 +2249,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  				goto flush_next;
  
  			} else if (flush_type == BUF_FLUSH_LRU) {
-@@ -1434,16 +1487,35 @@
+@@ -1434,16 +1490,35 @@
  			} else {
  				ut_ad(flush_type == BUF_FLUSH_LIST);
  
@@ -2262,7 +2287,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  	buf_pool->init_flush[flush_type] = FALSE;
  
  	if (buf_pool->n_flush[flush_type] == 0) {
-@@ -1453,7 +1525,8 @@
+@@ -1453,7 +1528,8 @@
  		os_event_set(buf_pool->no_flush[flush_type]);
  	}
  
@@ -2272,7 +2297,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	buf_flush_buffered_writes();
  
-@@ -1514,7 +1587,7 @@
+@@ -1514,7 +1590,7 @@
  retry:
  	//buf_pool_mutex_enter();
  	if (have_LRU_mutex)
@@ -2281,15 +2306,15 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -1531,15 +1604,15 @@
+@@ -1531,15 +1607,15 @@
  			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
  			continue;
  		}
 -		block_mutex = buf_page_get_mutex(bpage);
--
--		mutex_enter(block_mutex);
 +		block_mutex = buf_page_get_mutex_enter(bpage);
  
+-		mutex_enter(block_mutex);
+-
 -		if (buf_flush_ready_for_replace(bpage)) {
 +		if (block_mutex && buf_flush_ready_for_replace(bpage)) {
  			n_replaceable++;
@@ -2302,7 +2327,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		distance++;
  
-@@ -1548,7 +1621,7 @@
+@@ -1548,7 +1624,7 @@
  
  	//buf_pool_mutex_exit();
  	if (have_LRU_mutex)
@@ -2311,7 +2336,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
  
-@@ -1715,7 +1788,7 @@
+@@ -1715,7 +1791,7 @@
  	buf_page_t*		bpage;
  	const ib_rbt_node_t*	rnode = NULL;
  
@@ -2320,7 +2345,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  			 ut_ad(ut_list_node_313->in_flush_list));
  
  	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-@@ -1730,7 +1803,7 @@
+@@ -1730,7 +1806,7 @@
  	while (bpage != NULL) {
  		const ib_uint64_t om = bpage->oldest_modification;
  		ut_ad(bpage->in_flush_list);
@@ -2329,7 +2354,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  		ut_a(om > 0);
  
  		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
-@@ -1742,7 +1815,7 @@
+@@ -1742,7 +1818,7 @@
  			rnode = rbt_next(buf_pool->flush_rbt, rnode);
  		}
  
@@ -2338,7 +2363,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  
  		ut_a(!bpage || om >= bpage->oldest_modification);
  	}
-@@ -1764,11 +1837,13 @@
+@@ -1764,11 +1840,13 @@
  {
  	ibool	ret;
  
@@ -3571,6 +3596,16 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  /** mutex protecting the control blocks of compressed-only pages
  (of type buf_page_t, not buf_block_t) */
  extern mutex_t	buf_pool_zip_mutex;
+@@ -1455,8 +1474,8 @@
+ /** Test if buf_pool_mutex is owned. */
+ #define buf_pool_mutex_own() mutex_own(&buf_pool_mutex)
+ /** Acquire the buffer pool mutex. */
++/* the buf_pool_mutex is changed the latch order */
+ #define buf_pool_mutex_enter() do {		\
+-	ut_ad(!mutex_own(&buf_pool_zip_mutex));	\
+ 	mutex_enter(&buf_pool_mutex);		\
+ } while (0)
+ 
 diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/include/buf0buf.ic
 --- a/storage/innodb_plugin/include/buf0buf.ic	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.ic	2010-08-27 16:11:40.624990413 +0900

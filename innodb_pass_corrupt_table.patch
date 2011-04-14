@@ -373,7 +373,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -3690,6 +3712,7 @@
+@@ -3693,6 +3715,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -381,7 +381,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
-@@ -4200,7 +4223,8 @@
+@@ -4203,7 +4226,8 @@
  void
  buf_page_io_complete(
  /*=================*/
@@ -391,7 +391,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  {
  	enum buf_io_fix	io_type;
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-@@ -4279,6 +4303,7 @@
+@@ -4282,6 +4306,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -399,7 +399,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -4320,6 +4345,19 @@
+@@ -4323,6 +4348,19 @@
  			      REFMAN "forcing-innodb-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -419,7 +419,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				fputs("InnoDB: Ending processing because of"
  				      " a corrupt database page.\n",
-@@ -4327,6 +4365,7 @@
+@@ -4330,6 +4368,7 @@
  				exit(1);
  			}
  		}
@@ -427,7 +427,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -4336,8 +4375,11 @@
+@@ -4339,8 +4378,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(

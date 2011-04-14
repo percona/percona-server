@@ -103,6 +103,16 @@ export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET
 export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS"
 export MAKE_JFLAG=-j4
 
+# Fix problems in rpmbuild for rhel4: _libdir and _arch are not correctly set.
+if test "x$REDHAT_RELEASE" == "x4" && test "x$TARGET" == "xi686"
+then
+    TARGET_LIBDIR='--define=_libdir\ /usr/lib'
+    TARGET_ARCH='--define=_arch\ i386'
+else
+    TARGET_LIBDIR=''
+    TARGET_ARCH=''
+fi
+
 # Create directories for rpmbuild if these don't exist
 (cd "$WORKDIR" && mkdir -p BUILD RPMS SOURCES SPECS SRPMS)
 
@@ -130,12 +140,12 @@ export MAKE_JFLAG=-j4
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild $SIGN -ba --clean --with yassl \
+    eval rpmbuild $SIGN -ba --clean --with yassl $TARGET_LIBDIR $TARGET_ARCH \
         "$SOURCEDIR/build/percona-shared-compat.spec" \
-        --define "_topdir $WORKDIR_ABS" \
-        --define "redhat_version $REDHAT_RELEASE" \
-        --define "gotrevision $REVISION" \
-        --define "release $PERCONA_SERVER_VERSION" \
+        --define "_topdir\ $WORKDIR_ABS" \
+        --define "redhat_version\ $REDHAT_RELEASE" \
+        --define "gotrevision\ $REVISION" \
+        --define "release\ $PERCONA_SERVER_VERSION" \
         $TARGET_ARG
 
 )

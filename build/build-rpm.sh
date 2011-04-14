@@ -18,6 +18,7 @@ set -ue
 # Examine parameters
 TARGET=''
 TARGET_CFLAGS=''
+TARGET_ARG=''
 SIGN='--sign'  # We sign by default
 TEST='no'    # We don't test by default
 
@@ -38,6 +39,7 @@ do
         shift
         TARGET="--target i686"
         TARGET_CFLAGS="-m32 -march=i686"
+        TARGET_ARG='i686'
         ;;
     -K | --nosign )
         shift
@@ -99,13 +101,25 @@ PATCHSET="$(grep ^PATCHSET= "$SOURCEDIR/Makefile" | cut -d = -f 2)"
 REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 
 # Compilation flags
-export CC=gcc
-export CXX=gcc
+export CC=${CC:-gcc}
+export CXX=${CXX:-gcc}
+export HS_CXX=${HS_CXX:-g++}
+export UDF_CXX=${UDF_CXX:-g++}
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS"
 export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS"
 export MAKE_JFLAG=-j4
 
 export MYSQL_RPMBUILD_TEST="$TEST"
+
+# Fix problems in rpmbuild for rhel4: _libdir and _arch are not correctly set.
+if test "x$REDHAT_RELEASE" == "x4" && test "x$TARGET_ARG" == "xi686"
+then
+    TARGET_LIBDIR='--define=_libdir\ /usr/lib'
+    TARGET_ARCH='--define=_arch\ i386'
+else
+    TARGET_LIBDIR=''
+    TARGET_ARCH=''
+fi
 
 # Create directories for rpmbuild if these don't exist
 (cd "$WORKDIR" && mkdir -p BUILD RPMS SOURCES SPECS SRPMS) || false
@@ -125,10 +139,10 @@ export MYSQL_RPMBUILD_TEST="$TEST"
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild -ba --clean --with yassl $TARGET $SIGN \
-        "$SOURCEDIR/build/percona-server.spec" \
-        --define "_topdir $WORKDIR_ABS" \
-        --define "gotrevision $REVISION"
+    eval rpmbuild -ba --clean --with yassl $TARGET $TARGET_LIBDIR $TARGET_ARCH \
+        $SIGN "$SOURCEDIR/build/percona-server.spec" \
+        --define "_topdir\ $WORKDIR_ABS" \
+        --define "gotrevision\ $REVISION"
 
 )
 

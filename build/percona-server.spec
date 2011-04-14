@@ -315,7 +315,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 BuildHandlerSocket() {
 cd storage/HandlerSocket-Plugin-for-MySQL
 ./autogen.sh
-CXX=g++ ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
+CXX=${HS_CXX:-g++} ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/scripts \
 	--with-mysql-plugindir=%{_libdir}/mysql/plugin \
 	--libdir=%{_libdir} \
@@ -326,7 +326,7 @@ cd -
 
 BuildUDF() {
 cd UDF
-CXX=g++ ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
+CXX=${UDF_CXX:-g++} ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
 make all
 cd -
 }
@@ -427,9 +427,18 @@ fi
 #	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
 #fi
 
+# Move temporarily the saved files to the BUILD directory since the BUILDROOT
+# dir will be cleaned at the start of the install phase
+mkdir -p "$(dirname $RPM_BUILD_DIR/%{_libdir})"
+mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
+
 %install
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/%{src_dir}
+
+# Move back the libdir from BUILD dir to BUILDROOT
+mkdir -p "$(dirname $RBR%{_libdir})"
+mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}

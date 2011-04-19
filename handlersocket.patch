@@ -1,15 +1,7 @@
---- configure.ac.orig	2011-01-05 06:42:35.000000000 -0800
-+++ configure.ac	2011-01-05 06:44:00.000000000 -0800
-@@ -65,7 +65,7 @@
-     AC_MSG_ERROR([mysql_config not found! You have to specify the directory where mysql_config resides to --with-mysql-bindir=PATH.])
-   fi
- 
--  MYSQL_CFLAGS_ADD=`"$ac_mysql_config" --cflags`
-+  MYSQL_CFLAGS_ADD='-g -fmessage-length=0 -D_FORTIFY_SOURCE=2 -DUNIV_LINUX'
-   MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD -DFORCE_DBUG_OFF"
-     # FIXME
-   AC_SUBST(MYSQL_CFLAGS)
-@@ -79,14 +79,10 @@
+diff -Naur a/HandlerSocket-Plugin-for-MySQL/configure.ac b/HandlerSocket-Plugin-for-MySQL/configure.ac
+--- a/HandlerSocket-Plugin-for-MySQL/configure.ac	2011-04-12 06:01:24.101637007 -0300
++++ b/HandlerSocket-Plugin-for-MySQL/configure.ac	2011-04-12 07:08:56.761637002 -0300
+@@ -101,14 +101,10 @@
    AC_ARG_WITH([mysql-plugindir],
      [AS_HELP_STRING([--with-mysql-plugindir=PATH], [MySQL plugin directory where handlersocket.so to be copied])],
      [

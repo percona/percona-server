@@ -134,9 +134,9 @@ Response for 'find_modify'
 If 'find_modify' is succeeded, HandlerSocket returns a line of the following
 syntax.
 
-   0 1 <numfound>
+   0 1 <nummod>
 
-- <numfound> is the number of matched rows.
+- <nummod> is the number of modified rows.
 
 ----------------------------------------------------------------------------
 Response for 'insert'

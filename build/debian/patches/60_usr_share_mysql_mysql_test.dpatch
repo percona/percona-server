@@ -1,0 +1,31 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 60_usr_share_mysql_mysql_test.dpatch by  <nacho@ubuntu.centra>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server-5.1.56~/mysql-test/Makefile.am Percona-Server-5.1.56/mysql-test/Makefile.am
+--- Percona-Server-5.1.56~/mysql-test/Makefile.am	2011-02-11 17:20:23.000000000 -0200
++++ Percona-Server-5.1.56/mysql-test/Makefile.am	2011-04-11 11:43:16.281637002 -0300
+@@ -16,7 +16,7 @@
+ 
+ ## Process this file with automake to create Makefile.in
+ 
+-testroot =	$(prefix)
++testroot =	/usr/share
+ testdir =	$(testroot)/mysql-test
+ 
+ test_SCRIPTS =	mtr \
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server-5.1.56~/mysql-test/lib/My/SafeProcess/Makefile.am Percona-Server-5.1.56/mysql-test/lib/My/SafeProcess/Makefile.am
+--- Percona-Server-5.1.56~/mysql-test/lib/My/SafeProcess/Makefile.am	2011-02-11 17:20:23.000000000 -0200
++++ Percona-Server-5.1.56/mysql-test/lib/My/SafeProcess/Makefile.am	2011-04-11 11:44:30.491637001 -0300
+@@ -13,7 +13,7 @@
+ # along with this program; if not, write to the Free Software
+ # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ 
+-testroot = $(prefix)
++testroot = $(prefix)/share
+ safedir = $(testroot)/mysql-test/lib/My/SafeProcess
+ #nobase_bin_PROGRAMS = ...
+ safe_PROGRAMS =		my_safe_process

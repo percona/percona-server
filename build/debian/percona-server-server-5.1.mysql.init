@@ -97,7 +97,7 @@ case "${1:-''}" in
   'start')
 	sanity_checks;
 	# Start daemon
-	log_daemon_msg "Starting MySQL database server" "mysqld"
+	log_daemon_msg "Starting MySQL (Percona Server)" "mysqld"
 	if mysqld_status check_alive nowarn; then
 	   log_progress_msg "already running"
 	   log_end_msg 0
@@ -126,7 +126,7 @@ case "${1:-''}" in
 	# at least for cron, we can rely on it here, too. (although we have 
 	# to specify it explicit as e.g. sudo environments points to the normal
 	# users home and not /root)
-	log_daemon_msg "Stopping MySQL database server" "mysqld"
+	log_daemon_msg "Stopping MySQL (Percona Server)" "mysqld"
 	if ! mysqld_status check_dead nowarn; then
 	  set +e
 	  shutdown_out=`$MYADMIN shutdown 2>&1`; r=$?
@@ -134,7 +134,7 @@ case "${1:-''}" in
 	  if [ "$r" -ne 0 ]; then
 	    log_end_msg 1
 	    [ "$VERBOSE" != "no" ] && log_failure_msg "Error: $shutdown_out"
-	    log_daemon_msg "Killing MySQL database server by signal" "mysqld"
+	    log_daemon_msg "Killing MySQL (Percona Server) by signal" "mysqld"
 	    killall -15 mysqld
             server_down=
 	    for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -147,7 +147,7 @@ case "${1:-''}" in
 
         if ! mysqld_status check_dead warn; then
 	  log_end_msg 1
-	  log_failure_msg "Please stop MySQL manually and read /usr/share/doc/percona-server-server-5.1/README.Debian.gz!"
+	  log_failure_msg "Please stop MySQL (Percona Server) and read /usr/share/doc/percona-server-server-5.1/README.Debian.gz!"
 	  exit -1
 	else
 	  log_end_msg 0
@@ -160,7 +160,7 @@ case "${1:-''}" in
 	;;
 
   'reload'|'force-reload')
-  	log_daemon_msg "Reloading MySQL database server" "mysqld"
+  	log_daemon_msg "Reloading MySQL (Percona Server)" "mysqld"
 	$MYADMIN reload
 	log_end_msg 0
 	;;
@@ -169,7 +169,7 @@ case "${1:-''}" in
 	if mysqld_status check_alive nowarn; then
 	  log_action_msg "$($MYADMIN version)"
 	else
-	  log_action_msg "MySQL is stopped."
+	  log_action_msg "MySQL (Percona Server) is stopped."
 	  exit 3
 	fi
   	;;

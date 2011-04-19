@@ -42,14 +42,35 @@ arr_get_intval(AV *av, I32 avmax, I32 idx, int default_val = 0)
 }
 
 static const char *
+sv_get_strval(SV *sv)
+{
+  if (sv == 0 || !SvPOK(sv)) {
+    DBG(fprintf(stderr, "sv_get_strval\n"));
+    return 0;
+  }
+  return SvPV_nolen(sv);
+}
+
+static const char *
 arr_get_strval(AV *av, I32 avmax, I32 idx)
 {
   SV *const e = arr_get_entry(av, avmax, idx);
-  if (e == 0) {
-    DBG(fprintf(stderr, "arr_get_strval1\n"));
+  return sv_get_strval(e);
+}
+
+static AV *
+sv_get_arrval(SV *sv)
+{
+  if (sv == 0 || !SvROK(sv)) {
+    DBG(fprintf(stderr, "sv_get_arrval1\n"));
     return 0;
   }
-  return SvPV_nolen(e);
+  SV *const svtarget = SvRV(sv);
+  if (svtarget == 0 || SvTYPE(svtarget) != SVt_PVAV) {
+    DBG(fprintf(stderr, "sv_get_arrval2\n"));
+    return 0;
+  }
+  return (AV *)svtarget;
 }
 
 static AV *
@@ -60,16 +81,7 @@ arr_get_arrval(AV *av, I32 avmax, I32 idx)
     DBG(fprintf(stderr, "arr_get_arrval1\n"));
     return 0;
   }
-  if (e == 0 || !SvROK(e)) {
-    DBG(fprintf(stderr, "arr_get_arrval2\n"));
-    return 0;
-  }
-  SV *const svtarget = SvRV(e);
-  if (svtarget == 0 || SvTYPE(svtarget) != SVt_PVAV) {
-    DBG(fprintf(stderr, "arr_get_arrval3\n"));
-    return 0;
-  }
-  return (AV *)svtarget;
+  return sv_get_arrval(e);
 }
 
 static void
@@ -97,13 +109,13 @@ hv_to_strmap(HV *hv, std::map<std::string, std::string>& m_r)
 static void
 strrefarr_push_back(std::vector<dena::string_ref>& a_r, SV *sv)
 {
-  if (sv == 0 || SvTYPE(sv) == SVt_NULL) {
+  if (sv == 0 || SvTYPE(sv) == SVt_NULL) { /* !SvPOK()? */
     DBG(fprintf(stderr, "strrefarr_push_back: null\n"));
     return a_r.push_back(dena::string_ref());
   }
-  DBG(fprintf(stderr, "strrefarr_push_back: %s\n", v));
   STRLEN vlen = 0;
   char *const v = SvPV(sv, vlen);
+  DBG(fprintf(stderr, "strrefarr_push_back: %s\n", v));
   a_r.push_back(dena::string_ref(v, vlen));
 }
 
@@ -120,6 +132,53 @@ av_to_strrefarr(AV *av, std::vector<dena::string_ref>& a_r)
   }
 }
 
+static dena::string_ref
+sv_get_string_ref(SV *sv)
+{
+  if (sv == 0 || SvTYPE(sv) == SVt_NULL) { /* !SvPOK()? */
+    return dena::string_ref();
+  }
+  STRLEN vlen = 0;
+  char *const v = SvPV(sv, vlen);
+  return dena::string_ref(v, vlen);
+}
+
+static IV
+sv_get_iv(SV *sv)
+{
+  if (sv == 0 || !SvIOK(sv)) {
+    return 0;
+  }
+  return SvIV(sv);
+}
+
+static void
+av_to_filters(AV *av, std::vector<dena::hstcpcli_filter>& f_r)
+{
+  DBG(fprintf(stderr, "av_to_filters: %p\n", av));
+  if (av == 0) {
+    return;
+  }
+  const I32 len = av_len(av) + 1;
+  DBG(fprintf(stderr, "av_to_filters: len=%d\n", (int)len));
+  for (I32 i = 0; i < len; ++i) {
+    AV *const earr = arr_get_arrval(av, len, i);
+    if (earr == 0) {
+      continue;
+    }
+    const I32 earrlen = av_len(earr) + 1;
+    dena::hstcpcli_filter fe;
+    fe.filter_type = sv_get_string_ref(arr_get_entry(earr, earrlen, 0));
+    fe.op = sv_get_string_ref(arr_get_entry(earr, earrlen, 1));
+    fe.ff_offset = sv_get_iv(arr_get_entry(earr, earrlen, 2));
+    fe.val = sv_get_string_ref(arr_get_entry(earr, earrlen, 3));
+    f_r.push_back(fe);
+    DBG(fprintf(stderr, "av_to_filters: %s %s %d %s\n",
+      fe.filter_action.begin(), fe.filter_op.begin(), (int)fe.ff_offset,
+      fe.value.begin()));
+  }
+}
+
 static void
 set_process_verbose_level(const std::map<std::string, std::string>& m)
 {
@@ -131,22 +190,32 @@ set_process_verbose_level(const std::map<std::string, std::string>& m)
 
 static AV *
 execute_internal(SV *obj, int id, const char *op, AV *keys, int limit,
-  int skip, const char *modop, AV *modvals)
+  int skip, const char *modop, AV *modvals, AV *filters, int invalues_keypart,
+  AV *invalues)
 {
   AV *retval = (AV *)&PL_sv_undef;
   dena::hstcpcli_i *const ptr =
     reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
   do {
     std::vector<dena::string_ref> keyarr, mvarr;
+    std::vector<dena::hstcpcli_filter> farr;
+    std::vector<dena::string_ref> ivs;
     av_to_strrefarr(keys, keyarr);
     dena::string_ref modop_ref;
     if (modop != 0) {
       modop_ref = dena::string_ref(modop, strlen(modop));
       av_to_strrefarr(modvals, mvarr);
     }
+    if (filters != 0) {
+      av_to_filters(filters, farr);
+    }
+    if (invalues_keypart >= 0 && invalues != 0) {
+      av_to_strrefarr(invalues, ivs);
+    }
     ptr->request_buf_exec_generic(id, dena::string_ref(op, strlen(op)),
       &keyarr[0], keyarr.size(), limit, skip, modop_ref, &mvarr[0],
-      mvarr.size());
+      mvarr.size(), &farr[0], farr.size(), invalues_keypart, &ivs[0],
+      ivs.size());
     AV *const av = newAV();
     retval = av;
     if (ptr->request_send() != 0) {
@@ -194,8 +263,11 @@ struct execute_arg {
   int skip;
   const char *modop;
   AV *modvals;
+  AV *filters;
+  int invalues_keypart;
+  AV *invalues;
   execute_arg() : id(0), op(0), keys(0), limit(0), skip(0), modop(0),
-    modvals(0) { }
+    modvals(0), filters(0), invalues_keypart(-1), invalues(0) { }
 };
 
 static AV *
@@ -206,6 +278,8 @@ execute_multi_internal(SV *obj, const execute_arg *args, size_t num_args)
   /* appends multiple requests to the send buffer */
   for (size_t i = 0; i < num_args; ++i) {
     std::vector<dena::string_ref> keyarr, mvarr;
+    std::vector<dena::hstcpcli_filter> farr;
+    std::vector<dena::string_ref> ivs;
     const execute_arg& arg = args[i];
     av_to_strrefarr(arg.keys, keyarr);
     dena::string_ref modop_ref;
@@ -213,9 +287,16 @@ execute_multi_internal(SV *obj, const execute_arg *args, size_t num_args)
       modop_ref = dena::string_ref(arg.modop, strlen(arg.modop));
       av_to_strrefarr(arg.modvals, mvarr);
     }
+    if (arg.filters != 0) {
+      av_to_filters(arg.filters, farr);
+    }
+    if (arg.invalues_keypart >= 0 && arg.invalues != 0) {
+      av_to_strrefarr(arg.invalues, ivs);
+    }
     ptr->request_buf_exec_generic(arg.id,
       dena::string_ref(arg.op, strlen(arg.op)), &keyarr[0], keyarr.size(),
-      arg.limit, arg.skip, modop_ref, &mvarr[0], mvarr.size());
+      arg.limit, arg.skip, modop_ref, &mvarr[0], mvarr.size(), &farr[0],
+      farr.size(), arg.invalues_keypart, &ivs[0], ivs.size());
   }
   AV *const retval = newAV();
   /* sends the requests */
@@ -296,14 +377,16 @@ CODE:
     reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
   delete ptr;
 
-void close(obj)
+void
+close(obj)
   SV *obj
 CODE:
   dena::hstcpcli_i *const ptr =
     reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
   ptr->close();
 
-int reconnect(obj)
+int
+reconnect(obj)
   SV *obj
 CODE:
   RETVAL = 0;
@@ -349,19 +432,21 @@ OUTPUT:
   RETVAL
 
 int
-open_index(obj, id, db, table, index, fields)
+open_index(obj, id, db, table, index, fields, ffields = 0)
   SV *obj
   int id
   const char *db
   const char *table
   const char *index
   const char *fields
+  SV *ffields
 CODE:
+  const char *const ffields_str = sv_get_strval(ffields);
   RETVAL = 0;
   dena::hstcpcli_i *const ptr =
     reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
   do {
-    ptr->request_buf_open_index(id, db, table, index, fields);
+    ptr->request_buf_open_index(id, db, table, index, fields, ffields_str);
     if (ptr->request_send() != 0) {
       break;
     }
@@ -379,18 +464,25 @@ OUTPUT:
   RETVAL
 
 AV *
-execute_single(obj, id, op, keys, limit, skip, modop = 0, modvals = 0)
+execute_single(obj, id, op, keys, limit, skip, mop = 0, mvs = 0, fils = 0, ivkeypart = -1, ivs = 0)
   SV *obj
   int id
   const char *op
   AV *keys
   int limit
   int skip
-  const char *modop
-  AV *modvals
+  SV *mop
+  SV *mvs
+  SV *fils
+  int ivkeypart
+  SV *ivs
 CODE:
-  RETVAL = execute_internal(obj, id, op, keys, limit, skip, modop,
-    modvals);
+  const char *const mop_str = sv_get_strval(mop);
+  AV *const mvs_av = sv_get_arrval(mvs);
+  AV *const fils_av = sv_get_arrval(fils);
+  AV *const ivs_av = sv_get_arrval(ivs);
+  RETVAL = execute_internal(obj, id, op, keys, limit, skip, mop_str, mvs_av,
+    fils_av, ivkeypart, ivs_av);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
@@ -400,6 +492,7 @@ execute_multi(obj, cmds)
   SV *obj
   AV *cmds
 CODE:
+  DBG(fprintf(stderr, "execute_multi0\n"));
   const I32 cmdsmax = av_len(cmds);
   execute_arg args[cmdsmax + 1]; /* GNU */
   for (I32 i = 0; i <= cmdsmax; ++i) {
@@ -421,8 +514,12 @@ CODE:
     ag.skip = arr_get_intval(avtarget, argmax, 4);
     ag.modop = arr_get_strval(avtarget, argmax, 5);
     ag.modvals = arr_get_arrval(avtarget, argmax, 6);
-    DBG(fprintf(stderr, "execute_multi3 %d: %d %s %p %d %d %s %p\n",
-      i, ag.id, ag.op, ag.keys, ag.limit, ag.skip, ag.modop, ag.modvals));
+    ag.filters = arr_get_arrval(avtarget, argmax, 7);
+    ag.invalues_keypart = arr_get_intval(avtarget, argmax, 8, -1);
+    ag.invalues = arr_get_arrval(avtarget, argmax, 9);
+    DBG(fprintf(stderr, "execute_multi3 %d: %d %s %p %d %d %s %p %p %d %p\n",
+      i, ag.id, ag.op, ag.keys, ag.limit, ag.skip, ag.modop, ag.modvals,
+      ag.filters, ag.invalues_keypart, ag.invalues));
   }
   RETVAL = execute_multi_internal(obj, args, cmdsmax + 1);
   sv_2mortal((SV *)RETVAL);
@@ -430,24 +527,31 @@ OUTPUT:
   RETVAL
 
 AV *
-execute_find(obj, id, op, keys, limit, skip, modop = 0, modvals = 0)
+execute_find(obj, id, op, keys, limit, skip, mop = 0, mvs = 0, fils = 0, ivkeypart = -1, ivs = 0)
   SV *obj
   int id
   const char *op
   AV *keys
   int limit
   int skip
-  const char *modop
-  AV *modvals
+  SV *mop
+  SV *mvs
+  SV *fils
+  int ivkeypart
+  SV *ivs
 CODE:
-  RETVAL = execute_internal(obj, id, op, keys, limit, skip, modop,
-    modvals);
+  const char *const mop_str = sv_get_strval(mop);
+  AV *const mvs_av = sv_get_arrval(mvs);
+  AV *const fils_av = sv_get_arrval(fils);
+  AV *const ivs_av = sv_get_arrval(ivs);
+  RETVAL = execute_internal(obj, id, op, keys, limit, skip, mop_str, mvs_av,
+    fils_av, ivkeypart, ivs_av);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
 
 AV *
-execute_update(obj, id, op, keys, limit, skip, modvals)
+execute_update(obj, id, op, keys, limit, skip, modvals, fils = 0, ivkeypart = -1, ivs = 0)
   SV *obj
   int id
   const char *op
@@ -455,23 +559,34 @@ execute_update(obj, id, op, keys, limit, skip, modvals)
   int limit
   int skip
   AV *modvals
+  SV *fils
+  int ivkeypart
+  SV *ivs
 CODE:
+  AV *const fils_av = sv_get_arrval(fils);
+  AV *const ivs_av = sv_get_arrval(ivs);
   RETVAL = execute_internal(obj, id, op, keys, limit, skip, "U",
-    modvals);
+    modvals, fils_av, ivkeypart, ivs_av);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
 
 AV *
-execute_delete(obj, id, op, keys, limit, skip)
+execute_delete(obj, id, op, keys, limit, skip, fils = 0, ivkeypart = -1, ivs = 0)
   SV *obj
   int id
   const char *op
   AV *keys
   int limit
   int skip
+  SV *fils
+  int ivkeypart
+  SV *ivs
 CODE:
-  RETVAL = execute_internal(obj, id, op, keys, limit, skip, "D", 0);
+  AV *const fils_av = sv_get_arrval(fils);
+  AV *const ivs_av = sv_get_arrval(ivs);
+  RETVAL = execute_internal(obj, id, op, keys, limit, skip, "D", 0, fils_av,
+    ivkeypart, ivs_av);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL
@@ -482,7 +597,7 @@ execute_insert(obj, id, fvals)
   int id
   AV *fvals
 CODE:
-  RETVAL = execute_internal(obj, id, "+", fvals, 0, 0, 0, 0);
+  RETVAL = execute_internal(obj, id, "+", fvals, 0, 0, 0, 0, 0, -1, 0);
   sv_2mortal((SV *)RETVAL);
 OUTPUT:
   RETVAL

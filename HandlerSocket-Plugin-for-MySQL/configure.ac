@@ -13,6 +13,12 @@ AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_LIBTOOL
 
+ac_mysql_debug=
+AC_ARG_ENABLE(mysql-debug,
+  [AS_HELP_STRING([--enable-mysql-debug], [specify whether MySQL is build with DBUG_ON])],[ac_mysql_debug="$enableval"],[ac_mysql_debug=no])
+AC_MSG_CHECKING([if --enable-mysql-debug is specified])
+AC_MSG_RESULT($ac_mysql_debug)
+
 AC_DEFUN([CONFIG_OPTION_MYSQL],[
   AC_MSG_CHECKING([mysql source])
 
@@ -29,7 +35,16 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
         MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir/regex"
         MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir"
         AC_SUBST(MYSQL_INC)
-        MYSQL_SOURCE_VERSION=`cat $ac_mysql_source_dir/configure.in | grep "\[[MySQL Server\]]" | sed -e "s|.*\([[0-9]]\+\.[[0-9]]\+\.[[0-9]]\+[[0-9a-zA-Z\_\-]]*\).*|\1|"`
+        if test -f "$ac_mysql_source_dir/VERSION"; then
+          source "$ac_mysql_source_dir/VERSION"
+          MYSQL_SOURCE_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
+        else
+          if test -f "$ac_mysql_source_dir/configure.in"; then
+            MYSQL_SOURCE_VERSION=`cat $ac_mysql_source_dir/configure.in | grep "\[[MySQL Server\]]" | sed -e "s|.*\([[0-9]]\+\.[[0-9]]\+\.[[0-9]]\+[[0-9a-zA-Z\_\-]]*\).*|\1|"`
+          else
+            AC_MSG_ERROR([invalid MySQL source directory: $ac_mysql_source_dir])
+          fi
+        fi
         AC_MSG_RESULT([yes: Using $ac_mysql_source_dir, version $MYSQL_SOURCE_VERSION])
       else
         AC_MSG_ERROR([invalid MySQL source directory: $ac_mysql_source_dir])
@@ -58,15 +73,22 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
 
   MYSQL_CFLAGS_ADD=`"$ac_mysql_config" --cflags`
   MYSQL_CFLAGS="$MYSQL_CFLAGS $MYSQL_CFLAGS_ADD"
+  if test "$ac_mysql_debug" = "yes"; then
+    MYSQL_CFLAGS="$MYSQL_CFLAGS -DDBUG_ON -DENABLED_DEBUG_SYNC"
+  else
+    MYSQL_CFLAGS="$MYSQL_CFLAGS -DDBUG_OFF"
+  fi
   AC_SUBST(MYSQL_CFLAGS)
 
   MYSQL_BIN_VERSION=`"$ac_mysql_config" --version`
   AC_MSG_RESULT([yes: Using $ac_mysql_config, version $MYSQL_BIN_VERSION])
 
   MYSQL_LIB=`"$ac_mysql_config" --libs_r`
-  LIB_DIR=`echo $MYSQL_LIB | sed -e "s|.* -L||" | sed -e "s| .*||"`
+  LIB_DIR=`echo $MYSQL_LIB | sed -e "s|.*-L/|/|" | sed -e "s| .*||"`
+    # FIXME
   if test a`basename "$LIB_DIR"` = amysql ; then
     MYSQL_LIB="-L`dirname $LIB_DIR` $MYSQL_LIB" 
+      # FIXME
   fi
   AC_SUBST(MYSQL_LIB)
 
@@ -91,7 +113,8 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
     [
       LIB_DIR_TMP=`"$ac_mysql_config" --plugindir`
       if test ! -d "$LIB_DIR_TMP"; then
-        LIB_DIR_TMP=`"$ac_mysql_config" --libs_r | sed -e "s|.* -L||" | sed -e "s| .*||"`/plugin
+        LIB_DIR_TMP=`"$ac_mysql_config" --libs_r | sed -e "s|.*-L/|/|" | sed -e "s| .*||"`/plugin
+          # FIXME
       fi
       ac_mysql_plugin_dir=$LIB_DIR_TMP
       PLUGIN_DIR="$ac_mysql_plugin_dir"

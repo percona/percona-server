@@ -108,16 +108,25 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->open);
 -	ut_a(node->n_pending == 0);
-+	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
++	ut_a(node->n_pending == 0 || node->space->is_being_deleted);
  	ut_a(node->n_pending_flushes == 0);
  	ut_a(node->modification_counter == node->flush_counter);
  
+@@ -829,7 +830,7 @@
+ 	ut_a(system->n_open > 0);
+ 	system->n_open--;
+ 
+-	if (node->space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(node->space->id)) {
++	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(node->space->id)) {
+ 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
+ 
+ 		/* The node is in the LRU list, remove it */
 @@ -1028,7 +1029,7 @@
  	ut_ad(node && system && space);
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
 -	ut_a(node->n_pending == 0);
-+	ut_a(node->n_pending == 0 || srv_lazy_drop_table);
++	ut_a(node->n_pending == 0 || space->is_being_deleted);
  
  	if (node->open) {
  		/* We fool the assertion in fil_node_close_file() to think

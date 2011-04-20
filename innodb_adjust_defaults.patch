@@ -12,8 +12,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
--  NULL, NULL, 0, 0, 64, 0);
-+  NULL, NULL, 1, 0, 64, 0);
+-  NULL, NULL, 0, 0, UNIV_MAX_PARALLELISM, 0);
++  NULL, NULL, 1, 0, UNIV_MAX_PARALLELISM, 0);
  
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,

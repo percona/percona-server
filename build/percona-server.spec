@@ -115,7 +115,7 @@
 
 %define lic_type GNU GPL v2
 %define lic_files COPYING README
-%define src_dir Percona-Server
+%define src_dir Percona-Server-%{mysqlversion}
 
 ##############################################################################
 # Main spec file section
@@ -128,12 +128,12 @@ Version:	%{mysqlversion}
 Release:	%{release}
 Distribution:	Red Hat Enterprise Linux %{redhatversion}
 License:    GPL	version 2 http://www.gnu.org/licenses/gpl-2.0.html
-Source:		Percona-Server.tar.gz
+Source:		Percona-Server-%{mysqlversion}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server Percona-XtraDB-server
-BuildRequires:  gperf perl gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
+BuildRequires:  gperf perl gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time bison
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -279,6 +279,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	LDFLAGS=\"$LDFLAGS\" \
 	./configure \
  	    $* \
+	    --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
 	    --enable-assembler \
 	    --enable-local-infile \
             --with-mysqld-user=%{mysqld_user} \
@@ -314,7 +315,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 BuildHandlerSocket() {
 cd storage/HandlerSocket-Plugin-for-MySQL
 ./autogen.sh
-CXX=g++ ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
+CXX=${HS_CXX:-g++} ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/scripts \
 	--with-mysql-plugindir=%{_libdir}/mysql/plugin \
 	--libdir=%{_libdir} \
@@ -325,7 +326,7 @@ cd -
 
 BuildUDF() {
 cd UDF
-CXX=g++ ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
+CXX=${UDF_CXX:-g++} ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
 make all
 cd -
 }
@@ -334,13 +335,6 @@ cd -
 BuildServer() {
 BuildMySQL "--enable-shared \
         --with-server-suffix='%{server_suffix}' \
-		--without-plugin-innobase \
-		--with-plugin-innodb_plugin \
-		--with-plugin-partition \
-		--with-plugin-csv \
-		--with-plugin-archive \
-		--with-plugin-blackhole \
-		--with-plugin-federated \
 		--without-embedded-server \
 		--without-bench \
 		--with-zlib-dir=bundled \
@@ -361,6 +355,10 @@ fi
 
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/%{src_dir}
+
+# Move the test suite to /usr/share/mysql
+sed -i 's@[$][(]prefix[)]@\0/share@' mysql-test/Makefile.am \
+    mysql-test/lib/My/SafeProcess/Makefile.am
 
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
@@ -433,14 +431,23 @@ fi
 #	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
 #fi
 
+# Move temporarily the saved files to the BUILD directory since the BUILDROOT
+# dir will be cleaned at the start of the install phase
+mkdir -p "$(dirname $RPM_BUILD_DIR/%{_libdir})"
+mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
+
 %install
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
+# Move back the libdir from BUILD dir to BUILDROOT
+mkdir -p "$(dirname $RBR%{_libdir})"
+mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
+
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
-install -d $RBR/mysql-test
+install -d $RBR%{_datadir}/mysql-test
 install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
@@ -857,7 +864,7 @@ fi
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)
-/usr/mysql-test/*
+/usr/share/mysql-test/*
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*

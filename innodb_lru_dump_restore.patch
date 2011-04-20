@@ -676,11 +676,11 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  static ulint		ios;
  
  /** io_handler_thread parameters for thread identification */
--static ulint		n[SRV_MAX_N_IO_THREADS + 6 + 64];
-+static ulint		n[SRV_MAX_N_IO_THREADS + 7 + 64];
+-static ulint		n[SRV_MAX_N_IO_THREADS + 6 + UNIV_MAX_PARALLELISM];
++static ulint		n[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
  /** io_handler_thread identifiers */
--static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 64];
-+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + 64];
+-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + UNIV_MAX_PARALLELISM];
++static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
  
  /** We use this mutex to test the return value of pthread_mutex_trylock
     on successful locking. HP-UX does NOT return 0, though Linux et al do. */

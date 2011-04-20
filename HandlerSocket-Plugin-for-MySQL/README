@@ -49,21 +49,25 @@ mysqld/libmysql pair in some circumstances:
 
 The current version of HandlerSocket only works with GNU/Linux. The source
 archive of HandlerSocket includes a C++ and a Perl client libraries.
-Here is a list of other language bindings:
+Here is a list of client libraries for other languages:
 
   - PHP
     http://openpear.org/package/Net_HandlerSocket
     http://github.com/tz-lom/HSPHP
     http://code.google.com/p/php-handlersocket/
   - Java
+    http://code.google.com/p/hs4j/
     http://code.google.com/p/handlersocketforjava/
   - Python
+    http://pypi.python.org/pypi/python-handler-socket
     https://code.launchpad.net/~songofacandy/+junk/pyhandlersocket
   - Ruby
     https://github.com/winebarrel/ruby-handlersocket
     https://github.com/miyucy/handlersocket
-  - JavaScript(Node.js)
+  - JavaScript
     https://github.com/koichik/node-handlersocket
+  - Scala
+    https://github.com/fujohnwang/hs2client
 
 The home of HandlerSocket is here:
     https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL

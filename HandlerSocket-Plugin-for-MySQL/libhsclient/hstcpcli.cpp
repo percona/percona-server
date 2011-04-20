@@ -30,7 +30,8 @@ struct hstcpcli : public hstcpcli_i, private noncopyable {
   virtual int reconnect();
   virtual bool stable_point();
   virtual void request_buf_open_index(size_t pst_id, const char *dbn,
-    const char *tbl, const char *idx, const char *retflds);
+    const char *tbl, const char *idx, const char *retflds, const char *filflds);
+  #if 0
   virtual void request_buf_find(size_t pst_id, const string_ref& op,
     const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip);
   virtual void request_buf_insert(size_t pst_id, const string_ref *fvs,
@@ -40,9 +41,12 @@ struct hstcpcli : public hstcpcli_i, private noncopyable {
     const string_ref *mvs, size_t mvslen);
   virtual void request_buf_delete(size_t pst_id, const string_ref& op,
     const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip);
+  #endif
   virtual void request_buf_exec_generic(size_t pst_id, const string_ref& op,
     const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip,
-    const string_ref& mod_op, const string_ref *mvs, size_t mvslen);
+    const string_ref& mod_op, const string_ref *mvs, size_t mvslen,
+    const hstcpcli_filter *fils, size_t filslen, int invalues_keypart,
+    const string_ref *invalues, size_t invalueslen);
   virtual int request_send();
   virtual int response_recv(size_t& num_flds_r);
   virtual const string_ref *get_next_row();
@@ -163,7 +167,7 @@ hstcpcli::set_error(int code, const std::string& str)
 
 void
 hstcpcli::request_buf_open_index(size_t pst_id, const char *dbn,
-  const char *tbl, const char *idx, const char *retflds)
+  const char *tbl, const char *idx, const char *retflds, const char *filflds)
 {
   if (num_req_sent > 0 || num_req_rcvd > 0) {
     close();
@@ -184,6 +188,11 @@ hstcpcli::request_buf_open_index(size_t pst_id, const char *dbn,
   writebuf.append(idx_ref.begin(), idx_ref.end());
   writebuf.append_literal("\t");
   writebuf.append(rfs_ref.begin(), rfs_ref.end());
+  if (filflds != 0) {
+    const string_ref fls_ref(filflds, strlen(filflds));
+    writebuf.append_literal("\t");
+    writebuf.append(fls_ref.begin(), fls_ref.end());
+  }
   writebuf.append_literal("\n");
   ++num_req_bufd;
 }
@@ -191,7 +200,7 @@ hstcpcli::request_buf_open_index(size_t pst_id, const char *dbn,
 namespace {
 
 void
-append_value(string_buffer& buf, const char *start, const char *finish)
+append_delim_value(string_buffer& buf, const char *start, const char *finish)
 {
   if (start == 0) {
     /* null */
@@ -209,7 +218,9 @@ append_value(string_buffer& buf, const char *start, const char *finish)
 void
 hstcpcli::request_buf_exec_generic(size_t pst_id, const string_ref& op,
   const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip,
-  const string_ref& mod_op, const string_ref *mvs, size_t mvslen)
+  const string_ref& mod_op, const string_ref *mvs, size_t mvslen,
+  const hstcpcli_filter *fils, size_t filslen, int invalues_keypart,
+  const string_ref *invalues, size_t invalueslen)
 {
   if (num_req_sent > 0 || num_req_rcvd > 0) {
     close();
@@ -223,21 +234,44 @@ hstcpcli::request_buf_exec_generic(size_t pst_id, const string_ref& op,
   append_uint32(writebuf, kvslen); // FIXME size_t ?
   for (size_t i = 0; i < kvslen; ++i) {
     const string_ref& kv = kvs[i];
-    append_value(writebuf, kv.begin(), kv.end());
+    append_delim_value(writebuf, kv.begin(), kv.end());
   }
-  if (limit != 0 || skip != 0 || mod_op.size() != 0) {
+  if (limit != 0 || skip != 0 || invalues_keypart >= 0 ||
+    mod_op.size() != 0 || filslen != 0) {
+    /* has more option */
     writebuf.append_literal("\t");
     append_uint32(writebuf, limit); // FIXME size_t ?
-    if (skip != 0 || mod_op.size() != 0) {
+    if (skip != 0 || invalues_keypart >= 0 ||
+      mod_op.size() != 0 || filslen != 0) {
       writebuf.append_literal("\t");
       append_uint32(writebuf, skip); // FIXME size_t ?
+    }
+    if (invalues_keypart >= 0) {
+      writebuf.append_literal("\t@\t");
+      append_uint32(writebuf, invalues_keypart);
+      writebuf.append_literal("\t");
+      append_uint32(writebuf, invalueslen);
+      for (size_t i = 0; i < invalueslen; ++i) {
+	const string_ref& s = invalues[i];
+	append_delim_value(writebuf, s.begin(), s.end());
+      }
+    }
+    for (size_t i = 0; i < filslen; ++i) {
+      const hstcpcli_filter& f = fils[i];
+      writebuf.append_literal("\t");
+      writebuf.append(f.filter_type.begin(), f.filter_type.end());
+      writebuf.append_literal("\t");
+      writebuf.append(f.op.begin(), f.op.end());
+      writebuf.append_literal("\t");
+      append_uint32(writebuf, f.ff_offset);
+      append_delim_value(writebuf, f.val.begin(), f.val.end());
     }
     if (mod_op.size() != 0) {
       writebuf.append_literal("\t");
       writebuf.append(mod_op.begin(), mod_op.end());
       for (size_t i = 0; i < mvslen; ++i) {
 	const string_ref& mv = mvs[i];
-	append_value(writebuf, mv.begin(), mv.end());
+	append_delim_value(writebuf, mv.begin(), mv.end());
       }
     }
   }
@@ -245,6 +279,7 @@ hstcpcli::request_buf_exec_generic(size_t pst_id, const string_ref& op,
   ++num_req_bufd;
 }
 
+#if 0
 void
 hstcpcli::request_buf_find(size_t pst_id, const string_ref& op,
   const string_ref *kvs, size_t kvslen, uint32_t limit, uint32_t skip)
@@ -280,6 +315,7 @@ hstcpcli::request_buf_delete(size_t pst_id, const string_ref& op,
   return request_buf_exec_generic(pst_id, op, kvs, kvslen, limit, skip,
     modop_delete, 0, 0);
 }
+#endif
 
 int
 hstcpcli::request_send()

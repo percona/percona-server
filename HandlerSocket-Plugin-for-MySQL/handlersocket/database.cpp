@@ -21,7 +21,9 @@
 #define DBG_THR(x)
 #define DBG_CMP(x)
 #define DBG_FLD(x)
+#define DBG_FILTER(x)
 #define DBG_REFCNT(x)
+#define DBG_KEYLEN(x)
 #define DBG_DELETED
 
 /* status variables */
@@ -39,8 +41,8 @@ prep_stmt::prep_stmt()
 {
 }
 prep_stmt::prep_stmt(dbcontext_i *c, size_t tbl, size_t idx,
-  const retfields_type& rf)
-  : dbctx(c), table_id(tbl), idxnum(idx), retfields(rf)
+  const fields_type& rf, const fields_type& ff)
+  : dbctx(c), table_id(tbl), idxnum(idx), ret_fields(rf), filter_fields(ff)
 {
   if (dbctx) {
     dbctx->table_addref(table_id);
@@ -55,7 +57,7 @@ prep_stmt::~prep_stmt()
 
 prep_stmt::prep_stmt(const prep_stmt& x)
   : dbctx(x.dbctx), table_id(x.table_id), idxnum(x.idxnum),
-  retfields(x.retfields)
+  ret_fields(x.ret_fields), filter_fields(x.filter_fields)
 {
   if (dbctx) {
     dbctx->table_addref(table_id);
@@ -72,7 +74,8 @@ prep_stmt::operator =(const prep_stmt& x)
     dbctx = x.dbctx;
     table_id = x.table_id;
     idxnum = x.idxnum;
-    retfields = x.retfields;
+    ret_fields = x.ret_fields;
+    filter_fields = x.filter_fields;
     if (dbctx) {
       dbctx->table_addref(table_id);
     }
@@ -95,7 +98,8 @@ struct database : public database_i, private noncopyable {
 struct tablevec_entry {
   TABLE *table;
   size_t refcount;
-  tablevec_entry() : table(0), refcount(0) { }
+  bool modified;
+  tablevec_entry() : table(0), refcount(0), modified(false) { }
 };
 
 struct expr_user_lock : private noncopyable {
@@ -137,24 +141,31 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   virtual void close_tables_if();
   virtual void table_addref(size_t tbl_id);
   virtual void table_release(size_t tbl_id);
-  virtual void cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
-    const char *tbl, const char *idx, const char *retflds);
-  virtual void cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args);
+  virtual void cmd_open(dbcallback_i& cb, const cmd_open_args& args);
+  virtual void cmd_exec(dbcallback_i& cb, const cmd_exec_args& args);
   virtual void set_statistics(size_t num_conns, size_t num_active);
  private:
   int set_thread_message(const char *fmt, ...)
     __attribute__((format (printf, 2, 3)));
+  bool parse_fields(TABLE *const table, const char *str,
+    prep_stmt::fields_type& flds);
   void cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
     const string_ref *fvals, size_t fvalslen);
   void cmd_sql_internal(dbcallback_i& cb, const prep_stmt& pst,
     const string_ref *fvals, size_t fvalslen);
   void cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
     ha_rkey_function find_flag, const cmd_exec_args& args);
+  size_t calc_filter_buf_size(TABLE *table, const prep_stmt& pst,
+    const record_filter *filters);
+  bool fill_filter_buf(TABLE *table, const prep_stmt& pst,
+    const record_filter *filters, uchar *filter_buf, size_t len);
+  int check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
+    const record_filter *filters, const uchar *filter_buf);
   void resp_record(dbcallback_i& cb, TABLE *const table, const prep_stmt& pst);
   void dump_record(dbcallback_i& cb, TABLE *const table, const prep_stmt& pst);
   int modify_record(dbcallback_i& cb, TABLE *const table,
     const prep_stmt& pst, const cmd_exec_args& args, char mod_op,
-    size_t& success_count);
+    size_t& modified_count);
  private:
   typedef std::vector<tablevec_entry> table_vec_type;
   typedef std::pair<std::string, std::string> table_name_type;
@@ -172,11 +183,6 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   std::vector<char> info_message_buf;
   table_vec_type table_vec;
   table_map_type table_map;
-  #if MYSQL_VERSION_ID >= 50505
-  MDL_request *mdl_request;
-  #else
-  void *mdl_request;
-  #endif
 };
 
 database::database(const config& c)
@@ -215,7 +221,7 @@ database_i::create(const config& conf)
 dbcontext::dbcontext(volatile database *d, bool for_write)
   : dbref(d), for_write_flag(for_write), thd(0), lock(0), lock_failed(false),
     user_level_lock_timeout(0), user_level_lock_locked(false),
-    commit_error(false), mdl_request(0)
+    commit_error(false)
 {
   info_message_buf.resize(8192);
   user_level_lock_timeout = d->get_conf().get_int("wrlock_timeout", 12);
@@ -262,6 +268,8 @@ wait_server_to_start(THD *thd, volatile int& shutdown_flag)
 
 }; // namespace
 
+#define DENA_THR_OFFSETOF(fld) ((char *)(&thd->fld) - (char *)thd)
+
 void
 dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
 {
@@ -270,9 +278,17 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
     my_thread_init();
     thd = new THD;
     thd->thread_stack = (char *)stack_bottom;
-    DBG_THR(const size_t of = (char *)(&thd->thread_stack) - (char *)thd);
-    DBG_THR(fprintf(stderr, "thread_stack = %p sz=%zu of=%zu\n",
-      thd->thread_stack, sizeof(THD), of));
+    DBG_THR(fprintf(stderr,
+      "thread_stack = %p sizeof(THD)=%zu sizeof(mtx)=%zu "
+      "O: %zu %zu %zu %zu %zu %zu %zu\n",
+      thd->thread_stack, sizeof(THD), sizeof(LOCK_thread_count),
+      DENA_THR_OFFSETOF(mdl_context),
+      DENA_THR_OFFSETOF(net),
+      DENA_THR_OFFSETOF(LOCK_thd_data),
+      DENA_THR_OFFSETOF(mysys_var),
+      DENA_THR_OFFSETOF(stmt_arena),
+      DENA_THR_OFFSETOF(limit_found_rows),
+      DENA_THR_OFFSETOF(locked_tables_list)));
     thd->store_globals();
     thd->system_thread = static_cast<enum_thread_type>(1<<30UL);
     const NET v = { 0 };
@@ -305,11 +321,6 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
   thd_proc_info(thd, &info_message_buf[0]);
   set_thread_message("hs:listening");
   DBG_THR(fprintf(stderr, "HNDSOCK x1 %p\n", thd));
-
-  #if MYSQL_VERSION_ID >= 50505
-  mdl_request = MDL_request::create(MDL_key::TABLE, "", "", for_write_flag ?
-                  MDL_SHARED_WRITE : MDL_SHARED_READ, thd->mem_root);
-  #endif
 
   lex_start(thd);
 
@@ -374,12 +385,13 @@ dbcontext::lock_tables_if()
   }
   if (lock == 0) {
     const size_t num_max = table_vec.size();
-    TABLE *tables[num_max ? num_max : 1]; /* GNU */
+    TABLE **const tables = DENA_ALLOCA_ALLOCATE(TABLE *, num_max + 1);
     size_t num_open = 0;
     for (size_t i = 0; i < num_max; ++i) {
       if (table_vec[i].refcount > 0) {
 	tables[num_open++] = table_vec[i].table;
       }
+      table_vec[i].modified = false;
     }
     #if MYSQL_VERSION_ID >= 50505
     lock = thd->lock = mysql_lock_tables(thd, &tables[0], num_open, 0);
@@ -404,6 +416,7 @@ dbcontext::lock_tables_if()
       thd->current_stmt_binlog_row_based = 1;
       #endif
     }
+    DENA_ALLOCA_FREE(tables);
   }
   DBG_LOCK(fprintf(stderr, "HNDSOCK tblnum=%d\n", (int)tblnum));
 }
@@ -412,8 +425,17 @@ void
 dbcontext::unlock_tables_if()
 {
   if (lock != 0) {
-    DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK unlock tables\n"));
+    DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK unlock tables %p %p\n",
+      thd, thd->lock));
     if (for_write_flag) {
+      for (size_t i = 0; i < table_vec.size(); ++i) {
+	if (table_vec[i].modified) {
+	  query_cache_invalidate3(thd, table_vec[i].table, 1);
+	  table_vec[i].table->file->ha_release_auto_increment();
+	}
+      }
+    }
+    {
       bool suc = true;
       #if MYSQL_VERSION_ID >= 50505
       suc = (trans_commit_stmt(thd) == 0);
@@ -454,9 +476,12 @@ void
 dbcontext::close_tables_if()
 {
   unlock_tables_if();
+  DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK close tables\n"));
+  close_thread_tables(thd);
+  #if MYSQL_VERSION_ID >= 50505
+  thd->mdl_context.release_transactional_locks();
+  #endif
   if (!table_vec.empty()) {
-    DENA_VERBOSE(100, fprintf(stderr, "HNDSOCK close tables\n"));
-    close_thread_tables(thd);
     statistic_increment(close_tables_count, &LOCK_status);
     table_vec.clear();
     table_map.clear();
@@ -485,7 +510,7 @@ dbcontext::resp_record(dbcallback_i& cb, TABLE *const table,
 {
   char rwpstr_buf[64];
   String rwpstr(rwpstr_buf, sizeof(rwpstr_buf), &my_charset_bin);
-  const prep_stmt::retfields_type& rf = pst.get_retfields();
+  const prep_stmt::fields_type& rf = pst.get_ret_fields();
   const size_t n = rf.size();
   for (size_t i = 0; i < n; ++i) {
     uint32_t fn = rf[i];
@@ -515,14 +540,13 @@ dbcontext::dump_record(dbcallback_i& cb, TABLE *const table,
 {
   char rwpstr_buf[64];
   String rwpstr(rwpstr_buf, sizeof(rwpstr_buf), &my_charset_bin);
-  const prep_stmt::retfields_type& rf = pst.get_retfields();
+  const prep_stmt::fields_type& rf = pst.get_ret_fields();
   const size_t n = rf.size();
   for (size_t i = 0; i < n; ++i) {
     uint32_t fn = rf[i];
     Field *const fld = table->field[fn];
     if (fld->is_null()) {
       /* null */
-      cb.dbcb_resp_entry(0, 0);
       fprintf(stderr, "NULL");
     } else {
       fld->val_str(&rwpstr, &rwpstr);
@@ -536,35 +560,81 @@ dbcontext::dump_record(dbcallback_i& cb, TABLE *const table,
 int
 dbcontext::modify_record(dbcallback_i& cb, TABLE *const table,
   const prep_stmt& pst, const cmd_exec_args& args, char mod_op,
-  size_t& success_count)
+  size_t& modified_count)
 {
   if (mod_op == 'U') {
     /* update */
     handler *const hnd = table->file;
     uchar *const buf = table->record[0];
     store_record(table, record[1]);
-    const prep_stmt::retfields_type& rf = pst.get_retfields();
+    const prep_stmt::fields_type& rf = pst.get_ret_fields();
     const size_t n = rf.size();
     for (size_t i = 0; i < n; ++i) {
       const string_ref& nv = args.uvals[i];
       uint32_t fn = rf[i];
       Field *const fld = table->field[fn];
-      fld->store(nv.begin(), nv.size(), &my_charset_bin);
+      if (nv.begin() == 0) {
+	fld->set_null();
+      } else {
+	fld->set_notnull();
+	fld->store(nv.begin(), nv.size(), &my_charset_bin);
+      }
     }
-    memset(buf, 0, table->s->null_bytes); /* TODO: allow NULL */
+    table_vec[pst.get_table_id()].modified = true;
     const int r = hnd->ha_update_row(table->record[1], buf);
     if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
       return r;
     }
-    ++success_count;
+    ++modified_count; /* TODO: HA_ERR_RECORD_IS_THE_SAME? */
   } else if (mod_op == 'D') {
     /* delete */
     handler *const hnd = table->file;
+    table_vec[pst.get_table_id()].modified = true;
     const int r = hnd->ha_delete_row(table->record[0]);
     if (r != 0) {
       return r;
     }
-    ++success_count;
+    ++modified_count;
+  } else if (mod_op == '+' || mod_op == '-') {
+    /* increment/decrement */
+    handler *const hnd = table->file;
+    uchar *const buf = table->record[0];
+    store_record(table, record[1]);
+    const prep_stmt::fields_type& rf = pst.get_ret_fields();
+    const size_t n = rf.size();
+    size_t i = 0;
+    for (i = 0; i < n; ++i) {
+      const string_ref& nv = args.uvals[i];
+      uint32_t fn = rf[i];
+      Field *const fld = table->field[fn];
+      if (fld->is_null() || nv.begin() == 0) {
+	continue;
+      }
+      const long long pval = fld->val_int();
+      const long long llv = atoll_nocheck(nv.begin(), nv.end());
+      /* TODO: llv == 0? */
+      long long nval = 0;
+      if (mod_op == '+') {
+	/* increment */
+	nval = pval + llv;
+      } else {
+	/* decrement */
+	nval = pval - llv;
+	if ((pval < 0 && nval > 0) || (pval > 0 && nval < 0)) {
+	  break; /* don't modify */
+	}
+      }
+      fld->store(nval, false);
+    }
+    if (i == n) {
+      /* modify */
+      table_vec[pst.get_table_id()].modified = true;
+      const int r = hnd->ha_update_row(table->record[1], buf);
+      if (r != 0 && r != HA_ERR_RECORD_IS_THE_SAME) {
+	return r;
+      }
+      ++modified_count;
+    }
   }
   return 0;
 }
@@ -578,7 +648,7 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   lock_tables_if();
   if (lock == 0) {
-    return cb.dbcb_resp_short(2, "lock_tables");
+    return cb.dbcb_resp_short(1, "lock_tables");
   }
   if (pst.get_table_id() >= table_vec.size()) {
     return cb.dbcb_resp_short(2, "tblnum");
@@ -587,14 +657,31 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   handler *const hnd = table->file;
   uchar *const buf = table->record[0];
   empty_record(table);
-  Field **fld = table->field;
-  size_t i = 0;
-  for (; *fld && i < fvalslen; ++fld, ++i) {
-    (*fld)->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
+  memset(buf, 0, table->s->null_bytes); /* clear null flags */
+  const prep_stmt::fields_type& rf = pst.get_ret_fields();
+  const size_t n = rf.size();
+  for (size_t i = 0; i < n; ++i) {
+    uint32_t fn = rf[i];
+    Field *const fld = table->field[fn];
+    if (fvals[i].begin() == 0) {
+      fld->set_null();
+    } else {
+      fld->store(fvals[i].begin(), fvals[i].size(), &my_charset_bin);
+    }
   }
-  memset(buf, 0, table->s->null_bytes); /* TODO: allow NULL */
+  table->next_number_field = table->found_next_number_field;
+    /* FIXME: test */
   const int r = hnd->ha_write_row(buf);
-  return cb.dbcb_resp_short(r != 0 ? 1 : 0, "");
+  const ulonglong insert_id = table->file->insert_id_for_cur_row;
+  table->next_number_field = 0;
+  table_vec[pst.get_table_id()].modified = true;
+  if (r == 0 && table->found_next_number_field != 0) {
+    return cb.dbcb_resp_short_num64(0, insert_id);
+  }
+  if (r != 0) {
+    return cb.dbcb_resp_short_num(1, r);
+  }
+  return cb.dbcb_resp_short(0, "");
 }
 
 void
@@ -607,30 +694,71 @@ dbcontext::cmd_sql_internal(dbcallback_i& cb, const prep_stmt& pst,
   return cb.dbcb_resp_short(2, "notimpl");
 }
 
+static size_t
+prepare_keybuf(const cmd_exec_args& args, uchar *key_buf, TABLE *table,
+  KEY& kinfo, size_t invalues_index)
+{
+  size_t kplen_sum = 0;
+  DBG_KEY(fprintf(stderr, "SLOW\n"));
+  for (size_t i = 0; i < args.kvalslen; ++i) {
+    const KEY_PART_INFO & kpt = kinfo.key_part[i];
+    string_ref kval = args.kvals[i];
+    if (args.invalues_keypart >= 0 &&
+      static_cast<size_t>(args.invalues_keypart) == i) {
+      kval = args.invalues[invalues_index];
+    }
+    if (kval.begin() == 0) {
+      kpt.field->set_null();
+    } else {
+      kpt.field->set_notnull();
+    }
+    kpt.field->store(kval.begin(), kval.size(), &my_charset_bin);
+    kplen_sum += kpt.store_length;
+    DBG_KEYLEN(fprintf(stderr, "l=%u sl=%zu\n", kpt.length,
+      kpt.store_length));
+  }
+  key_copy(key_buf, table->record[0], &kinfo, kplen_sum);
+  DBG_KEYLEN(fprintf(stderr, "sum=%zu flen=%u\n", kplen_sum,
+    kinfo.key_length));
+  return kplen_sum;
+}
+
 void
 dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   ha_rkey_function find_flag, const cmd_exec_args& args)
 {
   const bool debug_out = (verbose_level >= 100);
-  const bool modify_op_flag = (args.mod_op.size() != 0);
+  bool need_resp_record = true;
   char mod_op = 0;
-  if (modify_op_flag && !for_write_flag) {
-    return cb.dbcb_resp_short(2, "readonly");
-  }
-  if (modify_op_flag) {
-    mod_op = args.mod_op.begin()[0];
-    if (mod_op != 'U' && mod_op != 'D') {
+  const string_ref& mod_op_str = args.mod_op;
+  if (mod_op_str.size() != 0) {
+    if (!for_write_flag) {
+      return cb.dbcb_resp_short(2, "readonly");
+    }
+    mod_op = mod_op_str.begin()[0];
+    need_resp_record = mod_op_str.size() > 1 && mod_op_str.begin()[1] == '?';
+    switch (mod_op) {
+    case 'U': /* update */
+    case 'D': /* delete */
+    case '+': /* increment */
+    case '-': /* decrement */
+      break;
+    default:
+      if (debug_out) {
+	fprintf(stderr, "unknown modop: %c\n", mod_op);
+      }
       return cb.dbcb_resp_short(2, "modop");
     }
   }
   lock_tables_if();
   if (lock == 0) {
-    return cb.dbcb_resp_short(2, "lock_tables");
+    return cb.dbcb_resp_short(1, "lock_tables");
   }
   if (pst.get_table_id() >= table_vec.size()) {
     return cb.dbcb_resp_short(2, "tblnum");
   }
   TABLE *const table = table_vec[pst.get_table_id()].table;
+  /* keys */
   if (pst.get_idxnum() >= table->s->keys) {
     return cb.dbcb_resp_short(2, "idxnum");
   }
@@ -638,23 +766,21 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   if (args.kvalslen > kinfo.key_parts) {
     return cb.dbcb_resp_short(2, "kpnum");
   }
-  uchar key_buf[kinfo.key_length]; /* GNU */
-  size_t kplen_sum = 0;
-  {
-    DBG_KEY(fprintf(stderr, "SLOW\n"));
-    for (size_t i = 0; i < args.kvalslen; ++i) {
-      const KEY_PART_INFO & kpt = kinfo.key_part[i];
-      const string_ref& kval = args.kvals[i];
-      if (kval.begin() == 0) {
-	kpt.field->set_null();
-      } else {
-	kpt.field->set_notnull();
-      }
-      kpt.field->store(kval.begin(), kval.size(), &my_charset_bin);
-      kplen_sum += kpt.length;
+  uchar *const key_buf = DENA_ALLOCA_ALLOCATE(uchar, kinfo.key_length);
+  size_t invalues_idx = 0;
+  size_t kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
+  /* filters */
+  uchar *filter_buf = 0;
+  if (args.filters != 0) {
+    const size_t filter_buf_len = calc_filter_buf_size(table, pst,
+      args.filters);
+    filter_buf = DENA_ALLOCA_ALLOCATE(uchar, filter_buf_len);
+    if (!fill_filter_buf(table, pst, args.filters, filter_buf,
+      filter_buf_len)) {
+      return cb.dbcb_resp_short(2, "filterblob");
     }
-    key_copy(key_buf, table->record[0], &kinfo, kplen_sum);
   }
+  /* handler */
   table->read_set = &table->s->all_set;
   handler *const hnd = table->file;
   if (!for_write_flag) {
@@ -662,20 +788,24 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   }
   hnd->ha_index_or_rnd_end();
   hnd->ha_index_init(pst.get_idxnum(), 1);
-  #if 0
-  statistic_increment(index_exec_count, &LOCK_status);
-  #endif
-  if (!modify_op_flag) {
-    cb.dbcb_resp_begin(pst.get_retfields().size());
-  } else {
-    /* nothing to do */
+  if (need_resp_record) {
+    cb.dbcb_resp_begin(pst.get_ret_fields().size());
   }
   const uint32_t limit = args.limit ? args.limit : 1;
   uint32_t skip = args.skip;
-  size_t mod_success_count = 0;
+  size_t modified_count = 0;
   int r = 0;
-  for (uint32_t i = 0; i < limit + skip; ++i) {
-    if (i == 0) {
+  bool is_first = true;
+  for (uint32_t cnt = 0; cnt < limit + skip;) {
+    if (is_first) {
+      is_first = false;
+      const key_part_map kpm = (1U << args.kvalslen) - 1;
+      r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+    } else if (args.invalues_keypart >= 0) {
+      if (++invalues_idx >= args.invalueslen) {
+	break;
+      }
+      kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
       const key_part_map kpm = (1U << args.kvalslen) - 1;
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
     } else {
@@ -702,16 +832,28 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
 	dump_record(cb, table, pst);
       }
     }
+    int filter_res = 0;
     if (r != 0) {
       /* no-count */
+    } else if (args.filters != 0 && (filter_res = check_filter(cb, table, 
+      pst, args.filters, filter_buf)) != 0) {
+      if (filter_res < 0) {
+	break;
+      }
     } else if (skip > 0) {
       --skip;
     } else {
-      if (!modify_op_flag) {
+      /* hit */
+      if (need_resp_record) {
 	resp_record(cb, table, pst);
-      } else {
-	r = modify_record(cb, table, pst, args, mod_op, mod_success_count);
       }
+      if (mod_op != 0) {
+	r = modify_record(cb, table, pst, args, mod_op, modified_count);
+      }
+      ++cnt;
+    }
+    if (args.invalues_keypart >= 0 && r == HA_ERR_KEY_NOT_FOUND) {
+      continue;
     }
     if (r != 0 && r != HA_ERR_RECORD_DELETED) {
       break;
@@ -721,27 +863,141 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   if (r != 0 && r != HA_ERR_RECORD_DELETED && r != HA_ERR_KEY_NOT_FOUND &&
     r != HA_ERR_END_OF_FILE) {
     /* failed */
-    if (!modify_op_flag) {
+    if (need_resp_record) {
       /* revert dbcb_resp_begin() and dbcb_resp_entry() */
       cb.dbcb_resp_cancel();
     }
-    cb.dbcb_resp_short_num(2, r);
+    cb.dbcb_resp_short_num(1, r);
   } else {
     /* succeeded */
-    if (!modify_op_flag) {
+    if (need_resp_record) {
       cb.dbcb_resp_end();
     } else {
-      cb.dbcb_resp_short_num(0, mod_success_count);
+      cb.dbcb_resp_short_num(0, modified_count);
     }
   }
+  DENA_ALLOCA_FREE(filter_buf);
+  DENA_ALLOCA_FREE(key_buf);
+}
+
+size_t
+dbcontext::calc_filter_buf_size(TABLE *table, const prep_stmt& pst,
+  const record_filter *filters)
+{
+  size_t filter_buf_len = 0;
+  for (const record_filter *f = filters; f->op.begin() != 0; ++f) {
+    if (f->val.begin() == 0) {
+      continue;
+    }
+    const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+    filter_buf_len += table->field[fn]->pack_length();
+  }
+  ++filter_buf_len;
+    /* Field_medium::cmp() calls uint3korr(), which may read 4 bytes.
+       Allocate 1 more byte for safety. */
+  return filter_buf_len;
+}
+
+bool
+dbcontext::fill_filter_buf(TABLE *table, const prep_stmt& pst,
+  const record_filter *filters, uchar *filter_buf, size_t len)
+{
+  memset(filter_buf, 0, len);
+  size_t pos = 0;
+  for (const record_filter *f = filters; f->op.begin() != 0; ++f) {
+    if (f->val.begin() == 0) {
+      continue;
+    }
+    const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+    Field *const fld = table->field[fn];
+    if ((fld->flags & BLOB_FLAG) != 0) {
+      return false;
+    }
+    fld->store(f->val.begin(), f->val.size(), &my_charset_bin);
+    const size_t packlen = fld->pack_length();
+    memcpy(filter_buf + pos, fld->ptr, packlen);
+    pos += packlen;
+  }
+  return true;
+}
+
+int
+dbcontext::check_filter(dbcallback_i& cb, TABLE *table, const prep_stmt& pst,
+  const record_filter *filters, const uchar *filter_buf)
+{
+  DBG_FILTER(fprintf(stderr, "check_filter\n"));
+  size_t pos = 0;
+  for (const record_filter *f = filters; f->op.begin() != 0; ++f) {
+    const string_ref& op = f->op;
+    const string_ref& val = f->val;
+    const uint32_t fn = pst.get_filter_fields()[f->ff_offset];
+    Field *const fld = table->field[fn];
+    const size_t packlen = fld->pack_length();
+    const uchar *const bval = filter_buf + pos;
+    int cv = 0;
+    if (fld->is_null()) {
+      cv = (val.begin() == 0) ? 0 : -1;
+    } else {
+      cv = (val.begin() == 0) ? 1 : fld->cmp(bval);
+    }
+    DBG_FILTER(fprintf(stderr, "check_filter cv=%d\n", cv));
+    bool cond = true;
+    if (op.size() == 1) {
+      switch (op.begin()[0]) {
+      case '>':
+	DBG_FILTER(fprintf(stderr, "check_filter op: >\n"));
+	cond = (cv > 0);
+	break;
+      case '<':
+	DBG_FILTER(fprintf(stderr, "check_filter op: <\n"));
+	cond = (cv < 0);
+	break;
+      case '=':
+	DBG_FILTER(fprintf(stderr, "check_filter op: =\n"));
+	cond = (cv == 0);
+	break;
+      default:
+	DBG_FILTER(fprintf(stderr, "check_filter op: unknown\n"));
+	cond = false; /* FIXME: error */
+	break;
+      }
+    } else if (op.size() == 2 && op.begin()[1] == '=') {
+      switch (op.begin()[0]) {
+      case '>':
+	DBG_FILTER(fprintf(stderr, "check_filter op: >=\n"));
+	cond = (cv >= 0);
+	break;
+      case '<':
+	DBG_FILTER(fprintf(stderr, "check_filter op: <=\n"));
+	cond = (cv <= 0);
+	break;
+      case '!':
+	DBG_FILTER(fprintf(stderr, "check_filter op: !=\n"));
+	cond = (cv != 0);
+	break;
+      default:
+	DBG_FILTER(fprintf(stderr, "check_filter op: unknown\n"));
+	cond = false; /* FIXME: error */
+	break;
+      }
+    }
+    DBG_FILTER(fprintf(stderr, "check_filter cond: %d\n", (int)cond));
+    if (!cond) {
+      return (f->filter_type == record_filter_type_skip) ? 1 : -1;
+    }
+    if (val.begin() != 0) {
+      pos += packlen;
+    }
+  }
+  return 0;
 }
 
 void
-dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
-  const char *tbl, const char *idx, const char *retflds)
+dbcontext::cmd_open(dbcallback_i& cb, const cmd_open_args& arg)
 {
   unlock_tables_if();
-  const table_name_type k = std::make_pair(std::string(dbn), std::string(tbl));
+  const table_name_type k = std::make_pair(std::string(arg.dbn),
+    std::string(arg.tbl));
   const table_map_type::const_iterator iter = table_map.find(k);
   uint32_t tblnum = 0;
   if (iter != table_map.end()) {
@@ -754,23 +1010,24 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     bool refresh = true;
     const thr_lock_type lock_type = for_write_flag ? TL_WRITE : TL_READ;
     #if MYSQL_VERSION_ID >= 50505
-    tables.init_one_table(dbn, strlen(dbn), tbl, strlen(tbl), tbl,
-      lock_type);
-    tables.mdl_request = mdl_request;
-    Open_table_context ot_act(thd, MYSQL_OPEN_REOPEN);
+    tables.init_one_table(arg.dbn, strlen(arg.dbn), arg.tbl, strlen(arg.tbl),
+      arg.tbl, lock_type);
+    tables.mdl_request.init(MDL_key::TABLE, arg.dbn, arg.tbl,
+      for_write_flag ? MDL_SHARED_WRITE : MDL_SHARED_READ, MDL_TRANSACTION);
+    Open_table_context ot_act(thd, 0);
     if (!open_table(thd, &tables, thd->mem_root, &ot_act)) {
       table = tables.table;
     }
     #else
-    tables.init_one_table(dbn, tbl, lock_type);
+    tables.init_one_table(arg.dbn, arg.tbl, lock_type);
     table = open_table(thd, &tables, thd->mem_root, &refresh,
       OPEN_VIEW_NO_PARSE);
     #endif
     if (table == 0) {
       DENA_VERBOSE(10, fprintf(stderr,
 	"HNDSOCK failed to open %p [%s] [%s] [%d]\n",
-	thd, dbn, tbl, static_cast<int>(refresh)));
-      return cb.dbcb_resp_short(2, "open_table");
+	thd, arg.dbn, arg.tbl, static_cast<int>(refresh)));
+      return cb.dbcb_resp_short(1, "open_table");
     }
     statistic_increment(open_tables_count, &LOCK_status);
     table->reginfo.lock_type = lock_type;
@@ -782,15 +1039,16 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     table_map[k] = tblnum;
   }
   size_t idxnum = static_cast<size_t>(-1);
-  if (idx[0] >= '0' && idx[0] <= '9') {
+  if (arg.idx[0] >= '0' && arg.idx[0] <= '9') {
     /* numeric */
     TABLE *const table = table_vec[tblnum].table;
-    idxnum = atoi(idx);
+    idxnum = atoi(arg.idx);
     if (idxnum >= table->s->keys) {
       return cb.dbcb_resp_short(2, "idxnum");
     }
   } else {
-    const char *const idx_name_to_open = idx[0]  == '\0' ? "PRIMARY" : idx;
+    const char *const idx_name_to_open =
+      arg.idx[0]  == '\0' ? "PRIMARY" : arg.idx;
     TABLE *const table = table_vec[tblnum].table;
     for (uint i = 0; i < table->s->keys; ++i) {
       KEY& kinfo = table->key_info[i];
@@ -803,14 +1061,29 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
   if (idxnum == size_t(-1)) {
     return cb.dbcb_resp_short(2, "idxnum");
   }
-  string_ref retflds_sr(retflds, strlen(retflds));
-  std::vector<string_ref> fldnms;
-  if (retflds_sr.size() != 0) {
-    split(',', retflds_sr, fldnms);
+  prep_stmt::fields_type rf;
+  prep_stmt::fields_type ff;
+  if (!parse_fields(table_vec[tblnum].table, arg.retflds, rf)) {
+    return cb.dbcb_resp_short(2, "fld");
   }
-  prep_stmt::retfields_type rf;
+  if (!parse_fields(table_vec[tblnum].table, arg.filflds, ff)) {
+    return cb.dbcb_resp_short(2, "fld");
+  }
+  prep_stmt p(this, tblnum, idxnum, rf, ff);
+  cb.dbcb_set_prep_stmt(arg.pst_id, p);
+  return cb.dbcb_resp_short(0, "");
+}
+
+bool
+dbcontext::parse_fields(TABLE *const table, const char *str,
+  prep_stmt::fields_type& flds)
+{
+  string_ref flds_sr(str, strlen(str));
+  std::vector<string_ref> fldnms;
+  if (flds_sr.size() != 0) {
+    split(',', flds_sr, fldnms);
+  }
   for (size_t i = 0; i < fldnms.size(); ++i) {
-    TABLE *const table = table_vec[tblnum].table;
     Field **fld = 0;
     size_t j = 0;
     for (fld = table->field; *fld; ++fld, ++j) {
@@ -823,14 +1096,12 @@ dbcontext::cmd_open_index(dbcallback_i& cb, size_t pst_id, const char *dbn,
     if (*fld == 0) {
       DBG_FLD(fprintf(stderr, "UNKNOWN FLD %s [%s]\n", retflds,
 	std::string(fldnms[i].begin(), fldnms[i].size()).c_str()));
-      return cb.dbcb_resp_short(2, "fld");
+      return false;
     }
     DBG_FLD(fprintf(stderr, "FLD %s %zu\n", (*fld)->field_name, j));
-    rf.push_back(j);
+    flds.push_back(j);
   }
-  prep_stmt p(this, tblnum, idxnum, rf);
-  cb.dbcb_set_prep_stmt(pst_id, p);
-  return cb.dbcb_resp_short(0, "");
+  return true;
 }
 
 enum db_write_op {
@@ -840,7 +1111,7 @@ enum db_write_op {
 };
 
 void
-dbcontext::cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
+dbcontext::cmd_exec(dbcallback_i& cb, const cmd_exec_args& args)
 {
   const prep_stmt& p = *args.pst;
   if (p.get_table_id() == static_cast<size_t>(-1)) {
@@ -866,7 +1137,7 @@ dbcontext::cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
       wrop = db_write_op_sql;
       break;
     default:
-      return cb.dbcb_resp_short(1, "op");
+      return cb.dbcb_resp_short(2, "op");
     }
   } else if (args.op.size() == 2 && args.op.begin()[1] == '=') {
     switch (args.op.begin()[0]) {
@@ -877,10 +1148,10 @@ dbcontext::cmd_exec_on_index(dbcallback_i& cb, const cmd_exec_args& args)
       find_flag = HA_READ_KEY_OR_PREV;
       break;
     default:
-      return cb.dbcb_resp_short(1, "op");
+      return cb.dbcb_resp_short(2, "op");
     }
   } else {
-    return cb.dbcb_resp_short(1, "op");
+    return cb.dbcb_resp_short(2, "op");
   }
   if (args.kvalslen <= 0) {
     return cb.dbcb_resp_short(2, "klen");

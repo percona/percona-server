@@ -1371,3 +1371,49 @@ diff -ruN a/mysql-test/suite/rpl/t/rpl_semi_sync_event.test b/mysql-test/suite/r
  enable_query_log;
  
  connection master;
+diff -ruN a/mysql-test/t/file_contents.test b/mysql-test/t/file_contents.test
+--- a/mysql-test/t/file_contents.test	2011-03-31 17:36:16.000000000 +0400
++++ b/mysql-test/t/file_contents.test	2011-04-21 23:59:49.000000000 +0400
+@@ -15,22 +15,34 @@
+   # RPM package
+   $dir_docs = $dir_bin;
+   $dir_docs =~ s|/lib|/share/doc|;
+-  if(-d "$dir_docs/packages/MySQL-server") {
++  if(-d "$dir_docs/packages/Percona-Server-server") {
+     # SuSE
+-    $dir_docs = "$dir_docs/packages/MySQL-server";
++    $dir_docs = "$dir_docs/packages/Percona-Server-server";
+   } else {
+-    # RedHat: version number in directory name
+-    $dir_docs = glob "$dir_docs/MySQL-server*";
++    $tmp = glob "$dir_docs/Percona-Server-server*";
++    if ( -d "$tmp") {
++      # RedHat: version number in directory name
++      $dir_docs = $tmp;
++    } else {
++      # Debian
++      $dir_docs = glob "$dir_docs/percona-server-server*"
++    }
+   }
+ } elsif ($dir_bin =~ m|/usr$|) {
+   # RPM build during development
+   $dir_docs = "$dir_bin/share/doc";
+-  if(-d "$dir_docs/packages/MySQL-server") {
++  if(-d "$dir_docs/packages/Percona-Server-server") {
+     # SuSE
+-    $dir_docs = "$dir_docs/packages/MySQL-server";
++    $dir_docs = "$dir_docs/packages/Percona-Server-server";
+   } else {
+-    # RedHat: version number in directory name
+-    $dir_docs = glob "$dir_docs/MySQL-server*";
++    $tmp = glob "$dir_docs/Percona-Server-server*";
++    if ( -d "$tmp") {
++      # RedHat: version number in directory name
++      $dir_docs = $tmp;
++    } else {
++      # Debian
++      $dir_docs = glob "$dir_docs/percona-server-server*"
++    }
+   }
+ } else {
+   # tar.gz package, Windows, or developer work (in BZR)

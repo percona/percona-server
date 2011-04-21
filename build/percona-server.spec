@@ -928,8 +928,8 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %{license_files_server}
 %endif
 %doc %{src_dir}/Docs/ChangeLog
-%doc %{src_dir}/Docs/INFO_BIN
 %doc %{src_dir}/Docs/INFO_SRC
+%doc release/Docs/INFO_BIN
 %doc release/support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*

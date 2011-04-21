@@ -1278,27 +1278,29 @@ diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/optimizer_fix_basic.test
 +SELECT @@global.optimizer_fix;
 diff -ruN a/mysql-test/suite/sys_vars/t/plugin_dir_basic.test b/mysql-test/suite/sys_vars/t/plugin_dir_basic.test
 --- a/mysql-test/suite/sys_vars/t/plugin_dir_basic.test	2011-03-31 17:36:17.000000000 +0400
-+++ b/mysql-test/suite/sys_vars/t/plugin_dir_basic.test	2011-04-21 20:54:09.000000000 +0400
-@@ -6,17 +6,17 @@
++++ b/mysql-test/suite/sys_vars/t/plugin_dir_basic.test	2011-04-21 22:25:30.000000000 +0400
+@@ -6,17 +6,19 @@
  # on windows it's <basedir>/lib/plugin
  # on unix it's <basedir>/lib/mysql/plugin
  #
 ---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
++
++--let $MYSQL_LIBDIR64=`SELECT REPLACE("$MYSQL_LIBDIR", "/lib", "/lib64")`
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR $MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
  select @@global.plugin_dir;
  --error ER_INCORRECT_GLOBAL_LOCAL_VAR
  select @@session.plugin_dir;
 ---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR $MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
  show global variables like 'plugin_dir';
 ---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR $MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
  show session variables like 'plugin_dir';
 ---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR $MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
  select * from information_schema.global_variables where variable_name='plugin_dir';
 ---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR $MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
  select * from information_schema.session_variables where variable_name='plugin_dir';
  
  #

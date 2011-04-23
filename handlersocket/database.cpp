@@ -1024,7 +1024,7 @@ dbcontext::cmd_open(dbcallback_i& cb, const cmd_open_args& arg)
       OPEN_VIEW_NO_PARSE);
     #endif
     if (table == 0) {
-      DENA_VERBOSE(10, fprintf(stderr,
+      DENA_VERBOSE(20, fprintf(stderr,
 	"HNDSOCK failed to open %p [%s] [%s] [%d]\n",
 	thd, arg.dbn, arg.tbl, static_cast<int>(refresh)));
       return cb.dbcb_resp_short(1, "open_table");

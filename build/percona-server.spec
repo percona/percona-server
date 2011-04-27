@@ -219,7 +219,8 @@ necessary to develop Percona Server client applications.
 %package -n Percona-Server-shared%{package_suffix}
 Summary: Percona-Server - Shared libraries
 Group: Applications/Databases
-Provides: mysql-shared MySQL-shared Percona-XtraDB-shared
+Provides: mysql-shared MySQL-shared Percona-XtraDB-shared mysql-libs
+Obsoletes: mysql-libs
 
 %description -n Percona-Server-shared%{package_suffix}
 This package contains the shared libraries (*.so*) which certain

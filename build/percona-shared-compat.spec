@@ -47,8 +47,8 @@ Autoreqprov:  on
 Version:      %{version55}
 Release:      %{release}.%{gotrevision}.rhel%{redhatversion}
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
-Obsoletes:    MySQL-shared
-Provides:     MySQL-shared
+Obsoletes:    MySQL-shared mysql-libs
+Provides:     MySQL-shared mysql-libs
 Summary:      MySQL shared client libraries for MySQL %{version}, %{version50}, %{version41} and %{version40}
 
 # We extract the older libraries from mysql-shared-compat and the newer from our sources

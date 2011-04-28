@@ -120,6 +120,30 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     make $MAKE_JFLAG VERBOSE=1
     make DESTDIR="$INSTALLDIR" install
 
+    # Build HandlerSocket
+    (
+        cd "storage/HandlerSocket-Plugin-for-MySQL"
+        ./autogen.sh
+        CXX=${HS_CXX:-g++} ./configure --with-mysql-source="$SOURCEDIR/$PRODUCT" \
+            --with-mysql-bindir="$SOURCEDIR/$PRODUCT/scripts" \
+            --with-mysql-plugindir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
+            --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
+            --prefix="/usr/local/$PRODUCT_FULL"
+        make
+        make DESTDIR="$INSTALLDIR" install
+
+    )
+
+    # Build UDF
+    (
+        cd "UDF"
+        CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/$PRODUCT/include" \
+            --libdir="/usr/local/$PRODUCT_FULL/mysql/plugin"
+        make
+        make DESTDIR="$INSTALLDIR" install
+
+    )
+
 )
 
 # Package the archive

@@ -110,7 +110,7 @@ diff -ruN a/sql/log.cc b/sql/log.cc
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/mysqld.cc	2010-11-24 19:36:29.000000000 +0300
-@@ -5788,6 +5788,8 @@
+@@ -5794,6 +5794,8 @@
    OPT_LOG_OUTPUT,
    OPT_PORT_OPEN_TIMEOUT,
    OPT_PROFILING,
@@ -119,7 +119,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_KEEP_FILES_ON_CREATE,
    OPT_GENERAL_LOG,
    OPT_SLOW_LOG,
-@@ -6401,6 +6403,16 @@
+@@ -6408,6 +6410,16 @@
     &global_system_variables.profiling_history_size,
     &max_system_variables.profiling_history_size,
     0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
@@ -139,7 +139,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-24 19:33:02.000000000 +0300
 +++ b/sql/set_var.cc	2010-11-24 19:36:29.000000000 +0300
-@@ -848,6 +848,10 @@
+@@ -858,6 +858,10 @@
                                        ulonglong(OPTION_PROFILING));
  static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
  					      &SV::profiling_history_size);

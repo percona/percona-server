@@ -300,7 +300,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 15:54:18.103988092 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 15:57:21.959058733 +0900
-@@ -1527,6 +1527,14 @@
+@@ -1533,6 +1533,14 @@
  		dict_create();
  		srv_startup_is_before_trx_rollback_phase = FALSE;
  

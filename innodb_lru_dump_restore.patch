@@ -42,7 +42,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
 --- a/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:13:11.070058073 +0900
 +++ b/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:34:33.860400549 +0900
-@@ -2100,6 +2100,277 @@
+@@ -2121,6 +2121,277 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  
@@ -612,7 +612,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /* structure to pass status variables to MySQL */
  UNIV_INTERN export_struc export_vars;
  
-@@ -2541,6 +2544,56 @@
+@@ -2550,6 +2553,56 @@
  	/* We count the number of threads in os_thread_exit(). A created
  	thread should always use that to exit and not use return() to exit. */
  
@@ -684,7 +684,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  
  /** We use this mutex to test the return value of pthread_mutex_trylock
     on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-@@ -1700,6 +1700,10 @@
+@@ -1706,6 +1706,10 @@
  	os_thread_create(&srv_monitor_thread, NULL,
  			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
  
@@ -695,7 +695,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  	srv_is_being_started = FALSE;
  
  	if (trx_doublewrite == NULL) {
-@@ -1724,13 +1728,13 @@
+@@ -1730,13 +1734,13 @@
  		ulint i;
  
  		os_thread_create(&srv_purge_thread, NULL, thread_ids

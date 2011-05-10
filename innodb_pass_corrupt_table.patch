@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0btr.c
 --- a/storage/innodb_plugin/btr/btr0btr.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/btr/btr0btr.c	2010-08-27 16:39:02.932248156 +0900
-@@ -137,6 +137,12 @@
+@@ -691,6 +691,12 @@
  	root_page_no = dict_index_get_page(index);
  
  	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
@@ -21,7 +21,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0
  	ut_a((ibool)!!page_is_comp(buf_block_get_frame(block))
  	     == dict_table_is_comp(index->table));
  #ifdef UNIV_BTR_DEBUG
-@@ -422,6 +428,12 @@
+@@ -977,6 +983,12 @@
  
  	root = btr_root_get(index, &mtr);
  
@@ -34,7 +34,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0
  	if (flag == BTR_N_LEAF_PAGES) {
  		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
  
-@@ -868,6 +880,13 @@
+@@ -1431,6 +1443,13 @@
  	mtr_start(&mtr);
  
  	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, &mtr);
@@ -48,7 +48,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
  				    + root, space));
-@@ -890,6 +909,12 @@
+@@ -1453,6 +1472,12 @@
  	mtr_start(&mtr);
  
  	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, &mtr);
@@ -61,7 +61,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0
  #ifdef UNIV_BTR_DEBUG
  	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
  				    + root, space));
-@@ -923,6 +948,11 @@
+@@ -1486,6 +1511,11 @@
  
  	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
  
@@ -228,7 +228,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  	page = buf_block_get_frame(block);
  	index = cursor->index;
  	zip_size = buf_block_get_zip_size(block);
-@@ -2805,6 +2880,11 @@
+@@ -2806,6 +2881,11 @@
  
  	block = btr_cur_get_block(cursor);
  
@@ -240,7 +240,7 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  	ut_ad(page_is_leaf(buf_block_get_frame(block)));
  
  	rec = btr_cur_get_rec(cursor);
-@@ -3349,6 +3429,11 @@
+@@ -3350,6 +3430,11 @@
  
  		page = btr_cur_get_page(&cursor);
  
@@ -355,7 +355,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&page_hash_latch);
-@@ -2265,6 +2279,14 @@
+@@ -2280,6 +2294,14 @@
  		return(NULL);
  	}
  
@@ -370,7 +370,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -2909,6 +2931,7 @@
+@@ -2927,6 +2949,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -378,7 +378,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
-@@ -3365,7 +3388,8 @@
+@@ -3384,7 +3407,8 @@
  void
  buf_page_io_complete(
  /*=================*/
@@ -388,7 +388,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  {
  	enum buf_io_fix	io_type;
  	const ibool	uncompressed = (buf_page_get_state(bpage)
-@@ -3443,6 +3467,7 @@
+@@ -3462,6 +3486,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -3484,6 +3509,19 @@
+@@ -3503,6 +3528,19 @@
  			      REFMAN "forcing-innodb-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -416,7 +416,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				fputs("InnoDB: Ending processing because of"
  				      " a corrupt database page.\n",
-@@ -3491,6 +3529,7 @@
+@@ -3510,6 +3548,7 @@
  				exit(1);
  			}
  		}
@@ -424,7 +424,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -3500,8 +3539,11 @@
+@@ -3519,8 +3558,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(
@@ -547,7 +547,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
 diff -ruN a/storage/innodb_plugin/dict/dict0mem.c b/storage/innodb_plugin/dict/dict0mem.c
 --- a/storage/innodb_plugin/dict/dict0mem.c	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/dict/dict0mem.c	2010-08-27 16:39:02.945072825 +0900
-@@ -86,6 +86,8 @@
+@@ -89,6 +89,8 @@
  	/* The number of transactions that are either waiting on the
  	AUTOINC lock or have been granted the lock. */
  	table->n_waiting_or_granted_auto_inc_locks = 0;
@@ -1099,7 +1099,7 @@ diff -ruN a/storage/innodb_plugin/include/btr0btr.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:13:11.081058676 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:39:03.007006842 +0900
-@@ -848,7 +848,7 @@
+@@ -850,7 +850,7 @@
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  	__attribute__((pure));
  #else /* UNIV_DEBUG */
@@ -1108,7 +1108,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  #endif /* UNIV_DEBUG */
  /*********************************************************************//**
  Gets the space id of a block.
-@@ -980,7 +980,8 @@
+@@ -982,7 +982,8 @@
  void
  buf_page_io_complete(
  /*=================*/
@@ -1118,7 +1118,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  /********************************************************************//**
  Calculates a folded value of a file page address to use in the page hash
  table.
-@@ -1148,6 +1149,7 @@
+@@ -1150,6 +1151,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -1173,7 +1173,7 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/dict0mem.h b/storage/innodb_plugin/include/dict0mem.h
 --- a/storage/innodb_plugin/include/dict0mem.h	2010-08-04 02:24:19.000000000 +0900
 +++ b/storage/innodb_plugin/include/dict0mem.h	2010-08-27 16:39:03.013021149 +0900
-@@ -566,6 +566,7 @@
+@@ -573,6 +573,7 @@
  				the AUTOINC lock on this table. */
  				/* @} */
  	/*----------------------*/
@@ -1354,7 +1354,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:38:38.290021700 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:39:03.052021423 +0900
-@@ -1994,6 +1994,13 @@
+@@ -2000,6 +2000,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);
  

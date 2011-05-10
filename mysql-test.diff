@@ -3958,10 +3958,10 @@ diff -Nur a/mysql-test/suite/funcs_1/r/processlist_val_ps.result b/mysql-test/su
 diff -Nur a/mysql-test/include/mtr_warnings.sql b/mysql-test/include/mtr_warnings.sql
 --- a/mysql-test/include/mtr_warnings.sql	2010-12-23 10:16:32.000000000 -0500
 +++ b/mysql-test/include/mtr_warnings.sql	2010-12-23 11:07:57.000000000 -0500
-@@ -198,6 +198,9 @@
-  ("Slave I/O: Get master clock failed with error:.*"),
-  ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
-  ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+@@ -153,6 +153,9 @@
+     write()/read(). Bug #50414 */
+  ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
+  ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
 + 
 + /* Suppress innodb_buffer_pool_shm_key warning */
 + ("InnoDB: Warning: The innodb_buffer_pool_shm_key option has been specified."),

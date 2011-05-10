@@ -736,7 +736,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  
  /** @name Modes for buf_page_get_gen */
  /* @{ */
-@@ -1300,7 +1301,10 @@
+@@ -1302,7 +1303,10 @@
  /**********************************************************************//**
  Compute the hash fold value for blocks in buf_pool->zip_hash. */
  /* @{ */
@@ -1131,7 +1131,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-07-14 16:33:23.851391514 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-07-14 16:40:16.180321173 +0900
-@@ -1744,6 +1744,8 @@
+@@ -1750,6 +1750,8 @@
  		Note that this is not as heavy weight as it seems. At
  		this point there will be only ONE page in the buf_LRU
  		and there must be no page in the buf_flush list. */

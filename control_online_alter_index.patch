@@ -8,7 +8,7 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-07-21 22:49:53.660561079 +0900
 +++ b/sql/handler.h	2010-07-21 22:50:24.106530090 +0900
-@@ -170,6 +170,19 @@
+@@ -169,6 +169,19 @@
  #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
  #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
  #define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
@@ -31,7 +31,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-21 22:49:54.011529414 +0900
 +++ b/sql/mysqld.cc	2010-07-21 22:50:24.112527179 +0900
-@@ -5892,6 +5892,7 @@
+@@ -5898,6 +5898,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -39,7 +39,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_SUPPRESS_LOG_WARNING_1592,
    OPT_QUERY_CACHE_STRIP_COMMENTS,
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
-@@ -5923,6 +5924,13 @@
+@@ -5930,6 +5931,13 @@
     "from libc.so",
     &opt_allow_suspicious_udfs, &opt_allow_suspicious_udfs,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -56,7 +56,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-07-21 22:49:54.019529438 +0900
 +++ b/sql/set_var.cc	2010-07-21 22:50:24.122532110 +0900
-@@ -748,6 +748,11 @@
+@@ -758,6 +758,11 @@
  sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
  			      &SV::engine_condition_pushdown);
  
@@ -100,7 +100,7 @@ diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 --- a/sql/sql_table.cc	2010-06-04 00:50:11.000000000 +0900
 +++ b/sql/sql_table.cc	2010-07-21 22:50:24.146531063 +0900
-@@ -6993,6 +6993,10 @@
+@@ -7003,6 +7003,10 @@
      uint  *idx_end_p;
  
      alter_flags= table->file->alter_table_flags(alter_info->flags);

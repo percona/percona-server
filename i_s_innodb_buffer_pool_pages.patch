@@ -779,7 +779,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-07-14 15:57:23.333331973 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-07-14 16:03:45.885392395 +0900
-@@ -1284,6 +1284,15 @@
+@@ -1286,6 +1286,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  

@@ -13,7 +13,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:31:57.781983359 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:32:39.523946003 +0900
-@@ -3224,6 +3224,7 @@
+@@ -3243,6 +3243,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -50,7 +50,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
 --- a/storage/innodb_plugin/buf/buf0lru.c	2011-02-21 20:31:57.451983310 +0900
 +++ b/storage/innodb_plugin/buf/buf0lru.c	2011-02-21 20:32:39.526949096 +0900
-@@ -530,6 +530,30 @@
+@@ -550,6 +550,30 @@
  	}
  }
  
@@ -81,7 +81,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  /********************************************************************//**
  Insert a compressed block into buf_pool->zip_clean in the LRU order. */
  UNIV_INTERN
-@@ -1472,6 +1496,10 @@
+@@ -1492,6 +1516,10 @@
  		return(BUF_LRU_NOT_FREED);
  	}
  
@@ -324,7 +324,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:31:57.863983187 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:32:39.537912716 +0900
-@@ -1154,6 +1154,7 @@
+@@ -1156,6 +1156,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -419,7 +419,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	0
- #define INNODB_VERSION_BUGFIX	15
+ #define INNODB_VERSION_BUGFIX	16
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.5
@@ -612,7 +612,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
 --- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900
-@@ -2006,7 +2006,7 @@
+@@ -2012,7 +2012,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

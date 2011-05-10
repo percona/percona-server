@@ -215,7 +215,7 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:40:36.563059330 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:42:03.638058638 +0900
-@@ -475,6 +475,11 @@
+@@ -477,6 +477,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */

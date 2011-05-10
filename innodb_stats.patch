@@ -1777,7 +1777,7 @@ diff -ruN a/storage/innodb_plugin/row/row0upd.c b/storage/innodb_plugin/row/row0
  		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
  
  		if (rec_offs_comp(offsets)
-@@ -844,6 +850,18 @@
+@@ -879,6 +885,18 @@
  
  	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
  

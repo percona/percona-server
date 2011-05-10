@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2010-04-29 15:28:56.000000000 +0900
-@@ -3878,14 +3878,16 @@
+@@ -3897,14 +3897,16 @@
  	buf_pool_mutex_enter();
  
  	fprintf(file,

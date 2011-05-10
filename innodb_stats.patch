@@ -906,7 +906,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2407,6 +2408,8 @@
+@@ -2420,6 +2421,8 @@
  		goto error;
  	}
  
@@ -915,7 +915,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -5211,6 +5214,10 @@
+@@ -5223,6 +5226,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -926,7 +926,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5547,6 +5554,10 @@
+@@ -5559,6 +5566,10 @@
  		}
  	}
  
@@ -937,7 +937,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5600,6 +5611,10 @@
+@@ -5612,6 +5623,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -948,7 +948,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5918,6 +5933,11 @@
+@@ -5930,6 +5945,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -960,7 +960,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_KEY_NOT_FOUND;
-@@ -6127,6 +6147,11 @@
+@@ -6139,6 +6159,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -972,7 +972,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8077,11 +8102,35 @@
+@@ -8089,11 +8114,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8159,7 +8208,7 @@
+@@ -8171,7 +8220,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1018,7 +1018,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11361,6 +11410,26 @@
+@@ -11378,6 +11427,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1045,7 +1045,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11686,6 +11755,9 @@
+@@ -11703,6 +11772,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1055,7 +1055,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11755,7 +11827,10 @@
+@@ -11772,7 +11844,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -1077,8 +1077,8 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +#include "dict0dict.h" /* for dict_sys */
  }
  
- static const char plugin_author[] = "Innobase Oy";
-@@ -3457,6 +3458,221 @@
+ #define OK(expr)		\
+@@ -3455,6 +3456,221 @@
  	STRUCT_FLD(__reserved1, NULL)
  };
  
@@ -1300,7 +1300,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  /***********************************************************************
  */
  static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
-@@ -3619,3 +3835,347 @@
+@@ -3617,3 +3833,347 @@
  	/* void* */
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -1651,7 +1651,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 --- a/storage/innobase/handler/i_s.h	2010-12-03 17:17:03.668953884 +0900
 +++ b/storage/innobase/handler/i_s.h	2010-12-03 17:19:24.882947826 +0900
-@@ -41,5 +41,8 @@
+@@ -43,5 +43,8 @@
  extern struct st_mysql_plugin   i_s_innodb_sys_foreign;
  extern struct st_mysql_plugin   i_s_innodb_sys_foreign_cols;
  extern struct st_mysql_plugin	i_s_innodb_rseg;
@@ -2122,7 +2122,7 @@ diff -ruN a/storage/innobase/row/row0upd.c b/storage/innobase/row/row0upd.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:53:54.625288512 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:19:24.922953561 +0900
-@@ -405,6 +405,9 @@
+@@ -404,6 +404,9 @@
  /* When estimating number of different key values in an index, sample
  this many index pages */
  UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;

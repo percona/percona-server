@@ -8,46 +8,50 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:34:35.285040381 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:35:12.974975252 +0900
-@@ -9575,8 +9575,8 @@
+@@ -9588,9 +9588,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
 -		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
--				     mutex->cfile_name, (ulong) mutex->cline);
+-				     innobase_basename(mutex->cfile_name),
+-				     (ulong) mutex->cline);
 +		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s",
 +				     mutex->cmutex_name);
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9591,9 +9591,8 @@
+@@ -9605,10 +9604,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 -					     "combined %s:%lu",
--					     block_mutex->cfile_name,
+-					     innobase_basename(
+-						block_mutex->cfile_name),
 -					     (ulong) block_mutex->cline);
 +					     "combined %s",
 +					     block_mutex->cmutex_name);
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9622,8 +9621,8 @@
+@@ -9637,9 +9634,8 @@
  			continue;
  		}
  
 -		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
--				     lock->cfile_name, (ulong) lock->cline);
+-				     innobase_basename(lock->cfile_name),
+-				     (ulong) lock->cline);
 +		buf1len = my_snprintf(buf1, sizeof buf1, "%s",
 +				     lock->lock_name);
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9637,9 +9636,8 @@
+@@ -9653,10 +9649,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 -					     "combined %s:%lu",
--					     block_lock->cfile_name,
+-					     innobase_basename(
+-						block_lock->cfile_name),
 -					     (ulong) block_lock->cline);
 +					     "combined %s",
 +					     block_lock->lock_name);
@@ -174,7 +178,7 @@ diff -ruN a/storage/innobase/include/sync0rw.ic b/storage/innobase/include/sync0
 diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
 --- a/storage/innobase/include/sync0sync.h	2010-12-03 15:49:59.227955503 +0900
 +++ b/storage/innobase/include/sync0sync.h	2010-12-03 17:35:12.982023946 +0900
-@@ -159,14 +159,14 @@
+@@ -158,14 +158,14 @@
  # ifdef UNIV_DEBUG
  #  ifdef UNIV_SYNC_DEBUG
  #   define mutex_create(K, M, level)				\
@@ -192,7 +196,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  # endif	/* UNIV_DEBUG */
  
  # define mutex_enter(M)						\
-@@ -186,14 +186,14 @@
+@@ -185,14 +185,14 @@
  # ifdef UNIV_DEBUG
  #  ifdef UNIV_SYNC_DEBUG
  #   define mutex_create(K, M, level)			\
@@ -210,7 +214,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  # endif	/* UNIV_DEBUG */
  
  # define mutex_enter(M)	mutex_enter_func((M), __FILE__, __LINE__)
-@@ -218,13 +218,13 @@
+@@ -217,13 +217,13 @@
  /*==============*/
  	mutex_t*	mutex,		/*!< in: pointer to memory */
  #ifdef UNIV_DEBUG
@@ -227,7 +231,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  
  /******************************************************************//**
  NOTE! Use the corresponding macro mutex_free(), not directly this function!
-@@ -292,13 +292,13 @@
+@@ -291,13 +291,13 @@
  	PSI_mutex_key	key,		/*!< in: Performance Schema key */
  	mutex_t*	mutex,		/*!< in: pointer to memory */
  # ifdef UNIV_DEBUG
@@ -244,7 +248,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  /******************************************************************//**
  NOTE! Please use the corresponding macro mutex_enter(), not directly
  this function!
-@@ -723,9 +723,9 @@
+@@ -722,9 +722,9 @@
  	ulint	line;		/*!< Line where the mutex was locked */
  	ulint	level;		/*!< Level in the global latching order */
  #endif /* UNIV_SYNC_DEBUG */
@@ -255,7 +259,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  	os_thread_id_t thread_id; /*!< The thread id of the thread
  				which locked the mutex. */
  	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-@@ -740,9 +740,9 @@
+@@ -739,9 +739,9 @@
  	ulong		count_os_yield;	/*!< count of os_wait */
  	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
  	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */
@@ -306,7 +310,7 @@ diff -ruN a/storage/innobase/include/sync0sync.ic b/storage/innobase/include/syn
 diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
 --- a/storage/innobase/sync/sync0arr.c	2010-12-03 15:09:51.304953409 +0900
 +++ b/storage/innobase/sync/sync0arr.c	2010-12-03 17:35:12.985024561 +0900
-@@ -488,12 +488,12 @@
+@@ -489,13 +489,12 @@
  		mutex = cell->old_wait_mutex;
  
  		fprintf(file,
@@ -316,17 +320,18 @@ diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
  			"Last time reserved in file %s line %lu, "
  #endif /* UNIV_SYNC_DEBUG */
  			"waiters flag %lu\n",
--			(void*) mutex, mutex->cfile_name, (ulong) mutex->cline,
+-			(void*) mutex, innobase_basename(mutex->cfile_name),
+-			(ulong) mutex->cline,
 +			(void*) mutex, mutex->cmutex_name,
  			(ulong) mutex->lock_word,
  #ifdef UNIV_SYNC_DEBUG
  			mutex->file_name, (ulong) mutex->line,
-@@ -511,9 +511,8 @@
+@@ -513,9 +512,8 @@
  		rwlock = cell->old_wait_rw_lock;
  
  		fprintf(file,
 -			" RW-latch at %p created in file %s line %lu\n",
--			(void*) rwlock, rwlock->cfile_name,
+-			(void*) rwlock, innobase_basename(rwlock->cfile_name),
 -			(ulong) rwlock->cline);
 +			" RW-latch at %p '%s'\n",
 +			(void*) rwlock, rwlock->lock_name);
@@ -336,7 +341,7 @@ diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
 diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
 --- a/storage/innobase/sync/sync0rw.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/sync/sync0rw.c	2010-12-03 17:35:12.987029059 +0900
-@@ -241,10 +241,10 @@
+@@ -242,10 +242,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
@@ -350,7 +355,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  {
  	/* If this is the very first time a synchronization object is
  	created, then the following call initializes the sync system. */
-@@ -253,14 +253,15 @@
+@@ -254,14 +254,15 @@
  	mutex_create(rw_lock_mutex_key, rw_lock_get_mutex(lock),
  		     SYNC_NO_ORDER_CHECK);
  
@@ -370,7 +375,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  # endif
  #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
  
-@@ -283,8 +284,7 @@
+@@ -284,8 +285,7 @@
  
  	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
  
@@ -380,7 +385,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  
  	lock->count_os_wait = 0;
  	lock->last_s_file_name = "not yet reserved";
-@@ -404,10 +404,10 @@
+@@ -405,11 +405,10 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu spin wait rw-s-lock at %p"
@@ -388,44 +393,48 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
 +			" '%s' rnds %lu\n",
  			(ulong) os_thread_pf(os_thread_get_curr_id()),
  			(void*) lock,
--			lock->cfile_name, (ulong) lock->cline, (ulong) i);
+-			innobase_basename(lock->cfile_name),
+-			(ulong) lock->cline, (ulong) i);
 +			lock->lock_name, (ulong) i);
  	}
  
  	/* We try once again to obtain the lock */
-@@ -440,10 +440,9 @@
+@@ -442,11 +441,9 @@
  		if (srv_print_latch_waits) {
  			fprintf(stderr,
  				"Thread %lu OS wait rw-s-lock at %p"
 -				" cfile %s cline %lu\n",
 +				" '%s'\n",
  				os_thread_pf(os_thread_get_curr_id()),
--				(void*) lock, lock->cfile_name,
+-				(void*) lock,
+-				innobase_basename(lock->cfile_name),
 -				(ulong) lock->cline);
 +				(void*) lock, lock->lock_name);
  		}
  
  		/* these stats may not be accurate */
-@@ -662,9 +661,9 @@
+@@ -665,10 +662,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu spin wait rw-x-lock at %p"
 -			" cfile %s cline %lu rnds %lu\n",
 +			" '%s' rnds %lu\n",
  			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
--			lock->cfile_name, (ulong) lock->cline, (ulong) i);
+-			innobase_basename(lock->cfile_name),
+-			(ulong) lock->cline, (ulong) i);
 +			lock->lock_name, (ulong) i);
  	}
  
  	sync_array_reserve_cell(sync_primary_wait_array,
-@@ -685,9 +684,9 @@
+@@ -689,10 +685,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu OS wait for rw-x-lock at %p"
 -			" cfile %s cline %lu\n",
 +			" '%s'\n",
  			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
--			lock->cfile_name, (ulong) lock->cline);
+-			innobase_basename(lock->cfile_name),
+-			(ulong) lock->cline);
 +			lock->lock_name);
  	}
  
@@ -433,7 +442,7 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
 diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
 --- a/storage/innobase/sync/sync0sync.c	2010-12-03 15:49:59.233955565 +0900
 +++ b/storage/innobase/sync/sync0sync.c	2010-12-03 17:35:12.989024400 +0900
-@@ -269,13 +269,13 @@
+@@ -270,13 +270,13 @@
  /*==============*/
  	mutex_t*	mutex,		/*!< in: pointer to memory */
  #ifdef UNIV_DEBUG
@@ -450,7 +459,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  {
  #if defined(HAVE_ATOMIC_BUILTINS)
  	mutex_reset_lock_word(mutex);
-@@ -293,11 +293,13 @@
+@@ -294,11 +294,13 @@
  	mutex->file_name = "not yet reserved";
  	mutex->level = level;
  #endif /* UNIV_SYNC_DEBUG */
@@ -465,36 +474,39 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  	mutex->count_using=	  0;
  	mutex->mutex_type=	  0;
  	mutex->lspent_time=	  0;
-@@ -551,9 +553,9 @@
+@@ -552,10 +554,9 @@
  #ifdef UNIV_SRV_PRINT_LATCH_WAITS
  	fprintf(stderr,
  		"Thread %lu spin wait mutex at %p"
 -		" cfile %s cline %lu rnds %lu\n",
 +		" '%s' rnds %lu\n",
  		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
--		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+-		innobase_basename(mutex->cfile_name),
+-		(ulong) mutex->cline, (ulong) i);
 +		mutex->cmutex_name, (ulong) i);
  #endif
  
  	mutex_spin_round_count += i;
-@@ -628,9 +630,9 @@
+@@ -630,10 +631,9 @@
  
  #ifdef UNIV_SRV_PRINT_LATCH_WAITS
  	fprintf(stderr,
 -		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
 +		"Thread %lu OS wait mutex at %p '%s' rnds %lu\n",
  		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
--		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+-		innobase_basename(mutex->cfile_name),
+-		(ulong) mutex->cline, (ulong) i);
 +		mutex->cmutex_name, (ulong) i);
  #endif
  
  	mutex_os_wait_count++;
-@@ -878,8 +880,8 @@
+@@ -881,9 +881,8 @@
  
  	if (mutex->magic_n == MUTEX_MAGIC_N) {
  		fprintf(stderr,
 -			"Mutex created at %s %lu\n",
--			mutex->cfile_name, (ulong) mutex->cline);
+-			innobase_basename(mutex->cfile_name),
+-			(ulong) mutex->cline);
 +			"Mutex '%s'\n",
 +			mutex->cmutex_name);
  

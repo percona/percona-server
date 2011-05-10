@@ -13,7 +13,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2011-02-23 19:00:48.178696354 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2011-02-23 19:01:19.138826278 +0900
-@@ -4046,6 +4046,7 @@
+@@ -4063,6 +4063,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -50,7 +50,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2011-02-23 19:00:47.939695791 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2011-02-23 19:01:19.142741970 +0900
-@@ -554,6 +554,37 @@
+@@ -574,6 +574,37 @@
  	}
  }
  
@@ -88,7 +88,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  /********************************************************************//**
  Insert a compressed block into buf_pool->zip_clean in the LRU order. */
  UNIV_INTERN
-@@ -1538,6 +1569,10 @@
+@@ -1558,6 +1589,10 @@
  		return(BUF_LRU_NOT_FREED);
  	}
  
@@ -206,7 +206,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	fil_flush(space_id);
  
-@@ -4863,6 +4880,22 @@
+@@ -4861,6 +4878,22 @@
  		srv_data_written+= len;
  	}
  
@@ -229,7 +229,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	/* Reserve the fil_system mutex and make sure that we can open at
  	least one file while holding it, if the file is not already open */
  
-@@ -4992,10 +5025,24 @@
+@@ -4990,10 +5023,24 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -255,7 +255,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5095,6 +5142,7 @@
+@@ -5093,6 +5140,7 @@
  	fil_node_t*	fil_node;
  	void*		message;
  	ulint		type;
@@ -263,7 +263,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	ut_ad(fil_validate_skip());
  
-@@ -5102,10 +5150,10 @@
+@@ -5100,10 +5148,10 @@
  		srv_set_io_thread_op_info(segment, "native aio handle");
  #ifdef WIN_ASYNC_IO
  		ret = os_aio_windows_handle(segment, 0, &fil_node,
@@ -276,7 +276,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #else
  		ret = 0; /* Eliminate compiler warning */
  		ut_error;
-@@ -5114,7 +5162,22 @@
+@@ -5112,7 +5160,22 @@
  		srv_set_io_thread_op_info(segment, "simulated aio handle");
  
  		ret = os_aio_simulated_handle(segment, &fil_node,
@@ -303,7 +303,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -11986,6 +11986,12 @@
+@@ -11999,6 +11999,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -316,7 +316,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12076,6 +12082,7 @@
+@@ -12089,6 +12095,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -324,10 +324,10 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    NULL
  };
  
-@@ -12085,7 +12092,7 @@
+@@ -12098,7 +12105,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
-   "Innobase Oy",
+   plugin_author,
 -  "Supports transactions, row-level locking, and foreign keys",
 +  "Percona-XtraDB, Supports transactions, row-level locking, and foreign keys",
    PLUGIN_LICENSE_GPL,
@@ -336,7 +336,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-02-23 19:00:48.252696774 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-23 19:01:19.182655902 +0900
-@@ -1437,6 +1437,7 @@
+@@ -1439,6 +1439,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -480,7 +480,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
 --- a/storage/innobase/include/sync0sync.h	2011-02-23 19:00:47.875625940 +0900
 +++ b/storage/innobase/include/sync0sync.h	2011-02-23 19:01:19.195703856 +0900
-@@ -683,6 +683,7 @@
+@@ -682,6 +682,7 @@
  #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
  #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
  #define SYNC_DOUBLEWRITE	140
@@ -689,7 +689,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2011-02-23 19:00:48.283695497 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2011-02-23 19:01:19.204696643 +0900
-@@ -448,6 +448,8 @@
+@@ -447,6 +447,8 @@
  UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
  
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
@@ -701,7 +701,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:57:13.073495392 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 16:02:50.704884053 +0900
-@@ -2162,7 +2162,7 @@
+@@ -2161,7 +2161,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
@@ -713,7 +713,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
 --- a/storage/innobase/sync/sync0sync.c	2011-02-25 14:18:55.817202060 +0900
 +++ b/storage/innobase/sync/sync0sync.c	2011-02-25 14:19:44.596202017 +0900
-@@ -1174,6 +1174,7 @@
+@@ -1175,6 +1175,7 @@
  	case SYNC_LOG_FLUSH_ORDER:
  	case SYNC_THR_LOCAL:
  	case SYNC_ANY_LATCH:

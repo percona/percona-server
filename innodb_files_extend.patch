@@ -121,7 +121,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2289,6 +2292,65 @@
+@@ -2302,6 +2305,65 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -187,7 +187,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7241,9 +7303,9 @@
+@@ -7253,9 +7315,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -200,7 +200,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		}
  	}
  
-@@ -11412,6 +11474,16 @@
+@@ -11425,6 +11487,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -217,7 +217,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11915,6 +11987,8 @@
+@@ -11928,6 +12000,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -229,7 +229,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 15:55:21.375482937 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:55:58.258469088 +0900
-@@ -1682,7 +1682,7 @@
+@@ -1684,7 +1684,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -238,7 +238,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1778,7 +1778,7 @@
+@@ -1780,7 +1780,7 @@
  	/* @{ */
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
@@ -247,7 +247,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1786,9 +1786,9 @@
+@@ -1788,9 +1788,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  
@@ -547,7 +547,7 @@ diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:21.384486344 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:58.282550845 +0900
-@@ -241,6 +241,13 @@
+@@ -240,6 +240,13 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
  
@@ -564,7 +564,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 --- a/storage/innobase/srv/srv0start.c	2010-12-04 15:52:23.502513556 +0900
 +++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:55:58.285550583 +0900
-@@ -1562,11 +1562,13 @@
+@@ -1561,11 +1561,13 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -580,7 +580,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
  
  		return(DB_ERROR);
  	}
-@@ -1575,7 +1577,7 @@
+@@ -1574,7 +1576,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

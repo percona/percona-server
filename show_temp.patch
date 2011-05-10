@@ -76,7 +76,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4797,6 +4803,8 @@
+@@ -4801,6 +4807,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -88,7 +88,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2011-04-09 19:11:52.000000000 +0400
 +++ b/sql/sql_show.cc	2011-04-10 12:16:44.000000000 +0400
-@@ -2686,6 +2686,7 @@
+@@ -2693,6 +2693,7 @@
      break;
    case SQLCOM_SHOW_TABLES:
    case SQLCOM_SHOW_TABLE_STATUS:
@@ -96,7 +96,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      thd->make_lex_string(&lookup_field_values->db_value, 
-@@ -3174,6 +3175,228 @@
+@@ -3181,6 +3182,228 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -325,7 +325,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
     Try acquire high priority share metadata lock on a table (with
-@@ -6850,6 +7073,25 @@
+@@ -6856,6 +7079,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -351,7 +351,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7464,6 +7706,9 @@
+@@ -7470,6 +7712,9 @@
     hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -361,7 +361,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7513,6 +7758,9 @@
+@@ -7519,6 +7764,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},

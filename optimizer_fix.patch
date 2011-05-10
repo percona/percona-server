@@ -144,7 +144,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-02 20:31:56.208023606 +0900
 +++ b/sql/sys_vars.cc	2010-12-02 21:17:44.618120277 +0900
-@@ -2144,6 +2144,12 @@
+@@ -2180,6 +2180,12 @@
         VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
         DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
  

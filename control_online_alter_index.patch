@@ -49,7 +49,7 @@ diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 --- a/sql/sql_table.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sql_table.cc	2010-12-03 13:51:04.768955495 +0900
-@@ -6117,6 +6117,10 @@
+@@ -6112,6 +6112,10 @@
      uint  *idx_end_p;
  
      alter_flags= table->file->alter_table_flags(alter_info->flags);
@@ -63,7 +63,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2010-12-02 21:23:05.569356468 +0900
 +++ b/sql/sys_vars.cc	2010-12-03 14:05:28.857356603 +0900
-@@ -2150,6 +2150,13 @@
+@@ -2186,6 +2186,13 @@
         GLOBAL_VAR(opt_optimizer_fix),
         NO_CMD_LINE, DEFAULT(TRUE));
  

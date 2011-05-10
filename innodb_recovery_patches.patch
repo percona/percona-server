@@ -55,7 +55,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
  
  		return(0);
  	}
-@@ -613,6 +653,50 @@
+@@ -610,6 +650,50 @@
  		/* It is a single table tablespace and the .ibd file is
  		missing: do nothing */
  
@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
-@@ -2549,6 +2550,8 @@
+@@ -2562,6 +2563,8 @@
  
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
@@ -126,7 +126,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  
-@@ -11250,6 +11253,11 @@
+@@ -11267,6 +11270,11 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -138,7 +138,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(recovery_update_relay_log, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11723,6 +11731,7 @@
+@@ -11740,6 +11748,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
@@ -463,7 +463,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 17:30:16.339955597 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:30:41.604958138 +0900
-@@ -167,6 +167,8 @@
+@@ -166,6 +166,8 @@
  /* size in database pages */
  UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
  

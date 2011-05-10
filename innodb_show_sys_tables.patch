@@ -41,7 +41,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:53:54.615040167 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 16:07:26.851357007 +0900
-@@ -11748,7 +11748,14 @@
+@@ -11765,7 +11765,14 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
@@ -72,7 +72,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  #include "dict0mem.h"
  #include "dict0types.h"
  #include "ha_prototypes.h" /* for innobase_convert_name() */
-@@ -1786,6 +1788,1675 @@
+@@ -1784,6 +1786,1675 @@
  	DBUG_RETURN(0);
  }
  
@@ -1751,7 +1751,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 --- a/storage/innobase/handler/i_s.h	2010-12-03 15:37:45.540456499 +0900
 +++ b/storage/innobase/handler/i_s.h	2010-12-03 16:08:57.596941207 +0900
-@@ -33,6 +33,13 @@
+@@ -35,6 +35,13 @@
  extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
  extern struct st_mysql_plugin	i_s_innodb_cmpmem;
  extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;

@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-03 15:07:31.786968193 +0900
-@@ -4814,6 +4814,7 @@
+@@ -4831,6 +4831,7 @@
  	}
  
  	total_info->pool_size += pool_info->pool_size;
@@ -16,7 +16,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	total_info->lru_len += pool_info->lru_len;
  	total_info->old_lru_len += pool_info->old_lru_len;
  	total_info->free_list_len += pool_info->free_list_len;
-@@ -4877,6 +4878,8 @@
+@@ -4894,6 +4895,8 @@
  
  	pool_info->pool_size = buf_pool->curr_size;
  
@@ -25,7 +25,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
  
  	pool_info->old_lru_len = buf_pool->LRU_old_len;
-@@ -4993,14 +4996,16 @@
+@@ -5010,14 +5013,16 @@
  	ut_ad(pool_info);
  
  	fprintf(file,
@@ -62,7 +62,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-03 15:07:31.790357112 +0900
-@@ -4886,3 +4886,30 @@
+@@ -4884,3 +4884,30 @@
  
  	fil_system = NULL;
  }
@@ -96,7 +96,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:06:58.727955654 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:07:31.799376984 +0900
-@@ -604,6 +604,8 @@
+@@ -603,6 +603,8 @@
    (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG},
    {"buffer_pool_pages_flushed",
    (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"buffer_pool_pages_free",
    (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
  #ifdef UNIV_DEBUG
-@@ -11057,6 +11059,16 @@
+@@ -11074,6 +11076,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -122,7 +122,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11244,7 +11256,7 @@
+@@ -11261,7 +11273,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -131,7 +131,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11337,6 +11349,8 @@
+@@ -11354,6 +11366,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -143,7 +143,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-01-20 07:37:08.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-14 15:25:20.859126532 +0900
-@@ -123,6 +123,7 @@
+@@ -125,6 +125,7 @@
  	/* General buffer pool info */
  	ulint	pool_unique_id;		/*!< Buffer Pool ID */
  	ulint	pool_size;		/*!< Buffer Pool size in pages */
@@ -205,7 +205,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /** Number of buffer pool reads that led to the
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
-@@ -720,6 +725,7 @@
+@@ -705,6 +710,7 @@
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
  	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
@@ -213,27 +213,6 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
-diff -ruN a/storage/innobase/include/thr0loc.h b/storage/innobase/include/thr0loc.h
---- a/storage/innobase/include/thr0loc.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/thr0loc.h	2010-12-03 15:07:31.815081509 +0900
-@@ -83,6 +83,17 @@
- thr_local_get_in_ibuf_field(void);
- /*=============================*/
- 
-+/*************************************************************************
-+Return local hash table informations. */
-+
-+ulint
-+thr_local_hash_cells(void);
-+/*=======================*/
-+
-+ulint
-+thr_local_hash_nodes(void);
-+/*=======================*/
-+
- #ifndef UNIV_NONINL
- #include "thr0loc.ic"
- #endif
 diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
 --- a/storage/innobase/lock/lock0lock.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/lock/lock0lock.c	2010-12-03 15:07:31.819023998 +0900
@@ -322,7 +301,7 @@ diff -ruN a/storage/innobase/read/read0read.c b/storage/innobase/read/read0read.
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:07:31.824022673 +0900
-@@ -84,6 +84,7 @@
+@@ -83,6 +83,7 @@
  #include "ha_prototypes.h"
  #include "trx0i_s.h"
  #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
@@ -330,7 +309,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  #include "mysql/plugin.h"
  #include "mysql/service_thd_wait.h"
  
-@@ -195,6 +196,9 @@
+@@ -194,6 +195,9 @@
  the checkpoints. */
  UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
  
@@ -340,7 +319,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /** Maximum number of times allowed to conditionally acquire
  mutex before switching to blocking wait on the mutex */
  #define MAX_MUTEX_NOWAIT	20
-@@ -321,6 +325,7 @@
+@@ -320,6 +324,7 @@
  /* variable to count the number of pages that were written from buffer
  pool to the disk */
  UNIV_INTERN ulint srv_buf_pool_flushed = 0;
@@ -348,7 +327,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  /** Number of buffer pool reads that led to the
  reading of a disk page */
-@@ -1829,6 +1834,13 @@
+@@ -1814,6 +1819,13 @@
  	ulint	n_reserved;
  	ibool	ret;
  
@@ -362,7 +341,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	mutex_enter(&srv_innodb_monitor_mutex);
  
  	current_time = time(NULL);
-@@ -1877,31 +1889,6 @@
+@@ -1862,31 +1874,6 @@
  
  	mutex_exit(&dict_foreign_err_mutex);
  
@@ -394,7 +373,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("--------\n"
  	      "FILE I/O\n"
  	      "--------\n", file);
-@@ -1932,10 +1919,84 @@
+@@ -1917,10 +1904,78 @@
  	      "BUFFER POOL AND MEMORY\n"
  	      "----------------------\n", file);
  	fprintf(file,
@@ -437,8 +416,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +			"    Dictionary cache    %lu \t(%lu + %lu)\n"
 +			"    File system         %lu \t(%lu + %lu)\n"
 +			"    Lock system         %lu \t(%lu + %lu)\n"
-+			"    Recovery system     %lu \t(%lu + %lu)\n"
-+			"    Threads             %lu \t(%lu + %lu)\n",
++			"    Recovery system     %lu \t(%lu + %lu)\n",
 +
 +			(ulong) (btr_search_sys
 +				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0)
@@ -473,17 +451,12 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +					+ recv_sys_subtotal),
 +			(ulong) ((recv_sys && recv_sys->addr_hash)
 +					? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0),
-+			(ulong) recv_sys_subtotal,
-+
-+			(ulong) (thr_local_hash_cells() * sizeof(hash_cell_t)
-+					+ thr_local_hash_nodes()),
-+			(ulong) (thr_local_hash_cells() * sizeof(hash_cell_t)),
-+			(ulong) thr_local_hash_nodes());
++			(ulong) recv_sys_subtotal);
 +
  	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
  		dict_sys->size);
  
-@@ -1951,6 +2012,16 @@
+@@ -1936,6 +1991,16 @@
  	fprintf(file, "%lu read views open inside InnoDB\n",
  		UT_LIST_GET_LEN(trx_sys->view_list));
  
@@ -500,7 +473,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	n_reserved = fil_space_get_n_reserved_extents(0);
  	if (n_reserved > 0) {
  		fprintf(file,
-@@ -1994,6 +2065,31 @@
+@@ -1979,6 +2044,31 @@
  	srv_n_rows_deleted_old = srv_n_rows_deleted;
  	srv_n_rows_read_old = srv_n_rows_read;
  
@@ -532,7 +505,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	fputs("----------------------------\n"
  	      "END OF INNODB MONITOR OUTPUT\n"
  	      "============================\n", file);
-@@ -2037,6 +2133,7 @@
+@@ -2022,6 +2112,7 @@
  		= srv_buf_pool_write_requests;
  	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
  	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
@@ -543,72 +516,15 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
 --- a/storage/innobase/sync/sync0arr.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/sync/sync0arr.c	2010-12-03 15:07:31.826041368 +0900
-@@ -477,7 +477,7 @@
+@@ -478,7 +478,7 @@
  
  	fprintf(file,
  		"--Thread %lu has waited at %s line %lu"
 -		" for %.2f seconds the semaphore:\n",
 +		" for %#.5g seconds the semaphore:\n",
- 		(ulong) os_thread_pf(cell->thread), cell->file,
- 		(ulong) cell->line,
+ 		(ulong) os_thread_pf(cell->thread),
+ 		innobase_basename(cell->file), (ulong) cell->line,
  		difftime(time(NULL), cell->reservation_time));
-diff -ruN a/storage/innobase/thr/thr0loc.c b/storage/innobase/thr/thr0loc.c
---- a/storage/innobase/thr/thr0loc.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/thr/thr0loc.c	2010-12-03 15:07:31.828023915 +0900
-@@ -49,6 +49,7 @@
- 
- /** The hash table. The module is not yet initialized when it is NULL. */
- static hash_table_t*	thr_local_hash	= NULL;
-+ulint		thr_local_hash_n_nodes = 0;
- 
- /** Thread local data */
- typedef struct thr_local_struct thr_local_t;
-@@ -221,6 +222,7 @@
- 		    os_thread_pf(os_thread_get_curr_id()),
- 		    local);
- 
-+	thr_local_hash_n_nodes++;
- 	mutex_exit(&thr_local_mutex);
- }
- 
-@@ -249,6 +251,7 @@
- 
- 	HASH_DELETE(thr_local_t, hash, thr_local_hash,
- 		    os_thread_pf(id), local);
-+	thr_local_hash_n_nodes--;
- 
- 	mutex_exit(&thr_local_mutex);
- 
-@@ -305,3 +308,29 @@
- 	hash_table_free(thr_local_hash);
- 	thr_local_hash = NULL;
- }
-+
-+/*************************************************************************
-+Return local hash table informations. */
-+
-+ulint
-+thr_local_hash_cells(void)
-+/*======================*/
-+{
-+	if (thr_local_hash) {
-+		return (thr_local_hash->n_cells);
-+	} else {
-+		return 0;
-+	}
-+}
-+
-+ulint
-+thr_local_hash_nodes(void)
-+/*======================*/
-+{
-+	if (thr_local_hash) {
-+		return (thr_local_hash_n_nodes
-+			* (sizeof(thr_local_t) + MEM_BLOCK_HEADER_SIZE));
-+	} else {
-+		return 0;
-+	}
-+}
 diff -ruN a/storage/innobase/trx/trx0purge.c b/storage/innobase/trx/trx0purge.c
 --- a/storage/innobase/trx/trx0purge.c	2010-12-04 02:58:26.000000000 +0900
 +++ b/storage/innobase/trx/trx0purge.c	2011-01-21 19:40:42.086683671 +0900

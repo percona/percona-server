@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-04 20:20:44.595483291 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-06 19:28:04.055227506 +0900
-@@ -4519,6 +4519,36 @@
+@@ -4536,6 +4536,36 @@
  	mutex_exit(block_mutex);
  }
  
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 20:20:44.614551139 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-06 19:23:47.622195800 +0900
-@@ -12127,6 +12127,9 @@
+@@ -12140,6 +12140,9 @@
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
@@ -68,8 +68,8 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +#include "btr0btr.h" /* for btr_page_get_index_id */
  }
  
- static const char plugin_author[] = "Innobase Oy";
-@@ -4346,3 +4347,701 @@
+ #define OK(expr)		\
+@@ -4344,3 +4345,701 @@
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -774,7 +774,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 --- a/storage/innobase/handler/i_s.h	2010-12-04 19:46:39.657513849 +0900
 +++ b/storage/innobase/handler/i_s.h	2010-12-06 19:23:47.635192988 +0900
-@@ -45,5 +45,8 @@
+@@ -47,5 +47,8 @@
  extern struct st_mysql_plugin	i_s_innodb_table_stats;
  extern struct st_mysql_plugin	i_s_innodb_index_stats;
  extern struct st_mysql_plugin	i_s_innodb_admin_command;
@@ -786,7 +786,7 @@ diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 19:46:40.197471531 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-06 19:23:47.638195824 +0900
-@@ -1143,6 +1143,14 @@
+@@ -1145,6 +1145,14 @@
  /*===========*/
  	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
  	__attribute__((nonnull, const));

@@ -982,15 +982,15 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 @@ -1508,11 +1509,11 @@
  			anything.  block->is_hashed can only
  			be set on uncompressed file pages. */
- 			
+ 
 -			btr_search_drop_page_hash_index(block);
 +			btr_search_drop_page_hash_index(block, NULL);
- 			
+ 
  			rw_lock_x_unlock(&block->lock);
- 			
+ 
 -			rw_lock_x_lock(&btr_search_latch);
 +			btr_search_x_lock_all();
- 			
+ 
  			ut_ad(!btr_search_enabled);
  		}
 @@ -1531,7 +1532,11 @@
@@ -1006,7 +1006,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2636,6 +2641,7 @@
+@@ -2633,6 +2638,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;
@@ -1017,7 +1017,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-12-04 15:35:29.137347521 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-04 16:12:48.658550840 +0900
-@@ -1776,7 +1776,7 @@
+@@ -1796,7 +1796,7 @@
  
  		UNIV_MEM_VALID(((buf_block_t*) bpage)->frame,
  			       UNIV_PAGE_SIZE);
@@ -1054,7 +1054,7 @@ diff -ruN a/storage/innobase/ha/ha0ha.c b/storage/innobase/ha/ha0ha.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:20.185850734 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:48.674552412 +0900
-@@ -11682,6 +11682,11 @@
+@@ -11695,6 +11695,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1066,7 +1066,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12047,6 +12052,7 @@
+@@ -12060,6 +12065,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1262,7 +1262,7 @@ diff -ruN a/storage/innobase/include/btr0sea.ic b/storage/innobase/include/btr0s
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-15 19:00:07.713604580 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-15 20:58:03.546839883 +0900
-@@ -1545,7 +1545,7 @@
+@@ -1547,7 +1547,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1271,7 +1271,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1559,6 +1559,7 @@
+@@ -1561,6 +1561,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */
@@ -1315,7 +1315,7 @@ diff -ruN a/storage/innobase/page/page0page.c b/storage/innobase/page/page0page.
 diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
 --- a/storage/innobase/page/page0zip.c	2010-12-04 15:57:13.061494433 +0900
 +++ b/storage/innobase/page/page0zip.c	2010-12-04 16:12:48.716470334 +0900
-@@ -4445,7 +4445,7 @@
+@@ -4444,7 +4444,7 @@
  
  #ifndef UNIV_HOTBACKUP
  	temp_block = buf_block_alloc(buf_pool);
@@ -1469,7 +1469,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:20.231484679 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 16:12:48.726551018 +0900
-@@ -2050,7 +2050,9 @@
+@@ -2035,7 +2035,9 @@
  	      "-------------------------------------\n", file);
  	ibuf_print(file);
  
@@ -1480,7 +1480,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	fprintf(file,
  		"%.2f hash searches/s, %.2f non-hash searches/s\n",
-@@ -2075,14 +2077,15 @@
+@@ -2060,14 +2062,15 @@
  			ut_total_allocated_memory,
  			mem_pool_get_reserved(mem_comm_pool));
  	/* Calcurate reserved memories */
@@ -1500,8 +1500,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	lock_sys_subtotal = 0;
  	if (trx_sys) {
-@@ -2109,10 +2112,10 @@
- 			"    Threads             %lu \t(%lu + %lu)\n",
+@@ -2093,10 +2096,10 @@
+ 			"    Recovery system     %lu \t(%lu + %lu)\n",
  
  			(ulong) (btr_search_sys
 -				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0)
@@ -1516,7 +1516,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
 --- a/storage/innobase/sync/sync0sync.c	2010-12-03 17:36:44.300986571 +0900
 +++ b/storage/innobase/sync/sync0sync.c	2010-12-04 16:12:48.729513564 +0900
-@@ -1177,7 +1177,6 @@
+@@ -1178,7 +1178,6 @@
  	case SYNC_OUTER_ANY_LATCH:
  	case SYNC_FILE_FORMAT_TAG:
  	case SYNC_DOUBLEWRITE:
@@ -1524,7 +1524,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  	case SYNC_SEARCH_SYS_CONF:
  	case SYNC_TRX_LOCK_HEAP:
  	case SYNC_KERNEL:
-@@ -1198,6 +1197,7 @@
+@@ -1199,6 +1198,7 @@
  			ut_error;
  		}
  		break;
@@ -1535,7 +1535,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 17:49:11.623953784 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-04 16:12:48.731513275 +0900
-@@ -267,8 +267,14 @@
+@@ -266,8 +266,14 @@
  /*=================================*/
  	trx_t*	   trx) /*!< in: transaction */
  {

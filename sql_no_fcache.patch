@@ -322,7 +322,7 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/sql_lex.h	2011-04-09 18:48:58.000000000 +0400
-@@ -2291,6 +2291,7 @@
+@@ -2292,6 +2292,7 @@
  
    enum enum_yes_no_unknown tx_chain, tx_release;
    bool safe_to_cache_query;

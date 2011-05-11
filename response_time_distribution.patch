@@ -25,7 +25,7 @@ diff -ruN a/CMakeLists.txt b/CMakeLists.txt
 diff -ruN a/include/mysql_com.h b/include/mysql_com.h
 --- a/include/mysql_com.h	2011-03-31 17:36:18.000000000 +0400
 +++ b/include/mysql_com.h	2011-04-10 11:28:51.000000000 +0400
-@@ -137,10 +137,11 @@
+@@ -141,10 +141,11 @@
  #define REFRESH_FAST		32768	/* Intern flag */
  
  /* RESET (remove all queries) from query cache */
@@ -773,7 +773,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -7689,6 +7690,14 @@
+@@ -7695,6 +7696,14 @@
  
  */
  
@@ -788,7 +788,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7742,6 +7751,13 @@
+@@ -7748,6 +7757,13 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -861,7 +861,7 @@ diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1801,6 +1802,26 @@
+@@ -1837,6 +1838,26 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  

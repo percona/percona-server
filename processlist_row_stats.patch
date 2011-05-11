@@ -19,7 +19,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2011-03-09 17:07:26.251706801 +0200
 +++ b/sql/sql_show.cc	2011-03-09 17:07:44.904163954 +0200
-@@ -1759,7 +1759,8 @@
+@@ -1766,7 +1766,8 @@
  
  /****************************************************************************
    Return info about all processes
@@ -29,7 +29,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ****************************************************************************/
  
  class thread_info :public ilink {
-@@ -1777,6 +1778,7 @@
+@@ -1784,6 +1785,7 @@
    uint   command;
    const char *user,*host,*db,*proc_info,*state_info;
    CSET_STRING query_string;
@@ -37,7 +37,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  };
  
  #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
-@@ -1829,6 +1831,15 @@
+@@ -1836,6 +1838,15 @@
    field->maybe_null=1;
    field_list.push_back(field=new Item_empty_string("Info",max_query_length));
    field->maybe_null=1;
@@ -53,7 +53,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    if (protocol->send_result_set_metadata(&field_list,
                              Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
      DBUG_VOID_RETURN;
-@@ -1882,6 +1893,9 @@
+@@ -1889,6 +1900,9 @@
            thd_info->query_string=
              CSET_STRING(q, q ? length : 0, tmp->query_charset());
          }
@@ -63,7 +63,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
          mysql_mutex_unlock(&tmp->LOCK_thd_data);
          thd_info->start_time= tmp->start_time;
          thread_infos.append(thd_info);
-@@ -1910,6 +1924,9 @@
+@@ -1917,6 +1931,9 @@
      protocol->store(thd_info->state_info, system_charset_info);
      protocol->store(thd_info->query_string.str(),
                      thd_info->query_string.charset());
@@ -73,7 +73,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
      if (protocol->write())
        break; /* purecov: inspected */
    }
-@@ -2020,6 +2037,15 @@
+@@ -2027,6 +2044,15 @@
        table->field[8]->store(((tmp->start_utime ?
                                 now_utime - tmp->start_utime : 0)/ 1000));
  
@@ -89,7 +89,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
        if (schema_table_store_record(thd, table))
        {
          mysql_mutex_unlock(&LOCK_thread_count);
-@@ -7941,6 +7967,12 @@
+@@ -7947,6 +7973,12 @@
     SKIP_OPEN_TABLE},
    {"TIME_MS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
     0, 0, "Time_ms", SKIP_OPEN_TABLE},

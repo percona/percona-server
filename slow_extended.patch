@@ -459,7 +459,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7372,6 +7380,8 @@
+@@ -7380,6 +7388,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -794,7 +794,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5248,6 +5286,21 @@
+@@ -5252,6 +5290,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -875,7 +875,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/sql_show.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -1943,8 +1943,17 @@
+@@ -1950,8 +1950,17 @@
          table->field[4]->store(command_name[tmp->command].str,
                                 command_name[tmp->command].length, cs);
        /* MYSQL_TIME */
@@ -898,7 +898,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
 --- a/sql/sys_vars.cc	2011-04-09 18:48:19.000000000 +0400
 +++ b/sql/sys_vars.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -2862,6 +2862,117 @@
+@@ -2898,6 +2898,117 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  

@@ -658,7 +658,7 @@ diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
 diff -ruN a/mysql-test/r/show_check.result b/mysql-test/r/show_check.result
 --- a/mysql-test/r/show_check.result	2011-04-09 18:48:03.000000000 +0400
 +++ b/mysql-test/r/show_check.result	2011-04-09 18:49:05.000000000 +0400
-@@ -1537,14 +1537,14 @@
+@@ -1538,14 +1538,14 @@
  SET NAMES latin1;
  SELECT GET_LOCK('t',1000) AS 'óóóó';;
  SHOW PROCESSLIST;
@@ -751,7 +751,7 @@ diff -ruN a/mysql-test/t/connect.test b/mysql-test/t/connect.test
 diff -ruN a/mysql-test/t/show_check.test b/mysql-test/t/show_check.test
 --- a/mysql-test/t/show_check.test	2011-04-09 18:48:03.000000000 +0400
 +++ b/mysql-test/t/show_check.test	2011-04-09 18:49:05.000000000 +0400
-@@ -1375,10 +1375,10 @@
+@@ -1376,10 +1376,10 @@
  let $wait_timeout= 10;
  let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
  --source include/wait_condition.inc

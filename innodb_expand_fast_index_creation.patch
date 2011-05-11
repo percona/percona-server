@@ -4,10 +4,11 @@
 # Expands the applicability of InnoDB fast index creation to mysqldump,
 # ALTER TABLE and OPTIMIZE TABLE.
 #
+#
 diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2011-04-11 08:57:20.000000000 +0400
 +++ b/client/client_priv.h	2011-04-11 08:57:21.000000000 +0400
-@@ -89,6 +89,7 @@
+@@ -90,6 +90,7 @@
    OPT_NO_REMOVE_EOL_CARRET,
    OPT_DEFAULT_AUTH,
    OPT_DEFAULT_PLUGIN,
@@ -524,15 +525,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    DBUG_ENTER("mysql_prepare_alter_table");
  
-@@ -5286,6 +5314,7 @@
-     char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
-     /*
-        Regular alter table of disk stored table (no tablespace/storage change)
-+
-        Copy tablespace name
-     */
-     if (tablespace &&
-@@ -5436,7 +5465,23 @@
+@@ -5431,7 +5459,23 @@
    /*
      Collect all keys which isn't in drop list. Add only those
      for which some fields exists.
@@ -557,7 +550,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    for (uint i=0 ; i < table->s->keys ; i++,key_info++)
    {
-@@ -5553,6 +5598,8 @@
+@@ -5548,6 +5592,8 @@
                     test(key_info->flags & HA_GENERATED_KEY),
                     key_parts);
        new_key_list.push_back(key);
@@ -566,7 +559,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
      }
    }
    {
-@@ -5560,7 +5607,21 @@
+@@ -5555,7 +5601,21 @@
      while ((key=key_it++))			// Add new keys
      {
        if (key->type != Key::FOREIGN_KEY)
@@ -588,7 +581,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
        if (key->name.str &&
  	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
        {
-@@ -5609,12 +5670,100 @@
+@@ -5604,12 +5664,100 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -689,7 +682,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    Alter table
  
    SYNOPSIS
-@@ -6405,19 +6554,38 @@
+@@ -6400,19 +6548,38 @@
    */
    if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
    {

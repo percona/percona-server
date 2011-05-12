@@ -1,6 +1,6 @@
 FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
-MYSQL_VERSION=5.1.56
+MYSQL_VERSION=5.1.57
 PERCONA_SERVER_VERSION=rel12.7
 PERCONA_SERVER ?=Percona-Server-$(MYSQL_VERSION)
 

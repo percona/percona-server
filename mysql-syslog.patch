@@ -8,7 +8,7 @@
 diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2011-01-07 18:46:05.000000000 +0300
 +++ b/client/client_priv.h	2011-01-07 18:53:03.000000000 +0300
-@@ -90,6 +90,9 @@
+@@ -91,6 +91,9 @@
    OPT_FIX_TABLE_NAMES, OPT_FIX_DB_NAMES, OPT_SSL_VERIFY_SERVER_CERT,
    OPT_DEBUG_INFO, OPT_DEBUG_CHECK, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE,
    OPT_WRITE_BINLOG, OPT_DUMP_DATE,

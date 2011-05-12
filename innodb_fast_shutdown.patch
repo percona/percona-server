@@ -200,7 +200,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	srv_lock_timeout_active = TRUE;
  
-@@ -2552,7 +2555,7 @@
+@@ -2561,7 +2564,7 @@
  
  	fflush(stderr);
  
@@ -209,7 +209,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
  
-@@ -2596,7 +2599,7 @@
+@@ -2605,7 +2608,7 @@
  	last_dump_time = time(NULL);
  
  loop:
@@ -218,7 +218,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
  		goto exit_func;
-@@ -2779,7 +2782,7 @@
+@@ -2788,7 +2791,7 @@
  		if (!skip_sleep) {
  		if (next_itr_time > cur_time) {
  
@@ -227,7 +227,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  			srv_main_sleeps++;
  
  			/*
-@@ -3486,9 +3489,10 @@
+@@ -3495,9 +3498,10 @@
  		mutex_exit(&kernel_mutex);
  
  		sleep_ms = 10;

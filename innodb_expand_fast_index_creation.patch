@@ -7,7 +7,7 @@
 diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h	2011-04-11 23:22:54.000000000 +0400
 +++ b/client/client_priv.h	2011-04-11 23:22:55.000000000 +0400
-@@ -96,5 +96,6 @@
+@@ -97,5 +97,6 @@
    OPT_FIRST_SLAVE,
    OPT_ALL,
    OPT_NO_REMOVE_EOL_CARRET,
@@ -55,7 +55,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2240,6 +2250,77 @@
+@@ -2246,6 +2256,77 @@
  }
  
  /*
@@ -133,7 +133,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2480,6 +2561,9 @@
+@@ -2486,6 +2567,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -143,7 +143,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3572,6 +3656,27 @@
+@@ -3578,6 +3662,27 @@
        goto err;
      }
  
@@ -449,7 +449,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 --- a/sql/sql_table.cc	2011-04-11 23:22:40.000000000 +0400
 +++ b/sql/sql_table.cc	2011-04-11 23:44:23.000000000 +0400
-@@ -2558,7 +2558,7 @@
+@@ -2559,7 +2559,7 @@
        file                      The handler for the new table.
        key_info_buffer     OUT   An array of KEY structs for the indexes.
        key_count           OUT   The number of elements in the array.
@@ -458,7 +458,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    DESCRIPTION
      Prepares the table and key structures for table creation.
-@@ -2913,7 +2913,6 @@
+@@ -2914,7 +2914,6 @@
    }
  
    /* Create keys */
@@ -466,7 +466,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    List_iterator<Key> key_iterator(alter_info->key_list);
    List_iterator<Key> key_iterator2(alter_info->key_list);
    uint key_parts=0, fk_key_count=0;
-@@ -3013,6 +3012,14 @@
+@@ -3014,6 +3013,14 @@
    if (!*key_info_buffer || ! key_part_info)
      DBUG_RETURN(TRUE);				// Out of memory
  
@@ -481,7 +481,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    key_iterator.rewind();
    key_number=0;
    for (; (key=key_iterator++) ; key_number++)
-@@ -3382,8 +3389,26 @@
+@@ -3392,8 +3399,26 @@
        my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
        DBUG_RETURN(TRUE);
      }
@@ -508,7 +508,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    if (!unique_key && !primary_key &&
        (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
    {
-@@ -6081,6 +6106,10 @@
+@@ -6091,6 +6116,10 @@
    List<Create_field> new_create_list;
    /* New key definitions are added here */
    List<Key> new_key_list;
@@ -519,7 +519,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    List_iterator<Alter_drop> drop_it(alter_info->drop_list);
    List_iterator<Create_field> def_it(alter_info->create_list);
    List_iterator<Alter_column> alter_it(alter_info->alter_list);
-@@ -6093,6 +6122,7 @@
+@@ -6103,6 +6132,7 @@
    uint used_fields= create_info->used_fields;
    KEY *key_info=table->key_info;
    bool rc= TRUE;
@@ -527,7 +527,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    DBUG_ENTER("mysql_prepare_alter_table");
  
-@@ -6120,6 +6150,7 @@
+@@ -6130,6 +6160,7 @@
      char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
      /*
         Regular alter table of disk stored table (no tablespace/storage change)
@@ -535,7 +535,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
         Copy tablespace name
      */
      if (tablespace &&
-@@ -6270,7 +6301,23 @@
+@@ -6280,7 +6311,23 @@
    /*
      Collect all keys which isn't in drop list. Add only those
      for which some fields exists.
@@ -560,7 +560,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    for (uint i=0 ; i < table->s->keys ; i++,key_info++)
    {
-@@ -6373,6 +6420,8 @@
+@@ -6383,6 +6430,8 @@
                     test(key_info->flags & HA_GENERATED_KEY),
                     key_parts);
        new_key_list.push_back(key);
@@ -569,7 +569,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
      }
    }
    {
-@@ -6380,7 +6429,21 @@
+@@ -6390,7 +6439,21 @@
      while ((key=key_it++))			// Add new keys
      {
        if (key->type != Key::FOREIGN_KEY)
@@ -592,7 +592,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
        if (key->name &&
  	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
        {
-@@ -6429,12 +6492,100 @@
+@@ -6439,12 +6502,100 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -693,7 +693,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    Alter table
  
    SYNOPSIS
-@@ -7218,6 +7369,12 @@
+@@ -7228,6 +7379,12 @@
    else
      create_info->data_file_name=create_info->index_file_name=0;
  
@@ -706,7 +706,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
    /*
      Create a table with a temporary name.
-@@ -7274,15 +7431,33 @@
+@@ -7284,15 +7441,33 @@
    */
    if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
    {

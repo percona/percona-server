@@ -26,7 +26,7 @@ diff -ruN a/patch_info/query_cache_enhance.patch b/patch_info/query_cache_enhanc
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-28 16:47:41.134069529 +0400
 +++ b/sql/mysqld.cc	2010-07-28 16:47:41.704071184 +0400
-@@ -525,6 +525,7 @@
+@@ -526,6 +526,7 @@
  my_bool opt_log_slow_slave_statements= 0;
  my_bool opt_log_slow_sp_statements= 0;
  my_bool opt_log_slow_timestamp_every= 0;
@@ -34,7 +34,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
-@@ -5892,6 +5893,7 @@
+@@ -5898,6 +5899,7 @@
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
    OPT_SUPPRESS_LOG_WARNING_1592,
@@ -42,7 +42,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -6946,6 +6948,10 @@
+@@ -6953,6 +6955,10 @@
    {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
      "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
     0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
@@ -56,7 +56,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-28 16:47:41.144071083 +0400
 +++ b/sql/mysql_priv.h	2010-07-28 16:47:41.714068826 +0400
-@@ -2113,6 +2113,7 @@
+@@ -2118,6 +2118,7 @@
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
  extern my_bool opt_log_slow_sp_statements;
  extern my_bool opt_log_slow_timestamp_every;
@@ -119,7 +119,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
  static void fix_max_binlog_size(THD *thd, enum_var_type type);
  static void fix_max_relay_log_size(THD *thd, enum_var_type type);
-@@ -571,9 +573,6 @@
+@@ -581,9 +583,6 @@
                                                &SV::div_precincrement);
  static sys_var_long_ptr	sys_rpl_recovery_rank(&vars, "rpl_recovery_rank",
  					      &rpl_recovery_rank);
@@ -129,7 +129,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  
  static sys_var_thd_ulong	sys_range_alloc_block_size(&vars, "range_alloc_block_size",
  						   &SV::range_alloc_block_size);
-@@ -639,14 +638,20 @@
+@@ -649,14 +648,20 @@
                                              NULL);
  
  #ifdef HAVE_QUERY_CACHE
@@ -155,7 +155,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_thd_bool
  sys_query_cache_wlock_invalidate(&vars, "query_cache_wlock_invalidate",
  				 &SV::query_cache_wlock_invalidate);
-@@ -930,6 +935,8 @@
+@@ -940,6 +945,8 @@
  #ifndef EMBEDDED_LIBRARY
  static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);
  static sys_var_const_str_ptr    sys_repl_report_user(&vars, "report_user", &report_user);
@@ -164,7 +164,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
  
  static uchar *slave_get_report_port(THD *thd)
-@@ -1240,10 +1247,9 @@
+@@ -1250,10 +1257,9 @@
  {}
  #endif /* HAVE_REPLICATION */
  
@@ -176,7 +176,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
    ulong new_cache_size= query_cache.resize(query_cache_size);
  
    /*
-@@ -1257,11 +1263,35 @@
+@@ -1267,11 +1273,35 @@
  			query_cache_size, new_cache_size);
    
    query_cache_size= new_cache_size;
@@ -214,7 +214,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
  {
    query_cache_min_res_unit= 
-@@ -3619,6 +3649,16 @@
+@@ -3629,6 +3659,16 @@
    Functions to handle SET mysql_internal_variable=const_expr
  *****************************************************************************/
  

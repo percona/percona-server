@@ -547,7 +547,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  /*
    Some defines for exit codes for ::is_equal class functions.
  */
-@@ -1997,6 +2097,10 @@
+@@ -2002,6 +2102,10 @@
  extern my_bool opt_secure_auth;
  extern char* opt_secure_file_priv;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
@@ -561,7 +561,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-24 13:57:33.000000000 +0300
 +++ b/sql/mysqld.cc	2010-12-24 13:57:45.000000000 +0300
-@@ -519,6 +519,10 @@
+@@ -520,6 +520,10 @@
  char* opt_secure_file_priv= 0;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -572,7 +572,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_myisam_use_mmap= 0;
-@@ -5792,6 +5796,11 @@
+@@ -5798,6 +5802,11 @@
    OPT_SECURE_FILE_PRIV,
    OPT_MIN_EXAMINED_ROW_LIMIT,
    OPT_LOG_SLOW_SLAVE_STATEMENTS,
@@ -584,7 +584,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #if defined(ENABLED_DEBUG_SYNC)
    OPT_DEBUG_SYNC_TIMEOUT,
  #endif /* defined(ENABLED_DEBUG_SYNC) */
-@@ -5799,6 +5808,9 @@
+@@ -5805,6 +5814,9 @@
    OPT_SLAVE_EXEC_MODE,
    OPT_GENERAL_LOG_FILE,
    OPT_SLOW_QUERY_LOG_FILE,
@@ -593,8 +593,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 +  OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
-   OPT_DEFAULT_CHARACTER_SET_OLD
-@@ -6818,6 +6830,36 @@
+   OPT_DEFAULT_CHARACTER_SET_OLD,
+@@ -6825,6 +6837,36 @@
     "microsecond precision.",
     &long_query_time, &long_query_time, 0, GET_DOUBLE,
     REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
@@ -631,7 +631,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-@@ -7968,6 +8010,10 @@
+@@ -7982,6 +8024,10 @@
    global_system_variables.old_passwords= 0;
    global_system_variables.old_alter_table= 0;
    global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
@@ -642,7 +642,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
      when collecting index statistics for MyISAM tables.
-@@ -8469,6 +8515,44 @@
+@@ -8483,6 +8529,44 @@
    case OPT_BOOTSTRAP:
      opt_noacl=opt_bootstrap=1;
      break;
@@ -690,7 +690,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc	2010-11-29 13:37:59.000000000 +0300
 +++ b/sql/set_var.cc	2010-12-24 13:57:45.000000000 +0300
-@@ -160,6 +160,74 @@
+@@ -162,6 +162,74 @@
  
  static sys_var_chain vars = { NULL, NULL };
  
@@ -765,7 +765,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_thd_ulong
  sys_auto_increment_increment(&vars, "auto_increment_increment",
                               &SV::auto_increment_increment, NULL, NULL,
-@@ -891,6 +959,30 @@
+@@ -901,6 +969,30 @@
                                        QUERY_LOG_GENERAL);
  static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                           QUERY_LOG_SLOW);
@@ -796,7 +796,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-@@ -3701,6 +3793,203 @@
+@@ -3711,6 +3803,203 @@
  #endif
  }
  
@@ -1309,7 +1309,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2010-11-29 13:38:17.000000000 +0300
 +++ b/sql/sql_connect.cc	2010-12-24 13:57:45.000000000 +0300
-@@ -1143,6 +1143,15 @@
+@@ -1290,6 +1290,15 @@
  
      prepare_new_connection_state(thd);
  
@@ -1328,7 +1328,7 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2010-12-24 13:57:33.000000000 +0300
 +++ b/sql/sql_parse.cc	2010-12-24 14:06:17.000000000 +0300
-@@ -1685,7 +1685,10 @@
+@@ -1699,7 +1699,10 @@
    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
    DBUG_RETURN(error);
  }
@@ -1340,7 +1340,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  
  void log_slow_statement(THD *thd)
  {
-@@ -1699,6 +1702,40 @@
+@@ -1713,6 +1716,40 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -1381,7 +1381,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -2085,6 +2122,9 @@
+@@ -2099,6 +2136,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -1391,7 +1391,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5814,6 +5854,21 @@
+@@ -5828,6 +5868,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -1416,7 +1416,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2010-11-29 13:38:01.000000000 +0300
 +++ b/sql/sql_select.cc	2010-12-24 13:57:45.000000000 +0300
-@@ -6790,7 +6790,10 @@
+@@ -6794,7 +6794,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1427,7 +1427,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	else
-@@ -6804,7 +6807,10 @@
+@@ -6808,7 +6811,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1438,7 +1438,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	if (!table->no_keyread)
-@@ -10008,6 +10014,7 @@
+@@ -10012,6 +10018,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -1446,7 +1446,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -10889,6 +10896,7 @@
+@@ -10893,6 +10900,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -1454,7 +1454,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -10907,6 +10915,14 @@
+@@ -10911,6 +10919,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  

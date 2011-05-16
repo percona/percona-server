@@ -49,10 +49,6 @@
   if this file.
 */
 
-#ifdef __GNUC__
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_parse.h"                          // append_file_to_dir
 

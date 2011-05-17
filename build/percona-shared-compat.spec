@@ -29,7 +29,7 @@
 # Change this to match the version of the shared libs you want to include
 #
 %define version55 5.5.8
-%define version51 5.1.55
+%define version51 5.1.57
 %define version50 5.0.91
 %define version41 4.1.22
 %define version40 4.0.27
@@ -52,7 +52,7 @@ Provides:     MySQL-shared
 Summary:      MySQL shared client libraries for MySQL %{version55}, %{version50}, %{version41} and %{version40}
 
 # We extract the older libraries from mysql-shared-compat and the newer from our sources
-Source0:      MySQL-shared-compat-5.1.56-1.glibc23.%{_arch}.rpm
+Source0:      MySQL-shared-compat-5.1.57-1.glibc23.%{_arch}.rpm
 #Source1:      MySQL-shared-%{version50}-1.%{_arch}.rpm
 #Source2:      MySQL-shared-%{version41}-0.%{_arch}.rpm
 #Source3:      MySQL-shared-%{version40}-0.%{_arch}.rpm

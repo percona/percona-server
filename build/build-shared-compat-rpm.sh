@@ -131,7 +131,7 @@ fi
         RPMVER=i386
     fi
 
-    wget "http://www.percona.com/downloads/community/shared-compat/MySQL-shared-compat-5.1.56-1.glibc23.$RPMVER.rpm"
+    wget "http://www.percona.com/downloads/community/shared-compat/MySQL-shared-compat-5.1.57-1.glibc23.$RPMVER.rpm"
 
 )
 

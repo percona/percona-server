@@ -1,0 +1,29 @@
+percona-server-5.5 (5.5.12-rel20.3) unstable; urgency=low
+
+  * Update versions to 5.5.12
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Tue, 17 May 2011 18:57:45 -0300
+
+percona-server-5.5 (5.5.11-rel20.2) unstable; urgency=low
+
+  * Update versions to 5.5.11
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Sun, 17 Apr 2011 13:17:02 -0300
+
+percona-server-5.5 (5.5.10-rc20.1) unstable; urgency=low
+
+  * Update versions to 5.5.10
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Sun, 3 Apr 2011 12:51:03 -0300
+
+percona-server-5.5 (5.5.9-20.1) unstable; urgency=low
+
+  * Update packaging to 5.5.9.
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Fri, 25 Mar 2011 15:23:04 -0300
+
+percona-server-5.5 (5.5.8-20.0-1) unstable; urgency=low
+
+  * Initial release (Closes: #609883)
+
+ -- Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>  Tue, 11 Jan 2011 07:17:08 -0800

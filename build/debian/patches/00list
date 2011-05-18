@@ -1,0 +1,6 @@
+00_mysql.info.dpatch
+10_percona-server-prefix.dpatch
+20_scripts__mysql_create_system_tables__no_test.dpatch
+30_scripts__mysqld_safe.sh__signals.dpatch
+40_scripts__mysql_install_db.sh__no_test.dpatch
+50_mysql-test__db_test.dpatch

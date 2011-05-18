@@ -1,0 +1,31 @@
+diff -Naur a/HandlerSocket-Plugin-for-MySQL/configure.ac b/HandlerSocket-Plugin-for-MySQL/configure.ac
+--- a/HandlerSocket-Plugin-for-MySQL/configure.ac	2011-04-19 14:51:32.565359000 -0300
++++ b/HandlerSocket-Plugin-for-MySQL/configure.ac	2011-04-28 18:37:46.417503018 -0300
+@@ -36,7 +36,7 @@
+         MYSQL_INC="$MYSQL_INC -I$ac_mysql_source_dir"
+         AC_SUBST(MYSQL_INC)
+         if test -f "$ac_mysql_source_dir/VERSION"; then
+-          source "$ac_mysql_source_dir/VERSION"
++          . "$ac_mysql_source_dir/VERSION"
+           MYSQL_SOURCE_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
+         else
+           if test -f "$ac_mysql_source_dir/configure.in"; then
+@@ -101,14 +101,10 @@
+   AC_ARG_WITH([mysql-plugindir],
+     [AS_HELP_STRING([--with-mysql-plugindir=PATH], [MySQL plugin directory where handlersocket.so to be copied])],
+     [
+-      ac_mysql_plugin_dir=`cd $withval && pwd`
+-      if test -d "$ac_mysql_plugin_dir/" ; then
+-        PLUGIN_DIR="$ac_mysql_plugin_dir"
+-        AC_SUBST(PLUGIN_DIR)
+-        AC_MSG_RESULT([yes: Using $ac_mysql_plugin_dir])
+-      else
+-        AC_MSG_ERROR([invalid MySQL plugin directory : $ac_mysql_plugin_dir])
+-      fi
++      ac_mysql_plugin_dir=`echo $withval`
++      PLUGIN_DIR="$ac_mysql_plugin_dir"
++      AC_SUBST(PLUGIN_DIR)
++      AC_MSG_RESULT([yes: Using $ac_mysql_plugin_dir])
+     ],
+     [
+       LIB_DIR_TMP=`"$ac_mysql_config" --plugindir`

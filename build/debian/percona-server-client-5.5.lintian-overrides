@@ -1,0 +1,3 @@
+percona-server-client-5.5: package-has-a-duplicate-relation
+percona-server-client-5.5: wrong-name-for-upstream-changelog usr/share/doc/percona-server-client-5.5/changelog.innotop.gz
+percona-server-client-5.5: pkg-not-in-package-test innotop

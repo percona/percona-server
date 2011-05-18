@@ -1,0 +1,36 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: 30_scripts__mysqld_safe.sh__signals.patch by  <ch@debian.org>
+
+@DPATCH@
+
+30_scripts__mysqld_safe.sh__signals.patch by  <ch@debian.org>
+
+Executes /etc/init.d/mysql on signals
+Reported as http://bugs.mysql.com/bug.php?id=31361
+
+--- a/scripts/mysqld_safe.sh
++++ b/scripts/mysqld_safe.sh
+@@ -29,8 +29,6 @@
+ syslog_tag_mysqld=mysqld
+ syslog_tag_mysqld_safe=mysqld_safe
+ 
+-trap '' 1 2 3 15			# we shouldn't let anyone kill us
+-
+ umask 007
+ 
+ defaults=
+@@ -707,6 +705,12 @@
+   fi
+ fi
+ 
++# From now on, we catch signals to do a proper shutdown of mysqld
++# when signalled to do so.
++#
++trap '@bindir@/mysqladmin --defaults-extra-file=/etc/mysql/debian.cnf refresh' 1 # HUP
++trap '@bindir@/mysqladmin --defaults-extra-file=/etc/mysql/debian.cnf shutdown' 2 3 15 # INT QUIT and TERM
++
+ #
+ # Uncomment the following lines if you want all tables to be automatically
+ # checked and repaired during startup. You should add sensible key_buffer

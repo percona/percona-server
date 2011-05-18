@@ -1,0 +1,17 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Added INFO-DIR-SECTION to the mysql.info file as requires lintian
+
+@DPATCH@
+
+Added INFO-DIR-SECTION to the mysql.info file as requires lintian
+--- a/Docs/mysql.info
++++ b/Docs/mysql.info
+@@ -1,5 +1,6 @@
+ This is manual.info, produced by makeinfo version 4.8 from manual.texi.
+ 
++INFO-DIR-SECTION Miscellaneous
+ START-INFO-DIR-ENTRY
+ * mysql: (mysql).               MySQL documentation.
+ END-INFO-DIR-ENTRY

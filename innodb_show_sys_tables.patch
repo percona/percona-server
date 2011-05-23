@@ -291,7 +291,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -588,7 +588,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -834,7 +834,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -1070,7 +1070,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -1277,7 +1277,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -1498,7 +1498,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -1712,7 +1712,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */

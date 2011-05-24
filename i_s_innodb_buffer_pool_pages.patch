@@ -618,7 +618,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -667,7 +667,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -716,7 +716,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */

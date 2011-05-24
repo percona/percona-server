@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:35:29.143813775 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:35:58.628498870 +0900
-@@ -655,7 +655,7 @@
+@@ -657,7 +657,7 @@
  
  	UT_LIST_ADD_LAST(chain, space->chain, node);
  
@@ -114,7 +114,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  		fil_system->max_assigned_id = id;
  	}
-@@ -719,14 +719,14 @@
+@@ -721,14 +721,14 @@
  		size_bytes = (((ib_int64_t)size_high) << 32)
  			+ (ib_int64_t)size_low;
  #ifdef UNIV_HOTBACKUP
@@ -131,7 +131,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
  			fprintf(stderr,
-@@ -772,7 +772,7 @@
+@@ -774,7 +774,7 @@
  		}
  
  		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
@@ -140,7 +140,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  			fprintf(stderr,
  				"InnoDB: Error: tablespace id %lu"
  				" in file %s is not sensible\n",
-@@ -840,7 +840,7 @@
+@@ -842,7 +842,7 @@
  
  	system->n_open++;
  
@@ -149,7 +149,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		/* Put the node to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -873,7 +873,7 @@
+@@ -875,7 +875,7 @@
  	ut_a(system->n_open > 0);
  	system->n_open--;
  
@@ -158,7 +158,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
  
  		/* The node is in the LRU list, remove it */
-@@ -959,7 +959,7 @@
+@@ -961,7 +961,7 @@
  retry:
  	mutex_enter(&fil_system->mutex);
  
@@ -167,7 +167,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		/* We keep log files and system tablespace files always open;
  		this is important in preventing deadlocks in this module, as
  		a page read completion often performs another read from the
-@@ -1190,7 +1190,7 @@
+@@ -1192,7 +1192,7 @@
  			" tablespace memory cache!\n",
  			(ulong) space->id);
  
@@ -176,7 +176,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  			mutex_exit(&fil_system->mutex);
  
-@@ -1252,6 +1252,7 @@
+@@ -1254,6 +1254,7 @@
  	space->mark = FALSE;
  
  	if (UNIV_LIKELY(purpose == FIL_TABLESPACE && !recv_recovery_on)
@@ -184,7 +184,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	    && UNIV_UNLIKELY(id > fil_system->max_assigned_id)) {
  		if (!fil_system->space_id_reuse_warned) {
  			fil_system->space_id_reuse_warned = TRUE;
-@@ -1335,7 +1336,7 @@
+@@ -1337,7 +1338,7 @@
  			(ulong) SRV_LOG_SPACE_FIRST_ID);
  	}
  
@@ -193,7 +193,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	if (success) {
  		*space_id = fil_system->max_assigned_id = id;
-@@ -1598,6 +1599,8 @@
+@@ -1600,6 +1601,8 @@
  	UT_LIST_INIT(fil_system->LRU);
  
  	fil_system->max_n_open = max_n_open;
@@ -202,7 +202,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  }
  
  /*******************************************************************//**
-@@ -1619,7 +1622,7 @@
+@@ -1621,7 +1624,7 @@
  	space = UT_LIST_GET_FIRST(fil_system->space_list);
  
  	while (space != NULL) {
@@ -211,7 +211,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  			node = UT_LIST_GET_FIRST(space->chain);
  
  			while (node != NULL) {
-@@ -1709,6 +1712,10 @@
+@@ -1711,6 +1714,10 @@
  		ut_error;
  	}
  
@@ -222,7 +222,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	mutex_enter(&fil_system->mutex);
  
  	if (fil_system->max_assigned_id < max_id) {
-@@ -1727,6 +1734,7 @@
+@@ -1729,6 +1736,7 @@
  ulint
  fil_write_lsn_and_arch_no_to_file(
  /*==============================*/
@@ -230,7 +230,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ulint		sum_of_sizes,	/*!< in: combined size of previous files
  					in space, in database pages */
  	ib_uint64_t	lsn,		/*!< in: lsn to write */
-@@ -1736,14 +1744,16 @@
+@@ -1738,14 +1746,16 @@
  	byte*	buf1;
  	byte*	buf;
  
@@ -249,7 +249,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	mem_free(buf1);
  
-@@ -1779,7 +1789,7 @@
+@@ -1781,7 +1791,7 @@
  		always open. */
  
  		if (space->purpose == FIL_TABLESPACE
@@ -258,7 +258,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  			sum_of_sizes = 0;
  
  			node = UT_LIST_GET_FIRST(space->chain);
-@@ -1787,7 +1797,7 @@
+@@ -1789,7 +1799,7 @@
  				mutex_exit(&fil_system->mutex);
  
  				err = fil_write_lsn_and_arch_no_to_file(
@@ -267,7 +267,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  				if (err != DB_SUCCESS) {
  
  					return(err);
-@@ -3834,7 +3844,7 @@
+@@ -4158,7 +4168,7 @@
  	}
  
  #ifndef UNIV_HOTBACKUP
@@ -276,7 +276,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		fprintf(stderr,
  			"InnoDB: Error: tablespace id %lu in file %s"
  			" is not sensible\n",
-@@ -3843,7 +3853,7 @@
+@@ -4167,7 +4177,7 @@
  		goto func_exit;
  	}
  #else
@@ -285,7 +285,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		char*	new_path;
  
  		fprintf(stderr,
-@@ -4664,7 +4674,7 @@
+@@ -4988,7 +4998,7 @@
  	}
  
  	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
@@ -294,7 +294,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		/* The node is in the LRU list, remove it */
  
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
-@@ -4710,7 +4720,7 @@
+@@ -5034,7 +5044,7 @@
  	}
  
  	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
@@ -303,7 +303,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5316,7 +5326,7 @@
+@@ -5640,7 +5650,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);

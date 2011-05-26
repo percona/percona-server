@@ -15,6 +15,7 @@ include/wait_for_slave_to_stop.inc
 START SLAVE;
 include/wait_for_slave_to_start.inc
 INSERT INTO t SELECT t.id,t.data from t;
-DROP TABLE IF EXISTS t;
 FLUSH LOGS;
 4
+DROP TABLE IF EXISTS t;
+include/rpl_end.inc

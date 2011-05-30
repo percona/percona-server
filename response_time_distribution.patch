@@ -178,12 +178,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 diff -ruN /dev/null b/sql/query_response_time.cc
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
 +++ b/sql/query_response_time.cc	2011-04-10 00:27:11.000000000 +0400
-@@ -0,0 +1,367 @@
+@@ -0,0 +1,310 @@
 +#include "mysql_version.h"
-+#ifdef __FreeBSD__
-+#include <sys/types.h>
-+#include <machine/atomic.h>
-+#endif // __FreeBSD__
 +#include "my_global.h"
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
 +#include "mysql_com.h"
@@ -337,98 +333,39 @@ diff -ruN /dev/null b/sql/query_response_time.cc
 +  }
 +  buffer[result_length]= 0;
 +}
-+#ifdef __x86_64__
-+typedef uint64 TimeCounter;
-+void add_time_atomic(TimeCounter* counter, uint64 time)
-+{
-+  __sync_fetch_and_add(counter,time);  
-+}
-+#endif // __x86_64__
-+#ifdef __i386__
-+inline uint32 get_high(uint64 value)
-+{
-+  return ((value >> 32) << 32);
-+}
-+inline uint32 get_low(uint64 value)
-+{
-+  return ((value << 32) >> 32);
-+}
-+#ifdef __FreeBSD__
-+inline bool compare_and_swap(volatile uint32 *target, uint32 old, uint32 new_value)
-+{
-+  return atomic_cmpset_32(target,old,new_value);
-+}
-+#else // __FreeBSD__
-+inline bool compare_and_swap(volatile uint32* target, uint32 old, uint32 new_value)
-+{
-+  return __sync_bool_compare_and_swap(target,old,new_value);
-+}
-+#endif // __FreeBSD__
-+class TimeCounter
-+{
-+public:
-+  TimeCounter& operator=(uint64 time)
-+  {
-+    this->m_high= get_high(time);
-+    this->m_low=  get_low(time);
-+    return *this;
-+  }
-+  operator uint64() const
-+  {
-+    return ((static_cast<uint64>(m_high) << 32) + static_cast<uint64>(m_low));
-+  }
-+  void add(uint64 time)
-+  {
-+    uint32 time_high = get_high(time);
-+    uint32 time_low  = get_low(time);
-+    uint64 time_low64= time_low;
-+    while(true)
-+    {
-+      uint32 old_low= this->m_low;
-+      uint64 old_low64= old_low;
-+
-+      uint64 new_low64= old_low64 + time_low64;
-+      uint32 new_low= (get_low(new_low64));
-+      bool add_high= (get_high(new_low64) != 0);
-+
-+      if(!compare_and_swap(&m_low,old_low,new_low))
-+      {
-+	continue;
-+      }
-+      if(add_high)
-+      {
-+	++time_high;
-+      }
-+      if(time_high > 0)
-+      {
-+        __sync_fetch_and_add(&m_high,time_high);
-+      }
-+      break;
-+    }
-+  }
-+private:
-+  uint32 m_low;
-+  uint32 m_high;
-+};
-+void add_time_atomic(TimeCounter* counter, uint64 time)
-+{
-+  counter->add(time);
-+}
-+#endif // __i386__
 +
 +class time_collector
 +{
 +public:
 +  time_collector(utility& u) : m_utility(&u)
 +  {
++    my_atomic_rwlock_init(&time_collector_lock);
 +  }
-+  uint32 count(uint index) const { return m_count[index]; }
-+  uint64 total(uint index) const { return m_total[index]; }
++  ~time_collector()
++  {
++    my_atomic_rwlock_destroy(&time_collector_lock);
++  }
++  uint32 count(uint index) const
++  {
++    my_atomic_rwlock_rdlock(&time_collector_lock);
++    uint32 result= my_atomic_load32((volatile int32*)&m_count[index]);
++    my_atomic_rwlock_rdunlock(&time_collector_lock);
++    return result;
++  }
++  uint64 total(uint index) const
++  {
++    my_atomic_rwlock_rdlock(&time_collector_lock);
++    uint64 result= my_atomic_load64((volatile int64*)&m_total[index]);
++    my_atomic_rwlock_rdunlock(&time_collector_lock);
++    return result;
++  }
 +public:
 +  void flush()
 +  {
-+    memset(&m_count,0,sizeof(m_count));
++    my_atomic_rwlock_wrlock(&time_collector_lock);
++    memset((void*)&m_count,0,sizeof(m_count));
 +    memset((void*)&m_total,0,sizeof(m_total));
++    my_atomic_rwlock_wrunlock(&time_collector_lock);
 +  }
 +  void collect(uint64 time)
 +  {
@@ -437,16 +374,22 @@ diff -ruN /dev/null b/sql/query_response_time.cc
 +    {
 +      if(m_utility->bound(i) > time)
 +      {
-+        __sync_fetch_and_add(&(m_count[i]),(uint32)1);
-+        add_time_atomic(&(m_total[i]),time);
++        my_atomic_rwlock_wrlock(&time_collector_lock);
++        my_atomic_add32((volatile int32*)(&m_count[i]), 1);
++        my_atomic_add64((volatile int64*)(&m_total[i]), time);
++        my_atomic_rwlock_wrunlock(&time_collector_lock);
 +        break;
 +      }
 +    }
 +  }
 +private:
 +  utility* m_utility;
-+  uint32   m_count[OVERALL_POWER_COUNT + 1];
-+  TimeCounter m_total[OVERALL_POWER_COUNT + 1];
++  /* The lock for atomic operations on m_count and m_total.  Only actually
++  used on architectures that do not have atomic implementation of atomic
++  operations. */
++  my_atomic_rwlock_t time_collector_lock;
++  volatile uint32   m_count[OVERALL_POWER_COUNT + 1];
++  volatile uint64   m_total[OVERALL_POWER_COUNT + 1];
 +};
 +
 +class collector

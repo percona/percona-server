@@ -13,7 +13,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:31:57.781983359 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:32:39.523946003 +0900
-@@ -3243,6 +3243,7 @@
+@@ -3241,6 +3241,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -208,7 +208,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +	    && ((buf_page_t*)message)->space_was_being_deleted) {
 +
 +		if (mode == OS_AIO_NORMAL) {
-+			buf_page_io_complete(message, trx);
++			buf_page_io_complete(message);
 +			return(DB_SUCCESS); /*fake*/
 +		}
 +		if (type == OS_FILE_READ) {
@@ -221,7 +221,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	/* Reserve the fil_system mutex and make sure that we can open at
  	least one file while holding it, if the file is not already open */
  
-@@ -4942,10 +4974,24 @@
+@@ -4954,10 +4986,24 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -247,7 +247,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5045,6 +5091,7 @@
+@@ -5057,6 +5103,7 @@
  	fil_node_t*	fil_node;
  	void*		message;
  	ulint		type;
@@ -255,7 +255,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  	ut_ad(fil_validate());
  
-@@ -5052,7 +5099,7 @@
+@@ -5064,7 +5111,7 @@
  		srv_set_io_thread_op_info(segment, "native aio handle");
  #ifdef WIN_ASYNC_IO
  		ret = os_aio_windows_handle(segment, 0, &fil_node,
@@ -264,7 +264,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #else
  		ret = 0; /* Eliminate compiler warning */
  		ut_error;
-@@ -5061,7 +5108,22 @@
+@@ -5073,7 +5120,22 @@
  		srv_set_io_thread_op_info(segment, "simulated aio handle");
  
  		ret = os_aio_simulated_handle(segment, &fil_node,
@@ -283,7 +283,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
 +
 +		srv_set_io_thread_op_info(segment, "complete io for buf page");
-+		buf_page_io_complete(message, NULL);
++		buf_page_io_complete(message);
 +		return;
  	}
  
@@ -293,7 +293,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
 @@ -11750,6 +11750,12 @@
    "except for the deletion.",
-   NULL, NULL, 0, 0, 1, 0);
+   NULL, NULL, 0, 0, 2, 0);
  
 +static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
 +  PLUGIN_VAR_RQCMDARG,
@@ -324,7 +324,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:31:57.863983187 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:32:39.537912716 +0900
-@@ -1156,6 +1156,7 @@
+@@ -1155,6 +1155,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */

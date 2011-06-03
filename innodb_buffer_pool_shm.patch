@@ -736,7 +736,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  
  /** @name Modes for buf_page_get_gen */
  /* @{ */
-@@ -1302,7 +1303,10 @@
+@@ -1301,7 +1302,10 @@
  /**********************************************************************//**
  Compute the hash fold value for blocks in buf_pool->zip_hash. */
  /* @{ */

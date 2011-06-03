@@ -1006,7 +1006,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2633,6 +2638,7 @@
+@@ -2632,6 +2637,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;
@@ -1066,7 +1066,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12060,6 +12065,7 @@
+@@ -12061,6 +12066,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1262,7 +1262,7 @@ diff -ruN a/storage/innobase/include/btr0sea.ic b/storage/innobase/include/btr0s
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-15 19:00:07.713604580 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-15 20:58:03.546839883 +0900
-@@ -1547,7 +1547,7 @@
+@@ -1546,7 +1546,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1271,7 +1271,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1561,6 +1561,7 @@
+@@ -1560,6 +1560,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */

@@ -14,14 +14,14 @@ let $fixed_bug38124 = 0;
 SET @old_slow_query_log_file=@@global.slow_query_log_file;
 SET GLOBAL slow_query_log=on;
 SET LOCAL profiling_server=on;
-SET LOCAL long_query_time=1;
+SET LOCAL long_query_time=0;
 
 let slogfile=$MYSQLTEST_VARDIR/percona_bug643149_slow.log;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SET GLOBAL slow_query_log_file='$slogfile';
 
 --disable_ps_protocol
-SELECT SLEEP(2);
+SELECT 1;
 --enable_ps_protocol
 
 perl;
@@ -31,8 +31,8 @@ perl;
     die("Unable to read slow query log file $slogfile: $!\n");
   while(<FILE>) {
     next if (!/^#/);
+    next if (/^# Time:/);
     s/[0-9]+/X/g;
-    s/ +/ /g;
     print;
   }
 

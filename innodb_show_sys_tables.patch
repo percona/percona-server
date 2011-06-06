@@ -29,7 +29,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
  }
  
-@@ -3111,6 +3112,685 @@
+@@ -3111,6 +3112,674 @@
  	STRUCT_FLD(deinit, i_s_common_deinit),
  	STRUCT_FLD(version, 0x0100 /* 1.0 */),
  	STRUCT_FLD(status_vars, NULL),
@@ -572,15 +572,14 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +		rec = btr_pcur_get_rec(&pcur);
 +		if (!btr_pcur_is_on_user_rec(&pcur)) {
 +			/* end of index */
-+			btr_pcur_close(&pcur);
-+			mtr_commit(&mtr);
 +			break;
 +		}
++
++		btr_pcur_store_position(&pcur, &mtr);
++
 +		if (rec_get_deleted_flag(rec, 0)) {
 +			/* record marked as deleted */
-+			btr_pcur_close(&pcur);
-+			mtr_commit(&mtr);
-+			continue;
++			goto next_record;
 +		}
 +
 +		if (id == 0) {
@@ -591,32 +590,22 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +			status = copy_sys_stats_rec(table, index, rec);
 +		}
 +		if (status) {
-+			btr_pcur_close(&pcur);
-+			mtr_commit(&mtr);
 +			break;
 +		}
-+
-+#if 0
-+		btr_pcur_store_position(&pcur, &mtr);
-+		mtr_commit(&mtr);
 +
 +		status = schema_table_store_record(thd, table);
 +		if (status) {
-+			btr_pcur_close(&pcur);
 +			break;
 +		}
++next_record:
++		mtr_commit(&mtr);
 +
 +		mtr_start(&mtr);
 +		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
-+#else
-+		status = schema_table_store_record(thd, table);
-+		if (status) {
-+			btr_pcur_close(&pcur);
-+			mtr_commit(&mtr);
-+			break;
-+		}
-+#endif
 +	}
++
++	btr_pcur_close(&pcur);
++	mtr_commit(&mtr);
 +
 +	mutex_exit(&(dict_sys->mutex));
 +

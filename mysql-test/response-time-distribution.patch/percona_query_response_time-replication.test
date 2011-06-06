@@ -55,3 +55,5 @@ connection slave;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
 SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=OFF;
 SET SESSION debug="-d,response_time_distribution_log_only_more_300_milliseconds";
+
+--source include/rpl_end.inc

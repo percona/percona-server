@@ -149,7 +149,7 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 +	STRUCT_FLD(info, &i_s_info),
 +	STRUCT_FLD(name, "XTRADB_ADMIN_COMMAND"),
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +	STRUCT_FLD(descr, "XtraDB specific command acceptor"),
 +	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 +	STRUCT_FLD(init, i_s_innodb_admin_command_init),

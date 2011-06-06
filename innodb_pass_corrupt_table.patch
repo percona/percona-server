@@ -518,7 +518,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  /*===========================================*/
  {
  	dict_table_t*	sys_stats;
-@@ -4666,6 +4679,12 @@
+@@ -4672,6 +4685,12 @@
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
  			 && dict_index_is_clust(index)))) {
  			ulint	size;
@@ -531,7 +531,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  			size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  			index->stat_index_size = size;
-@@ -5462,4 +5481,42 @@
+@@ -5468,4 +5487,42 @@
  		rw_lock_free(&dict_table_stats_latches[i]);
  	}
  }

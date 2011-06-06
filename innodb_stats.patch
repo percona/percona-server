@@ -359,7 +359,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	}
  
  	return(table);
-@@ -4310,6 +4310,289 @@
+@@ -4310,6 +4310,295 @@
  }
  
  /*********************************************************************//**
@@ -592,6 +592,8 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +			break;
 +		}
 +
++		btr_pcur_store_position(&pcur, &mtr);
++
 +		if (rec_get_deleted_flag(rec, 0)) {
 +			/* don't count */
 +			i--;
@@ -626,6 +628,10 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +		rests--;
 +
 +next_rec:
++		mtr_commit(&mtr);
++		mtr_start(&mtr);
++		btr_pcur_restore_position(BTR_MODIFY_LEAF, &pcur, &mtr);
++
 +		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 +	}
 +	btr_pcur_close(&pcur);
@@ -649,7 +655,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4317,10 +4600,11 @@
+@@ -4317,10 +4606,11 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -662,7 +668,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  {
  	dict_index_t*	index;
  	ulint		sum_of_index_sizes	= 0;
-@@ -4337,6 +4621,27 @@
+@@ -4337,6 +4627,27 @@
  		return;
  	}
  
@@ -690,7 +696,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4401,6 +4706,11 @@
+@@ -4401,6 +4712,11 @@
  		index = dict_table_get_next_index(index);
  	} while (index);
  
@@ -702,7 +708,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	index = dict_table_get_first_index(table);
  
  	table->stat_n_rows = index->stat_n_diff_key_vals[
-@@ -4418,6 +4728,78 @@
+@@ -4418,6 +4734,78 @@
  	dict_table_stats_unlock(table, RW_X_LATCH);
  }
  
@@ -781,7 +787,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  /**********************************************************************//**
  Prints info of a foreign key constraint. */
  static
-@@ -4495,7 +4877,8 @@
+@@ -4495,7 +4883,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -2033,7 +2039,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  Scans a table create SQL string and adds to the data dictionary
  the foreign key constraints declared in the string. This function
  should be called after the indexes for a table have been created.
-@@ -3024,7 +3092,7 @@
+@@ -3034,7 +3102,7 @@
  	dict_table_autoinc_initialize(table, 1);
  	dict_table_autoinc_unlock(table);
  	dict_update_statistics(table, FALSE /* update even if stats are
@@ -2042,7 +2048,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  
  	trx_commit_for_mysql(trx);
  
-@@ -3326,6 +3394,8 @@
+@@ -3336,6 +3404,8 @@
  			   "       IF (SQL % NOTFOUND) THEN\n"
  			   "               found := 0;\n"
  			   "       ELSE\n"

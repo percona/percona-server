@@ -558,6 +558,33 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
  /*-------------------------------------------*/
+diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
+--- a/storage/innodb_plugin/row/row0mysql.c	2011-04-12 21:11:37.000000000 +0900
++++ b/storage/innodb_plugin/row/row0mysql.c	2011-06-06 11:14:43.838896479 +0900
+@@ -2520,6 +2520,11 @@
+ 
+ 	current_lsn = log_get_lsn();
+ 
++	/* Enlarge the fatal lock wait timeout during import. */
++	mutex_enter(&kernel_mutex);
++	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
++	mutex_exit(&kernel_mutex);
++
+ 	/* It is possible, though very improbable, that the lsn's in the
+ 	tablespace to be imported have risen above the current system lsn, if
+ 	a lengthy purge, ibuf merge, or rollback was performed on a backup
+@@ -2631,6 +2636,11 @@
+ 
+ 	trx->op_info = "";
+ 
++	/* Restore the fatal semaphore wait timeout */
++	mutex_enter(&kernel_mutex);
++	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
++	mutex_exit(&kernel_mutex);
++
+ 	return((int) err);
+ }
+ 
 diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
 --- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 18:58:20.000000000 +0900
 +++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 10:28:05.000000000 +0900

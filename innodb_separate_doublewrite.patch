@@ -529,7 +529,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.ic b/storage/innodb_plugin/inc
 diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
 --- a/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:22:04.287058274 +0900
 +++ b/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:37:55.410993060 +0900
-@@ -3391,7 +3391,7 @@
+@@ -3401,7 +3401,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  

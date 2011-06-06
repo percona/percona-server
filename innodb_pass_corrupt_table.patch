@@ -489,7 +489,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4651,6 +4652,11 @@
+@@ -4657,6 +4658,11 @@
  	}
  
  	do {
@@ -501,7 +501,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		if (UNIV_LIKELY
  		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-@@ -5454,4 +5460,42 @@
+@@ -5460,4 +5466,42 @@
  		rw_lock_free(&dict_table_stats_latches[i]);
  	}
  }

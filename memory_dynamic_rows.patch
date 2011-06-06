@@ -1,0 +1,2865 @@
+diff -ruN a/include/heap.h b/include/heap.h
+--- a/include/heap.h	2011-04-11 13:44:02.000000000 +0300
++++ b/include/heap.h	2011-06-02 15:28:13.294917001 +0300
+@@ -33,7 +33,17 @@
+ #include "my_compare.h"
+ #include "my_tree.h"
+ 
+-	/* defines used by heap-funktions */
++/* Define index limits to be identical to MyISAM ones for compatibility. */
++
++#if MAX_INDEXES > HA_MAX_POSSIBLE_KEY
++#define HP_MAX_KEY                  HA_MAX_POSSIBLE_KEY /* Max allowed keys */
++#else
++#define HP_MAX_KEY                  MAX_INDEXES         /* Max allowed keys */
++#endif
++
++#define HP_MAX_KEY_LENGTH           1000            /* Max length in bytes */
++
++/* defines used by heap-funktions */
+ 
+ #define HP_MAX_LEVELS	4		/* 128^5 records is enough */
+ #define HP_PTRS_IN_NOD	128
+@@ -129,22 +139,58 @@
+   uint (*get_key_length)(struct st_hp_keydef *keydef, const uchar *key);
+ } HP_KEYDEF;
+ 
+-typedef struct st_heap_share
++typedef struct st_heap_columndef		/* column information */
++{
++  int16  type;	  			/* en_fieldtype */
++  uint32 length;		  	/* length of field */
++  uint32 offset;		  	/* Offset to position in row */
++  uint8  null_bit;			/* If column may be 0 */
++  uint16 null_pos;			/* position for null marker */
++  uint8  length_bytes;			/* length of the size, 1 o 2 bytes */
++} HP_COLUMNDEF;
++
++typedef struct st_heap_dataspace   /* control data for data space */
+ {
+   HP_BLOCK block;
++  /* Total chunks ever allocated in this dataspace */
++  uint chunk_count;
++  uint del_chunk_count;         /* Deleted chunks count */
++  uchar *del_link;              /* Link to last deleted chunk */
++  uint chunk_length;            /* Total length of one chunk */
++  /* Length of payload that will be placed into one chunk */
++  uint chunk_dataspace_length;
++  /* Offset of the status flag relative to the chunk start */
++  uint offset_status;
++  /* Offset of the linking pointer relative to the chunk start */
++  uint offset_link;
++  /* Test whether records have variable size and so "next" pointer */
++  uint is_variable_size;
++  /* Total size allocated within this data space */
++  ulonglong total_data_length;
++} HP_DATASPACE;
++
++typedef struct st_heap_share
++{
+   HP_KEYDEF  *keydef;
++  HP_COLUMNDEF *column_defs;
++  /* Describes "block", which contains actual records */
++  HP_DATASPACE recordspace;
+   ulong min_records,max_records;	/* Params to open */
+-  ulonglong data_length,index_length,max_table_size;
++  ulonglong index_length, max_table_size;
+   uint key_stat_version;                /* version to indicate insert/delete */
+-  uint records;				/* records */
+-  uint blength;				/* records rounded up to 2^n */
+-  uint deleted;				/* Deleted records in database */
+-  uint reclength;			/* Length of one record */
++  uint records;			/* Actual record (row) count */
++  uint blength;			/* used_chunk_count rounded up to 2^n */
++  /*
++    Length of record's fixed part, which contains keys and always fits into the
++    first chunk.
++  */
++  uint fixed_data_length;
++  uint fixed_column_count;  /* Number of columns stored in fixed_data_length */
+   uint changed;
+   uint keys,max_key_length;
++  uint column_count;
+   uint currently_disabled_keys;    /* saved value from "keys" when disabled */
+   uint open_count;
+-  uchar *del_link;			/* Link to next block with del. rec */
+   char * name;			/* Name of "memory-file" */
+   THR_LOCK lock;
+   mysql_mutex_t intern_lock;            /* Locking for use with _locking */
+@@ -153,6 +199,7 @@
+   uint auto_key;
+   uint auto_key_type;			/* real type of the auto key segment */
+   ulonglong auto_increment;
++  uint blobs;  /* Number of blobs in table */
+ } HP_SHARE;
+ 
+ struct st_hp_hash_info;
+@@ -162,7 +209,7 @@
+   HP_SHARE *s;
+   uchar *current_ptr;
+   struct st_hp_hash_info *current_hash_ptr;
+-  ulong current_record,next_block;
++  ulong current_record;
+   int lastinx,errkey;
+   int  mode;				/* Mode of file (READONLY..) */
+   uint opt_flag,update;
+@@ -175,6 +222,9 @@
+   my_bool implicit_emptied;
+   THR_LOCK_DATA lock;
+   LIST open_list;
++  uchar *blob_buffer;  /* Temporary buffer used to return BLOB values */
++  uint blob_size;      /* Current blob_buffer size */
++  uint blob_offset;    /* Current offset in blob_buffer */
+ } HP_INFO;
+ 
+ 
+@@ -196,6 +246,14 @@
+     open_count to 1. Is only looked at if not internal_table.
+   */
+   my_bool pin_share;
++  uint columns;
++  HP_COLUMNDEF *columndef;
++  uint fixed_key_fieldnr;
++  uint fixed_data_size;
++  uint keys_memory_size;
++  uint max_chunk_size;
++  uint is_dynamic;
++  uint blobs;
+ } HP_CREATE_INFO;
+ 
+ 	/* Prototypes for heap-functions */
+@@ -212,9 +270,8 @@
+ extern int heap_scan(register HP_INFO *info, uchar *record);
+ extern int heap_delete(HP_INFO *info,const uchar *buff);
+ extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
+-extern int heap_create(const char *name,
+-                       HP_CREATE_INFO *create_info, HP_SHARE **share,
+-                       my_bool *created_new_share);
++extern int heap_create(const char *name, HP_CREATE_INFO *create_info,
++                       HP_SHARE **res, my_bool *created_new_share);
+ extern int heap_delete_table(const char *name);
+ extern void heap_drop_table(HP_INFO *info);
+ extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
+diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
+--- a/mysql-test/r/create.result	2011-06-02 11:38:04.000000000 +0300
++++ b/mysql-test/r/create.result	2011-06-02 15:56:29.224917005 +0300
+@@ -33,10 +33,7 @@
+ create table t1 (b char(0) not null, index(b));
+ ERROR 42000: The used storage engine can't index column 'b'
+ create table t1 (a int not null,b text) engine=heap;
+-ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+ drop table if exists t1;
+-Warnings:
+-Note	1051	Unknown table 't1'
+ create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
+ ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
+ create table not_existing_database.test (a int);
+diff -ruN a/mysql-test/r/ctype_utf8mb4_heap.result b/mysql-test/r/ctype_utf8mb4_heap.result
+--- a/mysql-test/r/ctype_utf8mb4_heap.result	2011-04-11 13:44:02.000000000 +0300
++++ b/mysql-test/r/ctype_utf8mb4_heap.result	2011-06-02 15:31:07.794917003 +0300
+@@ -1124,6 +1124,8 @@
+ a varchar(255) NOT NULL default '',
+ KEY a (a)
+ ) ENGINE=heap DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
++Warnings:
++Warning	1071	Specified key was too long; max key length is 1000 bytes
+ insert into t1 values (_utf8mb4 0xe880bd);
+ insert into t1 values (_utf8mb4 0x5b);
+ select hex(a) from t1;
+@@ -1162,6 +1164,8 @@
+ Warnings:
+ Note	1051	Unknown table 't1'
+ CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=heap DEFAULT CHARSET=utf8mb4;
++Warnings:
++Warning	1071	Specified key was too long; max key length is 1000 bytes
+ INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+ INSERT INTO t1 VALUES('uu');
+ check table t1;
+diff -ruN a/mysql-test/t/create.test b/mysql-test/t/create.test
+--- a/mysql-test/t/create.test	2011-04-11 13:44:01.000000000 +0300
++++ b/mysql-test/t/create.test	2011-06-02 15:32:49.614917004 +0300
+@@ -33,7 +33,7 @@
+ drop table if exists t1,t2;
+ --error 1167
+ create table t1 (b char(0) not null, index(b));
+---error 1163
++# BLOB/TEXT fields are now supported by HEAP
+ create table t1 (a int not null,b text) engine=heap;
+ drop table if exists t1;
+ 
+diff -ruN a/storage/heap/CMakeLists.txt b/storage/heap/CMakeLists.txt
+--- a/storage/heap/CMakeLists.txt	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/CMakeLists.txt	2011-06-02 15:37:43.744917005 +0300
+@@ -20,6 +20,7 @@
+ 				ha_heap.cc
+ 				hp_delete.c hp_extra.c hp_hash.c hp_info.c hp_open.c hp_panic.c
+ 				hp_rename.c hp_rfirst.c hp_rkey.c hp_rlast.c hp_rnext.c hp_rprev.c
++				hp_dspace.c hp_record.c
+ 				hp_rrnd.c hp_rsame.c hp_scan.c hp_static.c hp_update.c hp_write.c)
+ 
+ MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY RECOMPILE_FOR_EMBEDDED)
+diff -ruN a/storage/heap/_check.c b/storage/heap/_check.c
+--- a/storage/heap/_check.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/_check.c	2011-06-02 15:37:43.744917005 +0300
+@@ -43,7 +43,7 @@
+ {
+   int error;
+   uint key;
+-  ulong records=0, deleted=0, pos, next_block;
++  ulong records= 0, deleted= 0, chunk_count= 0, pos, next_block;
+   HP_SHARE *share=info->s;
+   HP_INFO save_info= *info;			/* Needed because scan_init */
+   DBUG_ENTER("heap_check_heap");
+@@ -64,31 +64,55 @@
+   {
+     if (pos < next_block)
+     {
+-      info->current_ptr+= share->block.recbuffer;
++      info->current_ptr+= share->recordspace.block.recbuffer;
+     }
+     else
+     {
+-      next_block+= share->block.records_in_block;
+-      if (next_block >= share->records+share->deleted)
++      next_block+= share->recordspace.block.records_in_block;
++      if (next_block >= share->recordspace.chunk_count)
+       {
+-	next_block= share->records+share->deleted;
+-	if (pos >= next_block)
+-	  break;				/* End of file */
++        next_block= share->recordspace.chunk_count;
++        if (pos >= next_block)
++          break;				/* End of file */
+       }
+     }
+     hp_find_record(info,pos);
+ 
+-    if (!info->current_ptr[share->reclength])
++    switch (get_chunk_status(&share->recordspace, info->current_ptr)) {
++    case CHUNK_STATUS_DELETED:
+       deleted++;
+-    else
++      chunk_count++;
++      break;
++    case CHUNK_STATUS_ACTIVE:
+       records++;
++        chunk_count++;
++        break;
++    case CHUNK_STATUS_LINKED:
++      chunk_count++;
++      break;
++    default:
++      DBUG_PRINT("error",
++                 ("Unknown record status: Record: 0x%lx  Status %lu",
++                  (long) info->current_ptr,
++                  (ulong) get_chunk_status(&share->recordspace,
++                                           info->current_ptr)));
++        error|= 1;
++        break;
++    }
+   }
+ 
+-  if (records != share->records || deleted != share->deleted)
+-  {
+-    DBUG_PRINT("error",("Found rows: %lu (%lu)  deleted %lu (%lu)",
+-			records, (ulong) share->records,
+-                        deleted, (ulong) share->deleted));
++  /* TODO: verify linked chunks (no orphans, no cycles, no bad links) */
++
++  if (records != share->records ||
++      chunk_count != share->recordspace.chunk_count ||
++      deleted != share->recordspace.del_chunk_count)
++  {
++    DBUG_PRINT("error",
++               ("Found rows: %lu (%lu) total chunks %lu (%lu) deleted chunks "
++                "%lu (%lu)",
++                records, (ulong) share->records,
++                chunk_count, (ulong) share->recordspace.chunk_count,
++                deleted, (ulong) share->recordspace.del_chunk_count));
+     error= 1;
+   }
+   *info= save_info;
+@@ -177,7 +201,7 @@
+     do
+     {
+       memcpy(&recpos, key + (*keydef->get_key_length)(keydef,key), sizeof(uchar*));
+-      key_length= hp_rb_make_key(keydef, info->recbuf, recpos, 0);
++      key_length= hp_rb_make_key(keydef, info->recbuf, recpos, 0, TRUE);
+       if (ha_key_cmp(keydef->seg, (uchar*) info->recbuf, (uchar*) key,
+ 		     key_length, SEARCH_FIND | SEARCH_SAME, not_used))
+       {
+diff -ruN a/storage/heap/_rectest.c b/storage/heap/_rectest.c
+--- a/storage/heap/_rectest.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/_rectest.c	2011-06-02 15:38:02.774917002 +0300
+@@ -22,7 +22,9 @@
+ {
+   DBUG_ENTER("hp_rectest");
+ 
+-  if (memcmp(info->current_ptr,old,(size_t) info->s->reclength))
++  if (hp_process_record_data_to_chunkset(info->s, old,
++                                         info->current_ptr,
++                                         1))
+   {
+     DBUG_RETURN((my_errno=HA_ERR_RECORD_CHANGED)); /* Record have changed */
+   }
+diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
+--- a/storage/heap/ha_heap.cc	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/ha_heap.cc	2011-06-02 15:37:43.744917005 +0300
+@@ -113,6 +113,7 @@
+ 
+     rc= heap_create(name, &create_info, &internal_share, &created_new_share);
+     my_free(create_info.keydef);
++    my_free(create_info.columndef);
+     if (rc)
+       goto end;
+ 
+@@ -194,6 +195,12 @@
+   {
+     if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
+       btree_keys.set_bit(i);
++    /*
++      Reset per-key block size specification so they are not shown
++      in SHOW CREATE TABLE.
++    */
++    table->key_info[i].block_size= 0;
++    table->key_info[i].flags&= ~HA_USES_BLOCK_SIZE;
+   }
+ }
+ 
+@@ -427,6 +434,13 @@
+   return 0;
+ }
+ 
++enum row_type ha_heap::get_row_type() const
++{
++  if (file->s->recordspace.is_variable_size)
++    return ROW_TYPE_DYNAMIC;
++
++  return ROW_TYPE_FIXED;
++}
+ 
+ int ha_heap::extra(enum ha_extra_function operation)
+ {
+@@ -644,23 +658,70 @@
+ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
+                             HP_CREATE_INFO *hp_create_info)
+ {
+-  uint key, parts, mem_per_row= 0, keys= table_arg->s->keys;
++  uint key, parts, mem_per_row_keys= 0, keys= table_arg->s->keys;
+   uint auto_key= 0, auto_key_type= 0;
+-  ha_rows max_rows;
++  uint fixed_key_fieldnr = 0, fixed_data_size = 0, next_field_pos = 0;
++  uint column_idx, column_count= table_arg->s->fields;
++  HP_COLUMNDEF *columndef;
+   HP_KEYDEF *keydef;
+   HA_KEYSEG *seg;
+   TABLE_SHARE *share= table_arg->s;
+   bool found_real_auto_increment= 0;
++  uint blobs= 0;
+ 
+   bzero(hp_create_info, sizeof(*hp_create_info));
+ 
++  if (!(columndef= (HP_COLUMNDEF*) my_malloc(column_count *
++                                             sizeof(HP_COLUMNDEF),
++                                             MYF(MY_WME))))
++    return my_errno;
++
++  for (column_idx= 0; column_idx < column_count; column_idx++)
++  {
++    Field* field= *(table_arg->field + column_idx);
++    HP_COLUMNDEF* column= columndef + column_idx;
++    column->type= (uint16) field->type();
++    column->length= field->pack_length();
++    column->offset= field->offset(table_arg->record[0]);
++
++    if (field->null_bit)
++    {
++      column->null_bit= field->null_bit;
++      column->null_pos= (uint) (field->null_ptr -
++                                (uchar*) table_arg->record[0]);
++    }
++    else
++    {
++      column->null_bit= 0;
++      column->null_pos= 0;
++    }
++
++    if (field->type() == MYSQL_TYPE_VARCHAR)
++    {
++      column->length_bytes= (uint8) (((Field_varstring *) field)->length_bytes);
++    }
++    else if (field->type() == MYSQL_TYPE_BLOB)
++    {
++      blobs++;
++      column->length_bytes= (uint8)
++        (((Field_blob *) field)->pack_length_no_ptr());
++    }
++    else
++    {
++      column->length_bytes= 0;
++    }
++  }
++
+   for (key= parts= 0; key < keys; key++)
+     parts+= table_arg->key_info[key].key_parts;
+ 
+   if (!(keydef= (HP_KEYDEF*) my_malloc(keys * sizeof(HP_KEYDEF) +
+ 				       parts * sizeof(HA_KEYSEG),
+ 				       MYF(MY_WME))))
++  {
++    my_free((uchar *) columndef);
+     return my_errno;
++  }
+   seg= reinterpret_cast<HA_KEYSEG*>(keydef + keys);
+   for (key= 0; key < keys; key++)
+   {
+@@ -676,11 +737,11 @@
+     case HA_KEY_ALG_UNDEF:
+     case HA_KEY_ALG_HASH:
+       keydef[key].algorithm= HA_KEY_ALG_HASH;
+-      mem_per_row+= sizeof(char*) * 2; // = sizeof(HASH_INFO)
++      mem_per_row_keys+= sizeof(char*) * 2; // = sizeof(HASH_INFO)
+       break;
+     case HA_KEY_ALG_BTREE:
+       keydef[key].algorithm= HA_KEY_ALG_BTREE;
+-      mem_per_row+=sizeof(TREE_ELEMENT)+pos->key_length+sizeof(char*);
++      mem_per_row_keys+=sizeof(TREE_ELEMENT)+pos->key_length+sizeof(char*);
+       break;
+     default:
+       DBUG_ASSERT(0); // cannot happen
+@@ -705,6 +766,16 @@
+       seg->length=  (uint) key_part->length;
+       seg->flag=    key_part->key_part_flag;
+ 
++      next_field_pos= seg->start;
++      if (field->type() == MYSQL_TYPE_VARCHAR)
++      {
++        Field *orig_field= *(table_arg->field + key_part->field->field_index);
++        next_field_pos+= orig_field->pack_length();
++      }
++      else
++      {
++        next_field_pos+= seg->length;
++      }
+       if (field->flags & (ENUM_FLAG | SET_FLAG))
+         seg->charset= &my_charset_bin;
+       else
+@@ -730,9 +801,75 @@
+         auto_key= key+ 1;
+ 	auto_key_type= field->key_type();
+       }
++
++      switch (seg->type) {
++      case HA_KEYTYPE_SHORT_INT:
++      case HA_KEYTYPE_LONG_INT:
++      case HA_KEYTYPE_FLOAT:
++      case HA_KEYTYPE_DOUBLE:
++      case HA_KEYTYPE_USHORT_INT:
++      case HA_KEYTYPE_ULONG_INT:
++      case HA_KEYTYPE_LONGLONG:
++      case HA_KEYTYPE_ULONGLONG:
++      case HA_KEYTYPE_INT24:
++      case HA_KEYTYPE_UINT24:
++      case HA_KEYTYPE_INT8:
++        seg->flag|= HA_SWAP_KEY;
++        break;
++      case HA_KEYTYPE_VARBINARY1:
++        /* Case-insensitiveness is handled in coll->hash_sort */
++        seg->type= HA_KEYTYPE_VARTEXT1;
++        /* fall through */
++      case HA_KEYTYPE_VARTEXT1:
++        keydef[key].flag|= HA_VAR_LENGTH_KEY;
++        /* Save number of bytes used to store length */
++        if (seg->flag & HA_BLOB_PART)
++          seg->bit_start= field->pack_length() - share->blob_ptr_size;
++        else
++          seg->bit_start= 1;
++        break;
++      case HA_KEYTYPE_VARBINARY2:
++        /* Case-insensitiveness is handled in coll->hash_sort */
++        /* fall_through */
++      case HA_KEYTYPE_VARTEXT2:
++        keydef[key].flag|= HA_VAR_LENGTH_KEY;
++        /* Save number of bytes used to store length */
++        if (seg->flag & HA_BLOB_PART)
++          seg->bit_start= field->pack_length() - share->blob_ptr_size;
++        else
++          seg->bit_start= 2;
++        /*
++          Make future comparison simpler by only having to check for
++          one type
++        */
++        seg->type= HA_KEYTYPE_VARTEXT1;
++        break;
++      default:
++        break;
++      }
++
++      if (next_field_pos > fixed_data_size)
++      {
++        fixed_data_size= next_field_pos;
++      }
++
++
++      if (field->field_index >= fixed_key_fieldnr)
++      {
++        /*
++          Do not use seg->fieldnr as it's not reliable in case of temp tables
++        */
++        fixed_key_fieldnr= field->field_index + 1;
++      }
+     }
+   }
+-  mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));
++
++  if (fixed_data_size < share->null_bytes)
++  {
++    /* Make sure to include null fields regardless of the presense of keys */
++    fixed_data_size = share->null_bytes;
++  }
++
+   if (table_arg->found_next_number_field)
+   {
+     keydef[share->next_number_index].flag|= HA_AUTO_KEY;
+@@ -743,16 +880,19 @@
+   hp_create_info->max_table_size=current_thd->variables.max_heap_table_size;
+   hp_create_info->with_auto_increment= found_real_auto_increment;
+   hp_create_info->internal_table= internal_table;
+-
+-  max_rows= (ha_rows) (hp_create_info->max_table_size / mem_per_row);
+-  if (share->max_rows && share->max_rows < max_rows)
+-    max_rows= share->max_rows;
+-
+-  hp_create_info->max_records= (ulong) max_rows;
++  hp_create_info->max_chunk_size= share->key_block_size;
++  hp_create_info->is_dynamic= (share->row_type == ROW_TYPE_DYNAMIC);
++  hp_create_info->columns= column_count;
++  hp_create_info->columndef= columndef;
++  hp_create_info->fixed_key_fieldnr= fixed_key_fieldnr;
++  hp_create_info->fixed_data_size= fixed_data_size;
++  hp_create_info->max_records= (ulong) share->max_rows;
+   hp_create_info->min_records= (ulong) share->min_rows;
+   hp_create_info->keys= share->keys;
+   hp_create_info->reclength= share->reclength;
++  hp_create_info->keys_memory_size= mem_per_row_keys;
+   hp_create_info->keydef= keydef;
++  hp_create_info->blobs= blobs;
+   return 0;
+ }
+ 
+@@ -772,6 +912,7 @@
+ 				  create_info->auto_increment_value - 1 : 0);
+   error= heap_create(name, &hp_create_info, &internal_share, &created);
+   my_free(hp_create_info.keydef);
++  my_free(hp_create_info.columndef);
+   DBUG_ASSERT(file == 0);
+   return (error);
+ }
+@@ -782,6 +923,13 @@
+   table->file->info(HA_STATUS_AUTO);
+   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
+     create_info->auto_increment_value= stats.auto_increment_value;
++  if (!(create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
++  {
++    if (file->s->recordspace.is_variable_size)
++      create_info->key_block_size= file->s->recordspace.chunk_length;
++    else
++      create_info->key_block_size= 0;
++  }
+ }
+ 
+ void ha_heap::get_auto_increment(ulonglong offset, ulonglong increment,
+diff -ruN a/storage/heap/ha_heap.h b/storage/heap/ha_heap.h
+--- a/storage/heap/ha_heap.h	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/ha_heap.h	2011-06-02 15:37:43.744917005 +0300
+@@ -46,12 +46,11 @@
+     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
+             "BTREE" : "HASH");
+   }
+-  /* Rows also use a fixed-size format */
+-  enum row_type get_row_type() const { return ROW_TYPE_FIXED; }
++  enum row_type get_row_type() const;
+   const char **bas_ext() const;
+   ulonglong table_flags() const
+   {
+-    return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |
++    return (HA_FAST_KEY_READ | HA_NULL_IN_KEY |
+             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
+             HA_REC_NOT_IN_SEQ | HA_CAN_INSERT_DELAYED | HA_NO_TRANSACTIONS |
+             HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
+@@ -63,8 +62,9 @@
+             HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
+   }
+   const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+-  uint max_supported_keys()          const { return MAX_KEY; }
+-  uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
++  uint max_supported_keys()          const { return HP_MAX_KEY; }
++  uint max_supported_key_length() const { return HP_MAX_KEY_LENGTH; }
++  uint max_supported_key_part_length() const { return HP_MAX_KEY_LENGTH; }
+   double scan_time()
+   { return (double) (stats.records+stats.deleted) / 20.0+10; }
+   double read_time(uint index, uint ranges, ha_rows rows)
+diff -ruN a/storage/heap/heapdef.h b/storage/heap/heapdef.h
+--- a/storage/heap/heapdef.h	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/heapdef.h	2011-06-02 15:37:43.754916999 +0300
+@@ -32,6 +32,13 @@
+ #define HP_MIN_RECORDS_IN_BLOCK 16
+ #define HP_MAX_RECORDS_IN_BLOCK 8192
+ 
++/* this chunk has been deleted and can be reused */
++#define CHUNK_STATUS_DELETED 0
++/* this chunk represents the first part of a live record */
++#define CHUNK_STATUS_ACTIVE  1
++/* this chunk is a continuation from another chunk (part of chunkset) */
++#define CHUNK_STATUS_LINKED  2
++
+ 	/* Some extern variables */
+ 
+ extern LIST *heap_open_list,*heap_share_list;
+@@ -42,7 +49,14 @@
+ #define hp_find_hash(A,B) ((HASH_INFO*) hp_find_block((A),(B)))
+ 
+ 	/* Find pos for record and update it in info->current_ptr */
+-#define hp_find_record(info,pos) (info)->current_ptr= hp_find_block(&(info)->s->block,pos)
++#define hp_find_record(info,pos) \
++  (info)->current_ptr= hp_find_block(&(info)->s->recordspace.block,pos)
++
++#define get_chunk_status(info,ptr) (ptr[(info)->offset_status])
++
++#define get_chunk_count(info,rec_length) \
++  ((rec_length + (info)->chunk_dataspace_length - 1) / \
++   (info)->chunk_dataspace_length)
+ 
+ typedef struct st_hp_hash_info
+ {
+@@ -90,7 +104,7 @@
+ 		      const uchar *key);
+ extern void hp_make_key(HP_KEYDEF *keydef,uchar *key,const uchar *rec);
+ extern uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
+-			   const uchar *rec, uchar *recpos);
++			   const uchar *rec, uchar *recpos, my_bool packed);
+ extern uint hp_rb_key_length(HP_KEYDEF *keydef, const uchar *key);
+ extern uint hp_rb_null_key_length(HP_KEYDEF *keydef, const uchar *key);
+ extern uint hp_rb_var_key_length(HP_KEYDEF *keydef, const uchar *key);
+@@ -100,6 +114,23 @@
+ extern void hp_clear_keys(HP_SHARE *info);
+ extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
+                            key_part_map keypart_map);
++extern uint hp_calc_blob_length(uint length, const uchar *pos);
++
++/* Chunkset management (alloc/free/encode/decode) functions */
++extern uchar *hp_allocate_chunkset(HP_DATASPACE *info, uint chunk_count);
++extern int hp_reallocate_chunkset(HP_DATASPACE *info, uint chunk_count,
++                                  uchar *pos);
++extern void hp_free_chunks(HP_DATASPACE *info, uchar *pos);
++extern void hp_clear_dataspace(HP_DATASPACE *info);
++
++extern uint hp_get_encoded_data_length(HP_SHARE *info, const uchar *record,
++                                       uint *chunk_count);
++extern void hp_copy_record_data_to_chunkset(HP_SHARE *info, const uchar *record,
++                                            uchar *pos);
++extern int hp_extract_record(HP_INFO *info, uchar *record, const uchar *pos);
++extern uint hp_process_record_data_to_chunkset(HP_SHARE *info,
++                                               const uchar *record, uchar *pos,
++                                               uint is_compare);
+ 
+ extern mysql_mutex_t THR_LOCK_heap;
+ 
+diff -ruN a/storage/heap/hp_clear.c b/storage/heap/hp_clear.c
+--- a/storage/heap/hp_clear.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_clear.c	2011-06-02 15:37:43.754916999 +0300
+@@ -30,16 +30,11 @@
+ {
+   DBUG_ENTER("hp_clear");
+ 
+-  if (info->block.levels)
+-    (void) hp_free_level(&info->block,info->block.levels,info->block.root,
+-			(uchar*) 0);
+-  info->block.levels=0;
++  hp_clear_dataspace(&info->recordspace);
+   hp_clear_keys(info);
+-  info->records= info->deleted= 0;
+-  info->data_length= 0;
++  info->records= 0;
+   info->blength=1;
+   info->changed=0;
+-  info->del_link=0;
+   DBUG_VOID_RETURN;
+ }
+ 
+@@ -157,7 +152,7 @@
+   int error= 0;
+   HP_SHARE *share= info->s;
+ 
+-  if (share->data_length || share->index_length)
++  if (share->recordspace.total_data_length || share->index_length)
+     error= HA_ERR_CRASHED;
+   else
+     if (share->currently_disabled_keys)
+diff -ruN a/storage/heap/hp_close.c b/storage/heap/hp_close.c
+--- a/storage/heap/hp_close.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_close.c	2011-06-02 15:37:43.754916999 +0300
+@@ -46,6 +46,10 @@
+     heap_open_list=list_delete(heap_open_list,&info->open_list);
+   if (!--info->s->open_count && info->s->delete_on_close)
+     hp_free(info->s);				/* Table was deleted */
++  if (info->blob_buffer)
++  {
++    my_free(info->blob_buffer);
++  }
+   my_free(info);
+   DBUG_RETURN(error);
+ }
+diff -ruN a/storage/heap/hp_create.c b/storage/heap/hp_create.c
+--- a/storage/heap/hp_create.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_create.c	2011-06-02 15:37:43.754916999 +0300
+@@ -14,11 +14,21 @@
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+ 
+ #include "heapdef.h"
++#include <mysql_com.h>
++#include <mysqld_error.h>
+ 
+ static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2);
+-static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
++static void init_block(HP_BLOCK *block,uint chunk_length, ulong min_records,
+ 		       ulong max_records);
+ 
++#define FIXED_REC_OVERHEAD (sizeof(uchar))
++#define VARIABLE_REC_OVERHEAD (sizeof(uchar **) + sizeof(uchar))
++
++/* Minimum size that a chunk can take, 12 bytes on 32bit, 24 bytes on 64bit */
++#define VARIABLE_MIN_CHUNK_SIZE                                         \
++  ((sizeof(uchar **) + VARIABLE_REC_OVERHEAD + sizeof(uchar **) - 1) &  \
++   ~(sizeof(uchar **) - 1))
++
+ /* Create a heap table */
+ 
+ int heap_create(const char *name, HP_CREATE_INFO *create_info,
+@@ -32,6 +42,7 @@
+   uint keys= create_info->keys;
+   ulong min_records= create_info->min_records;
+   ulong max_records= create_info->max_records;
++  ulong max_rows_for_stated_memory;
+   DBUG_ENTER("heap_create");
+ 
+   if (!create_info->internal_table)
+@@ -48,15 +59,147 @@
+ 
+   if (!share)
+   {
++    uint chunk_dataspace_length, chunk_length, is_variable_size;
++    uint fixed_data_length, fixed_column_count;
+     HP_KEYDEF *keyinfo;
+     DBUG_PRINT("info",("Initializing new table"));
+-    
++
++    if (create_info->max_chunk_size)
++    {
++      uint configured_chunk_size= create_info->max_chunk_size;
++
++      /* User requested variable-size records, let's see if they're possible */
++
++      if (configured_chunk_size < create_info->fixed_data_size)
++      {
++        /*
++          The resulting chunk_size cannot be smaller than fixed data part
++          at the start of the first chunk which allows faster copying
++          with a single memcpy().
++        */
++        my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "key_block_size");
++        goto err;
++      }
++
++      if (reclength > configured_chunk_size + VARIABLE_REC_OVERHEAD ||
++	  create_info->blobs > 0)
++      {
++        /*
++          Allow variable size only if we're saving some space, i.e.
++          if a fixed-size record would take more space than variable-size
++          one plus the variable-size overhead.
++          There has to be at least one field after indexed fields.
++          Note that NULL bits are already included in key_part_size.
++        */
++        is_variable_size= 1;
++        chunk_dataspace_length= configured_chunk_size;
++      }
++      else
++      {
++        /* max_chunk_size is near the full reclength, let's use fixed size */
++        is_variable_size= 0;
++        chunk_dataspace_length= reclength;
++      }
++    }
++    else if ((create_info->is_dynamic && reclength >
++              256 + VARIABLE_REC_OVERHEAD)
++             || create_info->blobs > 0)
++    {
++      /*
++        User asked for dynamic records - use 256 as the chunk size, if that
++        will may save some memory. Otherwise revert to fixed size format.
++      */
++      if ((create_info->fixed_data_size + VARIABLE_REC_OVERHEAD) > 256)
++        chunk_dataspace_length= create_info->fixed_data_size;
++      else
++        chunk_dataspace_length= 256 - VARIABLE_REC_OVERHEAD;
++
++      is_variable_size= 1;
++    }
++    else
++    {
++      /*
++        If max_chunk_size is not specified, put the whole record in one chunk
++      */
++      is_variable_size= 0;
++      chunk_dataspace_length= reclength;
++    }
++
++    if (is_variable_size)
++    {
++      /* Check whether we have any variable size records past key data */
++      uint has_variable_fields= 0;
++
++      fixed_data_length= create_info->fixed_data_size;
++      fixed_column_count= create_info->fixed_key_fieldnr;
++
++      for (i= create_info->fixed_key_fieldnr; i < create_info->columns; i++)
++      {
++        HP_COLUMNDEF *column= create_info->columndef + i;
++	if ((column->type == MYSQL_TYPE_VARCHAR &&
++	     (column->length - column->length_bytes) >= 32) ||
++	    column->type == MYSQL_TYPE_BLOB)
++        {
++            /*
++              The field has to be either blob or >= 5.0.3 true VARCHAR
++              and have substantial length.
++              TODO: do we want to calculate minimum length?
++            */
++            has_variable_fields= 1;
++            break;
++        }
++
++        if (has_variable_fields)
++        {
++          break;
++        }
++
++        if ((column->offset + column->length) <= chunk_dataspace_length)
++        {
++          /* Still no variable-size columns, add one fixed-length */
++          fixed_column_count= i + 1;
++          fixed_data_length= column->offset + column->length;
++        }
++      }
++
++      if (!has_variable_fields && create_info->blobs == 0)
++      {
++        /*
++          There is no need to use variable-size records without variable-size
++          columns.
++          Reset sizes if it's not variable size anymore.
++        */
++        is_variable_size= 0;
++        chunk_dataspace_length= reclength;
++        fixed_data_length= reclength;
++        fixed_column_count= create_info->columns;
++      }
++    }
++    else
++    {
++      fixed_data_length= reclength;
++      fixed_column_count= create_info->columns;
++    }
++
+     /*
+-      We have to store sometimes uchar* del_link in records,
+-      so the record length should be at least sizeof(uchar*)
++      We store uchar* del_link inside the data area of deleted records,
++      so the data length should be at least sizeof(uchar*)
+     */
+-    set_if_bigger(reclength, sizeof (uchar*));
+-    
++    set_if_bigger(chunk_dataspace_length, sizeof (uchar **));
++
++    if (is_variable_size)
++    {
++      chunk_length= chunk_dataspace_length + VARIABLE_REC_OVERHEAD;
++    }
++    else
++    {
++      chunk_length= chunk_dataspace_length + FIXED_REC_OVERHEAD;
++    }
++
++    /* Align chunk length to the next pointer */
++    chunk_length= (uint) (chunk_length + sizeof(uchar **) - 1) &
++      ~(sizeof(uchar **) - 1);
++
+     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
+     {
+       bzero((char*) &keyinfo->block,sizeof(keyinfo->block));
+@@ -73,42 +216,11 @@
+ 	    keyinfo->rb_tree.size_of_element++;
+ 	}
+ 	switch (keyinfo->seg[j].type) {
+-	case HA_KEYTYPE_SHORT_INT:
+-	case HA_KEYTYPE_LONG_INT:
+-	case HA_KEYTYPE_FLOAT:
+-	case HA_KEYTYPE_DOUBLE:
+-	case HA_KEYTYPE_USHORT_INT:
+-	case HA_KEYTYPE_ULONG_INT:
+-	case HA_KEYTYPE_LONGLONG:
+-	case HA_KEYTYPE_ULONGLONG:
+-	case HA_KEYTYPE_INT24:
+-	case HA_KEYTYPE_UINT24:
+-	case HA_KEYTYPE_INT8:
+-	  keyinfo->seg[j].flag|= HA_SWAP_KEY;
+-          break;
+         case HA_KEYTYPE_VARBINARY1:
+-          /* Case-insensitiveness is handled in coll->hash_sort */
+-          keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
+-          /* fall_through */
+         case HA_KEYTYPE_VARTEXT1:
+-          keyinfo->flag|= HA_VAR_LENGTH_KEY;
+-          length+= 2;
+-          /* Save number of bytes used to store length */
+-          keyinfo->seg[j].bit_start= 1;
+-          break;
+         case HA_KEYTYPE_VARBINARY2:
+-          /* Case-insensitiveness is handled in coll->hash_sort */
+-          /* fall_through */
+         case HA_KEYTYPE_VARTEXT2:
+-          keyinfo->flag|= HA_VAR_LENGTH_KEY;
+           length+= 2;
+-          /* Save number of bytes used to store length */
+-          keyinfo->seg[j].bit_start= 2;
+-          /*
+-            Make future comparison simpler by only having to check for
+-            one type
+-          */
+-          keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
+           break;
+ 	default:
+ 	  break;
+@@ -133,13 +245,34 @@
+     }
+     if (!(share= (HP_SHARE*) my_malloc((uint) sizeof(HP_SHARE)+
+ 				       keys*sizeof(HP_KEYDEF)+
++                                       (create_info->columns *
++                                        sizeof(HP_COLUMNDEF)) +
+ 				       key_segs*sizeof(HA_KEYSEG),
+ 				       MYF(MY_ZEROFILL))))
+       goto err;
+-    share->keydef= (HP_KEYDEF*) (share + 1);
++
++    /*
++      Max_records is used for estimating block sizes and for enforcement.
++      Calculate the very maximum number of rows (if everything was one chunk)
++      and then take either that value or configured max_records (pick smallest
++      one).
++    */
++    max_rows_for_stated_memory= (ha_rows) (create_info->max_table_size /
++                                           (create_info->keys_memory_size +
++                                            chunk_length));
++    max_records = ((max_records && max_records < max_rows_for_stated_memory) ?
++                   max_records : max_rows_for_stated_memory);
++
++    share->column_defs= (HP_COLUMNDEF*) (share + 1);
++    memcpy(share->column_defs, create_info->columndef,
++           (size_t) (sizeof(create_info->columndef[0]) *
++                     create_info->columns));
++
++    share->keydef= (HP_KEYDEF*) (share->column_defs + create_info->columns);
+     share->key_stat_version= 1;
+     keyseg= (HA_KEYSEG*) (share->keydef + keys);
+-    init_block(&share->block, reclength + 1, min_records, max_records);
++    init_block(&share->recordspace.block, chunk_length, min_records,
++               max_records);
+ 	/* Fix keys */
+     memcpy(share->keydef, keydef, (size_t) (sizeof(keydef[0]) * keys));
+     for (i= 0, keyinfo= share->keydef; i < keys; i++, keyinfo++)
+@@ -177,15 +310,35 @@
+     share->min_records= min_records;
+     share->max_records= max_records;
+     share->max_table_size= create_info->max_table_size;
+-    share->data_length= share->index_length= 0;
+-    share->reclength= reclength;
++    share->index_length= 0;
+     share->blength= 1;
+     share->keys= keys;
+     share->max_key_length= max_length;
++    share->column_count= create_info->columns;
+     share->changed= 0;
+     share->auto_key= create_info->auto_key;
+     share->auto_key_type= create_info->auto_key_type;
+     share->auto_increment= create_info->auto_increment;
++
++    share->fixed_data_length= fixed_data_length;
++    share->fixed_column_count= fixed_column_count;
++    share->blobs= create_info->blobs;
++
++    share->recordspace.chunk_length= chunk_length;
++    share->recordspace.chunk_dataspace_length= chunk_dataspace_length;
++    share->recordspace.is_variable_size= is_variable_size;
++    share->recordspace.total_data_length= 0;
++
++    if (is_variable_size) {
++      share->recordspace.offset_link= chunk_dataspace_length;
++      share->recordspace.offset_status= share->recordspace.offset_link +
++        sizeof(uchar **);
++    } else {
++      /* Make it likely to fail if anyone uses this offset */
++      share->recordspace.offset_link= 1 << 22;
++      share->recordspace.offset_status= chunk_dataspace_length;
++    }
++
+     /* Must be allocated separately for rename to work */
+     if (!(share->name= my_strdup(name,MYF(0))))
+     {
+@@ -227,7 +380,7 @@
+ 		    param->search_flag, not_used);
+ }
+ 
+-static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
++static void init_block(HP_BLOCK *block, uint chunk_length, ulong min_records,
+ 		       ulong max_records)
+ {
+   uint i,recbuffer,records_in_block;
+@@ -235,7 +388,12 @@
+   max_records= max(min_records,max_records);
+   if (!max_records)
+     max_records= 1000;			/* As good as quess as anything */
+-  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
++  /*
++    We want to start each chunk at 8 bytes boundary, round recbuffer to the
++    next 8.
++  */
++  recbuffer= (uint) (chunk_length + sizeof(uchar**) - 1) &
++    ~(sizeof(uchar**) - 1);
+   records_in_block= max_records / 10;
+   if (records_in_block < 10 && max_records)
+     records_in_block= 10;
+diff -ruN a/storage/heap/hp_delete.c b/storage/heap/hp_delete.c
+--- a/storage/heap/hp_delete.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_delete.c	2011-06-02 15:37:43.754916999 +0300
+@@ -22,6 +22,8 @@
+   uchar *pos;
+   HP_SHARE *share=info->s;
+   HP_KEYDEF *keydef, *end, *p_lastinx;
++  uint rec_length, chunk_count;
++
+   DBUG_ENTER("heap_delete");
+   DBUG_PRINT("enter",("info: 0x%lx  record: 0x%lx", (long) info, (long) record));
+ 
+@@ -31,6 +33,8 @@
+     DBUG_RETURN(my_errno);			/* Record changed */
+   share->changed=1;
+ 
++  rec_length = hp_get_encoded_data_length(share, record, &chunk_count);
++
+   if ( --(share->records) < share->blength >> 1) share->blength>>=1;
+   pos=info->current_ptr;
+ 
+@@ -43,10 +47,7 @@
+   }
+ 
+   info->update=HA_STATE_DELETED;
+-  *((uchar**) pos)=share->del_link;
+-  share->del_link=pos;
+-  pos[share->reclength]=0;		/* Record deleted */
+-  share->deleted++;
++  hp_free_chunks(&share->recordspace, pos);
+   info->current_hash_ptr=0;
+ #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+   DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
+@@ -75,7 +76,8 @@
+     info->last_pos= NULL; /* For heap_rnext/heap_rprev */
+ 
+   custom_arg.keyseg= keyinfo->seg;
+-  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
++  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos,
++                                        FALSE);
+   custom_arg.search_flag= SEARCH_SAME;
+   old_allocated= keyinfo->rb_tree.allocated;
+   res= tree_delete(&keyinfo->rb_tree, info->recbuf, custom_arg.key_length,
+@@ -112,6 +114,7 @@
+   blength=share->blength;
+   if (share->records+1 == blength)
+     blength+= blength;
++
+   lastpos=hp_find_hash(&keyinfo->block,share->records);
+   last_ptr=0;
+ 
+diff -ruN /dev/null b/storage/heap/hp_dspace.c
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/storage/heap/hp_dspace.c	2011-06-02 15:40:14.104917001 +0300
+@@ -0,0 +1,440 @@
++/* Copyright (C) 2000-2002 MySQL AB
++   Copyright (C) 2008 eBay, Inc
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++/*
++  Implements various base dataspace-related functions - allocate, free, clear
++*/
++
++#include "heapdef.h"
++
++
++/*
++  MySQL Heap tables keep data in arrays of fixed-size chunks.
++  These chunks are organized into two groups of HP_BLOCK structures:
++    - group1 contains indexes, with one HP_BLOCK per key
++      (part of HP_KEYDEF)
++    - group2 contains record data, with single HP_BLOCK
++      for all records, referenced by HP_SHARE.recordspace.block
++
++  While columns used in index are usually small, other columns
++  in the table may need to accomodate larger data. Typically,
++  larger data is placed into VARCHAR or BLOB columns. With actual
++  sizes varying, Heap Engine has to support variable-sized records
++  in memory. Heap Engine implements the concept of dataspace
++  (HP_DATASPACE), which incorporates HP_BLOCK for the record data,
++  and adds more information for managing variable-sized records.
++
++  Variable-size records are stored in multiple "chunks",
++  which means that a single record of data (database "row") can
++  consist of multiple chunks organized into one "set". HP_BLOCK
++  contains chunks. In variable-size format, one record
++  is represented as one or many chunks, depending on the actual
++  data, while in fixed-size mode, one record is always represented
++  as one chunk. The index structures would always point to the first
++  chunk in the chunkset.
++
++  At the time of table creation, Heap Engine attempts to find out if
++  variable-size records are desired. A user can request
++  variable-size records by providing either row_type=dynamic or
++  key_block_size=NNN table create option. Heap Engine will check
++  whether key_block_size provides enough space in the first chunk
++  to keep all null bits and columns that are used in indexes.
++  If key_block_size is too small, table creation will be aborted
++  with an error. Heap Engine will revert to fixed-size allocation
++  mode if key_block_size provides no memory benefits (if the
++  fixed-size record would always be shorter then the first chunk
++  in the chunkset with the specified key_block_size).
++
++  In order to improve index search performance, Heap Engine needs
++  to keep all null flags and all columns used as keys inside
++  the first chunk of a chunkset. In particular, this means that
++  all columns used as keys should be defined first in the table
++  creation SQL. The length of data used by null bits and key columns
++  is stored as fixed_data_length inside HP_SHARE. fixed_data_length
++  will extend past last key column if more fixed-length fields can
++  fit into the first chunk.
++
++  Variable-size records are necessary only in the presence of
++  variable-size columns. Heap Engine will be looking for BLOB
++  columns or VARCHAR columns, which declare length of 32 or more. If
++  no such columns are found, table will be switched to fixed-size
++  format. You should always try to put such columns at the end of
++  the table definition.
++
++  Whenever data is being inserted or updated in the table
++  Heap Engine will calculate how many chunks are necessary.
++  For insert operations, Heap Engine allocates new chunkset in
++  the recordspace. For update operations it will modify length of
++  the existing chunkset, unlinking unnecessary chunks at the end,
++  or allocating and adding more if larger length is necessary.
++
++  When writing data to chunks or copying data back to record,
++  fixed-size columns are copied in their full format. VARCHARs and
++  BLOBs are copied based on their actual length. Any NULL values
++  after fixed_data_length are skipped.
++
++  The allocation and contents of the actual chunks varies between
++  fixed and variable-size modes. Total chunk length is always
++  aligned to the next sizeof(uchar*). Here is the format of
++  fixed-size chunk:
++      uchar[] - sizeof=chunk_dataspace_length, but at least
++                sizeof(uchar*) bytes. Keeps actual data or pointer
++                to the next deleted chunk.
++                chunk_dataspace_length equals to full record length
++      uchar   - status field (1 means "in use", 0 means "deleted")
++
++  Variable-size chunk uses different format:
++      uchar[] - sizeof=chunk_dataspace_length, but at least
++                sizeof(uchar*) bytes. Keeps actual data or pointer
++                to the next deleted chunk.
++                chunk_dataspace_length is set according to table
++                setup (key_block_size)
++      uchar*  - pointer to the next chunk in this chunkset,
++                or NULL for the last chunk
++      uchar   - status field (1 means "first", 0 means "deleted",
++                2 means "linked")
++
++  When allocating a new chunkset of N chunks, Heap Engine will try
++  to allocate chunks one-by-one, linking them as they become
++  allocated. Allocation of a single chunk will attempt to reuse
++  a deleted (freed) chunk. If no free chunks are available,
++  it will attempt to allocate a new area inside HP_BLOCK.
++  Freeing chunks will place them at the front of free list
++  referenced by del_link in HP_DATASPACE. The newly freed chunk
++  will contain reference to the previously freed chunk in its first
++  sizeof(uchar*) of the payload space.
++
++  Here is open issues:
++    -  It is not very nice to require people to keep key columns
++       at the beginning of the table creation SQL. There are three
++       proposed resolutions:
++       a. Leave it as is. It's a reasonable limitation
++       b. Add new HA_KEEP_KEY_COLUMNS_TO_FRONT flag to handler.h and
++          make table.cpp align columns when it creates the table
++       c. Make HeapEngine reorder columns in the chunk data, so that
++          key columns go first. Add parallel HA_KEYSEG structures
++          to distinguish positions in record vs. positions in
++          the first chunk. Copy all data field-by-field rather than
++          using single memcpy unless DBA kept key columns to
++          the beginning.
++    -  heap_check_heap needs verify linked chunks, looking for
++       issues such as orphans, cycles, and bad links. However,
++       Heap Engine today does not do similar things even for
++       free list.
++    -  In a more sophisticated implementation, some space can
++       be saved even with all fixed-size columns if many of them
++       have NULL value, as long as these columns are not used
++       in indexes
++    -  In variable-size format status should be moved to lower
++       bits of the "next" pointer. Pointer is always aligned
++       to sizeof(byte*), which is at least 4, leaving 2 lower
++       bits free. This will save 8 bytes per chunk
++       on 64-bit platform.
++    -  As we do not want to modify FRM format or to add new SQL
++       keywords, KEY_BLOCK_SIZE option of "CREATE TABLE" is reused
++       to specify block size for Heap Engine tables.
++    -  since all key columns must fit in the first chunk, having keys
++       on BLOB columns is currently impossible. This limitation is
++       relatively easiy to remove in future.
++*/
++
++static uchar *hp_allocate_one_chunk(HP_DATASPACE *info);
++
++
++/**
++  Clear a dataspace
++
++  Frees memory and zeros-out any relevant counters in the dataspace
++
++  @param  info  the dataspace to clear
++*/
++
++void hp_clear_dataspace(HP_DATASPACE *info)
++{
++  if (info->block.levels)
++  {
++    hp_free_level(&info->block,info->block.levels,info->block.root,
++                  (uchar *) 0);
++  }
++  info->block.levels= 0;
++  info->del_chunk_count= info->chunk_count= 0;
++  info->del_link= 0;
++  info->total_data_length= 0;
++}
++
++
++/**
++  Allocate or reallocate a chunkset in the dataspace
++
++  Attempts to allocate a new chunkset or change the size of an existing chunkset
++
++  @param  info            the hosting dataspace
++  @param  chunk_count     the number of chunks that we expect as the result
++  @param  existing_set    non-null value asks function to resize existing
++                          chunkset, return value would point to this set
++
++  @return  Pointer to the first chunk in the new or updated chunkset, or NULL
++           if unsuccessful
++*/
++
++static uchar *hp_allocate_variable_chunkset(HP_DATASPACE *info,
++                                           uint chunk_count,
++                                           uchar *existing_set)
++{
++  int alloc_count= chunk_count, i;
++  uchar *first_chunk= 0, *curr_chunk= 0, *prev_chunk= 0;
++  uchar  *last_existing_chunk= 0;
++
++  DBUG_ASSERT(alloc_count);
++
++  if (existing_set)
++  {
++    first_chunk= existing_set;
++
++    curr_chunk= existing_set;
++    while (curr_chunk && alloc_count)
++    {
++      prev_chunk= curr_chunk;
++      curr_chunk= *((uchar **) (curr_chunk + info->offset_link));
++      alloc_count--;
++    }
++
++    if (!alloc_count)
++    {
++      if (curr_chunk)
++      {
++        /*
++          We came through all chunks and there is more left, let's truncate the
++          list.
++        */
++        *((uchar **) (prev_chunk + info->offset_link))= NULL;
++        hp_free_chunks(info, curr_chunk);
++      }
++
++      return first_chunk;
++    }
++
++    last_existing_chunk= prev_chunk;
++  }
++
++  /*
++    We can reach this point only if we're allocating new chunkset or more chunks
++    in existing set.
++  */
++
++  for (i= 0; i < alloc_count; i++)
++  {
++    curr_chunk= hp_allocate_one_chunk(info);
++    if (!curr_chunk)
++    {
++      /* no space in the current block */
++
++      if (last_existing_chunk)
++      {
++        /* Truncate whatever was added at the end of the existing chunkset */
++        prev_chunk= last_existing_chunk;
++        curr_chunk= *((uchar **)(prev_chunk + info->offset_link));
++        *((uchar **)(prev_chunk + info->offset_link))= NULL;
++        hp_free_chunks(info, curr_chunk);
++      }
++      else if (first_chunk)
++      {
++        /* free any chunks previously allocated */
++        hp_free_chunks(info, first_chunk);
++      }
++
++      return NULL;
++    }
++
++    /* mark as if this chunk is last in the chunkset */
++    *((uchar **) (curr_chunk + info->offset_link))= 0;
++
++    if (prev_chunk)
++    {
++      /* tie them into a linked list */
++      *((uchar **) (prev_chunk + info->offset_link))= curr_chunk;
++      /* Record linked from active */
++      curr_chunk[info->offset_status]= CHUNK_STATUS_LINKED;
++    }
++    else
++    {
++      /* Record active */
++      curr_chunk[info->offset_status]= CHUNK_STATUS_ACTIVE;
++    }
++
++    if (!first_chunk)
++    {
++      first_chunk= curr_chunk;
++    }
++
++    prev_chunk= curr_chunk;
++}
++
++  return first_chunk;
++}
++
++
++/**
++  Allocate a new chunkset in the dataspace
++
++  Attempts to allocate a new chunkset
++
++  @param  info            the hosting dataspace
++  @param  chunk_count     the number of chunks that we expect as the result
++
++  @return  Pointer to the first chunk in the new or updated chunkset, or NULL if
++           unsuccessful
++*/
++
++uchar *hp_allocate_chunkset(HP_DATASPACE *info, uint chunk_count)
++{
++  uchar *result;
++
++  DBUG_ENTER("hp_allocate_chunks");
++
++  if (info->is_variable_size)
++  {
++    result = hp_allocate_variable_chunkset(info, chunk_count, NULL);
++  }
++  else
++  {
++    result= hp_allocate_one_chunk(info);
++    if (result)
++    {
++      result[info->offset_status]= CHUNK_STATUS_ACTIVE;
++    }
++
++    DBUG_RETURN(result);
++  }
++
++  DBUG_RETURN(result);
++}
++
++
++/**
++  Reallocate an existing chunkset in the dataspace
++
++  Attempts to change the size of an existing chunkset
++
++  @param  info            the hosting dataspace
++  @param  chunk_count     the number of chunks that we expect as the result
++  @param  pos             pointer to the existing chunkset
++
++  @return  Error code or zero if successful
++*/
++
++int hp_reallocate_chunkset(HP_DATASPACE *info, uint chunk_count, uchar *pos)
++{
++  DBUG_ENTER("hp_reallocate_chunks");
++
++  if (!info->is_variable_size)
++  {
++    /* Update should never change chunk_count in fixed-size mode */
++    my_errno= HA_ERR_WRONG_COMMAND;
++    return my_errno;
++  }
++
++  /* Reallocate never moves the first chunk */
++  if (!hp_allocate_variable_chunkset(info, chunk_count, pos))
++    DBUG_RETURN(my_errno);
++
++  DBUG_RETURN(0);
++}
++
++
++/**
++  Allocate a single chunk in the dataspace
++
++  Attempts to allocate a new chunk or reuse one from deleted list
++
++  @param  info            the hosting dataspace
++
++  @return  Pointer to the chunk, or NULL if unsuccessful
++*/
++
++static uchar *hp_allocate_one_chunk(HP_DATASPACE *info)
++{
++  uchar *curr_chunk;
++  size_t length;
++  ulong block_pos;
++
++  if (info->del_link)
++  {
++    curr_chunk= info->del_link;
++    info->del_link= *((uchar **) curr_chunk);
++    info->del_chunk_count--;
++
++    DBUG_PRINT("hp_allocate_one_chunk",
++               ("Used old position: 0x%lx",(long) curr_chunk));
++    return curr_chunk;
++  }
++
++  block_pos= (info->chunk_count % info->block.records_in_block);
++  if (!block_pos)
++  {
++    if (hp_get_new_block(&info->block, &length))
++    {
++      /* no space in the current block */
++      return NULL;
++    }
++
++    info->total_data_length+= length;
++  }
++
++  info->chunk_count++;
++  curr_chunk= ((uchar *) info->block.level_info[0].last_blocks +
++               block_pos * info->block.recbuffer);
++
++  DBUG_PRINT("hp_allocate_one_chunk",
++             ("Used new position: 0x%lx", (long) curr_chunk));
++
++  return curr_chunk;
++}
++
++
++/**
++  Free a list of chunks
++
++  Reclaims all chunks linked by the pointer,
++  which could be the whole chunkset or a part of an existing chunkset
++
++  @param  info            the hosting dataspace
++  @param  pos             pointer to the head of the chunkset
++*/
++
++void hp_free_chunks(HP_DATASPACE *info, uchar *pos)
++{
++  uchar *curr_chunk= pos;
++
++  while (curr_chunk)
++  {
++    info->del_chunk_count++;
++    *((uchar **) curr_chunk)= info->del_link;
++    info->del_link= curr_chunk;
++
++    curr_chunk[info->offset_status]= CHUNK_STATUS_DELETED;
++
++    DBUG_PRINT("hp_free_chunks",("Freed position: 0x%lx", (long) curr_chunk));
++
++    if (!info->is_variable_size)
++    {
++      break;
++    }
++
++    /* Delete next chunk in this chunkset */
++    curr_chunk= *((uchar **)(curr_chunk + info->offset_link));
++  }
++}
+diff -ruN a/storage/heap/hp_extra.c b/storage/heap/hp_extra.c
+--- a/storage/heap/hp_extra.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_extra.c	2011-06-02 15:37:57.814917006 +0300
+@@ -56,7 +56,6 @@
+   info->current_record= (ulong) ~0L;
+   info->current_hash_ptr=0;
+   info->update=0;
+-  info->next_block=0;
+   return 0;
+ }
+ 
+diff -ruN a/storage/heap/hp_hash.c b/storage/heap/hp_hash.c
+--- a/storage/heap/hp_hash.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_hash.c	2011-06-02 15:37:57.824916999 +0300
+@@ -336,16 +336,26 @@
+     {
+       CHARSET_INFO *cs= seg->charset;
+       uint pack_length= seg->bit_start;
+-      uint length= (pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos));
++      uint length= hp_calc_blob_length(pack_length, pos);
++
++      if (seg->flag & HA_BLOB_PART)
++      {
++        memcpy(&pos, pos + pack_length, sizeof(char *));
++      }
++      else
++      {
++        pos+= pack_length;
++      }
++
+       if (cs->mbmaxlen > 1)
+       {
+         uint char_length;
+-        char_length= my_charpos(cs, pos + pack_length,
+-                                pos + pack_length + length,
++        char_length= my_charpos(cs, pos,
++                                pos + length,
+                                 seg->length/cs->mbmaxlen);
+         set_if_smaller(length, char_length);
+       }
+-      cs->coll->hash_sort(cs, pos+pack_length, length, &nr, &nr2);
++      cs->coll->hash_sort(cs, pos, length, &nr, &nr2);
+     }
+     else
+     {
+@@ -545,18 +555,18 @@
+       uint char_length1, char_length2;
+       uint pack_length= seg->bit_start;
+       CHARSET_INFO *cs= seg->charset;
+-      if (pack_length == 1)
+-      {
+-        char_length1= (uint) *(uchar*) pos1++;
+-        char_length2= (uint) *(uchar*) pos2++;
+-      }
+-      else
++
++      char_length1= hp_calc_blob_length(pack_length, pos1);
++      char_length2= hp_calc_blob_length(pack_length, pos2);
++      pos1+= pack_length;
++      pos2+= pack_length;
++
++      if (seg->flag & HA_BLOB_PART)
+       {
+-        char_length1= uint2korr(pos1);
+-        char_length2= uint2korr(pos2);
+-        pos1+= 2;
+-        pos2+= 2;
++        memcpy(&pos1, pos1, sizeof(char *));
++        memcpy(&pos2, pos2, sizeof(char *));
+       }
++
+       if (cs->mbmaxlen > 1)
+       {
+         uint safe_length1= char_length1;
+@@ -668,6 +678,34 @@
+ }
+ 
+ 
++/**
++   Returns a BLOB length stored in the specified number of bytes at the
++   specified location.
++
++   @param length       the number of bytes used to store length
++   @param pos          pointer to length bytes
++
++   @return  Length of BLOB data.
++*/
++
++uint hp_calc_blob_length(uint bytes, const uchar *pos)
++{
++  switch (bytes) {
++  case 1:
++    return (uint) *pos;
++  case 2:
++    return uint2korr(pos);
++  case 3:
++    return uint3korr(pos);
++  case 4:
++    return uint4korr(pos);
++  default:
++    break;
++  }
++
++  return 0; /* Impossible */
++}
++
+ 	/* Copy a key from a record to a keybuffer */
+ 
+ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
+@@ -678,18 +716,37 @@
+   {
+     CHARSET_INFO *cs= seg->charset;
+     uint char_length= seg->length;
+-    uchar *pos= (uchar*) rec + seg->start;
++    const uchar *pos= rec + seg->start;
+     if (seg->null_bit)
+       *key++= test(rec[seg->null_pos] & seg->null_bit);
+-    if (cs->mbmaxlen > 1)
++
++    if (seg->flag & HA_BLOB_PART)
+     {
+-      char_length= my_charpos(cs, pos, pos + seg->length,
+-                              char_length / cs->mbmaxlen);
+-      set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
+-    }
+-    if (seg->type == HA_KEYTYPE_VARTEXT1)
+-      char_length+= seg->bit_start;             /* Copy also length */
+-    memcpy(key,rec+seg->start,(size_t) char_length);
++      uint tmp_length= hp_calc_blob_length(seg->bit_start, pos);
++      uint length= min(seg->length, tmp_length);
++
++      memcpy(&pos, rec + seg->bit_start, sizeof(char *));
++      if (cs->mbmaxlen > 1)
++      {
++        char_length= my_charpos(cs, pos, pos + seg->length,
++                                char_length / cs->mbmaxlen);
++        set_if_smaller(char_length, length); /* QQ: ok to remove? */
++      }
++      store_key_length_inc(key, char_length);
++    }
++    else
++    {
++      if (cs->mbmaxlen > 1)
++      {
++        char_length= my_charpos(cs, pos, pos + seg->length,
++                                char_length / cs->mbmaxlen);
++        set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
++      }
++      if (seg->type == HA_KEYTYPE_VARTEXT1)
++        char_length+= seg->bit_start;             /* Copy also length */
++    }
++
++    memcpy(key, pos, (size_t) char_length);
+     key+= char_length;
+   }
+ }
+@@ -702,8 +759,8 @@
+   } while(0)
+ 
+ 
+-uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key, 
+-		    const uchar *rec, uchar *recpos)
++uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
++                    const uchar *rec, uchar *recpos, my_bool packed)
+ {
+   uchar *start_key= key;
+   HA_KEYSEG *seg, *endseg;
+@@ -772,6 +829,29 @@
+       key+= char_length;
+       continue;
+     }
++    else if (seg->flag & HA_BLOB_PART)
++    {
++      uchar *pos=      (uchar*) rec + seg->start;
++      uint tmp_length= hp_calc_blob_length(seg->bit_start, pos);
++      uint length= min(seg->length, tmp_length);
++      CHARSET_INFO *cs= seg->charset;
++      char_length= seg->length / cs->mbmaxlen;
++
++      /* check_one_rb_key() calls hp_rb_make_key() for already packed records */
++      if (!packed)
++      {
++        memcpy(&pos, pos + seg->bit_start, sizeof(char *));
++      }
++      else
++      {
++        pos+= seg->bit_start;
++      }
++      FIX_LENGTH(cs, pos, length, char_length);
++      store_key_length_inc(key, char_length);
++      memcpy(key, pos, (size_t) char_length);
++      key+= char_length;
++      continue;
++    }
+ 
+     char_length= seg->length;
+     if (seg->charset->mbmaxlen > 1)
+diff -ruN a/storage/heap/hp_info.c b/storage/heap/hp_info.c
+--- a/storage/heap/hp_info.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_info.c	2011-06-02 15:37:57.824916999 +0300
+@@ -47,9 +47,22 @@
+ {
+   DBUG_ENTER("heap_info");
+   x->records         = info->s->records;
+-  x->deleted         = info->s->deleted;
+-  x->reclength       = info->s->reclength;
+-  x->data_length     = info->s->data_length;
++  x->deleted         = info->s->recordspace.del_chunk_count;
++
++  if (info->s->recordspace.is_variable_size)
++  {
++    if (info->s->records)
++      x->reclength   = (uint) (info->s->recordspace.total_data_length /
++                               (ulonglong) info->s->records);
++    else
++      x->reclength   = info->s->recordspace.chunk_length;
++  }
++  else
++  {
++    x->reclength     = info->s->recordspace.chunk_dataspace_length;
++  }
++
++  x->data_length     = info->s->recordspace.total_data_length;
+   x->index_length    = info->s->index_length;
+   x->max_records     = info->s->max_records;
+   x->errkey          = info->errkey;
+diff -ruN a/storage/heap/hp_open.c b/storage/heap/hp_open.c
+--- a/storage/heap/hp_open.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_open.c	2011-06-02 15:37:57.824916999 +0300
+@@ -47,9 +47,9 @@
+ #ifndef DBUG_OFF
+   info->opt_flag= READ_CHECK_USED;		/* Check when changing */
+ #endif
+-  DBUG_PRINT("exit",("heap: 0x%lx  reclength: %d  records_in_block: %d",
+-		     (long) info, share->reclength,
+-                     share->block.records_in_block));
++  DBUG_PRINT("exit",("heap: 0x%lx  chunk_length: %d  records_in_block: %d",
++                     (long) info, share->recordspace.chunk_length,
++                     share->recordspace.block.records_in_block));
+   DBUG_RETURN(info);
+ }
+ 
+diff -ruN /dev/null b/storage/heap/hp_record.c
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ b/storage/heap/hp_record.c	2011-06-02 15:40:21.634916999 +0300
+@@ -0,0 +1,498 @@
++/* Copyright (C) 2000-2002 MySQL AB
++   Copyright (C) 2008 eBay, Inc
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++/*
++  Implements various base record-related functions, such as encode and decode
++  into chunks.
++*/
++
++#include "heapdef.h"
++#include <mysql_com.h>
++
++/**
++  Calculate size of the record for the purpose of storing in chunks
++
++  Walk through the fields of the record and calculates the exact space
++  needed in chunks as well the the total chunk count
++
++  @param       info         the hosting table
++  @param       record       the record in standard unpacked format
++  @param[out]  chunk_count  the number of chunks needed for this record
++
++  @return The size of the required storage in bytes
++*/
++
++uint hp_get_encoded_data_length(HP_SHARE *info, const uchar *record,
++                                uint *chunk_count)
++{
++  uint i, dst_offset;
++
++  dst_offset= info->fixed_data_length;
++
++  if (!info->recordspace.is_variable_size)
++  {
++    /* Nothing more to copy */
++    *chunk_count= 1;
++    return dst_offset;
++  }
++
++  for (i= info->fixed_column_count; i < info->column_count; i++)
++  {
++    uint src_offset, length;
++
++    HP_COLUMNDEF *column= info->column_defs + i;
++
++    if (column->null_bit)
++    {
++      if (record[column->null_pos] & column->null_bit)
++      {
++        /* Skip all NULL values */
++        continue;
++      }
++    }
++
++    src_offset= column->offset;
++    if (column->type == MYSQL_TYPE_VARCHAR)
++    {
++      uint pack_length;
++
++      /* >= 5.0.3 true VARCHAR */
++
++      pack_length= column->length_bytes;
++      length= pack_length + (pack_length == 1 ?
++                             (uint) *(uchar *) (record + src_offset) :
++                             uint2korr(record + src_offset));
++    }
++    else if (column->type == MYSQL_TYPE_BLOB)
++    {
++      uint pack_length= column->length_bytes;
++
++      length= pack_length + hp_calc_blob_length(pack_length,
++                                                record + src_offset);
++    }
++    else
++    {
++      length= column->length;
++    }
++
++    dst_offset+= length;
++  }
++
++  *chunk_count= get_chunk_count(&info->recordspace, dst_offset);
++
++  return dst_offset;
++}
++
++
++#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
++static void dump_chunk(HP_SHARE *info, const uchar *curr_chunk)
++{
++  uint i;
++  fprintf(stdout, "Chunk dump at 0x%lx: ", (long) curr_chunk);
++  for (i= 0; i < info->recordspace.chunk_dataspace_length; i++)
++  {
++    uint b= *((uchar *)(curr_chunk + i));
++    if (b < 0x10)
++    {
++      fprintf(stdout, "0");
++    }
++    fprintf(stdout, "%lx ", (long) b);
++  }
++  fprintf(stdout, ". Next = 0x%lx, Status = %d\n",
++          (long) (*((uchar **) (curr_chunk + info->recordspace.offset_link))),
++          (uint) (*((uchar *) (curr_chunk + info->recordspace.offset_status))));
++}
++#endif
++
++/**
++  Stores data from packed field into the preallocated chunkset,
++  or performs data comparison
++
++  @param  info         the hosting table
++  @param  data         the field data in packed format
++  @param  length       the field data length
++  @param  pos_ptr      the target chunkset
++  @param  off_ptr      the pointer to the offset within the current chunkset
++  @param  is_compare   flag indicating whether we should compare data or store
++                       it
++
++  @return  Status of comparison
++    @retval  non-zero  if comparison found data differences
++    @retval  zero      otherwise
++*/
++
++static inline uint
++hp_process_field_data_to_chunkset(HP_SHARE *info, const uchar *data,
++                                  uint length, uchar **pos_ptr, uint *off_ptr,
++                                  uint is_compare)
++{
++  uint to_copy;
++  uchar *curr_chunk= *pos_ptr;
++  uint dst_offset= *off_ptr;
++  uint rc= 1;
++
++  while (length > 0)
++  {
++
++    to_copy= info->recordspace.chunk_dataspace_length - dst_offset;
++    if (to_copy == 0)
++    {
++      /* Jump to the next chunk */
++#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
++      dump_chunk(info, curr_chunk);
++#endif
++      curr_chunk= *((uchar **) (curr_chunk + info->recordspace.offset_link));
++      dst_offset= 0;
++      continue;
++    }
++
++    to_copy= min(length, to_copy);
++
++    if (is_compare)
++    {
++      if (memcmp(curr_chunk + dst_offset, data, (size_t) to_copy))
++      {
++        goto end;
++      }
++    }
++    else
++    {
++      memcpy(curr_chunk + dst_offset, data, (size_t) to_copy);
++    }
++
++    data+= to_copy;
++    dst_offset+= to_copy;
++    length-= to_copy;
++  }
++
++  rc= 0;
++
++end:
++  *pos_ptr= curr_chunk;
++  *off_ptr= dst_offset;
++
++  return rc;
++}
++
++/**
++  Encodes or compares record
++
++  Copies data from original unpacked record into the preallocated chunkset,
++  or performs data comparison
++
++  @param  info         the hosting table
++  @param  record       the record in standard unpacked format
++  @param  pos          the target chunkset
++  @param  is_compare   flag indicating whether we should compare data or store
++                       it
++
++  @return  Status of comparison
++    @retval  non-zero  if comparison fond data differences
++    @retval  zero      otherwise
++*/
++
++uint hp_process_record_data_to_chunkset(HP_SHARE *info, const uchar *record,
++                                        uchar *pos, uint is_compare)
++{
++  uint i, dst_offset;
++  uchar *curr_chunk= pos;
++
++  if (is_compare)
++  {
++    if (memcmp(curr_chunk, record, (size_t) info->fixed_data_length))
++    {
++      return 1;
++    }
++  }
++  else
++  {
++    memcpy(curr_chunk, record, (size_t) info->fixed_data_length);
++  }
++
++  if (!info->recordspace.is_variable_size)
++  {
++    /* Nothing more to copy */
++    return 0;
++  }
++
++  dst_offset= info->fixed_data_length;
++
++  for (i= info->fixed_column_count; i < info->column_count; i++)
++  {
++    uint length;
++    const uchar *data;
++
++    HP_COLUMNDEF *column= info->column_defs + i;
++
++    if (column->null_bit)
++    {
++      if (record[column->null_pos] & column->null_bit)
++      {
++        /* Skip all NULL values */
++        continue;
++      }
++    }
++
++    data= record + column->offset;
++    if (column->type == MYSQL_TYPE_VARCHAR)
++    {
++      uint pack_length;
++
++      /* >= 5.0.3 true VARCHAR */
++
++      /* Make sure to copy length indicator and actuals string bytes */
++      pack_length= column->length_bytes;
++      length= pack_length + (pack_length == 1 ? (uint) *data : uint2korr(data));
++    }
++    else if (column->type == MYSQL_TYPE_BLOB)
++    {
++      uint pack_length;
++
++      pack_length= column->length_bytes;
++      /* Just want to store the length, so not interested in the return code */
++      (void) hp_process_field_data_to_chunkset(info, data, pack_length,
++                                               &curr_chunk, &dst_offset, 0);
++      length= hp_calc_blob_length(pack_length, data);
++      memcpy(&data, data + pack_length, sizeof(char *));
++    }
++    else
++    {
++      length= column->length;
++    }
++
++    if (hp_process_field_data_to_chunkset(info, data, length, &curr_chunk,
++                                          &dst_offset, is_compare))
++    {
++      return 1;
++    }
++  }
++
++#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
++  dump_chunk(info, curr_chunk);
++#endif
++
++  return 0;
++}
++
++
++/**
++  Stores record in the heap table chunks
++
++  Copies data from original unpacked record into the preallocated chunkset
++
++  @param  info         the hosting table
++  @param  record       the record in standard unpacked format
++  @param  pos          the target chunkset
++*/
++
++void hp_copy_record_data_to_chunkset(HP_SHARE *info, const uchar *record,
++                                     uchar *pos)
++{
++  DBUG_ENTER("hp_copy_record_data_to_chunks");
++
++  hp_process_record_data_to_chunkset(info, record, pos, 0);
++
++  DBUG_VOID_RETURN;
++}
++
++
++/*
++  Macro to switch curr_chunk to the next chunk in the chunkset and reset
++  src_offset.
++*/
++#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
++#define SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset)     \
++  {                                                                     \
++    curr_chunk= *((uchar**) (curr_chunk + share->recordspace.offset_link)); \
++    src_offset= 0;                                                      \
++    dump_chunk(share, curr_chunk);                                       \
++  }
++#else
++#define SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset)     \
++  {                                                                     \
++    curr_chunk= *((uchar**) (curr_chunk + share->recordspace.offset_link)); \
++    src_offset= 0;                                                      \
++  }
++#endif
++
++/**
++  Copies record data from storage to unpacked record format
++
++  Copies data from chunkset into its original unpacked record
++
++  @param       info         the hosting table
++  @param[out]  record       the target record in standard unpacked format
++  @param       pos          the source chunkset
++
++  @return                   Status of conversion
++    @retval   0             success
++    @retval   1             out of memory
++*/
++
++int hp_extract_record(HP_INFO *info, uchar *record, const uchar *pos)
++{
++  uint i, src_offset;
++  const uchar *curr_chunk= pos;
++  HP_SHARE *share= info->s;
++  uint *rec_offsets;
++  uint *buf_offsets;
++  uint nblobs= 0;
++  uint init_offset= share->blobs * sizeof(uint) * 2;
++
++  DBUG_ENTER("hp_extract_record");
++
++#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
++  if (share->recordspace.is_variable_size)
++  {
++    dump_chunk(share, curr_chunk);
++  }
++#endif
++
++  memcpy(record, curr_chunk, (size_t) share->fixed_data_length);
++
++  if (!share->recordspace.is_variable_size)
++  {
++    /* Nothing more to copy */
++    DBUG_RETURN(0);
++  }
++
++  /* Reserve space for rec_offsets and buf_offsets.*/
++  info->blob_offset= init_offset;
++  src_offset= share->fixed_data_length;
++
++  for (i= share->fixed_column_count; i < share->column_count; i++)
++  {
++    uint length, is_null= 0;
++    uchar *to;
++
++    HP_COLUMNDEF *column= share->column_defs + i;
++
++    if (column->null_bit)
++    {
++      if (record[column->null_pos] & column->null_bit)
++      {
++        is_null= 1;
++      }
++    }
++
++    if (is_null)
++    {
++      /* TODO: is memset really needed? */
++      memset(record + column->offset, 0, column->length);
++      continue;
++    }
++
++    to= record + column->offset;
++    if (column->type == MYSQL_TYPE_VARCHAR || column->type == MYSQL_TYPE_BLOB)
++    {
++      uint pack_length, i;
++      uchar *tmp= to;
++
++      pack_length= column->length_bytes;
++
++      for (i= 0; i < pack_length; i++)
++      {
++        if (src_offset == share->recordspace.chunk_dataspace_length)
++        {
++          SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset);
++        }
++        *to++= curr_chunk[src_offset++];
++      }
++      /*
++        We copy byte-by-byte and then use hp_calc_blob_length to combine bytes
++        in the right order.
++      */
++      length= hp_calc_blob_length(pack_length, tmp);
++
++      if (column->type == MYSQL_TYPE_BLOB && length == 0)
++      {
++        /*
++          Store a zero pointer for zero-length BLOBs because the server
++          relies on that (see Field_blob::val_*().
++        */
++        *(uchar **) to= 0;
++      }
++      else if (column->type == MYSQL_TYPE_BLOB && length > 0)
++      {
++        uint newsize= info->blob_offset + length;
++
++        DBUG_ASSERT(share->blobs > 0);
++        /*
++          Make sure we have enough space in blob_buffer and store the pointer
++          to this blob in record.
++        */
++        if (info->blob_size < newsize)
++        {
++          uchar *ptr;
++          ptr= my_realloc(info->blob_buffer, newsize, MYF(MY_ALLOW_ZERO_PTR));
++          if (ptr == NULL)
++          {
++            DBUG_RETURN(1);
++          }
++
++          if (info->blob_buffer == NULL)
++          {
++            memset(ptr, 0, init_offset);
++          }
++          info->blob_buffer= ptr;
++          info->blob_size= newsize;
++        }
++
++        rec_offsets= (uint *) info->blob_buffer;
++        buf_offsets= rec_offsets + share->blobs;
++
++        rec_offsets[nblobs]= (uint) (to - record);
++        buf_offsets[nblobs]= info->blob_offset;
++        nblobs++;
++
++        /* Change 'to' so blob data is copied into blob_buffer */
++        to= info->blob_buffer + info->blob_offset;
++        info->blob_offset= newsize;
++      }
++    }
++    else
++    {
++      length= column->length;
++    }
++
++    while (length > 0)
++    {
++      uint to_copy;
++
++      to_copy= share->recordspace.chunk_dataspace_length - src_offset;
++      if (to_copy == 0)
++      {
++        SWITCH_TO_NEXT_CHUNK_FOR_READ(share, curr_chunk, src_offset);
++        to_copy= share->recordspace.chunk_dataspace_length;
++      }
++
++      to_copy= min(length, to_copy);
++
++      memcpy(to, curr_chunk + src_offset, (size_t) to_copy);
++      src_offset+= to_copy;
++      to+= to_copy;
++      length-= to_copy;
++    }
++  }
++
++  /* Store pointers to blob data in record */
++  for (i= 0; i < nblobs; i++)
++  {
++    *(uchar **) (record + rec_offsets[i]) = info->blob_buffer + buf_offsets[i];
++  }
++
++  DBUG_RETURN(0);
++}
+diff -ruN a/storage/heap/hp_rfirst.c b/storage/heap/hp_rfirst.c
+--- a/storage/heap/hp_rfirst.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_rfirst.c	2011-06-02 15:38:02.764917001 +0300
+@@ -34,7 +34,10 @@
+       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
+ 	     sizeof(uchar*));
+       info->current_ptr = pos;
+-      memcpy(record, pos, (size_t)share->reclength);
++      if (hp_extract_record(info, record, pos))
++      {
++        DBUG_RETURN(my_errno);
++      }
+       /*
+         If we're performing index_first on a table that was taken from
+         table cache, info->lastkey_len is initialized to previous query.
+diff -ruN a/storage/heap/hp_rkey.c b/storage/heap/hp_rkey.c
+--- a/storage/heap/hp_rkey.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_rkey.c	2011-06-02 15:38:02.764917001 +0300
+@@ -66,7 +66,10 @@
+     if (!(keyinfo->flag & HA_NOSAME))
+       memcpy(info->lastkey, key, (size_t) keyinfo->length);
+   }
+-  memcpy(record, pos, (size_t) share->reclength);
++  if (hp_extract_record(info, record, pos))
++  {
++    DBUG_RETURN(my_errno);
++  }
+   info->update= HA_STATE_AKTIV;
+   DBUG_RETURN(0);
+ }
+diff -ruN a/storage/heap/hp_rlast.c b/storage/heap/hp_rlast.c
+--- a/storage/heap/hp_rlast.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_rlast.c	2011-06-02 15:38:02.764917001 +0300
+@@ -35,7 +35,10 @@
+       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
+ 	     sizeof(uchar*));
+       info->current_ptr = pos;
+-      memcpy(record, pos, (size_t)share->reclength);
++      if (hp_extract_record(info, record, pos))
++      {
++        DBUG_RETURN(my_errno);
++      }
+       info->update = HA_STATE_AKTIV;
+     }
+     else
+diff -ruN a/storage/heap/hp_rnext.c b/storage/heap/hp_rnext.c
+--- a/storage/heap/hp_rnext.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_rnext.c	2011-06-02 15:38:02.764917001 +0300
+@@ -109,7 +109,10 @@
+       my_errno=HA_ERR_END_OF_FILE;
+     DBUG_RETURN(my_errno);
+   }
+-  memcpy(record,pos,(size_t) share->reclength);
++  if (hp_extract_record(info, record, pos))
++  {
++    DBUG_RETURN(my_errno);
++  }
+   info->update=HA_STATE_AKTIV | HA_STATE_NEXT_FOUND;
+   DBUG_RETURN(0);
+ }
+diff -ruN a/storage/heap/hp_rprev.c b/storage/heap/hp_rprev.c
+--- a/storage/heap/hp_rprev.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_rprev.c	2011-06-02 15:38:02.764917001 +0300
+@@ -77,7 +77,10 @@
+       my_errno=HA_ERR_END_OF_FILE;
+     DBUG_RETURN(my_errno);
+   }
+-  memcpy(record,pos,(size_t) share->reclength);
++  if (hp_extract_record(info, record, pos))
++  {
++    DBUG_RETURN(my_errno);
++  }
+   info->update=HA_STATE_AKTIV | HA_STATE_PREV_FOUND;
+   DBUG_RETURN(0);
+ }
+diff -ruN a/storage/heap/hp_rrnd.c b/storage/heap/hp_rrnd.c
+--- a/storage/heap/hp_rrnd.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_rrnd.c	2011-06-02 15:38:02.764917001 +0300
+@@ -36,13 +36,18 @@
+     info->update= 0;
+     DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+   }
+-  if (!info->current_ptr[share->reclength])
++  if (get_chunk_status(&share->recordspace, info->current_ptr) !=
++      CHUNK_STATUS_ACTIVE)
+   {
++    /* treat deleted and linked chunks as deleted */
+     info->update= HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
+     DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
+   }
+   info->update=HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
+-  memcpy(record,info->current_ptr,(size_t) share->reclength);
++  if (hp_extract_record(info, record, info->current_ptr))
++  {
++    DBUG_RETURN(my_errno);
++  }
+   DBUG_PRINT("exit", ("found record at 0x%lx", (long) info->current_ptr));
+   info->current_hash_ptr=0;			/* Can't use rnext */
+   DBUG_RETURN(0);
+@@ -70,17 +75,17 @@
+   {
+     pos= ++info->current_record;
+     if (pos % share->block.records_in_block &&	/* Quick next record */
+-	pos < share->records+share->deleted &&
+-	(info->update & HA_STATE_PREV_FOUND))
++        pos < share->used_chunk_count + share->deleted_chunk_count &&
++        (info->update & HA_STATE_PREV_FOUND))
+     {
+-      info->current_ptr+=share->block.recbuffer;
++      info->current_ptr+= share->block.recbufferlen;
+       goto end;
+     }
+   }
+   else
+     info->current_record=pos;
+ 
+-  if (pos >= share->records+share->deleted)
++  if (pos >= share->used_chunk_count + share->deleted_chunk_count)
+   {
+     info->update= 0;
+     DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+@@ -90,13 +95,17 @@
+   hp_find_record(info, pos);
+ 
+ end:
+-  if (!info->current_ptr[share->reclength])
++  if (GET_CHUNK_STATUS(info, info->current_ptr) != CHUNK_STATUS_ACTIVE)
+   {
++    /* treat deleted and linked chunks as deleted */
+     info->update= HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
+     DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
+   }
+   info->update=HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
+-  memcpy(record,info->current_ptr,(size_t) share->reclength);
++  if (hp_extract_record(info, record, info->current_ptr))
++  {
++    DBUG_RETURN(my_errno);
++  }
+   DBUG_PRINT("exit",("found record at 0x%lx",info->current_ptr));
+   info->current_hash_ptr=0;			/* Can't use rnext */
+   DBUG_RETURN(0);
+diff -ruN a/storage/heap/hp_rsame.c b/storage/heap/hp_rsame.c
+--- a/storage/heap/hp_rsame.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_rsame.c	2011-06-02 15:38:02.764917001 +0300
+@@ -31,7 +31,8 @@
+   DBUG_ENTER("heap_rsame");
+ 
+   test_active(info);
+-  if (info->current_ptr[share->reclength])
++  if (get_chunk_status(&share->recordspace, info->current_ptr) ==
++      CHUNK_STATUS_ACTIVE)
+   {
+     if (inx < -1 || inx >= (int) share->keys)
+     {
+@@ -47,9 +48,15 @@
+ 	DBUG_RETURN(my_errno);
+       }
+     }
+-    memcpy(record,info->current_ptr,(size_t) share->reclength);
++    if (hp_extract_record(info, record, info->current_ptr))
++    {
++      DBUG_RETURN(my_errno);
++    }
+     DBUG_RETURN(0);
+   }
++
++  /* treat deleted and linked chunks as deleted */
++
+   info->update=0;
+ 
+   DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
+diff -ruN a/storage/heap/hp_scan.c b/storage/heap/hp_scan.c
+--- a/storage/heap/hp_scan.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_scan.c	2011-06-02 15:38:02.774917002 +0300
+@@ -30,7 +30,6 @@
+   info->lastinx= -1;
+   info->current_record= (ulong) ~0L;		/* No current record */
+   info->update=0;
+-  info->next_block=0;
+   DBUG_RETURN(0);
+ }
+ 
+@@ -41,32 +40,26 @@
+   DBUG_ENTER("heap_scan");
+ 
+   pos= ++info->current_record;
+-  if (pos < info->next_block)
++  if (pos >= share->recordspace.chunk_count)
+   {
+-    info->current_ptr+=share->block.recbuffer;
++    info->update= 0;
++    DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+   }
+-  else
+-  {
+-    info->next_block+=share->block.records_in_block;
+-    if (info->next_block >= share->records+share->deleted)
+-    {
+-      info->next_block= share->records+share->deleted;
+-      if (pos >= info->next_block)
+-      {
+-	info->update= 0;
+-	DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+-      }
+-    }
+-    hp_find_record(info, pos);
+-  }
+-  if (!info->current_ptr[share->reclength])
++
++  hp_find_record(info, pos);
++
++  if (get_chunk_status(&share->recordspace, info->current_ptr) !=
++      CHUNK_STATUS_ACTIVE)
+   {
+-    DBUG_PRINT("warning",("Found deleted record"));
++    DBUG_PRINT("warning",("Found deleted record or secondary chunk"));
+     info->update= HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
+     DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
+   }
+   info->update= HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
+-  memcpy(record,info->current_ptr,(size_t) share->reclength);
++  if (hp_extract_record(info, record, info->current_ptr))
++  {
++    DBUG_RETURN(my_errno);
++  }
+   info->current_hash_ptr=0;			/* Can't use read_next */
+   DBUG_RETURN(0);
+ } /* heap_scan */
+diff -ruN a/storage/heap/hp_test1.c b/storage/heap/hp_test1.c
+--- a/storage/heap/hp_test1.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_test1.c	2011-06-02 15:38:02.774917002 +0300
+@@ -22,6 +22,7 @@
+ #include <my_global.h>
+ #include <my_sys.h>
+ #include <m_string.h>
++#include <mysql_com.h>
+ #include "heap.h"
+ 
+ static int get_options(int argc, char *argv[]);
+@@ -35,6 +36,7 @@
+   uchar record[128],key[32];
+   const char *filename;
+   HP_KEYDEF keyinfo[10];
++  HP_COLUMNDEF columndef[2];
+   HA_KEYSEG keyseg[4];
+   HP_CREATE_INFO hp_create_info;
+   HP_SHARE *tmp_share;
+@@ -51,6 +53,10 @@
+   hp_create_info.reclength= 30;
+   hp_create_info.max_records= (ulong) flag*100000L;
+   hp_create_info.min_records= 10UL;
++  hp_create_info.columns= 2;
++  hp_create_info.columndef= columndef;
++  hp_create_info.fixed_key_fieldnr= 30;
++  hp_create_info.fixed_data_size= sizeof(char*) * 2;
+ 
+   keyinfo[0].keysegs=1;
+   keyinfo[0].seg=keyseg;
+@@ -62,11 +68,20 @@
+   keyinfo[0].seg[0].null_bit= 0;
+   keyinfo[0].flag = HA_NOSAME;
+ 
++  memset(columndef, 0, 2 * sizeof(HP_COLUMNDEF));
++  columndef[0].type= MYSQL_TYPE_STRING;
++  columndef[0].offset= 1;
++  columndef[0].length= 6;
++  columndef[1].type= MYSQL_TYPE_STRING;
++  columndef[1].offset= 7;
++  columndef[1].length= 23;
++
+   deleted=0;
+   bzero((uchar*) flags,sizeof(flags));
+ 
+   printf("- Creating heap-file\n");
+-  if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||
++  if (heap_create(filename, &hp_create_info,
++                  &tmp_share, &unused) ||
+       !(file= heap_open(filename, 2)))
+     goto err;
+   printf("- Writing records:s\n");
+diff -ruN a/storage/heap/hp_test2.c b/storage/heap/hp_test2.c
+--- a/storage/heap/hp_test2.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_test2.c	2011-06-02 15:38:02.774917002 +0300
+@@ -18,6 +18,7 @@
+ 
+ #include "heapdef.h"		/* Because of hp_find_block */
+ #include <signal.h>
++#include <mysql_com.h>
+ 
+ #define MAX_RECORDS 100000
+ #define MAX_KEYS 4
+@@ -44,6 +45,7 @@
+   register uint i,j;
+   uint ant,n1,n2,n3;
+   uint write_count,update,opt_delete,check2,dupp_keys,found_key;
++  uint mem_per_keys;
+   int error;
+   ulong pos;
+   unsigned long key_check;
+@@ -53,6 +55,7 @@
+   HP_SHARE *tmp_share;
+   HP_KEYDEF keyinfo[MAX_KEYS];
+   HA_KEYSEG keyseg[MAX_KEYS*5];
++  HP_COLUMNDEF columndef[4];
+   HEAP_PTR UNINIT_VAR(position);
+   HP_CREATE_INFO hp_create_info;
+   CHARSET_INFO *cs= &my_charset_latin1;
+@@ -65,12 +68,16 @@
+   get_options(argc,argv);
+ 
+   bzero(&hp_create_info, sizeof(hp_create_info));
+-  hp_create_info.max_table_size= 1024L*1024L;
++  hp_create_info.max_table_size= 1024L*1024L*1024L;
+   hp_create_info.keys= keys;
+   hp_create_info.keydef= keyinfo;
+   hp_create_info.reclength= reclength;
+   hp_create_info.max_records= (ulong) flag*100000L;
+   hp_create_info.min_records= (ulong) recant/2;
++  hp_create_info.columns= 4;
++  hp_create_info.columndef= columndef;
++  hp_create_info.fixed_key_fieldnr= 4;
++  hp_create_info.fixed_data_size= 39;
+ 
+   write_count=update=opt_delete=0;
+   key_check=0;
+@@ -118,11 +125,30 @@
+   keyinfo[3].seg[0].null_pos=38;
+   keyinfo[3].seg[0].charset=cs;
+ 
++  memset(columndef, 0, 4 * sizeof(HP_COLUMNDEF));
++  columndef[0].type= MYSQL_TYPE_STRING;
++  columndef[0].offset= 0;
++  columndef[0].length= 6;
++  columndef[1].type= MYSQL_TYPE_STRING;
++  columndef[1].offset= 7;
++  columndef[1].length= 6;
++  columndef[2].type= MYSQL_TYPE_STRING;
++  columndef[2].offset= 12;
++  columndef[2].length= 8;
++  columndef[3].type= MYSQL_TYPE_TINY;
++  columndef[3].offset= 37;
++  columndef[3].length= 1;
++  columndef[3].null_bit= 1;
++  columndef[3].null_pos= 38;
++
++  mem_per_keys= (sizeof(char*) * 2) * 4;
++
+   bzero((char*) key1,sizeof(key1));
+   bzero((char*) key3,sizeof(key3));
+ 
+   printf("- Creating heap-file\n");
+-  if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||
++  if (heap_create(filename, &hp_create_info,
++                  &tmp_share, &unused) ||
+       !(file= heap_open(filename, 2)))
+     goto err;
+   signal(SIGINT,endprog);
+diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
+--- a/storage/heap/hp_write.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_write.c	2011-06-02 15:38:02.774917002 +0300
+@@ -25,7 +25,6 @@
+ #define HIGHFIND 4
+ #define HIGHUSED 8
+ 
+-static uchar *next_free_record_pos(HP_SHARE *info);
+ static HASH_INFO *hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
+ 				     ulong records);
+ 
+@@ -34,6 +33,8 @@
+   HP_KEYDEF *keydef, *end;
+   uchar *pos;
+   HP_SHARE *share=info->s;
++  uint rec_length, chunk_count;
++
+   DBUG_ENTER("heap_write");
+ #ifndef DBUG_OFF
+   if (info->mode & O_RDONLY)
+@@ -41,7 +42,18 @@
+     DBUG_RETURN(my_errno=EACCES);
+   }
+ #endif
+-  if (!(pos=next_free_record_pos(share)))
++
++  if ((share->records >= share->max_records && share->max_records) ||
++      (share->recordspace.total_data_length + share->index_length >=
++       share->max_table_size))
++  {
++    my_errno= HA_ERR_RECORD_FILE_FULL;
++    DBUG_RETURN(my_errno);
++  }
++
++  rec_length= hp_get_encoded_data_length(share, record, &chunk_count);
++
++  if (!(pos= hp_allocate_chunkset(&share->recordspace, chunk_count)))
+     DBUG_RETURN(my_errno);
+   share->changed=1;
+ 
+@@ -52,8 +64,8 @@
+       goto err;
+   }
+ 
+-  memcpy(pos,record,(size_t) share->reclength);
+-  pos[share->reclength]=1;		/* Mark record as not deleted */
++  hp_copy_record_data_to_chunkset(share, record, pos);
++
+   if (++share->records == share->blength)
+     share->blength+= share->blength;
+   info->current_ptr=pos;
+@@ -87,10 +99,7 @@
+     keydef--;
+   } 
+ 
+-  share->deleted++;
+-  *((uchar**) pos)=share->del_link;
+-  share->del_link=pos;
+-  pos[share->reclength]=0;			/* Record deleted */
++  hp_free_chunks(&share->recordspace, pos);
+ 
+   DBUG_RETURN(my_errno);
+ } /* heap_write */
+@@ -106,7 +115,8 @@
+   uint old_allocated;
+ 
+   custom_arg.keyseg= keyinfo->seg;
+-  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
++  custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos,
++                                        FALSE);
+   if (keyinfo->flag & HA_NOSAME)
+   {
+     custom_arg.search_flag= SEARCH_FIND | SEARCH_UPDATE;
+@@ -128,42 +138,6 @@
+   return 0;
+ }
+ 
+-	/* Find where to place new record */
+-
+-static uchar *next_free_record_pos(HP_SHARE *info)
+-{
+-  int block_pos;
+-  uchar *pos;
+-  size_t length;
+-  DBUG_ENTER("next_free_record_pos");
+-
+-  if (info->del_link)
+-  {
+-    pos=info->del_link;
+-    info->del_link= *((uchar**) pos);
+-    info->deleted--;
+-    DBUG_PRINT("exit",("Used old position: 0x%lx",(long) pos));
+-    DBUG_RETURN(pos);
+-  }
+-  if (!(block_pos=(info->records % info->block.records_in_block)))
+-  {
+-    if ((info->records > info->max_records && info->max_records) ||
+-        (info->data_length + info->index_length >= info->max_table_size))
+-    {
+-      my_errno=HA_ERR_RECORD_FILE_FULL;
+-      DBUG_RETURN(NULL);
+-    }
+-    if (hp_get_new_block(&info->block,&length))
+-      DBUG_RETURN(NULL);
+-    info->data_length+=length;
+-  }
+-  DBUG_PRINT("exit",("Used new position: 0x%lx",
+-		     (long) ((uchar*) info->block.level_info[0].last_blocks+
+-                             block_pos * info->block.recbuffer)));
+-  DBUG_RETURN((uchar*) info->block.level_info[0].last_blocks+
+-	      block_pos*info->block.recbuffer);
+-}
+-
+ 
+ /*
+   Write a hash-key to the hash-index
+diff -ruN a/storage/heap/hp_update.c b/storage/heap/hp_update.c
+--- a/storage/heap/hp_update.c	2011-04-11 13:44:03.000000000 +0300
++++ b/storage/heap/hp_update.c	2011-05-26 09:07:47.605561000 +0300
+@@ -17,43 +17,66 @@
+ 
+ #include "heapdef.h"
+ 
+-int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
++int heap_update(HP_INFO *info, const uchar *old_record, const uchar *new_record)
+ {
+   HP_KEYDEF *keydef, *end, *p_lastinx;
+   uchar *pos;
+   my_bool auto_key_changed= 0;
+   HP_SHARE *share= info->s;
++  uint old_length, new_length;
++  uint old_chunk_count, new_chunk_count;
++
+   DBUG_ENTER("heap_update");
+ 
+   test_active(info);
+   pos=info->current_ptr;
+ 
+-  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info,old))
++  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old_record))
+     DBUG_RETURN(my_errno);				/* Record changed */
++
++  old_length = hp_get_encoded_data_length(share, old_record, &old_chunk_count);
++  new_length = hp_get_encoded_data_length(share, new_record, &new_chunk_count);
++
++  if (new_chunk_count > old_chunk_count)
++  {
++    /* extend the old chunkset size as necessary, but do not shrink yet */
++    if (hp_reallocate_chunkset(&share->recordspace, new_chunk_count, pos))
++    {
++      DBUG_RETURN(my_errno); /* Out of memory or table space */
++    }
++  }
++
+   if (--(share->records) < share->blength >> 1) share->blength>>= 1;
+   share->changed=1;
+ 
+   p_lastinx= share->keydef + info->lastinx;
+   for (keydef= share->keydef, end= keydef + share->keys; keydef < end; keydef++)
+   {
+-    if (hp_rec_key_cmp(keydef, old, heap_new, 0))
++    if (hp_rec_key_cmp(keydef, old_record, new_record, 0))
+     {
+-      if ((*keydef->delete_key)(info, keydef, old, pos, keydef == p_lastinx) ||
+-          (*keydef->write_key)(info, keydef, heap_new, pos))
++      if ((*keydef->delete_key)(info, keydef, old_record, pos,
++                                keydef == p_lastinx) ||
++          (*keydef->write_key)(info, keydef, new_record, pos))
+         goto err;
+       if (share->auto_key == (uint) (keydef - share->keydef + 1))
+         auto_key_changed= 1;
+     }
+   }
+ 
+-  memcpy(pos,heap_new,(size_t) share->reclength);
++  hp_copy_record_data_to_chunkset(share, new_record, pos);
+   if (++(share->records) == share->blength) share->blength+= share->blength;
+ 
++  if (new_chunk_count < old_chunk_count)
++  {
++    /* Shrink the chunkset to its new size */
++    hp_reallocate_chunkset(&share->recordspace, new_chunk_count, pos);
++  }
++
+ #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+   DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
+ #endif
+   if (auto_key_changed)
+-    heap_update_auto_increment(info, heap_new);
++    heap_update_auto_increment(info, new_record);
+   DBUG_RETURN(0);
+ 
+  err:
+@@ -63,7 +86,7 @@
+     if (keydef->algorithm == HA_KEY_ALG_BTREE)
+     {
+       /* we don't need to delete non-inserted key from rb-tree */
+-      if ((*keydef->write_key)(info, keydef, old, pos))
++      if ((*keydef->write_key)(info, keydef, old_record, pos))
+       {
+         if (++(share->records) == share->blength)
+ 	  share->blength+= share->blength;
+@@ -73,10 +96,10 @@
+     }
+     while (keydef >= share->keydef)
+     {
+-      if (hp_rec_key_cmp(keydef, old, heap_new, 0))
++      if (hp_rec_key_cmp(keydef, old_record, new_record, 0))
+       {
+-	if ((*keydef->delete_key)(info, keydef, heap_new, pos, 0) ||
+-	    (*keydef->write_key)(info, keydef, old, pos))
++        if ((*keydef->delete_key)(info, keydef, new_record, pos, 0) ||
++            (*keydef->write_key)(info, keydef, old_record, pos))
+ 	  break;
+       }
+       keydef--;
+@@ -84,5 +107,12 @@
+   }
+   if (++(share->records) == share->blength)
+     share->blength+= share->blength;
++
++  if (new_chunk_count > old_chunk_count)
++  {
++    /* Shrink the chunkset to its original size */
++    hp_reallocate_chunkset(&share->recordspace, old_chunk_count, pos);
++  }
++
+   DBUG_RETURN(my_errno);
+ } /* heap_update */

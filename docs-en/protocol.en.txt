@@ -11,7 +11,7 @@ Basic syntax
   distinguish NULL from an empty string, as most DBMs does so.
 - NULL is expressed as a single NUL(0x00).
 - An encoded string is a string with the following encoding rules.
-  	- Characters in the range [0x10 - 0xff] are not encoded.
+  	- Characters in the range [0x10 - 0xff] are encoded as itselves.
 	- A character in the range [0x00 - 0x0f] is prefixed by 0x01 and
 	  shifted by 0x40. For example, 0x03 is encoded as 0x01 0x43.
 - Note that a string can be empty. A continuation of 0x09 0x09 means that

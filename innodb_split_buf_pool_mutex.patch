@@ -3033,8 +3033,19 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  			b->state = b->oldest_modification
  				? BUF_BLOCK_ZIP_DIRTY
  				: BUF_BLOCK_ZIP_PAGE;
-@@ -1614,7 +1748,9 @@
+@@ -1597,6 +1731,7 @@
+ 				buf_LRU_add_block_low(b, buf_page_is_old(b));
+ 			}
+ 
++			mutex_enter(&buf_pool->zip_mutex);
+ 			if (b->state == BUF_BLOCK_ZIP_PAGE) {
+ 				buf_LRU_insert_zip_clean(b);
+ 			} else {
+@@ -1612,9 +1747,12 @@
+ 			buf_pool->mutex and block_mutex. */
+ 			b->buf_fix_count++;
  			b->io_fix = BUF_IO_READ;
++			mutex_exit(&buf_pool->zip_mutex);
  		}
  
 -		buf_pool_mutex_exit(buf_pool);
@@ -3044,7 +3055,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  		mutex_exit(block_mutex);
  
  		/* Remove possible adaptive hash index on the page.
-@@ -1646,7 +1782,9 @@
+@@ -1646,7 +1784,9 @@
  				: BUF_NO_CHECKSUM_MAGIC);
  		}
  
@@ -3055,7 +3066,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  		mutex_enter(block_mutex);
  
  		if (b) {
-@@ -1656,13 +1794,17 @@
+@@ -1656,13 +1796,17 @@
  			mutex_exit(&buf_pool->zip_mutex);
  		}
  
@@ -3074,7 +3085,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  	}
  
  	return(BUF_LRU_FREED);
-@@ -1674,13 +1816,14 @@
+@@ -1674,13 +1818,14 @@
  void
  buf_LRU_block_free_non_file_page(
  /*=============================*/
@@ -3091,7 +3102,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  	ut_ad(mutex_own(&block->mutex));
  
  	switch (buf_block_get_state(block)) {
-@@ -1714,18 +1857,21 @@
+@@ -1714,18 +1859,21 @@
  	if (data) {
  		block->page.zip.data = NULL;
  		mutex_exit(&block->mutex);
@@ -3117,7 +3128,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	UNIV_MEM_ASSERT_AND_FREE(block->frame, UNIV_PAGE_SIZE);
  }
-@@ -1755,7 +1901,11 @@
+@@ -1755,7 +1903,11 @@
  	buf_pool_t*		buf_pool = buf_pool_from_bpage(bpage);
  
  	ut_ad(bpage);
@@ -3130,7 +3141,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
  
  	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
-@@ -1863,7 +2013,9 @@
+@@ -1863,7 +2015,9 @@
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  		mutex_exit(buf_page_get_mutex(bpage));
@@ -3141,7 +3152,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  		buf_print();
  		buf_LRU_print();
  		buf_validate();
-@@ -1884,18 +2036,18 @@
+@@ -1884,18 +2038,18 @@
  		ut_a(bpage->zip.data);
  		ut_a(buf_page_get_zip_size(bpage));
  
@@ -3165,7 +3176,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  		UNIV_MEM_UNDESC(bpage);
  		return(BUF_BLOCK_ZIP_FREE);
-@@ -1918,13 +2070,13 @@
+@@ -1918,13 +2072,13 @@
  			ut_ad(!bpage->in_flush_list);
  			ut_ad(!bpage->in_LRU_list);
  			mutex_exit(&((buf_block_t*) bpage)->mutex);
@@ -3182,7 +3193,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  			mutex_enter(&((buf_block_t*) bpage)->mutex);
  			page_zip_set_size(&bpage->zip, 0);
  		}
-@@ -1950,18 +2102,19 @@
+@@ -1950,18 +2104,19 @@
  void
  buf_LRU_block_free_hashed_page(
  /*===========================*/
@@ -3206,7 +3217,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  }
  
  /**********************************************************************//**
-@@ -1988,7 +2141,8 @@
+@@ -1988,7 +2143,8 @@
  	}
  
  	if (adjust) {
@@ -3216,7 +3227,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  		if (ratio != buf_pool->LRU_old_ratio) {
  			buf_pool->LRU_old_ratio = ratio;
-@@ -2000,7 +2154,8 @@
+@@ -2000,7 +2156,8 @@
  			}
  		}
  
@@ -3226,7 +3237,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  	} else {
  		buf_pool->LRU_old_ratio = ratio;
  	}
-@@ -2105,7 +2260,8 @@
+@@ -2105,7 +2262,8 @@
  	ulint		new_len;
  
  	ut_ad(buf_pool);
@@ -3236,7 +3247,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
  
-@@ -2166,16 +2322,22 @@
+@@ -2166,16 +2324,22 @@
  
  	ut_a(buf_pool->LRU_old_len == old_len);
  
@@ -3261,7 +3272,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
  			 ut_ad(ut_list_node_313->in_unzip_LRU_list
  			       && ut_list_node_313->page.in_LRU_list));
-@@ -2189,7 +2351,8 @@
+@@ -2189,7 +2353,8 @@
  		ut_a(buf_page_belongs_to_unzip_LRU(&block->page));
  	}
  
@@ -3271,7 +3282,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  }
  
  /**********************************************************************//**
-@@ -2225,7 +2388,8 @@
+@@ -2225,7 +2390,8 @@
  	const buf_page_t*	bpage;
  
  	ut_ad(buf_pool);
@@ -3281,7 +3292,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
  
-@@ -2282,7 +2446,8 @@
+@@ -2282,7 +2448,8 @@
  		bpage = UT_LIST_GET_NEXT(LRU, bpage);
  	}
  

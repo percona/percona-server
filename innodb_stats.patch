@@ -1264,7 +1264,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +
 +	/* plugin author (for SHOW PLUGINS) */
 +	/* const char* */
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +
 +	/* general descriptive text (for SHOW PLUGINS) */
 +	/* const char* */
@@ -1622,7 +1622,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 +	STRUCT_FLD(info, &i_s_info),
 +	STRUCT_FLD(name, "INNODB_TABLE_STATS"),
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +	STRUCT_FLD(descr, "InnoDB table statistics in memory"),
 +	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 +	STRUCT_FLD(init, i_s_innodb_table_stats_init),
@@ -1638,7 +1638,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 +	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
 +	STRUCT_FLD(info, &i_s_info),
 +	STRUCT_FLD(name, "INNODB_INDEX_STATS"),
-+	STRUCT_FLD(author, plugin_author),
++	STRUCT_FLD(author, "Percona"),
 +	STRUCT_FLD(descr, "InnoDB index statistics in memory"),
 +	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 +	STRUCT_FLD(init, i_s_innodb_index_stats_init),

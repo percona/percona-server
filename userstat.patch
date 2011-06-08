@@ -1734,8 +1734,8 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
        goto end_thread;
 +    }
  
-     prepare_new_connection_state(thd);
- 
+     /* 
+       If rate limiting of slow log writes is enabled, decide whether to log this 
 @@ -1309,6 +1902,8 @@
     
  end_thread:

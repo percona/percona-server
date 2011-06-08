@@ -1311,8 +1311,6 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 +++ b/sql/sql_connect.cc	2010-12-24 13:57:45.000000000 +0300
 @@ -1290,6 +1290,15 @@
  
-     prepare_new_connection_state(thd);
- 
 +    /* 
 +      If rate limiting of slow log writes is enabled, decide whether to log this 
 +      new thread's queries or not. Uses extremely simple algorithm. :) 
@@ -1322,6 +1320,8 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 +        (thd->thread_id % thd->variables.log_slow_rate_limit) == 0) 
 +         thd->write_to_slow_log= TRUE; 
 +
+     prepare_new_connection_state(thd);
+ 
      while (!net->error && net->vio != 0 &&
             !(thd->killed == THD::KILL_CONNECTION))
      {

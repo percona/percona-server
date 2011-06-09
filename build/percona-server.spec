@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.56
+%define mysqlversion 5.1.57
 %define majorversion 12
-%define minorversion 7
+%define minorversion 8
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -219,7 +219,8 @@ necessary to develop Percona Server client applications.
 %package -n Percona-Server-shared%{package_suffix}
 Summary: Percona-Server - Shared libraries
 Group: Applications/Databases
-Provides: mysql-shared MySQL-shared Percona-XtraDB-shared
+Provides: mysql-shared MySQL-shared Percona-XtraDB-shared mysql-libs
+Obsoletes: mysql-libs
 
 %description -n Percona-Server-shared%{package_suffix}
 This package contains the shared libraries (*.so*) which certain

@@ -335,7 +335,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-03 15:53:54.610037199 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-03 17:42:42.079064198 +0900
-@@ -4423,7 +4423,7 @@
+@@ -4747,7 +4747,7 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -344,7 +344,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #endif
  		if (success) {
  			node->size += n_pages;
-@@ -4750,7 +4750,7 @@
+@@ -5074,7 +5074,7 @@
  i/o on a tablespace which does not exist */
  UNIV_INTERN
  ulint
@@ -353,7 +353,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  /*===*/
  	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
  				ORed to OS_FILE_LOG, if a log i/o
-@@ -4775,8 +4775,9 @@
+@@ -5099,8 +5099,9 @@
  	void*	buf,		/*!< in/out: buffer where to store read data
  				or from where to write; in aio this must be
  				appropriately aligned */
@@ -364,7 +364,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  {
  	ulint		mode;
  	fil_space_t*	space;
-@@ -4944,7 +4945,7 @@
+@@ -5268,7 +5269,7 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,

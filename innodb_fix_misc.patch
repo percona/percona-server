@@ -102,7 +102,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2011-02-23 19:00:48.223696428 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2011-02-23 19:01:19.147655510 +0900
-@@ -252,6 +252,7 @@
+@@ -254,6 +254,7 @@
  struct fil_system_struct {
  #ifndef UNIV_HOTBACKUP
  	mutex_t		mutex;		/*!< The mutex protecting the cache */
@@ -110,7 +110,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #endif /* !UNIV_HOTBACKUP */
  	hash_table_t*	spaces;		/*!< The hash table of spaces in the
  					system; they are hashed on the space
-@@ -861,7 +862,7 @@
+@@ -863,7 +864,7 @@
  	ut_ad(node && system);
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->open);
@@ -119,7 +119,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_a(node->n_pending_flushes == 0);
  	ut_a(node->modification_counter == node->flush_counter);
  
-@@ -874,7 +875,7 @@
+@@ -876,7 +877,7 @@
  	ut_a(system->n_open > 0);
  	system->n_open--;
  
@@ -128,7 +128,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
  
  		/* The node is in the LRU list, remove it */
-@@ -1073,7 +1074,7 @@
+@@ -1075,7 +1076,7 @@
  	ut_ad(node && system && space);
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
@@ -137,7 +137,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	if (node->open) {
  		/* We fool the assertion in fil_node_close_file() to think
-@@ -1595,6 +1596,8 @@
+@@ -1597,6 +1598,8 @@
  
  	mutex_create(fil_system_mutex_key,
  		     &fil_system->mutex, SYNC_ANY_LATCH);
@@ -146,7 +146,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	fil_system->spaces = hash_create(hash_size);
  	fil_system->name_hash = hash_create(hash_size);
-@@ -2341,7 +2344,11 @@
+@@ -2343,7 +2346,11 @@
  	completely and permanently. The flag is_being_deleted also prevents
  	fil_flush() from being applied to this tablespace. */
  
@@ -158,7 +158,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #endif
  	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
  
-@@ -4400,6 +4407,10 @@
+@@ -4721,6 +4728,10 @@
  	ulint		page_size;
  	ibool		success		= TRUE;
  
@@ -169,7 +169,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	fil_mutex_enter_and_prepare_for_io(space_id);
  
  	space = fil_space_get_by_id(space_id);
-@@ -4411,6 +4422,7 @@
+@@ -4732,6 +4743,7 @@
  		*actual_size = space->size;
  
  		mutex_exit(&fil_system->mutex);
@@ -177,7 +177,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  		return(TRUE);
  	}
-@@ -4443,6 +4455,8 @@
+@@ -4764,6 +4776,8 @@
  		offset_low  = ((start_page_no - file_start_page_no)
  			       % (4096 * ((1024 * 1024) / page_size)))
  			* page_size;
@@ -186,7 +186,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #ifdef UNIV_HOTBACKUP
  		success = os_file_write(node->name, node->handle, buf,
  					offset_low, offset_high,
-@@ -4452,8 +4466,10 @@
+@@ -4773,8 +4787,10 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -198,7 +198,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		if (success) {
  			node->size += n_pages;
  			space->size += n_pages;
-@@ -4499,6 +4515,7 @@
+@@ -4820,6 +4836,7 @@
  	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
  	size_after_extend, *actual_size); */
  	mutex_exit(&fil_system->mutex);
@@ -206,7 +206,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	fil_flush(space_id);
  
-@@ -4861,6 +4878,22 @@
+@@ -5182,6 +5199,22 @@
  		srv_data_written+= len;
  	}
  
@@ -229,7 +229,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	/* Reserve the fil_system mutex and make sure that we can open at
  	least one file while holding it, if the file is not already open */
  
-@@ -4990,10 +5023,24 @@
+@@ -5311,10 +5344,24 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -255,7 +255,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5093,6 +5140,7 @@
+@@ -5414,6 +5461,7 @@
  	fil_node_t*	fil_node;
  	void*		message;
  	ulint		type;
@@ -263,7 +263,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	ut_ad(fil_validate_skip());
  
-@@ -5100,10 +5148,10 @@
+@@ -5421,10 +5469,10 @@
  		srv_set_io_thread_op_info(segment, "native aio handle");
  #ifdef WIN_ASYNC_IO
  		ret = os_aio_windows_handle(segment, 0, &fil_node,
@@ -276,7 +276,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #else
  		ret = 0; /* Eliminate compiler warning */
  		ut_error;
-@@ -5112,7 +5160,22 @@
+@@ -5433,7 +5481,22 @@
  		srv_set_io_thread_op_info(segment, "simulated aio handle");
  
  		ret = os_aio_simulated_handle(segment, &fil_node,

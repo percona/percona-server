@@ -109,8 +109,34 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:52:23.406513743 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:53:45.020513800 +0900
-@@ -3199,7 +3199,9 @@
- 			mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
+@@ -3094,13 +3094,24 @@
+ 		return(TRUE);
+ 	}
+ 
+-	if (checksum_field != 0
++	if (!srv_fast_checksum
++	    && checksum_field != 0
+ 	    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+ 	    && checksum_field
+ 	    != buf_calc_page_new_checksum(page)) {
+ 		return(TRUE);
+ 	}
+ 
++	if (srv_fast_checksum
++	    && checksum_field != 0
++	    && checksum_field != BUF_NO_CHECKSUM_MAGIC
++	    && checksum_field
++	    != buf_calc_page_new_checksum_32(page)
++	    && checksum_field
++	    != buf_calc_page_new_checksum(page)) {
++		return(TRUE);
++	}
++
+ 	return(FALSE);
+ }
+ 
+@@ -3116,7 +3127,9 @@
+ 	if (!zip_size) {
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
 -				? buf_calc_page_new_checksum(page)
@@ -120,45 +146,6 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-@@ -3331,7 +3333,8 @@
- 					page_is_corrupt = TRUE;
- 				}
- 
--				if (checksum_field != 0
-+				if (!srv_fast_checksum
-+				    && checksum_field != 0
- 				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
- 				    && checksum_field
- 				    != buf_calc_page_new_checksum(page)) {
-@@ -3339,6 +3342,17 @@
- 					page_is_corrupt = TRUE;
- 				}
- 
-+				if (srv_fast_checksum
-+				    && checksum_field != 0
-+				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
-+				    && checksum_field
-+				    != buf_calc_page_new_checksum_32(page)
-+				    && checksum_field
-+				    != buf_calc_page_new_checksum(page)) {
-+
-+					page_is_corrupt = TRUE;
-+				}
-+
- 				/* if it is free page, inconsistency is acceptable */
- 				if (!offset) {
- 					/* header page*/
-@@ -3484,7 +3498,9 @@
- 
- 					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
- 							srv_use_checksums
--							? buf_calc_page_new_checksum(page)
-+							? (!srv_fast_checksum
-+							   ? buf_calc_page_new_checksum(page)
-+							   : buf_calc_page_new_checksum_32(page))
- 									: BUF_NO_CHECKSUM_MAGIC);
- 					mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
- 							srv_use_checksums
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:52:23.420480329 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:53:45.029551892 +0900

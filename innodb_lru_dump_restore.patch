@@ -308,7 +308,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-03 17:49:11.581025127 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:33:37.632482885 +0900
-@@ -4965,6 +4965,70 @@
+@@ -5289,6 +5289,70 @@
  	return(DB_SUCCESS);
  }
  

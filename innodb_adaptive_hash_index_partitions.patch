@@ -1017,7 +1017,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-12-04 15:35:29.137347521 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-04 16:12:48.658550840 +0900
-@@ -1796,7 +1796,7 @@
+@@ -1798,7 +1798,7 @@
  
  		UNIV_MEM_VALID(((buf_block_t*) bpage)->frame,
  			       UNIV_PAGE_SIZE);

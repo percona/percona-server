@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-12-03 15:49:59.185023424 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-04 15:33:37.626482350 +0900
-@@ -2245,6 +2245,284 @@
+@@ -2247,6 +2247,284 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  

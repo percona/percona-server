@@ -519,7 +519,7 @@ diff -ruN a/storage/innobase/include/trx0sys.ic b/storage/innobase/include/trx0s
 diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 --- a/storage/innobase/row/row0mysql.c	2010-12-03 17:30:16.334989510 +0900
 +++ b/storage/innobase/row/row0mysql.c	2010-12-04 15:35:58.652496484 +0900
-@@ -3449,7 +3449,7 @@
+@@ -3459,7 +3459,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  

@@ -279,7 +279,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  	error = innobase_rename_table(trx, from, to, TRUE);
  
-@@ -12220,6 +12251,7 @@
+@@ -12221,6 +12252,7 @@
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
    MYSQL_SYSVAR(lazy_drop_table),

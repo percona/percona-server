@@ -13,7 +13,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2011-02-23 19:00:48.178696354 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2011-02-23 19:01:19.138826278 +0900
-@@ -4063,6 +4063,7 @@
+@@ -4061,6 +4061,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -216,7 +216,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +	    && ((buf_page_t*)message)->space_was_being_deleted) {
 +
 +		if (mode == OS_AIO_NORMAL) {
-+			buf_page_io_complete(message, trx);
++			buf_page_io_complete(message);
 +			return(DB_SUCCESS); /*fake*/
 +		}
 +		if (type == OS_FILE_READ) {
@@ -229,7 +229,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	/* Reserve the fil_system mutex and make sure that we can open at
  	least one file while holding it, if the file is not already open */
  
-@@ -5311,10 +5344,24 @@
+@@ -5323,10 +5356,24 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -255,7 +255,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5414,6 +5461,7 @@
+@@ -5426,6 +5473,7 @@
  	fil_node_t*	fil_node;
  	void*		message;
  	ulint		type;
@@ -263,7 +263,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	ut_ad(fil_validate_skip());
  
-@@ -5421,10 +5469,10 @@
+@@ -5433,10 +5481,10 @@
  		srv_set_io_thread_op_info(segment, "native aio handle");
  #ifdef WIN_ASYNC_IO
  		ret = os_aio_windows_handle(segment, 0, &fil_node,
@@ -276,7 +276,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #else
  		ret = 0; /* Eliminate compiler warning */
  		ut_error;
-@@ -5433,7 +5481,22 @@
+@@ -5445,7 +5493,22 @@
  		srv_set_io_thread_op_info(segment, "simulated aio handle");
  
  		ret = os_aio_simulated_handle(segment, &fil_node,
@@ -295,7 +295,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
 +
 +		srv_set_io_thread_op_info(segment, "complete io for buf page");
-+		buf_page_io_complete(message, NULL);
++		buf_page_io_complete(message);
 +		return;
  	}
  
@@ -303,7 +303,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -11999,6 +11999,12 @@
+@@ -12000,6 +12000,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -316,7 +316,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12089,6 +12095,7 @@
+@@ -12090,6 +12096,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -324,7 +324,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    NULL
  };
  
-@@ -12098,7 +12105,7 @@
+@@ -12099,7 +12106,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    plugin_author,
@@ -336,7 +336,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-02-23 19:00:48.252696774 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-23 19:01:19.182655902 +0900
-@@ -1439,6 +1439,7 @@
+@@ -1438,6 +1438,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */

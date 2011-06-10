@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:34:35.285040381 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:35:12.974975252 +0900
-@@ -9588,9 +9588,8 @@
+@@ -9593,9 +9593,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9605,10 +9604,8 @@
+@@ -9610,10 +9609,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -33,7 +33,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9637,9 +9634,8 @@
+@@ -9642,9 +9639,8 @@
  			continue;
  		}
  
@@ -45,7 +45,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9653,10 +9649,8 @@
+@@ -9658,10 +9654,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -248,7 +248,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  /******************************************************************//**
  NOTE! Please use the corresponding macro mutex_enter(), not directly
  this function!
-@@ -722,9 +722,9 @@
+@@ -731,9 +731,9 @@
  	ulint	line;		/*!< Line where the mutex was locked */
  	ulint	level;		/*!< Level in the global latching order */
  #endif /* UNIV_SYNC_DEBUG */
@@ -259,7 +259,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  	os_thread_id_t thread_id; /*!< The thread id of the thread
  				which locked the mutex. */
  	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-@@ -739,9 +739,9 @@
+@@ -748,9 +748,9 @@
  	ulong		count_os_yield;	/*!< count of os_wait */
  	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
  	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */

@@ -2282,7 +2282,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  	return(count);
  }
 @@ -1722,13 +1754,15 @@
- 	      || sync_thread_levels_empty_gen(TRUE));
+ 	      || sync_thread_levels_empty_except_dict());
  #endif /* UNIV_SYNC_DEBUG */
  
 -	buf_pool_mutex_enter(buf_pool);
@@ -3399,7 +3399,7 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
 diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
 --- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:03.068954202 +0900
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:29.335988682 +0900
-@@ -3832,9 +3832,11 @@
+@@ -3821,9 +3821,11 @@
  		ulint		fold = buf_page_address_fold(space, page_no);
  		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
  
@@ -3908,7 +3908,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  extern mysql_pfs_key_t	cache_last_read_mutex_key;
  extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
  extern mysql_pfs_key_t	dict_sys_mutex_key;
-@@ -659,7 +663,7 @@
+@@ -668,7 +672,7 @@
  #define SYNC_TRX_SYS_HEADER	290
  #define	SYNC_PURGE_QUEUE	200
  #define SYNC_LOG		170
@@ -3917,7 +3917,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  #define SYNC_RECV		168
  #define	SYNC_WORK_QUEUE		162
  #define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
-@@ -669,8 +673,13 @@
+@@ -678,8 +682,13 @@
  					SYNC_SEARCH_SYS, as memory allocation
  					can call routines there! Otherwise
  					the level is SYNC_MEM_HASH. */
@@ -3932,7 +3932,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
  #define SYNC_DOUBLEWRITE	140
  #define	SYNC_ANY_LATCH		135
-@@ -702,7 +711,7 @@
+@@ -711,7 +720,7 @@
  		os_fast_mutex;	/*!< We use this OS mutex in place of lock_word
  				when atomic operations are not enabled */
  #endif
@@ -3944,7 +3944,7 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:03.080956216 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:29.355023766 +0900
-@@ -3089,7 +3089,7 @@
+@@ -3098,7 +3098,7 @@
  								level += log_sys->max_checkpoint_age
  									 - (lsn - oldest_modification);
  							}
@@ -3953,7 +3953,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  							n_blocks++;
  						}
  
-@@ -3175,7 +3175,7 @@
+@@ -3184,7 +3184,7 @@
  							found = TRUE;
  							break;
  						}
@@ -3998,7 +3998,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  }
  
  /******************************************************************//**
-@@ -1189,7 +1199,12 @@
+@@ -1234,7 +1244,12 @@
  			ut_error;
  		}
  		break;
@@ -4011,7 +4011,7 @@ diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.
  	case SYNC_BUF_POOL:
  		/* We can have multiple mutexes of this type therefore we
  		can only check whether the greater than condition holds. */
-@@ -1207,7 +1222,8 @@
+@@ -1252,7 +1267,8 @@
  		buffer block (block->mutex or buf_pool->zip_mutex). */
  		if (!sync_thread_levels_g(array, level, FALSE)) {
  			ut_a(sync_thread_levels_g(array, level - 1, TRUE));

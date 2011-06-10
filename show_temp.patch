@@ -8,7 +8,7 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2011-04-09 19:11:53.000000000 +0400
 +++ b/sql/handler.h	2011-04-10 12:16:43.000000000 +0400
-@@ -567,6 +567,7 @@
+@@ -569,6 +569,7 @@
    SCH_EVENTS,
    SCH_FILES,
    SCH_GLOBAL_STATUS,
@@ -16,7 +16,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_GLOBAL_VARIABLES,
    SCH_KEY_COLUMN_USAGE,
    SCH_OPEN_TABLES,
-@@ -588,6 +589,7 @@
+@@ -590,6 +591,7 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,
    SCH_TABLE_PRIVILEGES,
@@ -27,7 +27,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-04-09 19:11:52.000000000 +0400
 +++ b/sql/mysqld.cc	2011-04-10 12:16:44.000000000 +0400
-@@ -3055,6 +3055,7 @@
+@@ -3051,6 +3051,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -325,7 +325,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
     Try acquire high priority share metadata lock on a table (with
-@@ -6856,6 +7079,25 @@
+@@ -6991,6 +7214,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -351,7 +351,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7470,6 +7712,9 @@
+@@ -7605,6 +7847,9 @@
     hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -361,7 +361,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7519,6 +7764,9 @@
+@@ -7654,6 +7899,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},

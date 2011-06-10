@@ -56,7 +56,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
-@@ -2234,6 +2254,89 @@
+@@ -2248,6 +2268,89 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -146,7 +146,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Check that values don't overflow on 32-bit systems. */
  	if (sizeof(ulint) == 4) {
  		if (innobase_buffer_pool_size > UINT_MAX32) {
-@@ -2532,6 +2635,76 @@
+@@ -2546,6 +2649,76 @@
  		goto mem_free_and_error;
  	}
  
@@ -223,7 +223,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
  		innobase_old_blocks_pct, TRUE);
  
-@@ -2644,6 +2817,25 @@
+@@ -2658,6 +2831,25 @@
  	trx_t*	trx)	/*!< in: transaction handle */
  {
  	if (trx_is_started(trx)) {
@@ -249,7 +249,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  		trx_commit_for_mysql(trx);
  	}
-@@ -11007,6 +11199,12 @@
+@@ -11014,6 +11206,12 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11467,6 +11665,7 @@
+@@ -11474,6 +11672,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -312,7 +312,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
 diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
 --- a/storage/innobase/include/trx0trx.h	2010-12-03 15:18:48.894955550 +0900
 +++ b/storage/innobase/include/trx0trx.h	2010-12-03 15:38:20.323953416 +0900
-@@ -569,6 +569,21 @@
+@@ -580,6 +580,20 @@
  	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
  					contains the end offset of the binlog
  					entry */
@@ -330,14 +330,13 @@ diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0tr
 +					replication has processed */
 +	const char*	mysql_relay_log_file_name;
 +	ib_int64_t	mysql_relay_log_pos;
-+
- 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
- 					with this transaction object */
- 	ulint		mysql_process_no;/* since in Linux, 'top' reports
+ 	/*------------------------------*/
+ 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
+ 					used in the processing of the current
 diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 --- a/storage/innobase/trx/trx0sys.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/trx/trx0sys.c	2010-12-03 15:38:20.325956917 +0900
-@@ -75,13 +75,16 @@
+@@ -76,13 +76,16 @@
  file name and position here. */
  /* @{ */
  /** Master binlog file name */
@@ -355,7 +354,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  /** If this MySQL server uses binary logging, after InnoDB has been inited
  and if it has done a crash recovery, we store the binlog file name and position
  here. */
-@@ -683,23 +686,25 @@
+@@ -684,23 +687,25 @@
  void
  trx_sys_update_mysql_binlog_offset(
  /*===============================*/
@@ -387,7 +386,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  	if (mach_read_from_4(sys_header + field
  			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
  	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
-@@ -821,13 +826,26 @@
+@@ -822,13 +827,26 @@
  					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
  		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  		+ TRX_SYS_MYSQL_LOG_NAME);
@@ -415,7 +414,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  
  	trx_sys_mysql_master_log_pos
  		= (((ib_int64_t) mach_read_from_4(
-@@ -836,6 +854,19 @@
+@@ -837,6 +855,19 @@
  		+ ((ib_int64_t) mach_read_from_4(
  			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
@@ -438,7 +437,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:37:45.549028990 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 15:38:20.328957217 +0900
-@@ -135,6 +135,10 @@
+@@ -138,6 +138,10 @@
  
  	trx->mysql_log_file_name = NULL;
  	trx->mysql_log_offset = 0;
@@ -449,7 +448,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
  
-@@ -765,6 +769,7 @@
+@@ -820,6 +824,7 @@
  {
  	mtr_t		mtr;
  	trx_rseg_t*	rseg;
@@ -457,7 +456,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(!mutex_own(&kernel_mutex));
  
-@@ -818,8 +823,12 @@
+@@ -873,8 +878,12 @@
  
  	if (trx->mysql_log_file_name
  	    && trx->mysql_log_file_name[0] != '\0') {
@@ -470,7 +469,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  			trx->mysql_log_file_name,
  			trx->mysql_log_offset,
  			TRX_SYS_MYSQL_LOG_INFO, &mtr);
-@@ -827,6 +836,27 @@
+@@ -882,6 +891,27 @@
  		trx->mysql_log_file_name = NULL;
  	}
  

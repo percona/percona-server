@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:18:48.879955903 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:22:53.779955671 +0900
-@@ -11521,6 +11521,7 @@
+@@ -11528,6 +11528,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },

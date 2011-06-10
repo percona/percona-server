@@ -303,7 +303,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5640,7 +5650,7 @@
+@@ -5644,7 +5654,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
@@ -348,7 +348,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  /* The highest file format being used in the database. The value can be
  set by user, however, it will be adjusted to the newer file format if
-@@ -2458,6 +2459,8 @@
+@@ -2472,6 +2473,8 @@
  		goto error;
  	}
  
@@ -357,7 +357,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
  
  	/* -------------- Log files ---------------------------*/
-@@ -11634,6 +11637,11 @@
+@@ -11641,6 +11644,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -369,7 +369,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11801,6 +11809,7 @@
+@@ -11808,6 +11816,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -403,7 +403,7 @@ diff -ruN a/storage/innobase/include/mtr0log.ic b/storage/innobase/include/mtr0l
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-04 15:35:29.177480351 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-04 15:35:58.646556250 +0900
-@@ -132,6 +132,8 @@
+@@ -129,6 +129,8 @@
  extern ulint*	srv_data_file_sizes;
  extern ulint*	srv_data_file_is_raw_partition;
  
@@ -519,7 +519,7 @@ diff -ruN a/storage/innobase/include/trx0sys.ic b/storage/innobase/include/trx0s
 diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 --- a/storage/innobase/row/row0mysql.c	2010-12-03 17:30:16.334989510 +0900
 +++ b/storage/innobase/row/row0mysql.c	2010-12-04 15:35:58.652496484 +0900
-@@ -3459,7 +3459,7 @@
+@@ -3447,7 +3447,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  
@@ -531,7 +531,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:35:29.180483212 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:35:58.656550107 +0900
-@@ -169,6 +169,8 @@
+@@ -163,6 +163,8 @@
  /* size in database pages */
  UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
  
@@ -768,7 +768,7 @@ diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
 diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
 --- a/storage/innobase/trx/trx0sys.c	2010-12-03 17:32:15.651024019 +0900
 +++ b/storage/innobase/trx/trx0sys.c	2010-12-04 15:35:58.664550291 +0900
-@@ -414,6 +414,152 @@
+@@ -415,6 +415,152 @@
  
  		goto start_again;
  	}
@@ -921,7 +921,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  }
  
  /****************************************************************//**
-@@ -437,10 +583,19 @@
+@@ -438,10 +584,19 @@
  	ulint	source_page_no;
  	byte*	page;
  	byte*	doublewrite;
@@ -941,7 +941,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  	/* We do the file i/o past the buffer pool */
  
  	unaligned_read_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
-@@ -449,7 +604,7 @@
+@@ -450,7 +605,7 @@
  	/* Read the trx sys header to check if we are using the doublewrite
  	buffer */
  
@@ -950,7 +950,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  	       UNIV_PAGE_SIZE, read_buf, NULL);
  	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
  
-@@ -487,10 +642,10 @@
+@@ -488,10 +643,10 @@
  
  	/* Read the pages from the doublewrite buffer to memory */
  
@@ -963,7 +963,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
  	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
  	       NULL);
-@@ -546,7 +701,8 @@
+@@ -547,7 +702,8 @@
  				" doublewrite buf.\n",
  				(ulong) space_id, (ulong) page_no, (ulong) i);
  
@@ -973,7 +973,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  			   && ((page_no >= block1
  				&& page_no
  				< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-@@ -1015,6 +1171,83 @@
+@@ -1016,6 +1172,83 @@
  }
  
  /*****************************************************************//**
@@ -1057,7 +1057,7 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  Creates and initializes the central memory structures for the transaction
  system. This is called when the database is started. */
  UNIV_INTERN
-@@ -1386,6 +1619,26 @@
+@@ -1387,6 +1620,26 @@
  	/* Does nothing at the moment */
  }
  

@@ -51,7 +51,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #define MYSQL_DYNAMIC_PLUGIN
 
-/* Define these macro ourselves, so we don't have to include my_global.h and
+/* Define these macros ourselves, so we don't have to include my_global.h and
 can compile against unconfigured MySQL source tree.  */
 #define STDCALL
 
@@ -196,11 +196,17 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
   info->password_used= PASSWORD_USED_NO_MENTION;
 
   error= pam_start(service_name,
-                   (info->authenticated_as && info->authenticated_as[0])
-                   ? info->authenticated_as : NULL,
+                   info->user_name,
                    &conv_func_info, &pam_handle);
   if (error != PAM_SUCCESS)
     return CR_ERROR;
+
+  error= pam_set_item(pam_handle, PAM_RUSER, info->user_name);
+  if (error != PAM_SUCCESS)
+  {
+    pam_end(pam_handle, error);
+    return CR_ERROR;
+  }
 
   error= pam_set_item(pam_handle, PAM_RHOST, info->host_or_ip);
   if (error != PAM_SUCCESS)
@@ -241,7 +247,7 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
   /* Check if user name from PAM is the same as provided for MySQL.  If
   different, set @@external_user for the current session to the one provided by
   PAM.  */
-  if (strcmp(info->authenticated_as, external_user_name))
+  if (strcmp(info->user_name, external_user_name))
   {
     strncpy(info->external_user, external_user_name,
             max_auth_info_external_user_len);

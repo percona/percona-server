@@ -21,7 +21,7 @@ diff -ruN /dev/null b/patch_info/log_warnings_suppress.patch
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-04-09 18:48:59.000000000 +0400
 +++ b/sql/mysqld.cc	2011-04-09 18:48:59.000000000 +0400
-@@ -627,6 +627,8 @@
+@@ -623,6 +623,8 @@
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
  
@@ -33,7 +33,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 --- a/sql/mysqld.h	2011-04-09 18:48:58.000000000 +0400
 +++ b/sql/mysqld.h	2011-04-09 18:48:59.000000000 +0400
-@@ -227,6 +227,8 @@
+@@ -228,6 +228,8 @@
  extern TYPELIB thread_handling_typelib;
  extern my_decimal decimal_zero;
  
@@ -45,7 +45,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-04-09 18:48:50.000000000 +0400
 +++ b/sql/sql_class.cc	2011-04-09 18:48:59.000000000 +0400
-@@ -4579,7 +4579,7 @@
+@@ -4575,7 +4575,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));

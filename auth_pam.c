@@ -41,6 +41,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
  Alternatively UPDATE the mysql.user table to set the plugin value for an
  existing user.
+
+ Also it is possible to use this plugin to authenticate anonymous users:
+
+ CREATE USER ''@'hostname' IDENTIFIED WITH auth_pam_server;
+
 */
 
 #include <assert.h>

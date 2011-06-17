@@ -34,8 +34,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  This plugin does not encrypt the communication channel in any way.  If this is
  required, a SSL connection should be used.
 
- To use this plugin for one particular user, install the plugin and specify it
- at user's creation time (TODO: tested with localhost only):
+ To install this plugin, copy the .so file to the plugin directory and do
+
+ INSTALL PLUGIN auth_pam_server SONAME 'auth_pam.so';
+
+ To use this plugin for one particular user, specify it at user's creation time
+ (TODO: tested with localhost only):
 
  CREATE USER 'username'@'hostname' IDENTIFIED WITH auth_pam_server;
 
@@ -355,7 +359,7 @@ static int authenticate_user_with_pam_client (MYSQL_PLUGIN_VIO *vio,
       break;
 
     case '\0':
-      return CR_OK_HANDSHAKE_COMPLETE;
+      return CR_OK;
 
     default:
       return CR_ERROR;

@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  }
  
  /*****************************************************************//**
-@@ -195,11 +211,20 @@
+@@ -195,11 +211,22 @@
  btr_search_sys_free(void)
  /*=====================*/
  {
@@ -281,6 +281,8 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
 +
 +		mem_free(btr_search_latch_part[i]);
 +	}
++	mem_free(btr_search_sys->hash_index);
++	mem_free(btr_search_latch_part);
 +
 +	//rw_lock_free(&btr_search_latch);
 +	//mem_free(btr_search_latch_temp);
@@ -288,7 +290,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	mem_free(btr_search_sys);
  	btr_search_sys = NULL;
  }
-@@ -212,7 +237,7 @@
+@@ -212,7 +239,7 @@
  /*====================*/
  {
  	mutex_enter(&btr_search_enabled_mutex);
@@ -297,7 +299,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	/* Disable access to hash index, also tell ha_insert_for_fold()
  	stop adding new nodes to hash index, but still allow updating
-@@ -230,7 +255,7 @@
+@@ -230,7 +257,7 @@
  	/* btr_search_enabled_mutex should guarantee this. */
  	ut_ad(!btr_search_enabled);
  
@@ -306,7 +308,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	mutex_exit(&btr_search_enabled_mutex);
  }
  
-@@ -242,12 +267,12 @@
+@@ -242,12 +269,12 @@
  /*====================*/
  {
  	mutex_enter(&btr_search_enabled_mutex);
@@ -321,7 +323,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	mutex_exit(&btr_search_enabled_mutex);
  }
  
-@@ -300,20 +325,21 @@
+@@ -300,20 +327,21 @@
  ulint
  btr_search_info_get_ref_count(
  /*==========================*/
@@ -348,7 +350,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	return(ret);
  }
-@@ -334,8 +360,8 @@
+@@ -334,8 +362,8 @@
  	int		cmp;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -359,7 +361,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  #endif /* UNIV_SYNC_DEBUG */
  
  	index = cursor->index;
-@@ -453,8 +479,8 @@
+@@ -453,8 +481,8 @@
  				/*!< in: cursor */
  {
  #ifdef UNIV_SYNC_DEBUG
@@ -370,7 +372,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	ut_ad(rw_lock_own(&block->lock, RW_LOCK_SHARED)
  	      || rw_lock_own(&block->lock, RW_LOCK_EX));
  #endif /* UNIV_SYNC_DEBUG */
-@@ -538,7 +564,7 @@
+@@ -538,7 +566,7 @@
  
  	ut_ad(cursor->flag == BTR_CUR_HASH_FAIL);
  #ifdef UNIV_SYNC_DEBUG
@@ -379,7 +381,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
  	      || rw_lock_own(&(block->lock), RW_LOCK_EX));
  #endif /* UNIV_SYNC_DEBUG */
-@@ -578,10 +604,10 @@
+@@ -578,10 +606,10 @@
  			mem_heap_free(heap);
  		}
  #ifdef UNIV_SYNC_DEBUG
@@ -392,7 +394,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  				   block, rec);
  	}
  }
-@@ -601,8 +627,8 @@
+@@ -601,8 +629,8 @@
  	ulint*		params2;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -403,7 +405,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  #endif /* UNIV_SYNC_DEBUG */
  
  	block = btr_cur_get_block(cursor);
-@@ -623,7 +649,7 @@
+@@ -623,7 +651,7 @@
  
  	if (build_index || (cursor->flag == BTR_CUR_HASH_FAIL)) {
  
@@ -412,7 +414,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	}
  
  	if (cursor->flag == BTR_CUR_HASH_FAIL) {
-@@ -633,11 +659,11 @@
+@@ -633,11 +661,11 @@
  		btr_search_n_hash_fail++;
  #endif /* UNIV_SEARCH_PERF_STAT */
  
@@ -426,7 +428,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	}
  
  	if (build_index) {
-@@ -881,17 +907,17 @@
+@@ -881,17 +909,17 @@
  	cursor->flag = BTR_CUR_HASH;
  
  	if (UNIV_LIKELY(!has_search_latch)) {
@@ -448,7 +450,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	if (UNIV_UNLIKELY(!rec)) {
  		goto failure_unlock;
-@@ -909,7 +935,7 @@
+@@ -909,7 +937,7 @@
  			goto failure_unlock;
  		}
  
@@ -457,7 +459,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
  	}
-@@ -1006,7 +1032,7 @@
+@@ -1006,7 +1034,7 @@
  	/*-------------------------------------------*/
  failure_unlock:
  	if (UNIV_LIKELY(!has_search_latch)) {
@@ -466,7 +468,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	}
  failure:
  	cursor->flag = BTR_CUR_HASH_FAIL;
-@@ -1029,10 +1055,11 @@
+@@ -1029,10 +1057,11 @@
  void
  btr_search_drop_page_hash_index(
  /*============================*/
@@ -479,7 +481,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  {
  	hash_table_t*		table;
  	ulint			n_fields;
-@@ -1051,22 +1078,60 @@
+@@ -1051,22 +1080,60 @@
  	ulint*			offsets;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -545,7 +547,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  #ifdef UNIV_SYNC_DEBUG
  	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
-@@ -1076,14 +1141,14 @@
+@@ -1076,14 +1143,14 @@
  
  	n_fields = block->curr_n_fields;
  	n_bytes = block->curr_n_bytes;
@@ -562,7 +564,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	ut_a(n_fields + n_bytes > 0);
  
-@@ -1133,7 +1198,7 @@
+@@ -1133,7 +1200,7 @@
  		mem_heap_free(heap);
  	}
  
@@ -571,7 +573,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	if (UNIV_UNLIKELY(!block->is_hashed)) {
  		/* Someone else has meanwhile dropped the hash index */
-@@ -1149,7 +1214,7 @@
+@@ -1149,7 +1216,7 @@
  		/* Someone else has meanwhile built a new hash index on the
  		page, with different parameters */
  
@@ -580,7 +582,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  		mem_free(folds);
  		goto retry;
-@@ -1165,6 +1230,7 @@
+@@ -1165,6 +1232,7 @@
  
  	block->is_hashed = FALSE;
  	block->index = NULL;
@@ -588,7 +590,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	
  cleanup:
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-@@ -1177,14 +1243,14 @@
+@@ -1177,14 +1245,14 @@
  			"InnoDB: the hash index to a page of %s,"
  			" still %lu hash nodes remain.\n",
  			index->name, (ulong) block->n_pointers);
@@ -606,7 +608,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
  
  	mem_free(folds);
-@@ -1216,9 +1282,9 @@
+@@ -1216,9 +1284,9 @@
  	ulint*		offsets;
  	ibool		released_search_latch;
  
@@ -618,7 +620,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	for (j = 0; j < srv_buf_pool_instances; j++) {
  		buf_pool_t*	buf_pool;
-@@ -1252,7 +1318,7 @@
+@@ -1252,7 +1320,7 @@
  
  
  					/* keeping latch order */
@@ -627,7 +629,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  					released_search_latch = TRUE;
  					rw_lock_x_lock(&block->lock);
  
-@@ -1304,7 +1370,7 @@
+@@ -1304,7 +1372,7 @@
  						mem_heap_empty(heap);
  					}
  
@@ -636,7 +638,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  					if (UNIV_UNLIKELY(!block->is_hashed)) {
  						goto cleanup;
-@@ -1314,12 +1380,12 @@
+@@ -1314,12 +1382,12 @@
  
  					if (UNIV_UNLIKELY(block->curr_n_fields != n_fields)
  					    || UNIV_UNLIKELY(block->curr_n_bytes != n_bytes)) {
@@ -651,7 +653,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  						goto retry;
  					}
  
-@@ -1333,6 +1399,7 @@
+@@ -1333,6 +1401,7 @@
  
  					block->is_hashed = FALSE;
  					block->index = NULL;
@@ -659,7 +661,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  cleanup:
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-@@ -1345,18 +1412,18 @@
+@@ -1345,18 +1414,18 @@
  							index->name, (ulong) block->n_pointers);
  					}
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -681,7 +683,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-@@ -1403,7 +1470,7 @@
+@@ -1403,7 +1472,7 @@
  
  		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
  
@@ -690,7 +692,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	}
  
  	mtr_commit(&mtr);
-@@ -1445,26 +1512,26 @@
+@@ -1445,26 +1514,26 @@
  	ut_ad(index);
  	ut_a(!dict_index_is_ibuf(index));
  
@@ -723,7 +725,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	}
  
  	n_recs = page_get_n_recs(page);
-@@ -1558,9 +1625,9 @@
+@@ -1558,9 +1627,9 @@
  		fold = next_fold;
  	}
  
@@ -735,7 +737,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	if (UNIV_UNLIKELY(btr_search_fully_disabled)) {
  		goto exit_func;
-@@ -1588,6 +1655,7 @@
+@@ -1588,6 +1657,7 @@
  	block->curr_n_bytes = n_bytes;
  	block->curr_left_side = left_side;
  	block->index = index;
@@ -743,7 +745,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	for (i = 0; i < n_cached; i++) {
  
-@@ -1595,7 +1663,7 @@
+@@ -1595,7 +1665,7 @@
  	}
  
  exit_func:
@@ -752,7 +754,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	mem_free(folds);
  	mem_free(recs);
-@@ -1634,13 +1702,13 @@
+@@ -1634,13 +1704,13 @@
  	ut_a(!(new_block->is_hashed || block->is_hashed)
  	     || !dict_index_is_ibuf(index));
  
@@ -769,7 +771,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  		return;
  	}
-@@ -1655,7 +1723,7 @@
+@@ -1655,7 +1725,7 @@
  		new_block->n_bytes = block->curr_n_bytes;
  		new_block->left_side = left_side;
  
@@ -778,7 +780,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  		ut_a(n_fields + n_bytes > 0);
  
-@@ -1667,7 +1735,7 @@
+@@ -1667,7 +1737,7 @@
  		return;
  	}
  
@@ -787,7 +789,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  }
  
  /********************************************************************//**
-@@ -1706,7 +1774,7 @@
+@@ -1706,7 +1776,7 @@
  	ut_a(block->curr_n_fields + block->curr_n_bytes > 0);
  	ut_a(!dict_index_is_ibuf(cursor->index));
  
@@ -796,7 +798,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	index_id = cursor->index->id;
  	fold = rec_fold(rec, rec_get_offsets(rec, cursor->index, offsets_,
-@@ -1715,11 +1783,11 @@
+@@ -1715,11 +1785,11 @@
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
  	}
@@ -810,7 +812,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  }
  
  /********************************************************************//**
-@@ -1753,21 +1821,21 @@
+@@ -1753,21 +1823,21 @@
  	ut_a(block->index == cursor->index);
  	ut_a(!dict_index_is_ibuf(cursor->index));
  
@@ -836,7 +838,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  		btr_search_update_hash_on_insert(cursor);
  	}
-@@ -1802,9 +1870,9 @@
+@@ -1802,9 +1872,9 @@
  	ulint*		offsets		= offsets_;
  	rec_offs_init(offsets_);
  
@@ -848,7 +850,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  	rec = btr_cur_get_rec(cursor);
  
-@@ -1849,7 +1917,7 @@
+@@ -1849,7 +1919,7 @@
  	} else {
  		if (left_side) {
  
@@ -857,7 +859,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  			locked = TRUE;
  
-@@ -1863,7 +1931,7 @@
+@@ -1863,7 +1933,7 @@
  
  		if (!locked) {
  
@@ -866,7 +868,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  			locked = TRUE;
  		}
-@@ -1881,7 +1949,7 @@
+@@ -1881,7 +1951,7 @@
  		if (!left_side) {
  
  			if (!locked) {
@@ -875,7 +877,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  				locked = TRUE;
  			}
-@@ -1896,7 +1964,7 @@
+@@ -1896,7 +1966,7 @@
  
  		if (!locked) {
  
@@ -884,7 +886,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  			locked = TRUE;
  		}
-@@ -1919,7 +1987,7 @@
+@@ -1919,7 +1989,7 @@
  		mem_heap_free(heap);
  	}
  	if (locked) {
@@ -893,7 +895,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	}
  }
  
-@@ -1935,7 +2003,7 @@
+@@ -1935,7 +2005,7 @@
  	ha_node_t*	node;
  	ulint		n_page_dumps	= 0;
  	ibool		ok		= TRUE;
@@ -902,7 +904,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	ulint		cell_count;
  	mem_heap_t*	heap		= NULL;
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-@@ -1947,23 +2015,25 @@
+@@ -1947,23 +2017,25 @@
  
  	rec_offs_init(offsets_);
  
@@ -933,7 +935,7 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  
  		for (; node != NULL; node = node->next) {
  			const buf_block_t*	block
-@@ -2072,19 +2142,21 @@
+@@ -2072,19 +2144,21 @@
  		give other queries a chance to run. */
  		if (i != 0) {
  			buf_pool_page_hash_x_unlock_all();

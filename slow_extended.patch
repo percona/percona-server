@@ -714,9 +714,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_connect.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -764,6 +764,15 @@
- 
-     prepare_new_connection_state(thd);
+@@ -764,4 +764,13 @@
  
 +    /* 
 +      If rate limiting of slow log writes is enabled, decide whether to log this 
@@ -727,9 +725,9 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 +        (thd->thread_id % thd->variables.log_slow_rate_limit) == 0) 
 +         thd->write_to_slow_log= TRUE; 
 +
+     prepare_new_connection_state(thd);
+ 
      while (!net->error && net->vio != 0 &&
-            !(thd->killed == THD::KILL_CONNECTION))
-     {
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/sql_parse.cc	2011-04-09 18:48:50.000000000 +0400
@@ -1188,6 +1186,23 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
  /**
    Fill the information schema table, "query_profile", as defined in show.cc .
    There are two ways to get to this function:  Selecting from the information
+@@ -600,6 +728,8 @@
+ 
+ #ifdef HAVE_GETRUSAGE
+ 
++      if (enabled_getrusage())
++      {
+       my_decimal cpu_utime_decimal, cpu_stime_decimal;
+ 
+       double2my_decimal(E_DEC_FATAL_ERROR,
+@@ -687,6 +817,7 @@
+       table->field[14]->store((uint32)(entry->rusage.ru_nswap -
+                              previous->rusage.ru_nswap), true);
+       table->field[14]->set_notnull();
++      }
+ #else
+       /* TODO: Add swap info for non-BSD systems */
+ #endif
 diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
 --- a/sql/sql_profile.h	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_profile.h	2011-04-09 18:48:50.000000000 +0400

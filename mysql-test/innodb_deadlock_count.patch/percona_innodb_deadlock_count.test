@@ -38,7 +38,14 @@ SEND SELECT b FROM t WHERE a=2 FOR UPDATE;
 connection con2;
 SEND SELECT b FROM t WHERE a=1 FOR UPDATE;
 
-SLEEP 0.2;
+--echo # Switch to connection con1
+connection con1;
+reap;
+
+--echo # Switch to connection con2
+connection con2;
+reap;
+
 --echo # Switch to connection con3
 connection con3;
 let $result = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;

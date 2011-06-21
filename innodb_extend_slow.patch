@@ -335,7 +335,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-03 15:53:54.610037199 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-03 17:42:42.079064198 +0900
-@@ -4423,7 +4423,7 @@
+@@ -4747,7 +4747,7 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -344,7 +344,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #endif
  		if (success) {
  			node->size += n_pages;
-@@ -4750,7 +4750,7 @@
+@@ -5074,7 +5074,7 @@
  i/o on a tablespace which does not exist */
  UNIV_INTERN
  ulint
@@ -353,7 +353,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  /*===*/
  	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
  				ORed to OS_FILE_LOG, if a log i/o
-@@ -4775,8 +4775,9 @@
+@@ -5099,8 +5099,9 @@
  	void*	buf,		/*!< in/out: buffer where to store read data
  				or from where to write; in aio this must be
  				appropriately aligned */
@@ -364,7 +364,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  {
  	ulint		mode;
  	fil_space_t*	space;
-@@ -4944,7 +4945,7 @@
+@@ -5268,7 +5269,7 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -376,7 +376,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:36:44.293955189 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:42:42.090024586 +0900
-@@ -1559,6 +1559,16 @@
+@@ -1573,6 +1573,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -393,7 +393,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_VOID_RETURN;
  }
  
-@@ -1613,6 +1623,32 @@
+@@ -1627,6 +1637,32 @@
  	return(trx);
  }
  
@@ -426,7 +426,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9296,6 +9332,25 @@
+@@ -9301,6 +9337,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -648,13 +648,13 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 +/* prototypes for new functions added to ha_innodb.cc */
 +ibool	innobase_get_slow_log();
 +
- /* This is set to the MySQL server value for this variable. */
- extern uint	srv_lower_case_table_names;
- 
+ /* Mutex for locking srv_monitor_file */
+ extern mutex_t	srv_monitor_file_mutex;
+ /* Temporary file for innodb monitor output */
 diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
 --- a/storage/innobase/include/trx0trx.h	2010-12-03 15:41:52.049372966 +0900
 +++ b/storage/innobase/include/trx0trx.h	2010-12-03 17:42:42.107024532 +0900
-@@ -738,6 +738,17 @@
+@@ -743,6 +743,17 @@
  	/*------------------------------*/
  	char detailed_error[256];	/*!< detailed error message for last
  					error, or empty. */
@@ -843,8 +843,8 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -4099,6 +4131,11 @@
- 		ut_error;
+@@ -4101,6 +4133,11 @@
+ 		array = NULL; /* Eliminate compiler warning */
  	}
  
 +	if (trx && type == OS_FILE_READ)
@@ -865,10 +865,10 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +/* prototypes for new functions added to ha_innodb.cc */
 +ibool	innobase_get_slow_log();
 +
- /* This is set to the MySQL server value for this variable.  It is only
- needed for FOREIGN KEY definition parsing since FOREIGN KEY names are not
- stored in the server metadata. The server stores and enforces it for
-@@ -1244,6 +1247,10 @@
+ /* The following counter is incremented whenever there is some user activity
+ in the server */
+ UNIV_INTERN ulint	srv_activity_count	= 0;
+@@ -1232,6 +1235,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -877,9 +877,9 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +	ulint                   sec;
 +	ulint                   ms;
  
- 	if (trx->mysql_thd != NULL
- 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1320,6 +1327,7 @@
+ #ifdef UNIV_SYNC_DEBUG
+ 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+@@ -1312,6 +1319,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -887,10 +887,11 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		trx->op_info = "";
-@@ -1375,6 +1383,13 @@
- 	/* Go to wait for the event; when a thread leaves InnoDB it will
- 	release this thread */
- 
+@@ -1371,6 +1379,14 @@
+ #ifdef UNIV_SYNC_DEBUG
+ 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+ #endif /* UNIV_SYNC_DEBUG */
++
 +	if (innobase_get_slow_log() && trx->take_stats) {
 +		ut_usectime(&sec, &ms);
 +		start_time = (ib_uint64_t)sec * 1000000 + ms;
@@ -901,7 +902,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
-@@ -1383,6 +1398,12 @@
+@@ -1379,6 +1395,12 @@
  
  	trx->op_info = "";
  
@@ -917,7 +918,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
 --- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:41:52.053955669 +0900
 +++ b/storage/innobase/trx/trx0trx.c	2010-12-03 17:42:42.127023410 +0900
-@@ -185,6 +185,15 @@
+@@ -188,6 +188,15 @@
  	trx->global_read_view = NULL;
  	trx->read_view = NULL;
  
@@ -933,9 +934,9 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	/* Set X/Open XA transaction identification to NULL */
  	memset(&trx->xid, 0, sizeof(trx->xid));
  	trx->xid.formatID = -1;
-@@ -222,6 +231,11 @@
+@@ -221,6 +230,11 @@
  
- 	trx->mysql_process_no = os_proc_get_number();
+ 	mutex_exit(&kernel_mutex);
  
 +	if (innobase_get_slow_log() && trx->take_stats) {
 +		trx->distinct_page_access_hash = mem_alloc(DPAH_SIZE);
@@ -945,7 +946,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	return(trx);
  }
  
-@@ -353,6 +367,12 @@
+@@ -406,6 +420,12 @@
  /*===============*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -958,7 +959,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
-@@ -374,6 +394,12 @@
+@@ -427,6 +447,12 @@
  /*====================*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -971,7 +972,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_enter(&kernel_mutex);
  
  	trx_free(trx);
-@@ -1152,6 +1178,9 @@
+@@ -1212,6 +1238,9 @@
  	trx_t*	trx)	/*!< in: transaction */
  {
  	que_thr_t*	thr;
@@ -981,7 +982,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1166,6 +1195,11 @@
+@@ -1226,6 +1255,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  
@@ -993,7 +994,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	trx->que_state = TRX_QUE_RUNNING;
  }
  
-@@ -1179,6 +1213,9 @@
+@@ -1239,6 +1273,9 @@
  	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
  {
  	que_thr_t*	thr;
@@ -1003,7 +1004,7 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1193,6 +1230,11 @@
+@@ -1253,6 +1290,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  

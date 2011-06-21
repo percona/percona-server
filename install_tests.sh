@@ -1,20 +1,35 @@
 #!/bin/sh
 
-test -z ${PERCONA_SERVER} && export PERCONA_SERVER=Percona-Server
-echo PERCONA_SERVER=${PERCONA_SERVER}
+set -u
 
+MYSQL_VERSION="$(grep ^MYSQL_VERSION= "Makefile" \
+    | cut -d = -f 2)"
+export PERCONA_SERVER="Percona-Server"
+
+install_file_type()
+{
+    for file in `ls $1/*.$2 2>/dev/null`; do
+	test -f $file && install -m 644 $file ${PERCONA_SERVER}/mysql-test/$3
+    done;
+}
+do_install_path()
+{
+    install_file_type $1 test t
+    install_file_type $1 opt t
+    install_file_type $1 result r
+    install_file_type $1 require r
+    install_file_type $1 inc include
+}
 install_path()
 {
-    echo "Installing mysql-test files: $2"
-    find $1 -iname '*.test' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/t/ ';'
-    find $1 -iname '*.opt' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/t/ ';'
-    find $1 -iname '*.result' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/r/ ';'
-    find $1 -iname '*.require' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/r/ ';'
-    find $1 -iname '*.inc' -exec install -m 644 {} ${PERCONA_SERVER}/mysql-test/include/ ';'
+    echo "[$3/$4] Installing mysql-test files: $2"
+    test -d $1 && do_install_path $1 $2
 }
-
-install_path mysql-test "global"
+current=0;
+count=`wc -l series`;
+install_path mysql-test "global" $current $count
 for test_name in `cat series`; do
-    test -d mysql-test/$test_name && install_path mysql-test/$test_name $test_name
+    current=$((current+1));
+    install_path mysql-test/$test_name $test_name $current $count
 done
 echo "Done"

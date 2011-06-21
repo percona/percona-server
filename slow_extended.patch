@@ -424,7 +424,7 @@ diff -ruN a/sql/log.h b/sql/log.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/mysqld.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -420,6 +420,10 @@
+@@ -416,6 +416,10 @@
  char* opt_secure_file_priv;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -435,7 +435,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5839,10 +5843,10 @@
+@@ -5835,10 +5839,10 @@
     "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
     "the slow log if it is open.", &opt_log_slow_admin_statements,
     &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -448,7 +448,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7231,6 +7235,10 @@
+@@ -7227,6 +7231,10 @@
  
  C_MODE_END
  
@@ -459,7 +459,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7380,6 +7388,8 @@
+@@ -7376,6 +7384,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -496,7 +496,7 @@ diff -ruN a/sql/slave.cc b/sql/slave.cc
 diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
 --- a/sql/sp_head.cc	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sp_head.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -2150,7 +2150,7 @@
+@@ -2151,7 +2151,7 @@
      DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                         m_name.str));
    }
@@ -527,7 +527,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_class.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -368,6 +368,37 @@
+@@ -367,6 +367,37 @@
    thd->warning_info->inc_current_row_for_warning();
  }
  
@@ -565,7 +565,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /**
    Dumps a text description of a thread, its security context
-@@ -662,6 +693,7 @@
+@@ -661,6 +692,7 @@
      *cond_hdl= NULL;
      return FALSE;
    }
@@ -573,7 +573,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    for (Internal_error_handler *error_handler= m_internal_handler;
         error_handler;
-@@ -3390,6 +3422,12 @@
+@@ -3385,6 +3417,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -586,7 +586,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3410,6 +3448,14 @@
+@@ -3405,6 +3443,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -601,7 +601,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -3472,6 +3518,12 @@
+@@ -3467,6 +3513,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -669,7 +669,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    double long_query_time_double;
  
  } SV;
-@@ -1140,6 +1178,14 @@
+@@ -1135,6 +1173,14 @@
    uint in_sub_stmt;
    bool enable_slow_log;
    bool last_insert_id_used;
@@ -684,7 +684,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1575,6 +1621,26 @@
+@@ -1583,6 +1629,26 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -714,9 +714,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_connect.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -764,6 +764,15 @@
- 
-     prepare_new_connection_state(thd);
+@@ -764,4 +764,13 @@
  
 +    /* 
 +      If rate limiting of slow log writes is enabled, decide whether to log this 
@@ -727,9 +725,9 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 +        (thd->thread_id % thd->variables.log_slow_rate_limit) == 0) 
 +         thd->write_to_slow_log= TRUE; 
 +
+     prepare_new_connection_state(thd);
+ 
      while (!net->error && net->vio != 0 &&
-            !(thd->killed == THD::KILL_CONNECTION))
-     {
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/sql_parse.cc	2011-04-09 18:48:50.000000000 +0400
@@ -819,7 +817,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc	2011-04-09 18:48:17.000000000 +0400
 +++ b/sql/sql_select.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -6898,7 +6898,10 @@
+@@ -6902,7 +6902,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -830,7 +828,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	else
-@@ -6912,7 +6915,10 @@
+@@ -6916,7 +6919,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -841,7 +839,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  	  }
  	}
  	if (!table->no_keyread)
-@@ -10243,6 +10249,7 @@
+@@ -10247,6 +10253,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -849,7 +847,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -11141,6 +11148,7 @@
+@@ -11145,6 +11152,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -857,7 +855,7 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -11159,6 +11167,14 @@
+@@ -11163,6 +11171,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  
@@ -1188,6 +1186,23 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
  /**
    Fill the information schema table, "query_profile", as defined in show.cc .
    There are two ways to get to this function:  Selecting from the information
+@@ -600,6 +728,8 @@
+ 
+ #ifdef HAVE_GETRUSAGE
+ 
++      if (enabled_getrusage())
++      {
+       my_decimal cpu_utime_decimal, cpu_stime_decimal;
+ 
+       double2my_decimal(E_DEC_FATAL_ERROR,
+@@ -687,6 +817,7 @@
+       table->field[14]->store((uint32)(entry->rusage.ru_nswap -
+                              previous->rusage.ru_nswap), true);
+       table->field[14]->set_notnull();
++      }
+ #else
+       /* TODO: Add swap info for non-BSD systems */
+ #endif
 diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
 --- a/sql/sql_profile.h	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_profile.h	2011-04-09 18:48:50.000000000 +0400

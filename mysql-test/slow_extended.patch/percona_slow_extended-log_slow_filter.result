@@ -1,4 +1,3 @@
-SET GLOBAL SLOW_QUERY_LOG=OFF;
 drop table if exists t;
 # Create test table
 create table t(id INT PRIMARY KEY) engine=InnoDB;
@@ -20,6 +19,7 @@ sleep(2)
 SELECT sleep(2);
 sleep(2)
 0
+SET GLOBAL SLOW_QUERY_LOG=OFF;
 drop table if exists t;
 FLUSH LOGS;
 2

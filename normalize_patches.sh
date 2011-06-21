@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #ls -1 *.patch | grep -v repair | xargs bzr revert
-test -z ${MYSQL_VERSION} && MYSQL_VERSION=5.5.13
+MYSQL_VERSION="$(grep ^MYSQL_VERSION= "Makefile" \
+    | cut -d = -f 2)"
 test -z ${MYSQL_DIR} && MYSQL_DIR=mysql-${MYSQL_VERSION}
 test -z ${MYSQL_TAR_GZ} && MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
 test -z ${SERIES} && SERIES=series

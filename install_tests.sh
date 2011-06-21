@@ -4,7 +4,9 @@ set -u
 
 MYSQL_VERSION="$(grep ^MYSQL_VERSION= "Makefile" \
     | cut -d = -f 2)"
-export PERCONA_SERVER="Percona-Server"
+PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= "Makefile" \
+    | cut -d = -f 2)"
+PERCONA_SERVER="Percona-Server-${MYSQL_VERSION}-${PERCONA_SERVER_VERSION}"
 
 install_file_type()
 {

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 set -u
 
@@ -25,11 +25,11 @@ install_path()
     echo "[$3/$4] Installing mysql-test files: $2"
     test -d $1 && do_install_path $1 $2
 }
-let current=1;
+current=0;
 count=`wc -l series`;
 install_path mysql-test "global" $current $count
 for test_name in `cat series`; do
-    let current=$current+1;
+    current=$((current+1));
     install_path mysql-test/$test_name $test_name $current $count
 done
 echo "Done"

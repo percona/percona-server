@@ -18,7 +18,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 /**
  @file
 
- PAM authentication plugin
+ PAM authentication for MySQL, server- and client-side plugins for the
+ production use.
 
  A general-purpose PAM authentication plugin for MySQL.  Acts as a mediator
  between the MySQL server, the MySQL client, and the PAM backend.  Consists of
@@ -72,6 +73,8 @@ can compile against unconfigured MySQL source tree.  */
 
 #include <unistd.h> /* getpass() */
 
+#include "lib_auth_pam_client.h"
+
 /* The server plugin */
 
 /** The MySQL service name for PAM configuration */
@@ -95,9 +98,9 @@ static int valid_pam_msg_style (int pam_msg_style)
   }
 }
 
-/* Do not use any of MySQL client-server protocol reserved values, i.e. \0 */
 static char pam_msg_style_to_char (int pam_msg_style)
 {
+  /* Do not use any of MySQL client-server protocol reserved values, i.e. \0 */
   switch (pam_msg_style)
   {
   case PAM_PROMPT_ECHO_OFF: return '\2';
@@ -276,6 +279,13 @@ static struct st_mysql_auth pam_auth_handler=
   &authenticate_user_with_pam_server
 };
 
+static struct st_mysql_auth test_pam_auth_handler=
+{
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  "auth_pam_test",
+  &authenticate_user_with_pam_server
+};
+
 mysql_declare_plugin(auth_pam)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -290,86 +300,74 @@ mysql_declare_plugin(auth_pam)
   NULL,
   NULL,
   NULL
-}
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &test_pam_auth_handler,
+  "test_auth_pam_server",
+  "Percona, Inc.",
+  "PAM authentication plugin that requests the test version of the"
+  " client-side plugin. DO NOT USE IN PRODUCTION.",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0001,
+  NULL,
+  NULL,
+  NULL
+ }
 mysql_declare_plugin_end;
 
 /* The client plugin */
 
-struct st_mysql;
+/* Returns malloc-allocated string, NULL in case of memory error. */
+static char * prompt_echo_off (const char * prompt)
+{
+  /* TODO: getpass not thread safe.  Probably not a big deal in the mysql
+     client program, but may be missing on non-glibc systems.  */
+  char* getpass_input= getpass(prompt);
+  return strdup(getpass_input);
+}
+
+/* Returns malloc-allocated string, NULL in case of memory or (unlikely)
+I/O error.  */
+static char * prompt_echo_on (const char * prompt)
+{
+  char* c;
+  char fgets_buf[1024];
+  fputs(prompt, stdout);
+  fputc(' ', stdout);
+  c= fgets(fgets_buf, sizeof(fgets_buf), stdin);
+  if (c == NULL)
+  {
+    if (ferror(stdin))
+      return NULL;
+    fgets_buf[0]= '\0';
+  }
+  if ((c= strchr(fgets_buf, '\n')))
+    *c= '\0';
+  else
+    fgets_buf[sizeof(fgets_buf) - 1]= '\0';
+  return strdup(fgets_buf);
+}
+
+static void show_error(const char * message)
+{
+  fprintf(stderr, "ERROR %s\n", message);
+}
+
+static void show_info(const char * message)
+{
+  printf("%s\n", message);
+}
 
 static int authenticate_user_with_pam_client (MYSQL_PLUGIN_VIO *vio,
-                                              struct st_mysql *mysql
-                                              __attribute__((unused)))
+                                              struct st_mysql *mysql)
 {
-  char *buf;
-  int pkt_len;
-  char *getpass_input;
-  char *reply;
-  char fgets_buf[1024];
-  char *ptr;
-
-  do {
-
-    if ((pkt_len= vio->read_packet(vio, (unsigned char **)&buf)) < 0)
-      return CR_ERROR;
-
-    /* The first byte is the message type, followed by the message itself.  */
-    switch (buf[0])
-    {
-    case '\2': /* PAM_PROMPT_ECHO_OFF */
-      /* TODO: getpass not thread safe.  Probably not a big deal in the mysql
-         client program, but may be missing on non-glibc systems.  */
-      getpass_input= getpass(&buf[1]);
-      reply= strdup(getpass_input);
-      if (!reply)
-        return CR_ERROR;
-      if (vio->write_packet(vio, (unsigned char *)reply, strlen(reply) + 1))
-      {
-        free(reply);
-        return CR_ERROR;
-      }
-      free(reply);
-      break;
-
-    case '\3': /* PAM_PROMPT_ECHO_ON */
-      fputs(&buf[1], stdout);
-      fputc(' ', stdout);
-      reply= fgets(fgets_buf, sizeof(fgets_buf), stdin);
-      if (reply == NULL)
-      {
-        if (ferror(stdin))
-          return CR_ERROR;
-        fgets_buf[0]= '\0';
-      }
-      if ((ptr= strchr(buf, '\n')))
-        *ptr= '\0';
-      else
-        fgets_buf[sizeof(fgets_buf) - 1]= '\0';
-      if (vio->write_packet(vio, (unsigned char *)fgets_buf,
-                            strlen(fgets_buf) + 1))
-        return CR_ERROR;
-      break;
-
-    case '\4': /* PAM_ERROR_MSG */
-      fprintf(stderr, "ERROR %s\n", &buf[1]);
-      break;
-
-    case '\5': /* PAM_TEXT_INFO */
-      printf("%s\n", &buf[1]);
-      break;
-
-    case '\0':
-      return CR_OK;
-
-    default:
-      return CR_ERROR;
-    }
-  }
-  while (1);
-
-  /* Should not come here */
-  MY_ASSERT_UNREACHABLE();
-  return CR_ERROR;
+  return authenticate_user_with_pam_client_common (vio, mysql,
+                                                   &prompt_echo_off,
+                                                   &prompt_echo_on,
+                                                   &show_error, &show_info);
 }
 
 mysql_declare_client_plugin(AUTHENTICATION)

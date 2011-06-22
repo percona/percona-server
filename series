@@ -49,3 +49,4 @@ mysql-test.diff
 innodb_bug60788.patch
 start-stop-messages.patch
 file-contents.patch
+slave_timeout_fix.patch

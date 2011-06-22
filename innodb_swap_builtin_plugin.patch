@@ -270,3 +270,50 @@ diff -ruN a/storage/innodb_plugin/plug.in b/storage/innodb_plugin/plug.in
  MYSQL_PLUGIN_DYNAMIC(innodb_plugin,  [ha_innodb_plugin.la])
  MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
    AC_CHECK_HEADERS(sched.h)
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
+--- a/sql/mysqld.cc	2011-04-12 15:11:35.000000000 +0300
++++ b/sql/mysqld.cc	2011-06-20 08:42:40.935826003 +0300
+@@ -8198,7 +8198,9 @@
+     thd_startup_options|=OPTION_BIG_TABLES;
+     break;
+   case (int) OPT_IGNORE_BUILTIN_INNODB:
+-    opt_ignore_builtin_innodb= 1;
++    sql_print_error("The option ignore-builtin-innodb is incompatible with "
++                    "Percona Server with XtraDB");
++    unireg_abort(1);
+     break;
+   case (int) OPT_ISAM_LOG:
+     opt_myisam_log=1;
+diff -ruN a/mysql-test/t/innodb_ignore_builtin-master.opt b/mysql-test/t/innodb_ignore_builtin-master.opt
+--- a/mysql-test/t/innodb_ignore_builtin-master.opt	2011-04-12 15:37:47.000000000 +0300
++++ b/mysql-test/t/innodb_ignore_builtin-master.opt	2011-06-20 08:34:43.585825995 +0300
+@@ -1 +1 @@
+---ignore_builtin_innodb
++
+diff -ruN a/mysql-test/t/innodb_ignore_builtin.test b/mysql-test/t/innodb_ignore_builtin.test
+--- a/mysql-test/t/innodb_ignore_builtin.test	2011-04-12 15:37:47.000000000 +0300
++++ b/mysql-test/t/innodb_ignore_builtin.test	2011-06-20 08:34:03.025825995 +0300
+@@ -1,3 +1,7 @@
++# For Percona Server this test is made a no-op, because ignore-builtin-innodb
++# is checked at the server startup time and the server aborts with an error
++# if it is found.  Ideally we would like to test this startup abort itself,
++# but MTR does not support that.
+ #
+ # Bug #42610:  Dynamic plugin broken in 5.1.31
+ #
+diff -ruN a/mysql-test/r/innodb_ignore_builtin.result b/mysql-test/r/innodb_ignore_builtin.result
+--- a/mysql-test/r/innodb_ignore_builtin.result	2011-04-12 15:38:18.000000000 +0300
++++ b/mysql-test/r/innodb_ignore_builtin.result	2011-06-20 08:40:10.545826001 +0300
+@@ -1,9 +1,11 @@
+ show variables like 'ignore_builtin_innodb';
+ Variable_name	Value
+-ignore_builtin_innodb	ON
++ignore_builtin_innodb	OFF
+ select PLUGIN_NAME from information_schema.plugins
+ where PLUGIN_NAME = "InnoDb";
+ PLUGIN_NAME
++InnoDB
+ select ENGINE from information_schema.engines
+ where ENGINE = "InnoDB";
+ ENGINE
++InnoDB

@@ -1,30 +1,29 @@
 #!/usr/bin/env bash
-#ls -1 *.patch | grep -v repair | xargs bzr revert
+
 MYSQL_VERSION="$(grep ^MYSQL_VERSION= "Makefile" \
     | cut -d = -f 2)"
-test -z ${MYSQL_DIR} && MYSQL_DIR=mysql-${MYSQL_VERSION}
-test -z ${MYSQL_TAR_GZ} && MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
-test -z ${SERIES} && SERIES=series
-echo MYSQL_VERSION=$MYSQL_VERSION
-echo MYSQL_DIR=$MYSQL_DIR
-echo MYSQL_TAR_GZ=$MYSQL_TAR_GZ
-echo SERIES=$SERIES
+PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= "Makefile" \
+    | cut -d = -f 2)"
+PERCONA_SERVER="Percona-Server-${MYSQL_VERSION}-${PERCONA_SERVER_VERSION}"
+MYSQL_DIR=mysql-${MYSQL_VERSION}
+MYSQL_TAR_GZ=${MYSQL_DIR}.tar.gz
+
 echo "===== Prepare source code for patch's adaptation...";
 echo "===== Remove 'a' copy...";
 rm -rf a;
 echo "===== Remove 'b' copy..."
 rm -rf b;
-echo "===== Remove 'Percona-Server' copy..."
-rm -rf Percona-Server;
-echo "===== Unpack ${MYSQL_DIR} to Percona-Server..."
+echo "===== Remove '${PERCONA_SERVER}' copy..."
+rm -rf ${PERCONA_SERVER};
+echo "===== Unpack ${MYSQL_DIR} to ${PERCONA_SERVER}..."
 tar zxf ${MYSQL_TAR_GZ};
-mv ${MYSQL_DIR} Percona-Server;
+mv ${MYSQL_DIR} ${PERCONA_SERVER};
 echo "===== Prepare 'a' copy..."
-cp -R Percona-Server a;
+cp -R ${PERCONA_SERVER} a;
 echo "===== Prepare 'b' copy..."
-cp -R Percona-Server b;
+cp -R ${PERCONA_SERVER} b;
 echo "===== Ok, let's go patch adaptation..."
-for patch_name in `cat ${SERIES}`; do
+for patch_name in `cat series`; do
     echo "========================================================="
     echo "===== Check patch $patch_name";
     echo "===== Apply patch $patch_name...";
@@ -38,16 +37,15 @@ for patch_name in `cat ${SERIES}`; do
 	exit 1;
     fi;
     if [ $hunk -ne 0 ]; then
-	find b -name "*.orig" | xargs rm;
 	./regenerate_patch.sh a b $patch_name
     fi;
-    patch -p1 -d Percona-Server < $patch_name > /dev/null;
+    patch -p1 -d ${PERCONA_SERVER} < $patch_name > /dev/null;
     patch -p1 -d a < $patch_name > /dev/null;
     echo "===== Patch $patch_name regenerated succesfully"
     if [ $hunk -ne 0 ]; then
 	echo "===== Remove temporary 'b' version"
 	rm -rf b;
 	echo "===== Prepare 'b' copy..."
-	cp -R Percona-Server b;
+	cp -R ${PERCONA_SERVER} b;
     fi;
 done;

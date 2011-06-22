@@ -2,7 +2,9 @@ FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
 MYSQL_VERSION=5.5.13
 PERCONA_SERVER_VERSION=rel20.4
-PERCONA_SERVER ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
+PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
+PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)
+PERCONA_SERVER_SHORT_2 ?=Percona-Server
 DEBUG_DIR ?= $(PERCONA_SERVER)-debug
 RELEASE_DIR ?= $(PERCONA_SERVER)-release
 SERIES ?=series
@@ -70,8 +72,12 @@ main: mysql-$(MYSQL_VERSION).tar.gz
 	@echo "Prepare Percona Server sources"
 	rm -rf mysql-$(MYSQL_VERSION)
 	rm -rf $(PERCONA_SERVER);
+	rm -rf $(PERCONA_SERVER_SHORT_1);
+	rm -rf $(PERCONA_SERVER_SHORT_2);
 	tar zxf mysql-$(MYSQL_VERSION).tar.gz
 	mv mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
+	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
+	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_2)
 	(cat `cat $(SERIES)`) | patch -p1 -d $(PERCONA_SERVER)
 	rm $(PERCONA_SERVER)/sql/sql_yacc.cc $(PERCONA_SERVER)/sql/sql_yacc.h
 

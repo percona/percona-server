@@ -1,15 +1,28 @@
+# Establish connection con1 (user=root)
+# Establish connection con2 (user=root)
+# Establish connection con3 (user=root)
+# Drop test table
 drop table if exists t;
-create table t(a INT UNIQUE PRIMARY KEY,c INT) engine=InnoDB;
-insert into t values(1,1);
+# Create test table
+create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
+# Insert two rows to test table
 insert into t values(2,1);
+insert into t values(1,2);
+# Switch to connection con1
 BEGIN;
-UPDATE t SET c=2 WHERE a=1;
+SELECT b FROM t WHERE a=1 FOR UPDATE;
+# Switch to connection con2
 BEGIN;
-UPDATE t SET c=3 WHERE a=2;
-UPDATE t SET c=2 WHERE a=2;
-UPDATE t SET c=3 WHERE a=1;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SELECT b FROM t WHERE a=2 FOR UPDATE;
+# Switch to connection con1
+SELECT b FROM t WHERE a=2 FOR UPDATE;
+# Switch to connection con2
+SELECT b FROM t WHERE a=1 FOR UPDATE;
+# Switch to connection con1
 ROLLBACK;
+# Switch to connection con2
 ROLLBACK;
-Innodb_deadlocks changes is 1
+# Switch to connection con3
+Deadlocks: 1
+# Drop test table
 drop table t;

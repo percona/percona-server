@@ -2,7 +2,9 @@ FETCH_CMD=wget
 MASTER_SITE=http://www.percona.com/downloads/community
 MYSQL_VERSION=5.1.57
 PERCONA_SERVER_VERSION=rel12.8
-PERCONA_SERVER ?=Percona-Server-$(MYSQL_VERSION)
+PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
+PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)
+PERCONA_SERVER_SHORT_2 ?=Percona-Server
 
 all: main install-lic tests misc handlersocket maatkit-udf autorun
 	@echo ""
@@ -35,8 +37,12 @@ main: mysql-$(MYSQL_VERSION).tar.gz
 	@echo "Prepare Percona Server sources"
 	rm -rf mysql-$(MYSQL_VERSION)
 	rm -rf $(PERCONA_SERVER)
+	rm -rf $(PERCONA_SERVER_SHORT_1)
+	rm -rf $(PERCONA_SERVER_SHORT_2)
 	tar zxf mysql-$(MYSQL_VERSION).tar.gz
 	mv mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
+	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
+	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_2)
 	(cat `cat series`) | patch -p1 -d $(PERCONA_SERVER)
 
 mysql-$(MYSQL_VERSION).tar.gz:
@@ -52,4 +58,3 @@ misc:
 
 clean:
 	rm -rf mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
-

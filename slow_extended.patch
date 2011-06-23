@@ -431,7 +431,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 +my_bool opt_log_slow_sp_statements= 0;
 +my_bool opt_slow_query_log_timestamp_always= 0;
 +ulonglong opt_slow_query_log_use_global_control= 0;
-+ulonglong opt_slow_query_log_timestamp_precision= 0;
++ulong opt_slow_query_log_timestamp_precision= 0;
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
@@ -478,7 +478,7 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
 +extern my_bool opt_log_slow_sp_statements;
 +extern my_bool opt_slow_query_log_timestamp_always;
 +extern ulonglong opt_slow_query_log_use_global_control;
-+extern ulonglong opt_slow_query_log_timestamp_precision;
++extern ulong opt_slow_query_log_timestamp_precision;
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;

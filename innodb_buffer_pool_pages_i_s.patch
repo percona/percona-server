@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-04 20:20:44.595483291 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-06 19:28:04.055227506 +0900
-@@ -4537,6 +4537,36 @@
+@@ -4541,6 +4541,36 @@
  	mutex_exit(block_mutex);
  }
  

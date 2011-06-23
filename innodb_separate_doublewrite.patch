@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-03 17:49:11.574962867 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-04 15:35:58.624514033 +0900
-@@ -4268,7 +4268,8 @@
+@@ -4272,7 +4272,8 @@
  		read_space_id = mach_read_from_4(
  			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
  

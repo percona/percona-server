@@ -13,7 +13,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:31:57.781983359 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:32:39.523946003 +0900
-@@ -3243,6 +3243,7 @@
+@@ -3266,6 +3266,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;

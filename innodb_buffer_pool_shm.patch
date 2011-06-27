@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 16:32:49.669501663 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 16:40:16.149438645 +0900
-@@ -769,10 +769,12 @@
+@@ -773,10 +773,12 @@
  	buf_block_t*	block;
  	byte*		frame;
  	ulint		i;
@@ -21,7 +21,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	/* Reserve space for the block descriptors. */
  	mem_size += ut_2pow_round((mem_size / UNIV_PAGE_SIZE) * (sizeof *block)
  				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
-@@ -810,6 +812,10 @@
+@@ -814,6 +816,10 @@
  		chunk->size = size;
  	}
  

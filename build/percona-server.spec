@@ -561,6 +561,7 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   myoldvendor='%{mysql_old_vendor}'
   myvendor_2='%{mysql_vendor_2}'
   myvendor='%{mysql_vendor}'
+  perconaservervendor='%{percona_server_vendor}'
   myversion='%{mysql_version}'
 
   old_family=`echo $version \
@@ -575,10 +576,12 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   error_text=
   if [ "$vendor" != "$myoldvendor" \
     -a "$vendor" != "$myvendor_2" \
-    -a "$vendor" != "$myvendor" ]; then
+    -a "$vendor" != "$myvendor" \
+    -a "$vendor" != "$perconaservervendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
-vendor ($vendor) than $myoldvendor, $myvendor_2, or $myvendor.
+vendor ($vendor) than $myoldvendor, $myvendor_2,
+$myvendor, or $perconaservervendor.
 Some files may be installed to different locations, including log
 files and the service startup script in %{_sysconfdir}/init.d/.
 "

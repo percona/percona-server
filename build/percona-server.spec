@@ -435,6 +435,17 @@ mkdir release
   cd "$d"
 )
 
+# For the debuginfo extraction stage, some source files are not located in the release
+# and debug dirs, but in the source dir. Make a link there to avoid errors in the
+# strip phase.
+for f in lexyy.c pars0grm.c pars0grm.y pars0lex.l
+do
+    for d in debug release
+    do
+        ln -s "../../../%{src_dir}/storage/innobase/$f" "$d/storage/innobase/"
+    done
+done
+
 # Use the build root for temporary storage of the shared libraries.
 RBR=$RPM_BUILD_ROOT
 

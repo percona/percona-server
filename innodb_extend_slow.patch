@@ -49,7 +49,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  /*
  		IMPLEMENTATION OF THE BUFFER POOL
-@@ -1728,10 +1762,18 @@
+@@ -1732,10 +1766,18 @@
  	mutex_t*	block_mutex;
  	ibool		must_read;
  	unsigned	access_time;
@@ -68,7 +68,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	buf_pool->stat.n_page_gets++;
  
  	for (;;) {
-@@ -1748,7 +1790,7 @@
+@@ -1752,7 +1794,7 @@
  		//buf_pool_mutex_exit();
  		rw_lock_s_unlock(&page_hash_latch);
  
@@ -77,7 +77,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  		ut_a(++buf_dbg_counter % 37 || buf_validate());
-@@ -1823,6 +1865,13 @@
+@@ -1846,6 +1888,13 @@
  		/* Let us wait until the read operation
  		completes */
  
@@ -91,7 +91,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		for (;;) {
  			enum buf_io_fix	io_fix;
  
-@@ -1837,6 +1886,12 @@
+@@ -1860,6 +1909,12 @@
  				break;
  			}
  		}
@@ -104,7 +104,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2096,6 +2151,11 @@
+@@ -2119,6 +2174,11 @@
  	ibool		must_read;
  	ulint		retries = 0;
  	mutex_t*	block_mutex;
@@ -116,7 +116,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
-@@ -2120,6 +2180,9 @@
+@@ -2143,6 +2203,9 @@
  #ifndef UNIV_LOG_DEBUG
  	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
  #endif
@@ -126,7 +126,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	buf_pool->stat.n_page_gets++;
  loop:
  	block = guess;
-@@ -2174,7 +2237,7 @@
+@@ -2197,7 +2260,7 @@
  			return(NULL);
  		}
  
@@ -135,7 +135,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			retries = 0;
  		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
  			++retries;
-@@ -2462,6 +2525,13 @@
+@@ -2485,6 +2548,13 @@
  			/* Let us wait until the read operation
  			completes */
  
@@ -149,7 +149,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			for (;;) {
  				enum buf_io_fix	io_fix;
  
-@@ -2476,6 +2546,12 @@
+@@ -2499,6 +2569,12 @@
  					break;
  				}
  			}
@@ -162,7 +162,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		}
  
  		fix_type = MTR_MEMO_BUF_FIX;
-@@ -2501,13 +2577,17 @@
+@@ -2524,13 +2600,17 @@
  		/* In the case of a first access, try to apply linear
  		read-ahead */
  
@@ -181,7 +181,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	return(block);
  }
  
-@@ -2530,6 +2610,7 @@
+@@ -2553,6 +2633,7 @@
  	unsigned	access_time;
  	ibool		success;
  	ulint		fix_type;
@@ -189,7 +189,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	ut_ad(block);
  	ut_ad(mtr);
-@@ -2607,13 +2688,17 @@
+@@ -2630,13 +2711,17 @@
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ut_a(block->page.file_page_was_freed == FALSE);
  #endif
@@ -208,7 +208,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2622,6 +2707,9 @@
+@@ -2645,6 +2730,9 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  
@@ -218,7 +218,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	return(TRUE);
  }
  
-@@ -2643,6 +2731,7 @@
+@@ -2666,6 +2754,7 @@
  {
  	ibool		success;
  	ulint		fix_type;
@@ -226,7 +226,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
-@@ -2727,6 +2816,11 @@
+@@ -2750,6 +2839,11 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  

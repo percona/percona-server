@@ -8,7 +8,7 @@
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2010-08-27 16:32:40.292412102 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2010-08-27 16:37:55.358105738 +0900
-@@ -3431,7 +3431,8 @@
+@@ -3454,7 +3454,8 @@
  		read_space_id = mach_read_from_4(
  			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
  

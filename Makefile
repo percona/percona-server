@@ -31,7 +31,7 @@ all: main handlersocket maatkit-udf install-lic tests misc
 	export CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
 	export LIBS=-lrt
 	@echo ""
-	@echo "and run ./configure --prefix=/usr/local/$(PERCONA_SERVER) --with-plugin-innobase --with-plugin-partition && make all install"
+	@echo "and run cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF && make all install"
 	@echo ""
 
 handlersocket:

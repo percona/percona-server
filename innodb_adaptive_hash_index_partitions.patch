@@ -1008,7 +1008,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2636,6 +2641,7 @@
+@@ -2655,6 +2660,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;

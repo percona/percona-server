@@ -75,7 +75,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  		ut_a(++buf_dbg_counter % 37 || buf_validate());
-@@ -2499,6 +2541,13 @@
+@@ -2518,6 +2560,13 @@
  		/* Let us wait until the read operation
  		completes */
  
@@ -89,7 +89,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		for (;;) {
  			enum buf_io_fix	io_fix;
  
-@@ -2513,6 +2562,12 @@
+@@ -2532,6 +2581,12 @@
  				break;
  			}
  		}
@@ -102,7 +102,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2828,6 +2883,11 @@
+@@ -2847,6 +2902,11 @@
  	ibool		must_read;
  	ulint		retries = 0;
  	mutex_t*	block_mutex = NULL;
@@ -114,7 +114,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2856,6 +2916,9 @@
+@@ -2875,6 +2935,9 @@
  	      || ibuf_page_low(space, zip_size, offset,
  			       FALSE, file, line, NULL));
  #endif
@@ -124,7 +124,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool->stat.n_page_gets++;
  	fold = buf_page_address_fold(space, offset);
  loop:
-@@ -2930,7 +2993,7 @@
+@@ -2949,7 +3012,7 @@
  			return(NULL);
  		}
  
@@ -133,7 +133,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			retries = 0;
  		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
  			++retries;
-@@ -3239,6 +3302,13 @@
+@@ -3258,6 +3321,13 @@
  			/* Let us wait until the read operation
  			completes */
  
@@ -147,7 +147,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			for (;;) {
  				enum buf_io_fix	io_fix;
  
-@@ -3253,6 +3323,12 @@
+@@ -3272,6 +3342,12 @@
  					break;
  				}
  			}
@@ -160,7 +160,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		}
  
  		fix_type = MTR_MEMO_BUF_FIX;
-@@ -3279,13 +3355,17 @@
+@@ -3298,13 +3374,17 @@
  		read-ahead */
  
  		buf_read_ahead_linear(space, zip_size, offset,
@@ -179,7 +179,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	return(block);
  }
  
-@@ -3309,6 +3389,7 @@
+@@ -3328,6 +3408,7 @@
  	unsigned	access_time;
  	ibool		success;
  	ulint		fix_type;
@@ -187,7 +187,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	ut_ad(block);
  	ut_ad(mtr);
-@@ -3386,6 +3467,10 @@
+@@ -3405,6 +3486,10 @@
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ut_a(block->page.file_page_was_freed == FALSE);
  #endif
@@ -198,7 +198,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	if (UNIV_UNLIKELY(!access_time)) {
  		/* In the case of a first access, try to apply linear
  		read-ahead */
-@@ -3393,7 +3478,7 @@
+@@ -3412,7 +3497,7 @@
  		buf_read_ahead_linear(buf_block_get_space(block),
  				      buf_block_get_zip_size(block),
  				      buf_block_get_page_no(block),
@@ -207,7 +207,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -3403,6 +3488,9 @@
+@@ -3422,6 +3507,9 @@
  	buf_pool = buf_pool_from_block(block);
  	buf_pool->stat.n_page_gets++;
  
@@ -217,7 +217,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	return(TRUE);
  }
  
-@@ -3425,6 +3513,7 @@
+@@ -3444,6 +3532,7 @@
  	buf_pool_t*	buf_pool;
  	ibool		success;
  	ulint		fix_type;
@@ -225,7 +225,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
-@@ -3511,6 +3600,11 @@
+@@ -3530,6 +3619,11 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  

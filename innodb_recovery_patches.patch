@@ -441,7 +441,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
  # include "os0thread.h"
-@@ -4260,6 +4261,18 @@
+@@ -4270,6 +4271,18 @@
  					   INFINITE);
  	}
  

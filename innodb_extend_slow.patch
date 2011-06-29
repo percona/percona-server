@@ -578,7 +578,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  	const char*	src_file,/*!< in: file name where func invoked */
  	ulint		src_line);/*!< in: line where the func invoked */
  /*******************************************************************//**
-@@ -887,7 +897,8 @@
+@@ -889,7 +899,8 @@
  				offset where to read */
  	ulint		offset_high,/*!< in: most significant 32 bits of
  				offset */
@@ -588,7 +588,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  /*******************************************************************//**
  Rewind file to its start, read at most size - 1 bytes from it to str, and
  NUL-terminate str. All errors are silently ignored. This function is
-@@ -1046,10 +1057,11 @@
+@@ -1048,10 +1059,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -727,7 +727,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #include "log0recv.h"
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
-@@ -2202,13 +2204,18 @@
+@@ -2212,13 +2214,18 @@
  	ulint		n,	/*!< in: number of bytes to read */
  	ulint		offset,	/*!< in: least significant 32 bits of file
  				offset from where to read */
@@ -747,7 +747,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	ut_a((offset & 0xFFFFFFFFUL) == offset);
  
-@@ -2229,6 +2236,15 @@
+@@ -2239,6 +2246,15 @@
  
  	os_n_file_reads++;
  
@@ -763,7 +763,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
  	os_mutex_enter(os_file_count_mutex);
  	os_file_n_pending_preads++;
-@@ -2242,6 +2258,13 @@
+@@ -2252,6 +2268,13 @@
  	os_n_pending_reads--;
  	os_mutex_exit(os_file_count_mutex);
  
@@ -777,7 +777,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	return(n_bytes);
  #else
  	{
-@@ -2278,6 +2301,13 @@
+@@ -2288,6 +2311,13 @@
  		os_n_pending_reads--;
  		os_mutex_exit(os_file_count_mutex);
  
@@ -791,7 +791,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		return(ret);
  	}
  #endif
-@@ -2418,7 +2448,8 @@
+@@ -2428,7 +2458,8 @@
  				offset where to read */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -801,7 +801,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  #ifdef __WIN__
  	BOOL		ret;
-@@ -2493,7 +2524,7 @@
+@@ -2503,7 +2534,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -810,7 +810,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((ulint)ret == n) {
  
-@@ -2622,7 +2653,7 @@
+@@ -2632,7 +2663,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -819,7 +819,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((ulint)ret == n) {
  
-@@ -4016,10 +4047,11 @@
+@@ -4026,10 +4057,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -832,7 +832,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_array_t*	array;
  	os_aio_slot_t*	slot;
-@@ -4060,8 +4092,8 @@
+@@ -4070,8 +4102,8 @@
  		wait in the Windows case. */
  
  		if (type == OS_FILE_READ) {
@@ -843,7 +843,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -4101,6 +4133,11 @@
+@@ -4111,6 +4143,11 @@
  		array = NULL; /* Eliminate compiler warning */
  	}
  

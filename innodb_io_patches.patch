@@ -27,6 +27,15 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 --- a/storage/innobase/buf/buf0flu.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0flu.c	2010-12-03 15:10:08.934990091 +0900
+@@ -855,7 +855,7 @@
+ flush:
+ 	/* Now flush the doublewrite buffer data to disk */
+ 
+-	fil_flush(TRX_SYS_SPACE);
++	fil_flush(TRX_SYS_SPACE, FALSE);
+ 
+ 	/* We know that the writes have been flushed to disk now
+ 	and in recovery we will find them in the doublewrite buffer
 @@ -1376,7 +1376,7 @@
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
@@ -50,6 +59,83 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
  	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
  		/* No read-ahead to avoid thread deadlocks */
  		return(0);
+diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
+--- a/storage/innobase/fil/fil0fil.c	2011-06-29 17:48:24.797971571 +0900
++++ b/storage/innobase/fil/fil0fil.c	2011-06-29 18:04:02.548053286 +0900
+@@ -2600,7 +2600,7 @@
+ 
+ 		os_thread_sleep(20000);
+ 
+-		fil_flush(id);
++		fil_flush(id, TRUE);
+ 
+ 		goto retry;
+ 
+@@ -2814,7 +2814,7 @@
+ 		goto error_exit;
+ 	}
+ 
+-	ret = os_file_flush(file);
++	ret = os_file_flush(file, TRUE);
+ 
+ 	if (!ret) {
+ 		fputs("InnoDB: Error: file flush of tablespace ", stderr);
+@@ -3000,7 +3000,7 @@
+ 		}
+ 	}
+ 
+-	success = os_file_flush(file);
++	success = os_file_flush(file, TRUE);
+ 	if (!success) {
+ 
+ 		goto func_exit;
+@@ -3022,7 +3022,7 @@
+ 
+ 		goto func_exit;
+ 	}
+-	success = os_file_flush(file);
++	success = os_file_flush(file, TRUE);
+ func_exit:
+ 	os_file_close(file);
+ 	ut_free(buf2);
+@@ -4005,7 +4005,7 @@
+ 	size_after_extend, *actual_size); */
+ 	mutex_exit(&fil_system->mutex);
+ 
+-	fil_flush(space_id);
++	fil_flush(space_id, TRUE);
+ 
+ 	return(success);
+ }
+@@ -4576,8 +4576,9 @@
+ void
+ fil_flush(
+ /*======*/
+-	ulint	space_id)	/*!< in: file space id (this can be a group of
++	ulint	space_id,	/*!< in: file space id (this can be a group of
+ 				log files or a tablespace of the database) */
++	ibool	metadata)
+ {
+ 	fil_space_t*	space;
+ 	fil_node_t*	node;
+@@ -4648,7 +4649,7 @@
+ 			/* fprintf(stderr, "Flushing to file %s\n",
+ 			node->name); */
+ 
+-			os_file_flush(file);
++			os_file_flush(file, metadata);
+ 
+ 			mutex_enter(&fil_system->mutex);
+ 
+@@ -4731,7 +4732,7 @@
+ 	a non-existing space id. */
+ 	for (i = 0; i < n_space_ids; i++) {
+ 
+-		fil_flush(space_ids[i]);
++		fil_flush(space_ids[i], TRUE);
+ 	}
+ 
+ 	mem_free(space_ids);
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:09:51.283956391 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:10:08.963980444 +0900
@@ -296,6 +382,20 @@ diff -ruN a/storage/innobase/include/buf0rea.h b/storage/innobase/include/buf0re
  
  /** @name Modes used in read-ahead @{ */
  /** read only pages belonging to the insert buffer tree */
+diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
+--- a/storage/innobase/include/fil0fil.h	2011-06-29 17:48:24.818969583 +0900
++++ b/storage/innobase/include/fil0fil.h	2011-06-29 17:58:49.215971540 +0900
+@@ -658,8 +658,9 @@
+ void
+ fil_flush(
+ /*======*/
+-	ulint	space_id);	/*!< in: file space id (this can be a group of
++	ulint	space_id,	/*!< in: file space id (this can be a group of
+ 				log files or a tablespace of the database) */
++	ibool	metadata);
+ /**********************************************************************//**
+ Flushes to disk writes in file spaces of the given type possibly cached by
+ the OS. */
 diff -ruN a/storage/innobase/include/ha_prototypes.h b/storage/innobase/include/ha_prototypes.h
 --- a/storage/innobase/include/ha_prototypes.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/ha_prototypes.h	2010-12-03 15:10:09.078026360 +0900
@@ -313,6 +413,67 @@ diff -ruN a/storage/innobase/include/ha_prototypes.h b/storage/innobase/include/
  
  /**********************************************************************//**
  Get the current setting of the lower_case_table_names global parameter from
+diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0file.h
+--- a/storage/innobase/include/os0file.h	2011-05-11 20:54:12.000000000 +0900
++++ b/storage/innobase/include/os0file.h	2011-06-29 17:55:21.947041132 +0900
+@@ -296,8 +296,8 @@
+ 	pfs_os_file_write_func(name, file, buf, offset, offset_high,	\
+ 			       n, __FILE__, __LINE__)
+ 
+-# define os_file_flush(file)						\
+-	pfs_os_file_flush_func(file, __FILE__, __LINE__)
++# define os_file_flush(file, metadata)					\
++	pfs_os_file_flush_func(file, metadata, __FILE__, __LINE__)
+ 
+ # define os_file_rename(key, oldpath, newpath)				\
+ 	pfs_os_file_rename_func(key, oldpath, newpath, __FILE__, __LINE__)
+@@ -333,7 +333,7 @@
+ # define os_file_write(name, file, buf, offset, offset_high, n)		\
+ 	os_file_write_func(name, file, buf, offset, offset_high, n)
+ 
+-# define os_file_flush(file)	os_file_flush_func(file)
++# define os_file_flush(file, metadata)	os_file_flush_func(file, metadata)
+ 
+ # define os_file_rename(key, oldpath, newpath)				\
+ 	os_file_rename_func(oldpath, newpath)
+@@ -781,6 +781,7 @@
+ pfs_os_file_flush_func(
+ /*===================*/
+ 	os_file_t	file,	/*!< in, own: handle to a file */
++	ibool		metadata,
+ 	const char*	src_file,/*!< in: file name where func invoked */
+ 	ulint		src_line);/*!< in: line where the func invoked */
+ 
+@@ -860,7 +861,8 @@
+ ibool
+ os_file_flush_func(
+ /*===============*/
+-	os_file_t	file);	/*!< in, own: handle to a file */
++	os_file_t	file,	/*!< in, own: handle to a file */
++	ibool		metadata);
+ /***********************************************************************//**
+ Retrieves the last error number if an error occurs in a file io function.
+ The number should be retrieved before any other OS calls (because they may
+diff -ruN a/storage/innobase/include/os0file.ic b/storage/innobase/include/os0file.ic
+--- a/storage/innobase/include/os0file.ic	2011-05-11 20:54:12.000000000 +0900
++++ b/storage/innobase/include/os0file.ic	2011-06-29 17:56:01.510958172 +0900
+@@ -369,6 +369,7 @@
+ pfs_os_file_flush_func(
+ /*===================*/
+ 	os_file_t	file,	/*!< in, own: handle to a file */
++	ibool		metadata,
+ 	const char*	src_file,/*!< in: file name where func invoked */
+ 	ulint		src_line)/*!< in: line where the func invoked */
+ {
+@@ -378,7 +379,7 @@
+ 
+ 	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_SYNC,
+ 				   src_file, src_line);
+-	result = os_file_flush_func(file);
++	result = os_file_flush_func(file, metadata);
+ 
+ 	register_pfs_file_io_end(locker, 0);
+ 
 diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
 --- a/storage/innobase/include/srv0srv.h	2010-12-03 15:09:51.291955835 +0900
 +++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:10:09.079029047 +0900
@@ -419,15 +580,19 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  
  		log->check_flush_or_checkpoint = TRUE;
  	}
-@@ -1100,6 +1128,7 @@
+@@ -1100,9 +1128,10 @@
  		group = (log_group_t*)((ulint)group - 1);
  
  		if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
 +		    && srv_unix_file_flush_method != SRV_UNIX_ALL_O_DIRECT
  		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
  
- 			fil_flush(group->space_id);
-@@ -1121,8 +1150,9 @@
+-			fil_flush(group->space_id);
++			fil_flush(group->space_id, FALSE);
+ 		}
+ 
+ #ifdef UNIV_DEBUG
+@@ -1121,10 +1150,11 @@
  			logs and cannot end up here! */
  
  	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
@@ -436,8 +601,11 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
 -	    && srv_flush_log_at_trx_commit != 2) {
 +	    && thd_flush_log_at_trx_commit(NULL) != 2) {
  
- 		fil_flush(group->space_id);
+-		fil_flush(group->space_id);
++		fil_flush(group->space_id, FALSE);
  	}
+ 
+ 	mutex_enter(&(log_sys->mutex));
 @@ -1501,7 +1531,8 @@
  
  	mutex_exit(&(log_sys->mutex));
@@ -447,6 +615,15 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
 +	    || srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
  		/* O_DSYNC means the OS did not buffer the log file at all:
  		so we have also flushed to disk what we have written */
+ 
+@@ -1511,7 +1542,7 @@
+ 
+ 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
+ 
+-		fil_flush(group->space_id);
++		fil_flush(group->space_id, FALSE);
+ 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
+ 	}
  
 @@ -2120,10 +2151,10 @@
  
@@ -470,6 +647,15 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  		/* A checkpoint is not urgent: do it asynchronously */
  
  		do_checkpoint = TRUE;
+@@ -2607,7 +2638,7 @@
+ 
+ 	mutex_exit(&(log_sys->mutex));
+ 
+-	fil_flush(group->archive_space_id);
++	fil_flush(group->archive_space_id, TRUE);
+ 
+ 	mutex_enter(&(log_sys->mutex));
+ 
 @@ -3349,6 +3380,17 @@
  		log_sys->flushed_to_disk_lsn,
  		log_sys->last_checkpoint_lsn);
@@ -505,6 +691,24 @@ diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
  #ifdef UNIV_LOG_ARCHIVE
  	ut_ad(type != LOG_CHECKPOINT || limit_lsn == IB_ULONGLONG_MAX);
  /** TRUE when recovering from a checkpoint */
+@@ -3468,7 +3471,7 @@
+ 			exit(1);
+ 		}
+ 
+-		os_file_flush(log_file);
++		os_file_flush(log_file, TRUE);
+ 		os_file_close(log_file);
+ 	}
+ 
+@@ -3492,7 +3495,7 @@
+ 
+ 	os_file_write(name, log_file, buf, 0, 0,
+ 		      LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+-	os_file_flush(log_file);
++	os_file_flush(log_file, TRUE);
+ 	os_file_close(log_file);
+ 
+ 	ut_free(buf);
 diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 --- a/storage/innobase/os/os0file.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/os/os0file.c	2010-12-03 15:10:09.093023540 +0900
@@ -538,6 +742,118 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #ifdef USE_FILE_LOCK
  	if (create_mode != OS_FILE_OPEN_RAW && os_file_lock(file, name)) {
  
+@@ -2008,7 +2013,7 @@
+ 
+ 	ut_free(buf2);
+ 
+-	ret = os_file_flush(file);
++	ret = os_file_flush(file, TRUE);
+ 
+ 	if (ret) {
+ 		return(TRUE);
+@@ -2046,7 +2051,8 @@
+ int
+ os_file_fsync(
+ /*==========*/
+-	os_file_t	file)	/*!< in: handle to a file */
++	os_file_t	file,	/*!< in: handle to a file */
++	ibool		metadata)
+ {
+ 	int	ret;
+ 	int	failures;
+@@ -2055,7 +2061,15 @@
+ 	failures = 0;
+ 
+ 	do {
++#ifdef HAVE_FDATASYNC
++		if (metadata) {
++			ret = fsync(file);
++		} else {
++			ret = fdatasync(file);
++		}
++#else
+ 		ret = fsync(file);
++#endif
+ 
+ 		os_n_fsyncs++;
+ 
+@@ -2092,7 +2106,8 @@
+ ibool
+ os_file_flush_func(
+ /*===============*/
+-	os_file_t	file)	/*!< in, own: handle to a file */
++	os_file_t	file,	/*!< in, own: handle to a file */
++	ibool		metadata)
+ {
+ #ifdef __WIN__
+ 	BOOL	ret;
+@@ -2142,18 +2157,18 @@
+ 		/* If we are not on an operating system that supports this,
+ 		then fall back to a plain fsync. */
+ 
+-		ret = os_file_fsync(file);
++		ret = os_file_fsync(file, metadata);
+ 	} else {
+ 		ret = fcntl(file, F_FULLFSYNC, NULL);
+ 
+ 		if (ret) {
+ 			/* If we are not on a file system that supports this,
+ 			then fall back to a plain fsync. */
+-			ret = os_file_fsync(file);
++			ret = os_file_fsync(file, metadata);
+ 		}
+ 	}
+ #else
+-	ret = os_file_fsync(file);
++	ret = os_file_fsync(file, metadata);
+ #endif
+ 
+ 	if (ret == 0) {
+@@ -2336,7 +2351,7 @@
+ 		the OS crashes, a database page is only partially
+ 		physically written to disk. */
+ 
+-		ut_a(TRUE == os_file_flush(file));
++		ut_a(TRUE == os_file_flush(file, TRUE));
+ 	}
+ # endif /* UNIV_DO_FLUSH */
+ 
+@@ -2378,7 +2393,7 @@
+ 			the OS crashes, a database page is only partially
+ 			physically written to disk. */
+ 
+-			ut_a(TRUE == os_file_flush(file));
++			ut_a(TRUE == os_file_flush(file, TRUE));
+ 		}
+ # endif /* UNIV_DO_FLUSH */
+ 
+@@ -2750,7 +2765,7 @@
+ 
+ # ifdef UNIV_DO_FLUSH
+ 	if (!os_do_not_call_flush_at_each_write) {
+-		ut_a(TRUE == os_file_flush(file));
++		ut_a(TRUE == os_file_flush(file, TRUE));
+ 	}
+ # endif /* UNIV_DO_FLUSH */
+ 
+@@ -4289,7 +4304,7 @@
+ #ifdef UNIV_DO_FLUSH
+ 		if (slot->type == OS_FILE_WRITE
+ 		    && !os_do_not_call_flush_at_each_write) {
+-			if (!os_file_flush(slot->file)) {
++			if (!os_file_flush(slot->file, TRUE)) {
+ 				ut_error;
+ 			}
+ 		}
+@@ -4590,7 +4605,7 @@
+ #ifdef UNIV_DO_FLUSH
+ 		if (slot->type == OS_FILE_WRITE
+ 		    && !os_do_not_call_flush_at_each_write)
+-		    && !os_file_flush(slot->file) {
++		    && !os_file_flush(slot->file, TRUE) {
+ 			ut_error;
+ 		}
+ #endif /* UNIV_DO_FLUSH */
 diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 --- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:09:51.301987792 +0900
 +++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:13:29.369986988 +0900

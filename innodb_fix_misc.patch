@@ -43,7 +43,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
 diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
 --- a/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:31:57.781983359 +0900
 +++ b/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:32:39.523946003 +0900
-@@ -949,74 +949,6 @@
+@@ -953,74 +953,6 @@
  	return(NULL);
  }
  
@@ -118,7 +118,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  /********************************************************************//**
  Creates the buffer pool.
  @return	own: buf_pool object, NULL if not enough memory or error */
-@@ -1106,8 +1038,6 @@
+@@ -1110,8 +1042,6 @@
  	chunk = chunks + buf_pool->n_chunks;
  
  	while (--chunk >= chunks) {
@@ -127,7 +127,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		os_mem_free_large(chunk->mem, chunk->mem_size);
  	}
  
-@@ -1287,325 +1217,6 @@
+@@ -1291,325 +1221,6 @@
  }
  
  /********************************************************************//**
@@ -453,7 +453,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  Moves a page to the start of the buffer pool LRU list. This high-level
  function can be used to prevent an important page from slipping out of
  the buffer pool. */
-@@ -2448,8 +2059,10 @@
+@@ -2471,8 +2082,10 @@
  
  		if (buf_page_get_state(&block->page)
  		    == BUF_BLOCK_ZIP_PAGE) {
@@ -464,7 +464,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			ut_ad(!block->page.in_flush_list);
  		} else {
  			/* Relocate buf_pool->flush_list. */
-@@ -3243,6 +2856,7 @@
+@@ -3266,6 +2879,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -472,7 +472,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  #ifdef UNIV_DEBUG
  		bpage->in_page_hash = FALSE;
-@@ -3260,9 +2874,11 @@
+@@ -3283,9 +2897,11 @@
  
  		/* The block must be put to the LRU list, to the old blocks */
  		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -698,7 +698,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	mutex_exit(&fil_system->mutex);
 +	mutex_exit(&fil_system->file_extend_mutex);
  
- 	fil_flush(space_id);
+ 	fil_flush(space_id, TRUE);
  
 @@ -4813,6 +4829,22 @@
  		srv_data_written+= len;
@@ -898,7 +898,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/include/os0file.h
 --- a/storage/innodb_plugin/include/os0file.h	2011-02-21 20:31:57.870987755 +0900
 +++ b/storage/innodb_plugin/include/os0file.h	2011-02-21 20:32:39.540912738 +0900
-@@ -657,6 +657,7 @@
+@@ -658,6 +658,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -906,7 +906,7 @@ diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/incl
  	trx_t*		trx);
  /************************************************************************//**
  Wakes up all async i/o threads so that they know to exit themselves in
-@@ -717,7 +718,8 @@
+@@ -718,7 +719,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -916,7 +916,7 @@ diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/incl
  #endif
  
  /**********************************************************************//**
-@@ -739,7 +741,8 @@
+@@ -740,7 +742,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -994,7 +994,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	fil_node_t*	message1;	/*!< message which is given by the */
  	void*		message2;	/*!< the requester of an aio operation
  					and which can be used to identify
-@@ -3390,7 +3391,8 @@
+@@ -3400,7 +3401,8 @@
  				offset */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -1004,7 +1004,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_slot_t*	slot;
  	ulint		i;
-@@ -3472,6 +3474,7 @@
+@@ -3482,6 +3484,7 @@
  	slot->offset_high = offset_high;
  //	slot->io_already_done = FALSE;
  	slot->status = OS_AIO_NOT_ISSUED;
@@ -1012,7 +1012,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  #ifdef WIN_ASYNC_IO
  	control = &(slot->control);
-@@ -3680,6 +3683,7 @@
+@@ -3690,6 +3693,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -1020,7 +1020,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	trx_t*		trx)
  {
  	os_aio_array_t*	array;
-@@ -3762,7 +3766,7 @@
+@@ -3772,7 +3776,7 @@
  		trx->io_read += n;
  	}
  	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
@@ -1029,7 +1029,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	if (type == OS_FILE_READ) {
  		if (os_aio_use_native_aio) {
  #ifdef WIN_ASYNC_IO
-@@ -3872,7 +3876,8 @@
+@@ -3882,7 +3886,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -1039,7 +1039,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	ulint		orig_seg	= segment;
  	os_aio_array_t*	array;
-@@ -3926,6 +3931,7 @@
+@@ -3936,6 +3941,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;
@@ -1047,7 +1047,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	if (ret && len == slot->len) {
  		ret_val = TRUE;
-@@ -4009,7 +4015,8 @@
+@@ -4019,7 +4025,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -1057,7 +1057,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_array_t*	array;
  	ulint		segment;
-@@ -4300,6 +4307,7 @@
+@@ -4310,6 +4317,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;

@@ -45,8 +45,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  flush:
  	/* Now flush the doublewrite buffer data to disk */
  
--	fil_flush(TRX_SYS_SPACE);
-+	fil_flush(srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE);
+-	fil_flush(TRX_SYS_SPACE, FALSE);
++	fil_flush(srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE, FALSE);
  
  	/* We know that the writes have been flushed to disk now
  	and in recovery we will find them in the doublewrite buffer
@@ -303,7 +303,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5265,7 +5275,7 @@
+@@ -5266,7 +5276,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);

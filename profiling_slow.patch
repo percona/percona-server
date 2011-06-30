@@ -327,6 +327,23 @@ diff -ruN a/sql/sql_profile.cc b/sql/sql_profile.cc
  /**
    Fill the information schema table, "query_profile", as defined in show.cc .
    There are two ways to get to this function:  Selecting from the information
+@@ -575,6 +702,8 @@
+ 
+ #ifdef HAVE_GETRUSAGE
+ 
++      if (enabled_getrusage())
++      {
+       my_decimal cpu_utime_decimal, cpu_stime_decimal;
+ 
+       double2my_decimal(E_DEC_FATAL_ERROR,
+@@ -645,6 +774,7 @@
+       table->field[14]->store((uint32)(entry->rusage.ru_nswap -
+                              previous->rusage.ru_nswap), true);
+       table->field[14]->set_notnull();
++      }
+ #else
+       /* TODO: Add swap info for non-BSD systems */
+ #endif
 diff -ruN a/sql/sql_profile.h b/sql/sql_profile.h
 --- a/sql/sql_profile.h	2010-10-12 00:34:33.000000000 +0400
 +++ b/sql/sql_profile.h	2010-11-25 15:54:48.000000000 +0300

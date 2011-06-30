@@ -204,7 +204,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	mutex_exit(&fil_system->mutex);
 +	mutex_exit(&fil_system->file_extend_mutex);
  
- 	fil_flush(space_id);
+ 	fil_flush(space_id, TRUE);
  
 @@ -5182,6 +5199,22 @@
  		srv_data_written+= len;
@@ -407,7 +407,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  	trx_t*		trx,
  	const char*	src_file,/*!< in: file name where func invoked */
  	ulint		src_line);/*!< in: line where the func invoked */
-@@ -1063,6 +1064,7 @@
+@@ -1065,6 +1066,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -415,7 +415,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  	trx_t*		trx);
  /************************************************************************//**
  Wakes up all async i/o threads so that they know to exit themselves in
-@@ -1123,7 +1125,8 @@
+@@ -1125,7 +1127,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -425,7 +425,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  #endif
  
  /**********************************************************************//**
-@@ -1145,7 +1148,8 @@
+@@ -1147,7 +1150,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -435,7 +435,7 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  /**********************************************************************//**
  Validates the consistency of the aio system.
  @return	TRUE if ok */
-@@ -1224,7 +1228,8 @@
+@@ -1226,7 +1230,8 @@
  				aio operation failed, these output
  				parameters are valid and can be used to
  				restart the operation. */
@@ -524,7 +524,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	fil_node_t*	message1;	/*!< message which is given by the */
  	void*		message2;	/*!< the requester of an aio operation
  					and which can be used to identify
-@@ -3675,7 +3676,8 @@
+@@ -3685,7 +3686,8 @@
  				offset */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -534,7 +534,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_slot_t*	slot = NULL;
  #ifdef WIN_ASYNC_IO
-@@ -3764,6 +3766,7 @@
+@@ -3774,6 +3776,7 @@
  	slot->offset   = offset;
  	slot->offset_high = offset_high;
  	slot->io_already_done = FALSE;
@@ -542,7 +542,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  #ifdef WIN_ASYNC_IO
  	control = &(slot->control);
-@@ -4051,6 +4054,7 @@
+@@ -4061,6 +4064,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -550,7 +550,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	trx_t*		trx)
  {
  	os_aio_array_t*	array;
-@@ -4139,7 +4143,7 @@
+@@ -4149,7 +4153,7 @@
  		trx->io_read += n;
  	}
  	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
@@ -559,7 +559,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	if (type == OS_FILE_READ) {
  		if (srv_use_native_aio) {
  			os_n_file_reads++;
-@@ -4258,7 +4262,8 @@
+@@ -4268,7 +4272,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -569,7 +569,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	ulint		orig_seg	= segment;
  	os_aio_array_t*	array;
-@@ -4337,6 +4342,7 @@
+@@ -4347,6 +4352,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;
@@ -577,7 +577,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if (ret && len == slot->len) {
  		ret_val = TRUE;
-@@ -4565,7 +4571,8 @@
+@@ -4575,7 +4581,8 @@
  				aio operation failed, these output
  				parameters are valid and can be used to
  				restart the operation. */
@@ -587,7 +587,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	ulint		segment;
  	os_aio_array_t*	array;
-@@ -4638,6 +4645,7 @@
+@@ -4648,6 +4655,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;
@@ -595,7 +595,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((slot->ret == 0) && (slot->n_bytes == (long)slot->len)) {
  		ret = TRUE;
-@@ -4691,7 +4699,8 @@
+@@ -4701,7 +4709,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -605,7 +605,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_array_t*	array;
  	ulint		segment;
-@@ -4987,6 +4996,7 @@
+@@ -4997,6 +5006,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;

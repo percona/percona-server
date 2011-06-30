@@ -637,7 +637,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5780,3 +5813,46 @@
+@@ -5781,3 +5814,46 @@
                 return 0;
         }
  }
@@ -1193,7 +1193,7 @@ diff -ruN a/storage/innobase/include/dict0mem.h b/storage/innobase/include/dict0
 diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
 --- a/storage/innobase/include/fil0fil.h	2010-12-04 15:35:29.175520016 +0900
 +++ b/storage/innobase/include/fil0fil.h	2010-12-04 15:38:18.172483391 +0900
-@@ -749,6 +749,19 @@
+@@ -750,6 +750,19 @@
  fil_system_hash_nodes(void);
  /*========================*/
  

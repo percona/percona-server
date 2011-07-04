@@ -453,7 +453,63 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  Moves a page to the start of the buffer pool LRU list. This high-level
  function can be used to prevent an important page from slipping out of
  the buffer pool. */
-@@ -2471,8 +2082,10 @@
+@@ -1843,6 +1454,27 @@
+ #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+ 	}
+ 
++	if (UNIV_UNLIKELY(bpage->space_was_being_deleted)) {
++		/* This page is obsoleted, should discard and retry */
++		rw_lock_s_unlock(&page_hash_latch);
++
++		mutex_enter(&LRU_list_mutex);
++		block_mutex = buf_page_get_mutex_enter(bpage);
++
++		if (UNIV_UNLIKELY(!block_mutex)) {
++			mutex_exit(&LRU_list_mutex);
++			goto lookup;
++		}
++
++		buf_LRU_free_block(bpage, TRUE, TRUE);
++
++		mutex_exit(&LRU_list_mutex);
++		mutex_exit(block_mutex);
++		block_mutex = NULL;
++
++		goto lookup;
++	}
++
+ 	if (UNIV_UNLIKELY(!bpage->zip.data)) {
+ 		/* There is no compressed page. */
+ err_exit:
+@@ -2292,6 +1924,27 @@
+ 		rw_lock_s_lock(&page_hash_latch);
+ 		block = (buf_block_t*) buf_page_hash_get(space, offset);
+ 		if (block) {
++			if (UNIV_UNLIKELY(block->page.space_was_being_deleted)) {
++				/* This page is obsoleted, should discard and retry */
++				rw_lock_s_unlock(&page_hash_latch);
++
++				mutex_enter(&LRU_list_mutex);
++				block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
++
++				if (UNIV_UNLIKELY(!block_mutex)) {
++					mutex_exit(&LRU_list_mutex);
++					goto loop;
++				}
++
++				buf_LRU_free_block((buf_page_t*)block, TRUE, TRUE);
++
++				mutex_exit(&LRU_list_mutex);
++				mutex_exit(block_mutex);
++				block_mutex = NULL;
++
++				goto loop;
++			}
++
+ 			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
+ 			ut_a(block_mutex);
+ 		}
+@@ -2471,8 +2124,10 @@
  
  		if (buf_page_get_state(&block->page)
  		    == BUF_BLOCK_ZIP_PAGE) {
@@ -464,7 +520,46 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			ut_ad(!block->page.in_flush_list);
  		} else {
  			/* Relocate buf_pool->flush_list. */
-@@ -3266,6 +2879,7 @@
+@@ -3108,6 +2763,7 @@
+ {
+ 	buf_block_t*	block;
+ 	buf_page_t*	bpage;
++	buf_page_t*	bpage_in_bp;
+ 	mtr_t		mtr;
+ 	ibool		lru	= FALSE;
+ 	void*		data;
+@@ -3143,11 +2799,29 @@
+ 		ut_ad(block);
+ 	}
+ 
++retry:
+ 	//buf_pool_mutex_enter();
+ 	mutex_enter(&LRU_list_mutex);
+ 	rw_lock_x_lock(&page_hash_latch);
+ 
+-	if (buf_page_hash_get(space, offset)) {
++	bpage_in_bp = buf_page_hash_get(space, offset);
++
++	if (UNIV_UNLIKELY(bpage_in_bp && bpage_in_bp->space_was_being_deleted)) {
++		mutex_t*	block_mutex = buf_page_get_mutex_enter(bpage_in_bp);
++
++		/* This page is obsoleted, should discard and retry */
++		rw_lock_x_unlock(&page_hash_latch);
++		ut_a(block_mutex);
++
++		buf_LRU_free_block(bpage_in_bp, TRUE, TRUE);
++
++		mutex_exit(&LRU_list_mutex);
++		mutex_exit(block_mutex);
++
++		goto retry;
++	}
++
++	if (bpage_in_bp) {
+ 		/* The page is already in the buffer pool. */
+ err_exit:
+ 		if (block) {
+@@ -3266,6 +2940,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -472,7 +567,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  #ifdef UNIV_DEBUG
  		bpage->in_page_hash = FALSE;
-@@ -3283,9 +2897,11 @@
+@@ -3283,9 +2958,11 @@
  
  		/* The block must be put to the LRU list, to the old blocks */
  		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -484,6 +579,35 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  		mutex_exit(&LRU_list_mutex);
  
+@@ -3336,12 +3013,28 @@
+ 
+ 	free_block = buf_LRU_get_free_block();
+ 
++retry:
+ 	//buf_pool_mutex_enter();
+ 	mutex_enter(&LRU_list_mutex);
+ 	rw_lock_x_lock(&page_hash_latch);
+ 
+ 	block = (buf_block_t*) buf_page_hash_get(space, offset);
+ 
++	if (UNIV_UNLIKELY(block && block->page.space_was_being_deleted)) {
++		mutex_t*	block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
++
++		/* This page is obsoleted, should discard and retry */
++		rw_lock_x_unlock(&page_hash_latch);
++		ut_a(block_mutex);
++
++		buf_LRU_free_block((buf_page_t*)block, TRUE, TRUE);
++
++		mutex_exit(&LRU_list_mutex);
++		mutex_exit(block_mutex);
++
++		goto retry;
++	}
++
+ 	if (block && buf_page_in_file(&block->page)) {
+ #ifdef UNIV_IBUF_COUNT_DEBUG
+ 		ut_a(ibuf_count_get(space, offset) == 0);
 diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
 --- a/storage/innodb_plugin/buf/buf0flu.c	2011-02-21 20:31:57.784983260 +0900
 +++ b/storage/innodb_plugin/buf/buf0flu.c	2011-02-21 20:32:39.524915732 +0900
@@ -523,7 +647,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
 --- a/storage/innodb_plugin/buf/buf0lru.c	2011-02-21 20:31:57.451983310 +0900
 +++ b/storage/innodb_plugin/buf/buf0lru.c	2011-02-21 20:32:39.526949096 +0900
-@@ -550,6 +550,31 @@
+@@ -550,6 +550,56 @@
  	}
  }
  
@@ -536,6 +660,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +	ulint	id)	/*!< in: space id */
 +{
 +	buf_page_t*	bpage;
++	buf_chunk_t*	chunk;
++	ulint		i, j;
 +
 +	mutex_enter(&LRU_list_mutex);
 +
@@ -549,13 +675,36 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 +	}
 +
 +	mutex_exit(&LRU_list_mutex);
++
++	rw_lock_s_lock(&btr_search_latch);
++	chunk = buf_pool->chunks;
++	for (i = buf_pool->n_chunks; i--; chunk++) {
++		buf_block_t*	block	= chunk->blocks;
++		for (j = chunk->size; j--; block++) {
++			if (buf_block_get_state(block)
++			    != BUF_BLOCK_FILE_PAGE
++			    || !block->is_hashed
++			    || buf_page_get_space(&block->page) != id) {
++				continue;
++			}
++
++			rw_lock_s_unlock(&btr_search_latch);
++
++			rw_lock_x_lock(&block->lock);
++			btr_search_drop_page_hash_index(block);
++			rw_lock_x_unlock(&block->lock);
++
++			rw_lock_s_lock(&btr_search_latch);
++		}
++	}
++	rw_lock_s_unlock(&btr_search_latch);
 +}
 +
 +#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /********************************************************************//**
  Insert a compressed block into buf_pool->zip_clean in the LRU order. */
  UNIV_INTERN
-@@ -583,6 +608,7 @@
+@@ -583,6 +633,7 @@
  		UT_LIST_ADD_FIRST(zip_list, buf_pool->zip_clean, bpage);
  	}
  }
@@ -563,7 +712,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  /******************************************************************//**
  Try to free an uncompressed page of a compressed block from the unzip
-@@ -1492,6 +1518,10 @@
+@@ -1492,6 +1543,10 @@
  		return(BUF_LRU_NOT_FREED);
  	}
  
@@ -574,7 +723,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  #ifdef UNIV_IBUF_COUNT_DEBUG
  	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
  #endif /* UNIV_IBUF_COUNT_DEBUG */
-@@ -1662,7 +1692,9 @@
+@@ -1662,7 +1717,9 @@
  
  			mutex_enter(&flush_list_mutex);
  			if (b->state == BUF_BLOCK_ZIP_PAGE) {
@@ -584,7 +733,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  			} else {
  				/* Relocate on buf_pool->flush_list. */
  				buf_flush_relocate_on_flush_list(bpage, b);
-@@ -1959,7 +1991,9 @@
+@@ -1959,7 +2016,9 @@
  		ut_a(bpage->zip.data);
  		ut_a(buf_page_get_zip_size(bpage));
  
@@ -1090,6 +1239,56 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	if (prebuilt->sql_stat_start) {
  		node->state = INS_NODE_SET_IX_LOCK;
  		prebuilt->sql_stat_start = FALSE;
+@@ -2547,10 +2555,29 @@
+ 
+ 			err = DB_ERROR;
+ 		} else {
++			dict_index_t*	index;
++
+ 			/* Set the flag which tells that now it is legal to
+ 			IMPORT a tablespace for this table */
+ 			table->tablespace_discarded = TRUE;
+ 			table->ibd_file_missing = TRUE;
++
++			/* check adaptive hash entries */
++			index = dict_table_get_first_index(table);
++			while (index) {
++				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
++				if (ref_count) {
++					fprintf(stderr, "InnoDB: Warning:"
++						" hash index ref_count (%lu) is not zero"
++						" after fil_discard_tablespace().\n"
++						"index: \"%s\""
++						" table: \"%s\"\n",
++						ref_count,
++						index->name,
++						table->name);
++				}
++				index = dict_table_get_next_index(index);
++			}
+ 		}
+ 	}
+ 
+@@ -2892,6 +2919,19 @@
+ 			table->space = space;
+ 			index = dict_table_get_first_index(table);
+ 			do {
++				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
++				/* check adaptive hash entries */
++				if (ref_count) {
++					fprintf(stderr, "InnoDB: Warning:"
++						" hash index ref_count (%lu) is not zero"
++						" after fil_discard_tablespace().\n"
++						"index: \"%s\""
++						" table: \"%s\"\n",
++						ref_count,
++						index->name,
++						table->name);
++				}
++
+ 				index->space = space;
+ 				index = dict_table_get_next_index(index);
+ 			} while (index);
 diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0sel.c
 --- a/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:04.204866103 +0900
 +++ b/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:53.998864025 +0900

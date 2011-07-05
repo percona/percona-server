@@ -972,7 +972,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	block->is_hashed = FALSE;
  
-@@ -1481,7 +1482,7 @@
+@@ -1413,7 +1414,7 @@
  			/* To follow the latching order, we
  			have to release btr_search_latch
  			before acquiring block->latch. */
@@ -981,7 +981,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			/* When we release the search latch,
  			we must rescan all blocks, because
  			some may become hashed again. */
-@@ -1512,11 +1513,11 @@
+@@ -1444,11 +1445,11 @@
  			anything.  block->is_hashed can only
  			be set on uncompressed file pages. */
  
@@ -995,7 +995,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  			ut_ad(!btr_search_enabled);
  		}
-@@ -1535,7 +1536,11 @@
+@@ -1467,7 +1468,11 @@
  	ibool		released_search_latch;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -1008,7 +1008,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2655,6 +2660,7 @@
+@@ -2203,6 +2208,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;
@@ -1019,7 +1019,36 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-12-04 15:35:29.137347521 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-04 16:12:48.658550840 +0900
-@@ -1798,7 +1798,7 @@
+@@ -605,7 +605,7 @@
+ 
+ 		mutex_exit(&buf_pool->LRU_list_mutex);
+ 
+-		rw_lock_s_lock(&btr_search_latch);
++		btr_search_s_lock_all();
+ 		chunk = buf_pool->chunks;
+ 		for (j = buf_pool->n_chunks; j--; chunk++) {
+ 			buf_block_t*	block	= chunk->blocks;
+@@ -617,16 +617,16 @@
+ 					continue;
+ 				}
+ 
+-				rw_lock_s_unlock(&btr_search_latch);
++				btr_search_s_unlock_all();
+ 
+ 				rw_lock_x_lock(&block->lock);
+ 				btr_search_drop_page_hash_index(block, NULL);
+ 				rw_lock_x_unlock(&block->lock);
+ 
+-				rw_lock_s_lock(&btr_search_latch);
++				btr_search_s_lock_all();
+ 			}
+ 		}
+-		rw_lock_s_unlock(&btr_search_latch);
++		btr_search_s_unlock_all();
+ 	}
+ }
+ 
+@@ -1787,7 +1787,7 @@
  
  		UNIV_MEM_VALID(((buf_block_t*) bpage)->frame,
  			       UNIV_PAGE_SIZE);
@@ -1264,7 +1293,7 @@ diff -ruN a/storage/innobase/include/btr0sea.ic b/storage/innobase/include/btr0s
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-15 19:00:07.713604580 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-15 20:58:03.546839883 +0900
-@@ -1546,7 +1546,7 @@
+@@ -1540,7 +1540,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1273,7 +1302,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1560,6 +1560,7 @@
+@@ -1554,6 +1554,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */

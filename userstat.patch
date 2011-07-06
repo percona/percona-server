@@ -1832,7 +1832,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Commands which always take a long time are logged into
      the slow log only if opt_log_slow_admin_statements is set.
-@@ -1879,6 +1891,13 @@
+@@ -1945,6 +1957,13 @@
      thd->profiling.discard_current_query();
  #endif
      break;
@@ -1846,7 +1846,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_OPEN_TABLES:
    case SCH_VARIABLES:
    case SCH_STATUS:
-@@ -2035,6 +2054,7 @@
+@@ -2101,6 +2120,7 @@
                         thd->security_ctx->priv_host)) &&
          check_global_access(thd, SUPER_ACL))
      {
@@ -1854,7 +1854,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
        DBUG_RETURN(TRUE);
      }
-@@ -5377,6 +5397,7 @@
+@@ -5443,6 +5463,7 @@
        if (!no_errors)
        {
          const char *db_name= db ? db : thd->db;
@@ -1862,7 +1862,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
          my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                   sctx->priv_user, sctx->priv_host, db_name);
        }
-@@ -5409,12 +5430,15 @@
+@@ -5475,12 +5496,15 @@
    {						// We can never grant this
      DBUG_PRINT("error",("No possible access"));
      if (!no_errors)
@@ -1878,7 +1878,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      DBUG_RETURN(TRUE);				/* purecov: tested */
    }
  
-@@ -5440,11 +5464,15 @@
+@@ -5506,11 +5530,15 @@
  
    DBUG_PRINT("error",("Access denied"));
    if (!no_errors)
@@ -1894,7 +1894,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_RETURN(TRUE);				/* purecov: tested */
  }
  
-@@ -5473,6 +5501,7 @@
+@@ -5539,6 +5567,7 @@
  
      if (!thd->col_access && check_grant_db(thd, dst_db_name))
      {
@@ -1902,7 +1902,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                 thd->security_ctx->priv_user,
                 thd->security_ctx->priv_host,
-@@ -5554,9 +5583,12 @@
+@@ -5620,9 +5649,12 @@
          (want_access & ~(SELECT_ACL | EXTRA_ACL | FILE_ACL)))
      {
        if (!no_errors)
@@ -1915,7 +1915,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
        return TRUE;
      }
      /*
-@@ -5719,6 +5751,7 @@
+@@ -5785,6 +5817,7 @@
    if ((thd->security_ctx->master_access & want_access))
      return 0;
    get_privilege_desc(command, sizeof(command), want_access);
@@ -1923,7 +1923,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -6093,6 +6126,32 @@
+@@ -6159,6 +6192,32 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
  
@@ -1956,7 +1956,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
    {
      LEX *lex= thd->lex;
-@@ -6173,6 +6232,43 @@
+@@ -6239,6 +6298,43 @@
      *found_semicolon= NULL;
    }
  
@@ -2000,7 +2000,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    DBUG_VOID_RETURN;
  }
  
-@@ -7045,6 +7141,13 @@
+@@ -7111,6 +7207,13 @@
      if (flush_error_log())
        result=1;
    }
@@ -2014,7 +2014,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
  #ifdef HAVE_QUERY_CACHE
    if (options & REFRESH_QUERY_CACHE_FREE)
    {
-@@ -7145,6 +7248,40 @@
+@@ -7211,6 +7314,40 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */

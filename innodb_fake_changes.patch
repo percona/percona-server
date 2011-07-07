@@ -1,0 +1,620 @@
+# name       : innodb_fake_changes.patch
+# introduced : 5.1.58
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0cur.c
+--- a/storage/innodb_plugin/btr/btr0cur.c	2011-07-07 19:38:25.840371992 +0900
++++ b/storage/innodb_plugin/btr/btr0cur.c	2011-07-07 20:09:02.125335731 +0900
+@@ -1046,6 +1046,11 @@
+ 	rec_t*		rec;
+ 	roll_ptr_t	roll_ptr;
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		/* skip LOCK, UNDO */
++		return(DB_SUCCESS);
++	}
++
+ 	/* Check if we have to wait for a lock: enqueue an explicit lock
+ 	request if yes */
+ 
+@@ -1177,7 +1182,7 @@
+ 	}
+ #endif /* UNIV_DEBUG */
+ 
+-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
++	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+ 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
+ 	leaf = page_is_leaf(page);
+ 
+@@ -1272,6 +1277,12 @@
+ 		goto fail_err;
+ 	}
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		/* skip CHANGE, LOG */
++		*big_rec = big_rec_vec;
++		return(err); /* == DB_SUCCESS */
++	}
++
+ 	page_cursor = btr_cur_get_page_cur(cursor);
+ 
+ 	/* Now, try the insert */
+@@ -1414,10 +1425,10 @@
+ 
+ 	*big_rec = NULL;
+ 
+-	ut_ad(mtr_memo_contains(mtr,
++	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr,
+ 				dict_index_get_lock(btr_cur_get_index(cursor)),
+ 				MTR_MEMO_X_LOCK));
+-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
++	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, btr_cur_get_block(cursor),
+ 				MTR_MEMO_PAGE_X_FIX));
+ 
+ 	/* Try first an optimistic insert; reset the cursor flag: we do not
+@@ -1483,6 +1494,16 @@
+ 		}
+ 	}
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		/* skip CHANGE, LOG */
++		if (n_extents > 0) {
++			fil_space_release_free_extents(index->space,
++						       n_reserved);
++		}
++		*big_rec = big_rec_vec;
++		return(DB_SUCCESS);
++	}
++
+ 	if (dict_index_get_page(index)
+ 	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
+ 
+@@ -1539,6 +1560,11 @@
+ 
+ 	ut_ad(cursor && update && thr && roll_ptr);
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		/* skip LOCK, UNDO */
++		return(DB_SUCCESS);
++	}
++
+ 	rec = btr_cur_get_rec(cursor);
+ 	index = cursor->index;
+ 
+@@ -1837,6 +1863,14 @@
+ 		return(err);
+ 	}
+ 
++	if (trx->fake_changes) {
++		/* skip CHANGE, LOG */
++		if (UNIV_LIKELY_NULL(heap)) {
++			mem_heap_free(heap);
++		}
++		return(err); /* == DB_SUCCESS */
++	}
++
+ 	if (block->is_hashed) {
+ 		/* The function row_upd_changes_ord_field_binary works only
+ 		if the update vector was built for a clustered index, we must
+@@ -1940,7 +1974,7 @@
+ 	rec = btr_cur_get_rec(cursor);
+ 	index = cursor->index;
+ 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
++	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+ 	/* The insert buffer tree should never be updated in place. */
+ 	ut_ad(!dict_index_is_ibuf(index));
+ 
+@@ -2050,6 +2084,11 @@
+ 		goto err_exit;
+ 	}
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		/* skip CHANGE, LOG */
++		goto err_exit; /* == DB_SUCCESS */
++	}
++
+ 	/* Ok, we may do the replacement. Store on the page infimum the
+ 	explicit locks on rec, before deleting rec (see the comment in
+ 	btr_cur_pessimistic_update). */
+@@ -2200,9 +2239,9 @@
+ 	rec = btr_cur_get_rec(cursor);
+ 	index = cursor->index;
+ 
+-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
++	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, dict_index_get_lock(index),
+ 				MTR_MEMO_X_LOCK));
+-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
++	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+ #ifdef UNIV_ZIP_DEBUG
+ 	ut_a(!page_zip || page_zip_validate(page_zip, page));
+ #endif /* UNIV_ZIP_DEBUG */
+@@ -2290,6 +2329,9 @@
+ 
+ 		ut_ad(big_rec_vec == NULL);
+ 
++		/* fake_changes should not cause undo. so never reaches here */
++		ut_ad(!(trx->fake_changes));
++
+ 		btr_rec_free_updated_extern_fields(
+ 			index, rec, page_zip, offsets, update,
+ 			trx_is_recv(trx) ? RB_RECOVERY : RB_NORMAL, mtr);
+@@ -2324,6 +2366,12 @@
+ 		}
+ 	}
+ 
++	if (trx->fake_changes) {
++		/* skip CHANGE, LOG */
++		err = DB_SUCCESS;
++		goto return_after_reservations;
++	}
++
+ 	/* Store state of explicit locks on rec on the page infimum record,
+ 	before deleting rec. The page infimum acts as a dummy carrier of the
+ 	locks, taking care also of lock releases, before we can move the locks
+@@ -2625,6 +2673,11 @@
+ 	ut_ad(dict_index_is_clust(index));
+ 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		/* skip LOCK, UNDO, CHANGE, LOG */
++		return(DB_SUCCESS);
++	}
++
+ 	err = lock_clust_rec_modify_check_and_lock(flags, block,
+ 						   rec, index, offsets, thr);
+ 
+@@ -2762,6 +2815,11 @@
+ 	rec_t*		rec;
+ 	ulint		err;
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		/* skip LOCK, CHANGE, LOG */
++		return(DB_SUCCESS);
++	}
++
+ 	block = btr_cur_get_block(cursor);
+ 	rec = btr_cur_get_rec(cursor);
+ 
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2011-07-07 19:47:22.334541114 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2011-07-07 20:17:01.737288508 +0900
+@@ -367,6 +367,12 @@
+   "The value 3 regards innodb_flush_log_at_trx_commit (default).",
+   NULL, NULL, 3, 0, 3, 0);
+ 
++static MYSQL_THDVAR_BOOL(fake_changes, PLUGIN_VAR_OPCMDARG,
++  "In the transaction after enabled, UPDATE, INSERT and DELETE only move the cursor to the records "
++  "and do nothing other operations (no changes, no ibuf, no undo, no transaction log) in the transaction. "
++  "This is to cause replication prefetch IO. ATTENTION: the transaction started after enabled is affected.",
++  NULL, NULL, FALSE);
++
+ 
+ static handler *innobase_create_handler(handlerton *hton,
+                                         TABLE_SHARE *table,
+@@ -1396,6 +1402,8 @@
+ 	trx->check_unique_secondary = !thd_test_options(
+ 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
+ 
++	trx->fake_changes = THDVAR(thd, fake_changes);
++
+ #ifdef EXTENDED_SLOWLOG
+ 	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
+ 		trx->take_stats = TRUE;
+@@ -2810,6 +2818,11 @@
+ 		trx_search_latch_release_if_reserved(trx);
+ 	}
+ 
++	if (trx->fake_changes) {
++		innobase_rollback(hton, thd, all); /* rollback implicitly */
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
++
+ 	/* The flag trx->active_trans is set to 1 in
+ 
+ 	1. ::external_lock(),
+@@ -7154,6 +7167,12 @@
+ 
+ 	trx = innobase_trx_allocate(thd);
+ 
++	if (trx->fake_changes) {
++		innobase_commit_low(trx);
++		trx_free_for_mysql(trx);
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
++
+ 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
+ 	or lock waits can happen in it during a table create operation.
+ 	Drop table etc. do this latching in row0mysql.c. */
+@@ -7359,6 +7378,10 @@
+ 		DBUG_RETURN(HA_ERR_CRASHED);
+ 	}
+ 
++	if (prebuilt->trx->fake_changes) {
++		goto fallback;
++	}
++
+ 	/* Truncate the table in InnoDB */
+ 
+ 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
+@@ -7419,6 +7442,12 @@
+ 
+ 	trx = innobase_trx_allocate(thd);
+ 
++	if (trx->fake_changes) {
++		innobase_commit_low(trx);
++		trx_free_for_mysql(trx);
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
++
+ 	name_len = strlen(name);
+ 
+ 	ut_a(name_len < 1000);
+@@ -7507,6 +7536,12 @@
+ 	trx->mysql_thd = NULL;
+ #else
+ 	trx = innobase_trx_allocate(thd);
++	if (trx->fake_changes) {
++		my_free(namebuf, MYF(0));
++		innobase_commit_low(trx);
++		trx_free_for_mysql(trx);
++		return; /* ignore */
++	}
+ #endif
+ 	row_drop_database_for_mysql(namebuf, trx);
+ 	my_free(namebuf, MYF(0));
+@@ -7614,6 +7649,11 @@
+ 	trx_search_latch_release_if_reserved(parent_trx);
+ 
+ 	trx = innobase_trx_allocate(thd);
++	if (trx->fake_changes) {
++		innobase_commit_low(trx);
++		trx_free_for_mysql(trx);
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
+ 
+ 	error = innobase_rename_table(trx, from, to, TRUE);
+ 
+@@ -10379,6 +10419,10 @@
+ 		return(0);
+ 	}
+ 
++	if (trx->fake_changes) {
++		return(0);
++	}
++
+ 	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
+ 
+ 	/* Release a possible FIFO ticket and search latch. Since we will
+@@ -11898,6 +11942,7 @@
+   MYSQL_SYSVAR(use_purge_thread),
+   MYSQL_SYSVAR(pass_corrupt_table),
+   MYSQL_SYSVAR(lazy_drop_table),
++  MYSQL_SYSVAR(fake_changes),
+   NULL
+ };
+ 
+diff -ruN a/storage/innodb_plugin/handler/handler0alter.cc b/storage/innodb_plugin/handler/handler0alter.cc
+--- a/storage/innodb_plugin/handler/handler0alter.cc	2011-07-02 00:22:17.000000000 +0900
++++ b/storage/innodb_plugin/handler/handler0alter.cc	2011-07-07 20:36:26.885315930 +0900
+@@ -652,6 +652,9 @@
+ 	/* In case MySQL calls this in the middle of a SELECT query, release
+ 	possible adaptive hash latch to avoid deadlocks of threads. */
+ 	trx_search_latch_release_if_reserved(prebuilt->trx);
++	if (prebuilt->trx->fake_changes) {
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
+ 
+ 	/* Check if the index name is reserved. */
+ 	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
+@@ -678,6 +681,13 @@
+ 	/* Create a background transaction for the operations on
+ 	the data dictionary tables. */
+ 	trx = innobase_trx_allocate(user_thd);
++	if (trx->fake_changes) {
++		mem_heap_free(heap);
++		trx_general_rollback_for_mysql(trx, NULL);
++		trx_free_for_mysql(trx);
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
++
+ 	trx_start_if_not_started(trx);
+ 
+ 	/* Create table containing all indexes to be built in this
+@@ -964,6 +974,10 @@
+ 	trx_search_latch_release_if_reserved(prebuilt->trx);
+ 	trx = prebuilt->trx;
+ 
++	if (trx->fake_changes) {
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
++
+ 	/* Test and mark all the indexes to be dropped */
+ 
+ 	row_mysql_lock_data_dictionary(trx);
+@@ -1168,6 +1182,12 @@
+ 	/* Create a background transaction for the operations on
+ 	the data dictionary tables. */
+ 	trx = innobase_trx_allocate(user_thd);
++	if (trx->fake_changes) {
++		trx_general_rollback_for_mysql(trx, NULL);
++		trx_free_for_mysql(trx);
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
++
+ 	trx_start_if_not_started(trx);
+ 
+ 	/* Flag this transaction as a dictionary operation, so that
+diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
+--- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2011-07-07 19:38:25.352373413 +0900
++++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2011-07-07 20:09:02.137334934 +0900
+@@ -2613,6 +2613,8 @@
+ 
+ 	ut_a(trx_sys_multiple_tablespace_format);
+ 
++	ut_ad(!(thr_get_trx(thr)->fake_changes));
++
+ 	do_merge = FALSE;
+ 
+ 	mutex_enter(&ibuf_mutex);
+diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
+--- a/storage/innodb_plugin/include/trx0trx.h	2011-07-07 19:47:22.348325198 +0900
++++ b/storage/innodb_plugin/include/trx0trx.h	2011-07-07 20:09:02.139302150 +0900
+@@ -509,6 +509,7 @@
+ 					150 bytes in the undo log size as then
+ 					we skip XA steps */
+ 	ulint		flush_log_at_trx_commit_session;
++	ulint		fake_changes;
+ 	ulint		flush_log_later;/* In 2PC, we hold the
+ 					prepare_commit mutex across
+ 					both phases. In that case, we
+diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/lock0lock.c
+--- a/storage/innodb_plugin/lock/lock0lock.c	2011-07-07 19:38:25.711373098 +0900
++++ b/storage/innodb_plugin/lock/lock0lock.c	2011-07-07 20:09:02.142335387 +0900
+@@ -3907,6 +3907,10 @@
+ 
+ 	trx = thr_get_trx(thr);
+ 
++	if (trx->fake_changes && mode == LOCK_IX) {
++		mode = LOCK_IS;
++	}
++
+ 	lock_mutex_enter_kernel();
+ 
+ 	/* Look for stronger locks the same trx already has on the table */
+@@ -5108,6 +5112,11 @@
+ 	}
+ 
+ 	trx = thr_get_trx(thr);
++
++	if (trx->fake_changes) {
++		return(DB_SUCCESS);
++	}
++
+ 	next_rec = page_rec_get_next_const(rec);
+ 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
+ 
+@@ -5276,6 +5285,10 @@
+ 		return(DB_SUCCESS);
+ 	}
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		return(DB_SUCCESS);
++	}
++
+ 	heap_no = rec_offs_comp(offsets)
+ 		? rec_get_heap_no_new(rec)
+ 		: rec_get_heap_no_old(rec);
+@@ -5334,6 +5347,10 @@
+ 		return(DB_SUCCESS);
+ 	}
+ 
++	if (thr && thr_get_trx(thr)->fake_changes) {
++		return(DB_SUCCESS);
++	}
++
+ 	heap_no = page_rec_get_heap_no(rec);
+ 
+ 	/* Another transaction cannot have an implicit lock on the record,
+@@ -5421,6 +5438,10 @@
+ 		return(DB_SUCCESS);
+ 	}
+ 
++	if (thr && thr_get_trx(thr)->fake_changes && mode == LOCK_X) {
++		mode = LOCK_S;
++	}
++
+ 	heap_no = page_rec_get_heap_no(rec);
+ 
+ 	lock_mutex_enter_kernel();
+@@ -5498,6 +5519,10 @@
+ 		return(DB_SUCCESS);
+ 	}
+ 
++	if (thr && thr_get_trx(thr)->fake_changes && mode == LOCK_X) {
++		mode = LOCK_S;
++	}
++
+ 	heap_no = page_rec_get_heap_no(rec);
+ 
+ 	lock_mutex_enter_kernel();
+diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0que.c
+--- a/storage/innodb_plugin/que/que0que.c	2011-07-07 19:38:25.512373167 +0900
++++ b/storage/innodb_plugin/que/que0que.c	2011-07-07 20:09:02.144331758 +0900
+@@ -1418,6 +1418,12 @@
+ 
+ 	ut_a(trx->error_state == DB_SUCCESS);
+ 
++	if (trx->fake_changes) {
++		/* fake_changes should not access to system tables */
++		fprintf(stderr, "InnoDB: ERROR: innodb_fake_changes tried to access to system tables.\n");
++		return(DB_ERROR);
++	}
++
+ 	if (reserve_dict_mutex) {
+ 		mutex_enter(&dict_sys->mutex);
+ 	}
+diff -ruN a/storage/innodb_plugin/row/row0ins.c b/storage/innodb_plugin/row/row0ins.c
+--- a/storage/innodb_plugin/row/row0ins.c	2011-07-07 19:38:25.925373011 +0900
++++ b/storage/innodb_plugin/row/row0ins.c	2011-07-07 20:09:02.147335402 +0900
+@@ -1512,6 +1512,11 @@
+ 	if (UNIV_LIKELY_NULL(heap)) {
+ 		mem_heap_free(heap);
+ 	}
++
++	if (trx->fake_changes) {
++		err = DB_SUCCESS;
++	}
++
+ 	return(err);
+ }
+ 
+@@ -2013,7 +2018,7 @@
+ 	}
+ 
+ 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
+-				    mode | BTR_INSERT | ignore_sec_unique,
++				    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : (mode | BTR_INSERT | ignore_sec_unique),
+ 				    &cursor, 0, __FILE__, __LINE__, &mtr);
+ 
+ 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
+@@ -2073,7 +2078,7 @@
+ 
+ 			btr_cur_search_to_nth_level(index, 0, entry,
+ 						    PAGE_CUR_LE,
+-						    mode | BTR_INSERT,
++						    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : (mode | BTR_INSERT),
+ 						    &cursor, 0,
+ 						    __FILE__, __LINE__, &mtr);
+ 		}
+@@ -2127,6 +2132,22 @@
+ 	if (UNIV_LIKELY_NULL(big_rec)) {
+ 		rec_t*	rec;
+ 		ulint*	offsets;
++
++		if (thr_get_trx(thr)->fake_changes) {
++			/* skip store extern */
++			if (modify) {
++				dtuple_big_rec_free(big_rec);
++			} else {
++				dtuple_convert_back_big_rec(index, entry, big_rec);
++			}
++
++			if (UNIV_LIKELY_NULL(heap)) {
++				mem_heap_free(heap);
++			}
++
++			return(err);
++		}
++
+ 		mtr_start(&mtr);
+ 
+ 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
+diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
+--- a/storage/innodb_plugin/row/row0mysql.c	2011-07-07 19:38:26.139298610 +0900
++++ b/storage/innodb_plugin/row/row0mysql.c	2011-07-07 20:09:02.149334904 +0900
+@@ -1189,6 +1189,7 @@
+ 		prebuilt->table->stat_n_rows--;
+ 	}
+ 
++	if (!(trx->fake_changes))
+ 	row_update_statistics_if_needed(prebuilt->table);
+ 	trx->op_info = "";
+ 
+@@ -1449,6 +1450,7 @@
+ 	that changes indexed columns, UPDATEs that change only non-indexed
+ 	columns would not affect statistics. */
+ 	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
++		if (!(trx->fake_changes))
+ 		row_update_statistics_if_needed(prebuilt->table);
+ 	}
+ 
+@@ -1667,6 +1669,7 @@
+ 		srv_n_rows_updated++;
+ 	}
+ 
++	if (!(trx->fake_changes))
+ 	row_update_statistics_if_needed(table);
+ 
+ 	return(err);
+diff -ruN a/storage/innodb_plugin/row/row0upd.c b/storage/innodb_plugin/row/row0upd.c
+--- a/storage/innodb_plugin/row/row0upd.c	2011-07-07 19:38:25.530295605 +0900
++++ b/storage/innodb_plugin/row/row0upd.c	2011-07-07 20:09:02.152334950 +0900
+@@ -1591,8 +1591,9 @@
+ 
+ 	mtr_start(&mtr);
+ 
+-	found = row_search_index_entry(index, entry, BTR_MODIFY_LEAF, &pcur,
+-				       &mtr);
++	found = row_search_index_entry(index, entry,
++				       trx->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_LEAF,
++				       &pcur, &mtr);
+ 	btr_cur = btr_pcur_get_btr_cur(&pcur);
+ 
+ 	rec = btr_cur_get_rec(btr_cur);
+@@ -1822,9 +1823,11 @@
+ 		the previous invocation of this function. Mark the
+ 		off-page columns in the entry inherited. */
+ 
++		if (!(trx->fake_changes)) {
+ 		change_ownership = row_upd_clust_rec_by_insert_inherit(
+ 			NULL, NULL, entry, node->update);
+ 		ut_a(change_ownership);
++		}
+ 		/* fall through */
+ 	case UPD_NODE_INSERT_CLUSTERED:
+ 		/* A lock wait occurred in row_ins_index_entry() in
+@@ -1854,7 +1857,7 @@
+ 		delete-marked old record, mark them disowned by the
+ 		old record and owned by the new entry. */
+ 
+-		if (rec_offs_any_extern(offsets)) {
++		if (rec_offs_any_extern(offsets) && !(trx->fake_changes)) {
+ 			change_ownership = row_upd_clust_rec_by_insert_inherit(
+ 				rec, offsets, entry, node->update);
+ 
+@@ -1982,7 +1985,8 @@
+ 	the same transaction do not modify the record in the meantime.
+ 	Therefore we can assert that the restoration of the cursor succeeds. */
+ 
+-	ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
++	ut_a(btr_pcur_restore_position(thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_TREE,
++				       pcur, mtr));
+ 
+ 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
+ 				    dict_table_is_comp(index->table)));
+@@ -1992,7 +1996,8 @@
+ 					 node->cmpl_info, thr, mtr);
+ 	mtr_commit(mtr);
+ 
+-	if (err == DB_SUCCESS && big_rec) {
++	/* skip store extern for fake_changes */
++	if (err == DB_SUCCESS && big_rec && !(thr_get_trx(thr)->fake_changes)) {
+ 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+ 		rec_t*		rec;
+ 		rec_offs_init(offsets_);
+@@ -2117,7 +2122,8 @@
+ 
+ 	ut_a(pcur->rel_pos == BTR_PCUR_ON);
+ 
+-	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
++	success = btr_pcur_restore_position(thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_LEAF,
++					    pcur, mtr);
+ 
+ 	if (!success) {
+ 		err = DB_RECORD_NOT_FOUND;
+diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
+--- a/storage/innodb_plugin/trx/trx0trx.c	2011-07-07 19:47:22.358333765 +0900
++++ b/storage/innodb_plugin/trx/trx0trx.c	2011-07-07 20:09:02.156330704 +0900
+@@ -114,6 +114,8 @@
+ 
+ 	trx->flush_log_at_trx_commit_session = 3; /* means to use innodb_flush_log_at_trx_commit value */
+ 
++	trx->fake_changes = FALSE;
++
+ 	trx->check_foreigns = TRUE;
+ 	trx->check_unique_secondary = TRUE;
+ 

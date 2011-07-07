@@ -84,7 +84,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  			/* The system tablespace always exists. */
  		} else if (in_crash_recovery) {
  			/* Check that the tablespace (the .ibd file) really
-@@ -904,7 +905,7 @@
+@@ -946,7 +947,7 @@
  	space = mach_read_from_4(field);
  
  	/* Check if the tablespace exists and has the right name */
@@ -93,7 +93,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  		flags = dict_sys_tables_get_flags(rec);
  
  		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-@@ -957,7 +958,7 @@
+@@ -999,7 +1000,7 @@
  	}
  
  	/* See if the tablespace is available. */
@@ -357,7 +357,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
-@@ -11392,6 +11395,11 @@
+@@ -11388,6 +11391,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -369,7 +369,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11565,6 +11573,7 @@
+@@ -11561,6 +11569,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -779,7 +779,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
 diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0sys.c
 --- a/storage/innodb_plugin/trx/trx0sys.c	2010-08-27 16:23:31.045058700 +0900
 +++ b/storage/innodb_plugin/trx/trx0sys.c	2010-08-27 16:37:55.421992951 +0900
-@@ -407,6 +407,152 @@
+@@ -408,6 +408,152 @@
  
  		goto start_again;
  	}
@@ -932,7 +932,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  }
  
  /****************************************************************//**
-@@ -430,10 +576,19 @@
+@@ -431,10 +577,19 @@
  	ulint	source_page_no;
  	byte*	page;
  	byte*	doublewrite;
@@ -952,7 +952,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  	/* We do the file i/o past the buffer pool */
  
  	unaligned_read_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
-@@ -442,7 +597,7 @@
+@@ -443,7 +598,7 @@
  	/* Read the trx sys header to check if we are using the doublewrite
  	buffer */
  
@@ -961,7 +961,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  	       UNIV_PAGE_SIZE, read_buf, NULL);
  	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
  
-@@ -480,10 +635,10 @@
+@@ -481,10 +636,10 @@
  
  	/* Read the pages from the doublewrite buffer to memory */
  
@@ -974,7 +974,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
  	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
  	       NULL);
-@@ -539,7 +694,8 @@
+@@ -540,7 +695,8 @@
  				" doublewrite buf.\n",
  				(ulong) space_id, (ulong) page_no, (ulong) i);
  
@@ -984,7 +984,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  			   && ((page_no >= block1
  				&& page_no
  				< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-@@ -985,6 +1141,83 @@
+@@ -986,6 +1142,83 @@
  }
  
  /*****************************************************************//**
@@ -1068,7 +1068,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  Creates and initializes the central memory structures for the transaction
  system. This is called when the database is started. */
  UNIV_INTERN
-@@ -1090,6 +1323,26 @@
+@@ -1091,6 +1324,26 @@
  	trx_sys_init_at_db_start();
  }
  

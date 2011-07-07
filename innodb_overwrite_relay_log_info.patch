@@ -243,7 +243,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	trx_commit_for_mysql(trx);
  }
  
-@@ -10795,6 +10987,12 @@
+@@ -10791,6 +10983,12 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -256,7 +256,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11220,6 +11418,7 @@
+@@ -11216,6 +11414,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -316,7 +316,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
 --- a/storage/innodb_plugin/include/trx0trx.h	2010-04-06 23:07:13.000000000 +0900
 +++ b/storage/innodb_plugin/include/trx0trx.h	2010-04-29 16:42:07.000000000 +0900
-@@ -569,6 +569,21 @@
+@@ -580,6 +580,21 @@
  	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
  					contains the end offset of the binlog
  					entry */
@@ -341,7 +341,7 @@ diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0sys.c
 --- a/storage/innodb_plugin/trx/trx0sys.c	2010-04-29 16:39:34.000000000 +0900
 +++ b/storage/innodb_plugin/trx/trx0sys.c	2010-04-29 16:42:07.000000000 +0900
-@@ -74,13 +74,16 @@
+@@ -75,13 +75,16 @@
  file name and position here. */
  /* @{ */
  /** Master binlog file name */
@@ -359,7 +359,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  /** If this MySQL server uses binary logging, after InnoDB has been inited
  and if it has done a crash recovery, we store the binlog file name and position
  here. */
-@@ -675,22 +678,25 @@
+@@ -676,22 +679,25 @@
  void
  trx_sys_update_mysql_binlog_offset(
  /*===============================*/
@@ -391,7 +391,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  
  	if (mach_read_from_4(sys_header + field
  			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-@@ -813,13 +819,26 @@
+@@ -814,13 +820,26 @@
  					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
  		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  		+ TRX_SYS_MYSQL_LOG_NAME);
@@ -419,7 +419,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  
  	trx_sys_mysql_master_log_pos
  		= (((ib_int64_t) mach_read_from_4(
-@@ -828,6 +847,19 @@
+@@ -829,6 +848,19 @@
  		+ ((ib_int64_t) mach_read_from_4(
  			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
  			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
@@ -442,7 +442,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
 diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
 --- a/storage/innodb_plugin/trx/trx0trx.c	2010-04-06 23:07:14.000000000 +0900
 +++ b/storage/innodb_plugin/trx/trx0trx.c	2010-04-29 16:42:07.000000000 +0900
-@@ -129,6 +129,10 @@
+@@ -132,6 +132,10 @@
  
  	trx->mysql_log_file_name = NULL;
  	trx->mysql_log_offset = 0;
@@ -453,7 +453,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
  
-@@ -732,6 +736,7 @@
+@@ -791,6 +795,7 @@
  	trx_rseg_t*	rseg;
  	trx_undo_t*	undo;
  	mtr_t		mtr;
@@ -461,7 +461,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	ut_ad(mutex_own(&kernel_mutex));
  
-@@ -789,13 +794,35 @@
+@@ -848,13 +853,35 @@
  
  		if (trx->mysql_log_file_name
  		    && trx->mysql_log_file_name[0] != '\0') {

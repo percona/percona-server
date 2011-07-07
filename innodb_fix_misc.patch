@@ -942,7 +942,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
-@@ -11750,6 +11750,12 @@
+@@ -11746,6 +11746,12 @@
    "except for the deletion.",
    NULL, NULL, 0, 0, 2, 0);
  
@@ -955,7 +955,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -11839,6 +11845,7 @@
+@@ -11835,6 +11841,7 @@
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
    MYSQL_SYSVAR(pass_corrupt_table),
@@ -963,7 +963,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    NULL
  };
  
-@@ -11848,7 +11855,7 @@
+@@ -11844,7 +11851,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -1103,7 +1103,7 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 +++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	0
- #define INNODB_VERSION_BUGFIX	16
+ #define INNODB_VERSION_BUGFIX	17
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 12.5

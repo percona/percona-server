@@ -922,7 +922,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7233,6 +7296,10 @@
+@@ -7227,6 +7290,10 @@
  		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
  	}
  
@@ -933,7 +933,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7241,6 +7308,10 @@
+@@ -7235,6 +7302,10 @@
  		goto fallback;
  	}
  
@@ -944,7 +944,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7753,6 +7824,16 @@
+@@ -7739,6 +7810,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -961,7 +961,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -7933,7 +8014,7 @@
+@@ -7919,7 +8000,7 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -970,7 +970,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8223,10 +8304,18 @@
+@@ -8209,10 +8290,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -989,7 +989,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	return(0);
  }
  
-@@ -8408,6 +8497,10 @@
+@@ -8394,6 +8483,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1000,7 +1000,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9133,6 +9226,10 @@
+@@ -9127,6 +9220,10 @@
  
  	update_thd(thd);
  
@@ -1011,7 +1011,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11565,6 +11662,14 @@
+@@ -11561,6 +11658,14 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1026,7 +1026,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11650,6 +11755,7 @@
+@@ -11646,6 +11751,7 @@
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),

@@ -903,7 +903,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -7869,11 +7894,35 @@
+@@ -7855,11 +7880,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -940,7 +940,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -7951,7 +8000,7 @@
+@@ -7937,7 +7986,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -949,7 +949,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
  			remain. delete_length is initialized to 0 in
-@@ -11126,6 +11175,26 @@
+@@ -11122,6 +11171,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -976,7 +976,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11451,6 +11520,9 @@
+@@ -11447,6 +11516,9 @@
    MYSQL_SYSVAR(overwrite_relay_log_info),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -986,7 +986,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11516,6 +11588,8 @@
+@@ -11512,6 +11584,8 @@
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,
@@ -1737,7 +1737,7 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
 diff -ruN a/storage/innodb_plugin/row/row0row.c b/storage/innodb_plugin/row/row0row.c
 --- a/storage/innodb_plugin/row/row0row.c	2011-02-12 04:20:26.000000000 +0900
 +++ b/storage/innodb_plugin/row/row0row.c	2011-03-30 15:57:54.000000000 +0900
-@@ -347,6 +347,14 @@
+@@ -345,6 +345,14 @@
  
  	rec_len = rec_offs_n_fields(offsets);
  
@@ -1752,7 +1752,7 @@ diff -ruN a/storage/innodb_plugin/row/row0row.c b/storage/innodb_plugin/row/row0
  	entry = dtuple_create(heap, rec_len);
  
  	dtuple_set_n_fields_cmp(entry,
-@@ -358,6 +366,14 @@
+@@ -356,6 +364,14 @@
  	for (i = 0; i < rec_len; i++) {
  
  		dfield = dtuple_get_nth_field(entry, i);

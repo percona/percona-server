@@ -710,7 +710,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +	    && ((buf_page_t*)message)->space_was_being_deleted) {
 +
 +		if (mode == OS_AIO_NORMAL) {
-+			buf_page_io_complete(message, trx);
++			buf_page_io_complete(message);
 +			return(DB_SUCCESS); /*fake*/
 +		}
 +		if (type == OS_FILE_READ) {
@@ -785,7 +785,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
 +
 +		srv_set_io_thread_op_info(segment, "complete io for buf page");
-+		buf_page_io_complete(message, NULL);
++		buf_page_io_complete(message);
 +		return;
  	}
  
@@ -795,7 +795,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
 @@ -11750,6 +11750,12 @@
    "except for the deletion.",
-   NULL, NULL, 0, 0, 1, 0);
+   NULL, NULL, 0, 0, 2, 0);
  
 +static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
 +  PLUGIN_VAR_RQCMDARG,

@@ -218,7 +218,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
 @@ -11682,6 +11751,8 @@
-   NULL, NULL, 0, 0, 1, 0);
+   NULL, NULL, 0, 0, 2, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
 +  MYSQL_SYSVAR(page_size),
@@ -251,7 +251,7 @@ diff -ruN a/storage/innodb_plugin/include/buf0buddy.h b/storage/innodb_plugin/in
 diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
 --- a/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:43:11.959021085 +0900
 +++ b/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:44:21.691058408 +0900
-@@ -1452,11 +1452,11 @@
+@@ -1451,11 +1451,11 @@
  	/* @{ */
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */

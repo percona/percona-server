@@ -597,7 +597,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2011-02-21 20:31:57.838984412 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2011-02-21 20:32:39.528914782 +0900
-@@ -242,6 +242,7 @@
+@@ -244,6 +244,7 @@
  struct fil_system_struct {
  #ifndef UNIV_HOTBACKUP
  	mutex_t		mutex;		/*!< The mutex protecting the cache */
@@ -605,7 +605,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #endif /* !UNIV_HOTBACKUP */
  	hash_table_t*	spaces;		/*!< The hash table of spaces in the
  					system; they are hashed on the space
-@@ -816,7 +817,7 @@
+@@ -818,7 +819,7 @@
  	ut_ad(node && system);
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->open);
@@ -614,7 +614,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_a(node->n_pending_flushes == 0);
  	ut_a(node->modification_counter == node->flush_counter);
  
-@@ -829,7 +830,7 @@
+@@ -831,7 +832,7 @@
  	ut_a(system->n_open > 0);
  	system->n_open--;
  
@@ -623,7 +623,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
  
  		/* The node is in the LRU list, remove it */
-@@ -1028,7 +1029,7 @@
+@@ -1030,7 +1031,7 @@
  	ut_ad(node && system && space);
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
@@ -632,7 +632,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  	if (node->open) {
  		/* We fool the assertion in fil_node_close_file() to think
-@@ -1549,6 +1550,7 @@
+@@ -1551,6 +1552,7 @@
  	fil_system = mem_zalloc(sizeof(fil_system_t));
  
  	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
@@ -640,7 +640,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  	fil_system->spaces = hash_create(hash_size);
  	fil_system->name_hash = hash_create(hash_size);
-@@ -2295,7 +2297,11 @@
+@@ -2297,7 +2299,11 @@
  	completely and permanently. The flag is_being_deleted also prevents
  	fil_flush() from being applied to this tablespace. */
  
@@ -652,7 +652,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #endif
  	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
  
-@@ -4350,6 +4356,10 @@
+@@ -4671,6 +4677,10 @@
  	ulint		page_size;
  	ibool		success		= TRUE;
  
@@ -663,7 +663,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	fil_mutex_enter_and_prepare_for_io(space_id);
  
  	space = fil_space_get_by_id(space_id);
-@@ -4361,6 +4371,7 @@
+@@ -4682,6 +4692,7 @@
  		*actual_size = space->size;
  
  		mutex_exit(&fil_system->mutex);
@@ -671,7 +671,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  		return(TRUE);
  	}
-@@ -4393,6 +4404,8 @@
+@@ -4714,6 +4725,8 @@
  		offset_low  = ((start_page_no - file_start_page_no)
  			       % (4096 * ((1024 * 1024) / page_size)))
  			* page_size;
@@ -680,7 +680,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #ifdef UNIV_HOTBACKUP
  		success = os_file_write(node->name, node->handle, buf,
  					offset_low, offset_high,
-@@ -4402,8 +4415,10 @@
+@@ -4723,8 +4736,10 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -692,7 +692,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		if (success) {
  			node->size += n_pages;
  			space->size += n_pages;
-@@ -4449,6 +4464,7 @@
+@@ -4770,6 +4785,7 @@
  	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
  	size_after_extend, *actual_size); */
  	mutex_exit(&fil_system->mutex);
@@ -700,7 +700,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  	fil_flush(space_id, TRUE);
  
-@@ -4813,6 +4829,22 @@
+@@ -5134,6 +5150,22 @@
  		srv_data_written+= len;
  	}
  
@@ -723,7 +723,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	/* Reserve the fil_system mutex and make sure that we can open at
  	least one file while holding it, if the file is not already open */
  
-@@ -4942,10 +4974,24 @@
+@@ -5263,10 +5295,24 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -749,7 +749,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5045,6 +5091,7 @@
+@@ -5366,6 +5412,7 @@
  	fil_node_t*	fil_node;
  	void*		message;
  	ulint		type;
@@ -757,7 +757,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  
  	ut_ad(fil_validate());
  
-@@ -5052,7 +5099,7 @@
+@@ -5373,7 +5420,7 @@
  		srv_set_io_thread_op_info(segment, "native aio handle");
  #ifdef WIN_ASYNC_IO
  		ret = os_aio_windows_handle(segment, 0, &fil_node,
@@ -766,7 +766,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #else
  		ret = 0; /* Eliminate compiler warning */
  		ut_error;
-@@ -5061,7 +5108,22 @@
+@@ -5382,7 +5429,22 @@
  		srv_set_io_thread_op_info(segment, "simulated aio handle");
  
  		ret = os_aio_simulated_handle(segment, &fil_node,

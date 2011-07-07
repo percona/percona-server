@@ -340,7 +340,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			if (!ready) {
  
  				return(block);
-@@ -1805,6 +1811,13 @@
+@@ -1809,6 +1815,13 @@
  		return(NULL);
  	}
  
@@ -354,7 +354,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&page_hash_latch);
-@@ -2280,6 +2293,13 @@
+@@ -2303,6 +2316,13 @@
  		return(NULL);
  	}
  
@@ -368,7 +368,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -2927,6 +2947,7 @@
+@@ -2950,6 +2970,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -376,7 +376,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
-@@ -3462,6 +3483,7 @@
+@@ -3485,6 +3506,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -384,7 +384,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -3503,6 +3525,23 @@
+@@ -3526,6 +3548,23 @@
  			      REFMAN "forcing-innodb-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -408,7 +408,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				fputs("InnoDB: Ending processing because of"
  				      " a corrupt database page.\n",
-@@ -3510,6 +3549,7 @@
+@@ -3533,6 +3572,7 @@
  				exit(1);
  			}
  		}
@@ -416,7 +416,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -3519,8 +3559,11 @@
+@@ -3542,8 +3582,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(
@@ -475,7 +475,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4651,6 +4652,12 @@
+@@ -4657,6 +4658,12 @@
  	}
  
  	do {
@@ -488,7 +488,7 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  		if (UNIV_LIKELY
  		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-@@ -5454,4 +5461,42 @@
+@@ -5460,4 +5467,42 @@
  		rw_lock_free(&dict_table_stats_latches[i]);
  	}
  }
@@ -563,7 +563,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
  
  	mutex_exit(&fil_system->mutex);
-@@ -4895,6 +4898,34 @@
+@@ -5219,6 +5222,34 @@
  	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
  	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
  
@@ -598,7 +598,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #ifdef UNIV_HOTBACKUP
  	/* In ibbackup do normal i/o, not aio */
  	if (type == OS_FILE_READ) {
-@@ -4909,6 +4940,8 @@
+@@ -5233,6 +5264,8 @@
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
  		     offset_low, offset_high, len, node, message, trx);
  #endif
@@ -607,7 +607,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5401,3 +5434,46 @@
+@@ -5726,3 +5759,46 @@
                 return 0;
         }
  }

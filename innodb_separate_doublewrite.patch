@@ -303,7 +303,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5589,7 +5599,7 @@
+@@ -5590,7 +5600,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);

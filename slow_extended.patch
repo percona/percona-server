@@ -714,7 +714,9 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_connect.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -764,4 +764,13 @@
+@@ -762,6 +762,15 @@
+     MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+                            (char *) thd->security_ctx->host_or_ip);
  
 +    /* 
 +      If rate limiting of slow log writes is enabled, decide whether to log this 
@@ -731,15 +733,93 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/sql_parse.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -1430,7 +1430,6 @@
+@@ -1430,11 +1430,85 @@
    DBUG_RETURN(error);
  }
  
--
++ulonglong query_exec_time(THD *thd, ulonglong end_utime_of_query)
++{
++  DBUG_ENTER("query_exec_time");
++  ulonglong utime_after_lock= thd->utime_after_lock;
++  ulonglong query_exec_time= 0;
++  if (utime_after_lock < end_utime_of_query)
++  {
++    query_exec_time= end_utime_of_query - utime_after_lock;
++  }
++
++#define DBUG_QRT_STR "query_exec_time"
++#define DBUG_QRT_TEST(t,v) do                                   \
++  {                                                             \
++    const char* prefix=   "/* " DBUG_QRT_STR "= \"" t "\" */";  \
++    uint32 prefix_length= strlen(prefix);                       \
++    uint32 length=                                              \
++      (prefix_length < query_length                             \
++       ? prefix_length : query_length);                         \
++    if (0 == strncmp(prefix, query, length))                    \
++    {                                                           \
++      query_exec_time= v;                                       \
++    }                                                           \
++    DBUG_EXECUTE_IF(DBUG_QRT_STR "_" t,                         \
++                    {                                           \
++                      query_exec_time= v;                       \
++                      DBUG_SET("-d," DBUG_QRT_STR "_" t);       \
++                    });                                         \
++  }                                                             \
++  while(false)
++
++  DBUG_EXECUTE_IF(DBUG_QRT_STR "_debug",
++                  {
++                    const char* query=        thd->query();
++                    uint32      query_length= thd->query_length();
++                    query_exec_time=          0;
++                    DBUG_QRT_TEST("0.31", 310000UL);
++                    DBUG_QRT_TEST("0.32", 320000UL);
++                    DBUG_QRT_TEST("0.33", 330000UL);
++                    DBUG_QRT_TEST("0.34", 340000UL);
++                    DBUG_QRT_TEST("0.35", 350000UL);
++                    DBUG_QRT_TEST("0.36", 360000UL);
++                    DBUG_QRT_TEST("0.37", 370000UL);
++                    DBUG_QRT_TEST("0.38", 380000UL);
++                    DBUG_QRT_TEST("0.39", 390000UL);
++                    DBUG_QRT_TEST("0.4",  400000UL);
++                    DBUG_QRT_TEST("0.5",  500000UL);
++                    DBUG_QRT_TEST("1.1",  1100000UL);
++                    DBUG_QRT_TEST("1.2",  1200000UL);
++                    DBUG_QRT_TEST("1.3",  1300000UL);
++                    DBUG_QRT_TEST("1.4",  1400000UL);
++                    DBUG_QRT_TEST("1.5",  1500000UL);
++                    DBUG_QRT_TEST("2.1",  2100000UL);
++                    DBUG_QRT_TEST("2.3",  2300000UL);
++                    DBUG_QRT_TEST("2.5",  2500000UL);
++                    DBUG_QRT_TEST("3.1",  3100000UL);
++                    DBUG_QRT_TEST("4.1",  4100000UL);
++                    DBUG_QRT_TEST("5.1",  5100000UL);
++                  });
++#undef DBUG_QRT_TEST
++#undef DBUG_QRT_STR
++  uint server_query_was_slow= SERVER_QUERY_WAS_SLOW;
++  if (query_exec_time > thd->variables.long_query_time)
++  {
++    thd->server_status|= server_query_was_slow;
++  }
++  else
++  {
++    thd->server_status&= ~server_query_was_slow;
++  }
++  DBUG_RETURN(query_exec_time);
++}
+ 
  void log_slow_statement(THD *thd)
  {
    DBUG_ENTER("log_slow_statement");
-@@ -1443,6 +1442,42 @@
+ 
++  ulonglong end_utime_of_query= thd->current_utime();
++  ulonglong query_exec_time=    ::query_exec_time(thd, end_utime_of_query);
++
+   /*
+     The following should never be true with our current code base,
+     but better to keep this here so we don't accidently try to log a
+@@ -1443,13 +1513,47 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -757,7 +837,6 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +    to make an exception and write to slow log anyway.
 +  */
 +
-+  ulonglong end_utime_of_query= thd->current_utime();
 +#define USE_GLOBAL_UPDATE(variable_name,enum_value_name)                \
 +  if (opt_slow_query_log_use_global_control & (ULL(1) << enum_value_name))    \
 +  {                                                                     \
@@ -775,14 +854,21 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 +  /* Do not log this thread's queries due to rate limiting. */
 +  if (thd->write_to_slow_log != TRUE
 +      && (thd->variables.long_query_time >= 1000000
-+          || (ulong) (end_utime_of_query - thd->utime_after_lock) < 1000000))
++          || (ulong) query_exec_time < 1000000))
 +    DBUG_VOID_RETURN;
 +
 +
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -1818,6 +1853,9 @@
+   */
+   if (thd->enable_slow_log)
+   {
+-    ulonglong end_utime_of_query= thd->current_utime();
+     thd_proc_info(thd, "logging slow query");
+ 
+     if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
+@@ -1818,6 +1922,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -792,7 +878,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5252,6 +5290,21 @@
+@@ -5252,6 +5359,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  

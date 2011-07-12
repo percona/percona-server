@@ -56,7 +56,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
-@@ -2248,6 +2268,89 @@
+@@ -2254,6 +2274,89 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -146,7 +146,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Check that values don't overflow on 32-bit systems. */
  	if (sizeof(ulint) == 4) {
  		if (innobase_buffer_pool_size > UINT_MAX32) {
-@@ -2546,6 +2649,76 @@
+@@ -2552,6 +2655,76 @@
  		goto mem_free_and_error;
  	}
  
@@ -223,7 +223,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
  		innobase_old_blocks_pct, TRUE);
  
-@@ -2658,6 +2831,25 @@
+@@ -2666,6 +2839,25 @@
  	trx_t*	trx)	/*!< in: transaction handle */
  {
  	if (trx_is_started(trx)) {
@@ -249,7 +249,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  		trx_commit_for_mysql(trx);
  	}
-@@ -11014,6 +11206,12 @@
+@@ -11026,6 +11218,12 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11474,6 +11672,7 @@
+@@ -11492,6 +11690,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),

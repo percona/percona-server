@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:09:53.145500265 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:10:24.605515894 +0900
-@@ -686,6 +686,8 @@
+@@ -687,6 +687,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
@@ -42,7 +42,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
 --- a/storage/innobase/lock/lock0lock.c	2010-12-03 17:49:11.609953956 +0900
 +++ b/storage/innobase/lock/lock0lock.c	2010-12-04 16:10:24.608513889 +0900
-@@ -3328,6 +3328,7 @@
+@@ -3330,6 +3330,7 @@
  		break;
  
  	case LOCK_VICTIM_IS_START:

@@ -35,16 +35,16 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2011-04-09 18:48:47.000000000 +0400
 +++ b/storage/innobase/handler/ha_innodb.cc	2011-04-09 18:48:48.000000000 +0400
-@@ -194,6 +194,8 @@
- static my_bool	innobase_create_status_file		= FALSE;
+@@ -195,6 +195,8 @@
  static my_bool	innobase_stats_on_metadata		= TRUE;
+ static my_bool	innobase_large_prefix			= FALSE;
  static my_bool	innobase_use_sys_stats_table		= FALSE;
 +static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 +static uint	innobase_buffer_pool_shm_key		= 0;
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2670,6 +2672,12 @@
+@@ -2676,6 +2678,12 @@
  	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
  	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
  
@@ -57,7 +57,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
  
  	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
-@@ -11733,6 +11741,16 @@
+@@ -11750,6 +11758,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -74,7 +74,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -12027,6 +12045,8 @@
+@@ -12044,6 +12062,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),

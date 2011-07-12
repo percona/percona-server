@@ -571,7 +571,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	if (UNIV_UNLIKELY(!bpage->zip.data)) {
  		/* There is no compressed page. */
  err_exit:
-@@ -3025,6 +2573,27 @@
+@@ -3026,6 +2574,27 @@
  		block = (buf_block_t*) buf_page_hash_get_low(
  			buf_pool, space, offset, fold);
  		if (block) {
@@ -599,7 +599,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
  			ut_a(block_mutex);
  		}
-@@ -3224,8 +2793,6 @@
+@@ -3225,8 +2794,6 @@
  
  		if (buf_page_get_state(&block->page)
  		    == BUF_BLOCK_ZIP_PAGE) {
@@ -928,9 +928,9 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 -	ut_a(node->n_pending == 0);
 +	ut_a(node->n_pending == 0 || node->space->is_being_deleted);
  	ut_a(node->n_pending_flushes == 0);
- 	ut_a(node->modification_counter == node->flush_counter);
- 
-@@ -876,7 +877,7 @@
+ 	ut_a(node->modification_counter == node->flush_counter
+ 	     || srv_fast_shutdown == 2);
+@@ -877,7 +878,7 @@
  	ut_a(system->n_open > 0);
  	system->n_open--;
  
@@ -939,7 +939,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
  
  		/* The node is in the LRU list, remove it */
-@@ -1075,7 +1076,7 @@
+@@ -1076,7 +1077,7 @@
  	ut_ad(node && system && space);
  	ut_ad(mutex_own(&(system->mutex)));
  	ut_a(node->magic_n == FIL_NODE_MAGIC_N);
@@ -948,7 +948,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	if (node->open) {
  		/* We fool the assertion in fil_node_close_file() to think
-@@ -1597,6 +1598,8 @@
+@@ -1598,6 +1599,8 @@
  
  	mutex_create(fil_system_mutex_key,
  		     &fil_system->mutex, SYNC_ANY_LATCH);
@@ -957,7 +957,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	fil_system->spaces = hash_create(hash_size);
  	fil_system->name_hash = hash_create(hash_size);
-@@ -2343,7 +2346,11 @@
+@@ -2344,7 +2347,11 @@
  	completely and permanently. The flag is_being_deleted also prevents
  	fil_flush() from being applied to this tablespace. */
  
@@ -969,7 +969,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #endif
  	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
  
-@@ -4721,6 +4728,10 @@
+@@ -4722,6 +4729,10 @@
  	ulint		page_size;
  	ibool		success		= TRUE;
  
@@ -980,7 +980,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	fil_mutex_enter_and_prepare_for_io(space_id);
  
  	space = fil_space_get_by_id(space_id);
-@@ -4732,6 +4743,7 @@
+@@ -4733,6 +4744,7 @@
  		*actual_size = space->size;
  
  		mutex_exit(&fil_system->mutex);
@@ -988,7 +988,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  		return(TRUE);
  	}
-@@ -4764,6 +4776,8 @@
+@@ -4765,6 +4777,8 @@
  		offset_low  = ((start_page_no - file_start_page_no)
  			       % (4096 * ((1024 * 1024) / page_size)))
  			* page_size;
@@ -997,7 +997,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #ifdef UNIV_HOTBACKUP
  		success = os_file_write(node->name, node->handle, buf,
  					offset_low, offset_high,
-@@ -4773,8 +4787,10 @@
+@@ -4774,8 +4788,10 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -1009,7 +1009,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  		if (success) {
  			node->size += n_pages;
  			space->size += n_pages;
-@@ -4820,6 +4836,7 @@
+@@ -4821,6 +4837,7 @@
  	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
  	size_after_extend, *actual_size); */
  	mutex_exit(&fil_system->mutex);
@@ -1017,7 +1017,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	fil_flush(space_id, TRUE);
  
-@@ -5182,6 +5199,22 @@
+@@ -5183,6 +5200,22 @@
  		srv_data_written+= len;
  	}
  
@@ -1040,7 +1040,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	/* Reserve the fil_system mutex and make sure that we can open at
  	least one file while holding it, if the file is not already open */
  
-@@ -5323,10 +5356,24 @@
+@@ -5324,10 +5357,24 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -1066,7 +1066,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5426,6 +5473,7 @@
+@@ -5427,6 +5474,7 @@
  	fil_node_t*	fil_node;
  	void*		message;
  	ulint		type;
@@ -1074,7 +1074,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	ut_ad(fil_validate_skip());
  
-@@ -5433,10 +5481,10 @@
+@@ -5434,10 +5482,10 @@
  		srv_set_io_thread_op_info(segment, "native aio handle");
  #ifdef WIN_ASYNC_IO
  		ret = os_aio_windows_handle(segment, 0, &fil_node,
@@ -1087,7 +1087,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #else
  		ut_error;
  		ret = 0; /* Eliminate compiler warning */
-@@ -5445,7 +5493,22 @@
+@@ -5446,7 +5494,22 @@
  		srv_set_io_thread_op_info(segment, "simulated aio handle");
  
  		ret = os_aio_simulated_handle(segment, &fil_node,
@@ -1114,7 +1114,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:13.035513990 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:57:53.084513775 +0900
-@@ -12007,6 +12007,12 @@
+@@ -12024,6 +12024,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -1127,7 +1127,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12097,6 +12103,7 @@
+@@ -12115,6 +12121,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -1135,7 +1135,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    NULL
  };
  
-@@ -12106,7 +12113,7 @@
+@@ -12124,7 +12131,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    plugin_author,
@@ -1147,7 +1147,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-02-23 19:00:48.252696774 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-23 19:01:19.182655902 +0900
-@@ -258,12 +258,6 @@
+@@ -261,12 +261,6 @@
  				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
  	buf_page_t*	dpage)	/*!< in/out: destination control block */
  	__attribute__((nonnull));
@@ -1160,7 +1160,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  /*********************************************************************//**
  Gets the current size of buffer buf_pool in bytes.
  @return	size in bytes */
-@@ -1438,6 +1432,7 @@
+@@ -1441,6 +1435,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -1168,7 +1168,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	ibool		is_corrupt;
  # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ibool		file_page_was_freed;
-@@ -1777,8 +1772,6 @@
+@@ -1780,8 +1775,6 @@
  	frames and buf_page_t descriptors of blocks that exist
  	in the buffer pool only in compressed form. */
  	/* @{ */
@@ -1331,7 +1331,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:57:53.091592933 +0900
 @@ -53,6 +53,11 @@
  #define INNODB_VERSION_MINOR	1
- #define INNODB_VERSION_BUGFIX	7
+ #define INNODB_VERSION_BUGFIX	8
  
 +#ifndef PERCONA_INNODB_VERSION
 +#define PERCONA_INNODB_VERSION 20.1
@@ -1362,7 +1362,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	fil_node_t*	message1;	/*!< message which is given by the */
  	void*		message2;	/*!< the requester of an aio operation
  					and which can be used to identify
-@@ -3685,7 +3686,8 @@
+@@ -3686,7 +3687,8 @@
  				offset */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -1372,7 +1372,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_slot_t*	slot = NULL;
  #ifdef WIN_ASYNC_IO
-@@ -3774,6 +3776,7 @@
+@@ -3775,6 +3777,7 @@
  	slot->offset   = offset;
  	slot->offset_high = offset_high;
  	slot->io_already_done = FALSE;
@@ -1380,7 +1380,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  #ifdef WIN_ASYNC_IO
  	control = &(slot->control);
-@@ -4061,6 +4064,7 @@
+@@ -4062,6 +4065,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -1388,7 +1388,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	trx_t*		trx)
  {
  	os_aio_array_t*	array;
-@@ -4149,7 +4153,7 @@
+@@ -4157,7 +4161,7 @@
  		trx->io_read += n;
  	}
  	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
@@ -1397,7 +1397,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	if (type == OS_FILE_READ) {
  		if (srv_use_native_aio) {
  			os_n_file_reads++;
-@@ -4268,7 +4272,8 @@
+@@ -4276,7 +4280,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -1407,7 +1407,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	ulint		orig_seg	= segment;
  	os_aio_array_t*	array;
-@@ -4347,6 +4352,7 @@
+@@ -4355,6 +4360,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;
@@ -1415,7 +1415,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if (ret && len == slot->len) {
  		ret_val = TRUE;
-@@ -4575,7 +4581,8 @@
+@@ -4583,7 +4589,8 @@
  				aio operation failed, these output
  				parameters are valid and can be used to
  				restart the operation. */
@@ -1425,7 +1425,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	ulint		segment;
  	os_aio_array_t*	array;
-@@ -4648,6 +4655,7 @@
+@@ -4656,6 +4663,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;
@@ -1433,7 +1433,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((slot->ret == 0) && (slot->n_bytes == (long)slot->len)) {
  		ret = TRUE;
-@@ -4701,7 +4709,8 @@
+@@ -4709,7 +4717,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -1443,7 +1443,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_array_t*	array;
  	ulint		segment;
-@@ -4997,6 +5006,7 @@
+@@ -5005,6 +5014,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;
@@ -1476,7 +1476,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  	if (prebuilt->sql_stat_start) {
  		node->state = INS_NODE_SET_IX_LOCK;
  		prebuilt->sql_stat_start = FALSE;
-@@ -2597,10 +2605,29 @@
+@@ -2602,10 +2610,29 @@
  
  			err = DB_ERROR;
  		} else {
@@ -1506,7 +1506,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  		}
  	}
  
-@@ -2949,6 +2976,19 @@
+@@ -2954,6 +2981,19 @@
  			table->space = space;
  			index = dict_table_get_first_index(table);
  			do {
@@ -1529,7 +1529,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 --- a/storage/innobase/row/row0sel.c	2010-12-04 15:52:23.494514495 +0900
 +++ b/storage/innobase/row/row0sel.c	2010-12-04 16:01:38.320883699 +0900
-@@ -3366,6 +3366,7 @@
+@@ -3367,6 +3367,7 @@
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
  	ibool		table_lock_waited		= FALSE;
@@ -1537,7 +1537,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  
  	rec_offs_init(offsets_);
  
-@@ -3737,6 +3738,17 @@
+@@ -3738,6 +3739,17 @@
  
  	/* Do some start-of-statement preparations */
  
@@ -1555,7 +1555,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3747,6 +3759,18 @@
+@@ -3748,6 +3760,18 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);

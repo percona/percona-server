@@ -1,5 +1,5 @@
 # name       : innodb_fake_changes.patch
-# introduced : 5.5.13
+# introduced : 5.5.14
 # maintainer : Yasufumi
 #
 #!!! notice !!!
@@ -182,20 +182,20 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2011-06-01 21:04:26.511385596 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2011-06-01 21:04:53.723390828 +0900
-@@ -485,6 +485,12 @@
+@@ -486,6 +486,12 @@
    " or 2 (write at commit, flush once per second).",
    NULL, NULL, 1, 0, 2, 0);
  
 +static MYSQL_THDVAR_BOOL(fake_changes, PLUGIN_VAR_OPCMDARG,
 +  "In the transaction after enabled, UPDATE, INSERT and DELETE only move the cursor to the records "
 +  "and do nothing other operations (no changes, no ibuf, no undo, no transaction log) in the transaction. "
-+  "ATTENTION: the transaction started after enabled is affected.",
++  "This is to cause replication prefetch IO. ATTENTION: the transaction started after enabled is affected.",
 +  NULL, NULL, FALSE);
 +
  
  static handler *innobase_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-@@ -1676,6 +1682,8 @@
+@@ -1682,6 +1688,8 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -204,7 +204,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef EXTENDED_SLOWLOG
  	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
  		trx->take_stats = TRUE;
-@@ -3152,6 +3160,11 @@
+@@ -3164,6 +3172,11 @@
  		trx_search_latch_release_if_reserved(trx);
  	}
  
@@ -216,7 +216,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Transaction is deregistered only in a commit or a rollback. If
  	it is deregistered we know there cannot be resources to be freed
  	and we could return immediately.  For the time being, we play safe
-@@ -7491,6 +7504,12 @@
+@@ -7507,6 +7520,12 @@
  
  	trx = innobase_trx_allocate(thd);
  
@@ -229,7 +229,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
  	or lock waits can happen in it during a table create operation.
  	Drop table etc. do this latching in row0mysql.c. */
-@@ -7711,6 +7730,10 @@
+@@ -7727,6 +7746,10 @@
  		DBUG_RETURN(HA_ERR_CRASHED);
  	}
  
@@ -240,7 +240,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7767,6 +7790,12 @@
+@@ -7783,6 +7806,12 @@
  
  	trx = innobase_trx_allocate(thd);
  
@@ -253,7 +253,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	name_len = strlen(name);
  
  	ut_a(name_len < 1000);
-@@ -7853,6 +7882,12 @@
+@@ -7869,6 +7898,12 @@
  	trx->mysql_thd = NULL;
  #else
  	trx = innobase_trx_allocate(thd);
@@ -266,7 +266,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #endif
  	row_drop_database_for_mysql(namebuf, trx);
  	my_free(namebuf);
-@@ -7958,6 +7993,11 @@
+@@ -7974,6 +8009,11 @@
  	trx_search_latch_release_if_reserved(parent_trx);
  
  	trx = innobase_trx_allocate(thd);
@@ -278,7 +278,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  	error = innobase_rename_table(trx, from, to, TRUE);
  
-@@ -10756,6 +10796,10 @@
+@@ -10772,6 +10812,10 @@
  		return(0);
  	}
  
@@ -289,7 +289,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
  
  	/* Release a possible FIFO ticket and search latch. Since we will
-@@ -12226,6 +12270,7 @@
+@@ -12300,6 +12344,7 @@
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
    MYSQL_SYSVAR(lazy_drop_table),
@@ -300,7 +300,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/handler/handler0alter.cc b/storage/innobase/handler/handler0alter.cc
 --- a/storage/innobase/handler/handler0alter.cc	2011-04-11 19:44:03.000000000 +0900
 +++ b/storage/innobase/handler/handler0alter.cc	2011-06-01 21:04:53.728495636 +0900
-@@ -657,6 +657,10 @@
+@@ -695,6 +695,10 @@
  	possible adaptive hash latch to avoid deadlocks of threads. */
  	trx_search_latch_release_if_reserved(prebuilt->trx);
  
@@ -311,7 +311,7 @@ diff -ruN a/storage/innobase/handler/handler0alter.cc b/storage/innobase/handler
  	/* Check if the index name is reserved. */
  	if (innobase_index_name_is_reserved(user_thd, key_info, num_of_keys)) {
  		DBUG_RETURN(-1);
-@@ -682,6 +686,13 @@
+@@ -732,6 +736,13 @@
  	/* Create a background transaction for the operations on
  	the data dictionary tables. */
  	trx = innobase_trx_allocate(user_thd);
@@ -325,7 +325,18 @@ diff -ruN a/storage/innobase/handler/handler0alter.cc b/storage/innobase/handler
  	trx_start_if_not_started(trx);
  
  	/* Create table containing all indexes to be built in this
-@@ -1172,6 +1183,12 @@
+@@ -1092,6 +1103,10 @@
+ 	trx_search_latch_release_if_reserved(prebuilt->trx);
+ 	trx = prebuilt->trx;
+ 
++	if (trx->fake_changes) {
++		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
++	}
++
+ 	/* Test and mark all the indexes to be dropped */
+ 
+ 	row_mysql_lock_data_dictionary(trx);
+@@ -1296,6 +1311,12 @@
  	/* Create a background transaction for the operations on
  	the data dictionary tables. */
  	trx = innobase_trx_allocate(user_thd);
@@ -364,7 +375,7 @@ diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0tr
 diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
 --- a/storage/innobase/lock/lock0lock.c	2011-06-01 21:04:26.543396960 +0900
 +++ b/storage/innobase/lock/lock0lock.c	2011-06-01 21:04:53.739416526 +0900
-@@ -3909,6 +3909,10 @@
+@@ -3912,6 +3912,10 @@
  
  	trx = thr_get_trx(thr);
  
@@ -375,7 +386,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  	lock_mutex_enter_kernel();
  
  	/* Look for stronger locks the same trx already has on the table */
-@@ -5107,6 +5111,11 @@
+@@ -5114,6 +5118,11 @@
  	}
  
  	trx = thr_get_trx(thr);
@@ -387,7 +398,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  	next_rec = page_rec_get_next_const(rec);
  	next_rec_heap_no = page_rec_get_heap_no(next_rec);
  
-@@ -5275,6 +5284,10 @@
+@@ -5282,6 +5291,10 @@
  		return(DB_SUCCESS);
  	}
  
@@ -398,7 +409,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  	heap_no = rec_offs_comp(offsets)
  		? rec_get_heap_no_new(rec)
  		: rec_get_heap_no_old(rec);
-@@ -5333,6 +5346,10 @@
+@@ -5340,6 +5353,10 @@
  		return(DB_SUCCESS);
  	}
  
@@ -409,7 +420,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  	heap_no = page_rec_get_heap_no(rec);
  
  	/* Another transaction cannot have an implicit lock on the record,
-@@ -5420,6 +5437,10 @@
+@@ -5427,6 +5444,10 @@
  		return(DB_SUCCESS);
  	}
  
@@ -420,7 +431,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  	heap_no = page_rec_get_heap_no(rec);
  
  	lock_mutex_enter_kernel();
-@@ -5496,6 +5517,10 @@
+@@ -5503,6 +5524,10 @@
  		return(DB_SUCCESS);
  	}
  

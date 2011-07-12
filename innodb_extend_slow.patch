@@ -114,7 +114,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2875,6 +2935,9 @@
+@@ -2876,6 +2936,9 @@
  	      || ibuf_page_low(space, zip_size, offset,
  			       FALSE, file, line, NULL));
  #endif
@@ -124,7 +124,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool->stat.n_page_gets++;
  	fold = buf_page_address_fold(space, offset);
  loop:
-@@ -2949,7 +3012,7 @@
+@@ -2950,7 +3013,7 @@
  			return(NULL);
  		}
  
@@ -335,7 +335,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-12-03 15:53:54.610037199 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-03 17:42:42.079064198 +0900
-@@ -4747,7 +4747,7 @@
+@@ -4748,7 +4748,7 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -344,7 +344,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #endif
  		if (success) {
  			node->size += n_pages;
-@@ -5074,7 +5074,7 @@
+@@ -5075,7 +5075,7 @@
  i/o on a tablespace which does not exist */
  UNIV_INTERN
  ulint
@@ -353,7 +353,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  /*===*/
  	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
  				ORed to OS_FILE_LOG, if a log i/o
-@@ -5099,8 +5099,9 @@
+@@ -5100,8 +5100,9 @@
  	void*	buf,		/*!< in/out: buffer where to store read data
  				or from where to write; in aio this must be
  				appropriately aligned */
@@ -364,7 +364,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  {
  	ulint		mode;
  	fil_space_t*	space;
-@@ -5268,7 +5269,7 @@
+@@ -5269,7 +5270,7 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -376,7 +376,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:36:44.293955189 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:42:42.090024586 +0900
-@@ -1573,6 +1573,16 @@
+@@ -1579,6 +1579,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -393,7 +393,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	DBUG_VOID_RETURN;
  }
  
-@@ -1627,6 +1637,32 @@
+@@ -1633,6 +1643,32 @@
  	return(trx);
  }
  
@@ -426,7 +426,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9301,6 +9337,25 @@
+@@ -9313,6 +9349,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -675,7 +675,7 @@ diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0tr
 diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
 --- a/storage/innobase/lock/lock0lock.c	2010-12-03 15:09:51.297986437 +0900
 +++ b/storage/innobase/lock/lock0lock.c	2010-12-03 17:42:42.111024587 +0900
-@@ -1755,6 +1755,8 @@
+@@ -1765,6 +1765,8 @@
  {
  	lock_t*	lock;
  	trx_t*	trx;
@@ -684,7 +684,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	ut_ad(mutex_own(&kernel_mutex));
  
-@@ -1813,6 +1815,10 @@
+@@ -1823,6 +1825,10 @@
  	trx->que_state = TRX_QUE_LOCK_WAIT;
  	trx->was_chosen_as_deadlock_victim = FALSE;
  	trx->wait_started = time(NULL);
@@ -695,7 +695,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	ut_a(que_thr_stop(thr));
  
-@@ -3764,6 +3770,8 @@
+@@ -3766,6 +3772,8 @@
  {
  	lock_t*	lock;
  	trx_t*	trx;
@@ -704,7 +704,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	ut_ad(mutex_own(&kernel_mutex));
  
-@@ -3819,6 +3827,10 @@
+@@ -3821,6 +3829,10 @@
  		return(DB_SUCCESS);
  	}
  
@@ -727,7 +727,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #include "log0recv.h"
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
-@@ -2212,13 +2214,18 @@
+@@ -2213,13 +2215,18 @@
  	ulint		n,	/*!< in: number of bytes to read */
  	ulint		offset,	/*!< in: least significant 32 bits of file
  				offset from where to read */
@@ -747,7 +747,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	ut_a((offset & 0xFFFFFFFFUL) == offset);
  
-@@ -2239,6 +2246,15 @@
+@@ -2240,6 +2247,15 @@
  
  	os_n_file_reads++;
  
@@ -763,7 +763,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
  	os_mutex_enter(os_file_count_mutex);
  	os_file_n_pending_preads++;
-@@ -2252,6 +2268,13 @@
+@@ -2253,6 +2269,13 @@
  	os_n_pending_reads--;
  	os_mutex_exit(os_file_count_mutex);
  
@@ -777,7 +777,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	return(n_bytes);
  #else
  	{
-@@ -2288,6 +2311,13 @@
+@@ -2289,6 +2312,13 @@
  		os_n_pending_reads--;
  		os_mutex_exit(os_file_count_mutex);
  
@@ -791,7 +791,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		return(ret);
  	}
  #endif
-@@ -2428,7 +2458,8 @@
+@@ -2429,7 +2459,8 @@
  				offset where to read */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -801,7 +801,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  #ifdef __WIN__
  	BOOL		ret;
-@@ -2503,7 +2534,7 @@
+@@ -2504,7 +2535,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -810,7 +810,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((ulint)ret == n) {
  
-@@ -2632,7 +2663,7 @@
+@@ -2633,7 +2664,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -819,7 +819,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	if ((ulint)ret == n) {
  
-@@ -4026,10 +4057,11 @@
+@@ -4027,10 +4058,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -832,18 +832,16 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  {
  	os_aio_array_t*	array;
  	os_aio_slot_t*	slot;
-@@ -4070,8 +4102,8 @@
- 		wait in the Windows case. */
+@@ -4078,7 +4110,7 @@
  
  		if (type == OS_FILE_READ) {
--			return(os_file_read(file, buf, offset,
+ 			return(os_file_read_func(file, buf, offset,
 -					    offset_high, n));
-+			return(os_file_read_trx(file, buf, offset,
 +					    offset_high, n, trx));
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -4111,6 +4143,11 @@
+@@ -4119,6 +4151,11 @@
  		array = NULL; /* Eliminate compiler warning */
  	}
  
@@ -901,7 +899,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +
  	trx->op_info = "waiting in InnoDB queue";
  
- 	thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_TABLE_LOCK);
+ 	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
 @@ -1379,6 +1395,12 @@
  
  	trx->op_info = "";

@@ -62,7 +62,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2011-07-07 18:43:12.000000000 +0400
 +++ b/storage/innobase/fil/fil0fil.c	2011-07-07 19:01:22.000000000 +0400
-@@ -2600,7 +2600,7 @@
+@@ -2601,7 +2601,7 @@
  
  		os_thread_sleep(20000);
  
@@ -71,7 +71,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  		goto retry;
  
-@@ -2814,7 +2814,7 @@
+@@ -2815,7 +2815,7 @@
  		goto error_exit;
  	}
  
@@ -80,7 +80,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	if (!ret) {
  		fputs("InnoDB: Error: file flush of tablespace ", stderr);
-@@ -3000,7 +3000,7 @@
+@@ -3001,7 +3001,7 @@
  		}
  	}
  
@@ -89,7 +89,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	if (!success) {
  
  		goto func_exit;
-@@ -3022,7 +3022,7 @@
+@@ -3023,7 +3023,7 @@
  
  		goto func_exit;
  	}
@@ -98,7 +98,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  func_exit:
  	os_file_close(file);
  	ut_free(buf2);
-@@ -4005,7 +4005,7 @@
+@@ -4006,7 +4006,7 @@
  	size_after_extend, *actual_size); */
  	mutex_exit(&fil_system->mutex);
  
@@ -107,7 +107,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  	return(success);
  }
-@@ -4576,8 +4576,9 @@
+@@ -4577,8 +4577,9 @@
  void
  fil_flush(
  /*======*/
@@ -118,7 +118,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  {
  	fil_space_t*	space;
  	fil_node_t*	node;
-@@ -4648,7 +4649,7 @@
+@@ -4649,7 +4650,7 @@
  			/* fprintf(stderr, "Flushing to file %s\n",
  			node->name); */
  
@@ -127,7 +127,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  
  			mutex_enter(&fil_system->mutex);
  
-@@ -4731,7 +4732,7 @@
+@@ -4732,7 +4733,7 @@
  	a non-existing space id. */
  	for (i = 0; i < n_space_ids; i++) {
  
@@ -139,7 +139,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2011-07-07 18:43:12.000000000 +0400
 +++ b/storage/innobase/handler/ha_innodb.cc	2011-07-07 19:01:24.000000000 +0400
-@@ -444,6 +444,12 @@
+@@ -445,6 +445,12 @@
    "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
    NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
  
@@ -152,7 +152,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static handler *innobase_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-@@ -838,6 +844,17 @@
+@@ -839,6 +845,17 @@
  	}
  }
  
@@ -170,7 +170,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2437,6 +2454,9 @@
+@@ -2443,6 +2460,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -180,7 +180,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -11025,7 +11045,7 @@
+@@ -11037,7 +11057,7 @@
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
    "Purge threads can be either 0 or 1.",
    NULL, NULL,
@@ -189,7 +189,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -11067,12 +11087,18 @@
+@@ -11079,12 +11099,18 @@
    innodb_file_format_max_validate,
    innodb_file_format_max_update, "Antelope");
  
@@ -214,7 +214,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11167,7 +11193,7 @@
+@@ -11184,7 +11210,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -223,7 +223,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11319,6 +11345,95 @@
+@@ -11336,6 +11362,95 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -319,15 +319,15 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11339,6 +11454,7 @@
+@@ -11356,6 +11471,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
 +  MYSQL_SYSVAR(use_global_flush_log_at_trx_commit),
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
-   MYSQL_SYSVAR(locks_unsafe_for_binlog),
-@@ -11376,6 +11492,13 @@
+   MYSQL_SYSVAR(large_prefix),
+@@ -11394,6 +11510,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -837,7 +837,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	}
  # endif /* UNIV_DO_FLUSH */
  
-@@ -4289,7 +4305,7 @@
+@@ -4296,7 +4312,7 @@
  #ifdef UNIV_DO_FLUSH
  		if (slot->type == OS_FILE_WRITE
  		    && !os_do_not_call_flush_at_each_write) {
@@ -846,7 +846,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  				ut_error;
  			}
  		}
-@@ -4590,7 +4606,7 @@
+@@ -4597,7 +4613,7 @@
  #ifdef UNIV_DO_FLUSH
  		if (slot->type == OS_FILE_WRITE
  		    && !os_do_not_call_flush_at_each_write)

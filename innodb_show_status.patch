@@ -62,7 +62,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 --- a/storage/innobase/fil/fil0fil.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/fil/fil0fil.c	2010-12-03 15:07:31.790357112 +0900
-@@ -4888,3 +4888,30 @@
+@@ -4889,3 +4889,30 @@
  
  	fil_system = NULL;
  }
@@ -96,7 +96,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:06:58.727955654 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:07:31.799376984 +0900
-@@ -603,6 +603,8 @@
+@@ -604,6 +604,8 @@
    (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG},
    {"buffer_pool_pages_flushed",
    (char*) &export_vars.innodb_buffer_pool_pages_flushed,  SHOW_LONG},
@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"buffer_pool_pages_free",
    (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
  #ifdef UNIV_DEBUG
-@@ -11081,6 +11083,16 @@
+@@ -11098,6 +11100,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -122,7 +122,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11268,7 +11280,7 @@
+@@ -11285,7 +11297,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -131,7 +131,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11361,6 +11373,8 @@
+@@ -11379,6 +11391,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -143,7 +143,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-01-20 07:37:08.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-14 15:25:20.859126532 +0900
-@@ -125,6 +125,7 @@
+@@ -128,6 +128,7 @@
  	/* General buffer pool info */
  	ulint	pool_unique_id;		/*!< Buffer Pool ID */
  	ulint	pool_size;		/*!< Buffer Pool size in pages */
@@ -216,7 +216,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
 --- a/storage/innobase/lock/lock0lock.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/lock/lock0lock.c	2010-12-03 15:07:31.819023998 +0900
-@@ -4374,6 +4374,7 @@
+@@ -4377,6 +4377,7 @@
  
  	putc('\n', file);
  
@@ -224,7 +224,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  	block = buf_page_try_get(space, page_no, &mtr);
  
  	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
-@@ -4400,6 +4401,7 @@
+@@ -4403,6 +4404,7 @@
  
  		putc('\n', file);
  	}
@@ -232,7 +232,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	mtr_commit(&mtr);
  	if (UNIV_LIKELY_NULL(heap)) {
-@@ -4583,7 +4585,7 @@
+@@ -4586,7 +4588,7 @@
  		}
  	}
  
@@ -241,7 +241,7 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  		nth_trx++;
  		goto loop;
  	}
-@@ -4655,8 +4657,8 @@
+@@ -4658,8 +4660,8 @@
  
  	nth_lock++;
  

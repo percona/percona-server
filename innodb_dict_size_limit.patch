@@ -252,7 +252,7 @@ diff -ruN a/storage/innobase/dict/dict0boot.c b/storage/innobase/dict/dict0boot.
 diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.c
 --- a/storage/innobase/dict/dict0crea.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/dict/dict0crea.c	2010-12-03 15:45:47.521955810 +0900
-@@ -1210,6 +1210,9 @@
+@@ -1209,6 +1209,9 @@
  		/* Foreign constraint system tables have already been
  		created, and they are ok */
  
@@ -262,7 +262,7 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  		mutex_exit(&(dict_sys->mutex));
  
  		return(DB_SUCCESS);
-@@ -1291,6 +1294,11 @@
+@@ -1290,6 +1293,11 @@
  
  	trx_commit_for_mysql(trx);
  
@@ -360,7 +360,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  /****************************************************************//**
  If the given column name is reserved for InnoDB system columns, return
  TRUE.
-@@ -1728,6 +1790,11 @@
+@@ -1762,6 +1824,11 @@
  	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -375,7 +375,7 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:43:57.294986852 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:45:47.534959966 +0900
-@@ -674,6 +674,8 @@
+@@ -675,6 +675,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
@@ -384,7 +384,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11642,6 +11644,11 @@
+@@ -11659,6 +11661,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11709,6 +11716,7 @@
+@@ -11727,6 +11734,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -435,7 +435,7 @@ diff -ruN a/storage/innobase/include/btr0sea.h b/storage/innobase/include/btr0se
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-02-01 18:00:03.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-01 18:03:29.000000000 +0900
-@@ -1555,6 +1555,15 @@
+@@ -1558,6 +1558,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  
@@ -454,7 +454,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
 --- a/storage/innobase/include/dict0dict.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/dict0dict.h	2010-12-03 15:45:47.558024515 +0900
-@@ -1170,6 +1170,12 @@
+@@ -1183,6 +1183,12 @@
  /*====================================*/
  	dict_table_t*	table,	/*!< in: table */
  	const char*	name);	/*!< in: name of the index to find */

@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
 --- a/storage/innobase/btr/btr0cur.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/btr/btr0cur.c	2010-12-03 15:48:29.268957148 +0900
-@@ -4069,7 +4069,8 @@
+@@ -4081,7 +4081,8 @@
  
  	mtr_commit(mtr);
  
@@ -18,7 +18,7 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	mutex_enter(&block->mutex);
  
  	/* Only free the block if it is still allocated to
-@@ -4080,16 +4081,21 @@
+@@ -4092,16 +4093,21 @@
  	    && buf_block_get_space(block) == space
  	    && buf_block_get_page_no(block) == page_no) {
  
@@ -1168,7 +1168,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2765,9 +2879,11 @@
+@@ -2766,9 +2880,11 @@
  	fold = buf_page_address_fold(space, offset);
  loop:
  	block = guess;
@@ -1181,7 +1181,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		/* If the guess is a compressed page descriptor that
  		has been allocated by buf_buddy_alloc(), it may have
  		been invalidated by buf_buddy_relocate().  In that
-@@ -2776,11 +2892,15 @@
+@@ -2777,11 +2893,15 @@
  		the guess may be pointing to a buffer pool chunk that
  		has been released when resizing the buffer pool. */
  
@@ -1198,7 +1198,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			block = guess = NULL;
  		} else {
  			ut_ad(!block->page.in_zip_hash);
-@@ -2789,12 +2909,19 @@
+@@ -2790,12 +2910,19 @@
  	}
  
  	if (block == NULL) {
@@ -1218,7 +1218,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		block = NULL;
  	}
  
-@@ -2806,12 +2933,14 @@
+@@ -2807,12 +2934,14 @@
  				space, offset, fold);
  
  			if (UNIV_LIKELY_NULL(block)) {
@@ -1235,7 +1235,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		if (mode == BUF_GET_IF_IN_POOL
  		    || mode == BUF_PEEK_IF_IN_POOL
-@@ -2861,7 +2990,8 @@
+@@ -2862,7 +2991,8 @@
  		/* The page is being read to buffer pool,
  		but we cannot wait around for the read to
  		complete. */
@@ -1245,7 +1245,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		return(NULL);
  	}
-@@ -2871,38 +3001,49 @@
+@@ -2872,38 +3002,49 @@
  		ibool		success;
  
  	case BUF_BLOCK_FILE_PAGE:
@@ -1302,7 +1302,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		{
  			buf_page_t*	hash_bpage;
-@@ -2915,35 +3056,47 @@
+@@ -2916,35 +3057,47 @@
  				while buf_pool->mutex was released.
  				Free the block that was allocated. */
  
@@ -1356,7 +1356,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		buf_block_init_low(block);
  		block->lock_hash_val = lock_rec_hash(space, offset);
  
-@@ -2952,7 +3105,7 @@
+@@ -2953,7 +3106,7 @@
  
  		if (buf_page_get_state(&block->page)
  		    == BUF_BLOCK_ZIP_PAGE) {
@@ -1365,7 +1365,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  				       &block->page);
  			ut_ad(!block->page.in_flush_list);
  		} else {
-@@ -2969,20 +3122,25 @@
+@@ -2970,20 +3123,25 @@
  		/* Insert at the front of unzip_LRU list */
  		buf_unzip_LRU_add_block(block, FALSE);
  
@@ -1394,7 +1394,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		/* Decompress the page and apply buffered operations
  		while not holding buf_pool->mutex or block->mutex. */
-@@ -2995,12 +3153,15 @@
+@@ -2996,12 +3154,15 @@
  		}
  
  		/* Unfix and unlatch the block. */
@@ -1413,7 +1413,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		rw_lock_x_unlock(&block->lock);
  
  		break;
-@@ -3016,7 +3177,7 @@
+@@ -3017,7 +3178,7 @@
  
  	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
  
@@ -1422,7 +1422,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #if UNIV_WORD_SIZE == 4
  	/* On 32-bit systems, there is no padding in buf_page_t.  On
  	other systems, Valgrind could complain about uninitialized pad
-@@ -3029,8 +3190,8 @@
+@@ -3030,8 +3191,8 @@
  		/* Try to evict the block from the buffer pool, to use the
  		insert buffer (change buffer) as much as possible. */
  
@@ -1433,7 +1433,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
  				/* Set the watch, as it would have
  				been set if the page were not in the
-@@ -3039,6 +3200,9 @@
+@@ -3040,6 +3201,9 @@
  					space, offset, fold);
  
  				if (UNIV_LIKELY_NULL(block)) {
@@ -1443,7 +1443,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  					/* The page entered the buffer
  					pool for some reason. Try to
-@@ -3046,7 +3210,7 @@
+@@ -3047,7 +3211,7 @@
  					goto got_block;
  				}
  			}
@@ -1452,10 +1452,10 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  			fprintf(stderr,
  				"innodb_change_buffering_debug evict %u %u\n",
  				(unsigned) space, (unsigned) offset);
-@@ -3065,13 +3229,14 @@
- 
- 	buf_block_buf_fix_inc(block, file, line);
- 
+@@ -3069,13 +3233,14 @@
+ 	ut_a(mode == BUF_GET_POSSIBLY_FREED
+ 	     || !block->page.file_page_was_freed);
+ #endif
 -	mutex_exit(&block->mutex);
 +	//mutex_exit(&block->mutex);
  
@@ -3382,7 +3382,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:48:03.048955897 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:48:29.304024564 +0900
-@@ -264,6 +264,10 @@
+@@ -265,6 +265,10 @@
  #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
  	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
  	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
@@ -3393,7 +3393,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
  	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
  	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
-@@ -313,6 +317,7 @@
+@@ -314,6 +318,7 @@
  	{&archive_lock_key, "archive_lock", 0},
  #  endif /* UNIV_LOG_ARCHIVE */
  	{&btr_search_latch_key, "btr_search_latch", 0},
@@ -3547,7 +3547,7 @@ diff -ruN a/storage/innobase/include/buf0buddy.ic b/storage/innobase/include/buf
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-03 15:22:36.327954660 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-03 15:48:29.343024683 +0900
-@@ -205,6 +205,20 @@
+@@ -208,6 +208,20 @@
  /*==========================*/
  
  /********************************************************************//**
@@ -3568,7 +3568,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  Creates the buffer pool.
  @return	own: buf_pool object, NULL if not enough memory or error */
  UNIV_INTERN
-@@ -834,6 +848,15 @@
+@@ -837,6 +851,15 @@
  	const buf_page_t*	bpage)	/*!< in: pointer to control block */
  	__attribute__((pure));
  
@@ -3584,7 +3584,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  /*********************************************************************//**
  Get the flush type of a page.
  @return	flush type */
-@@ -1315,7 +1338,7 @@
+@@ -1318,7 +1341,7 @@
  	All these are protected by buf_pool->mutex. */
  	/* @{ */
  
@@ -3593,7 +3593,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< based on state, this is a
  					list node, protected either by
  					buf_pool->mutex or by
-@@ -1343,6 +1366,10 @@
+@@ -1346,6 +1369,10 @@
  					BUF_BLOCK_REMOVE_HASH or
  					BUF_BLOCK_READY_IN_USE. */
  
@@ -3604,7 +3604,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  #ifdef UNIV_DEBUG
  	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
  					when buf_pool->flush_list_mutex is
-@@ -1435,11 +1462,11 @@
+@@ -1438,11 +1465,11 @@
  					a block is in the unzip_LRU list
  					if page.state == BUF_BLOCK_FILE_PAGE
  					and page.zip.data != NULL */
@@ -3618,7 +3618,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	mutex_t		mutex;		/*!< mutex protecting this block:
  					state (also protected by the buffer
  					pool mutex), io_fix, buf_fix_count,
-@@ -1614,6 +1641,11 @@
+@@ -1617,6 +1644,11 @@
  					pool instance, protects compressed
  					only pages (of type buf_page_t, not
  					buf_block_t */
@@ -3630,7 +3630,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	ulint		instance_no;	/*!< Array index of this buffer
  					pool instance */
  	ulint		old_pool_size;  /*!< Old pool size in bytes */
-@@ -1765,8 +1797,8 @@
+@@ -1768,8 +1800,8 @@
  /** Test if a buffer pool mutex is owned. */
  #define buf_pool_mutex_own(b) mutex_own(&b->mutex)
  /** Acquire a buffer pool mutex. */

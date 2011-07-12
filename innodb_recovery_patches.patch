@@ -117,7 +117,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
-@@ -2576,6 +2577,8 @@
+@@ -2582,6 +2583,8 @@
  
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
@@ -126,7 +126,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  
-@@ -11274,6 +11277,11 @@
+@@ -11286,6 +11289,11 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -138,7 +138,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(recovery_update_relay_log, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11747,6 +11755,7 @@
+@@ -11764,6 +11772,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
@@ -441,7 +441,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
  # include "os0thread.h"
-@@ -4270,6 +4271,18 @@
+@@ -4278,6 +4279,18 @@
  					   INFINITE);
  	}
  

@@ -1060,7 +1060,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.c
 --- a/storage/innobase/dict/dict0dict.c	2010-12-04 15:52:23.398513916 +0900
 +++ b/storage/innobase/dict/dict0dict.c	2010-12-04 16:12:48.662550715 +0900
-@@ -1811,7 +1811,7 @@
+@@ -1845,7 +1845,7 @@
  	zero. */
  
  	for (;;) {
@@ -1085,7 +1085,7 @@ diff -ruN a/storage/innobase/ha/ha0ha.c b/storage/innobase/ha/ha0ha.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:20.185850734 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 16:12:48.674552412 +0900
-@@ -11702,6 +11702,11 @@
+@@ -11719,6 +11719,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1097,7 +1097,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12068,6 +12073,7 @@
+@@ -12086,6 +12091,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1293,7 +1293,7 @@ diff -ruN a/storage/innobase/include/btr0sea.ic b/storage/innobase/include/btr0s
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-15 19:00:07.713604580 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-15 20:58:03.546839883 +0900
-@@ -1540,7 +1540,7 @@
+@@ -1543,7 +1543,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1302,7 +1302,7 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1554,6 +1554,7 @@
+@@ -1557,6 +1557,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */
@@ -1358,7 +1358,7 @@ diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
 diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
 --- a/storage/innobase/row/row0sel.c	2010-12-04 16:09:53.204513572 +0900
 +++ b/storage/innobase/row/row0sel.c	2010-12-04 16:12:48.722551273 +0900
-@@ -1210,7 +1210,7 @@
+@@ -1211,7 +1211,7 @@
  	ut_ad(plan->unique_search);
  	ut_ad(!plan->must_get_clust);
  #ifdef UNIV_SYNC_DEBUG
@@ -1367,7 +1367,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  #endif /* UNIV_SYNC_DEBUG */
  
  	row_sel_open_pcur(plan, TRUE, mtr);
-@@ -1381,10 +1381,10 @@
+@@ -1382,10 +1382,10 @@
  	    && !plan->must_get_clust
  	    && !plan->table->big_rows) {
  		if (!search_latch_locked) {
@@ -1380,7 +1380,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  
  			/* There is an x-latch request waiting: release the
  			s-latch for a moment; as an s-latch here is often
-@@ -1393,8 +1393,8 @@
+@@ -1394,8 +1394,8 @@
  			from acquiring an s-latch for a long time, lowering
  			performance significantly in multiprocessors. */
  
@@ -1391,7 +1391,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  		}
  
  		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
-@@ -1417,7 +1417,7 @@
+@@ -1418,7 +1418,7 @@
  	}
  
  	if (search_latch_locked) {
@@ -1400,7 +1400,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  
  		search_latch_locked = FALSE;
  	}
-@@ -1993,7 +1993,7 @@
+@@ -1994,7 +1994,7 @@
  
  func_exit:
  	if (search_latch_locked) {
@@ -1409,7 +1409,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  	}
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-@@ -3356,6 +3356,8 @@
+@@ -3357,6 +3357,8 @@
  	/* if the returned record was locked and we did a semi-consistent
  	read (fetch the newest committed version), then this is set to
  	TRUE */
@@ -1418,7 +1418,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  #ifdef UNIV_SEARCH_DEBUG
  	ulint		cnt				= 0;
  #endif /* UNIV_SEARCH_DEBUG */
-@@ -3446,18 +3448,33 @@
+@@ -3447,18 +3449,33 @@
  	/* PHASE 0: Release a possible s-latch we are holding on the
  	adaptive hash index latch if there is someone waiting behind */
  
@@ -1456,7 +1456,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  	}
  
  	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
-@@ -3608,9 +3625,28 @@
+@@ -3609,9 +3626,28 @@
  			hash index semaphore! */
  
  #ifndef UNIV_SEARCH_DEBUG
@@ -1488,7 +1488,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  			}
  #endif
  			switch (row_sel_try_search_shortcut_for_mysql(
-@@ -3671,7 +3707,11 @@
+@@ -3672,7 +3708,11 @@
  
  					trx->search_latch_timeout--;
  
@@ -1501,7 +1501,7 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  					trx->has_search_latch = FALSE;
  				}
  
-@@ -3695,7 +3735,12 @@
+@@ -3696,7 +3736,12 @@
  	/* PHASE 3: Open or restore index cursor position */
  
  	if (trx->has_search_latch) {

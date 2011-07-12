@@ -32,7 +32,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 --- a/sql/sql_partition.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sql_partition.cc	2010-12-03 13:59:56.444039002 +0900
-@@ -4636,7 +4636,12 @@
+@@ -4637,7 +4637,12 @@
          alter_info->num_parts= curr_part_no - new_part_no;
        }
      }
@@ -49,7 +49,7 @@ diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 --- a/sql/sql_table.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sql_table.cc	2010-12-03 13:51:04.768955495 +0900
-@@ -6112,6 +6112,10 @@
+@@ -6116,6 +6116,10 @@
      uint  *idx_end_p;
  
      alter_flags= table->file->alter_table_flags(alter_info->flags);

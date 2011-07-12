@@ -20,8 +20,8 @@ diff -ruN /dev/null b/patch_info/optimizer_fix.info
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-12-02 19:22:40.027024953 +0900
 +++ b/sql/mysqld.cc	2010-12-02 20:51:50.811356434 +0900
-@@ -425,6 +425,7 @@
- uint    opt_debug_sync_timeout= 0;
+@@ -430,6 +430,7 @@
+ MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 +my_bool opt_optimizer_fix= 0;

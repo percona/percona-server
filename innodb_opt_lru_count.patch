@@ -277,7 +277,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-03 15:20:49.608986590 +0900
-@@ -1387,11 +1387,11 @@
+@@ -1390,11 +1390,11 @@
  
  	UT_LIST_NODE_T(buf_page_t) LRU;
  					/*!< node of the LRU list */

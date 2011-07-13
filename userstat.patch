@@ -3313,7 +3313,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		error = 0;
  		table->status = 0;
 +		rows_read++;
-+		if (active_index >= 0 && active_index < MAX_KEY)
++		if (active_index < MAX_KEY)
 +			index_rows_read[active_index]++;
  
  	} else if (ret == DB_RECORD_NOT_FOUND) {

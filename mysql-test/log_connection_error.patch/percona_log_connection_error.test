@@ -38,17 +38,15 @@ SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
 connection main;
 SET GLOBAL max_connections = @old_max_connections;
 SET GLOBAL log_warnings = @old_log_warnings;
-let $log_error_= `SELECT @@GLOBAL.log_error`;
+--let $log_error_=`SELECT @@GLOBAL.log_error`
 if(!`select LENGTH('$log_error_')`)
 {
   # MySQL Server on windows is started with --console and thus
   # does not know the location of its .err log, use default location
   let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 }
-# Assign env variable LOG_ERROR
-let LOG_ERROR=$log_error_;
-
---let grep_file = $log_error
---let grep_pattern = Too many connections
---source include/grep.inc
-exec $cmd;
+--let log_error=$log_error_
+--let log_file=percona.log_connection_error.err
+--let log_file_full_path=$log_error
+--let grep_pattern= Too many connections
+--source suite/percona/include/log_grep.inc

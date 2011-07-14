@@ -21,7 +21,7 @@ diff -ruN /dev/null b/patch_info/log_warnings_suppress.patch
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-04-09 18:48:59.000000000 +0400
 +++ b/sql/mysqld.cc	2011-04-09 18:48:59.000000000 +0400
-@@ -623,6 +623,8 @@
+@@ -628,6 +628,8 @@
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
  
@@ -39,13 +39,13 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  
 +extern ulonglong opt_log_warnings_suppress;
 +
- extern pthread_key(MEM_ROOT**,THR_MALLOC);
- 
- #ifdef HAVE_PSI_INTERFACE
+ /*
+   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
+   using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-04-09 18:48:50.000000000 +0400
 +++ b/sql/sql_class.cc	2011-04-09 18:48:59.000000000 +0400
-@@ -4575,7 +4575,7 @@
+@@ -4861,7 +4861,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));

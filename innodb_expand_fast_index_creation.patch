@@ -301,7 +301,7 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
 diff -ruN a/mysql-test/suite/innodb/t/innodb-index.test b/mysql-test/suite/innodb/t/innodb-index.test
 --- a/mysql-test/suite/innodb/t/innodb-index.test	2011-03-31 17:36:17.000000000 +0400
 +++ b/mysql-test/suite/innodb/t/innodb-index.test	2011-04-11 08:57:21.000000000 +0400
-@@ -28,6 +28,11 @@
+@@ -87,6 +87,11 @@
  show create table t1;
  --error ER_MULTIPLE_PRI_KEY
  alter table t1 add primary key (c);
@@ -419,7 +419,7 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 --- a/sql/sql_lex.h	2011-04-11 08:57:19.000000000 +0400
 +++ b/sql/sql_lex.h	2011-04-11 08:57:21.000000000 +0400
-@@ -1003,6 +1003,9 @@
+@@ -1009,6 +1009,9 @@
    List<Alter_column>            alter_list;
    List<Key>                     key_list;
    List<Create_field>            create_list;
@@ -429,7 +429,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    uint                          flags;
    enum enum_enable_or_disable   keys_onoff;
    enum tablespace_op_type       tablespace_op;
-@@ -1014,6 +1017,8 @@
+@@ -1020,6 +1023,8 @@
  
  
    Alter_info() :
@@ -438,7 +438,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
      flags(0),
      keys_onoff(LEAVE_AS_IS),
      tablespace_op(NO_TABLESPACE_OP),
-@@ -1029,6 +1034,9 @@
+@@ -1035,6 +1040,9 @@
      alter_list.empty();
      key_list.empty();
      create_list.empty();
@@ -451,7 +451,7 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
 diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 --- a/sql/sql_table.cc	2011-04-11 08:56:57.000000000 +0400
 +++ b/sql/sql_table.cc	2011-04-11 23:30:02.000000000 +0400
-@@ -2773,7 +2773,7 @@
+@@ -2774,7 +2774,7 @@
        file                      The handler for the new table.
        key_info_buffer     OUT   An array of KEY structs for the indexes.
        key_count           OUT   The number of elements in the array.
@@ -460,7 +460,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    DESCRIPTION
      Prepares the table and key structures for table creation.
-@@ -3119,7 +3119,6 @@
+@@ -3120,7 +3120,6 @@
    }
  
    /* Create keys */
@@ -468,7 +468,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    List_iterator<Key> key_iterator(alter_info->key_list);
    List_iterator<Key> key_iterator2(alter_info->key_list);
    uint key_parts=0, fk_key_count=0;
-@@ -3217,6 +3216,14 @@
+@@ -3218,6 +3217,14 @@
    if (!*key_info_buffer || ! key_part_info)
      DBUG_RETURN(TRUE);				// Out of memory
  
@@ -483,7 +483,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    key_iterator.rewind();
    key_number=0;
    for (; (key=key_iterator++) ; key_number++)
-@@ -3635,6 +3642,22 @@
+@@ -3636,6 +3643,22 @@
        key_info->comment.str= key->key_create_info.comment.str;
      }
  
@@ -506,7 +506,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
      key_info++;
    }
    if (!unique_key && !primary_key &&
-@@ -5247,6 +5270,10 @@
+@@ -5249,6 +5272,10 @@
    List<Create_field> new_create_list;
    /* New key definitions are added here */
    List<Key> new_key_list;
@@ -517,7 +517,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    List_iterator<Alter_drop> drop_it(alter_info->drop_list);
    List_iterator<Create_field> def_it(alter_info->create_list);
    List_iterator<Alter_column> alter_it(alter_info->alter_list);
-@@ -5259,6 +5286,7 @@
+@@ -5261,6 +5288,7 @@
    uint used_fields= create_info->used_fields;
    KEY *key_info=table->key_info;
    bool rc= TRUE;
@@ -525,7 +525,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    DBUG_ENTER("mysql_prepare_alter_table");
  
-@@ -5431,7 +5459,23 @@
+@@ -5433,7 +5461,23 @@
    /*
      Collect all keys which isn't in drop list. Add only those
      for which some fields exists.
@@ -550,7 +550,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    for (uint i=0 ; i < table->s->keys ; i++,key_info++)
    {
-@@ -5548,6 +5592,8 @@
+@@ -5550,6 +5594,8 @@
                     test(key_info->flags & HA_GENERATED_KEY),
                     key_parts);
        new_key_list.push_back(key);
@@ -559,7 +559,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
      }
    }
    {
-@@ -5555,7 +5601,21 @@
+@@ -5557,7 +5603,21 @@
      while ((key=key_it++))			// Add new keys
      {
        if (key->type != Key::FOREIGN_KEY)
@@ -581,7 +581,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
        if (key->name.str &&
  	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
        {
-@@ -5604,12 +5664,100 @@
+@@ -5606,12 +5666,100 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -661,7 +661,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 +  }
 +
 +  if ((error= table->file->add_index(table, alter_info->delayed_key_info,
-+                                     alter_info->delayed_key_count)))
++                                     alter_info->delayed_key_count, 0)))
 +  {
 +    /*
 +      Exchange the key_info for the error message. If we exchange
@@ -682,7 +682,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    Alter table
  
    SYNOPSIS
-@@ -6400,19 +6548,38 @@
+@@ -6404,19 +6552,38 @@
    */
    if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
    {

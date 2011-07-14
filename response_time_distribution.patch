@@ -109,7 +109,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -606,7 +608,7 @@
+@@ -611,7 +613,7 @@
  MY_LOCALE *my_default_lc_messages;
  MY_LOCALE *my_default_lc_time_names;
  
@@ -118,7 +118,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  SHOW_COMP_OPTION have_geometry, have_rtree_keys;
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
-@@ -907,6 +909,10 @@
+@@ -912,6 +914,10 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -129,7 +129,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1478,6 +1484,9 @@
+@@ -1483,6 +1489,9 @@
    my_free(opt_bin_logname);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -139,7 +139,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -3960,6 +3969,9 @@
+@@ -4010,6 +4019,9 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  
@@ -149,7 +149,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
    {
-@@ -6848,6 +6860,11 @@
+@@ -6906,6 +6918,11 @@
  #else
    have_query_cache=SHOW_OPTION_NO;
  #endif
@@ -716,7 +716,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -7830,6 +7831,14 @@
+@@ -7862,6 +7863,14 @@
  
  */
  
@@ -731,7 +731,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7883,6 +7892,13 @@
+@@ -7915,6 +7924,13 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -785,7 +785,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12597,6 +12613,7 @@
+@@ -12613,6 +12629,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}

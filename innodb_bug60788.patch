@@ -10,7 +10,7 @@
 diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
 --- a/storage/innobase/os/os0file.c	2011-04-20 12:09:57.000000000 +0400
 +++ b/storage/innobase/os/os0file.c	2011-04-20 12:10:04.000000000 +0400
-@@ -2092,6 +2092,9 @@
+@@ -2093,6 +2093,9 @@
  			failures++;
  
  			retry = TRUE;
@@ -20,7 +20,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		} else {
  
  			retry = FALSE;
-@@ -2222,6 +2225,7 @@
+@@ -2223,6 +2226,7 @@
  	off_t	offs;
  #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
  	ssize_t	n_bytes;
@@ -28,7 +28,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
  	ulint		sec;
  	ulint		ms;
-@@ -2262,7 +2266,18 @@
+@@ -2263,7 +2267,18 @@
  	os_n_pending_reads++;
  	os_mutex_exit(os_file_count_mutex);
  
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	os_mutex_enter(os_file_count_mutex);
  	os_file_n_pending_preads--;
-@@ -2281,6 +2296,7 @@
+@@ -2282,6 +2297,7 @@
  	{
  		off_t	ret_offset;
  		ssize_t	ret;
@@ -56,7 +56,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  #ifndef UNIV_HOTBACKUP
  		ulint	i;
  #endif /* !UNIV_HOTBACKUP */
-@@ -2301,7 +2317,17 @@
+@@ -2302,7 +2318,17 @@
  		if (ret_offset < 0) {
  			ret = -1;
  		} else {
@@ -75,7 +75,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  		}
  
  #ifndef UNIV_HOTBACKUP
-@@ -2340,6 +2366,7 @@
+@@ -2341,6 +2367,7 @@
  				offset */
  {
  	ssize_t	ret;
@@ -83,7 +83,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	off_t	offs;
  
  	ut_a((offset & 0xFFFFFFFFUL) == offset);
-@@ -2367,7 +2394,18 @@
+@@ -2368,7 +2395,18 @@
  	os_n_pending_writes++;
  	os_mutex_exit(os_file_count_mutex);
  
@@ -103,7 +103,7 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  
  	os_mutex_enter(os_file_count_mutex);
  	os_file_n_pending_pwrites--;
-@@ -2414,7 +2452,17 @@
+@@ -2415,7 +2453,17 @@
  			goto func_exit;
  		}
  

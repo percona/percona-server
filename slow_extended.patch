@@ -8,7 +8,7 @@
 diff -ruN a/include/mysql/plugin_audit.h.pp b/include/mysql/plugin_audit.h.pp
 --- a/include/mysql/plugin_audit.h.pp	2011-04-09 18:48:05.000000000 +0400
 +++ b/include/mysql/plugin_audit.h.pp	2011-04-09 18:48:50.000000000 +0400
-@@ -178,6 +178,16 @@
+@@ -185,6 +185,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -28,7 +28,7 @@ diff -ruN a/include/mysql/plugin_audit.h.pp b/include/mysql/plugin_audit.h.pp
 diff -ruN a/include/mysql/plugin_auth.h.pp b/include/mysql/plugin_auth.h.pp
 --- a/include/mysql/plugin_auth.h.pp	2011-04-09 18:48:05.000000000 +0400
 +++ b/include/mysql/plugin_auth.h.pp	2011-04-09 18:48:50.000000000 +0400
-@@ -178,6 +178,16 @@
+@@ -185,6 +185,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -48,7 +48,7 @@ diff -ruN a/include/mysql/plugin_auth.h.pp b/include/mysql/plugin_auth.h.pp
 diff -ruN a/include/mysql/plugin_ftparser.h.pp b/include/mysql/plugin_ftparser.h.pp
 --- a/include/mysql/plugin_ftparser.h.pp	2011-04-09 18:48:05.000000000 +0400
 +++ b/include/mysql/plugin_ftparser.h.pp	2011-04-09 18:48:50.000000000 +0400
-@@ -131,6 +131,16 @@
+@@ -138,6 +138,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -424,7 +424,7 @@ diff -ruN a/sql/log.h b/sql/log.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/mysqld.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -416,6 +416,10 @@
+@@ -421,6 +421,10 @@
  char* opt_secure_file_priv;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -435,7 +435,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5835,10 +5839,10 @@
+@@ -5893,10 +5897,10 @@
     "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
     "the slow log if it is open.", &opt_log_slow_admin_statements,
     &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -448,7 +448,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7227,6 +7231,10 @@
+@@ -7285,6 +7289,10 @@
  
  C_MODE_END
  
@@ -459,7 +459,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7376,6 +7384,8 @@
+@@ -7434,6 +7442,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -527,7 +527,7 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_class.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -367,6 +367,37 @@
+@@ -614,6 +614,37 @@
    thd->warning_info->inc_current_row_for_warning();
  }
  
@@ -565,7 +565,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /**
    Dumps a text description of a thread, its security context
-@@ -661,6 +692,7 @@
+@@ -928,6 +959,7 @@
      *cond_hdl= NULL;
      return FALSE;
    }
@@ -573,7 +573,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    for (Internal_error_handler *error_handler= m_internal_handler;
         error_handler;
-@@ -3385,6 +3417,12 @@
+@@ -3671,6 +3703,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -586,7 +586,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3405,6 +3443,14 @@
+@@ -3691,6 +3729,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -601,7 +601,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  }
  
  
-@@ -3467,6 +3513,12 @@
+@@ -3753,6 +3799,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -714,7 +714,9 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc	2011-04-09 18:48:05.000000000 +0400
 +++ b/sql/sql_connect.cc	2011-04-09 18:48:50.000000000 +0400
-@@ -764,4 +764,13 @@
+@@ -719,6 +719,15 @@
+   MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+                          (char *) thd->security_ctx->host_or_ip);
  
 +    /* 
 +      If rate limiting of slow log writes is enabled, decide whether to log this 
@@ -725,9 +727,9 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 +        (thd->thread_id % thd->variables.log_slow_rate_limit) == 0) 
 +         thd->write_to_slow_log= TRUE; 
 +
-     prepare_new_connection_state(thd);
- 
-     while (!net->error && net->vio != 0 &&
+   prepare_new_connection_state(thd);
+   return FALSE;
+ }
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc	2011-04-09 18:48:20.000000000 +0400
 +++ b/sql/sql_parse.cc	2011-04-09 18:48:50.000000000 +0400
@@ -782,7 +784,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -1818,6 +1853,9 @@
+@@ -1879,6 +1914,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -792,7 +794,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5252,6 +5290,21 @@
+@@ -5292,6 +5330,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  

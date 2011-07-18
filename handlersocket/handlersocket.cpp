@@ -82,7 +82,6 @@ daemon_handlersocket_init(void *p)
     }
     ap->hssvr_rd = hstcpsvr_i::create(conf);
     ap->hssvr_rd->start_listen();
-    listening = true;
   } else {
     DENA_VERBOSE(10, fprintf(stderr, "handlersocket: not listening "
 			     "for reads\n"));

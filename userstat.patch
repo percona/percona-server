@@ -5,18 +5,6 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/configure b/configure
---- a/configure	2010-08-27 14:28:05.621275596 +0900
-+++ b/configure	2010-08-27 15:10:33.736074033 +0900
-@@ -38265,7 +38265,7 @@
-   realpath rename rint rwlock_init setupterm \
-   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
-   sighold sigset sigthreadmask port_create sleep \
--  snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
-+  snprintf socket strsep stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
-   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
-   posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd printstack
- do
 diff -ruN a/configure.in b/configure.in
 --- a/configure.in	2010-10-12 00:34:15.000000000 +0400
 +++ b/configure.in	2010-11-24 18:00:58.000000000 +0300
@@ -47,48 +35,6 @@ diff -ruN a/configure.in b/configure.in
  
  AC_SUBST(CLIENT_LIBS)
  AC_SUBST(CLIENT_THREAD_LIBS)
-diff -ruN a/include/config.h.in b/include/config.h.in
---- a/include/config.h.in	2010-10-12 00:39:59.000000000 +0400
-+++ b/include/config.h.in	2010-11-24 17:53:34.000000000 +0300
-@@ -498,6 +498,9 @@
- /* Define to 1 if you have the `pthread' library (-lpthread). */
- #undef HAVE_LIBPTHREAD
- 
-+/* Define to 1 if you have the `rt' library (-lrt). */
-+#undef HAVE_LIBRT
-+
- /* Define if have -lwrap */
- #undef HAVE_LIBWRAP
- 
-@@ -842,6 +845,9 @@
- /* Define to 1 if you have the `strpbrk' function. */
- #undef HAVE_STRPBRK
- 
-+/* Define to 1 if you have the `strsep' function. */
-+#undef HAVE_STRSEP
-+
- /* Define to 1 if you have the `strsignal' function. */
- #undef HAVE_STRSIGNAL
- 
-@@ -863,7 +869,7 @@
- /* Define to 1 if you have the `strtoull' function. */
- #undef HAVE_STRTOULL
- 
--/* Define to 1 if `st_rdev' is member of `struct stat'. */
-+/* Define to 1 if `st_rdev' is a member of `struct stat'. */
- #undef HAVE_STRUCT_STAT_ST_RDEV
- 
- /* Define to 1 if your `struct stat' has `st_rdev'. Deprecated, use
-@@ -1158,6 +1164,9 @@
- /* Define to the one symbol short name of this package. */
- #undef PACKAGE_TARNAME
- 
-+/* Define to the home page for this package. */
-+#undef PACKAGE_URL
-+
- /* Define to the version of this package. */
- #undef PACKAGE_VERSION
- 
 diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
 --- a/include/mysql/plugin.h	2010-11-24 17:24:51.000000000 +0300
 +++ b/include/mysql/plugin.h	2010-11-24 17:24:52.000000000 +0300

@@ -822,11 +822,11 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 +		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 +	}
 +
-+	if (share->ib_table) {
-+		ut_a(share->ib_table == ib_table);
-+	} else {
-+		share->ib_table = ib_table;
-+	}
++	share->ib_table = ib_table;
++
++
++
++
 +
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {

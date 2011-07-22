@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
---- a/include/mysql/plugin.h	2010-11-29 13:38:00.000000000 +0300
-+++ b/include/mysql/plugin.h	2010-12-24 13:57:45.000000000 +0300
+--- a/include/mysql/plugin.h
++++ b/include/mysql/plugin.h
 @@ -694,6 +694,17 @@
  /* Increments the row counter, see THD::row_count */
  void thd_inc_row_count(MYSQL_THD thd);
@@ -26,9 +25,8 @@ diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
  /**
    Create a temporary file.
  
-diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
---- a/include/mysql/plugin.h.pp	2010-11-29 13:38:05.000000000 +0300
-+++ b/include/mysql/plugin.h.pp	2010-12-24 13:57:45.000000000 +0300
+--- a/include/mysql/plugin.h.pp
++++ b/include/mysql/plugin.h.pp
 @@ -122,6 +122,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
@@ -46,9 +44,8 @@ diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
  int mysql_tmpfile(const char *prefix);
  int thd_killed(const void* thd);
  unsigned long thd_get_thread_id(const void* thd);
-diff -ruN /dev/null b/patch_info/slow_extended.info
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/patch_info/slow_extended.info	2010-12-24 13:57:45.000000000 +0300
+--- /dev/null
++++ b/patch_info/slow_extended.info
 @@ -0,0 +1,24 @@
 +File=slow_extended.patch
 +Name=Extended statistics in slow.log (not InnoDB part)
@@ -74,9 +71,8 @@ diff -ruN /dev/null b/patch_info/slow_extended.info
 +5) Fix innodb_stats on replication (Bug 600684)
 +6) Change variable types (system/command-line)
 +
-diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
---- a/scripts/mysqldumpslow.sh	2010-11-29 13:38:13.000000000 +0300
-+++ b/scripts/mysqldumpslow.sh	2010-12-24 13:57:45.000000000 +0300
+--- a/scripts/mysqldumpslow.sh
++++ b/scripts/mysqldumpslow.sh
 @@ -101,8 +101,8 @@
      s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
      my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
@@ -88,9 +84,8 @@ diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
      $t -= $l unless $opt{l};
  
      # remove fluff that mysqld writes to log when it (re)starts:
-diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
---- a/sql/event_scheduler.cc	2010-11-29 13:38:10.000000000 +0300
-+++ b/sql/event_scheduler.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/event_scheduler.cc
++++ b/sql/event_scheduler.cc
 @@ -193,6 +193,7 @@
    thd->client_capabilities|= CLIENT_MULTI_RESULTS;
    pthread_mutex_lock(&LOCK_thread_count);
@@ -99,9 +94,8 @@ diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
    pthread_mutex_unlock(&LOCK_thread_count);
  
    /*
-diff -ruN a/sql/filesort.cc b/sql/filesort.cc
---- a/sql/filesort.cc	2010-11-29 13:38:10.000000000 +0300
-+++ b/sql/filesort.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/filesort.cc
++++ b/sql/filesort.cc
 @@ -190,6 +190,7 @@
    {
      status_var_increment(thd->status_var.filesort_scan_count);
@@ -126,9 +120,8 @@ diff -ruN a/sql/filesort.cc b/sql/filesort.cc
    if (param->not_killable)
    {
      killed= &not_killable;
-diff -ruN a/sql/log.cc b/sql/log.cc
---- a/sql/log.cc	2010-11-29 13:37:59.000000000 +0300
-+++ b/sql/log.cc	2010-12-24 14:18:38.000000000 +0300
+--- a/sql/log.cc
++++ b/sql/log.cc
 @@ -524,11 +524,13 @@
  */
  
@@ -337,9 +330,8 @@ diff -ruN a/sql/log.cc b/sql/log.cc
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
-diff -ruN a/sql/log.h b/sql/log.h
---- a/sql/log.h	2010-11-29 13:38:00.000000000 +0300
-+++ b/sql/log.h	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/log.h
++++ b/sql/log.h
 @@ -211,7 +211,7 @@
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
@@ -376,9 +368,8 @@ diff -ruN a/sql/log.h b/sql/log.h
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-diff -ruN a/sql/log_event.cc b/sql/log_event.cc
---- a/sql/log_event.cc	2010-11-29 13:37:59.000000000 +0300
-+++ b/sql/log_event.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/log_event.cc
++++ b/sql/log_event.cc
 @@ -3090,6 +3090,7 @@
    LEX_STRING new_db;
    int expected_error,actual_error= 0;
@@ -437,9 +428,8 @@ diff -ruN a/sql/log_event.cc b/sql/log_event.cc
    /*
      As a disk space optimization, future masters will not log an event for
      LAST_INSERT_ID() if that function returned 0 (and thus they will be able
-diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-12-24 13:57:33.000000000 +0300
-+++ b/sql/mysql_priv.h	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/mysql_priv.h
++++ b/sql/mysql_priv.h
 @@ -638,6 +638,106 @@
  
  #define STRING_BUFFER_USUAL_SIZE 80
@@ -558,9 +548,8 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-12-24 13:57:33.000000000 +0300
-+++ b/sql/mysqld.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
 @@ -520,6 +520,10 @@
  char* opt_secure_file_priv= 0;
  my_bool opt_log_slow_admin_statements= 0;
@@ -687,9 +676,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    case OPT_SERVER_ID:
      server_id_supplied = 1;
      break;
-diff -ruN a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-11-29 13:37:59.000000000 +0300
-+++ b/sql/set_var.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/set_var.cc
++++ b/sql/set_var.cc
 @@ -162,6 +162,74 @@
  
  static sys_var_chain vars = { NULL, NULL };
@@ -1000,9 +988,8 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  /****************************************************************************
   Functions to handle table_type
  ****************************************************************************/
-diff -ruN a/sql/set_var.h b/sql/set_var.h
---- a/sql/set_var.h	2010-11-29 13:38:17.000000000 +0300
-+++ b/sql/set_var.h	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/set_var.h
++++ b/sql/set_var.h
 @@ -569,6 +569,82 @@
  };
  
@@ -1097,9 +1084,8 @@ diff -ruN a/sql/set_var.h b/sql/set_var.h
 +                               const ulong none_val, const ulong invalid_val);
 +const char *msl_option_get_name(const struct msl_opts *opts, ulong val);
 +char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val);
-diff -ruN a/sql/slave.cc b/sql/slave.cc
---- a/sql/slave.cc	2010-11-29 13:38:02.000000000 +0300
-+++ b/sql/slave.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/slave.cc
++++ b/sql/slave.cc
 @@ -1834,6 +1834,7 @@
      + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
    thd->slave_thread = 1;
@@ -1108,9 +1094,8 @@ diff -ruN a/sql/slave.cc b/sql/slave.cc
    set_slave_thread_options(thd);
    thd->client_capabilities = CLIENT_LOCAL_FILES;
    pthread_mutex_lock(&LOCK_thread_count);
-diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
---- a/sql/sp_head.cc	2010-12-24 13:57:33.000000000 +0300
-+++ b/sql/sp_head.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/sp_head.cc
++++ b/sql/sp_head.cc
 @@ -1987,7 +1987,7 @@
      DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                         m_name.str));
@@ -1120,9 +1105,8 @@ diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
    {
      DBUG_PRINT("info", ("Disabling slow log for the execution"));
      save_enable_slow_log= true;
-diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
---- a/sql/sql_cache.cc	2010-11-29 13:37:59.000000000 +0300
-+++ b/sql/sql_cache.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/sql_cache.cc
++++ b/sql/sql_cache.cc
 @@ -1704,6 +1704,7 @@
  
    thd->limit_found_rows = query->found_rows();
@@ -1139,9 +1123,8 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    DBUG_RETURN(0);				// Query was not cached
  }
  
-diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2010-11-29 13:37:59.000000000 +0300
-+++ b/sql/sql_class.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/sql_class.cc
++++ b/sql/sql_class.cc
 @@ -341,6 +341,37 @@
    thd->row_count++;
  }
@@ -1230,9 +1213,8 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
    DBUG_VOID_RETURN;
  }
  
-diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-11-29 13:37:59.000000000 +0300
-+++ b/sql/sql_class.h	2010-12-24 14:06:52.000000000 +0300
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
 @@ -402,6 +402,18 @@
    DATE_TIME_FORMAT *datetime_format;
    DATE_TIME_FORMAT *time_format;
@@ -1306,9 +1288,8 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    pthread_t  real_id;                           /* For debugging */
    my_thread_id  thread_id;
    uint	     tmp_table, global_read_lock;
-diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
---- a/sql/sql_connect.cc	2010-11-29 13:38:17.000000000 +0300
-+++ b/sql/sql_connect.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/sql_connect.cc
++++ b/sql/sql_connect.cc
 @@ -1288,6 +1288,15 @@
      if (login_connection(thd))
        goto end_thread;
@@ -1325,9 +1306,8 @@ diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
      prepare_new_connection_state(thd);
  
      while (!net->error && net->vio != 0 &&
-diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-12-24 13:57:33.000000000 +0300
-+++ b/sql/sql_parse.cc	2010-12-24 14:06:17.000000000 +0300
+--- a/sql/sql_parse.cc
++++ b/sql/sql_parse.cc
 @@ -1699,7 +1699,10 @@
    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
    DBUG_RETURN(error);
@@ -1413,9 +1393,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    /*
      Because we come here only for start of top-statements, binlog format is
      constant inside a complex statement (using stored functions) etc.
-diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2010-11-29 13:38:01.000000000 +0300
-+++ b/sql/sql_select.cc	2010-12-24 13:57:45.000000000 +0300
+--- a/sql/sql_select.cc
++++ b/sql/sql_select.cc
 @@ -6794,7 +6794,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
@@ -1469,9 +1448,8 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    // Release latches since this can take a long time
    ha_release_temporary_latches(thd);
  
-diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-12-24 13:57:33.000000000 +0300
-+++ b/sql/sql_show.cc	2010-12-24 13:57:46.000000000 +0300
+--- a/sql/sql_show.cc
++++ b/sql/sql_show.cc
 @@ -1971,8 +1971,17 @@
          table->field[4]->store(command_name[tmp->command].str,
                                 command_name[tmp->command].length, cs);

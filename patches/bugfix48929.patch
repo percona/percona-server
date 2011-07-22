@@ -17,31 +17,6 @@ diff -ruN a/configure.in b/configure.in
   stdlib.h stddef.h \
   strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
   sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
-diff -ruN a/configure b/configure
---- a/configure	2010-07-26 18:29:12.172114128 +0900
-+++ b/configure	2010-07-26 20:44:59.199030524 +0900
-@@ -21527,7 +21527,7 @@
- 
- 
- for ac_header in fcntl.h fenv.h float.h floatingpoint.h fpu_control.h \
-- ieeefp.h limits.h memory.h pwd.h select.h \
-+ ieeefp.h limits.h memory.h pwd.h select.h poll.h \
-  stdlib.h stddef.h \
-  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
-  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
-diff -ruN a/include/config.h.in b/include/config.h.in
---- a/include/config.h.in	2010-07-26 18:29:12.192113524 +0900
-+++ b/include/config.h.in	2010-07-26 20:46:08.265182869 +0900
-@@ -609,6 +609,9 @@
- /* Define to 1 if you have the `poll' function. */
- #undef HAVE_POLL
- 
-+/* Define to 1 if you have the <poll.h> header file. */
-+#undef HAVE_POLL_H
-+
- /* Define to 1 if you have the `port_create' function. */
- #undef HAVE_PORT_CREATE
- 
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-07 03:33:05.278972002 +0400
 +++ b/sql/mysqld.cc	2010-07-07 03:33:05.788972002 +0400

@@ -6,8 +6,8 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-08-27 15:24:41.663411604 +0900
-+++ b/sql/mysqld.cc	2010-08-27 15:30:36.942106886 +0900
+--- a/sql/mysqld.cc	2011-07-05 17:55:25.000000000 +0400
++++ b/sql/mysqld.cc	2011-07-05 21:38:54.000000000 +0400
 @@ -3244,6 +3244,7 @@
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -17,8 +17,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_user_statistics", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_USER_STATS]), SHOW_LONG_STATUS},
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2010-08-27 15:19:09.940989847 +0900
-+++ b/sql/sql_lex.h	2010-08-27 15:30:36.942106886 +0900
+--- a/sql/sql_lex.h	2011-07-05 17:55:25.000000000 +0400
++++ b/sql/sql_lex.h	2011-07-05 21:38:42.000000000 +0400
 @@ -116,7 +116,7 @@
    SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
    SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
@@ -29,8 +29,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    SQLCOM_SHOW_PATCHES,
  
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-08-27 15:19:09.944990047 +0900
-+++ b/sql/sql_parse.cc	2010-08-27 15:30:36.949020748 +0900
+--- a/sql/sql_parse.cc	2011-07-05 17:55:25.000000000 +0400
++++ b/sql/sql_parse.cc	2011-07-05 21:38:45.000000000 +0400
 @@ -339,6 +339,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
@@ -68,8 +68,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_TRIGGERS:
    case SCH_EVENTS:
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-08-27 15:19:09.955989654 +0900
-+++ b/sql/sql_show.cc	2010-08-27 15:30:36.959020753 +0900
+--- a/sql/sql_show.cc	2011-07-05 17:55:25.000000000 +0400
++++ b/sql/sql_show.cc	2011-07-05 21:38:43.000000000 +0400
 @@ -3032,6 +3032,7 @@
      break;
    case SQLCOM_SHOW_TABLES:
@@ -78,7 +78,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      thd->make_lex_string(&lookup_field_values->db_value, 
-@@ -3508,6 +3509,228 @@
+@@ -3508,6 +3509,231 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -244,6 +244,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +#endif
 + 
 +  while ((thd_item=it++)) {
++    pthread_mutex_lock(&thd_item->LOCK_temporary_tables);
 +    for (tmp=thd_item->temporary_tables; tmp; tmp=tmp->next) {
 +
 +#ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -263,12 +264,14 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +
 +      if (store_temporary_table_record(thd_item, tables->table, tmp, thd->lex->select_lex.db, table_names_only)) {
 +        tmp->in_use= t;
++        pthread_mutex_unlock(&thd_item->LOCK_temporary_tables);
 +        pthread_mutex_unlock(&LOCK_thread_count); 
 +        DBUG_RETURN(1);
 +      }
 +
 +      tmp->in_use= t;
 +    }
++    pthread_mutex_unlock(&thd_item->LOCK_temporary_tables);
 +  }
 +
 +  pthread_mutex_unlock(&LOCK_thread_count); 
@@ -307,7 +310,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
    @brief          Fill I_S table with data from FRM file only
-@@ -6618,6 +6841,25 @@
+@@ -6618,6 +6844,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -333,7 +336,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7278,6 +7520,9 @@
+@@ -7278,6 +7523,9 @@
     fill_schema_files, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -343,7 +346,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7321,6 +7566,9 @@
+@@ -7321,6 +7569,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
@@ -354,8 +357,8 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
      fill_schema_table_stats, make_old_format, 0, -1, -1, 0, 0},
    {"THREAD_STATISTICS", thread_stats_fields_info, create_schema_table,
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-08-27 15:19:09.976059692 +0900
-+++ b/sql/sql_yacc.yy	2010-08-27 15:30:36.971993050 +0900
+--- a/sql/sql_yacc.yy	2011-07-05 17:55:25.000000000 +0400
++++ b/sql/sql_yacc.yy	2011-07-05 21:38:43.000000000 +0400
 @@ -10096,6 +10096,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
@@ -373,8 +376,8 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
             {
               LEX *lex= Lex;
 diff -ruN a/sql/table.h b/sql/table.h
---- a/sql/table.h	2010-08-27 15:19:09.988989663 +0900
-+++ b/sql/table.h	2010-08-27 15:30:36.987021191 +0900
+--- a/sql/table.h	2011-07-05 17:55:25.000000000 +0400
++++ b/sql/table.h	2011-07-05 21:38:43.000000000 +0400
 @@ -954,6 +954,7 @@
    SCH_EVENTS,
    SCH_FILES,
@@ -391,3 +394,109 @@ diff -ruN a/sql/table.h b/sql/table.h
    SCH_TABLE_STATS,
    SCH_THREAD_STATS,
    SCH_TRIGGERS,
+diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
+--- a/sql/sql_base.cc	2011-07-05 17:56:23.000000000 +0400
++++ b/sql/sql_base.cc	2011-07-05 21:38:45.000000000 +0400
+@@ -1459,12 +1459,16 @@
+       (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
+   {
+     TABLE *tmp_next;
++
++    pthread_mutex_lock(&thd->LOCK_temporary_tables);
+     for (table= thd->temporary_tables; table; table= tmp_next)
+     {
+       tmp_next= table->next;
+       close_temporary(table, 1, 1);
+     }
+     thd->temporary_tables= 0;
++    pthread_mutex_unlock(&thd->LOCK_temporary_tables);
++
+     return;
+   }
+ 
+@@ -1477,6 +1481,8 @@
+ 
+   memcpy(buf, stub, stub_len);
+ 
++  pthread_mutex_lock(&thd->LOCK_temporary_tables);
++
+   /*
+     Insertion sort of temp tables by pseudo_thread_id to build ordered list
+     of sublists of equal pseudo_thread_id
+@@ -1581,6 +1587,7 @@
+   if (!was_quote_show)
+     thd->options&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
+   thd->temporary_tables=0;
++  pthread_mutex_unlock(&thd->LOCK_temporary_tables);
+ }
+ 
+ /*
+@@ -1883,6 +1890,8 @@
+   if (table->child_l || table->parent)
+     detach_merge_children(table, TRUE);
+ 
++  pthread_mutex_lock(&thd->LOCK_temporary_tables);
++
+   if (table->prev)
+   {
+     table->prev->next= table->next;
+@@ -1909,6 +1918,9 @@
+     slave_open_temp_tables--;
+   }
+   close_temporary(table, free_share, delete_table);
++
++  pthread_mutex_unlock(&thd->LOCK_temporary_tables);
++
+   DBUG_VOID_RETURN;
+ }
+ 
+@@ -5626,6 +5638,7 @@
+   if (link_in_list)
+   {
+     /* growing temp list at the head */
++    pthread_mutex_lock(&thd->LOCK_temporary_tables);
+     tmp_table->next= thd->temporary_tables;
+     if (tmp_table->next)
+       tmp_table->next->prev= tmp_table;
+@@ -5633,6 +5646,7 @@
+     thd->temporary_tables->prev= 0;
+     if (thd->slave_thread)
+       slave_open_temp_tables++;
++    pthread_mutex_unlock(&thd->LOCK_temporary_tables);
+   }
+   tmp_table->pos_in_table_list= 0;
+   DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
+--- a/sql/sql_class.cc	2011-07-05 17:56:29.000000000 +0400
++++ b/sql/sql_class.cc	2011-07-05 21:38:54.000000000 +0400
+@@ -733,6 +733,7 @@
+   active_vio = 0;
+ #endif
+   pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
++  pthread_mutex_init(&LOCK_temporary_tables, MY_MUTEX_INIT_FAST);
+ 
+   /* Variables with default values */
+   proc_info="login";
+@@ -1145,6 +1146,7 @@
+ #endif
+   mysys_var=0;					// Safety (shouldn't be needed)
+   pthread_mutex_destroy(&LOCK_thd_data);
++  pthread_mutex_destroy(&LOCK_temporary_tables);
+ #ifndef DBUG_OFF
+   dbug_sentry= THD_SENTRY_GONE;
+ #endif  
+diff -ruN a/sql/sql_class.h b/sql/sql_class.h
+--- a/sql/sql_class.h	2011-07-05 17:56:23.000000000 +0400
++++ b/sql/sql_class.h	2011-07-05 21:38:44.000000000 +0400
+@@ -894,6 +894,11 @@
+   */
+   TABLE *temporary_tables;
+   /**
++     Protects temporary_tables.
++  */
++  pthread_mutex_t LOCK_temporary_tables;
++
++  /**
+     List of tables that were opened with HANDLER OPEN and are
+     still in use by this thread.
+   */

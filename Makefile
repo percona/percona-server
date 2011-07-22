@@ -15,7 +15,7 @@ all: main install-lic tests misc handlersocket maatkit-udf autorun
 	export CXXFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2"
 	export LIBS=-lrt
 	@echo ""
-	@echo "and run ./configure ... --without-plugin-innobase --with-plugin-innodb_plugin && make all install"
+	@echo "and run ./configure --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin --without-embedded-server --with-pic --with-extra-charsets=complex --with-ssl --enable-assembler --enable-local-infile --enable-thread-safe-client --enable-profiling --with-readline && make all install"
 	@echo ""
 
 autorun:

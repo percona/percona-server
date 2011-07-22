@@ -16,17 +16,6 @@ diff -ruN a/storage/innodb_plugin/Makefile.am b/storage/innodb_plugin/Makefile.a
  			mem/mem0dbg.c
  
  EXTRA_LIBRARIES=	libinnobase.a
-diff -ruN a/storage/innodb_plugin/Makefile.in b/storage/innodb_plugin/Makefile.in
---- a/storage/innodb_plugin/Makefile.in	2010-04-06 23:12:58.000000000 +0900
-+++ b/storage/innodb_plugin/Makefile.in	2010-04-29 15:22:39.000000000 +0900
-@@ -782,6 +782,7 @@
- 			include/ut0vec.h	\
- 			include/ut0vec.ic	\
- 			include/ut0wqueue.h	\
-+			handler/innodb_patch_info.h	\
- 			mem/mem0dbg.c
- 
- EXTRA_LIBRARIES = libinnobase.a
 diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
 --- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-06 23:07:12.000000000 +0900
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:22:39.000000000 +0900

@@ -40,28 +40,6 @@ diff -ruN a/sql/Makefile.am b/sql/Makefile.am
  # We might have some stuff not built in this build, but that we want to install
  install-exec-hook:
  	$(mkinstalldirs) $(DESTDIR)$(libexecdir) $(DESTDIR)$(pkglibdir)
-diff -ruN a/sql/Makefile.in b/sql/Makefile.in
---- a/sql/Makefile.in	2010-04-06 23:12:51.000000000 +0900
-+++ b/sql/Makefile.in	2010-04-28 15:29:36.000000000 +0900
-@@ -630,7 +630,7 @@
- mysql_tzinfo_to_sql_SOURCES = tztime.cc
- mysql_tzinfo_to_sql_CXXFLAGS = -DTZINFO2SQL
- BUILT_MAINT_SRC = sql_yacc.cc sql_yacc.h
--BUILT_SOURCES = $(BUILT_MAINT_SRC) lex_hash.h link_sources
-+BUILT_SOURCES = $(BUILT_MAINT_SRC) lex_hash.h patch_info.h link_sources
- EXTRA_DIST = udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
- 			nt_servc.cc nt_servc.h \
- 			message.mc  message.h message.rc MSG00001.bin \
-@@ -1315,6 +1315,9 @@
- 	test ! -f mysqld-debug.sym.gz   || $(INSTALL_DATA)    mysqld-debug.sym.gz   $(DESTDIR)$(pkglibdir)
- 	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
- 
-+patch_info.h:	patch_info.h.pl
-+	$(PERL) $< > $@
-+
- # Don't update the files from bitkeeper
- %::SCCS/s.%
- # Tell versions [3.59,3.63) of GNU make to not export all variables.
 diff -ruN a/sql/lex.h b/sql/lex.h
 --- a/sql/lex.h	2010-04-06 23:07:01.000000000 +0900
 +++ b/sql/lex.h	2010-04-28 15:29:36.000000000 +0900

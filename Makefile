@@ -36,7 +36,6 @@ all: main handlersocket maatkit-udf install-lic tests misc
 
 handlersocket:
 	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
-	patch -p1 -d $(PERCONA_SERVER)/storage < handlersocket.patch
 
 maatkit-udf:
 	cp -R UDF "$(PERCONA_SERVER)"
@@ -78,7 +77,8 @@ main: mysql-$(MYSQL_VERSION).tar.gz
 	mv mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
 	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
 	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_2)
-	(cat `cat $(SERIES)`) | patch -p1 -d $(PERCONA_SERVER)
+	ln -s ../patches $(PERCONA_SERVER)/patches
+	(cd $(PERCONA_SERVER) && ../apply_patches)
 	rm $(PERCONA_SERVER)/sql/sql_yacc.cc $(PERCONA_SERVER)/sql/sql_yacc.h
 
 mysql-$(MYSQL_VERSION).tar.gz:

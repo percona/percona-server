@@ -43,7 +43,8 @@ main: mysql-$(MYSQL_VERSION).tar.gz
 	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
 	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_2)
 	ln -s ../patches $(PERCONA_SERVER)/patches
-	(cd $(PERCONA_SERVER) && quilt push -a)
+	(cd $(PERCONA_SERVER) && ../apply_patches)
+ 
 
 mysql-$(MYSQL_VERSION).tar.gz:
 	@echo "Downloading MySQL sources from $(MASTER_SITE)"

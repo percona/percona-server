@@ -8,7 +8,7 @@
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h	2010-07-26 18:31:59.056061915 +0900
 +++ b/sql/mysql_priv.h	2010-07-26 18:34:10.205015964 +0900
-@@ -2111,6 +2111,7 @@
+@@ -2108,6 +2108,7 @@
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
  extern my_bool opt_optimizer_fix;
@@ -19,7 +19,7 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc	2010-07-26 18:33:52.988451388 +0900
 +++ b/sql/mysqld.cc	2010-07-26 18:34:10.203114167 +0900
-@@ -534,6 +534,7 @@
+@@ -539,6 +539,7 @@
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
  my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
  my_bool opt_optimizer_fix= 0;
@@ -27,7 +27,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5852,6 +5853,7 @@
+@@ -5863,6 +5864,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -35,7 +35,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7365,6 +7367,10 @@
+@@ -7376,6 +7378,10 @@
     "Enable unofficial optimizer fixes.",
     (uchar**) &opt_optimizer_fix, (uchar**) &opt_optimizer_fix,
     0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
@@ -61,7 +61,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2010-07-26 18:29:12.285116210 +0900
 +++ b/sql/sql_class.cc	2010-07-26 18:34:10.214061153 +0900
-@@ -4119,6 +4119,7 @@
+@@ -4140,6 +4140,7 @@
                   ER_BINLOG_UNSAFE_STATEMENT,
                   ER(ER_BINLOG_UNSAFE_STATEMENT));
      if (global_system_variables.log_warnings &&

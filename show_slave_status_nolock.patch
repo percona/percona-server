@@ -61,7 +61,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2560,12 +2561,16 @@
+@@ -2631,12 +2632,16 @@
      pthread_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -79,7 +79,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2576,7 +2581,10 @@
+@@ -2647,7 +2652,10 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }

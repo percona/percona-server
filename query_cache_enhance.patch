@@ -5,9 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/query_cache_enhance.patch b/patch_info/query_cache_enhance.patch
---- a/patch_info/query_cache_enhance.patch	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/query_cache_enhance.patch	2010-07-21 01:42:09.650424002 +0400
+diff -ruN /dev/null b/patch_info/query_cache_enhance.patch
+--- /dev/null
++++ b/patch_info/query_cache_enhance.patch
 @@ -0,0 +1,14 @@
 +File=query_cache_enhance.patch
 +Name= query cache Percona's cumulative patch
@@ -24,9 +24,9 @@ diff -ruN a/patch_info/query_cache_enhance.patch b/patch_info/query_cache_enhanc
 +2010-07 - Fix incorrect behavior diff (query_cache_with_comments.patch)
 +2010-09 - Merge patches to one
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-28 16:47:41.134069529 +0400
-+++ b/sql/mysqld.cc	2010-07-28 16:47:41.704071184 +0400
-@@ -526,6 +526,7 @@
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -527,6 +527,7 @@
  my_bool opt_log_slow_slave_statements= 0;
  my_bool opt_log_slow_sp_statements= 0;
  my_bool opt_log_slow_timestamp_every= 0;
@@ -34,7 +34,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  my_bool opt_use_global_long_query_time= 0;
  my_bool opt_slow_query_log_microseconds_timestamp= 0;
  my_bool lower_case_file_system= 0;
-@@ -5898,6 +5899,7 @@
+@@ -5900,6 +5901,7 @@
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
    OPT_SUPPRESS_LOG_WARNING_1592,
@@ -42,7 +42,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -6953,6 +6955,10 @@
+@@ -6955,6 +6957,10 @@
    {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
      "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
     0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
@@ -54,8 +54,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
     "Control always use global long_query_time or local long_query_time.",
     (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
 diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-07-28 16:47:41.144071083 +0400
-+++ b/sql/mysql_priv.h	2010-07-28 16:47:41.714068826 +0400
+--- a/sql/mysql_priv.h
++++ b/sql/mysql_priv.h
 @@ -2118,6 +2118,7 @@
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
  extern my_bool opt_log_slow_sp_statements;
@@ -64,9 +64,9 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  extern my_bool opt_use_global_long_query_time;
  extern my_bool opt_slow_query_log_microseconds_timestamp;
  extern my_bool sp_automatic_privileges, opt_noacl;
-diff -ruN a/sql/query_strip_comments.h b/sql/query_strip_comments.h
---- a/sql/query_strip_comments.h	1970-01-01 03:00:00.000000000 +0300
-+++ b/sql/query_strip_comments.h	2010-07-28 16:47:41.724072335 +0400
+diff -ruN /dev/null b/sql/query_strip_comments.h
+--- /dev/null
++++ b/sql/query_strip_comments.h
 @@ -0,0 +1,37 @@
 +#ifndef _SQL_QUERY_STRIPC_COMMENTS_H_
 +#define _SQL_QUERY_STRIPC_COMMENTS_H_
@@ -106,8 +106,8 @@ diff -ruN a/sql/query_strip_comments.h b/sql/query_strip_comments.h
 +#endif // HAVE_QUERY_CACHE
 +#endif // _SQL_QUERY_STRIPC_COMMENTS_H_
 diff -ruN a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-28 16:47:41.124069093 +0400
-+++ b/sql/set_var.cc	2010-07-28 16:47:41.734068580 +0400
+--- a/sql/set_var.cc
++++ b/sql/set_var.cc
 @@ -124,8 +124,10 @@
  static void fix_net_write_timeout(THD *thd, enum_var_type type);
  static void fix_net_retry_count(THD *thd, enum_var_type type);
@@ -137,15 +137,12 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 +                                             &query_cache_size,
 +                                             fix_query_cache_size);
  static sys_var_long_ptr	sys_query_cache_limit(&vars, "query_cache_limit",
--					      &query_cache.query_cache_limit);
+ 					      &query_cache.query_cache_limit);
 -static sys_var_long_ptr        sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
--						     &query_cache_min_res_unit,
--						     fix_query_cache_min_res_unit);
-+                                              &query_cache.query_cache_limit);
 +static sys_var_long_ptr
 +  sys_query_cache_min_res_unit(&vars, "query_cache_min_res_unit",
-+                               &query_cache_min_res_unit,
-+                               fix_query_cache_min_res_unit);
+ 						     &query_cache_min_res_unit,
+ 						     fix_query_cache_min_res_unit);
 +static int check_query_cache_type(THD *thd, set_var *var);
  static sys_var_thd_enum	sys_query_cache_type(&vars, "query_cache_type",
  					     &SV::query_cache_type,
@@ -164,7 +161,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
  
  static uchar *slave_get_report_port(THD *thd)
-@@ -1250,10 +1257,9 @@
+@@ -1255,10 +1262,9 @@
  {}
  #endif /* HAVE_REPLICATION */
  
@@ -176,7 +173,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
    ulong new_cache_size= query_cache.resize(query_cache_size);
  
    /*
-@@ -1267,11 +1273,35 @@
+@@ -1272,11 +1278,35 @@
  			query_cache_size, new_cache_size);
    
    query_cache_size= new_cache_size;
@@ -214,7 +211,7 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
  {
    query_cache_min_res_unit= 
-@@ -3629,6 +3659,16 @@
+@@ -3634,6 +3664,16 @@
    Functions to handle SET mysql_internal_variable=const_expr
  *****************************************************************************/
  
@@ -232,8 +229,8 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  {
    if (var->is_readonly())
 diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
---- a/sql/sql_cache.cc	2010-07-28 16:47:41.134069529 +0400
-+++ b/sql/sql_cache.cc	2010-07-28 16:47:41.754069731 +0400
+--- a/sql/sql_cache.cc
++++ b/sql/sql_cache.cc
 @@ -286,6 +286,7 @@
           if (and only if) this query has a registered result set writer
           (thd->net.query_cache_query).
@@ -510,16 +507,10 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
      goto err;
  
    if (!thd->lex->safe_to_cache_query)
-@@ -1426,21 +1621,103 @@
+@@ -1426,6 +1621,87 @@
  
    {
      uint i= 0;
--    /*
--      Skip '(' characters in queries like following:
--      (select a from t1) union (select a from t1);
--    */
--    while (sql[i]=='(')
--      i++;
 +    if(opt_query_cache_strip_comments)
 +    {
 +      /* Skip all comments and non-letter symbols */
@@ -601,32 +592,17 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 +    }
 +    else // if(opt_query_cache_strip_comments)
 +    {
-+      /*
-+        Skip '(' characters in queries like following:
-+        (select a from t1) union (select a from t1);
-+      */
-+      while (sql[i]=='(')
-+        i++;
+     /*
+       Skip '(' characters in queries like following:
+       (select a from t1) union (select a from t1);
+@@ -1433,6 +1709,7 @@
+     while (sql[i]=='(')
+       i++;
  
--    /*
--      Test if the query is a SELECT
--      (pre-space is removed in dispatch_command).
 +    } // if(opt_query_cache_strip_comments)    
-+      /*
-+        Test if the query is a SELECT
-+        (pre-space is removed in dispatch_command).
- 
--      First '/' looks like comment before command it is not
--      frequently appeared in real life, consequently we can
--      check all such queries, too.
--    */
-+        First '/' looks like comment before command it is not
-+        frequently appeared in real life, consequently we can
-+        check all such queries, too.
-+      */
-     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
-          my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
-          my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+     /*
+       Test if the query is a SELECT
+       (pre-space is removed in dispatch_command).
 @@ -1449,7 +1726,6 @@
        DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
        goto err;
@@ -689,17 +665,15 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
    for (; tables_used; tables_used= tables_used->next_local)
    {
      thd_proc_info(thd, "invalidating query cache entries (table)");
-@@ -1804,7 +2096,9 @@
+@@ -1804,6 +2096,8 @@
  			     my_bool using_transactions)
  {
    DBUG_ENTER("Query_cache::invalidate (table)");
--  
 +  if (is_disabled())
 +    DBUG_VOID_RETURN;
-+
+   
    using_transactions= using_transactions &&
      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-   if (using_transactions && 
 @@ -1821,6 +2115,8 @@
  			     my_bool using_transactions)
  {
@@ -765,8 +739,8 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
  #endif /*HAVE_QUERY_CACHE*/
 +
 diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-07-28 16:47:41.134069529 +0400
-+++ b/sql/sql_class.h	2010-07-28 16:47:41.764070446 +0400
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
 @@ -22,7 +22,9 @@
  
  #include "log.h"
@@ -778,7 +752,7 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  /**
    An interface that is used to take an action when
    the locking module notices that a table version has changed
-@@ -667,6 +669,9 @@
+@@ -670,6 +672,9 @@
    */
    LEX_STRING query_string;
    Server_side_cursor *cursor;
@@ -788,9 +762,9 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
  
    inline char *query() { return query_string.str; }
    inline uint32 query_length() { return query_string.length; }
-diff -ruN a/mysql-test/r/query_cache_disabled.result b/mysql-test/r/query_cache_disabled.result
---- a/mysql-test/r/query_cache_disabled.result	1970-01-01 03:00:00.000000000 +0300
-+++ b/mysql-test/r/query_cache_disabled.result	2010-07-31 20:44:34.764016531 +0400
+diff -ruN /dev/null b/mysql-test/r/query_cache_disabled.result
+--- /dev/null
++++ b/mysql-test/r/query_cache_disabled.result
 @@ -0,0 +1,14 @@
 +SHOW GLOBAL VARIABLES LIKE 'query_cache_type';
 +Variable_name	Value
@@ -806,14 +780,14 @@ diff -ruN a/mysql-test/r/query_cache_disabled.result b/mysql-test/r/query_cache_
 +Variable_name	Value
 +query_cache_size	1048576
 +SET GLOBAL query_cache_size=0;
-diff -ruN a/mysql-test/t/query_cache_disabled-master.opt b/mysql-test/t/query_cache_disabled-master.opt
---- a/mysql-test/t/query_cache_disabled-master.opt	1970-01-01 03:00:00.000000000 +0300
-+++ b/mysql-test/t/query_cache_disabled-master.opt	2010-07-31 20:41:47.184017514 +0400
+diff -ruN /dev/null b/mysql-test/t/query_cache_disabled-master.opt
+--- /dev/null
++++ b/mysql-test/t/query_cache_disabled-master.opt
 @@ -0,0 +1 @@
 +--query_cache_type=0
-diff -ruN a/mysql-test/t/query_cache_disabled.test b/mysql-test/t/query_cache_disabled.test
---- a/mysql-test/t/query_cache_disabled.test	1970-01-01 03:00:00.000000000 +0300
-+++ b/mysql-test/t/query_cache_disabled.test	2010-07-31 20:41:47.184017514 +0400
+diff -ruN /dev/null b/mysql-test/t/query_cache_disabled.test
+--- /dev/null
++++ b/mysql-test/t/query_cache_disabled.test
 @@ -0,0 +1,15 @@
 +-- source include/have_query_cache.inc
 +#
@@ -831,8 +805,8 @@ diff -ruN a/mysql-test/t/query_cache_disabled.test b/mysql-test/t/query_cache_di
 +SET GLOBAL query_cache_size=0;
 +
 diff -ruN a/sql/set_var.h b/sql/set_var.h
---- a/sql/set_var.h	2010-07-31 20:42:00.884030418 +0400
-+++ b/sql/set_var.h	2010-07-31 20:41:47.224016185 +0400
+--- a/sql/set_var.h
++++ b/sql/set_var.h
 @@ -521,10 +521,16 @@
    { chain_sys_var(chain); }
    bool check(THD *thd, set_var *var)
@@ -855,8 +829,8 @@ diff -ruN a/sql/set_var.h b/sql/set_var.h
    bool update(THD *thd, set_var *var);
    void set_default(THD *thd, enum_var_type type);
 diff -ruN a/sql/share/errmsg.txt b/sql/share/errmsg.txt
---- a/sql/share/errmsg.txt	2010-07-09 16:35:08.000000000 +0400
-+++ b/sql/share/errmsg.txt	2010-07-31 20:41:47.244015659 +0400
+--- a/sql/share/errmsg.txt
++++ b/sql/share/errmsg.txt
 @@ -6213,3 +6213,8 @@
  ER_DEBUG_SYNC_HIT_LIMIT
    eng "debug sync point hit limit reached"
@@ -867,8 +841,8 @@ diff -ruN a/sql/share/errmsg.txt b/sql/share/errmsg.txt
 +  eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
 +
 diff -ruN a/sql/sql_cache.h b/sql/sql_cache.h
---- a/sql/sql_cache.h	2010-07-09 16:35:15.000000000 +0400
-+++ b/sql/sql_cache.h	2010-07-31 20:41:47.264017369 +0400
+--- a/sql/sql_cache.h
++++ b/sql/sql_cache.h
 @@ -279,8 +279,11 @@
    enum Cache_lock_status { UNLOCKED, LOCKED_NO_WAIT, LOCKED };
    Cache_lock_status m_cache_lock_status;

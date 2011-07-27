@@ -5,6 +5,7 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
+diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
 --- a/include/mysql/plugin.h
 +++ b/include/mysql/plugin.h
 @@ -694,6 +694,17 @@
@@ -25,6 +26,7 @@
  /**
    Create a temporary file.
  
+diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
 --- a/include/mysql/plugin.h.pp
 +++ b/include/mysql/plugin.h.pp
 @@ -122,6 +122,16 @@
@@ -44,6 +46,7 @@
  int mysql_tmpfile(const char *prefix);
  int thd_killed(const void* thd);
  unsigned long thd_get_thread_id(const void* thd);
+diff -ruN /dev/null b/patch_info/slow_extended.info
 --- /dev/null
 +++ b/patch_info/slow_extended.info
 @@ -0,0 +1,24 @@
@@ -71,6 +74,7 @@
 +5) Fix innodb_stats on replication (Bug 600684)
 +6) Change variable types (system/command-line)
 +
+diff -ruN a/scripts/mysqldumpslow.sh b/scripts/mysqldumpslow.sh
 --- a/scripts/mysqldumpslow.sh
 +++ b/scripts/mysqldumpslow.sh
 @@ -101,8 +101,8 @@
@@ -84,6 +88,7 @@
      $t -= $l unless $opt{l};
  
      # remove fluff that mysqld writes to log when it (re)starts:
+diff -ruN a/sql/event_scheduler.cc b/sql/event_scheduler.cc
 --- a/sql/event_scheduler.cc
 +++ b/sql/event_scheduler.cc
 @@ -193,6 +193,7 @@
@@ -94,6 +99,7 @@
    pthread_mutex_unlock(&LOCK_thread_count);
  
    /*
+diff -ruN a/sql/filesort.cc b/sql/filesort.cc
 --- a/sql/filesort.cc
 +++ b/sql/filesort.cc
 @@ -190,6 +190,7 @@
@@ -120,6 +126,7 @@
    if (param->not_killable)
    {
      killed= &not_killable;
+diff -ruN a/sql/log.cc b/sql/log.cc
 --- a/sql/log.cc
 +++ b/sql/log.cc
 @@ -524,11 +524,13 @@
@@ -163,19 +170,17 @@
                               sctx->host ? sctx->host : "", " [",
                               sctx->ip ? sctx->ip : "", "]", NullS) -
                      user_host_buff);
-@@ -995,8 +997,22 @@
+@@ -995,9 +997,23 @@
      current_time= my_time_possible_from_micro(current_utime);
      if (thd->start_utime)
      {
--      query_utime= (current_utime - thd->start_utime);
--      lock_utime=  (thd->utime_after_lock - thd->start_utime);
 +      if(current_utime < thd->start_utime)
 +      {
 +        query_utime= 0;
 +      }
 +      else
 +      {
-+        query_utime= (current_utime - thd->start_utime);
+       query_utime= (current_utime - thd->start_utime);
 +      }
 +      if(thd->utime_after_lock < thd->start_utime)
 +      {
@@ -183,11 +188,12 @@
 +      }
 +      else
 +      {
-+        lock_utime= (thd->utime_after_lock - thd->start_utime);
-+      }
+       lock_utime=  (thd->utime_after_lock - thd->start_utime);
      }
++    }
      else
      {
+       query_utime= lock_utime= 0;
 @@ -1010,8 +1026,21 @@
        query_length= command_name[thd->command].length;
      }
@@ -237,11 +243,6 @@
          struct tm start;
          localtime_r(&current_time, &start);
 -
--        buff_len= my_snprintf(buff, sizeof buff,
--                              "# Time: %02d%02d%02d %2d:%02d:%02d\n",
--                              start.tm_year % 100, start.tm_mon + 1,
--                              start.tm_mday, start.tm_hour,
--                              start.tm_min, start.tm_sec);
 +	if(opt_slow_query_log_microseconds_timestamp)
 +	{
 +	  ulonglong microsecond = current_utime % (1000 * 1000);
@@ -253,11 +254,11 @@
 +	}
 +	else
 +	{
-+	  buff_len= my_snprintf(buff, sizeof buff,
-+	    "# Time: %02d%02d%02d %2d:%02d:%02d\n",
-+            start.tm_year % 100, start.tm_mon + 1,
-+	    start.tm_mday, start.tm_hour,
-+	    start.tm_min, start.tm_sec);
+         buff_len= my_snprintf(buff, sizeof buff,
+                               "# Time: %02d%02d%02d %2d:%02d:%02d\n",
+                               start.tm_year % 100, start.tm_mon + 1,
+                               start.tm_mday, start.tm_hour,
+                               start.tm_min, start.tm_sec);
 +	}
  
          /* Note that my_b_write() assumes it knows the length for this */
@@ -283,7 +284,7 @@
 +                    (ulong) thd->tmp_tables_used,
 +                    (ulong) thd->tmp_tables_disk_used,
 +                    (ulong) thd->tmp_tables_size) == (uint) -1)
-       tmp_errno= errno;
++      tmp_errno= errno;
 +    if (thd->innodb_was_used)
 +    {
 +      char buf[20];
@@ -325,11 +326,12 @@
 +    {
 +      if ((thd->variables.log_slow_verbosity & SLOG_V_INNODB) &&
 +          my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
-+        tmp_errno= errno;
+       tmp_errno= errno;
 +    }
      if (thd->db && strcmp(thd->db, db))
      {						// Database changed
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+diff -ruN a/sql/log.h b/sql/log.h
 --- a/sql/log.h
 +++ b/sql/log.h
 @@ -211,7 +211,7 @@
@@ -368,9 +370,44 @@
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
+diff -ruN a/sql/log_event.cc b/sql/log_event.cc
 --- a/sql/log_event.cc
 +++ b/sql/log_event.cc
-@@ -3090,6 +3090,7 @@
+@@ -2361,6 +2361,15 @@
+       start+= host.length;
+     }
+   }
++#ifndef DBUG_OFF
++  if (thd && thd->variables.query_exec_time > 0)
++  {
++    *start++= Q_QUERY_EXEC_TIME;;
++    int8store(start, thd->variables.query_exec_time);
++    start+= 8;
++  }
++#endif
++
+   /*
+     NOTE: When adding new status vars, please don't forget to update
+     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
+@@ -2790,6 +2799,17 @@
+       data_written= master_data_written= uint4korr(pos);
+       pos+= 4;
+       break;
++#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
++    case Q_QUERY_EXEC_TIME:
++    {
++      THD *thd= current_thd;
++      CHECK_SPACE(pos, end, 8);
++      if (thd)
++        thd->variables.query_exec_time= uint8korr(pos);
++      pos+= 8;
++      break;
++    }
++#endif
+     case Q_INVOKER:
+     {
+       CHECK_SPACE(pos, end, 1);
+@@ -3090,6 +3110,7 @@
    LEX_STRING new_db;
    int expected_error,actual_error= 0;
    HA_CREATE_INFO db_options;
@@ -378,7 +415,7 @@
  
    /*
      Colleagues: please never free(thd->catalog) in MySQL. This would
-@@ -3271,19 +3272,7 @@
+@@ -3271,19 +3292,7 @@
        /* Execute the query (note that we bypass dispatch_command()) */
        const char* found_semicolon= NULL;
        mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
@@ -399,7 +436,7 @@
      }
      else
      {
-@@ -3428,11 +3417,27 @@
+@@ -3428,11 +3437,27 @@
      don't suffer from these assignments to 0 as DROP TEMPORARY
      TABLE uses the db.table syntax.
    */
@@ -428,6 +465,7 @@
    /*
      As a disk space optimization, future masters will not log an event for
      LAST_INSERT_ID() if that function returned 0 (and thus they will be able
+diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
 --- a/sql/mysql_priv.h
 +++ b/sql/mysql_priv.h
 @@ -638,6 +638,106 @@
@@ -548,9 +586,18 @@
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;
+diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -520,6 +520,10 @@
+@@ -435,6 +435,7 @@
+ static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
+ static I_List<THD> thread_cache;
+ static double long_query_time;
++static double query_exec_time;
+ 
+ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
+ 
+@@ -520,6 +521,10 @@
  char* opt_secure_file_priv= 0;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -561,9 +608,11 @@
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_myisam_use_mmap= 0;
-@@ -5798,6 +5802,11 @@
+@@ -5797,7 +5802,13 @@
+   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
    OPT_SECURE_FILE_PRIV,
    OPT_MIN_EXAMINED_ROW_LIMIT,
++  OPT_QUERY_EXEC_TIME,
    OPT_LOG_SLOW_SLAVE_STATEMENTS,
 +  OPT_LOG_SLOW_RATE_LIMIT,
 +  OPT_LOG_SLOW_VERBOSITY,
@@ -573,7 +622,7 @@
  #if defined(ENABLED_DEBUG_SYNC)
    OPT_DEBUG_SYNC_TIMEOUT,
  #endif /* defined(ENABLED_DEBUG_SYNC) */
-@@ -5805,6 +5814,9 @@
+@@ -5805,6 +5816,9 @@
    OPT_SLAVE_EXEC_MODE,
    OPT_GENERAL_LOG_FILE,
    OPT_SLOW_QUERY_LOG_FILE,
@@ -583,7 +632,7 @@
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD,
-@@ -6825,6 +6837,36 @@
+@@ -6825,6 +6839,36 @@
     "microsecond precision.",
     &long_query_time, &long_query_time, 0, GET_DOUBLE,
     REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
@@ -620,7 +669,21 @@
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-@@ -7982,6 +8024,10 @@
+@@ -7062,6 +7106,13 @@
+    "is the plugin library in plugin_dir.",
+    &opt_plugin_load, &opt_plugin_load, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
++#ifndef DBUG_OFF
++  {"query_exec_time", OPT_QUERY_EXEC_TIME,
++   "Pretend queries take this many seconds. When 0 (the default) use the "
++   "actual execution time. Used only for debugging.",
++   &query_exec_time, &query_exec_time, 0, GET_DOUBLE,
++   REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
++#endif
+   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
+    "The size of the buffer that is allocated when preloading indexes.",
+    &global_system_variables.preload_buff_size,
+@@ -7982,6 +8033,10 @@
    global_system_variables.old_passwords= 0;
    global_system_variables.old_alter_table= 0;
    global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
@@ -631,7 +694,7 @@
    /*
      Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
      when collecting index statistics for MyISAM tables.
-@@ -8485,6 +8531,44 @@
+@@ -8485,6 +8540,44 @@
    case OPT_BOOTSTRAP:
      opt_noacl=opt_bootstrap=1;
      break;
@@ -676,6 +739,7 @@
    case OPT_SERVER_ID:
      server_id_supplied = 1;
      break;
+diff -ruN a/sql/set_var.cc b/sql/set_var.cc
 --- a/sql/set_var.cc
 +++ b/sql/set_var.cc
 @@ -162,6 +162,74 @@
@@ -753,7 +817,7 @@
  static sys_var_thd_ulong
  sys_auto_increment_increment(&vars, "auto_increment_increment",
                               &SV::auto_increment_increment, NULL, NULL,
-@@ -901,6 +969,30 @@
+@@ -901,6 +969,35 @@
                                        QUERY_LOG_GENERAL);
  static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                           QUERY_LOG_SLOW);
@@ -781,10 +845,15 @@
 +static sys_var_use_global_long_query_time sys_use_global_long_query_time;
 +static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
 +                                                       &opt_slow_query_log_microseconds_timestamp);
++#ifndef DBUG_OFF
++static sys_var_microseconds sys_var_query_exec_time(&vars, "query_exec_time",
++                                                    &SV::query_exec_time,
++                                                    sys_var::SESSION_VARIABLE_IN_BINLOG);
++#endif
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-@@ -3711,6 +3803,203 @@
+@@ -3711,6 +3808,203 @@
  #endif
  }
  
@@ -988,6 +1057,7 @@
  /****************************************************************************
   Functions to handle table_type
  ****************************************************************************/
+diff -ruN a/sql/set_var.h b/sql/set_var.h
 --- a/sql/set_var.h
 +++ b/sql/set_var.h
 @@ -569,6 +569,82 @@
@@ -1073,7 +1143,19 @@
  class sys_var_thd_storage_engine :public sys_var_thd
  {
  protected:
-@@ -1470,3 +1546,10 @@
+@@ -1178,8 +1254,9 @@
+   ulonglong SV::*offset;
+ public:
+   sys_var_microseconds(sys_var_chain *chain, const char *name_arg,
+-                       ulonglong SV::*offset_arg):
+-    sys_var_thd(name_arg), offset(offset_arg)
++                       ulonglong SV::*offset_arg,
++                       Binlog_status_enum binlog_status= NOT_IN_BINLOG):
++  sys_var_thd(name_arg, NULL, binlog_status), offset(offset_arg)
+   { chain_sys_var(chain); }
+   bool check(THD *thd, set_var *var) {return 0;}
+   bool update(THD *thd, set_var *var);
+@@ -1470,3 +1547,10 @@
  bool process_key_caches(process_key_cache_t func);
  void delete_elements(I_List<NAMED_LIST> *list,
  		     void (*free_element)(const char*, uchar*));
@@ -1084,6 +1166,7 @@
 +                               const ulong none_val, const ulong invalid_val);
 +const char *msl_option_get_name(const struct msl_opts *opts, ulong val);
 +char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val);
+diff -ruN a/sql/slave.cc b/sql/slave.cc
 --- a/sql/slave.cc
 +++ b/sql/slave.cc
 @@ -1834,6 +1834,7 @@
@@ -1094,6 +1177,7 @@
    set_slave_thread_options(thd);
    thd->client_capabilities = CLIENT_LOCAL_FILES;
    pthread_mutex_lock(&LOCK_thread_count);
+diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
 --- a/sql/sp_head.cc
 +++ b/sql/sp_head.cc
 @@ -1987,7 +1987,7 @@
@@ -1105,6 +1189,7 @@
    {
      DBUG_PRINT("info", ("Disabling slow log for the execution"));
      save_enable_slow_log= true;
+diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
 @@ -1704,6 +1704,7 @@
@@ -1123,6 +1208,7 @@
    DBUG_RETURN(0);				// Query was not cached
  }
  
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
 @@ -341,6 +341,37 @@
@@ -1213,13 +1299,17 @@
    DBUG_VOID_RETURN;
  }
  
+diff -ruN a/sql/sql_class.h b/sql/sql_class.h
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -402,6 +402,18 @@
+@@ -402,6 +402,21 @@
    DATE_TIME_FORMAT *datetime_format;
    DATE_TIME_FORMAT *time_format;
    my_bool sysdate_is_now;
 +
++#ifndef DBUG_OFF
++  ulonglong query_exec_time;
++#endif
 +  ulong log_slow_rate_limit;
 +  ulong log_slow_filter;
 +  ulong log_slow_verbosity;
@@ -1234,7 +1324,7 @@
  };
  
  
-@@ -998,6 +1010,14 @@
+@@ -998,6 +1013,14 @@
    uint in_sub_stmt;
    bool enable_slow_log;
    bool last_insert_id_used;
@@ -1249,7 +1339,7 @@
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1425,6 +1445,26 @@
+@@ -1425,6 +1448,26 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -1276,7 +1366,7 @@
    /* <> 0 if we are inside of trigger or stored function. */
    uint in_sub_stmt;
    /* TRUE when the current top has SQL_LOG_BIN ON */
-@@ -1777,6 +1817,11 @@
+@@ -1777,6 +1820,11 @@
      create_sort_index(); may differ from examined_row_count.
    */
    ulong      row_count;
@@ -1288,6 +1378,7 @@
    pthread_t  real_id;                           /* For debugging */
    my_thread_id  thread_id;
    uint	     tmp_table, global_read_lock;
+diff -ruN a/sql/sql_connect.cc b/sql/sql_connect.cc
 --- a/sql/sql_connect.cc
 +++ b/sql/sql_connect.cc
 @@ -1288,6 +1288,15 @@
@@ -1306,21 +1397,69 @@
      prepare_new_connection_state(thd);
  
      while (!net->error && net->vio != 0 &&
+diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -1699,7 +1699,10 @@
-   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
+@@ -46,6 +46,7 @@
+ 
+ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+ static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
++static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime);
+ 
+ const char *any_db="*any*";	// Special symbol for check_access
+ 
+@@ -1700,6 +1701,50 @@
    DBUG_RETURN(error);
  }
--
-+#define SLOG_UG_SETUP(session,value,flag,global) do {   \
-+  if(value & flag) \
-+    session = global; \
-+  } while(false);
+ 
++/**
++   Calculate execution time for the current query.
++
++   For debug builds, check the session value of query_exec_time
++   and if it is not zero, return it instead of the actual execution time.
++
++   SET queries are ignored so that statements changing query_exec_time are not
++   affected by themselves.
++
++   @param thd              thread handle
++   @param lex              current relative time in microseconds
++
++   @return                 time in microseconds from utime_after_lock
++*/
++
++static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime)
++{
++#ifndef DBUG_OFF
++  if (thd->variables.query_exec_time)
++    return thd->lex->sql_command != SQLCOM_SET_OPTION ?
++      thd->variables.query_exec_time : 0;
++#endif
++
++  return cur_utime - thd->utime_after_lock;
++}
++
++
++static inline void copy_global_to_session(THD *thd, ulong flag,
++                                          const ulong *val)
++{
++  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
++  if (global_system_variables.use_global_log_slow_control & flag)
++    *(ulong *)((char *) &thd->variables + offset) = *val;
++}
++
++
++static inline void copy_global_to_session(THD *thd, ulong flag,
++                                          const ulonglong *val)
++{
++  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
++  if (global_system_variables.use_global_log_slow_control & flag)
++    *(ulonglong *)((char *) &thd->variables + offset) = *val;
++}
++
  
  void log_slow_statement(THD *thd)
  {
-@@ -1713,6 +1716,40 @@
+@@ -1713,17 +1758,51 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -1331,6 +1470,9 @@
 +        (thd->query_plan_flags & QPLAN_QC))))
 +    DBUG_VOID_RETURN;
 +
++  ulonglong end_utime_of_query= thd->current_utime();
++  ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
++
 +  /*
 +    Low long_query_time value most likely means user is debugging stuff and even
 +    though some thread's queries are not supposed to be logged b/c of the rate
@@ -1338,30 +1480,41 @@
 +    to make an exception and write to slow log anyway.
 +  */
 +
-+  ulonglong end_utime_of_query= thd->current_utime();
-+
 +  /* use_global_log_slow_control */
-+  {
-+    system_variables const &g= global_system_variables; // global                                                           
-+    system_variables       &s= thd->variables;          // session                                                          
-+    ulong const            &value= g.use_global_log_slow_control;
-+    SLOG_UG_SETUP(s.log_slow_filter,           value, SLOG_UG_LOG_SLOW_FILTER,             g.log_slow_filter);
-+    SLOG_UG_SETUP(s.log_slow_rate_limit,       value, SLOG_UG_LOG_SLOW_RATE_LIMIT,         g.log_slow_rate_limit);
-+    SLOG_UG_SETUP(s.log_slow_verbosity,        value, SLOG_UG_LOG_SLOW_VERBOSITY,          g.log_slow_verbosity);
-+    SLOG_UG_SETUP(s.long_query_time,           value, SLOG_UG_LONG_QUERY_TIME,             g.long_query_time);
-+    SLOG_UG_SETUP(s.min_examined_row_limit,    value, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,      g.min_examined_row_limit);
-+  }
++  system_variables const &g= global_system_variables;
++  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER,
++                         &g.log_slow_filter);
++  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
++                         &g.log_slow_rate_limit);
++  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
++                         &g.log_slow_verbosity);
++  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME,
++                         &g.long_query_time);
++  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
++                         &g.min_examined_row_limit);
 +
 +  /* Do not log this thread's queries due to rate limiting. */
 +  if (thd->write_to_slow_log != TRUE
 +      && (thd->variables.long_query_time >= 1000000
-+          || (ulong) (end_utime_of_query - thd->utime_after_lock) < 1000000))
++          || (ulong) query_exec_time < 1000000))
 +    DBUG_VOID_RETURN;
 +
    /*
      Do not log administrative statements unless the appropriate option is
      set.
-@@ -2099,6 +2136,9 @@
+   */
+   if (thd->enable_slow_log)
+   {
+-    ulonglong end_utime_of_query= thd->current_utime();
+     thd_proc_info(thd, "logging slow query");
+ 
+-    if (((end_utime_of_query - thd->utime_after_lock) >
+-         thd->variables.long_query_time ||
++    if (((query_exec_time > thd->variables.long_query_time) ||
+          ((thd->server_status &
+            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
+           opt_log_queries_not_using_indexes &&
+@@ -2099,6 +2178,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -1371,7 +1524,7 @@
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5828,6 +5868,21 @@
+@@ -5828,6 +5910,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -1393,6 +1546,7 @@
    /*
      Because we come here only for start of top-statements, binlog format is
      constant inside a complex statement (using stored functions) etc.
+diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
 --- a/sql/sql_select.cc
 +++ b/sql/sql_select.cc
 @@ -6794,7 +6794,10 @@
@@ -1448,6 +1602,7 @@
    // Release latches since this can take a long time
    ha_release_temporary_latches(thd);
  
+diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc
 +++ b/sql/sql_show.cc
 @@ -1971,8 +1971,17 @@
@@ -1470,3 +1625,1025 @@
        /* STATE */
  #ifndef EMBEDDED_LIBRARY
        val= (char*) (tmp->locked ? "Locked" :
+diff -ruN /dev/null b/mysql-test/include/log_grep.inc
+--- /dev/null
++++ b/mysql-test/include/log_grep.inc
+@@ -0,0 +1,17 @@
++--disable_query_log
++--echo [log_grep.inc] file: $log_file pattern: $grep_pattern
++perl;
++  $log_file=           $ENV{'log_file'};
++  $log_file_full_path= $ENV{'log_file_full_path'};
++  $grep_pattern=       $ENV{'grep_pattern'};
++
++  open(FILE, "$log_file_full_path") 
++    or die("Cannot open file $log_file_full_path: $!\n");
++
++  $lines = 0;
++  while(<FILE>) {
++    $lines++ if (/$grep_pattern/);
++  }
++  close(FILE);
++  print "[log_grep.inc] lines:   $lines\n";
++EOF
+diff -ruN /dev/null b/mysql-test/include/log_start.inc
+--- /dev/null
++++ b/mysql-test/include/log_start.inc
+@@ -0,0 +1,16 @@
++--let slow_query_log_file_old=`SELECT Variable_value FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE Variable_name = 'slow_query_log_file';`
++--let slow_query_log_old=`SELECT Variable_value FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE Variable_name = 'slow_query_log';`
++--disable_query_log
++--let log_file_full_path = $MYSQLTEST_VARDIR/$log_file
++SET GLOBAL slow_query_log=0;
++perl;
++  $log_file_full_path= $ENV{'log_file_full_path'};
++  unlink $log_file_full_path;
++  open(FILE, '>', $log_file_full_path)
++    or die "Cannot create log file $log_file_full_path, reason: $!";
++  close(FILE);
++EOF
++--echo [log_start.inc] $log_file
++EVAL SET GLOBAL slow_query_log_file="$log_file_full_path";
++SET GLOBAL slow_query_log=1;
++--enable_query_log
+diff -ruN /dev/null b/mysql-test/include/log_stop.inc
+--- /dev/null
++++ b/mysql-test/include/log_stop.inc
+@@ -0,0 +1,7 @@
++--disable_query_log
++FLUSH LOGS;
++SET GLOBAL slow_query_log=0;
++--echo [log_stop.inc] $log_file
++EVAL SET GLOBAL slow_query_log_file= "$slow_query_log_file_old";
++EVAL SET GLOBAL slow_query_log=      $slow_query_log_old ;
++--enable_query_log
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_filter-cl.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_filter-cl.result
+@@ -0,0 +1,6 @@
++SHOW VARIABLES LIKE 'log_slow_filter';
++Variable_name	Value
++log_slow_filter	full_join
++SHOW GLOBAL VARIABLES LIKE 'log_slow_filter';
++Variable_name	Value
++log_slow_filter	full_join
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_filter.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_filter.result
+@@ -0,0 +1,15 @@
++CREATE TABLE t(id INT PRIMARY KEY);
++INSERT INTO t VALUES(1);
++INSERT INTO t VALUES(2);
++INSERT INTO t VALUES(3);
++SET long_query_time=1;
++SET log_slow_filter=full_join;
++[log_start.inc] percona.slow_extended.log_slow_filter
++SET query_exec_time = 1.1;
++SELECT * FROM t AS t1, t AS t2;
++SET query_exec_time = default;
++[log_stop.inc] percona.slow_extended.log_slow_filter
++SET log_slow_filter=default;
++SET long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.log_slow_filter pattern: Query_time
++[log_grep.inc] lines:   1
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_slave_statements-cl.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_slave_statements-cl.result
+@@ -0,0 +1,6 @@
++SHOW VARIABLES LIKE 'log_slow_slave_statements';
++Variable_name	Value
++log_slow_slave_statements	ON
++SHOW GLOBAL VARIABLES LIKE 'log_slow_slave_statements';
++Variable_name	Value
++log_slow_slave_statements	ON
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_slave_statements-innodb.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_slave_statements-innodb.result
+@@ -0,0 +1,18 @@
++include/master-slave.inc
++[connection master]
++DROP TABLE IF EXISTS t;
++CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
++INSERT INTO t VALUES
++(1,"aaaaabbbbbcccccdddddeeeeefffff"),
++(2,"aaaaabbbbbcccccdddddeeeeefffff"),
++(3,"aaaaabbbbbcccccdddddeeeeefffff"),
++(4,"aaaaabbbbbcccccdddddeeeeefffff"),
++(5,"aaaaabbbbbcccccdddddeeeeefffff");
++INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
++INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
++include/rpl_restart_server.inc [server_number=1]
++[log_start.inc] percona.slow_extended.log_slow_slave_statements-innodb
++[log_stop.inc] percona.slow_extended.log_slow_slave_statements-innodb
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements-innodb pattern: InnoDB_IO_r_ops
++[log_grep.inc] lines:   1
++include/rpl_end.inc
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_slave_statements.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_slave_statements.result
+@@ -0,0 +1,46 @@
++include/master-slave.inc
++[connection master]
++DROP TABLE IF EXISTS t;
++CREATE TABLE t(id INT);
++[log_start.inc] percona.slow_extended.log_slow_slave_statements
++LINE 1
++LOG_SLOW_SLAVE_STATAMENTS is OFF
++LOG_SLOW_SLAVE_STATEMENTS=1
++LOG_SLOW_SLAVE_STATAMENTS is ON
++LINE 2
++include/restart_slave.inc
++LOG_SLOW_SLAVE_STATAMENTS is ON
++LINE 3
++LOG_SLOW_SLAVE_STATAMENTS is ON
++LOG_SLOW_SLAVE_STATEMENTS=0
++LOG_SLOW_SLAVE_STATAMENTS is OFF
++LINE 4
++include/restart_slave.inc
++LOG_SLOW_SLAVE_STATAMENTS is OFF
++LINE 5
++LOG_SLOW_SLAVE_STATAMENTS is OFF
++LOG_SLOW_SLAVE_STATEMENTS=1
++LOG_SLOW_SLAVE_STATAMENTS is ON
++LINE 6
++include/restart_slave.inc
++LOG_SLOW_SLAVE_STATAMENTS is ON
++LINE 7
++[log_stop.inc] percona.slow_extended.log_slow_slave_statements
++SET GLOBAL log_slow_slave_statements=default;
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(1\)
++[log_grep.inc] lines:   0
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(2\)
++[log_grep.inc] lines:   0
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(3\)
++[log_grep.inc] lines:   1
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(4\)
++[log_grep.inc] lines:   0
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(5\)
++[log_grep.inc] lines:   0
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(6\)
++[log_grep.inc] lines:   0
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(7\)
++[log_grep.inc] lines:   1
++[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(8\)
++[log_grep.inc] lines:   0
++include/rpl_end.inc
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_sp_statements-cl.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_sp_statements-cl.result
+@@ -0,0 +1,6 @@
++SHOW VARIABLES LIKE 'log_slow_sp_statements';
++Variable_name	Value
++log_slow_sp_statements	ON
++SHOW GLOBAL VARIABLES LIKE 'log_slow_sp_statements';
++Variable_name	Value
++log_slow_sp_statements	ON
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_sp_statements.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_sp_statements.result
+@@ -0,0 +1,22 @@
++SET long_query_time=1;
++SET GLOBAL log_slow_sp_statements=1;
++[log_start.inc] percona.slow_extended.log_slow_sp_statements
++CREATE PROCEDURE test_f()
++BEGIN
++SET SESSION query_exec_time=1.1; SELECT 1;
++SET SESSION query_exec_time=2.1; SELECT 1;
++SET SESSION query_exec_time=3.1; SELECT 1;
++SET SESSION query_exec_time=default;
++END^
++CALL test_f();
++1
++1
++1
++1
++1
++1
++[log_stop.inc] percona.slow_extended.log_slow_sp_statements
++SET GLOBAL log_slow_sp_statements=default;
++SET long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.log_slow_sp_statements pattern: Query_time
++[log_grep.inc] lines:   3
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_timestamp_every-cl.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_timestamp_every-cl.result
+@@ -0,0 +1,6 @@
++SHOW VARIABLES LIKE 'log_slow_timestamp_every';
++Variable_name	Value
++log_slow_timestamp_every	ON
++SHOW GLOBAL VARIABLES LIKE 'log_slow_timestamp_every';
++Variable_name	Value
++log_slow_timestamp_every	ON
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_timestamp_every.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_timestamp_every.result
+@@ -0,0 +1,39 @@
++SET long_query_time=2;
++SET GLOBAL log_slow_timestamp_every=1;
++[log_start.inc] percona.slow_extended.log_slow_timestamp_every
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SELECT 2;
++2
++2
++SELECT 3;
++3
++3
++SET GLOBAL log_slow_timestamp_every=0;
++SELECT 1;
++1
++1
++SELECT 2;
++2
++2
++SELECT 3;
++3
++3
++SET GLOBAL log_slow_timestamp_every=1;
++SELECT 1;
++1
++1
++SELECT 2;
++2
++2
++SELECT 3;
++3
++3
++SET SESSION query_exec_time = default;
++[log_stop.inc] percona.slow_extended.log_slow_timestamp_every
++SET GLOBAL log_slow_timestamp_every=default;
++SET long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.log_slow_timestamp_every pattern: # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+
++[log_grep.inc] lines:   6
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_verbosity-cl.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_verbosity-cl.result
+@@ -0,0 +1,6 @@
++SHOW VARIABLES LIKE 'log_slow_verbosity';
++Variable_name	Value
++log_slow_verbosity	microtime,query_plan,innodb
++SHOW GLOBAL VARIABLES LIKE 'log_slow_verbosity';
++Variable_name	Value
++log_slow_verbosity	microtime,query_plan,innodb
+diff -ruN /dev/null b/mysql-test/r/percona_log_slow_verbosity.result
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_verbosity.result
+@@ -0,0 +1,16 @@
++SET SESSION long_query_time=1;
++[log_start.inc] percona.slow_extended.log_slow_verbosity
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION log_slow_verbosity=innodb;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=default;
++[log_stop.inc] percona.slow_extended.log_slow_verbosity
++SET log_slow_verbosity='';
++SET long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.log_slow_verbosity pattern: No InnoDB statistics available for this query
++[log_grep.inc] lines:   1
+diff -ruN /dev/null b/mysql-test/r/percona_long_query_time.result
+--- /dev/null
++++ b/mysql-test/r/percona_long_query_time.result
+@@ -0,0 +1,33 @@
++SET long_query_time=2;
++[log_start.inc] percona.slow_extended.long_query_time
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET long_query_time=4;
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=default;
++SET long_query_time=2;
++[log_stop.inc] percona.slow_extended.long_query_time
++SET long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.long_query_time pattern: Query_time
++[log_grep.inc] lines:   3
+diff -ruN /dev/null b/mysql-test/r/percona_min_examined_row_limit.result
+--- /dev/null
++++ b/mysql-test/r/percona_min_examined_row_limit.result
+@@ -0,0 +1,34 @@
++drop table if exists t;
++create table t(id INT PRIMARY KEY);
++insert into t values(1);
++insert into t values(2);
++insert into t values(3);
++SET GLOBAL long_query_time=2;
++SET GLOBAL use_global_log_slow_control='long_query_time,min_examined_row_limit';
++[log_start.inc] percona.slow_extended.min_examined_row_limit
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET GLOBAL min_examined_row_limit=5;
++SELECT * FROM t AS t1, t AS t2;
++id	id
++1	1
++2	1
++3	1
++1	2
++2	2
++3	2
++1	3
++2	3
++3	3
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=default;
++[log_stop.inc] percona.slow_extended.min_examined_row_limit
++SET GLOBAL min_examined_row_limit=default;
++SET GLOBAL use_global_log_slow_control='';
++SET GLOBAL long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.min_examined_row_limit pattern: Query_time
++[log_grep.inc] lines:   1
+diff -ruN /dev/null b/mysql-test/r/percona_slow_query_log_microseconds_timestamp-cl.result
+--- /dev/null
++++ b/mysql-test/r/percona_slow_query_log_microseconds_timestamp-cl.result
+@@ -0,0 +1,6 @@
++SHOW VARIABLES LIKE 'slow_query_log_microseconds_timestamp';
++Variable_name	Value
++slow_query_log_microseconds_timestamp	ON
++SHOW GLOBAL VARIABLES LIKE 'slow_query_log_microseconds_timestamp';
++Variable_name	Value
++slow_query_log_microseconds_timestamp	ON
+diff -ruN /dev/null b/mysql-test/r/percona_slow_query_log_microseconds_timestamp.result
+--- /dev/null
++++ b/mysql-test/r/percona_slow_query_log_microseconds_timestamp.result
+@@ -0,0 +1,18 @@
++SET long_query_time=2;
++[log_start.inc] percona.slow_extended.slow_query_log_microseconds_timestamp
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET GLOBAL slow_query_log_microseconds_timestamp=1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=default;
++[log_stop.inc] percona.slow_extended.slow_query_log_microseconds_timestamp
++SET GLOBAL slow_query_log_microseconds_timestamp=default;
++SET long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.slow_query_log_microseconds_timestamp pattern: # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+.[0-9]+
++[log_grep.inc] lines:   1
++[log_grep.inc] file: percona.slow_extended.slow_query_log_microseconds_timestamp pattern: # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+
++[log_grep.inc] lines:   2
+diff -ruN /dev/null b/mysql-test/r/percona_use_global_log_slow_control-cl.result
+--- /dev/null
++++ b/mysql-test/r/percona_use_global_log_slow_control-cl.result
+@@ -0,0 +1,6 @@
++SHOW VARIABLES LIKE 'use_global_log_slow_control';
++Variable_name	Value
++use_global_log_slow_control	log_slow_verbosity,long_query_time
++SHOW GLOBAL VARIABLES LIKE 'use_global_log_slow_control';
++Variable_name	Value
++use_global_log_slow_control	log_slow_verbosity,long_query_time
+diff -ruN /dev/null b/mysql-test/r/percona_use_global_log_slow_control.result
+--- /dev/null
++++ b/mysql-test/r/percona_use_global_log_slow_control.result
+@@ -0,0 +1,18 @@
++SET GLOBAL long_query_time=1;
++[log_start.inc] percona.slow_extended.use_global_log_slow_control
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET GLOBAL log_slow_verbosity=innodb;
++SET GLOBAL use_global_log_slow_control="log_slow_verbosity,long_query_time";
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=default;
++[log_stop.inc] percona.slow_extended.use_global_log_slow_control
++SET GLOBAL use_global_log_slow_control='';
++SET GLOBAL log_slow_verbosity='';
++SET GLOBAL long_query_time=default;
++[log_grep.inc] file: percona.slow_extended.use_global_log_slow_control pattern: No InnoDB statistics available for this query
++[log_grep.inc] lines:   1
+diff -ruN /dev/null b/mysql-test/r/percona_use_global_long_query_time.result
+--- /dev/null
++++ b/mysql-test/r/percona_use_global_long_query_time.result
+@@ -0,0 +1,34 @@
++[log_start.inc] percona.slow_extended.use_global_long_query_time
++SET long_query_time=2;
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET GLOBAL long_query_time=4;
++SET GLOBAL use_global_long_query_time=1;
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0;
++[log_stop.inc] percona.slow_extended.use_global_long_query_time
++SET GLOBAL long_query_time=default;
++SET GLOBAL use_global_long_query_time=0;
++[log_grep.inc] file: percona.slow_extended.use_global_long_query_time pattern: Query_time
++[log_grep.inc] lines:   3
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_filter-cl-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_filter-cl-master.opt
+@@ -0,0 +1 @@
++--log_slow_filter=full_join
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_filter-cl.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_filter-cl.test
+@@ -0,0 +1,2 @@
++SHOW VARIABLES LIKE 'log_slow_filter';
++SHOW GLOBAL VARIABLES LIKE 'log_slow_filter';
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_filter.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_filter.test
+@@ -0,0 +1,26 @@
++--source include/have_debug.inc
++
++CREATE TABLE t(id INT PRIMARY KEY);
++INSERT INTO t VALUES(1);
++INSERT INTO t VALUES(2);
++INSERT INTO t VALUES(3);
++
++SET long_query_time=1;
++SET log_slow_filter=full_join;
++--let log_file=percona.slow_extended.log_slow_filter
++--source include/log_start.inc
++
++SET query_exec_time = 1.1;
++--disable_result_log
++SELECT * FROM t AS t1, t AS t2;
++--enable_result_log
++SET query_exec_time = default;
++
++--source include/log_stop.inc
++SET log_slow_filter=default;
++SET long_query_time=default;
++
++--let grep_pattern = Query_time
++--source include/log_grep.inc
++
++DROP TABLE t;
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_slave_statements-cl-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_slave_statements-cl-master.opt
+@@ -0,0 +1 @@
++--log_slow_slave_statements
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_slave_statements-cl.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_slave_statements-cl.test
+@@ -0,0 +1,3 @@
++SHOW VARIABLES LIKE 'log_slow_slave_statements';
++SHOW GLOBAL VARIABLES LIKE 'log_slow_slave_statements';
++
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_slave_statements-innodb-slave.opt
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_slave_statements-innodb-slave.opt
+@@ -0,0 +1 @@
++--long_query_time=0 --log_slow_slave_statements --log_slow_verbosity=innodb
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_slave_statements-innodb.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_slave_statements-innodb.test
+@@ -0,0 +1,48 @@
++--source include/have_binlog_format_statement.inc
++--source include/master-slave.inc
++--source include/have_innodb.inc
++--let log_file=percona.slow_extended.log_slow_slave_statements-innodb
++
++connection master;
++-- disable_warnings
++DROP TABLE IF EXISTS t;
++-- enable_warnings
++
++CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
++INSERT INTO t VALUES
++(1,"aaaaabbbbbcccccdddddeeeeefffff"),
++(2,"aaaaabbbbbcccccdddddeeeeefffff"),
++(3,"aaaaabbbbbcccccdddddeeeeefffff"),
++(4,"aaaaabbbbbcccccdddddeeeeefffff"),
++(5,"aaaaabbbbbcccccdddddeeeeefffff");
++INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
++INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
++sync_slave_with_master;
++
++--let rpl_server_number=1
++--source include/rpl_restart_server.inc
++
++connection slave;
++--source include/log_start.inc
++
++--disable_query_log
++--disable_result_log
++
++connection master;
++INSERT INTO t SELECT t.id,t.data from t;
++sync_slave_with_master;
++
++connection slave;
++--source include/log_stop.inc
++
++--enable_query_log
++--enable_result_log
++
++--let grep_pattern =  InnoDB_IO_r_ops
++--source include/log_grep.inc
++
++connection master;
++DROP TABLE t;
++sync_slave_with_master;
++
++--source include/rpl_end.inc
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_slave_statements-slave.opt
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_slave_statements-slave.opt
+@@ -0,0 +1 @@
++--long_query_time=0
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_slave_statements.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_slave_statements.test
+@@ -0,0 +1,119 @@
++-- source include/have_binlog_format_statement.inc
++-- source include/master-slave.inc
++--let log_file=percona.slow_extended.log_slow_slave_statements
++--let show=SELECT Variable_value FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name LIKE 'log_slow_slave_statements';
++
++connection master;
++-- disable_warnings
++DROP TABLE IF EXISTS t;
++-- enable_warnings
++
++CREATE TABLE t(id INT);
++sync_slave_with_master;
++
++connection slave;
++--source include/log_start.inc
++
++--disable_query_log
++--disable_result_log
++
++--echo LINE 1
++connection master;
++INSERT INTO t VALUES (1);
++sync_slave_with_master;
++
++connection slave;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++--echo LOG_SLOW_SLAVE_STATEMENTS=1
++SET GLOBAL log_slow_slave_statements=1;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++
++--echo LINE 2
++connection master;
++INSERT INTO t VALUES (2);
++sync_slave_with_master;
++
++--source include/restart_slave_sql.inc
++
++connection slave;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++
++--echo LINE 3
++connection master;
++INSERT INTO t VALUES (3);
++sync_slave_with_master;
++
++connection slave;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++--echo LOG_SLOW_SLAVE_STATEMENTS=0
++SET GLOBAL log_slow_slave_statements=0;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++
++--echo LINE 4
++connection master;
++INSERT INTO t VALUES (4);
++sync_slave_with_master;
++
++--source include/restart_slave_sql.inc
++
++connection slave;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++
++--echo LINE 5
++connection master;
++INSERT INTO t VALUES (5);
++sync_slave_with_master;
++
++connection slave;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++--echo LOG_SLOW_SLAVE_STATEMENTS=1
++SET GLOBAL log_slow_slave_statements=1;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++
++--echo LINE 6
++connection master;
++INSERT INTO t VALUES (6);
++sync_slave_with_master;
++
++--source include/restart_slave_sql.inc
++
++connection slave;
++--let value=`$show`
++--echo LOG_SLOW_SLAVE_STATAMENTS is $value
++
++--echo LINE 7
++connection master;
++INSERT INTO t VALUES (7);
++sync_slave_with_master;
++
++--enable_query_log
++--enable_result_log
++
++connection slave;
++--source include/log_stop.inc
++SET GLOBAL log_slow_slave_statements=default;
++
++connection slave;
++--let i=1
++--let k=8
++while($k)
++{
++--let grep_pattern= INSERT INTO t VALUES \($i\)
++--source include/log_grep.inc
++  inc $i;
++  dec $k;
++}
++
++connection master;
++DROP TABLE t;
++sync_slave_with_master;
++
++--source include/rpl_end.inc
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_sp_statements-cl-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_sp_statements-cl-master.opt
+@@ -0,0 +1 @@
++--log_slow_sp_statements
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_sp_statements-cl.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_sp_statements-cl.test
+@@ -0,0 +1,2 @@
++SHOW VARIABLES LIKE 'log_slow_sp_statements';
++SHOW GLOBAL VARIABLES LIKE 'log_slow_sp_statements';
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_sp_statements.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_sp_statements.test
+@@ -0,0 +1,27 @@
++--source include/have_debug.inc
++
++SET long_query_time=1;
++SET GLOBAL log_slow_sp_statements=1;
++--let log_file=percona.slow_extended.log_slow_sp_statements
++--source include/log_start.inc
++
++delimiter ^;
++CREATE PROCEDURE test_f()
++BEGIN
++  SET SESSION query_exec_time=1.1; SELECT 1;
++  SET SESSION query_exec_time=2.1; SELECT 1;
++  SET SESSION query_exec_time=3.1; SELECT 1;
++  SET SESSION query_exec_time=default;
++END^
++delimiter ;^	
++
++CALL test_f();
++
++--source include/log_stop.inc
++SET GLOBAL log_slow_sp_statements=default;
++SET long_query_time=default;
++
++--let grep_pattern = Query_time
++--source include/log_grep.inc
++
++DROP PROCEDURE test_f;
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_timestamp_every-cl-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_timestamp_every-cl-master.opt
+@@ -0,0 +1 @@
++--log_slow_timestamp_every
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_timestamp_every-cl.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_timestamp_every-cl.test
+@@ -0,0 +1,2 @@
++SHOW VARIABLES LIKE 'log_slow_timestamp_every';
++SHOW GLOBAL VARIABLES LIKE 'log_slow_timestamp_every';
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_timestamp_every.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_timestamp_every.test
+@@ -0,0 +1,33 @@
++--source include/have_debug.inc
++
++SET long_query_time=2;
++SET GLOBAL log_slow_timestamp_every=1;
++--let log_file=percona.slow_extended.log_slow_timestamp_every
++--source include/log_start.inc
++
++SET SESSION query_exec_time=2.1;
++
++SELECT 1;
++SELECT 2;
++SELECT 3;
++
++SET GLOBAL log_slow_timestamp_every=0;
++
++SELECT 1;
++SELECT 2;
++SELECT 3;
++
++SET GLOBAL log_slow_timestamp_every=1;
++
++SELECT 1;
++SELECT 2;
++SELECT 3;
++
++SET SESSION query_exec_time = default;
++
++--source include/log_stop.inc
++SET GLOBAL log_slow_timestamp_every=default;
++SET long_query_time=default;
++
++--let grep_pattern =  # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+
++--source include/log_grep.inc
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_verbosity-cl-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_verbosity-cl-master.opt
+@@ -0,0 +1 @@
++--log_slow_verbosity="full"
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_verbosity-cl.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_verbosity-cl.test
+@@ -0,0 +1,2 @@
++SHOW VARIABLES LIKE 'log_slow_verbosity';
++SHOW GLOBAL VARIABLES LIKE 'log_slow_verbosity';
+diff -ruN /dev/null b/mysql-test/t/percona_log_slow_verbosity.test
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_verbosity.test
+@@ -0,0 +1,19 @@
++--source include/have_innodb.inc
++--source include/have_debug.inc
++
++SET SESSION long_query_time=1;
++--let log_file=percona.slow_extended.log_slow_verbosity
++--source include/log_start.inc
++
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++SET SESSION log_slow_verbosity=innodb; 
++SELECT 1;
++SET SESSION query_exec_time=default;
++
++--source include/log_stop.inc
++SET log_slow_verbosity='';
++SET long_query_time=default;
++
++--let grep_pattern = No InnoDB statistics available for this query
++--source include/log_grep.inc
+diff -ruN /dev/null b/mysql-test/t/percona_long_query_time.test
+--- /dev/null
++++ b/mysql-test/t/percona_long_query_time.test
+@@ -0,0 +1,25 @@
++--source include/have_debug.inc
++
++SET long_query_time=2;
++--let log_file=percona.slow_extended.long_query_time
++--source include/log_start.inc
++
++SET SESSION query_exec_time=1.1; SELECT 1;
++SET SESSION query_exec_time=3.1; SELECT 1;
++SET SESSION query_exec_time=5.1; SELECT 1;
++
++SET long_query_time=4;
++
++SET SESSION query_exec_time=1.1; SELECT 1;
++SET SESSION query_exec_time=3.1; SELECT 1;
++SET SESSION query_exec_time=5.1; SELECT 1;
++
++SET SESSION query_exec_time=default;
++
++SET long_query_time=2;
++
++--source include/log_stop.inc
++SET long_query_time=default;
++
++--let grep_pattern = Query_time
++--source include/log_grep.inc
+diff -ruN /dev/null b/mysql-test/t/percona_min_examined_row_limit.test
+--- /dev/null
++++ b/mysql-test/t/percona_min_examined_row_limit.test
+@@ -0,0 +1,35 @@
++--source include/have_debug.inc
++
++--disable_warnings
++drop table if exists t;
++--enable_warnings
++
++create table t(id INT PRIMARY KEY);
++insert into t values(1);
++insert into t values(2);
++insert into t values(3);
++
++SET GLOBAL long_query_time=2;
++SET GLOBAL use_global_log_slow_control='long_query_time,min_examined_row_limit';
++--let log_file=percona.slow_extended.min_examined_row_limit
++--source include/log_start.inc
++
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++
++SET GLOBAL min_examined_row_limit=5;
++
++SELECT * FROM t AS t1, t AS t2;
++SELECT 1;
++
++SET SESSION query_exec_time=default;
++
++--source include/log_stop.inc
++SET GLOBAL min_examined_row_limit=default;
++SET GLOBAL use_global_log_slow_control='';
++SET GLOBAL long_query_time=default;
++
++--let grep_pattern = Query_time
++--source include/log_grep.inc
++
++DROP TABLE t;
+diff -ruN /dev/null b/mysql-test/t/percona_slow_query_log_microseconds_timestamp-cl-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_slow_query_log_microseconds_timestamp-cl-master.opt
+@@ -0,0 +1 @@
++--slow_query_log_microseconds_timestamp
+diff -ruN /dev/null b/mysql-test/t/percona_slow_query_log_microseconds_timestamp-cl.test
+--- /dev/null
++++ b/mysql-test/t/percona_slow_query_log_microseconds_timestamp-cl.test
+@@ -0,0 +1,2 @@
++SHOW VARIABLES LIKE 'slow_query_log_microseconds_timestamp';
++SHOW GLOBAL VARIABLES LIKE 'slow_query_log_microseconds_timestamp';
+diff -ruN /dev/null b/mysql-test/t/percona_slow_query_log_microseconds_timestamp-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_slow_query_log_microseconds_timestamp-master.opt
+@@ -0,0 +1 @@
++--log_slow_timestamp_every
+diff -ruN /dev/null b/mysql-test/t/percona_slow_query_log_microseconds_timestamp.test
+--- /dev/null
++++ b/mysql-test/t/percona_slow_query_log_microseconds_timestamp.test
+@@ -0,0 +1,25 @@
++--source include/have_debug.inc
++
++SET long_query_time=2;
++--let log_file=percona.slow_extended.slow_query_log_microseconds_timestamp
++--source include/log_start.inc
++
++SET SESSION query_exec_time=2.1;
++
++SELECT 1;
++
++SET GLOBAL slow_query_log_microseconds_timestamp=1;
++
++SELECT 1;
++
++SET SESSION query_exec_time=default;
++
++--source include/log_stop.inc
++SET GLOBAL slow_query_log_microseconds_timestamp=default;
++SET long_query_time=default;
++
++--let grep_pattern = # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+.[0-9]+
++--source include/log_grep.inc
++
++--let grep_pattern =  # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+
++--source include/log_grep.inc
+diff -ruN /dev/null b/mysql-test/t/percona_use_global_log_slow_control-cl-master.opt
+--- /dev/null
++++ b/mysql-test/t/percona_use_global_log_slow_control-cl-master.opt
+@@ -0,0 +1 @@
++--use_global_log_slow_control="log_slow_verbosity,long_query_time"
+diff -ruN /dev/null b/mysql-test/t/percona_use_global_log_slow_control-cl.test
+--- /dev/null
++++ b/mysql-test/t/percona_use_global_log_slow_control-cl.test
+@@ -0,0 +1,2 @@
++SHOW VARIABLES LIKE 'use_global_log_slow_control';
++SHOW GLOBAL VARIABLES LIKE 'use_global_log_slow_control';
+diff -ruN /dev/null b/mysql-test/t/percona_use_global_log_slow_control.test
+--- /dev/null
++++ b/mysql-test/t/percona_use_global_log_slow_control.test
+@@ -0,0 +1,28 @@
++--source include/have_debug.inc
++--source include/have_innodb.inc
++
++SET GLOBAL long_query_time=1;
++
++--let log_file=percona.slow_extended.use_global_log_slow_control
++--source include/log_start.inc
++
++SET SESSION query_exec_time=1.1;
++
++SELECT 1;
++
++SET GLOBAL log_slow_verbosity=innodb;
++SET GLOBAL use_global_log_slow_control="log_slow_verbosity,long_query_time";
++
++SELECT 1;
++
++SET SESSION query_exec_time=default;
++
++--source include/log_stop.inc
++
++SET GLOBAL use_global_log_slow_control='';
++SET GLOBAL log_slow_verbosity='';
++SET GLOBAL long_query_time=default;
++
++--let grep_pattern = No InnoDB statistics available for this query
++--source include/log_grep.inc
++
+diff -ruN /dev/null b/mysql-test/t/percona_use_global_long_query_time.test
+--- /dev/null
++++ b/mysql-test/t/percona_use_global_long_query_time.test
+@@ -0,0 +1,27 @@
++--source include/have_debug.inc
++
++--let log_file=percona.slow_extended.use_global_long_query_time
++--source include/log_start.inc
++
++SET long_query_time=2;
++
++SET SESSION query_exec_time=1.1; SELECT 1;
++SET SESSION query_exec_time=3.1; SELECT 1;
++SET SESSION query_exec_time=5.1; SELECT 1;
++
++SET GLOBAL long_query_time=4;
++SET GLOBAL use_global_long_query_time=1;
++
++SET SESSION query_exec_time=1.1; SELECT 1;
++SET SESSION query_exec_time=3.1; SELECT 1;
++SET SESSION query_exec_time=5.1; SELECT 1;
++
++SET SESSION query_exec_time=0;
++
++--source include/log_stop.inc
++
++SET GLOBAL long_query_time=default;
++SET GLOBAL use_global_long_query_time=0;
++
++--let grep_pattern = Query_time
++--source include/log_grep.inc
+diff -ruN a/sql/log_event.h b/sql/log_event.h
+--- a/sql/log_event.h
++++ b/sql/log_event.h
+@@ -336,6 +336,10 @@
+ 
+ #define Q_INVOKER 11
+ 
++#ifndef DBUG_OFF
++#define Q_QUERY_EXEC_TIME 250
++#endif
++
+ /* Intvar event post-header */
+ 
+ /* Intvar event data */

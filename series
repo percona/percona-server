@@ -52,3 +52,5 @@ innodb_bug60788.patch
 start-stop-messages.patch
 file-contents.patch
 slave_timeout_fix.patch
+utf8_general50_ci.patch
+bug813587.patch

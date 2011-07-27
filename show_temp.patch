@@ -6,8 +6,8 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/sql/handler.h b/sql/handler.h
---- a/sql/handler.h	2011-04-09 19:11:53.000000000 +0400
-+++ b/sql/handler.h	2011-04-10 12:16:43.000000000 +0400
+--- a/sql/handler.h	2011-07-05 22:30:06.000000000 +0400
++++ b/sql/handler.h	2011-07-05 22:31:12.000000000 +0400
 @@ -569,6 +569,7 @@
    SCH_EVENTS,
    SCH_FILES,
@@ -25,8 +25,8 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_USER_PRIVILEGES,
    SCH_VARIABLES,
 diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2011-04-09 19:11:52.000000000 +0400
-+++ b/sql/mysqld.cc	2011-04-10 12:16:44.000000000 +0400
+--- a/sql/mysqld.cc	2011-07-05 22:30:05.000000000 +0400
++++ b/sql/mysqld.cc	2011-07-06 12:04:47.000000000 +0400
 @@ -3101,6 +3101,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
@@ -35,9 +35,25 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
    {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
+@@ -7798,6 +7799,7 @@
+ PSI_mutex_key key_LOCK_des_key_file;
+ #endif /* HAVE_OPENSSL */
+ 
++PSI_mutex_key key_LOCK_temporary_tables;
+ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
+   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
+   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
+@@ -7851,6 +7853,7 @@
+   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
+   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
+   { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
++  { &key_LOCK_temporary_tables, "THD::LOCK_temporary_tables", 0},
+   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
+   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
+   { &key_LOG_LOCK_log, "LOG::LOCK_log", 0},
 diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2011-03-31 17:36:18.000000000 +0400
-+++ b/sql/sql_lex.h	2011-04-10 12:22:19.000000000 +0400
+--- a/sql/sql_lex.h	2011-05-11 15:54:12.000000000 +0400
++++ b/sql/sql_lex.h	2011-07-05 22:31:12.000000000 +0400
 @@ -194,6 +194,7 @@
      When a command is added here, be sure it's also added in mysqld.cc
      in "struct show_var_st status_vars[]= {" ...
@@ -47,8 +63,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    SQLCOM_END
  };
 diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2011-03-31 17:36:18.000000000 +0400
-+++ b/sql/sql_parse.cc	2011-04-10 12:16:44.000000000 +0400
+--- a/sql/sql_parse.cc	2011-05-11 15:54:12.000000000 +0400
++++ b/sql/sql_parse.cc	2011-07-05 22:31:13.000000000 +0400
 @@ -348,6 +348,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
@@ -86,8 +102,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_TRIGGERS:
    case SCH_EVENTS:
 diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2011-04-09 19:11:52.000000000 +0400
-+++ b/sql/sql_show.cc	2011-04-10 12:16:44.000000000 +0400
+--- a/sql/sql_show.cc	2011-07-05 22:30:04.000000000 +0400
++++ b/sql/sql_show.cc	2011-07-06 12:09:05.000000000 +0400
 @@ -2692,6 +2692,7 @@
      break;
    case SQLCOM_SHOW_TABLES:
@@ -96,7 +112,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      thd->make_lex_string(&lookup_field_values->db_value, 
-@@ -3279,6 +3280,228 @@
+@@ -3279,6 +3280,231 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -262,6 +278,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +#endif
 + 
 +  while ((thd_item=it++)) {
++    mysql_mutex_lock(&thd_item->LOCK_temporary_tables);
 +    for (tmp=thd_item->temporary_tables; tmp; tmp=tmp->next) {
 +
 +#ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -281,12 +298,14 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +
 +      if (store_temporary_table_record(thd_item, tables->table, tmp, thd->lex->select_lex.db, table_names_only)) {
 +        tmp->in_use= t;
++        mysql_mutex_unlock(&thd_item->LOCK_temporary_tables);
 +        mysql_mutex_unlock(&LOCK_thread_count); 
 +        DBUG_RETURN(1);
 +      }
 +
 +      tmp->in_use= t;
 +    }
++    mysql_mutex_unlock(&thd_item->LOCK_temporary_tables);
 +  }
 +
 +  mysql_mutex_unlock(&LOCK_thread_count); 
@@ -325,7 +344,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  /**
     Try acquire high priority share metadata lock on a table (with
-@@ -7023,6 +7246,25 @@
+@@ -7023,6 +7249,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -351,7 +370,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7637,6 +7879,9 @@
+@@ -7637,6 +7882,9 @@
     hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -361,7 +380,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7686,6 +7931,9 @@
+@@ -7686,6 +7934,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
@@ -372,8 +391,8 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
     get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0,
     OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
 diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2011-03-31 17:36:18.000000000 +0400
-+++ b/sql/sql_yacc.yy	2011-04-10 12:16:43.000000000 +0400
+--- a/sql/sql_yacc.yy	2011-05-11 15:54:11.000000000 +0400
++++ b/sql/sql_yacc.yy	2011-07-05 22:31:12.000000000 +0400
 @@ -10869,6 +10869,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
@@ -390,3 +409,122 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
           | opt_full TRIGGERS_SYM opt_db wild_and_where
             {
               LEX *lex= Lex;
+diff -ruN a/sql/mysqld.h b/sql/mysqld.h
+--- a/sql/mysqld.h	2011-07-05 22:31:13.000000000 +0400
++++ b/sql/mysqld.h	2011-07-06 12:05:35.000000000 +0400
+@@ -233,6 +233,7 @@
+ extern PSI_mutex_key key_LOCK_des_key_file;
+ #endif
+ 
++extern PSI_mutex_key key_LOCK_temporary_tables;
+ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
+   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
+   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
+diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
+--- a/sql/sql_base.cc	2011-07-05 22:31:11.000000000 +0400
++++ b/sql/sql_base.cc	2011-07-06 12:26:14.000000000 +0400
+@@ -1588,12 +1588,16 @@
+   if (!mysql_bin_log.is_open())
+   {
+     TABLE *tmp_next;
++
++    mysql_mutex_lock(&thd->LOCK_temporary_tables);
+     for (table= thd->temporary_tables; table; table= tmp_next)
+     {
+       tmp_next= table->next;
+       close_temporary(table, 1, 1);
+     }
+     thd->temporary_tables= 0;
++    mysql_mutex_unlock(&thd->LOCK_temporary_tables);
++
+     DBUG_RETURN(FALSE);
+   }
+ 
+@@ -1606,6 +1610,8 @@
+ 
+   memcpy(buf, stub, stub_len);
+ 
++  mysql_mutex_lock(&thd->LOCK_temporary_tables);
++
+   /*
+     Insertion sort of temp tables by pseudo_thread_id to build ordered list
+     of sublists of equal pseudo_thread_id
+@@ -1727,6 +1733,8 @@
+     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
+   thd->temporary_tables=0;
+ 
++  mysql_mutex_unlock(&thd->LOCK_temporary_tables);
++
+   DBUG_RETURN(error);
+ }
+ 
+@@ -2104,6 +2112,8 @@
+                           table->s->db.str, table->s->table_name.str,
+                           (long) table, table->alias));
+ 
++  mysql_mutex_lock(&thd->LOCK_temporary_tables);
++
+   if (table->prev)
+   {
+     table->prev->next= table->next;
+@@ -2130,6 +2140,9 @@
+     slave_open_temp_tables--;
+   }
+   close_temporary(table, free_share, delete_table);
++
++  mysql_mutex_unlock(&thd->LOCK_temporary_tables);
++
+   DBUG_VOID_RETURN;
+ }
+ 
+@@ -5854,6 +5867,7 @@
+   if (add_to_temporary_tables_list)
+   {
+     /* growing temp list at the head */
++    mysql_mutex_lock(&thd->LOCK_temporary_tables);
+     tmp_table->next= thd->temporary_tables;
+     if (tmp_table->next)
+       tmp_table->next->prev= tmp_table;
+@@ -5861,6 +5875,7 @@
+     thd->temporary_tables->prev= 0;
+     if (thd->slave_thread)
+       slave_open_temp_tables++;
++    mysql_mutex_unlock(&thd->LOCK_temporary_tables);
+   }
+   tmp_table->pos_in_table_list= 0;
+   DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
+--- a/sql/sql_class.cc	2011-07-05 22:31:13.000000000 +0400
++++ b/sql/sql_class.cc	2011-07-06 12:07:02.000000000 +0400
+@@ -835,6 +835,8 @@
+   active_vio = 0;
+ #endif
+   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
++  mysql_mutex_init(key_LOCK_temporary_tables, &LOCK_temporary_tables,
++                   MY_MUTEX_INIT_FAST);
+ 
+   /* Variables with default values */
+   proc_info="login";
+@@ -1347,6 +1349,7 @@
+   db= NULL;
+   free_root(&transaction.mem_root,MYF(0));
+   mysql_mutex_destroy(&LOCK_thd_data);
++  mysql_mutex_destroy(&LOCK_temporary_tables);
+ #ifndef DBUG_OFF
+   dbug_sentry= THD_SENTRY_GONE;
+ #endif  
+diff -ruN a/sql/sql_class.h b/sql/sql_class.h
+--- a/sql/sql_class.h	2011-07-05 22:31:13.000000000 +0400
++++ b/sql/sql_class.h	2011-07-06 12:02:46.000000000 +0400
+@@ -1004,6 +1004,11 @@
+     XXX Why are internal temporary tables added to this list?
+   */
+   TABLE *temporary_tables;
++  /**
++     Protects temporary_tables.
++  */
++  mysql_mutex_t LOCK_temporary_tables;
++
+   TABLE *derived_tables;
+   /*
+     During a MySQL session, one can lock tables in two modes: automatic

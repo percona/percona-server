@@ -8,7 +8,7 @@
 diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
 --- a/sql/sql_class.cc	2011-03-09 17:07:26.221709282 +0200
 +++ b/sql/sql_class.cc	2011-03-09 17:07:44.900164285 +0200
-@@ -2303,6 +2303,7 @@
+@@ -2306,6 +2306,7 @@
  
    thd->sent_row_count++;
    thd->sent_row_count_2++;
@@ -89,7 +89,7 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
        if (schema_table_store_record(thd, table))
        {
          mysql_mutex_unlock(&LOCK_thread_count);
-@@ -8114,6 +8140,12 @@
+@@ -8117,6 +8143,12 @@
     SKIP_OPEN_TABLE},
    {"TIME_MS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
     0, 0, "Time_ms", SKIP_OPEN_TABLE},

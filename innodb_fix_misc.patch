@@ -1143,7 +1143,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	fil_node_t*	message1;	/*!< message which is given by the */
  	void*		message2;	/*!< the requester of an aio operation
  					and which can be used to identify
-@@ -3400,7 +3401,8 @@
+@@ -3401,7 +3402,8 @@
  				offset */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -1153,7 +1153,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_slot_t*	slot;
  	ulint		i;
-@@ -3482,6 +3484,7 @@
+@@ -3483,6 +3485,7 @@
  	slot->offset_high = offset_high;
  //	slot->io_already_done = FALSE;
  	slot->status = OS_AIO_NOT_ISSUED;
@@ -1161,7 +1161,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  #ifdef WIN_ASYNC_IO
  	control = &(slot->control);
-@@ -3690,6 +3693,7 @@
+@@ -3691,6 +3694,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -1169,7 +1169,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	trx_t*		trx)
  {
  	os_aio_array_t*	array;
-@@ -3772,7 +3776,7 @@
+@@ -3773,7 +3777,7 @@
  		trx->io_read += n;
  	}
  	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
@@ -1178,7 +1178,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	if (type == OS_FILE_READ) {
  		if (os_aio_use_native_aio) {
  #ifdef WIN_ASYNC_IO
-@@ -3882,7 +3886,8 @@
+@@ -3883,7 +3887,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -1188,7 +1188,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	ulint		orig_seg	= segment;
  	os_aio_array_t*	array;
-@@ -3936,6 +3941,7 @@
+@@ -3937,6 +3942,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;
@@ -1196,7 +1196,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	if (ret && len == slot->len) {
  		ret_val = TRUE;
-@@ -4019,7 +4025,8 @@
+@@ -4020,7 +4026,8 @@
  				parameters are valid and can be used to
  				restart the operation, for example */
  	void**	message2,
@@ -1206,7 +1206,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_array_t*	array;
  	ulint		segment;
-@@ -4310,6 +4317,7 @@
+@@ -4311,6 +4318,7 @@
  	*message2 = slot->message2;
  
  	*type = slot->type;

@@ -1342,3 +1342,25 @@ diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/userstat_basic.test
 +++ b/mysql-test/suite/sys_vars/t/userstat_basic.test	2011-04-09 18:49:05.000000000 +0400
 @@ -0,0 +1 @@
 +SELECT @@global.userstat;
+diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
+--- a/mysql-test/suite/sys_vars/r/all_vars.result	2011-06-21 19:42:40.000000000 +0300
++++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-07-14 20:42:35.660824233 +0300
+@@ -12,12 +12,16 @@
+ left join t1 on variable_name=test_name where test_name is null;
+ There should be *no* variables listed below:
+ INNODB_ROLLBACK_SEGMENTS
++INNODB_LARGE_PREFIX
++INNODB_KILL_IDLE_TRANSACTION
+ INNODB_STATS_METHOD
++INNODB_FAKE_CHANGES
+ INNODB_FILE_FORMAT_MAX
+-INNODB_LARGE_PREFIX
+ INNODB_ROLLBACK_SEGMENTS
++INNODB_LARGE_PREFIX
++INNODB_KILL_IDLE_TRANSACTION
+ INNODB_STATS_METHOD
++INNODB_FAKE_CHANGES
+ INNODB_FILE_FORMAT_MAX
+-INNODB_LARGE_PREFIX
+ drop table t1;
+ drop table t2;

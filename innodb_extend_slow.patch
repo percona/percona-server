@@ -337,7 +337,7 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
 diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
 --- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:15:55.187400372 +0900
 +++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:30:47.346992376 +0900
-@@ -4373,7 +4373,7 @@
+@@ -4697,7 +4697,7 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -346,7 +346,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #endif
  		if (success) {
  			node->size += n_pages;
-@@ -4700,7 +4700,7 @@
+@@ -5024,7 +5024,7 @@
  i/o on a tablespace which does not exist */
  UNIV_INTERN
  ulint
@@ -355,7 +355,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  /*===*/
  	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
  				ORed to OS_FILE_LOG, if a log i/o
-@@ -4725,8 +4725,9 @@
+@@ -5049,8 +5049,9 @@
  	void*	buf,		/*!< in/out: buffer where to store read data
  				or from where to write; in aio this must be
  				appropriately aligned */
@@ -366,7 +366,7 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  {
  	ulint		mode;
  	fil_space_t*	space;
-@@ -4896,7 +4897,7 @@
+@@ -5220,7 +5221,7 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -428,7 +428,7 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -9030,6 +9066,25 @@
+@@ -9024,6 +9060,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -588,7 +588,7 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
 diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
 --- a/storage/innodb_plugin/include/trx0trx.h	2010-08-27 16:08:45.301058614 +0900
 +++ b/storage/innodb_plugin/include/trx0trx.h	2010-08-27 16:30:47.369989369 +0900
-@@ -738,6 +738,17 @@
+@@ -749,6 +749,17 @@
  	/*------------------------------*/
  	char detailed_error[256];	/*!< detailed error message for last
  					error, or empty. */
@@ -661,7 +661,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #include "log0recv.h"
  #ifndef UNIV_HOTBACKUP
  # include "os0sync.h"
-@@ -2097,22 +2099,30 @@
+@@ -2098,22 +2100,30 @@
  /*******************************************************************//**
  Does a synchronous read operation in Posix.
  @return	number of bytes read, -1 if error */
@@ -694,7 +694,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	ut_a((offset & 0xFFFFFFFFUL) == offset);
  
-@@ -2133,6 +2143,15 @@
+@@ -2134,6 +2144,15 @@
  
  	os_n_file_reads++;
  
@@ -710,7 +710,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
  	os_mutex_enter(os_file_count_mutex);
  	os_file_n_pending_preads++;
-@@ -2146,6 +2165,13 @@
+@@ -2147,6 +2166,13 @@
  	os_n_pending_reads--;
  	os_mutex_exit(os_file_count_mutex);
  
@@ -724,7 +724,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	return(n_bytes);
  #else
  	{
-@@ -2182,6 +2208,13 @@
+@@ -2183,6 +2209,13 @@
  		os_n_pending_reads--;
  		os_mutex_exit(os_file_count_mutex);
  
@@ -738,7 +738,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  		return(ret);
  	}
  #endif
-@@ -2312,7 +2345,7 @@
+@@ -2313,7 +2346,7 @@
  @return	TRUE if request was successful, FALSE if fail */
  UNIV_INTERN
  ibool
@@ -747,7 +747,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  /*=========*/
  	os_file_t	file,	/*!< in: handle to a file */
  	void*		buf,	/*!< in: buffer where to read */
-@@ -2320,7 +2353,8 @@
+@@ -2321,7 +2354,8 @@
  				offset where to read */
  	ulint		offset_high, /*!< in: most significant 32 bits of
  				offset */
@@ -757,7 +757,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  #ifdef __WIN__
  	BOOL		ret;
-@@ -2395,7 +2429,7 @@
+@@ -2396,7 +2430,7 @@
  	os_bytes_read_since_printout += n;
  
  try_again:
@@ -766,7 +766,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	if ((ulint)ret == n) {
  
-@@ -3652,10 +3686,11 @@
+@@ -3653,10 +3687,11 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
  				OS_AIO_SYNC */
@@ -779,7 +779,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  {
  	os_aio_array_t*	array;
  	os_aio_slot_t*	slot;
-@@ -3697,8 +3732,8 @@
+@@ -3698,8 +3733,8 @@
  		wait in the Windows case. */
  
  		if (type == OS_FILE_READ) {
@@ -790,7 +790,7 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  		}
  
  		ut_a(type == OS_FILE_WRITE);
-@@ -3731,6 +3766,11 @@
+@@ -3732,6 +3767,11 @@
  		ut_error;
  	}
  
@@ -863,7 +863,7 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
 --- a/storage/innodb_plugin/trx/trx0trx.c	2010-08-27 16:08:45.306058896 +0900
 +++ b/storage/innodb_plugin/trx/trx0trx.c	2010-08-27 16:30:47.387058330 +0900
-@@ -179,6 +179,15 @@
+@@ -182,6 +182,15 @@
  	trx->global_read_view = NULL;
  	trx->read_view = NULL;
  
@@ -879,7 +879,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	/* Set X/Open XA transaction identification to NULL */
  	memset(&trx->xid, 0, sizeof(trx->xid));
  	trx->xid.formatID = -1;
-@@ -216,6 +225,11 @@
+@@ -219,6 +228,11 @@
  
  	trx->mysql_process_no = os_proc_get_number();
  
@@ -891,7 +891,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	return(trx);
  }
  
-@@ -347,6 +361,12 @@
+@@ -404,6 +418,12 @@
  /*===============*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -904,7 +904,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	mutex_enter(&kernel_mutex);
  
  	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
-@@ -368,6 +388,12 @@
+@@ -425,6 +445,12 @@
  /*====================*/
  	trx_t*	trx)	/*!< in, own: trx object */
  {
@@ -917,7 +917,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	mutex_enter(&kernel_mutex);
  
  	trx_free(trx);
-@@ -1093,6 +1119,9 @@
+@@ -1157,6 +1183,9 @@
  	trx_t*	trx)	/*!< in: transaction */
  {
  	que_thr_t*	thr;
@@ -927,7 +927,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1107,6 +1136,11 @@
+@@ -1171,6 +1200,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  
@@ -939,7 +939,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	trx->que_state = TRX_QUE_RUNNING;
  }
  
-@@ -1120,6 +1154,9 @@
+@@ -1184,6 +1218,9 @@
  	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
  {
  	que_thr_t*	thr;
@@ -949,7 +949,7 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  
  	ut_ad(mutex_own(&kernel_mutex));
  	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
-@@ -1134,6 +1171,11 @@
+@@ -1198,6 +1235,11 @@
  		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
  	}
  

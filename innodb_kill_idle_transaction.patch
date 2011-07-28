@@ -1,0 +1,248 @@
+# name       : innodb_kill_idle_transaction.patch
+# introduced : 5.1.58
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
+--- a/include/mysql/plugin.h	2011-07-07 19:38:24.650374103 +0900
++++ b/include/mysql/plugin.h	2011-07-07 19:39:44.611713196 +0900
+@@ -845,6 +845,12 @@
+ */
+ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
+                      const void *ha_data);
++
++int thd_command(const MYSQL_THD thd);
++long long thd_start_time(const MYSQL_THD thd);
++void thd_kill(MYSQL_THD thd);
++#define EXTENDED_FOR_KILLIDLE
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff -ruN a/include/mysql/plugin.h.pp b/include/mysql/plugin.h.pp
+--- a/include/mysql/plugin.h.pp	2011-07-07 19:38:24.423414787 +0900
++++ b/include/mysql/plugin.h.pp	2011-07-07 19:39:44.615372555 +0900
+@@ -150,3 +150,6 @@
+ void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
+ void thd_set_ha_data(void* thd, const struct handlerton *hton,
+                      const void *ha_data);
++int thd_command(const void* thd);
++long long thd_start_time(const void* thd);
++void thd_kill(void* thd);
+diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
+--- a/sql/sql_class.cc	2011-07-07 19:38:24.999372326 +0900
++++ b/sql/sql_class.cc	2011-07-07 19:39:44.619370533 +0900
+@@ -468,6 +468,26 @@
+   return buffer;
+ }
+ 
++/* extend for kill session of idle transaction from engine */
++extern "C"
++int thd_command(const THD* thd)
++{
++  return (int) thd->command;
++}
++
++extern "C"
++long long thd_start_time(const THD* thd)
++{
++  return (long long) thd->start_time;
++}
++
++extern "C"
++void thd_kill(THD* thd)
++{
++  pthread_mutex_lock(&thd->LOCK_thd_data);
++  thd->awake(THD::KILL_CONNECTION);
++  pthread_mutex_unlock(&thd->LOCK_thd_data);
++}
+ 
+ /**
+   Implementation of Drop_table_error_handler::handle_error().
+diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
+--- a/storage/innodb_plugin/handler/ha_innodb.cc	2011-07-07 19:38:26.162373407 +0900
++++ b/storage/innodb_plugin/handler/ha_innodb.cc	2011-07-07 19:39:44.625370650 +0900
+@@ -2511,6 +2511,10 @@
+ 
+ 	innobase_commit_concurrency_init_default();
+ 
++#ifndef EXTENDED_FOR_KILLIDLE
++	srv_kill_idle_transaction = 0;
++#endif
++
+ 	/* Since we in this module access directly the fields of a trx
+ 	struct, and due to different headers and flags it might happen that
+ 	mutex_t has a different size in this module and in InnoDB
+@@ -11237,6 +11241,48 @@
+ 	return(false);
+ }
+ 
++/***********************************************************************
++functions for kill session of idle transaction */
++extern "C"
++ibool
++innobase_thd_is_idle(
++/*=================*/
++	const void*	thd)	/*!< in: thread handle (THD*) */
++{
++#ifdef EXTENDED_FOR_KILLIDLE
++	return(thd_command((const THD*) thd) == COM_SLEEP);
++#else
++	return(FALSE);
++#endif
++}
++
++extern "C"
++ib_int64_t
++innobase_thd_get_start_time(
++/*========================*/
++	const void*	thd)	/*!< in: thread handle (THD*) */
++{
++#ifdef EXTENDED_FOR_KILLIDLE
++	return((ib_int64_t)thd_start_time((const THD*) thd));
++#else
++	return(0); /*dummy value*/
++#endif
++}
++
++extern "C"
++void
++innobase_thd_kill(
++/*==============*/
++	void*	thd)
++{
++#ifdef EXTENDED_FOR_KILLIDLE
++	thd_kill((THD*) thd);
++#else
++	return;
++#endif
++}
++
++
+ static SHOW_VAR innodb_status_variables_export[]= {
+   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
+   {NullS, NullS, SHOW_LONG}
+@@ -11480,6 +11526,15 @@
+   "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
+   NULL, NULL, 500L, 1L, ~0L, 0);
+ 
++static MYSQL_SYSVAR_LONG(kill_idle_transaction, srv_kill_idle_transaction,
++  PLUGIN_VAR_RQCMDARG,
++#ifdef EXTENDED_FOR_KILLIDLE
++  "If non-zero value, the idle session with transaction which is idle over the value in seconds is killed by InnoDB.",
++#else
++  "No effect for this build.",
++#endif
++  NULL, NULL, 0, 0, LONG_MAX, 0);
++
+ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
+   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
+   "Number of file I/O threads in InnoDB.",
+@@ -11762,6 +11817,7 @@
+   MYSQL_SYSVAR(fast_checksum),
+   MYSQL_SYSVAR(commit_concurrency),
+   MYSQL_SYSVAR(concurrency_tickets),
++  MYSQL_SYSVAR(kill_idle_transaction),
+   MYSQL_SYSVAR(data_file_path),
+   MYSQL_SYSVAR(doublewrite_file),
+   MYSQL_SYSVAR(data_home_dir),
+diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
+--- a/storage/innodb_plugin/include/srv0srv.h	2011-07-07 19:38:26.128372970 +0900
++++ b/storage/innodb_plugin/include/srv0srv.h	2011-07-07 19:39:44.646824971 +0900
+@@ -281,6 +281,7 @@
+ extern ulint	srv_activity_count;
+ extern ulint	srv_fatal_semaphore_wait_threshold;
+ extern ulint	srv_dml_needed_delay;
++extern lint	srv_kill_idle_transaction;
+ 
+ extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
+ 				query threads, and lock table: we allocate
+diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
+--- a/storage/innodb_plugin/include/trx0trx.h	2011-07-07 19:38:25.705377859 +0900
++++ b/storage/innodb_plugin/include/trx0trx.h	2011-07-07 19:39:44.650304314 +0900
+@@ -600,6 +600,8 @@
+ 	ulint		mysql_process_no;/* since in Linux, 'top' reports
+ 					process id's and not thread id's, we
+ 					store the process number too */
++	time_t		idle_start;
++	ib_int64_t	last_stmt_start;
+ 	/*------------------------------*/
+ 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
+ 					used in the processing of the current
+diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
+--- a/storage/innodb_plugin/srv/srv0srv.c	2011-07-07 19:38:26.147372081 +0900
++++ b/storage/innodb_plugin/srv/srv0srv.c	2011-07-07 19:39:44.658303810 +0900
+@@ -86,6 +86,11 @@
+ #include "trx0i_s.h"
+ #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+ 
++/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
++ibool		innobase_thd_is_idle(const void* thd);
++ib_int64_t	innobase_thd_get_start_time(const void* thd);
++void		innobase_thd_kill(void* thd);
++
+ /* prototypes for new functions added to ha_innodb.cc */
+ ibool	innobase_get_slow_log();
+ 
+@@ -100,6 +105,9 @@
+ /* The following is the maximum allowed duration of a lock wait. */
+ UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
+ 
++/**/
++UNIV_INTERN lint	srv_kill_idle_transaction = 0;
++
+ /* How much data manipulation language (DML) statements need to be delayed,
+ in microseconds, in order to reduce the lagging of the purge thread. */
+ UNIV_INTERN ulint	srv_dml_needed_delay = 0;
+@@ -2549,6 +2557,36 @@
+ 		old_sema = sema;
+ 	}
+ 
++	if (srv_kill_idle_transaction && trx_sys) {
++		trx_t*	trx;
++		time_t	now;
++rescan_idle:
++		now = time(NULL);
++		mutex_enter(&kernel_mutex);
++		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
++		while (trx) {
++			if (trx->conc_state == TRX_ACTIVE
++			    && trx->mysql_thd
++			    && innobase_thd_is_idle(trx->mysql_thd)) {
++				ib_int64_t	start_time; /* as stmt ID */
++
++				start_time = innobase_thd_get_start_time(trx->mysql_thd);
++				if (trx->last_stmt_start != start_time) {
++					trx->idle_start = now;
++					trx->last_stmt_start = start_time;
++				} else if (difftime(now, trx->idle_start)
++					   > srv_kill_idle_transaction) {
++					/* kill the session */
++					mutex_exit(&kernel_mutex);
++					innobase_thd_kill(trx->mysql_thd);
++					goto rescan_idle;
++				}
++			}
++			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
++		}
++		mutex_exit(&kernel_mutex);
++	}
++
+ 	/* Flush stderr so that a database user gets the output
+ 	to possible MySQL error file */
+ 
+diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
+--- a/storage/innodb_plugin/trx/trx0trx.c	2011-07-07 19:38:25.723372433 +0900
++++ b/storage/innodb_plugin/trx/trx0trx.c	2011-07-07 19:39:44.665304098 +0900
+@@ -137,6 +137,9 @@
+ 	trx->mysql_relay_log_file_name = "";
+ 	trx->mysql_relay_log_pos = 0;
+ 
++	trx->idle_start = 0;
++	trx->last_stmt_start = 0;
++
+ 	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
+ 
+ 	trx->rseg = NULL;

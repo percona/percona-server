@@ -8,7 +8,7 @@
 diff -ruN a/configure.in b/configure.in
 --- a/configure.in	2010-11-29 18:45:47.000000000 +0000
 +++ b/configure.in	2010-11-29 18:45:51.000000000 +0000
-@@ -2727,7 +2727,7 @@
+@@ -2772,7 +2772,7 @@
      MAN_DROP="$MAN_DROP embedded"
      grep -v 'embedded' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
    fi
@@ -17,7 +17,7 @@ diff -ruN a/configure.in b/configure.in
    then
      MAN_DROP="$MAN_DROP innodb"
      grep -v 'inno' $MANLISTFIL > $TMPLISTFIL ; mv -f $TMPLISTFIL $MANLISTFIL
-@@ -2806,7 +2806,7 @@
+@@ -2851,7 +2851,7 @@
  fi
  
  # "innochecksum" is not in the "innobase/" subdirectory, but should be switched

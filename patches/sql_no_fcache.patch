@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2011-04-13 13:55:40.221435999 +0300
-+++ b/client/mysqldump.c	2011-04-13 16:42:07.831436002 +0300
+--- a/client/mysqldump.c
++++ b/client/mysqldump.c
 @@ -132,6 +132,8 @@
  #endif
  static uint opt_protocol= 0;
@@ -63,9 +62,8 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
      dynstr_append_checked(&query_string, result_table);
  
      if (where)
-diff -ruN /dev/null b/include/flashcache_ioctl.h
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/include/flashcache_ioctl.h	2011-04-13 13:57:07.621435999 +0300
+--- /dev/null
++++ b/include/flashcache_ioctl.h
 @@ -0,0 +1,53 @@
 +/****************************************************************************
 + *  flashcache_ioctl.h
@@ -120,9 +118,8 @@ diff -ruN /dev/null b/include/flashcache_ioctl.h
 +#define FLASHCACHEDELALLWHITELIST      _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELISTALL_CMD, pid_t)
 +
 +#endif
-diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
---- a/mysql-test/r/mysqldump.result	2011-02-11 21:47:53.000000000 +0200
-+++ b/mysql-test/r/mysqldump.result	2011-04-13 13:57:07.651435999 +0300
+--- a/mysql-test/r/mysqldump.result
++++ b/mysql-test/r/mysqldump.result
 @@ -1832,7 +1832,7 @@
  # Bug#21288 mysqldump segmentation fault when using --where
  #
@@ -132,9 +129,8 @@ diff -ruN a/mysql-test/r/mysqldump.result b/mysql-test/r/mysqldump.result
  mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
  
  /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-diff -ruN /dev/null b/patch_info/sql_no_fcache.info
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/patch_info/sql_no_fcache.info	2011-04-13 13:57:07.651435999 +0300
+--- /dev/null
++++ b/patch_info/sql_no_fcache.info
 @@ -0,0 +1,6 @@
 +File=sql_no_fcache.patch
 +Name=Support for flashcache including the SQL_NO_FCACHE option that prevents blocks from being cached during a query.
@@ -142,9 +138,8 @@ diff -ruN /dev/null b/patch_info/sql_no_fcache.info
 +Author=Facebook
 +License=GPL
 +Comment=
-diff -ruN a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2011-04-13 13:57:06.181435999 +0300
-+++ b/sql/lex.h	2011-04-13 16:42:11.671436002 +0300
+--- a/sql/lex.h
++++ b/sql/lex.h
 @@ -500,6 +500,7 @@
    { "SQL_CACHE",        SYM(SQL_CACHE_SYM)},
    { "SQL_CALC_FOUND_ROWS", SYM(SQL_CALC_FOUND_ROWS)},
@@ -153,9 +148,8 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "SQL_SMALL_RESULT", SYM(SQL_SMALL_RESULT)},
    { "SQL_THREAD",	SYM(SQL_THREAD)},
    { "SQL_TSI_FRAC_SECOND", SYM(FRAC_SECOND_SYM)},
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2011-04-13 13:57:06.201435999 +0300
-+++ b/sql/mysqld.cc	2011-04-13 16:42:11.661436002 +0300
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
 @@ -45,6 +45,11 @@
  #define OPT_NDB_SHM_DEFAULT 0
  #endif
@@ -168,7 +162,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifndef DEFAULT_SKIP_THREAD_PRIORITY
  #define DEFAULT_SKIP_THREAD_PRIORITY 0
-@@ -604,6 +609,11 @@
+@@ -605,6 +610,11 @@
  ulong max_long_data_size;
  uint  max_user_connections= 0;
  ulonglong denied_connections = 0;
@@ -180,7 +174,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4408,6 +4418,97 @@
+@@ -4409,6 +4419,97 @@
  }
  #endif//DBUG_OFF
  
@@ -278,7 +272,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  
  #ifdef __WIN__
  int win_main(int argc, char **argv)
-@@ -4512,6 +4613,10 @@
+@@ -4513,6 +4614,10 @@
    test_lc_time_sz();
  #endif
  
@@ -289,7 +283,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4713,6 +4818,10 @@
+@@ -4714,6 +4819,10 @@
    clean_up_mutexes();
    my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
@@ -300,7 +294,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    exit(0);
    return(0);					/* purecov: deadcode */
  }
-@@ -7878,6 +7987,7 @@
+@@ -7887,6 +7996,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -308,9 +302,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
    {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
    {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
-diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2011-04-13 13:57:06.191435999 +0300
-+++ b/sql/mysql_priv.h	2011-04-13 13:57:07.671435999 +0300
+--- a/sql/mysql_priv.h
++++ b/sql/mysql_priv.h
 @@ -823,6 +823,8 @@
  */
  extern ulong server_id, concurrency;
@@ -320,9 +313,8 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  
  typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                        uint key_length,
-diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
---- a/sql/sql_lex.cc	2011-02-11 21:20:23.000000000 +0200
-+++ b/sql/sql_lex.cc	2011-04-13 16:42:07.811436002 +0300
+--- a/sql/sql_lex.cc
++++ b/sql/sql_lex.cc
 @@ -306,6 +306,7 @@
    lex->describe= 0;
    lex->subqueries= FALSE;
@@ -331,9 +323,8 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
    lex->derived_tables= 0;
    lex->lock_option= TL_READ;
    lex->safe_to_cache_query= 1;
-diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2011-04-13 13:55:40.401435999 +0300
-+++ b/sql/sql_lex.h	2011-04-13 16:42:11.691436002 +0300
+--- a/sql/sql_lex.h
++++ b/sql/sql_lex.h
 @@ -1728,6 +1728,7 @@
  
    uint8 context_analysis_only;
@@ -342,9 +333,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    bool subqueries, ignore;
    st_parsing_options parsing_options;
    Alter_info alter_info;
-diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2011-04-13 13:55:39.981435999 +0300
-+++ b/sql/sql_select.cc	2011-04-13 13:57:07.871435999 +0300
+--- a/sql/sql_select.cc
++++ b/sql/sql_select.cc
 @@ -37,6 +37,12 @@
  #include <hash.h>
  #include <ft_global.h>
@@ -392,9 +382,8 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    DBUG_RETURN(res);
  }
  
-diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2011-04-13 13:57:06.301435999 +0300
-+++ b/sql/sql_yacc.yy	2011-04-13 16:42:11.671436002 +0300
+--- a/sql/sql_yacc.yy
++++ b/sql/sql_yacc.yy
 @@ -1164,6 +1164,7 @@
  %token  SQL_CACHE_SYM
  %token  SQL_CALC_FOUND_ROWS

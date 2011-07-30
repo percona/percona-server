@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/sql/handler.h b/sql/handler.h
---- a/sql/handler.h	2010-07-21 22:49:53.660561079 +0900
-+++ b/sql/handler.h	2010-07-21 22:50:24.106530090 +0900
+--- a/sql/handler.h
++++ b/sql/handler.h
 @@ -170,6 +170,19 @@
  #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
  #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
@@ -28,10 +27,9 @@ diff -ruN a/sql/handler.h b/sql/handler.h
  /*
    HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
    supported at all.
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-21 22:49:54.011529414 +0900
-+++ b/sql/mysqld.cc	2010-07-21 22:50:24.112527179 +0900
-@@ -5909,6 +5909,7 @@
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -5911,6 +5911,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -39,7 +37,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    OPT_SUPPRESS_LOG_WARNING_1592,
    OPT_QUERY_CACHE_STRIP_COMMENTS,
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
-@@ -5941,6 +5942,13 @@
+@@ -5943,6 +5944,13 @@
     "from libc.so",
     &opt_allow_suspicious_udfs, &opt_allow_suspicious_udfs,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -53,9 +51,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode "
     "will also set transaction isolation level 'serializable'.", 0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-diff -ruN a/sql/set_var.cc b/sql/set_var.cc
---- a/sql/set_var.cc	2010-07-21 22:49:54.019529438 +0900
-+++ b/sql/set_var.cc	2010-07-21 22:50:24.122532110 +0900
+--- a/sql/set_var.cc
++++ b/sql/set_var.cc
 @@ -758,6 +758,11 @@
  sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
  			      &SV::engine_condition_pushdown);
@@ -68,9 +65,8 @@ diff -ruN a/sql/set_var.cc b/sql/set_var.cc
  #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
  /* ndb thread specific variable settings */
  static sys_var_thd_ulong
-diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2010-07-21 22:49:53.742561560 +0900
-+++ b/sql/sql_class.h	2010-07-21 22:50:24.130529404 +0900
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
 @@ -381,6 +381,8 @@
    my_bool ndb_use_transactions;
    my_bool ndb_index_stat_enable;
@@ -80,9 +76,8 @@ diff -ruN a/sql/sql_class.h b/sql/sql_class.h
    my_bool old_alter_table;
    my_bool old_passwords;
  
-diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
---- a/sql/sql_partition.cc	2010-06-04 00:50:11.000000000 +0900
-+++ b/sql/sql_partition.cc	2010-07-21 22:50:24.140530183 +0900
+--- a/sql/sql_partition.cc
++++ b/sql/sql_partition.cc
 @@ -4381,7 +4381,12 @@
          alter_info->no_parts= curr_part_no - new_part_no;
        }
@@ -97,9 +92,8 @@ diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
      {
        my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
        DBUG_RETURN(1);
-diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
---- a/sql/sql_table.cc	2010-06-04 00:50:11.000000000 +0900
-+++ b/sql/sql_table.cc	2010-07-21 22:50:24.146531063 +0900
+--- a/sql/sql_table.cc
++++ b/sql/sql_table.cc
 @@ -7005,6 +7005,10 @@
      uint  *idx_end_p;
  

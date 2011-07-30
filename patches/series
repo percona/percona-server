@@ -44,8 +44,8 @@ control_online_alter_index.patch
 log_connection_error.patch
 mysql-syslog.patch
 innodb_buffer_pool_shm.patch
-response-time-distribution.patch
 error_pad.patch
+response_time_distribution.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
 show_slave_status_nolock.patch

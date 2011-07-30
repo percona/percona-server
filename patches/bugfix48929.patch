@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/configure.in b/configure.in
---- a/configure.in	2010-07-07 03:33:05.008972002 +0400
-+++ b/configure.in	2010-07-07 03:33:05.788972002 +0400
+--- a/configure.in
++++ b/configure.in
 @@ -815,7 +815,7 @@
  AC_HEADER_STDC
  AC_HEADER_SYS_WAIT
@@ -17,9 +16,8 @@ diff -ruN a/configure.in b/configure.in
   stdlib.h stddef.h \
   strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
   sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-07-07 03:33:05.278972002 +0400
-+++ b/sql/mysqld.cc	2010-07-07 03:33:05.788972002 +0400
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
 @@ -55,6 +55,10 @@
  #include "sp_rcontext.h"
  #include "sp_cache.h"
@@ -31,7 +29,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #define mysqld_charset &my_charset_latin1
  
  #ifdef HAVE_purify
-@@ -5135,28 +5139,49 @@
+@@ -5136,28 +5140,49 @@
  {
    my_socket sock,new_sock;
    uint error_count=0;
@@ -84,7 +82,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_FCNTL
    socket_flags=fcntl(unix_sock, F_GETFL, 0);
  #endif
-@@ -5166,12 +5191,15 @@
+@@ -5167,12 +5192,15 @@
    MAYBE_BROKEN_SYSCALL;
    while (!abort_loop)
    {
@@ -105,7 +103,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      {
        if (socket_errno != SOCKET_EINTR)
        {
-@@ -5181,7 +5209,7 @@
+@@ -5182,7 +5210,7 @@
        MAYBE_BROKEN_SYSCALL
        continue;
      }
@@ -114,7 +112,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
      if (abort_loop)
      {
        MAYBE_BROKEN_SYSCALL;
-@@ -5189,6 +5217,21 @@
+@@ -5190,6 +5218,21 @@
      }
  
      /* Is this a new connection request ? */
@@ -136,7 +134,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  #ifdef HAVE_SYS_UN_H
      if (FD_ISSET(unix_sock,&readFDs))
      {
-@@ -5196,11 +5239,12 @@
+@@ -5197,11 +5240,12 @@
        flags= socket_flags;
      }
      else

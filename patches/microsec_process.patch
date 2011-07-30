@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/microsec_process.info b/patch_info/microsec_process.info
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/patch_info/microsec_process.info	2010-08-27 14:45:52.941058849 +0900
+--- /dev/null
++++ b/patch_info/microsec_process.info
 @@ -0,0 +1,8 @@
 +File=microsec_process.patch
 +Name=Adds INFOMATION_SCHEMA.PROCESSLIST with TIME_MS column
@@ -17,9 +16,8 @@ diff -ruN a/patch_info/microsec_process.info b/patch_info/microsec_process.info
 +Comment=
 +2010-01
 +Ported to 5.1.42
-diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-08-27 14:38:08.781057666 +0900
-+++ b/sql/sql_show.cc	2010-08-27 14:45:52.946058726 +0900
+--- a/sql/sql_show.cc
++++ b/sql/sql_show.cc
 @@ -1913,7 +1913,8 @@
    TABLE *table= tables->table;
    CHARSET_INFO *cs= system_charset_info;

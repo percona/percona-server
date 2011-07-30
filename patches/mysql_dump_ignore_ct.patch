@@ -6,8 +6,8 @@
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
 diff -ruN a/client/client_priv.h b/client/client_priv.h
---- a/client/client_priv.h	2010-04-06 23:03:48.000000000 +0900
-+++ b/client/client_priv.h	2010-04-30 19:37:42.000000000 +0900
+--- a/client/client_priv.h
++++ b/client/client_priv.h
 @@ -68,6 +68,7 @@
    OPT_MYSQL_LOCK_DIRECTORY,
    OPT_USE_THREADS,
@@ -17,8 +17,8 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
    OPT_IGNORE_TABLE,OPT_INSERT_IGNORE,OPT_SHOW_WARNINGS,OPT_DROP_DATABASE,
    OPT_TZ_UTC, OPT_AUTO_CLOSE, OPT_CREATE_SLAP_SCHEMA,
 diff -ruN a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2010-04-06 23:03:49.000000000 +0900
-+++ b/client/mysqldump.c	2010-04-30 19:41:20.000000000 +0900
+--- a/client/mysqldump.c
++++ b/client/mysqldump.c
 @@ -98,7 +98,7 @@
                  opt_complete_insert= 0, opt_drop_database= 0,
                  opt_replace_into= 0,
@@ -38,16 +38,15 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    {"lines-terminated-by", OPT_LTB, 
     "Lines in the output file are terminated by the given string.",
     &lines_terminated, &lines_terminated, 0, GET_STR,
-@@ -2318,13 +2321,21 @@
-       /* Make an sql-file, if path was given iow. option -T was given */
+@@ -2319,12 +2322,20 @@
        char buff[20+FN_REFLEN];
        MYSQL_FIELD *field;
-+   
+ 
 +      my_bool old_ignore_errors=ignore_errors;
 +      //fprintf(stderr, "ignore create table %d\n", opt_ignore_show_create_table_error);
 +      if (opt_ignore_show_create_table_error)
 +         ignore_errors=1;
- 
++
        my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
  
        if (switch_character_set_results(mysql, "binary") ||

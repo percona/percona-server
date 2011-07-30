@@ -5,979 +5,6 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
---- a/configure.in
-+++ b/configure.in
-@@ -1738,6 +1738,7 @@
-   int main()
-   {
-     int foo= -10; int bar= 10;
-+    long long int foo64= -10; long long int bar64= 10;
-     if (!__sync_fetch_and_add(&foo, bar) || foo)
-       return -1;
-     bar= __sync_lock_test_and_set(&foo, bar);
-@@ -1746,6 +1747,14 @@
-     bar= __sync_val_compare_and_swap(&bar, foo, 15);
-     if (bar)
-       return -1;
-+    if (!__sync_fetch_and_add(&foo64, bar64) || foo64)
-+      return -1;
-+    bar64= __sync_lock_test_and_set(&foo64, bar64);
-+    if (bar64 || foo64 != 10)
-+      return -1;
-+    bar64= __sync_val_compare_and_swap(&bar64, foo, 15);
-+    if (bar64)
-+      return -1;
-     return 0;
-   }
- ], [mysql_cv_gcc_atomic_builtins=yes],
-@@ -1757,6 +1766,46 @@
-             [Define to 1 if compiler provides atomic builtins.])
- fi
- 
-+AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
-+               [mysql_cv_solaris_atomic],
-+  [AC_RUN_IFELSE(
-+     [AC_LANG_PROGRAM(
-+        [[
-+        #include <atomic.h>
-+        ]],
-+     [[
-+        int foo = -10; int bar = 10;
-+        int64_t foo64 = -10; int64_t bar64 = 10;
-+        if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
-+          return -1;
-+        bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
-+        if (bar || foo != 10)
-+          return -1;
-+        bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
-+        if (bar)
-+          return -1;
-+        if (atomic_add_64_nv((volatile uint64_t *)&foo64, bar64) || foo64)
-+          return -1;
-+        bar64 = atomic_swap_64((volatile uint64_t *)&foo64, (uint64_t)bar64);
-+        if (bar64 || foo64 != 10)
-+          return -1;
-+        bar64 = atomic_cas_64((volatile uint64_t *)&bar64, (uint_t)foo64, 15);
-+        if (bar64)
-+          return -1;
-+        atomic_or_64((volatile uint64_t *)&bar64, 0);
-+        return 0;
-+     ]]
-+     )],
-+   [mysql_cv_solaris_atomic=yes],
-+   [mysql_cv_solaris_atomic=no],
-+   [mysql_cv_solaris_atomic=no]
-+)])
-+
-+if test "x$mysql_cv_solaris_atomic" = xyes; then
-+  AC_DEFINE(HAVE_SOLARIS_ATOMIC, 1,
-+            [Define to 1 if OS provides atomic_* functions like Solaris.])
-+fi
-+
- # Force static compilation to avoid linking problems/get more speed
- AC_ARG_WITH(mysqld-ldflags,
-     [  --with-mysqld-ldflags   Extra linking arguments for mysqld],
-@@ -2683,7 +2732,16 @@
- AC_SUBST(readline_link)
- AC_SUBST(readline_h_ln_cmd)
- 
-+AC_ARG_WITH(response_time_distribution,
-+    AC_HELP_STRING([--without-response_time_distribution],[Disable response_time_distribution feature.]),
-+    [with_response_time_distribution=$withval],
-+    [with_response_time_distribution=yes]
-+)
- 
-+if test "$with_response_time_distribution" = "yes"
-+then
-+  AC_DEFINE([HAVE_RESPONSE_TIME_DISTRIBUTION], [1], [If we want to have response_time_distribution])
-+fi
- 
- # Include man pages, if desired, adapted to the configured parts.
- if test X"$with_man" = Xyes
---- /dev/null
-+++ b/include/atomic/gcc_builtins.h
-@@ -0,0 +1,42 @@
-+#ifndef ATOMIC_GCC_BUILTINS_INCLUDED
-+#define ATOMIC_GCC_BUILTINS_INCLUDED
-+
-+/* Copyright (C) 2008 MySQL AB
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+#define make_atomic_add_body(S)                     \
-+  v= __sync_fetch_and_add(a, v);
-+#define make_atomic_fas_body(S)                     \
-+  v= __sync_lock_test_and_set(a, v);
-+#define make_atomic_cas_body(S)                     \
-+  int ## S sav;                                     \
-+  int ## S cmp_val= *cmp;                           \
-+  sav= __sync_val_compare_and_swap(a, cmp_val, set);\
-+  if (!(ret= (sav == cmp_val))) *cmp= sav
-+
-+#ifdef MY_ATOMIC_MODE_DUMMY
-+#define make_atomic_load_body(S)   ret= *a
-+#define make_atomic_store_body(S)  *a= v
-+#define MY_ATOMIC_MODE "gcc-builtins-up"
-+
-+#else
-+#define MY_ATOMIC_MODE "gcc-builtins-smp"
-+#define make_atomic_load_body(S)                    \
-+  ret= __sync_fetch_and_or(a, 0);
-+#define make_atomic_store_body(S)                   \
-+  (void) __sync_lock_test_and_set(a, v);
-+#endif
-+
-+#endif /* ATOMIC_GCC_BUILTINS_INCLUDED */
---- /dev/null
-+++ b/include/atomic/generic-msvc.h
-@@ -0,0 +1,134 @@
-+/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+#ifndef _atomic_h_cleanup_
-+#define _atomic_h_cleanup_ "atomic/generic-msvc.h"
-+
-+/*
-+  We don't implement anything specific for MY_ATOMIC_MODE_DUMMY, always use
-+  intrinsics.
-+  8 and 16-bit atomics are not implemented, but it can be done if necessary.
-+*/
-+#undef MY_ATOMIC_HAS_8_16
-+
-+#include <windows.h>
-+/*
-+  x86 compilers (both VS2003 or VS2005) never use instrinsics, but generate 
-+  function calls to kernel32 instead, even in the optimized build. 
-+  We force intrinsics as described in MSDN documentation for 
-+  _InterlockedCompareExchange.
-+*/
-+#ifdef _M_IX86
-+
-+#if (_MSC_VER >= 1500)
-+#include <intrin.h>
-+#else
-+C_MODE_START
-+/*Visual Studio 2003 and earlier do not have prototypes for atomic intrinsics*/
-+LONG _InterlockedCompareExchange (LONG volatile *Target, LONG Value, LONG Comp);
-+LONGLONG _InterlockedCompareExchange64 (LONGLONG volatile *Target,
-+                                        LONGLONG Value, LONGLONG Comp);
-+C_MODE_END
-+
-+#pragma intrinsic(_InterlockedCompareExchange)
-+#pragma intrinsic(_InterlockedCompareExchange64)
-+#endif
-+
-+#define InterlockedCompareExchange _InterlockedCompareExchange
-+#define InterlockedCompareExchange64 _InterlockedCompareExchange64
-+/*
-+ No need to do something special for InterlockedCompareExchangePointer
-+ as it is a #define to InterlockedCompareExchange. The same applies to
-+ InterlockedExchangePointer. 
-+*/
-+#endif /*_M_IX86*/
-+
-+#define MY_ATOMIC_MODE "msvc-intrinsics"
-+/* Implement using CAS on WIN32 */
-+#define IL_COMP_EXCHG32(X,Y,Z)  \
-+  InterlockedCompareExchange((volatile LONG *)(X),(Y),(Z))
-+#define IL_COMP_EXCHG64(X,Y,Z)  \
-+  InterlockedCompareExchange64((volatile LONGLONG *)(X), \
-+                               (LONGLONG)(Y),(LONGLONG)(Z))
-+#define IL_COMP_EXCHGptr        InterlockedCompareExchangePointer
-+
-+#define make_atomic_cas_body(S)                                 \
-+  int ## S initial_cmp= *cmp;                                   \
-+  int ## S initial_a= IL_COMP_EXCHG ## S (a, set, initial_cmp); \
-+  if (!(ret= (initial_a == initial_cmp))) *cmp= initial_a;
-+
-+#ifndef _M_IX86
-+/* Use full set of optimised functions on WIN64 */
-+#define IL_EXCHG_ADD32(X,Y)     \
-+  InterlockedExchangeAdd((volatile LONG *)(X),(Y))
-+#define IL_EXCHG_ADD64(X,Y)     \
-+  InterlockedExchangeAdd64((volatile LONGLONG *)(X),(LONGLONG)(Y))
-+#define IL_EXCHG32(X,Y)         \
-+  InterlockedExchange((volatile LONG *)(X),(Y))
-+#define IL_EXCHG64(X,Y)         \
-+  InterlockedExchange64((volatile LONGLONG *)(X),(LONGLONG)(Y))
-+#define IL_EXCHGptr             InterlockedExchangePointer
-+
-+#define make_atomic_add_body(S) \
-+  v= IL_EXCHG_ADD ## S (a, v)
-+#define make_atomic_swap_body(S) \
-+  v= IL_EXCHG ## S (a, v)
-+#define make_atomic_load_body(S)       \
-+  ret= 0; /* avoid compiler warning */ \
-+  ret= IL_COMP_EXCHG ## S (a, ret, ret);
-+#endif
-+/*
-+  my_yield_processor (equivalent of x86 PAUSE instruction) should be used
-+  to improve performance on hyperthreaded CPUs. Intel recommends to use it in
-+  spin loops also on non-HT machines to reduce power consumption (see e.g 
-+  http://softwarecommunity.intel.com/articles/eng/2004.htm)
-+
-+  Running benchmarks for spinlocks implemented with InterlockedCompareExchange
-+  and YieldProcessor shows that much better performance is achieved by calling
-+  YieldProcessor in a loop - that is, yielding longer. On Intel boxes setting
-+  loop count in the range 200-300 brought best results.
-+ */
-+#ifndef YIELD_LOOPS
-+#define YIELD_LOOPS 200
-+#endif
-+
-+static __inline int my_yield_processor()
-+{
-+  int i;
-+  for(i=0; i<YIELD_LOOPS; i++)
-+  {
-+#if (_MSC_VER <= 1310)
-+    /* On older compilers YieldProcessor is not available, use inline assembly*/
-+    __asm { rep nop }
-+#else
-+    YieldProcessor();
-+#endif
-+  }
-+  return 1;
-+}
-+
-+#define LF_BACKOFF my_yield_processor()
-+#else /* cleanup */
-+
-+#undef IL_EXCHG_ADD32
-+#undef IL_EXCHG_ADD64
-+#undef IL_COMP_EXCHG32
-+#undef IL_COMP_EXCHG64
-+#undef IL_COMP_EXCHGptr
-+#undef IL_EXCHG32
-+#undef IL_EXCHG64
-+#undef IL_EXCHGptr
-+
-+#endif
---- /dev/null
-+++ b/include/atomic/nolock.h
-@@ -0,0 +1,69 @@
-+#ifndef ATOMIC_NOLOCK_INCLUDED
-+#define ATOMIC_NOLOCK_INCLUDED
-+
-+/* Copyright (C) 2006 MySQL AB
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+#if defined(__i386__) || defined(_MSC_VER) || defined(__x86_64__)   \
-+    || defined(HAVE_GCC_ATOMIC_BUILTINS) \
-+    || defined(HAVE_SOLARIS_ATOMIC)
-+
-+#  ifdef MY_ATOMIC_MODE_DUMMY
-+#    define LOCK_prefix ""
-+#  else
-+#    define LOCK_prefix "lock"
-+#  endif
-+/*
-+  We choose implementation as follows:
-+  ------------------------------------
-+  On Windows using Visual C++ the native implementation should be
-+  preferrable. When using gcc we prefer the Solaris implementation
-+  before the gcc because of stability preference, we choose gcc
-+  builtins if available, otherwise we choose the somewhat broken
-+  native x86 implementation. If neither Visual C++ or gcc we still
-+  choose the Solaris implementation on Solaris (mainly for SunStudio
-+  compilers).
-+*/
-+#  if defined(_MSV_VER)
-+#    include "generic-msvc.h"
-+#  elif __GNUC__
-+#    if defined(HAVE_SOLARIS_ATOMIC)
-+#      include "solaris.h"
-+#    elif defined(HAVE_GCC_ATOMIC_BUILTINS)
-+#      include "gcc_builtins.h"
-+#    elif defined(__i386__) || defined(__x86_64__)
-+#      include "x86-gcc.h"
-+#    endif
-+#  elif defined(HAVE_SOLARIS_ATOMIC)
-+#    include "solaris.h"
-+#  endif
-+#endif
-+
-+#if defined(make_atomic_cas_body)
-+/*
-+  Type not used so minimal size (emptry struct has different size between C
-+  and C++, zero-length array is gcc-specific).
-+*/
-+typedef char my_atomic_rwlock_t __attribute__ ((unused));
-+#define my_atomic_rwlock_destroy(name)
-+#define my_atomic_rwlock_init(name)
-+#define my_atomic_rwlock_rdlock(name)
-+#define my_atomic_rwlock_wrlock(name)
-+#define my_atomic_rwlock_rdunlock(name)
-+#define my_atomic_rwlock_wrunlock(name)
-+
-+#endif
-+
-+#endif /* ATOMIC_NOLOCK_INCLUDED */
---- /dev/null
-+++ b/include/atomic/rwlock.h
-@@ -0,0 +1,100 @@
-+#ifndef ATOMIC_RWLOCK_INCLUDED
-+#define ATOMIC_RWLOCK_INCLUDED
-+
-+/* Copyright (C) 2006 MySQL AB, 2009 Sun Microsystems, Inc.
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+#define MY_ATOMIC_MODE_RWLOCKS 1
-+
-+#ifdef MY_ATOMIC_MODE_DUMMY
-+/*
-+  the following can never be enabled by ./configure, one need to put #define in
-+  a source to trigger the following warning. The resulting code will be broken,
-+  it only makes sense to do it to see now test_atomic detects broken
-+  implementations (another way is to run a UP build on an SMP box).
-+*/
-+#warning MY_ATOMIC_MODE_DUMMY and MY_ATOMIC_MODE_RWLOCKS are incompatible
-+
-+typedef char my_atomic_rwlock_t;
-+
-+#define my_atomic_rwlock_destroy(name)
-+#define my_atomic_rwlock_init(name)
-+#define my_atomic_rwlock_rdlock(name)
-+#define my_atomic_rwlock_wrlock(name)
-+#define my_atomic_rwlock_rdunlock(name)
-+#define my_atomic_rwlock_wrunlock(name)
-+#define MY_ATOMIC_MODE "dummy (non-atomic)"
-+#else /* not MY_ATOMIC_MODE_DUMMY */
-+
-+typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
-+
-+#ifndef SAFE_MUTEX
-+
-+/*
-+  we're using read-write lock macros but map them to mutex locks, and they're
-+  faster. Still, having semantically rich API we can change the
-+  underlying implementation, if necessary.
-+*/
-+#define my_atomic_rwlock_destroy(name)     pthread_mutex_destroy(& (name)->rw)
-+#define my_atomic_rwlock_init(name)        pthread_mutex_init(& (name)->rw, 0)
-+#define my_atomic_rwlock_rdlock(name)      pthread_mutex_lock(& (name)->rw)
-+#define my_atomic_rwlock_wrlock(name)      pthread_mutex_lock(& (name)->rw)
-+#define my_atomic_rwlock_rdunlock(name)    pthread_mutex_unlock(& (name)->rw)
-+#define my_atomic_rwlock_wrunlock(name)    pthread_mutex_unlock(& (name)->rw)
-+
-+#else /* SAFE_MUTEX */
-+
-+/*
-+  SAFE_MUTEX pollutes the compiling name space with macros
-+  that alter pthread_mutex_t, pthread_mutex_init, etc.
-+  Atomic operations should never use the safe mutex wrappers.
-+  Unfortunately, there is no way to have both:
-+  - safe mutex macros expanding pthread_mutex_lock to safe_mutex_lock
-+  - my_atomic macros expanding to unmodified pthread_mutex_lock
-+  inlined in the same compilation unit.
-+  So, in case of SAFE_MUTEX, a function call is required.
-+  Given that SAFE_MUTEX is a debugging facility,
-+  this extra function call is not a performance concern for
-+  production builds.
-+*/
-+C_MODE_START
-+extern void plain_pthread_mutex_init(safe_mutex_t *);
-+extern void plain_pthread_mutex_destroy(safe_mutex_t *);
-+extern void plain_pthread_mutex_lock(safe_mutex_t *);
-+extern void plain_pthread_mutex_unlock(safe_mutex_t *);
-+C_MODE_END
-+
-+#define my_atomic_rwlock_destroy(name)     plain_pthread_mutex_destroy(&(name)->rw)
-+#define my_atomic_rwlock_init(name)        plain_pthread_mutex_init(&(name)->rw)
-+#define my_atomic_rwlock_rdlock(name)      plain_pthread_mutex_lock(&(name)->rw)
-+#define my_atomic_rwlock_wrlock(name)      plain_pthread_mutex_lock(&(name)->rw)
-+#define my_atomic_rwlock_rdunlock(name)    plain_pthread_mutex_unlock(&(name)->rw)
-+#define my_atomic_rwlock_wrunlock(name)    plain_pthread_mutex_unlock(&(name)->rw)
-+
-+#endif /* SAFE_MUTEX */
-+
-+#define MY_ATOMIC_MODE "mutex"
-+#ifndef MY_ATOMIC_MODE_RWLOCKS
-+#define MY_ATOMIC_MODE_RWLOCKS 1
-+#endif
-+#endif
-+
-+#define make_atomic_add_body(S)     int ## S sav; sav= *a; *a+= v; v=sav;
-+#define make_atomic_fas_body(S)     int ## S sav; sav= *a; *a= v; v=sav;
-+#define make_atomic_cas_body(S)     if ((ret= (*a == *cmp))) *a= set; else *cmp=*a;
-+#define make_atomic_load_body(S)    ret= *a;
-+#define make_atomic_store_body(S)   *a= v;
-+
-+#endif /* ATOMIC_RWLOCK_INCLUDED */
---- /dev/null
-+++ b/include/atomic/solaris.h
-@@ -0,0 +1,72 @@
-+/* Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+#ifndef _atomic_h_cleanup_
-+#define _atomic_h_cleanup_ "atomic/solaris.h"
-+
-+#include <atomic.h>
-+
-+#define	MY_ATOMIC_MODE	"solaris-atomic"
-+
-+#if defined(__GNUC__)
-+#define atomic_typeof(T,V)      __typeof__(V)
-+#else
-+#define atomic_typeof(T,V)      T
-+#endif
-+
-+#define uintptr_t void *
-+#define atomic_or_ptr_nv(X,Y) (void *)atomic_or_ulong_nv((volatile ulong_t *)X, Y)
-+
-+#define make_atomic_cas_body(S)                         \
-+  atomic_typeof(uint ## S ## _t, *cmp) sav;             \
-+  sav = atomic_cas_ ## S(                               \
-+           (volatile uint ## S ## _t *)a,               \
-+           (uint ## S ## _t)*cmp,                       \
-+           (uint ## S ## _t)set);                       \
-+  if (! (ret= (sav == *cmp)))                           \
-+    *cmp= sav;
-+
-+#define make_atomic_add_body(S)                         \
-+  int ## S nv;  /* new value */                         \
-+  nv= atomic_add_ ## S ## _nv((volatile uint ## S ## _t *)a, v); \
-+  v= nv - v
-+
-+/* ------------------------------------------------------------------------ */
-+
-+#ifdef MY_ATOMIC_MODE_DUMMY
-+
-+#define make_atomic_load_body(S)  ret= *a
-+#define make_atomic_store_body(S)   *a= v
-+
-+#else /* MY_ATOMIC_MODE_DUMMY */
-+
-+#define make_atomic_load_body(S)                        \
-+  ret= atomic_or_ ## S ## _nv((volatile uint ## S ## _t *)a, 0)
-+
-+#define make_atomic_store_body(S)                       \
-+  (void) atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
-+
-+#endif
-+
-+#define make_atomic_fas_body(S)                        \
-+  v= atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
-+
-+#else /* cleanup */
-+
-+#undef uintptr_t
-+#undef atomic_or_ptr_nv
-+
-+#endif
-+
---- /dev/null
-+++ b/include/atomic/x86-gcc.h
-@@ -0,0 +1,145 @@
-+#ifndef ATOMIC_X86_GCC_INCLUDED
-+#define ATOMIC_X86_GCC_INCLUDED
-+
-+/* Copyright (C) 2006 MySQL AB
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+/*
-+  XXX 64-bit atomic operations can be implemented using
-+  cmpxchg8b, if necessary. Though I've heard that not all 64-bit
-+  architectures support double-word (128-bit) cas.
-+*/
-+
-+/*
-+  No special support of 8 and 16 bit operations are implemented here
-+  currently.
-+*/
-+#undef MY_ATOMIC_HAS_8_AND_16
-+
-+#ifdef __x86_64__
-+#  ifdef MY_ATOMIC_NO_XADD
-+#    define MY_ATOMIC_MODE "gcc-amd64" LOCK_prefix "-no-xadd"
-+#  else
-+#    define MY_ATOMIC_MODE "gcc-amd64" LOCK_prefix
-+#  endif
-+#else
-+#  ifdef MY_ATOMIC_NO_XADD
-+#    define MY_ATOMIC_MODE "gcc-x86" LOCK_prefix "-no-xadd"
-+#  else
-+#    define MY_ATOMIC_MODE "gcc-x86" LOCK_prefix
-+#  endif
-+#endif
-+
-+/* fix -ansi errors while maintaining readability */
-+#ifndef asm
-+#define asm __asm__
-+#endif
-+
-+#ifndef MY_ATOMIC_NO_XADD
-+#define make_atomic_add_body(S)         make_atomic_add_body ## S
-+#define make_atomic_cas_body(S)         make_atomic_cas_body ## S
-+#endif
-+
-+#define make_atomic_add_body32                                  \
-+  asm volatile (LOCK_prefix "; xadd %0, %1;"                    \
-+                : "+r" (v), "=m" (*a)                           \
-+                : "m" (*a)                                      \
-+                : "memory")
-+
-+#define make_atomic_cas_body32                                  \
-+  __typeof__(*cmp) sav;                                         \
-+  asm volatile (LOCK_prefix "; cmpxchg %3, %0; setz %2;"	\
-+                : "=m" (*a), "=a" (sav), "=q" (ret)             \
-+                : "r" (set), "m" (*a), "a" (*cmp)               \
-+                : "memory");                                    \
-+  if (!ret)                                                     \
-+    *cmp= sav
-+
-+#ifdef __x86_64__
-+#define make_atomic_add_body64 make_atomic_add_body32
-+#define make_atomic_cas_body64 make_atomic_cas_body32
-+
-+#define make_atomic_fas_body(S)                                 \
-+  asm volatile ("xchg %0, %1;"                                  \
-+                : "+r" (v), "=m" (*a)                           \
-+                : "m" (*a)                                      \
-+                : "memory")
-+
-+/*
-+  Actually 32/64-bit reads/writes are always atomic on x86_64,
-+  nonetheless issue memory barriers as appropriate.
-+*/
-+#define make_atomic_load_body(S)                                \
-+  /* Serialize prior load and store operations. */              \
-+  asm volatile ("mfence" ::: "memory");                         \
-+  ret= *a;                                                      \
-+  /* Prevent compiler from reordering instructions. */          \
-+  asm volatile ("" ::: "memory")
-+#define make_atomic_store_body(S)                               \
-+  asm volatile ("; xchg %0, %1;"                                \
-+                : "=m" (*a), "+r" (v)                           \
-+                : "m" (*a)                                      \
-+                : "memory")
-+
-+#else
-+/*
-+  Use default implementations of 64-bit operations since we solved
-+  the 64-bit problem on 32-bit platforms for CAS, no need to solve it
-+  once more for ADD, LOAD, STORE and FAS as well.
-+  Since we already added add32 support, we need to define add64
-+  here, but we haven't defined fas, load and store at all, so
-+  we can fallback on default implementations.
-+*/
-+#define make_atomic_add_body64                                  \
-+  int64 tmp=*a;                                                 \
-+  while (!my_atomic_cas64(a, &tmp, tmp+v)) ;                    \
-+  v=tmp;
-+
-+/*
-+  On some platforms (e.g. Mac OS X and Solaris) the ebx register
-+  is held as a pointer to the global offset table. Thus we're not
-+  allowed to use the b-register on those platforms when compiling
-+  PIC code, to avoid this we push ebx and pop ebx. The new value
-+  is copied directly from memory to avoid problems with a implicit
-+  manipulation of the stack pointer by the push.
-+
-+  cmpxchg8b works on both 32-bit platforms and 64-bit platforms but
-+  the code here is only used on 32-bit platforms, on 64-bit
-+  platforms the much simpler make_atomic_cas_body32 will work
-+  fine.
-+*/
-+#define make_atomic_cas_body64                                    \
-+  asm volatile ("push %%ebx;"                                     \
-+                "movl (%%ecx), %%ebx;"                            \
-+                "movl 4(%%ecx), %%ecx;"                           \
-+                LOCK_prefix "; cmpxchg8b %0;"                     \
-+                "setz %2; pop %%ebx"                              \
-+                : "=m" (*a), "+A" (*cmp), "=c" (ret)              \
-+                : "c" (&set), "m" (*a)                            \
-+                : "memory", "esp")
-+#endif
-+
-+/*
-+  The implementation of make_atomic_cas_body32 is adaptable to
-+  the OS word size, so on 64-bit platforms it will automatically
-+  adapt to 64-bits and so it will work also on 64-bit platforms
-+*/
-+#define make_atomic_cas_bodyptr make_atomic_cas_body32
-+
-+#ifdef MY_ATOMIC_MODE_DUMMY
-+#define make_atomic_load_body(S)   ret=*a
-+#define make_atomic_store_body(S)  *a=v
-+#endif
-+#endif /* ATOMIC_X86_GCC_INCLUDED */
---- a/include/Makefile.am
-+++ b/include/Makefile.am
-@@ -38,7 +38,10 @@
- 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
- 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
- 			my_compare.h my_time.h my_vle.h my_user.h \
--			my_libwrap.h my_stacktrace.h
-+			my_libwrap.h my_stacktrace.h my_atomic.h \
-+			atomic/gcc_builtins.h atomic/generic-msvc.h \
-+			atomic/nolock.h atomic/rwlock.h atomic/solaris.h \
-+			atomic/x86-gcc.h
- 
- EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
- 
---- /dev/null
-+++ b/include/my_atomic.h
-@@ -0,0 +1,287 @@
-+#ifndef MY_ATOMIC_INCLUDED
-+#define MY_ATOMIC_INCLUDED
-+
-+/* Copyright (C) 2006 MySQL AB
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+/*
-+  This header defines five atomic operations:
-+
-+  my_atomic_add#(&var, what)
-+    'Fetch and Add'
-+    add 'what' to *var, and return the old value of *var
-+
-+  my_atomic_fas#(&var, what)
-+    'Fetch And Store'
-+    store 'what' in *var, and return the old value of *var
-+
-+  my_atomic_cas#(&var, &old, new)
-+    An odd variation of 'Compare And Set/Swap'
-+    if *var is equal to *old, then store 'new' in *var, and return TRUE
-+    otherwise store *var in *old, and return FALSE
-+    Usually, &old should not be accessed if the operation is successful.
-+
-+  my_atomic_load#(&var)
-+    return *var
-+
-+  my_atomic_store#(&var, what)
-+    store 'what' in *var
-+
-+  '#' is substituted by a size suffix - 8, 16, 32, 64, or ptr
-+  (e.g. my_atomic_add8, my_atomic_fas32, my_atomic_casptr).
-+
-+  NOTE This operations are not always atomic, so they always must be
-+  enclosed in my_atomic_rwlock_rdlock(lock)/my_atomic_rwlock_rdunlock(lock)
-+  or my_atomic_rwlock_wrlock(lock)/my_atomic_rwlock_wrunlock(lock).
-+  Hint: if a code block makes intensive use of atomic ops, it make sense
-+  to take/release rwlock once for the whole block, not for every statement.
-+
-+  On architectures where these operations are really atomic, rwlocks will
-+  be optimized away.
-+  8- and 16-bit atomics aren't implemented for windows (see generic-msvc.h),
-+  but can be added, if necessary. 
-+*/
-+
-+#ifndef my_atomic_rwlock_init
-+
-+#define intptr         void *
-+/**
-+  Currently we don't support 8-bit and 16-bit operations.
-+  It can be added later if needed.
-+*/
-+#undef MY_ATOMIC_HAS_8_16
-+
-+#ifndef MY_ATOMIC_MODE_RWLOCKS
-+/*
-+ * Attempt to do atomic ops without locks
-+ */
-+#include "atomic/nolock.h"
-+#endif
-+
-+#ifndef make_atomic_cas_body
-+/* nolock.h was not able to generate even a CAS function, fall back */
-+#include "atomic/rwlock.h"
-+#endif
-+
-+/* define missing functions by using the already generated ones */
-+#ifndef make_atomic_add_body
-+#define make_atomic_add_body(S)                                 \
-+  int ## S tmp=*a;                                              \
-+  while (!my_atomic_cas ## S(a, &tmp, tmp+v)) ;                 \
-+  v=tmp;
-+#endif
-+#ifndef make_atomic_fas_body
-+#define make_atomic_fas_body(S)                                 \
-+  int ## S tmp=*a;                                              \
-+  while (!my_atomic_cas ## S(a, &tmp, v)) ;                     \
-+  v=tmp;
-+#endif
-+#ifndef make_atomic_load_body
-+#define make_atomic_load_body(S)                                \
-+  ret= 0; /* avoid compiler warning */                          \
-+  (void)(my_atomic_cas ## S(a, &ret, ret));
-+#endif
-+#ifndef make_atomic_store_body
-+#define make_atomic_store_body(S)                               \
-+  (void)(my_atomic_fas ## S (a, v));
-+#endif
-+
-+/*
-+  transparent_union doesn't work in g++
-+  Bug ?
-+
-+  Darwin's gcc doesn't want to put pointers in a transparent_union
-+  when built with -arch ppc64. Complains:
-+  warning: 'transparent_union' attribute ignored
-+*/
-+#if defined(__GNUC__) && !defined(__cplusplus) && \
-+      ! (defined(__APPLE__) && (defined(_ARCH_PPC64) ||defined (_ARCH_PPC)))
-+/*
-+  we want to be able to use my_atomic_xxx functions with
-+  both signed and unsigned integers. But gcc will issue a warning
-+  "passing arg N of `my_atomic_XXX' as [un]signed due to prototype"
-+  if the signedness of the argument doesn't match the prototype, or
-+  "pointer targets in passing argument N of my_atomic_XXX differ in signedness"
-+  if int* is used where uint* is expected (or vice versa).
-+  Let's shut these warnings up
-+*/
-+#define make_transparent_unions(S)                              \
-+        typedef union {                                         \
-+          int  ## S  i;                                         \
-+          uint ## S  u;                                         \
-+        } U_ ## S   __attribute__ ((transparent_union));        \
-+        typedef union {                                         \
-+          int  ## S volatile *i;                                \
-+          uint ## S volatile *u;                                \
-+        } Uv_ ## S   __attribute__ ((transparent_union));
-+#define uintptr intptr
-+make_transparent_unions(8)
-+make_transparent_unions(16)
-+make_transparent_unions(32)
-+make_transparent_unions(64)
-+make_transparent_unions(ptr)
-+#undef uintptr
-+#undef make_transparent_unions
-+#define a       U_a.i
-+#define cmp     U_cmp.i
-+#define v       U_v.i
-+#define set     U_set.i
-+#else
-+#define U_8    int8
-+#define U_16   int16
-+#define U_32   int32
-+#define U_64   int64
-+#define U_ptr  intptr
-+#define Uv_8   int8
-+#define Uv_16  int16
-+#define Uv_32  int32
-+#define Uv_64  int64
-+#define Uv_ptr intptr
-+#define U_a    volatile *a
-+#define U_cmp  *cmp
-+#define U_v    v
-+#define U_set  set
-+#endif /* __GCC__ transparent_union magic */
-+
-+#define make_atomic_cas(S)                                      \
-+static inline int my_atomic_cas ## S(Uv_ ## S U_a,              \
-+                            Uv_ ## S U_cmp, U_ ## S U_set)      \
-+{                                                               \
-+  int8 ret;                                                     \
-+  make_atomic_cas_body(S);                                      \
-+  return ret;                                                   \
-+}
-+
-+#define make_atomic_add(S)                                      \
-+static inline int ## S my_atomic_add ## S(                      \
-+                        Uv_ ## S U_a, U_ ## S U_v)              \
-+{                                                               \
-+  make_atomic_add_body(S);                                      \
-+  return v;                                                     \
-+}
-+
-+#define make_atomic_fas(S)                                      \
-+static inline int ## S my_atomic_fas ## S(                      \
-+                         Uv_ ## S U_a, U_ ## S U_v)             \
-+{                                                               \
-+  make_atomic_fas_body(S);                                      \
-+  return v;                                                     \
-+}
-+
-+#define make_atomic_load(S)                                     \
-+static inline int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
-+{                                                               \
-+  int ## S ret;                                                 \
-+  make_atomic_load_body(S);                                     \
-+  return ret;                                                   \
-+}
-+
-+#define make_atomic_store(S)                                    \
-+static inline void my_atomic_store ## S(                        \
-+                     Uv_ ## S U_a, U_ ## S U_v)                 \
-+{                                                               \
-+  make_atomic_store_body(S);                                    \
-+}
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_cas(8)
-+make_atomic_cas(16)
-+#endif
-+make_atomic_cas(32)
-+make_atomic_cas(64)
-+make_atomic_cas(ptr)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_add(8)
-+make_atomic_add(16)
-+#endif
-+make_atomic_add(32)
-+make_atomic_add(64)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_load(8)
-+make_atomic_load(16)
-+#endif
-+make_atomic_load(32)
-+make_atomic_load(64)
-+make_atomic_load(ptr)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_fas(8)
-+make_atomic_fas(16)
-+#endif
-+make_atomic_fas(32)
-+make_atomic_fas(64)
-+make_atomic_fas(ptr)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_store(8)
-+make_atomic_store(16)
-+#endif
-+make_atomic_store(32)
-+make_atomic_store(64)
-+make_atomic_store(ptr)
-+
-+#ifdef _atomic_h_cleanup_
-+#include _atomic_h_cleanup_
-+#undef _atomic_h_cleanup_
-+#endif
-+
-+#undef U_8
-+#undef U_16
-+#undef U_32
-+#undef U_64
-+#undef U_ptr
-+#undef Uv_8
-+#undef Uv_16
-+#undef Uv_32
-+#undef Uv_64
-+#undef Uv_ptr
-+#undef a
-+#undef cmp
-+#undef v
-+#undef set
-+#undef U_a
-+#undef U_cmp
-+#undef U_v
-+#undef U_set
-+#undef make_atomic_add
-+#undef make_atomic_cas
-+#undef make_atomic_load
-+#undef make_atomic_store
-+#undef make_atomic_fas
-+#undef make_atomic_add_body
-+#undef make_atomic_cas_body
-+#undef make_atomic_load_body
-+#undef make_atomic_store_body
-+#undef make_atomic_fas_body
-+#undef intptr
-+
-+/*
-+  the macro below defines (as an expression) the code that
-+  will be run in spin-loops. Intel manuals recummend to have PAUSE there.
-+  It is expected to be defined in include/atomic/ *.h files
-+*/
-+#ifndef LF_BACKOFF
-+#define LF_BACKOFF (1)
-+#endif
-+
-+#define MY_ATOMIC_OK       0
-+#define MY_ATOMIC_NOT_1CPU 1
-+extern int my_atomic_initialize();
-+
-+#endif
-+
-+#endif /* MY_ATOMIC_INCLUDED */
 --- a/include/mysql_com.h
 +++ b/include/mysql_com.h
 @@ -132,6 +132,7 @@
@@ -3519,322 +2546,6 @@
 +
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=default;
---- a/mysys/CMakeLists.txt
-+++ b/mysys/CMakeLists.txt
-@@ -41,7 +41,8 @@
- 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c my_wincond.c
- 				my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c stacktrace.c
- 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
--				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c)
-+				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c
-+                                my_atomic.c)
- 
- IF(NOT SOURCE_SUBLIBS)
-   ADD_LIBRARY(mysys ${MYSYS_SOURCES})
---- a/mysys/Makefile.am
-+++ b/mysys/Makefile.am
-@@ -51,7 +51,8 @@
- 			rijndael.c my_aes.c sha1.c \
- 			my_compare.c my_netware.c my_largepage.c \
- 			my_memmem.c stacktrace.c \
--			my_windac.c my_access.c base64.c my_libwrap.c
-+			my_windac.c my_access.c base64.c my_libwrap.c \
-+			my_atomic.c
- 
- if NEED_THREAD
- # mf_keycache is used only in the server, so it is safe to leave the file
---- /dev/null
-+++ b/mysys/my_atomic.c
-@@ -0,0 +1,289 @@
-+#ifndef MY_ATOMIC_INCLUDED
-+#define MY_ATOMIC_INCLUDED
-+
-+/* Copyright (C) 2006 MySQL AB
-+
-+   This program is free software; you can redistribute it and/or modify
-+   it under the terms of the GNU General Public License as published by
-+   the Free Software Foundation; version 2 of the License.
-+
-+   This program is distributed in the hope that it will be useful,
-+   but WITHOUT ANY WARRANTY; without even the implied warranty of
-+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+   GNU General Public License for more details.
-+
-+   You should have received a copy of the GNU General Public License
-+   along with this program; if not, write to the Free Software
-+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-+
-+/*
-+  This header defines five atomic operations:
-+
-+  my_atomic_add#(&var, what)
-+    'Fetch and Add'
-+    add 'what' to *var, and return the old value of *var
-+
-+  my_atomic_fas#(&var, what)
-+    'Fetch And Store'
-+    store 'what' in *var, and return the old value of *var
-+
-+  my_atomic_cas#(&var, &old, new)
-+    An odd variation of 'Compare And Set/Swap'
-+    if *var is equal to *old, then store 'new' in *var, and return TRUE
-+    otherwise store *var in *old, and return FALSE
-+    Usually, &old should not be accessed if the operation is successful.
-+
-+  my_atomic_load#(&var)
-+    return *var
-+
-+  my_atomic_store#(&var, what)
-+    store 'what' in *var
-+
-+  '#' is substituted by a size suffix - 8, 16, 32, 64, or ptr
-+  (e.g. my_atomic_add8, my_atomic_fas32, my_atomic_casptr).
-+
-+  NOTE This operations are not always atomic, so they always must be
-+  enclosed in my_atomic_rwlock_rdlock(lock)/my_atomic_rwlock_rdunlock(lock)
-+  or my_atomic_rwlock_wrlock(lock)/my_atomic_rwlock_wrunlock(lock).
-+  Hint: if a code block makes intensive use of atomic ops, it make sense
-+  to take/release rwlock once for the whole block, not for every statement.
-+
-+  On architectures where these operations are really atomic, rwlocks will
-+  be optimized away.
-+  8- and 16-bit atomics aren't implemented for windows (see generic-msvc.h),
-+  but can be added, if necessary. 
-+*/
-+
-+#include "my_global.h"
-+
-+#ifndef my_atomic_rwlock_init
-+
-+#define intptr         void *
-+/**
-+  Currently we don't support 8-bit and 16-bit operations.
-+  It can be added later if needed.
-+*/
-+#undef MY_ATOMIC_HAS_8_16
-+
-+#ifndef MY_ATOMIC_MODE_RWLOCKS
-+/*
-+ * Attempt to do atomic ops without locks
-+ */
-+#include "atomic/nolock.h"
-+#endif
-+
-+#ifndef make_atomic_cas_body
-+/* nolock.h was not able to generate even a CAS function, fall back */
-+#include "atomic/rwlock.h"
-+#endif
-+
-+/* define missing functions by using the already generated ones */
-+#ifndef make_atomic_add_body
-+#define make_atomic_add_body(S)                                 \
-+  int ## S tmp=*a;                                              \
-+  while (!my_atomic_cas ## S(a, &tmp, tmp+v)) ;                 \
-+  v=tmp;
-+#endif
-+#ifndef make_atomic_fas_body
-+#define make_atomic_fas_body(S)                                 \
-+  int ## S tmp=*a;                                              \
-+  while (!my_atomic_cas ## S(a, &tmp, v)) ;                     \
-+  v=tmp;
-+#endif
-+#ifndef make_atomic_load_body
-+#define make_atomic_load_body(S)                                \
-+  ret= 0; /* avoid compiler warning */                          \
-+  (void)(my_atomic_cas ## S(a, &ret, ret));
-+#endif
-+#ifndef make_atomic_store_body
-+#define make_atomic_store_body(S)                               \
-+  (void)(my_atomic_fas ## S (a, v));
-+#endif
-+
-+/*
-+  transparent_union doesn't work in g++
-+  Bug ?
-+
-+  Darwin's gcc doesn't want to put pointers in a transparent_union
-+  when built with -arch ppc64. Complains:
-+  warning: 'transparent_union' attribute ignored
-+*/
-+#if defined(__GNUC__) && !defined(__cplusplus) && \
-+      ! (defined(__APPLE__) && (defined(_ARCH_PPC64) ||defined (_ARCH_PPC)))
-+/*
-+  we want to be able to use my_atomic_xxx functions with
-+  both signed and unsigned integers. But gcc will issue a warning
-+  "passing arg N of `my_atomic_XXX' as [un]signed due to prototype"
-+  if the signedness of the argument doesn't match the prototype, or
-+  "pointer targets in passing argument N of my_atomic_XXX differ in signedness"
-+  if int* is used where uint* is expected (or vice versa).
-+  Let's shut these warnings up
-+*/
-+#define make_transparent_unions(S)                              \
-+        typedef union {                                         \
-+          int  ## S  i;                                         \
-+          uint ## S  u;                                         \
-+        } U_ ## S   __attribute__ ((transparent_union));        \
-+        typedef union {                                         \
-+          int  ## S volatile *i;                                \
-+          uint ## S volatile *u;                                \
-+        } Uv_ ## S   __attribute__ ((transparent_union));
-+#define uintptr intptr
-+make_transparent_unions(8)
-+make_transparent_unions(16)
-+make_transparent_unions(32)
-+make_transparent_unions(64)
-+make_transparent_unions(ptr)
-+#undef uintptr
-+#undef make_transparent_unions
-+#define a       U_a.i
-+#define cmp     U_cmp.i
-+#define v       U_v.i
-+#define set     U_set.i
-+#else
-+#define U_8    int8
-+#define U_16   int16
-+#define U_32   int32
-+#define U_64   int64
-+#define U_ptr  intptr
-+#define Uv_8   int8
-+#define Uv_16  int16
-+#define Uv_32  int32
-+#define Uv_64  int64
-+#define Uv_ptr intptr
-+#define U_a    volatile *a
-+#define U_cmp  *cmp
-+#define U_v    v
-+#define U_set  set
-+#endif /* __GCC__ transparent_union magic */
-+
-+#define make_atomic_cas(S)                                      \
-+static inline int my_atomic_cas ## S(Uv_ ## S U_a,              \
-+                            Uv_ ## S U_cmp, U_ ## S U_set)      \
-+{                                                               \
-+  int8 ret;                                                     \
-+  make_atomic_cas_body(S);                                      \
-+  return ret;                                                   \
-+}
-+
-+#define make_atomic_add(S)                                      \
-+static inline int ## S my_atomic_add ## S(                      \
-+                        Uv_ ## S U_a, U_ ## S U_v)              \
-+{                                                               \
-+  make_atomic_add_body(S);                                      \
-+  return v;                                                     \
-+}
-+
-+#define make_atomic_fas(S)                                      \
-+static inline int ## S my_atomic_fas ## S(                      \
-+                         Uv_ ## S U_a, U_ ## S U_v)             \
-+{                                                               \
-+  make_atomic_fas_body(S);                                      \
-+  return v;                                                     \
-+}
-+
-+#define make_atomic_load(S)                                     \
-+static inline int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
-+{                                                               \
-+  int ## S ret;                                                 \
-+  make_atomic_load_body(S);                                     \
-+  return ret;                                                   \
-+}
-+
-+#define make_atomic_store(S)                                    \
-+static inline void my_atomic_store ## S(                        \
-+                     Uv_ ## S U_a, U_ ## S U_v)                 \
-+{                                                               \
-+  make_atomic_store_body(S);                                    \
-+}
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_cas(8)
-+make_atomic_cas(16)
-+#endif
-+make_atomic_cas(32)
-+make_atomic_cas(64)
-+make_atomic_cas(ptr)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_add(8)
-+make_atomic_add(16)
-+#endif
-+make_atomic_add(32)
-+make_atomic_add(64)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_load(8)
-+make_atomic_load(16)
-+#endif
-+make_atomic_load(32)
-+make_atomic_load(64)
-+make_atomic_load(ptr)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_fas(8)
-+make_atomic_fas(16)
-+#endif
-+make_atomic_fas(32)
-+make_atomic_fas(64)
-+make_atomic_fas(ptr)
-+
-+#ifdef MY_ATOMIC_HAS_8_16
-+make_atomic_store(8)
-+make_atomic_store(16)
-+#endif
-+make_atomic_store(32)
-+make_atomic_store(64)
-+make_atomic_store(ptr)
-+
-+#ifdef _atomic_h_cleanup_
-+#include _atomic_h_cleanup_
-+#undef _atomic_h_cleanup_
-+#endif
-+
-+#undef U_8
-+#undef U_16
-+#undef U_32
-+#undef U_64
-+#undef U_ptr
-+#undef Uv_8
-+#undef Uv_16
-+#undef Uv_32
-+#undef Uv_64
-+#undef Uv_ptr
-+#undef a
-+#undef cmp
-+#undef v
-+#undef set
-+#undef U_a
-+#undef U_cmp
-+#undef U_v
-+#undef U_set
-+#undef make_atomic_add
-+#undef make_atomic_cas
-+#undef make_atomic_load
-+#undef make_atomic_store
-+#undef make_atomic_fas
-+#undef make_atomic_add_body
-+#undef make_atomic_cas_body
-+#undef make_atomic_load_body
-+#undef make_atomic_store_body
-+#undef make_atomic_fas_body
-+#undef intptr
-+
-+/*
-+  the macro below defines (as an expression) the code that
-+  will be run in spin-loops. Intel manuals recummend to have PAUSE there.
-+  It is expected to be defined in include/atomic/ *.h files
-+*/
-+#ifndef LF_BACKOFF
-+#define LF_BACKOFF (1)
-+#endif
-+
-+#define MY_ATOMIC_OK       0
-+#define MY_ATOMIC_NOT_1CPU 1
-+extern int my_atomic_initialize();
-+
-+#endif
-+
-+#endif /* MY_ATOMIC_INCLUDED */
 --- /dev/null
 +++ b/patch_info/response-time-distribution.info
 @@ -0,0 +1,9 @@
@@ -4408,7 +3119,7 @@
  
  /**
    @defgroup Runtime_Environment Runtime Environment
-@@ -1774,6 +1775,7 @@
+@@ -1777,6 +1778,7 @@
  
    ulonglong end_utime_of_query= thd->current_utime();
    ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
@@ -4416,7 +3127,7 @@
  
    /*
      Low long_query_time value most likely means user is debugging stuff and even
-@@ -1942,6 +1944,7 @@
+@@ -1947,6 +1949,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -4424,7 +3135,7 @@
    case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
    case SCH_USER_PRIVILEGES:
    case SCH_SCHEMA_PRIVILEGES:
-@@ -7298,6 +7301,12 @@
+@@ -7306,6 +7309,12 @@
      init_global_index_stats();
      pthread_mutex_unlock(&LOCK_global_index_stats);
    }
@@ -4447,7 +3158,7 @@
  #include "debug_sync.h"
  
  #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
-@@ -7288,6 +7289,13 @@
+@@ -7533,6 +7534,13 @@
  
  */
  
@@ -4461,7 +3172,7 @@
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7339,6 +7347,13 @@
+@@ -7587,6 +7595,13 @@
     1, 9, 0, OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -4485,7 +3196,7 @@
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -10387,6 +10388,15 @@
+@@ -10396,6 +10397,15 @@
             if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
               MYSQL_YYABORT;
            }
@@ -4501,7 +3212,7 @@
          | CREATE PROCEDURE sp_name
            {
              LEX *lex= Lex;
-@@ -10607,6 +10617,12 @@
+@@ -10616,6 +10626,12 @@
            { Lex->type|= REFRESH_TABLE_STATS; }
          | INDEX_STATS_SYM
            { Lex->type|= REFRESH_INDEX_STATS; }
@@ -4514,7 +3225,7 @@
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -11886,6 +11902,7 @@
+@@ -11895,6 +11911,7 @@
          | PROFILES_SYM             {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}
@@ -4524,7 +3235,7 @@
          | REBUILD_SYM              {}
 --- a/sql/table.h
 +++ b/sql/table.h
-@@ -963,6 +963,7 @@
+@@ -964,6 +964,7 @@
    SCH_PROFILES,
    SCH_REFERENTIAL_CONSTRAINTS,
    SCH_PROCEDURES,
@@ -4532,3 +3243,1287 @@
    SCH_SCHEMATA,
    SCH_SCHEMA_PRIVILEGES,
    SCH_SESSION_STATUS,
+--- a/configure.in
++++ b/configure.in
+@@ -1738,6 +1738,7 @@
+   int main()
+   {
+     int foo= -10; int bar= 10;
++    long long int foo64= -10; long long int bar64= 10;
+     if (!__sync_fetch_and_add(&foo, bar) || foo)
+       return -1;
+     bar= __sync_lock_test_and_set(&foo, bar);
+@@ -1746,6 +1747,14 @@
+     bar= __sync_val_compare_and_swap(&bar, foo, 15);
+     if (bar)
+       return -1;
++    if (!__sync_fetch_and_add(&foo64, bar64) || foo64)
++      return -1;
++    bar64= __sync_lock_test_and_set(&foo64, bar64);
++    if (bar64 || foo64 != 10)
++      return -1;
++    bar64= __sync_val_compare_and_swap(&bar64, foo, 15);
++    if (bar64)
++      return -1;
+     return 0;
+   }
+ ], [mysql_cv_gcc_atomic_builtins=yes],
+@@ -1757,6 +1766,46 @@
+             [Define to 1 if compiler provides atomic builtins.])
+ fi
+ 
++AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
++               [mysql_cv_solaris_atomic],
++  [AC_RUN_IFELSE(
++     [AC_LANG_PROGRAM(
++        [[
++        #include <atomic.h>
++        ]],
++     [[
++        int foo = -10; int bar = 10;
++        int64_t foo64 = -10; int64_t bar64 = 10;
++        if (atomic_add_int_nv((uint_t *)&foo, bar) || foo)
++          return -1;
++        bar = atomic_swap_uint((uint_t *)&foo, (uint_t)bar);
++        if (bar || foo != 10)
++          return -1;
++        bar = atomic_cas_uint((uint_t *)&bar, (uint_t)foo, 15);
++        if (bar)
++          return -1;
++        if (atomic_add_64_nv((volatile uint64_t *)&foo64, bar64) || foo64)
++          return -1;
++        bar64 = atomic_swap_64((volatile uint64_t *)&foo64, (uint64_t)bar64);
++        if (bar64 || foo64 != 10)
++          return -1;
++        bar64 = atomic_cas_64((volatile uint64_t *)&bar64, (uint_t)foo64, 15);
++        if (bar64)
++          return -1;
++        atomic_or_64((volatile uint64_t *)&bar64, 0);
++        return 0;
++     ]]
++     )],
++   [mysql_cv_solaris_atomic=yes],
++   [mysql_cv_solaris_atomic=no],
++   [mysql_cv_solaris_atomic=no]
++)])
++
++if test "x$mysql_cv_solaris_atomic" = xyes; then
++  AC_DEFINE(HAVE_SOLARIS_ATOMIC, 1,
++            [Define to 1 if OS provides atomic_* functions like Solaris.])
++fi
++
+ # Force static compilation to avoid linking problems/get more speed
+ AC_ARG_WITH(mysqld-ldflags,
+     [  --with-mysqld-ldflags   Extra linking arguments for mysqld],
+@@ -2683,7 +2732,16 @@
+ AC_SUBST(readline_link)
+ AC_SUBST(readline_h_ln_cmd)
+ 
++AC_ARG_WITH(response_time_distribution,
++    AC_HELP_STRING([--without-response_time_distribution],[Disable response_time_distribution feature.]),
++    [with_response_time_distribution=$withval],
++    [with_response_time_distribution=yes]
++)
+ 
++if test "$with_response_time_distribution" = "yes"
++then
++  AC_DEFINE([HAVE_RESPONSE_TIME_DISTRIBUTION], [1], [If we want to have response_time_distribution])
++fi
+ 
+ # Include man pages, if desired, adapted to the configured parts.
+ if test X"$with_man" = Xyes
+--- /dev/null
++++ b/include/my_atomic.h
+@@ -0,0 +1,287 @@
++#ifndef MY_ATOMIC_INCLUDED
++#define MY_ATOMIC_INCLUDED
++
++/* Copyright (C) 2006 MySQL AB
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++/*
++  This header defines five atomic operations:
++
++  my_atomic_add#(&var, what)
++    'Fetch and Add'
++    add 'what' to *var, and return the old value of *var
++
++  my_atomic_fas#(&var, what)
++    'Fetch And Store'
++    store 'what' in *var, and return the old value of *var
++
++  my_atomic_cas#(&var, &old, new)
++    An odd variation of 'Compare And Set/Swap'
++    if *var is equal to *old, then store 'new' in *var, and return TRUE
++    otherwise store *var in *old, and return FALSE
++    Usually, &old should not be accessed if the operation is successful.
++
++  my_atomic_load#(&var)
++    return *var
++
++  my_atomic_store#(&var, what)
++    store 'what' in *var
++
++  '#' is substituted by a size suffix - 8, 16, 32, 64, or ptr
++  (e.g. my_atomic_add8, my_atomic_fas32, my_atomic_casptr).
++
++  NOTE This operations are not always atomic, so they always must be
++  enclosed in my_atomic_rwlock_rdlock(lock)/my_atomic_rwlock_rdunlock(lock)
++  or my_atomic_rwlock_wrlock(lock)/my_atomic_rwlock_wrunlock(lock).
++  Hint: if a code block makes intensive use of atomic ops, it make sense
++  to take/release rwlock once for the whole block, not for every statement.
++
++  On architectures where these operations are really atomic, rwlocks will
++  be optimized away.
++  8- and 16-bit atomics aren't implemented for windows (see generic-msvc.h),
++  but can be added, if necessary. 
++*/
++
++#ifndef my_atomic_rwlock_init
++
++#define intptr         void *
++/**
++  Currently we don't support 8-bit and 16-bit operations.
++  It can be added later if needed.
++*/
++#undef MY_ATOMIC_HAS_8_16
++
++#ifndef MY_ATOMIC_MODE_RWLOCKS
++/*
++ * Attempt to do atomic ops without locks
++ */
++#include "atomic/nolock.h"
++#endif
++
++#ifndef make_atomic_cas_body
++/* nolock.h was not able to generate even a CAS function, fall back */
++#include "atomic/rwlock.h"
++#endif
++
++/* define missing functions by using the already generated ones */
++#ifndef make_atomic_add_body
++#define make_atomic_add_body(S)                                 \
++  int ## S tmp=*a;                                              \
++  while (!my_atomic_cas ## S(a, &tmp, tmp+v)) ;                 \
++  v=tmp;
++#endif
++#ifndef make_atomic_fas_body
++#define make_atomic_fas_body(S)                                 \
++  int ## S tmp=*a;                                              \
++  while (!my_atomic_cas ## S(a, &tmp, v)) ;                     \
++  v=tmp;
++#endif
++#ifndef make_atomic_load_body
++#define make_atomic_load_body(S)                                \
++  ret= 0; /* avoid compiler warning */                          \
++  (void)(my_atomic_cas ## S(a, &ret, ret));
++#endif
++#ifndef make_atomic_store_body
++#define make_atomic_store_body(S)                               \
++  (void)(my_atomic_fas ## S (a, v));
++#endif
++
++/*
++  transparent_union doesn't work in g++
++  Bug ?
++
++  Darwin's gcc doesn't want to put pointers in a transparent_union
++  when built with -arch ppc64. Complains:
++  warning: 'transparent_union' attribute ignored
++*/
++#if defined(__GNUC__) && !defined(__cplusplus) && \
++      ! (defined(__APPLE__) && (defined(_ARCH_PPC64) ||defined (_ARCH_PPC)))
++/*
++  we want to be able to use my_atomic_xxx functions with
++  both signed and unsigned integers. But gcc will issue a warning
++  "passing arg N of `my_atomic_XXX' as [un]signed due to prototype"
++  if the signedness of the argument doesn't match the prototype, or
++  "pointer targets in passing argument N of my_atomic_XXX differ in signedness"
++  if int* is used where uint* is expected (or vice versa).
++  Let's shut these warnings up
++*/
++#define make_transparent_unions(S)                              \
++        typedef union {                                         \
++          int  ## S  i;                                         \
++          uint ## S  u;                                         \
++        } U_ ## S   __attribute__ ((transparent_union));        \
++        typedef union {                                         \
++          int  ## S volatile *i;                                \
++          uint ## S volatile *u;                                \
++        } Uv_ ## S   __attribute__ ((transparent_union));
++#define uintptr intptr
++make_transparent_unions(8)
++make_transparent_unions(16)
++make_transparent_unions(32)
++make_transparent_unions(64)
++make_transparent_unions(ptr)
++#undef uintptr
++#undef make_transparent_unions
++#define a       U_a.i
++#define cmp     U_cmp.i
++#define v       U_v.i
++#define set     U_set.i
++#else
++#define U_8    int8
++#define U_16   int16
++#define U_32   int32
++#define U_64   int64
++#define U_ptr  intptr
++#define Uv_8   int8
++#define Uv_16  int16
++#define Uv_32  int32
++#define Uv_64  int64
++#define Uv_ptr intptr
++#define U_a    volatile *a
++#define U_cmp  *cmp
++#define U_v    v
++#define U_set  set
++#endif /* __GCC__ transparent_union magic */
++
++#define make_atomic_cas(S)                                      \
++static inline int my_atomic_cas ## S(Uv_ ## S U_a,              \
++                            Uv_ ## S U_cmp, U_ ## S U_set)      \
++{                                                               \
++  int8 ret;                                                     \
++  make_atomic_cas_body(S);                                      \
++  return ret;                                                   \
++}
++
++#define make_atomic_add(S)                                      \
++static inline int ## S my_atomic_add ## S(                      \
++                        Uv_ ## S U_a, U_ ## S U_v)              \
++{                                                               \
++  make_atomic_add_body(S);                                      \
++  return v;                                                     \
++}
++
++#define make_atomic_fas(S)                                      \
++static inline int ## S my_atomic_fas ## S(                      \
++                         Uv_ ## S U_a, U_ ## S U_v)             \
++{                                                               \
++  make_atomic_fas_body(S);                                      \
++  return v;                                                     \
++}
++
++#define make_atomic_load(S)                                     \
++static inline int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
++{                                                               \
++  int ## S ret;                                                 \
++  make_atomic_load_body(S);                                     \
++  return ret;                                                   \
++}
++
++#define make_atomic_store(S)                                    \
++static inline void my_atomic_store ## S(                        \
++                     Uv_ ## S U_a, U_ ## S U_v)                 \
++{                                                               \
++  make_atomic_store_body(S);                                    \
++}
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_cas(8)
++make_atomic_cas(16)
++#endif
++make_atomic_cas(32)
++make_atomic_cas(64)
++make_atomic_cas(ptr)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_add(8)
++make_atomic_add(16)
++#endif
++make_atomic_add(32)
++make_atomic_add(64)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_load(8)
++make_atomic_load(16)
++#endif
++make_atomic_load(32)
++make_atomic_load(64)
++make_atomic_load(ptr)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_fas(8)
++make_atomic_fas(16)
++#endif
++make_atomic_fas(32)
++make_atomic_fas(64)
++make_atomic_fas(ptr)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_store(8)
++make_atomic_store(16)
++#endif
++make_atomic_store(32)
++make_atomic_store(64)
++make_atomic_store(ptr)
++
++#ifdef _atomic_h_cleanup_
++#include _atomic_h_cleanup_
++#undef _atomic_h_cleanup_
++#endif
++
++#undef U_8
++#undef U_16
++#undef U_32
++#undef U_64
++#undef U_ptr
++#undef Uv_8
++#undef Uv_16
++#undef Uv_32
++#undef Uv_64
++#undef Uv_ptr
++#undef a
++#undef cmp
++#undef v
++#undef set
++#undef U_a
++#undef U_cmp
++#undef U_v
++#undef U_set
++#undef make_atomic_add
++#undef make_atomic_cas
++#undef make_atomic_load
++#undef make_atomic_store
++#undef make_atomic_fas
++#undef make_atomic_add_body
++#undef make_atomic_cas_body
++#undef make_atomic_load_body
++#undef make_atomic_store_body
++#undef make_atomic_fas_body
++#undef intptr
++
++/*
++  the macro below defines (as an expression) the code that
++  will be run in spin-loops. Intel manuals recummend to have PAUSE there.
++  It is expected to be defined in include/atomic/ *.h files
++*/
++#ifndef LF_BACKOFF
++#define LF_BACKOFF (1)
++#endif
++
++#define MY_ATOMIC_OK       0
++#define MY_ATOMIC_NOT_1CPU 1
++extern int my_atomic_initialize();
++
++#endif
++
++#endif /* MY_ATOMIC_INCLUDED */
+--- a/mysys/Makefile.am
++++ b/mysys/Makefile.am
+@@ -51,7 +51,8 @@
+ 			rijndael.c my_aes.c sha1.c \
+ 			my_compare.c my_netware.c my_largepage.c \
+ 			my_memmem.c stacktrace.c \
+-			my_windac.c my_access.c base64.c my_libwrap.c
++			my_windac.c my_access.c base64.c my_libwrap.c \
++			my_atomic.c
+ 
+ if NEED_THREAD
+ # mf_keycache is used only in the server, so it is safe to leave the file
+--- a/mysys/CMakeLists.txt
++++ b/mysys/CMakeLists.txt
+@@ -41,7 +41,8 @@
+ 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c my_wincond.c
+ 				my_windac.c my_winthread.c my_write.c ptr_cmp.c queues.c stacktrace.c
+ 				rijndael.c safemalloc.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
+-				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c)
++				thr_rwlock.c tree.c typelib.c my_vle.c base64.c my_memmem.c my_getpagesize.c
++                                my_atomic.c)
+ 
+ IF(NOT SOURCE_SUBLIBS)
+   ADD_LIBRARY(mysys ${MYSYS_SOURCES})
+--- a/include/Makefile.am
++++ b/include/Makefile.am
+@@ -38,7 +38,10 @@
+ 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
+ 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
+ 			my_compare.h my_time.h my_vle.h my_user.h \
+-			my_libwrap.h my_stacktrace.h
++			my_libwrap.h my_stacktrace.h my_atomic.h \
++			atomic/gcc_builtins.h atomic/generic-msvc.h \
++			atomic/nolock.h atomic/rwlock.h atomic/solaris.h \
++			atomic/x86-gcc.h
+ 
+ EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
+ 
+--- /dev/null
++++ b/include/atomic/gcc_builtins.h
+@@ -0,0 +1,42 @@
++#ifndef ATOMIC_GCC_BUILTINS_INCLUDED
++#define ATOMIC_GCC_BUILTINS_INCLUDED
++
++/* Copyright (C) 2008 MySQL AB
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++#define make_atomic_add_body(S)                     \
++  v= __sync_fetch_and_add(a, v);
++#define make_atomic_fas_body(S)                     \
++  v= __sync_lock_test_and_set(a, v);
++#define make_atomic_cas_body(S)                     \
++  int ## S sav;                                     \
++  int ## S cmp_val= *cmp;                           \
++  sav= __sync_val_compare_and_swap(a, cmp_val, set);\
++  if (!(ret= (sav == cmp_val))) *cmp= sav
++
++#ifdef MY_ATOMIC_MODE_DUMMY
++#define make_atomic_load_body(S)   ret= *a
++#define make_atomic_store_body(S)  *a= v
++#define MY_ATOMIC_MODE "gcc-builtins-up"
++
++#else
++#define MY_ATOMIC_MODE "gcc-builtins-smp"
++#define make_atomic_load_body(S)                    \
++  ret= __sync_fetch_and_or(a, 0);
++#define make_atomic_store_body(S)                   \
++  (void) __sync_lock_test_and_set(a, v);
++#endif
++
++#endif /* ATOMIC_GCC_BUILTINS_INCLUDED */
+--- /dev/null
++++ b/include/atomic/generic-msvc.h
+@@ -0,0 +1,134 @@
++/* Copyright (C) 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++#ifndef _atomic_h_cleanup_
++#define _atomic_h_cleanup_ "atomic/generic-msvc.h"
++
++/*
++  We don't implement anything specific for MY_ATOMIC_MODE_DUMMY, always use
++  intrinsics.
++  8 and 16-bit atomics are not implemented, but it can be done if necessary.
++*/
++#undef MY_ATOMIC_HAS_8_16
++
++#include <windows.h>
++/*
++  x86 compilers (both VS2003 or VS2005) never use instrinsics, but generate 
++  function calls to kernel32 instead, even in the optimized build. 
++  We force intrinsics as described in MSDN documentation for 
++  _InterlockedCompareExchange.
++*/
++#ifdef _M_IX86
++
++#if (_MSC_VER >= 1500)
++#include <intrin.h>
++#else
++C_MODE_START
++/*Visual Studio 2003 and earlier do not have prototypes for atomic intrinsics*/
++LONG _InterlockedCompareExchange (LONG volatile *Target, LONG Value, LONG Comp);
++LONGLONG _InterlockedCompareExchange64 (LONGLONG volatile *Target,
++                                        LONGLONG Value, LONGLONG Comp);
++C_MODE_END
++
++#pragma intrinsic(_InterlockedCompareExchange)
++#pragma intrinsic(_InterlockedCompareExchange64)
++#endif
++
++#define InterlockedCompareExchange _InterlockedCompareExchange
++#define InterlockedCompareExchange64 _InterlockedCompareExchange64
++/*
++ No need to do something special for InterlockedCompareExchangePointer
++ as it is a #define to InterlockedCompareExchange. The same applies to
++ InterlockedExchangePointer. 
++*/
++#endif /*_M_IX86*/
++
++#define MY_ATOMIC_MODE "msvc-intrinsics"
++/* Implement using CAS on WIN32 */
++#define IL_COMP_EXCHG32(X,Y,Z)  \
++  InterlockedCompareExchange((volatile LONG *)(X),(Y),(Z))
++#define IL_COMP_EXCHG64(X,Y,Z)  \
++  InterlockedCompareExchange64((volatile LONGLONG *)(X), \
++                               (LONGLONG)(Y),(LONGLONG)(Z))
++#define IL_COMP_EXCHGptr        InterlockedCompareExchangePointer
++
++#define make_atomic_cas_body(S)                                 \
++  int ## S initial_cmp= *cmp;                                   \
++  int ## S initial_a= IL_COMP_EXCHG ## S (a, set, initial_cmp); \
++  if (!(ret= (initial_a == initial_cmp))) *cmp= initial_a;
++
++#ifndef _M_IX86
++/* Use full set of optimised functions on WIN64 */
++#define IL_EXCHG_ADD32(X,Y)     \
++  InterlockedExchangeAdd((volatile LONG *)(X),(Y))
++#define IL_EXCHG_ADD64(X,Y)     \
++  InterlockedExchangeAdd64((volatile LONGLONG *)(X),(LONGLONG)(Y))
++#define IL_EXCHG32(X,Y)         \
++  InterlockedExchange((volatile LONG *)(X),(Y))
++#define IL_EXCHG64(X,Y)         \
++  InterlockedExchange64((volatile LONGLONG *)(X),(LONGLONG)(Y))
++#define IL_EXCHGptr             InterlockedExchangePointer
++
++#define make_atomic_add_body(S) \
++  v= IL_EXCHG_ADD ## S (a, v)
++#define make_atomic_swap_body(S) \
++  v= IL_EXCHG ## S (a, v)
++#define make_atomic_load_body(S)       \
++  ret= 0; /* avoid compiler warning */ \
++  ret= IL_COMP_EXCHG ## S (a, ret, ret);
++#endif
++/*
++  my_yield_processor (equivalent of x86 PAUSE instruction) should be used
++  to improve performance on hyperthreaded CPUs. Intel recommends to use it in
++  spin loops also on non-HT machines to reduce power consumption (see e.g 
++  http://softwarecommunity.intel.com/articles/eng/2004.htm)
++
++  Running benchmarks for spinlocks implemented with InterlockedCompareExchange
++  and YieldProcessor shows that much better performance is achieved by calling
++  YieldProcessor in a loop - that is, yielding longer. On Intel boxes setting
++  loop count in the range 200-300 brought best results.
++ */
++#ifndef YIELD_LOOPS
++#define YIELD_LOOPS 200
++#endif
++
++static __inline int my_yield_processor()
++{
++  int i;
++  for(i=0; i<YIELD_LOOPS; i++)
++  {
++#if (_MSC_VER <= 1310)
++    /* On older compilers YieldProcessor is not available, use inline assembly*/
++    __asm { rep nop }
++#else
++    YieldProcessor();
++#endif
++  }
++  return 1;
++}
++
++#define LF_BACKOFF my_yield_processor()
++#else /* cleanup */
++
++#undef IL_EXCHG_ADD32
++#undef IL_EXCHG_ADD64
++#undef IL_COMP_EXCHG32
++#undef IL_COMP_EXCHG64
++#undef IL_COMP_EXCHGptr
++#undef IL_EXCHG32
++#undef IL_EXCHG64
++#undef IL_EXCHGptr
++
++#endif
+--- /dev/null
++++ b/include/atomic/nolock.h
+@@ -0,0 +1,69 @@
++#ifndef ATOMIC_NOLOCK_INCLUDED
++#define ATOMIC_NOLOCK_INCLUDED
++
++/* Copyright (C) 2006 MySQL AB
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++#if defined(__i386__) || defined(_MSC_VER) || defined(__x86_64__)   \
++    || defined(HAVE_GCC_ATOMIC_BUILTINS) \
++    || defined(HAVE_SOLARIS_ATOMIC)
++
++#  ifdef MY_ATOMIC_MODE_DUMMY
++#    define LOCK_prefix ""
++#  else
++#    define LOCK_prefix "lock"
++#  endif
++/*
++  We choose implementation as follows:
++  ------------------------------------
++  On Windows using Visual C++ the native implementation should be
++  preferrable. When using gcc we prefer the Solaris implementation
++  before the gcc because of stability preference, we choose gcc
++  builtins if available, otherwise we choose the somewhat broken
++  native x86 implementation. If neither Visual C++ or gcc we still
++  choose the Solaris implementation on Solaris (mainly for SunStudio
++  compilers).
++*/
++#  if defined(_MSV_VER)
++#    include "generic-msvc.h"
++#  elif __GNUC__
++#    if defined(HAVE_SOLARIS_ATOMIC)
++#      include "solaris.h"
++#    elif defined(HAVE_GCC_ATOMIC_BUILTINS)
++#      include "gcc_builtins.h"
++#    elif defined(__i386__) || defined(__x86_64__)
++#      include "x86-gcc.h"
++#    endif
++#  elif defined(HAVE_SOLARIS_ATOMIC)
++#    include "solaris.h"
++#  endif
++#endif
++
++#if defined(make_atomic_cas_body)
++/*
++  Type not used so minimal size (emptry struct has different size between C
++  and C++, zero-length array is gcc-specific).
++*/
++typedef char my_atomic_rwlock_t __attribute__ ((unused));
++#define my_atomic_rwlock_destroy(name)
++#define my_atomic_rwlock_init(name)
++#define my_atomic_rwlock_rdlock(name)
++#define my_atomic_rwlock_wrlock(name)
++#define my_atomic_rwlock_rdunlock(name)
++#define my_atomic_rwlock_wrunlock(name)
++
++#endif
++
++#endif /* ATOMIC_NOLOCK_INCLUDED */
+--- /dev/null
++++ b/include/atomic/rwlock.h
+@@ -0,0 +1,100 @@
++#ifndef ATOMIC_RWLOCK_INCLUDED
++#define ATOMIC_RWLOCK_INCLUDED
++
++/* Copyright (C) 2006 MySQL AB, 2009 Sun Microsystems, Inc.
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++#define MY_ATOMIC_MODE_RWLOCKS 1
++
++#ifdef MY_ATOMIC_MODE_DUMMY
++/*
++  the following can never be enabled by ./configure, one need to put #define in
++  a source to trigger the following warning. The resulting code will be broken,
++  it only makes sense to do it to see now test_atomic detects broken
++  implementations (another way is to run a UP build on an SMP box).
++*/
++#warning MY_ATOMIC_MODE_DUMMY and MY_ATOMIC_MODE_RWLOCKS are incompatible
++
++typedef char my_atomic_rwlock_t;
++
++#define my_atomic_rwlock_destroy(name)
++#define my_atomic_rwlock_init(name)
++#define my_atomic_rwlock_rdlock(name)
++#define my_atomic_rwlock_wrlock(name)
++#define my_atomic_rwlock_rdunlock(name)
++#define my_atomic_rwlock_wrunlock(name)
++#define MY_ATOMIC_MODE "dummy (non-atomic)"
++#else /* not MY_ATOMIC_MODE_DUMMY */
++
++typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
++
++#ifndef SAFE_MUTEX
++
++/*
++  we're using read-write lock macros but map them to mutex locks, and they're
++  faster. Still, having semantically rich API we can change the
++  underlying implementation, if necessary.
++*/
++#define my_atomic_rwlock_destroy(name)     pthread_mutex_destroy(& (name)->rw)
++#define my_atomic_rwlock_init(name)        pthread_mutex_init(& (name)->rw, 0)
++#define my_atomic_rwlock_rdlock(name)      pthread_mutex_lock(& (name)->rw)
++#define my_atomic_rwlock_wrlock(name)      pthread_mutex_lock(& (name)->rw)
++#define my_atomic_rwlock_rdunlock(name)    pthread_mutex_unlock(& (name)->rw)
++#define my_atomic_rwlock_wrunlock(name)    pthread_mutex_unlock(& (name)->rw)
++
++#else /* SAFE_MUTEX */
++
++/*
++  SAFE_MUTEX pollutes the compiling name space with macros
++  that alter pthread_mutex_t, pthread_mutex_init, etc.
++  Atomic operations should never use the safe mutex wrappers.
++  Unfortunately, there is no way to have both:
++  - safe mutex macros expanding pthread_mutex_lock to safe_mutex_lock
++  - my_atomic macros expanding to unmodified pthread_mutex_lock
++  inlined in the same compilation unit.
++  So, in case of SAFE_MUTEX, a function call is required.
++  Given that SAFE_MUTEX is a debugging facility,
++  this extra function call is not a performance concern for
++  production builds.
++*/
++C_MODE_START
++extern void plain_pthread_mutex_init(safe_mutex_t *);
++extern void plain_pthread_mutex_destroy(safe_mutex_t *);
++extern void plain_pthread_mutex_lock(safe_mutex_t *);
++extern void plain_pthread_mutex_unlock(safe_mutex_t *);
++C_MODE_END
++
++#define my_atomic_rwlock_destroy(name)     plain_pthread_mutex_destroy(&(name)->rw)
++#define my_atomic_rwlock_init(name)        plain_pthread_mutex_init(&(name)->rw)
++#define my_atomic_rwlock_rdlock(name)      plain_pthread_mutex_lock(&(name)->rw)
++#define my_atomic_rwlock_wrlock(name)      plain_pthread_mutex_lock(&(name)->rw)
++#define my_atomic_rwlock_rdunlock(name)    plain_pthread_mutex_unlock(&(name)->rw)
++#define my_atomic_rwlock_wrunlock(name)    plain_pthread_mutex_unlock(&(name)->rw)
++
++#endif /* SAFE_MUTEX */
++
++#define MY_ATOMIC_MODE "mutex"
++#ifndef MY_ATOMIC_MODE_RWLOCKS
++#define MY_ATOMIC_MODE_RWLOCKS 1
++#endif
++#endif
++
++#define make_atomic_add_body(S)     int ## S sav; sav= *a; *a+= v; v=sav;
++#define make_atomic_fas_body(S)     int ## S sav; sav= *a; *a= v; v=sav;
++#define make_atomic_cas_body(S)     if ((ret= (*a == *cmp))) *a= set; else *cmp=*a;
++#define make_atomic_load_body(S)    ret= *a;
++#define make_atomic_store_body(S)   *a= v;
++
++#endif /* ATOMIC_RWLOCK_INCLUDED */
+--- /dev/null
++++ b/include/atomic/solaris.h
+@@ -0,0 +1,72 @@
++/* Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++#ifndef _atomic_h_cleanup_
++#define _atomic_h_cleanup_ "atomic/solaris.h"
++
++#include <atomic.h>
++
++#define	MY_ATOMIC_MODE	"solaris-atomic"
++
++#if defined(__GNUC__)
++#define atomic_typeof(T,V)      __typeof__(V)
++#else
++#define atomic_typeof(T,V)      T
++#endif
++
++#define uintptr_t void *
++#define atomic_or_ptr_nv(X,Y) (void *)atomic_or_ulong_nv((volatile ulong_t *)X, Y)
++
++#define make_atomic_cas_body(S)                         \
++  atomic_typeof(uint ## S ## _t, *cmp) sav;             \
++  sav = atomic_cas_ ## S(                               \
++           (volatile uint ## S ## _t *)a,               \
++           (uint ## S ## _t)*cmp,                       \
++           (uint ## S ## _t)set);                       \
++  if (! (ret= (sav == *cmp)))                           \
++    *cmp= sav;
++
++#define make_atomic_add_body(S)                         \
++  int ## S nv;  /* new value */                         \
++  nv= atomic_add_ ## S ## _nv((volatile uint ## S ## _t *)a, v); \
++  v= nv - v
++
++/* ------------------------------------------------------------------------ */
++
++#ifdef MY_ATOMIC_MODE_DUMMY
++
++#define make_atomic_load_body(S)  ret= *a
++#define make_atomic_store_body(S)   *a= v
++
++#else /* MY_ATOMIC_MODE_DUMMY */
++
++#define make_atomic_load_body(S)                        \
++  ret= atomic_or_ ## S ## _nv((volatile uint ## S ## _t *)a, 0)
++
++#define make_atomic_store_body(S)                       \
++  (void) atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
++
++#endif
++
++#define make_atomic_fas_body(S)                        \
++  v= atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
++
++#else /* cleanup */
++
++#undef uintptr_t
++#undef atomic_or_ptr_nv
++
++#endif
++
+--- /dev/null
++++ b/include/atomic/x86-gcc.h
+@@ -0,0 +1,140 @@
++#ifndef ATOMIC_X86_GCC_INCLUDED
++#define ATOMIC_X86_GCC_INCLUDED
++
++/* Copyright (C) 2006 MySQL AB
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++/*
++  XXX 64-bit atomic operations can be implemented using
++  cmpxchg8b, if necessary. Though I've heard that not all 64-bit
++  architectures support double-word (128-bit) cas.
++*/
++
++/*
++  No special support of 8 and 16 bit operations are implemented here
++  currently.
++*/
++#undef MY_ATOMIC_HAS_8_AND_16
++
++#ifdef __x86_64__
++#  ifdef MY_ATOMIC_NO_XADD
++#    define MY_ATOMIC_MODE "gcc-amd64" LOCK_prefix "-no-xadd"
++#  else
++#    define MY_ATOMIC_MODE "gcc-amd64" LOCK_prefix
++#  endif
++#else
++#  ifdef MY_ATOMIC_NO_XADD
++#    define MY_ATOMIC_MODE "gcc-x86" LOCK_prefix "-no-xadd"
++#  else
++#    define MY_ATOMIC_MODE "gcc-x86" LOCK_prefix
++#  endif
++#endif
++
++/* fix -ansi errors while maintaining readability */
++#ifndef asm
++#define asm __asm__
++#endif
++
++#ifndef MY_ATOMIC_NO_XADD
++#define make_atomic_add_body(S)         make_atomic_add_body ## S
++#define make_atomic_cas_body(S)         make_atomic_cas_body ## S
++#endif
++
++#define make_atomic_add_body32                                  \
++  asm volatile (LOCK_prefix "; xadd %0, %1;"                    \
++                : "+r" (v), "=m" (*a)                           \
++                : "m" (*a)                                      \
++                : "memory")
++
++#define make_atomic_cas_body32                                  \
++  __typeof__(*cmp) sav;                                         \
++  asm volatile (LOCK_prefix "; cmpxchg %3, %0; setz %2;"	\
++                : "=m" (*a), "=a" (sav), "=q" (ret)             \
++                : "r" (set), "m" (*a), "a" (*cmp)               \
++                : "memory");                                    \
++  if (!ret)                                                     \
++    *cmp= sav
++
++#ifdef __x86_64__
++#define make_atomic_add_body64 make_atomic_add_body32
++#define make_atomic_cas_body64 make_atomic_cas_body32
++
++#define make_atomic_fas_body(S)                                 \
++  asm volatile ("xchg %0, %1;"                                  \
++                : "+r" (v), "=m" (*a)                           \
++                : "m" (*a)                                      \
++                : "memory")
++
++/*
++  Actually 32/64-bit reads/writes are always atomic on x86_64,
++  nonetheless issue memory barriers as appropriate.
++*/
++#define make_atomic_load_body(S)                                \
++  /* Serialize prior load and store operations. */              \
++  asm volatile ("mfence" ::: "memory");                         \
++  ret= *a;                                                      \
++  /* Prevent compiler from reordering instructions. */          \
++  asm volatile ("" ::: "memory")
++#define make_atomic_store_body(S)                               \
++  asm volatile ("; xchg %0, %1;"                                \
++                : "=m" (*a), "+r" (v)                           \
++                : "m" (*a)                                      \
++                : "memory")
++
++#else
++/*
++  Use default implementations of 64-bit operations since we solved
++  the 64-bit problem on 32-bit platforms for CAS, no need to solve it
++  once more for ADD, LOAD, STORE and FAS as well.
++  Since we already added add32 support, we need to define add64
++  here, but we haven't defined fas, load and store at all, so
++  we can fallback on default implementations.
++*/
++#define make_atomic_add_body64                                  \
++  int64 tmp=*a;                                                 \
++  while (!my_atomic_cas64(a, &tmp, tmp+v)) ;                    \
++  v=tmp;
++
++/*
++  cmpxchg8b works on both 32-bit platforms and 64-bit platforms but
++  the code here is only used on 32-bit platforms, on 64-bit
++  platforms the much simpler make_atomic_cas_body32 will work
++  fine.
++*/
++#define make_atomic_cas_body64                                     \
++  asm ("movl %%edi, -4(%%esp);"                                    \
++       "leal %0, %%edi;"                                           \
++       "xchgl %%ebx, %%esi;"                                       \
++       LOCK_prefix "; cmpxchg8b (%%edi);"                          \
++       "movl %%esi, %%ebx;"                                        \
++       "movl -4(%%esp), %%edi;"                                    \
++       "setz %1;"                                                  \
++       : "+m" (*a), "=q" (ret), "+A" (*cmp)                        \
++       : "S" ((int32)(set & 0xFFFFFFFF)), "c" ((int32)(set >> 32)) \
++       : "flags")
++#endif
++
++/*
++  The implementation of make_atomic_cas_body32 is adaptable to
++  the OS word size, so on 64-bit platforms it will automatically
++  adapt to 64-bits and so it will work also on 64-bit platforms
++*/
++#define make_atomic_cas_bodyptr make_atomic_cas_body32
++
++#ifdef MY_ATOMIC_MODE_DUMMY
++#define make_atomic_load_body(S)   ret=*a
++#define make_atomic_store_body(S)  *a=v
++#endif
++#endif /* ATOMIC_X86_GCC_INCLUDED */
+--- /dev/null
++++ b/mysys/my_atomic.c
+@@ -0,0 +1,289 @@
++#ifndef MY_ATOMIC_INCLUDED
++#define MY_ATOMIC_INCLUDED
++
++/* Copyright (C) 2006 MySQL AB
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; version 2 of the License.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
++
++/*
++  This header defines five atomic operations:
++
++  my_atomic_add#(&var, what)
++    'Fetch and Add'
++    add 'what' to *var, and return the old value of *var
++
++  my_atomic_fas#(&var, what)
++    'Fetch And Store'
++    store 'what' in *var, and return the old value of *var
++
++  my_atomic_cas#(&var, &old, new)
++    An odd variation of 'Compare And Set/Swap'
++    if *var is equal to *old, then store 'new' in *var, and return TRUE
++    otherwise store *var in *old, and return FALSE
++    Usually, &old should not be accessed if the operation is successful.
++
++  my_atomic_load#(&var)
++    return *var
++
++  my_atomic_store#(&var, what)
++    store 'what' in *var
++
++  '#' is substituted by a size suffix - 8, 16, 32, 64, or ptr
++  (e.g. my_atomic_add8, my_atomic_fas32, my_atomic_casptr).
++
++  NOTE This operations are not always atomic, so they always must be
++  enclosed in my_atomic_rwlock_rdlock(lock)/my_atomic_rwlock_rdunlock(lock)
++  or my_atomic_rwlock_wrlock(lock)/my_atomic_rwlock_wrunlock(lock).
++  Hint: if a code block makes intensive use of atomic ops, it make sense
++  to take/release rwlock once for the whole block, not for every statement.
++
++  On architectures where these operations are really atomic, rwlocks will
++  be optimized away.
++  8- and 16-bit atomics aren't implemented for windows (see generic-msvc.h),
++  but can be added, if necessary. 
++*/
++
++#include "my_global.h"
++
++#ifndef my_atomic_rwlock_init
++
++#define intptr         void *
++/**
++  Currently we don't support 8-bit and 16-bit operations.
++  It can be added later if needed.
++*/
++#undef MY_ATOMIC_HAS_8_16
++
++#ifndef MY_ATOMIC_MODE_RWLOCKS
++/*
++ * Attempt to do atomic ops without locks
++ */
++#include "atomic/nolock.h"
++#endif
++
++#ifndef make_atomic_cas_body
++/* nolock.h was not able to generate even a CAS function, fall back */
++#include "atomic/rwlock.h"
++#endif
++
++/* define missing functions by using the already generated ones */
++#ifndef make_atomic_add_body
++#define make_atomic_add_body(S)                                 \
++  int ## S tmp=*a;                                              \
++  while (!my_atomic_cas ## S(a, &tmp, tmp+v)) ;                 \
++  v=tmp;
++#endif
++#ifndef make_atomic_fas_body
++#define make_atomic_fas_body(S)                                 \
++  int ## S tmp=*a;                                              \
++  while (!my_atomic_cas ## S(a, &tmp, v)) ;                     \
++  v=tmp;
++#endif
++#ifndef make_atomic_load_body
++#define make_atomic_load_body(S)                                \
++  ret= 0; /* avoid compiler warning */                          \
++  (void)(my_atomic_cas ## S(a, &ret, ret));
++#endif
++#ifndef make_atomic_store_body
++#define make_atomic_store_body(S)                               \
++  (void)(my_atomic_fas ## S (a, v));
++#endif
++
++/*
++  transparent_union doesn't work in g++
++  Bug ?
++
++  Darwin's gcc doesn't want to put pointers in a transparent_union
++  when built with -arch ppc64. Complains:
++  warning: 'transparent_union' attribute ignored
++*/
++#if defined(__GNUC__) && !defined(__cplusplus) && \
++      ! (defined(__APPLE__) && (defined(_ARCH_PPC64) ||defined (_ARCH_PPC)))
++/*
++  we want to be able to use my_atomic_xxx functions with
++  both signed and unsigned integers. But gcc will issue a warning
++  "passing arg N of `my_atomic_XXX' as [un]signed due to prototype"
++  if the signedness of the argument doesn't match the prototype, or
++  "pointer targets in passing argument N of my_atomic_XXX differ in signedness"
++  if int* is used where uint* is expected (or vice versa).
++  Let's shut these warnings up
++*/
++#define make_transparent_unions(S)                              \
++        typedef union {                                         \
++          int  ## S  i;                                         \
++          uint ## S  u;                                         \
++        } U_ ## S   __attribute__ ((transparent_union));        \
++        typedef union {                                         \
++          int  ## S volatile *i;                                \
++          uint ## S volatile *u;                                \
++        } Uv_ ## S   __attribute__ ((transparent_union));
++#define uintptr intptr
++make_transparent_unions(8)
++make_transparent_unions(16)
++make_transparent_unions(32)
++make_transparent_unions(64)
++make_transparent_unions(ptr)
++#undef uintptr
++#undef make_transparent_unions
++#define a       U_a.i
++#define cmp     U_cmp.i
++#define v       U_v.i
++#define set     U_set.i
++#else
++#define U_8    int8
++#define U_16   int16
++#define U_32   int32
++#define U_64   int64
++#define U_ptr  intptr
++#define Uv_8   int8
++#define Uv_16  int16
++#define Uv_32  int32
++#define Uv_64  int64
++#define Uv_ptr intptr
++#define U_a    volatile *a
++#define U_cmp  *cmp
++#define U_v    v
++#define U_set  set
++#endif /* __GCC__ transparent_union magic */
++
++#define make_atomic_cas(S)                                      \
++static inline int my_atomic_cas ## S(Uv_ ## S U_a,              \
++                            Uv_ ## S U_cmp, U_ ## S U_set)      \
++{                                                               \
++  int8 ret;                                                     \
++  make_atomic_cas_body(S);                                      \
++  return ret;                                                   \
++}
++
++#define make_atomic_add(S)                                      \
++static inline int ## S my_atomic_add ## S(                      \
++                        Uv_ ## S U_a, U_ ## S U_v)              \
++{                                                               \
++  make_atomic_add_body(S);                                      \
++  return v;                                                     \
++}
++
++#define make_atomic_fas(S)                                      \
++static inline int ## S my_atomic_fas ## S(                      \
++                         Uv_ ## S U_a, U_ ## S U_v)             \
++{                                                               \
++  make_atomic_fas_body(S);                                      \
++  return v;                                                     \
++}
++
++#define make_atomic_load(S)                                     \
++static inline int ## S my_atomic_load ## S(Uv_ ## S U_a)        \
++{                                                               \
++  int ## S ret;                                                 \
++  make_atomic_load_body(S);                                     \
++  return ret;                                                   \
++}
++
++#define make_atomic_store(S)                                    \
++static inline void my_atomic_store ## S(                        \
++                     Uv_ ## S U_a, U_ ## S U_v)                 \
++{                                                               \
++  make_atomic_store_body(S);                                    \
++}
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_cas(8)
++make_atomic_cas(16)
++#endif
++make_atomic_cas(32)
++make_atomic_cas(64)
++make_atomic_cas(ptr)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_add(8)
++make_atomic_add(16)
++#endif
++make_atomic_add(32)
++make_atomic_add(64)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_load(8)
++make_atomic_load(16)
++#endif
++make_atomic_load(32)
++make_atomic_load(64)
++make_atomic_load(ptr)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_fas(8)
++make_atomic_fas(16)
++#endif
++make_atomic_fas(32)
++make_atomic_fas(64)
++make_atomic_fas(ptr)
++
++#ifdef MY_ATOMIC_HAS_8_16
++make_atomic_store(8)
++make_atomic_store(16)
++#endif
++make_atomic_store(32)
++make_atomic_store(64)
++make_atomic_store(ptr)
++
++#ifdef _atomic_h_cleanup_
++#include _atomic_h_cleanup_
++#undef _atomic_h_cleanup_
++#endif
++
++#undef U_8
++#undef U_16
++#undef U_32
++#undef U_64
++#undef U_ptr
++#undef Uv_8
++#undef Uv_16
++#undef Uv_32
++#undef Uv_64
++#undef Uv_ptr
++#undef a
++#undef cmp
++#undef v
++#undef set
++#undef U_a
++#undef U_cmp
++#undef U_v
++#undef U_set
++#undef make_atomic_add
++#undef make_atomic_cas
++#undef make_atomic_load
++#undef make_atomic_store
++#undef make_atomic_fas
++#undef make_atomic_add_body
++#undef make_atomic_cas_body
++#undef make_atomic_load_body
++#undef make_atomic_store_body
++#undef make_atomic_fas_body
++#undef intptr
++
++/*
++  the macro below defines (as an expression) the code that
++  will be run in spin-loops. Intel manuals recummend to have PAUSE there.
++  It is expected to be defined in include/atomic/ *.h files
++*/
++#ifndef LF_BACKOFF
++#define LF_BACKOFF (1)
++#endif
++
++#define MY_ATOMIC_OK       0
++#define MY_ATOMIC_NOT_1CPU 1
++extern int my_atomic_initialize();
++
++#endif
++
++#endif /* MY_ATOMIC_INCLUDED */

@@ -1,0 +1,26 @@
+--- a/mysql-test/suite/innodb_plugin/r/innodb_bug47167.result
++++ b/mysql-test/suite/innodb_plugin/r/innodb_bug47167.result
+@@ -11,9 +11,9 @@
+ @@innodb_file_format_check
+ Barracuda
+ set global innodb_file_format_check = @old_innodb_file_format_check;
+-select @@innodb_file_format_check;
+-@@innodb_file_format_check
+-Antelope
++select @@innodb_file_format_check = @old_innodb_file_format_check;
++@@innodb_file_format_check = @old_innodb_file_format_check
++1
+ set global innodb_file_format_check = cheetah;
+ ERROR HY000: Incorrect arguments to SET
+ set global innodb_file_format_check = Bear;
+--- a/mysql-test/suite/innodb_plugin/t/innodb_bug47167.test
++++ b/mysql-test/suite/innodb_plugin/t/innodb_bug47167.test
+@@ -27,7 +27,7 @@
+ set global innodb_file_format_check = @old_innodb_file_format_check;
+ 
+ # Check whether 'innodb_file_format_check' get its original value.
+-select @@innodb_file_format_check;
++select @@innodb_file_format_check = @old_innodb_file_format_check;
+ 
+ # Following are negative tests, all should fail.
+ --disable_warnings

@@ -1,6 +1,14 @@
 --- a/mysql-test/suite/innodb_plugin/r/innodb_bug47167.result
 +++ b/mysql-test/suite/innodb_plugin/r/innodb_bug47167.result
-@@ -11,9 +11,9 @@
+@@ -1,7 +1,4 @@
+ set @old_innodb_file_format_check=@@innodb_file_format_check;
+-select @old_innodb_file_format_check;
+-@old_innodb_file_format_check
+-Antelope
+ set global innodb_file_format_check = Barracuda;
+ select @@innodb_file_format_check;
+ @@innodb_file_format_check
+@@ -11,9 +8,9 @@
  @@innodb_file_format_check
  Barracuda
  set global innodb_file_format_check = @old_innodb_file_format_check;
@@ -15,7 +23,17 @@
  set global innodb_file_format_check = Bear;
 --- a/mysql-test/suite/innodb_plugin/t/innodb_bug47167.test
 +++ b/mysql-test/suite/innodb_plugin/t/innodb_bug47167.test
-@@ -27,7 +27,7 @@
+@@ -9,9 +9,6 @@
+ # 'old_innodb_file_format_check'
+ set @old_innodb_file_format_check=@@innodb_file_format_check;
+ 
+-# @old_innodb_file_format_check shall have the value of 'Antelope'
+-select @old_innodb_file_format_check;
+-
+ # Reset the value in 'innodb_file_format_check' to 'Barracuda'
+ set global innodb_file_format_check = Barracuda;
+ 
+@@ -27,7 +24,7 @@
  set global innodb_file_format_check = @old_innodb_file_format_check;
  
  # Check whether 'innodb_file_format_check' get its original value.

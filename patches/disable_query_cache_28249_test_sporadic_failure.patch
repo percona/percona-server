@@ -1,0 +1,8 @@
+--- a/mysql-test/t/disabled.def
++++ b/mysql-test/t/disabled.def
+@@ -12,4 +12,4 @@
+ kill                     : Bug#11748945 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
+ read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exists
+ main.log_tables-big      : Bug#11756699 2010-11-15 mattiasj report already exists
+-
++main.query_cache_28249   : http://bugs.mysql.com/bug.php?id=41098

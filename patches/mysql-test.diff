@@ -1,6 +1,5 @@
-diff -ruN a/mysql-test/include/index_merge2.inc b/mysql-test/include/index_merge2.inc
---- a/mysql-test/include/index_merge2.inc	2011-04-12 16:38:39.000000000 +0400
-+++ b/mysql-test/include/index_merge2.inc	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/include/index_merge2.inc
++++ b/mysql-test/include/index_merge2.inc
 @@ -122,12 +122,14 @@
  analyze table t1;
  select count(*) from t1;
@@ -16,9 +15,8 @@ diff -ruN a/mysql-test/include/index_merge2.inc b/mysql-test/include/index_merge
  explain select count(*) from t1 where
    key1a = 2 and key1b is null and key3a = 2 and key3b is null;
  
-diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
---- a/mysql-test/r/create.result	2011-04-12 16:38:08.000000000 +0400
-+++ b/mysql-test/r/create.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/create.result
++++ b/mysql-test/r/create.result
 @@ -1743,7 +1743,8 @@
    `COMMAND` varchar(16) NOT NULL DEFAULT '',
    `TIME` int(7) NOT NULL DEFAULT '0',
@@ -39,9 +37,8 @@ diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
  ) ENGINE=MyISAM DEFAULT CHARSET=utf8
  drop table t1;
  create table t1 like information_schema.character_sets;
-diff -ruN a/mysql-test/r/index_merge_innodb.result b/mysql-test/r/index_merge_innodb.result
---- a/mysql-test/r/index_merge_innodb.result	2011-04-12 16:38:17.000000000 +0400
-+++ b/mysql-test/r/index_merge_innodb.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/index_merge_innodb.result
++++ b/mysql-test/r/index_merge_innodb.result
 @@ -111,7 +111,7 @@
  explain select count(*) from t1 where
  key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
@@ -60,9 +57,8 @@ diff -ruN a/mysql-test/r/index_merge_innodb.result b/mysql-test/r/index_merge_in
  select count(*) from t1 where
  key1a = 2 and key1b is null and key3a = 2 and key3b is null;
  count(*)
-diff -ruN a/mysql-test/r/index_merge_myisam.result b/mysql-test/r/index_merge_myisam.result
---- a/mysql-test/r/index_merge_myisam.result	2011-04-12 16:38:17.000000000 +0400
-+++ b/mysql-test/r/index_merge_myisam.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/index_merge_myisam.result
++++ b/mysql-test/r/index_merge_myisam.result
 @@ -945,7 +945,7 @@
  explain select count(*) from t1 where
  key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
@@ -81,9 +77,8 @@ diff -ruN a/mysql-test/r/index_merge_myisam.result b/mysql-test/r/index_merge_my
  select count(*) from t1 where
  key1a = 2 and key1b is null and key3a = 2 and key3b is null;
  count(*)
-diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_schema.result
---- a/mysql-test/r/information_schema.result	2011-04-12 16:38:17.000000000 +0400
-+++ b/mysql-test/r/information_schema.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/information_schema.result
++++ b/mysql-test/r/information_schema.result
 @@ -44,14 +44,17 @@
  select * from v1;
  c
@@ -440,9 +435,8 @@ diff -ruN a/mysql-test/r/information_schema.result b/mysql-test/r/information_sc
  create table t1(f1 int);
  create view v1 as select f1+1 as a from t1;
  create table t2 (f1 int, f2 int);
-diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information_schema_db.result
---- a/mysql-test/r/information_schema_db.result	2011-04-12 16:38:17.000000000 +0400
-+++ b/mysql-test/r/information_schema_db.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/information_schema_db.result
++++ b/mysql-test/r/information_schema_db.result
 @@ -6,14 +6,17 @@
  show tables;
  Tables_in_information_schema
@@ -509,9 +503,8 @@ diff -ruN a/mysql-test/r/information_schema_db.result b/mysql-test/r/information
  TRIGGERS
  create database `inf%`;
  create database mbase;
-diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
---- a/mysql-test/r/mysqlshow.result	2011-04-12 16:38:22.000000000 +0400
-+++ b/mysql-test/r/mysqlshow.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/mysqlshow.result
++++ b/mysql-test/r/mysqlshow.result
 @@ -80,14 +80,17 @@
  |                Tables                 |
  +---------------------------------------+
@@ -627,9 +620,8 @@ diff -ruN a/mysql-test/r/mysqlshow.result b/mysql-test/r/mysqlshow.result
  +---------------------------------------+
  Wildcard: inf_rmation_schema
  +--------------------+
-diff -ruN a/mysql-test/r/profiling.result b/mysql-test/r/profiling.result
---- a/mysql-test/r/profiling.result	2011-04-12 16:38:26.000000000 +0400
-+++ b/mysql-test/r/profiling.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/profiling.result
++++ b/mysql-test/r/profiling.result
 @@ -6,6 +6,8 @@
  Variable_name	Value
  profiling	OFF
@@ -656,9 +648,8 @@ diff -ruN a/mysql-test/r/profiling.result b/mysql-test/r/profiling.result
  select @@profiling;
  @@profiling
  1
-diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
---- a/mysql-test/r/select.result	2011-04-12 16:38:27.000000000 +0400
-+++ b/mysql-test/r/select.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/select.result
++++ b/mysql-test/r/select.result
 @@ -2196,10 +2196,10 @@
  select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
  a	a
@@ -672,9 +663,8 @@ diff -ruN a/mysql-test/r/select.result b/mysql-test/r/select.result
  3	3
  select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
  a	a
-diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/innodb.result
---- a/mysql-test/suite/innodb/r/innodb.result	2011-04-12 16:40:57.000000000 +0400
-+++ b/mysql-test/suite/innodb/r/innodb.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/r/innodb.result
++++ b/mysql-test/suite/innodb/r/innodb.result
 @@ -691,14 +691,16 @@
  select count(*) from t1 where sca_pic is null;
  count(*)
@@ -764,9 +754,8 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
  show create table t1;
  Table	Create Table
  t1	CREATE TABLE `t1` (
-diff -ruN a/mysql-test/suite/innodb/r/innodb_bug44369.result b/mysql-test/suite/innodb/r/innodb_bug44369.result
---- a/mysql-test/suite/innodb/r/innodb_bug44369.result	2011-04-12 16:40:58.000000000 +0400
-+++ b/mysql-test/suite/innodb/r/innodb_bug44369.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/r/innodb_bug44369.result
++++ b/mysql-test/suite/innodb/r/innodb_bug44369.result
 @@ -1,14 +1,14 @@
  create table bug44369 (DB_ROW_ID int) engine=innodb;
 -ERROR HY000: Can't create table 'test.bug44369' (errno: -1)
@@ -787,9 +776,8 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb_bug44369.result b/mysql-test/suite/
 -Warning	1005	Error creating table 'test/bug44369' with column name 'db_TRX_Id'. 'db_TRX_Id' is a reserved name. Please try to re-create the table with a different column name.
 +Error	1166	Incorrect column name 'db_TRX_Id'
  Error	1005	Can't create table 'test.bug44369' (errno: -1)
-diff -ruN a/mysql-test/suite/innodb/r/innodb_bug46000.result b/mysql-test/suite/innodb/r/innodb_bug46000.result
---- a/mysql-test/suite/innodb/r/innodb_bug46000.result	2011-04-12 16:40:58.000000000 +0400
-+++ b/mysql-test/suite/innodb/r/innodb_bug46000.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/r/innodb_bug46000.result
++++ b/mysql-test/suite/innodb/r/innodb_bug46000.result
 @@ -1,17 +1,19 @@
  create table bug46000(`id` int,key `GEN_CLUST_INDEX`(`id`))engine=innodb;
 -ERROR HY000: Can't create table 'test.bug46000' (errno: -1)
@@ -816,9 +804,8 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb_bug46000.result b/mysql-test/suite/
 +Error	1030	Got error -1 from storage engine
  create index idx on bug46000(id);
  drop table bug46000;
-diff -ruN a/mysql-test/suite/innodb/r/innodb_misc1.result b/mysql-test/suite/innodb/r/innodb_misc1.result
---- a/mysql-test/suite/innodb/r/innodb_misc1.result	2011-04-12 16:40:59.000000000 +0400
-+++ b/mysql-test/suite/innodb/r/innodb_misc1.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/r/innodb_misc1.result
++++ b/mysql-test/suite/innodb/r/innodb_misc1.result
 @@ -659,7 +659,7 @@
  commit;
  drop table t1, t2, t3, t5, t6, t8, t9;
@@ -836,9 +823,8 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb_misc1.result b/mysql-test/suite/inn
  CREATE TABLE t1 (
  c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
  c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),
-diff -ruN a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test b/mysql-test/suite/innodb/t/innodb-autoinc-44030.test
---- a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test	2011-04-12 16:40:54.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb-autoinc-44030.test	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test
++++ b/mysql-test/suite/innodb/t/innodb-autoinc-44030.test
 @@ -6,6 +6,8 @@
  drop table if exists t1;
  --enable_warnings
@@ -855,9 +841,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb-autoinc-44030.test b/mysql-test/sui
 +
 +-- disable_query_log
 +eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
-diff -ruN a/mysql-test/suite/innodb/t/innodb-autoinc.test b/mysql-test/suite/innodb/t/innodb-autoinc.test
---- a/mysql-test/suite/innodb/t/innodb-autoinc.test	2011-04-12 16:40:54.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb-autoinc.test	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb-autoinc.test
++++ b/mysql-test/suite/innodb/t/innodb-autoinc.test
 @@ -6,6 +6,8 @@
  drop table if exists t1;
  --enable_warnings
@@ -874,9 +859,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb-autoinc.test b/mysql-test/suite/inn
 +
 +-- disable_query_log
 +eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
-diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/innodb.test
---- a/mysql-test/suite/innodb/t/innodb.test	2011-04-12 16:40:54.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb.test	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb.test
++++ b/mysql-test/suite/innodb/t/innodb.test
 @@ -427,11 +427,13 @@
  select count(*) from t1 where sca_code = 'PD';
  select count(*) from t1 where sca_code <= 'PD';
@@ -926,9 +910,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/in
  
  # Test for innodb_thread_concurrency variable
  SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
-diff -ruN a/mysql-test/suite/innodb/t/innodb_bug44369.test b/mysql-test/suite/innodb/t/innodb_bug44369.test
---- a/mysql-test/suite/innodb/t/innodb_bug44369.test	2011-04-12 16:40:55.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb_bug44369.test	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb_bug44369.test
++++ b/mysql-test/suite/innodb/t/innodb_bug44369.test
 @@ -6,16 +6,16 @@
  --source include/have_innodb.inc
  
@@ -949,9 +932,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb_bug44369.test b/mysql-test/suite/in
  create table bug44369 (db_TRX_Id int) engine=innodb;
  
  show warnings;
-diff -ruN a/mysql-test/suite/innodb/t/innodb_bug46000.test b/mysql-test/suite/innodb/t/innodb_bug46000.test
---- a/mysql-test/suite/innodb/t/innodb_bug46000.test	2011-04-12 16:40:55.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb_bug46000.test	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb_bug46000.test
++++ b/mysql-test/suite/innodb/t/innodb_bug46000.test
 @@ -7,11 +7,11 @@
  
  # This 'create table' operation should fail because of
@@ -975,9 +957,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb_bug46000.test b/mysql-test/suite/in
  create index GEN_CLUST_INDEX on bug46000(id);
  
  --replace_regex /'[^']*test.#sql-[0-9a-f_]*'/'#sql-temporary'/
-diff -ruN a/mysql-test/suite/innodb/t/innodb_misc1.test b/mysql-test/suite/innodb/t/innodb_misc1.test
---- a/mysql-test/suite/innodb/t/innodb_misc1.test	2011-04-12 16:40:56.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb_misc1.test	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb_misc1.test
++++ b/mysql-test/suite/innodb/t/innodb_misc1.test
 @@ -904,7 +904,7 @@
  drop table t1, t2, t3, t5, t6, t8, t9;
  
@@ -996,9 +977,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb_misc1.test b/mysql-test/suite/innod
  --error 1118
  CREATE TABLE t1 (
  	c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
-diff -ruN a/mysql-test/r/query_cache.result b/mysql-test/r/query_cache.result
---- a/mysql-test/r/query_cache.result	2011-04-12 16:38:26.000000000 +0400
-+++ b/mysql-test/r/query_cache.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/r/query_cache.result
++++ b/mysql-test/r/query_cache.result
 @@ -1708,20 +1708,3 @@
  DROP TABLE t1;
  SET GLOBAL query_cache_size= default;
@@ -1020,9 +1000,8 @@ diff -ruN a/mysql-test/r/query_cache.result b/mysql-test/r/query_cache.result
 -DROP TABLE t1;
 -SET GLOBAL query_cache_size= default;
 -End of 5.1 tests
-diff -ruN a/mysql-test/t/query_cache.test b/mysql-test/t/query_cache.test
---- a/mysql-test/t/query_cache.test	2011-04-12 16:37:57.000000000 +0400
-+++ b/mysql-test/t/query_cache.test	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/t/query_cache.test
++++ b/mysql-test/t/query_cache.test
 @@ -1289,23 +1289,3 @@
  SET GLOBAL query_cache_size= default;
  
@@ -1047,9 +1026,8 @@ diff -ruN a/mysql-test/t/query_cache.test b/mysql-test/t/query_cache.test
 -
 ---echo End of 5.1 tests
 -
-diff -ruN a/mysql-test/suite/funcs_1/r/is_columns_is.result b/mysql-test/suite/funcs_1/r/is_columns_is.result
---- a/mysql-test/suite/funcs_1/r/is_columns_is.result	2011-04-12 16:39:10.000000000 +0400
-+++ b/mysql-test/suite/funcs_1/r/is_columns_is.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/funcs_1/r/is_columns_is.result
++++ b/mysql-test/suite/funcs_1/r/is_columns_is.result
 @@ -7,6 +7,27 @@
  NULL	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	2		NO	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
  NULL	information_schema	CHARACTER_SETS	DESCRIPTION	3		NO	varchar	60	180	NULL	NULL	utf8	utf8_general_ci	varchar(60)			select	
@@ -1560,9 +1538,8 @@ diff -ruN a/mysql-test/suite/funcs_1/r/is_columns_is.result b/mysql-test/suite/f
 +3.0000	information_schema	XTRADB_ENHANCEMENTS	description	varchar	255	765	utf8	utf8_general_ci	varchar(255)
 +3.0000	information_schema	XTRADB_ENHANCEMENTS	comment	varchar	100	300	utf8	utf8_general_ci	varchar(100)
 +3.0000	information_schema	XTRADB_ENHANCEMENTS	link	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-diff -ruN a/mysql-test/suite/funcs_1/r/is_engines_innodb.result b/mysql-test/suite/funcs_1/r/is_engines_innodb.result
---- a/mysql-test/suite/funcs_1/r/is_engines_innodb.result	2011-04-12 16:39:11.000000000 +0400
-+++ b/mysql-test/suite/funcs_1/r/is_engines_innodb.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/funcs_1/r/is_engines_innodb.result
++++ b/mysql-test/suite/funcs_1/r/is_engines_innodb.result
 @@ -2,7 +2,7 @@
  WHERE ENGINE = 'InnoDB';
  ENGINE	InnoDB
@@ -1572,9 +1549,8 @@ diff -ruN a/mysql-test/suite/funcs_1/r/is_engines_innodb.result b/mysql-test/sui
  TRANSACTIONS	YES
  XA	YES
  SAVEPOINTS	YES
-diff -ruN a/mysql-test/suite/funcs_1/r/is_tables_is.result b/mysql-test/suite/funcs_1/r/is_tables_is.result
---- a/mysql-test/suite/funcs_1/r/is_tables_is.result	2011-04-12 16:39:12.000000000 +0400
-+++ b/mysql-test/suite/funcs_1/r/is_tables_is.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/funcs_1/r/is_tables_is.result
++++ b/mysql-test/suite/funcs_1/r/is_tables_is.result
 @@ -38,6 +38,29 @@
  Separator	-----------------------------------------------------
  TABLE_CATALOG	NULL
@@ -2189,10 +2165,23 @@ diff -ruN a/mysql-test/suite/funcs_1/r/is_tables_is.result b/mysql-test/suite/fu
  TABLE_TYPE	SYSTEM VIEW
  ENGINE	MyISAM
  VERSION	10
-@@ -1272,6 +1364,1110 @@
- TABLE_COMMENT	#TC#
- user_comment	
- Separator	-----------------------------------------------------
+@@ -1259,6 +1351,1110 @@
+ TABLE_ROWS	#TBLR#
+ AVG_ROW_LENGTH	#ARL#
+ DATA_LENGTH	#DL#
++MAX_DATA_LENGTH	#MDL#
++INDEX_LENGTH	#IL#
++DATA_FREE	#DF#
++AUTO_INCREMENT	NULL
++CREATE_TIME	#CRT#
++UPDATE_TIME	#UT#
++CHECK_TIME	#CT#
++TABLE_COLLATION	utf8_general_ci
++CHECKSUM	NULL
++CREATE_OPTIONS	#CO#
++TABLE_COMMENT	#TC#
++user_comment	
++Separator	-----------------------------------------------------
 +TABLE_CATALOG	NULL
 +TABLE_SCHEMA	information_schema
 +TABLE_NAME	COLUMN_PRIVILEGES
@@ -3284,25 +3273,11 @@ diff -ruN a/mysql-test/suite/funcs_1/r/is_tables_is.result b/mysql-test/suite/fu
 +TABLE_ROWS	#TBLR#
 +AVG_ROW_LENGTH	#ARL#
 +DATA_LENGTH	#DL#
-+MAX_DATA_LENGTH	#MDL#
-+INDEX_LENGTH	#IL#
-+DATA_FREE	#DF#
-+AUTO_INCREMENT	NULL
-+CREATE_TIME	#CRT#
-+UPDATE_TIME	#UT#
-+CHECK_TIME	#CT#
-+TABLE_COLLATION	utf8_general_ci
-+CHECKSUM	NULL
-+CREATE_OPTIONS	#CO#
-+TABLE_COMMENT	#TC#
-+user_comment	
-+Separator	-----------------------------------------------------
- # Switch to connection default and close connection testuser1
- DROP USER testuser1@localhost;
- DROP DATABASE test1;
-diff -ruN a/mysql-test/suite/funcs_1/datadict/processlist_priv.inc b/mysql-test/suite/funcs_1/datadict/processlist_priv.inc
---- a/mysql-test/suite/funcs_1/datadict/processlist_priv.inc	2011-04-12 16:39:25.000000000 +0400
-+++ b/mysql-test/suite/funcs_1/datadict/processlist_priv.inc	2011-06-30 22:22:08.000000000 +0400
+ MAX_DATA_LENGTH	#MDL#
+ INDEX_LENGTH	#IL#
+ DATA_FREE	#DF#
+--- a/mysql-test/suite/funcs_1/datadict/processlist_priv.inc
++++ b/mysql-test/suite/funcs_1/datadict/processlist_priv.inc
 @@ -66,7 +66,7 @@
  let $table= processlist;
  #
@@ -3475,9 +3450,8 @@ diff -ruN a/mysql-test/suite/funcs_1/datadict/processlist_priv.inc b/mysql-test/
  SELECT * FROM information_schema.processlist;
  --real_sleep 0.3
  
-diff -ruN a/mysql-test/suite/funcs_1/r/processlist_priv_ps.result b/mysql-test/suite/funcs_1/r/processlist_priv_ps.result
---- a/mysql-test/suite/funcs_1/r/processlist_priv_ps.result	2011-04-12 16:39:16.000000000 +0400
-+++ b/mysql-test/suite/funcs_1/r/processlist_priv_ps.result	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/funcs_1/r/processlist_priv_ps.result
++++ b/mysql-test/suite/funcs_1/r/processlist_priv_ps.result
 @@ -29,28 +29,29 @@
    `COMMAND` varchar(16) NOT NULL DEFAULT '',
    `TIME` int(7) NOT NULL DEFAULT '0',
@@ -3756,9 +3730,8 @@ diff -ruN a/mysql-test/suite/funcs_1/r/processlist_priv_ps.result b/mysql-test/s
  ####################################################################################
  12.2 Revoke only the SELECT privilege on the information_schema from ddicttestuser1.
  connection default (user=root)
-diff -ruN a/mysql-test/suite/funcs_1/datadict/processlist_val.inc b/mysql-test/suite/funcs_1/datadict/processlist_val.inc
---- a/mysql-test/suite/funcs_1/datadict/processlist_val.inc	2011-04-12 16:39:25.000000000 +0400
-+++ b/mysql-test/suite/funcs_1/datadict/processlist_val.inc	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/funcs_1/datadict/processlist_val.inc
++++ b/mysql-test/suite/funcs_1/datadict/processlist_val.inc
 @@ -434,11 +434,11 @@
  # SHOW FULL PROCESSLIST                          Complete statement
  # SHOW PROCESSLIST                               statement truncated after 100 char
@@ -3774,9 +3747,8 @@ diff -ruN a/mysql-test/suite/funcs_1/datadict/processlist_val.inc b/mysql-test/s
  SHOW PROCESSLIST;
  UNLOCK TABLES;
  echo
-diff -ruN a/mysql-test/suite/funcs_1/r/processlist_val_ps.result b/mysql-test/suite/funcs_1/r/processlist_val_ps.result
---- a/mysql-test/suite/funcs_1/r/processlist_val_ps.result	2011-04-12 16:39:16.000000000 +0400
-+++ b/mysql-test/suite/funcs_1/r/processlist_val_ps.result	2011-06-30 22:36:23.000000000 +0400
+--- a/mysql-test/suite/funcs_1/r/processlist_val_ps.result
++++ b/mysql-test/suite/funcs_1/r/processlist_val_ps.result
 @@ -19,14 +19,15 @@
    `COMMAND` varchar(16) NOT NULL DEFAULT '',
    `TIME` int(7) NOT NULL DEFAULT '0',
@@ -3878,9 +3850,8 @@ diff -ruN a/mysql-test/suite/funcs_1/r/processlist_val_ps.result b/mysql-test/su
  SHOW FULL PROCESSLIST;
  Id	User	Host	db	Command	Time	State	Info
  <ID>	root	<HOST_NAME>	information_schema	<COMMAND>	<TIME>	<STATE>	SHOW FULL PROCESSLIST
-diff -ruN a/mysql-test/include/mtr_warnings.sql b/mysql-test/include/mtr_warnings.sql
---- a/mysql-test/include/mtr_warnings.sql	2011-04-12 16:38:40.000000000 +0400
-+++ b/mysql-test/include/mtr_warnings.sql	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/include/mtr_warnings.sql
++++ b/mysql-test/include/mtr_warnings.sql
 @@ -153,6 +153,9 @@
      write()/read(). Bug #50414 */
   ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
@@ -3891,30 +3862,26 @@ diff -ruN a/mysql-test/include/mtr_warnings.sql b/mysql-test/include/mtr_warning
  
   ("THE_LAST_SUPPRESSION")||
  
-diff -ruN a/mysql-test/suite/innodb/t/disabled.def b/mysql-test/suite/innodb/t/disabled.def
---- a/mysql-test/suite/innodb/t/disabled.def	2011-04-12 16:40:54.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/disabled.def	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/suite/innodb/t/disabled.def
++++ b/mysql-test/suite/innodb/t/disabled.def
 @@ -9,3 +9,4 @@
  #  Do not use any TAB characters for whitespace.
  #
  ##############################################################################
 +innodb.innodb_bug56143   : Bug #684250 2010-12-03 akuzminsky https://bugs.launchpad.net/percona-server/+bug/684250
-diff -ruN a/mysql-test/t/log_tables-big-master.opt b/mysql-test/t/log_tables-big-master.opt
---- a/mysql-test/t/log_tables-big-master.opt	2011-04-12 16:37:49.000000000 +0400
-+++ b/mysql-test/t/log_tables-big-master.opt	2011-06-30 22:22:08.000000000 +0400
+--- a/mysql-test/t/log_tables-big-master.opt
++++ b/mysql-test/t/log_tables-big-master.opt
 @@ -1 +1 @@
 ---log-slow-queries
 +--log-output=table,file --log-slow-queries
-diff -ruN a/mysql-test/include/mtr_check.sql b/mysql-test/include/mtr_check.sql
---- a/mysql-test/include/mtr_check.sql	2011-04-12 16:38:40.000000000 +0400
-+++ b/mysql-test/include/mtr_check.sql	2011-06-30 22:22:08.000000000 +0400
-@@ -12,7 +12,9 @@
+--- a/mysql-test/include/mtr_check.sql
++++ b/mysql-test/include/mtr_check.sql
+@@ -12,7 +12,8 @@
    -- Dump all global variables except those
    -- that are supposed to change
    SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 -    WHERE variable_name != 'timestamp' ORDER BY VARIABLE_NAME;
-+    WHERE variable_name != 'timestamp' AND
-+          variable_name != 'innodb_file_format_check'
++    WHERE variable_name != 'timestamp'
 +    ORDER BY VARIABLE_NAME;
  
    -- Dump all databases, there should be none

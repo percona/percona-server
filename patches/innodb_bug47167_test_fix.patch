@@ -42,3 +42,11 @@
  
  # Following are negative tests, all should fail.
  --disable_warnings
+--- a/mysql-test/include/have_innodb.inc
++++ b/mysql-test/include/have_innodb.inc
+@@ -1,4 +1,4 @@
+-if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.ENGINES WHERE engine = 'innodb' AND support IN ('YES', 'DEFAULT', 'ENABLED')`)
++if (`select count(*)>0 from information_schema.plugins where plugin_name like 'xtradb%'`)
+ {
+   --skip Test requires InnoDB.
+ }

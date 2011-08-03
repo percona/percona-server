@@ -272,27 +272,21 @@ diff -ruN a/sql/sql_cache.cc b/sql/sql_cache.cc
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +629,12 @@
+@@ -454,7 +629,14 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
 +  const char* old_proc_info= thd->proc_info;
 +  thd_proc_info(thd,"Waiting on query cache mutex");
    mysql_mutex_lock(&structure_guard_mutex);
-+  DBUG_EXECUTE_IF("status_wait_query_cache_mutex_sleep", {
-+      sleep(5);
++  DEBUG_SYNC(thd, "status_waiting_on_query_cache_mutex");
++  DBUG_EXECUTE_IF("status_waiting_on_query_cache_mutex_sleep", {
++      sleep(1);
 +    });
++  thd->proc_info = old_proc_info;
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -501,6 +681,7 @@
-     }
-   }
-   mysql_mutex_unlock(&structure_guard_mutex);
-+  thd->proc_info = old_proc_info;
- 
-   DBUG_RETURN(interrupt);
- }
 @@ -1274,6 +1455,8 @@
        unlock();
        DBUG_VOID_RETURN;

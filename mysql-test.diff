@@ -1342,25 +1342,51 @@ diff -ruN /dev/null b/mysql-test/suite/sys_vars/t/userstat_basic.test
 +++ b/mysql-test/suite/sys_vars/t/userstat_basic.test	2011-04-09 18:49:05.000000000 +0400
 @@ -0,0 +1 @@
 +SELECT @@global.userstat;
+diff -ruN a/mysql-test/suite/sys_vars/t/all_vars.test b/mysql-test/suite/sys_vars/t/all_vars.test
+--- a/mysql-test/suite/sys_vars/t/all_vars.test	2011-06-21 19:42:40.000000000 +0300
++++ b/mysql-test/suite/sys_vars/t/all_vars.test	2011-08-01 06:54:45.649243091 +0300
+@@ -59,8 +59,8 @@
+ --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+ eval load data infile "$MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
+ 
+-insert into t2 select variable_name from information_schema.global_variables;
+-insert into t2 select variable_name from information_schema.session_variables;
++insert into t2 select variable_name from information_schema.global_variables order by variable_name;
++insert into t2 select variable_name from information_schema.session_variables order by variable_name;
+ 
+ # This is only present in debug builds.
+ delete from t2 where variable_name='innodb_change_buffering_debug';
 diff -ruN a/mysql-test/suite/sys_vars/r/all_vars.result b/mysql-test/suite/sys_vars/r/all_vars.result
 --- a/mysql-test/suite/sys_vars/r/all_vars.result	2011-06-21 19:42:40.000000000 +0300
-+++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-07-14 20:42:35.660824233 +0300
-@@ -12,12 +12,16 @@
++++ b/mysql-test/suite/sys_vars/r/all_vars.result	2011-08-01 06:57:24.338627397 +0300
+@@ -1,8 +1,8 @@
+ create table t1 (test_name text);
+ create table t2 (variable_name text);
+ load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
+-insert into t2 select variable_name from information_schema.global_variables;
+-insert into t2 select variable_name from information_schema.session_variables;
++insert into t2 select variable_name from information_schema.global_variables order by variable_name;
++insert into t2 select variable_name from information_schema.session_variables order by variable_name;
+ delete from t2 where variable_name='innodb_change_buffering_debug';
+ update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
+ select variable_name as `There should be *no* long test name listed below:` from t2
+@@ -11,13 +11,17 @@
+ select variable_name as `There should be *no* variables listed below:` from t2
  left join t1 on variable_name=test_name where test_name is null;
  There should be *no* variables listed below:
- INNODB_ROLLBACK_SEGMENTS
-+INNODB_LARGE_PREFIX
+-INNODB_ROLLBACK_SEGMENTS
+-INNODB_STATS_METHOD
++INNODB_FAKE_CHANGES
+ INNODB_FILE_FORMAT_MAX
 +INNODB_KILL_IDLE_TRANSACTION
+ INNODB_LARGE_PREFIX
+ INNODB_ROLLBACK_SEGMENTS
  INNODB_STATS_METHOD
 +INNODB_FAKE_CHANGES
  INNODB_FILE_FORMAT_MAX
--INNODB_LARGE_PREFIX
- INNODB_ROLLBACK_SEGMENTS
-+INNODB_LARGE_PREFIX
 +INNODB_KILL_IDLE_TRANSACTION
- INNODB_STATS_METHOD
-+INNODB_FAKE_CHANGES
- INNODB_FILE_FORMAT_MAX
--INNODB_LARGE_PREFIX
+ INNODB_LARGE_PREFIX
++INNODB_ROLLBACK_SEGMENTS
++INNODB_STATS_METHOD
  drop table t1;
  drop table t2;

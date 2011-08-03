@@ -581,7 +581,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
        if (key->name.str &&
  	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
        {
-@@ -5606,12 +5666,100 @@
+@@ -5606,12 +5666,104 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -659,9 +659,9 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 +    for (key_part= key->key_part; key_part < part_end; key_part++)
 +      key_part->field= table->field[key_part->fieldnr];
 +  }
-+
++  handler_add_index *add;
 +  if ((error= table->file->add_index(table, alter_info->delayed_key_info,
-+                                     alter_info->delayed_key_count, 0)))
++                                     alter_info->delayed_key_count, &add)))
 +  {
 +    /*
 +      Exchange the key_info for the error message. If we exchange
@@ -674,8 +674,12 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 +
 +    DBUG_RETURN(error);
 +  }
++  if ((error= table->file->final_add_index(add, true)))
++  {
++    table->file->print_error(error, MYF(0));
++  }
 +
-+  DBUG_RETURN(0);
++  DBUG_RETURN(error);
 +}
 +
 +/*

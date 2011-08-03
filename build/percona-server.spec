@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.12
+%define mysql_version   5.5.13
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 20
-%define minorversion 3
+%define minorversion 4
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -435,6 +435,17 @@ mkdir release
   cd "$d"
 )
 
+# For the debuginfo extraction stage, some source files are not located in the release
+# and debug dirs, but in the source dir. Make a link there to avoid errors in the
+# strip phase.
+for f in lexyy.c pars0grm.c pars0grm.y pars0lex.l
+do
+    for d in debug release
+    do
+        ln -s "../../../%{src_dir}/storage/innobase/$f" "$d/storage/innobase/"
+    done
+done
+
 # Use the build root for temporary storage of the shared libraries.
 RBR=$RPM_BUILD_ROOT
 
@@ -550,6 +561,7 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   myoldvendor='%{mysql_old_vendor}'
   myvendor_2='%{mysql_vendor_2}'
   myvendor='%{mysql_vendor}'
+  perconaservervendor='%{percona_server_vendor}'
   myversion='%{mysql_version}'
 
   old_family=`echo $version \
@@ -564,10 +576,12 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   error_text=
   if [ "$vendor" != "$myoldvendor" \
     -a "$vendor" != "$myvendor_2" \
-    -a "$vendor" != "$myvendor" ]; then
+    -a "$vendor" != "$myvendor" \
+    -a "$vendor" != "$perconaservervendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
-vendor ($vendor) than $myoldvendor, $myvendor_2, or $myvendor.
+vendor ($vendor) than $myoldvendor, $myvendor_2,
+$myvendor, or $perconaservervendor.
 Some files may be installed to different locations, including log
 files and the service startup script in %{_sysconfdir}/init.d/.
 "

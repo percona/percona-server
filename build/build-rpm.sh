@@ -21,11 +21,12 @@ TARGET_CFLAGS=''
 TARGET_ARG=''
 SIGN='--sign'  # We sign by default
 TEST='no'    # We don't test by default
+QUIET=''
 
 # Check if we have got a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iKt" --longoptions=i686,nosign,test \
+    go_out="$(getopt --options="iKtq" --longoptions=i686,nosign,test,quiet \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -48,6 +49,10 @@ do
     -t | --test )
         shift
         TEST='yes'
+        ;;
+    -q | --quiet )
+        shift
+        QUIET='--quiet'
         ;;
     esac
 done
@@ -131,7 +136,7 @@ fi
     make clean all
 
     # Create tarball for build
-    tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"
+    tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"*
 
 ) || false
 
@@ -140,7 +145,7 @@ fi
 
     # Issue RPM command
     eval rpmbuild -ba --clean --with yassl $TARGET $TARGET_LIBDIR $TARGET_ARCH \
-        $SIGN "$SOURCEDIR/build/percona-server.spec" \
+        $QUIET $SIGN "$SOURCEDIR/build/percona-server.spec" \
         --define "_topdir\ $WORKDIR_ABS" \
         --define "gotrevision\ $REVISION"
 

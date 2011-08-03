@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.57
+%define mysqlversion 5.1.58
 %define majorversion 12
-%define minorversion 8
+%define minorversion 9
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -353,6 +353,15 @@ fi
 }
 # end of function definition "BuildServer"
 
+# For the debuginfo extraction stage, make a link there to avoid errors in the
+# strip phase.
+for f in lexyy.c pars0grm.c pars0grm.y pars0lex.l
+do
+    for d in innobase innodb_plugin
+    do
+        ln -s "pars/$f" "storage/$d/"
+    done
+done
 
 RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/%{src_dir}

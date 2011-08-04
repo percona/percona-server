@@ -28,7 +28,7 @@ install_path()
     test -d $1 && do_install_path $1 $2
 }
 current=0;
-count=`wc -l series`;
+count=`wc -l patches/series`;
 install_path mysql-test "global" $current $count
 for test_name in `cat series`; do
     current=$((current+1));

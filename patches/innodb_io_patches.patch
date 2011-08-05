@@ -886,6 +886,15 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
+@@ -2709,7 +2721,7 @@
+ 
+ 	ut_ad(!mutex_own(&kernel_mutex));
+ 
+-	ut_a(srv_n_purge_threads == 0);
++	ut_a(srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0));
+ 
+ 	do {
+ 		/* Check for shutdown and change in purge config. */
 @@ -2742,6 +2754,7 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
@@ -1221,7 +1230,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2941,7 +3213,7 @@
+@@ -2941,12 +3213,12 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1230,6 +1239,21 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
+ 
+-	if (srv_n_purge_threads == 0) {
++	if (srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0)) {
+ 		srv_main_thread_op_info = "master purging";
+ 
+ 		srv_master_do_purge();
+@@ -3024,7 +3296,7 @@
+ 		}
+ 	}
+ 
+-	if (srv_n_purge_threads == 0) {
++	if (srv_n_purge_threads == 0 || (srv_shutdown_state > 0 && srv_n_threads_active[SRV_WORKER] == 0)) {
+ 		srv_main_thread_op_info = "master purging";
+ 
+ 		srv_master_do_purge();
 @@ -3049,7 +3321,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */

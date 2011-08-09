@@ -1,0 +1,6 @@
+#!/bin/sh
+
+for patch_name in `cat patches/series`; do
+  quilt push ${patch_name} --quiltrc=quiltrc;
+  quilt refresh --quiltrc=quiltrc;
+done;

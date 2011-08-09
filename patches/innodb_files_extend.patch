@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
---- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:21.358513751 +0900
-+++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:55:58.243481131 +0900
+--- a/storage/innobase/fil/fil0fil.c
++++ b/storage/innobase/fil/fil0fil.c
 @@ -731,7 +731,7 @@
  		ut_a(space->purpose != FIL_LOG);
  		ut_a(!trx_sys_sys_space(space->id));
@@ -48,9 +47,8 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	ut_ad(fil_validate_skip());
  #ifndef UNIV_HOTBACKUP
  # ifndef UNIV_LOG_DEBUG
-diff -ruN a/storage/innobase/fsp/fsp0fsp.c b/storage/innobase/fsp/fsp0fsp.c
---- a/storage/innobase/fsp/fsp0fsp.c	2010-12-04 15:52:23.411513754 +0900
-+++ b/storage/innobase/fsp/fsp0fsp.c	2010-12-04 15:55:58.244514273 +0900
+--- a/storage/innobase/fsp/fsp0fsp.c
++++ b/storage/innobase/fsp/fsp0fsp.c
 @@ -656,16 +656,18 @@
  				0 for uncompressed pages */
  	ulint	offset)		/*!< in: page offset */
@@ -99,9 +97,8 @@ diff -ruN a/storage/innobase/fsp/fsp0fsp.c b/storage/innobase/fsp/fsp0fsp.c
  
  		if (UNIV_UNLIKELY(init_xdes)) {
  
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:55:21.367482924 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:55:58.248549631 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -148,6 +148,9 @@
  static ulong innobase_write_io_threads;
  static long innobase_buffer_pool_instances = 1;
@@ -217,9 +214,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
-diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2010-12-04 15:55:21.375482937 +0900
-+++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:55:58.258469088 +0900
+--- a/storage/innobase/include/buf0buf.h
++++ b/storage/innobase/include/buf0buf.h
 @@ -1722,7 +1722,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
@@ -251,9 +247,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  #if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
  # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
  #endif
-diff -ruN a/storage/innobase/include/buf0types.h b/storage/innobase/include/buf0types.h
---- a/storage/innobase/include/buf0types.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/buf0types.h	2010-12-04 15:55:58.259482590 +0900
+--- a/storage/innobase/include/buf0types.h
++++ b/storage/innobase/include/buf0types.h
 @@ -67,12 +67,13 @@
  #define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
  
@@ -269,9 +264,8 @@ diff -ruN a/storage/innobase/include/buf0types.h b/storage/innobase/include/buf0
  /* @} */
  
  #endif
-diff -ruN a/storage/innobase/include/fsp0types.h b/storage/innobase/include/fsp0types.h
---- a/storage/innobase/include/fsp0types.h	2010-12-04 02:58:26.000000000 +0900
-+++ b/storage/innobase/include/fsp0types.h	2011-02-03 15:14:21.000000000 +0900
+--- a/storage/innobase/include/fsp0types.h
++++ b/storage/innobase/include/fsp0types.h
 @@ -42,7 +42,7 @@
  /* @} */
  
@@ -281,9 +275,8 @@ diff -ruN a/storage/innobase/include/fsp0types.h b/storage/innobase/include/fsp0
  
  /** On a page of any file segment, data may be put starting from this
  offset */
-diff -ruN a/storage/innobase/include/log0log.h b/storage/innobase/include/log0log.h
---- a/storage/innobase/include/log0log.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/log0log.h	2010-12-09 18:16:47.737728305 +0900
+--- a/storage/innobase/include/log0log.h
++++ b/storage/innobase/include/log0log.h
 @@ -672,6 +672,9 @@
  					when mysqld is first time started
  					on the restored database, it can
@@ -294,9 +287,8 @@ diff -ruN a/storage/innobase/include/log0log.h b/storage/innobase/include/log0lo
  #define	LOG_FILE_ARCH_COMPLETED	OS_FILE_LOG_BLOCK_SIZE
  					/* this 4-byte field is TRUE when
  					the writing of an archived log file
-diff -ruN a/storage/innobase/include/mtr0log.ic b/storage/innobase/include/mtr0log.ic
---- a/storage/innobase/include/mtr0log.ic	2010-12-04 15:37:50.590551517 +0900
-+++ b/storage/innobase/include/mtr0log.ic	2010-12-04 15:55:58.260482404 +0900
+--- a/storage/innobase/include/mtr0log.ic
++++ b/storage/innobase/include/mtr0log.ic
 @@ -203,7 +203,7 @@
  	system tablespace */
  	if ((space == TRX_SYS_SPACE
@@ -306,9 +298,8 @@ diff -ruN a/storage/innobase/include/mtr0log.ic b/storage/innobase/include/mtr0l
  		if (trx_doublewrite_buf_is_being_created) {
  			/* Do nothing: we only come to this branch in an
  			InnoDB database creation. We do not redo log
-diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0file.h
---- a/storage/innobase/include/os0file.h	2010-12-09 18:16:02.323727427 +0900
-+++ b/storage/innobase/include/os0file.h	2010-12-09 18:16:47.738694194 +0900
+--- a/storage/innobase/include/os0file.h
++++ b/storage/innobase/include/os0file.h
 @@ -101,7 +101,7 @@
  if this fails for a log block, then it is equivalent to a media failure in the
  log. */
@@ -327,9 +318,8 @@ diff -ruN a/storage/innobase/include/os0file.h b/storage/innobase/include/os0fil
  #ifdef UNIV_PFS_IO
  /* Keys to register InnoDB I/O with performance schema */
  extern mysql_pfs_key_t	innodb_file_data_key;
-diff -ruN a/storage/innobase/include/page0types.h b/storage/innobase/include/page0types.h
---- a/storage/innobase/include/page0types.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/page0types.h	2010-12-04 15:55:58.261483930 +0900
+--- a/storage/innobase/include/page0types.h
++++ b/storage/innobase/include/page0types.h
 @@ -56,8 +56,9 @@
  
  /** Number of supported compressed page sizes */
@@ -351,9 +341,8 @@ diff -ruN a/storage/innobase/include/page0types.h b/storage/innobase/include/pag
  
  /**********************************************************************//**
  Write the "deleted" flag of a record on a compressed page.  The flag must
-diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sys.h
---- a/storage/innobase/include/trx0sys.h	2010-12-04 15:37:50.593480594 +0900
-+++ b/storage/innobase/include/trx0sys.h	2010-12-04 15:55:58.262549554 +0900
+--- a/storage/innobase/include/trx0sys.h
++++ b/storage/innobase/include/trx0sys.h
 @@ -526,9 +526,9 @@
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
@@ -367,9 +356,8 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
  /** The offset of the MySQL replication info in the trx system header;
  this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
  #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
-diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
---- a/storage/innobase/include/univ.i	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/univ.i	2010-12-04 15:55:58.263549721 +0900
+--- a/storage/innobase/include/univ.i
++++ b/storage/innobase/include/univ.i
 @@ -310,9 +310,13 @@
  */
  
@@ -402,9 +390,8 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 +extern ulint	srv_page_size_shift;
 +extern ulint	srv_page_size;
  #endif
-diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
---- a/storage/innobase/log/log0log.c	2010-12-03 15:18:48.899986203 +0900
-+++ b/storage/innobase/log/log0log.c	2010-12-04 15:55:58.266551567 +0900
+--- a/storage/innobase/log/log0log.c
++++ b/storage/innobase/log/log0log.c
 @@ -604,7 +604,9 @@
  
  	offset = (gr_lsn_size_offset + difference) % group_size;
@@ -455,9 +442,8 @@ diff -ruN a/storage/innobase/log/log0log.c b/storage/innobase/log/log0log.c
  #endif /* UNIV_LOG_ARCHIVE */
  
  	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
-diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
---- a/storage/innobase/log/log0recv.c	2010-12-03 17:32:15.638986405 +0900
-+++ b/storage/innobase/log/log0recv.c	2010-12-04 15:55:58.269550689 +0900
+--- a/storage/innobase/log/log0recv.c
++++ b/storage/innobase/log/log0recv.c
 @@ -712,8 +712,22 @@
  
  			group->lsn = mach_read_from_8(
@@ -511,9 +497,8 @@ diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
  #ifdef UNIV_LOG_ARCHIVE
  	group = UT_LIST_GET_FIRST(log_sys->log_groups);
  
-diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
---- a/storage/innobase/page/page0zip.c	2010-12-04 15:52:23.484482786 +0900
-+++ b/storage/innobase/page/page0zip.c	2010-12-04 15:55:58.274551431 +0900
+--- a/storage/innobase/page/page0zip.c
++++ b/storage/innobase/page/page0zip.c
 @@ -49,7 +49,7 @@
  
  #ifndef UNIV_HOTBACKUP
@@ -523,9 +508,8 @@ diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
  #endif /* !UNIV_HOTBACKUP */
  
  /* Please refer to ../include/page0zip.ic for a description of the
-diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
---- a/storage/innobase/row/row0merge.c	2010-12-04 15:52:23.490513562 +0900
-+++ b/storage/innobase/row/row0merge.c	2010-12-04 15:55:58.277550562 +0900
+--- a/storage/innobase/row/row0merge.c
++++ b/storage/innobase/row/row0merge.c
 @@ -97,7 +97,7 @@
  row_merge_block_t.  Thus, it must be able to hold one merge record,
  whose maximum size is the same as the minimum size of
@@ -535,9 +519,8 @@ diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
  
  /** @brief Merge record in row_merge_block_t.
  
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:21.384486344 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:55:58.282550845 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -234,6 +234,13 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
@@ -552,9 +535,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* User settable value of the number of pages that must be present
  in the buffer cache and accessed sequentially for InnoDB to trigger a
  readahead request. */
-diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
---- a/storage/innobase/srv/srv0start.c	2010-12-04 15:52:23.502513556 +0900
-+++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:55:58.285550583 +0900
+--- a/storage/innobase/srv/srv0start.c
++++ b/storage/innobase/srv/srv0start.c
 @@ -1561,11 +1561,13 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */

@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
---- a/storage/innobase/btr/btr0cur.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/btr/btr0cur.c	2010-12-03 15:48:29.268957148 +0900
+--- a/storage/innobase/btr/btr0cur.c
++++ b/storage/innobase/btr/btr0cur.c
 @@ -4142,7 +4142,8 @@
  
  	mtr_commit(mtr);
@@ -44,9 +43,8 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  	mutex_exit(&block->mutex);
  }
  
-diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
---- a/storage/innobase/btr/btr0sea.c	2010-12-03 15:48:03.033037049 +0900
-+++ b/storage/innobase/btr/btr0sea.c	2010-12-03 15:48:29.271024260 +0900
+--- a/storage/innobase/btr/btr0sea.c
++++ b/storage/innobase/btr/btr0sea.c
 @@ -1943,7 +1943,7 @@
  	rec_offs_init(offsets_);
  
@@ -93,9 +91,8 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	rw_lock_x_unlock(&btr_search_latch);
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
---- a/storage/innobase/buf/buf0buddy.c	2010-12-03 15:22:36.307986907 +0900
-+++ b/storage/innobase/buf/buf0buddy.c	2010-12-03 15:48:29.275025723 +0900
+--- a/storage/innobase/buf/buf0buddy.c
++++ b/storage/innobase/buf/buf0buddy.c
 @@ -58,7 +58,7 @@
  
  /** Validate a given zip_free list. */
@@ -431,9 +428,8 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  
  			buddy->state = BUF_BLOCK_ZIP_FREE;
  			goto buddy_is_free;
-diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2010-12-03 15:22:36.314943336 +0900
-+++ b/storage/innobase/buf/buf0buf.c	2010-12-03 15:48:29.282947357 +0900
+--- a/storage/innobase/buf/buf0buf.c
++++ b/storage/innobase/buf/buf0buf.c
 @@ -263,6 +263,7 @@
  #ifdef UNIV_PFS_RWLOCK
  /* Keys to register buffer block related rwlocks and mutexes with
@@ -1693,9 +1689,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	return(len);
  }
-diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
---- a/storage/innobase/buf/buf0flu.c	2010-12-03 15:22:36.318955693 +0900
-+++ b/storage/innobase/buf/buf0flu.c	2010-12-03 15:48:29.289024083 +0900
+--- a/storage/innobase/buf/buf0flu.c
++++ b/storage/innobase/buf/buf0flu.c
 @@ -307,7 +307,7 @@
  
  	ut_d(block->page.in_flush_list = TRUE);
@@ -2122,9 +2117,8 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  		ut_a(!bpage || om >= bpage->oldest_modification);
  	}
-diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
---- a/storage/innobase/buf/buf0lru.c	2010-12-03 15:22:36.321987250 +0900
-+++ b/storage/innobase/buf/buf0lru.c	2010-12-03 15:48:29.293023197 +0900
+--- a/storage/innobase/buf/buf0lru.c
++++ b/storage/innobase/buf/buf0lru.c
 @@ -143,8 +143,9 @@
  void
  buf_LRU_block_free_hashed_page(
@@ -3045,9 +3039,8 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  }
  
  /**********************************************************************//**
-diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
---- a/storage/innobase/buf/buf0rea.c	2010-12-03 15:22:36.323977308 +0900
-+++ b/storage/innobase/buf/buf0rea.c	2010-12-03 15:48:29.296024468 +0900
+--- a/storage/innobase/buf/buf0rea.c
++++ b/storage/innobase/buf/buf0rea.c
 @@ -311,6 +311,7 @@
  
  		return(0);
@@ -3094,9 +3087,8 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
  
  	if ((offset == low) && (succ_offset == offset + 1)) {
  
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:48:03.048955897 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:48:29.304024564 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -265,6 +265,10 @@
  #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
  	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
@@ -3116,9 +3108,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
  	{&buf_block_lock_key, "buf_block_lock", 0},
  #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
---- a/storage/innobase/handler/i_s.cc	2010-12-03 15:37:45.517105700 +0900
-+++ b/storage/innobase/handler/i_s.cc	2010-12-03 15:48:29.331024462 +0900
+--- a/storage/innobase/handler/i_s.cc
++++ b/storage/innobase/handler/i_s.cc
 @@ -1563,7 +1563,8 @@
  
  		buf_pool = buf_pool_from_array(i);
@@ -3139,9 +3130,8 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  
  		if (status) {
  			break;
-diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
---- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:03.068954202 +0900
-+++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:48:29.335988682 +0900
+--- a/storage/innobase/ibuf/ibuf0ibuf.c
++++ b/storage/innobase/ibuf/ibuf0ibuf.c
 @@ -3821,9 +3821,11 @@
  		ulint		fold = buf_page_address_fold(space, page_no);
  		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
@@ -3156,9 +3146,8 @@ diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.
  
  		if (UNIV_LIKELY_NULL(bpage)) {
  			/* A buffer pool watch has been set or the
-diff -ruN a/storage/innobase/include/buf0buddy.h b/storage/innobase/include/buf0buddy.h
---- a/storage/innobase/include/buf0buddy.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/buf0buddy.h	2010-12-03 15:48:29.338023826 +0900
+--- a/storage/innobase/include/buf0buddy.h
++++ b/storage/innobase/include/buf0buddy.h
 @@ -49,11 +49,12 @@
  	ulint		size,		/*!< in: compressed page size
  					(between PAGE_ZIP_MIN_SIZE and
@@ -3184,9 +3173,8 @@ diff -ruN a/storage/innobase/include/buf0buddy.h b/storage/innobase/include/buf0
  	__attribute__((nonnull));
  
  #ifndef UNIV_NONINL
-diff -ruN a/storage/innobase/include/buf0buddy.ic b/storage/innobase/include/buf0buddy.ic
---- a/storage/innobase/include/buf0buddy.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/buf0buddy.ic	2010-12-03 15:48:29.339040413 +0900
+--- a/storage/innobase/include/buf0buddy.ic
++++ b/storage/innobase/include/buf0buddy.ic
 @@ -45,11 +45,12 @@
  	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
  	ulint		i,		/*!< in: index of buf_pool->zip_free[],
@@ -3268,9 +3256,8 @@ diff -ruN a/storage/innobase/include/buf0buddy.ic b/storage/innobase/include/buf
  }
  
  #ifdef UNIV_MATERIALIZE
-diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2010-12-03 15:22:36.327954660 +0900
-+++ b/storage/innobase/include/buf0buf.h	2010-12-03 15:48:29.343024683 +0900
+--- a/storage/innobase/include/buf0buf.h
++++ b/storage/innobase/include/buf0buf.h
 @@ -208,6 +208,20 @@
  /*==========================*/
  
@@ -3364,9 +3351,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	mutex_enter(&b->mutex);		\
  } while (0)
  
-diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0buf.ic
---- a/storage/innobase/include/buf0buf.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/buf0buf.ic	2010-12-03 15:48:29.345024524 +0900
+--- a/storage/innobase/include/buf0buf.ic
++++ b/storage/innobase/include/buf0buf.ic
 @@ -274,7 +274,7 @@
  	case BUF_BLOCK_ZIP_FREE:
  		/* This is a free page in buf_pool->zip_free[].
@@ -3611,9 +3597,8 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
 +	}
 +}
  #endif /* !UNIV_HOTBACKUP */
-diff -ruN a/storage/innobase/include/buf0lru.h b/storage/innobase/include/buf0lru.h
---- a/storage/innobase/include/buf0lru.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/buf0lru.h	2010-12-03 15:48:29.349024701 +0900
+--- a/storage/innobase/include/buf0lru.h
++++ b/storage/innobase/include/buf0lru.h
 @@ -100,8 +100,9 @@
  buf_LRU_free_block(
  /*===============*/
@@ -3635,9 +3620,8 @@ diff -ruN a/storage/innobase/include/buf0lru.h b/storage/innobase/include/buf0lr
  /******************************************************************//**
  Adds a block to the LRU list. */
  UNIV_INTERN
-diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0rw.h
---- a/storage/innobase/include/sync0rw.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/sync0rw.h	2010-12-03 15:48:29.349942993 +0900
+--- a/storage/innobase/include/sync0rw.h
++++ b/storage/innobase/include/sync0rw.h
 @@ -112,6 +112,7 @@
  extern	mysql_pfs_key_t	archive_lock_key;
  # endif /* UNIV_LOG_ARCHIVE */
@@ -3646,9 +3630,8 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  extern	mysql_pfs_key_t	buf_block_lock_key;
  # ifdef UNIV_SYNC_DEBUG
  extern	mysql_pfs_key_t	buf_block_debug_latch_key;
-diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
---- a/storage/innobase/include/sync0sync.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/sync0sync.h	2010-12-03 15:48:29.352024614 +0900
+--- a/storage/innobase/include/sync0sync.h
++++ b/storage/innobase/include/sync0sync.h
 @@ -75,6 +75,10 @@
  extern mysql_pfs_key_t	buffer_block_mutex_key;
  extern mysql_pfs_key_t	buf_pool_mutex_key;
@@ -3693,9 +3676,8 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  				may be) threads waiting in the global wait
  				array for this mutex to be released.
  				Otherwise, this is 0. */
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:03.080956216 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:48:29.355023766 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -3098,7 +3098,7 @@
  								level += log_sys->max_checkpoint_age
  									 - (lsn - oldest_modification);
@@ -3714,9 +3696,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  						new_blocks_num++;
  					}
  					if (!found) {
-diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
---- a/storage/innobase/sync/sync0sync.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/sync/sync0sync.c	2010-12-03 15:48:29.358023890 +0900
+--- a/storage/innobase/sync/sync0sync.c
++++ b/storage/innobase/sync/sync0sync.c
 @@ -285,7 +285,7 @@
  	mutex->lock_word = 0;
  #endif

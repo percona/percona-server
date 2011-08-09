@@ -5,10 +5,9 @@
 # ALTER TABLE and OPTIMIZE TABLE.
 #
 #
-diff -ruN a/client/client_priv.h b/client/client_priv.h
---- a/client/client_priv.h	2011-04-11 08:57:20.000000000 +0400
-+++ b/client/client_priv.h	2011-04-11 08:57:21.000000000 +0400
-@@ -90,6 +90,7 @@
+--- a/client/client_priv.h
++++ b/client/client_priv.h
+@@ -92,6 +92,7 @@
    OPT_NO_REMOVE_EOL_CARRET,
    OPT_DEFAULT_AUTH,
    OPT_DEFAULT_PLUGIN,
@@ -16,10 +15,9 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
    OPT_MAX_CLIENT_OPTION
  };
  
-diff -ruN a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2011-04-11 08:57:17.000000000 +0400
-+++ b/client/mysqldump.c	2011-04-11 08:57:21.000000000 +0400
-@@ -45,6 +45,7 @@
+--- a/client/mysqldump.c
++++ b/client/mysqldump.c
+@@ -47,6 +47,7 @@
  #include <m_ctype.h>
  #include <hash.h>
  #include <stdarg.h>
@@ -27,7 +25,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
  
  #include "client_priv.h"
  #include "mysql.h"
-@@ -141,6 +142,8 @@
+@@ -143,6 +144,8 @@
  
  static my_bool server_supports_sql_no_fcache= FALSE;
  
@@ -36,7 +34,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
  /*
  Dynamic_string wrapper functions. In this file use these
  wrappers, they will terminate the process if there is
-@@ -186,6 +189,8 @@
+@@ -188,6 +191,8 @@
  
  HASH ignore_table;
  
@@ -45,7 +43,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
  static struct my_option my_long_options[] =
  {
    {"all-databases", 'A',
-@@ -349,6 +354,11 @@
+@@ -351,6 +356,11 @@
     "in dump produced with --dump-slave.", &opt_include_master_host_port,
     &opt_include_master_host_port, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -57,7 +55,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2236,6 +2246,77 @@
+@@ -2238,6 +2248,77 @@
  }
  
  /*
@@ -135,7 +133,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2476,6 +2557,9 @@
+@@ -2478,6 +2559,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -145,7 +143,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3570,6 +3654,27 @@
+@@ -3572,6 +3656,27 @@
        goto err;
      }
  
@@ -173,9 +171,8 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
      /* Moved enable keys to before unlock per bug 15977 */
      if (opt_disable_keys)
      {
-diff -ruN /dev/null b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result	2011-04-11 08:57:21.000000000 +0400
+--- /dev/null
++++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
 @@ -0,0 +1,109 @@
 +#
 +# Test the --innodb-optimize-keys option.
@@ -286,9 +283,8 @@ diff -ruN /dev/null b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
 +
 +######################################
 +DROP TABLE t1, t2;
-diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/innodb.result
---- a/mysql-test/suite/innodb/r/innodb.result	2011-03-31 17:36:17.000000000 +0400
-+++ b/mysql-test/suite/innodb/r/innodb.result	2011-04-11 23:26:45.000000000 +0400
+--- a/mysql-test/suite/innodb/r/innodb.result
++++ b/mysql-test/suite/innodb/r/innodb.result
 @@ -1673,7 +1673,7 @@
  71
  SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
@@ -298,9 +294,8 @@ diff -ruN a/mysql-test/suite/innodb/r/innodb.result b/mysql-test/suite/innodb/r/
  SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
  variable_value - @innodb_rows_updated_orig
  866
-diff -ruN a/mysql-test/suite/innodb/t/innodb-index.test b/mysql-test/suite/innodb/t/innodb-index.test
---- a/mysql-test/suite/innodb/t/innodb-index.test	2011-03-31 17:36:17.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb-index.test	2011-04-11 08:57:21.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb-index.test
++++ b/mysql-test/suite/innodb/t/innodb-index.test
 @@ -87,6 +87,11 @@
  show create table t1;
  --error ER_MULTIPLE_PRI_KEY
@@ -313,9 +308,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb-index.test b/mysql-test/suite/innod
  --error ER_DUP_ENTRY
  alter table t1 drop primary key, add primary key (b);
  create unique index c on t1 (c);
-diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/innodb.test
---- a/mysql-test/suite/innodb/t/innodb.test	2011-03-31 17:36:17.000000000 +0400
-+++ b/mysql-test/suite/innodb/t/innodb.test	2011-04-11 08:57:21.000000000 +0400
+--- a/mysql-test/suite/innodb/t/innodb.test
++++ b/mysql-test/suite/innodb/t/innodb.test
 @@ -21,6 +21,12 @@
  
  -- source include/have_innodb.inc
@@ -329,9 +323,8 @@ diff -ruN a/mysql-test/suite/innodb/t/innodb.test b/mysql-test/suite/innodb/t/in
  let $MYSQLD_DATADIR= `select @@datadir`;
  
  # Save the original values of some variables in order to be able to
-diff -ruN /dev/null b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test	2011-04-11 08:57:21.000000000 +0400
+--- /dev/null
++++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
 @@ -0,0 +1,62 @@
 +# Embedded server doesn't support external clients
 +--source include/not_embedded.inc
@@ -395,9 +388,8 @@ diff -ruN /dev/null b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
 +
 +# Wait till we reached the initial number of concurrent sessions
 +--source include/wait_until_count_sessions.inc
-diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
---- a/sql/sql_lex.cc	2011-04-11 08:57:17.000000000 +0400
-+++ b/sql/sql_lex.cc	2011-04-11 08:57:21.000000000 +0400
+--- a/sql/sql_lex.cc
++++ b/sql/sql_lex.cc
 @@ -1630,6 +1630,9 @@
    alter_list(rhs.alter_list, mem_root),
    key_list(rhs.key_list, mem_root),
@@ -416,9 +408,8 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
    /* partition_names are not deeply copied currently */
  }
  
-diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2011-04-11 08:57:19.000000000 +0400
-+++ b/sql/sql_lex.h	2011-04-11 08:57:21.000000000 +0400
+--- a/sql/sql_lex.h
++++ b/sql/sql_lex.h
 @@ -1009,6 +1009,9 @@
    List<Alter_column>            alter_list;
    List<Key>                     key_list;
@@ -448,10 +439,9 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
      flags= 0;
      keys_onoff= LEAVE_AS_IS;
      tablespace_op= NO_TABLESPACE_OP;
-diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
---- a/sql/sql_table.cc	2011-04-11 08:56:57.000000000 +0400
-+++ b/sql/sql_table.cc	2011-04-11 23:30:02.000000000 +0400
-@@ -2774,7 +2774,7 @@
+--- a/sql/sql_table.cc
++++ b/sql/sql_table.cc
+@@ -2776,7 +2776,7 @@
        file                      The handler for the new table.
        key_info_buffer     OUT   An array of KEY structs for the indexes.
        key_count           OUT   The number of elements in the array.
@@ -460,7 +450,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    DESCRIPTION
      Prepares the table and key structures for table creation.
-@@ -3120,7 +3120,6 @@
+@@ -3122,7 +3122,6 @@
    }
  
    /* Create keys */
@@ -468,7 +458,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    List_iterator<Key> key_iterator(alter_info->key_list);
    List_iterator<Key> key_iterator2(alter_info->key_list);
    uint key_parts=0, fk_key_count=0;
-@@ -3218,6 +3217,14 @@
+@@ -3220,6 +3219,14 @@
    if (!*key_info_buffer || ! key_part_info)
      DBUG_RETURN(TRUE);				// Out of memory
  
@@ -483,7 +473,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    key_iterator.rewind();
    key_number=0;
    for (; (key=key_iterator++) ; key_number++)
-@@ -3636,6 +3643,22 @@
+@@ -3638,6 +3645,22 @@
        key_info->comment.str= key->key_create_info.comment.str;
      }
  
@@ -506,7 +496,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
      key_info++;
    }
    if (!unique_key && !primary_key &&
-@@ -5249,6 +5272,10 @@
+@@ -5256,6 +5279,10 @@
    List<Create_field> new_create_list;
    /* New key definitions are added here */
    List<Key> new_key_list;
@@ -517,7 +507,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    List_iterator<Alter_drop> drop_it(alter_info->drop_list);
    List_iterator<Create_field> def_it(alter_info->create_list);
    List_iterator<Alter_column> alter_it(alter_info->alter_list);
-@@ -5261,6 +5288,7 @@
+@@ -5268,6 +5295,7 @@
    uint used_fields= create_info->used_fields;
    KEY *key_info=table->key_info;
    bool rc= TRUE;
@@ -525,7 +515,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    DBUG_ENTER("mysql_prepare_alter_table");
  
-@@ -5433,7 +5461,23 @@
+@@ -5457,7 +5485,23 @@
    /*
      Collect all keys which isn't in drop list. Add only those
      for which some fields exists.
@@ -550,7 +540,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
  
    for (uint i=0 ; i < table->s->keys ; i++,key_info++)
    {
-@@ -5550,6 +5594,8 @@
+@@ -5574,6 +5618,8 @@
                     test(key_info->flags & HA_GENERATED_KEY),
                     key_parts);
        new_key_list.push_back(key);
@@ -559,7 +549,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
      }
    }
    {
-@@ -5557,7 +5603,21 @@
+@@ -5581,7 +5627,21 @@
      while ((key=key_it++))			// Add new keys
      {
        if (key->type != Key::FOREIGN_KEY)
@@ -581,7 +571,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
        if (key->name.str &&
  	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
        {
-@@ -5606,12 +5666,104 @@
+@@ -5630,12 +5690,104 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -686,7 +676,7 @@ diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
    Alter table
  
    SYNOPSIS
-@@ -6404,19 +6552,38 @@
+@@ -6428,19 +6580,38 @@
    */
    if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
    {

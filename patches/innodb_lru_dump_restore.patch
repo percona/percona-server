@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
---- a/storage/innobase/buf/buf0lru.c	2010-12-03 15:49:59.185023424 +0900
-+++ b/storage/innobase/buf/buf0lru.c	2010-12-04 15:33:37.626482350 +0900
+--- a/storage/innobase/buf/buf0lru.c
++++ b/storage/innobase/buf/buf0lru.c
 @@ -2167,6 +2167,284 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
@@ -293,9 +292,8 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /**********************************************************************//**
  Validates the LRU list for one buffer pool instance. */
-diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
---- a/storage/innobase/buf/buf0rea.c	2010-12-03 17:49:11.576124814 +0900
-+++ b/storage/innobase/buf/buf0rea.c	2010-12-04 15:33:37.628480605 +0900
+--- a/storage/innobase/buf/buf0rea.c
++++ b/storage/innobase/buf/buf0rea.c
 @@ -58,7 +58,7 @@
  which case it is never read into the pool, or if the tablespace does
  not exist or is being dropped 
@@ -305,9 +303,8 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
  ulint
  buf_read_page_low(
  /*==============*/
-diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
---- a/storage/innobase/fil/fil0fil.c	2010-12-03 17:49:11.581025127 +0900
-+++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:33:37.632482885 +0900
+--- a/storage/innobase/fil/fil0fil.c
++++ b/storage/innobase/fil/fil0fil.c
 @@ -5290,6 +5290,70 @@
  	return(DB_SUCCESS);
  }
@@ -379,9 +376,8 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  #ifndef UNIV_HOTBACKUP
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:49:11.589956135 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:33:37.645555490 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -11809,6 +11809,12 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
@@ -403,9 +399,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
-diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
---- a/storage/innobase/handler/i_s.cc	2010-12-03 17:34:35.286211349 +0900
-+++ b/storage/innobase/handler/i_s.cc	2010-12-04 15:33:37.677480733 +0900
+--- a/storage/innobase/handler/i_s.cc
++++ b/storage/innobase/handler/i_s.cc
 @@ -50,6 +50,7 @@
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
@@ -451,9 +446,8 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  
  	field_store_string(i_s_table->field[0],
  		"Undefined XTRA_* command.");
-diff -ruN a/storage/innobase/include/buf0lru.h b/storage/innobase/include/buf0lru.h
---- a/storage/innobase/include/buf0lru.h	2010-12-03 15:49:59.223956070 +0900
-+++ b/storage/innobase/include/buf0lru.h	2010-12-04 15:33:37.681481467 +0900
+--- a/storage/innobase/include/buf0lru.h
++++ b/storage/innobase/include/buf0lru.h
 @@ -204,6 +204,18 @@
  void
  buf_LRU_stat_update(void);
@@ -473,9 +467,8 @@ diff -ruN a/storage/innobase/include/buf0lru.h b/storage/innobase/include/buf0lr
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /**********************************************************************//**
-diff -ruN a/storage/innobase/include/buf0rea.h b/storage/innobase/include/buf0rea.h
---- a/storage/innobase/include/buf0rea.h	2010-12-03 17:49:11.596953870 +0900
-+++ b/storage/innobase/include/buf0rea.h	2010-12-04 15:33:37.682563900 +0900
+--- a/storage/innobase/include/buf0rea.h
++++ b/storage/innobase/include/buf0rea.h
 @@ -31,6 +31,37 @@
  #include "buf0types.h"
  
@@ -514,9 +507,8 @@ diff -ruN a/storage/innobase/include/buf0rea.h b/storage/innobase/include/buf0re
  High-level function which reads a page asynchronously from a file to the
  buffer buf_pool if it is not already there. Sets the io_fix flag and sets
  an exclusive lock on the buffer frame. The flag is cleared and the x-lock
-diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
---- a/storage/innobase/include/fil0fil.h	2010-12-03 17:49:11.597953501 +0900
-+++ b/storage/innobase/include/fil0fil.h	2010-12-04 15:33:37.684551372 +0900
+--- a/storage/innobase/include/fil0fil.h
++++ b/storage/innobase/include/fil0fil.h
 @@ -644,6 +644,14 @@
  	void*	message,	/*!< in: message for aio handler if non-sync
  				aio used, else ignored */
@@ -532,9 +524,8 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
  handler for completed requests. The aio array of pending requests is divided
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-03 17:49:11.603969747 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-04 15:33:37.685550816 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -356,6 +356,9 @@
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
@@ -562,9 +553,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  /******************************************************************//**
  Outputs to a file the output of the InnoDB Monitor.
  @return FALSE if not all information printed
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-03 17:49:11.620986661 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:33:37.708550811 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -330,6 +330,9 @@
  reading of a disk page */
  UNIV_INTERN ulint srv_buf_pool_reads = 0;
@@ -575,15 +565,10 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* structure to pass status variables to MySQL */
  UNIV_INTERN export_struc export_vars;
  
-@@ -2701,6 +2704,56 @@
- 	/* We count the number of threads in os_thread_exit(). A created
- 	thread should always use that to exit and not use return() to exit. */
+@@ -2706,6 +2709,56 @@
+ 	OS_THREAD_DUMMY_RETURN;
+ }
  
-+	os_thread_exit(NULL);
-+
-+	OS_THREAD_DUMMY_RETURN;
-+}
-+
 +/*********************************************************************//**
 +A thread which restores the buffer pool from a dump file on startup and does
 +periodic buffer pool dumps.
@@ -629,12 +614,16 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
 +	/* We count the number of threads in os_thread_exit(). A created
 +	thread should always use that to exit and not use return() to exit. */
 +
- 	os_thread_exit(NULL);
- 
- 	OS_THREAD_DUMMY_RETURN;
-diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
---- a/storage/innobase/srv/srv0start.c	2010-12-03 15:18:48.916955609 +0900
-+++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:33:37.711484798 +0900
++	os_thread_exit(NULL);
++
++	OS_THREAD_DUMMY_RETURN;
++}
++
+ /**********************************************************************//**
+ Check whether any background thread is active.
+ @return FALSE if all are are suspended or have exited. */
+--- a/storage/innobase/srv/srv0start.c
++++ b/storage/innobase/srv/srv0start.c
 @@ -120,9 +120,9 @@
  static os_file_t	files[1000];
  

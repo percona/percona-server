@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN /dev/null b/patch_info/optimizer_fix.info
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/patch_info/optimizer_fix.info	2010-12-02 20:47:55.781968475 +0900
+--- /dev/null
++++ b/patch_info/optimizer_fix.info
 @@ -0,0 +1,8 @@
 +File=optimizer_fix.patch
 +Name=Unofficial optimizer fixes
@@ -17,9 +16,8 @@ diff -ruN /dev/null b/patch_info/optimizer_fix.info
 +Comment=
 +2010-01
 +Ported to 5.1.42
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-12-02 19:22:40.027024953 +0900
-+++ b/sql/mysqld.cc	2010-12-02 20:51:50.811356434 +0900
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
 @@ -430,6 +430,7 @@
  MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
  #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -28,9 +26,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-diff -ruN a/sql/mysqld.h b/sql/mysqld.h
---- a/sql/mysqld.h	2010-11-03 07:01:14.000000000 +0900
-+++ b/sql/mysqld.h	2010-12-02 20:51:10.392070356 +0900
+--- a/sql/mysqld.h
++++ b/sql/mysqld.h
 @@ -109,6 +109,7 @@
  extern ulonglong slave_type_conversions_options;
  extern my_bool read_only, opt_readonly;
@@ -39,9 +36,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
  extern my_bool opt_secure_auth;
  extern char* opt_secure_file_priv;
-diff -ruN a/sql/opt_range.cc b/sql/opt_range.cc
---- a/sql/opt_range.cc	2010-11-03 07:01:14.000000000 +0900
-+++ b/sql/opt_range.cc	2010-12-02 20:47:55.795969853 +0900
+--- a/sql/opt_range.cc
++++ b/sql/opt_range.cc
 @@ -727,7 +727,7 @@
  static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                         bool index_read_must_be_used,
@@ -126,9 +122,8 @@ diff -ruN a/sql/opt_range.cc b/sql/opt_range.cc
    DBUG_RETURN(read_plan);
  }
  
-diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2010-11-03 07:01:14.000000000 +0900
-+++ b/sql/sql_select.cc	2010-12-02 20:47:55.813953789 +0900
+--- a/sql/sql_select.cc
++++ b/sql/sql_select.cc
 @@ -2619,6 +2619,11 @@
        table->reginfo.impossible_range=1;
        DBUG_RETURN(0);
@@ -141,9 +136,8 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
      DBUG_PRINT("warning",("Couldn't use record count on const keypart"));
    }
    DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
-diff -ruN a/sql/sys_vars.cc b/sql/sys_vars.cc
---- a/sql/sys_vars.cc	2010-12-02 20:31:56.208023606 +0900
-+++ b/sql/sys_vars.cc	2010-12-02 21:17:44.618120277 +0900
+--- a/sql/sys_vars.cc
++++ b/sql/sys_vars.cc
 @@ -2180,6 +2180,12 @@
         VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
         DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));

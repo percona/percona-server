@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:41:52.045404706 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:42:11.568959457 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -148,6 +148,7 @@
  static ulong innobase_write_io_threads;
  static long innobase_buffer_pool_instances = 1;
@@ -47,9 +46,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
    MYSQL_SYSVAR(show_verbose_locks),
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-03 15:37:45.543027751 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:42:11.571024631 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -161,6 +161,8 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
@@ -59,9 +57,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  extern ulint	srv_n_file_io_threads;
  extern ulong	srv_read_ahead_threshold;
  extern ulint	srv_n_read_io_threads;
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:37:45.546023493 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:42:11.574955879 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -347,6 +347,7 @@
  computer. Bigger computers need bigger values. Value 0 will disable the
  concurrency check. */

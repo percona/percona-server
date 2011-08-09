@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/client/client_priv.h b/client/client_priv.h
---- a/client/client_priv.h	2010-11-03 07:01:14.000000000 +0900
-+++ b/client/client_priv.h	2010-12-03 13:39:32.317046060 +0900
+--- a/client/client_priv.h
++++ b/client/client_priv.h
 @@ -57,6 +57,7 @@
    OPT_MYSQL_LOCK_DIRECTORY,
    OPT_USE_THREADS,
@@ -16,9 +15,8 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
    OPT_MYSQL_NUMBER_OF_QUERY,
    OPT_IGNORE_TABLE,OPT_INSERT_IGNORE,OPT_SHOW_WARNINGS,OPT_DROP_DATABASE,
    OPT_TZ_UTC, OPT_CREATE_SLAP_SCHEMA,
-diff -ruN a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2010-11-03 07:01:14.000000000 +0900
-+++ b/client/mysqldump.c	2010-12-03 13:44:55.000069761 +0900
+--- a/client/mysqldump.c
++++ b/client/mysqldump.c
 @@ -103,7 +103,7 @@
                  opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
                  opt_slave_apply= 0, 

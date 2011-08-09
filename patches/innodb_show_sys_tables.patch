@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.c
---- a/storage/innobase/dict/dict0load.c	2011-01-20 07:37:08.000000000 +0900
-+++ b/storage/innobase/dict/dict0load.c	2011-02-14 18:59:40.774162959 +0900
+--- a/storage/innobase/dict/dict0load.c
++++ b/storage/innobase/dict/dict0load.c
 @@ -437,7 +437,7 @@
  
  }
@@ -38,9 +37,8 @@ diff -ruN a/storage/innobase/dict/dict0load.c b/storage/innobase/dict/dict0load.
  
  /********************************************************************//**
  Determine the flags of a table described in SYS_TABLES.
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:53:54.615040167 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 16:07:26.851357007 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -11789,7 +11789,14 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
@@ -57,9 +55,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  mysql_declare_plugin_end;
  
  /** @brief Initialize the default value of innodb_commit_concurrency.
-diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
---- a/storage/innobase/handler/i_s.cc	2010-12-03 15:49:59.207956807 +0900
-+++ b/storage/innobase/handler/i_s.cc	2010-12-03 17:10:02.719210529 +0900
+--- a/storage/innobase/handler/i_s.cc
++++ b/storage/innobase/handler/i_s.cc
 @@ -36,9 +36,11 @@
  #include <mysql/innodb_priv.h>
  
@@ -1748,9 +1745,8 @@ diff -ruN a/storage/innobase/handler/i_s.cc b/storage/innobase/handler/i_s.cc
  /***********************************************************************
  */
  static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
-diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
---- a/storage/innobase/handler/i_s.h	2010-12-03 15:37:45.540456499 +0900
-+++ b/storage/innobase/handler/i_s.h	2010-12-03 16:08:57.596941207 +0900
+--- a/storage/innobase/handler/i_s.h
++++ b/storage/innobase/handler/i_s.h
 @@ -35,6 +35,13 @@
  extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
  extern struct st_mysql_plugin	i_s_innodb_cmpmem;

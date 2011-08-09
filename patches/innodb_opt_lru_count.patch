@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
---- a/storage/innobase/buf/buf0buddy.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/buf/buf0buddy.c	2010-12-03 15:20:49.593024343 +0900
+--- a/storage/innobase/buf/buf0buddy.c
++++ b/storage/innobase/buf/buf0buddy.c
 @@ -123,7 +123,7 @@
  
  	ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
@@ -17,9 +16,8 @@ diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
  
  	if (bpage) {
  		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
-diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2010-12-03 15:18:48.866986963 +0900
-+++ b/storage/innobase/buf/buf0buf.c	2010-12-03 15:20:49.595987311 +0900
+--- a/storage/innobase/buf/buf0buf.c
++++ b/storage/innobase/buf/buf0buf.c
 @@ -881,9 +881,9 @@
  	block->page.in_zip_hash = FALSE;
  	block->page.in_flush_list = FALSE;
@@ -59,9 +57,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  	frame = block->frame;
  
-diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
---- a/storage/innobase/buf/buf0flu.c	2010-12-03 15:18:48.868953442 +0900
-+++ b/storage/innobase/buf/buf0flu.c	2010-12-03 15:20:49.599986956 +0900
+--- a/storage/innobase/buf/buf0flu.c
++++ b/storage/innobase/buf/buf0flu.c
 @@ -431,19 +431,21 @@
  				buf_page_in_file(bpage) and in the LRU list */
  {
@@ -187,9 +184,8 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  	}
  }
  
-diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
---- a/storage/innobase/buf/buf0lru.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/buf/buf0lru.c	2010-12-03 15:20:49.602952786 +0900
+--- a/storage/innobase/buf/buf0lru.c
++++ b/storage/innobase/buf/buf0lru.c
 @@ -923,7 +923,7 @@
  
  	/* No free block was found: try to flush the LRU list */
@@ -235,9 +231,8 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  				buf_LRU_add_block_low(b, buf_page_is_old(b));
  			}
  
-diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
---- a/storage/innobase/buf/buf0rea.c	2010-12-03 15:18:48.870953384 +0900
-+++ b/storage/innobase/buf/buf0rea.c	2010-12-03 15:20:49.604956032 +0900
+--- a/storage/innobase/buf/buf0rea.c
++++ b/storage/innobase/buf/buf0rea.c
 @@ -200,7 +200,7 @@
  	}
  
@@ -274,9 +269,8 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
  
  #ifdef UNIV_DEBUG
  	if (buf_debug_prints) {
-diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/buf0buf.h	2010-12-03 15:20:49.608986590 +0900
+--- a/storage/innobase/include/buf0buf.h
++++ b/storage/innobase/include/buf0buf.h
 @@ -1426,11 +1426,11 @@
  
  	UT_LIST_NODE_T(buf_page_t) LRU;
@@ -291,9 +285,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	unsigned	old:1;		/*!< TRUE if the block is in the old
  					blocks in buf_pool->LRU_old */
  	unsigned	freed_page_clock:31;/*!< the value of
-diff -ruN a/storage/innobase/include/buf0flu.h b/storage/innobase/include/buf0flu.h
---- a/storage/innobase/include/buf0flu.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/buf0flu.h	2010-12-03 15:20:49.609953185 +0900
+--- a/storage/innobase/include/buf0flu.h
++++ b/storage/innobase/include/buf0flu.h
 @@ -65,13 +65,15 @@
  void
  buf_flush_free_margin(

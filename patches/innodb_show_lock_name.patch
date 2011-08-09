@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:34:35.285040381 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:35:12.974975252 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -9604,9 +9604,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
@@ -58,9 +57,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_lock_oswait_count);
-diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0rw.h
---- a/storage/innobase/include/sync0rw.h	2010-12-03 15:49:59.225953164 +0900
-+++ b/storage/innobase/include/sync0rw.h	2010-12-03 17:35:12.978024458 +0900
+--- a/storage/innobase/include/sync0rw.h
++++ b/storage/innobase/include/sync0rw.h
 @@ -138,14 +138,14 @@
  # ifdef UNIV_DEBUG
  #  ifdef UNIV_SYNC_DEBUG
@@ -144,9 +142,8 @@ diff -ruN a/storage/innobase/include/sync0rw.h b/storage/innobase/include/sync0r
  
  /******************************************************************//**
  Performance schema instrumented wrap function for rw_lock_x_lock_func()
-diff -ruN a/storage/innobase/include/sync0rw.ic b/storage/innobase/include/sync0rw.ic
---- a/storage/innobase/include/sync0rw.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/sync0rw.ic	2010-12-03 17:35:12.980024605 +0900
+--- a/storage/innobase/include/sync0rw.ic
++++ b/storage/innobase/include/sync0rw.ic
 @@ -640,10 +640,10 @@
  #  ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
@@ -175,9 +172,8 @@ diff -ruN a/storage/innobase/include/sync0rw.ic b/storage/innobase/include/sync0
  }
  /******************************************************************//**
  Performance schema instrumented wrap function for rw_lock_x_lock_func()
-diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
---- a/storage/innobase/include/sync0sync.h	2010-12-03 15:49:59.227955503 +0900
-+++ b/storage/innobase/include/sync0sync.h	2010-12-03 17:35:12.982023946 +0900
+--- a/storage/innobase/include/sync0sync.h
++++ b/storage/innobase/include/sync0sync.h
 @@ -158,14 +158,14 @@
  # ifdef UNIV_DEBUG
  #  ifdef UNIV_SYNC_DEBUG
@@ -270,9 +266,8 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  #ifdef UNIV_PFS_MUTEX
  	struct PSI_mutex* pfs_psi;	/*!< The performance schema
  					instrumentation hook */
-diff -ruN a/storage/innobase/include/sync0sync.ic b/storage/innobase/include/sync0sync.ic
---- a/storage/innobase/include/sync0sync.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/sync0sync.ic	2010-12-03 17:35:12.984024599 +0900
+--- a/storage/innobase/include/sync0sync.ic
++++ b/storage/innobase/include/sync0sync.ic
 @@ -321,13 +321,13 @@
  	mysql_pfs_key_t	key,		/*!< in: Performance Schema key */
  	mutex_t*	mutex,		/*!< in: pointer to memory */
@@ -307,9 +302,8 @@ diff -ruN a/storage/innobase/include/sync0sync.ic b/storage/innobase/include/syn
  }
  /******************************************************************//**
  NOTE! Please use the corresponding macro mutex_free(), not directly
-diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
---- a/storage/innobase/sync/sync0arr.c	2010-12-03 15:09:51.304953409 +0900
-+++ b/storage/innobase/sync/sync0arr.c	2010-12-03 17:35:12.985024561 +0900
+--- a/storage/innobase/sync/sync0arr.c
++++ b/storage/innobase/sync/sync0arr.c
 @@ -489,13 +489,12 @@
  		mutex = cell->old_wait_mutex;
  
@@ -338,9 +332,8 @@ diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
  		writer = rw_lock_get_writer(rwlock);
  		if (writer != RW_LOCK_NOT_LOCKED) {
  			fprintf(file,
-diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
---- a/storage/innobase/sync/sync0rw.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/sync/sync0rw.c	2010-12-03 17:35:12.987029059 +0900
+--- a/storage/innobase/sync/sync0rw.c
++++ b/storage/innobase/sync/sync0rw.c
 @@ -242,10 +242,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
@@ -439,9 +432,8 @@ diff -ruN a/storage/innobase/sync/sync0rw.c b/storage/innobase/sync/sync0rw.c
  	}
  
  	/* these stats may not be accurate */
-diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
---- a/storage/innobase/sync/sync0sync.c	2010-12-03 15:49:59.233955565 +0900
-+++ b/storage/innobase/sync/sync0sync.c	2010-12-03 17:35:12.989024400 +0900
+--- a/storage/innobase/sync/sync0sync.c
++++ b/storage/innobase/sync/sync0sync.c
 @@ -270,13 +270,13 @@
  /*==============*/
  	mutex_t*	mutex,		/*!< in: pointer to memory */

@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
---- a/storage/innobase/btr/btr0btr.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/btr/btr0btr.c	2010-12-04 15:38:18.110513593 +0900
+--- a/storage/innobase/btr/btr0btr.c
++++ b/storage/innobase/btr/btr0btr.c
 @@ -691,6 +691,12 @@
  	root_page_no = dict_index_get_page(index);
  
@@ -73,9 +72,8 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  	btr_search_drop_page_hash_index(block);
  
  	header = buf_block_get_frame(block) + PAGE_HEADER + PAGE_BTR_SEG_TOP;
-diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
---- a/storage/innobase/btr/btr0cur.c	2010-12-03 17:30:16.239038936 +0900
-+++ b/storage/innobase/btr/btr0cur.c	2010-12-04 15:38:18.114551906 +0900
+--- a/storage/innobase/btr/btr0cur.c
++++ b/storage/innobase/btr/btr0cur.c
 @@ -250,6 +250,11 @@
  	case BTR_MODIFY_LEAF:
  		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
@@ -255,9 +253,8 @@ diff -ruN a/storage/innobase/btr/btr0cur.c b/storage/innobase/btr/btr0cur.c
  		rec = page_rec_get_next(page_get_infimum_rec(page));
  
  		if (!page_rec_is_supremum(rec)) {
-diff -ruN a/storage/innobase/btr/btr0pcur.c b/storage/innobase/btr/btr0pcur.c
---- a/storage/innobase/btr/btr0pcur.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/btr/btr0pcur.c	2010-12-04 15:38:18.116563877 +0900
+--- a/storage/innobase/btr/btr0pcur.c
++++ b/storage/innobase/btr/btr0pcur.c
 @@ -32,7 +32,7 @@
  #include "ut0byte.h"
  #include "rem0cmp.h"
@@ -296,9 +293,8 @@ diff -ruN a/storage/innobase/btr/btr0pcur.c b/storage/innobase/btr/btr0pcur.c
  #ifdef UNIV_BTR_DEBUG
  	ut_a(page_is_comp(next_page) == page_is_comp(page));
  	ut_a(btr_page_get_prev(next_page, mtr)
-diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
---- a/storage/innobase/btr/btr0sea.c	2010-12-03 15:49:59.166193407 +0900
-+++ b/storage/innobase/btr/btr0sea.c	2010-12-04 15:38:18.118548961 +0900
+--- a/storage/innobase/btr/btr0sea.c
++++ b/storage/innobase/btr/btr0sea.c
 @@ -42,7 +42,7 @@
  #include "btr0pcur.h"
  #include "btr0btr.h"
@@ -320,9 +316,8 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  	/* NOTE that the following two function calls do NOT protect
  	info or block->n_fields etc. with any semaphore, to save CPU time!
  	We cannot assume the fields are consistent when we return from
-diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2010-12-04 15:37:50.554565654 +0900
-+++ b/storage/innobase/buf/buf0buf.c	2010-12-04 15:38:18.119548922 +0900
+--- a/storage/innobase/buf/buf0buf.c
++++ b/storage/innobase/buf/buf0buf.c
 @@ -52,6 +52,7 @@
  #include "log0recv.h"
  #include "page0zip.h"
@@ -431,9 +426,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  				TRUE);
  		}
  	}
-diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
---- a/storage/innobase/buf/buf0rea.c	2010-12-04 15:37:50.557553380 +0900
-+++ b/storage/innobase/buf/buf0rea.c	2010-12-04 15:41:09.784467585 +0900
+--- a/storage/innobase/buf/buf0rea.c
++++ b/storage/innobase/buf/buf0rea.c
 @@ -193,7 +193,14 @@
  			      ((buf_block_t*) bpage)->frame, bpage, trx);
  	}
@@ -449,9 +443,8 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
  
  	if (sync) {
  		/* The i/o is already completed when we arrive from
-diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.c
---- a/storage/innobase/dict/dict0dict.c	2010-12-03 17:30:16.248987063 +0900
-+++ b/storage/innobase/dict/dict0dict.c	2010-12-04 15:45:23.808513973 +0900
+--- a/storage/innobase/dict/dict0dict.c
++++ b/storage/innobase/dict/dict0dict.c
 @@ -54,6 +54,7 @@
  #include "row0merge.h"
  #include "m_ctype.h" /* my_isspace() */
@@ -561,9 +554,8 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
 +	}
 +}
  #endif /* !UNIV_HOTBACKUP */
-diff -ruN a/storage/innobase/dict/dict0mem.c b/storage/innobase/dict/dict0mem.c
---- a/storage/innobase/dict/dict0mem.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/dict/dict0mem.c	2010-12-04 15:38:18.126549463 +0900
+--- a/storage/innobase/dict/dict0mem.c
++++ b/storage/innobase/dict/dict0mem.c
 @@ -96,6 +96,8 @@
  	/* The number of transactions that are either waiting on the
  	AUTOINC lock or have been granted the lock. */
@@ -573,9 +565,8 @@ diff -ruN a/storage/innobase/dict/dict0mem.c b/storage/innobase/dict/dict0mem.c
  #endif /* !UNIV_HOTBACKUP */
  
  	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
-diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
---- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:37:50.564551587 +0900
-+++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:38:18.128549252 +0900
+--- a/storage/innobase/fil/fil0fil.c
++++ b/storage/innobase/fil/fil0fil.c
 @@ -235,6 +235,7 @@
  				file we have written to */
  	ibool		is_in_unflushed_spaces; /*!< TRUE if this space is
@@ -684,9 +675,8 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +	mutex_exit(&fil_system->mutex);
 +}
 +
-diff -ruN a/storage/innobase/fsp/fsp0fsp.c b/storage/innobase/fsp/fsp0fsp.c
---- a/storage/innobase/fsp/fsp0fsp.c	2010-12-04 15:37:50.569480615 +0900
-+++ b/storage/innobase/fsp/fsp0fsp.c	2010-12-04 15:38:18.131550103 +0900
+--- a/storage/innobase/fsp/fsp0fsp.c
++++ b/storage/innobase/fsp/fsp0fsp.c
 @@ -369,6 +369,12 @@
  	ut_ad(id || !zip_size);
  
@@ -795,9 +785,8 @@ diff -ruN a/storage/innobase/fsp/fsp0fsp.c b/storage/innobase/fsp/fsp0fsp.c
  	descr = fseg_get_first_extent(inode, space, zip_size, mtr);
  
  	if (descr != NULL) {
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:37:50.578486593 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:38:18.137549396 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -3979,6 +3979,12 @@
  		DBUG_RETURN(1);
  	}
@@ -1073,9 +1062,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    NULL
  };
  
-diff -ruN a/storage/innobase/handler/ha_innodb.h b/storage/innobase/handler/ha_innodb.h
---- a/storage/innobase/handler/ha_innodb.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/handler/ha_innodb.h	2010-12-04 15:38:18.159588579 +0900
+--- a/storage/innobase/handler/ha_innodb.h
++++ b/storage/innobase/handler/ha_innodb.h
 @@ -52,6 +52,7 @@
  	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
  						table between MySQL and
@@ -1092,9 +1080,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.h b/storage/innobase/handler/ha_i
  
  	int write_row(uchar * buf);
  	int update_row(const uchar * old_data, uchar * new_data);
-diff -ruN a/storage/innobase/include/btr0btr.ic b/storage/innobase/include/btr0btr.ic
---- a/storage/innobase/include/btr0btr.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/btr0btr.ic	2010-12-04 15:38:18.162515035 +0900
+--- a/storage/innobase/include/btr0btr.ic
++++ b/storage/innobase/include/btr0btr.ic
 @@ -28,7 +28,7 @@
  #include "mtr0mtr.h"
  #include "mtr0log.h"
@@ -1115,9 +1102,8 @@ diff -ruN a/storage/innobase/include/btr0btr.ic b/storage/innobase/include/btr0b
  
  		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
  	}
-diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2010-12-03 15:49:59.218956083 +0900
-+++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:38:18.164513667 +0900
+--- a/storage/innobase/include/buf0buf.h
++++ b/storage/innobase/include/buf0buf.h
 @@ -1025,7 +1025,7 @@
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  	__attribute__((pure));
@@ -1135,9 +1121,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ibool		file_page_was_freed;
  					/*!< this is set to TRUE when fsp
-diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0buf.ic
---- a/storage/innobase/include/buf0buf.ic	2010-12-03 15:49:59.221956024 +0900
-+++ b/storage/innobase/include/buf0buf.ic	2010-12-04 15:38:18.167513925 +0900
+--- a/storage/innobase/include/buf0buf.ic
++++ b/storage/innobase/include/buf0buf.ic
 @@ -34,7 +34,7 @@
  #include "buf0flu.h"
  #include "buf0lru.h"
@@ -1160,9 +1145,8 @@ diff -ruN a/storage/innobase/include/buf0buf.ic b/storage/innobase/include/buf0b
  	ut_ad(block);
  
  	switch (buf_block_get_state(block)) {
-diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
---- a/storage/innobase/include/dict0dict.h	2010-12-03 17:30:16.306955940 +0900
-+++ b/storage/innobase/include/dict0dict.h	2010-12-04 15:38:18.169513750 +0900
+--- a/storage/innobase/include/dict0dict.h
++++ b/storage/innobase/include/dict0dict.h
 @@ -1258,6 +1258,15 @@
  dict_close(void);
  /*============*/
@@ -1179,9 +1163,8 @@ diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict
  #ifndef UNIV_NONINL
  #include "dict0dict.ic"
  #endif
-diff -ruN a/storage/innobase/include/dict0mem.h b/storage/innobase/include/dict0mem.h
---- a/storage/innobase/include/dict0mem.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/dict0mem.h	2010-12-04 15:38:18.171513956 +0900
+--- a/storage/innobase/include/dict0mem.h
++++ b/storage/innobase/include/dict0mem.h
 @@ -666,6 +666,7 @@
  				the AUTOINC lock on this table. */
  				/* @} */
@@ -1190,9 +1173,8 @@ diff -ruN a/storage/innobase/include/dict0mem.h b/storage/innobase/include/dict0
  #endif /* !UNIV_HOTBACKUP */
  
  #ifdef UNIV_DEBUG
-diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
---- a/storage/innobase/include/fil0fil.h	2010-12-04 15:35:29.175520016 +0900
-+++ b/storage/innobase/include/fil0fil.h	2010-12-04 15:38:18.172483391 +0900
+--- a/storage/innobase/include/fil0fil.h
++++ b/storage/innobase/include/fil0fil.h
 @@ -750,6 +750,19 @@
  fil_system_hash_nodes(void);
  /*========================*/
@@ -1213,9 +1195,8 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
  typedef	struct fil_space_struct	fil_space_t;
  
  #endif
-diff -ruN a/storage/innobase/include/fut0fut.ic b/storage/innobase/include/fut0fut.ic
---- a/storage/innobase/include/fut0fut.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/fut0fut.ic	2010-12-04 15:38:18.174481728 +0900
+--- a/storage/innobase/include/fut0fut.ic
++++ b/storage/innobase/include/fut0fut.ic
 @@ -23,6 +23,7 @@
  Created 12/13/1995 Heikki Tuuri
  ***********************************************************************/
@@ -1237,9 +1218,8 @@ diff -ruN a/storage/innobase/include/fut0fut.ic b/storage/innobase/include/fut0f
  	ptr = buf_block_get_frame(block) + addr.boffset;
  
  	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-diff -ruN a/storage/innobase/include/page0page.h b/storage/innobase/include/page0page.h
---- a/storage/innobase/include/page0page.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/page0page.h	2010-12-04 15:38:18.175514037 +0900
+--- a/storage/innobase/include/page0page.h
++++ b/storage/innobase/include/page0page.h
 @@ -527,7 +527,7 @@
  page_is_leaf(
  /*=========*/
@@ -1249,9 +1229,8 @@ diff -ruN a/storage/innobase/include/page0page.h b/storage/innobase/include/page
  /************************************************************//**
  Gets the pointer to the next record on the page.
  @return	pointer to next record */
-diff -ruN a/storage/innobase/include/page0page.ic b/storage/innobase/include/page0page.ic
---- a/storage/innobase/include/page0page.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/page0page.ic	2010-12-04 15:38:18.177482672 +0900
+--- a/storage/innobase/include/page0page.ic
++++ b/storage/innobase/include/page0page.ic
 @@ -274,6 +274,9 @@
  /*=========*/
  	const page_t*	page)	/*!< in: page */
@@ -1262,9 +1241,8 @@ diff -ruN a/storage/innobase/include/page0page.ic b/storage/innobase/include/pag
  	return(!*(const uint16*) (page + (PAGE_HEADER + PAGE_LEVEL)));
  }
  
-diff -ruN a/storage/innobase/include/page0zip.h b/storage/innobase/include/page0zip.h
---- a/storage/innobase/include/page0zip.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/page0zip.h	2010-12-04 15:38:18.179513974 +0900
+--- a/storage/innobase/include/page0zip.h
++++ b/storage/innobase/include/page0zip.h
 @@ -114,7 +114,7 @@
  	const page_t*	page,	/*!< in: uncompressed page */
  	dict_index_t*	index,	/*!< in: index of the B-tree node */
@@ -1274,9 +1252,8 @@ diff -ruN a/storage/innobase/include/page0zip.h b/storage/innobase/include/page0
  
  /**********************************************************************//**
  Decompress a page.  This function should tolerate errors on the compressed
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-04 15:37:50.591516341 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-04 15:38:18.180563749 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -240,6 +240,7 @@
  extern ulint	srv_adaptive_flushing_method;
  
@@ -1285,9 +1262,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  
  extern ulint	srv_dict_size_limit;
  /*-------------------------------------------*/
-diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
---- a/storage/innobase/page/page0zip.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/page/page0zip.c	2010-12-04 15:38:18.195515935 +0900
+--- a/storage/innobase/page/page0zip.c
++++ b/storage/innobase/page/page0zip.c
 @@ -1195,6 +1195,10 @@
  	FILE*		logfile = NULL;
  #endif
@@ -1299,9 +1275,8 @@ diff -ruN a/storage/innobase/page/page0zip.c b/storage/innobase/page/page0zip.c
  	ut_a(page_is_comp(page));
  	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
  	ut_ad(page_simple_validate_new((page_t*) page));
-diff -ruN a/storage/innobase/row/row0ins.c b/storage/innobase/row/row0ins.c
---- a/storage/innobase/row/row0ins.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/row/row0ins.c	2010-12-04 15:38:18.198514028 +0900
+--- a/storage/innobase/row/row0ins.c
++++ b/storage/innobase/row/row0ins.c
 @@ -1335,6 +1335,12 @@
  		const rec_t*		rec = btr_pcur_get_rec(&pcur);
  		const buf_block_t*	block = btr_pcur_get_block(&pcur);
@@ -1315,9 +1290,8 @@ diff -ruN a/storage/innobase/row/row0ins.c b/storage/innobase/row/row0ins.c
  		if (page_rec_is_infimum(rec)) {
  
  			continue;
-diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
---- a/storage/innobase/row/row0merge.c	2010-12-03 17:30:16.330986655 +0900
-+++ b/storage/innobase/row/row0merge.c	2010-12-04 15:38:18.201513966 +0900
+--- a/storage/innobase/row/row0merge.c
++++ b/storage/innobase/row/row0merge.c
 @@ -1245,6 +1245,13 @@
  
  		if (UNIV_LIKELY(has_next)) {
@@ -1332,9 +1306,8 @@ diff -ruN a/storage/innobase/row/row0merge.c b/storage/innobase/row/row0merge.c
  			offsets = rec_get_offsets(rec, clust_index, NULL,
  						  ULINT_UNDEFINED, &row_heap);
  
-diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
---- a/storage/innobase/row/row0sel.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/row/row0sel.c	2010-12-04 15:38:18.205551115 +0900
+--- a/storage/innobase/row/row0sel.c
++++ b/storage/innobase/row/row0sel.c
 @@ -3854,6 +3854,13 @@
  	/* PHASE 4: Look for matching records in a loop */
  
@@ -1374,9 +1347,8 @@ diff -ruN a/storage/innobase/row/row0sel.c b/storage/innobase/row/row0sel.c
  		if (!rec_validate(rec, offsets)
  		    || !btr_index_rec_validate(rec, index, FALSE)) {
  			fprintf(stderr,
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:37:50.602481253 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:38:18.209513823 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -430,6 +430,7 @@
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
@@ -1385,9 +1357,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
  /*-------------------------------------------*/
-diff -ruN a/storage/innobase/srv/srv0start.c b/storage/innobase/srv/srv0start.c
---- a/storage/innobase/srv/srv0start.c	2010-12-04 15:37:50.605491300 +0900
-+++ b/storage/innobase/srv/srv0start.c	2010-12-04 15:38:18.212513722 +0900
+--- a/storage/innobase/srv/srv0start.c
++++ b/storage/innobase/srv/srv0start.c
 @@ -2149,6 +2149,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);

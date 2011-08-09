@@ -6,10 +6,9 @@
 # Clear MySQL connection errors in ha_federated::close(), since they
 # can affect queries on other tables due to table cache eviction.
 #
-diff -ruN Percona-Server.orig/storage/federated/ha_federated.cc Percona-Server/storage/federated/ha_federated.cc
---- Percona-Server.orig/storage/federated/ha_federated.cc	2011-05-11 15:54:12.000000000 +0400
-+++ Percona-Server/storage/federated/ha_federated.cc	2011-07-21 13:07:30.000000000 +0400
-@@ -1675,6 +1675,8 @@ int ha_federated::open(const char *name,
+--- a/storage/federated/ha_federated.cc
++++ b/storage/federated/ha_federated.cc
+@@ -1675,6 +1675,8 @@
  
  int ha_federated::close(void)
  {
@@ -18,7 +17,7 @@ diff -ruN Percona-Server.orig/storage/federated/ha_federated.cc Percona-Server/s
    DBUG_ENTER("ha_federated::close");
  
    free_result();
-@@ -1685,6 +1687,10 @@ int ha_federated::close(void)
+@@ -1685,6 +1687,10 @@
    mysql_close(mysql);
    mysql= NULL;
  

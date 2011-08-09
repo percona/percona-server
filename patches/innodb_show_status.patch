@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/buf/buf0buf.c	2010-12-03 15:07:31.786968193 +0900
+--- a/storage/innobase/buf/buf0buf.c
++++ b/storage/innobase/buf/buf0buf.c
 @@ -4365,6 +4365,7 @@
  	}
  
@@ -47,9 +46,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		pool_info->free_list_len,
  		pool_info->lru_len,
  		pool_info->old_lru_len,
-diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
---- a/storage/innobase/buf/buf0flu.c	2010-12-03 20:58:26.000000000 +0300
-+++ b/storage/innobase/buf/buf0flu.c	2011-01-07 03:37:41.000000000 +0300
+--- a/storage/innobase/buf/buf0flu.c
++++ b/storage/innobase/buf/buf0flu.c
 @@ -75,7 +75,7 @@
  static buf_flush_stat_t	buf_flush_stat_sum;
  
@@ -59,9 +57,8 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  /* @} */
  
-diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
---- a/storage/innobase/fil/fil0fil.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/fil/fil0fil.c	2010-12-03 15:07:31.790357112 +0900
+--- a/storage/innobase/fil/fil0fil.c
++++ b/storage/innobase/fil/fil0fil.c
 @@ -4889,3 +4889,30 @@
  
  	fil_system = NULL;
@@ -93,9 +90,8 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +               return 0;
 +       }
 +}
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:06:58.727955654 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:07:31.799376984 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -604,6 +604,8 @@
    (char*) &export_vars.innodb_buffer_pool_pages_dirty,	  SHOW_LONG},
    {"buffer_pool_pages_flushed",
@@ -140,9 +136,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(version),
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
-diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2011-01-20 07:37:08.000000000 +0900
-+++ b/storage/innobase/include/buf0buf.h	2011-02-14 15:25:20.859126532 +0900
+--- a/storage/innobase/include/buf0buf.h
++++ b/storage/innobase/include/buf0buf.h
 @@ -128,6 +128,7 @@
  	/* General buffer pool info */
  	ulint	pool_unique_id;		/*!< Buffer Pool ID */
@@ -151,9 +146,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  	ulint	lru_len;		/*!< Length of buf_pool->LRU */
  	ulint	old_lru_len;		/*!< buf_pool->LRU_old_len */
  	ulint	free_list_len;		/*!< Length of buf_pool->free list */
-diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
---- a/storage/innobase/include/fil0fil.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/fil0fil.h	2010-12-03 15:07:31.812028575 +0900
+--- a/storage/innobase/include/fil0fil.h
++++ b/storage/innobase/include/fil0fil.h
 @@ -726,6 +726,17 @@
  /*============================*/
  	ulint		id);	/*!< in: space id */
@@ -172,9 +166,8 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
  typedef	struct fil_space_struct	fil_space_t;
  
  #endif
-diff -ruN a/storage/innobase/include/read0read.h b/storage/innobase/include/read0read.h
---- a/storage/innobase/include/read0read.h	2010-12-04 02:58:26.000000000 +0900
-+++ b/storage/innobase/include/read0read.h	2011-01-21 19:35:44.127631727 +0900
+--- a/storage/innobase/include/read0read.h
++++ b/storage/innobase/include/read0read.h
 @@ -88,6 +88,7 @@
  void
  read_view_print(
@@ -183,9 +176,8 @@ diff -ruN a/storage/innobase/include/read0read.h b/storage/innobase/include/read
  	const read_view_t*	view);	/*!< in: read view */
  /*********************************************************************//**
  Create a consistent cursor view for mysql to be used in cursors. In this
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:07:31.813958103 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -142,6 +142,9 @@
  extern char	srv_adaptive_flushing;
  
@@ -213,9 +205,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
-diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
---- a/storage/innobase/lock/lock0lock.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/lock/lock0lock.c	2010-12-03 15:07:31.819023998 +0900
+--- a/storage/innobase/lock/lock0lock.c
++++ b/storage/innobase/lock/lock0lock.c
 @@ -4377,6 +4377,7 @@
  
  	putc('\n', file);
@@ -252,9 +243,8 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  		      " SUPPRESSING FURTHER PRINTS\n",
  		      file);
  
-diff -ruN a/storage/innobase/read/read0read.c b/storage/innobase/read/read0read.c
---- a/storage/innobase/read/read0read.c	2010-12-04 02:58:26.000000000 +0900
-+++ b/storage/innobase/read/read0read.c	2011-01-21 19:37:08.292650181 +0900
+--- a/storage/innobase/read/read0read.c
++++ b/storage/innobase/read/read0read.c
 @@ -357,34 +357,35 @@
  void
  read_view_print(
@@ -298,9 +288,8 @@ diff -ruN a/storage/innobase/read/read0read.c b/storage/innobase/read/read0read.
  			(ullint) read_view_get_nth_trx_id(view, i));
  	}
  }
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:07:31.824022673 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -83,6 +83,7 @@
  #include "ha_prototypes.h"
  #include "trx0i_s.h"
@@ -513,9 +502,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
  	export_vars.innodb_buffer_pool_read_ahead
  		= stat.n_ra_pages_read;
-diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
---- a/storage/innobase/sync/sync0arr.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/sync/sync0arr.c	2010-12-03 15:07:31.826041368 +0900
+--- a/storage/innobase/sync/sync0arr.c
++++ b/storage/innobase/sync/sync0arr.c
 @@ -478,7 +478,7 @@
  
  	fprintf(file,
@@ -525,9 +513,8 @@ diff -ruN a/storage/innobase/sync/sync0arr.c b/storage/innobase/sync/sync0arr.c
  		(ulong) os_thread_pf(cell->thread),
  		innobase_basename(cell->file), (ulong) cell->line,
  		difftime(time(NULL), cell->reservation_time));
-diff -ruN a/storage/innobase/trx/trx0purge.c b/storage/innobase/trx/trx0purge.c
---- a/storage/innobase/trx/trx0purge.c	2010-12-04 02:58:26.000000000 +0900
-+++ b/storage/innobase/trx/trx0purge.c	2011-01-21 19:40:42.086683671 +0900
+--- a/storage/innobase/trx/trx0purge.c
++++ b/storage/innobase/trx/trx0purge.c
 @@ -1212,7 +1212,7 @@
  /*=====================*/
  {

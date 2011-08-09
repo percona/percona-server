@@ -1,6 +1,6 @@
 --- a/scripts/mysqld_multi.sh
 +++ b/scripts/mysqld_multi.sh
-@@ -233,10 +233,10 @@ sub report_mysqlds
+@@ -233,10 +233,10 @@
  {
    my (@groups, $com, $i, @options, $pec);
  
@@ -13,7 +13,7 @@
    }
    @groups = &find_groups($groupids);
    for ($i = 0; defined($groups[$i]); $i++)
-@@ -247,19 +247,19 @@ sub report_mysqlds
+@@ -247,19 +247,19 @@
      $pec = $? >> 8;
      if ($pec)
      {
@@ -37,7 +37,7 @@
  	      "$opt_log", 0, 0);
        }
      }
-@@ -284,11 +284,11 @@ sub start_mysqlds()
+@@ -284,11 +284,11 @@
  
    if (!$opt_no_log)
    {
@@ -51,7 +51,7 @@
    }
    @groups = &find_groups($groupids);
    for ($i = 0; defined($groups[$i]); $i++)
-@@ -359,7 +359,7 @@ sub start_mysqlds()
+@@ -359,7 +359,7 @@
    }
    if (!$i && !$opt_no_log)
    {
@@ -60,7 +60,7 @@
  	  "$opt_log", 0, 0);
    }
  }
-@@ -374,11 +374,11 @@ sub stop_mysqlds()
+@@ -374,11 +374,11 @@
  
    if (!$opt_no_log)
    {
@@ -74,7 +74,7 @@
    }
    @groups = &find_groups($groupids);
    for ($i = 0; defined($groups[$i]); $i++)
-@@ -391,7 +391,7 @@ sub stop_mysqlds()
+@@ -391,7 +391,7 @@
    }
    if (!$i && !$opt_no_log)
    {
@@ -105,7 +105,7 @@
  ### END INIT INFO
   
  # If you install MySQL on some other places than @prefix@, then you
-@@ -275,7 +275,7 @@ case "$mode" in
+@@ -275,7 +275,7 @@
      # Safeguard (relative paths, core dumps..)
      cd $basedir
  
@@ -114,7 +114,7 @@
      if test -x $bindir/mysqld_safe
      then
        # Give extra arguments to mysqld with the my.cnf file. This script
-@@ -305,12 +305,12 @@ case "$mode" in
+@@ -305,12 +305,12 @@
  
        if (kill -0 $mysqld_pid 2>/dev/null)
        then
@@ -129,7 +129,7 @@
          rm "$mysqld_pid_file_path"
        fi
  
-@@ -321,7 +321,7 @@ case "$mode" in
+@@ -321,7 +321,7 @@
        fi
        exit $return_value
      else
@@ -138,7 +138,7 @@
      fi
      ;;
  
-@@ -339,10 +339,10 @@ case "$mode" in
+@@ -339,10 +339,10 @@
    'reload'|'force-reload')
      if test -s "$mysqld_pid_file_path" ; then
        read mysqld_pid <  "$mysqld_pid_file_path"
@@ -151,7 +151,7 @@
        exit 1
      fi
      ;;
-@@ -351,10 +351,10 @@ case "$mode" in
+@@ -351,10 +351,10 @@
      if test -s "$mysqld_pid_file_path" ; then 
        read mysqld_pid < "$mysqld_pid_file_path"
        if kill -0 $mysqld_pid 2>/dev/null ; then 
@@ -164,7 +164,7 @@
          exit 1
        fi
      else
-@@ -362,13 +362,13 @@ case "$mode" in
+@@ -362,13 +362,13 @@
        mysqld_pid=`pidof $libexecdir/mysqld`
        if test -z $mysqld_pid ; then 
          if test -f "$lock_file_path" ; then 
@@ -181,7 +181,7 @@
          exit 4
        fi
      fi
-@@ -376,7 +376,7 @@ case "$mode" in
+@@ -376,7 +376,7 @@
      *)
        # usage
        basename=`basename "$0"`

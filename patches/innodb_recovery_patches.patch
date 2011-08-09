@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
---- a/storage/innobase/buf/buf0rea.c	2010-12-03 15:49:59.187028943 +0900
-+++ b/storage/innobase/buf/buf0rea.c	2010-12-03 17:30:41.579956150 +0900
+--- a/storage/innobase/buf/buf0rea.c
++++ b/storage/innobase/buf/buf0rea.c
 @@ -122,6 +122,46 @@
  	bpage = buf_page_init_for_read(err, mode, space, zip_size, unzip,
  				       tablespace_version, offset);
@@ -106,9 +105,8 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
  		return;
  	}
  
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:30:16.261955714 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 17:30:41.584971130 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -182,6 +182,7 @@
  #endif /* UNIV_LOG_ARCHIVE */
  static my_bool	innobase_use_doublewrite		= TRUE;
@@ -146,9 +144,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(fast_shutdown),
    MYSQL_SYSVAR(file_io_threads),
    MYSQL_SYSVAR(read_io_threads),
-diff -ruN a/storage/innobase/include/log0recv.h b/storage/innobase/include/log0recv.h
---- a/storage/innobase/include/log0recv.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/log0recv.h	2010-12-03 17:30:41.592958318 +0900
+--- a/storage/innobase/include/log0recv.h
++++ b/storage/innobase/include/log0recv.h
 @@ -438,6 +438,39 @@
  	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */
  	ulint		n_addrs;/*!< number of not processed hashed file
@@ -189,9 +186,8 @@ diff -ruN a/storage/innobase/include/log0recv.h b/storage/innobase/include/log0r
  };
  
  /** The recovery system */
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-03 17:30:16.321953515 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-03 17:30:41.593985184 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -126,6 +126,8 @@
  extern ulint*	srv_data_file_sizes;
  extern ulint*	srv_data_file_is_raw_partition;
@@ -201,9 +197,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  extern ibool	srv_auto_extend_last_data_file;
  extern ulint	srv_last_file_size_max;
  extern char**	srv_log_group_home_dirs;
-diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
---- a/storage/innobase/log/log0recv.c	2010-12-03 15:18:48.903987466 +0900
-+++ b/storage/innobase/log/log0recv.c	2010-12-03 17:30:41.598022536 +0900
+--- a/storage/innobase/log/log0recv.c
++++ b/storage/innobase/log/log0recv.c
 @@ -187,6 +187,9 @@
  
  	recv_sys->heap = NULL;
@@ -430,9 +425,8 @@ diff -ruN a/storage/innobase/log/log0recv.c b/storage/innobase/log/log0recv.c
  	if (recv_needed_recovery) {
  		trx_sys_print_mysql_master_log_pos();
  		trx_sys_print_mysql_binlog_offset();
-diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
---- a/storage/innobase/os/os0file.c	2010-12-03 15:18:48.908955759 +0900
-+++ b/storage/innobase/os/os0file.c	2010-12-03 17:30:41.602022989 +0900
+--- a/storage/innobase/os/os0file.c
++++ b/storage/innobase/os/os0file.c
 @@ -43,6 +43,7 @@
  #include "srv0start.h"
  #include "fil0fil.h"
@@ -460,9 +454,8 @@ diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
  	os_mutex_enter(array->mutex);
  
  	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-03 17:30:16.339955597 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-03 17:30:41.604958138 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -160,6 +160,8 @@
  /* size in database pages */
  UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
@@ -472,9 +465,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* if TRUE, then we auto-extend the last data file */
  UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
  /* if != 0, this tells the max size auto-extending may increase the
-diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
---- a/storage/innobase/trx/trx0sys.c	2010-12-03 15:41:52.051986524 +0900
-+++ b/storage/innobase/trx/trx0sys.c	2010-12-03 17:30:41.607026818 +0900
+--- a/storage/innobase/trx/trx0sys.c
++++ b/storage/innobase/trx/trx0sys.c
 @@ -567,6 +567,12 @@
  			       zip_size ? zip_size : UNIV_PAGE_SIZE,
  			       read_buf, NULL);

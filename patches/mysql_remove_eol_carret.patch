@@ -5,10 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/client/client_priv.h b/client/client_priv.h
---- a/client/client_priv.h	2011-04-09 18:48:54.000000000 +0400
-+++ b/client/client_priv.h	2011-04-09 18:49:03.000000000 +0400
-@@ -87,6 +87,7 @@
+--- a/client/client_priv.h
++++ b/client/client_priv.h
+@@ -89,6 +89,7 @@
    OPT_SYSLOG,
  #endif
    OPT_PLUGIN_DIR,
@@ -16,10 +15,9 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
    OPT_DEFAULT_AUTH,
    OPT_DEFAULT_PLUGIN,
    OPT_MAX_CLIENT_OPTION
-diff -ruN a/client/mysql.cc b/client/mysql.cc
---- a/client/mysql.cc	2011-04-09 18:48:54.000000000 +0400
-+++ b/client/mysql.cc	2011-04-09 18:49:03.000000000 +0400
-@@ -133,6 +133,8 @@
+--- a/client/mysql.cc
++++ b/client/mysql.cc
+@@ -135,6 +135,8 @@
  enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
  typedef enum enum_info_type INFO_TYPE;
  
@@ -28,7 +26,7 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
  static MYSQL mysql;			/* The connection */
  static my_bool ignore_errors=0,wait_flag=0,quick=0,
                 connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
-@@ -1452,6 +1454,10 @@
+@@ -1454,6 +1456,10 @@
     NO_ARG, 1, 0, 0, 0, 0, 0},
    {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -39,10 +37,9 @@ diff -ruN a/client/mysql.cc b/client/mysql.cc
    {"unbuffered", 'n', "Flush buffer after each query.", &unbuffered,
     &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
    {"column-names", OPT_COLUMN_NAMES, "Write column names in results.",
-diff -ruN a/client/readline.cc b/client/readline.cc
---- a/client/readline.cc	2011-04-09 18:48:03.000000000 +0400
-+++ b/client/readline.cc	2011-04-09 18:49:03.000000000 +0400
-@@ -21,6 +21,8 @@
+--- a/client/readline.cc
++++ b/client/readline.cc
+@@ -23,6 +23,8 @@
  #include <my_dir.h>
  #include "my_readline.h"
  
@@ -51,7 +48,7 @@ diff -ruN a/client/readline.cc b/client/readline.cc
  static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
  			    ulong max_size);
  static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
-@@ -60,7 +62,7 @@
+@@ -62,7 +64,7 @@
    if (!(pos=intern_read_line(line_buff, &out_length)))
      return 0;
    if (out_length && pos[out_length-1] == '\n')
@@ -60,9 +57,8 @@ diff -ruN a/client/readline.cc b/client/readline.cc
        out_length--;                                 /* Remove '\r' */
    line_buff->read_length=out_length;
    pos[out_length]=0;
-diff -ruN /dev/null b/patch_info/mysql_remove_eol_carret.patch
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/patch_info/mysql_remove_eol_carret.patch	2011-04-09 18:49:03.000000000 +0400
+--- /dev/null
++++ b/patch_info/mysql_remove_eol_carret.patch
 @@ -0,0 +1,7 @@
 +File=mysql_remove_eol_carret.patch
 +Name=

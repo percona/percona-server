@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:37:45.516105468 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:38:20.318952987 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -42,6 +42,8 @@
  #pragma implementation				// gcc: Class implementation
  #endif
@@ -270,9 +269,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
    MYSQL_SYSVAR(stats_sample_pages),
-diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sys.h
---- a/storage/innobase/include/trx0sys.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/trx0sys.h	2010-12-03 15:38:20.321953297 +0900
+--- a/storage/innobase/include/trx0sys.h
++++ b/storage/innobase/include/trx0sys.h
 @@ -53,6 +53,9 @@
  extern ib_int64_t	trx_sys_mysql_master_log_pos;
  /* @} */
@@ -309,9 +307,8 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
  
  /** The offset of the MySQL binlog offset info in the trx system header */
  #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
-diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
---- a/storage/innobase/include/trx0trx.h	2010-12-03 15:18:48.894955550 +0900
-+++ b/storage/innobase/include/trx0trx.h	2010-12-03 15:38:20.323953416 +0900
+--- a/storage/innobase/include/trx0trx.h
++++ b/storage/innobase/include/trx0trx.h
 @@ -580,6 +580,20 @@
  	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
  					contains the end offset of the binlog
@@ -333,9 +330,8 @@ diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0tr
  	/*------------------------------*/
  	ulint		n_mysql_tables_in_use; /* number of Innobase tables
  					used in the processing of the current
-diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
---- a/storage/innobase/trx/trx0sys.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/trx/trx0sys.c	2010-12-03 15:38:20.325956917 +0900
+--- a/storage/innobase/trx/trx0sys.c
++++ b/storage/innobase/trx/trx0sys.c
 @@ -76,13 +76,16 @@
  file name and position here. */
  /* @{ */
@@ -434,9 +430,8 @@ diff -ruN a/storage/innobase/trx/trx0sys.c b/storage/innobase/trx/trx0sys.c
  	mtr_commit(&mtr);
  }
  
-diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
---- a/storage/innobase/trx/trx0trx.c	2010-12-03 15:37:45.549028990 +0900
-+++ b/storage/innobase/trx/trx0trx.c	2010-12-03 15:38:20.328957217 +0900
+--- a/storage/innobase/trx/trx0trx.c
++++ b/storage/innobase/trx/trx0trx.c
 @@ -138,6 +138,10 @@
  
  	trx->mysql_log_file_name = NULL;

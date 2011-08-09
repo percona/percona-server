@@ -342,7 +342,7 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
 diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
 --- a/storage/innobase/include/sync0sync.h	2011-01-21 19:48:45.982637372 +0900
 +++ b/storage/innobase/include/sync0sync.h	2011-01-21 19:54:44.664638235 +0900
-@@ -769,6 +769,10 @@
+@@ -771,6 +771,10 @@
  
  #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
  

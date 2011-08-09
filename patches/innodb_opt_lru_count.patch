@@ -8,15 +8,15 @@
 diff -ruN a/storage/innobase/buf/buf0buddy.c b/storage/innobase/buf/buf0buddy.c
 --- a/storage/innobase/buf/buf0buddy.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0buddy.c	2010-12-03 15:20:49.593024343 +0900
-@@ -137,7 +137,7 @@
- 			      ut_ad(buf_page_get_state(ut_list_node_313)
- 				    == BUF_BLOCK_ZIP_FREE)));
- #endif /* !UNIV_DEBUG_VALGRIND */
+@@ -123,7 +123,7 @@
+ 
+ 	ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
+ 
 -	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 +	bpage = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
  
  	if (bpage) {
- 		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
+ 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-03 15:18:48.866986963 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-03 15:20:49.595987311 +0900
@@ -31,7 +31,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
  	block->n_pointers = 0;
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-@@ -1494,7 +1494,7 @@
+@@ -1428,7 +1428,7 @@
  
  	memcpy(dpage, bpage, sizeof *dpage);
  
@@ -40,7 +40,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	ut_d(bpage->in_page_hash = FALSE);
  
  	/* relocate buf_pool->LRU */
-@@ -3747,8 +3747,8 @@
+@@ -3279,8 +3279,8 @@
  		bpage->in_zip_hash = FALSE;
  		bpage->in_flush_list = FALSE;
  		bpage->in_free_list = FALSE;
@@ -50,7 +50,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  
  		ut_d(bpage->in_page_hash = TRUE);
  
-@@ -3911,7 +3911,7 @@
+@@ -3445,7 +3445,7 @@
  	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -97,7 +97,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	return(FALSE);
  }
-@@ -1983,8 +1986,14 @@
+@@ -1985,8 +1988,14 @@
  	buf_page_t*	bpage;
  	ulint		n_replaceable;
  	ulint		distance	= 0;
@@ -113,7 +113,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -1995,7 +2004,13 @@
+@@ -1997,7 +2006,13 @@
  		   + BUF_FLUSH_EXTRA_MARGIN(buf_pool))
  	       && (distance < BUF_LRU_FREE_SEARCH_LEN(buf_pool))) {
  
@@ -128,7 +128,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  		mutex_enter(block_mutex);
  
-@@ -2010,11 +2025,18 @@
+@@ -2012,11 +2027,18 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -148,7 +148,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  	}
  
  	return(BUF_FLUSH_FREE_BLOCK_MARGIN(buf_pool)
-@@ -2032,7 +2054,8 @@
+@@ -2034,7 +2056,8 @@
  void
  buf_flush_free_margin(
  /*==================*/
@@ -158,7 +158,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  {
  	ulint	n_to_flush;
  
-@@ -2043,7 +2066,7 @@
+@@ -2045,7 +2068,7 @@
  
  		n_flushed = buf_flush_LRU(buf_pool, n_to_flush);
  
@@ -167,7 +167,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  			/* There was an LRU type flush batch already running;
  			let us wait for it to end */
  
-@@ -2056,8 +2079,9 @@
+@@ -2058,8 +2081,9 @@
  Flushes pages from the end of all the LRU lists. */
  UNIV_INTERN
  void
@@ -178,7 +178,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  {
  	ulint	i;
  
-@@ -2066,7 +2090,7 @@
+@@ -2068,7 +2092,7 @@
  
  		buf_pool = buf_pool_from_array(i);
  
@@ -190,7 +190,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
 --- a/storage/innobase/buf/buf0lru.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0lru.c	2010-12-03 15:20:49.602952786 +0900
-@@ -996,7 +996,7 @@
+@@ -923,7 +923,7 @@
  
  	/* No free block was found: try to flush the LRU list */
  
@@ -199,7 +199,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  	++srv_buf_pool_wait_free;
  
  	os_aio_simulated_wake_handler_threads();
-@@ -1193,7 +1193,7 @@
+@@ -1120,7 +1120,7 @@
  
  	/* Remove the block from the LRU list */
  	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
@@ -208,7 +208,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	buf_unzip_LRU_remove_block_if_needed(bpage);
  
-@@ -1272,7 +1272,7 @@
+@@ -1199,7 +1199,7 @@
  
  	ut_ad(!bpage->in_LRU_list);
  	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
@@ -217,7 +217,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1342,7 +1342,7 @@
+@@ -1269,7 +1269,7 @@
  		buf_pool->LRU_old_len++;
  	}
  
@@ -226,7 +226,7 @@ diff -ruN a/storage/innobase/buf/buf0lru.c b/storage/innobase/buf/buf0lru.c
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1593,7 +1593,7 @@
+@@ -1513,7 +1513,7 @@
  				buf_page_set_old(b, buf_page_is_old(b));
  #endif /* UNIV_LRU_DEBUG */
  			} else {
@@ -277,7 +277,7 @@ diff -ruN a/storage/innobase/buf/buf0rea.c b/storage/innobase/buf/buf0rea.c
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-03 15:20:49.608986590 +0900
-@@ -1390,11 +1390,11 @@
+@@ -1426,11 +1426,11 @@
  
  	UT_LIST_NODE_T(buf_page_t) LRU;
  					/*!< node of the LRU list */

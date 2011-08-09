@@ -384,7 +384,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11659,6 +11661,11 @@
+@@ -11658,6 +11660,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -396,7 +396,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11727,6 +11734,7 @@
+@@ -11726,6 +11733,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -435,7 +435,7 @@ diff -ruN a/storage/innobase/include/btr0sea.h b/storage/innobase/include/btr0se
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2011-02-01 18:00:03.000000000 +0900
 +++ b/storage/innobase/include/buf0buf.h	2011-02-01 18:03:29.000000000 +0900
-@@ -1558,6 +1558,15 @@
+@@ -1594,6 +1594,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  

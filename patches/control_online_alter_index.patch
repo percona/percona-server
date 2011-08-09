@@ -8,7 +8,7 @@
 diff -ruN a/sql/handler.h b/sql/handler.h
 --- a/sql/handler.h	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/handler.h	2010-12-03 13:51:04.727293058 +0900
-@@ -205,6 +205,8 @@
+@@ -206,6 +206,8 @@
  #define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
  #define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
  #define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
@@ -49,7 +49,7 @@ diff -ruN a/sql/sql_partition.cc b/sql/sql_partition.cc
 diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
 --- a/sql/sql_table.cc	2010-11-03 07:01:14.000000000 +0900
 +++ b/sql/sql_table.cc	2010-12-03 13:51:04.768955495 +0900
-@@ -6116,6 +6116,10 @@
+@@ -6140,6 +6140,10 @@
      uint  *idx_end_p;
  
      alter_flags= table->file->alter_table_flags(alter_info->flags);

@@ -912,7 +912,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2440,6 +2441,8 @@
+@@ -2439,6 +2440,8 @@
  		goto error;
  	}
  
@@ -921,7 +921,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -5248,6 +5251,10 @@
+@@ -5247,6 +5250,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -932,7 +932,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5584,6 +5591,10 @@
+@@ -5583,6 +5590,10 @@
  		}
  	}
  
@@ -943,7 +943,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5637,6 +5648,10 @@
+@@ -5636,6 +5647,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -954,7 +954,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5955,6 +5970,11 @@
+@@ -5954,6 +5969,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -966,7 +966,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_KEY_NOT_FOUND;
-@@ -6164,6 +6184,11 @@
+@@ -6163,6 +6183,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -978,7 +978,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8106,11 +8131,35 @@
+@@ -8105,11 +8130,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1015,7 +1015,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8188,7 +8237,7 @@
+@@ -8187,7 +8236,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1024,7 +1024,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11402,6 +11451,26 @@
+@@ -11401,6 +11450,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1051,7 +1051,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11728,6 +11797,9 @@
+@@ -11727,6 +11796,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1061,7 +1061,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11797,7 +11869,10 @@
+@@ -11796,7 +11868,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -1924,7 +1924,7 @@ diff -ruN a/storage/innobase/que/que0que.c b/storage/innobase/que/que0que.c
 diff -ruN a/storage/innobase/row/row0ins.c b/storage/innobase/row/row0ins.c
 --- a/storage/innobase/row/row0ins.c	2011-03-10 00:11:38.000000000 +0900
 +++ b/storage/innobase/row/row0ins.c	2011-03-30 11:44:58.000000000 +0900
-@@ -2012,6 +2012,8 @@
+@@ -2013,6 +2013,8 @@
  	}
  
  #ifdef UNIV_DEBUG
@@ -1967,7 +1967,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  	}
  }
  
-@@ -2103,6 +2106,71 @@
+@@ -2076,6 +2079,71 @@
  }
  
  /*********************************************************************//**
@@ -2039,7 +2039,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  Scans a table create SQL string and adds to the data dictionary
  the foreign key constraints declared in the string. This function
  should be called after the indexes for a table have been created.
-@@ -3027,7 +3095,7 @@
+@@ -3000,7 +3068,7 @@
  	dict_table_autoinc_initialize(table, 1);
  	dict_table_autoinc_unlock(table);
  	dict_update_statistics(table, FALSE /* update even if stats are
@@ -2048,7 +2048,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  
  	trx_commit_for_mysql(trx);
  
-@@ -3329,6 +3397,8 @@
+@@ -3302,6 +3370,8 @@
  			   "       IF (SQL % NOTFOUND) THEN\n"
  			   "               found := 0;\n"
  			   "       ELSE\n"
@@ -2060,7 +2060,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
 diff -ruN a/storage/innobase/row/row0row.c b/storage/innobase/row/row0row.c
 --- a/storage/innobase/row/row0row.c	2011-03-10 00:11:38.000000000 +0900
 +++ b/storage/innobase/row/row0row.c	2011-03-30 11:44:58.000000000 +0900
-@@ -315,6 +315,14 @@
+@@ -373,6 +373,14 @@
  
  	rec_len = rec_offs_n_fields(offsets);
  
@@ -2075,7 +2075,7 @@ diff -ruN a/storage/innobase/row/row0row.c b/storage/innobase/row/row0row.c
  	entry = dtuple_create(heap, rec_len);
  
  	dtuple_set_n_fields_cmp(entry,
-@@ -326,6 +334,14 @@
+@@ -384,6 +392,14 @@
  	for (i = 0; i < rec_len; i++) {
  
  		dfield = dtuple_get_nth_field(entry, i);

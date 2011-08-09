@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-12-04 20:20:44.595483291 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-06 19:28:04.055227506 +0900
-@@ -4159,6 +4159,36 @@
+@@ -4157,6 +4157,36 @@
  	mutex_exit(block_mutex);
  }
  
@@ -48,7 +48,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
 --- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 20:20:44.614551139 +0900
 +++ b/storage/innobase/handler/ha_innodb.cc	2010-12-06 19:23:47.622195800 +0900
-@@ -12166,6 +12166,9 @@
+@@ -12165,6 +12165,9 @@
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
@@ -786,7 +786,7 @@ diff -ruN a/storage/innobase/handler/i_s.h b/storage/innobase/handler/i_s.h
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 19:46:40.197471531 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-06 19:23:47.638195824 +0900
-@@ -1141,6 +1141,14 @@
+@@ -1183,6 +1183,14 @@
  /*===========*/
  	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
  	__attribute__((nonnull, const));

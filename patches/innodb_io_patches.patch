@@ -27,7 +27,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
 --- a/storage/innobase/buf/buf0flu.c	2011-07-07 18:43:12.000000000 +0400
 +++ b/storage/innobase/buf/buf0flu.c	2011-07-07 19:01:24.000000000 +0400
-@@ -855,7 +855,7 @@
+@@ -857,7 +857,7 @@
  flush:
  	/* Now flush the doublewrite buffer data to disk */
  
@@ -36,7 +36,7 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  
  	/* We know that the writes have been flushed to disk now
  	and in recovery we will find them in the doublewrite buffer
-@@ -1376,7 +1376,7 @@
+@@ -1378,7 +1378,7 @@
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -170,7 +170,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2443,6 +2460,9 @@
+@@ -2442,6 +2459,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -180,7 +180,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -11037,7 +11057,7 @@
+@@ -11036,7 +11056,7 @@
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
    "Purge threads can be either 0 or 1.",
    NULL, NULL,
@@ -189,7 +189,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -11079,12 +11099,18 @@
+@@ -11078,12 +11098,18 @@
    innodb_file_format_max_validate,
    innodb_file_format_max_update, "Antelope");
  
@@ -214,7 +214,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11184,7 +11210,7 @@
+@@ -11183,7 +11209,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -223,7 +223,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11336,6 +11362,95 @@
+@@ -11335,6 +11361,95 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -319,7 +319,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11356,6 +11471,7 @@
+@@ -11355,6 +11470,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -327,7 +327,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(large_prefix),
-@@ -11394,6 +11510,13 @@
+@@ -11393,6 +11509,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),

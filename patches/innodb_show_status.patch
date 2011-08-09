@@ -8,7 +8,7 @@
 diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
 --- a/storage/innobase/buf/buf0buf.c	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/buf/buf0buf.c	2010-12-03 15:07:31.786968193 +0900
-@@ -4831,6 +4831,7 @@
+@@ -4365,6 +4365,7 @@
  	}
  
  	total_info->pool_size += pool_info->pool_size;
@@ -16,7 +16,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	total_info->lru_len += pool_info->lru_len;
  	total_info->old_lru_len += pool_info->old_lru_len;
  	total_info->free_list_len += pool_info->free_list_len;
-@@ -4894,6 +4895,8 @@
+@@ -4428,6 +4429,8 @@
  
  	pool_info->pool_size = buf_pool->curr_size;
  
@@ -25,7 +25,7 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
  
  	pool_info->old_lru_len = buf_pool->LRU_old_len;
-@@ -5010,14 +5013,16 @@
+@@ -4544,14 +4547,16 @@
  	ut_ad(pool_info);
  
  	fprintf(file,
@@ -105,7 +105,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"buffer_pool_pages_free",
    (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
  #ifdef UNIV_DEBUG
-@@ -11098,6 +11100,16 @@
+@@ -11097,6 +11099,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -122,7 +122,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11285,7 +11297,7 @@
+@@ -11284,7 +11296,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -131,7 +131,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11379,6 +11391,8 @@
+@@ -11378,6 +11390,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),

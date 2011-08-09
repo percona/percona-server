@@ -112,7 +112,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2322,6 +2325,65 @@
+@@ -2321,6 +2324,65 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -178,7 +178,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7253,9 +7315,9 @@
+@@ -7252,9 +7314,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -191,7 +191,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  		}
  	}
  
-@@ -11444,6 +11506,16 @@
+@@ -11443,6 +11505,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -208,7 +208,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11953,6 +12025,8 @@
+@@ -11952,6 +12024,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -220,7 +220,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
 diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
 --- a/storage/innobase/include/buf0buf.h	2010-12-04 15:55:21.375482937 +0900
 +++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:55:58.258469088 +0900
-@@ -1686,7 +1686,7 @@
+@@ -1722,7 +1722,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -229,16 +229,16 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1782,7 +1782,7 @@
- 	/* @{ */
+@@ -1820,7 +1820,7 @@
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
+ #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 -	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 +	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1790,9 +1790,9 @@
+@@ -1828,9 +1828,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  
@@ -254,9 +254,9 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
 diff -ruN a/storage/innobase/include/buf0types.h b/storage/innobase/include/buf0types.h
 --- a/storage/innobase/include/buf0types.h	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/buf0types.h	2010-12-04 15:55:58.259482590 +0900
-@@ -72,12 +72,13 @@
- 					buddy system; must be at least
- 					sizeof(buf_page_t) */
+@@ -67,12 +67,13 @@
+ #define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
+ 
  #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
 +#define BUF_BUDDY_SIZES_MAX	(UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT)
  					/*!< number of buddy sizes */
@@ -354,7 +354,7 @@ diff -ruN a/storage/innobase/include/page0types.h b/storage/innobase/include/pag
 diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sys.h
 --- a/storage/innobase/include/trx0sys.h	2010-12-04 15:37:50.593480594 +0900
 +++ b/storage/innobase/include/trx0sys.h	2010-12-04 15:55:58.262549554 +0900
-@@ -515,9 +515,9 @@
+@@ -526,9 +526,9 @@
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
  
@@ -370,7 +370,7 @@ diff -ruN a/storage/innobase/include/trx0sys.h b/storage/innobase/include/trx0sy
 diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
 --- a/storage/innobase/include/univ.i	2010-11-03 07:01:13.000000000 +0900
 +++ b/storage/innobase/include/univ.i	2010-12-04 15:55:58.263549721 +0900
-@@ -311,9 +311,13 @@
+@@ -310,9 +310,13 @@
  */
  
  /* The 2-logarithm of UNIV_PAGE_SIZE: */
@@ -386,7 +386,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -432,7 +436,7 @@
+@@ -431,7 +435,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -395,7 +395,7 @@ diff -ruN a/storage/innobase/include/univ.i b/storage/innobase/include/univ.i
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -535,4 +539,6 @@
+@@ -534,4 +538,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  

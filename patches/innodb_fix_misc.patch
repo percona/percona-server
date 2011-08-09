@@ -11,9 +11,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/buf0buddy.c
---- a/storage/innodb_plugin/buf/buf0buddy.c	2011-06-23 17:58:32.811788353 +0900
-+++ b/storage/innodb_plugin/buf/buf0buddy.c	2011-06-23 17:59:22.291827133 +0900
+--- a/storage/innodb_plugin/buf/buf0buddy.c
++++ b/storage/innodb_plugin/buf/buf0buddy.c
 @@ -377,7 +377,9 @@
  	buf_page_t*	bpage,	/*!< in: block to relocate */
  	buf_page_t*	dpage)	/*!< in: free block to relocate to */
@@ -40,9 +39,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  
  	UNIV_MEM_INVALID(bpage, sizeof *bpage);
  
-diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
---- a/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:31:57.781983359 +0900
-+++ b/storage/innodb_plugin/buf/buf0buf.c	2011-02-21 20:32:39.523946003 +0900
+--- a/storage/innodb_plugin/buf/buf0buf.c
++++ b/storage/innodb_plugin/buf/buf0buf.c
 @@ -953,74 +953,6 @@
  	return(NULL);
  }
@@ -608,9 +606,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  	if (block && buf_page_in_file(&block->page)) {
  #ifdef UNIV_IBUF_COUNT_DEBUG
  		ut_a(ibuf_count_get(space, offset) == 0);
-diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
---- a/storage/innodb_plugin/buf/buf0flu.c	2011-02-21 20:31:57.784983260 +0900
-+++ b/storage/innodb_plugin/buf/buf0flu.c	2011-02-21 20:32:39.524915732 +0900
+--- a/storage/innodb_plugin/buf/buf0flu.c
++++ b/storage/innodb_plugin/buf/buf0flu.c
 @@ -367,7 +367,7 @@
  
  	if (UNIV_LIKELY(bpage->in_LRU_list && buf_page_in_file(bpage))) {
@@ -644,9 +641,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  		break;
  	case BUF_BLOCK_FILE_PAGE:
  		UT_LIST_REMOVE(flush_list, buf_pool->flush_list, bpage);
-diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
---- a/storage/innodb_plugin/buf/buf0lru.c	2011-02-21 20:31:57.451983310 +0900
-+++ b/storage/innodb_plugin/buf/buf0lru.c	2011-02-21 20:32:39.526949096 +0900
+--- a/storage/innodb_plugin/buf/buf0lru.c
++++ b/storage/innodb_plugin/buf/buf0lru.c
 @@ -550,6 +550,56 @@
  	}
  }
@@ -743,9 +739,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  
  		mutex_exit(&buf_pool_zip_mutex);
  		//buf_pool_mutex_exit_forbid();
-diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2011-02-21 20:31:57.838984412 +0900
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2011-02-21 20:32:39.528914782 +0900
+--- a/storage/innodb_plugin/fil/fil0fil.c
++++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -244,6 +244,7 @@
  struct fil_system_struct {
  #ifndef UNIV_HOTBACKUP
@@ -939,9 +934,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	}
  
  	ut_a(ret);
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:50:59.626327847 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:55:20.281021252 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -11746,6 +11746,12 @@
    "except for the deletion.",
    NULL, NULL, 0, 0, 2, 0);
@@ -972,9 +966,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    PLUGIN_LICENSE_GPL,
    innobase_init, /* Plugin Init */
    NULL, /* Plugin Deinit */
-diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
---- a/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:31:57.863983187 +0900
-+++ b/storage/innodb_plugin/include/buf0buf.h	2011-02-21 20:32:39.537912716 +0900
+--- a/storage/innodb_plugin/include/buf0buf.h
++++ b/storage/innodb_plugin/include/buf0buf.h
 @@ -141,12 +141,6 @@
  				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
  	buf_page_t*	dpage)	/*!< in/out: destination control block */
@@ -1007,9 +1000,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
  					/*!< buddy free lists */
  //#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
-diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/include/buf0buf.ic
---- a/storage/innodb_plugin/include/buf0buf.ic	2011-02-21 20:31:57.725983812 +0900
-+++ b/storage/innodb_plugin/include/buf0buf.ic	2011-02-21 20:32:39.538913061 +0900
+--- a/storage/innodb_plugin/include/buf0buf.ic
++++ b/storage/innodb_plugin/include/buf0buf.ic
 @@ -384,6 +384,7 @@
  	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
  	block->page.space = space;
@@ -1018,9 +1010,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.ic b/storage/innodb_plugin/inc
  }
  
  /*********************************************************************//**
-diff -ruN a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/include/buf0lru.h
---- a/storage/innodb_plugin/include/buf0lru.h	2011-02-21 20:31:57.480924269 +0900
-+++ b/storage/innodb_plugin/include/buf0lru.h	2011-02-21 20:32:39.539912965 +0900
+--- a/storage/innodb_plugin/include/buf0lru.h
++++ b/storage/innodb_plugin/include/buf0lru.h
 @@ -84,6 +84,14 @@
  buf_LRU_invalidate_tablespace(
  /*==========================*/
@@ -1044,9 +1035,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/incl
  
  /******************************************************************//**
  Try to free a block.  If bpage is a descriptor of a compressed-only
-diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/include/os0file.h
---- a/storage/innodb_plugin/include/os0file.h	2011-02-21 20:31:57.870987755 +0900
-+++ b/storage/innodb_plugin/include/os0file.h	2011-02-21 20:32:39.540912738 +0900
+--- a/storage/innodb_plugin/include/os0file.h
++++ b/storage/innodb_plugin/include/os0file.h
 @@ -658,6 +658,7 @@
  				(can be used to identify a completed
  				aio operation); ignored if mode is
@@ -1075,9 +1065,8 @@ diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/incl
  /**********************************************************************//**
  Validates the consistency of the aio system.
  @return	TRUE if ok */
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2011-02-21 20:31:57.824983518 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2011-02-21 20:32:39.541913033 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -236,6 +236,8 @@
  
  extern ulint	srv_extra_rsegments;
@@ -1087,9 +1076,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/include/sync0sync.h
---- a/storage/innodb_plugin/include/sync0sync.h	2011-02-21 20:31:57.382982949 +0900
-+++ b/storage/innodb_plugin/include/sync0sync.h	2011-02-21 20:32:39.543913340 +0900
+--- a/storage/innodb_plugin/include/sync0sync.h
++++ b/storage/innodb_plugin/include/sync0sync.h
 @@ -496,6 +496,7 @@
  #define	SYNC_BUF_POOL		150
  #define SYNC_BUF_FLUSH_LIST	149
@@ -1098,9 +1086,8 @@ diff -ruN a/storage/innodb_plugin/include/sync0sync.h b/storage/innodb_plugin/in
  #define	SYNC_ANY_LATCH		135
  #define SYNC_THR_LOCAL		133
  #define	SYNC_MEM_HASH		131
-diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include/univ.i
---- a/storage/innodb_plugin/include/univ.i	2010-04-30 16:37:05.000000000 +0900
-+++ b/storage/innodb_plugin/include/univ.i	2010-04-30 16:41:46.000000000 +0900
+--- a/storage/innodb_plugin/include/univ.i
++++ b/storage/innodb_plugin/include/univ.i
 @@ -48,6 +48,11 @@
  #define INNODB_VERSION_MINOR	0
  #define INNODB_VERSION_BUGFIX	17
@@ -1132,9 +1119,8 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
  
  #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
  
-diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0file.c
---- a/storage/innodb_plugin/os/os0file.c	2011-02-21 20:31:57.437945953 +0900
-+++ b/storage/innodb_plugin/os/os0file.c	2011-02-21 20:32:39.546945763 +0900
+--- a/storage/innodb_plugin/os/os0file.c
++++ b/storage/innodb_plugin/os/os0file.c
 @@ -142,6 +142,7 @@
  //					made and only the slot message
  //					needs to be passed to the caller
@@ -1214,9 +1200,8 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  
  	os_mutex_exit(array->mutex);
  
-diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
---- a/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:04.097866666 +0900
-+++ b/storage/innodb_plugin/row/row0mysql.c	2010-07-20 16:33:53.995828763 +0900
+--- a/storage/innodb_plugin/row/row0mysql.c
++++ b/storage/innodb_plugin/row/row0mysql.c
 @@ -51,6 +51,7 @@
  #include "btr0sea.h"
  #include "fil0fil.h"
@@ -1289,9 +1274,8 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  				index->space = space;
  				index = dict_table_get_next_index(index);
  			} while (index);
-diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0sel.c
---- a/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:04.204866103 +0900
-+++ b/storage/innodb_plugin/row/row0sel.c	2010-07-20 16:33:53.998864025 +0900
+--- a/storage/innodb_plugin/row/row0sel.c
++++ b/storage/innodb_plugin/row/row0sel.c
 @@ -3374,6 +3374,7 @@
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
@@ -1331,9 +1315,8 @@ diff -ruN a/storage/innodb_plugin/row/row0sel.c b/storage/innodb_plugin/row/row0
  			trx_print(stderr, trx, 600);
  			fputc('\n', stderr);
  			ut_error;
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2011-02-21 20:31:57.900982316 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2011-02-21 20:32:39.549912950 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -418,6 +418,8 @@
  
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
@@ -1343,9 +1326,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
---- a/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:37:05.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0start.c	2010-04-30 16:41:46.000000000 +0900
+--- a/storage/innodb_plugin/srv/srv0start.c
++++ b/storage/innodb_plugin/srv/srv0start.c
 @@ -2012,7 +2012,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
@@ -1355,9 +1337,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/sr
  			"log sequence number %llu\n",
  			INNODB_VERSION_STR, srv_start_lsn);
  	}
-diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/sync0sync.c
---- a/storage/innodb_plugin/sync/sync0sync.c	2011-02-25 14:09:57.710270419 +0900
-+++ b/storage/innodb_plugin/sync/sync0sync.c	2011-02-25 14:12:20.138232965 +0900
+--- a/storage/innodb_plugin/sync/sync0sync.c
++++ b/storage/innodb_plugin/sync/sync0sync.c
 @@ -1161,6 +1161,7 @@
  	case SYNC_LOG:
  	case SYNC_THR_LOCAL:
@@ -1366,9 +1347,8 @@ diff -ruN a/storage/innodb_plugin/sync/sync0sync.c b/storage/innodb_plugin/sync/
  	case SYNC_TRX_SYS_HEADER:
  	case SYNC_FILE_FORMAT_TAG:
  	case SYNC_DOUBLEWRITE:
-diff -ruN a/storage/innodb_plugin/trx/trx0purge.c b/storage/innodb_plugin/trx/trx0purge.c
---- a/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:52:46.538653893 +0900
-+++ b/storage/innodb_plugin/trx/trx0purge.c	2010-07-21 14:57:46.505530034 +0900
+--- a/storage/innodb_plugin/trx/trx0purge.c
++++ b/storage/innodb_plugin/trx/trx0purge.c
 @@ -1144,8 +1144,7 @@
  	/* If we cannot advance the 'purge view' because of an old
  	'consistent read view', then the DML statements cannot be delayed.

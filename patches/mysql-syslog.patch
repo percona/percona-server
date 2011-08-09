@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/client/client_priv.h b/client/client_priv.h
---- a/client/client_priv.h	2011-01-07 18:46:05.000000000 +0300
-+++ b/client/client_priv.h	2011-01-07 18:53:03.000000000 +0300
+--- a/client/client_priv.h
++++ b/client/client_priv.h
 @@ -91,6 +91,9 @@
    OPT_FIX_TABLE_NAMES, OPT_FIX_DB_NAMES, OPT_SSL_VERIFY_SERVER_CERT,
    OPT_DEBUG_INFO, OPT_DEBUG_CHECK, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE,
@@ -18,9 +17,8 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
    OPT_FIRST_SLAVE,
    OPT_ALL,
    OPT_MAX_CLIENT_OPTION
-diff -ruN a/client/mysql.cc b/client/mysql.cc
---- a/client/mysql.cc	2010-11-29 13:37:59.000000000 +0300
-+++ b/client/mysql.cc	2011-01-07 18:57:05.000000000 +0300
+--- a/client/mysql.cc
++++ b/client/mysql.cc
 @@ -43,6 +43,9 @@
  #include "my_readline.h"
  #include <signal.h>

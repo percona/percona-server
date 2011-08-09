@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/buf0buddy.c
---- a/storage/innodb_plugin/buf/buf0buddy.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0buddy.c	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/buf/buf0buddy.c
++++ b/storage/innodb_plugin/buf/buf0buddy.c
 @@ -143,7 +143,7 @@
  			      ut_ad(buf_page_get_state(ut_list_node_313)
  				    == BUF_BLOCK_ZIP_FREE)));
@@ -17,9 +16,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  
  	if (bpage) {
  		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
-diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
---- a/storage/innodb_plugin/buf/buf0buf.c	2010-04-29 15:44:28.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0buf.c	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/buf/buf0buf.c
++++ b/storage/innodb_plugin/buf/buf0buf.c
 @@ -669,9 +669,9 @@
  	block->page.in_zip_hash = FALSE;
  	block->page.in_flush_list = FALSE;
@@ -77,9 +75,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  
  	return(ratio);
  }
-diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0flu.c
---- a/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0flu.c	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/buf/buf0flu.c
++++ b/storage/innodb_plugin/buf/buf0flu.c
 @@ -351,17 +351,19 @@
  	buf_page_t*	bpage)	/*!< in: buffer control block, must be
  				buf_page_in_file(bpage) and in the LRU list */
@@ -183,9 +180,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0flu.c b/storage/innodb_plugin/buf/buf0
  			/* There was an LRU type flush batch already running;
  			let us wait for it to end */
  
-diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
---- a/storage/innodb_plugin/buf/buf0lru.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0lru.c	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/buf/buf0lru.c
++++ b/storage/innodb_plugin/buf/buf0lru.c
 @@ -936,7 +936,7 @@
  
  	/* No free block was found: try to flush the LRU list */
@@ -231,9 +227,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  				buf_LRU_add_block_low(b, buf_page_is_old(b));
  			}
  
-diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
---- a/storage/innodb_plugin/buf/buf0rea.c	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0rea.c	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/buf/buf0rea.c
++++ b/storage/innodb_plugin/buf/buf0rea.c
 @@ -195,7 +195,7 @@
  	}
  
@@ -270,9 +265,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
  
  #ifdef UNIV_DEBUG
  	if (buf_debug_prints) {
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -26,5 +26,6 @@
  {"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -280,9 +274,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
---- a/storage/innodb_plugin/include/buf0buf.h	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/include/buf0buf.h	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/include/buf0buf.h
++++ b/storage/innodb_plugin/include/buf0buf.h
 @@ -1118,11 +1118,11 @@
  
  	UT_LIST_NODE_T(buf_page_t) LRU;
@@ -297,9 +290,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  	unsigned	old:1;		/*!< TRUE if the block is in the old
  					blocks in buf_pool->LRU_old */
  	unsigned	freed_page_clock:31;/*!< the value of
-diff -ruN a/storage/innodb_plugin/include/buf0flu.h b/storage/innodb_plugin/include/buf0flu.h
---- a/storage/innodb_plugin/include/buf0flu.h	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/include/buf0flu.h	2010-04-29 15:55:42.000000000 +0900
+--- a/storage/innodb_plugin/include/buf0flu.h
++++ b/storage/innodb_plugin/include/buf0flu.h
 @@ -61,8 +61,9 @@
  a margin of replaceable pages there. */
  UNIV_INTERN

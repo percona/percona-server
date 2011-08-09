@@ -5,9 +5,8 @@
 # ALTER TABLE and OPTIMIZE TABLE.
 #
 #
-diff -ruN a/client/client_priv.h b/client/client_priv.h
---- a/client/client_priv.h	2011-04-11 23:22:54.000000000 +0400
-+++ b/client/client_priv.h	2011-04-11 23:22:55.000000000 +0400
+--- a/client/client_priv.h
++++ b/client/client_priv.h
 @@ -97,5 +97,6 @@
    OPT_FIRST_SLAVE,
    OPT_ALL,
@@ -15,9 +14,8 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
 +  OPT_INNODB_OPTIMIZE_KEYS,
    OPT_MAX_CLIENT_OPTION
  };
-diff -ruN a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2011-04-11 23:22:49.000000000 +0400
-+++ b/client/mysqldump.c	2011-04-11 23:22:55.000000000 +0400
+--- a/client/mysqldump.c
++++ b/client/mysqldump.c
 @@ -45,6 +45,7 @@
  #include <m_ctype.h>
  #include <hash.h>
@@ -172,9 +170,8 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
      /* Moved enable keys to before unlock per bug 15977 */
      if (opt_disable_keys)
      {
-diff -ruN /dev/null b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result	2011-04-11 23:22:55.000000000 +0400
+--- /dev/null
++++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
 @@ -0,0 +1,109 @@
 +#
 +# Test the --innodb-optimize-keys option.
@@ -285,9 +282,8 @@ diff -ruN /dev/null b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
 +
 +######################################
 +DROP TABLE t1, t2;
-diff -ruN a/mysql-test/suite/innodb_plugin/r/innodb.result b/mysql-test/suite/innodb_plugin/r/innodb.result
---- a/mysql-test/suite/innodb_plugin/r/innodb.result	2011-02-11 22:49:37.000000000 +0300
-+++ b/mysql-test/suite/innodb_plugin/r/innodb.result	2011-04-11 23:22:55.000000000 +0400
+--- a/mysql-test/suite/innodb_plugin/r/innodb.result
++++ b/mysql-test/suite/innodb_plugin/r/innodb.result
 @@ -1679,7 +1679,7 @@
  71
  SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
@@ -297,9 +293,8 @@ diff -ruN a/mysql-test/suite/innodb_plugin/r/innodb.result b/mysql-test/suite/in
  SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
  variable_value - @innodb_rows_updated_orig
  866
-diff -ruN a/mysql-test/suite/innodb_plugin/t/innodb-index.test b/mysql-test/suite/innodb_plugin/t/innodb-index.test
---- a/mysql-test/suite/innodb_plugin/t/innodb-index.test	2011-02-11 22:49:34.000000000 +0300
-+++ b/mysql-test/suite/innodb_plugin/t/innodb-index.test	2011-04-11 23:22:55.000000000 +0400
+--- a/mysql-test/suite/innodb_plugin/t/innodb-index.test
++++ b/mysql-test/suite/innodb_plugin/t/innodb-index.test
 @@ -97,6 +97,11 @@
  show create table t1;
  --error ER_MULTIPLE_PRI_KEY
@@ -312,9 +307,8 @@ diff -ruN a/mysql-test/suite/innodb_plugin/t/innodb-index.test b/mysql-test/suit
  --error ER_DUP_ENTRY
  alter table t1 drop primary key, add primary key (b);
  create unique index c on t1 (c);
-diff -ruN a/mysql-test/suite/innodb_plugin/t/innodb.test b/mysql-test/suite/innodb_plugin/t/innodb.test
---- a/mysql-test/suite/innodb_plugin/t/innodb.test	2011-02-11 22:49:35.000000000 +0300
-+++ b/mysql-test/suite/innodb_plugin/t/innodb.test	2011-04-11 23:22:55.000000000 +0400
+--- a/mysql-test/suite/innodb_plugin/t/innodb.test
++++ b/mysql-test/suite/innodb_plugin/t/innodb.test
 @@ -15,6 +15,12 @@
  
  -- source include/have_innodb_plugin.inc
@@ -328,9 +322,8 @@ diff -ruN a/mysql-test/suite/innodb_plugin/t/innodb.test b/mysql-test/suite/inno
  let $MYSQLD_DATADIR= `select @@datadir`;
  
  # Save the original values of some variables in order to be able to
-diff -ruN /dev/null b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test	2011-04-11 23:22:55.000000000 +0400
+--- /dev/null
++++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
 @@ -0,0 +1,62 @@
 +# Embedded server doesn't support external clients
 +--source include/not_embedded.inc
@@ -394,9 +387,8 @@ diff -ruN /dev/null b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
 +
 +# Wait till we reached the initial number of concurrent sessions
 +--source include/wait_until_count_sessions.inc
-diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
---- a/sql/sql_lex.cc	2011-04-11 23:22:49.000000000 +0400
-+++ b/sql/sql_lex.cc	2011-04-11 23:22:55.000000000 +0400
+--- a/sql/sql_lex.cc
++++ b/sql/sql_lex.cc
 @@ -1494,6 +1494,9 @@
    alter_list(rhs.alter_list, mem_root),
    key_list(rhs.key_list, mem_root),
@@ -415,9 +407,8 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
    /* partition_names are not deeply copied currently */
  }
  
-diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2011-04-11 23:22:50.000000000 +0400
-+++ b/sql/sql_lex.h	2011-04-11 23:22:55.000000000 +0400
+--- a/sql/sql_lex.h
++++ b/sql/sql_lex.h
 @@ -902,6 +902,9 @@
    List<Alter_column>            alter_list;
    List<Key>                     key_list;
@@ -447,9 +438,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
      flags= 0;
      keys_onoff= LEAVE_AS_IS;
      tablespace_op= NO_TABLESPACE_OP;
-diff -ruN a/sql/sql_table.cc b/sql/sql_table.cc
---- a/sql/sql_table.cc	2011-04-11 23:22:40.000000000 +0400
-+++ b/sql/sql_table.cc	2011-04-11 23:44:23.000000000 +0400
+--- a/sql/sql_table.cc
++++ b/sql/sql_table.cc
 @@ -2560,7 +2560,7 @@
        file                      The handler for the new table.
        key_info_buffer     OUT   An array of KEY structs for the indexes.

@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
---- a/storage/innodb_plugin/buf/buf0buf.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0buf.c	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/buf/buf0buf.c
++++ b/storage/innodb_plugin/buf/buf0buf.c
 @@ -3897,14 +3897,16 @@
  	buf_pool_mutex_enter();
  
@@ -30,9 +29,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  		(ulong) UT_LIST_GET_LEN(buf_pool->free),
  		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
  		(ulong) buf_pool->LRU_old_len,
-diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/fil/fil0fil.c
++++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -4833,3 +4833,30 @@
  
  	fil_system = NULL;
@@ -64,9 +62,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
 +               return 0;
 +       }
 +}
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:20.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -10817,6 +10817,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
@@ -102,9 +99,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(version),
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(change_buffering),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:28:20.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -24,5 +24,6 @@
         const char *link;
  }innodb_enhancements[] = {
@@ -112,9 +108,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
---- a/storage/innodb_plugin/include/fil0fil.h	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/include/fil0fil.h	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/include/fil0fil.h
++++ b/storage/innodb_plugin/include/fil0fil.h
 @@ -725,6 +725,17 @@
  /*============================*/
  	ulint		id);	/*!< in: space id */
@@ -133,9 +128,8 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
  typedef	struct fil_space_struct	fil_space_t;
  
  #endif
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -128,6 +128,9 @@
  extern char	srv_adaptive_flushing;
  
@@ -146,9 +140,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  /* The sort order table of the MySQL latin1_swedish_ci character set
  collation */
  extern const byte*	srv_latin1_ordering;
-diff -ruN a/storage/innodb_plugin/include/thr0loc.h b/storage/innodb_plugin/include/thr0loc.h
---- a/storage/innodb_plugin/include/thr0loc.h	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/include/thr0loc.h	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/include/thr0loc.h
++++ b/storage/innodb_plugin/include/thr0loc.h
 @@ -83,6 +83,17 @@
  thr_local_get_in_ibuf_field(void);
  /*=============================*/
@@ -167,9 +160,8 @@ diff -ruN a/storage/innodb_plugin/include/thr0loc.h b/storage/innodb_plugin/incl
  #ifndef UNIV_NONINL
  #include "thr0loc.ic"
  #endif
-diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/lock0lock.c
---- a/storage/innodb_plugin/lock/lock0lock.c	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/lock/lock0lock.c	2010-04-29 15:33:51.000000000 +0900
+--- a/storage/innodb_plugin/lock/lock0lock.c
++++ b/storage/innodb_plugin/lock/lock0lock.c
 @@ -4379,6 +4379,7 @@
  
  	putc('\n', file);
@@ -206,9 +198,8 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  		      " SUPPRESSING FURTHER PRINTS\n",
  		      file);
  
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 15:40:14.000000000 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -171,6 +171,9 @@
  the checkpoints. */
  UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
@@ -386,9 +377,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  	fputs("----------------------------\n"
  	      "END OF INNODB MONITOR OUTPUT\n"
  	      "============================\n", file);
-diff -ruN a/storage/innodb_plugin/sync/sync0arr.c b/storage/innodb_plugin/sync/sync0arr.c
---- a/storage/innodb_plugin/sync/sync0arr.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/sync/sync0arr.c	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/sync/sync0arr.c
++++ b/storage/innodb_plugin/sync/sync0arr.c
 @@ -471,7 +471,7 @@
  
  	fprintf(file,
@@ -398,9 +388,8 @@ diff -ruN a/storage/innodb_plugin/sync/sync0arr.c b/storage/innodb_plugin/sync/s
  		(ulong) os_thread_pf(cell->thread), cell->file,
  		(ulong) cell->line,
  		difftime(time(NULL), cell->reservation_time));
-diff -ruN a/storage/innodb_plugin/thr/thr0loc.c b/storage/innodb_plugin/thr/thr0loc.c
---- a/storage/innodb_plugin/thr/thr0loc.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/thr/thr0loc.c	2010-04-29 15:28:56.000000000 +0900
+--- a/storage/innodb_plugin/thr/thr0loc.c
++++ b/storage/innodb_plugin/thr/thr0loc.c
 @@ -49,6 +49,7 @@
  
  /** The hash table. The module is not yet initialized when it is NULL. */

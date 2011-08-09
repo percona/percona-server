@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:43:16.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:43:53.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -151,6 +151,7 @@
  static ulong innobase_read_io_threads;
  static ulong innobase_write_io_threads;
@@ -47,9 +46,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
    MYSQL_SYSVAR(show_verbose_locks),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:43:16.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:43:53.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -31,5 +31,6 @@
  {"innodb_expand_undo_slots","expandable maximum number of undo slots","from 1024 (default) to about 4000","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_extra_rseg","allow to create extra rollback segments","When create new db, the new parameter allows to create more rollback segments","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -57,9 +55,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_thread_concurrency_timer_based","use InnoDB timer based concurrency throttling (backport from MySQL 5.4.0)","",""},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-29 16:39:34.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-29 16:43:53.000000000 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -147,6 +147,8 @@
  extern ulint	srv_mem_pool_size;
  extern ulint	srv_lock_table_size;
@@ -69,9 +66,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ulint	srv_n_file_io_threads;
  extern ulong	srv_read_ahead_threshold;
  extern ulint	srv_n_read_io_threads;
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 16:39:34.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 16:43:53.000000000 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -318,6 +318,7 @@
  computer. Bigger computers need bigger values. Value 0 will disable the
  concurrency check. */

@@ -5,7 +5,6 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/client/client_priv.h b/client/client_priv.h
 --- a/client/client_priv.h
 +++ b/client/client_priv.h
 @@ -68,6 +68,7 @@
@@ -16,7 +15,6 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
    OPT_MYSQL_NUMBER_OF_QUERY,
    OPT_IGNORE_TABLE,OPT_INSERT_IGNORE,OPT_SHOW_WARNINGS,OPT_DROP_DATABASE,
    OPT_TZ_UTC, OPT_AUTO_CLOSE, OPT_CREATE_SLAP_SCHEMA,
-diff -ruN a/client/mysqldump.c b/client/mysqldump.c
 --- a/client/mysqldump.c
 +++ b/client/mysqldump.c
 @@ -98,7 +98,7 @@

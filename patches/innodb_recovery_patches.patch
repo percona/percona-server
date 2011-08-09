@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
---- a/storage/innodb_plugin/buf/buf0rea.c	2010-04-29 18:58:20.000000000 +0900
-+++ b/storage/innodb_plugin/buf/buf0rea.c	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/buf/buf0rea.c
++++ b/storage/innodb_plugin/buf/buf0rea.c
 @@ -120,6 +120,46 @@
  	bpage = buf_page_init_for_read(err, mode, space, zip_size, unzip,
  				       tablespace_version, offset);
@@ -106,9 +105,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
  		return;
  	}
  
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 10:49:58.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -185,6 +185,8 @@
  static my_bool	innobase_use_doublewrite		= TRUE;
  static my_bool	innobase_use_checksums			= TRUE;
@@ -153,9 +151,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(fast_shutdown),
    MYSQL_SYSVAR(file_io_threads),
    MYSQL_SYSVAR(read_io_threads),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 10:49:58.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -36,5 +36,6 @@
  {"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -163,9 +160,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/log0recv.h b/storage/innodb_plugin/include/log0recv.h
---- a/storage/innodb_plugin/include/log0recv.h	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/include/log0recv.h	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/include/log0recv.h
++++ b/storage/innodb_plugin/include/log0recv.h
 @@ -438,6 +438,39 @@
  	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */
  	ulint		n_addrs;/*!< number of not processed hashed file
@@ -206,9 +202,8 @@ diff -ruN a/storage/innodb_plugin/include/log0recv.h b/storage/innodb_plugin/inc
  };
  
  /** The recovery system */
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-30 10:49:58.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -114,6 +114,8 @@
  
  extern ibool	srv_extra_undoslots;
@@ -218,9 +213,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ibool	srv_auto_extend_last_data_file;
  extern ulint	srv_last_file_size_max;
  extern char**	srv_log_group_home_dirs;
-diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log0recv.c
---- a/storage/innodb_plugin/log/log0recv.c	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/log/log0recv.c	2010-04-30 14:00:27.000000000 +0900
+--- a/storage/innodb_plugin/log/log0recv.c
++++ b/storage/innodb_plugin/log/log0recv.c
 @@ -179,6 +179,9 @@
  
  	recv_sys->heap = NULL;
@@ -440,9 +434,8 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  	if (recv_needed_recovery) {
  		trx_sys_print_mysql_master_log_pos();
  		trx_sys_print_mysql_binlog_offset();
-diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0file.c
---- a/storage/innodb_plugin/os/os0file.c	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/os/os0file.c	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/os/os0file.c
++++ b/storage/innodb_plugin/os/os0file.c
 @@ -38,6 +38,7 @@
  #include "srv0start.h"
  #include "fil0fil.h"
@@ -470,9 +463,8 @@ diff -ruN a/storage/innodb_plugin/os/os0file.c b/storage/innodb_plugin/os/os0fil
  	os_mutex_enter(array->mutex);
  
  	/* Mark the i/os done in slots */
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 10:49:58.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -144,6 +144,8 @@
  
  UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
@@ -482,9 +474,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /* if TRUE, then we auto-extend the last data file */
  UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
  /* if != 0, this tells the max size auto-extending may increase the
-diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0sys.c
---- a/storage/innodb_plugin/trx/trx0sys.c	2010-04-29 16:43:16.000000000 +0900
-+++ b/storage/innodb_plugin/trx/trx0sys.c	2010-04-30 13:53:47.000000000 +0900
+--- a/storage/innodb_plugin/trx/trx0sys.c
++++ b/storage/innodb_plugin/trx/trx0sys.c
 @@ -40,6 +40,7 @@
  #include "srv0start.h"
  #include "trx0purge.h"

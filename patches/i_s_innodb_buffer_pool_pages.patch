@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0buf.c
---- a/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 15:57:23.322321253 +0900
-+++ b/storage/innodb_plugin/buf/buf0buf.c	2010-07-14 16:04:45.521321527 +0900
+--- a/storage/innodb_plugin/buf/buf0buf.c
++++ b/storage/innodb_plugin/buf/buf0buf.c
 @@ -269,14 +269,6 @@
  UNIV_INTERN ibool		buf_debug_prints = FALSE;
  #endif /* UNIV_DEBUG */
@@ -23,9 +22,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buf.c b/storage/innodb_plugin/buf/buf0
  #endif /* !UNIV_HOTBACKUP */
  
  /********************************************************************//**
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:04:05.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -11252,6 +11252,9 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
@@ -36,9 +34,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  i_s_innodb_trx,
  i_s_innodb_locks,
  i_s_innodb_lock_waits,
-diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
---- a/storage/innodb_plugin/handler/i_s.cc	2010-04-29 15:28:20.000000000 +0900
-+++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-29 16:04:05.000000000 +0900
+--- a/storage/innodb_plugin/handler/i_s.cc
++++ b/storage/innodb_plugin/handler/i_s.cc
 @@ -42,6 +42,7 @@
  #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
  #include "ha_prototypes.h" /* for innobase_convert_name() */
@@ -753,9 +750,8 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_trx */
  static ST_FIELD_INFO	innodb_trx_fields_info[] =
  {
-diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
---- a/storage/innodb_plugin/handler/i_s.h	2010-04-29 15:28:20.000000000 +0900
-+++ b/storage/innodb_plugin/handler/i_s.h	2010-04-29 16:04:05.000000000 +0900
+--- a/storage/innodb_plugin/handler/i_s.h
++++ b/storage/innodb_plugin/handler/i_s.h
 @@ -26,6 +26,9 @@
  #ifndef i_s_h
  #define i_s_h
@@ -766,9 +762,8 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/
  extern struct st_mysql_plugin	i_s_innodb_trx;
  extern struct st_mysql_plugin	i_s_innodb_locks;
  extern struct st_mysql_plugin	i_s_innodb_lock_waits;
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:03:34.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:04:05.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -27,5 +27,6 @@
  {"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -776,9 +771,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_buffer_pool_pages","Information of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
---- a/storage/innodb_plugin/include/buf0buf.h	2010-07-14 15:57:23.333331973 +0900
-+++ b/storage/innodb_plugin/include/buf0buf.h	2010-07-14 16:03:45.885392395 +0900
+--- a/storage/innodb_plugin/include/buf0buf.h
++++ b/storage/innodb_plugin/include/buf0buf.h
 @@ -1286,6 +1286,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */

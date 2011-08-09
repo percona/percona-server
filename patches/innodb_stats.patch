@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/dict0boot.c
---- a/storage/innodb_plugin/dict/dict0boot.c	2010-08-27 16:11:12.152990021 +0900
-+++ b/storage/innodb_plugin/dict/dict0boot.c	2010-08-27 16:16:49.202982244 +0900
+--- a/storage/innodb_plugin/dict/dict0boot.c
++++ b/storage/innodb_plugin/dict/dict0boot.c
 @@ -263,6 +263,29 @@
  	/* Get the dictionary header */
  	dict_hdr = dict_hdr_get(&mtr);
@@ -101,9 +100,8 @@ diff -ruN a/storage/innodb_plugin/dict/dict0boot.c b/storage/innodb_plugin/dict/
  
  	mutex_exit(&(dict_sys->mutex));
  }
-diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/dict0crea.c
---- a/storage/innodb_plugin/dict/dict0crea.c	2010-08-27 16:11:12.152990021 +0900
-+++ b/storage/innodb_plugin/dict/dict0crea.c	2010-08-27 16:16:49.205982429 +0900
+--- a/storage/innodb_plugin/dict/dict0crea.c
++++ b/storage/innodb_plugin/dict/dict0crea.c
 @@ -508,6 +508,56 @@
  }
  
@@ -280,16 +278,10 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1179,6 +1318,66 @@
- 		return(NULL);
- 	}
+@@ -1185,6 +1324,66 @@
+ }
  
-+	thr->run_node = que_node_get_parent(node);
-+
-+	return(thr);
-+}
-+
-+/****************************************************************//**
+ /****************************************************************//**
 +*/
 +UNIV_INTERN
 +que_thr_t*
@@ -344,12 +336,17 @@ diff -ruN a/storage/innodb_plugin/dict/dict0crea.c b/storage/innodb_plugin/dict/
 +		return(NULL);
 +	}
 +
- 	thr->run_node = que_node_get_parent(node);
- 
- 	return(thr);
-diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/dict0dict.c
---- a/storage/innodb_plugin/dict/dict0dict.c	2010-08-27 16:11:12.155144214 +0900
-+++ b/storage/innodb_plugin/dict/dict0dict.c	2010-08-27 16:16:49.213982476 +0900
++	thr->run_node = que_node_get_parent(node);
++
++	return(thr);
++}
++
++/****************************************************************//**
+ Creates the foreign key constraints system tables inside InnoDB
+ at database creation or database start if they are not found or are
+ not of the right form.
+--- a/storage/innodb_plugin/dict/dict0dict.c
++++ b/storage/innodb_plugin/dict/dict0dict.c
 @@ -739,7 +739,7 @@
  		print an error message and return without doing
  		anything. */
@@ -814,9 +811,8 @@ diff -ruN a/storage/innodb_plugin/dict/dict0dict.c b/storage/innodb_plugin/dict/
  
  	dict_table_stats_lock(table, RW_S_LATCH);
  
-diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/dict0load.c
---- a/storage/innodb_plugin/dict/dict0load.c	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/dict/dict0load.c	2010-08-27 16:16:49.218982387 +0900
+--- a/storage/innodb_plugin/dict/dict0load.c
++++ b/storage/innodb_plugin/dict/dict0load.c
 @@ -223,7 +223,7 @@
  
  			if (dict_table_get_first_index(table)) {
@@ -826,9 +822,8 @@ diff -ruN a/storage/innodb_plugin/dict/dict0load.c b/storage/innodb_plugin/dict/
  			}
  
  			dict_table_print_low(table);
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:15:55.192417748 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:16:49.233984845 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -190,6 +190,7 @@
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
@@ -995,9 +990,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  i_s_innodb_patches
  mysql_declare_plugin_end;
  
-diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
---- a/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:13:11.075059060 +0900
-+++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:16:49.253982474 +0900
+--- a/storage/innodb_plugin/handler/i_s.cc
++++ b/storage/innodb_plugin/handler/i_s.cc
 @@ -45,6 +45,7 @@
  #include "btr0btr.h" /* for btr_page_get_index_id */
  #include "trx0rseg.h" /* for trx_rseg_struct */
@@ -1354,9 +1348,8 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
 +	STRUCT_FLD(system_vars, NULL),
 +	STRUCT_FLD(__reserved1, NULL)
 +};
-diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
---- a/storage/innodb_plugin/handler/i_s.h	2010-08-27 15:59:21.754987936 +0900
-+++ b/storage/innodb_plugin/handler/i_s.h	2010-08-27 16:16:49.255984731 +0900
+--- a/storage/innodb_plugin/handler/i_s.h
++++ b/storage/innodb_plugin/handler/i_s.h
 @@ -38,5 +38,7 @@
  extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
  extern struct st_mysql_plugin	i_s_innodb_patches;
@@ -1365,9 +1358,8 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/
 +extern struct st_mysql_plugin	i_s_innodb_index_stats;
  
  #endif /* i_s_h */
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:15:55.197404531 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:16:49.249142399 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -35,5 +35,6 @@
  {"innodb_expand_import","convert .ibd file automatically when import tablespace","the files are generated by xtrabackup export mode.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -1375,9 +1367,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_stats","Additional features about InnoDB statistics/optimizer","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/dict0boot.h b/storage/innodb_plugin/include/dict0boot.h
---- a/storage/innodb_plugin/include/dict0boot.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/dict0boot.h	2010-08-27 16:16:49.260982522 +0900
+--- a/storage/innodb_plugin/include/dict0boot.h
++++ b/storage/innodb_plugin/include/dict0boot.h
 @@ -101,6 +101,7 @@
  #define DICT_COLUMNS_ID		ut_dulint_create(0, 2)
  #define DICT_INDEXES_ID		ut_dulint_create(0, 3)
@@ -1417,9 +1408,8 @@ diff -ruN a/storage/innodb_plugin/include/dict0boot.h b/storage/innodb_plugin/in
  #ifndef UNIV_NONINL
  #include "dict0boot.ic"
  #endif
-diff -ruN a/storage/innodb_plugin/include/dict0crea.h b/storage/innodb_plugin/include/dict0crea.h
---- a/storage/innodb_plugin/include/dict0crea.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/dict0crea.h	2010-08-27 16:16:49.262982080 +0900
+--- a/storage/innodb_plugin/include/dict0crea.h
++++ b/storage/innodb_plugin/include/dict0crea.h
 @@ -53,6 +53,14 @@
  	dict_index_t*	index,	/*!< in: index to create, built as a memory data
  				structure */
@@ -1473,9 +1463,8 @@ diff -ruN a/storage/innodb_plugin/include/dict0crea.h b/storage/innodb_plugin/in
  
  #ifndef UNIV_NONINL
  #include "dict0crea.ic"
-diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/include/dict0dict.h
---- a/storage/innodb_plugin/include/dict0dict.h	2010-08-27 16:11:12.177142545 +0900
-+++ b/storage/innodb_plugin/include/dict0dict.h	2010-08-27 16:16:49.263981911 +0900
+--- a/storage/innodb_plugin/include/dict0dict.h
++++ b/storage/innodb_plugin/include/dict0dict.h
 @@ -1057,10 +1057,18 @@
  dict_update_statistics(
  /*===================*/
@@ -1504,9 +1493,8 @@ diff -ruN a/storage/innodb_plugin/include/dict0dict.h b/storage/innodb_plugin/in
  };
  #endif /* !UNIV_HOTBACKUP */
  
-diff -ruN a/storage/innodb_plugin/include/que0que.h b/storage/innodb_plugin/include/que0que.h
---- a/storage/innodb_plugin/include/que0que.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/que0que.h	2010-08-27 16:16:49.266982471 +0900
+--- a/storage/innodb_plugin/include/que0que.h
++++ b/storage/innodb_plugin/include/que0que.h
 @@ -495,6 +495,8 @@
  #define QUE_NODE_CALL		31
  #define QUE_NODE_EXIT		32
@@ -1516,9 +1504,8 @@ diff -ruN a/storage/innodb_plugin/include/que0que.h b/storage/innodb_plugin/incl
  /* Query thread states */
  #define QUE_THR_RUNNING		1
  #define QUE_THR_PROCEDURE_WAIT	2
-diff -ruN a/storage/innodb_plugin/include/row0mysql.h b/storage/innodb_plugin/include/row0mysql.h
---- a/storage/innodb_plugin/include/row0mysql.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/row0mysql.h	2010-08-27 16:16:49.271982518 +0900
+--- a/storage/innodb_plugin/include/row0mysql.h
++++ b/storage/innodb_plugin/include/row0mysql.h
 @@ -376,6 +376,22 @@
  					then checked for not being too
  					large. */
@@ -1542,9 +1529,8 @@ diff -ruN a/storage/innodb_plugin/include/row0mysql.h b/storage/innodb_plugin/in
  Scans a table create SQL string and adds to the data dictionary
  the foreign key constraints declared in the string. This function
  should be called after the indexes for a table have been created.
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:15:55.197989840 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-08-27 16:16:49.285142419 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -197,6 +197,9 @@
  extern ibool	srv_innodb_status;
  
@@ -1555,9 +1541,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
-diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0que.c
---- a/storage/innodb_plugin/que/que0que.c	2010-08-04 02:24:20.000000000 +0900
-+++ b/storage/innodb_plugin/que/que0que.c	2010-08-27 16:16:49.291984923 +0900
+--- a/storage/innodb_plugin/que/que0que.c
++++ b/storage/innodb_plugin/que/que0que.c
 @@ -622,11 +622,21 @@
  
  		que_graph_free_recursive(cre_ind->ind_def);
@@ -1598,9 +1583,8 @@ diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0
  	} else if (type == QUE_NODE_ROW_PRINTF) {
  		thr = row_printf_step(thr);
  	} else {
-diff -ruN a/storage/innodb_plugin/row/row0ins.c b/storage/innodb_plugin/row/row0ins.c
---- a/storage/innodb_plugin/row/row0ins.c	2011-02-12 04:20:43.000000000 +0900
-+++ b/storage/innodb_plugin/row/row0ins.c	2011-03-30 15:57:54.000000000 +0900
+--- a/storage/innodb_plugin/row/row0ins.c
++++ b/storage/innodb_plugin/row/row0ins.c
 @@ -2020,6 +2020,8 @@
  	}
  
@@ -1610,9 +1594,8 @@ diff -ruN a/storage/innodb_plugin/row/row0ins.c b/storage/innodb_plugin/row/row0
  	{
  		page_t*	page = btr_cur_get_page(&cursor);
  		rec_t*	first_rec = page_rec_get_next(
-diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/row0merge.c
---- a/storage/innodb_plugin/row/row0merge.c	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/row/row0merge.c	2010-08-27 16:16:49.295984498 +0900
+--- a/storage/innodb_plugin/row/row0merge.c
++++ b/storage/innodb_plugin/row/row0merge.c
 @@ -2021,6 +2021,8 @@
  		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
  		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
@@ -1622,9 +1605,8 @@ diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/ro
  		/* Drop the field definitions of the index. */
  		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
  		/* Drop the index definition and the B-tree. */
-diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
---- a/storage/innodb_plugin/row/row0mysql.c	2010-08-04 02:24:20.000000000 +0900
-+++ b/storage/innodb_plugin/row/row0mysql.c	2010-08-27 16:16:49.304981955 +0900
+--- a/storage/innodb_plugin/row/row0mysql.c
++++ b/storage/innodb_plugin/row/row0mysql.c
 @@ -862,6 +862,9 @@
  
  	table->stat_modified_counter = counter + 1;
@@ -1734,9 +1716,8 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  			   "               DELETE FROM SYS_FIELDS\n"
  			   "               WHERE INDEX_ID = index_id;\n"
  			   "               DELETE FROM SYS_INDEXES\n"
-diff -ruN a/storage/innodb_plugin/row/row0row.c b/storage/innodb_plugin/row/row0row.c
---- a/storage/innodb_plugin/row/row0row.c	2011-02-12 04:20:26.000000000 +0900
-+++ b/storage/innodb_plugin/row/row0row.c	2011-03-30 15:57:54.000000000 +0900
+--- a/storage/innodb_plugin/row/row0row.c
++++ b/storage/innodb_plugin/row/row0row.c
 @@ -345,6 +345,14 @@
  
  	rec_len = rec_offs_n_fields(offsets);
@@ -1767,9 +1748,8 @@ diff -ruN a/storage/innodb_plugin/row/row0row.c b/storage/innodb_plugin/row/row0
  		field = rec_get_nth_field(rec, offsets, i, &len);
  
  		dfield_set_data(dfield, field, len);
-diff -ruN a/storage/innodb_plugin/row/row0upd.c b/storage/innodb_plugin/row/row0upd.c
---- a/storage/innodb_plugin/row/row0upd.c	2011-02-12 04:20:43.000000000 +0900
-+++ b/storage/innodb_plugin/row/row0upd.c	2011-03-30 15:57:54.000000000 +0900
+--- a/storage/innodb_plugin/row/row0upd.c
++++ b/storage/innodb_plugin/row/row0upd.c
 @@ -439,6 +439,12 @@
  				0);
  		}
@@ -1802,9 +1782,8 @@ diff -ruN a/storage/innodb_plugin/row/row0upd.c b/storage/innodb_plugin/row/row0
  		data = rec_get_nth_field(rec, offsets, i, &len);
  
  		dfield = dtuple_get_nth_field(entry, i);
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:15:55.198987678 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:16:49.311984856 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -369,6 +369,9 @@
  /* When estimating number of different key values in an index, sample
  this many index pages */
@@ -1815,9 +1794,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;
-diff -ruN a/storage/innodb_plugin/trx/trx0rec.c b/storage/innodb_plugin/trx/trx0rec.c
---- a/storage/innodb_plugin/trx/trx0rec.c	2011-02-12 04:20:26.000000000 +0900
-+++ b/storage/innodb_plugin/trx/trx0rec.c	2011-03-30 15:57:54.000000000 +0900
+--- a/storage/innodb_plugin/trx/trx0rec.c
++++ b/storage/innodb_plugin/trx/trx0rec.c
 @@ -665,14 +665,27 @@
  	/* Save to the undo log the old values of the columns to be updated. */
  

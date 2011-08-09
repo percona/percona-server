@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/buf0buddy.c
---- a/storage/innodb_plugin/buf/buf0buddy.c	2010-08-27 16:13:11.055058310 +0900
-+++ b/storage/innodb_plugin/buf/buf0buddy.c	2010-08-27 16:44:21.664059035 +0900
+--- a/storage/innodb_plugin/buf/buf0buddy.c
++++ b/storage/innodb_plugin/buf/buf0buddy.c
 @@ -43,7 +43,7 @@
  #endif /* UNIV_DEBUG */
  /** Statistics of the buddy system, indexed by block size.
@@ -17,9 +16,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0buddy.c b/storage/innodb_plugin/buf/bu
  
  /**********************************************************************//**
  Get the offset of the buddy of a compressed page frame.
-diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:43:11.941989968 +0900
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:44:21.668058937 +0900
+--- a/storage/innodb_plugin/fil/fil0fil.c
++++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -692,7 +692,7 @@
  		ut_a(space->purpose != FIL_LOG);
  		ut_a(!trx_sys_sys_space(space->id));
@@ -60,9 +58,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	ut_ad(fil_validate());
  #ifndef UNIV_HOTBACKUP
  # ifndef UNIV_LOG_DEBUG
-diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0fsp.c
---- a/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-27 16:40:36.528021375 +0900
-+++ b/storage/innodb_plugin/fsp/fsp0fsp.c	2010-08-27 16:44:21.673058570 +0900
+--- a/storage/innodb_plugin/fsp/fsp0fsp.c
++++ b/storage/innodb_plugin/fsp/fsp0fsp.c
 @@ -657,16 +657,18 @@
  				0 for uncompressed pages */
  	ulint	offset)		/*!< in: page offset */
@@ -111,9 +108,8 @@ diff -ruN a/storage/innodb_plugin/fsp/fsp0fsp.c b/storage/innodb_plugin/fsp/fsp0
  
  		if (UNIV_UNLIKELY(init_xdes)) {
  
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:43:11.951020997 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-08-27 16:44:21.682059132 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -151,6 +151,9 @@
  static ulong innobase_read_io_threads;
  static ulong innobase_write_io_threads;
@@ -226,9 +222,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:43:11.956017166 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:44:21.687100395 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -45,5 +45,6 @@
  {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_pass_corrupt_table","Treat tables as corrupt instead of crash, when meet corrupt blocks","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -236,9 +231,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/buf0buddy.h b/storage/innodb_plugin/include/buf0buddy.h
---- a/storage/innodb_plugin/include/buf0buddy.h	2010-08-27 16:13:11.077063445 +0900
-+++ b/storage/innodb_plugin/include/buf0buddy.h	2010-08-27 16:44:21.689059215 +0900
+--- a/storage/innodb_plugin/include/buf0buddy.h
++++ b/storage/innodb_plugin/include/buf0buddy.h
 @@ -83,7 +83,7 @@
  
  /** Statistics of the buddy system, indexed by block size.
@@ -248,9 +242,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0buddy.h b/storage/innodb_plugin/in
  
  #ifndef UNIV_NONINL
  # include "buf0buddy.ic"
-diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/include/buf0buf.h
---- a/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:43:11.959021085 +0900
-+++ b/storage/innodb_plugin/include/buf0buf.h	2010-08-27 16:44:21.691058408 +0900
+--- a/storage/innodb_plugin/include/buf0buf.h
++++ b/storage/innodb_plugin/include/buf0buf.h
 @@ -1451,11 +1451,11 @@
  	/* @{ */
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
@@ -267,9 +260,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0buf.h b/storage/innodb_plugin/incl
  #if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
  # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
  #endif
-diff -ruN a/storage/innodb_plugin/include/buf0types.h b/storage/innodb_plugin/include/buf0types.h
---- a/storage/innodb_plugin/include/buf0types.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/buf0types.h	2010-08-27 16:44:21.692071229 +0900
+--- a/storage/innodb_plugin/include/buf0types.h
++++ b/storage/innodb_plugin/include/buf0types.h
 @@ -70,12 +70,13 @@
  					buddy system; must be at least
  					sizeof(buf_page_t) */
@@ -285,9 +277,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0types.h b/storage/innodb_plugin/in
  /* @} */
  
  #endif
-diff -ruN a/storage/innodb_plugin/include/fsp0types.h b/storage/innodb_plugin/include/fsp0types.h
---- a/storage/innodb_plugin/include/fsp0types.h	2010-11-29 19:38:03.000000000 +0900
-+++ b/storage/innodb_plugin/include/fsp0types.h	2011-02-02 23:29:13.000000000 +0900
+--- a/storage/innodb_plugin/include/fsp0types.h
++++ b/storage/innodb_plugin/include/fsp0types.h
 @@ -42,7 +42,7 @@
  /* @} */
  
@@ -297,9 +288,8 @@ diff -ruN a/storage/innodb_plugin/include/fsp0types.h b/storage/innodb_plugin/in
  
  /** On a page of any file segment, data may be put starting from this
  offset */
-diff -ruN a/storage/innodb_plugin/include/log0log.h b/storage/innodb_plugin/include/log0log.h
---- a/storage/innodb_plugin/include/log0log.h	2010-11-03 22:39:54.000000000 +0900
-+++ b/storage/innodb_plugin/include/log0log.h	2010-12-13 20:17:00.600329611 +0900
+--- a/storage/innodb_plugin/include/log0log.h
++++ b/storage/innodb_plugin/include/log0log.h
 @@ -672,6 +672,9 @@
  					when mysqld is first time started
  					on the restored database, it can
@@ -310,9 +300,8 @@ diff -ruN a/storage/innodb_plugin/include/log0log.h b/storage/innodb_plugin/incl
  #define	LOG_FILE_ARCH_COMPLETED	OS_FILE_LOG_BLOCK_SIZE
  					/* this 4-byte field is TRUE when
  					the writing of an archived log file
-diff -ruN a/storage/innodb_plugin/include/mtr0log.ic b/storage/innodb_plugin/include/mtr0log.ic
---- a/storage/innodb_plugin/include/mtr0log.ic	2010-08-27 16:38:38.273059844 +0900
-+++ b/storage/innodb_plugin/include/mtr0log.ic	2010-08-27 16:44:21.693073476 +0900
+--- a/storage/innodb_plugin/include/mtr0log.ic
++++ b/storage/innodb_plugin/include/mtr0log.ic
 @@ -203,7 +203,7 @@
  	system tablespace */
  	if ((space == TRX_SYS_SPACE
@@ -322,9 +311,8 @@ diff -ruN a/storage/innodb_plugin/include/mtr0log.ic b/storage/innodb_plugin/inc
  		if (trx_doublewrite_buf_is_being_created) {
  			/* Do nothing: we only come to this branch in an
  			InnoDB database creation. We do not redo log
-diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/include/os0file.h
---- a/storage/innodb_plugin/include/os0file.h	2010-12-13 20:14:59.101402758 +0900
-+++ b/storage/innodb_plugin/include/os0file.h	2010-12-13 20:17:00.602329548 +0900
+--- a/storage/innodb_plugin/include/os0file.h
++++ b/storage/innodb_plugin/include/os0file.h
 @@ -107,7 +107,7 @@
  if this fails for a log block, then it is equivalent to a media failure in the
  log. */
@@ -343,9 +331,8 @@ diff -ruN a/storage/innodb_plugin/include/os0file.h b/storage/innodb_plugin/incl
  /* File types for directory entry data type */
  
  enum os_file_type_enum{
-diff -ruN a/storage/innodb_plugin/include/page0types.h b/storage/innodb_plugin/include/page0types.h
---- a/storage/innodb_plugin/include/page0types.h	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/page0types.h	2010-08-27 16:44:21.695063547 +0900
+--- a/storage/innodb_plugin/include/page0types.h
++++ b/storage/innodb_plugin/include/page0types.h
 @@ -56,8 +56,9 @@
  
  /** Number of supported compressed page sizes */
@@ -367,9 +354,8 @@ diff -ruN a/storage/innodb_plugin/include/page0types.h b/storage/innodb_plugin/i
  
  /**********************************************************************//**
  Write the "deleted" flag of a record on a compressed page.  The flag must
-diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/include/trx0sys.h
---- a/storage/innodb_plugin/include/trx0sys.h	2010-08-27 16:38:38.277021207 +0900
-+++ b/storage/innodb_plugin/include/trx0sys.h	2010-08-27 16:44:21.696063957 +0900
+--- a/storage/innodb_plugin/include/trx0sys.h
++++ b/storage/innodb_plugin/include/trx0sys.h
 @@ -515,9 +515,9 @@
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
@@ -383,9 +369,8 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
  /** The offset of the MySQL replication info in the trx system header;
  this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
  #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
-diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include/univ.i
---- a/storage/innodb_plugin/include/univ.i	2010-08-04 02:24:19.000000000 +0900
-+++ b/storage/innodb_plugin/include/univ.i	2010-08-27 16:44:21.698059254 +0900
+--- a/storage/innodb_plugin/include/univ.i
++++ b/storage/innodb_plugin/include/univ.i
 @@ -286,9 +286,13 @@
  */
  
@@ -418,9 +403,8 @@ diff -ruN a/storage/innodb_plugin/include/univ.i b/storage/innodb_plugin/include
 +extern ulint	srv_page_size_shift;
 +extern ulint	srv_page_size;
  #endif
-diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0log.c
---- a/storage/innodb_plugin/log/log0log.c	2010-08-27 16:27:30.229021112 +0900
-+++ b/storage/innodb_plugin/log/log0log.c	2010-08-27 16:44:21.701058790 +0900
+--- a/storage/innodb_plugin/log/log0log.c
++++ b/storage/innodb_plugin/log/log0log.c
 @@ -591,7 +591,9 @@
  
  	offset = (gr_lsn_size_offset + difference) % group_size;
@@ -471,9 +455,8 @@ diff -ruN a/storage/innodb_plugin/log/log0log.c b/storage/innodb_plugin/log/log0
  #endif /* UNIV_LOG_ARCHIVE */
  
  	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
-diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log0recv.c
---- a/storage/innodb_plugin/log/log0recv.c	2010-08-27 16:23:31.034058951 +0900
-+++ b/storage/innodb_plugin/log/log0recv.c	2010-08-27 16:44:21.705059074 +0900
+--- a/storage/innodb_plugin/log/log0recv.c
++++ b/storage/innodb_plugin/log/log0recv.c
 @@ -702,8 +702,22 @@
  
  			group->lsn = mach_read_ull(
@@ -526,9 +509,8 @@ diff -ruN a/storage/innodb_plugin/log/log0recv.c b/storage/innodb_plugin/log/log
  #ifdef UNIV_LOG_ARCHIVE
  	group = UT_LIST_GET_FIRST(log_sys->log_groups);
  
-diff -ruN a/storage/innodb_plugin/page/page0zip.c b/storage/innodb_plugin/page/page0zip.c
---- a/storage/innodb_plugin/page/page0zip.c	2010-08-27 16:40:36.584058988 +0900
-+++ b/storage/innodb_plugin/page/page0zip.c	2010-08-27 16:44:21.709058243 +0900
+--- a/storage/innodb_plugin/page/page0zip.c
++++ b/storage/innodb_plugin/page/page0zip.c
 @@ -49,7 +49,7 @@
  
  #ifndef UNIV_HOTBACKUP
@@ -538,9 +520,8 @@ diff -ruN a/storage/innodb_plugin/page/page0zip.c b/storage/innodb_plugin/page/p
  #endif /* !UNIV_HOTBACKUP */
  
  /* Please refer to ../include/page0zip.ic for a description of the
-diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/row0merge.c
---- a/storage/innodb_plugin/row/row0merge.c	2010-08-27 16:40:36.591058306 +0900
-+++ b/storage/innodb_plugin/row/row0merge.c	2010-08-27 16:44:21.713021156 +0900
+--- a/storage/innodb_plugin/row/row0merge.c
++++ b/storage/innodb_plugin/row/row0merge.c
 @@ -92,7 +92,7 @@
  row_merge_block_t.  Thus, it must be able to hold one merge record,
  whose maximum size is the same as the minimum size of
@@ -550,9 +531,8 @@ diff -ruN a/storage/innodb_plugin/row/row0merge.c b/storage/innodb_plugin/row/ro
  
  /** @brief Merge record in row_merge_block_t.
  
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:43:11.968059077 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-08-27 16:44:21.716988122 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -217,6 +217,13 @@
  UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
  UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
@@ -567,9 +547,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /* User settable value of the number of pages that must be present
  in the buffer cache and accessed sequentially for InnoDB to trigger a
  readahead request. */
-diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
---- a/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:40:36.602058774 +0900
-+++ b/storage/innodb_plugin/srv/srv0start.c	2010-08-27 16:44:21.720021228 +0900
+--- a/storage/innodb_plugin/srv/srv0start.c
++++ b/storage/innodb_plugin/srv/srv0start.c
 @@ -1512,10 +1512,12 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */

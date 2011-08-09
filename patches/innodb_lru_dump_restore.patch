@@ -5,8 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/suite/innodb_plugin/r/percona_bug692211.result	2010-12-22 20:48:19.000000000 +0300
+--- /dev/null
++++ b/mysql-test/suite/innodb_plugin/r/percona_bug692211.result
 @@ -0,0 +1,7 @@
 +#
 +# LP bug #692211: innodb_auto_lru_dump crashes if ib_lru_dump doesn't 
@@ -15,12 +15,12 @@
 +SELECT @@innodb_auto_lru_dump;
 +@@innodb_auto_lru_dump
 +300
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/suite/innodb_plugin/t/percona_bug692211-master.opt	2010-12-22 20:25:59.000000000 +0300
+--- /dev/null
++++ b/mysql-test/suite/innodb_plugin/t/percona_bug692211-master.opt
 @@ -0,0 +1 @@
 +--innodb_auto_lru_dump=300
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/suite/innodb_plugin/t/percona_bug692211.test	2010-12-22 20:17:57.000000000 +0300
+--- /dev/null
++++ b/mysql-test/suite/innodb_plugin/t/percona_bug692211.test
 @@ -0,0 +1,17 @@
 +--source include/have_innodb_plugin.inc
 +
@@ -39,9 +39,8 @@
 +--let $MYSQLD_DATADIR= `SELECT @@datadir`
 +--error 1
 +--file_exists $MYSQLD_DATADIR/ib_lru_dump;
-diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0lru.c
---- a/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:13:11.070058073 +0900
-+++ b/storage/innodb_plugin/buf/buf0lru.c	2010-08-27 16:34:33.860400549 +0900
+--- a/storage/innodb_plugin/buf/buf0lru.c
++++ b/storage/innodb_plugin/buf/buf0lru.c
 @@ -2121,6 +2121,277 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
@@ -320,9 +319,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0lru.c b/storage/innodb_plugin/buf/buf0
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /**********************************************************************//**
  Validates the LRU list.
-diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0rea.c
---- a/storage/innodb_plugin/buf/buf0rea.c	2010-08-27 16:32:40.293411717 +0900
-+++ b/storage/innodb_plugin/buf/buf0rea.c	2010-08-27 16:34:33.863409016 +0900
+--- a/storage/innodb_plugin/buf/buf0rea.c
++++ b/storage/innodb_plugin/buf/buf0rea.c
 @@ -56,7 +56,7 @@
  which case it is never read into the pool, or if the tablespace does
  not exist or is being dropped 
@@ -332,9 +330,8 @@ diff -ruN a/storage/innodb_plugin/buf/buf0rea.c b/storage/innodb_plugin/buf/buf0
  ulint
  buf_read_page_low(
  /*==============*/
-diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:32:40.298411400 +0900
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2010-08-27 16:34:33.868058362 +0900
+--- a/storage/innodb_plugin/fil/fil0fil.c
++++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -5241,6 +5241,70 @@
  	return(DB_SUCCESS);
  }
@@ -406,9 +403,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  #ifndef UNIV_HOTBACKUP
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 09:57:56.486228425 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-10-01 10:00:13.292228546 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -11547,6 +11547,12 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
@@ -430,9 +426,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(use_purge_thread),
    NULL
  };
-diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
---- a/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:29:12.540979608 +0900
-+++ b/storage/innodb_plugin/handler/i_s.cc	2010-08-27 16:34:33.873058189 +0900
+--- a/storage/innodb_plugin/handler/i_s.cc
++++ b/storage/innodb_plugin/handler/i_s.cc
 @@ -46,6 +46,7 @@
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
@@ -478,9 +473,8 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  
  	field_store_string(i_s_table->field[0],
  		"Undefined XTRA_* command.");
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:32:40.313021803 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-08-27 16:34:33.871059345 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -41,5 +41,6 @@
  {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -488,9 +482,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/include/buf0lru.h
---- a/storage/innodb_plugin/include/buf0lru.h	2010-08-27 16:13:11.085978393 +0900
-+++ b/storage/innodb_plugin/include/buf0lru.h	2010-08-27 16:34:33.875100517 +0900
+--- a/storage/innodb_plugin/include/buf0lru.h
++++ b/storage/innodb_plugin/include/buf0lru.h
 @@ -209,6 +209,18 @@
  void
  buf_LRU_stat_update(void);
@@ -510,9 +503,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0lru.h b/storage/innodb_plugin/incl
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /**********************************************************************//**
-diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/include/buf0rea.h
---- a/storage/innodb_plugin/include/buf0rea.h	2010-08-27 16:32:40.314021595 +0900
-+++ b/storage/innodb_plugin/include/buf0rea.h	2010-08-27 16:34:33.877059445 +0900
+--- a/storage/innodb_plugin/include/buf0rea.h
++++ b/storage/innodb_plugin/include/buf0rea.h
 @@ -31,6 +31,37 @@
  #include "buf0types.h"
  
@@ -551,9 +543,8 @@ diff -ruN a/storage/innodb_plugin/include/buf0rea.h b/storage/innodb_plugin/incl
  High-level function which reads a page asynchronously from a file to the
  buffer buf_pool if it is not already there. Sets the io_fix flag and sets
  an exclusive lock on the buffer frame. The flag is cleared and the x-lock
-diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/include/fil0fil.h
---- a/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:32:40.315012507 +0900
-+++ b/storage/innodb_plugin/include/fil0fil.h	2010-08-27 16:34:33.878063455 +0900
+--- a/storage/innodb_plugin/include/fil0fil.h
++++ b/storage/innodb_plugin/include/fil0fil.h
 @@ -643,6 +643,14 @@
  	void*	message,	/*!< in: message for aio handler if non-sync
  				aio used, else ignored */
@@ -569,9 +560,8 @@ diff -ruN a/storage/innodb_plugin/include/fil0fil.h b/storage/innodb_plugin/incl
  /**********************************************************************//**
  Waits for an aio operation to complete. This function is used to write the
  handler for completed requests. The aio array of pending requests is divided
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-10-01 09:57:56.500228711 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-10-01 10:00:13.302223409 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -335,6 +335,9 @@
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
@@ -599,9 +589,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  /******************************************************************//**
  Outputs to a file the output of the InnoDB Monitor.
  @return FALSE if not all information printed
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-10-01 09:57:56.516255101 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-10-01 10:00:13.304230973 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -303,6 +303,9 @@
  reading of a disk page */
  UNIV_INTERN ulint srv_buf_pool_reads = 0;
@@ -612,15 +601,10 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /* structure to pass status variables to MySQL */
  UNIV_INTERN export_struc export_vars;
  
-@@ -2550,6 +2553,56 @@
- 	/* We count the number of threads in os_thread_exit(). A created
- 	thread should always use that to exit and not use return() to exit. */
+@@ -2555,6 +2558,56 @@
+ 	OS_THREAD_DUMMY_RETURN;
+ }
  
-+	os_thread_exit(NULL);
-+
-+	OS_THREAD_DUMMY_RETURN;
-+}
-+
 +/*********************************************************************//**
 +A thread which restores the buffer pool from a dump file on startup and does
 +periodic buffer pool dumps.
@@ -666,12 +650,16 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
 +	/* We count the number of threads in os_thread_exit(). A created
 +	thread should always use that to exit and not use return() to exit. */
 +
- 	os_thread_exit(NULL);
- 
- 	OS_THREAD_DUMMY_RETURN;
-diff -ruN a/storage/innodb_plugin/srv/srv0start.c b/storage/innodb_plugin/srv/srv0start.c
---- a/storage/innodb_plugin/srv/srv0start.c	2010-10-01 09:57:56.420229366 +0900
-+++ b/storage/innodb_plugin/srv/srv0start.c	2010-10-01 10:00:13.309260428 +0900
++	os_thread_exit(NULL);
++
++	OS_THREAD_DUMMY_RETURN;
++}
++
+ /*******************************************************************//**
+ Tells the InnoDB server that there has been activity in the database
+ and wakes up the master thread if it is suspended (not sleeping). Used
+--- a/storage/innodb_plugin/srv/srv0start.c
++++ b/storage/innodb_plugin/srv/srv0start.c
 @@ -126,9 +126,9 @@
  static ulint		ios;
  

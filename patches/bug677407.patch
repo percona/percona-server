@@ -49,9 +49,8 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-diff -ruN a/storage/innodb_plugin/trx/trx0i_s.c b/storage/innodb_plugin/trx/trx0i_s.c
---- a/storage/innodb_plugin/trx/trx0i_s.c	2010-11-03 16:39:54.000000000 +0300
-+++ b/storage/innodb_plugin/trx/trx0i_s.c	2010-11-30 13:57:03.000000000 +0300
+--- a/storage/innodb_plugin/trx/trx0i_s.c
++++ b/storage/innodb_plugin/trx/trx0i_s.c
 @@ -157,10 +157,6 @@
  	ullint		last_read;	/*!< last time the cache was read;
  					measured in microseconds since

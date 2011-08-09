@@ -26,9 +26,8 @@
 # NULL/NOT NULL constraints, etc).
 # 
 === modified file 'mysys/charset-def.c'
-diff -ruN a/mysys/charset-def.c b/mysys/charset-def.c
---- a/mysys/charset-def.c	2011-07-08 13:03:34.000000000 +0400
-+++ b/mysys/charset-def.c	2011-07-08 14:02:32.000000000 +0400
+--- a/mysys/charset-def.c
++++ b/mysys/charset-def.c
 @@ -21,6 +21,9 @@
    init_compiled_charsets() that only adds those that he wants
  */
@@ -55,9 +54,8 @@ diff -ruN a/mysys/charset-def.c b/mysys/charset-def.c
  #ifdef HAVE_UTF8_GENERAL_CS
    add_compiled_collation(&my_charset_utf8_general_cs);
  #endif
-diff -ruN a/strings/ctype-ucs2.c b/strings/ctype-ucs2.c
---- a/strings/ctype-ucs2.c	2011-07-08 13:03:34.000000000 +0400
-+++ b/strings/ctype-ucs2.c	2011-07-08 14:04:36.000000000 +0400
+--- a/strings/ctype-ucs2.c
++++ b/strings/ctype-ucs2.c
 @@ -1731,6 +1731,42 @@
      &my_collation_ucs2_general_ci_handler
  };
@@ -101,9 +99,8 @@ diff -ruN a/strings/ctype-ucs2.c b/strings/ctype-ucs2.c
  CHARSET_INFO my_charset_ucs2_bin=
  {
      90,0,0,		/* number       */
-diff -ruN a/strings/ctype-utf8.c b/strings/ctype-utf8.c
---- a/strings/ctype-utf8.c	2011-07-08 13:03:34.000000000 +0400
-+++ b/strings/ctype-utf8.c	2011-07-08 15:21:25.000000000 +0400
+--- a/strings/ctype-utf8.c
++++ b/strings/ctype-utf8.c
 @@ -175,6 +175,138 @@
  };
  
@@ -332,9 +329,8 @@ diff -ruN a/strings/ctype-utf8.c b/strings/ctype-utf8.c
  CHARSET_INFO my_charset_utf8_bin=
  {
      83,0,0,             /* number       */
-diff -ruN /dev/null b/mysql-test/r/percona_ucs2_general50_ci.result
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/r/percona_ucs2_general50_ci.result	2011-07-08 15:20:46.000000000 +0400
+--- /dev/null
++++ b/mysql-test/r/percona_ucs2_general50_ci.result
 @@ -0,0 +1,38 @@
 +SET NAMES latin1;
 +SET collation_connection='ucs2_general50_ci';
@@ -374,9 +370,8 @@ diff -ruN /dev/null b/mysql-test/r/percona_ucs2_general50_ci.result
 +ue
 +ß
 +drop table t1;
-diff -ruN /dev/null b/mysql-test/t/percona_ucs2_general50_ci.test
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/t/percona_ucs2_general50_ci.test	2011-07-08 15:18:25.000000000 +0400
+--- /dev/null
++++ b/mysql-test/t/percona_ucs2_general50_ci.test
 @@ -0,0 +1,12 @@
 +#
 +# Test that ucs2_general50_ci provides pre-5.1.24 utf8_general_ci behavior,
@@ -390,9 +385,8 @@ diff -ruN /dev/null b/mysql-test/t/percona_ucs2_general50_ci.test
 +SET collation_connection='ucs2_general50_ci';
 +
 +--source include/ctype_german.inc
-diff -ruN /dev/null b/mysql-test/t/percona_utf8_general50_ci.test
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/t/percona_utf8_general50_ci.test	2011-07-08 15:18:48.000000000 +0400
+--- /dev/null
++++ b/mysql-test/t/percona_utf8_general50_ci.test
 @@ -0,0 +1,9 @@
 +#
 +# Test that utf8_general50_ci provides pre-5.1.24 utf8_general_ci behavior,
@@ -403,9 +397,8 @@ diff -ruN /dev/null b/mysql-test/t/percona_utf8_general50_ci.test
 +
 +SET collation_connection='utf8_general50_ci';
 +--source include/ctype_german.inc
-diff -ruN /dev/null b/mysql-test/r/percona_utf8_general50_ci.result
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/mysql-test/r/percona_utf8_general50_ci.result	2011-07-08 15:19:18.000000000 +0400
+--- /dev/null
++++ b/mysql-test/r/percona_utf8_general50_ci.result
 @@ -0,0 +1,38 @@
 +SET NAMES utf8;
 +SET collation_connection='utf8_general50_ci';

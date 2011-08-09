@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/extra/comp_err.c b/extra/comp_err.c
---- a/extra/comp_err.c	2010-08-03 17:24:24.000000000 +0000
-+++ b/extra/comp_err.c	2010-09-14 16:49:28.000000000 +0000
+--- a/extra/comp_err.c
++++ b/extra/comp_err.c
 @@ -30,11 +30,12 @@
  #include <assert.h>
  #include <my_dir.h>

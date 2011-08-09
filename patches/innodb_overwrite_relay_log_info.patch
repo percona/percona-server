@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:39:34.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:42:07.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -43,7 +43,17 @@
  #pragma implementation				// gcc: Class implementation
  #endif
@@ -264,9 +263,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
    MYSQL_SYSVAR(stats_sample_pages),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:39:34.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:42:07.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -30,5 +30,6 @@
  {"innodb_buffer_pool_pages","Information of buffer pool content","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_expand_undo_slots","expandable maximum number of undo slots","from 1024 (default) to about 4000","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -274,9 +272,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/include/trx0sys.h
---- a/storage/innodb_plugin/include/trx0sys.h	2010-04-29 16:39:34.000000000 +0900
-+++ b/storage/innodb_plugin/include/trx0sys.h	2010-04-29 16:42:07.000000000 +0900
+--- a/storage/innodb_plugin/include/trx0sys.h
++++ b/storage/innodb_plugin/include/trx0sys.h
 @@ -52,6 +52,9 @@
  extern ib_int64_t	trx_sys_mysql_master_log_pos;
  /* @} */
@@ -313,9 +310,8 @@ diff -ruN a/storage/innodb_plugin/include/trx0sys.h b/storage/innodb_plugin/incl
  
  /** The offset of the MySQL binlog offset info in the trx system header */
  #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
-diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
---- a/storage/innodb_plugin/include/trx0trx.h	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/include/trx0trx.h	2010-04-29 16:42:07.000000000 +0900
+--- a/storage/innodb_plugin/include/trx0trx.h
++++ b/storage/innodb_plugin/include/trx0trx.h
 @@ -580,6 +580,21 @@
  	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
  					contains the end offset of the binlog
@@ -338,9 +334,8 @@ diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/incl
  	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
  					with this transaction object */
  	ulint		mysql_process_no;/* since in Linux, 'top' reports
-diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0sys.c
---- a/storage/innodb_plugin/trx/trx0sys.c	2010-04-29 16:39:34.000000000 +0900
-+++ b/storage/innodb_plugin/trx/trx0sys.c	2010-04-29 16:42:07.000000000 +0900
+--- a/storage/innodb_plugin/trx/trx0sys.c
++++ b/storage/innodb_plugin/trx/trx0sys.c
 @@ -75,13 +75,16 @@
  file name and position here. */
  /* @{ */
@@ -439,9 +434,8 @@ diff -ruN a/storage/innodb_plugin/trx/trx0sys.c b/storage/innodb_plugin/trx/trx0
  	mtr_commit(&mtr);
  }
  
-diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
---- a/storage/innodb_plugin/trx/trx0trx.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/trx/trx0trx.c	2010-04-29 16:42:07.000000000 +0900
+--- a/storage/innodb_plugin/trx/trx0trx.c
++++ b/storage/innodb_plugin/trx/trx0trx.c
 @@ -132,6 +132,10 @@
  
  	trx->mysql_log_file_name = NULL;

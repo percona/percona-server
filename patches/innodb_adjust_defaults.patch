@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:39:14.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 16:43:26.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -11296,7 +11296,7 @@
  static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

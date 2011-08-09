@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0btr.c
---- a/storage/innodb_plugin/btr/btr0btr.c	2011-04-12 21:11:39.000000000 +0900
-+++ b/storage/innodb_plugin/btr/btr0btr.c	2011-05-24 19:07:53.912874090 +0900
+--- a/storage/innodb_plugin/btr/btr0btr.c
++++ b/storage/innodb_plugin/btr/btr0btr.c
 @@ -837,7 +837,7 @@
  /**************************************************************//**
  Creates a new index page (not the root, and also not
@@ -35,9 +34,8 @@ diff -ruN a/storage/innodb_plugin/btr/btr0btr.c b/storage/innodb_plugin/btr/btr0
  void
  btr_attach_half_pages(
  /*==================*/
-diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0fil.c
---- a/storage/innodb_plugin/fil/fil0fil.c	2010-04-29 15:44:28.000000000 +0900
-+++ b/storage/innodb_plugin/fil/fil0fil.c	2010-04-30 10:43:13.000000000 +0900
+--- a/storage/innodb_plugin/fil/fil0fil.c
++++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -40,6 +40,14 @@
  #include "dict0dict.h"
  #include "page0page.h"
@@ -865,9 +863,8 @@ diff -ruN a/storage/innodb_plugin/fil/fil0fil.c b/storage/innodb_plugin/fil/fil0
  	return(success);
  }
  #endif /* !UNIV_HOTBACKUP */
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:54:08.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-30 10:28:05.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -7119,6 +7119,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
@@ -903,9 +900,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(extra_rsegments),
    MYSQL_SYSVAR(dict_size_limit),
    MYSQL_SYSVAR(use_sys_malloc),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 18:58:20.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-30 10:28:05.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -32,6 +32,7 @@
  {"innodb_extra_rseg","allow to create extra rollback segments","When create new db, the new parameter allows to create more rollback segments","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_overwrite_relay_log_info","overwrite relay-log.info when slave recovery","Building as plugin, it is not used.","http://www.percona.com/docs/wiki/percona-xtradb:innodb_overwrite_relay_log_info"},
@@ -914,9 +910,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
  {"innodb_dict_size_limit","Limit dictionary cache size","Variable innodb_dict_size_limit in bytes","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_split_buf_pool_mutex","More fix of buffer_pool mutex","Spliting buf_pool_mutex and optimizing based on innodb_opt_lru_count","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
-diff -ruN a/storage/innodb_plugin/include/btr0btr.h b/storage/innodb_plugin/include/btr0btr.h
---- a/storage/innodb_plugin/include/btr0btr.h	2011-04-12 21:11:39.000000000 +0900
-+++ b/storage/innodb_plugin/include/btr0btr.h	2011-05-24 19:07:53.917848535 +0900
+--- a/storage/innodb_plugin/include/btr0btr.h
++++ b/storage/innodb_plugin/include/btr0btr.h
 @@ -208,6 +208,17 @@
  @return the uncompressed page frame */
  # define btr_page_get(space,zip_size,page_no,mode,mtr) \
@@ -1029,9 +1024,8 @@ diff -ruN a/storage/innodb_plugin/include/btr0btr.h b/storage/innodb_plugin/incl
  /****************************************************************//**
  Sets a record as the predefined minimum record. */
  UNIV_INTERN
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-29 16:54:08.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-30 10:28:05.000000000 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -218,6 +218,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_checkpoint;
@@ -1041,9 +1035,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
  /*-------------------------------------------*/
-diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
---- a/storage/innodb_plugin/row/row0mysql.c	2011-04-12 21:11:37.000000000 +0900
-+++ b/storage/innodb_plugin/row/row0mysql.c	2011-06-06 11:14:43.838896479 +0900
+--- a/storage/innodb_plugin/row/row0mysql.c
++++ b/storage/innodb_plugin/row/row0mysql.c
 @@ -2520,6 +2520,11 @@
  
  	current_lsn = log_get_lsn();
@@ -1068,9 +1061,8 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	return((int) err);
  }
  
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 18:58:20.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-30 10:28:05.000000000 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -390,6 +390,8 @@
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */

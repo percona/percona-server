@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/Makefile.am b/storage/innodb_plugin/Makefile.am
---- a/storage/innodb_plugin/Makefile.am	2010-04-06 23:07:11.000000000 +0900
-+++ b/storage/innodb_plugin/Makefile.am	2010-04-29 15:22:39.000000000 +0900
+--- a/storage/innodb_plugin/Makefile.am
++++ b/storage/innodb_plugin/Makefile.am
 @@ -226,6 +226,7 @@
  			include/ut0vec.h	\
  			include/ut0vec.ic	\
@@ -16,9 +15,8 @@ diff -ruN a/storage/innodb_plugin/Makefile.am b/storage/innodb_plugin/Makefile.a
  			mem/mem0dbg.c
  
  EXTRA_LIBRARIES=	libinnobase.a
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 15:22:39.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -11117,7 +11117,8 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
@@ -29,9 +27,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  mysql_declare_plugin_end;
  
  /** @brief Initialize the default value of innodb_commit_concurrency.
-diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler/i_s.cc
---- a/storage/innodb_plugin/handler/i_s.cc	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/handler/i_s.cc	2010-04-29 15:22:39.000000000 +0900
+--- a/storage/innodb_plugin/handler/i_s.cc
++++ b/storage/innodb_plugin/handler/i_s.cc
 @@ -32,6 +32,7 @@
  #include <mysys_err.h>
  #include <my_sys.h>
@@ -220,9 +217,8 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.cc b/storage/innodb_plugin/handler
  
  UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
  {
-diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/i_s.h
---- a/storage/innodb_plugin/handler/i_s.h	2010-04-06 23:07:12.000000000 +0900
-+++ b/storage/innodb_plugin/handler/i_s.h	2010-04-29 15:22:39.000000000 +0900
+--- a/storage/innodb_plugin/handler/i_s.h
++++ b/storage/innodb_plugin/handler/i_s.h
 @@ -33,5 +33,6 @@
  extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
  extern struct st_mysql_plugin	i_s_innodb_cmpmem;
@@ -230,9 +226,8 @@ diff -ruN a/storage/innodb_plugin/handler/i_s.h b/storage/innodb_plugin/handler/
 +extern struct st_mysql_plugin	i_s_innodb_patches;
  
  #endif /* i_s_h */
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 15:22:39.000000000 +0900
+--- /dev/null
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -0,0 +1,28 @@
 +/* Copyright (C) 2002-2006 MySQL AB
 +  

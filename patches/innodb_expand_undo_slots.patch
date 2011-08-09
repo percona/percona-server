@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:06:22.000000000 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2010-04-29 16:06:59.000000000 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -165,6 +165,7 @@
  #endif /* UNIV_LOG_ARCHIVE */
  static my_bool	innobase_use_doublewrite		= TRUE;
@@ -47,9 +46,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    MYSQL_SYSVAR(fast_shutdown),
    MYSQL_SYSVAR(file_io_threads),
    MYSQL_SYSVAR(read_io_threads),
-diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_plugin/handler/innodb_patch_info.h
---- a/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:06:22.000000000 +0900
-+++ b/storage/innodb_plugin/handler/innodb_patch_info.h	2010-04-29 16:06:59.000000000 +0900
+--- a/storage/innodb_plugin/handler/innodb_patch_info.h
++++ b/storage/innodb_plugin/handler/innodb_patch_info.h
 @@ -28,5 +28,6 @@
  {"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_opt_lru_count","Fix of buffer_pool mutex","Decreases contention on buffer_pool mutex on LRU operations","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -57,9 +55,8 @@ diff -ruN a/storage/innodb_plugin/handler/innodb_patch_info.h b/storage/innodb_p
 +{"innodb_expand_undo_slots","expandable maximum number of undo slots","from 1024 (default) to about 4000","http://www.percona.com/docs/wiki/percona-xtradb"},
  {NULL, NULL, NULL, NULL}
  };
-diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/include/srv0srv.h
---- a/storage/innodb_plugin/include/srv0srv.h	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/include/srv0srv.h	2010-04-29 16:06:59.000000000 +0900
+--- a/storage/innodb_plugin/include/srv0srv.h
++++ b/storage/innodb_plugin/include/srv0srv.h
 @@ -112,6 +112,8 @@
  extern ulint*	srv_data_file_sizes;
  extern ulint*	srv_data_file_is_raw_partition;
@@ -69,9 +66,8 @@ diff -ruN a/storage/innodb_plugin/include/srv0srv.h b/storage/innodb_plugin/incl
  extern ibool	srv_auto_extend_last_data_file;
  extern ulint	srv_last_file_size_max;
  extern char**	srv_log_group_home_dirs;
-diff -ruN a/storage/innodb_plugin/include/trx0rseg.h b/storage/innodb_plugin/include/trx0rseg.h
---- a/storage/innodb_plugin/include/trx0rseg.h	2010-04-06 23:07:13.000000000 +0900
-+++ b/storage/innodb_plugin/include/trx0rseg.h	2010-04-29 16:06:59.000000000 +0900
+--- a/storage/innodb_plugin/include/trx0rseg.h
++++ b/storage/innodb_plugin/include/trx0rseg.h
 @@ -123,8 +123,11 @@
  	trx_rseg_t*	rseg);		/* in, own: instance to free */
  
@@ -85,9 +81,8 @@ diff -ruN a/storage/innodb_plugin/include/trx0rseg.h b/storage/innodb_plugin/inc
  
  /* Maximum number of transactions supported by a single rollback segment */
  #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
-diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0srv.c
---- a/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 15:55:25.000000000 +0900
-+++ b/storage/innodb_plugin/srv/srv0srv.c	2010-04-29 16:06:59.000000000 +0900
+--- a/storage/innodb_plugin/srv/srv0srv.c
++++ b/storage/innodb_plugin/srv/srv0srv.c
 @@ -142,6 +142,8 @@
  /* size in database pages */
  UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
@@ -97,9 +92,8 @@ diff -ruN a/storage/innodb_plugin/srv/srv0srv.c b/storage/innodb_plugin/srv/srv0
  /* if TRUE, then we auto-extend the last data file */
  UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
  /* if != 0, this tells the max size auto-extending may increase the
-diff -ruN a/storage/innodb_plugin/trx/trx0undo.c b/storage/innodb_plugin/trx/trx0undo.c
---- a/storage/innodb_plugin/trx/trx0undo.c	2010-04-06 23:07:14.000000000 +0900
-+++ b/storage/innodb_plugin/trx/trx0undo.c	2010-04-29 16:06:59.000000000 +0900
+--- a/storage/innodb_plugin/trx/trx0undo.c
++++ b/storage/innodb_plugin/trx/trx0undo.c
 @@ -1396,9 +1396,47 @@
  	rseg_header = trx_rsegf_get_new(rseg->space, rseg->zip_size,
  					rseg->page_no, &mtr);

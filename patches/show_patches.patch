@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/show_patches.info b/patch_info/show_patches.info
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/patch_info/show_patches.info	2010-04-28 15:29:36.000000000 +0900
+--- /dev/null
++++ b/patch_info/show_patches.info
 @@ -0,0 +1,9 @@
 +File=show_patches.patch
 +Name=SHOW PATCHES
@@ -18,9 +17,8 @@ diff -ruN a/patch_info/show_patches.info b/patch_info/show_patches.info
 +Changelog
 +2010-01
 +Ported to 5.1.42
-diff -ruN a/sql/Makefile.am b/sql/Makefile.am
---- a/sql/Makefile.am	2010-04-06 23:06:05.000000000 +0900
-+++ b/sql/Makefile.am	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/Makefile.am
++++ b/sql/Makefile.am
 @@ -145,7 +145,7 @@
  			@DEFS@
  
@@ -40,9 +38,8 @@ diff -ruN a/sql/Makefile.am b/sql/Makefile.am
  # We might have some stuff not built in this build, but that we want to install
  install-exec-hook:
  	$(mkinstalldirs) $(DESTDIR)$(libexecdir) $(DESTDIR)$(pkglibdir)
-diff -ruN a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2010-04-06 23:07:01.000000000 +0900
-+++ b/sql/lex.h	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/lex.h
++++ b/sql/lex.h
 @@ -392,6 +392,7 @@
    { "PARTITIONING",     SYM(PARTITIONING_SYM)},
    { "PARTITIONS",       SYM(PARTITIONS_SYM)},
@@ -51,9 +48,8 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "PHASE",            SYM(PHASE_SYM)},
    { "PLUGIN",           SYM(PLUGIN_SYM)},
    { "PLUGINS",          SYM(PLUGINS_SYM)},
-diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
---- a/sql/mysql_priv.h	2010-04-06 23:07:02.000000000 +0900
-+++ b/sql/mysql_priv.h	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/mysql_priv.h
++++ b/sql/mysql_priv.h
 @@ -1360,6 +1360,7 @@
  int mysqld_show_status(THD *thd);
  int mysqld_show_variables(THD *thd,const char *wild);
@@ -62,9 +58,8 @@ diff -ruN a/sql/mysql_priv.h b/sql/mysql_priv.h
  bool mysqld_show_authors(THD *thd);
  bool mysqld_show_contributors(THD *thd);
  bool mysqld_show_privileges(THD *thd);
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2010-04-06 23:07:02.000000000 +0900
-+++ b/sql/mysqld.cc	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
 @@ -3215,6 +3215,7 @@
    {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
    {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
@@ -73,9 +68,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
    {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
  #ifndef DBUG_OFF
-diff -ruN a/sql/patch_info.h.pl b/sql/patch_info.h.pl
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/sql/patch_info.h.pl	2010-04-28 15:29:36.000000000 +0900
+--- /dev/null
++++ b/sql/patch_info.h.pl
 @@ -0,0 +1,65 @@
 +use strict;
 +
@@ -142,9 +136,8 @@ diff -ruN a/sql/patch_info.h.pl b/sql/patch_info.h.pl
 +};	
 +
 +HEADER
-diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
---- a/sql/sp_head.cc	2010-04-06 23:07:04.000000000 +0900
-+++ b/sql/sp_head.cc	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/sp_head.cc
++++ b/sql/sp_head.cc
 @@ -227,6 +227,7 @@
    case SQLCOM_SHOW_MASTER_STAT:
    case SQLCOM_SHOW_NEW_MASTER:
@@ -153,9 +146,8 @@ diff -ruN a/sql/sp_head.cc b/sql/sp_head.cc
    case SQLCOM_SHOW_PRIVILEGES:
    case SQLCOM_SHOW_PROCESSLIST:
    case SQLCOM_SHOW_PROC_CODE:
-diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2010-04-06 23:07:04.000000000 +0900
-+++ b/sql/sql_lex.h	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/sql_lex.h
++++ b/sql/sql_lex.h
 @@ -118,6 +118,7 @@
    SQLCOM_SHOW_CREATE_TRIGGER,
    SQLCOM_ALTER_DB_UPGRADE,
@@ -164,9 +156,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
  
    /*
      When a command is added here, be sure it's also added in mysqld.cc
-diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2010-04-06 23:07:05.000000000 +0900
-+++ b/sql/sql_parse.cc	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/sql_parse.cc
++++ b/sql/sql_parse.cc
 @@ -3494,6 +3494,9 @@
    case SQLCOM_SHOW_CONTRIBUTORS:
      res= mysqld_show_contributors(thd);
@@ -177,9 +168,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_PRIVILEGES:
      res= mysqld_show_privileges(thd);
      break;
-diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
---- a/sql/sql_prepare.cc	2010-04-06 23:07:05.000000000 +0900
-+++ b/sql/sql_prepare.cc	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/sql_prepare.cc
++++ b/sql/sql_prepare.cc
 @@ -1950,6 +1950,7 @@
      */
    case SQLCOM_SHOW_PROCESSLIST:
@@ -188,9 +178,8 @@ diff -ruN a/sql/sql_prepare.cc b/sql/sql_prepare.cc
    case SQLCOM_SHOW_PRIVILEGES:
    case SQLCOM_SHOW_COLUMN_TYPES:
    case SQLCOM_SHOW_ENGINE_LOGS:
-diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2010-04-06 23:07:05.000000000 +0900
-+++ b/sql/sql_show.cc	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/sql_show.cc
++++ b/sql/sql_show.cc
 @@ -23,6 +23,7 @@
  #include "sp.h"
  #include "sp_head.h"
@@ -242,9 +231,8 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 +  my_eof(thd);
 +  DBUG_RETURN(FALSE);
 +}
-diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2010-04-06 23:07:06.000000000 +0900
-+++ b/sql/sql_yacc.yy	2010-04-28 15:29:36.000000000 +0900
+--- a/sql/sql_yacc.yy
++++ b/sql/sql_yacc.yy
 @@ -1055,6 +1055,7 @@
  %token  PARTITIONS_SYM
  %token  PARTITION_SYM                 /* SQL-2003-R */

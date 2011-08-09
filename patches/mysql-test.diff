@@ -3886,3 +3886,18 @@
  
    -- Dump all databases, there should be none
    -- except those that was created during bootstrap
+--- a/mysql-test/suite/binlog/t/binlog_stm_unsafe_warning-master.opt
++++ b/mysql-test/suite/binlog/t/binlog_stm_unsafe_warning-master.opt
+@@ -1 +1 @@
+---binlog-ignore-db=b42851 --log-error
++--binlog-ignore-db=b42851 --log-error=$MYSQLTEST_VARDIR/log/binlog.binlog_stm_unsafe_warning.err
+--- a/mysql-test/suite/binlog/t/binlog_stm_unsafe_warning.test
++++ b/mysql-test/suite/binlog/t/binlog_stm_unsafe_warning.test
+@@ -114,4 +114,7 @@
+   my $count = () = grep(/Bug#46265/g,<FILE>);
+   print "Occurrences: $count\n";
+   close(FILE);
++  # Clean log error file
++  open(FILE, '>', $log_error);
++  close(FILE);
+ EOF

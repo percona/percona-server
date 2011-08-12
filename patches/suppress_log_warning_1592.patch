@@ -102,7 +102,7 @@
 +--log-error
 --- /dev/null
 +++ b/mysql-test/t/percona_suppress_log_warning_1592.test
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,49 @@
 +-- source include/have_log_bin.inc
 +-- source include/have_binlog_format_statement.inc
 +
@@ -147,5 +147,8 @@
 +  open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
 +  my $count = () = grep(/suppress_1592/g,<FILE>);
 +  print "Occurrences: $count\n";
++  close(FILE);
++  # Clean error log file
++  open(FILE, '>', "$log_error");
 +  close(FILE);
 +EOF

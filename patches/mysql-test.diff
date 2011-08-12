@@ -3929,3 +3929,23 @@
 +  open(FILE, '>', $log_error);
 +  close(FILE);
  EOF
+--- a/mysql-test/t/func_str.test
++++ b/mysql-test/t/func_str.test
+@@ -1377,6 +1377,7 @@
+ SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE 'bug58165.txt';
+ SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
+ LOAD DATA INFILE 'bug58165.txt' INTO TABLE t1;
++--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/test/bug58165.txt
+ SELECT * FROM t1;
+ DROP TABLE t1;
+ 
+--- a/mysql-test/t/loaddata.test
++++ b/mysql-test/t/loaddata.test
+@@ -638,6 +638,7 @@
+ --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+ --error ER_CANT_CREATE_GEOMETRY_OBJECT
+ --eval LOAD DATA INFILE '$file' INTO TABLE t1
++--remove_file $MYSQLTEST_VARDIR/tmp/bug11735141.txt
+ drop table t1;
+ 
+ --echo End of 5.1 tests

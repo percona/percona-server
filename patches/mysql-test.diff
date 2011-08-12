@@ -3886,3 +3886,31 @@
  
    -- Dump all databases, there should be none
    -- except those that was created during bootstrap
+--- a/mysql-test/suite/binlog/r/binlog_bug36391.result
++++ b/mysql-test/suite/binlog/r/binlog_bug36391.result
+@@ -3,8 +3,8 @@
+ Tables_in_test
+ t1
+ FLUSH LOGS;
+-DROP TABLE t1;
++DROP TABLE IF EXISTS t1;
+ SHOW TABLES;
+ Tables_in_test
+ t1
+-DROP TABLE t1;
++DROP TABLE IF EXISTS t1;
+--- a/mysql-test/suite/binlog/t/binlog_bug36391.test
++++ b/mysql-test/suite/binlog/t/binlog_bug36391.test
+@@ -21,10 +21,10 @@
+ let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;
+ SHOW TABLES;
+ FLUSH LOGS;
+-DROP TABLE t1;
++DROP TABLE IF EXISTS t1;
+ 
+ --exec $MYSQL_BINLOG $binlog_path | $MYSQL test
+ SHOW TABLES;
+ 
+ # Clean up
+-DROP TABLE t1;
++DROP TABLE IF EXISTS t1;

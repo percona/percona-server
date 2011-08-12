@@ -91,14 +91,14 @@
 +ERROR HY000: Too many connections
 +SET GLOBAL max_connections = @old_max_connections;
 +SET GLOBAL log_warnings = @old_log_warnings;
-+1
++Occurences: 1
 --- /dev/null
 +++ b/mysql-test/t/percona_log_connection_error-master.opt
 @@ -0,0 +1 @@
 +--log-error
 --- /dev/null
 +++ b/mysql-test/t/percona_log_connection_error.test
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,60 @@
 +--source include/not_embedded.inc
 +
 +connect (main,localhost,root,,);
@@ -149,5 +149,13 @@
 +# Assign env variable LOG_ERROR
 +let LOG_ERROR=$log_error_;
 +
-+let cmd=cat $log_error | grep "Too many connections" | wc -l;
-+exec $cmd;
++perl;
++  my $log_file= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set\n";
++  open(FILE, "$log_file") or die("Unable to open $log_error: $!\n");
++  my $count= () = grep(/Too many connections/g,<FILE>);
++  print "Occurences: $count\n";
++  close(FILE);
++  # Clean log error file
++  open(FILE, '>', $log_file);
++  close(FILE);
++EOF

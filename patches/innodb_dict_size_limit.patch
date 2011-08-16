@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
---- a/storage/innobase/btr/btr0sea.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/btr/btr0sea.c	2010-12-03 15:45:47.503988924 +0900
+--- a/storage/innobase/btr/btr0sea.c
++++ b/storage/innobase/btr/btr0sea.c
 @@ -1185,6 +1185,179 @@
  	mem_free(folds);
  }
@@ -188,9 +187,8 @@ diff -ruN a/storage/innobase/btr/btr0sea.c b/storage/innobase/btr/btr0sea.c
  /********************************************************************//**
  Drops a page hash index when a page is freed from a fseg to the file system.
  Drops possible hash index if the page happens to be in the buffer pool. */
-diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2011-02-01 18:00:03.000000000 +0900
-+++ b/storage/innobase/buf/buf0buf.c	2011-02-01 18:01:59.000000000 +0900
+--- a/storage/innobase/buf/buf0buf.c
++++ b/storage/innobase/buf/buf0buf.c
 @@ -294,14 +294,14 @@
  # endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
  #endif /* UNIV_PFS_MUTEX || UNIV_PFS_RWLOCK */
@@ -214,9 +212,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  #endif /* !UNIV_HOTBACKUP */
  
  /********************************************************************//**
-diff -ruN a/storage/innobase/dict/dict0boot.c b/storage/innobase/dict/dict0boot.c
---- a/storage/innobase/dict/dict0boot.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/dict/dict0boot.c	2010-12-03 15:45:47.503988924 +0900
+--- a/storage/innobase/dict/dict0boot.c
++++ b/storage/innobase/dict/dict0boot.c
 @@ -284,6 +284,7 @@
  	system tables */
  	/*-------------------------*/
@@ -249,9 +246,8 @@ diff -ruN a/storage/innobase/dict/dict0boot.c b/storage/innobase/dict/dict0boot.
  
  	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
  	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
-diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.c
---- a/storage/innobase/dict/dict0crea.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/dict/dict0crea.c	2010-12-03 15:45:47.521955810 +0900
+--- a/storage/innobase/dict/dict0crea.c
++++ b/storage/innobase/dict/dict0crea.c
 @@ -1209,6 +1209,9 @@
  		/* Foreign constraint system tables have already been
  		created, and they are ok */
@@ -274,9 +270,8 @@ diff -ruN a/storage/innobase/dict/dict0crea.c b/storage/innobase/dict/dict0crea.
  	row_mysql_unlock_data_dictionary(trx);
  
  	trx_free_for_mysql(trx);
-diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.c
---- a/storage/innobase/dict/dict0dict.c	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/dict/dict0dict.c	2010-12-03 15:45:47.525953769 +0900
+--- a/storage/innobase/dict/dict0dict.c
++++ b/storage/innobase/dict/dict0dict.c
 @@ -626,6 +626,8 @@
  
  	table = dict_table_get_on_id_low(table_id);
@@ -372,9 +367,8 @@ diff -ruN a/storage/innobase/dict/dict0dict.c b/storage/innobase/dict/dict0dict.
  	/* We always create search info whether or not adaptive
  	hash index is enabled or not. */
  	info = index->search_info;
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:43:57.294986852 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:45:47.534959966 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -675,6 +675,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
@@ -384,7 +378,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11659,6 +11661,11 @@
+@@ -11658,6 +11660,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -396,7 +390,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11727,6 +11734,7 @@
+@@ -11726,6 +11733,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -404,9 +398,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
-diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
---- a/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:18:48.889024455 +0900
-+++ b/storage/innobase/ibuf/ibuf0ibuf.c	2010-12-03 15:45:47.553025057 +0900
+--- a/storage/innobase/ibuf/ibuf0ibuf.c
++++ b/storage/innobase/ibuf/ibuf0ibuf.c
 @@ -566,6 +566,7 @@
  
  	/* Use old-style record format for the insert buffer. */
@@ -415,9 +408,8 @@ diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.
  
  	dict_mem_table_add_col(table, heap, "DUMMY_COLUMN", DATA_BINARY, 0, 0);
  
-diff -ruN a/storage/innobase/include/btr0sea.h b/storage/innobase/include/btr0sea.h
---- a/storage/innobase/include/btr0sea.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/btr0sea.h	2010-12-03 15:45:47.555024229 +0900
+--- a/storage/innobase/include/btr0sea.h
++++ b/storage/innobase/include/btr0sea.h
 @@ -140,6 +140,13 @@
  				s- or x-latched, or an index page
  				for which we know that
@@ -432,10 +424,9 @@ diff -ruN a/storage/innobase/include/btr0sea.h b/storage/innobase/include/btr0se
  /********************************************************************//**
  Drops a page hash index when a page is freed from a fseg to the file system.
  Drops possible hash index if the page happens to be in the buffer pool. */
-diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2011-02-01 18:00:03.000000000 +0900
-+++ b/storage/innobase/include/buf0buf.h	2011-02-01 18:03:29.000000000 +0900
-@@ -1558,6 +1558,15 @@
+--- a/storage/innobase/include/buf0buf.h
++++ b/storage/innobase/include/buf0buf.h
+@@ -1594,6 +1594,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  
@@ -451,9 +442,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  /** @brief The buffer pool statistics structure. */
  struct buf_pool_stat_struct{
  	ulint	n_page_gets;	/*!< number of page gets performed;
-diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict0dict.h
---- a/storage/innobase/include/dict0dict.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/dict0dict.h	2010-12-03 15:45:47.558024515 +0900
+--- a/storage/innobase/include/dict0dict.h
++++ b/storage/innobase/include/dict0dict.h
 @@ -1183,6 +1183,12 @@
  /*====================================*/
  	dict_table_t*	table,	/*!< in: table */
@@ -467,9 +457,8 @@ diff -ruN a/storage/innobase/include/dict0dict.h b/storage/innobase/include/dict
  /* Buffers for storing detailed information about the latest foreign key
  and unique key errors */
  extern FILE*	dict_foreign_err_file;
-diff -ruN a/storage/innobase/include/dict0dict.ic b/storage/innobase/include/dict0dict.ic
---- a/storage/innobase/include/dict0dict.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/dict0dict.ic	2010-12-03 15:45:47.560024398 +0900
+--- a/storage/innobase/include/dict0dict.ic
++++ b/storage/innobase/include/dict0dict.ic
 @@ -824,6 +824,13 @@
  	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
  		    dict_table_t*, table, ut_ad(table->cached),
@@ -497,9 +486,8 @@ diff -ruN a/storage/innobase/include/dict0dict.ic b/storage/innobase/include/dic
  	ut_ad(!table || table->cached);
  
  	/* TODO: should get the type information from MySQL */
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-03 15:43:57.297067100 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:45:47.562024404 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -229,6 +229,7 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_flushing_method;
@@ -516,9 +504,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
  	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
  	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:43:57.301024390 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:45:47.565023830 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -415,6 +415,8 @@
  UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */

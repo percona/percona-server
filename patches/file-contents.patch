@@ -1,6 +1,6 @@
 --- a/mysql-test/t/file_contents.test
 +++ b/mysql-test/t/file_contents.test
-@@ -20,7 +20,7 @@ if ($dir_bin =~ m|/usr/|) {
+@@ -20,7 +20,7 @@
      $dir_docs = "$dir_docs/packages/MySQL-server";
    } else {
      # RedHat: version number in directory name
@@ -9,7 +9,7 @@
    }
  } elsif ($dir_bin =~ m|/usr$|) {
    # RPM build during development
-@@ -28,9 +28,12 @@ if ($dir_bin =~ m|/usr/|) {
+@@ -28,9 +28,12 @@
    if(-d "$dir_docs/packages/MySQL-server") {
      # SuSE
      $dir_docs = "$dir_docs/packages/MySQL-server";

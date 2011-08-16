@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2011-01-21 19:53:42.369599743 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2011-01-21 19:54:44.659599699 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -639,6 +639,16 @@
  	trx_t*	trx);	/*!< in: transaction handle */
  
@@ -156,9 +155,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    {NullS, NullS, SHOW_LONG}
  };
  
-diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.c
---- a/storage/innobase/ibuf/ibuf0ibuf.c	2011-02-03 15:05:04.000000000 +0900
-+++ b/storage/innobase/ibuf/ibuf0ibuf.c	2011-02-03 15:19:47.000000000 +0900
+--- a/storage/innobase/ibuf/ibuf0ibuf.c
++++ b/storage/innobase/ibuf/ibuf0ibuf.c
 @@ -469,6 +469,45 @@
  }
  
@@ -205,9 +203,8 @@ diff -ruN a/storage/innobase/ibuf/ibuf0ibuf.c b/storage/innobase/ibuf/ibuf0ibuf.
  Updates the size information of the ibuf, assuming the segment size has not
  changed. */
  static
-diff -ruN a/storage/innobase/include/ibuf0ibuf.h b/storage/innobase/include/ibuf0ibuf.h
---- a/storage/innobase/include/ibuf0ibuf.h	2010-12-04 02:58:26.000000000 +0900
-+++ b/storage/innobase/include/ibuf0ibuf.h	2011-02-03 15:19:47.000000000 +0900
+--- a/storage/innobase/include/ibuf0ibuf.h
++++ b/storage/innobase/include/ibuf0ibuf.h
 @@ -438,6 +438,22 @@
  void
  ibuf_close(void);
@@ -231,9 +228,8 @@ diff -ruN a/storage/innobase/include/ibuf0ibuf.h b/storage/innobase/include/ibuf
  
  #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
  #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
-diff -ruN a/storage/innobase/include/lock0lock.h b/storage/innobase/include/lock0lock.h
---- a/storage/innobase/include/lock0lock.h	2011-01-21 19:52:38.967683738 +0900
-+++ b/storage/innobase/include/lock0lock.h	2011-01-21 19:54:44.660599140 +0900
+--- a/storage/innobase/include/lock0lock.h
++++ b/storage/innobase/include/lock0lock.h
 @@ -817,6 +817,7 @@
  /** The lock system struct */
  struct lock_sys_struct{
@@ -242,9 +238,8 @@ diff -ruN a/storage/innobase/include/lock0lock.h b/storage/innobase/include/lock
  };
  
  /** The lock system */
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2011-01-21 19:53:42.380638228 +0900
-+++ b/storage/innobase/include/srv0srv.h	2011-01-21 19:54:44.662600032 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -731,6 +731,11 @@
  
  /** Status variables to be passed to MySQL */
@@ -339,10 +334,9 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  };
  
  /** Thread slot in the thread table */
-diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync0sync.h
---- a/storage/innobase/include/sync0sync.h	2011-01-21 19:48:45.982637372 +0900
-+++ b/storage/innobase/include/sync0sync.h	2011-01-21 19:54:44.664638235 +0900
-@@ -769,6 +769,10 @@
+--- a/storage/innobase/include/sync0sync.h
++++ b/storage/innobase/include/sync0sync.h
+@@ -771,6 +771,10 @@
  
  #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
  
@@ -353,9 +347,8 @@ diff -ruN a/storage/innobase/include/sync0sync.h b/storage/innobase/include/sync
  /** The number of mutex_exit calls. Intended for performance monitoring. */
  extern	ib_int64_t	mutex_exit_count;
  
-diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.c
---- a/storage/innobase/lock/lock0lock.c	2011-01-21 19:52:38.998600121 +0900
-+++ b/storage/innobase/lock/lock0lock.c	2011-01-21 19:54:44.668637536 +0900
+--- a/storage/innobase/lock/lock0lock.c
++++ b/storage/innobase/lock/lock0lock.c
 @@ -569,6 +569,7 @@
  	lock_sys = mem_alloc(sizeof(lock_sys_t));
  
@@ -388,9 +381,8 @@ diff -ruN a/storage/innobase/lock/lock0lock.c b/storage/innobase/lock/lock0lock.
  
  	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
  }
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2011-01-21 19:53:42.390637840 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2011-01-21 19:54:44.673637084 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -2253,12 +2253,49 @@
  	ulint		LRU_len;
  	ulint		free_len;
@@ -534,9 +526,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  #ifdef HAVE_ATOMIC_BUILTINS
  	export_vars.innodb_have_atomic_builtins = 1;
  #else
-diff -ruN a/storage/innobase/sync/sync0sync.c b/storage/innobase/sync/sync0sync.c
---- a/storage/innobase/sync/sync0sync.c	2011-01-21 19:53:03.458637954 +0900
-+++ b/storage/innobase/sync/sync0sync.c	2011-01-21 19:54:44.676637686 +0900
+--- a/storage/innobase/sync/sync0sync.c
++++ b/storage/innobase/sync/sync0sync.c
 @@ -171,13 +171,13 @@
  
  /** The number of iterations in the mutex_spin_wait() spin loop.

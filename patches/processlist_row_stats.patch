@@ -5,10 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2011-03-09 17:07:26.221709282 +0200
-+++ b/sql/sql_class.cc	2011-03-09 17:07:44.900164285 +0200
-@@ -2306,6 +2306,7 @@
+--- a/sql/sql_class.cc
++++ b/sql/sql_class.cc
+@@ -2288,6 +2288,7 @@
  
    thd->sent_row_count++;
    thd->sent_row_count_2++;
@@ -16,9 +15,8 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    if (thd->vio_ok())
      DBUG_RETURN(protocol->write());
-diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2011-03-09 17:07:26.251706801 +0200
-+++ b/sql/sql_show.cc	2011-03-09 17:07:44.904163954 +0200
+--- a/sql/sql_show.cc
++++ b/sql/sql_show.cc
 @@ -1766,7 +1766,8 @@
  
  /****************************************************************************

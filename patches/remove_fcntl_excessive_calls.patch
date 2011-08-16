@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/patch_info/remove_fcntl_excessive_calls.info b/patch_info/remove_fcntl_excessive_calls.info
---- a/patch_info/remove_fcntl_excessive_calls.info	1970-01-01 03:00:00.000000000 +0300
-+++ b/patch_info/remove_fcntl_excessive_calls.info	2010-07-22 21:42:08.560424001 +0400
+--- /dev/null
++++ b/patch_info/remove_fcntl_excessive_calls.info
 @@ -0,0 +1,6 @@
 +File=remove_fcntl_excessive_calls.patch
 +Name=remove fcntl excessive calls
@@ -15,9 +14,8 @@ diff -ruN a/patch_info/remove_fcntl_excessive_calls.info b/patch_info/remove_fcn
 +Author=This is a port of the official fix.
 +License=GPL
 +Comment=
-diff -ruN a/sql/net_serv.cc b/sql/net_serv.cc
---- a/sql/net_serv.cc	2010-06-03 19:50:27.000000000 +0400
-+++ b/sql/net_serv.cc	2010-07-22 21:40:30.680424001 +0400
+--- a/sql/net_serv.cc
++++ b/sql/net_serv.cc
 @@ -61,7 +61,7 @@
    the client should have a bigger max_allowed_packet.
  */

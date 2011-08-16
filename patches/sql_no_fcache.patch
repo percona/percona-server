@@ -5,10 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2011-04-09 18:48:18.000000000 +0400
-+++ b/client/mysqldump.c	2011-04-09 18:48:58.000000000 +0400
-@@ -139,6 +139,8 @@
+--- a/client/mysqldump.c
++++ b/client/mysqldump.c
+@@ -141,6 +141,8 @@
  static uint opt_protocol= 0;
  static char *opt_plugin_dir= 0, *opt_default_auth= 0;
  
@@ -17,7 +16,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
  /*
  Dynamic_string wrapper functions. In this file use these
  wrappers, they will terminate the process if there is
-@@ -1492,6 +1494,17 @@
+@@ -1494,6 +1496,17 @@
      /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
      server_supports_switching_charsets= FALSE;
    } 
@@ -35,7 +34,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    /*
      As we're going to set SQL_MODE, it would be lost on reconnect, so we
      cannot reconnect.
-@@ -3173,7 +3186,12 @@
+@@ -3175,7 +3188,12 @@
  
      /* now build the query string */
  
@@ -49,7 +48,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
      dynstr_append_checked(&query_string, filename);
      dynstr_append_checked(&query_string, "'");
  
-@@ -3223,7 +3241,12 @@
+@@ -3225,7 +3243,12 @@
        check_io(md_result_file);
      }
      
@@ -63,9 +62,8 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
      dynstr_append_checked(&query_string, result_table);
  
      if (where)
-diff -ruN /dev/null b/include/flashcache_ioctl.h
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/include/flashcache_ioctl.h	2011-04-09 18:48:58.000000000 +0400
+--- /dev/null
++++ b/include/flashcache_ioctl.h
 @@ -0,0 +1,53 @@
 +/****************************************************************************
 + *  flashcache_ioctl.h
@@ -120,9 +118,8 @@ diff -ruN /dev/null b/include/flashcache_ioctl.h
 +#define FLASHCACHEDELALLWHITELIST      _IOW(FLASHCACHE_IOCTL, FLASHCACHEDELWHITELISTALL_CMD, pid_t)
 +
 +#endif
-diff -ruN /dev/null b/patch_info/sql_no_fcache.info
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/patch_info/sql_no_fcache.info	2011-04-09 18:48:58.000000000 +0400
+--- /dev/null
++++ b/patch_info/sql_no_fcache.info
 @@ -0,0 +1,6 @@
 +File=sql_no_fcache.patch
 +Name=Support for flashcache including the SQL_NO_FCACHE option that prevents blocks from being cached during a query.
@@ -130,9 +127,8 @@ diff -ruN /dev/null b/patch_info/sql_no_fcache.info
 +Author=Facebook
 +License=GPL
 +Comment=
-diff -ruN a/sql/lex.h b/sql/lex.h
---- a/sql/lex.h	2011-04-09 18:48:55.000000000 +0400
-+++ b/sql/lex.h	2011-04-09 18:48:58.000000000 +0400
+--- a/sql/lex.h
++++ b/sql/lex.h
 @@ -516,6 +516,7 @@
    { "SQL_CACHE",        SYM(SQL_CACHE_SYM)},
    { "SQL_CALC_FOUND_ROWS", SYM(SQL_CALC_FOUND_ROWS)},
@@ -141,9 +137,8 @@ diff -ruN a/sql/lex.h b/sql/lex.h
    { "SQL_SMALL_RESULT", SYM(SQL_SMALL_RESULT)},
    { "SQL_THREAD",	SYM(SQL_THREAD)},
    { "SQL_TSI_SECOND",   SYM(SECOND_SYM)},
-diff -ruN a/sql/mysqld.h b/sql/mysqld.h
---- a/sql/mysqld.h	2011-04-09 18:48:55.000000000 +0400
-+++ b/sql/mysqld.h	2011-04-09 18:48:58.000000000 +0400
+--- a/sql/mysqld.h
++++ b/sql/mysqld.h
 @@ -194,6 +194,8 @@
  extern char language[FN_REFLEN];
  extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
@@ -153,9 +148,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern time_t server_start_time, flush_status_time;
  extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
  extern int mysql_unpacked_real_data_home_len;
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2011-04-09 18:48:55.000000000 +0400
-+++ b/sql/mysqld.cc	2011-04-09 18:48:58.000000000 +0400
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
 @@ -86,6 +86,11 @@
  #ifdef HAVE_SYS_PRCTL_H
  #include <sys/prctl.h>
@@ -300,7 +294,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    mysqld_exit(0);
  }
  
-@@ -6554,6 +6663,7 @@
+@@ -6557,6 +6666,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -308,9 +302,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
    {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
    {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
-diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
---- a/sql/sql_lex.cc	2011-04-09 18:48:04.000000000 +0400
-+++ b/sql/sql_lex.cc	2011-04-09 18:48:58.000000000 +0400
+--- a/sql/sql_lex.cc
++++ b/sql/sql_lex.cc
 @@ -384,6 +384,7 @@
    lex->describe= 0;
    lex->subqueries= FALSE;
@@ -319,9 +312,8 @@ diff -ruN a/sql/sql_lex.cc b/sql/sql_lex.cc
    lex->derived_tables= 0;
    lex->safe_to_cache_query= 1;
    lex->leaf_tables_insert= 0;
-diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2011-04-09 18:48:20.000000000 +0400
-+++ b/sql/sql_lex.h	2011-04-09 18:48:58.000000000 +0400
+--- a/sql/sql_lex.h
++++ b/sql/sql_lex.h
 @@ -2298,6 +2298,7 @@
  
    enum enum_yes_no_unknown tx_chain, tx_release;
@@ -330,9 +322,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    bool subqueries, ignore;
    st_parsing_options parsing_options;
    Alter_info alter_info;
-diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
---- a/sql/sql_select.cc	2011-04-09 18:48:50.000000000 +0400
-+++ b/sql/sql_select.cc	2011-04-09 18:48:58.000000000 +0400
+--- a/sql/sql_select.cc
++++ b/sql/sql_select.cc
 @@ -55,6 +55,12 @@
  
  #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
@@ -377,10 +368,9 @@ diff -ruN a/sql/sql_select.cc b/sql/sql_select.cc
    MYSQL_SELECT_DONE((int) res, (ulong) thd->limit_found_rows);
    DBUG_RETURN(res);
  }
-diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2011-04-09 18:48:55.000000000 +0400
-+++ b/sql/sql_yacc.yy	2011-04-09 18:48:58.000000000 +0400
-@@ -1283,6 +1283,7 @@
+--- a/sql/sql_yacc.yy
++++ b/sql/sql_yacc.yy
+@@ -1284,6 +1284,7 @@
  %token  SQL_CACHE_SYM
  %token  SQL_CALC_FOUND_ROWS
  %token  SQL_NO_CACHE_SYM
@@ -388,7 +378,7 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
  %token  SQL_SMALL_RESULT
  %token  SQL_SYM                       /* SQL-2003-R */
  %token  SQL_THREAD
-@@ -7349,6 +7350,10 @@
+@@ -7353,6 +7354,10 @@
                Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
              }
            }

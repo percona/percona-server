@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2010-12-04 15:52:23.391514910 +0900
-+++ b/storage/innobase/buf/buf0buf.c	2010-12-04 15:53:45.013513772 +0900
+--- a/storage/innobase/buf/buf0buf.c
++++ b/storage/innobase/buf/buf0buf.c
 @@ -511,6 +511,27 @@
  	return(checksum);
  }
@@ -92,10 +91,9 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  		(ulong) mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
  		(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
  					 - FIL_PAGE_END_LSN_OLD_CHKSUM),
-diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
---- a/storage/innobase/buf/buf0flu.c	2010-12-04 15:37:50.555568346 +0900
-+++ b/storage/innobase/buf/buf0flu.c	2010-12-04 15:53:45.015513917 +0900
-@@ -1055,7 +1055,9 @@
+--- a/storage/innobase/buf/buf0flu.c
++++ b/storage/innobase/buf/buf0flu.c
+@@ -1057,7 +1057,9 @@
  
  	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  			srv_use_checksums
@@ -106,9 +104,8 @@ diff -ruN a/storage/innobase/buf/buf0flu.c b/storage/innobase/buf/buf0flu.c
  			: BUF_NO_CHECKSUM_MAGIC);
  
  	/* We overwrite the first 4 bytes of the end lsn field to store
-diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
---- a/storage/innobase/fil/fil0fil.c	2010-12-04 15:52:23.406513743 +0900
-+++ b/storage/innobase/fil/fil0fil.c	2010-12-04 15:53:45.020513800 +0900
+--- a/storage/innobase/fil/fil0fil.c
++++ b/storage/innobase/fil/fil0fil.c
 @@ -3095,13 +3095,24 @@
  		return(TRUE);
  	}
@@ -146,9 +143,8 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  						: BUF_NO_CHECKSUM_MAGIC);
  		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
  				srv_use_checksums
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:52:23.420480329 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-04 15:53:45.029551892 +0900
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -183,6 +183,7 @@
  #endif /* UNIV_LOG_ARCHIVE */
  static my_bool	innobase_use_doublewrite		= TRUE;
@@ -157,7 +153,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static my_bool	innobase_recovery_stats			= TRUE;
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
-@@ -2626,6 +2627,7 @@
+@@ -2625,6 +2626,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -165,7 +161,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11433,6 +11435,15 @@
+@@ -11432,6 +11434,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -181,7 +177,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11947,6 +11958,7 @@
+@@ -11946,6 +11957,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),
@@ -189,10 +185,9 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
-diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0buf.h
---- a/storage/innobase/include/buf0buf.h	2010-12-04 15:52:23.458514045 +0900
-+++ b/storage/innobase/include/buf0buf.h	2010-12-04 15:53:45.044514150 +0900
-@@ -607,6 +607,11 @@
+--- a/storage/innobase/include/buf0buf.h
++++ b/storage/innobase/include/buf0buf.h
+@@ -643,6 +643,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */
@@ -204,9 +199,8 @@ diff -ruN a/storage/innobase/include/buf0buf.h b/storage/innobase/include/buf0bu
  /********************************************************************//**
  In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
  looked at the first few bytes of the page. This calculates that old
-diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fil.h
---- a/storage/innobase/include/fil0fil.h	2010-12-04 15:52:23.466513796 +0900
-+++ b/storage/innobase/include/fil0fil.h	2010-12-04 15:53:45.046513558 +0900
+--- a/storage/innobase/include/fil0fil.h
++++ b/storage/innobase/include/fil0fil.h
 @@ -118,6 +118,7 @@
  #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /*!< starting from 4.1.x this
  					contains the space id of the page */
@@ -215,9 +209,8 @@ diff -ruN a/storage/innobase/include/fil0fil.h b/storage/innobase/include/fil0fi
  /* @} */
  /** File page trailer @{ */
  #define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/*!< the low 4 bytes of this are used
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-04 15:52:23.474482590 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-04 15:53:45.048512100 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -224,6 +224,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
@@ -226,9 +219,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  
  extern ulong	srv_max_buf_pool_modified_pct;
  extern ulong	srv_max_purge_lag;
-diff -ruN a/storage/innobase/include/ut0rnd.h b/storage/innobase/include/ut0rnd.h
---- a/storage/innobase/include/ut0rnd.h	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/ut0rnd.h	2010-12-04 15:53:45.049510146 +0900
+--- a/storage/innobase/include/ut0rnd.h
++++ b/storage/innobase/include/ut0rnd.h
 @@ -124,6 +124,13 @@
  	const byte*	str,	/*!< in: string of bytes */
  	ulint		len)	/*!< in: length */
@@ -243,9 +235,8 @@ diff -ruN a/storage/innobase/include/ut0rnd.h b/storage/innobase/include/ut0rnd.
  /***********************************************************//**
  Looks for a prime number slightly greater than the given argument.
  The prime is chosen so that it is not near any power of 2.
-diff -ruN a/storage/innobase/include/ut0rnd.ic b/storage/innobase/include/ut0rnd.ic
---- a/storage/innobase/include/ut0rnd.ic	2010-11-03 07:01:13.000000000 +0900
-+++ b/storage/innobase/include/ut0rnd.ic	2010-12-04 15:53:45.050565975 +0900
+--- a/storage/innobase/include/ut0rnd.ic
++++ b/storage/innobase/include/ut0rnd.ic
 @@ -226,3 +226,28 @@
  
  	return(fold);
@@ -275,9 +266,8 @@ diff -ruN a/storage/innobase/include/ut0rnd.ic b/storage/innobase/include/ut0rnd
 +
 +	return(fold);
 +}
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-04 15:52:23.498513634 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-04 15:53:45.053550283 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -414,6 +414,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;

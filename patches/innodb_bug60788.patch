@@ -7,9 +7,8 @@
 # Changes InnoDB IO code so that fsync(), pread() and pwrite() are restarted
 # when interrupted by a signal.
 #
-diff -ruN a/storage/innobase/os/os0file.c b/storage/innobase/os/os0file.c
---- a/storage/innobase/os/os0file.c	2011-04-20 12:09:57.000000000 +0400
-+++ b/storage/innobase/os/os0file.c	2011-04-20 12:10:04.000000000 +0400
+--- a/storage/innobase/os/os0file.c
++++ b/storage/innobase/os/os0file.c
 @@ -2093,6 +2093,9 @@
  			failures++;
  

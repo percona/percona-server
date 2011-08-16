@@ -5,10 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/client/client_priv.h b/client/client_priv.h
---- a/client/client_priv.h	2010-11-03 07:01:14.000000000 +0900
-+++ b/client/client_priv.h	2010-12-03 13:39:32.317046060 +0900
-@@ -55,6 +55,7 @@
+--- a/client/client_priv.h
++++ b/client/client_priv.h
+@@ -57,6 +57,7 @@
    OPT_MYSQL_LOCK_DIRECTORY,
    OPT_USE_THREADS,
    OPT_IMPORT_USE_THREADS,
@@ -16,10 +15,9 @@ diff -ruN a/client/client_priv.h b/client/client_priv.h
    OPT_MYSQL_NUMBER_OF_QUERY,
    OPT_IGNORE_TABLE,OPT_INSERT_IGNORE,OPT_SHOW_WARNINGS,OPT_DROP_DATABASE,
    OPT_TZ_UTC, OPT_CREATE_SLAP_SCHEMA,
-diff -ruN a/client/mysqldump.c b/client/mysqldump.c
---- a/client/mysqldump.c	2010-11-03 07:01:14.000000000 +0900
-+++ b/client/mysqldump.c	2010-12-03 13:44:55.000069761 +0900
-@@ -101,7 +101,7 @@
+--- a/client/mysqldump.c
++++ b/client/mysqldump.c
+@@ -103,7 +103,7 @@
                  opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
                  opt_slave_apply= 0, 
                  opt_include_master_host_port= 0,
@@ -28,7 +26,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
                  opt_alltspcs=0, opt_notspcs= 0;
  static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
  static ulong opt_max_allowed_packet, opt_net_buffer_length;
-@@ -350,6 +350,9 @@
+@@ -352,6 +352,9 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
@@ -38,7 +36,7 @@ diff -ruN a/client/mysqldump.c b/client/mysqldump.c
    {"lines-terminated-by", OPT_LTB,
     "Lines in the output file are terminated by the given string.",
     &lines_terminated, &lines_terminated, 0, GET_STR,
-@@ -2308,13 +2311,21 @@
+@@ -2310,13 +2313,21 @@
        /* Make an sql-file, if path was given iow. option -T was given */
        char buff[20+FN_REFLEN];
        MYSQL_FIELD *field;

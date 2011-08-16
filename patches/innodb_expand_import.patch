@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
---- a/storage/innobase/btr/btr0btr.c	2011-04-11 19:44:03.000000000 +0900
-+++ b/storage/innobase/btr/btr0btr.c	2011-05-24 20:30:12.455852287 +0900
+--- a/storage/innobase/btr/btr0btr.c
++++ b/storage/innobase/btr/btr0btr.c
 @@ -837,7 +837,7 @@
  /**************************************************************//**
  Creates a new index page (not the root, and also not
@@ -35,9 +34,8 @@ diff -ruN a/storage/innobase/btr/btr0btr.c b/storage/innobase/btr/btr0btr.c
  void
  btr_attach_half_pages(
  /*==================*/
-diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
---- a/storage/innobase/fil/fil0fil.c	2010-12-03 15:09:51.274957577 +0900
-+++ b/storage/innobase/fil/fil0fil.c	2010-12-03 15:52:23.553986552 +0900
+--- a/storage/innobase/fil/fil0fil.c
++++ b/storage/innobase/fil/fil0fil.c
 @@ -40,6 +40,14 @@
  #include "dict0dict.h"
  #include "page0page.h"
@@ -447,7 +445,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +										ULINT_UNDEFINED, &heap);
 +								n_fields = rec_offs_n_fields(offsets);
 +								if (!offset) {
-+									offset = row_get_trx_id_offset(rec, index, offsets);
++									offset = row_get_trx_id_offset(index, offsets);
 +								}
 +								trx_write_trx_id(rec + offset, 1);
 +
@@ -698,7 +696,7 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
 +						ULINT_UNDEFINED, &heap);
 +				n_fields = rec_offs_n_fields(offsets);
 +				if (!offset) {
-+					offset = row_get_trx_id_offset(rec, index, offsets);
++					offset = row_get_trx_id_offset(index, offsets);
 +				}
 +				trx_write_trx_id(rec + offset, 1);
 +
@@ -865,10 +863,9 @@ diff -ruN a/storage/innobase/fil/fil0fil.c b/storage/innobase/fil/fil0fil.c
  	return(success);
  }
  #endif /* !UNIV_HOTBACKUP */
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:49:59.195023983 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2010-12-03 15:52:23.555957062 +0900
-@@ -7389,6 +7389,14 @@
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
+@@ -7388,6 +7388,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
  		err = row_import_tablespace_for_mysql(dict_table->name, trx);
@@ -883,7 +880,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11666,6 +11674,11 @@
+@@ -11665,6 +11673,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -895,7 +892,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
    PLUGIN_VAR_RQCMDARG,
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
-@@ -11739,6 +11752,7 @@
+@@ -11738,6 +11751,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -903,9 +900,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(dict_size_limit),
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
-diff -ruN a/storage/innobase/include/btr0btr.h b/storage/innobase/include/btr0btr.h
---- a/storage/innobase/include/btr0btr.h	2011-04-11 19:44:03.000000000 +0900
-+++ b/storage/innobase/include/btr0btr.h	2011-05-24 20:30:12.459853343 +0900
+--- a/storage/innobase/include/btr0btr.h
++++ b/storage/innobase/include/btr0btr.h
 @@ -219,6 +219,17 @@
  @return the uncompressed page frame */
  # define btr_page_get(space,zip_size,page_no,mode,mtr) \
@@ -1010,7 +1006,7 @@ diff -ruN a/storage/innobase/include/btr0btr.h b/storage/innobase/include/btr0bt
 +/*==================*/
 +	dict_index_t*	index,		/*!< in: the index tree */
 +	buf_block_t*	block,		/*!< in/out: page to be split */
-+	rec_t*		split_rec,	/*!< in: first record on upper
++	const rec_t*	split_rec,	/*!< in: first record on upper
 +					half page */
 +	buf_block_t*	new_block,	/*!< in/out: the new half page */
 +	ulint		direction,	/*!< in: FSP_UP or FSP_DOWN */
@@ -1018,9 +1014,8 @@ diff -ruN a/storage/innobase/include/btr0btr.h b/storage/innobase/include/btr0bt
  /****************************************************************//**
  Sets a record as the predefined minimum record. */
  UNIV_INTERN
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2010-12-03 15:48:03.077954270 +0900
-+++ b/storage/innobase/include/srv0srv.h	2010-12-03 15:52:23.561986996 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -229,6 +229,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_flushing_method;
@@ -1030,10 +1025,9 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  extern ulint	srv_dict_size_limit;
  /*-------------------------------------------*/
  
-diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
---- a/storage/innobase/row/row0mysql.c	2011-04-11 19:44:03.000000000 +0900
-+++ b/storage/innobase/row/row0mysql.c	2011-06-06 11:53:18.395764565 +0900
-@@ -2573,6 +2573,11 @@
+--- a/storage/innobase/row/row0mysql.c
++++ b/storage/innobase/row/row0mysql.c
+@@ -2546,6 +2546,11 @@
  
  	current_lsn = log_get_lsn();
  
@@ -1045,7 +1039,7 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  	/* It is possible, though very improbable, that the lsn's in the
  	tablespace to be imported have risen above the current system lsn, if
  	a lengthy purge, ibuf merge, or rollback was performed on a backup
-@@ -2684,6 +2689,11 @@
+@@ -2657,6 +2662,11 @@
  
  	trx->op_info = "";
  
@@ -1057,9 +1051,8 @@ diff -ruN a/storage/innobase/row/row0mysql.c b/storage/innobase/row/row0mysql.c
  	return((int) err);
  }
  
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2010-12-03 15:49:59.230956118 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2010-12-03 15:52:23.562954411 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -416,6 +416,8 @@
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */

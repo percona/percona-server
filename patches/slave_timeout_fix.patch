@@ -1,5 +1,5 @@
---- a/mysql-test/include/wait_for_slave_param.inc	2011-04-12 22:38:45.000000000 +1000
-+++ b/mysql-test/include/wait_for_slave_param.inc	2011-06-21 22:59:13.804854682 +1000
+--- a/mysql-test/include/wait_for_slave_param.inc
++++ b/mysql-test/include/wait_for_slave_param.inc
 @@ -79,7 +79,7 @@
  
  # mysqltest doesn't provide any better way to multiply by 10

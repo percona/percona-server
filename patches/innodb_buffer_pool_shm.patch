@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
---- a/storage/innobase/buf/buf0buf.c	2011-04-09 18:48:47.000000000 +0400
-+++ b/storage/innobase/buf/buf0buf.c	2011-04-09 18:48:48.000000000 +0400
+--- a/storage/innobase/buf/buf0buf.c
++++ b/storage/innobase/buf/buf0buf.c
 @@ -1006,10 +1006,12 @@
  	buf_block_t*	block;
  	byte*		frame;
@@ -32,9 +31,8 @@ diff -ruN a/storage/innobase/buf/buf0buf.c b/storage/innobase/buf/buf0buf.c
  	/* Init block structs and assign frames for them. Then we
  	assign the frames to the first blocks (we already mapped the
  	memory above). */
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2011-04-09 18:48:47.000000000 +0400
-+++ b/storage/innobase/handler/ha_innodb.cc	2011-04-09 18:48:48.000000000 +0400
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
 @@ -195,6 +195,8 @@
  static my_bool	innobase_stats_on_metadata		= TRUE;
  static my_bool	innobase_large_prefix			= FALSE;
@@ -44,7 +42,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2676,6 +2678,12 @@
+@@ -2675,6 +2677,12 @@
  	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
  	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
  
@@ -57,7 +55,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
  
  	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
-@@ -11750,6 +11758,16 @@
+@@ -11749,6 +11757,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -74,7 +72,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -12044,6 +12062,8 @@
+@@ -12043,6 +12061,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),

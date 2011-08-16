@@ -5,10 +5,9 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/sql/handler.h b/sql/handler.h
---- a/sql/handler.h	2011-07-05 22:30:06.000000000 +0400
-+++ b/sql/handler.h	2011-07-05 22:31:12.000000000 +0400
-@@ -569,6 +569,7 @@
+--- a/sql/handler.h
++++ b/sql/handler.h
+@@ -570,6 +570,7 @@
    SCH_EVENTS,
    SCH_FILES,
    SCH_GLOBAL_STATUS,
@@ -16,7 +15,7 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_GLOBAL_VARIABLES,
    SCH_KEY_COLUMN_USAGE,
    SCH_OPEN_TABLES,
-@@ -590,6 +591,7 @@
+@@ -591,6 +592,7 @@
    SCH_TABLE_CONSTRAINTS,
    SCH_TABLE_NAMES,
    SCH_TABLE_PRIVILEGES,
@@ -24,9 +23,8 @@ diff -ruN a/sql/handler.h b/sql/handler.h
    SCH_TRIGGERS,
    SCH_USER_PRIVILEGES,
    SCH_VARIABLES,
-diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
---- a/sql/mysqld.cc	2011-07-05 22:30:05.000000000 +0400
-+++ b/sql/mysqld.cc	2011-07-06 12:04:47.000000000 +0400
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
 @@ -3101,6 +3101,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
@@ -35,7 +33,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
    {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
-@@ -7798,6 +7799,7 @@
+@@ -7802,6 +7803,7 @@
  PSI_mutex_key key_LOCK_des_key_file;
  #endif /* HAVE_OPENSSL */
  
@@ -43,7 +41,7 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
  PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
    key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
    key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
-@@ -7851,6 +7853,7 @@
+@@ -7855,6 +7857,7 @@
    { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
    { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
    { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
@@ -51,9 +49,8 @@ diff -ruN a/sql/mysqld.cc b/sql/mysqld.cc
    { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
    { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
    { &key_LOG_LOCK_log, "LOG::LOCK_log", 0},
-diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
---- a/sql/sql_lex.h	2011-05-11 15:54:12.000000000 +0400
-+++ b/sql/sql_lex.h	2011-07-05 22:31:12.000000000 +0400
+--- a/sql/sql_lex.h
++++ b/sql/sql_lex.h
 @@ -194,6 +194,7 @@
      When a command is added here, be sure it's also added in mysqld.cc
      in "struct show_var_st status_vars[]= {" ...
@@ -62,9 +59,8 @@ diff -ruN a/sql/sql_lex.h b/sql/sql_lex.h
    /* This should be the last !!! */
    SQLCOM_END
  };
-diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
---- a/sql/sql_parse.cc	2011-05-11 15:54:12.000000000 +0400
-+++ b/sql/sql_parse.cc	2011-07-05 22:31:13.000000000 +0400
+--- a/sql/sql_parse.cc
++++ b/sql/sql_parse.cc
 @@ -348,6 +348,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
@@ -84,7 +80,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2078,6 +2083,7 @@
+@@ -2083,6 +2088,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -92,7 +88,7 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4841,6 +4847,8 @@
+@@ -4846,6 +4852,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -101,9 +97,8 @@ diff -ruN a/sql/sql_parse.cc b/sql/sql_parse.cc
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
---- a/sql/sql_show.cc	2011-07-05 22:30:04.000000000 +0400
-+++ b/sql/sql_show.cc	2011-07-06 12:09:05.000000000 +0400
+--- a/sql/sql_show.cc
++++ b/sql/sql_show.cc
 @@ -2692,6 +2692,7 @@
      break;
    case SQLCOM_SHOW_TABLES:
@@ -390,10 +385,9 @@ diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
    {"TRIGGERS", triggers_fields_info, create_schema_table,
     get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0,
     OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
-diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
---- a/sql/sql_yacc.yy	2011-05-11 15:54:11.000000000 +0400
-+++ b/sql/sql_yacc.yy	2011-07-05 22:31:12.000000000 +0400
-@@ -10869,6 +10869,15 @@
+--- a/sql/sql_yacc.yy
++++ b/sql/sql_yacc.yy
+@@ -10873,6 +10873,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }
@@ -409,9 +403,8 @@ diff -ruN a/sql/sql_yacc.yy b/sql/sql_yacc.yy
           | opt_full TRIGGERS_SYM opt_db wild_and_where
             {
               LEX *lex= Lex;
-diff -ruN a/sql/mysqld.h b/sql/mysqld.h
---- a/sql/mysqld.h	2011-07-05 22:31:13.000000000 +0400
-+++ b/sql/mysqld.h	2011-07-06 12:05:35.000000000 +0400
+--- a/sql/mysqld.h
++++ b/sql/mysqld.h
 @@ -233,6 +233,7 @@
  extern PSI_mutex_key key_LOCK_des_key_file;
  #endif
@@ -420,9 +413,8 @@ diff -ruN a/sql/mysqld.h b/sql/mysqld.h
  extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
    key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
    key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
-diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
---- a/sql/sql_base.cc	2011-07-05 22:31:11.000000000 +0400
-+++ b/sql/sql_base.cc	2011-07-06 12:26:14.000000000 +0400
+--- a/sql/sql_base.cc
++++ b/sql/sql_base.cc
 @@ -1588,12 +1588,16 @@
    if (!mysql_bin_log.is_open())
    {
@@ -493,10 +485,9 @@ diff -ruN a/sql/sql_base.cc b/sql/sql_base.cc
    }
    tmp_table->pos_in_table_list= 0;
    DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
-diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2011-07-05 22:31:13.000000000 +0400
-+++ b/sql/sql_class.cc	2011-07-06 12:07:02.000000000 +0400
-@@ -835,6 +835,8 @@
+--- a/sql/sql_class.cc
++++ b/sql/sql_class.cc
+@@ -837,6 +837,8 @@
    active_vio = 0;
  #endif
    mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
@@ -505,7 +496,7 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
    /* Variables with default values */
    proc_info="login";
-@@ -1347,6 +1349,7 @@
+@@ -1349,6 +1351,7 @@
    db= NULL;
    free_root(&transaction.mem_root,MYF(0));
    mysql_mutex_destroy(&LOCK_thd_data);
@@ -513,9 +504,8 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  #ifndef DBUG_OFF
    dbug_sentry= THD_SENTRY_GONE;
  #endif  
-diff -ruN a/sql/sql_class.h b/sql/sql_class.h
---- a/sql/sql_class.h	2011-07-05 22:31:13.000000000 +0400
-+++ b/sql/sql_class.h	2011-07-06 12:02:46.000000000 +0400
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
 @@ -1004,6 +1004,11 @@
      XXX Why are internal temporary tables added to this list?
    */

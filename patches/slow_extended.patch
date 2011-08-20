@@ -2575,3 +2575,17 @@
  /* Intvar event post-header */
  
  /* Intvar event data */
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements.result
+@@ -0,0 +1,6 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements       OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS       OFF
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements.test
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';

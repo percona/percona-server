@@ -1,7 +1,7 @@
 diff -ruN a/include/heap.h b/include/heap.h
---- a/include/heap.h	2011-04-11 13:44:02.000000000 +0300
-+++ b/include/heap.h	2011-06-02 15:28:13.294917001 +0300
-@@ -33,7 +33,17 @@
+--- a/include/heap.h
++++ b/include/heap.h
+@@ -34,7 +34,17 @@
  #include "my_compare.h"
  #include "my_tree.h"
  
@@ -20,7 +20,7 @@ diff -ruN a/include/heap.h b/include/heap.h
  
  #define HP_MAX_LEVELS	4		/* 128^5 records is enough */
  #define HP_PTRS_IN_NOD	128
-@@ -129,22 +139,58 @@
+@@ -130,22 +140,58 @@
    uint (*get_key_length)(struct st_hp_keydef *keydef, const uchar *key);
  } HP_KEYDEF;
  
@@ -86,7 +86,7 @@ diff -ruN a/include/heap.h b/include/heap.h
    char * name;			/* Name of "memory-file" */
    THR_LOCK lock;
    mysql_mutex_t intern_lock;            /* Locking for use with _locking */
-@@ -153,6 +199,7 @@
+@@ -154,6 +200,7 @@
    uint auto_key;
    uint auto_key_type;			/* real type of the auto key segment */
    ulonglong auto_increment;
@@ -94,7 +94,7 @@ diff -ruN a/include/heap.h b/include/heap.h
  } HP_SHARE;
  
  struct st_hp_hash_info;
-@@ -162,7 +209,7 @@
+@@ -163,7 +210,7 @@
    HP_SHARE *s;
    uchar *current_ptr;
    struct st_hp_hash_info *current_hash_ptr;
@@ -103,7 +103,7 @@ diff -ruN a/include/heap.h b/include/heap.h
    int lastinx,errkey;
    int  mode;				/* Mode of file (READONLY..) */
    uint opt_flag,update;
-@@ -175,6 +222,9 @@
+@@ -176,6 +223,9 @@
    my_bool implicit_emptied;
    THR_LOCK_DATA lock;
    LIST open_list;
@@ -113,7 +113,7 @@ diff -ruN a/include/heap.h b/include/heap.h
  } HP_INFO;
  
  
-@@ -196,6 +246,14 @@
+@@ -197,6 +247,14 @@
      open_count to 1. Is only looked at if not internal_table.
    */
    my_bool pin_share;
@@ -128,7 +128,7 @@ diff -ruN a/include/heap.h b/include/heap.h
  } HP_CREATE_INFO;
  
  	/* Prototypes for heap-functions */
-@@ -212,9 +270,8 @@
+@@ -213,9 +271,8 @@
  extern int heap_scan(register HP_INFO *info, uchar *record);
  extern int heap_delete(HP_INFO *info,const uchar *buff);
  extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
@@ -141,8 +141,8 @@ diff -ruN a/include/heap.h b/include/heap.h
  extern void heap_drop_table(HP_INFO *info);
  extern int heap_extra(HP_INFO *info,enum ha_extra_function function);
 diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
---- a/mysql-test/r/create.result	2011-06-02 11:38:04.000000000 +0300
-+++ b/mysql-test/r/create.result	2011-06-02 15:56:29.224917005 +0300
+--- a/mysql-test/r/create.result
++++ b/mysql-test/r/create.result
 @@ -33,10 +33,7 @@
  create table t1 (b char(0) not null, index(b));
  ERROR 42000: The used storage engine can't index column 'b'
@@ -155,8 +155,8 @@ diff -ruN a/mysql-test/r/create.result b/mysql-test/r/create.result
  ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
  create table not_existing_database.test (a int);
 diff -ruN a/mysql-test/r/ctype_utf8mb4_heap.result b/mysql-test/r/ctype_utf8mb4_heap.result
---- a/mysql-test/r/ctype_utf8mb4_heap.result	2011-04-11 13:44:02.000000000 +0300
-+++ b/mysql-test/r/ctype_utf8mb4_heap.result	2011-06-02 15:31:07.794917003 +0300
+--- a/mysql-test/r/ctype_utf8mb4_heap.result
++++ b/mysql-test/r/ctype_utf8mb4_heap.result
 @@ -1124,6 +1124,8 @@
  a varchar(255) NOT NULL default '',
  KEY a (a)
@@ -176,8 +176,8 @@ diff -ruN a/mysql-test/r/ctype_utf8mb4_heap.result b/mysql-test/r/ctype_utf8mb4_
  INSERT INTO t1 VALUES('uu');
  check table t1;
 diff -ruN a/mysql-test/t/create.test b/mysql-test/t/create.test
---- a/mysql-test/t/create.test	2011-04-11 13:44:01.000000000 +0300
-+++ b/mysql-test/t/create.test	2011-06-02 15:32:49.614917004 +0300
+--- a/mysql-test/t/create.test
++++ b/mysql-test/t/create.test
 @@ -33,7 +33,7 @@
  drop table if exists t1,t2;
  --error 1167
@@ -188,8 +188,8 @@ diff -ruN a/mysql-test/t/create.test b/mysql-test/t/create.test
  drop table if exists t1;
  
 diff -ruN a/storage/heap/CMakeLists.txt b/storage/heap/CMakeLists.txt
---- a/storage/heap/CMakeLists.txt	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/CMakeLists.txt	2011-06-02 15:37:43.744917005 +0300
+--- a/storage/heap/CMakeLists.txt
++++ b/storage/heap/CMakeLists.txt
 @@ -20,6 +20,7 @@
  				ha_heap.cc
  				hp_delete.c hp_extra.c hp_hash.c hp_info.c hp_open.c hp_panic.c
@@ -199,8 +199,8 @@ diff -ruN a/storage/heap/CMakeLists.txt b/storage/heap/CMakeLists.txt
  
  MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY RECOMPILE_FOR_EMBEDDED)
 diff -ruN a/storage/heap/_check.c b/storage/heap/_check.c
---- a/storage/heap/_check.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/_check.c	2011-06-02 15:37:43.744917005 +0300
+--- a/storage/heap/_check.c
++++ b/storage/heap/_check.c
 @@ -43,7 +43,7 @@
  {
    int error;
@@ -289,8 +289,8 @@ diff -ruN a/storage/heap/_check.c b/storage/heap/_check.c
  		     key_length, SEARCH_FIND | SEARCH_SAME, not_used))
        {
 diff -ruN a/storage/heap/_rectest.c b/storage/heap/_rectest.c
---- a/storage/heap/_rectest.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/_rectest.c	2011-06-02 15:38:02.774917002 +0300
+--- a/storage/heap/_rectest.c
++++ b/storage/heap/_rectest.c
 @@ -22,7 +22,9 @@
  {
    DBUG_ENTER("hp_rectest");
@@ -303,9 +303,9 @@ diff -ruN a/storage/heap/_rectest.c b/storage/heap/_rectest.c
      DBUG_RETURN((my_errno=HA_ERR_RECORD_CHANGED)); /* Record have changed */
    }
 diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
---- a/storage/heap/ha_heap.cc	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/ha_heap.cc	2011-06-02 15:37:43.744917005 +0300
-@@ -113,6 +113,7 @@
+--- a/storage/heap/ha_heap.cc
++++ b/storage/heap/ha_heap.cc
+@@ -114,6 +114,7 @@
  
      rc= heap_create(name, &create_info, &internal_share, &created_new_share);
      my_free(create_info.keydef);
@@ -313,7 +313,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
      if (rc)
        goto end;
  
-@@ -194,6 +195,12 @@
+@@ -195,6 +196,12 @@
    {
      if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
        btree_keys.set_bit(i);
@@ -326,7 +326,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
    }
  }
  
-@@ -427,6 +434,13 @@
+@@ -428,6 +435,13 @@
    return 0;
  }
  
@@ -340,7 +340,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
  
  int ha_heap::extra(enum ha_extra_function operation)
  {
-@@ -644,23 +658,70 @@
+@@ -645,23 +659,70 @@
  heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
                              HP_CREATE_INFO *hp_create_info)
  {
@@ -413,7 +413,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
    seg= reinterpret_cast<HA_KEYSEG*>(keydef + keys);
    for (key= 0; key < keys; key++)
    {
-@@ -676,11 +737,11 @@
+@@ -677,11 +738,11 @@
      case HA_KEY_ALG_UNDEF:
      case HA_KEY_ALG_HASH:
        keydef[key].algorithm= HA_KEY_ALG_HASH;
@@ -427,7 +427,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
        break;
      default:
        DBUG_ASSERT(0); // cannot happen
-@@ -705,6 +766,16 @@
+@@ -706,6 +767,16 @@
        seg->length=  (uint) key_part->length;
        seg->flag=    key_part->key_part_flag;
  
@@ -444,7 +444,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
        if (field->flags & (ENUM_FLAG | SET_FLAG))
          seg->charset= &my_charset_bin;
        else
-@@ -730,9 +801,75 @@
+@@ -731,9 +802,75 @@
          auto_key= key+ 1;
  	auto_key_type= field->key_type();
        }
@@ -521,7 +521,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
    if (table_arg->found_next_number_field)
    {
      keydef[share->next_number_index].flag|= HA_AUTO_KEY;
-@@ -743,16 +880,19 @@
+@@ -744,16 +881,19 @@
    hp_create_info->max_table_size=current_thd->variables.max_heap_table_size;
    hp_create_info->with_auto_increment= found_real_auto_increment;
    hp_create_info->internal_table= internal_table;
@@ -547,7 +547,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
    return 0;
  }
  
-@@ -772,6 +912,7 @@
+@@ -773,6 +913,7 @@
  				  create_info->auto_increment_value - 1 : 0);
    error= heap_create(name, &hp_create_info, &internal_share, &created);
    my_free(hp_create_info.keydef);
@@ -555,7 +555,7 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
    DBUG_ASSERT(file == 0);
    return (error);
  }
-@@ -782,6 +923,13 @@
+@@ -783,6 +924,13 @@
    table->file->info(HA_STATUS_AUTO);
    if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
      create_info->auto_increment_value= stats.auto_increment_value;
@@ -570,9 +570,9 @@ diff -ruN a/storage/heap/ha_heap.cc b/storage/heap/ha_heap.cc
  
  void ha_heap::get_auto_increment(ulonglong offset, ulonglong increment,
 diff -ruN a/storage/heap/ha_heap.h b/storage/heap/ha_heap.h
---- a/storage/heap/ha_heap.h	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/ha_heap.h	2011-06-02 15:37:43.744917005 +0300
-@@ -46,12 +46,11 @@
+--- a/storage/heap/ha_heap.h
++++ b/storage/heap/ha_heap.h
+@@ -47,12 +47,11 @@
      return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?
              "BTREE" : "HASH");
    }
@@ -587,7 +587,7 @@ diff -ruN a/storage/heap/ha_heap.h b/storage/heap/ha_heap.h
              HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
              HA_REC_NOT_IN_SEQ | HA_CAN_INSERT_DELAYED | HA_NO_TRANSACTIONS |
              HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
-@@ -63,8 +62,9 @@
+@@ -64,8 +63,9 @@
              HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
    }
    const key_map *keys_to_use_for_scanning() { return &btree_keys; }
@@ -600,8 +600,8 @@ diff -ruN a/storage/heap/ha_heap.h b/storage/heap/ha_heap.h
    { return (double) (stats.records+stats.deleted) / 20.0+10; }
    double read_time(uint index, uint ranges, ha_rows rows)
 diff -ruN a/storage/heap/heapdef.h b/storage/heap/heapdef.h
---- a/storage/heap/heapdef.h	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/heapdef.h	2011-06-02 15:37:43.754916999 +0300
+--- a/storage/heap/heapdef.h
++++ b/storage/heap/heapdef.h
 @@ -32,6 +32,13 @@
  #define HP_MIN_RECORDS_IN_BLOCK 16
  #define HP_MAX_RECORDS_IN_BLOCK 8192
@@ -666,9 +666,9 @@ diff -ruN a/storage/heap/heapdef.h b/storage/heap/heapdef.h
  extern mysql_mutex_t THR_LOCK_heap;
  
 diff -ruN a/storage/heap/hp_clear.c b/storage/heap/hp_clear.c
---- a/storage/heap/hp_clear.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_clear.c	2011-06-02 15:37:43.754916999 +0300
-@@ -30,16 +30,11 @@
+--- a/storage/heap/hp_clear.c
++++ b/storage/heap/hp_clear.c
+@@ -31,16 +31,11 @@
  {
    DBUG_ENTER("hp_clear");
  
@@ -687,7 +687,7 @@ diff -ruN a/storage/heap/hp_clear.c b/storage/heap/hp_clear.c
    DBUG_VOID_RETURN;
  }
  
-@@ -157,7 +152,7 @@
+@@ -158,7 +153,7 @@
    int error= 0;
    HP_SHARE *share= info->s;
  
@@ -697,8 +697,8 @@ diff -ruN a/storage/heap/hp_clear.c b/storage/heap/hp_clear.c
    else
      if (share->currently_disabled_keys)
 diff -ruN a/storage/heap/hp_close.c b/storage/heap/hp_close.c
---- a/storage/heap/hp_close.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_close.c	2011-06-02 15:37:43.754916999 +0300
+--- a/storage/heap/hp_close.c
++++ b/storage/heap/hp_close.c
 @@ -46,6 +46,10 @@
      heap_open_list=list_delete(heap_open_list,&info->open_list);
    if (!--info->s->open_count && info->s->delete_on_close)
@@ -711,10 +711,10 @@ diff -ruN a/storage/heap/hp_close.c b/storage/heap/hp_close.c
    DBUG_RETURN(error);
  }
 diff -ruN a/storage/heap/hp_create.c b/storage/heap/hp_create.c
---- a/storage/heap/hp_create.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_create.c	2011-06-02 15:37:43.754916999 +0300
+--- a/storage/heap/hp_create.c
++++ b/storage/heap/hp_create.c
 @@ -14,11 +14,21 @@
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
  
  #include "heapdef.h"
 +#include <mysql_com.h>
@@ -1039,8 +1039,8 @@ diff -ruN a/storage/heap/hp_create.c b/storage/heap/hp_create.c
    if (records_in_block < 10 && max_records)
      records_in_block= 10;
 diff -ruN a/storage/heap/hp_delete.c b/storage/heap/hp_delete.c
---- a/storage/heap/hp_delete.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_delete.c	2011-06-02 15:37:43.754916999 +0300
+--- a/storage/heap/hp_delete.c
++++ b/storage/heap/hp_delete.c
 @@ -22,6 +22,8 @@
    uchar *pos;
    HP_SHARE *share=info->s;
@@ -1090,8 +1090,8 @@ diff -ruN a/storage/heap/hp_delete.c b/storage/heap/hp_delete.c
    last_ptr=0;
  
 diff -ruN /dev/null b/storage/heap/hp_dspace.c
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/storage/heap/hp_dspace.c	2011-06-02 15:40:14.104917001 +0300
+--- /dev/null
++++ b/storage/heap/hp_dspace.c
 @@ -0,0 +1,440 @@
 +/* Copyright (C) 2000-2002 MySQL AB
 +   Copyright (C) 2008 eBay, Inc
@@ -1534,8 +1534,8 @@ diff -ruN /dev/null b/storage/heap/hp_dspace.c
 +  }
 +}
 diff -ruN a/storage/heap/hp_extra.c b/storage/heap/hp_extra.c
---- a/storage/heap/hp_extra.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_extra.c	2011-06-02 15:37:57.814917006 +0300
+--- a/storage/heap/hp_extra.c
++++ b/storage/heap/hp_extra.c
 @@ -56,7 +56,6 @@
    info->current_record= (ulong) ~0L;
    info->current_hash_ptr=0;
@@ -1545,8 +1545,8 @@ diff -ruN a/storage/heap/hp_extra.c b/storage/heap/hp_extra.c
  }
  
 diff -ruN a/storage/heap/hp_hash.c b/storage/heap/hp_hash.c
---- a/storage/heap/hp_hash.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_hash.c	2011-06-02 15:37:57.824916999 +0300
+--- a/storage/heap/hp_hash.c
++++ b/storage/heap/hp_hash.c
 @@ -336,16 +336,26 @@
      {
        CHARSET_INFO *cs= seg->charset;
@@ -1731,8 +1731,8 @@ diff -ruN a/storage/heap/hp_hash.c b/storage/heap/hp_hash.c
      char_length= seg->length;
      if (seg->charset->mbmaxlen > 1)
 diff -ruN a/storage/heap/hp_info.c b/storage/heap/hp_info.c
---- a/storage/heap/hp_info.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_info.c	2011-06-02 15:37:57.824916999 +0300
+--- a/storage/heap/hp_info.c
++++ b/storage/heap/hp_info.c
 @@ -47,9 +47,22 @@
  {
    DBUG_ENTER("heap_info");
@@ -1760,8 +1760,8 @@ diff -ruN a/storage/heap/hp_info.c b/storage/heap/hp_info.c
    x->max_records     = info->s->max_records;
    x->errkey          = info->errkey;
 diff -ruN a/storage/heap/hp_open.c b/storage/heap/hp_open.c
---- a/storage/heap/hp_open.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_open.c	2011-06-02 15:37:57.824916999 +0300
+--- a/storage/heap/hp_open.c
++++ b/storage/heap/hp_open.c
 @@ -47,9 +47,9 @@
  #ifndef DBUG_OFF
    info->opt_flag= READ_CHECK_USED;		/* Check when changing */
@@ -1776,8 +1776,8 @@ diff -ruN a/storage/heap/hp_open.c b/storage/heap/hp_open.c
  }
  
 diff -ruN /dev/null b/storage/heap/hp_record.c
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ b/storage/heap/hp_record.c	2011-06-02 15:40:21.634916999 +0300
+--- /dev/null
++++ b/storage/heap/hp_record.c
 @@ -0,0 +1,498 @@
 +/* Copyright (C) 2000-2002 MySQL AB
 +   Copyright (C) 2008 eBay, Inc
@@ -2128,8 +2128,8 @@ diff -ruN /dev/null b/storage/heap/hp_record.c
 +  uint i, src_offset;
 +  const uchar *curr_chunk= pos;
 +  HP_SHARE *share= info->s;
-+  uint *rec_offsets;
-+  uint *buf_offsets;
++  uint *rec_offsets= NULL;
++  uint *buf_offsets= NULL;
 +  uint nblobs= 0;
 +  uint init_offset= share->blobs * sizeof(uint) * 2;
 +
@@ -2278,8 +2278,8 @@ diff -ruN /dev/null b/storage/heap/hp_record.c
 +  DBUG_RETURN(0);
 +}
 diff -ruN a/storage/heap/hp_rfirst.c b/storage/heap/hp_rfirst.c
---- a/storage/heap/hp_rfirst.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_rfirst.c	2011-06-02 15:38:02.764917001 +0300
+--- a/storage/heap/hp_rfirst.c
++++ b/storage/heap/hp_rfirst.c
 @@ -34,7 +34,10 @@
        memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
  	     sizeof(uchar*));
@@ -2293,9 +2293,9 @@ diff -ruN a/storage/heap/hp_rfirst.c b/storage/heap/hp_rfirst.c
          If we're performing index_first on a table that was taken from
          table cache, info->lastkey_len is initialized to previous query.
 diff -ruN a/storage/heap/hp_rkey.c b/storage/heap/hp_rkey.c
---- a/storage/heap/hp_rkey.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_rkey.c	2011-06-02 15:38:02.764917001 +0300
-@@ -66,7 +66,10 @@
+--- a/storage/heap/hp_rkey.c
++++ b/storage/heap/hp_rkey.c
+@@ -67,7 +67,10 @@
      if (!(keyinfo->flag & HA_NOSAME))
        memcpy(info->lastkey, key, (size_t) keyinfo->length);
    }
@@ -2308,8 +2308,8 @@ diff -ruN a/storage/heap/hp_rkey.c b/storage/heap/hp_rkey.c
    DBUG_RETURN(0);
  }
 diff -ruN a/storage/heap/hp_rlast.c b/storage/heap/hp_rlast.c
---- a/storage/heap/hp_rlast.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_rlast.c	2011-06-02 15:38:02.764917001 +0300
+--- a/storage/heap/hp_rlast.c
++++ b/storage/heap/hp_rlast.c
 @@ -35,7 +35,10 @@
        memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
  	     sizeof(uchar*));
@@ -2323,8 +2323,8 @@ diff -ruN a/storage/heap/hp_rlast.c b/storage/heap/hp_rlast.c
      }
      else
 diff -ruN a/storage/heap/hp_rnext.c b/storage/heap/hp_rnext.c
---- a/storage/heap/hp_rnext.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_rnext.c	2011-06-02 15:38:02.764917001 +0300
+--- a/storage/heap/hp_rnext.c
++++ b/storage/heap/hp_rnext.c
 @@ -109,7 +109,10 @@
        my_errno=HA_ERR_END_OF_FILE;
      DBUG_RETURN(my_errno);
@@ -2338,8 +2338,8 @@ diff -ruN a/storage/heap/hp_rnext.c b/storage/heap/hp_rnext.c
    DBUG_RETURN(0);
  }
 diff -ruN a/storage/heap/hp_rprev.c b/storage/heap/hp_rprev.c
---- a/storage/heap/hp_rprev.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_rprev.c	2011-06-02 15:38:02.764917001 +0300
+--- a/storage/heap/hp_rprev.c
++++ b/storage/heap/hp_rprev.c
 @@ -77,7 +77,10 @@
        my_errno=HA_ERR_END_OF_FILE;
      DBUG_RETURN(my_errno);
@@ -2353,8 +2353,8 @@ diff -ruN a/storage/heap/hp_rprev.c b/storage/heap/hp_rprev.c
    DBUG_RETURN(0);
  }
 diff -ruN a/storage/heap/hp_rrnd.c b/storage/heap/hp_rrnd.c
---- a/storage/heap/hp_rrnd.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_rrnd.c	2011-06-02 15:38:02.764917001 +0300
+--- a/storage/heap/hp_rrnd.c
++++ b/storage/heap/hp_rrnd.c
 @@ -36,13 +36,18 @@
      info->update= 0;
      DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
@@ -2419,8 +2419,8 @@ diff -ruN a/storage/heap/hp_rrnd.c b/storage/heap/hp_rrnd.c
    info->current_hash_ptr=0;			/* Can't use rnext */
    DBUG_RETURN(0);
 diff -ruN a/storage/heap/hp_rsame.c b/storage/heap/hp_rsame.c
---- a/storage/heap/hp_rsame.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_rsame.c	2011-06-02 15:38:02.764917001 +0300
+--- a/storage/heap/hp_rsame.c
++++ b/storage/heap/hp_rsame.c
 @@ -31,7 +31,8 @@
    DBUG_ENTER("heap_rsame");
  
@@ -2449,8 +2449,8 @@ diff -ruN a/storage/heap/hp_rsame.c b/storage/heap/hp_rsame.c
  
    DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
 diff -ruN a/storage/heap/hp_scan.c b/storage/heap/hp_scan.c
---- a/storage/heap/hp_scan.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_scan.c	2011-06-02 15:38:02.774917002 +0300
+--- a/storage/heap/hp_scan.c
++++ b/storage/heap/hp_scan.c
 @@ -30,7 +30,6 @@
    info->lastinx= -1;
    info->current_record= (ulong) ~0L;		/* No current record */
@@ -2506,8 +2506,8 @@ diff -ruN a/storage/heap/hp_scan.c b/storage/heap/hp_scan.c
    DBUG_RETURN(0);
  } /* heap_scan */
 diff -ruN a/storage/heap/hp_test1.c b/storage/heap/hp_test1.c
---- a/storage/heap/hp_test1.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_test1.c	2011-06-02 15:38:02.774917002 +0300
+--- a/storage/heap/hp_test1.c
++++ b/storage/heap/hp_test1.c
 @@ -22,6 +22,7 @@
  #include <my_global.h>
  #include <my_sys.h>
@@ -2558,8 +2558,8 @@ diff -ruN a/storage/heap/hp_test1.c b/storage/heap/hp_test1.c
      goto err;
    printf("- Writing records:s\n");
 diff -ruN a/storage/heap/hp_test2.c b/storage/heap/hp_test2.c
---- a/storage/heap/hp_test2.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_test2.c	2011-06-02 15:38:02.774917002 +0300
+--- a/storage/heap/hp_test2.c
++++ b/storage/heap/hp_test2.c
 @@ -18,6 +18,7 @@
  
  #include "heapdef.h"		/* Because of hp_find_block */
@@ -2635,9 +2635,9 @@ diff -ruN a/storage/heap/hp_test2.c b/storage/heap/hp_test2.c
      goto err;
    signal(SIGINT,endprog);
 diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
---- a/storage/heap/hp_write.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_write.c	2011-06-02 15:38:02.774917002 +0300
-@@ -25,7 +25,6 @@
+--- a/storage/heap/hp_write.c
++++ b/storage/heap/hp_write.c
+@@ -26,7 +26,6 @@
  #define HIGHFIND 4
  #define HIGHUSED 8
  
@@ -2645,7 +2645,7 @@ diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
  static HASH_INFO *hp_find_free_hash(HP_SHARE *info, HP_BLOCK *block,
  				     ulong records);
  
-@@ -34,6 +33,8 @@
+@@ -35,6 +34,8 @@
    HP_KEYDEF *keydef, *end;
    uchar *pos;
    HP_SHARE *share=info->s;
@@ -2654,7 +2654,7 @@ diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
    DBUG_ENTER("heap_write");
  #ifndef DBUG_OFF
    if (info->mode & O_RDONLY)
-@@ -41,7 +42,18 @@
+@@ -42,7 +43,18 @@
      DBUG_RETURN(my_errno=EACCES);
    }
  #endif
@@ -2674,7 +2674,7 @@ diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
      DBUG_RETURN(my_errno);
    share->changed=1;
  
-@@ -52,8 +64,8 @@
+@@ -53,8 +65,8 @@
        goto err;
    }
  
@@ -2685,7 +2685,7 @@ diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
    if (++share->records == share->blength)
      share->blength+= share->blength;
    info->current_ptr=pos;
-@@ -87,10 +99,7 @@
+@@ -88,10 +100,7 @@
      keydef--;
    } 
  
@@ -2697,7 +2697,7 @@ diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
  
    DBUG_RETURN(my_errno);
  } /* heap_write */
-@@ -106,7 +115,8 @@
+@@ -107,7 +116,8 @@
    uint old_allocated;
  
    custom_arg.keyseg= keyinfo->seg;
@@ -2707,7 +2707,7 @@ diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
    if (keyinfo->flag & HA_NOSAME)
    {
      custom_arg.search_flag= SEARCH_FIND | SEARCH_UPDATE;
-@@ -128,42 +138,6 @@
+@@ -129,42 +139,6 @@
    return 0;
  }
  
@@ -2751,8 +2751,8 @@ diff -ruN a/storage/heap/hp_write.c b/storage/heap/hp_write.c
  /*
    Write a hash-key to the hash-index
 diff -ruN a/storage/heap/hp_update.c b/storage/heap/hp_update.c
---- a/storage/heap/hp_update.c	2011-04-11 13:44:03.000000000 +0300
-+++ b/storage/heap/hp_update.c	2011-05-26 09:07:47.605561000 +0300
+--- a/storage/heap/hp_update.c
++++ b/storage/heap/hp_update.c
 @@ -17,43 +17,66 @@
  
  #include "heapdef.h"

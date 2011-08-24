@@ -3989,4 +3989,3 @@
  
  connection slave;
  drop table first_db.t1;
-

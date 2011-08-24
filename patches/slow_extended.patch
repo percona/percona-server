@@ -621,6 +621,15 @@
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD,
+@@ -6135,7 +6149,7 @@
+   {"log-slow-admin-statements", OPT_LOG_SLOW_ADMIN_STATEMENTS,
+    "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements "
+    "to the slow log if it is open.", &opt_log_slow_admin_statements,
+-   &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
++   &opt_log_slow_admin_statements, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-slow-slave-statements", OPT_LOG_SLOW_SLAVE_STATEMENTS,
+   "Log slow statements executed by slave thread to the slow log if it is open.",
+   &opt_log_slow_slave_statements,
 @@ -6836,6 +6850,36 @@
     "microsecond precision.",
     &long_query_time, &long_query_time, 0, GET_DOUBLE,
@@ -805,7 +814,7 @@
  static sys_var_thd_ulong
  sys_auto_increment_increment(&vars, "auto_increment_increment",
                               &SV::auto_increment_increment, NULL, NULL,
-@@ -901,6 +969,35 @@
+@@ -901,6 +969,37 @@
                                        QUERY_LOG_GENERAL);
  static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                           QUERY_LOG_SLOW);
@@ -824,6 +833,8 @@
 +                                       SLOG_V_INVALID,
 +                                       slog_verb);
 +static sys_var_use_global_log_slow_control sys_use_global_log_slow_control;
++static sys_var_bool_ptr       sys_log_slow_admin_statements(&vars, "log_slow_admin_statements",
++                                                            &opt_log_slow_admin_statements);
 +static sys_var_bool_ptr       sys_log_slow_slave_statements(&vars, "log_slow_slave_statements",
 +                                                            &opt_log_slow_slave_statements);
 +static sys_var_bool_ptr       sys_log_slow_sp_statements(&vars, "log_slow_sp_statements",
@@ -841,7 +852,7 @@
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-@@ -3711,6 +3808,203 @@
+@@ -3711,6 +3810,203 @@
  #endif
  }
  
@@ -2580,10 +2591,10 @@
 @@ -0,0 +1,6 @@
 +SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
 +Variable_name	Value
-+log_slow_admin_statements       OFF
++log_slow_admin_statements	OFF
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
 +VARIABLE_NAME	VARIABLE_VALUE
-+LOG_SLOW_ADMIN_STATEMENTS       OFF
++LOG_SLOW_ADMIN_STATEMENTS	OFF
 --- /dev/null
 +++ b/mysql-test/t/percona_log_slow_admin_statements.test
 @@ -0,0 +1,2 @@

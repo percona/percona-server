@@ -549,15 +549,16 @@
  
  /**
    Dumps a text description of a thread, its security context
-@@ -912,6 +943,7 @@
-     *cond_hdl= NULL;
-     return FALSE;
-   }
+@@ -907,6 +938,8 @@
+                            const char* msg,
+                            MYSQL_ERROR ** cond_hdl)
+ {
 +  last_errno= sql_errno;
- 
-   for (Internal_error_handler *error_handler= m_internal_handler;
-        error_handler;
-@@ -3656,6 +3688,12 @@
++
+   if (!m_internal_handler)
+   {
+     *cond_hdl= NULL;
+@@ -3656,6 +3689,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -570,7 +571,7 @@
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3676,6 +3714,14 @@
+@@ -3676,6 +3715,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -585,7 +586,7 @@
  }
  
  
-@@ -3738,6 +3784,12 @@
+@@ -3738,6 +3785,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;

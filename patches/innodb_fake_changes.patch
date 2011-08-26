@@ -206,7 +206,7 @@
  		trx_search_latch_release_if_reserved(trx);
  	}
  
-+	if (trx->fake_changes) {
++	if (trx->fake_changes && (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 +		innobase_rollback(hton, thd, all); /* rollback implicitly */
 +		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 +	}

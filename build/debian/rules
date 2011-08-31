@@ -29,7 +29,7 @@ build: patch
            -DFEATURE_SET=$(feature_set) \
            -DCOMPILATION_COMMENT=$(compilation_comment_release) \
            -DMYSQL_SERVER_SUFFIX=$(server_suffix)
-	make
+	make $(MAKE_JFLAG)
 	
 	# Build HandlerSocket
 	echo "Configuring HandlerSocket"
@@ -41,14 +41,14 @@ build: patch
 			--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
 			--libdir=$(prefix)/lib \
 			--prefix=$(prefix) && \
-	make
+	make $(MAKE_JFLAG)
 	
 	# Build UDF
 	cd UDF && \
 	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
 		./configure --includedir=$(CURDIR)/include \
 			--libdir=$(prefix)/lib/mysql/plugin && \
-	make
+	make $(MAKE_JFLAG)
 	
 	dh_auto_test
 

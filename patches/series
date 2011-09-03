@@ -54,3 +54,4 @@ utf8_general50_ci.patch
 bug813587.patch
 valgrind_zlib_suppression.patch
 memory_dynamic_rows.patch
+xtradb_bug317074.patch

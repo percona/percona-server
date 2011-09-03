@@ -22,7 +22,7 @@ CONFIGURE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -
 REVS = $(shell bzr log | grep rev | head -1   )
 REV  = $(word 2, $(REVS) )
 
-all: main handlersocket maatkit-udf install-lic tests misc
+all: main handlersocket maatkit-udf install-lic misc
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -91,9 +91,6 @@ regenerate: clean prepare
 mysql-$(MYSQL_VERSION).tar.gz:
 	@echo "Downloading MySQL sources from $(MASTER_SITE)"
 	$(FETCH_CMD) $(MASTER_SITE)/mysql-$(MYSQL_VERSION).tar.gz
-
-tests:
-	PERCONA_SERVER=${PERCONA_SERVER} sh install_tests
 
 misc:
 	@echo "Installing other files"

@@ -1068,3 +1068,19 @@
  /*********************************************************************
  Creates the rollback segments */
  UNIV_INTERN
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_doublewrite_file.result
+@@ -0,0 +1,4 @@
++show variables like 'innodb_doublewrite%';
++Variable_name	Value
++innodb_doublewrite	ON
++innodb_doublewrite_file	ib_doublewrite
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_doublewrite_file-master.opt
+@@ -0,0 +1 @@
++--innodb_doublewrite_file=ib_doublewrite
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_doublewrite_file.test
+@@ -0,0 +1,2 @@
++--source include/have_innodb.inc
++show variables like 'innodb_doublewrite%';

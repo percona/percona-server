@@ -1,0 +1,153 @@
+# name       : optimizer_fix.patch
+# introduced : 11 or before
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+--- /dev/null
++++ b/patch_info/optimizer_fix.info
+@@ -0,0 +1,8 @@
++File=optimizer_fix.patch
++Name=Unofficial optimizer fixes
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++2010-01
++Ported to 5.1.42
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -430,6 +430,7 @@
+ MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
+ #endif /* defined(ENABLED_DEBUG_SYNC) */
+ my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
++my_bool opt_optimizer_fix= 0;
+ /*
+   True if there is at least one per-hour limit for some user, so we should
+   check them before each query (and possibly reset counters when hour is
+--- a/sql/mysqld.h
++++ b/sql/mysqld.h
+@@ -109,6 +109,7 @@
+ extern ulonglong slave_type_conversions_options;
+ extern my_bool read_only, opt_readonly;
+ extern my_bool lower_case_file_system;
++extern my_bool opt_optimizer_fix;
+ extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+ extern my_bool opt_secure_auth;
+ extern char* opt_secure_file_priv;
+--- a/sql/opt_range.cc
++++ b/sql/opt_range.cc
+@@ -727,7 +727,7 @@
+ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
+                                        bool index_read_must_be_used,
+                                        bool update_tbl_stats,
+-                                       double read_time);
++                                       double read_time, ha_rows *estimated_records);
+ static
+ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
+                                           double read_time,
+@@ -2151,6 +2151,7 @@
+ 				  ha_rows limit, bool force_quick_range)
+ {
+   uint idx;
++  ha_rows estimated_records=0;
+   double scan_time;
+   DBUG_ENTER("SQL_SELECT::test_quick_select");
+   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
+@@ -2319,12 +2320,17 @@
+ 
+         /* Get best 'range' plan and prepare data for making other plans */
+         if ((range_trp= get_key_scans_params(&param, tree, FALSE, TRUE,
+-                                             best_read_time)))
++                                             best_read_time, &estimated_records)))
+         {
+           best_trp= range_trp;
+           best_read_time= best_trp->read_cost;
+         }
+ 
++        if (opt_optimizer_fix && estimated_records)
++        {
++          records = estimated_records;
++        }
++
+         /*
+           Simultaneous key scans and row deletes on several handler
+           objects are not allowed so don't use ROR-intersection for
+@@ -3820,7 +3826,7 @@
+   {
+     DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
+                                         "tree in SEL_IMERGE"););
+-    if (!(*cur_child= get_key_scans_params(param, *ptree, TRUE, FALSE, read_time)))
++    if (!(*cur_child= get_key_scans_params(param, *ptree, TRUE, FALSE, read_time, NULL)))
+     {
+       /*
+         One of index scans in this index_merge is more expensive than entire
+@@ -4923,11 +4929,12 @@
+ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
+                                        bool index_read_must_be_used, 
+                                        bool update_tbl_stats,
+-                                       double read_time)
++                                       double read_time, ha_rows *estimated_records)
+ {
+   int idx;
+   SEL_ARG **key,**end, **key_to_read= NULL;
+   ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
++  ha_rows min_records= HA_POS_ERROR;
+   TRP_RANGE* read_plan= NULL;
+   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
+   DBUG_ENTER("get_key_scans_params");
+@@ -4998,6 +5005,11 @@
+         key_to_read=  key;
+       }
+ 
++      if (estimated_records && found_records
++          && min_records > found_records)
++      {
++        min_records = found_records;
++      }
+     }
+   }
+ 
+@@ -5020,6 +5032,12 @@
+   else
+     DBUG_PRINT("info", ("No 'range' table read plan found"));
+ 
++  /* minimum number of records (not 0) as estimated number of records */
++  if (estimated_records && min_records != HA_POS_ERROR)
++  {
++    *estimated_records = min_records;
++  }
++
+   DBUG_RETURN(read_plan);
+ }
+ 
+--- a/sql/sql_select.cc
++++ b/sql/sql_select.cc
+@@ -2619,6 +2619,11 @@
+       table->reginfo.impossible_range=1;
+       DBUG_RETURN(0);
+     }
++    if (opt_optimizer_fix && error == 0)
++    {
++      /* quick select is not effective. but the estimated value is used. */
++      DBUG_RETURN(select->records);
++    }
+     DBUG_PRINT("warning",("Couldn't use record count on const keypart"));
+   }
+   DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
+--- a/sql/sys_vars.cc
++++ b/sql/sys_vars.cc
+@@ -2180,6 +2180,12 @@
+        VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
+        DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
+ 
++static Sys_var_mybool Sys_optimizer_fix(
++       "optimizer_fix",
++       "Enable unofficial optimizer fixes.",
++       GLOBAL_VAR(opt_optimizer_fix),
++       NO_CMD_LINE, DEFAULT(TRUE));
++
+ /** propagates changes to the relevant flag of @@optimizer_switch */
+ static bool fix_engine_condition_pushdown(sys_var *self, THD *thd,
+                                           enum_var_type type)

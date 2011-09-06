@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ `which quilt` ]; then
+   echo; echo 'Using quilt'; echo
+   quilt push -a --quiltrc=quiltrc
+else
+   echo; echo 'WARNING: Not using quilt, not suitable for dev environment';
+   echo;
+   PS_DIR=$PWD
+   (cd patches; cat `cat series`) | patch -p1 -d $PS_DIR
+fi
+

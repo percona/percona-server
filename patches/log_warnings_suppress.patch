@@ -1,0 +1,80 @@
+# name       : log_warnings_suppress.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+--- /dev/null
++++ b/patch_info/log_warnings_suppress.patch
+@@ -0,0 +1,9 @@
++File=log_warnings_suppress.patch
++Name=Disable log warnings for enumerated warnings (old name:suppress_log_warning_1592.patch)
++Version=1.0
++Author=Percona <info@percona.com>
++License=GPL
++Comment=
++Changelog
++2011-01-05 rename patch suppress_log_warning_1592.patch to log_warnings_silence.patch. Also remove boolean system variable "suppress_log_warning_1592" and add set varbile "log_warnings_silence" (possible values: 1592)
++2011-02-21 rename patch log_warning_silence.patch to log_warnings_suppress.patch. Also rename variable "log_warning_silence" to "log_warning_suppress".
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -628,6 +628,8 @@
+ SHOW_COMP_OPTION have_crypt, have_compress;
+ SHOW_COMP_OPTION have_profiling;
+ 
++ulonglong opt_log_warnings_suppress= 0;
++
+ /* Thread specific variables */
+ 
+ pthread_key(MEM_ROOT**,THR_MALLOC);
+--- a/sql/mysqld.h
++++ b/sql/mysqld.h
+@@ -228,6 +228,8 @@
+ extern TYPELIB thread_handling_typelib;
+ extern my_decimal decimal_zero;
+ 
++extern ulonglong opt_log_warnings_suppress;
++
+ /*
+   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
+   using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
+--- a/sql/sql_class.cc
++++ b/sql/sql_class.cc
+@@ -4854,7 +4854,7 @@
+                           ER_BINLOG_UNSAFE_STATEMENT,
+                           ER(ER_BINLOG_UNSAFE_STATEMENT),
+                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+-      if (global_system_variables.log_warnings)
++      if (global_system_variables.log_warnings && ((opt_log_warnings_suppress & (ULL(1) << log_warnings_suppress_1592)) == 0))
+       {
+         char buf[MYSQL_ERRMSG_SIZE * 2];
+         sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
+@@ -90,6 +90,7 @@
+   SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
+   SLOG_F_FILESORT_DISK
+ };
++enum enum_log_warnings_suppress { log_warnings_suppress_1592 };
+ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
+                             SLAVE_EXEC_MODE_IDEMPOTENT,
+                             SLAVE_EXEC_MODE_LAST_BIT};
+--- a/sql/sys_vars.cc
++++ b/sql/sys_vars.cc
+@@ -1470,6 +1470,15 @@
+        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
+        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
+ 
++const char *log_warnings_suppress_name[]= { "1592" };
++static Sys_var_set Sys_log_warnings_suppress(
++       "log_warnings_suppress",
++       "disable logging of enumerated warnings: "
++       "1592: unsafe statements for binary logging; "
++       "possible values : [1592]",
++       GLOBAL_VAR(opt_log_warnings_suppress), CMD_LINE(REQUIRED_ARG),
++       log_warnings_suppress_name, DEFAULT(0));
++
+ static Sys_var_ulong Sys_preload_buff_size(
+        "preload_buffer_size",
+        "The size of the buffer that is allocated when preloading indexes",

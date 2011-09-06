@@ -1,0 +1,30 @@
+# name       : bug813587.patch
+# maintainer : Alexey
+#
+# Fix for LP bug #813587 / MySQL bug #51196 / MySQL bug #61790
+#
+# Clear MySQL connection errors in ha_federated::close(), since they
+# can affect queries on other tables due to table cache eviction.
+#
+--- a/storage/federated/ha_federated.cc
++++ b/storage/federated/ha_federated.cc
+@@ -1675,6 +1675,8 @@
+ 
+ int ha_federated::close(void)
+ {
++  THD *thd= current_thd;
++
+   DBUG_ENTER("ha_federated::close");
+ 
+   free_result();
+@@ -1685,6 +1687,10 @@
+   mysql_close(mysql);
+   mysql= NULL;
+ 
++  /* Clear possible errors from mysql_close(), see LP bug #813587. */
++  if (thd)
++    thd->clear_error();
++
+   DBUG_RETURN(free_share(share));
+ }
+ 

@@ -1,0 +1,19 @@
+# name       : percona-support.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+--- a/scripts/mysql_install_db.sh
++++ b/scripts/mysql_install_db.sh
+@@ -476,6 +476,9 @@
+   echo
+   echo "Please report any problems with the $scriptdir/mysqlbug script!"
+   echo
++  echo "Percona recommends that all production deployments be protected with a support"
++  echo "contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,"
++  echo "be eligible for hot fixes, and boost your team's productivity."
+ fi
+ 
+ exit 0

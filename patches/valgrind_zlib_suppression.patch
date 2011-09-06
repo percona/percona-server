@@ -1,0 +1,17 @@
+#  valgrind suppression for zlib
+#  https://bugs.launchpad.net/percona-server/+bug/794837
+--- a/mysql-test/valgrind.supp
++++ b/mysql-test/valgrind.supp
+@@ -876,3 +876,12 @@
+    fun:buf_buddy_free_low
+    fun:buf_buddy_free
+ }
++{
++   zlib longest_match false positive
++   Memcheck:Cond
++   fun:longest_match
++   fun:deflate_slow
++   fun:deflate
++   fun:compress
++   fun:my_compress_alloc
++}

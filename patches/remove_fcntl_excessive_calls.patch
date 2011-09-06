@@ -1,0 +1,71 @@
+# name       : remove_fcntl_excessive_calls.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+--- /dev/null
++++ b/patch_info/remove_fcntl_excessive_calls.info
+@@ -0,0 +1,6 @@
++File=remove_fcntl_excessive_calls.patch
++Name=remove fcntl excessive calls
++Version=1.0
++Author=This is a port of the official fix.
++License=GPL
++Comment=
+--- a/sql/net_serv.cc
++++ b/sql/net_serv.cc
+@@ -61,7 +61,7 @@
+   the client should have a bigger max_allowed_packet.
+ */
+ 
+-#if defined(__WIN__) || !defined(MYSQL_SERVER)
++#if (defined(__WIN__) || !defined(MYSQL_SERVER)) && !defined(NO_ALARM)
+   /* The following is because alarms doesn't work on windows. */
+ #ifndef NO_ALARM
+ #define NO_ALARM
+@@ -133,7 +133,7 @@
+   if (vio != 0)					/* If real connection */
+   {
+     net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
+-#if defined(MYSQL_SERVER) && !defined(__WIN__)
++#if defined(MYSQL_SERVER) && !defined(__WIN__) && !defined(NO_ALARM)
+     if (!(test_flags & TEST_BLOCKING))
+     {
+       my_bool old_mode;
+@@ -632,7 +632,7 @@
+     if ((long) (length= vio_write(net->vio,pos,(size_t) (end-pos))) <= 0)
+     {
+       my_bool interrupted = vio_should_retry(net->vio);
+-#if !defined(__WIN__)
++#if !defined(NO_ALARM) && !defined(__WIN__)
+       if ((interrupted || length == 0) && !thr_alarm_in_use(&alarmed))
+       {
+         if (!thr_alarm(&alarmed, net->write_timeout, &alarm_buff))
+@@ -688,7 +688,7 @@
+     pos+=length;
+     update_statistics(thd_increment_bytes_sent(length));
+   }
+-#ifndef __WIN__
++#if !defined(NO_ALARM) && !defined(__WIN__)
+  end:
+ #endif
+ #ifdef HAVE_COMPRESS
+@@ -820,6 +820,7 @@
+     thr_alarm(&alarmed,net->read_timeout,&alarm_buff);
+ #else
+   /* Read timeout is set in my_net_set_read_timeout */
++  DBUG_ASSERT(net_blocking);
+ #endif /* NO_ALARM */
+ 
+     pos = net->buff + net->where_b;		/* net->packet -4 */
+@@ -834,7 +835,7 @@
+ 
+ 	  DBUG_PRINT("info",("vio_read returned %ld  errno: %d",
+ 			     (long) length, vio_errno(net->vio)));
+-#if !defined(__WIN__) || defined(MYSQL_SERVER)
++#if !defined(NO_ALARM) && (!defined(__WIN__) || defined(MYSQL_SERVER))
+ 	  /*
+ 	    We got an error that there was no data on the socket. We now set up
+ 	    an alarm to not 'read forever', change the socket to non blocking

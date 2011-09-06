@@ -1,0 +1,69 @@
+# name       : mysql_remove_eol_carret.patch
+# introduced : 11 or before
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+--- a/client/client_priv.h
++++ b/client/client_priv.h
+@@ -89,6 +89,7 @@
+   OPT_SYSLOG,
+ #endif
+   OPT_PLUGIN_DIR,
++  OPT_NO_REMOVE_EOL_CARRET,
+   OPT_DEFAULT_AUTH,
+   OPT_DEFAULT_PLUGIN,
+   OPT_MAX_CLIENT_OPTION
+--- a/client/mysql.cc
++++ b/client/mysql.cc
+@@ -135,6 +135,8 @@
+ enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
+ typedef enum enum_info_type INFO_TYPE;
+ 
++my_bool opt_no_remove_eol_carret=0;
++
+ static MYSQL mysql;			/* The connection */
+ static my_bool ignore_errors=0,wait_flag=0,quick=0,
+                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
+@@ -1454,6 +1456,10 @@
+    NO_ARG, 1, 0, 0, 0, 0, 0},
+   {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
+    NO_ARG, 0, 0, 0, 0, 0, 0},
++  {"no-remove-eol-carret", OPT_NO_REMOVE_EOL_CARRET, "Do not remove \\r before \\n in batch mode", 
++  (uchar**)&opt_no_remove_eol_carret , (uchar**)&opt_no_remove_eol_carret, 0, 
++   GET_BOOL,
++   NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"unbuffered", 'n', "Flush buffer after each query.", &unbuffered,
+    &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"column-names", OPT_COLUMN_NAMES, "Write column names in results.",
+--- a/client/readline.cc
++++ b/client/readline.cc
+@@ -23,6 +23,8 @@
+ #include <my_dir.h>
+ #include "my_readline.h"
+ 
++extern my_bool opt_no_remove_eol_carret;
++
+ static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
+ 			    ulong max_size);
+ static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
+@@ -62,7 +64,7 @@
+   if (!(pos=intern_read_line(line_buff, &out_length)))
+     return 0;
+   if (out_length && pos[out_length-1] == '\n')
+-    if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
++    if (--out_length && !opt_no_remove_eol_carret && pos[out_length-1] == '\r')  /* Remove '\n' */
+       out_length--;                                 /* Remove '\r' */
+   line_buff->read_length=out_length;
+   pos[out_length]=0;
+--- /dev/null
++++ b/patch_info/mysql_remove_eol_carret.patch
+@@ -0,0 +1,7 @@
++File=mysql_remove_eol_carret.patch
++Name=
++Version=1.1
++Author=Percona <info@percona.com>
++License=GPL
++Comment=Do not remove carret before eol if --no-remove-eol-carret is enabled in MySQL client.
++Changelog

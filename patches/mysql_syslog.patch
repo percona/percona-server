@@ -1,0 +1,126 @@
+# name       : mysql-syslog.patch
+# introduced : 12
+# maintainer : Oleg
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+--- a/client/client_priv.h
++++ b/client/client_priv.h
+@@ -85,6 +85,9 @@
+   OPT_DEBUG_INFO, OPT_DEBUG_CHECK, OPT_COLUMN_TYPES, OPT_ERROR_LOG_FILE,
+   OPT_WRITE_BINLOG, OPT_DUMP_DATE,
+   OPT_INIT_COMMAND,
++#ifndef __WIN__
++  OPT_SYSLOG,
++#endif
+   OPT_PLUGIN_DIR,
+   OPT_DEFAULT_AUTH,
+   OPT_DEFAULT_PLUGIN,
+--- a/client/mysql.cc
++++ b/client/mysql.cc
+@@ -40,6 +40,11 @@
+ #include "my_readline.h"
+ #include <signal.h>
+ #include <violite.h>
++#ifndef __WIN__
++#include "syslog.h"
++#endif
++
++#define MAX_SYSLOG_MESSAGE 900
+ 
+ #if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
+ #include <locale.h>
+@@ -142,7 +147,7 @@
+                default_pager_set= 0, opt_sigint_ignore= 0,
+                auto_vertical_output= 0,
+                show_warnings= 0, executing_query= 0, interrupted_query= 0,
+-               ignore_spaces= 0;
++               ignore_spaces= 0, opt_syslog= 0;
+ static my_bool debug_info_flag, debug_check_flag;
+ static my_bool column_types_flag;
+ static my_bool preserve_comments= 0;
+@@ -200,6 +205,7 @@
+ void tee_fputs(const char *s, FILE *file);
+ void tee_puts(const char *s, FILE *file);
+ void tee_putc(int c, FILE *file);
++void write_syslog(String *buffer);
+ static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
+ /* The names of functions that actually do the manipulation. */
+ static int get_options(int argc,char **argv);
+@@ -1565,6 +1571,10 @@
+   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
+     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
+     0, 0, 0, 0, 0, 0},
++#ifndef __WIN__
++  {"syslog", OPT_SYSLOG, "Logs all queries to syslog", 0, 0, 0, GET_NO_ARG,
++   NO_ARG, 0, 0, 0, 0, 0, 0},
++#endif
+   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+     &opt_plugin_dir, &opt_plugin_dir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+@@ -1669,6 +1679,11 @@
+                                     opt->name);
+ #endif
+     break;
++#ifndef __WIN__
++  case OPT_SYSLOG:
++    opt_syslog = 1;
++    break;
++#endif
+   case OPT_SERVER_ARG:
+ #ifdef EMBEDDED_LIBRARY
+     /*
+@@ -2022,6 +2037,40 @@
+   DBUG_RETURN((COMMANDS *) 0);
+ }
+ 
++void write_syslog(String *line){
++#ifndef __WIN__
++  uint length= line->length();
++  uint chunk_len= min(MAX_SYSLOG_MESSAGE, length);
++  char *ptr= line->c_ptr_safe();
++  char buff[MAX_SYSLOG_MESSAGE + 1];
++
++  for (;
++       length;
++       length-= chunk_len, ptr+= chunk_len, chunk_len= min(MAX_SYSLOG_MESSAGE,
++                                                           length))
++  {
++    char *str;
++    if (length == chunk_len)
++      str= ptr;                                 // last chunk => skip copy
++    else
++    {
++      memcpy(buff, ptr, chunk_len);
++      buff[chunk_len]= '\0';
++      str= buff;
++    }
++    syslog(LOG_INFO,
++           "SYSTEM_USER:'%s', MYSQL_USER:'%s', CONNECTION_ID:%lu, "
++           "DB_SERVER:'%s', DB:'%s', QUERY:'%s'",
++           getenv("SUDO_USER") ? getenv("SUDO_USER") : 
++           getenv("USER") ? getenv("USER") : "--",
++           current_user ? current_user : "--",
++           mysql_thread_id(&mysql),
++           current_host ? current_host : "--",
++           current_db ? current_db : "--",
++           str);
++  }
++#endif
++}
+ 
+ static bool add_line(String &buffer,char *line,char *in_string,
+                      bool *ml_comment, bool truncated)
+@@ -2998,6 +3047,11 @@
+     fix_history(buffer);
+   }
+ #endif
++#ifndef __WIN__
++  if (opt_syslog && buffer->length() && connect_flag == CLIENT_INTERACTIVE){
++    write_syslog(buffer);
++  }
++#endif
+ 
+   buffer->length(0);
+ 

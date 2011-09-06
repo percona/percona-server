@@ -1,0 +1,74 @@
+# name       : control_online_alter_index.patch
+# introduced : 12
+# maintainer : Yasufumi
+#
+#!!! notice !!!
+# Any small change to this file in the main branch
+# should be done or reviewed by the maintainer!
+--- a/sql/handler.h
++++ b/sql/handler.h
+@@ -206,6 +206,8 @@
+ #define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
+ #define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
+ #define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
++
++#define HA_INPLACE_ALTER_INDEX_MASK                ((1L << 12) - 1)
+ /*
+   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
+   supported at all.
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
+@@ -481,6 +481,8 @@
+   my_bool engine_condition_pushdown;
+   my_bool keep_files_on_create;
+ 
++  my_bool online_alter_index;
++
+   my_bool old_alter_table;
+   my_bool old_passwords;
+   my_bool big_tables;
+--- a/sql/sql_partition.cc
++++ b/sql/sql_partition.cc
+@@ -4637,7 +4637,12 @@
+         alter_info->num_parts= curr_part_no - new_part_no;
+       }
+     }
+-    if (!(flags= new_table->file->alter_table_flags(alter_info->flags)))
++    flags= new_table->file->alter_table_flags(alter_info->flags);
++    if (!thd->variables.online_alter_index)
++    {
++      flags&= ~((uint)HA_INPLACE_ALTER_INDEX_MASK);
++    }
++    if (!flags)
+     {
+       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
+       goto err;
+--- a/sql/sql_table.cc
++++ b/sql/sql_table.cc
+@@ -6140,6 +6140,10 @@
+     uint  *idx_end_p;
+ 
+     alter_flags= table->file->alter_table_flags(alter_info->flags);
++    if (!thd->variables.online_alter_index)
++    {
++      alter_flags&= ~((ulong)HA_INPLACE_ALTER_INDEX_MASK);
++    }
+     DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
+     /* Check dropped indexes. */
+     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
+--- a/sql/sys_vars.cc
++++ b/sql/sys_vars.cc
+@@ -2186,6 +2186,13 @@
+        GLOBAL_VAR(opt_optimizer_fix),
+        NO_CMD_LINE, DEFAULT(TRUE));
+ 
++static Sys_var_mybool Sys_fast_index_creation(
++       "fast_index_creation",
++       "If disabled, suppresses online operations for indexes of ALTER TABLE "
++       "(e.g. fast index creation of InnoDB Plugin) for the session.",
++       SESSION_VAR(online_alter_index), NO_CMD_LINE,
++       DEFAULT(TRUE));
++
+ /** propagates changes to the relevant flag of @@optimizer_switch */
+ static bool fix_engine_condition_pushdown(sys_var *self, THD *thd,
+                                           enum_var_type type)

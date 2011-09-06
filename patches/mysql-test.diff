@@ -1,0 +1,1291 @@
+--- a/mysql-test/include/default_mysqld.cnf
++++ b/mysql-test/include/default_mysqld.cnf
+@@ -29,7 +29,7 @@
+ max_heap_table_size=        1M
+ 
+ loose-innodb_data_file_path=      ibdata1:10M:autoextend
+-loose-innodb_buffer_pool_size=    8M
++loose-innodb_buffer_pool_size=    32M
+ loose-innodb_write_io_threads=    2
+ loose-innodb_read_io_threads=     2
+ loose-innodb_log_buffer_size=     1M
+--- a/mysql-test/r/connect.result
++++ b/mysql-test/r/connect.result
+@@ -1,3 +1,4 @@
++set global log_warnings=0;
+ drop table if exists t1,t2;
+ show tables;
+ Tables_in_mysql
+@@ -221,3 +222,4 @@
+ # ------------------------------------------------------------------
+ # -- End of 5.1 tests
+ # ------------------------------------------------------------------
++set global log_warnings=1;
+--- a/mysql-test/r/create.result
++++ b/mysql-test/r/create.result
+@@ -1741,7 +1741,11 @@
+   `COMMAND` varchar(16) NOT NULL DEFAULT '',
+   `TIME` int(7) NOT NULL DEFAULT '0',
+   `STATE` varchar(64) DEFAULT NULL,
+-  `INFO` longtext
++  `INFO` longtext,
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
++  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_READ` bigint(21) unsigned NOT NULL DEFAULT '0'
+ ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+ drop table t1;
+ create temporary table t1 like information_schema.processlist;
+@@ -1755,7 +1759,11 @@
+   `COMMAND` varchar(16) NOT NULL DEFAULT '',
+   `TIME` int(7) NOT NULL DEFAULT '0',
+   `STATE` varchar(64) DEFAULT NULL,
+-  `INFO` longtext
++  `INFO` longtext,
++  `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
++  `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0',
++  `ROWS_READ` bigint(21) unsigned NOT NULL DEFAULT '0'
+ ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+ drop table t1;
+ create table t1 like information_schema.character_sets;
+--- a/mysql-test/r/information_schema.result
++++ b/mysql-test/r/information_schema.result
+@@ -46,14 +46,17 @@
+ select * from v1;
+ c
+ CHARACTER_SETS
++CLIENT_STATISTICS
+ COLLATIONS
+ COLLATION_CHARACTER_SET_APPLICABILITY
+ COLUMNS
+ COLUMN_PRIVILEGES
++INDEX_STATISTICS
+ ENGINES
+ EVENTS
+ FILES
+ GLOBAL_STATUS
++GLOBAL_TEMPORARY_TABLES
+ GLOBAL_VARIABLES
+ KEY_COLUMN_USAGE
+ PARAMETERS
+@@ -63,6 +66,7 @@
+ PROFILING
+ REFERENTIAL_CONSTRAINTS
+ ROUTINES
++QUERY_RESPONSE_TIME
+ SCHEMATA
+ SCHEMA_PRIVILEGES
+ SESSION_STATUS
+@@ -72,9 +76,14 @@
+ TABLESPACES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++TEMPORARY_TABLES
++THREAD_STATISTICS
+ TRIGGERS
+ USER_PRIVILEGES
++USER_STATISTICS
+ VIEWS
++XTRADB_ADMIN_COMMAND
+ columns_priv
+ db
+ event
+@@ -112,6 +121,9 @@
+ TABLESPACES	TABLESPACES
+ TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
++TEMPORARY_TABLES	TEMPORARY_TABLES
++THREAD_STATISTICS	THREAD_STATISTICS
+ TRIGGERS	TRIGGERS
+ tables_priv	tables_priv
+ time_zone	time_zone
+@@ -132,6 +144,9 @@
+ TABLESPACES	TABLESPACES
+ TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
++TEMPORARY_TABLES	TEMPORARY_TABLES
++THREAD_STATISTICS	THREAD_STATISTICS
+ TRIGGERS	TRIGGERS
+ tables_priv	tables_priv
+ time_zone	time_zone
+@@ -152,6 +167,9 @@
+ TABLESPACES	TABLESPACES
+ TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES	TABLE_PRIVILEGES
++TABLE_STATISTICS	TABLE_STATISTICS
++TEMPORARY_TABLES	TEMPORARY_TABLES
++THREAD_STATISTICS	THREAD_STATISTICS
+ TRIGGERS	TRIGGERS
+ tables_priv	tables_priv
+ time_zone	time_zone
+@@ -634,13 +652,16 @@
+ where table_schema='information_schema' limit 2;
+ TABLE_NAME	TABLE_TYPE	ENGINE
+ CHARACTER_SETS	SYSTEM VIEW	MEMORY
+-COLLATIONS	SYSTEM VIEW	MEMORY
++CLIENT_STATISTICS	SYSTEM VIEW	MEMORY
+ show tables from information_schema like "T%";
+ Tables_in_information_schema (T%)
+ TABLES
+ TABLESPACES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++TEMPORARY_TABLES
++THREAD_STATISTICS
+ TRIGGERS
+ create database information_schema;
+ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+@@ -651,6 +672,9 @@
+ TABLESPACES	SYSTEM VIEW
+ TABLE_CONSTRAINTS	SYSTEM VIEW
+ TABLE_PRIVILEGES	SYSTEM VIEW
++TABLE_STATISTICS	SYSTEM VIEW
++TEMPORARY_TABLES	SYSTEM VIEW
++THREAD_STATISTICS	SYSTEM VIEW
+ TRIGGERS	SYSTEM VIEW
+ create table t1(a int);
+ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+@@ -664,6 +688,9 @@
+ TABLESPACES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++TEMPORARY_TABLES
++THREAD_STATISTICS
+ TRIGGERS
+ select table_name from tables where table_name='user';
+ table_name
+@@ -806,6 +833,8 @@
+ FILES	CREATE_TIME	datetime
+ FILES	UPDATE_TIME	datetime
+ FILES	CHECK_TIME	datetime
++GLOBAL_TEMPORARY_TABLES	CREATE_TIME	datetime
++GLOBAL_TEMPORARY_TABLES	UPDATE_TIME	datetime
+ PARTITIONS	CREATE_TIME	datetime
+ PARTITIONS	UPDATE_TIME	datetime
+ PARTITIONS	CHECK_TIME	datetime
+@@ -814,6 +843,8 @@
+ TABLES	CREATE_TIME	datetime
+ TABLES	UPDATE_TIME	datetime
+ TABLES	CHECK_TIME	datetime
++TEMPORARY_TABLES	CREATE_TIME	datetime
++TEMPORARY_TABLES	UPDATE_TIME	datetime
+ TRIGGERS	CREATED	datetime
+ event	execute_at	datetime
+ event	last_executed	datetime
+@@ -854,7 +885,9 @@
+ TABLE_NAME	COLUMN_NAME	PRIVILEGES
+ COLUMNS	TABLE_NAME	select
+ COLUMN_PRIVILEGES	TABLE_NAME	select
++INDEX_STATISTICS	TABLE_NAME	select
+ FILES	TABLE_NAME	select
++GLOBAL_TEMPORARY_TABLES	TABLE_NAME	select
+ KEY_COLUMN_USAGE	TABLE_NAME	select
+ PARTITIONS	TABLE_NAME	select
+ REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
+@@ -862,7 +895,11 @@
+ TABLES	TABLE_NAME	select
+ TABLE_CONSTRAINTS	TABLE_NAME	select
+ TABLE_PRIVILEGES	TABLE_NAME	select
++TABLE_STATISTICS	TABLE_NAME	select
++TEMPORARY_TABLES	TABLE_NAME	select
+ VIEWS	TABLE_NAME	select
++INNODB_TABLE_STATS	table_name	select
++INNODB_INDEX_STATS	table_name	select
+ delete from mysql.user where user='mysqltest_4';
+ delete from mysql.db where user='mysqltest_4';
+ flush privileges;
+@@ -871,7 +908,7 @@
+ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
+ GROUP BY TABLE_SCHEMA;
+ table_schema	count(*)
+-information_schema	30
++information_schema	39
+ mysql	23
+ create table t1 (i int, j int);
+ create trigger trg1 before insert on t1 for each row
+@@ -1245,12 +1282,12 @@
+ DROP USER mysql_bug20230@localhost;
+ SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+ MAX(table_name)
+-VIEWS
++XTRADB_ADMIN_COMMAND
+ SELECT table_name from information_schema.tables
+ WHERE table_name=(SELECT MAX(table_name)
+ FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
+ table_name
+-VIEWS
++XTRADB_ADMIN_COMMAND
+ DROP TABLE IF EXISTS bug23037;
+ DROP FUNCTION IF EXISTS get_value;
+ SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
+@@ -1311,6 +1348,7 @@
+ group by t.table_name order by num1, t.table_name;
+ table_name	group_concat(t.table_schema, '.', t.table_name)	num1
+ CHARACTER_SETS	information_schema.CHARACTER_SETS	1
++CLIENT_STATISTICS	information_schema.CLIENT_STATISTICS	1
+ COLLATIONS	information_schema.COLLATIONS	1
+ COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
+ COLUMNS	information_schema.COLUMNS	1
+@@ -1319,13 +1357,16 @@
+ EVENTS	information_schema.EVENTS	1
+ FILES	information_schema.FILES	1
+ GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
++GLOBAL_TEMPORARY_TABLES	information_schema.GLOBAL_TEMPORARY_TABLES	1
+ GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
++INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
+ KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+ PARAMETERS	information_schema.PARAMETERS	1
+ PARTITIONS	information_schema.PARTITIONS	1
+ PLUGINS	information_schema.PLUGINS	1
+ PROCESSLIST	information_schema.PROCESSLIST	1
+ PROFILING	information_schema.PROFILING	1
++QUERY_RESPONSE_TIME	information_schema.QUERY_RESPONSE_TIME	1
+ REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
+ ROUTINES	information_schema.ROUTINES	1
+ SCHEMATA	information_schema.SCHEMATA	1
+@@ -1337,8 +1378,12 @@
+ TABLESPACES	information_schema.TABLESPACES	1
+ TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
+ TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
++TABLE_STATISTICS	information_schema.TABLE_STATISTICS	1
++TEMPORARY_TABLES	information_schema.TEMPORARY_TABLES	1
++THREAD_STATISTICS	information_schema.THREAD_STATISTICS	1
+ TRIGGERS	information_schema.TRIGGERS	1
+ USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
++USER_STATISTICS	information_schema.USER_STATISTICS	1
+ VIEWS	information_schema.VIEWS	1
+ create table t1(f1 int);
+ create view v1 as select f1+1 as a from t1;
+--- a/mysql-test/r/information_schema_db.result
++++ b/mysql-test/r/information_schema_db.result
+@@ -6,14 +6,17 @@
+ show tables where Tables_in_information_schema NOT LIKE 'Innodb%';
+ Tables_in_information_schema
+ CHARACTER_SETS
++CLIENT_STATISTICS
+ COLLATIONS
+ COLLATION_CHARACTER_SET_APPLICABILITY
+ COLUMNS
+ COLUMN_PRIVILEGES
++INDEX_STATISTICS
+ ENGINES
+ EVENTS
+ FILES
+ GLOBAL_STATUS
++GLOBAL_TEMPORARY_TABLES
+ GLOBAL_VARIABLES
+ KEY_COLUMN_USAGE
+ PARAMETERS
+@@ -23,6 +26,7 @@
+ PROFILING
+ REFERENTIAL_CONSTRAINTS
+ ROUTINES
++QUERY_RESPONSE_TIME
+ SCHEMATA
+ SCHEMA_PRIVILEGES
+ SESSION_STATUS
+@@ -32,15 +36,23 @@
+ TABLESPACES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++TEMPORARY_TABLES
++THREAD_STATISTICS
+ TRIGGERS
+ USER_PRIVILEGES
++USER_STATISTICS
+ VIEWS
++XTRADB_ADMIN_COMMAND
+ show tables from INFORMATION_SCHEMA like 'T%';
+ Tables_in_information_schema (T%)
+ TABLES
+ TABLESPACES
+ TABLE_CONSTRAINTS
+ TABLE_PRIVILEGES
++TABLE_STATISTICS
++TEMPORARY_TABLES
++THREAD_STATISTICS
+ TRIGGERS
+ create database `inf%`;
+ create database mbase;
+--- a/mysql-test/r/mysqld--help-notwin.result
++++ b/mysql-test/r/mysqld--help-notwin.result
+@@ -250,21 +250,40 @@
+  --log-slow-admin-statements 
+  Log slow OPTIMIZE, ANALYZE, ALTER and other
+  administrative statements to the slow log if it is open.
++ --log-slow-filter=name 
++ Log only the queries that followed certain execution
++ plan. Multiple flags allowed in a comma-separated string.
++ [qc_miss, full_scan, full_join, tmp_table,
++ tmp_table_on_disk, filesort, filesort_on_disk]
+  --log-slow-queries[=name] 
+  Log slow queries to a table or log file. Defaults logging
+  to table mysql.slow_log or hostname-slow.log if
+  --log-output=file is used. Must be enabled to activate
+  other slow log options. Deprecated option, use
+  --slow-query-log/--slow-query-log-file instead.
++ --log-slow-rate-limit=# 
++ Rate limit statement writes to slow log to only those
++ from every (1/log_slow_rate_limit) session.
+  --log-slow-slave-statements 
+- Log slow statements executed by slave thread to the slow
+- log if it is open.
++ Log queries replayed be the slave SQL thread
++ --log-slow-sp-statements 
++ Log slow statements executed by stored procedure to the
++ slow log if it is open.
++ (Defaults to on; use --skip-log-slow-sp-statements to disable.)
++ --log-slow-verbosity=name 
++ Choose how verbose the messages to your slow log will be.
++ Multiple flags allowed in a comma-separated string.
++ [microtime, query_plan, innodb, profiling,
++ profiling_use_getrusage]
+  --log-tc=name       Path to transaction coordinator log (used for
+  transactions that affect more than one storage engine,
+  when binary log is disabled).
+  --log-tc-size=#     Size of transaction coordinator log.
+  -W, --log-warnings[=#] 
+  Log some not critical warnings to the log file
++ --log-warnings-suppress=name 
++ disable logging of enumerated warnings: 1592: unsafe
++ statements for binary logging; possible values : [1592]
+  --long-query-time=# Log all queries that have taken more than long_query_time
+  seconds to execute to file. The argument will be treated
+  as a decimal value with microsecond precision
+@@ -475,6 +494,10 @@
+  The minimum size for blocks allocated by the query cache
+  --query-cache-size=# 
+  The memory allocated to store results from old queries
++ --query-cache-strip-comments 
++ Enable and disable optimisation "strip comment for query
++ cache" - optimisation strip all comments from query while
++ search query result in query cache
+  --query-cache-type=name 
+  OFF = Don't cache or retrieve results. ON = Cache all
+  results except SELECT SQL_NO_CACHE ... queries. DEMAND =
+@@ -483,6 +506,12 @@
+  Invalidate queries in query cache on LOCK for write
+  --query-prealloc-size=# 
+  Persistent buffer for query parsing and execution
++ --query-response-time-range-base=# 
++ Select base of log for query_response_time ranges.
++ WARNING: variable change affect only after flush
++ --query-response-time-stats 
++ Enable or disable query response time statisics
++ collecting
+  --range-alloc-block-size=# 
+  Allocation block size for storing ranges during
+  optimization
+@@ -660,6 +689,18 @@
+  Log slow queries to given log file. Defaults logging to
+  hostname-slow.log. Must be enabled to activate other slow
+  log options
++ --slow-query-log-timestamp-always 
++ Timestamp is printed for all records of the slow log even
++ if they are same time.
++ --slow-query-log-timestamp-precision=name 
++ Log slow statements executed by stored procedure to the
++ slow log if it is open. [second, microsecond]
++ --slow-query-log-use-global-control=name 
++ Choose flags, wich always use the global variables.
++ Multiple flags allowed in a comma-separated string.
++ [none, log_slow_filter, log_slow_rate_limit,
++ log_slow_verbosity, long_query_time,
++ min_examined_row_limit, all]
+  --socket=name       Socket file to use for connection
+  --sort-buffer-size=# 
+  Each thread that needs to do a sort allocates a buffer of
+@@ -702,6 +743,8 @@
+  Define threads usage for handling queries, one of
+  one-thread-per-connection, no-threads, loaded-dynamically
+  --thread-stack=#    The stack size for each thread
++ --thread-statistics Control TABLE_STATISTICS running, when userstat is
++ enabled
+  --time-format=name  The TIME format (ignored)
+  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
+  currently supported)
+@@ -727,10 +770,17 @@
+  of the underlying table and the query uses a LIMIT clause
+  (usually get from GUI tools)
+  -u, --user=name     Run mysqld daemon as user.
++ --userstat          Control USER_STATISTICS, CLIENT_STATISTICS,
++ THREAD_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS
++ running
+  -v, --verbose       Used with --help option for detailed help.
+  -V, --version       Output version information and exit.
+  --wait-timeout=#    The number of seconds the server waits for activity on a
+  connection before closing it
++ --xtradb-admin-command[=name] 
++ Enable or disable XTRADB_ADMIN_COMMAND plugin. Possible
++ values are ON, OFF, FORCE (don't start if the plugin
++ fails to load).
+ 
+ Variables (--variable-name=value)
+ abort-slave-event-count 0
+@@ -813,10 +863,15 @@
+ log-short-format FALSE
+ log-slave-updates FALSE
+ log-slow-admin-statements FALSE
++log-slow-filter 
++log-slow-rate-limit 1
+ log-slow-slave-statements FALSE
++log-slow-sp-statements TRUE
++log-slow-verbosity 
+ log-tc tc.log
+ log-tc-size 24576
+ log-warnings 1
++log-warnings-suppress 
+ long-query-time 10
+ low-priority-updates FALSE
+ lower-case-table-names 1
+@@ -892,9 +947,12 @@
+ query-cache-limit 1048576
+ query-cache-min-res-unit 4096
+ query-cache-size 0
++query-cache-strip-comments FALSE
+ query-cache-type ON
+ query-cache-wlock-invalidate FALSE
+ query-prealloc-size 8192
++query-response-time-range-base 10
++query-response-time-stats FALSE
+ range-alloc-block-size 4096
+ read-buffer-size 131072
+ read-only FALSE
+@@ -929,6 +987,9 @@
+ slave-type-conversions 
+ slow-launch-time 2
+ slow-query-log FALSE
++slow-query-log-timestamp-always FALSE
++slow-query-log-timestamp-precision second
++slow-query-log-use-global-control 
+ sort-buffer-size 2097152
+ sporadic-binlog-dump-fail FALSE
+ sql-mode 
+@@ -946,6 +1007,7 @@
+ thread-cache-size 0
+ thread-handling one-thread-per-connection
+ thread-stack 262144
++thread-statistics FALSE
+ time-format %H:%i:%s
+ timed-mutexes FALSE
+ tmp-table-size 16777216
+@@ -953,8 +1015,10 @@
+ transaction-isolation REPEATABLE-READ
+ transaction-prealloc-size 4096
+ updatable-views-with-limit YES
++userstat FALSE
+ verbose TRUE
+ wait-timeout 28800
++xtradb-admin-command ON
+ 
+ To see what values a running MySQL server is using, type
+ 'mysqladmin variables' instead of 'mysqld --verbose --help'.
+--- a/mysql-test/r/mysqldump.result
++++ b/mysql-test/r/mysqldump.result
+@@ -1832,7 +1832,7 @@
+ # Bug#21288 mysqldump segmentation fault when using --where
+ #
+ create table t1 (a int);
+-mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
++mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ /*!50084 SQL_NO_FCACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
+ mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
+ 
+ /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+--- a/mysql-test/r/mysqlshow.result
++++ b/mysql-test/r/mysqlshow.result
+@@ -80,14 +80,17 @@
+ |                Tables                 |
+ +---------------------------------------+
+ | CHARACTER_SETS                        |
++| CLIENT_STATISTICS                     |
+ | COLLATIONS                            |
+ | COLLATION_CHARACTER_SET_APPLICABILITY |
+ | COLUMNS                               |
+ | COLUMN_PRIVILEGES                     |
++| INDEX_STATISTICS                      |
+ | ENGINES                               |
+ | EVENTS                                |
+ | FILES                                 |
+ | GLOBAL_STATUS                         |
++| GLOBAL_TEMPORARY_TABLES               |
+ | GLOBAL_VARIABLES                      |
+ | KEY_COLUMN_USAGE                      |
+ | PARAMETERS                            |
+@@ -97,6 +100,7 @@
+ | PROFILING                             |
+ | REFERENTIAL_CONSTRAINTS               |
+ | ROUTINES                              |
++| QUERY_RESPONSE_TIME                   |
+ | SCHEMATA                              |
+ | SCHEMA_PRIVILEGES                     |
+ | SESSION_STATUS                        |
+@@ -106,30 +110,52 @@
+ | TABLESPACES                           |
+ | TABLE_CONSTRAINTS                     |
+ | TABLE_PRIVILEGES                      |
++| TABLE_STATISTICS                      |
++| TEMPORARY_TABLES                      |
++| THREAD_STATISTICS                     |
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
++| USER_STATISTICS                       |
+ | VIEWS                                 |
+-| INNODB_CMP_RESET                      |
++| INNODB_SYS_COLUMNS                    |
++| INNODB_RSEG                           |
++| INNODB_CMP                            |
+ | INNODB_TRX                            |
+-| INNODB_CMPMEM_RESET                   |
++| INNODB_SYS_TABLESTATS                 |
+ | INNODB_LOCK_WAITS                     |
+-| INNODB_CMPMEM                         |
+-| INNODB_CMP                            |
++| XTRADB_ADMIN_COMMAND                  |
+ | INNODB_LOCKS                          |
++| INNODB_SYS_FOREIGN_COLS               |
++| INNODB_CMP_RESET                      |
++| INNODB_BUFFER_POOL_PAGES              |
++| INNODB_SYS_TABLES                     |
++| INNODB_BUFFER_POOL_PAGES_INDEX        |
++| INNODB_CMPMEM                         |
++| INNODB_BUFFER_POOL_PAGES_BLOB         |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_SYS_FIELDS                     |
++| INNODB_TABLE_STATS                    |
++| INNODB_SYS_STATS                      |
++| INNODB_SYS_FOREIGN                    |
++| INNODB_SYS_INDEXES                    |
++| INNODB_INDEX_STATS                    |
+ +---------------------------------------+
+ Database: INFORMATION_SCHEMA
+ +---------------------------------------+
+ |                Tables                 |
+ +---------------------------------------+
+ | CHARACTER_SETS                        |
++| CLIENT_STATISTICS                     |
+ | COLLATIONS                            |
+ | COLLATION_CHARACTER_SET_APPLICABILITY |
+ | COLUMNS                               |
+ | COLUMN_PRIVILEGES                     |
++| INDEX_STATISTICS                      |
+ | ENGINES                               |
+ | EVENTS                                |
+ | FILES                                 |
+ | GLOBAL_STATUS                         |
++| GLOBAL_TEMPORARY_TABLES               |
+ | GLOBAL_VARIABLES                      |
+ | KEY_COLUMN_USAGE                      |
+ | PARAMETERS                            |
+@@ -139,6 +165,7 @@
+ | PROFILING                             |
+ | REFERENTIAL_CONSTRAINTS               |
+ | ROUTINES                              |
++| QUERY_RESPONSE_TIME                   |
+ | SCHEMATA                              |
+ | SCHEMA_PRIVILEGES                     |
+ | SESSION_STATUS                        |
+@@ -148,16 +175,35 @@
+ | TABLESPACES                           |
+ | TABLE_CONSTRAINTS                     |
+ | TABLE_PRIVILEGES                      |
++| TABLE_STATISTICS                      |
++| TEMPORARY_TABLES                      |
++| THREAD_STATISTICS                     |
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
++| USER_STATISTICS                       |
+ | VIEWS                                 |
+-| INNODB_CMP_RESET                      |
++| INNODB_SYS_COLUMNS                    |
++| INNODB_RSEG                           |
++| INNODB_CMP                            |
+ | INNODB_TRX                            |
+-| INNODB_CMPMEM_RESET                   |
++| INNODB_SYS_TABLESTATS                 |
+ | INNODB_LOCK_WAITS                     |
+-| INNODB_CMPMEM                         |
+-| INNODB_CMP                            |
++| XTRADB_ADMIN_COMMAND                  |
+ | INNODB_LOCKS                          |
++| INNODB_SYS_FOREIGN_COLS               |
++| INNODB_CMP_RESET                      |
++| INNODB_BUFFER_POOL_PAGES              |
++| INNODB_SYS_TABLES                     |
++| INNODB_BUFFER_POOL_PAGES_INDEX        |
++| INNODB_CMPMEM                         |
++| INNODB_BUFFER_POOL_PAGES_BLOB         |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_SYS_FIELDS                     |
++| INNODB_TABLE_STATS                    |
++| INNODB_SYS_STATS                      |
++| INNODB_SYS_FOREIGN                    |
++| INNODB_SYS_INDEXES                    |
++| INNODB_INDEX_STATS                    |
+ +---------------------------------------+
+ Wildcard: inf_rmation_schema
+ +--------------------+
+--- a/mysql-test/r/select.result
++++ b/mysql-test/r/select.result
+@@ -2196,10 +2196,10 @@
+ select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
+ a	a
+ 1	2
+-2	2
+-3	2
+ 1	3
++2	2
+ 2	3
++3	2
+ 3	3
+ select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
+ a	a
+--- a/mysql-test/r/show_check.result
++++ b/mysql-test/r/show_check.result
+@@ -1538,14 +1538,14 @@
+ SET NAMES latin1;
+ SELECT GET_LOCK('t',1000) AS 'óóóó';;
+ SHOW PROCESSLIST;
+-Id	User	Host	db	Command	Time	State	Info
+-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
++###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'	###	###	###
+ SET NAMES utf8;
+ SHOW PROCESSLIST;
+-Id	User	Host	db	Command	Time	State	Info
+-###	root	###	test	Query	###	###	SHOW PROCESSLIST
+-###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++###	root	###	test	Query	###	###	SHOW PROCESSLIST	###	###	###
++###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'	###	###	###
+ SELECT RELEASE_LOCK('t');
+ RELEASE_LOCK('t')
+ 1
+--- a/mysql-test/r/sp-threads.result
++++ b/mysql-test/r/sp-threads.result
+@@ -33,11 +33,11 @@
+ lock tables t2 write;
+ call bug9486();
+ show processlist;
+-Id	User	Host	db	Command	Time	State	Info
+-#	root	localhost	test	Sleep	#		NULL
+-#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2
+-#	root	localhost	test	Query	#	NULL	show processlist
+-#	root	localhost	test	Sleep	#		NULL
++Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined	Rows_read
++#	root	localhost	test	Sleep	#		NULL	#	#	#
++#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2	#	#	#
++#	root	localhost	test	Query	#	NULL	show processlist	#	#	#
++#	root	localhost	test	Sleep	#		NULL	#	#	#
+ unlock tables;
+ drop procedure bug9486;
+ drop table t1, t2;
+--- a/mysql-test/suite/innodb/r/innodb.result
++++ b/mysql-test/suite/innodb/r/innodb.result
+@@ -1664,7 +1664,7 @@
+ drop table t1;
+ SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+ variable_value
+-511
++2047
+ SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
+ variable_value
+ 16384
+--- a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result
++++ b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result
+@@ -10,7 +10,6 @@
+ 1
+ '#---------------------FN_DYNVARS_046_02-------------------------#'
+ SET innodb_flush_log_at_trx_commit = 1;
+-ERROR HY000: Variable 'innodb_flush_log_at_trx_commit' is a GLOBAL variable and should be set with SET GLOBAL
+ SELECT @@innodb_flush_log_at_trx_commit;
+ @@innodb_flush_log_at_trx_commit
+ 1
+--- a/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test
++++ b/mysql-test/suite/sys_vars/t/innodb_flush_log_at_trx_commit_basic.test
+@@ -56,7 +56,7 @@
+ # Check if variable can be accessed with and without @@ sign                  #
+ ###############################################################################
+ 
+---Error ER_GLOBAL_VARIABLE
++#--Error ER_GLOBAL_VARIABLE
+ SET innodb_flush_log_at_trx_commit = 1;
+ SELECT @@innodb_flush_log_at_trx_commit;
+ 
+--- a/mysql-test/t/connect.test
++++ b/mysql-test/t/connect.test
+@@ -1,3 +1,5 @@
++set global log_warnings=0;
++
+ # This test is to check various cases of connections
+ # with right and wrong password, with and without database
+ # Unfortunately the check is incomplete as we can't connect without database
+@@ -300,3 +302,4 @@
+ # Wait till all disconnects are completed
+ --source include/wait_until_count_sessions.inc
+ 
++set global log_warnings=1;
+--- a/mysql-test/t/show_check.test
++++ b/mysql-test/t/show_check.test
+@@ -1376,10 +1376,10 @@
+ let $wait_timeout= 10;
+ let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
+ --source include/wait_condition.inc
+---replace_column 1 ### 3 ### 6 ### 7 ###
++--replace_column 1 ### 3 ### 6 ### 7 ### 9 ### 10 ### 11 ###
+ SHOW PROCESSLIST;
+ SET NAMES utf8;
+---replace_column 1 ### 3 ### 6 ### 7 ###
++--replace_column 1 ### 3 ### 6 ### 7 ### 9 ### 10 ### 11 ###
+ SHOW PROCESSLIST;
+ SELECT RELEASE_LOCK('t');
+ --connection con1
+--- a/mysql-test/t/sp-threads.test
++++ b/mysql-test/t/sp-threads.test
+@@ -81,7 +81,7 @@
+ connection con2root;
+ --sleep 2
+ # There should be call statement in locked state.
+---replace_column 1 # 3 localhost 6 #
++--replace_column 1 # 3 localhost 6 # 9 # 10 # 11 #
+ show processlist;
+ unlock tables;
+ connection con1root;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_sp_statements_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_sp_statements;
++@@global.log_slow_sp_statements
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_sp_statements_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_sp_statements;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/fast_index_creation_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.fast_index_creation;
++@@global.fast_index_creation
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/have_response_time_distribution_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.have_response_time_distribution;
++@@global.have_response_time_distribution
++YES
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_adaptive_flushing_method_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_adaptive_flushing_method;
++@@global.innodb_adaptive_flushing_method
++estimate
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_adaptive_hash_index_partitions_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_adaptive_hash_index_partitions;
++@@global.innodb_adaptive_hash_index_partitions
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_restore_at_startup_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_buffer_pool_restore_at_startup;
++@@global.innodb_buffer_pool_restore_at_startup
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_shm_checksum_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_buffer_pool_shm_checksum;
++@@global.innodb_buffer_pool_shm_checksum
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_buffer_pool_shm_key_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_buffer_pool_shm_key;
++@@global.innodb_buffer_pool_shm_key
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_checkpoint_age_target_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_checkpoint_age_target;
++@@global.innodb_checkpoint_age_target
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_corrupt_table_action_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_corrupt_table_action;
++@@global.innodb_corrupt_table_action
++assert
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_dict_size_limit_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_dict_size_limit;
++@@global.innodb_dict_size_limit
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_doublewrite_file_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_doublewrite_file;
++@@global.innodb_doublewrite_file
++NULL
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_fast_checksum_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_fast_checksum;
++@@global.innodb_fast_checksum
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_flush_neighbor_pages_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_flush_neighbor_pages;
++@@global.innodb_flush_neighbor_pages
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_ibuf_accel_rate_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_ibuf_accel_rate;
++@@global.innodb_ibuf_accel_rate
++100
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_ibuf_active_contract_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_ibuf_active_contract;
++@@global.innodb_ibuf_active_contract
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_ibuf_max_size_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_ibuf_max_size;
++@@global.innodb_ibuf_max_size
++16760832
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_import_table_from_xtrabackup_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_import_table_from_xtrabackup;
++@@global.innodb_import_table_from_xtrabackup
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_lazy_drop_table_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_lazy_drop_table;
++@@global.innodb_lazy_drop_table
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_log_block_size_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_log_block_size;
++@@global.innodb_log_block_size
++512
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_page_size_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_page_size;
++@@global.innodb_page_size
++16384
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_read_ahead_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_read_ahead;
++@@global.innodb_read_ahead
++linear
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_recovery_stats_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_recovery_stats;
++@@global.innodb_recovery_stats
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_recovery_update_relay_log_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_recovery_update_relay_log;
++@@global.innodb_recovery_update_relay_log
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_show_locks_held_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_show_locks_held;
++@@global.innodb_show_locks_held
++10
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_show_verbose_locks_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_show_verbose_locks;
++@@global.innodb_show_verbose_locks
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_stats_auto_update_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_stats_auto_update;
++@@global.innodb_stats_auto_update
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_stats_update_need_lock_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_stats_update_need_lock;
++@@global.innodb_stats_update_need_lock
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_thread_concurrency_timer_based_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_thread_concurrency_timer_based;
++@@global.innodb_thread_concurrency_timer_based
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_use_global_flush_log_at_trx_commit_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_use_global_flush_log_at_trx_commit;
++@@global.innodb_use_global_flush_log_at_trx_commit
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/innodb_use_sys_stats_table_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.innodb_use_sys_stats_table;
++@@global.innodb_use_sys_stats_table
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_filter_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_filter;
++@@global.log_slow_filter
++
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_rate_limit_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_rate_limit;
++@@global.log_slow_rate_limit
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_slave_statements_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_slave_statements;
++@@global.log_slow_slave_statements
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_verbosity_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_verbosity;
++@@global.log_slow_verbosity
++
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_warnings_suppress_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_warnings_suppress;
++@@global.log_warnings_suppress
++
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/optimizer_fix_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.optimizer_fix;
++@@global.optimizer_fix
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/query_cache_strip_comments_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.query_cache_strip_comments;
++@@global.query_cache_strip_comments
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/query_response_time_range_base_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.query_response_time_range_base;
++@@global.query_response_time_range_base
++10
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/query_response_time_stats_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.query_response_time_stats;
++@@global.query_response_time_stats
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/slow_query_log_timestamp_always_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.slow_query_log_timestamp_always;
++@@global.slow_query_log_timestamp_always
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/slow_query_log_timestamp_precision_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.slow_query_log_timestamp_precision;
++@@global.slow_query_log_timestamp_precision
++second
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/slow_query_log_use_global_control_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.slow_query_log_use_global_control;
++@@global.slow_query_log_use_global_control
++
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/thread_statistics_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.thread_statistics;
++@@global.thread_statistics
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/userstat_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.userstat;
++@@global.userstat
++0
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/fast_index_creation_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.fast_index_creation;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/have_response_time_distribution_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.have_response_time_distribution;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_adaptive_flushing_method_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_adaptive_flushing_method;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_adaptive_hash_index_partitions_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_adaptive_hash_index_partitions;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_restore_at_startup_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_buffer_pool_restore_at_startup;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_shm_checksum_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_buffer_pool_shm_checksum;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_buffer_pool_shm_key_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_buffer_pool_shm_key;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_checkpoint_age_target_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_checkpoint_age_target;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_corrupt_table_action_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_corrupt_table_action;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_dict_size_limit_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_dict_size_limit;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_doublewrite_file_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_doublewrite_file;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_fast_checksum_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_fast_checksum;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_flush_neighbor_pages_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_flush_neighbor_pages;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_ibuf_accel_rate_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_ibuf_accel_rate;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_ibuf_active_contract_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_ibuf_active_contract;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_ibuf_max_size_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_ibuf_max_size;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_import_table_from_xtrabackup_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_import_table_from_xtrabackup;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_lazy_drop_table_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_lazy_drop_table;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_log_block_size_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_log_block_size;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_page_size_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_page_size;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_read_ahead_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_read_ahead;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_recovery_stats_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_recovery_stats;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_recovery_update_relay_log_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_recovery_update_relay_log;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_show_locks_held_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_show_locks_held;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_show_verbose_locks_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_show_verbose_locks;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_stats_auto_update_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_stats_auto_update;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_stats_update_need_lock_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_stats_update_need_lock;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_thread_concurrency_timer_based_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_thread_concurrency_timer_based;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_use_global_flush_log_at_trx_commit_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_use_global_flush_log_at_trx_commit;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/innodb_use_sys_stats_table_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.innodb_use_sys_stats_table;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_filter_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_filter;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_rate_limit_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_rate_limit;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_slave_statements_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_slave_statements;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_verbosity_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_verbosity;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_warnings_suppress_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_warnings_suppress;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/optimizer_fix_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.optimizer_fix;
+--- a/mysql-test/suite/sys_vars/t/plugin_dir_basic.test
++++ b/mysql-test/suite/sys_vars/t/plugin_dir_basic.test
+@@ -6,17 +6,17 @@
+ # on windows it's <basedir>/lib/plugin
+ # on unix it's <basedir>/lib/mysql/plugin
+ #
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ select @@global.plugin_dir;
+ --error ER_INCORRECT_GLOBAL_LOCAL_VAR
+ select @@session.plugin_dir;
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ show global variables like 'plugin_dir';
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ show session variables like 'plugin_dir';
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ select * from information_schema.global_variables where variable_name='plugin_dir';
+---replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
++--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
+ select * from information_schema.session_variables where variable_name='plugin_dir';
+ 
+ #
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/query_cache_strip_comments_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.query_cache_strip_comments;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/query_response_time_range_base_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.query_response_time_range_base;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/query_response_time_stats_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.query_response_time_stats;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/slow_query_log_timestamp_always_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.slow_query_log_timestamp_always;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/slow_query_log_timestamp_precision_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.slow_query_log_timestamp_precision;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/slow_query_log_use_global_control_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.slow_query_log_use_global_control;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/thread_statistics_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.thread_statistics;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/userstat_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.userstat;
+--- a/mysql-test/suite/sys_vars/t/all_vars.test
++++ b/mysql-test/suite/sys_vars/t/all_vars.test
+@@ -59,8 +59,8 @@
+ --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+ eval load data infile "$MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
+ 
+-insert into t2 select variable_name from information_schema.global_variables;
+-insert into t2 select variable_name from information_schema.session_variables;
++insert into t2 select variable_name from information_schema.global_variables order by variable_name;
++insert into t2 select variable_name from information_schema.session_variables order by variable_name;
+ 
+ # This is only present in debug builds.
+ delete from t2 where variable_name='innodb_change_buffering_debug';
+@@ -77,7 +77,7 @@
+   where length(variable_name) > 50;
+ 
+ select variable_name as `There should be *no* variables listed below:` from t2
+-  left join t1 on variable_name=test_name where test_name is null;
++  left join t1 on variable_name=test_name where test_name is null order by 1;
+ 
+ drop table t1;
+ drop table t2;
+--- a/mysql-test/suite/sys_vars/r/all_vars.result
++++ b/mysql-test/suite/sys_vars/r/all_vars.result
+@@ -1,23 +1,23 @@
+ create table t1 (test_name text);
+ create table t2 (variable_name text);
+ load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
+-insert into t2 select variable_name from information_schema.global_variables;
+-insert into t2 select variable_name from information_schema.session_variables;
++insert into t2 select variable_name from information_schema.global_variables order by variable_name;
++insert into t2 select variable_name from information_schema.session_variables order by variable_name;
+ delete from t2 where variable_name='innodb_change_buffering_debug';
+ update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
+ select variable_name as `There should be *no* long test name listed below:` from t2
+ where length(variable_name) > 50;
+ There should be *no* long test name listed below:
+ select variable_name as `There should be *no* variables listed below:` from t2
+-left join t1 on variable_name=test_name where test_name is null;
++left join t1 on variable_name=test_name where test_name is null order by 1;
+ There should be *no* variables listed below:
+-INNODB_ROLLBACK_SEGMENTS
+-INNODB_STATS_METHOD
+ INNODB_FILE_FORMAT_MAX
++INNODB_FILE_FORMAT_MAX
++INNODB_LARGE_PREFIX
+ INNODB_LARGE_PREFIX
+ INNODB_ROLLBACK_SEGMENTS
++INNODB_ROLLBACK_SEGMENTS
++INNODB_STATS_METHOD
+ INNODB_STATS_METHOD
+-INNODB_FILE_FORMAT_MAX
+-INNODB_LARGE_PREFIX
+ drop table t1;
+ drop table t2;

@@ -5,7 +5,6 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN /dev/null b/patch_info/microsec_process.info
 --- /dev/null	1970-01-01 09:00:00.000000000 +0900
 +++ b/patch_info/microsec_process.info	2010-12-02 20:41:41.616069579 +0900
 @@ -0,0 +1,8 @@
@@ -17,7 +16,6 @@ diff -ruN /dev/null b/patch_info/microsec_process.info
 +Comment=
 +2010-01
 +Ported to 5.1.42
-diff -ruN a/sql/sql_show.cc b/sql/sql_show.cc
 --- a/sql/sql_show.cc	2010-12-02 19:22:40.054024541 +0900
 +++ b/sql/sql_show.cc	2010-12-02 20:41:41.622941425 +0900
 @@ -1890,7 +1890,8 @@

@@ -81,3 +81,19 @@
    MYSQL_SYSVAR(checksums),
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_buffer_pool_shm.result
+@@ -0,0 +1,4 @@
++show variables like 'innodb_buffer_pool_shm%';
++Variable_name	Value
++innodb_buffer_pool_shm_checksum	ON
++innodb_buffer_pool_shm_key	123456
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_buffer_pool_shm-master.opt
+@@ -0,0 +1 @@
++--innodb_buffer_pool_shm_key=123456
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_buffer_pool_shm.test
+@@ -0,0 +1,2 @@
++--source include/have_innodb.inc
++show variables like 'innodb_buffer_pool_shm%';

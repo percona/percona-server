@@ -452,7 +452,7 @@
  
  class Reprepare_observer;
  class Relay_log_info;
-@@ -760,6 +763,9 @@
+@@ -764,6 +767,9 @@
      statement lifetime. FIXME: must be const
    */
     ulong id;
@@ -464,7 +464,7 @@
      MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -1786,6 +1786,11 @@
+@@ -1809,6 +1809,11 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_query_cache_size));
  

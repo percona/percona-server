@@ -47,7 +47,7 @@
      in "struct show_var_st status_vars[]= {" ...
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -335,6 +335,7 @@
+@@ -336,6 +336,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
@@ -55,7 +55,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2359,12 +2360,16 @@
+@@ -2363,12 +2364,16 @@
      mysql_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -73,7 +73,7 @@
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2375,7 +2380,10 @@
+@@ -2379,7 +2384,10 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }

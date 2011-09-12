@@ -5,8 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
---- /dev/null	1970-01-01 09:00:00.000000000 +0900
-+++ b/patch_info/microsec_process.info	2010-12-02 20:41:41.616069579 +0900
+--- /dev/null
++++ b/patch_info/microsec_process.info
 @@ -0,0 +1,8 @@
 +File=microsec_process.patch
 +Name=Adds INFOMATION_SCHEMA.PROCESSLIST with TIME_MS column
@@ -16,8 +16,8 @@
 +Comment=
 +2010-01
 +Ported to 5.1.42
---- a/sql/sql_show.cc	2010-12-02 19:22:40.054024541 +0900
-+++ b/sql/sql_show.cc	2010-12-02 20:41:41.622941425 +0900
+--- a/sql/sql_show.cc
++++ b/sql/sql_show.cc
 @@ -1890,7 +1890,8 @@
    TABLE *table= tables->table;
    CHARSET_INFO *cs= system_charset_info;
@@ -39,7 +39,7 @@
        if (schema_table_store_record(thd, table))
        {
          mysql_mutex_unlock(&LOCK_thread_count);
-@@ -7409,6 +7414,8 @@
+@@ -7441,6 +7446,8 @@
    {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", SKIP_OPEN_TABLE},
    {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info",
     SKIP_OPEN_TABLE},

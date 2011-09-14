@@ -40,6 +40,2531 @@
  #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
  #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
 --- /dev/null
++++ b/mysql-test/include/have_response_time_distribution.inc
+@@ -0,0 +1,4 @@
++-- require r/have_response_time_distribution.require
++disable_query_log;
++show variables like 'have_response_time_distribution';
++enable_query_log;
+--- /dev/null
++++ b/mysql-test/include/query_response_time.inc
+@@ -0,0 +1,39 @@
++SET SESSION query_exec_time=0.1;
++
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++EVAL SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=$base;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++
++SET SESSION query_exec_time=0.31; SELECT 1;
++SET SESSION query_exec_time=0.32; SELECT 1;
++SET SESSION query_exec_time=0.33; SELECT 1;
++SET SESSION query_exec_time=0.34; SELECT 1;
++SET SESSION query_exec_time=0.35; SELECT 1;
++SET SESSION query_exec_time=0.36; SELECT 1;
++SET SESSION query_exec_time=0.37; SELECT 1;
++SET SESSION query_exec_time=0.38; SELECT 1;
++SET SESSION query_exec_time=0.39; SELECT 1;
++SET SESSION query_exec_time=0.4; SELECT 1;
++SET SESSION query_exec_time=1.1; SELECT 1;
++SET SESSION query_exec_time=1.2; SELECT 1;
++SET SESSION query_exec_time=1.3; SELECT 1;
++SET SESSION query_exec_time=1.5; SELECT 1;
++SET SESSION query_exec_time=1.4; SELECT 1;
++SET SESSION query_exec_time=0.5; SELECT 1;
++SET SESSION query_exec_time=2.1; SELECT 1;
++SET SESSION query_exec_time=2.3; SELECT 1;
++SET SESSION query_exec_time=2.5; SELECT 1;
++SET SESSION query_exec_time=3.1; SELECT 1;
++SET SESSION query_exec_time=4.1; SELECT 1;
++SET SESSION query_exec_time=5.1; SELECT 1;
++
++SET SESSION query_exec_time=0.1;
++
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++SHOW QUERY_RESPONSE_TIME;
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++
++SET SESSION query_exec_time=default;
+--- /dev/null
++++ b/mysql-test/include/query_response_time-replication.inc
+@@ -0,0 +1,57 @@
++connection master;
++
++CREATE TABLE t(id INT);
++
++connection slave;
++SET GLOBAL query_exec_time = 0.1;
++--source include/restart_slave_sql.inc
++
++connection slave;
++
++SET SESSION query_exec_time=0.1;
++
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++--eval SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=$base
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++
++connection master;
++
++SET SESSION query_exec_time = 0.31; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1; INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1; INSERT INTO t VALUES(1);
++
++sync_slave_with_master;
++
++connection slave;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++SHOW QUERY_RESPONSE_TIME;
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++
++connection master;
++DROP TABLE t;
++
++sync_slave_with_master;
+--- /dev/null
++++ b/mysql-test/include/query_response_time-stored.inc
+@@ -0,0 +1,37 @@
++SET SESSION query_exec_time=0.1;
++
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++EVAL SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=$base;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++SHOW QUERY_RESPONSE_TIME;
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++
++SET SESSION query_exec_time=default;
+--- /dev/null
++++ b/mysql-test/r/percona_query_response_time-replication.result
+@@ -0,0 +1,727 @@
++SET GLOBAL query_exec_time=0.1;
++include/master-slave.inc
++[connection master]
++CREATE TABLE t(id INT);
++SET GLOBAL query_exec_time = 0.1;
++include/restart_slave.inc
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1;
++Warnings:
++Warning	1292	Truncated incorrect query_response_time_range_base value: '1'
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time = 0.31;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1;
++INSERT INTO t VALUES(1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	2
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	2	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	3	      0.300000
++      0.250000	0	      0.000000
++      0.500000	30	     10.650000
++      1.000000	3	      1.500000
++      2.000000	15	     19.500000
++      4.000000	12	     30.000000
++      8.000000	6	     27.599997
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	2	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	4	      0.400000
++      0.250000	0	      0.000000
++      0.500000	30	     10.650000
++      1.000000	3	      1.500000
++      2.000000	15	     19.500000
++      4.000000	12	     30.000000
++      8.000000	6	     27.599997
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP TABLE t;
++CREATE TABLE t(id INT);
++SET GLOBAL query_exec_time = 0.1;
++include/restart_slave.inc
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=2;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time = 0.31;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1;
++INSERT INTO t VALUES(1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	2
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	2	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	3	      0.300000
++      0.250000	0	      0.000000
++      0.500000	30	     10.650000
++      1.000000	3	      1.500000
++      2.000000	15	     19.500000
++      4.000000	12	     30.000000
++      8.000000	6	     27.599997
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	2	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	4	      0.400000
++      0.250000	0	      0.000000
++      0.500000	30	     10.650000
++      1.000000	3	      1.500000
++      2.000000	15	     19.500000
++      4.000000	12	     30.000000
++      8.000000	6	     27.599997
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP TABLE t;
++CREATE TABLE t(id INT);
++SET GLOBAL query_exec_time = 0.1;
++include/restart_slave.inc
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=10;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time = 0.31;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1;
++INSERT INTO t VALUES(1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	10
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	2	      0.000000
++      0.000010	0	      0.000000
++      0.000100	0	      0.000000
++      0.001000	0	      0.000000
++      0.010000	0	      0.000000
++      0.100000	0	      0.000000
++      1.000000	36	     12.450000
++     10.000000	33	     77.099997
++    100.000000	0	      0.000000
++   1000.000000	0	      0.000000
++  10000.000000	0	      0.000000
++ 100000.000000	0	      0.000000
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	2	      0.000000
++      0.000010	0	      0.000000
++      0.000100	0	      0.000000
++      0.001000	0	      0.000000
++      0.010000	0	      0.000000
++      0.100000	0	      0.000000
++      1.000000	37	     12.550000
++     10.000000	33	     77.099997
++    100.000000	0	      0.000000
++   1000.000000	0	      0.000000
++  10000.000000	0	      0.000000
++ 100000.000000	0	      0.000000
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP TABLE t;
++CREATE TABLE t(id INT);
++SET GLOBAL query_exec_time = 0.1;
++include/restart_slave.inc
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=7;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time = 0.31;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1;
++INSERT INTO t VALUES(1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	7
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	2	      0.000000
++      0.000008	0	      0.000000
++      0.000059	0	      0.000000
++      0.000416	0	      0.000000
++      0.002915	0	      0.000000
++      0.020408	0	      0.000000
++      0.142857	3	      0.300000
++      1.000000	33	     12.150000
++      7.000000	33	     77.099997
++     49.000000	0	      0.000000
++    343.000000	0	      0.000000
++   2401.000000	0	      0.000000
++  16807.000000	0	      0.000000
++ 117649.000000	0	      0.000000
++ 823543.000000	0	      0.000000
++ 5764801.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	2	      0.000000
++      0.000008	0	      0.000000
++      0.000059	0	      0.000000
++      0.000416	0	      0.000000
++      0.002915	0	      0.000000
++      0.020408	0	      0.000000
++      0.142857	4	      0.400000
++      1.000000	33	     12.150000
++      7.000000	33	     77.099997
++     49.000000	0	      0.000000
++    343.000000	0	      0.000000
++   2401.000000	0	      0.000000
++  16807.000000	0	      0.000000
++ 117649.000000	0	      0.000000
++ 823543.000000	0	      0.000000
++ 5764801.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP TABLE t;
++CREATE TABLE t(id INT);
++SET GLOBAL query_exec_time = 0.1;
++include/restart_slave.inc
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=156;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time = 0.31;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1;
++INSERT INTO t VALUES(1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	156
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000041	2	      0.000000
++      0.006410	0	      0.000000
++      1.000000	36	     12.450000
++    156.000000	33	     77.099997
++  24336.000000	0	      0.000000
++ 3796416.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000041	2	      0.000000
++      0.006410	0	      0.000000
++      1.000000	37	     12.550000
++    156.000000	33	     77.099997
++  24336.000000	0	      0.000000
++ 3796416.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP TABLE t;
++CREATE TABLE t(id INT);
++SET GLOBAL query_exec_time = 0.1;
++include/restart_slave.inc
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1000;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time = 0.31;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1;
++INSERT INTO t VALUES(1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	1000
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	2	      0.000000
++      0.001000	0	      0.000000
++      1.000000	36	     12.450000
++   1000.000000	33	     77.099997
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	2	      0.000000
++      0.001000	0	      0.000000
++      1.000000	37	     12.550000
++   1000.000000	33	     77.099997
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP TABLE t;
++CREATE TABLE t(id INT);
++SET GLOBAL query_exec_time = 0.1;
++include/restart_slave.inc
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1001;
++Warnings:
++Warning	1292	Truncated incorrect query_response_time_range_base value: '1001'
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time = 0.31;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.32;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.33;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.34;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.35;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.36;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.37;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.38;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.39;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.2;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 1.4;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 0.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.3;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 2.5;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 3.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 4.1;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time = 5.1;
++INSERT INTO t VALUES(1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	1000
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	2	      0.000000
++      0.001000	0	      0.000000
++      1.000000	36	     12.450000
++   1000.000000	33	     77.099997
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	2	      0.000000
++      0.001000	0	      0.000000
++      1.000000	37	     12.550000
++   1000.000000	33	     77.099997
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP TABLE t;
++include/rpl_end.inc
++SET GLOBAL query_exec_time=default;
++SET GLOBAL query_exec_time=default;
+--- /dev/null
++++ b/mysql-test/r/percona_query_response_time.result
+@@ -0,0 +1,1003 @@
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1;
++Warnings:
++Warning	1292	Truncated incorrect query_response_time_range_base value: '1'
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time=0.31;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.32;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.33;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.34;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.35;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.36;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.37;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.38;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.39;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.2;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=4.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	2
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	25	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	2	      0.200000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	25	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	3	      0.300000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=2;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time=0.31;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.32;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.33;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.34;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.35;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.36;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.37;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.38;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.39;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.2;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=4.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	2
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	25	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	2	      0.200000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	25	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	3	      0.300000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=10;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time=0.31;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.32;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.33;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.34;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.35;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.36;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.37;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.38;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.39;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.2;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=4.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	10
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	25	      0.000000
++      0.000010	0	      0.000000
++      0.000100	0	      0.000000
++      0.001000	0	      0.000000
++      0.010000	0	      0.000000
++      0.100000	0	      0.000000
++      1.000000	13	      4.250000
++     10.000000	11	     25.699999
++    100.000000	0	      0.000000
++   1000.000000	0	      0.000000
++  10000.000000	0	      0.000000
++ 100000.000000	0	      0.000000
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	25	      0.000000
++      0.000010	0	      0.000000
++      0.000100	0	      0.000000
++      0.001000	0	      0.000000
++      0.010000	0	      0.000000
++      0.100000	0	      0.000000
++      1.000000	14	      4.350000
++     10.000000	11	     25.699999
++    100.000000	0	      0.000000
++   1000.000000	0	      0.000000
++  10000.000000	0	      0.000000
++ 100000.000000	0	      0.000000
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=7;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time=0.31;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.32;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.33;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.34;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.35;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.36;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.37;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.38;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.39;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.2;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=4.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	7
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	25	      0.000000
++      0.000008	0	      0.000000
++      0.000059	0	      0.000000
++      0.000416	0	      0.000000
++      0.002915	0	      0.000000
++      0.020408	0	      0.000000
++      0.142857	2	      0.200000
++      1.000000	11	      4.050000
++      7.000000	11	     25.699999
++     49.000000	0	      0.000000
++    343.000000	0	      0.000000
++   2401.000000	0	      0.000000
++  16807.000000	0	      0.000000
++ 117649.000000	0	      0.000000
++ 823543.000000	0	      0.000000
++ 5764801.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	25	      0.000000
++      0.000008	0	      0.000000
++      0.000059	0	      0.000000
++      0.000416	0	      0.000000
++      0.002915	0	      0.000000
++      0.020408	0	      0.000000
++      0.142857	3	      0.300000
++      1.000000	11	      4.050000
++      7.000000	11	     25.699999
++     49.000000	0	      0.000000
++    343.000000	0	      0.000000
++   2401.000000	0	      0.000000
++  16807.000000	0	      0.000000
++ 117649.000000	0	      0.000000
++ 823543.000000	0	      0.000000
++ 5764801.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=156;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time=0.31;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.32;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.33;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.34;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.35;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.36;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.37;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.38;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.39;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.2;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=4.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	156
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000041	25	      0.000000
++      0.006410	0	      0.000000
++      1.000000	13	      4.250000
++    156.000000	11	     25.699999
++  24336.000000	0	      0.000000
++ 3796416.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000041	25	      0.000000
++      0.006410	0	      0.000000
++      1.000000	14	      4.350000
++    156.000000	11	     25.699999
++  24336.000000	0	      0.000000
++ 3796416.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1000;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time=0.31;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.32;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.33;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.34;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.35;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.36;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.37;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.38;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.39;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.2;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=4.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	1000
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	25	      0.000000
++      0.001000	0	      0.000000
++      1.000000	13	      4.250000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	25	      0.000000
++      0.001000	0	      0.000000
++      1.000000	14	      4.350000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1001;
++Warnings:
++Warning	1292	Truncated incorrect query_response_time_range_base value: '1001'
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++SET SESSION query_exec_time=0.31;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.32;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.33;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.34;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.35;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.36;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.37;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.38;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.39;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.2;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=1.4;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.3;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=2.5;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=3.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=4.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=5.1;
++SELECT 1;
++1
++1
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	1000
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	25	      0.000000
++      0.001000	0	      0.000000
++      1.000000	13	      4.250000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	25	      0.000000
++      0.001000	0	      0.000000
++      1.000000	14	      4.350000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
+--- /dev/null
++++ b/mysql-test/r/percona_query_response_time-stored.result
+@@ -0,0 +1,544 @@
++CREATE TABLE t(a INT);
++CREATE PROCEDURE test_f(t DECIMAL(3,2))
++BEGIN
++SET SESSION query_exec_time=t;
++INSERT INTO t VALUES(1);
++SET SESSION query_exec_time=0.1;
++DELETE FROM t;
++END^
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1;
++Warnings:
++Warning	1292	Truncated incorrect query_response_time_range_base value: '1'
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	2
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	46	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	46	      4.600000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	46	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	47	      4.700000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=2;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	2
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	46	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	46	      4.600000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	46	      0.000000
++      0.000003	0	      0.000000
++      0.000007	0	      0.000000
++      0.000015	0	      0.000000
++      0.000030	0	      0.000000
++      0.000061	0	      0.000000
++      0.000122	0	      0.000000
++      0.000244	0	      0.000000
++      0.000488	0	      0.000000
++      0.000976	0	      0.000000
++      0.001953	0	      0.000000
++      0.003906	0	      0.000000
++      0.007812	0	      0.000000
++      0.015625	0	      0.000000
++      0.031250	0	      0.000000
++      0.062500	0	      0.000000
++      0.125000	47	      4.700000
++      0.250000	0	      0.000000
++      0.500000	10	      3.550000
++      1.000000	1	      0.500000
++      2.000000	5	      6.500000
++      4.000000	4	     10.000000
++      8.000000	2	      9.199999
++     16.000000	0	      0.000000
++     32.000000	0	      0.000000
++     64.000000	0	      0.000000
++    128.000000	0	      0.000000
++    256.000000	0	      0.000000
++    512.000000	0	      0.000000
++   1024.000000	0	      0.000000
++   2048.000000	0	      0.000000
++   4096.000000	0	      0.000000
++   8192.000000	0	      0.000000
++  16384.000000	0	      0.000000
++  32768.000000	0	      0.000000
++  65536.000000	0	      0.000000
++ 131072.000000	0	      0.000000
++ 262144.000000	0	      0.000000
++ 524288.000000	0	      0.000000
++ 1048576.00000	0	      0.000000
++ 2097152.00000	0	      0.000000
++ 4194304.00000	0	      0.000000
++ 8388608.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=10;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	10
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	46	      0.000000
++      0.000010	0	      0.000000
++      0.000100	0	      0.000000
++      0.001000	0	      0.000000
++      0.010000	0	      0.000000
++      0.100000	0	      0.000000
++      1.000000	57	      8.650000
++     10.000000	11	     25.699999
++    100.000000	0	      0.000000
++   1000.000000	0	      0.000000
++  10000.000000	0	      0.000000
++ 100000.000000	0	      0.000000
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	46	      0.000000
++      0.000010	0	      0.000000
++      0.000100	0	      0.000000
++      0.001000	0	      0.000000
++      0.010000	0	      0.000000
++      0.100000	0	      0.000000
++      1.000000	58	      8.750000
++     10.000000	11	     25.699999
++    100.000000	0	      0.000000
++   1000.000000	0	      0.000000
++  10000.000000	0	      0.000000
++ 100000.000000	0	      0.000000
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=7;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	7
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	46	      0.000000
++      0.000008	0	      0.000000
++      0.000059	0	      0.000000
++      0.000416	0	      0.000000
++      0.002915	0	      0.000000
++      0.020408	0	      0.000000
++      0.142857	46	      4.600000
++      1.000000	11	      4.050000
++      7.000000	11	     25.699999
++     49.000000	0	      0.000000
++    343.000000	0	      0.000000
++   2401.000000	0	      0.000000
++  16807.000000	0	      0.000000
++ 117649.000000	0	      0.000000
++ 823543.000000	0	      0.000000
++ 5764801.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	46	      0.000000
++      0.000008	0	      0.000000
++      0.000059	0	      0.000000
++      0.000416	0	      0.000000
++      0.002915	0	      0.000000
++      0.020408	0	      0.000000
++      0.142857	47	      4.700000
++      1.000000	11	      4.050000
++      7.000000	11	     25.699999
++     49.000000	0	      0.000000
++    343.000000	0	      0.000000
++   2401.000000	0	      0.000000
++  16807.000000	0	      0.000000
++ 117649.000000	0	      0.000000
++ 823543.000000	0	      0.000000
++ 5764801.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=156;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	156
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000041	46	      0.000000
++      0.006410	0	      0.000000
++      1.000000	57	      8.650000
++    156.000000	11	     25.699999
++  24336.000000	0	      0.000000
++ 3796416.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000041	46	      0.000000
++      0.006410	0	      0.000000
++      1.000000	58	      8.750000
++    156.000000	11	     25.699999
++  24336.000000	0	      0.000000
++ 3796416.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1000;
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	1000
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	46	      0.000000
++      0.001000	0	      0.000000
++      1.000000	57	      8.650000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	46	      0.000000
++      0.001000	0	      0.000000
++      1.000000	58	      8.750000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET SESSION query_exec_time=0.1;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1001;
++Warnings:
++Warning	1292	Truncated incorrect query_response_time_range_base value: '1001'
++FLUSH QUERY_RESPONSE_TIME;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
++CALL test_f(0.31);
++CALL test_f(0.32);
++CALL test_f(0.33);
++CALL test_f(0.34);
++CALL test_f(0.35);
++CALL test_f(0.36);
++CALL test_f(0.37);
++CALL test_f(0.38);
++CALL test_f(0.39);
++CALL test_f(0.4);
++CALL test_f(1.1);
++CALL test_f(1.2);
++CALL test_f(1.3);
++CALL test_f(1.5);
++CALL test_f(1.4);
++CALL test_f(0.5);
++CALL test_f(2.1);
++CALL test_f(2.3);
++CALL test_f(2.5);
++CALL test_f(3.1);
++CALL test_f(4.1);
++CALL test_f(5.1);
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
++SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
++Variable_name	Value
++query_response_time_range_base	1000
++SHOW QUERY_RESPONSE_TIME;
++		
++      0.000001	46	      0.000000
++      0.001000	0	      0.000000
++      1.000000	57	      8.650000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
++time	count	total
++      0.000001	46	      0.000000
++      0.001000	0	      0.000000
++      1.000000	58	      8.750000
++   1000.000000	11	     25.699999
++ 1000000.00000	0	      0.000000
++TOO LONG	0	TOO LONG
++SET SESSION query_exec_time=default;
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++DROP PROCEDURE test_f;
++DROP TABLE t;
+--- /dev/null
++++ b/mysql-test/t/percona_query_response_time-replication.test
+@@ -0,0 +1,28 @@
++SET GLOBAL query_exec_time=0.1;
++
++--source include/have_response_time_distribution.inc
++--source include/have_debug.inc
++--source include/have_binlog_format_statement.inc
++--source include/master-slave.inc
++
++--let base=1
++--source include/query_response_time-replication.inc
++--let base=2
++--source include/query_response_time-replication.inc
++--let base=10
++--source include/query_response_time-replication.inc
++--let base=7
++--source include/query_response_time-replication.inc
++--let base=156
++--source include/query_response_time-replication.inc
++--let base=1000
++--source include/query_response_time-replication.inc
++--let base=1001
++--source include/query_response_time-replication.inc
++
++--source include/rpl_end.inc
++
++SET GLOBAL query_exec_time=default;
++
++connection slave;
++SET GLOBAL query_exec_time=default;
+--- /dev/null
++++ b/mysql-test/t/percona_query_response_time-stored.test
+@@ -0,0 +1,36 @@
++--source include/have_response_time_distribution.inc
++--source include/have_debug.inc
++
++CREATE TABLE t(a INT);
++
++delimiter ^;
++CREATE PROCEDURE test_f(t DECIMAL(3,2))
++BEGIN
++  SET SESSION query_exec_time=t;
++  INSERT INTO t VALUES(1);
++  SET SESSION query_exec_time=0.1;
++  DELETE FROM t;
++END^
++delimiter ;^
++
++--let base=1
++--source include/query_response_time-stored.inc
++--let base=2
++--source include/query_response_time-stored.inc
++--let base=10
++--source include/query_response_time-stored.inc
++--let base=7
++--source include/query_response_time-stored.inc
++--let base=156
++--source include/query_response_time-stored.inc
++--let base=1000
++--source include/query_response_time-stored.inc
++--let base=1001
++--source include/query_response_time-stored.inc
++
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
++
++DROP PROCEDURE test_f;
++
++DROP TABLE t;
+--- /dev/null
++++ b/mysql-test/t/percona_query_response_time.test
+@@ -0,0 +1,20 @@
++--source include/have_response_time_distribution.inc
++--source include/have_debug.inc
++
++--let base=1
++--source include/query_response_time.inc
++--let base=2
++--source include/query_response_time.inc
++--let base=10
++--source include/query_response_time.inc
++--let base=7
++--source include/query_response_time.inc
++--let base=156
++--source include/query_response_time.inc
++--let base=1000
++--source include/query_response_time.inc
++--let base=1001
++--source include/query_response_time.inc
++
++SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
++SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
+--- /dev/null
 +++ b/patch_info/response-time-distribution.info
 @@ -0,0 +1,9 @@
 +File=response-time-distribution.patch
@@ -574,93 +3099,15 @@
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1482,22 +1483,74 @@
-     Do not log administrative statements unless the appropriate option is
-     set.
-   */
-+  #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
-+  if (opt_query_response_time_stats || thd->enable_slow_log)
-+#else // HAVE_RESPONSE_TIME_DISTRIBUTION
-   if (thd->enable_slow_log)
-+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
-   {
--    ulonglong end_utime_of_query= thd->current_utime();
--    thd_proc_info(thd, "logging slow query");
-+    ulonglong end_utime_of_query   = thd->current_utime();
-+    ulonglong query_execution_time = end_utime_of_query - thd->utime_after_lock;
-+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
-+
-+#define DBUG_TEST_QRT(t,v)                              \
-+      DBUG_EXECUTE_IF(t,                                \
-+                      {                                 \
-+                        query_execution_time= v;        \
-+                        DBUG_SET("-d,"t);               \
-+                      })
-+
-+    DBUG_EXECUTE_IF("query_exec_time_debug", query_execution_time= 0; );
-+
-+    DBUG_TEST_QRT("query_exec_time_0.31", 310000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.32", 320000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.33", 330000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.34", 340000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.35", 350000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.36", 360000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.37", 370000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.38", 380000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.39", 390000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.4",  400000UL);
-+    DBUG_TEST_QRT("query_exec_time_0.5",  500000UL);
-+    DBUG_TEST_QRT("query_exec_time_1.1",  1100000UL);
-+    DBUG_TEST_QRT("query_exec_time_1.2",  1200000UL);
-+    DBUG_TEST_QRT("query_exec_time_1.3",  1300000UL);
-+    DBUG_TEST_QRT("query_exec_time_1.4",  1400000UL);
-+    DBUG_TEST_QRT("query_exec_time_1.5",  1500000UL);
-+    DBUG_TEST_QRT("query_exec_time_2.1",  2100000UL);
-+    DBUG_TEST_QRT("query_exec_time_2.3",  2300000UL);
-+    DBUG_TEST_QRT("query_exec_time_2.5",  2500000UL);
-+
-+    DBUG_EXECUTE_IF("query_exec_time_debug",
-+                    if (query_execution_time == 0)
-+                      opt_query_response_time_stats= 0;
-+                    else
-+                      opt_query_response_time_stats= 1;);
+@@ -1507,6 +1508,7 @@
  
--    if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
--         ((thd->server_status &
--           (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
--          opt_log_queries_not_using_indexes &&
--           !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
--        thd->examined_row_count >= thd->variables.min_examined_row_limit)
-+#undef DBUG_TEST_QRT
-+
-+    if(opt_query_response_time_stats)
-+    {
-+      query_response_time_collect(query_execution_time);
-+    }
-+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
-+    if (thd->enable_slow_log)
-     {
-       thd_proc_info(thd, "logging slow query");
--      thd->status_var.long_query_count++;
--      slow_log_print(thd, thd->query(), thd->query_length(), 
--                     end_utime_of_query);
-+
-+      if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
-+           ((thd->server_status &
-+             (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-+            opt_log_queries_not_using_indexes &&
-+             !(sql_command_flags[thd->lex->sql_command] & CF_STATUS_COMMAND))) &&
-+          thd->examined_row_count >= thd->variables.min_examined_row_limit)
-+      {
-+        thd_proc_info(thd, "logging slow query");
-+        thd->status_var.long_query_count++;
-+        slow_log_print(thd, thd->query(), thd->query_length(), 
-+                       end_utime_of_query);
-+      }
-     }
-   }
-   DBUG_VOID_RETURN;
-@@ -1616,6 +1669,7 @@
+   ulonglong end_utime_of_query= thd->current_utime();
+   ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
++  query_response_time_collect(query_exec_time);
+ 
+   /*
+     Low long_query_time value most likely means user is debugging stuff and even
+@@ -1671,6 +1673,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -788,7 +3235,7 @@
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1837,6 +1838,26 @@
+@@ -1860,6 +1861,26 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  
@@ -815,6 +3262,11 @@
  static Sys_var_mybool Sys_secure_auth(
         "secure_auth",
         "Disallow authentication for accounts that have old (pre-4.1) "
+--- /dev/null
++++ b/mysql-test/r/have_response_time_distribution.require
+@@ -0,0 +1,2 @@
++Variable_name	Value
++have_response_time_distribution	YES
 --- a/include/atomic/x86-gcc.h
 +++ b/include/atomic/x86-gcc.h
 @@ -108,27 +108,22 @@

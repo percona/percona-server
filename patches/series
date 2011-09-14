@@ -34,8 +34,8 @@ percona_support.patch
 query_cache_enhance.patch
 log_connection_error.patch
 mysql_syslog.patch
-response_time_distribution.patch
 error_pad.patch
+response_time_distribution.patch
 remove_fcntl_excessive_calls.patch
 sql_no_fcache.patch
 show_slave_status_nolock.patch
@@ -54,3 +54,4 @@ utf8_general50_ci.patch
 bug813587.patch
 valgrind_zlib_suppression.patch
 memory_dynamic_rows.patch
+xtradb_bug317074.patch

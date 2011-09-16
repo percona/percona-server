@@ -2376,3 +2376,11 @@
 +
 +SET GLOBAL query_exec_time=default;
 +SET SESSION query_exec_time=default;
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_global_control_default.result
+@@ -0,0 +1,1 @@
++SET GLOBAL slow_query_log_use_global_control=default;
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_global_control_default.test
+@@ -0,0 +1,1 @@
++SET GLOBAL slow_query_log_use_global_control=default;

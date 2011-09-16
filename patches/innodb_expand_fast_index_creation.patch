@@ -55,10 +55,30 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2238,6 +2248,77 @@
+@@ -2238,6 +2248,128 @@
  }
  
  /*
++  Parse the specified key definition string and check if the key indexes
++  any of the columns from ignored_columns.
++*/
++static my_bool contains_ignored_column(HASH *ignored_columns, char *keydef)
++{
++  char *leftp, *rightp;
++
++  if ((leftp = strchr(keydef, '(')) &&
++      (rightp = strchr(leftp, ')')) &&
++      rightp > leftp + 3 &&                      /* (`...`) */
++      leftp[1] == '`' &&
++      rightp[-1] == '`' &&
++      my_hash_search(ignored_columns, (uchar *) leftp + 2, rightp - leftp - 3))
++    return TRUE;
++
++  return FALSE;
++}
++
++
++/*
 +  Remove secondary/foreign key definitions from a given SHOW CREATE TABLE string
 +  and store them into a temporary list to be used later.
 +
@@ -79,13 +99,18 @@
 +{
 +  char *ptr, *strend;
 +  char *last_comma = NULL;
++  HASH ignored_columns;
++
++  if (my_hash_init(&ignored_columns, charset_info, 16, 0, 0,
++                   (my_hash_get_key) get_table_key, my_free, 0))
++    exit(EX_EOM);
 +
 +  strend= create_str + strlen(create_str);
 +
 +  ptr= create_str;
 +  while (*ptr)
 +  {
-+    char *tmp, *orig_ptr;
++    char *tmp, *orig_ptr, c;
 +
 +    orig_ptr= ptr;
 +    /* Skip leading whitespace */
@@ -95,11 +120,15 @@
 +    /* Read the next line */
 +    for (tmp= ptr; *tmp != '\n' && *tmp != '\0'; tmp++);
 +
++    c= *tmp;
++    *tmp= '\0'; /* so strstr() only processes the current line */
++
 +    /* Is it a secondary index definition? */
-+    if (*tmp == '\n' &&
++    if (c == '\n' &&
 +        (!strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ") - 1) ||
 +         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1) ||
-+         !strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1)))
++         !strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1)) &&
++        !contains_ignored_column(&ignored_columns, ptr))
 +    {
 +      char *data, *end= tmp - 1;
 +
@@ -122,18 +151,40 @@
 +    }
 +    else
 +    {
++      char *end;
++
++      if (strstr(ptr, "AUTO_INCREMENT") && *ptr == '`')
++      {
++        /*
++          If a secondary key is defined on this column later,
++          it cannot be skipped, as CREATE TABLE would fail on import.
++        */
++        for (end= ptr + 1; *end != '`' && *end != '\0'; end++);
++        if (*end == '`' && end > ptr + 1 &&
++            my_hash_insert(&ignored_columns,
++                           (uchar *) my_strndup(ptr + 1,
++                                                end - ptr - 1, MYF(0))))
++        {
++          exit(EX_EOM);
++        }
++      }
++
++      *tmp= c;
++
 +      if (tmp[-1] == ',')
 +        last_comma= tmp - 1;
 +      ptr= (*tmp == '\0') ? tmp : tmp + 1;
 +    }
 +  }
++
++  my_hash_free(&ignored_columns);
 +}
 +
 +/*
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2478,6 +2559,9 @@
+@@ -2478,6 +2610,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -143,7 +194,7 @@
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3572,6 +3656,27 @@
+@@ -3572,6 +3707,27 @@
        goto err;
      }
  
@@ -173,7 +224,7 @@
      {
 --- /dev/null
 +++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
-@@ -0,0 +1,109 @@
+@@ -0,0 +1,171 @@
 +#
 +# Test the --innodb-optimize-keys option.
 +#
@@ -283,6 +334,68 @@
 +
 +######################################
 +DROP TABLE t1, t2;
++CREATE TABLE t1 (
++id INT NOT NULL AUTO_INCREMENT,
++KEY (id)
++) ENGINE=InnoDB;
++CREATE TABLE t2 (
++id INT NOT NULL AUTO_INCREMENT,
++UNIQUE KEY (id)
++) ENGINE=InnoDB;
++INSERT INTO t1 VALUES (), (), ();
++INSERT INTO t2 VALUES (), (), ();
++######################################
++
++/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
++/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
++/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
++/*!40101 SET NAMES utf8 */;
++/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
++/*!40103 SET TIME_ZONE='+00:00' */;
++/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
++/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
++/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
++/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
++DROP TABLE IF EXISTS `t1`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t1` (
++  `id` int(11) NOT NULL AUTO_INCREMENT,
++  KEY `id` (`id`)
++) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t1` WRITE;
++/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
++INSERT INTO `t1` VALUES (1),(2),(3);
++/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
++UNLOCK TABLES;
++DROP TABLE IF EXISTS `t2`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t2` (
++  `id` int(11) NOT NULL AUTO_INCREMENT,
++  UNIQUE KEY `id` (`id`)
++) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t2` WRITE;
++/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
++INSERT INTO `t2` VALUES (1),(2),(3);
++/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
++UNLOCK TABLES;
++/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
++
++/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
++/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
++/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
++/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
++/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
++/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
++/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
++
++######################################
++DROP TABLE t1, t2;
 --- a/mysql-test/suite/innodb/r/innodb.result
 +++ b/mysql-test/suite/innodb/r/innodb.result
 @@ -1673,7 +1673,7 @@
@@ -325,7 +438,7 @@
  # Save the original values of some variables in order to be able to
 --- /dev/null
 +++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,94 @@
 +# Embedded server doesn't support external clients
 +--source include/not_embedded.inc
 +
@@ -371,6 +484,38 @@
 +) ENGINE=InnoDB;
 +
 +INSERT INTO t1(a,b,c) VALUES (0, "0", 0.0), (1, "1", 1.1), (2, "2", 2.2);
++
++--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t2 >$file
++
++--echo ######################################
++--cat_file $file
++--echo ######################################
++
++# Check that the resulting dump can be imported back
++
++--exec $MYSQL test < $file
++
++--remove_file $file
++
++DROP TABLE t1, t2;
++
++########################################################################
++# Bug #812179: AUTO_INCREMENT columns must be skipped by the
++#              --innodb-optimize-keys optimization in mysqldump
++########################################################################
++
++CREATE TABLE t1 (
++  id INT NOT NULL AUTO_INCREMENT,
++  KEY (id)
++) ENGINE=InnoDB;
++
++CREATE TABLE t2 (
++  id INT NOT NULL AUTO_INCREMENT,
++  UNIQUE KEY (id)
++) ENGINE=InnoDB;
++
++INSERT INTO t1 VALUES (), (), ();
++INSERT INTO t2 VALUES (), (), ();
 +
 +--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t2 >$file
 +

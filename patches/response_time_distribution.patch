@@ -3269,8 +3269,8 @@
 @@ -0,0 +1,2 @@
 +Variable_name	Value
 +have_response_time_distribution	YES
---- a/include/atomic/x86-gcc.h	2011-05-11 14:54:11.000000000 +0300
-+++ b/include/atomic/x86-gcc.h	2011-07-21 16:20:24.563057000 +0300
+--- a/include/atomic/x86-gcc.h
++++ b/include/atomic/x86-gcc.h
 @@ -108,27 +108,22 @@
    v=tmp;
  

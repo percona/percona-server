@@ -6,7 +6,7 @@ PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSIO
 PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)
 PERCONA_SERVER_SHORT_2 ?=Percona-Server
 
-all: main install-lic tests misc handlersocket maatkit-udf autorun
+all:  main install-lic misc handlersocket maatkit-udf autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -56,8 +56,6 @@ mysql-$(MYSQL_VERSION).tar.gz:
 	@echo "Downloading MySQL sources from $(MASTER_SITE)"
 	$(FETCH_CMD) $(MASTER_SITE)/mysql-$(MYSQL_VERSION).tar.gz
 
-tests:
-	PERCONA_SERVER=${PERCONA_SERVER} sh install_tests
 
 misc:
 	@echo "Installing other files"

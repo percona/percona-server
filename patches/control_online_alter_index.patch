@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/sql/handler.h
 +++ b/sql/handler.h
-@@ -170,6 +170,19 @@
+@@ -171,6 +171,19 @@
  #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
  #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
  #define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
@@ -29,7 +29,7 @@
    supported at all.
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -5911,6 +5911,7 @@
+@@ -5914,6 +5914,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -37,7 +37,7 @@
    OPT_SUPPRESS_LOG_WARNING_1592,
    OPT_QUERY_CACHE_STRIP_COMMENTS,
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
-@@ -5943,6 +5944,13 @@
+@@ -5946,6 +5947,13 @@
     "from libc.so",
     &opt_allow_suspicious_udfs, &opt_allow_suspicious_udfs,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -53,7 +53,7 @@
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 --- a/sql/set_var.cc
 +++ b/sql/set_var.cc
-@@ -758,6 +758,11 @@
+@@ -760,6 +760,11 @@
  sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
  			      &SV::engine_condition_pushdown);
  
@@ -67,7 +67,7 @@
  static sys_var_thd_ulong
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -381,6 +381,8 @@
+@@ -383,6 +383,8 @@
    my_bool ndb_use_transactions;
    my_bool ndb_index_stat_enable;
  
@@ -94,7 +94,7 @@
        DBUG_RETURN(1);
 --- a/sql/sql_table.cc
 +++ b/sql/sql_table.cc
-@@ -7005,6 +7005,10 @@
+@@ -7023,6 +7023,10 @@
      uint  *idx_end_p;
  
      alter_flags= table->file->alter_table_flags(alter_info->flags);

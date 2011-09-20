@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/buf/buf0rea.c
 +++ b/storage/innodb_plugin/buf/buf0rea.c
-@@ -120,6 +120,46 @@
+@@ -128,6 +128,46 @@
  	bpage = buf_page_init_for_read(err, mode, space, zip_size, unzip,
  				       tablespace_version, offset);
  	if (bpage == NULL) {
@@ -54,7 +54,7 @@
  
  		return(0);
  	}
-@@ -606,6 +646,50 @@
+@@ -782,6 +822,50 @@
  		/* It is a single table tablespace and the .ibd file is
  		missing: do nothing */
  
@@ -116,7 +116,7 @@
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
-@@ -2368,6 +2370,8 @@
+@@ -2370,6 +2372,8 @@
  
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
@@ -125,7 +125,7 @@
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  
-@@ -11046,6 +11050,16 @@
+@@ -11036,6 +11040,16 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -142,7 +142,7 @@
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11486,6 +11500,8 @@
+@@ -11481,6 +11495,8 @@
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
    MYSQL_SYSVAR(extra_undoslots),

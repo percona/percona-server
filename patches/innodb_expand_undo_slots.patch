@@ -15,7 +15,7 @@
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
-@@ -2122,6 +2123,8 @@
+@@ -2124,6 +2125,8 @@
  		goto error;
  	}
  
@@ -24,7 +24,7 @@
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -10781,6 +10784,13 @@
+@@ -10771,6 +10774,13 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -38,7 +38,7 @@
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11173,6 +11183,7 @@
+@@ -11168,6 +11178,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),

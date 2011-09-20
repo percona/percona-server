@@ -56,7 +56,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2589,12 +2590,16 @@
+@@ -2591,12 +2592,17 @@
      pthread_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -67,22 +67,32 @@
      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
        goto error;
 -    pthread_mutex_lock(&LOCK_active_mi);
-+    if(SQLCOM_SHOW_SLAVE_NOLOCK_STAT != lex->sql_command)
++    bool do_lock=SQLCOM_SHOW_SLAVE_NOLOCK_STAT != lex->sql_command;
++    if(do_lock)
 +    {
 +      pthread_mutex_lock(&LOCK_active_mi);
 +    }
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2605,7 +2610,10 @@
+@@ -2607,7 +2613,19 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }
 -    pthread_mutex_unlock(&LOCK_active_mi);
-+    if(SQLCOM_SHOW_SLAVE_NOLOCK_STAT != lex->sql_command)
++    if(do_lock)
 +    {
 +      pthread_mutex_unlock(&LOCK_active_mi);
 +    }
++    DBUG_EXECUTE_IF("after_show_slave_status",
++                    {
++                      const char act[]=
++                        "now "
++                        "signal signal.after_show_slave_status";
++                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
++                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
++                                                         STRING_WITH_LEN(act)));
++                    };);
      break;
    }
    case SQLCOM_SHOW_MASTER_STAT:
@@ -109,79 +119,251 @@
            {
             LEX *lex= Lex;
 --- /dev/null
++++ b/mysql-test/t/percona_show_slave_status_nolock.test
+@@ -0,0 +1,88 @@
++--source include/master-slave.inc
++--source include/have_debug_sync.inc
++--source include/have_binlog_format_statement.inc
++
++--let $rpl_connection_name=slave_lock
++--let $rpl_server_number=2
++--source include/rpl_connect.inc
++
++--let $rpl_connection_name=slave_nolock
++--let $rpl_server_number=2
++--source include/rpl_connect.inc
++
++--let $show_statement= SHOW PROCESSLIST
++--let $field= Info
++
++connection master;
++--echo [master]
++--disable_warnings
++DROP TABLE IF EXISTS t;
++--enable_warnings
++CREATE TABLE t(id INT);
++sync_slave_with_master;
++
++connection slave;
++--echo [slave]
++SET DEBUG_SYNC='RESET';
++SET GLOBAL DEBUG="+d,after_mysql_insert";
++SET GLOBAL DEBUG="+d,after_show_slave_status";
++
++connection master;
++--echo [master]
++INSERT INTO t VALUES(0);
++
++connection slave;
++--echo [slave]
++--let $condition= 'INSERT INTO t VALUES(0)'
++--source include/wait_show_condition.inc
++
++--echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
++--source include/percona_show_slave_status_nolock.inc
++
++connection master;
++--echo [master]
++INSERT INTO t VALUES(1);
++
++connection slave;
++--echo [slave]
++--let $condition= 'INSERT INTO t VALUES(1)'
++--source include/wait_show_condition.inc
++
++--let $rpl_connection_name=slave_stop
++--let $rpl_server_number=2
++--source include/rpl_connect.inc
++
++connection slave_stop;
++--echo [slave_stop]
++send STOP SLAVE;
++
++connection slave;
++--echo [slave]
++--let $condition= 'STOP SLAVE'
++--source include/wait_show_condition.inc
++
++--echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version should works fine
++--source include/percona_show_slave_status_nolock.inc
++
++
++connection slave_stop;
++--echo [slave_stop]
++reap;
++--source include/wait_for_slave_to_stop.inc
++START SLAVE;
++--source include/wait_for_slave_to_start.inc
++
++connection master;
++--echo [master]
++SET DEBUG_SYNC='RESET';
++
++connection slave;
++--echo [slave]
++SET GLOBAL DEBUG='';
++SET DEBUG_SYNC='RESET';
++
++connection master;
++DROP TABLE t;
++sync_slave_with_master;
++
++--source include/rpl_end.inc
+--- /dev/null
 +++ b/mysql-test/r/percona_show_slave_status_nolock.result
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,68 @@
 +include/master-slave.inc
 +[connection master]
++include/rpl_connect.inc [creating slave_lock]
++include/rpl_connect.inc [creating slave_nolock]
++[master]
 +DROP TABLE IF EXISTS t;
 +CREATE TABLE t(id INT);
-+INSERT INTO t SELECT SLEEP(10);
-+STOP SLAVE;
-+Warnings:
-+Note	1592	Statement may not be safe to log in statement format.
-+master	count(*)
-+master	1
-+slave	count(*)
-+slave	0
++[slave]
++SET DEBUG_SYNC='RESET';
++SET GLOBAL DEBUG="+d,after_mysql_insert";
++SET GLOBAL DEBUG="+d,after_show_slave_status";
++[master]
++INSERT INTO t VALUES(0);
++[slave]
++check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
++
++[slave_lock]
++SHOW SLAVE STATUS;
++SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
++SIGNAL after SHOW SLAVE STATUS is 'signal.after_show_slave_status'
++[slave]
++SET DEBUG_SYNC='now SIGNAL signal.empty';
++[slave_nolock]
 +SHOW SLAVE STATUS NOLOCK;
++SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
++# should be 'signal.after_show_slave_status'
++SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
++[slave]
++SET DEBUG_SYNC='now SIGNAL signal.continue';
++[slave]
++SET DEBUG_SYNC='now SIGNAL signal.empty';
++
++[master]
++INSERT INTO t VALUES(1);
++[slave]
++include/rpl_connect.inc [creating slave_stop]
++[slave_stop]
++STOP SLAVE;
++[slave]
++check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version should works fine
++
++[slave_lock]
++SHOW SLAVE STATUS;
++SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
++SIGNAL after SHOW SLAVE STATUS is 'signal.empty'
++[slave]
++SET DEBUG_SYNC='now SIGNAL signal.empty';
++[slave_nolock]
++SHOW SLAVE STATUS NOLOCK;
++SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
++# should be 'signal.after_show_slave_status'
++SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
++[slave]
++SET DEBUG_SYNC='now SIGNAL signal.continue';
++[slave]
++SET DEBUG_SYNC='now SIGNAL signal.empty';
++
++[slave_stop]
 +include/wait_for_slave_to_stop.inc
 +START SLAVE;
 +include/wait_for_slave_to_start.inc
-+slave	count(*)
-+slave	1
++[master]
++SET DEBUG_SYNC='RESET';
++[slave]
++SET GLOBAL DEBUG='';
++SET DEBUG_SYNC='RESET';
 +DROP TABLE t;
-+STOP SLAVE;
-+include/wait_for_slave_to_stop.inc
++include/rpl_end.inc
 --- /dev/null
-+++ b/mysql-test/t/percona_show_slave_status_nolock.test
-@@ -0,0 +1,50 @@
-+--source include/master-slave.inc
-+--source include/have_binlog_format_statement.inc
-+
-+connection master;
-+  --disable_warnings
-+  DROP TABLE IF EXISTS t;
-+  --enable_warnings
-+  CREATE TABLE t(id INT);
-+  sync_slave_with_master;
-+
-+connection master;
-+  send INSERT INTO t SELECT SLEEP(10);
++++ b/mysql-test/include/percona_show_slave_status_nolock.inc
+@@ -0,0 +1,56 @@
++--echo
++--disable_result_log
++connection slave_lock;
++--echo [slave_lock]
++send SHOW SLAVE STATUS;
 +
 +connection slave;
-+  sleep 15;
-+  send STOP SLAVE;
++--let $condition= 'SHOW SLAVE STATUS'
++--source include/wait_show_condition.inc
 +
-+connection master;
-+  reap;
++--disable_warnings
++SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
++--enable_warnings
 +
-+  --disable_query_log
-+  select "master",count(*) from t;
-+  --enable_query_log
-+
-+connection slave1;
-+  --disable_query_log
-+  select "slave",count(*) from t;
-+  --enable_query_log
-+
-+  --disable_result_log
-+  SHOW SLAVE STATUS NOLOCK;
-+  --enable_result_log
++--let current=`SELECT SUBSTR(Variable_value FROM 22) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name = 'DEBUG_SYNC'`
++--echo SIGNAL after SHOW SLAVE STATUS is $current
 +
 +connection slave;
-+  reap;
++--echo [slave]
++SET DEBUG_SYNC='now SIGNAL signal.empty';
 +
-+  --source include/wait_for_slave_to_stop.inc
-+  START SLAVE;
-+  --source include/wait_for_slave_to_start.inc
++connection slave_nolock;
++--echo [slave_nolock]
++send SHOW SLAVE STATUS NOLOCK;
 +
-+  --disable_query_log
-+  select "slave",count(*) from t;
-+  --enable_query_log
++connection slave;
++--let $condition= 'SHOW SLAVE STATUS NOLOCK'
++--source include/wait_show_condition.inc
 +
-+connection master;
-+  DROP TABLE t;
-+sync_slave_with_master;
++--disable_warnings
++SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
++--enable_warnings
 +
-+STOP SLAVE;
-+--source include/wait_for_slave_to_stop.inc
++--echo # should be 'signal.after_show_slave_status'
++--let current=`SELECT SUBSTR(Variable_value FROM 22) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name = 'DEBUG_SYNC'`
++--echo SIGNAL after SHOW SLAVE STATUS NOLOCK is $current
++
++connection slave;
++--echo [slave]
++SET DEBUG_SYNC='now SIGNAL signal.continue';
++
++connection slave_lock;
++--disable_result_log
++reap;
++--enable_result_log
++
++connection slave_nolock;
++--disable_result_log
++reap;
++--enable_result_log
++
++connection slave;
++--echo [slave]
++SET DEBUG_SYNC='now SIGNAL signal.empty';
++--enable_result_log
++--echo
+--- a/sql/slave.cc
++++ b/sql/slave.cc
+@@ -1639,6 +1639,7 @@
+ 
+   if (mi->host[0])
+   {
++    bool do_lock=SQLCOM_SHOW_SLAVE_NOLOCK_STAT != thd->lex->sql_command;
+     DBUG_PRINT("info",("host is set: '%s'", mi->host));
+     String *packet= &thd->packet;
+     protocol->prepare_for_resend();
+@@ -1647,9 +1648,15 @@
+       slave_running can be accessed without run_lock but not other
+       non-volotile members like mi->io_thd, which is guarded by the mutex.
+     */
+-    pthread_mutex_lock(&mi->run_lock);
++    if (do_lock)
++    {
++      pthread_mutex_lock(&mi->run_lock);
++    }
+     protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
+-    pthread_mutex_unlock(&mi->run_lock);
++    if (do_lock)
++    {
++      pthread_mutex_unlock(&mi->run_lock);
++    }
+ 
+     pthread_mutex_lock(&mi->data_lock);
+     pthread_mutex_lock(&mi->rli.data_lock);

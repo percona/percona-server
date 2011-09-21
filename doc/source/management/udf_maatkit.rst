@@ -1,8 +1,8 @@
-================
- *Maatkit* UDFs
-================
+======================================
+ *Percona Toolkit* and *Maatkit* UDFs
+======================================
 
-Three *Maatkit* UDFs that provide faster checksums are provided:
+Three *Percona Toolkit* and *Maatkit* UDFs that provide faster checksums are provided:
 
   * ``fnv_udf``
 
@@ -25,11 +25,11 @@ Other Information
 Installation
 ============
 
-Use of the Percona Software Repositories simplifies the installation of *Maatkit*. Once the repository has been set up on your system, *Maatkit* can be installed by executing: ::
+Use of the Percona Software Repositories simplifies the installation of *Percona Toolkit*. Once the repository has been set up on your system, *Percona Toolkit* can be installed by executing: ::
 
-  $ yum install maatkit
+  $ yum install percona-toolkit
 
-This will place the *Maatkit* UDFs onto your system. However, they will not yet be installed into the |MySQL| server. To install one of the UDF``s into the server, execute one of the following commands, depending on which UDF you want to install: ::
+This will place the *Percona Toolkit* UDFs onto your system. However, they will not yet be installed into the |MySQL| server. To install one of the UDF``s into the server, execute one of the following commands, depending on which UDF you want to install: ::
 
   $ mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME ``fnv_udf.so``" 
   $ mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME ``fnv1a_udf.so``" 
@@ -43,4 +43,5 @@ If you have any difficulty, or require more detailed information, refer to the *
 Other Reading
 =============
 
+  * *Percona Toolkit* - http://www.percona.com/doc/percona-toolkit
   * *Maatkit* - http://www.maatkit.org/

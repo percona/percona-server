@@ -60,7 +60,6 @@ Scalability Improvements
    scalability/innodb_io
    scalability/innodb_extra_rseg
    scalability/innodb_expand_undo_slots
-   scalability/innodb_adaptive_hash_partitions
 
 Performance Improvements
 ========================
@@ -99,7 +98,6 @@ Reliability Improvements
    :maxdepth: 1
    :glob:
 
-   reliability/innodb_recovery_update_relay_log
    reliability/log_connection_error
    reliability/error_pad
    reliability/innodb_corrupt_table_action
@@ -132,7 +130,6 @@ Diagnostics Improvements
    diagnostics/index_info_schema_tables
    diagnostics/innodb_stats
    diagnostics/slow_extended
-   diagnostics/innodb_show_status
    diagnostics/innodb_deadlock_count
    diagnostics/mysql_syslog
    diagnostics/response_time_distribution

@@ -6,7 +6,7 @@ This feature adds microsecond time resolution and additional statistics to the s
 
 The ability to log queries with microsecond precision is essential for measuring the work the |MySQL| server performs. The standard slow query log in |MySQL| 5.0 has only 1-second granularity, which is too coarse for all but the slowest queries. |MySQL| 5.1 has microsecond resolution, but does not have the extra information about query execution that is included in the |Percona Server|.
 
-You can use Maatkit's mk-query-digest tool to aggregate similar queries together and report on those that consume the most execution time.
+You can use *Percona Toolkit* 's :ref:`mk-query-digest` tool to aggregate similar queries together and report on those that consume the most execution time.
 
 
 Version Specific Information
@@ -22,17 +22,17 @@ Version Specific Information
 
   * ``5.1.x``:
 
-    * Microsecond resolution included in official MySQL server; this feature adds statistics.
+    * Microsecond resolution included in official |MySQL| server; this feature adds statistics.
 
   * :rn:`5.1.47-11.0`:
 
-    * Full functionality of :variable:`use_global_log_slow_control` available, except all option and link between use_global_long_query_time and :variable:`use_global_log_slow_control` ``=long_query_time`` available.
+    * Full functionality of :variable:`use_global_log_slow_control` available, except all option and link between :variable:`use_global_long_query_time` and :variable:`use_global_log_slow_control` ``=long_query_time`` available.
 
   * :rn:`5.1.47-12.0`:
 
     * Full functionality of :variable:`use_global_log_slow_control` available.
 
-    * Fixed :bug:`600684` - :variable:`log_slow_verbosity` ``=innodb`` doesn't work on slave (statement-based replication)
+    * Fixed :bug:`600684` - :variable:`log_slow_verbosity` ``=iInnodb`` doesn't work on slave (statement-based replication)
 
   * :rn:`5.1.53-11.7`:
 
@@ -78,7 +78,7 @@ Filters the slow log by the query's execution plan. The value is a comma-delimit
   * ``filesort_on_disk``:
     The filesort was performed on disk.
 
-Values are OR'ed together. If the string is empty, then the filter is disabled. If it is not empty, then queries will only be logged to the slow log if their execution plan matches one of the types of plans present in the filter.
+Values are OR``ed together. If the string is empty, then the filter is disabled. If it is not empty, then queries will only be logged to the slow log if their execution plan matches one of the types of plans present in the filter.
 
 For example, to log only queries that perform a full table scan, set the value to ``full_scan``. To log only queries that use on-disk temporary storage for intermediate results, set the value to ``tmp_table_on_disk,filesort_on_disk``.
 
@@ -119,6 +119,21 @@ To stop the logging from the slave thread, you should just change the global val
      :range: TRUE/FALSE
 
 If ``TRUE``, statements executed by stored procedures are logged to the slow if it is open.
+
+.. variable:: log_slow_timestamp_every
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: Boolean
+     :default: FALSE
+     :range: TRUE/FALSE
+
+If ``TRUE``, a timestamp is printed on every slow log record. Multiple records may have the same time.
+
+**NOTE:** This variable has been renamed to :variable:`slow_query_log_timestamp_always` since :rn:`5.5.10-20.1`.
+
 
 .. variable:: log_slow_verbosity
 
@@ -166,7 +181,32 @@ The option accepts fractional values. If set to 0.5, for example, queries longer
 If the value is set to 0, then all queries are logged. This is different from the standard |MySQL| build, where a value of 0 disables logging.
 Before version 1.01 of this feature, the value was an integer, and the unit of time was microseconds, not seconds.
 
-.. variable:: slow_query_log_timestamp_always
+.. variable:: profiling_server
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: BOOL
+     :default: OFF
+     :range: ON/OFF
+
+When ``ON``, this variable enables profiling of all queries (in all connections).
+
+
+.. variable:: profiling_use_getrusage
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: BOOL
+     :default: OFF
+     :range: ON/OFF
+
+When ``ON``, this variable enables usage of the getrusage function in profiling. A possible problem is that this function is very expensive, and with profiling_server enabled it can cause performance degradation.
+
+.. variable:: slow_query_log_microseconds_timestamp
 
      :cli: Yes
      :conf: Yes
@@ -175,42 +215,28 @@ Before version 1.01 of this feature, the value was an integer, and the unit of t
      :vartype: Boolean
      :default: FALSE
      :range: TRUE/FALSE
-     :version 5.5.10-20.1: Introduced  (renamed from :variable:`log_slow_timestamp_every`)
 
-If ``TRUE``, a timestamp is printed on every slow log record. Multiple records may have the same time.
+When ``TRUE``, entries to the slow log are done in microsecond precision.
 
-**NOTE:** This variable has been renamed from log_slow_timestamp_every since 5.5.10-20.1.
-
-.. variable:: slow_query_log_timestamp_precision
-
-     :version 5.5.10-20.1: Introduced (renamed from ``slow_query_log_microseconds_timestamp``)
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Enumerated
-     :default: ``second``
-     :range: ``second``, ``microsecond``
-
-Normally, entries to the slow query log are in seconds precision, in this format: ::
+Normally, the slow query log contains output in this format: ::
 
   # Time: 090402 9:23:36 # User@Host: XXX @ XXX [10.X.X.X]
 
-If :variable:`slow_query_log_timestamp_precision` ``=microsecond``, entries to the slow query log are in microsecond precision, in this format: ::
+If ``TRUE``, this variable causes the format to be like this: ::
 
   # Time: 090402 9:23:36.123456 # User@Host: XXX @ XXX [10.X.X.X]
 
-**NOTE:** This variable has been renamed from :variable:`slow_query_log_microseconds_timestamp` since 5.5.10-20.1.
+**NOTE**: This variable has been renamed to :variable:`slow_query_log_timestamp_precision` since :rn:`5.5.10-20.1`.
 
 
-.. variable:: slow_query_log_use_global_control
+.. variable:: use_global_slow_control
 
      :cli: Yes
      :conf: Yes
      :scope: Global
      :dyn: Yes
      :default: None
-     :version 5.5.10-20.1: Introduced (renamed from :variable:`log_slow_timestamp_every`)
+     :version 5.5.10-20.1: Renamed to :variable:`slow_query_log_use_global_control`
 
 Specifies which variables have global scope instead of local. Value is a “flag” variable - you can specify multiple values separated by commas
 
@@ -235,8 +261,16 @@ Specifies which variables have global scope instead of local. Value is a “flag
   * ``all``
     Global variables has effect (instead of local)
 
-**NOTE:** This variable has been renamed from :variable:`log_slow_timestamp_every` since 5.5.10-20.1.
+**NOTE:** This variable has been renamed to  :variable:`slow_query_log_use_global_control` since :rn:`5.5.10-20.1`.
 
+.. variable:: use_global_long_query_time
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+
+If 1 is set, global :variable:`long_query_time` is always used instead of the local :variable:`long_query_time`, and the local :variable:`long_query_time` is updated by global when used. 0 is same as normal behavior. (default 0)
 
 Other Information
 =================

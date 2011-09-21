@@ -6,7 +6,7 @@ Before installing, you might want to read the :doc:`release-notes`.
 
 Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.5/>`_, including:
 
- * ``RPM`` packages for *RHEL* 4 and *RHEL* 5
+ * ``RPM`` packages for *RHEL* 5 and *RHEL* 6
 
  * *Debian* packages
 

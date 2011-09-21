@@ -3109,7 +3109,7 @@
  
    /*
      Low long_query_time value most likely means user is debugging stuff and even
-@@ -1671,6 +1673,7 @@
+@@ -1671,6 +1675,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:

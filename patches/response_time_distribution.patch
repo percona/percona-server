@@ -3090,7 +3090,7 @@
 +#endif // QUERY_RESPONSE_TIME_H
 --- a/sql/set_var.cc
 +++ b/sql/set_var.cc
-@@ -1022,6 +1022,18 @@
+@@ -1024,6 +1024,18 @@
                                                      &SV::query_exec_time,
                                                      sys_var::SESSION_VARIABLE_IN_BINLOG);
  #endif

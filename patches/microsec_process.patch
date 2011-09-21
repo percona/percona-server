@@ -39,7 +39,7 @@
        if (schema_table_store_record(thd, table))
        {
          mysql_mutex_unlock(&LOCK_thread_count);
-@@ -7441,6 +7446,8 @@
+@@ -7464,6 +7469,8 @@
    {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State", SKIP_OPEN_TABLE},
    {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info",
     SKIP_OPEN_TABLE},

@@ -12,7 +12,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -2040,6 +2040,27 @@
+@@ -2041,6 +2041,27 @@
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
  	}
  
@@ -40,7 +40,7 @@
  	if (UNIV_UNLIKELY(!bpage->zip.data)) {
  		/* There is no compressed page. */
  err_exit:
-@@ -2549,6 +2570,27 @@
+@@ -2550,6 +2571,27 @@
  		block = (buf_block_t*) buf_page_hash_get_low(
  			buf_pool, space, offset, fold);
  		if (block) {
@@ -68,7 +68,7 @@
  			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
  			ut_a(block_mutex);
  		}
-@@ -3467,11 +3509,28 @@
+@@ -3471,11 +3513,28 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -97,7 +97,7 @@
  	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
  		/* The page is already in the buffer pool. */
  		watch_page = NULL;
-@@ -3602,6 +3661,7 @@
+@@ -3606,6 +3665,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -105,7 +105,7 @@
  
  #ifdef UNIV_DEBUG
  		bpage->in_page_hash = FALSE;
-@@ -3686,6 +3746,7 @@
+@@ -3690,6 +3750,7 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -113,7 +113,7 @@
  	//buf_pool_mutex_enter(buf_pool);
  	mutex_enter(&buf_pool->LRU_list_mutex);
  	rw_lock_x_lock(&buf_pool->page_hash_latch);
-@@ -3693,6 +3754,21 @@
+@@ -3697,6 +3758,21 @@
  	block = (buf_block_t*) buf_page_hash_get_low(
  		buf_pool, space, offset, fold);
  
@@ -135,7 +135,7 @@
  	if (block
  	    && buf_page_in_file(&block->page)
  	    && !buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
-@@ -3984,8 +4060,11 @@
+@@ -3988,8 +4064,11 @@
  	}
  
  	if (io_type == BUF_IO_WRITE
@@ -452,7 +452,7 @@
  	ut_a(ret);
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -12023,6 +12023,12 @@
+@@ -12018,6 +12018,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -465,7 +465,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12114,6 +12120,7 @@
+@@ -12110,6 +12116,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -473,7 +473,7 @@
    NULL
  };
  
-@@ -12123,7 +12130,7 @@
+@@ -12119,7 +12126,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    plugin_author,
@@ -484,7 +484,7 @@
    NULL, /* Plugin Deinit */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1477,6 +1477,7 @@
+@@ -1493,6 +1493,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -494,7 +494,7 @@
  	ibool		file_page_was_freed;
 --- a/storage/innobase/include/buf0buf.ic
 +++ b/storage/innobase/include/buf0buf.ic
-@@ -408,6 +408,7 @@
+@@ -426,6 +426,7 @@
  	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
  	block->page.space = space;
  	block->page.offset = page_no;
@@ -612,7 +612,7 @@
  
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -244,6 +244,8 @@
+@@ -245,6 +245,8 @@
  extern ulint	srv_pass_corrupt_table;
  
  extern ulint	srv_dict_size_limit;
@@ -830,7 +830,7 @@
  			} while (index);
 --- a/storage/innobase/row/row0sel.c
 +++ b/storage/innobase/row/row0sel.c
-@@ -3367,6 +3367,7 @@
+@@ -3407,6 +3407,7 @@
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
  	ibool		table_lock_waited		= FALSE;
@@ -838,7 +838,7 @@
  
  	rec_offs_init(offsets_);
  
-@@ -3738,6 +3739,17 @@
+@@ -3778,6 +3779,17 @@
  
  	/* Do some start-of-statement preparations */
  
@@ -856,7 +856,7 @@
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3748,6 +3760,18 @@
+@@ -3788,6 +3800,18 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -877,7 +877,7 @@
  			ut_error;
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -441,6 +441,8 @@
+@@ -444,6 +444,8 @@
  UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
  
  UNIV_INTERN ulint	srv_dict_size_limit = 0;

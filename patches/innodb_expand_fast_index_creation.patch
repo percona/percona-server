@@ -54,7 +54,7 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2246,6 +2256,128 @@
+@@ -2246,6 +2256,182 @@
  }
  
  /*
@@ -83,6 +83,8 @@
 +  SYNOPSIS
 +    skip_secondary_keys()
 +    create_str                SHOW CREATE TABLE output
++    has_pk                    TRUE, if the table has PRIMARY KEY
++                              (or UNIQUE key on non-nullable columns)
 +
 +
 +  DESCRIPTION
@@ -93,11 +95,12 @@
 +    mysqldump sets foreign_key_checks to 0 anyway.
 +*/
 +
-+static void skip_secondary_keys(char *create_str)
++static void skip_secondary_keys(char *create_str, my_bool has_pk)
 +{
 +  char *ptr, *strend;
 +  char *last_comma = NULL;
 +  HASH ignored_columns;
++  my_bool pk_processed= FALSE;
 +
 +  if (hash_init(&ignored_columns, charset_info, 16, 0, 0,
 +                (hash_get_key) get_table_key,
@@ -110,6 +113,7 @@
 +  while (*ptr)
 +  {
 +    char *tmp, *orig_ptr, c;
++    my_bool is_unique;
 +
 +    orig_ptr= ptr;
 +    /* Skip leading whitespace */
@@ -124,7 +128,8 @@
 +
 +    /* Is it a secondary index definition? */
 +    if (c == '\n' &&
-+        (!strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ") - 1) ||
++        (((is_unique= !strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ")-1)) &&
++          (pk_processed || !has_pk)) ||
 +         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1) ||
 +         !strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1)) &&
 +        !contains_ignored_column(&ignored_columns, ptr))
@@ -151,6 +156,10 @@
 +    else
 +    {
 +      char *end;
++
++      if ((has_pk && is_unique && !pk_processed) ||
++          !strncmp(ptr, "PRIMARY KEY ", sizeof("PRIMARY KEY ") - 1))
++        pk_processed= TRUE;
 +
 +      if (strstr(ptr, "AUTO_INCREMENT") && *ptr == '`')
 +      {
@@ -180,20 +189,83 @@
 +}
 +
 +/*
++  Check if the table has a primary key defined either explicitly or
++  implicitly (i.e. a unique key on non-nullable columns).
++
++  SYNOPSIS
++    my_bool has_primary_key(const char *table_name)
++
++    table_name  quoted table name
++
++  RETURNS     TRUE if the table has a primary key
++
++  DESCRIPTION
++*/
++
++static my_bool has_primary_key(const char *table_name)
++{
++  MYSQL_RES  *res= NULL;
++  MYSQL_ROW  row;
++  char query_buff[QUERY_LENGTH];
++  my_bool has_pk= TRUE;
++
++  my_snprintf(query_buff, sizeof(query_buff),
++              "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE "
++              "TABLE_SCHEMA=DATABASE() AND TABLE_NAME='%s' AND "
++              "COLUMN_KEY='PRI'", table_name);
++  if (mysql_query(mysql, query_buff) || !(res= mysql_store_result(mysql)) ||
++      !(row= mysql_fetch_row(res)))
++  {
++    fprintf(stderr, "Warning: Couldn't determine if table %s has a "
++            "primary key (%s). "
++            "--innodb-optimize-keys may work inefficiently.\n",
++            table_name, mysql_error(mysql));
++    goto cleanup;
++  }
++
++  has_pk= atoi(row[0]) > 0;
++
++cleanup:
++  if (res)
++    mysql_free_result(res);
++
++  return has_pk;
++}
++
++
++/*
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2486,6 +2618,9 @@
+@@ -2282,6 +2468,7 @@
+   int        len;
+   MYSQL_RES  *result;
+   MYSQL_ROW  row;
++  my_bool    has_pk;
+   DBUG_ENTER("get_table_structure");
+   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
+ 
+@@ -2323,6 +2510,9 @@
+   result_table=     quote_name(table, table_buff, 1);
+   opt_quoted_table= quote_name(table, table_buff2, 0);
+ 
++  if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
++    has_pk= has_primary_key(table);
++
+   if (opt_order_by_primary)
+     order_by= primary_key_fields(result_table);
+ 
+@@ -2486,6 +2676,9 @@
  
        row= mysql_fetch_row(result);
  
 +      if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
-+        skip_secondary_keys(row[1]);
++        skip_secondary_keys(row[1], has_pk);
 +
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3578,6 +3713,27 @@
+@@ -3578,6 +3771,27 @@
        goto err;
      }
  
@@ -223,7 +295,7 @@
      {
 --- /dev/null
 +++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,299 @@
 +#
 +# Test the --innodb-optimize-keys option.
 +#
@@ -395,6 +467,134 @@
 +
 +######################################
 +DROP TABLE t1, t2;
++CREATE TABLE t1 (
++a INT NOT NULL,
++UNIQUE KEY (a)) ENGINE=InnoDB;
++CREATE TABLE t2 (
++a INT NOT NULL,
++b INT NOT NULL,
++UNIQUE KEY (a,b)) ENGINE=InnoDB;
++CREATE TABLE t3 (
++a INT,
++b INT,
++UNIQUE KEY (a,b)) ENGINE=InnoDB;
++CREATE TABLE t4 (
++a INT NOT NULL,
++b INT NOT NULL,
++PRIMARY KEY (a,b),
++UNIQUE KEY(b)) ENGINE=InnoDB;
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++TABLE_SCHEMA=DATABASE() AND
++TABLE_NAME='t1' AND
++COLUMN_KEY='PRI';
++COUNT(*)
++1
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++TABLE_SCHEMA=DATABASE() AND
++TABLE_NAME='t2' AND
++COLUMN_KEY='PRI';
++COUNT(*)
++2
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++TABLE_SCHEMA=DATABASE() AND
++TABLE_NAME='t3' AND
++COLUMN_KEY='PRI';
++COUNT(*)
++0
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++TABLE_SCHEMA=DATABASE() AND
++TABLE_NAME='t4' AND
++COLUMN_KEY='PRI';
++COUNT(*)
++2
++INSERT INTO t1 VALUES (1), (2), (3);
++INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
++INSERT INTO t3 SELECT * FROM t2;
++INSERT INTO t4 SELECT * FROM t2;
++######################################
++
++/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
++/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
++/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
++/*!40101 SET NAMES utf8 */;
++/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
++/*!40103 SET TIME_ZONE='+00:00' */;
++/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
++/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
++/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
++/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
++DROP TABLE IF EXISTS `t1`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t1` (
++  `a` int(11) NOT NULL,
++  UNIQUE KEY `a` (`a`)
++) ENGINE=InnoDB DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t1` WRITE;
++/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
++INSERT INTO `t1` VALUES (1),(2),(3);
++/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
++UNLOCK TABLES;
++DROP TABLE IF EXISTS `t2`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t2` (
++  `a` int(11) NOT NULL,
++  `b` int(11) NOT NULL,
++  UNIQUE KEY `a` (`a`,`b`)
++) ENGINE=InnoDB DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t2` WRITE;
++/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
++INSERT INTO `t2` VALUES (1,1),(2,2),(3,3);
++/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
++UNLOCK TABLES;
++DROP TABLE IF EXISTS `t3`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t3` (
++  `a` int(11) DEFAULT NULL,
++  `b` int(11) DEFAULT NULL 
++) ENGINE=InnoDB DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t3` WRITE;
++/*!40000 ALTER TABLE `t3` DISABLE KEYS */;
++INSERT INTO `t3` VALUES (1,1),(2,2),(3,3);
++ALTER TABLE `t3` ADD UNIQUE KEY `a` (`a`,`b`);
++/*!40000 ALTER TABLE `t3` ENABLE KEYS */;
++UNLOCK TABLES;
++DROP TABLE IF EXISTS `t4`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t4` (
++  `a` int(11) NOT NULL,
++  `b` int(11) NOT NULL,
++  PRIMARY KEY (`a`,`b`) 
++) ENGINE=InnoDB DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t4` WRITE;
++/*!40000 ALTER TABLE `t4` DISABLE KEYS */;
++INSERT INTO `t4` VALUES (1,1),(2,2),(3,3);
++ALTER TABLE `t4` ADD UNIQUE KEY `b` (`b`);
++/*!40000 ALTER TABLE `t4` ENABLE KEYS */;
++UNLOCK TABLES;
++/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
++
++/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
++/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
++/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
++/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
++/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
++/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
++/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
++
++######################################
++DROP TABLE t1, t2, t3, t4;
 --- a/mysql-test/suite/innodb_plugin/r/innodb.result
 +++ b/mysql-test/suite/innodb_plugin/r/innodb.result
 @@ -1679,7 +1679,7 @@
@@ -437,7 +637,7 @@
  # Save the original values of some variables in order to be able to
 --- /dev/null
 +++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,155 @@
 +# Embedded server doesn't support external clients
 +--source include/not_embedded.inc
 +
@@ -529,6 +729,67 @@
 +--remove_file $file
 +
 +DROP TABLE t1, t2;
++
++########################################################################
++# Bug #851674: --innodb-optimize-keys does not work correctly with table
++#              without PRIMARY KEY
++########################################################################
++
++CREATE TABLE t1 (
++       a INT NOT NULL,
++       UNIQUE KEY (a)) ENGINE=InnoDB;
++
++CREATE TABLE t2 (
++       a INT NOT NULL,
++       b INT NOT NULL,
++       UNIQUE KEY (a,b)) ENGINE=InnoDB;
++
++CREATE TABLE t3 (
++       a INT,
++       b INT,
++       UNIQUE KEY (a,b)) ENGINE=InnoDB;
++
++CREATE TABLE t4 (
++       a INT NOT NULL,
++       b INT NOT NULL,
++       PRIMARY KEY (a,b),
++       UNIQUE KEY(b)) ENGINE=InnoDB;
++
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++       TABLE_SCHEMA=DATABASE() AND
++       TABLE_NAME='t1' AND
++       COLUMN_KEY='PRI';
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++       TABLE_SCHEMA=DATABASE() AND
++       TABLE_NAME='t2' AND
++       COLUMN_KEY='PRI';
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++       TABLE_SCHEMA=DATABASE() AND
++       TABLE_NAME='t3' AND
++       COLUMN_KEY='PRI';
++SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE
++       TABLE_SCHEMA=DATABASE() AND
++       TABLE_NAME='t4' AND
++       COLUMN_KEY='PRI';
++
++INSERT INTO t1 VALUES (1), (2), (3);
++INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
++INSERT INTO t3 SELECT * FROM t2;
++INSERT INTO t4 SELECT * FROM t2;
++
++--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t2 t3 t4 >$file
++
++--echo ######################################
++--cat_file $file
++--echo ######################################
++
++# Check that the resulting dump can be imported back
++
++--exec $MYSQL test < $file
++
++--remove_file $file
++
++DROP TABLE t1, t2, t3, t4;
 +
 +# Wait till we reached the initial number of concurrent sessions
 +--source include/wait_until_count_sessions.inc

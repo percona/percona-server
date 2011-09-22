@@ -129,7 +129,7 @@
 +    /* Is it a secondary index definition? */
 +    if (c == '\n' &&
 +        (((is_unique= !strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ")-1)) &&
-+          (pk_processed | !has_pk)) ||
++          (pk_processed || !has_pk)) ||
 +         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1) ||
 +         !strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1)) &&
 +        !contains_ignored_column(&ignored_columns, ptr))

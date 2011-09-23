@@ -1209,3 +1209,14 @@
  func_exit:
  	close(tmpfd);
  
+--- a/mysql-test/suite/innodb_plugin/r/innodb-index.result
++++ b/mysql-test/suite/innodb_plugin/r/innodb-index.result
+@@ -884,7 +884,7 @@
+ test.t1	check	status	OK
+ explain select * from t1 where b like 'adfd%';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	15	Using where
++1	SIMPLE	t1	range	b	b	769	NULL	7	Using where
+ create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
+ insert into t2 select a,left(b,255) from t1;
+ drop table t1;

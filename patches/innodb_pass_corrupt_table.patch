@@ -468,7 +468,7 @@
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4657,6 +4658,12 @@
+@@ -4328,6 +4329,12 @@
  	}
  
  	do {
@@ -481,7 +481,7 @@
  		if (UNIV_LIKELY
  		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-@@ -5460,4 +5467,42 @@
+@@ -5054,4 +5061,42 @@
  		rw_lock_free(&dict_table_stats_latches[i]);
  	}
  }
@@ -757,7 +757,7 @@
  	if (descr != NULL) {
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -3735,6 +3735,12 @@
+@@ -3732,6 +3732,12 @@
  		DBUG_RETURN(1);
  	}
  
@@ -770,7 +770,7 @@
  	/* Create buffers for packing the fields of a record. Why
  	table->reclength did not work here? Obviously, because char
  	fields when packed actually became 1 byte longer, when we also
-@@ -3762,6 +3768,19 @@
+@@ -3759,6 +3765,19 @@
  	/* Get pointer to a table object in InnoDB dictionary cache */
  	ib_table = dict_table_get(norm_name, TRUE);
  	
@@ -790,7 +790,7 @@
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
  			++retries;
-@@ -4928,6 +4947,10 @@
+@@ -4925,6 +4944,10 @@
  
  	ha_statistic_increment(&SSV::ha_write_count);
  
@@ -801,7 +801,7 @@
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5145,6 +5168,10 @@
+@@ -5138,6 +5161,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -812,7 +812,7 @@
  	DBUG_RETURN(error_result);
  }
  
-@@ -5321,6 +5348,10 @@
+@@ -5314,6 +5341,10 @@
  
  	ha_statistic_increment(&SSV::ha_update_count);
  
@@ -823,7 +823,7 @@
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
  		table->timestamp_field->set_time();
  
-@@ -5410,6 +5441,10 @@
+@@ -5399,6 +5430,10 @@
  
  	innobase_active_small();
  
@@ -834,7 +834,7 @@
  	DBUG_RETURN(error);
  }
  
-@@ -5431,6 +5466,10 @@
+@@ -5420,6 +5455,10 @@
  
  	ha_statistic_increment(&SSV::ha_delete_count);
  
@@ -845,7 +845,7 @@
  	if (!prebuilt->upd_node) {
  		row_get_prebuilt_update_vector(prebuilt);
  	}
-@@ -5457,6 +5496,10 @@
+@@ -5442,6 +5481,10 @@
  
  	innobase_active_small();
  
@@ -856,7 +856,7 @@
  	DBUG_RETURN(error);
  }
  
-@@ -5696,6 +5739,10 @@
+@@ -5681,6 +5724,10 @@
  
  	ha_statistic_increment(&SSV::ha_read_key_count);
  
@@ -867,7 +867,7 @@
  	index = prebuilt->index;
  
  	if (UNIV_UNLIKELY(index == NULL)) {
-@@ -5761,6 +5808,10 @@
+@@ -5746,6 +5793,10 @@
  		ret = DB_UNSUPPORTED;
  	}
  
@@ -878,7 +878,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -5876,6 +5927,10 @@
+@@ -5856,6 +5907,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -889,7 +889,7 @@
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -5966,6 +6021,10 @@
+@@ -5946,6 +6001,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -900,7 +900,7 @@
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -5975,6 +6034,10 @@
+@@ -5955,6 +6014,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -911,7 +911,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7227,6 +7290,10 @@
+@@ -7202,6 +7265,10 @@
  		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
  	}
  
@@ -922,7 +922,7 @@
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7235,6 +7302,10 @@
+@@ -7210,6 +7277,10 @@
  		goto fallback;
  	}
  
@@ -933,7 +933,7 @@
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7739,6 +7810,16 @@
+@@ -7714,6 +7785,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -950,7 +950,7 @@
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -7919,7 +8000,7 @@
+@@ -7894,7 +7975,7 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -959,7 +959,7 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8209,10 +8290,18 @@
+@@ -8160,10 +8241,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -978,7 +978,7 @@
  	return(0);
  }
  
-@@ -8394,6 +8483,10 @@
+@@ -8345,6 +8434,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -989,7 +989,7 @@
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9127,6 +9220,10 @@
+@@ -9078,6 +9171,10 @@
  
  	update_thd(thd);
  
@@ -1000,7 +1000,7 @@
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11561,6 +11658,14 @@
+@@ -11492,6 +11589,14 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1015,7 +1015,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11646,6 +11751,7 @@
+@@ -11574,6 +11679,7 @@
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
@@ -1043,7 +1043,7 @@
  	int update_row(const uchar * old_data, uchar * new_data);
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h
-@@ -43,5 +43,6 @@
+@@ -42,5 +42,6 @@
  {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -1117,7 +1117,7 @@
  	switch (buf_block_get_state(block)) {
 --- a/storage/innodb_plugin/include/dict0dict.h
 +++ b/storage/innodb_plugin/include/dict0dict.h
-@@ -1206,6 +1206,15 @@
+@@ -1197,6 +1197,15 @@
  dict_close(void);
  /*============*/
  
@@ -1224,7 +1224,7 @@
  Decompress a page.  This function should tolerate errors on the compressed
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -231,6 +231,7 @@
+@@ -228,6 +228,7 @@
  extern ulint	srv_adaptive_checkpoint;
  
  extern ulint	srv_expand_import;
@@ -1319,7 +1319,7 @@
  			fprintf(stderr,
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -406,6 +406,7 @@
+@@ -403,6 +403,7 @@
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */

@@ -1,8 +1,8 @@
 .. rn:: 5.5.12-20.3
 
-==============================
- |Percona Server| 5.5.12-20.3
-==============================
+============================
+|Percona Server| 5.5.12-20.3
+============================
 
 
 Percona is glad to announce the release of |Percona Server| 5.5.12-20.3 on June 9, 2011 (Downloads are available here and from the Percona Software Repositories).

@@ -1,8 +1,8 @@
 .. rn:: 5.5.8-20.0
 
-=============================
- |Percona Server| 5.5.08-20.0
-=============================
+===========================
+|Percona Server| 5.5.8-20.0
+===========================
 
 Released on February 16, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.8-beta20.0/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_.)
 

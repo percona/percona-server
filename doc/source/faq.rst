@@ -1,8 +1,8 @@
 .. _faq:
 
-===================================================
- Frequently Asked Questions about |Percona Server|
-===================================================
+==========================
+Frequently Asked Questions
+==========================
 
 Q: Will |Percona Server| with |XtraDB| invalidate our |MySQL| support?
 ======================================================================

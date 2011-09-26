@@ -137,6 +137,14 @@ Diagnostics Improvements
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
 
+Obsolete and Removed Features
+=============================
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   scalability/innodb_extra_rseg
+
 Reference
 =========
 

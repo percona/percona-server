@@ -137,8 +137,8 @@ Diagnostics Improvements
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
 
-Miscellaneous
-=============
+Reference
+=========
 
 .. toctree::
    :maxdepth: 1
@@ -146,14 +146,7 @@ Miscellaneous
 
    faq
    release-notes/release-notes_index
-   glossary 
-
-Indices and tables
-==================
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
+   glossary
 
 * :ref:`genindex`
 * :ref:`modindex`

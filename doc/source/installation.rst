@@ -1,6 +1,6 @@
-===========================================
- Installing |Percona Server| from Binaries
-===========================================
+==============================================
+ Installing |Percona Server| 5.1 from Binaries
+==============================================
 
 Before installing, you might want to read the :doc:`release-notes`.
 
@@ -32,16 +32,16 @@ This is the recommend way of installing where possible.
 ``YUM``-Based Systems
 ---------------------
 
-Once the repository is set up, use the following commands:
+Once the repository is set up, use the following commands: ::
 
-      yum install Percona-Server-client-51 Percona-Server-server-51
+     $ yum install Percona-Server-client-51 Percona-Server-server-51
 
 ``DEB``-Based Systems
 ---------------------
 
-Once the repository is set up, use the following commands:
+Once the repository is set up, use the following commands: ::
 
-      sudo apt-get install percona-server-server-5.1
+     $ sudo apt-get install percona-server-server-5.1
 
 Using Standalone Packages
 =========================
@@ -90,9 +90,9 @@ The installation won’t succeed as there will be missing dependencies. To handl
 
 and all dependencies will be installed and the Percona Server installation will be finished by :command:`apt`.
 
-================================================
- Installing |Percona Server| from Source Tarball
-================================================
+==================================================
+ Installing |Percona Server| from a Source Tarball
+==================================================
 
 Fetch and extract the source tarball. For example: ::
 
@@ -116,9 +116,9 @@ Install: ::
 
   $ make install
 
-====================================================
- Installing |Percona Server| from Bazaar Source Tree
-====================================================
+========================================================
+ Installing |Percona Server| from the Bazaar Source Tree
+========================================================
 
 Percona uses the `Bazaar <http://www.bazaar-vcs.org>`_ revision
 control system for development. To build the latest Percona Server

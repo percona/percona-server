@@ -1,6 +1,6 @@
-===========================================
- Installing |Percona Server| from Binaries
-===========================================
+==============================================
+ Installing |Percona Server| 5.5 from Binaries
+==============================================
 
 Before installing, you might want to read the :doc:`release-notes`.
 
@@ -32,36 +32,16 @@ This is the recommend way of installing where possible.
 ``YUM``-Based Systems
 ---------------------
 
-Once the repository is set up, use the following commands:
+Once the repository is set up, use the following commands: ::
 
-  * For 5.0 series: ::
+      $ yum install Percona-Server-client-55 Percona-Server-server-55
 
-      yum install Percona-SQL-client-50 Percona-SQL-server-50
-
-  * For 5.1 series: ::
-
-      yum install Percona-Server-client-51 Percona-Server-server-51
-
-  * For 5.5 series: ::
-
-      yum install Percona-Server-client-55 Percona-Server-server-55
-     
 ``DEB``-Based Systems
 ---------------------
 
-Once the repository is set up, use the following commands:
+Once the repository is set up, use the following commands: ::
 
-  * For 5.0 series: ::
-      
-      sudo apt-get install percona-server-server-5.0
-
-  * For 5.1 series: ::
-      
-      sudo apt-get install percona-server-server-5.1
-
-  * For 5.5 series: ::
-  
-      sudo apt-get install percona-server-server-5.5
+      $ sudo apt-get install percona-server-server-5.5
 
 Using Standalone Packages
 =========================
@@ -97,7 +77,7 @@ Download the packages of the desired series for your architecture from `here <ht
 
 For example, at the moment of writing, for *Ubuntu* Maverick on ``i686``, a way of doing this is: ::
 
-  $ wget -r -l 1 -nd -A deb -R "*dev*" \ 
+  $ wget -r -l 1 -nd -A deb -R "*dev*" \
   http://www.percona.com/redir/downloads/Percona-Server-5.5/Percona-Server-5.5.14-20.5/deb/maverick/x86_64/
 
 Install them in one command: ::
@@ -109,3 +89,65 @@ The installation won’t succeed as there will be missing dependencies. To handl
   $ apt-get -f install
 
 and all dependencies will be installed and the Percona Server installation will be finished by :command:`apt`.
+
+==================================================
+ Installing |Percona Server| from a Source Tarball
+==================================================
+
+Fetch and extract the source tarball. For example: ::
+
+  $ wget http://www.percona.com/redir/downloads/Percona-Server-5.5/Percona-Server-5.5.15-21.0/source/Percona-Server-5.5.15-rel21.0.tar.gz
+  $ tar xfz Percona-Server-5.5.15-rel21.0.tar.gz
+
+Next, run cmake to configure the build. Here you can specify all the normal
+build options as you do for a normal |MySQL| build. Depending on what
+options you wish to compile Percona Server with, you may need other
+libraries installed on your system. Here is an example using a
+configure line similar to the options that Percona uses to produce
+binaries: ::
+
+  $ cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF
+
+Now, compile using make ::
+
+  $ make
+
+Install: ::
+
+  $ make install
+
+========================================================
+ Installing |Percona Server| from the Bazaar Source Tree
+========================================================
+
+Percona uses the `Bazaar <http://www.bazaar-vcs.org>`_ revision
+control system for development. To build the latest Percona Server
+from the source tree you will need Bazaar installed on your system.
+
+Good practice is to use a shared repository, create one like this: ::
+
+  $ bzr init-repo ~/percona-server
+
+You can now fetch the latest Percona Server 5.5 sources. In the
+future, we will provide instructions for fetching each specific
+Percona Server version and building it, but currently we will just
+talk about building the latest Percona Server 5.5 development tree. ::
+
+  $ cd ~/percona-server
+  $ bzr branch lp:percona-server/5.5
+
+You can now change into the 5.5 directory and build Percona Server
+5.1: ::
+
+  $ make
+
+This will fetch the upstream MySQL source tarball and apply the
+Percona Server patches to it. If you have the quilt utility installed,
+it will use it to apply the patches, otherwise it will just use the
+standard patch utility. You will then have a directory named
+Percona-Server that is ready to run the configure script and
+build. ::
+
+  $ cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF
+  $ make
+  $ make install

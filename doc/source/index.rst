@@ -46,7 +46,6 @@ Installation
    :glob:
 
    installation
-   upgrading_guide_51_55
 
 
 Scalability Improvements

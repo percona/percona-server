@@ -149,8 +149,8 @@ Obsolete and Removed Features
    scalability/innodb_extra_rseg
    management/innodb_buffer_pool_shm
 
-Miscellaneous
-=============
+Reference
+=========
 
 .. toctree::
    :maxdepth: 1
@@ -158,14 +158,7 @@ Miscellaneous
 
    faq
    release-notes/release-notes_index
-   glossary 
-
-Indices and tables
-==================
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
+   glossary
 
 * :ref:`genindex`
 * :ref:`modindex`

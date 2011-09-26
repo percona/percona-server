@@ -61,6 +61,9 @@ The configuration options and table columns for the following features have been
    * - Response Time Distribution
      - enable_query_response_time_stats
      - query_response_time_stats
+   * - Multiple Rollback Segments
+     - innodb_extra_rsegments
+     - **(removed)**
 
 Shared Memory Buffer Pool
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -70,6 +73,16 @@ The ''SHM'' Buffer Pool has been replaced with the safer LRU Dump/Restore patch,
 The configuration variables for my.cnf have been kept for compatibility and warnings will be printed for the deprecated options (innodb_buffer_pool_shm_key and innodb_buffer_pool_shm_checksum) if used.
 
 Instructions for disabling the SHM buffer pool can be found here and for setting up LRU dump/restore here.
+
+Multiple Rollback Segments
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Percona Server 5.1 offered a feature that enabled InnoDB to use
+multiple rollback segments, relieving a major cause of resource
+contention in write-intensive workloads. In MySQL 5.5, Oracle
+implemented a similar feature, and so in Percona Server 5.5, the
+``innodb_extra_rsegments`` option has been replaced by the MySQL 5.5
+``innodb_rollback_segment`` option.
+
 
 InnoDB Statistics
 ~~~~~~~~~~~~~~~~~

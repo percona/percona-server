@@ -1,8 +1,8 @@
 .. rn:: 1.0.4-8
 
-================
-Release 1.0.4-8
-================
+========================
+|Percona Server| 1.0.4-8
+========================
 
 The release includes following new features:
 

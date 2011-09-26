@@ -1,8 +1,8 @@
 .. rn:: 1.0.6-rel10.2
 
-=====================
-Release 1.0.6-rel10.2
-=====================
+==============================
+|Percona Server| 1.0.6-rel10.2
+==============================
 
   * Variable ``innodb_trx_id`` is added to slow log statistics
 

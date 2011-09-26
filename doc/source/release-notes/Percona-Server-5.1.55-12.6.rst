@@ -1,8 +1,8 @@
 .. rn:: 5.1.55-12.6
 
-====================================
-|Percona Server| 5.1.55-12.6
-====================================
+=============================
+ |Percona Server| 5.1.55-12.6
+=============================
 
 Released on March 7, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.55-12.6/>`_ and installation instructions `here <http://www.percona.com/docs/wiki/percona-server:start#installation_instructions>`_.)
 

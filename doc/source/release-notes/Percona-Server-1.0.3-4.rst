@@ -1,8 +1,8 @@
 .. rn:: 1.0.3-4
 
-======================
-Release 1.0.3-4 Sakura
-======================
+===============================
+|Percona Server| 1.0.3-4 Sakura
+===============================
 
 **UPDATE April 27, 2009:** Unfortunately we found significant issues in this release, please use or upgrade to 1.0.3-5
 

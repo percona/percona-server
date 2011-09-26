@@ -1,8 +1,8 @@
 .. rn:: 5.1.52-rel11.6
 
-================================
+===============================
 |Percona Server| 5.1.52-rel11.6
-================================
+===============================
 
 Released on November 23, 2010 (`downloads <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.52-11.6/>`_)
 

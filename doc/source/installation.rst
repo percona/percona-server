@@ -1,10 +1,10 @@
-===========================================
- Installing |Percona Server| from Binaries
-===========================================
+==============================================
+ Installing |Percona Server| 5.1 from Binaries
+==============================================
 
 Before installing, you might want to read the :doc:`release-notes`.
 
-Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.5/>`_, including:
+Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.1/>`_, including:
 
  * ``RPM`` packages for *RHEL* 5 and *RHEL* 6
 
@@ -32,36 +32,16 @@ This is the recommend way of installing where possible.
 ``YUM``-Based Systems
 ---------------------
 
-Once the repository is set up, use the following commands:
+Once the repository is set up, use the following commands: ::
 
-  * For 5.0 series: ::
+     $ yum install Percona-Server-client-51 Percona-Server-server-51
 
-      yum install Percona-SQL-client-50 Percona-SQL-server-50
-
-  * For 5.1 series: ::
-
-      yum install Percona-Server-client-51 Percona-Server-server-51
-
-  * For 5.5 series: ::
-
-      yum install Percona-Server-client-55 Percona-Server-server-55
-     
 ``DEB``-Based Systems
 ---------------------
 
-Once the repository is set up, use the following commands:
+Once the repository is set up, use the following commands: ::
 
-  * For 5.0 series: ::
-      
-      sudo apt-get install percona-server-server-5.0
-
-  * For 5.1 series: ::
-      
-      sudo apt-get install percona-server-server-5.1
-
-  * For 5.5 series: ::
-  
-      sudo apt-get install percona-server-server-5.5
+     $ sudo apt-get install percona-server-server-5.1
 
 Using Standalone Packages
 =========================
@@ -69,36 +49,36 @@ Using Standalone Packages
 ``RPM``-Based Systems
 ---------------------
 
-Download the packages of the desired series for your architecture from `here <http://www.percona.com/downloads/Percona-Server-5.5/>`_.
+Download the packages of the desired series for your architecture from `here <http://www.percona.com/downloads/Percona-Server-5.1/>`_.
 
 For example, at the moment of writing, a way of doing this is: ::
 
   $ wget -r -l 1 -nd -A rpm -R "*devel*,*debuginfo*"  \ 
-  http://www.percona.com/redir/downloads/Percona-Server-5.5/Percona-Server-5.5.14-20.5/RPM/rhel5/i686/
+  http://www.percona.com/redir/downloads/Percona-Server-5.1/Percona-Server-5.1.58-12.9/RPM/rhel6/x86_64/
 
 Install them in one command: ::
 
-  $ rpm -ivh Percona-Server-server-55-5.5.14-rel20.5.149.rhel5.i686.rpm \
-  Percona-Server-client-55-5.5.14-rel20.5.149.rhel5.i686.rpm \
-  Percona-Server-shared-55-5.5.14-rel20.5.149.rhel5.i686.rpm
+  $ rpm -ivh Percona-Server-server-51-5.1.58-rel12.9.271.rhel6.x86_64.rpm \
+  Percona-Server-client-51-5.1.58-rel12.9.271.rhel6.x86_64.rpm \
+  Percona-Server-shared-51-5.1.58-rel12.9.271.rhel6.x86_64.rpm
 
 If you don’t install all “at the same time”, you will need to do it in a specific order - ``shared``, ``client``, ``server``: ::
 
-  $ rpm -ivh Percona-Server-shared-55-5.5.14-rel20.5.149.rhel5.i686.rpm
-  $ rpm -ivh Percona-Server-client-55-5.5.14-rel20.5.149.rhel5.i686.rpm
-  $ rpm -ivh Percona-Server-server-55-5.5.14-rel20.5.149.rhel5.i686.rpm
+  $ rpm -ivh Percona-Server-shared-51-5.1.58-rel12.9.271.rhel6.x86_64.rpm
+  $ rpm -ivh Percona-Server-client-51-5.1.58-rel12.9.271.rhel6.x86_64.rpm
+  $ rpm -ivh Percona-Server-server-51-5.1.58-rel12.9.271.rhel6.x86_64.rpm
 
 Otherwise, the dependencies won’t be met and the installation will fail.
 
 ``DEB``-Based Systems
 ---------------------
 
-Download the packages of the desired series for your architecture from `here <http://www.percona.com/downloads/Percona-Server-5.5/>`_.
+Download the packages of the desired series for your architecture from `here <http://www.percona.com/downloads/Percona-Server-5.1/>`_.
 
 For example, at the moment of writing, for *Ubuntu* Maverick on ``i686``, a way of doing this is: ::
 
-  $ wget -r -l 1 -nd -A deb -R "*dev*" \ 
-  http://www.percona.com/redir/downloads/Percona-Server-5.5/Percona-Server-5.5.14-20.5/deb/maverick/x86_64/
+  $ wget -r -l 1 -nd -A deb -R "*dev*" \
+  http://www.percona.com/redir/downloads/Percona-Server-5.1/Percona-Server-5.1.58-12.9/deb/maverick/x86_64/
 
 Install them in one command: ::
 
@@ -109,3 +89,65 @@ The installation won’t succeed as there will be missing dependencies. To handl
   $ apt-get -f install
 
 and all dependencies will be installed and the Percona Server installation will be finished by :command:`apt`.
+
+==================================================
+ Installing |Percona Server| from a Source Tarball
+==================================================
+
+Fetch and extract the source tarball. For example: ::
+
+  $ wget http://www.percona.com/redir/downloads/Percona-Server-5.1/Percona-Server-5.1.58-12.9/source/Percona-Server-5.1.58.tar.gz
+  $ tar xfz Percona-Server-5.1.58.tar.gz
+
+Next, run the configure script. Here you can specify all the normal
+build options as you do for a normal |MySQL| build. Depending on what
+options you wish to compile Percona Server with, you may need other
+libraries installed on your system. Here is an example using a
+configure line similar to the options that Percona uses to produce
+binaries: ::
+
+  $ ./configure --without-plugin-innobase --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin --without-embedded-server --with-pic --with-extra-charsets=complex --with-ssl --enable-assembler --enable-local-infile --enable-thread-safe-client --enable-profiling --with-readline
+
+Now, compile using make ::
+
+  $ make
+
+Install: ::
+
+  $ make install
+
+========================================================
+ Installing |Percona Server| from the Bazaar Source Tree
+========================================================
+
+Percona uses the `Bazaar <http://www.bazaar-vcs.org>`_ revision
+control system for development. To build the latest Percona Server
+from the source tree you will need Bazaar installed on your system.
+
+Good practice is to use a shared repository, create one like this: ::
+
+  $ bzr init-repo ~/percona-server
+
+You can now fetch the latest Percona Server 5.1 sources. In the
+future, we will provide instructions for fetching each specific
+Percona Server version and building it, but currently we will just
+talk about building the latest Percona Server 5.1 development tree. ::
+
+  $ cd ~/percona-server
+  $ bzr branch lp:percona-server/5.1
+
+You can now change into the 5.1 directory and build Percona Server
+5.1: ::
+
+  $ make
+
+This will fetch the upstream MySQL source tarball and apply the
+Percona Server patches to it. If you have the quilt utility installed,
+it will use it to apply the patches, otherwise it will just use the
+standard patch utility. You will then have a directory named
+Percona-Server that is ready to run the configure script and
+build. ::
+
+  $ ./configure --without-plugin-innobase --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin --without-embedded-server --with-pic --with-extra-charsets=complex --with-ssl --enable-assembler --enable-local-infile --enable-thread-safe-client --enable-profiling --with-readline
+  $ make
+  $ make install

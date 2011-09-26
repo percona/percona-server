@@ -1,8 +1,8 @@
 .. rn:: 1.0.3-7
 
-=================
- Release 1.0.3-7
-=================
+========================
+|Percona Server| 1.0.3-7
+========================
 
 The release includes following new features:
 

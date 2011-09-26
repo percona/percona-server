@@ -1,8 +1,8 @@
 .. rn:: 5.1.52-12.3
 
-==============================
- |Percona Server| 5.1.52-12.3
-==============================
+============================
+|Percona Server| 5.1.52-12.3
+============================
 
 Released on December 13, 2010 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.52-12.3/>`_ and from the `Release Candidates Repository <http://www.percona.com/docs/wiki/release:start#percona_release_candidates_repository>`_.)
 

@@ -20,7 +20,6 @@ innodb_thread_concurrency_timer_based.patch
 innodb_dict_size_limit.patch
 innodb_split_buf_pool_mutex.patch
 innodb_expand_import.patch
-innodb_stats.patch
 innodb_recovery_patches.patch
 innodb_purge_thread.patch
 innodb_admin_command_base.patch
@@ -29,6 +28,7 @@ innodb_extend_slow.patch
 innodb_lru_dump_restore.patch
 innodb_separate_doublewrite.patch
 innodb_pass_corrupt_table.patch
+innodb_stats.patch
 innodb_fast_checksum.patch
 innodb_files_extend.patch
 innodb_show_sys_tables.patch

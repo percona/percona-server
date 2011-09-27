@@ -70,6 +70,29 @@ If you don’t install all “at the same time”, you will need to do it in a s
 
 Otherwise, the dependencies won’t be met and the installation will fail.
 
+What's in each RPM?
+~~~~~~~~~~~~~~~~~~~
+
+Each of the |Percona Server| RPM packages have a particular purpose.
+
+The ``Percona-Server-server`` package contains the server itself (the
+``mysqld`` binary).
+
+The ``Percona-Server-client`` package contains the command line
+client.
+
+The ``Percona-Server-devel`` package contains the header files needed
+to compile software using the client library.
+
+The ``Percona-Server-shared`` package includes the client shared
+library.
+
+The ``Percona-Server-shared-compat`` package includes shared libraries
+for software compiled against old versions of the client library.
+
+The ``Percona-Server-test`` package includes the test suite for
+|Percona Server|.
+
 ``DEB``-Based Systems
 ---------------------
 
@@ -88,7 +111,31 @@ The installation won’t succeed as there will be missing dependencies. To handl
 
   $ apt-get -f install
 
-and all dependencies will be installed and the Percona Server installation will be finished by :command:`apt`.
+and all dependencies will be installed and the Percona Server
+installation will be finished by :command:`apt`.
+
+What's in each DEB package?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``percona-server-server`` package contains the database server
+itself, the ``mysqld`` binary and associated files.
+
+The ``percona-server-common`` package contains files common to the
+server and client.
+
+The ``percona-server-client`` package contains the command line
+client.
+
+The ``percona-server-dfsg`` package contains....
+
+The ``libmysqlclient-dev`` package contains header files needed to
+compile software to use the client library.
+
+The ``libmysqlclient16`` package contains the client shared
+library. The ``16`` is a reference to the version of the shared
+library. The version is incremented when there is a ABI change that
+requires software using the client library to be recompiled or their
+source code modified.
 
 ==================================================
  Installing |Percona Server| from a Source Tarball

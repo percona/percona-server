@@ -78,6 +78,9 @@ Each of the |Percona Server| RPM packages have a particular purpose.
 The ``Percona-Server-server`` package contains the server itself (the
 ``mysqld`` binary).
 
+The ``Percona-Server-55-debuginfo`` package contains debug symbols for
+use debugging the database server.
+
 The ``Percona-Server-client`` package contains the command line
 client.
 

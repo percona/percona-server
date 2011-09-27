@@ -620,6 +620,14 @@
  --error ER_DUP_ENTRY
  alter table t1 drop primary key, add primary key (b);
  create unique index c on t1 (c);
+@@ -355,6 +360,7 @@
+ length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
+ show create table t1;
+ check table t1;
++--replace_column 9 X
+ explain select * from t1 where b like 'adfd%';
+ 
+ #
 --- a/mysql-test/suite/innodb_plugin/t/innodb.test
 +++ b/mysql-test/suite/innodb_plugin/t/innodb.test
 @@ -15,6 +15,12 @@
@@ -1137,3 +1145,86 @@
    }
    else
    {
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_expand_fast_index_creation.result
+@@ -0,0 +1,32 @@
++CREATE TABLE t1(
++id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
++a CHAR(1) NOT NULL,
++b CHAR(36) NOT NULL) ENGINE=InnoDB;
++INSERT INTO t1(a,b) VALUES ('a','b');
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++ALTER TABLE t1 ADD KEY (a);
++EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
++id	1
++select_type	SIMPLE
++table	t1
++type	ALL
++possible_keys	a
++key	NULL
++key_len	NULL
++ref	NULL
++rows	16
++Extra	
++id	1
++select_type	SIMPLE
++table	t2
++type	ALL
++possible_keys	a
++key	NULL
++key_len	NULL
++ref	NULL
++rows	16
++Extra	Using where; Using join buffer
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_expand_fast_index_creation.test
+@@ -0,0 +1,23 @@
++--source include/have_innodb.inc
++
++########################################################################
++# Bug #857590: Fast index creation does not update index statistics
++########################################################################
++
++CREATE TABLE t1(
++       id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
++       a CHAR(1) NOT NULL,
++       b CHAR(36) NOT NULL) ENGINE=InnoDB;
++
++INSERT INTO t1(a,b) VALUES ('a','b');
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++INSERT INTO t1(a,b) SELECT a,b FROM t1;
++
++ALTER TABLE t1 ADD KEY (a);
++
++--vertical_results
++EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
++
++DROP TABLE t1;
+--- a/storage/innodb_plugin/row/row0merge.c
++++ b/storage/innodb_plugin/row/row0merge.c
+@@ -2630,6 +2630,8 @@
+ 		}
+ 	}
+ 
++	dict_update_statistics(new_table, FALSE, TRUE);
++
+ func_exit:
+ 	close(tmpfd);
+ 
+--- a/mysql-test/suite/innodb_plugin/r/innodb-index.result
++++ b/mysql-test/suite/innodb_plugin/r/innodb-index.result
+@@ -884,7 +884,7 @@
+ test.t1	check	status	OK
+ explain select * from t1 where b like 'adfd%';
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	15	Using where
++1	SIMPLE	t1	range	b	b	769	NULL	X	Using where
+ create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
+ insert into t2 select a,left(b,255) from t1;
+ drop table t1;

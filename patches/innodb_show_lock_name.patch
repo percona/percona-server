@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -9317,8 +9317,8 @@
+@@ -9268,8 +9268,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -18,7 +18,7 @@
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9333,9 +9333,8 @@
+@@ -9284,9 +9284,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -30,7 +30,7 @@
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9364,8 +9363,8 @@
+@@ -9315,8 +9314,8 @@
  			continue;
  		}
  
@@ -41,7 +41,7 @@
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9379,9 +9378,8 @@
+@@ -9330,9 +9329,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -55,7 +55,7 @@
  					     (ulong) block_lock_oswait_count);
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h
-@@ -39,5 +39,6 @@
+@@ -38,5 +38,6 @@
  {"innodb_recovery_patches","Bugfixes and adjustments about recovery process","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},

@@ -374,7 +374,7 @@
  
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -1391,6 +1391,16 @@
+@@ -1390,6 +1390,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -391,7 +391,7 @@
  	DBUG_VOID_RETURN;
  }
  
-@@ -1446,6 +1456,32 @@
+@@ -1445,6 +1455,32 @@
  }
  
  
@@ -424,7 +424,7 @@
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -9024,6 +9060,25 @@
+@@ -8975,6 +9011,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -452,7 +452,7 @@
  		prebuilt->used_in_HANDLER = FALSE;
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h
-@@ -40,5 +40,6 @@
+@@ -39,5 +39,6 @@
  {"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -802,7 +802,7 @@
  /* This is set to TRUE if the MySQL user has set it in MySQL; currently
  affects only FOREIGN KEY definition parsing */
  UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-@@ -1159,6 +1162,10 @@
+@@ -1156,6 +1159,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -813,7 +813,7 @@
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1235,6 +1242,7 @@
+@@ -1232,6 +1239,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -821,7 +821,7 @@
  		}
  
  		trx->op_info = "";
-@@ -1290,12 +1298,25 @@
+@@ -1287,12 +1295,25 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  

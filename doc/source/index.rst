@@ -37,6 +37,7 @@ Introduction
    :glob:
 
    feature_comparison
+   percona_xtradb
 
 Installation
 ============

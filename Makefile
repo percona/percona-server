@@ -45,6 +45,7 @@ prepare: mysql-$(MYSQL_VERSION).tar.gz
 	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_2)
 	ln -s ../patches $(PERCONA_SERVER)/patches
 	ln -s ../quiltrc $(PERCONA_SERVER)/quiltrc
+	(cd $(PERCONA_SERVER)/mysql-test && rm mtr mysql-test-run)
 
 main: prepare
 	(cd $(PERCONA_SERVER) && ../apply_patches)

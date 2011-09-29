@@ -407,3 +407,36 @@
  SELECT COUNT(*) FROM
  (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
  WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+--- a/mysql-test/r/index_merge_innodb.result
++++ b/mysql-test/r/index_merge_innodb.result
+@@ -346,7 +346,7 @@
+ FROM t1
+ WHERE c = 1 AND b = 1 AND d = 1;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	index_merge	c,bd	c,bd	5,10	NULL	1	Using intersect(c,bd); Using where; Using index
++1	SIMPLE	t1	ref	c,bd	bd	10	const,const	2	Using where
+ CREATE TABLE t2 ( a INT )
+ SELECT a
+ FROM t1
+--- a/mysql-test/r/rowid_order_innodb.result
++++ b/mysql-test/r/rowid_order_innodb.result
+@@ -15,7 +15,7 @@
+ (10, 1, 1);
+ explain select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	4	Using sort_union(key1,key2); Using where
++1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	5	Using sort_union(key1,key2); Using where
+ select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
+ pk1	key1	key2
+ -100	1	1
+--- a/mysql-test/r/type_bit_innodb.result
++++ b/mysql-test/r/type_bit_innodb.result
+@@ -233,7 +233,7 @@
+ 127	403
+ explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	t1	range	a	a	2	NULL	19	Using where; Using index; Using filesort
++1	SIMPLE	t1	range	a	a	2	NULL	27	Using where; Using index; Using filesort
+ select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
+ a+0	b+0
+ 44	307

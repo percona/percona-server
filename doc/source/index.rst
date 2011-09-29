@@ -128,6 +128,7 @@ Diagnostics Improvements
 
    diagnostics/index_info_schema_tables
    diagnostics/innodb_stats
+   diagnostics/user_stats
    diagnostics/slow_extended
    diagnostics/innodb_deadlock_count
    diagnostics/mysql_syslog

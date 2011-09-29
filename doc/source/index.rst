@@ -130,6 +130,7 @@ Diagnostics Improvements
 
    diagnostics/index_info_schema_tables
    diagnostics/innodb_stats
+   diagnostics/user_stats
    diagnostics/slow_extended_55
    diagnostics/innodb_show_status
    diagnostics/innodb_deadlock_count

@@ -1258,7 +1258,7 @@
  drop table t2;
 --- a/mysql-test/suite/sys_vars/r/all_vars.result
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result
-@@ -1,23 +1,23 @@
+@@ -1,15 +1,15 @@
  create table t1 (test_name text);
  create table t2 (variable_name text);
  load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
@@ -1275,20 +1275,8 @@
 -left join t1 on variable_name=test_name where test_name is null;
 +left join t1 on variable_name=test_name where test_name is null order by 1;
  There should be *no* variables listed below:
--INNODB_ROLLBACK_SEGMENTS
--INNODB_STATS_METHOD
- INNODB_FILE_FORMAT_MAX
-+INNODB_FILE_FORMAT_MAX
-+INNODB_LARGE_PREFIX
  INNODB_LARGE_PREFIX
- INNODB_ROLLBACK_SEGMENTS
-+INNODB_ROLLBACK_SEGMENTS
-+INNODB_STATS_METHOD
- INNODB_STATS_METHOD
--INNODB_FILE_FORMAT_MAX
--INNODB_LARGE_PREFIX
- drop table t1;
- drop table t2;
+ INNODB_LARGE_PREFIX
 --- /dev/null
 +++ b/mysql-test/include/percona_server_variables.inc
 @@ -0,0 +1,3 @@
@@ -1297,7 +1285,7 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,374 @@
+@@ -0,0 +1,375 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1434,6 +1422,7 @@
 +INNODB_PAGE_SIZE
 +INNODB_PURGE_BATCH_SIZE
 +INNODB_PURGE_THREADS
++INNODB_RANDOM_READ_AHEAD
 +INNODB_READ_AHEAD
 +INNODB_READ_AHEAD_THRESHOLD
 +INNODB_READ_IO_THREADS
@@ -1674,7 +1663,7 @@
 +WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
-@@ -0,0 +1,370 @@
+@@ -0,0 +1,371 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1808,6 +1797,7 @@
 +INNODB_PAGE_SIZE
 +INNODB_PURGE_BATCH_SIZE
 +INNODB_PURGE_THREADS
++INNODB_RANDOM_READ_AHEAD
 +INNODB_READ_AHEAD
 +INNODB_READ_AHEAD_THRESHOLD
 +INNODB_READ_IO_THREADS

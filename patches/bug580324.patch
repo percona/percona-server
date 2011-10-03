@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/sql/sql_base.cc
 +++ b/sql/sql_base.cc
-@@ -251,8 +251,12 @@
+@@ -314,8 +314,12 @@
                            const TABLE_LIST *table_list,
                            bool tmp_table)
  {

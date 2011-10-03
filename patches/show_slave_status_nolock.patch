@@ -16,7 +16,7 @@
 +Comment= Implement SHOW SLAVE STATUS without lock (STOP SLAVE lock the same mutex what lock SHOW SLAVE STATUS)
 --- a/sql/lex.h
 +++ b/sql/lex.h
-@@ -367,6 +367,7 @@
+@@ -370,6 +370,7 @@
    { "NONE",		SYM(NONE_SYM)},
    { "NOT",		SYM(NOT_SYM)},
    { "NO_WRITE_TO_BINLOG",  SYM(NO_WRITE_TO_BINLOG)},
@@ -26,7 +26,7 @@
    { "NVARCHAR",		SYM(NVARCHAR_SYM)},
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -3275,6 +3275,7 @@
+@@ -3278,6 +3278,7 @@
    {"show_profiles",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PROFILES]), SHOW_LONG_STATUS},
    {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
@@ -36,7 +36,7 @@
    {"show_table_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATS]), SHOW_LONG_STATUS},
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -119,7 +119,8 @@
+@@ -121,7 +121,8 @@
    SQLCOM_ALTER_DB_UPGRADE, SQLCOM_SHOW_TEMPORARY_TABLES,
    SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
    SQLCOM_SHOW_PATCHES,
@@ -48,7 +48,7 @@
      in "struct show_var_st status_vars[]= {" ...
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -328,6 +328,7 @@
+@@ -330,6 +330,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_MASTER_STAT]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
@@ -56,7 +56,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]=  CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2591,12 +2592,17 @@
+@@ -2596,12 +2597,17 @@
      pthread_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -75,7 +75,7 @@
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2607,7 +2613,19 @@
+@@ -2612,7 +2618,19 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }
@@ -98,7 +98,7 @@
    case SQLCOM_SHOW_MASTER_STAT:
 --- a/sql/sql_yacc.yy
 +++ b/sql/sql_yacc.yy
-@@ -1173,6 +1173,7 @@
+@@ -1175,6 +1175,7 @@
  %token  STARTS_SYM
  %token  START_SYM                     /* SQL-2003-R */
  %token  STATUS_SYM
@@ -106,7 +106,7 @@
  %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
  %token  STD_SYM
  %token  STOP_SYM
-@@ -10367,6 +10368,11 @@
+@@ -10387,6 +10388,11 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -341,7 +341,7 @@
 +--echo
 --- a/sql/slave.cc
 +++ b/sql/slave.cc
-@@ -1639,6 +1639,7 @@
+@@ -1641,6 +1641,7 @@
  
    if (mi->host[0])
    {
@@ -349,7 +349,7 @@
      DBUG_PRINT("info",("host is set: '%s'", mi->host));
      String *packet= &thd->packet;
      protocol->prepare_for_resend();
-@@ -1647,9 +1648,15 @@
+@@ -1649,9 +1650,15 @@
        slave_running can be accessed without run_lock but not other
        non-volotile members like mi->io_thd, which is guarded by the mutex.
      */

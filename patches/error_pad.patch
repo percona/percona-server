@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/extra/comp_err.c
 +++ b/extra/comp_err.c
-@@ -30,11 +30,12 @@
+@@ -32,11 +32,12 @@
  #include <assert.h>
  #include <my_dir.h>
  
@@ -21,7 +21,7 @@
  static char *OUTFILE= (char*) "errmsg.sys";
  static char *HEADERFILE= (char*) "mysqld_error.h";
  static char *NAMEFILE= (char*) "mysqld_ername.h";
-@@ -89,6 +90,7 @@
+@@ -91,6 +92,7 @@
    const char *sql_code1;		/* sql state */
    const char *sql_code2;		/* ODBC state */
    struct errors *next_error;            /* Pointer to next error */
@@ -29,7 +29,7 @@
    DYNAMIC_ARRAY msg;                    /* All language texts for this error */
  };
  
-@@ -127,6 +129,7 @@
+@@ -129,6 +131,7 @@
  
  
  static struct languages *parse_charset_string(char *str);
@@ -37,7 +37,7 @@
  static struct errors *parse_error_string(char *ptr, int er_count);
  static struct message *parse_message_string(struct message *new_message,
  					    char *str);
-@@ -229,6 +232,11 @@
+@@ -231,6 +234,11 @@
  
    for (tmp_error= error_head; tmp_error; tmp_error= tmp_error->next_error)
    {
@@ -49,7 +49,7 @@
      /*
         generating mysqld_error.h
         fprintf() will automatically add \r on windows
-@@ -318,12 +326,29 @@
+@@ -320,12 +328,29 @@
  		"language\n", tmp_error->er_name, tmp_lang->lang_short_name);
  	goto err;
        }
@@ -83,7 +83,7 @@
      }
  
      /* continue with header of the errmsg.sys file */
-@@ -474,14 +499,26 @@
+@@ -476,14 +501,26 @@
  	DBUG_RETURN(0);
        continue;
      }
@@ -115,7 +115,7 @@
  
        /* add error to the list */
        *tail_error= current_error;
-@@ -822,78 +859,122 @@
+@@ -824,78 +861,122 @@
    DBUG_RETURN(new_message);
  }
  

@@ -1,6 +1,6 @@
 FETCH_CMD=wget
 MASTER_SITE=http://s3.amazonaws.com/percona.com/downloads/community
-MYSQL_VERSION=5.1.58
+MYSQL_VERSION=5.1.59
 PERCONA_SERVER_VERSION=rel12.9
 PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
 PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)

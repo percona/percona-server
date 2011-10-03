@@ -435,7 +435,7 @@
  	ut_a(ret);
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11741,6 +11741,12 @@
+@@ -11751,6 +11751,12 @@
    "except for the deletion.",
    NULL, NULL, 0, 0, 2, 0);
  
@@ -448,15 +448,15 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -11831,6 +11837,7 @@
-   MYSQL_SYSVAR(auto_lru_dump),
+@@ -11842,6 +11848,7 @@
+   MYSQL_SYSVAR(blocking_lru_restore),
    MYSQL_SYSVAR(use_purge_thread),
    MYSQL_SYSVAR(pass_corrupt_table),
 +  MYSQL_SYSVAR(lazy_drop_table),
    NULL
  };
  
-@@ -11840,7 +11847,7 @@
+@@ -11851,7 +11858,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -783,7 +783,7 @@
  			ut_error;
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -421,6 +421,8 @@
+@@ -424,6 +424,8 @@
  
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
@@ -794,7 +794,7 @@
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
 --- a/storage/innodb_plugin/srv/srv0start.c
 +++ b/storage/innodb_plugin/srv/srv0start.c
-@@ -2012,7 +2012,7 @@
+@@ -2018,7 +2018,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

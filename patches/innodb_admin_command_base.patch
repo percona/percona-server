@@ -7,7 +7,9 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11604,6 +11604,7 @@
+@@ -11530,6 +11530,7 @@
+ i_s_innodb_cmp_reset,
+ i_s_innodb_cmpmem,
  i_s_innodb_cmpmem_reset,
 +i_s_innodb_admin_command,
  i_s_innodb_patches

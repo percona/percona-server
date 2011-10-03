@@ -3852,7 +3852,7 @@
  <ID>	root	<HOST_NAME>	information_schema	<COMMAND>	<TIME>	<STATE>	SHOW FULL PROCESSLIST
 --- a/mysql-test/include/mtr_warnings.sql
 +++ b/mysql-test/include/mtr_warnings.sql
-@@ -153,6 +153,9 @@
+@@ -168,6 +168,9 @@
      write()/read(). Bug #50414 */
   ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
   ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
@@ -3876,7 +3876,7 @@
 +--log-output=table,file --log-slow-queries
 --- a/mysql-test/include/mtr_check.sql
 +++ b/mysql-test/include/mtr_check.sql
-@@ -12,7 +12,8 @@
+@@ -27,7 +27,8 @@
    -- Dump all global variables except those
    -- that are supposed to change
    SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
@@ -4357,7 +4357,6 @@
 +VERSION_COMPILE_MACHINE
 +VERSION_COMPILE_OS
 +WAIT_TIMEOUT
-+WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
 @@ -0,0 +1,344 @@
@@ -4705,7 +4704,6 @@
 +VERSION_COMPILE_MACHINE
 +VERSION_COMPILE_OS
 +WAIT_TIMEOUT
-+WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/t/percona_server_variables_debug.test
 @@ -0,0 +1,2 @@

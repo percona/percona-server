@@ -15,7 +15,7 @@
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
  /** Percentage of the buffer pool to reserve for 'old' blocks.
-@@ -2341,6 +2342,9 @@
+@@ -2343,6 +2344,9 @@
  	srv_n_log_files = (ulint) innobase_log_files_in_group;
  	srv_log_file_size = (ulint) innobase_log_file_size;
  
@@ -25,7 +25,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  	srv_log_archive_on = (ulint) innobase_log_archive;
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -11212,6 +11216,12 @@
+@@ -11202,6 +11206,12 @@
    "Maximum delay between polling for a spin lock (6 by default)",
    NULL, NULL, 6L, 0L, ~0L, 0);
  
@@ -38,7 +38,7 @@
  static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-@@ -11428,6 +11438,7 @@
+@@ -11423,6 +11433,7 @@
    MYSQL_SYSVAR(spin_wait_delay),
    MYSQL_SYSVAR(table_locks),
    MYSQL_SYSVAR(thread_concurrency),
@@ -64,11 +64,11 @@
 +extern ibool	srv_thread_concurrency_timer_based;
 +
  extern ulint	srv_n_file_io_threads;
+ extern my_bool	srv_random_read_ahead;
  extern ulong	srv_read_ahead_threshold;
- extern ulint	srv_n_read_io_threads;
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -318,6 +318,7 @@
+@@ -320,6 +320,7 @@
  computer. Bigger computers need bigger values. Value 0 will disable the
  concurrency check. */
  
@@ -76,7 +76,7 @@
  UNIV_INTERN ulong	srv_thread_concurrency	= 0;
  
  /* this mutex protects srv_conc data structures */
-@@ -1069,6 +1070,75 @@
+@@ -1071,6 +1072,75 @@
  /*********************************************************************//**
  Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -152,7 +152,7 @@
  UNIV_INTERN
  void
  srv_conc_enter_innodb(
-@@ -1099,6 +1169,13 @@
+@@ -1101,6 +1171,13 @@
  		return;
  	}
  
@@ -166,7 +166,7 @@
  	os_fast_mutex_lock(&srv_conc_mutex);
  retry:
  	if (trx->declared_to_be_inside_innodb) {
-@@ -1242,6 +1319,14 @@
+@@ -1244,6 +1321,14 @@
  	}
  
  	ut_ad(srv_conc_n_threads >= 0);
@@ -181,7 +181,7 @@
  
  	os_fast_mutex_lock(&srv_conc_mutex);
  
-@@ -1275,6 +1360,13 @@
+@@ -1277,6 +1362,13 @@
  		return;
  	}
  

@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11173,6 +11173,11 @@
+@@ -11168,6 +11168,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -19,7 +19,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11238,6 +11243,7 @@
+@@ -11233,6 +11238,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -27,7 +27,7 @@
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(change_buffering),
  #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-@@ -11263,6 +11269,7 @@
+@@ -11259,6 +11265,7 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -233,7 +233,7 @@
  };
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -216,6 +216,8 @@
+@@ -217,6 +217,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_checkpoint;
  
@@ -280,7 +280,7 @@
  @return	slot index or ULINT_UNDEFINED if not found */
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -388,6 +388,8 @@
+@@ -390,6 +390,8 @@
  UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */

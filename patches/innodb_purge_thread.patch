@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11011,6 +11011,11 @@
+@@ -11050,6 +11050,11 @@
    "Output statistics of recovery process after it.",
    NULL, NULL, FALSE);
  
@@ -47,7 +47,7 @@
  extern ibool	srv_auto_extend_last_data_file;
  extern ulint	srv_last_file_size_max;
  extern char**	srv_log_group_home_dirs;
-@@ -418,6 +420,8 @@
+@@ -422,6 +424,8 @@
  	SRV_RECOVERY,	/**< threads finishing a recovery */
  	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
  #endif
@@ -56,7 +56,7 @@
  	SRV_MASTER	/**< the master thread, (whose type number must
  			be biggest) */
  };
-@@ -491,6 +495,21 @@
+@@ -495,6 +499,21 @@
  /*==============*/
  	void*	arg);	/*!< in: a dummy parameter required by
  			os_thread_create */
@@ -148,7 +148,7 @@
  /* if TRUE, then we auto-extend the last data file */
  UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
  /* if != 0, this tells the max size auto-extending may increase the
-@@ -2636,10 +2638,10 @@
+@@ -2643,10 +2645,10 @@
  	srv_main_thread_process_no = os_proc_get_number();
  	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
  
@@ -160,7 +160,7 @@
  	srv_n_threads_active[SRV_MASTER]++;
  
  	mutex_exit(&kernel_mutex);
-@@ -3097,6 +3099,7 @@
+@@ -3104,6 +3106,7 @@
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
  
@@ -168,7 +168,7 @@
  	/* We run a full purge every 10 seconds, even if the server
  	were active */
  	do {
-@@ -3113,6 +3116,7 @@
+@@ -3120,6 +3123,7 @@
  		srv_sync_log_buffer_in_background();
  
  	} while (n_pages_purged);
@@ -176,7 +176,7 @@
  
  	srv_main_thread_op_info = "flushing buffer pool pages";
  
-@@ -3181,6 +3185,7 @@
+@@ -3188,6 +3192,7 @@
  		os_thread_sleep(100000);
  	}
  
@@ -184,7 +184,7 @@
  	srv_main_thread_op_info = "purging";
  
  	/* Run a full purge */
-@@ -3197,6 +3202,7 @@
+@@ -3204,6 +3209,7 @@
  		srv_sync_log_buffer_in_background();
  
  	} while (n_pages_purged);
@@ -192,7 +192,7 @@
  
  	srv_main_thread_op_info = "reserving kernel mutex";
  
-@@ -3349,3 +3355,143 @@
+@@ -3356,3 +3362,143 @@
  
  	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
  }

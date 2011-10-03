@@ -445,7 +445,7 @@
 +										ULINT_UNDEFINED, &heap);
 +								n_fields = rec_offs_n_fields(offsets);
 +								if (!offset) {
-+									offset = row_get_trx_id_offset(rec, index, offsets);
++									offset = row_get_trx_id_offset(index, offsets);
 +								}
 +								trx_write_trx_id(rec + offset, ut_dulint_create(0, 1));
 +
@@ -696,7 +696,7 @@
 +						ULINT_UNDEFINED, &heap);
 +				n_fields = rec_offs_n_fields(offsets);
 +				if (!offset) {
-+					offset = row_get_trx_id_offset(rec, index, offsets);
++					offset = row_get_trx_id_offset(index, offsets);
 +				}
 +				trx_write_trx_id(rec + offset, ut_dulint_create(0, 1));
 +
@@ -865,7 +865,7 @@
  #endif /* !UNIV_HOTBACKUP */
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -7119,6 +7119,14 @@
+@@ -7102,6 +7102,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
  		err = row_import_tablespace_for_mysql(dict_table->name, trx);
@@ -880,7 +880,7 @@
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11383,6 +11391,11 @@
+@@ -11378,6 +11386,11 @@
    "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
    NULL, NULL, 0, 0, 1, 0);
  
@@ -892,7 +892,7 @@
  static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "Number of extra user rollback segments when create new database.",
-@@ -11460,6 +11473,7 @@
+@@ -11455,6 +11468,7 @@
    MYSQL_SYSVAR(adaptive_checkpoint),
    MYSQL_SYSVAR(flush_log_at_trx_commit_session),
    MYSQL_SYSVAR(enable_unsafe_group_commit),
@@ -1016,7 +1016,7 @@
 +/*==================*/
 +	dict_index_t*	index,		/*!< in: the index tree */
 +	buf_block_t*	block,		/*!< in/out: page to be split */
-+	rec_t*		split_rec,	/*!< in: first record on upper
++	const rec_t*	split_rec,	/*!< in: first record on upper
 +					half page */
 +	buf_block_t*	new_block,	/*!< in/out: the new half page */
 +	ulint		direction,	/*!< in: FSP_UP or FSP_DOWN */
@@ -1026,7 +1026,7 @@
  UNIV_INTERN
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -218,6 +218,8 @@
+@@ -219,6 +219,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_checkpoint;
  
@@ -1063,7 +1063,7 @@
  
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -390,6 +390,8 @@
+@@ -392,6 +392,8 @@
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
  

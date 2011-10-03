@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -9268,8 +9268,8 @@
+@@ -9307,8 +9307,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -18,7 +18,7 @@
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9284,9 +9284,8 @@
+@@ -9323,9 +9323,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -30,7 +30,7 @@
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9315,8 +9314,8 @@
+@@ -9354,8 +9353,8 @@
  			continue;
  		}
  
@@ -41,7 +41,7 @@
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9330,9 +9329,8 @@
+@@ -9369,9 +9368,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -152,7 +152,7 @@
  
  #undef mutex_free			/* Fix for MacOS X */
  
-@@ -536,9 +536,9 @@
+@@ -538,9 +538,9 @@
  	ulint	line;		/*!< Line where the mutex was locked */
  	ulint	level;		/*!< Level in the global latching order */
  #endif /* UNIV_SYNC_DEBUG */
@@ -163,7 +163,7 @@
  	os_thread_id_t thread_id; /*!< The thread id of the thread
  				which locked the mutex. */
  	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-@@ -553,9 +553,9 @@
+@@ -555,9 +555,9 @@
  	ulong		count_os_yield;	/*!< count of os_wait */
  	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
  	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */

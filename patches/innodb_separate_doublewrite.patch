@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/buf/buf0buf.c
 +++ b/storage/innodb_plugin/buf/buf0buf.c
-@@ -3454,7 +3454,8 @@
+@@ -3056,7 +3056,8 @@
  		read_space_id = mach_read_from_4(
  			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
  
@@ -19,7 +19,7 @@
  			ut_print_timestamp(stderr);
 --- a/storage/innodb_plugin/buf/buf0flu.c
 +++ b/storage/innodb_plugin/buf/buf0flu.c
-@@ -693,7 +693,8 @@
+@@ -695,7 +695,8 @@
  	write_buf = trx_doublewrite->write_buf;
  	i = 0;
  
@@ -29,7 +29,7 @@
  	       trx_doublewrite->block1, 0, len,
  	       (void*) write_buf, NULL);
  
-@@ -730,7 +731,8 @@
+@@ -732,7 +733,8 @@
  		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
  	ut_ad(i == TRX_SYS_DOUBLEWRITE_BLOCK_SIZE);
  
@@ -39,7 +39,7 @@
  	       trx_doublewrite->block2, 0, len,
  	       (void*) write_buf, NULL);
  
-@@ -760,7 +762,7 @@
+@@ -762,7 +764,7 @@
  flush:
  	/* Now flush the doublewrite buffer data to disk */
  
@@ -50,7 +50,7 @@
  	and in recovery we will find them in the doublewrite buffer
 --- a/storage/innodb_plugin/buf/buf0rea.c
 +++ b/storage/innodb_plugin/buf/buf0rea.c
-@@ -86,7 +86,9 @@
+@@ -94,7 +94,9 @@
  	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
  	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
  
@@ -341,7 +341,7 @@
  
  /* Note: This variable can be set to on/off and any of the supported
  file formats in the configuration file, but can only be set to any
-@@ -2266,6 +2267,8 @@
+@@ -2269,5 +2270,7 @@
  		goto error;
  	}
  
@@ -349,7 +349,6 @@
 +
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
- 	/* -------------- Log files ---------------------------*/
 @@ -11319,6 +11322,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
@@ -362,7 +361,7 @@
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11492,6 +11500,7 @@
+@@ -11556,0 +11564,0 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -461,7 +460,7 @@
  /*********************************************************************
  Create extra rollback segments when create_new_db */
  UNIV_INTERN
-@@ -447,6 +470,8 @@
+@@ -458,6 +481,8 @@
  
  /* Space id and page no where the trx system file copy resides */
  #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */

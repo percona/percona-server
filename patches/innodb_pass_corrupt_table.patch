@@ -277,7 +277,7 @@
  	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
  
  	page_cursor = btr_pcur_get_page_cur(cursor);
-@@ -419,6 +425,15 @@
+@@ -392,6 +398,15 @@
  	next_block = btr_block_get(space, zip_size, next_page_no,
  				   cursor->latch_mode, mtr);
  	next_page = buf_block_get_frame(next_block);
@@ -326,7 +326,7 @@
  
  /* prototypes for new functions added to ha_innodb.cc */
  trx_t* innobase_get_trx();
-@@ -1135,6 +1136,11 @@
+@@ -1136,6 +1137,11 @@
  			ready = buf_flush_ready_for_replace(&block->page);
  			mutex_exit(&block->mutex);
  
@@ -338,7 +338,7 @@
  			if (!ready) {
  
  				return(block);
-@@ -2006,6 +2012,13 @@
+@@ -2007,6 +2013,13 @@
  		return(NULL);
  	}
  
@@ -352,7 +352,7 @@
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&buf_pool->page_hash_latch);
-@@ -2583,6 +2596,13 @@
+@@ -2587,6 +2600,13 @@
  		return(NULL);
  	}
  
@@ -366,7 +366,7 @@
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -3257,6 +3277,7 @@
+@@ -3261,6 +3281,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -374,7 +374,7 @@
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
-@@ -3841,6 +3862,7 @@
+@@ -3845,6 +3866,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -382,7 +382,7 @@
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -3882,6 +3904,23 @@
+@@ -3886,6 +3908,23 @@
  			      REFMAN "forcing-innodb-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -406,7 +406,7 @@
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				fputs("InnoDB: Ending processing because of"
  				      " a corrupt database page.\n",
-@@ -3889,6 +3928,7 @@
+@@ -3893,6 +3932,7 @@
  				exit(1);
  			}
  		}
@@ -414,7 +414,7 @@
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -3898,8 +3938,11 @@
+@@ -3902,8 +3942,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(
@@ -428,7 +428,7 @@
  	}
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
-@@ -193,7 +193,14 @@
+@@ -195,7 +195,14 @@
  			      ((buf_block_t*) bpage)->frame, bpage, trx);
  	}
  	thd_wait_end(NULL);
@@ -787,7 +787,7 @@
  	if (descr != NULL) {
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -3979,6 +3979,12 @@
+@@ -3981,6 +3981,12 @@
  		DBUG_RETURN(1);
  	}
  
@@ -800,7 +800,7 @@
  	/* Create buffers for packing the fields of a record. Why
  	table->reclength did not work here? Obviously, because char
  	fields when packed actually became 1 byte longer, when we also
-@@ -4006,6 +4012,19 @@
+@@ -4008,6 +4014,19 @@
  	/* Get pointer to a table object in InnoDB dictionary cache */
  	ib_table = dict_table_get(norm_name, TRUE);
  	
@@ -820,7 +820,7 @@
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
  			++retries;
-@@ -5174,6 +5193,10 @@
+@@ -5157,6 +5176,10 @@
  
  	ha_statistic_increment(&SSV::ha_write_count);
  
@@ -831,7 +831,7 @@
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5391,6 +5414,10 @@
+@@ -5374,6 +5397,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -842,7 +842,7 @@
  	DBUG_RETURN(error_result);
  }
  
-@@ -5567,6 +5594,10 @@
+@@ -5550,6 +5577,10 @@
  
  	ha_statistic_increment(&SSV::ha_update_count);
  
@@ -853,7 +853,7 @@
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
  		table->timestamp_field->set_time();
  
-@@ -5656,6 +5687,10 @@
+@@ -5639,6 +5670,10 @@
  
  	innobase_active_small();
  
@@ -864,7 +864,7 @@
  	DBUG_RETURN(error);
  }
  
-@@ -5677,6 +5712,10 @@
+@@ -5660,6 +5695,10 @@
  
  	ha_statistic_increment(&SSV::ha_delete_count);
  
@@ -875,7 +875,7 @@
  	if (!prebuilt->upd_node) {
  		row_get_prebuilt_update_vector(prebuilt);
  	}
-@@ -5703,6 +5742,10 @@
+@@ -5686,6 +5725,10 @@
  
  	innobase_active_small();
  
@@ -886,7 +886,7 @@
  	DBUG_RETURN(error);
  }
  
-@@ -5942,6 +5985,10 @@
+@@ -5925,6 +5968,10 @@
  
  	ha_statistic_increment(&SSV::ha_read_key_count);
  
@@ -897,7 +897,7 @@
  	index = prebuilt->index;
  
  	if (UNIV_UNLIKELY(index == NULL)) {
-@@ -6007,6 +6054,10 @@
+@@ -5990,6 +6037,10 @@
  		ret = DB_UNSUPPORTED;
  	}
  
@@ -908,7 +908,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -6122,6 +6173,10 @@
+@@ -6105,6 +6156,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -919,7 +919,7 @@
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -6212,6 +6267,10 @@
+@@ -6195,6 +6250,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -930,7 +930,7 @@
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -6221,6 +6280,10 @@
+@@ -6204,6 +6263,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -941,7 +941,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7487,10 +7550,18 @@
+@@ -7470,10 +7533,18 @@
  
  	update_thd(ha_thd());
  
@@ -960,7 +960,7 @@
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7991,6 +8062,16 @@
+@@ -7974,6 +8045,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -977,7 +977,7 @@
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -8168,7 +8249,7 @@
+@@ -8151,7 +8232,7 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -986,7 +986,7 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8461,10 +8542,18 @@
+@@ -8451,10 +8532,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -1005,7 +1005,7 @@
  	return(0);
  }
  
-@@ -8646,6 +8735,10 @@
+@@ -8636,6 +8725,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1016,7 +1016,7 @@
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9416,6 +9509,10 @@
+@@ -9406,6 +9499,10 @@
  
  	update_thd(thd);
  
@@ -1027,7 +1027,7 @@
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11823,6 +11920,26 @@
+@@ -11818,6 +11915,26 @@
    "0 (the default) disables automatic dumps.",
    NULL, NULL, 0, 0, UINT_MAX32, 0);
  
@@ -1054,7 +1054,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11910,6 +12027,7 @@
+@@ -11906,6 +12023,7 @@
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
@@ -1104,7 +1104,7 @@
  	}
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1025,7 +1025,7 @@
+@@ -1041,7 +1041,7 @@
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  	__attribute__((pure));
  #else /* UNIV_DEBUG */
@@ -1113,7 +1113,7 @@
  #endif /* UNIV_DEBUG */
  /*********************************************************************//**
  Gets the space id of a block.
-@@ -1472,6 +1472,7 @@
+@@ -1488,6 +1488,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -1132,7 +1132,7 @@
  /*********************************************************************//**
  Gets the current size of buffer buf_pool in bytes.
  @return size in bytes */
-@@ -619,6 +619,12 @@
+@@ -637,6 +637,12 @@
  /*================*/
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  {
@@ -1254,7 +1254,7 @@
  Decompress a page.  This function should tolerate errors on the compressed
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -240,6 +240,7 @@
+@@ -241,6 +241,7 @@
  extern ulint	srv_adaptive_flushing_method;
  
  extern ulint	srv_expand_import;
@@ -1308,7 +1308,7 @@
  
 --- a/storage/innobase/row/row0sel.c
 +++ b/storage/innobase/row/row0sel.c
-@@ -3854,6 +3854,13 @@
+@@ -3894,6 +3894,13 @@
  	/* PHASE 4: Look for matching records in a loop */
  
  	rec = btr_pcur_get_rec(pcur);
@@ -1322,7 +1322,7 @@
  	ut_ad(!!page_rec_is_comp(rec) == comp);
  #ifdef UNIV_SEARCH_DEBUG
  	/*
-@@ -3931,7 +3938,13 @@
+@@ -3971,7 +3978,13 @@
  	if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
  
  wrong_offs:
@@ -1337,7 +1337,7 @@
  			ut_print_timestamp(stderr);
  			buf_page_print(page_align(rec), 0);
  			fprintf(stderr,
-@@ -3982,7 +3995,8 @@
+@@ -4022,7 +4035,8 @@
  
  	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
  
@@ -1349,7 +1349,7 @@
  			fprintf(stderr,
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -430,6 +430,7 @@
+@@ -432,6 +432,7 @@
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */

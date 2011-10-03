@@ -299,7 +299,7 @@
  Validates the LRU list for one buffer pool instance. */
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
-@@ -58,7 +58,7 @@
+@@ -60,7 +60,7 @@
  which case it is never read into the pool, or if the tablespace does
  not exist or is being dropped 
  @return 1 if read request is issued. 0 if it is not */
@@ -440,7 +440,7 @@
  }
  
  #define OK(expr)		\
-@@ -4270,6 +4271,36 @@
+@@ -4298,6 +4299,36 @@
  			"Hello!");
  		goto end_func;
  	}
@@ -602,7 +602,7 @@
  /* structure to pass status variables to MySQL */
  UNIV_INTERN export_struc export_vars;
  
-@@ -2706,6 +2712,58 @@
+@@ -2706,0 +2712,0 @@
  	OS_THREAD_DUMMY_RETURN;
  }
  

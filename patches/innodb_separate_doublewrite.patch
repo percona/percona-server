@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -3810,7 +3810,8 @@
+@@ -3814,7 +3814,8 @@
  		read_space_id = mach_read_from_4(
  			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
  
@@ -50,7 +50,7 @@
  	and in recovery we will find them in the doublewrite buffer
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
-@@ -88,7 +88,9 @@
+@@ -90,7 +90,9 @@
  	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
  	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
  
@@ -341,7 +341,7 @@
  
  /* The highest file format being used in the database. The value can be
  set by user, however, it will be adjusted to the newer file format if
-@@ -2477,6 +2478,8 @@
+@@ -2479,6 +2480,8 @@
  		goto error;
  	}
  
@@ -350,7 +350,7 @@
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
  
  	/* -------------- Log files ---------------------------*/
-@@ -11657,6 +11660,11 @@
+@@ -11647,6 +11650,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -362,7 +362,7 @@
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11824,6 +11832,7 @@
+@@ -11819,6 +11827,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),

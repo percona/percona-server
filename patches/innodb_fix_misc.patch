@@ -452,7 +452,7 @@
  	ut_a(ret);
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -12018,6 +12018,12 @@
+@@ -12029,6 +12029,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -465,7 +465,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12110,6 +12116,7 @@
+@@ -12122,6 +12128,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -473,7 +473,7 @@
    NULL
  };
  
-@@ -12119,7 +12126,7 @@
+@@ -12131,7 +12138,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    plugin_author,
@@ -877,7 +877,7 @@
  			ut_error;
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -444,6 +444,8 @@
+@@ -447,6 +447,8 @@
  UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
  
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
@@ -888,7 +888,7 @@
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
 --- a/storage/innobase/srv/srv0start.c
 +++ b/storage/innobase/srv/srv0start.c
-@@ -2161,7 +2161,7 @@
+@@ -2167,7 +2167,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,

@@ -41,7 +41,7 @@
 +--file_exists $MYSQLD_DATADIR/ib_lru_dump;
 --- a/storage/innodb_plugin/buf/buf0lru.c
 +++ b/storage/innodb_plugin/buf/buf0lru.c
-@@ -2042,6 +2042,277 @@
+@@ -2042,6 +2042,282 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  
@@ -201,6 +201,11 @@
 +			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
 +		goto end;
 +	}
++
++	ut_print_timestamp(stderr);
++	fprintf(stderr, " InnoDB: Restoring buffer pool pages from %s\n",
++		LRU_DUMP_FILE);
++
 +	if (size == 0 || size_high > 0 || size % 8) {
 +		fprintf(stderr, " InnoDB: broken LRU dump file\n");
 +		goto end;
@@ -302,7 +307,7 @@
 +
 +	ut_print_timestamp(stderr);
 +	fprintf(stderr,
-+		" InnoDB: reading pages based on the dumped LRU list was done."
++		" InnoDB: Completed reading buffer pool pages"
 +		" (requested: %lu, read: %lu)\n", req, reads);
 +	ret = TRUE;
 +end:
@@ -405,7 +410,25 @@
  Waits for an aio operation to complete. This function is used to write the
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11542,6 +11542,12 @@
+@@ -197,6 +197,8 @@
+ 
+ static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
+ 
++static my_bool	innobase_blocking_lru_restore		= FALSE;
++
+ /** Possible values for system variable "innodb_stats_method". The values
+ are defined the same as its corresponding MyISAM system variable
+ "myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
+@@ -2408,6 +2410,8 @@
+ 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+ 	srv_use_checksums = (ibool) innobase_use_checksums;
+ 
++	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
++
+ #ifdef HAVE_LARGE_PAGES
+         if ((os_use_large_pages = (ibool) my_use_large_pages))
+ 		os_large_page_size = (ulint) opt_large_page_size;
+@@ -11478,6 +11482,18 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -415,28 +438,35 @@
 +  "0 (the default) disables automatic dumps.",
 +  NULL, NULL, 0, 0, UINT_MAX32, 0);
 +
++static MYSQL_SYSVAR_BOOL(blocking_lru_restore, innobase_blocking_lru_restore,
++  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
++  "Block XtraDB startup process until buffer pool is full restored from a "
++  "dump file (if present). Disabled by default.",
++  NULL, NULL, FALSE);
++
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11625,6 +11631,7 @@
-   MYSQL_SYSVAR(random_read_ahead),
+@@ -11557,6 +11573,8 @@
+ #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
 +  MYSQL_SYSVAR(auto_lru_dump),
++  MYSQL_SYSVAR(blocking_lru_restore),
    MYSQL_SYSVAR(use_purge_thread),
    NULL
  };
 --- a/storage/innodb_plugin/handler/i_s.cc
 +++ b/storage/innodb_plugin/handler/i_s.cc
-@@ -46,6 +46,7 @@
+@@ -45,6 +45,7 @@
+ #include "btr0btr.h" /* for btr_page_get_index_id */
  #include "trx0rseg.h" /* for trx_rseg_struct */
  #include "trx0sys.h" /* for trx_sys */
- #include "dict0dict.h" /* for dict_sys */
 +#include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
  }
  
  static const char plugin_author[] = "Innobase Oy";
-@@ -3040,6 +3041,36 @@
+@@ -2695,6 +2696,36 @@
  			"Hello!");
  		goto end_func;
  	}
@@ -475,7 +505,7 @@
  		"Undefined XTRA_* command.");
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h
-@@ -41,5 +41,6 @@
+@@ -40,5 +40,6 @@
  {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -562,12 +592,15 @@
  handler for completed requests. The aio array of pending requests is divided
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -336,6 +336,9 @@
+@@ -336,6 +336,12 @@
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
  
 +/** Time in seconds between automatic buffer pool dumps */
 +extern uint srv_auto_lru_dump;
++
++/** Whether startup should be blocked until buffer pool is fully restored */
++extern ibool srv_blocking_lru_restore;
 +
  /** Status variables to be passed to MySQL */
  typedef struct export_var_struct export_struc;
@@ -591,17 +624,20 @@
  @return FALSE if not all information printed
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -305,6 +305,9 @@
+@@ -305,6 +305,12 @@
  reading of a disk page */
  UNIV_INTERN ulint srv_buf_pool_reads = 0;
  
 +/** Time in seconds between automatic buffer pool dumps */
 +UNIV_INTERN uint srv_auto_lru_dump = 0;
 +
++/** Whether startup should be blocked until buffer pool is fully restored */
++UNIV_INTERN ibool srv_blocking_lru_restore;
++
  /* structure to pass status variables to MySQL */
  UNIV_INTERN export_struc export_vars;
  
-@@ -2559,6 +2562,56 @@
+@@ -2559,0 +2562,0 @@
  	OS_THREAD_DUMMY_RETURN;
  }
  
@@ -626,7 +662,9 @@
 +		os_thread_pf(os_thread_get_curr_id()));
 +#endif
 +
-+	if (srv_auto_lru_dump)
++	/* If srv_blocking_lru_restore is TRUE, restore will be done
++	synchronously on startup. */
++	if (srv_auto_lru_dump && !srv_blocking_lru_restore)
 +		buf_LRU_file_restore();
 +
 +	last_dump_time = time(NULL);
@@ -660,7 +698,15 @@
  and wakes up the master thread if it is suspended (not sleeping). Used
 --- a/storage/innodb_plugin/srv/srv0start.c
 +++ b/storage/innodb_plugin/srv/srv0start.c
-@@ -126,9 +126,9 @@
+@@ -88,6 +88,7 @@
+ # include "thr0loc.h"
+ # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
+ # include "zlib.h" /* for ZLIB_VERSION */
++# include "buf0lru.h" /* for buf_LRU_file_restore() */
+ 
+ /** Log sequence number immediately after startup */
+ UNIV_INTERN ib_uint64_t	srv_start_lsn;
+@@ -126,9 +127,9 @@
  static ulint		ios;
  
  /** io_handler_thread parameters for thread identification */
@@ -672,7 +718,7 @@
  
  /** We use this mutex to test the return value of pthread_mutex_trylock
     on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-@@ -1706,6 +1706,10 @@
+@@ -1706,6 +1707,15 @@
  	os_thread_create(&srv_monitor_thread, NULL,
  			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
  
@@ -680,10 +726,15 @@
 +	os_thread_create(&srv_LRU_dump_restore_thread, NULL,
 +			 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
 +
++	/* If srv_blocking_lru_restore is TRUE, load buffer pool contents
++	synchronously */
++	if (srv_auto_lru_dump && srv_blocking_lru_restore)
++		buf_LRU_file_restore();
++
  	srv_is_being_started = FALSE;
  
  	if (trx_doublewrite == NULL) {
-@@ -1730,13 +1734,13 @@
+@@ -1730,13 +1740,13 @@
  		ulint i;
  
  		os_thread_create(&srv_purge_thread, NULL, thread_ids

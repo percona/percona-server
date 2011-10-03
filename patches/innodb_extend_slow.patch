@@ -451,7 +451,7 @@
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -9014,6 +9050,25 @@
+@@ -9014,0 +9050,0 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -479,7 +479,7 @@
  		prebuilt->used_in_HANDLER = FALSE;
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h
-@@ -40,5 +40,6 @@
+@@ -39,5 +39,6 @@
  {"innodb_purge_thread","Enable to use purge devoted thread","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_admin_command_base","XtraDB specific command interface through i_s","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -848,7 +848,7 @@
  		}
  
  		trx->op_info = "";
-@@ -1292,12 +1300,25 @@
+@@ -1292,0 +1300,0 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  

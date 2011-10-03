@@ -156,7 +156,7 @@
  static sys_var_const_str_ptr    sys_repl_report_password(&vars, "report_password", &report_password);
  
  static uchar *slave_get_report_port(THD *thd)
-@@ -1255,10 +1262,9 @@
+@@ -1257,10 +1264,9 @@
  {}
  #endif /* HAVE_REPLICATION */
  
@@ -168,7 +168,7 @@
    ulong new_cache_size= query_cache.resize(query_cache_size);
  
    /*
-@@ -1272,11 +1278,35 @@
+@@ -1274,11 +1280,35 @@
  			query_cache_size, new_cache_size);
    
    query_cache_size= new_cache_size;
@@ -206,7 +206,7 @@
  static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type)
  {
    query_cache_min_res_unit= 
-@@ -3634,6 +3664,16 @@
+@@ -3636,6 +3666,16 @@
    Functions to handle SET mysql_internal_variable=const_expr
  *****************************************************************************/
  

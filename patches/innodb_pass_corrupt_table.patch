@@ -468,7 +468,7 @@
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4657,6 +4658,12 @@
+@@ -4328,6 +4329,12 @@
  	}
  
  	do {
@@ -481,7 +481,7 @@
  		if (UNIV_LIKELY
  		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-@@ -5460,4 +5467,42 @@
+@@ -5054,4 +5061,42 @@
  		rw_lock_free(&dict_table_stats_latches[i]);
  	}
  }
@@ -781,11 +781,11 @@
 +		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 +	}
 +
-+	if (share->ib_table) {
-+		ut_a(share->ib_table == ib_table);
-+	} else {
-+		share->ib_table = ib_table;
-+	}
++	share->ib_table = ib_table;
++
++
++
++
 +
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
@@ -1015,7 +1015,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11642,6 +11747,7 @@
+@@ -11642,0 +11747,0 @@
    MYSQL_SYSVAR(io_capacity),
    MYSQL_SYSVAR(auto_lru_dump),
    MYSQL_SYSVAR(use_purge_thread),
@@ -1043,7 +1043,7 @@
  	int update_row(const uchar * old_data, uchar * new_data);
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h
-@@ -43,5 +43,6 @@
+@@ -42,5 +42,6 @@
  {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_separate_doublewrite","Add option 'innodb_doublewrite_file' to separate doublewrite dedicated tablespace","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -1117,7 +1117,7 @@
  	switch (buf_block_get_state(block)) {
 --- a/storage/innodb_plugin/include/dict0dict.h
 +++ b/storage/innodb_plugin/include/dict0dict.h
-@@ -1206,6 +1206,15 @@
+@@ -1197,6 +1197,15 @@
  dict_close(void);
  /*============*/
  

@@ -341,7 +341,7 @@
  
  /* Note: This variable can be set to on/off and any of the supported
  file formats in the configuration file, but can only be set to any
-@@ -2269,6 +2270,8 @@
+@@ -2269,5 +2270,7 @@
  		goto error;
  	}
  
@@ -349,8 +349,7 @@
 +
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
- 	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
-@@ -11378,6 +11381,11 @@
+@@ -11319,6 +11322,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -362,7 +361,7 @@
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11556,6 +11564,7 @@
+@@ -11556,0 +11564,0 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -372,7 +371,7 @@
    MYSQL_SYSVAR(extra_undoslots),
 --- a/storage/innodb_plugin/handler/innodb_patch_info.h
 +++ b/storage/innodb_plugin/handler/innodb_patch_info.h
-@@ -42,5 +42,6 @@
+@@ -41,5 +41,6 @@
  {"innodb_show_lock_name","Show mutex/lock name instead of crated file/line","","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_extend_slow","Extended statistics in slow.log","It is InnoDB-part only. It needs to patch also to mysqld.","http://www.percona.com/docs/wiki/percona-xtradb"},
  {"innodb_lru_dump_restore","Dump and restore command for content of buffer pool","","http://www.percona.com/docs/wiki/percona-xtradb"},
@@ -515,7 +514,7 @@
  UNIV_INLINE
 --- a/storage/innodb_plugin/row/row0mysql.c
 +++ b/storage/innodb_plugin/row/row0mysql.c
-@@ -3401,7 +3401,7 @@
+@@ -3331,7 +3331,7 @@
  		/* Do not drop possible .ibd tablespace if something went
  		wrong: we do not want to delete valuable data of the user */
  

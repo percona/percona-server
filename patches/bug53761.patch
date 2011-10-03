@@ -5,7 +5,7 @@
 #
 --- a/storage/innodb_plugin/btr/btr0cur.c
 +++ b/storage/innodb_plugin/btr/btr0cur.c
-@@ -3117,6 +3117,7 @@
+@@ -3180,6 +3180,7 @@
  {
  	btr_path_t*	slot;
  	rec_t*		rec;
@@ -13,7 +13,7 @@
  
  	ut_a(cursor->path_arr);
  
-@@ -3139,8 +3140,155 @@
+@@ -3202,8 +3203,155 @@
  
  	slot = cursor->path_arr + (root_height - height);
  
@@ -170,7 +170,7 @@
  }
  
  /*******************************************************************//**
-@@ -3165,6 +3313,7 @@
+@@ -3228,6 +3376,7 @@
  	ibool		diverged_lot;
  	ulint		divergence_level;
  	ib_int64_t	n_rows;
@@ -178,7 +178,7 @@
  	ulint		i;
  	mtr_t		mtr;
  
-@@ -3207,6 +3356,7 @@
+@@ -3270,6 +3419,7 @@
  	/* We have the path information for the range in path1 and path2 */
  
  	n_rows = 1;
@@ -186,7 +186,7 @@
  	diverged = FALSE;	    /* This becomes true when the path is not
  				    the same any more */
  	diverged_lot = FALSE;	    /* This becomes true when the paths are
-@@ -3222,7 +3372,7 @@
+@@ -3285,7 +3435,7 @@
  		if (slot1->nth_rec == ULINT_UNDEFINED
  		    || slot2->nth_rec == ULINT_UNDEFINED) {
  
@@ -195,7 +195,7 @@
  				/* In trees whose height is > 1 our algorithm
  				tends to underestimate: multiply the estimate
  				by 2: */
-@@ -3234,7 +3384,9 @@
+@@ -3297,7 +3447,9 @@
  			to over 1 / 2 of the estimated rows in the whole
  			table */
  
@@ -206,7 +206,7 @@
  				n_rows = index->table->stat_n_rows / 2;
  
  				/* If there are just 0 or 1 rows in the table,
-@@ -3260,10 +3412,15 @@
+@@ -3323,10 +3475,15 @@
  					divergence_level = i;
  				}
  			} else {
@@ -226,7 +226,7 @@
  			}
  
  		} else if (diverged && !diverged_lot) {
-@@ -3287,8 +3444,9 @@
+@@ -3350,8 +3507,9 @@
  			}
  		} else if (diverged_lot) {
  
@@ -240,7 +240,7 @@
  }
 --- a/storage/innodb_plugin/include/btr0cur.h
 +++ b/storage/innodb_plugin/include/btr0cur.h
-@@ -652,6 +652,11 @@
+@@ -670,6 +670,11 @@
  				order); value ULINT_UNDEFINED
  				denotes array end */
  	ulint	n_recs;		/*!< number of records on the page */

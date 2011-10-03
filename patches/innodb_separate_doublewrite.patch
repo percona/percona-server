@@ -341,7 +341,7 @@
  
  /* Note: This variable can be set to on/off and any of the supported
  file formats in the configuration file, but can only be set to any
-@@ -2269,5 +2270,7 @@
+@@ -2270,6 +2271,8 @@
  		goto error;
  	}
  
@@ -349,7 +349,8 @@
 +
  	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
  
-@@ -11319,6 +11322,11 @@
+ 	/* -------------- Log files ---------------------------*/
+@@ -11313,6 +11316,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -361,7 +362,7 @@
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11556,0 +11564,0 @@
+@@ -11497,6 +11505,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -536,7 +537,7 @@
  UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 --- a/storage/innodb_plugin/srv/srv0start.c
 +++ b/storage/innodb_plugin/srv/srv0start.c
-@@ -708,6 +708,7 @@
+@@ -709,6 +709,7 @@
  /*======================*/
  	ibool*		create_new_db,	/*!< out: TRUE if new database should be
  					created */
@@ -544,7 +545,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  	ulint*		min_arch_log_no,/*!< out: min of archived log
  					numbers in data files */
-@@ -740,6 +741,7 @@
+@@ -741,6 +742,7 @@
  	*sum_of_new_sizes = 0;
  
  	*create_new_db = FALSE;
@@ -552,7 +553,7 @@
  
  	srv_normalize_path_for_win(srv_data_home);
  
-@@ -972,6 +974,142 @@
+@@ -973,6 +975,142 @@
  				srv_data_file_is_raw_partition[i] != 0);
  	}
  
@@ -695,7 +696,7 @@
  	ios = 0;
  
  	mutex_create(&ios_mutex, SYNC_NO_ORDER_CHECK);
-@@ -990,6 +1128,7 @@
+@@ -991,6 +1129,7 @@
  {
  	buf_pool_t*	ret;
  	ibool		create_new_db;
@@ -703,7 +704,7 @@
  	ibool		log_file_created;
  	ibool		log_created	= FALSE;
  	ibool		log_opened	= FALSE;
-@@ -1407,6 +1546,7 @@
+@@ -1408,6 +1547,7 @@
  	}
  
  	err = open_or_create_data_files(&create_new_db,
@@ -711,7 +712,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  					&min_arch_log_no, &max_arch_log_no,
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -1530,6 +1670,15 @@
+@@ -1531,6 +1671,15 @@
  		mtr_commit(&mtr);
  
  		trx_sys_create();
@@ -727,7 +728,7 @@
  		dict_create();
  		srv_startup_is_before_trx_rollback_phase = FALSE;
  
-@@ -1567,6 +1716,13 @@
+@@ -1568,6 +1717,13 @@
  		recv_recovery_from_archive_finish();
  #endif /* UNIV_LOG_ARCHIVE */
  	} else {
@@ -741,7 +742,7 @@
  
  		/* Check if we support the max format that is stamped
  		on the system tablespace. 
-@@ -1653,6 +1809,17 @@
+@@ -1654,6 +1810,17 @@
  		we have finished the recovery process so that the
  		image of TRX_SYS_PAGE_NO is not stale. */
  		trx_sys_file_format_tag_init();

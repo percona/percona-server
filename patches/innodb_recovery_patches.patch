@@ -116,7 +116,7 @@
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
  static my_bool	innobase_rollback_on_timeout		= FALSE;
-@@ -2370,6 +2372,8 @@
+@@ -2367,6 +2369,8 @@
  
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
@@ -125,7 +125,7 @@
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
  
-@@ -11036,6 +11040,16 @@
+@@ -10987,6 +10991,16 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -142,7 +142,7 @@
  static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11481,0 +11495,0 @@
+@@ -11412,6 +11426,8 @@
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),
    MYSQL_SYSVAR(extra_undoslots),

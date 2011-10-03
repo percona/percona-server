@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -566,6 +566,8 @@
+@@ -570,6 +570,8 @@
    (char*) &export_vars.innodb_data_written,		  SHOW_LONG},
    {"dblwr_pages_written",
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
@@ -28,8 +28,8 @@
  Gets the size of a lock struct.
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -689,6 +689,7 @@
- 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
+@@ -694,6 +694,7 @@
+ 	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 +        ulint innodb_deadlocks;                 /* ??? */
@@ -48,7 +48,7 @@
  		break;
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -444,7 +444,7 @@
+@@ -450,7 +450,7 @@
  static ulint	srv_n_rows_updated_old		= 0;
  static ulint	srv_n_rows_deleted_old		= 0;
  static ulint	srv_n_rows_read_old		= 0;
@@ -57,7 +57,7 @@
  UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
  UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
  UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-@@ -2155,6 +2155,8 @@
+@@ -2163,6 +2163,8 @@
  		= UT_LIST_GET_LEN(buf_pool->flush_list);
  	export_vars.innodb_buffer_pool_pages_free
  		= UT_LIST_GET_LEN(buf_pool->free);

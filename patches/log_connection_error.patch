@@ -41,7 +41,7 @@
 +Comment=
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -5082,6 +5082,10 @@
+@@ -5085,6 +5085,10 @@
  
      DBUG_PRINT("error",("Too many connections"));
      close_connection(thd, ER_CON_COUNT_ERROR, 1);
@@ -52,7 +52,7 @@
      statistic_increment(denied_connections, &LOCK_status);
      delete thd;
      DBUG_VOID_RETURN;
-@@ -5469,6 +5473,10 @@
+@@ -5472,6 +5476,10 @@
      if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
  	my_net_init(&thd->net, thd->net.vio))
      {
@@ -63,7 +63,7 @@
        close_connection(thd, ER_OUT_OF_RESOURCES, 1);
        delete thd;
        continue;
-@@ -5664,6 +5672,10 @@
+@@ -5667,6 +5675,10 @@
                                                     event_conn_closed)) ||
                          my_net_init(&thd->net, thd->net.vio))
      {

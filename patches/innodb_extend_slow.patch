@@ -401,7 +401,7 @@
  
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -1393,6 +1393,16 @@
+@@ -1392,6 +1392,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -418,7 +418,7 @@
  	DBUG_VOID_RETURN;
  }
  
-@@ -1448,6 +1458,32 @@
+@@ -1447,6 +1457,32 @@
  }
  
  
@@ -451,7 +451,7 @@
  /*********************************************************************//**
  Construct ha_innobase handler. */
  UNIV_INTERN
-@@ -9014,0 +9050,0 @@
+@@ -8965,6 +9001,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -829,7 +829,7 @@
  /* This is set to TRUE if the MySQL user has set it in MySQL; currently
  affects only FOREIGN KEY definition parsing */
  UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-@@ -1161,6 +1164,10 @@
+@@ -1158,6 +1161,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -840,7 +840,7 @@
  
  	if (trx->mysql_thd != NULL
  	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
-@@ -1237,6 +1244,7 @@
+@@ -1234,6 +1241,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -848,7 +848,7 @@
  		}
  
  		trx->op_info = "";
-@@ -1292,0 +1300,0 @@
+@@ -1289,12 +1297,25 @@
  	/* Go to wait for the event; when a thread leaves InnoDB it will
  	release this thread */
  

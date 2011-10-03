@@ -18,7 +18,7 @@
        if test -n "$other_args"
 --- a/scripts/mysql_install_db.sh
 +++ b/scripts/mysql_install_db.sh
-@@ -469,6 +469,10 @@
+@@ -470,6 +470,10 @@
    echo
    echo "Please report any problems with the $scriptdir/mysqlbug script!"
    echo

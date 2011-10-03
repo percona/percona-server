@@ -56,7 +56,7 @@
  #endif
 --- a/strings/ctype-ucs2.c
 +++ b/strings/ctype-ucs2.c
-@@ -1731,6 +1731,42 @@
+@@ -1732,6 +1732,42 @@
      &my_collation_ucs2_general_ci_handler
  };
  
@@ -101,7 +101,7 @@
      90,0,0,		/* number       */
 --- a/strings/ctype-utf8.c
 +++ b/strings/ctype-utf8.c
-@@ -175,6 +175,138 @@
+@@ -177,6 +177,138 @@
  };
  
  
@@ -240,7 +240,7 @@
  
  static MY_UNICASE_INFO plane01[]={
    {0x0100,0x0101,0x0041},  {0x0100,0x0101,0x0041},
-@@ -1524,6 +1656,48 @@
+@@ -1526,6 +1658,48 @@
  
  
  /*
@@ -289,7 +289,7 @@
    Turkish lower/upper mapping:
    1. LOWER(0x0049 LATIN CAPITAL LETTER I) -> 
             0x0131 LATIN SMALL   LETTER DOTLESS I
-@@ -2718,6 +2892,39 @@
+@@ -2720,6 +2894,39 @@
  };
  
  

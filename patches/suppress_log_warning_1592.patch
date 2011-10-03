@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/sql/mysql_priv.h
 +++ b/sql/mysql_priv.h
-@@ -2108,6 +2108,7 @@
+@@ -2110,6 +2110,7 @@
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
  extern my_bool opt_optimizer_fix;
@@ -17,7 +17,7 @@
  extern char* opt_secure_file_priv;
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -540,6 +540,7 @@
+@@ -543,6 +543,7 @@
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
  my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
  my_bool opt_optimizer_fix= 0;
@@ -25,7 +25,7 @@
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5865,6 +5866,7 @@
+@@ -5868,6 +5869,7 @@
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
    OPT_OPTIMIZER_FIX,
@@ -33,7 +33,7 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7385,6 +7387,10 @@
+@@ -7388,6 +7390,10 @@
     "Enable unofficial optimizer fixes.",
     (uchar**) &opt_optimizer_fix, (uchar**) &opt_optimizer_fix,
     0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
@@ -46,7 +46,7 @@
     "written directly to binary log. Before using this option, make sure that "
 --- a/sql/set_var.cc
 +++ b/sql/set_var.cc
-@@ -573,6 +573,8 @@
+@@ -575,6 +575,8 @@
  						      &opt_thread_statistics);
  static sys_var_bool_ptr		sys_optimizer_fix(&vars, "optimizer_fix",
  						  &opt_optimizer_fix);
@@ -57,7 +57,7 @@
  static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -4140,6 +4140,7 @@
+@@ -4141,6 +4141,7 @@
                   ER_BINLOG_UNSAFE_STATEMENT,
                   ER(ER_BINLOG_UNSAFE_STATEMENT));
      if (global_system_variables.log_warnings &&

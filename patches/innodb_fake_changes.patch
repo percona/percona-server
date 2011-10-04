@@ -208,9 +208,9 @@
  
 +	if (trx->fake_changes && (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 +		innobase_rollback(hton, thd, all); /* rollback implicitly */
++		thd->main_da.reset_diagnostics_area(); /* because debug assertion code complains, if something left */
 +		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 +	}
-+
  	/* The flag trx->active_trans is set to 1 in
  
  	1. ::external_lock(),

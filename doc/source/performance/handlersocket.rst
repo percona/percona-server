@@ -96,7 +96,7 @@ And check in SQL that the row has been written: ::
 Configuration options
 ---------------------
 
-*HandlerSocket* has many configuration options that are detailed `here <https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL/blob/master/docs-en/configuration-options.en.txt>`
+*HandlerSocket* has many configuration options that are detailed `here <https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL/blob/master/docs-en/configuration-options.en.txt>`_.
 
 
 Other Reading

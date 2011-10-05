@@ -440,3 +440,33 @@
  select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
  a+0	b+0
  44	307
+--- a/mysql-test/r/endspace.result
++++ b/mysql-test/r/endspace.result
+@@ -201,12 +201,12 @@
+ text1
+ teststring	
+ teststring 
+-select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%';
++select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%' order by 1, 2;
+ text1	length(text1)
+ teststring		11
+ teststring	10
+ teststring 	11
+-select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
++select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t' order by 1, 2;
+ text1	length(text1)
+ teststring		11
+ teststring	10
+--- a/mysql-test/t/endspace.test
++++ b/mysql-test/t/endspace.test
+@@ -93,8 +93,8 @@
+ select * from t1 where text1 like 'teststring_%';
+ 
+ # The following gives wrong result in InnoDB
+-select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%';
+-select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
++select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%' order by 1, 2;
++select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t' order by 1, 2;
+ select concat('|', text1, '|') from t1 order by text1;
+ drop table t1;
+ 

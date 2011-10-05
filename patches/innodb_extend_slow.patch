@@ -106,7 +106,7 @@
 @@ -2119,6 +2174,11 @@
  	ibool		must_read;
  	ulint		retries = 0;
- 	mutex_t*	block_mutex;
+ 	mutex_t*	block_mutex = NULL;
 +	trx_t*          trx = NULL;
 +	ulint           sec;
 +	ulint           ms;

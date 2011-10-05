@@ -1,0 +1,169 @@
+=== added file 'mysql-test/lib/Subunit.pm'
+--- /dev/null
++++ b/mysql-test/lib/Subunit.pm
+@@ -0,0 +1,97 @@
++# Perl module for parsing and generating the Subunit protocol
++# Copyright (C) 2008-2009 Jelmer Vernooij <jelmer@samba.org>
++#
++#  Licensed under either the Apache License, Version 2.0 or the BSD 3-clause
++#  license at the users choice. A copy of both licenses are available in the
++#  project source as Apache-2.0 and BSD. You may not use this file except in
++#  compliance with one of these two licences.
++#
++#  Unless required by applicable law or agreed to in writing, software
++#  distributed under these licenses is distributed on an "AS IS" BASIS, WITHOUT
++#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
++#  license you chose for the specific language governing permissions and
++#  limitations under that license.
++
++package Subunit;
++use POSIX;
++
++use vars qw ( $VERSION );
++
++$VERSION = '0.0.2';
++
++use strict;
++my $SUBUNIT_OUT= 'test_results.subunit';
++# reset the file
++open(SUBUNITOUT, ">$SUBUNIT_OUT");
++close(SUBUNITOUT);
++
++sub subunit_start_test($)
++{
++
++        report_time();
++	my ($testname) = @_;
++        open(SUBUNITOUT, ">>$SUBUNIT_OUT");
++	print SUBUNITOUT "test: $testname\n";
++        close(SUBUNITOUT);
++        return;
++}
++
++sub subunit_end_test($$;$)
++{
++        report_time();
++	my $name = shift;
++	my $result = shift;
++	my $reason = shift;
++        open(SUBUNITOUT, ">>$SUBUNIT_OUT");
++	if ($reason) {
++		print SUBUNITOUT "$result: $name [\n";
++		print SUBUNITOUT "$reason";
++		print SUBUNITOUT "]\n";
++	} else {
++		print SUBUNITOUT "$result: $name\n";
++	}
++        close(SUBUNITOUT);
++        return;
++}
++
++sub subunit_skip_test($;$)
++{
++	my $name = shift;
++	my $reason = shift;
++	subunit_end_test($name, "skip", $reason);
++}
++
++sub subunit_fail_test($;$)
++{
++	my $name = shift;
++	my $reason = shift;
++	subunit_end_test($name, "fail", $reason);
++}
++
++sub subunit_pass_test($;$)
++{
++	my $name = shift;
++	my $reason = shift;
++	subunit_end_test($name, "success", $reason);
++}
++
++sub subunit_xfail_test($;$)
++{
++	my $name = shift;
++	my $reason = shift;
++	subunit_end_test($name, "xfail", $reason);
++}
++
++sub report_time($)
++{
++	my ($time) = @_;
++	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime();
++        open(SUBUNITOUT, ">>$SUBUNIT_OUT");
++	printf SUBUNITOUT "time: %04d-%02d-%02d %02d:%02d:%02dZ\n", $year+1900, $mon, $mday, $hour, $min, $sec;
++        close(SUBUNITOUT);
++        return;
++}
++
++
++
++1;
+--- a/mysql-test/lib/mtr_report.pm
++++ b/mysql-test/lib/mtr_report.pm
+@@ -30,6 +30,7 @@
+ 		mtr_report_test);
+ 
+ use mtr_match;
++use Subunit;
+ use My::Platform;
+ use POSIX qw[ _exit ];
+ use IO::Handle qw[ flush ];
+@@ -76,6 +77,8 @@
+   my $worker = $tinfo->{worker};
+   print "w$worker " if defined $worker;
+ 
++  Subunit::subunit_start_test($tname);
++
+   return $tname;
+ }
+ 
+@@ -122,6 +125,8 @@
+   my $result=   $tinfo->{'result'};
+   my $retry=    $tinfo->{'retries'} ? "retry-" : "";
+ 
++  my $test_name_sub = $tinfo->{name};
++
+   if ($result eq 'MTR_RES_FAILED'){
+ 
+     my $timest = format_time();
+@@ -195,6 +200,9 @@
+       # about why the test has failed. Should be debugged.
+       mtr_report("\nUnknown result, neither 'comment' or 'logfile' set");
+     }
++  # report into to subunit for Jenkins reporting
++  # Need to catch failure-related output here as well
++  Subunit::subunit_fail_test($test_name_sub);
+   }
+   elsif ($result eq 'MTR_RES_SKIPPED')
+   {
+@@ -210,6 +218,8 @@
+     {
+       mtr_report("[ skipped ]");
+     }
++  # report into to subunit for Jenkins reporting
++  Subunit::subunit_skip_test($test_name_sub);
+   }
+   elsif ($result eq 'MTR_RES_PASSED')
+   {
+@@ -222,6 +232,10 @@
+     {
+       mtr_report($tinfo->{'check'});
+     }
++    # report info to subunit for Jenkins reporting
++    # TODO:  catch 'check-testcase' output??
++    Subunit::subunit_pass_test($test_name_sub);
++    
+   }
+ }
+ 
+--- a/mysql-test/mysql-test-run.pl
++++ b/mysql-test/mysql-test-run.pl
+@@ -99,6 +99,7 @@
+ use mtr_results;
+ use IO::Socket::INET;
+ use IO::Select;
++use Subunit; 
+ 
+ require "lib/mtr_process.pl";
+ require "lib/mtr_io.pl";

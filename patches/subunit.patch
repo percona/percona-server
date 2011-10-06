@@ -66,7 +66,7 @@
 +{
 +	my $name = shift;
 +	my $reason = shift;
-+	subunit_end_test($name, "fail", $reason);
++	subunit_end_test($name, "failure", $reason);
 +}
 +
 +sub subunit_pass_test($;$)

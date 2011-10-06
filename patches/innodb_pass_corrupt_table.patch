@@ -787,7 +787,7 @@
  	if (descr != NULL) {
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -3979,6 +3979,12 @@
+@@ -3983,6 +3983,12 @@
  		DBUG_RETURN(1);
  	}
  
@@ -800,7 +800,7 @@
  	/* Create buffers for packing the fields of a record. Why
  	table->reclength did not work here? Obviously, because char
  	fields when packed actually became 1 byte longer, when we also
-@@ -4006,6 +4012,19 @@
+@@ -4010,6 +4016,19 @@
  	/* Get pointer to a table object in InnoDB dictionary cache */
  	ib_table = dict_table_get(norm_name, TRUE);
  	
@@ -820,7 +820,7 @@
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
  			++retries;
-@@ -5174,6 +5193,10 @@
+@@ -5178,6 +5197,10 @@
  
  	ha_statistic_increment(&SSV::ha_write_count);
  
@@ -831,7 +831,7 @@
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5391,6 +5414,10 @@
+@@ -5395,6 +5418,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -842,7 +842,7 @@
  	DBUG_RETURN(error_result);
  }
  
-@@ -5567,6 +5594,10 @@
+@@ -5571,6 +5598,10 @@
  
  	ha_statistic_increment(&SSV::ha_update_count);
  
@@ -853,7 +853,7 @@
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
  		table->timestamp_field->set_time();
  
-@@ -5656,6 +5687,10 @@
+@@ -5660,6 +5691,10 @@
  
  	innobase_active_small();
  
@@ -864,7 +864,7 @@
  	DBUG_RETURN(error);
  }
  
-@@ -5677,6 +5712,10 @@
+@@ -5681,6 +5716,10 @@
  
  	ha_statistic_increment(&SSV::ha_delete_count);
  
@@ -875,7 +875,7 @@
  	if (!prebuilt->upd_node) {
  		row_get_prebuilt_update_vector(prebuilt);
  	}
-@@ -5703,6 +5742,10 @@
+@@ -5707,6 +5746,10 @@
  
  	innobase_active_small();
  
@@ -886,7 +886,7 @@
  	DBUG_RETURN(error);
  }
  
-@@ -5942,6 +5985,10 @@
+@@ -5946,6 +5989,10 @@
  
  	ha_statistic_increment(&SSV::ha_read_key_count);
  
@@ -897,7 +897,7 @@
  	index = prebuilt->index;
  
  	if (UNIV_UNLIKELY(index == NULL)) {
-@@ -6007,6 +6054,10 @@
+@@ -6011,6 +6058,10 @@
  		ret = DB_UNSUPPORTED;
  	}
  
@@ -908,7 +908,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -6122,6 +6173,10 @@
+@@ -6126,6 +6177,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -919,7 +919,7 @@
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -6212,6 +6267,10 @@
+@@ -6216,6 +6271,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -930,7 +930,7 @@
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -6221,6 +6280,10 @@
+@@ -6225,6 +6284,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -941,7 +941,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7487,10 +7550,18 @@
+@@ -7491,10 +7554,18 @@
  
  	update_thd(ha_thd());
  
@@ -960,7 +960,7 @@
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -7991,6 +8062,16 @@
+@@ -7995,6 +8066,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -977,7 +977,7 @@
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -8168,7 +8249,7 @@
+@@ -8172,7 +8253,7 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -986,7 +986,7 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8461,10 +8542,18 @@
+@@ -8465,10 +8546,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -1005,7 +1005,7 @@
  	return(0);
  }
  
-@@ -8646,6 +8735,10 @@
+@@ -8650,6 +8739,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1016,7 +1016,7 @@
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9416,6 +9509,10 @@
+@@ -9420,6 +9513,10 @@
  
  	update_thd(thd);
  
@@ -1027,9 +1027,9 @@
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11823,6 +11920,26 @@
-   "0 (the default) disables automatic dumps.",
-   NULL, NULL, 0, 0, UINT_MAX32, 0);
+@@ -11834,6 +11931,26 @@
+   "dump file (if present). Disabled by default.",
+   NULL, NULL, FALSE);
  
 +const char *corrupt_table_action_names[]=
 +{
@@ -1054,7 +1054,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11910,6 +12027,7 @@
+@@ -11922,6 +12039,7 @@
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
@@ -1349,7 +1349,7 @@
  			fprintf(stderr,
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -430,6 +430,7 @@
+@@ -433,6 +433,7 @@
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
  
  UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
@@ -1359,7 +1359,7 @@
  /*-------------------------------------------*/
 --- a/storage/innobase/srv/srv0start.c
 +++ b/storage/innobase/srv/srv0start.c
-@@ -2149,6 +2149,13 @@
+@@ -2155,6 +2155,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);
  

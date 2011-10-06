@@ -46,7 +46,7 @@
  @return	TRUE */
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -12165,6 +12165,9 @@
+@@ -12177,6 +12177,9 @@
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,

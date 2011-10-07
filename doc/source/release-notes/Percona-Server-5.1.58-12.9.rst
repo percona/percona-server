@@ -55,7 +55,7 @@ Bug Fixes
 
   * When adding a table to the cache, the server may evict and close another if the table cache is full. If the closed table was on the ``FEDERATED`` engine and a replication environment, its client connection to the remote server was closed leading to an unappropriated network error and stopping the Slave SQL thread. Bugs Fixed :bug:`813587` / `#51196 <http://bugs.mysql.com/bug.php?id=51196>`_ and `#61790 <http://bugs.mysql.com/bug.php?id=61790>`_ in |MySQL| (*Alexey Kopytov*).
 
-  * Uninitialized values in the :ref:`Slow Query Log <slow_extended_51>` patch. Bug Fixed: :bug:`794774` (*Oleg Tsarev*).
+  * Uninitialized values in the :ref:`Slow Query Log <slow_extended>` patch. Bug Fixed: :bug:`794774` (*Oleg Tsarev*).
 
   * Querying ``global_temporary_tables`` caused the server to crash in some scenarios due to insufficient locking. Fixed by introducing a new mutex to protect from race conditions. Bugs Fixed: :bug:`745241` (*Alexey Kopytov*).
 

@@ -1,3 +1,5 @@
+.. _handlersocket_page:
+
 =================
  *HandlerSocket*
 =================

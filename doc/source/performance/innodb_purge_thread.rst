@@ -1,3 +1,5 @@
+.. _innodb_purge_thread:
+
 ========================
  Dedicated Purge Thread
 ========================

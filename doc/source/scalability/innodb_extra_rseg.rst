@@ -1,3 +1,5 @@
+.. _innodb_extra_rseg:
+
 ============================
  Multiple Rollback Segments
 ============================

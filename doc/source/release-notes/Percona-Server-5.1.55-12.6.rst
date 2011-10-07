@@ -1,15 +1,15 @@
 .. rn:: 5.1.55-12.6
 
-=============================
+==============================
  |Percona Server| 5.1.55-12.6
-=============================
+==============================
 
-Released on March 7, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.55-12.6/>`_ and installation instructions `here <http://www.percona.com/docs/wiki/percona-server:start#installation_instructions>`_.)
+Released on March 7, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.55-12.6/>`_ and `installation instructions <http://www.percona.com/docs/wiki/percona-server:start#installation_instructions>`_.)
 
 |Percona Server| 5.1.55-12.6 is now the current stable release version. It is is based on |MySQL| 5.1.55.
 
 Changes
-========
+=======
 
   * Fixed compiler warnings in both the core server and in |XtraDB|. (*Alexey Kopytov*, *Yasufumi Kinoshita*)
 

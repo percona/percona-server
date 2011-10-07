@@ -1,3 +1,5 @@
+.. _replication_skip_single_statement:
+
 ===========================
  Replication Stop Recovery
 ===========================

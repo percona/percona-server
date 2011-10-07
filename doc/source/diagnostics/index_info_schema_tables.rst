@@ -1,3 +1,5 @@
+.. _index_info_schema_tables:
+
 ========================================
  Index of ``INFORMATION_SCHEMA`` Tables
 ========================================

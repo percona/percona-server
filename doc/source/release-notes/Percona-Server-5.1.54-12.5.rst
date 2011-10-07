@@ -15,9 +15,9 @@ Released on January 11, 2011 (Downloads are available `here <http://www.percona.
 
   * New Features Added:
 
-    * Added system variable :variable:`innodb_log_block_size` and new value "keep_average" to system variable, and :variable:`innodb_adaptive_checkpoint` in :ref:`innodb_io`. (*Yasufumi Kinoshita*)
+    * Added system variable :variable:`innodb_log_block_size` and new value "keep_average" to system variable, and :variable:`innodb_adaptive_checkpoint` in :ref:`innodb_io_page`. (*Yasufumi Kinoshita*)
 
-    * Added new value "ALL_O_DIRECT" to system variable :variable:`innodb_flush_method`]] in :ref:`innodb_io`. (*Yasufumi Kinoshita*)
+    * Added new value "ALL_O_DIRECT" to system variable :variable:`innodb_flush_method` in :ref:`innodb_io_page`. (*Yasufumi Kinoshita*)
 
   * Other Changes: None
 

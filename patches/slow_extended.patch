@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/include/mysql/plugin_audit.h.pp
 +++ b/include/mysql/plugin_audit.h.pp
-@@ -185,6 +185,16 @@
+@@ -186,6 +186,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -26,7 +26,7 @@
  unsigned long thd_get_thread_id(const void* thd);
 --- a/include/mysql/plugin_auth.h.pp
 +++ b/include/mysql/plugin_auth.h.pp
-@@ -185,6 +185,16 @@
+@@ -186,6 +186,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -45,7 +45,7 @@
  unsigned long thd_get_thread_id(const void* thd);
 --- a/include/mysql/plugin_ftparser.h.pp
 +++ b/include/mysql/plugin_ftparser.h.pp
-@@ -138,6 +138,16 @@
+@@ -139,6 +139,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -64,7 +64,7 @@
  unsigned long thd_get_thread_id(const void* thd);
 --- a/include/mysql/plugin.h
 +++ b/include/mysql/plugin.h
-@@ -536,6 +536,17 @@
+@@ -545,6 +545,17 @@
  /* Increments the row counter, see THD::row_count */
  void thd_inc_row_count(MYSQL_THD thd);
  
@@ -553,7 +553,7 @@
  
  /**
    Dumps a text description of a thread, its security context
-@@ -907,6 +938,8 @@
+@@ -906,6 +937,8 @@
                             const char* msg,
                             MYSQL_ERROR ** cond_hdl)
  {
@@ -562,7 +562,7 @@
    if (!m_internal_handler)
    {
      *cond_hdl= NULL;
-@@ -3656,6 +3689,12 @@
+@@ -3655,6 +3688,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -575,7 +575,7 @@
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3676,6 +3715,14 @@
+@@ -3675,6 +3714,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -590,7 +590,7 @@
  }
  
  
-@@ -3738,6 +3785,12 @@
+@@ -3737,6 +3784,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -2329,7 +2329,7 @@
 +DROP TABLE t;
 --- a/sql/log_event.cc
 +++ b/sql/log_event.cc
-@@ -2380,6 +2380,14 @@
+@@ -2385,6 +2385,14 @@
        start+= host.length;
      }
    }
@@ -2344,7 +2344,7 @@
    /*
      NOTE: When adding new status vars, please don't forget to update
      the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
-@@ -2866,6 +2874,17 @@
+@@ -2871,6 +2879,17 @@
        data_written= master_data_written= uint4korr(pos);
        pos+= 4;
        break;

@@ -107,7 +107,7 @@
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_EVENTS:
      thd->make_lex_string(&lookup_field_values->db_value, 
-@@ -3279,6 +3280,231 @@
+@@ -3283,6 +3284,231 @@
    return (uint) OPEN_FULL_TABLE;
  }
  
@@ -339,7 +339,7 @@
  
  /**
     Try acquire high priority share metadata lock on a table (with
-@@ -7023,6 +7249,25 @@
+@@ -7046,6 +7272,25 @@
    {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
  };
  
@@ -365,7 +365,7 @@
  
  ST_FIELD_INFO columns_fields_info[]=
  {
-@@ -7637,6 +7882,9 @@
+@@ -7660,6 +7905,9 @@
     hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
    {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
     fill_status, make_old_format, 0, 0, -1, 0, 0},
@@ -375,7 +375,7 @@
    {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
     fill_variables, make_old_format, 0, 0, -1, 0, 0},
    {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
-@@ -7686,6 +7934,9 @@
+@@ -7709,6 +7957,9 @@
     get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
    {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
     fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
@@ -387,7 +387,7 @@
     OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
 --- a/sql/sql_yacc.yy
 +++ b/sql/sql_yacc.yy
-@@ -10873,6 +10873,15 @@
+@@ -10888,6 +10888,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }
@@ -415,7 +415,7 @@
    key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
 --- a/sql/sql_base.cc
 +++ b/sql/sql_base.cc
-@@ -1588,12 +1588,16 @@
+@@ -1651,12 +1651,16 @@
    if (!mysql_bin_log.is_open())
    {
      TABLE *tmp_next;
@@ -432,7 +432,7 @@
      DBUG_RETURN(FALSE);
    }
  
-@@ -1606,6 +1610,8 @@
+@@ -1669,6 +1673,8 @@
  
    memcpy(buf, stub, stub_len);
  
@@ -441,7 +441,7 @@
    /*
      Insertion sort of temp tables by pseudo_thread_id to build ordered list
      of sublists of equal pseudo_thread_id
-@@ -1727,6 +1733,8 @@
+@@ -1790,6 +1796,8 @@
      thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
    thd->temporary_tables=0;
  
@@ -450,7 +450,7 @@
    DBUG_RETURN(error);
  }
  
-@@ -2104,6 +2112,8 @@
+@@ -2167,6 +2175,8 @@
                            table->s->db.str, table->s->table_name.str,
                            (long) table, table->alias));
  
@@ -459,7 +459,7 @@
    if (table->prev)
    {
      table->prev->next= table->next;
-@@ -2130,6 +2140,9 @@
+@@ -2193,6 +2203,9 @@
      slave_open_temp_tables--;
    }
    close_temporary(table, free_share, delete_table);
@@ -469,7 +469,7 @@
    DBUG_VOID_RETURN;
  }
  
-@@ -5854,6 +5867,7 @@
+@@ -5931,6 +5944,7 @@
    if (add_to_temporary_tables_list)
    {
      /* growing temp list at the head */
@@ -477,7 +477,7 @@
      tmp_table->next= thd->temporary_tables;
      if (tmp_table->next)
        tmp_table->next->prev= tmp_table;
-@@ -5861,6 +5875,7 @@
+@@ -5938,6 +5952,7 @@
      thd->temporary_tables->prev= 0;
      if (thd->slave_thread)
        slave_open_temp_tables++;
@@ -487,7 +487,7 @@
    DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -837,6 +837,8 @@
+@@ -836,6 +836,8 @@
    active_vio = 0;
  #endif
    mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
@@ -496,7 +496,7 @@
  
    /* Variables with default values */
    proc_info="login";
-@@ -1349,6 +1351,7 @@
+@@ -1348,6 +1350,7 @@
    db= NULL;
    free_root(&transaction.mem_root,MYF(0));
    mysql_mutex_destroy(&LOCK_thd_data);

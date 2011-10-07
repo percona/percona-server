@@ -25,7 +25,7 @@
  
  #include "client_priv.h"
  #include "mysql.h"
-@@ -143,6 +144,8 @@
+@@ -145,6 +146,8 @@
  
  static my_bool server_supports_sql_no_fcache= FALSE;
  
@@ -34,7 +34,7 @@
  /*
  Dynamic_string wrapper functions. In this file use these
  wrappers, they will terminate the process if there is
-@@ -188,6 +191,8 @@
+@@ -190,6 +193,8 @@
  
  HASH ignore_table;
  
@@ -43,7 +43,7 @@
  static struct my_option my_long_options[] =
  {
    {"all-databases", 'A',
-@@ -351,6 +356,11 @@
+@@ -353,6 +358,11 @@
     "in dump produced with --dump-slave.", &opt_include_master_host_port,
     &opt_include_master_host_port, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
@@ -55,7 +55,7 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2238,6 +2248,189 @@
+@@ -2240,6 +2250,189 @@
  }
  
  /*
@@ -245,7 +245,7 @@
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2274,6 +2467,7 @@
+@@ -2276,6 +2469,7 @@
    int        len;
    MYSQL_RES  *result;
    MYSQL_ROW  row;
@@ -253,7 +253,7 @@
    DBUG_ENTER("get_table_structure");
    DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
  
-@@ -2315,6 +2509,9 @@
+@@ -2317,6 +2511,9 @@
    result_table=     quote_name(table, table_buff, 1);
    opt_quoted_table= quote_name(table, table_buff2, 0);
  
@@ -263,7 +263,7 @@
    if (opt_order_by_primary)
      order_by= primary_key_fields(result_table);
  
-@@ -2478,6 +2675,9 @@
+@@ -2480,6 +2677,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -273,7 +273,7 @@
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3572,6 +3772,27 @@
+@@ -3574,6 +3774,27 @@
        goto err;
      }
  
@@ -864,7 +864,7 @@
 +--source include/wait_until_count_sessions.inc
 --- a/sql/sql_lex.cc
 +++ b/sql/sql_lex.cc
-@@ -1630,6 +1630,9 @@
+@@ -1631,6 +1631,9 @@
    alter_list(rhs.alter_list, mem_root),
    key_list(rhs.key_list, mem_root),
    create_list(rhs.create_list, mem_root),
@@ -874,7 +874,7 @@
    flags(rhs.flags),
    keys_onoff(rhs.keys_onoff),
    tablespace_op(rhs.tablespace_op),
-@@ -1652,6 +1655,7 @@
+@@ -1653,6 +1656,7 @@
    list_copy_and_replace_each_value(alter_list, mem_root);
    list_copy_and_replace_each_value(key_list, mem_root);
    list_copy_and_replace_each_value(create_list, mem_root);
@@ -884,7 +884,7 @@
  
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -1009,6 +1009,9 @@
+@@ -1013,6 +1013,9 @@
    List<Alter_column>            alter_list;
    List<Key>                     key_list;
    List<Create_field>            create_list;
@@ -894,7 +894,7 @@
    uint                          flags;
    enum enum_enable_or_disable   keys_onoff;
    enum tablespace_op_type       tablespace_op;
-@@ -1020,6 +1023,8 @@
+@@ -1024,6 +1027,8 @@
  
  
    Alter_info() :
@@ -903,7 +903,7 @@
      flags(0),
      keys_onoff(LEAVE_AS_IS),
      tablespace_op(NO_TABLESPACE_OP),
-@@ -1035,6 +1040,9 @@
+@@ -1039,6 +1044,9 @@
      alter_list.empty();
      key_list.empty();
      create_list.empty();
@@ -1339,7 +1339,7 @@
         "If non-zero, binary logs will be purged after expire_logs_days "
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -991,6 +991,19 @@
+@@ -993,6 +993,19 @@
  	return(THDVAR((THD*) thd, flush_log_at_trx_commit));
  }
  

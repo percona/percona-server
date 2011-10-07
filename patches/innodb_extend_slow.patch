@@ -48,7 +48,7 @@
  
  /*
  		IMPLEMENTATION OF THE BUFFER POOL
-@@ -1930,8 +1964,16 @@
+@@ -1931,8 +1965,16 @@
  	mutex_t*	block_mutex;
  	ibool		must_read;
  	unsigned	access_time;
@@ -65,7 +65,7 @@
  	buf_pool->stat.n_page_gets++;
  
  	for (;;) {
-@@ -1949,7 +1991,7 @@
+@@ -1950,7 +1992,7 @@
  		//buf_pool_mutex_exit(buf_pool);
  		rw_lock_s_unlock(&buf_pool->page_hash_latch);
  
@@ -74,7 +74,7 @@
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  		ut_a(++buf_dbg_counter % 37 || buf_validate());
-@@ -2045,6 +2087,13 @@
+@@ -2046,6 +2088,13 @@
  		/* Let us wait until the read operation
  		completes */
  
@@ -88,7 +88,7 @@
  		for (;;) {
  			enum buf_io_fix	io_fix;
  
-@@ -2059,6 +2108,12 @@
+@@ -2060,6 +2109,12 @@
  				break;
  			}
  		}
@@ -101,7 +101,7 @@
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2374,6 +2429,11 @@
+@@ -2375,6 +2430,11 @@
  	ibool		must_read;
  	ulint		retries = 0;
  	mutex_t*	block_mutex = NULL;
@@ -113,7 +113,7 @@
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2403,6 +2463,9 @@
+@@ -2404,6 +2464,9 @@
  	      || ibuf_page_low(space, zip_size, offset,
  			       FALSE, file, line, NULL));
  #endif
@@ -123,16 +123,19 @@
  	buf_pool->stat.n_page_gets++;
  	fold = buf_page_address_fold(space, offset);
  loop:
-@@ -2473,7 +2536,7 @@
+@@ -2474,9 +2537,9 @@
  			return(NULL);
  		}
  
 -		if (buf_read_page(space, zip_size, offset)) {
 +		if (buf_read_page(space, zip_size, offset, trx)) {
+ 			buf_read_ahead_random(space, zip_size, offset,
+-					      ibuf_inside(mtr));
++					      ibuf_inside(mtr), trx);
+ 
  			retries = 0;
  		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
- 			++retries;
-@@ -2782,6 +2845,13 @@
+@@ -2786,6 +2849,13 @@
  			/* Let us wait until the read operation
  			completes */
  
@@ -146,7 +149,7 @@
  			for (;;) {
  				enum buf_io_fix	io_fix;
  
-@@ -2796,6 +2866,12 @@
+@@ -2800,6 +2870,12 @@
  					break;
  				}
  			}
@@ -159,7 +162,7 @@
  		}
  
  		fix_type = MTR_MEMO_BUF_FIX;
-@@ -2822,13 +2898,17 @@
+@@ -2826,13 +2902,17 @@
  		read-ahead */
  
  		buf_read_ahead_linear(space, zip_size, offset,
@@ -178,7 +181,7 @@
  	return(block);
  }
  
-@@ -2852,6 +2932,7 @@
+@@ -2856,6 +2936,7 @@
  	unsigned	access_time;
  	ibool		success;
  	ulint		fix_type;
@@ -186,7 +189,7 @@
  
  	ut_ad(block);
  	ut_ad(mtr);
-@@ -2929,6 +3010,10 @@
+@@ -2933,6 +3014,10 @@
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ut_a(block->page.file_page_was_freed == FALSE);
  #endif
@@ -197,7 +200,7 @@
  	if (UNIV_UNLIKELY(!access_time)) {
  		/* In the case of a first access, try to apply linear
  		read-ahead */
-@@ -2936,7 +3021,7 @@
+@@ -2940,7 +3025,7 @@
  		buf_read_ahead_linear(buf_block_get_space(block),
  				      buf_block_get_zip_size(block),
  				      buf_block_get_page_no(block),
@@ -206,7 +209,7 @@
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2946,6 +3031,9 @@
+@@ -2950,6 +3035,9 @@
  	buf_pool = buf_pool_from_block(block);
  	buf_pool->stat.n_page_gets++;
  
@@ -216,7 +219,7 @@
  	return(TRUE);
  }
  
-@@ -2968,6 +3056,7 @@
+@@ -2972,6 +3060,7 @@
  	buf_pool_t*	buf_pool;
  	ibool		success;
  	ulint		fix_type;
@@ -224,7 +227,7 @@
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
-@@ -3054,6 +3143,11 @@
+@@ -3058,6 +3147,11 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  
@@ -238,7 +241,7 @@
  
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
-@@ -77,7 +77,8 @@
+@@ -79,7 +79,8 @@
  			treat the tablespace as dropped; this is a timestamp we
  			use to stop dangling page reads from a tablespace
  			which we have DISCARDed + IMPORTed back */
@@ -248,7 +251,7 @@
  {
  	buf_page_t*	bpage;
  	ulint		wake_later;
-@@ -179,15 +180,15 @@
+@@ -181,15 +182,15 @@
  
  	thd_wait_begin(NULL, THD_WAIT_DISKIO);
  	if (zip_size) {
@@ -268,7 +271,27 @@
  	}
  	thd_wait_end(NULL);
  	ut_a(*err == DB_SUCCESS);
-@@ -213,7 +214,8 @@
+@@ -226,8 +227,9 @@
+ 				or 0 */
+ 	ulint	offset,		/*!< in: page number of a page which
+ 				the current thread wants to access */
+-	ibool	inside_ibuf)	/*!< in: TRUE if we are inside ibuf
++	ibool	inside_ibuf,	/*!< in: TRUE if we are inside ibuf
+ 				routine */
++	trx_t*	trx)
+ {
+ 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+ 	ib_int64_t	tablespace_version;
+@@ -330,7 +332,7 @@
+ 				&err, FALSE,
+ 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+ 				space, zip_size, FALSE,
+-				tablespace_version, i);
++				tablespace_version, i, trx);
+ 			if (err == DB_TABLESPACE_DELETED) {
+ 				ut_print_timestamp(stderr);
+ 				fprintf(stderr,
+@@ -380,7 +382,8 @@
  /*==========*/
  	ulint	space,	/*!< in: space id */
  	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
@@ -278,7 +301,7 @@
  {
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  	ib_int64_t	tablespace_version;
-@@ -227,7 +229,7 @@
+@@ -394,7 +397,7 @@
  
  	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
  				  zip_size, FALSE,
@@ -287,7 +310,7 @@
  	srv_buf_pool_reads += count;
  	if (err == DB_TABLESPACE_DELETED) {
  		ut_print_timestamp(stderr);
-@@ -279,7 +281,8 @@
+@@ -446,7 +449,8 @@
  	ulint	space,		/*!< in: space id */
  	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
  	ulint	offset,		/*!< in: page number; see NOTE 3 above */
@@ -297,7 +320,7 @@
  {
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  	ib_int64_t	tablespace_version;
-@@ -498,7 +501,7 @@
+@@ -665,7 +669,7 @@
  			count += buf_read_page_low(
  				&err, FALSE,
  				ibuf_mode,
@@ -306,7 +329,7 @@
  			if (err == DB_TABLESPACE_DELETED) {
  				ut_print_timestamp(stderr);
  				fprintf(stderr,
-@@ -591,7 +594,7 @@
+@@ -758,7 +762,7 @@
  		buf_read_page_low(&err, sync && (i + 1 == n_stored),
  				  BUF_READ_ANY_PAGE, space_ids[i],
  				  zip_size, TRUE, space_versions[i],
@@ -315,7 +338,7 @@
  
  		if (UNIV_UNLIKELY(err == DB_TABLESPACE_DELETED)) {
  tablespace_deleted:
-@@ -733,12 +736,12 @@
+@@ -900,12 +904,12 @@
  		if ((i + 1 == n_stored) && sync) {
  			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
  					  zip_size, TRUE, tablespace_version,
@@ -372,7 +395,7 @@
  
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -1578,6 +1578,16 @@
+@@ -1580,6 +1580,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -389,7 +412,7 @@
  	DBUG_VOID_RETURN;
  }
  
-@@ -1632,6 +1642,32 @@
+@@ -1634,6 +1644,32 @@
  	return(trx);
  }
  
@@ -422,7 +445,7 @@
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9312,6 +9348,25 @@
+@@ -9302,6 +9338,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {
@@ -466,9 +489,20 @@
 +	ulint	offset, /*!< in: page number */
 +	trx_t*	trx);
  /********************************************************************//**
+ Applies a random read-ahead in buf_pool if there are at least a threshold
+ value of accessed pages from the random read-ahead area. Does not read any
+@@ -65,8 +67,9 @@
+ 				or 0 */
+ 	ulint	offset,		/*!< in: page number of a page which
+ 				the current thread wants to access */
+-	ibool	inside_ibuf);	/*!< in: TRUE if we are inside ibuf
++	ibool	inside_ibuf,	/*!< in: TRUE if we are inside ibuf
+ 				routine */
++	trx_t*	trx);
+ /********************************************************************//**
  Applies linear read-ahead if in the buf_pool the page is a border page of
  a linear read-ahead area and all the pages in the area have been accessed.
-@@ -73,7 +75,8 @@
+@@ -98,7 +101,8 @@
  	ulint	space,		/*!< in: space id */
  	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
  	ulint	offset,		/*!< in: page number; see NOTE 3 above */
@@ -853,7 +887,7 @@
  /* The following counter is incremented whenever there is some user activity
  in the server */
  UNIV_INTERN ulint	srv_activity_count	= 0;
-@@ -1232,6 +1235,10 @@
+@@ -1234,6 +1237,10 @@
  	ibool			has_slept = FALSE;
  	srv_conc_slot_t*	slot	  = NULL;
  	ulint			i;
@@ -864,7 +898,7 @@
  
  #ifdef UNIV_SYNC_DEBUG
  	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-@@ -1312,6 +1319,7 @@
+@@ -1314,6 +1321,7 @@
  		switches. */
  		if (SRV_THREAD_SLEEP_DELAY > 0) {
  			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
@@ -872,7 +906,7 @@
  		}
  
  		trx->op_info = "";
-@@ -1371,6 +1379,14 @@
+@@ -1373,6 +1381,14 @@
  #ifdef UNIV_SYNC_DEBUG
  	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
  #endif /* UNIV_SYNC_DEBUG */
@@ -887,7 +921,7 @@
  	trx->op_info = "waiting in InnoDB queue";
  
  	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
-@@ -1379,6 +1395,12 @@
+@@ -1381,6 +1397,12 @@
  
  	trx->op_info = "";
  

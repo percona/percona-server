@@ -960,7 +960,7 @@
  	}
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -949,6 +949,7 @@
+@@ -950,6 +950,7 @@
  
  	block->check_index_page_at_flush = FALSE;
  	block->index = NULL;
@@ -968,7 +968,7 @@
  
  	block->is_hashed = FALSE;
  
-@@ -1413,7 +1414,7 @@
+@@ -1414,7 +1415,7 @@
  			/* To follow the latching order, we
  			have to release btr_search_latch
  			before acquiring block->latch. */
@@ -977,7 +977,7 @@
  			/* When we release the search latch,
  			we must rescan all blocks, because
  			some may become hashed again. */
-@@ -1444,11 +1445,11 @@
+@@ -1445,11 +1446,11 @@
  			anything.  block->is_hashed can only
  			be set on uncompressed file pages. */
  
@@ -991,7 +991,7 @@
  
  			ut_ad(!btr_search_enabled);
  		}
-@@ -1467,7 +1468,11 @@
+@@ -1468,7 +1469,11 @@
  	ibool		released_search_latch;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -1004,7 +1004,7 @@
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2203,6 +2208,7 @@
+@@ -2204,6 +2209,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;
@@ -1078,7 +1078,7 @@
  #ifndef UNIV_HOTBACKUP
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11718,6 +11718,11 @@
+@@ -11712,6 +11712,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1090,7 +1090,7 @@
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12085,6 +12090,7 @@
+@@ -12091,6 +12096,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1283,7 +1283,7 @@
 +
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1585,7 +1585,7 @@
+@@ -1601,7 +1601,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1292,7 +1292,7 @@
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1599,6 +1599,7 @@
+@@ -1615,6 +1615,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */
@@ -1415,7 +1415,7 @@
  	}
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-@@ -3357,6 +3357,8 @@
+@@ -3397,6 +3397,8 @@
  	/* if the returned record was locked and we did a semi-consistent
  	read (fetch the newest committed version), then this is set to
  	TRUE */
@@ -1424,7 +1424,7 @@
  #ifdef UNIV_SEARCH_DEBUG
  	ulint		cnt				= 0;
  #endif /* UNIV_SEARCH_DEBUG */
-@@ -3447,18 +3449,33 @@
+@@ -3487,18 +3489,33 @@
  	/* PHASE 0: Release a possible s-latch we are holding on the
  	adaptive hash index latch if there is someone waiting behind */
  
@@ -1462,7 +1462,7 @@
  	}
  
  	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
-@@ -3609,9 +3626,28 @@
+@@ -3649,9 +3666,28 @@
  			hash index semaphore! */
  
  #ifndef UNIV_SEARCH_DEBUG
@@ -1494,7 +1494,7 @@
  			}
  #endif
  			switch (row_sel_try_search_shortcut_for_mysql(
-@@ -3672,7 +3708,11 @@
+@@ -3712,7 +3748,11 @@
  
  					trx->search_latch_timeout--;
  
@@ -1507,7 +1507,7 @@
  					trx->has_search_latch = FALSE;
  				}
  
-@@ -3696,7 +3736,12 @@
+@@ -3736,7 +3776,12 @@
  	/* PHASE 3: Open or restore index cursor position */
  
  	if (trx->has_search_latch) {
@@ -1523,7 +1523,7 @@
  
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -2045,7 +2045,9 @@
+@@ -2051,7 +2051,9 @@
  	      "-------------------------------------\n", file);
  	ibuf_print(file);
  
@@ -1534,7 +1534,7 @@
  
  	fprintf(file,
  		"%.2f hash searches/s, %.2f non-hash searches/s\n",
-@@ -2070,14 +2072,15 @@
+@@ -2076,14 +2078,15 @@
  			ut_total_allocated_memory,
  			mem_pool_get_reserved(mem_comm_pool));
  	/* Calcurate reserved memories */
@@ -1554,7 +1554,7 @@
  
  	lock_sys_subtotal = 0;
  	if (trx_sys) {
-@@ -2103,10 +2106,10 @@
+@@ -2109,10 +2112,10 @@
  			"    Recovery system     %lu \t(%lu + %lu)\n",
  
  			(ulong) (btr_search_sys

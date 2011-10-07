@@ -55,7 +55,7 @@
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
-@@ -2253,6 +2273,89 @@
+@@ -2255,6 +2275,89 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -145,7 +145,7 @@
  	/* Check that values don't overflow on 32-bit systems. */
  	if (sizeof(ulint) == 4) {
  		if (innobase_buffer_pool_size > UINT_MAX32) {
-@@ -2551,6 +2654,76 @@
+@@ -2553,6 +2656,76 @@
  		goto mem_free_and_error;
  	}
  
@@ -222,7 +222,7 @@
  	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
  		innobase_old_blocks_pct, TRUE);
  
-@@ -2665,6 +2838,25 @@
+@@ -2667,6 +2840,25 @@
  	trx_t*	trx)	/*!< in: transaction handle */
  {
  	if (trx_is_started(trx)) {
@@ -248,7 +248,7 @@
  
  		trx_commit_for_mysql(trx);
  	}
-@@ -11025,6 +11217,12 @@
+@@ -11015,6 +11207,12 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -261,7 +261,7 @@
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11491,6 +11689,7 @@
+@@ -11486,6 +11684,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),

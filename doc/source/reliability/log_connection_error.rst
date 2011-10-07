@@ -1,3 +1,5 @@
+.. _log_connection_error:
+
 ==============================
  Too Many Connections Warning
 ==============================

@@ -54,7 +54,7 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
-@@ -2249,6 +2259,182 @@
+@@ -2249,6 +2259,189 @@
  }
  
  /*
@@ -89,7 +89,7 @@
 +
 +  DESCRIPTION
 +
-+    Stores all lines starting with "KEY" or "UNIQUE KEY" or "CONSTRAINT"
++    Stores all lines starting with "KEY" or "UNIQUE KEY"
 +    into skipped_keys_list and removes them from the input string.
 +    Ignoring FOREIGN KEYS constraints when creating the table is ok, because
 +    mysqldump sets foreign_key_checks to 0 anyway.
@@ -130,8 +130,7 @@
 +    if (c == '\n' &&
 +        (((is_unique= !strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ")-1)) &&
 +          (pk_processed || !has_pk)) ||
-+         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1) ||
-+         !strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1)) &&
++         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1)) &&
 +        !contains_ignored_column(&ignored_columns, ptr))
 +    {
 +      char *data, *end= tmp - 1;
@@ -150,12 +149,20 @@
 +      if (last_comma != NULL)
 +      {
 +        *last_comma= ' ';
-+        last_comma = NULL;
 +      }
 +    }
 +    else
 +    {
 +      char *end;
++
++      if (last_comma != NULL && *ptr != ')')
++      {
++        /*
++          It's not the last line of CREATE TABLE, so we have skipped a key
++          definition. We have to restore the last removed comma.
++        */
++        *last_comma= ',';
++      }
 +
 +      if ((has_pk && is_unique && !pk_processed) ||
 +          !strncmp(ptr, "PRIMARY KEY ", sizeof("PRIMARY KEY ") - 1))
@@ -237,7 +244,7 @@
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2285,6 +2471,7 @@
+@@ -2282,6 +2475,7 @@
    int        len;
    MYSQL_RES  *result;
    MYSQL_ROW  row;
@@ -245,7 +252,7 @@
    DBUG_ENTER("get_table_structure");
    DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
  
-@@ -2326,6 +2513,9 @@
+@@ -2323,6 +2517,9 @@
    result_table=     quote_name(table, table_buff, 1);
    opt_quoted_table= quote_name(table, table_buff2, 0);
  
@@ -255,7 +262,7 @@
    if (opt_order_by_primary)
      order_by= primary_key_fields(result_table);
  
-@@ -2489,6 +2679,9 @@
+@@ -2486,6 +2683,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -265,7 +272,7 @@
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3581,6 +3774,27 @@
+@@ -3578,6 +3778,27 @@
        goto err;
      }
  
@@ -295,7 +302,7 @@
      {
 --- /dev/null
 +++ b/mysql-test/r/percona_mysqldump_innodb_optimize_keys.result
-@@ -0,0 +1,299 @@
+@@ -0,0 +1,367 @@
 +#
 +# Test the --innodb-optimize-keys option.
 +#
@@ -369,14 +376,15 @@
 +  `a` int(11) DEFAULT NULL,
 +  `b` varchar(255) DEFAULT NULL,
 +  `c` decimal(10,3) DEFAULT NULL,
-+  PRIMARY KEY (`id`) 
++  PRIMARY KEY (`id`),
++  CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE CASCADE
 +) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
 +/*!40101 SET character_set_client = @saved_cs_client */;
 +
 +LOCK TABLES `t1` WRITE;
 +/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
 +INSERT INTO `t1` VALUES (1,0,'0','0.000'),(2,1,'1','1.100'),(3,2,'2','2.200');
-+ALTER TABLE `t1` ADD UNIQUE KEY `uniq` (`c`,`a`), ADD KEY `b` (`b`), ADD KEY `a` (`a`), ADD CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t2` (`a`) ON DELETE CASCADE;
++ALTER TABLE `t1` ADD UNIQUE KEY `uniq` (`c`,`a`), ADD KEY `b` (`b`), ADD KEY `a` (`a`);
 +/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 +UNLOCK TABLES;
 +DROP TABLE IF EXISTS `t2`;
@@ -595,39 +603,73 @@
 +
 +######################################
 +DROP TABLE t1, t2, t3, t4;
---- a/mysql-test/suite/innodb_plugin/r/innodb.result
-+++ b/mysql-test/suite/innodb_plugin/r/innodb.result
-@@ -1679,7 +1679,7 @@
- 71
- SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
- variable_value - @innodb_rows_inserted_orig
--1067
-+1109
- SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
- variable_value - @innodb_rows_updated_orig
- 866
---- a/mysql-test/suite/innodb_plugin/t/innodb-index.test
-+++ b/mysql-test/suite/innodb_plugin/t/innodb-index.test
-@@ -97,6 +97,11 @@
- show create table t1;
- --error ER_MULTIPLE_PRI_KEY
- alter table t1 add primary key (c);
-+# Suppress the error log messages occuring on duplicate key error
-+# during ALTER TABLE when using fast index creation
-+--disable_query_log
-+call mtr.add_suppression("Cannot find index PRIMARY in InnoDB index translation table.");
-+--enable_query_log
- --error ER_DUP_ENTRY
- alter table t1 drop primary key, add primary key (b);
- create unique index c on t1 (c);
-@@ -355,6 +360,7 @@
- length(b),b=left(repeat(d,100*a),65535),length(c),c=repeat(d,20*a),d from t1;
- show create table t1;
- check table t1;
-+--replace_column 9 X
- explain select * from t1 where b like 'adfd%';
- 
- #
++CREATE TABLE t1 (
++id INT NOT NULL PRIMARY KEY
++) ENGINE=InnoDB;
++CREATE TABLE t2 (
++id INT NOT NULL AUTO_INCREMENT,
++a INT NOT NULL,
++PRIMARY KEY (id),
++KEY (a),
++FOREIGN KEY (a) REFERENCES t2 (id)
++) ENGINE=InnoDB;
++INSERT INTO t1 VALUES (1), (2), (3);
++INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
++######################################
++
++/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
++/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
++/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
++/*!40101 SET NAMES utf8 */;
++/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
++/*!40103 SET TIME_ZONE='+00:00' */;
++/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
++/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
++/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
++/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
++DROP TABLE IF EXISTS `t1`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t1` (
++  `id` int(11) NOT NULL,
++  PRIMARY KEY (`id`)
++) ENGINE=InnoDB DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t1` WRITE;
++/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
++INSERT INTO `t1` VALUES (1),(2),(3);
++/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
++UNLOCK TABLES;
++DROP TABLE IF EXISTS `t2`;
++/*!40101 SET @saved_cs_client     = @@character_set_client */;
++/*!40101 SET character_set_client = utf8 */;
++CREATE TABLE `t2` (
++  `id` int(11) NOT NULL AUTO_INCREMENT,
++  `a` int(11) NOT NULL,
++  PRIMARY KEY (`id`),
++  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t2` (`id`)
++) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
++/*!40101 SET character_set_client = @saved_cs_client */;
++
++LOCK TABLES `t2` WRITE;
++/*!40000 ALTER TABLE `t2` DISABLE KEYS */;
++INSERT INTO `t2` VALUES (1,1),(2,2),(3,3);
++ALTER TABLE `t2` ADD KEY `a` (`a`);
++/*!40000 ALTER TABLE `t2` ENABLE KEYS */;
++UNLOCK TABLES;
++/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
++
++/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
++/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
++/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
++/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
++/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
++/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
++/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
++
++######################################
++DROP TABLE t1, t2;
 --- a/mysql-test/suite/innodb_plugin/t/innodb.test
 +++ b/mysql-test/suite/innodb_plugin/t/innodb.test
 @@ -15,6 +15,12 @@
@@ -645,7 +687,7 @@
  # Save the original values of some variables in order to be able to
 --- /dev/null
 +++ b/mysql-test/t/percona_mysqldump_innodb_optimize_keys.test
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,187 @@
 +# Embedded server doesn't support external clients
 +--source include/not_embedded.inc
 +
@@ -675,9 +717,8 @@
 +
 +DROP TABLE t1;
 +
-+
-+# Check that for InnoDB tables secondary and foreign keys are created
-+# after the data is dumped
++# Check that for InnoDB tables secondary keys are created after the data is
++# dumped but foreign ones are left in CREATE TABLE
 +
 +CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
 +INSERT INTO t2 VALUES (0), (1), (2);
@@ -799,6 +840,39 @@
 +
 +DROP TABLE t1, t2, t3, t4;
 +
++########################################################################
++# Bug #859078: --innodb-optimize-keys should ignore foreign keys
++########################################################################
++
++CREATE TABLE t1 (
++       id INT NOT NULL PRIMARY KEY
++) ENGINE=InnoDB;
++
++CREATE TABLE t2 (
++       id INT NOT NULL AUTO_INCREMENT,
++       a INT NOT NULL,
++       PRIMARY KEY (id),
++       KEY (a),
++       FOREIGN KEY (a) REFERENCES t2 (id)
++) ENGINE=InnoDB;
++
++INSERT INTO t1 VALUES (1), (2), (3);
++INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
++
++--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t2 >$file
++
++--echo ######################################
++--cat_file $file
++--echo ######################################
++
++# Check that the resulting dump can be imported back
++
++--exec $MYSQL test < $file
++
++--remove_file $file
++
++DROP TABLE t1, t2;
++
 +# Wait till we reached the initial number of concurrent sessions
 +--source include/wait_until_count_sessions.inc
 --- a/sql/sql_lex.cc
@@ -854,24 +928,7 @@
      tablespace_op= NO_TABLESPACE_OP;
 --- a/sql/sql_table.cc
 +++ b/sql/sql_table.cc
-@@ -2561,7 +2561,7 @@
-       file                      The handler for the new table.
-       key_info_buffer     OUT   An array of KEY structs for the indexes.
-       key_count           OUT   The number of elements in the array.
--      select_field_count        The number of fields coming from a select table.
-+      select_field_count        The number of fields coming from a select table. 
- 
-   DESCRIPTION
-     Prepares the table and key structures for table creation.
-@@ -2916,7 +2916,6 @@
-   }
- 
-   /* Create keys */
--
-   List_iterator<Key> key_iterator(alter_info->key_list);
-   List_iterator<Key> key_iterator2(alter_info->key_list);
-   uint key_parts=0, fk_key_count=0;
-@@ -3016,6 +3015,14 @@
+@@ -3015,6 +3015,14 @@
    if (!*key_info_buffer || ! key_part_info)
      DBUG_RETURN(TRUE);				// Out of memory
  
@@ -886,7 +943,7 @@
    key_iterator.rewind();
    key_number=0;
    for (; (key=key_iterator++) ; key_number++)
-@@ -3394,8 +3401,26 @@
+@@ -3393,8 +3401,26 @@
        my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
        DBUG_RETURN(TRUE);
      }
@@ -913,7 +970,7 @@
    if (!unique_key && !primary_key &&
        (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
    {
-@@ -6094,6 +6119,10 @@
+@@ -6093,6 +6119,10 @@
    List<Create_field> new_create_list;
    /* New key definitions are added here */
    List<Key> new_key_list;
@@ -924,7 +981,7 @@
    List_iterator<Alter_drop> drop_it(alter_info->drop_list);
    List_iterator<Create_field> def_it(alter_info->create_list);
    List_iterator<Alter_column> alter_it(alter_info->alter_list);
-@@ -6106,6 +6135,7 @@
+@@ -6105,6 +6135,7 @@
    uint used_fields= create_info->used_fields;
    KEY *key_info=table->key_info;
    bool rc= TRUE;
@@ -932,7 +989,7 @@
  
    DBUG_ENTER("mysql_prepare_alter_table");
  
-@@ -6133,6 +6163,7 @@
+@@ -6132,6 +6163,7 @@
      char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
      /*
         Regular alter table of disk stored table (no tablespace/storage change)
@@ -940,7 +997,7 @@
         Copy tablespace name
      */
      if (tablespace &&
-@@ -6300,7 +6331,23 @@
+@@ -6282,7 +6314,26 @@
    /*
      Collect all keys which isn't in drop list. Add only those
      for which some fields exists.
@@ -950,6 +1007,8 @@
 +    the InnoDB fast index creation. The following conditions must be
 +    met:
 +
++    - fast_index_creation is enabled for the current session
++    - expand_fast_index_creation is enabled for the current session;
 +    - we are going to create an InnoDB table (this is checked later when the
 +      target engine is known);
 +    - the key most be a non-UNIQUE one;
@@ -959,13 +1018,14 @@
 +      key constraints in the table.
 +  */
 +
-+  skip_secondary=
++  skip_secondary= thd->variables.online_alter_index &&
++    thd->variables.expand_fast_index_creation &&
 +    !table->file->get_foreign_key_list(thd, &f_key_list) &&
 +    f_key_list.elements == 0;
  
    for (uint i=0 ; i < table->s->keys ; i++,key_info++)
    {
-@@ -6403,6 +6450,8 @@
+@@ -6385,6 +6436,8 @@
                     test(key_info->flags & HA_GENERATED_KEY),
                     key_parts);
        new_key_list.push_back(key);
@@ -974,7 +1034,7 @@
      }
    }
    {
-@@ -6410,7 +6459,21 @@
+@@ -6392,7 +6445,21 @@
      while ((key=key_it++))			// Add new keys
      {
        if (key->type != Key::FOREIGN_KEY)
@@ -997,7 +1057,7 @@
        if (key->name &&
  	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
        {
-@@ -6459,12 +6522,100 @@
+@@ -6441,12 +6508,100 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -1098,7 +1158,7 @@
    Alter table
  
    SYNOPSIS
-@@ -7248,6 +7399,12 @@
+@@ -7230,6 +7385,12 @@
    else
      create_info->data_file_name=create_info->index_file_name=0;
  
@@ -1111,7 +1171,7 @@
    DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
    /*
      Create a table with a temporary name.
-@@ -7304,15 +7461,33 @@
+@@ -7286,15 +7447,33 @@
    */
    if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
    {
@@ -1147,7 +1207,10 @@
    {
 --- /dev/null
 +++ b/mysql-test/r/percona_innodb_expand_fast_index_creation.result
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,67 @@
++SELECT @@expand_fast_index_creation;
++@@expand_fast_index_creation
++0
 +CREATE TABLE t1(
 +id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 +a CHAR(1) NOT NULL,
@@ -1158,6 +1221,37 @@
 +INSERT INTO t1(a,b) SELECT a,b FROM t1;
 +INSERT INTO t1(a,b) SELECT a,b FROM t1;
 +ALTER TABLE t1 ADD KEY (a);
++affected rows: 0
++info: Records: 0  Duplicates: 0  Warnings: 0
++EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
++id	1
++select_type	SIMPLE
++table	t1
++type	ALL
++possible_keys	a
++key	NULL
++key_len	NULL
++ref	NULL
++rows	16
++Extra	
++id	1
++select_type	SIMPLE
++table	t2
++type	ref
++possible_keys	a
++key	a
++key_len	1
++ref	test.t1.a
++rows	1
++Extra	Using where
++ALTER TABLE t1 DROP KEY a;
++SET expand_fast_index_creation = 1;
++SELECT @@expand_fast_index_creation;
++@@expand_fast_index_creation
++1
++ALTER TABLE t1 ADD KEY (a);
++affected rows: 0
++info: Records: 0  Duplicates: 0  Warnings: 0
 +EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
 +id	1
 +select_type	SIMPLE
@@ -1179,11 +1273,14 @@
 +ref	NULL
 +rows	16
 +Extra	Using where; Using join buffer
++SET expand_fast_index_creation = 0;
 +DROP TABLE t1;
 --- /dev/null
 +++ b/mysql-test/t/percona_innodb_expand_fast_index_creation.test
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,46 @@
 +--source include/have_innodb.inc
++
++SELECT @@expand_fast_index_creation;
 +
 +########################################################################
 +# Bug #857590: Fast index creation does not update index statistics
@@ -1200,31 +1297,158 @@
 +INSERT INTO t1(a,b) SELECT a,b FROM t1;
 +INSERT INTO t1(a,b) SELECT a,b FROM t1;
 +
++# Check that fast index creation is used
++--enable_info
 +ALTER TABLE t1 ADD KEY (a);
++--disable_info
 +
++# The default (wrong) plan due to bogus statistics
 +--vertical_results
 +EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
++--horizontal_results
++
++ALTER TABLE t1 DROP KEY a;
++
++SET expand_fast_index_creation = 1;
++SELECT @@expand_fast_index_creation;
++
++# Check that stats are updated with the option enabled
++
++--enable_info
++ALTER TABLE t1 ADD KEY (a);
++--disable_info
++--vertical_results
++EXPLAIN SELECT COUNT(*) FROM t1, t1 t2 WHERE t1.a = t2.a AND t1.b = t2.b;
++--horizontal_results
++
++SET expand_fast_index_creation = 0;
 +
 +DROP TABLE t1;
 --- a/storage/innodb_plugin/row/row0merge.c
 +++ b/storage/innodb_plugin/row/row0merge.c
-@@ -2630,6 +2630,8 @@
+@@ -56,6 +56,7 @@
+ #include "log0log.h"
+ #include "ut0sort.h"
+ #include "handler0alter.h"
++#include "ha_prototypes.h"
+ 
+ #ifdef UNIV_DEBUG
+ /** Set these in order ot enable debug printout. */
+@@ -2630,6 +2631,9 @@
  		}
  	}
  
-+	dict_update_statistics(new_table, FALSE, TRUE);
++	if (trx->mysql_thd && thd_expand_fast_index_creation(trx->mysql_thd))
++		dict_update_statistics(new_table, FALSE, TRUE);
 +
  func_exit:
  	close(tmpfd);
  
---- a/mysql-test/suite/innodb_plugin/r/innodb-index.result
-+++ b/mysql-test/suite/innodb_plugin/r/innodb-index.result
-@@ -884,7 +884,7 @@
- test.t1	check	status	OK
- explain select * from t1 where b like 'adfd%';
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
--1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	15	Using where
-+1	SIMPLE	t1	range	b	b	769	NULL	X	Using where
- create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
- insert into t2 select a,left(b,255) from t1;
- drop table t1;
+--- a/sql/mysqld.cc
++++ b/sql/mysqld.cc
+@@ -6058,7 +6058,8 @@
+   OPT_IGNORE_BUILTIN_INNODB,
+   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
+   OPT_DEFAULT_CHARACTER_SET_OLD,
+-  OPT_MAX_LONG_DATA_SIZE
++  OPT_MAX_LONG_DATA_SIZE,
++  OPT_EXPAND_FAST_INDEX_CREATION
+ };
+ 
+ 
+@@ -6294,6 +6295,13 @@
+ each time the SQL thread starts.",
+    &opt_init_slave, &opt_init_slave, 0, GET_STR_ALLOC,
+    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
++  {"expand-fast-index-creation", OPT_EXPAND_FAST_INDEX_CREATION,
++   "Enable/disable improvements to the InnoDB fast index creation functionality. "
++   "Has no effect when fast index creation is disabled with the "
++   "fast-index-creation option",
++   &global_system_variables.expand_fast_index_creation,
++   &max_system_variables.expand_fast_index_creation,
++   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, NULL},
+   {"language", 'L',
+    "Client error messages in given language. May be given as a full path.",
+    &language_ptr, &language_ptr, 0, GET_STR, REQUIRED_ARG,
+--- a/sql/set_var.cc
++++ b/sql/set_var.cc
+@@ -1054,6 +1054,9 @@
+                                                      SHOW_LONGLONG,
+                                                      get_myisam_mmap_size);
+ 
++static sys_var_thd_bool
++sys_expand_fast_index_creation(&vars,
++  "expand_fast_index_creation", &SV::expand_fast_index_creation);
+ 
+ bool sys_var::check(THD *thd, set_var *var)
+ {
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
+@@ -423,6 +423,8 @@
+   ulong      innodb_lock_que_wait_timer;
+   ulong      innodb_innodb_que_wait_timer;
+   ulong      innodb_page_access;
++
++  my_bool expand_fast_index_creation;
+ };
+ 
+ 
+--- a/storage/innodb_plugin/include/ha_prototypes.h
++++ b/storage/innodb_plugin/include/ha_prototypes.h
+@@ -276,4 +276,14 @@
+ /*================================*/
+ 	void*	thd);
+ 
++/******************************************************************//**
++Returns true if innodb_expand_fast_index_creation is enabled for the current
++session.
++@return	the value of the server's innodb_expand_fast_index_creation variable */
++
++ibool
++thd_expand_fast_index_creation(
++/*==================*/
++	void*	thd);	/*!< in: thread handle (THD*) */
++
+ #endif
+--- a/mysql-test/r/percona_server_variables_debug.result
++++ b/mysql-test/r/percona_server_variables_debug.result
+@@ -40,6 +40,7 @@
+ ENGINE_CONDITION_PUSHDOWN
+ ERROR_COUNT
+ EVENT_SCHEDULER
++EXPAND_FAST_INDEX_CREATION
+ EXPIRE_LOGS_DAYS
+ FAST_INDEX_CREATION
+ FLUSH
+--- a/mysql-test/r/percona_server_variables_release.result
++++ b/mysql-test/r/percona_server_variables_release.result
+@@ -38,6 +38,7 @@
+ ENGINE_CONDITION_PUSHDOWN
+ ERROR_COUNT
+ EVENT_SCHEDULER
++EXPAND_FAST_INDEX_CREATION
+ EXPIRE_LOGS_DAYS
+ FAST_INDEX_CREATION
+ FLUSH
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
+@@ -762,6 +762,19 @@
+ 	return(THDVAR((THD*) thd, flush_log_at_trx_commit_session));
+ }
+ 
++/******************************************************************//**
++Returns true if expand_fast_index_creation is enabled for the current
++session.
++@return	the value of the server's expand_fast_index_creation variable */
++extern "C" UNIV_INTERN
++ibool
++thd_expand_fast_index_creation(
++/*================================*/
++	void*	thd)
++{
++	return((ibool) (((THD*) thd)->variables.expand_fast_index_creation));
++}
++
+ /********************************************************************//**
+ Obtain the InnoDB transaction of a MySQL thread.
+ @return	reference to transaction pointer */

@@ -12,7 +12,7 @@ Released on April 8, 2009.
 
   * move to |InnoDB| Plugin 1.0.3.
 
-  * More reliable replication, :ref:`innodb_overwrite_relay_log_info`` patch now included in the release.
+  * More reliable replication, ``innodb_overwrite_relay_log_info`` patch now included in the release.
 
   * Bug :bug:`354302`: Fix assertions for ``UNIV_DEBUG``
 

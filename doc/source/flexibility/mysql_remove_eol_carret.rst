@@ -1,3 +1,5 @@
+.. _mysql_remove_eol_carret:
+
 =========================
  Handle BLOB End of Line
 =========================

@@ -13,15 +13,15 @@ New features
 
     * :ref:`error_pad` - Implements error code compatibilities with |MySQL| 5.5. (*Oleg Tsarev*)
 
-    * :ref:`query_cache_totally_disable` - Allows the user to disable use of the query cache. (*Oleg Tsarev*, backport from |MySQL| 5.5)
+    * ``query_cache_totally_disable`` - Allows the user to disable use of the query cache. (*Oleg Tsarev*, backport from |MySQL| 5.5)
 
-    * :ref:`show_engines` - Changes ``SHOW STORAGE ENGINES`` to report |XtraDB| when appropriate. (*Oleg Tsarev*)
+    * ``show_engines`` - Changes ``SHOW STORAGE ENGINES`` to report |XtraDB| when appropriate. (*Oleg Tsarev*)
 
     * :ref:`remove_fcntl_excessive_calls` - Removes excessive fcntl calls. (*Oleg Tsarev*, port from *FaceBook* tree)
 
     * :ref:`sql_no_fcache` - Prevents blocks of data from being cached to FlashCache during a query. (*Oleg Tsarev*, port from *FaceBook* tree)
 
-    * :ref:`status_wait_query_cache_mutex` - Provides a new thread state - "Waiting on query cache mutex". (*Oleg Tsarev*)
+    * ``status_wait_query_cache_mutex`` - Provides a new thread state - "Waiting on query cache mutex". (*Oleg Tsarev*)
 
     * :ref:`log_connection_error` - Issues the warning “Too many connection” if log_warnings is enabled. (*Oleg Tsarev*)
 
@@ -29,11 +29,11 @@ New features
 
     * :ref:`innodb_buffer_pool_shm` - Allows storing the buffer pool in a shared memory segment between restarts of the server. (*Yasufumi Kinoshita*)
 
-    * Option :ref:`syslog` was added to the |MySQL| client. If enabled, all commands run on the client are logged to syslog. (*Oleg Tsarev*)
+    * Option :ref:`mysql_syslog` was added to the |MySQL| client. If enabled, all commands run on the client are logged to syslog. (*Oleg Tsarev*)
 
   * New variables introduced:
 
-    * :ref:`innodb_io_patches` - Implements a session-level version of the |MySQL| global system variable ``innodb_flush_log_at_trx_commit``. (*Yasufumi Kinoshita*)
+    * :ref:`innodb_io_page` - Implements a session-level version of the |MySQL| global system variable ``innodb_flush_log_at_trx_commit``. (*Yasufumi Kinoshita*)
 
     * :ref:`innodb_fast_index_creation` - Allows disabling of fast index creation. (*Yasufumi Kinoshita*)
 

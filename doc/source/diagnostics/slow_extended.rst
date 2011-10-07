@@ -1,3 +1,5 @@
+.. _slow_extended:
+
 ================
  Slow Query Log
 ================
@@ -6,7 +8,7 @@ This feature adds microsecond time resolution and additional statistics to the s
 
 The ability to log queries with microsecond precision is essential for measuring the work the |MySQL| server performs. The standard slow query log in |MySQL| 5.0 has only 1-second granularity, which is too coarse for all but the slowest queries. |MySQL| 5.1 has microsecond resolution, but does not have the extra information about query execution that is included in the |Percona Server|.
 
-You can use *Percona Toolkit* 's :ref:`mk-query-digest` tool to aggregate similar queries together and report on those that consume the most execution time.
+You can use *Percona Toolkit* 's ''mk-query-digest'' tool to aggregate similar queries together and report on those that consume the most execution time.
 
 
 Version Specific Information

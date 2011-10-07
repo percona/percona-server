@@ -1,8 +1,10 @@
+.. _installation:
+
 ==============================================
  Installing |Percona Server| 5.1 from Binaries
 ==============================================
 
-Before installing, you might want to read the :doc:`release-notes`.
+Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 
 Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.1/>`_, including:
 

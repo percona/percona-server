@@ -1,3 +1,5 @@
+.. _response_time_distribution:
+
 ============================
  Response Time Distribution
 ============================

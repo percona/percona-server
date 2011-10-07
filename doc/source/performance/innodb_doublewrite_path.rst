@@ -1,3 +1,5 @@
+.. _innodb_doublewrite_path:
+
 =========================================
  Configuration of the Doublewrite Buffer
 =========================================

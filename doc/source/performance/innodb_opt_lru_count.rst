@@ -1,3 +1,5 @@
+.. _innodb_opt_lru_count:
+
 =====================================
 Reduced Buffer Pool Mutex Contention
 =====================================

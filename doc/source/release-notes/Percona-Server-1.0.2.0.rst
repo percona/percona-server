@@ -6,15 +6,15 @@
 
 Released on December 16, 2008
 
-  * :ref:`innodb_show_enhancements`
+  * ``innodb_show_enhancements_page``
 
-  * :ref:`innodb_show_status`
+  * ``innodb_show_status``
 
-  * :ref:`innodb_io`
+  * :ref:`innodb_io_page`
 
-  * :ref:`innodb_rw_lock`
+  * ``innodb_rw_lock``
 
   * :ref:`innodb_opt_lru_count`
 
-  * :ref:`innodb_buffer_pool_pages`
+  * ``innodb_buffer_pool_pages``
   

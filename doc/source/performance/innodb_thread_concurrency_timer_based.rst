@@ -1,3 +1,5 @@
+.. _innodb_thread_concurrency_timer_based_page:
+
 ===========================================
 InnoDB timer-based Concurrency Throttling
 ===========================================

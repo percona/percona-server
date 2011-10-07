@@ -14,7 +14,7 @@ Functionality Added or Changed
 
   * New Features Added:
 
-    * :ref:`HandlerSocket plugin <handlersocket>` support has been added to all ``RPM`` and Debian packages. This is an experimental feature. (*Inada Naoki*, `DeNA Co., Ltd. <http://www.dena.jp/en/index.html>`_)
+    * :ref:`HandlerSocket plugin <handlersocket_page>` support has been added to all ``RPM`` and Debian packages. This is an experimental feature. (*Inada Naoki*, `DeNA Co., Ltd. <http://www.dena.jp/en/index.html>`_)
 
     * :ref:`show_slave_status_nolock` - Allows examination of slave status even when a lock prevents ``SHOW SLAVE STATUS`` from operating. (*Oleg Tsarev*)
 

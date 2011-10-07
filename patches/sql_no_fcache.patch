@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/client/mysqldump.c
 +++ b/client/mysqldump.c
-@@ -132,6 +132,8 @@
+@@ -136,6 +136,8 @@
  #endif
  static uint opt_protocol= 0;
  
@@ -16,7 +16,7 @@
  /*
  Dynamic_string wrapper functions. In this file use these
  wrappers, they will terminate the process if there is
-@@ -1518,6 +1520,17 @@
+@@ -1521,6 +1523,17 @@
      /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
      server_supports_switching_charsets= FALSE;
    } 
@@ -34,7 +34,7 @@
    /*
      As we're going to set SQL_MODE, it would be lost on reconnect, so we
      cannot reconnect.
-@@ -3181,7 +3194,12 @@
+@@ -3184,7 +3197,12 @@
  
      /* now build the query string */
  
@@ -48,7 +48,7 @@
      dynstr_append_checked(&query_string, filename);
      dynstr_append_checked(&query_string, "'");
  
-@@ -3231,7 +3249,12 @@
+@@ -3234,7 +3252,12 @@
        check_io(md_result_file);
      }
      
@@ -140,7 +140,7 @@
 +Comment=
 --- a/sql/lex.h
 +++ b/sql/lex.h
-@@ -500,6 +500,7 @@
+@@ -503,6 +503,7 @@
    { "SQL_CACHE",        SYM(SQL_CACHE_SYM)},
    { "SQL_CALC_FOUND_ROWS", SYM(SQL_CALC_FOUND_ROWS)},
    { "SQL_NO_CACHE",	SYM(SQL_NO_CACHE_SYM)},
@@ -150,7 +150,7 @@
    { "SQL_TSI_FRAC_SECOND", SYM(FRAC_SECOND_SYM)},
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -45,6 +45,11 @@
+@@ -46,6 +46,11 @@
  #define OPT_NDB_SHM_DEFAULT 0
  #endif
  #endif
@@ -162,7 +162,7 @@
  
  #ifndef DEFAULT_SKIP_THREAD_PRIORITY
  #define DEFAULT_SKIP_THREAD_PRIORITY 0
-@@ -605,6 +610,11 @@
+@@ -608,6 +613,11 @@
  ulong max_long_data_size;
  uint  max_user_connections= 0;
  ulonglong denied_connections = 0;
@@ -174,7 +174,7 @@
  /**
    Limit of the total number of prepared statements in the server.
    Is necessary to protect the server against out-of-memory attacks.
-@@ -4409,6 +4419,97 @@
+@@ -4412,6 +4422,97 @@
  }
  #endif//DBUG_OFF
  
@@ -272,7 +272,7 @@
  
  #ifdef __WIN__
  int win_main(int argc, char **argv)
-@@ -4513,6 +4614,10 @@
+@@ -4516,6 +4617,10 @@
    test_lc_time_sz();
  #endif
  
@@ -283,7 +283,7 @@
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4714,6 +4819,10 @@
+@@ -4717,6 +4822,10 @@
    clean_up_mutexes();
    my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
  
@@ -294,7 +294,7 @@
    exit(0);
    return(0);					/* purecov: deadcode */
  }
-@@ -7887,6 +7996,7 @@
+@@ -7890,6 +7999,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -304,7 +304,7 @@
    {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
 --- a/sql/mysql_priv.h
 +++ b/sql/mysql_priv.h
-@@ -823,6 +823,8 @@
+@@ -825,6 +825,8 @@
  */
  extern ulong server_id, concurrency;
  
@@ -315,7 +315,7 @@
                                        uint key_length,
 --- a/sql/sql_lex.cc
 +++ b/sql/sql_lex.cc
-@@ -306,6 +306,7 @@
+@@ -308,6 +308,7 @@
    lex->describe= 0;
    lex->subqueries= FALSE;
    lex->context_analysis_only= 0;
@@ -325,7 +325,7 @@
    lex->safe_to_cache_query= 1;
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -1728,6 +1728,7 @@
+@@ -1730,6 +1730,7 @@
  
    uint8 context_analysis_only;
    bool safe_to_cache_query;
@@ -384,7 +384,7 @@
  
 --- a/sql/sql_yacc.yy
 +++ b/sql/sql_yacc.yy
-@@ -1164,6 +1164,7 @@
+@@ -1166,6 +1166,7 @@
  %token  SQL_CACHE_SYM
  %token  SQL_CALC_FOUND_ROWS
  %token  SQL_NO_CACHE_SYM
@@ -392,7 +392,7 @@
  %token  SQL_SMALL_RESULT
  %token  SQL_SYM                       /* SQL-2003-R */
  %token  SQL_THREAD
-@@ -6752,6 +6753,10 @@
+@@ -6757,6 +6758,10 @@
              Lex->select_lex.options&= ~OPTION_TO_QUERY_CACHE;
              Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
            }

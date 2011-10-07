@@ -5,453 +5,14 @@
 # Bug fix for
 # http://bugs.mysql.com/56433 (always: because good for all users, and safe)
 # and http://bugs.mysql.com/51325 (optional: innodb_lazy_drop_table)
-# and http://bugs.mysql.com/61341 (always for not-debug build)
 # were added. They may be removed in the future when will be fixed officially.
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
---- a/storage/innodb_plugin/buf/buf0buddy.c
-+++ b/storage/innodb_plugin/buf/buf0buddy.c
-@@ -377,7 +377,9 @@
- 	buf_page_t*	bpage,	/*!< in: block to relocate */
- 	buf_page_t*	dpage)	/*!< in: free block to relocate to */
- {
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 	buf_page_t*	b;
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 
- 	//ut_ad(buf_pool_mutex_own());
- #ifdef UNIV_SYNC_DEBUG
-@@ -418,6 +420,7 @@
- 	buf_relocate(bpage, dpage);
- 	ut_d(bpage->state = BUF_BLOCK_ZIP_FREE);
- 
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 	/* relocate buf_pool->zip_clean */
- 	mutex_enter(&flush_list_mutex);
- 	b = UT_LIST_GET_PREV(zip_list, dpage);
-@@ -429,6 +432,7 @@
- 		UT_LIST_ADD_FIRST(zip_list, buf_pool->zip_clean, dpage);
- 	}
- 	mutex_exit(&flush_list_mutex);
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 
- 	UNIV_MEM_INVALID(bpage, sizeof *bpage);
- 
 --- a/storage/innodb_plugin/buf/buf0buf.c
 +++ b/storage/innodb_plugin/buf/buf0buf.c
-@@ -953,74 +953,6 @@
- 	return(NULL);
- }
- 
--/*********************************************************************//**
--Checks that all blocks in the buffer chunk are in BUF_BLOCK_NOT_USED state.
--@return	TRUE if all freed */
--static
--ibool
--buf_chunk_all_free(
--/*===============*/
--	const buf_chunk_t*	chunk)	/*!< in: chunk being checked */
--{
--	const buf_block_t*	block;
--	ulint			i;
--
--	ut_ad(buf_pool);
--	ut_ad(buf_pool_mutex_own()); /* but we need all mutex here */
--
--	block = chunk->blocks;
--
--	for (i = chunk->size; i--; block++) {
--
--		if (buf_block_get_state(block) != BUF_BLOCK_NOT_USED) {
--
--			return(FALSE);
--		}
--	}
--
--	return(TRUE);
--}
--
--/********************************************************************//**
--Frees a chunk of buffer frames. */
--static
--void
--buf_chunk_free(
--/*===========*/
--	buf_chunk_t*	chunk)		/*!< out: chunk of buffers */
--{
--	buf_block_t*		block;
--	const buf_block_t*	block_end;
--
--	ut_ad(buf_pool_mutex_own()); /* but we need all mutex here */
--
--	block_end = chunk->blocks + chunk->size;
--
--	for (block = chunk->blocks; block < block_end; block++) {
--		ut_a(buf_block_get_state(block) == BUF_BLOCK_NOT_USED);
--		ut_a(!block->page.zip.data);
--
--		ut_ad(!block->page.in_LRU_list);
--		ut_ad(!block->in_unzip_LRU_list);
--		ut_ad(!block->page.in_flush_list);
--		/* Remove the block from the free list. */
--		mutex_enter(&free_list_mutex);
--		ut_ad(block->page.in_free_list);
--		UT_LIST_REMOVE(free, buf_pool->free, (&block->page));
--		mutex_exit(&free_list_mutex);
--
--		/* Free the latches. */
--		mutex_free(&block->mutex);
--		rw_lock_free(&block->lock);
--#ifdef UNIV_SYNC_DEBUG
--		rw_lock_free(&block->debug_latch);
--#endif /* UNIV_SYNC_DEBUG */
--		UNIV_MEM_UNDESC(block);
--	}
--
--	os_mem_free_large(chunk->mem, chunk->mem_size);
--}
--
- /********************************************************************//**
- Creates the buffer pool.
- @return	own: buf_pool object, NULL if not enough memory or error */
-@@ -1110,8 +1042,6 @@
- 	chunk = chunks + buf_pool->n_chunks;
- 
- 	while (--chunk >= chunks) {
--		/* Bypass the checks of buf_chunk_free(), since they
--		would fail at shutdown. */
- 		os_mem_free_large(chunk->mem, chunk->mem_size);
- 	}
- 
-@@ -1291,325 +1221,6 @@
- }
- 
- /********************************************************************//**
--Shrinks the buffer pool. */
--static
--void
--buf_pool_shrink(
--/*============*/
--	ulint	chunk_size)	/*!< in: number of pages to remove */
--{
--	buf_chunk_t*	chunks;
--	buf_chunk_t*	chunk;
--	ulint		max_size;
--	ulint		max_free_size;
--	buf_chunk_t*	max_chunk;
--	buf_chunk_t*	max_free_chunk;
--
--	ut_ad(!buf_pool_mutex_own());
--
--try_again:
--	btr_search_disable(); /* Empty the adaptive hash index again */
--	//buf_pool_mutex_enter();
--	mutex_enter(&LRU_list_mutex);
--
--shrink_again:
--	if (buf_pool->n_chunks <= 1) {
--
--		/* Cannot shrink if there is only one chunk */
--		goto func_done;
--	}
--
--	/* Search for the largest free chunk
--	not larger than the size difference */
--	chunks = buf_pool->chunks;
--	chunk = chunks + buf_pool->n_chunks;
--	max_size = max_free_size = 0;
--	max_chunk = max_free_chunk = NULL;
--
--	while (--chunk >= chunks) {
--		if (chunk->size <= chunk_size
--		    && chunk->size > max_free_size) {
--			if (chunk->size > max_size) {
--				max_size = chunk->size;
--				max_chunk = chunk;
--			}
--
--			if (buf_chunk_all_free(chunk)) {
--				max_free_size = chunk->size;
--				max_free_chunk = chunk;
--			}
--		}
--	}
--
--	if (!max_free_size) {
--
--		ulint		dirty	= 0;
--		ulint		nonfree	= 0;
--		buf_block_t*	block;
--		buf_block_t*	bend;
--
--		/* Cannot shrink: try again later
--		(do not assign srv_buf_pool_old_size) */
--		if (!max_chunk) {
--
--			goto func_exit;
--		}
--
--		block = max_chunk->blocks;
--		bend = block + max_chunk->size;
--
--		/* Move the blocks of chunk to the end of the
--		LRU list and try to flush them. */
--		for (; block < bend; block++) {
--			switch (buf_block_get_state(block)) {
--			case BUF_BLOCK_NOT_USED:
--				continue;
--			case BUF_BLOCK_FILE_PAGE:
--				break;
--			default:
--				nonfree++;
--				continue;
--			}
--
--			mutex_enter(&block->mutex);
--			/* The following calls will temporarily
--			release block->mutex and buf_pool_mutex.
--			Therefore, we have to always retry,
--			even if !dirty && !nonfree. */
--
--			if (!buf_flush_ready_for_replace(&block->page)) {
--
--				buf_LRU_make_block_old(&block->page);
--				dirty++;
--			} else if (buf_LRU_free_block(&block->page, TRUE, FALSE)
--				   != BUF_LRU_FREED) {
--				nonfree++;
--			}
--
--			mutex_exit(&block->mutex);
--		}
--
--		//buf_pool_mutex_exit();
--		mutex_exit(&LRU_list_mutex);
--
--		/* Request for a flush of the chunk if it helps.
--		Do not flush if there are non-free blocks, since
--		flushing will not make the chunk freeable. */
--		if (nonfree) {
--			/* Avoid busy-waiting. */
--			os_thread_sleep(100000);
--		} else if (dirty
--			   && buf_flush_batch(BUF_FLUSH_LRU, dirty, 0)
--			   == ULINT_UNDEFINED) {
--
--			buf_flush_wait_batch_end(BUF_FLUSH_LRU);
--		}
--
--		goto try_again;
--	}
--
--	max_size = max_free_size;
--	max_chunk = max_free_chunk;
--
--	srv_buf_pool_old_size = srv_buf_pool_size;
--
--	/* Rewrite buf_pool->chunks.  Copy everything but max_chunk. */
--	chunks = mem_alloc((buf_pool->n_chunks - 1) * sizeof *chunks);
--	memcpy(chunks, buf_pool->chunks,
--	       (max_chunk - buf_pool->chunks) * sizeof *chunks);
--	memcpy(chunks + (max_chunk - buf_pool->chunks),
--	       max_chunk + 1,
--	       buf_pool->chunks + buf_pool->n_chunks
--	       - (max_chunk + 1));
--	ut_a(buf_pool->curr_size > max_chunk->size);
--	buf_pool->curr_size -= max_chunk->size;
--	srv_buf_pool_curr_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
--	chunk_size -= max_chunk->size;
--	buf_chunk_free(max_chunk);
--	mem_free(buf_pool->chunks);
--	buf_pool->chunks = chunks;
--	buf_pool->n_chunks--;
--
--	/* Allow a slack of one megabyte. */
--	if (chunk_size > 1048576 / UNIV_PAGE_SIZE) {
--
--		goto shrink_again;
--	}
--
--func_done:
--	srv_buf_pool_old_size = srv_buf_pool_size;
--func_exit:
--	//buf_pool_mutex_exit();
--	mutex_exit(&LRU_list_mutex);
--	btr_search_enable();
--}
--
--/********************************************************************//**
--Rebuild buf_pool->page_hash. */
--static
--void
--buf_pool_page_hash_rebuild(void)
--/*============================*/
--{
--	ulint		i;
--	ulint		n_chunks;
--	buf_chunk_t*	chunk;
--	hash_table_t*	page_hash;
--	hash_table_t*	zip_hash;
--	buf_page_t*	b;
--
--	//buf_pool_mutex_enter();
--	mutex_enter(&LRU_list_mutex);
--	rw_lock_x_lock(&page_hash_latch);
--	mutex_enter(&flush_list_mutex);
--	
--
--	/* Free, create, and populate the hash table. */
--	hash_table_free(buf_pool->page_hash);
--	buf_pool->page_hash = page_hash = hash_create(2 * buf_pool->curr_size);
--	zip_hash = hash_create(2 * buf_pool->curr_size);
--
--	HASH_MIGRATE(buf_pool->zip_hash, zip_hash, buf_page_t, hash,
--		     BUF_POOL_ZIP_FOLD_BPAGE);
--
--	hash_table_free(buf_pool->zip_hash);
--	buf_pool->zip_hash = zip_hash;
--
--	/* Insert the uncompressed file pages to buf_pool->page_hash. */
--
--	chunk = buf_pool->chunks;
--	n_chunks = buf_pool->n_chunks;
--
--	for (i = 0; i < n_chunks; i++, chunk++) {
--		ulint		j;
--		buf_block_t*	block = chunk->blocks;
--
--		for (j = 0; j < chunk->size; j++, block++) {
--			if (buf_block_get_state(block)
--			    == BUF_BLOCK_FILE_PAGE) {
--				ut_ad(!block->page.in_zip_hash);
--				ut_ad(block->page.in_page_hash);
--
--				HASH_INSERT(buf_page_t, hash, page_hash,
--					    buf_page_address_fold(
--						    block->page.space,
--						    block->page.offset),
--					    &block->page);
--			}
--		}
--	}
--
--	/* Insert the compressed-only pages to buf_pool->page_hash.
--	All such blocks are either in buf_pool->zip_clean or
--	in buf_pool->flush_list. */
--
--	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
--	     b = UT_LIST_GET_NEXT(zip_list, b)) {
--		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
--		ut_ad(!b->in_flush_list);
--		ut_ad(b->in_LRU_list);
--		ut_ad(b->in_page_hash);
--		ut_ad(!b->in_zip_hash);
--
--		HASH_INSERT(buf_page_t, hash, page_hash,
--			    buf_page_address_fold(b->space, b->offset), b);
--	}
--
--	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;
--	     b = UT_LIST_GET_NEXT(flush_list, b)) {
--		ut_ad(b->in_flush_list);
--		ut_ad(b->in_LRU_list);
--		ut_ad(b->in_page_hash);
--		ut_ad(!b->in_zip_hash);
--
--		switch (buf_page_get_state(b)) {
--		case BUF_BLOCK_ZIP_DIRTY:
--			HASH_INSERT(buf_page_t, hash, page_hash,
--				    buf_page_address_fold(b->space,
--							  b->offset), b);
--			break;
--		case BUF_BLOCK_FILE_PAGE:
--			/* uncompressed page */
--			break;
--		case BUF_BLOCK_ZIP_FREE:
--		case BUF_BLOCK_ZIP_PAGE:
--		case BUF_BLOCK_NOT_USED:
--		case BUF_BLOCK_READY_FOR_USE:
--		case BUF_BLOCK_MEMORY:
--		case BUF_BLOCK_REMOVE_HASH:
--			ut_error;
--			break;
--		}
--	}
--
--	//buf_pool_mutex_exit();
--	mutex_exit(&LRU_list_mutex);
--	rw_lock_x_unlock(&page_hash_latch);
--	mutex_exit(&flush_list_mutex);
--}
--
--/********************************************************************//**
--Resizes the buffer pool. */
--UNIV_INTERN
--void
--buf_pool_resize(void)
--/*=================*/
--{
--	//buf_pool_mutex_enter();
--	mutex_enter(&LRU_list_mutex);
--
--	if (srv_buf_pool_old_size == srv_buf_pool_size) {
--
--		//buf_pool_mutex_exit();
--		mutex_exit(&LRU_list_mutex);
--		return;
--	}
--
--	if (srv_buf_pool_curr_size + 1048576 > srv_buf_pool_size) {
--
--		//buf_pool_mutex_exit();
--		mutex_exit(&LRU_list_mutex);
--
--		/* Disable adaptive hash indexes and empty the index
--		in order to free up memory in the buffer pool chunks. */
--		buf_pool_shrink((srv_buf_pool_curr_size - srv_buf_pool_size)
--				/ UNIV_PAGE_SIZE);
--	} else if (srv_buf_pool_curr_size + 1048576 < srv_buf_pool_size) {
--
--		/* Enlarge the buffer pool by at least one megabyte */
--
--		ulint		mem_size
--			= srv_buf_pool_size - srv_buf_pool_curr_size;
--		buf_chunk_t*	chunks;
--		buf_chunk_t*	chunk;
--
--		chunks = mem_alloc((buf_pool->n_chunks + 1) * sizeof *chunks);
--
--		memcpy(chunks, buf_pool->chunks, buf_pool->n_chunks
--		       * sizeof *chunks);
--
--		chunk = &chunks[buf_pool->n_chunks];
--
--		if (!buf_chunk_init(chunk, mem_size)) {
--			mem_free(chunks);
--		} else {
--			buf_pool->curr_size += chunk->size;
--			srv_buf_pool_curr_size = buf_pool->curr_size
--				* UNIV_PAGE_SIZE;
--			mem_free(buf_pool->chunks);
--			buf_pool->chunks = chunks;
--			buf_pool->n_chunks++;
--		}
--
--		srv_buf_pool_old_size = srv_buf_pool_size;
--		//buf_pool_mutex_exit();
--		mutex_exit(&LRU_list_mutex);
--	}
--
--	buf_pool_page_hash_rebuild();
--}
--
--/********************************************************************//**
- Moves a page to the start of the buffer pool LRU list. This high-level
- function can be used to prevent an important page from slipping out of
- the buffer pool. */
-@@ -1843,6 +1454,27 @@
+@@ -1454,6 +1454,27 @@
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
  	}
  
@@ -479,7 +40,7 @@
  	if (UNIV_UNLIKELY(!bpage->zip.data)) {
  		/* There is no compressed page. */
  err_exit:
-@@ -2291,6 +1923,27 @@
+@@ -1897,6 +1918,27 @@
  		rw_lock_s_lock(&page_hash_latch);
  		block = (buf_block_t*) buf_page_hash_get(space, offset);
  		if (block) {
@@ -507,18 +68,7 @@
  			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
  			ut_a(block_mutex);
  		}
-@@ -2469,8 +2122,10 @@
- 
- 		if (buf_page_get_state(&block->page)
- 		    == BUF_BLOCK_ZIP_PAGE) {
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 			UT_LIST_REMOVE(zip_list, buf_pool->zip_clean,
- 				       &block->page);
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 			ut_ad(!block->page.in_flush_list);
- 		} else {
- 			/* Relocate buf_pool->flush_list. */
-@@ -3106,6 +2761,7 @@
+@@ -2713,6 +2755,7 @@
  {
  	buf_block_t*	block;
  	buf_page_t*	bpage;
@@ -526,7 +76,7 @@
  	mtr_t		mtr;
  	ibool		lru	= FALSE;
  	void*		data;
-@@ -3141,11 +2797,29 @@
+@@ -2748,11 +2791,29 @@
  		ut_ad(block);
  	}
  
@@ -557,7 +107,7 @@
  		/* The page is already in the buffer pool. */
  err_exit:
  		if (block) {
-@@ -3264,6 +2938,7 @@
+@@ -2864,6 +2925,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -565,19 +115,7 @@
  
  #ifdef UNIV_DEBUG
  		bpage->in_page_hash = FALSE;
-@@ -3281,9 +2956,11 @@
- 
- 		/* The block must be put to the LRU list, to the old blocks */
- 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 		mutex_enter(&flush_list_mutex);
- 		buf_LRU_insert_zip_clean(bpage);
- 		mutex_exit(&flush_list_mutex);
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 
- 		mutex_exit(&LRU_list_mutex);
- 
-@@ -3334,12 +3011,28 @@
+@@ -2936,12 +2998,28 @@
  
  	free_block = buf_LRU_get_free_block();
  
@@ -631,19 +169,9 @@
  		if (flush_type != BUF_FLUSH_LRU) {
  
  			return(TRUE);
-@@ -452,7 +459,9 @@
- 	case BUF_BLOCK_ZIP_DIRTY:
- 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_PAGE);
- 		UT_LIST_REMOVE(flush_list, buf_pool->flush_list, bpage);
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 		buf_LRU_insert_zip_clean(bpage);
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 		break;
- 	case BUF_BLOCK_FILE_PAGE:
- 		UT_LIST_REMOVE(flush_list, buf_pool->flush_list, bpage);
 --- a/storage/innodb_plugin/buf/buf0lru.c
 +++ b/storage/innodb_plugin/buf/buf0lru.c
-@@ -550,6 +550,56 @@
+@@ -505,6 +505,55 @@
  	}
  }
  
@@ -696,20 +224,11 @@
 +	rw_lock_s_unlock(&btr_search_latch);
 +}
 +
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+ #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /********************************************************************//**
  Insert a compressed block into buf_pool->zip_clean in the LRU order. */
- UNIV_INTERN
-@@ -583,6 +633,7 @@
- 		UT_LIST_ADD_FIRST(zip_list, buf_pool->zip_clean, bpage);
- 	}
- }
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 
- /******************************************************************//**
- Try to free an uncompressed page of a compressed block from the unzip
-@@ -1492,6 +1543,10 @@
- 		return(BUF_LRU_NOT_FREED);
+@@ -1417,6 +1466,10 @@
+ 		return(FALSE);
  	}
  
 +	if (bpage->space_was_being_deleted && bpage->oldest_modification != 0) {
@@ -719,26 +238,6 @@
  #ifdef UNIV_IBUF_COUNT_DEBUG
  	ut_a(ibuf_count_get(bpage->space, bpage->offset) == 0);
  #endif /* UNIV_IBUF_COUNT_DEBUG */
-@@ -1662,7 +1717,9 @@
- 
- 			mutex_enter(&flush_list_mutex);
- 			if (b->state == BUF_BLOCK_ZIP_PAGE) {
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 				buf_LRU_insert_zip_clean(b);
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 			} else {
- 				/* Relocate on buf_pool->flush_list. */
- 				buf_flush_relocate_on_flush_list(bpage, b);
-@@ -1959,7 +2016,9 @@
- 		ut_a(bpage->zip.data);
- 		ut_a(buf_page_get_zip_size(bpage));
- 
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 		UT_LIST_REMOVE(zip_list, buf_pool->zip_clean, bpage);
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 
- 		mutex_exit(&buf_pool_zip_mutex);
- 		//buf_pool_mutex_exit_forbid();
 --- a/storage/innodb_plugin/fil/fil0fil.c
 +++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -244,6 +244,7 @@
@@ -936,7 +435,7 @@
  	ut_a(ret);
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11746,6 +11746,12 @@
+@@ -11751,6 +11751,12 @@
    "except for the deletion.",
    NULL, NULL, 0, 0, 2, 0);
  
@@ -949,15 +448,15 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -11835,6 +11841,7 @@
-   MYSQL_SYSVAR(auto_lru_dump),
+@@ -11842,6 +11848,7 @@
+   MYSQL_SYSVAR(blocking_lru_restore),
    MYSQL_SYSVAR(use_purge_thread),
    MYSQL_SYSVAR(pass_corrupt_table),
 +  MYSQL_SYSVAR(lazy_drop_table),
    NULL
  };
  
-@@ -11844,7 +11851,7 @@
+@@ -11851,7 +11858,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    "Innobase Oy",
@@ -968,20 +467,7 @@
    NULL, /* Plugin Deinit */
 --- a/storage/innodb_plugin/include/buf0buf.h
 +++ b/storage/innodb_plugin/include/buf0buf.h
-@@ -141,12 +141,6 @@
- 				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
- 	buf_page_t*	dpage)	/*!< in/out: destination control block */
- 	__attribute__((nonnull));
--/********************************************************************//**
--Resizes the buffer pool. */
--UNIV_INTERN
--void
--buf_pool_resize(void);
--/*=================*/
- /*********************************************************************//**
- Gets the current size of buffer buf_pool in bytes.
- @return	size in bytes */
-@@ -1155,6 +1149,7 @@
+@@ -1203,6 +1203,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -989,20 +475,9 @@
  	ibool		is_corrupt;
  # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ibool		file_page_was_freed;
-@@ -1449,8 +1444,10 @@
- 	frames and buf_page_t descriptors of blocks that exist
- 	in the buffer pool only in compressed form. */
- 	/* @{ */
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
- 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
- 					/*!< unmodified compressed pages */
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
- 					/*!< buddy free lists */
- //#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
 --- a/storage/innodb_plugin/include/buf0buf.ic
 +++ b/storage/innodb_plugin/include/buf0buf.ic
-@@ -384,6 +384,7 @@
+@@ -400,6 +400,7 @@
  	buf_block_set_state(block, BUF_BLOCK_FILE_PAGE);
  	block->page.space = space;
  	block->page.offset = page_no;
@@ -1012,7 +487,7 @@
  /*********************************************************************//**
 --- a/storage/innodb_plugin/include/buf0lru.h
 +++ b/storage/innodb_plugin/include/buf0lru.h
-@@ -84,6 +84,14 @@
+@@ -72,6 +72,13 @@
  buf_LRU_invalidate_tablespace(
  /*==========================*/
  	ulint	id);	/*!< in: space id */
@@ -1023,18 +498,9 @@
 +buf_LRU_mark_space_was_deleted(
 +/*===========================*/
 +	ulint	id);	/*!< in: space id */
-+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+ #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /********************************************************************//**
  Insert a compressed block into buf_pool->zip_clean in the LRU order. */
- UNIV_INTERN
-@@ -91,6 +99,7 @@
- buf_LRU_insert_zip_clean(
- /*=====================*/
- 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
-+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
- 
- /******************************************************************//**
- Try to free a block.  If bpage is a descriptor of a compressed-only
 --- a/storage/innodb_plugin/include/os0file.h
 +++ b/storage/innodb_plugin/include/os0file.h
 @@ -658,6 +658,7 @@
@@ -1067,7 +533,7 @@
  @return	TRUE if ok */
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -236,6 +236,8 @@
+@@ -237,6 +237,8 @@
  
  extern ulint	srv_extra_rsegments;
  extern ulint	srv_dict_size_limit;
@@ -1078,7 +544,7 @@
  extern ulint	srv_n_rows_inserted;
 --- a/storage/innodb_plugin/include/sync0sync.h
 +++ b/storage/innodb_plugin/include/sync0sync.h
-@@ -496,6 +496,7 @@
+@@ -498,6 +498,7 @@
  #define	SYNC_BUF_POOL		150
  #define SYNC_BUF_FLUSH_LIST	149
  #define SYNC_DOUBLEWRITE	140
@@ -1088,7 +554,7 @@
  #define	SYNC_MEM_HASH		131
 --- a/storage/innodb_plugin/include/univ.i
 +++ b/storage/innodb_plugin/include/univ.i
-@@ -48,6 +48,11 @@
+@@ -47,6 +47,11 @@
  #define INNODB_VERSION_MINOR	0
  #define INNODB_VERSION_BUGFIX	17
  
@@ -1100,7 +566,7 @@
  /* The following is the InnoDB version as shown in
  SELECT plugin_version FROM information_schema.plugins;
  calculated in make_version_string() in sql/sql_show.cc like this:
-@@ -58,13 +63,15 @@
+@@ -57,13 +62,15 @@
  	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
  
  /* auxiliary macros to help creating the version as string */
@@ -1276,7 +742,7 @@
  			} while (index);
 --- a/storage/innodb_plugin/row/row0sel.c
 +++ b/storage/innodb_plugin/row/row0sel.c
-@@ -3374,6 +3374,7 @@
+@@ -3414,6 +3414,7 @@
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
  	ibool		table_lock_waited		= FALSE;
@@ -1284,7 +750,7 @@
  
  	rec_offs_init(offsets_);
  
-@@ -3740,6 +3741,15 @@
+@@ -3780,6 +3781,15 @@
  
  	/* Do some start-of-statement preparations */
  
@@ -1300,7 +766,7 @@
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3750,6 +3760,14 @@
+@@ -3790,6 +3800,14 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -1317,7 +783,7 @@
  			ut_error;
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -418,6 +418,8 @@
+@@ -424,6 +424,8 @@
  
  UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
@@ -1328,7 +794,7 @@
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
 --- a/storage/innodb_plugin/srv/srv0start.c
 +++ b/storage/innodb_plugin/srv/srv0start.c
-@@ -2012,7 +2012,7 @@
+@@ -2018,7 +2018,7 @@
  	if (srv_print_verbose_log) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
@@ -1339,7 +805,7 @@
  	}
 --- a/storage/innodb_plugin/sync/sync0sync.c
 +++ b/storage/innodb_plugin/sync/sync0sync.c
-@@ -1161,6 +1161,7 @@
+@@ -1166,6 +1166,7 @@
  	case SYNC_LOG:
  	case SYNC_THR_LOCAL:
  	case SYNC_ANY_LATCH:

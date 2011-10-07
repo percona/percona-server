@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/buf/buf0flu.c
 +++ b/storage/innodb_plugin/buf/buf0flu.c
-@@ -741,7 +741,7 @@
+@@ -743,7 +743,7 @@
  flush:
  	/* Now flush the doublewrite buffer data to disk */
  
@@ -16,7 +16,7 @@
  
  	/* We know that the writes have been flushed to disk now
  	and in recovery we will find them in the doublewrite buffer
-@@ -1238,8 +1238,9 @@
+@@ -1240,8 +1240,9 @@
  /*====================*/
  	ulint		space,		/*!< in: space id */
  	ulint		offset,		/*!< in: page offset */
@@ -27,7 +27,7 @@
  {
  	buf_page_t*	bpage;
  	ulint		low, high;
-@@ -1248,7 +1249,7 @@
+@@ -1250,7 +1251,7 @@
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -36,7 +36,7 @@
  		/* If there is little space, it is better not to flush any
  		block except from the end of the LRU list */
  
-@@ -1420,7 +1421,7 @@
+@@ -1422,7 +1423,7 @@
  
  				/* Try to flush also all the neighbors */
  				page_count += buf_flush_try_neighbors(
@@ -47,7 +47,7 @@
  				goto flush_next;
 --- a/storage/innodb_plugin/buf/buf0rea.c
 +++ b/storage/innodb_plugin/buf/buf0rea.c
-@@ -254,6 +254,10 @@
+@@ -424,6 +424,10 @@
  		= BUF_READ_AHEAD_LINEAR_AREA;
  	ulint		threshold;
  
@@ -149,7 +149,7 @@
  
  static handler *innobase_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-@@ -708,6 +714,17 @@
+@@ -710,6 +716,17 @@
  	return(THDVAR((THD*) thd, lock_wait_timeout));
  }
  
@@ -167,7 +167,7 @@
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2232,6 +2249,9 @@
+@@ -2234,6 +2251,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -177,7 +177,7 @@
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -9926,6 +9946,10 @@
+@@ -9916,6 +9936,10 @@
  	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
  	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
  	{
@@ -188,7 +188,7 @@
  
  		/* For ibbackup to work the order of transactions in binlog
  		and InnoDB must be the same. Consider the situation
-@@ -10901,7 +10925,7 @@
+@@ -10891,7 +10915,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -197,7 +197,7 @@
  
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
-@@ -11043,6 +11067,102 @@
+@@ -11038,6 +11062,102 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -300,7 +300,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11098,6 +11218,15 @@
+@@ -11093,6 +11213,15 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -408,7 +408,7 @@
  The number should be retrieved before any other OS calls (because they may
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -204,6 +204,16 @@
+@@ -205,6 +205,16 @@
  extern ulong	srv_max_purge_lag;
  
  extern ulong	srv_replication_delay;
@@ -425,7 +425,7 @@
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -337,8 +347,9 @@
+@@ -338,8 +348,9 @@
  				when writing data files, but do flush
  				after writing to log files */
  	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
@@ -1191,7 +1191,7 @@
  	*message2 = slot->message2;
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -375,6 +375,17 @@
+@@ -377,6 +377,17 @@
  
  UNIV_INTERN ulong	srv_replication_delay		= 0;
  
@@ -1209,7 +1209,7 @@
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2491,15 +2502,31 @@
+@@ -2495,15 +2506,31 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -1241,7 +1241,7 @@
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
  		os_thread_pf(os_thread_get_curr_id()));
-@@ -2515,6 +2542,9 @@
+@@ -2519,6 +2546,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -1251,7 +1251,7 @@
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2542,16 +2572,40 @@
+@@ -2546,16 +2576,40 @@
  	srv_last_log_flush_time = time(NULL);
  	skip_sleep = FALSE;
  
@@ -1293,7 +1293,7 @@
  		}
  
  		skip_sleep = FALSE;
-@@ -2588,7 +2642,7 @@
+@@ -2592,7 +2646,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -1302,7 +1302,7 @@
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2612,6 +2666,11 @@
+@@ -2616,6 +2670,11 @@
  			iteration of this loop. */
  
  			skip_sleep = TRUE;
@@ -1314,7 +1314,7 @@
  		} else if (srv_adaptive_flushing) {
  
  			/* Try to keep the rate of flushing of dirty
-@@ -2633,6 +2692,256 @@
+@@ -2637,6 +2696,256 @@
  					skip_sleep = TRUE;
  				}
  			}
@@ -1571,7 +1571,7 @@
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2681,7 +2990,7 @@
+@@ -2685,7 +2994,7 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1580,7 +1580,7 @@
  
  	/* Flush logs if needed */
  	srv_sync_log_buffer_in_background();
-@@ -2806,7 +3115,7 @@
+@@ -2810,7 +3119,7 @@
  		buf_flush_batch below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,

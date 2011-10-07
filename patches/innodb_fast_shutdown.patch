@@ -159,7 +159,7 @@
  
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -714,6 +714,8 @@
+@@ -722,6 +722,8 @@
  
  UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
  
@@ -168,7 +168,7 @@
  UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
  
  /* padding to prevent other memory update hotspots from residing on
-@@ -1019,6 +1021,7 @@
+@@ -1027,6 +1029,7 @@
  	}
  
  	srv_lock_timeout_thread_event = os_event_create(NULL);
@@ -176,7 +176,7 @@
  
  	for (i = 0; i < SRV_MASTER + 1; i++) {
  		srv_n_threads_active[i] = 0;
-@@ -2248,7 +2251,7 @@
+@@ -2256,7 +2259,7 @@
  	/* Wake up every 5 seconds to see if we need to print
  	monitor information. */
  
@@ -185,7 +185,7 @@
  
  	current_time = time(NULL);
  
-@@ -2390,7 +2393,7 @@
+@@ -2398,7 +2401,7 @@
  	/* When someone is waiting for a lock, we wake up every second
  	and check if a timeout has passed for a lock wait */
  
@@ -194,7 +194,7 @@
  
  	srv_lock_timeout_active = TRUE;
  
-@@ -2564,7 +2567,7 @@
+@@ -2602,7 +2605,7 @@
  
  	fflush(stderr);
  
@@ -203,7 +203,7 @@
  
  	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
  
-@@ -2610,7 +2613,7 @@
+@@ -2648,7 +2651,7 @@
  	last_dump_time = time(NULL);
  
  loop:
@@ -212,7 +212,7 @@
  
  	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
  		goto exit_func;
-@@ -2793,7 +2796,7 @@
+@@ -2831,7 +2834,7 @@
  		if (!skip_sleep) {
  		if (next_itr_time > cur_time) {
  
@@ -221,7 +221,7 @@
  			srv_main_sleeps++;
  
  			/*
-@@ -3500,9 +3503,10 @@
+@@ -3538,9 +3541,10 @@
  		mutex_exit(&kernel_mutex);
  
  		sleep_ms = 10;

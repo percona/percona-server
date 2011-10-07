@@ -244,7 +244,7 @@
    get_table_structure -- retrievs database structure, prints out corresponding
    CREATE statement and fills out insert_pat if the table is the type we will
    be dumping.
-@@ -2282,6 +2475,7 @@
+@@ -2285,6 +2478,7 @@
    int        len;
    MYSQL_RES  *result;
    MYSQL_ROW  row;
@@ -252,7 +252,7 @@
    DBUG_ENTER("get_table_structure");
    DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
  
-@@ -2323,6 +2517,9 @@
+@@ -2326,6 +2520,9 @@
    result_table=     quote_name(table, table_buff, 1);
    opt_quoted_table= quote_name(table, table_buff2, 0);
  
@@ -262,7 +262,7 @@
    if (opt_order_by_primary)
      order_by= primary_key_fields(result_table);
  
-@@ -2486,6 +2683,9 @@
+@@ -2489,6 +2686,9 @@
  
        row= mysql_fetch_row(result);
  
@@ -272,7 +272,7 @@
        fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
                "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
                "/*!40101 SET character_set_client = utf8 */;\n"
-@@ -3578,6 +3778,27 @@
+@@ -3581,6 +3781,27 @@
        goto err;
      }
  
@@ -928,7 +928,7 @@
      tablespace_op= NO_TABLESPACE_OP;
 --- a/sql/sql_table.cc
 +++ b/sql/sql_table.cc
-@@ -3015,6 +3015,14 @@
+@@ -3016,6 +3016,14 @@
    if (!*key_info_buffer || ! key_part_info)
      DBUG_RETURN(TRUE);				// Out of memory
  
@@ -943,7 +943,7 @@
    key_iterator.rewind();
    key_number=0;
    for (; (key=key_iterator++) ; key_number++)
-@@ -3393,8 +3401,26 @@
+@@ -3394,8 +3402,26 @@
        my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
        DBUG_RETURN(TRUE);
      }
@@ -970,7 +970,7 @@
    if (!unique_key && !primary_key &&
        (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
    {
-@@ -6093,6 +6119,10 @@
+@@ -6094,6 +6120,10 @@
    List<Create_field> new_create_list;
    /* New key definitions are added here */
    List<Key> new_key_list;
@@ -981,7 +981,7 @@
    List_iterator<Alter_drop> drop_it(alter_info->drop_list);
    List_iterator<Create_field> def_it(alter_info->create_list);
    List_iterator<Alter_column> alter_it(alter_info->alter_list);
-@@ -6105,6 +6135,7 @@
+@@ -6106,6 +6136,7 @@
    uint used_fields= create_info->used_fields;
    KEY *key_info=table->key_info;
    bool rc= TRUE;
@@ -989,7 +989,7 @@
  
    DBUG_ENTER("mysql_prepare_alter_table");
  
-@@ -6132,6 +6163,7 @@
+@@ -6133,6 +6164,7 @@
      char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
      /*
         Regular alter table of disk stored table (no tablespace/storage change)
@@ -997,7 +997,7 @@
         Copy tablespace name
      */
      if (tablespace &&
-@@ -6282,7 +6314,26 @@
+@@ -6300,7 +6332,26 @@
    /*
      Collect all keys which isn't in drop list. Add only those
      for which some fields exists.
@@ -1025,7 +1025,7 @@
  
    for (uint i=0 ; i < table->s->keys ; i++,key_info++)
    {
-@@ -6385,6 +6436,8 @@
+@@ -6403,6 +6454,8 @@
                     test(key_info->flags & HA_GENERATED_KEY),
                     key_parts);
        new_key_list.push_back(key);
@@ -1034,7 +1034,7 @@
      }
    }
    {
-@@ -6392,7 +6445,21 @@
+@@ -6410,7 +6463,21 @@
      while ((key=key_it++))			// Add new keys
      {
        if (key->type != Key::FOREIGN_KEY)
@@ -1057,7 +1057,7 @@
        if (key->name &&
  	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
        {
-@@ -6441,12 +6508,100 @@
+@@ -6459,12 +6526,100 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -1158,7 +1158,7 @@
    Alter table
  
    SYNOPSIS
-@@ -7230,6 +7385,12 @@
+@@ -7248,6 +7403,12 @@
    else
      create_info->data_file_name=create_info->index_file_name=0;
  
@@ -1171,7 +1171,7 @@
    DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
    /*
      Create a table with a temporary name.
-@@ -7286,15 +7447,33 @@
+@@ -7304,15 +7465,33 @@
    */
    if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
    {
@@ -1346,7 +1346,7 @@
  
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -6058,7 +6058,8 @@
+@@ -6061,7 +6061,8 @@
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD,
@@ -1356,7 +1356,7 @@
  };
  
  
-@@ -6294,6 +6295,13 @@
+@@ -6297,6 +6298,13 @@
  each time the SQL thread starts.",
     &opt_init_slave, &opt_init_slave, 0, GET_STR_ALLOC,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1372,7 +1372,7 @@
     &language_ptr, &language_ptr, 0, GET_STR, REQUIRED_ARG,
 --- a/sql/set_var.cc
 +++ b/sql/set_var.cc
-@@ -1054,6 +1054,9 @@
+@@ -1056,6 +1056,9 @@
                                                       SHOW_LONGLONG,
                                                       get_myisam_mmap_size);
  
@@ -1384,7 +1384,7 @@
  {
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -423,6 +423,8 @@
+@@ -425,6 +425,8 @@
    ulong      innodb_lock_que_wait_timer;
    ulong      innodb_innodb_que_wait_timer;
    ulong      innodb_page_access;
@@ -1432,7 +1432,7 @@
  FLUSH
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -762,6 +762,19 @@
+@@ -770,6 +770,19 @@
  	return(THDVAR((THD*) thd, flush_log_at_trx_commit_session));
  }
  

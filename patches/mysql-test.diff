@@ -1124,7 +1124,7 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,374 @@
+@@ -0,0 +1,376 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1499,6 +1499,8 @@
 +VERSION_COMMENT
 +VERSION_COMPILE_MACHINE
 +VERSION_COMPILE_OS
++WAIT_TIMEOUT
++WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
 @@ -0,0 +1,370 @@

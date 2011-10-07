@@ -1,3 +1,5 @@
+.. _buff_read_ahead_area:
+
 ====================================
  Fixed Size for the Read Ahead Area
 ====================================
@@ -10,23 +12,23 @@ Please note that the minimum allowed value for the |InnoDB| buffer pool is de fa
 
 This change is a port of the feature from Facebook:
 
-  *  http://bazaar.launchpad.net/~|MySQL|atfacebook/|MySQL|atfacebook/5.1/revision/3538
+  *  http://bazaar.launchpad.net/~mysqlatfacebook/mysqlatfacebook/5.1/revision/3538
 
 
 Version Specific Information
 ============================
 
   * :rn:`5.1.47-12.0` :
-     Full functionality available.
+    Full functionality available.
 
 Other Information
 =================
 
   * Author/Origin:
-     Facebook
+    Facebook
 
   * Bugs fixed:
-     :bug:`606811`
+    :bug:`606811`
 
 Other Reading
 =============

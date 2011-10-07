@@ -1,3 +1,5 @@
+.. _innodb_adaptive_hash_partitions_page:
+
 ==========================================
  Multiple Adaptive Hash Search Partitions
 ==========================================

@@ -1,8 +1,10 @@
-==============================================
- Installing |Percona Server| 5.5 from Binaries
-==============================================
+.. _installation:
 
-Before installing, you might want to read the :doc:`release-notes`.
+===============================================
+ Installing |Percona Server| 5.5 from Binaries
+===============================================
+
+Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 
 Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.5/>`_, including:
 
@@ -140,9 +142,9 @@ library. The version is incremented when there is a ABI change that
 requires software using the client library to be recompiled or their
 source code modified.
 
-==================================================
+===================================================
  Installing |Percona Server| from a Source Tarball
-==================================================
+===================================================
 
 Fetch and extract the source tarball. For example: ::
 
@@ -166,9 +168,9 @@ Install: ::
 
   $ make install
 
-========================================================
+=========================================================
  Installing |Percona Server| from the Bazaar Source Tree
-========================================================
+=========================================================
 
 Percona uses the `Bazaar <http://www.bazaar-vcs.org>`_ revision
 control system for development. To build the latest Percona Server

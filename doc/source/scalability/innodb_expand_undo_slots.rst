@@ -1,3 +1,5 @@
+.. _innodb_expand_undo_slots:
+
 ======================================
 More Concurrent Transactions Available
 ======================================

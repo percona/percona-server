@@ -1,3 +1,5 @@
+.. _innodb_buffer_pool_shm:
+
 ===========================
  Shared Memory Buffer Pool
 ===========================

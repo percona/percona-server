@@ -1,3 +1,5 @@
+.. _query_cache_enhance:
+
 ==========================
  Query Cache Enhancements
 ==========================

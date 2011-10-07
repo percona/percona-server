@@ -1,3 +1,5 @@
+.. _innodb_corrupt_table_action_page:
+
 =========================
  Handle Corrupted Tables
 =========================

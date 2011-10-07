@@ -260,10 +260,7 @@ man_pages = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'ps51' : ('http://www.percona.com/doc/percona-server/5.1/', 
-              'ps51-inv.txt'),
-    'xtrabackup' : ('http://www.percona.com/doc/percona-xtrabackup',
-                    'xbk-inv.txt'),
-    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit',
-                  'ptoolkit-inv.txt'),
+    'ps51' : ('http://www.percona.com/doc/percona-server/5.1/', None),
+    'xtrabackup' : ('http://www.percona.com/doc/percona-xtrabackup', None),
+    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit', None)
  }

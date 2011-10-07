@@ -1,3 +1,5 @@
+.. _innodb_files_extend:
+
 ================================
  Support of Multiple Page Sizes
 ================================

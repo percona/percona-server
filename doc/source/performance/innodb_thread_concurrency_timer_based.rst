@@ -1,6 +1,8 @@
-===========================================
-InnoDB timer-based Concurrency Throttling
-===========================================
+.. _innodb_thread_concurrency_timer_based_page:
+
+=============================================
+ |InnoDB| timer-based Concurrency Throttling
+=============================================
 
 System Variables
 ================

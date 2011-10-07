@@ -5,9 +5,8 @@
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0cur.c
---- a/storage/innodb_plugin/btr/btr0cur.c	2011-07-07 19:38:25.840371992 +0900
-+++ b/storage/innodb_plugin/btr/btr0cur.c	2011-07-07 20:09:02.125335731 +0900
+--- a/storage/innodb_plugin/btr/btr0cur.c
++++ b/storage/innodb_plugin/btr/btr0cur.c
 @@ -1046,6 +1046,11 @@
  	rec_t*		rec;
  	roll_ptr_t	roll_ptr;
@@ -179,9 +178,8 @@ diff -ruN a/storage/innodb_plugin/btr/btr0cur.c b/storage/innodb_plugin/btr/btr0
  	block = btr_cur_get_block(cursor);
  	rec = btr_cur_get_rec(cursor);
  
-diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/handler/ha_innodb.cc
---- a/storage/innodb_plugin/handler/ha_innodb.cc	2011-07-07 19:47:22.334541114 +0900
-+++ b/storage/innodb_plugin/handler/ha_innodb.cc	2011-07-07 20:17:01.737288508 +0900
+--- a/storage/innodb_plugin/handler/ha_innodb.cc
++++ b/storage/innodb_plugin/handler/ha_innodb.cc
 @@ -367,6 +367,12 @@
    "The value 3 regards innodb_flush_log_at_trx_commit (default).",
    NULL, NULL, 3, 0, 3, 0);
@@ -208,11 +206,11 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
  		trx_search_latch_release_if_reserved(trx);
  	}
  
-+	if (trx->fake_changes) {
++	if (trx->fake_changes && (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 +		innobase_rollback(hton, thd, all); /* rollback implicitly */
++		thd->main_da.reset_diagnostics_area(); /* because debug assertion code complains, if something left */
 +		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 +	}
-+
  	/* The flag trx->active_trans is set to 1 in
  
  	1. ::external_lock(),
@@ -297,9 +295,8 @@ diff -ruN a/storage/innodb_plugin/handler/ha_innodb.cc b/storage/innodb_plugin/h
    NULL
  };
  
-diff -ruN a/storage/innodb_plugin/handler/handler0alter.cc b/storage/innodb_plugin/handler/handler0alter.cc
---- a/storage/innodb_plugin/handler/handler0alter.cc	2011-07-02 00:22:17.000000000 +0900
-+++ b/storage/innodb_plugin/handler/handler0alter.cc	2011-07-07 20:36:26.885315930 +0900
+--- a/storage/innodb_plugin/handler/handler0alter.cc
++++ b/storage/innodb_plugin/handler/handler0alter.cc
 @@ -652,6 +652,9 @@
  	/* In case MySQL calls this in the middle of a SELECT query, release
  	possible adaptive hash latch to avoid deadlocks of threads. */
@@ -348,9 +345,8 @@ diff -ruN a/storage/innodb_plugin/handler/handler0alter.cc b/storage/innodb_plug
  	trx_start_if_not_started(trx);
  
  	/* Flag this transaction as a dictionary operation, so that
-diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
---- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2011-07-07 19:38:25.352373413 +0900
-+++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c	2011-07-07 20:09:02.137334934 +0900
+--- a/storage/innodb_plugin/ibuf/ibuf0ibuf.c
++++ b/storage/innodb_plugin/ibuf/ibuf0ibuf.c
 @@ -2613,6 +2613,8 @@
  
  	ut_a(trx_sys_multiple_tablespace_format);
@@ -360,9 +356,8 @@ diff -ruN a/storage/innodb_plugin/ibuf/ibuf0ibuf.c b/storage/innodb_plugin/ibuf/
  	do_merge = FALSE;
  
  	mutex_enter(&ibuf_mutex);
-diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/include/trx0trx.h
---- a/storage/innodb_plugin/include/trx0trx.h	2011-07-07 19:47:22.348325198 +0900
-+++ b/storage/innodb_plugin/include/trx0trx.h	2011-07-07 20:09:02.139302150 +0900
+--- a/storage/innodb_plugin/include/trx0trx.h
++++ b/storage/innodb_plugin/include/trx0trx.h
 @@ -509,6 +509,7 @@
  					150 bytes in the undo log size as then
  					we skip XA steps */
@@ -371,9 +366,8 @@ diff -ruN a/storage/innodb_plugin/include/trx0trx.h b/storage/innodb_plugin/incl
  	ulint		flush_log_later;/* In 2PC, we hold the
  					prepare_commit mutex across
  					both phases. In that case, we
-diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/lock0lock.c
---- a/storage/innodb_plugin/lock/lock0lock.c	2011-07-07 19:38:25.711373098 +0900
-+++ b/storage/innodb_plugin/lock/lock0lock.c	2011-07-07 20:09:02.142335387 +0900
+--- a/storage/innodb_plugin/lock/lock0lock.c
++++ b/storage/innodb_plugin/lock/lock0lock.c
 @@ -3907,6 +3907,10 @@
  
  	trx = thr_get_trx(thr);
@@ -441,9 +435,8 @@ diff -ruN a/storage/innodb_plugin/lock/lock0lock.c b/storage/innodb_plugin/lock/
  	heap_no = page_rec_get_heap_no(rec);
  
  	lock_mutex_enter_kernel();
-diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0que.c
---- a/storage/innodb_plugin/que/que0que.c	2011-07-07 19:38:25.512373167 +0900
-+++ b/storage/innodb_plugin/que/que0que.c	2011-07-07 20:09:02.144331758 +0900
+--- a/storage/innodb_plugin/que/que0que.c
++++ b/storage/innodb_plugin/que/que0que.c
 @@ -1418,6 +1418,12 @@
  
  	ut_a(trx->error_state == DB_SUCCESS);
@@ -457,9 +450,8 @@ diff -ruN a/storage/innodb_plugin/que/que0que.c b/storage/innodb_plugin/que/que0
  	if (reserve_dict_mutex) {
  		mutex_enter(&dict_sys->mutex);
  	}
-diff -ruN a/storage/innodb_plugin/row/row0ins.c b/storage/innodb_plugin/row/row0ins.c
---- a/storage/innodb_plugin/row/row0ins.c	2011-07-07 19:38:25.925373011 +0900
-+++ b/storage/innodb_plugin/row/row0ins.c	2011-07-07 20:09:02.147335402 +0900
+--- a/storage/innodb_plugin/row/row0ins.c
++++ b/storage/innodb_plugin/row/row0ins.c
 @@ -1512,6 +1512,11 @@
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
@@ -490,10 +482,8 @@ diff -ruN a/storage/innodb_plugin/row/row0ins.c b/storage/innodb_plugin/row/row0
  						    &cursor, 0,
  						    __FILE__, __LINE__, &mtr);
  		}
-@@ -2127,6 +2132,22 @@
+@@ -2127,4 +2132,20 @@
  	if (UNIV_LIKELY_NULL(big_rec)) {
- 		rec_t*	rec;
- 		ulint*	offsets;
 +
 +		if (thr_get_trx(thr)->fake_changes) {
 +			/* skip store extern */
@@ -513,9 +503,8 @@ diff -ruN a/storage/innodb_plugin/row/row0ins.c b/storage/innodb_plugin/row/row0
  		mtr_start(&mtr);
  
  		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/row0mysql.c
---- a/storage/innodb_plugin/row/row0mysql.c	2011-07-07 19:38:26.139298610 +0900
-+++ b/storage/innodb_plugin/row/row0mysql.c	2011-07-07 20:09:02.149334904 +0900
+--- a/storage/innodb_plugin/row/row0mysql.c
++++ b/storage/innodb_plugin/row/row0mysql.c
 @@ -1189,6 +1189,7 @@
  		prebuilt->table->stat_n_rows--;
  	}
@@ -540,9 +529,8 @@ diff -ruN a/storage/innodb_plugin/row/row0mysql.c b/storage/innodb_plugin/row/ro
  	row_update_statistics_if_needed(table);
  
  	return(err);
-diff -ruN a/storage/innodb_plugin/row/row0upd.c b/storage/innodb_plugin/row/row0upd.c
---- a/storage/innodb_plugin/row/row0upd.c	2011-07-07 19:38:25.530295605 +0900
-+++ b/storage/innodb_plugin/row/row0upd.c	2011-07-07 20:09:02.152334950 +0900
+--- a/storage/innodb_plugin/row/row0upd.c
++++ b/storage/innodb_plugin/row/row0upd.c
 @@ -1591,8 +1591,9 @@
  
  	mtr_start(&mtr);
@@ -586,13 +574,11 @@ diff -ruN a/storage/innodb_plugin/row/row0upd.c b/storage/innodb_plugin/row/row0
  
  	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
  				    dict_table_is_comp(index->table)));
-@@ -1992,7 +1996,8 @@
- 					 node->cmpl_info, thr, mtr);
- 	mtr_commit(mtr);
- 
--	if (err == DB_SUCCESS && big_rec) {
+@@ -1992,5 +1996,6 @@
+ 		&heap, &big_rec, node->update, node->cmpl_info, thr, mtr);
+-	if (big_rec) {
 +	/* skip store extern for fake_changes */
-+	if (err == DB_SUCCESS && big_rec && !(thr_get_trx(thr)->fake_changes)) {
++	if (big_rec && !(thr_get_trx(thr)->fake_changes)) {
  		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  		rec_t*		rec;
  		rec_offs_init(offsets_);
@@ -606,9 +592,8 @@ diff -ruN a/storage/innodb_plugin/row/row0upd.c b/storage/innodb_plugin/row/row0
  
  	if (!success) {
  		err = DB_RECORD_NOT_FOUND;
-diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0trx.c
---- a/storage/innodb_plugin/trx/trx0trx.c	2011-07-07 19:47:22.358333765 +0900
-+++ b/storage/innodb_plugin/trx/trx0trx.c	2011-07-07 20:09:02.156330704 +0900
+--- a/storage/innodb_plugin/trx/trx0trx.c
++++ b/storage/innodb_plugin/trx/trx0trx.c
 @@ -114,6 +114,8 @@
  
  	trx->flush_log_at_trx_commit_session = 3; /* means to use innodb_flush_log_at_trx_commit value */
@@ -618,3 +603,162 @@ diff -ruN a/storage/innodb_plugin/trx/trx0trx.c b/storage/innodb_plugin/trx/trx0
  	trx->check_foreigns = TRUE;
  	trx->check_unique_secondary = TRUE;
  
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_fake_changes.result
+@@ -0,0 +1,55 @@
++DROP TABLE IF EXISTS t1;
++# Checking variables
++SHOW VARIABLES LIKE 'innodb_fake_changes';
++Variable_name	Value
++innodb_fake_changes	OFF
++SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
++VARIABLE_VALUE
++OFF
++SET innodb_fake_changes=1;
++SHOW VARIABLES LIKE 'innodb_fake_changes';
++Variable_name	Value
++innodb_fake_changes	ON
++SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
++VARIABLE_VALUE
++ON
++SET innodb_fake_changes=default;
++SHOW VARIABLES LIKE 'innodb_fake_changes';
++Variable_name	Value
++innodb_fake_changes	OFF
++SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
++VARIABLE_VALUE
++OFF
++# Explicit COMMIT should fail when innodb_fake_changes is enabled
++# DML should be fine
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++INSERT INTO t1 VALUES (1);
++SET autocommit=0;
++SET innodb_fake_changes=1;
++BEGIN;
++INSERT INTO t1 VALUES (2);
++UPDATE t1 SET a=0;
++DELETE FROM t1 LIMIT 1;
++SELECT * FROM t1;
++a
++1
++COMMIT;
++ERROR HY000: Got error 131 during COMMIT
++SET innodb_fake_changes=default;
++DROP TABLE t1;
++# DDL must result in error
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++SET autocommit=0;
++SET innodb_fake_changes=1;
++BEGIN;
++CREATE TABLE t2 (a INT) ENGINE=InnoDB;
++ERROR HY000: Can't create table 'test.t2' (errno: 131)
++DROP TABLE t1;
++ERROR 42S02: Unknown table 't1'
++TRUNCATE TABLE t1;
++ERROR HY000: Got error 131 during COMMIT
++ALTER TABLE t1 ENGINE=MyISAM;
++ERROR HY000: Got error 131 during COMMIT
++ROLLBACK;
++SET innodb_fake_changes=default;
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_fake_changes_locks.result
+@@ -0,0 +1,19 @@
++DROP TABLE IF EXISTS t1;
++# Verifying that X_LOCK not acquired
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++INSERT INTO t1 VALUES (1);
++SET autocommit=0;
++SET innodb_fake_changes=1;
++BEGIN;
++SELECT * FROM t1 FOR UPDATE;
++a
++1
++SET innodb_lock_wait_timeout=3;
++UPDATE t1 SET a=2;
++ERROR HY000: Lock wait timeout exceeded; try restarting transaction
++SELECT * FROM t1 LOCK IN SHARE MODE;
++a
++1
++ROLLBACK;
++SET innodb_fake_changes=default;
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_fake_changes.test
+@@ -0,0 +1,49 @@
++--source include/have_innodb_plugin.inc
++
++--disable_warnings
++DROP TABLE IF EXISTS t1;
++--enable_warnings
++
++
++--echo # Checking variables
++SHOW VARIABLES LIKE 'innodb_fake_changes';
++SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
++SET innodb_fake_changes=1;
++SHOW VARIABLES LIKE 'innodb_fake_changes';
++SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
++SET innodb_fake_changes=default;
++SHOW VARIABLES LIKE 'innodb_fake_changes';
++SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
++
++--echo # Explicit COMMIT should fail when innodb_fake_changes is enabled
++--echo # DML should be fine
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++INSERT INTO t1 VALUES (1);
++SET autocommit=0;
++SET innodb_fake_changes=1;
++BEGIN;
++INSERT INTO t1 VALUES (2);
++UPDATE t1 SET a=0;
++DELETE FROM t1 LIMIT 1;
++SELECT * FROM t1;
++--error 1180
++COMMIT;
++SET innodb_fake_changes=default;
++DROP TABLE t1;
++
++--echo # DDL must result in error
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++SET autocommit=0;
++SET innodb_fake_changes=1;
++BEGIN;
++--error 1005
++CREATE TABLE t2 (a INT) ENGINE=InnoDB;
++--error 1051
++DROP TABLE t1;
++--error 1180
++TRUNCATE TABLE t1;
++--error 1180
++ALTER TABLE t1 ENGINE=MyISAM;
++ROLLBACK;
++SET innodb_fake_changes=default;
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_fake_changes_locks.test
+@@ -0,0 +1,24 @@
++--source include/have_innodb_plugin.inc
++
++--disable_warnings
++DROP TABLE IF EXISTS t1;
++--enable_warnings
++
++--echo # Verifying that X_LOCK not acquired
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++INSERT INTO t1 VALUES (1);
++--connect (conn1,localhost,root,,)
++--connection conn1
++SET autocommit=0;
++SET innodb_fake_changes=1;
++BEGIN;
++SELECT * FROM t1 FOR UPDATE;
++--connection default
++SET innodb_lock_wait_timeout=3;
++--error 1205
++UPDATE t1 SET a=2;
++SELECT * FROM t1 LOCK IN SHARE MODE;
++--connection conn1
++ROLLBACK;
++SET innodb_fake_changes=default;
++DROP TABLE t1;

@@ -762,7 +762,7 @@
  	ulint		fix_type;
  	ibool		must_read;
  	ulint		retries = 0;
-+	mutex_t*	block_mutex;
++	mutex_t*	block_mutex = NULL;
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);

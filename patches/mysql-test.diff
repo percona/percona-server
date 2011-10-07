@@ -316,7 +316,7 @@
  create database mbase;
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
-@@ -250,21 +250,40 @@
+@@ -254,21 +254,40 @@
   --log-slow-admin-statements 
   Log slow OPTIMIZE, ANALYZE, ALTER and other
   administrative statements to the slow log if it is open.
@@ -359,7 +359,7 @@
   --long-query-time=# Log all queries that have taken more than long_query_time
   seconds to execute to file. The argument will be treated
   as a decimal value with microsecond precision
-@@ -475,6 +494,10 @@
+@@ -479,6 +498,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -370,7 +370,7 @@
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -483,6 +506,12 @@
+@@ -487,6 +510,12 @@
   Invalidate queries in query cache on LOCK for write
   --query-prealloc-size=# 
   Persistent buffer for query parsing and execution
@@ -383,7 +383,7 @@
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -660,6 +689,18 @@
+@@ -664,6 +693,18 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
@@ -402,7 +402,7 @@
   --socket=name       Socket file to use for connection
   --sort-buffer-size=# 
   Each thread that needs to do a sort allocates a buffer of
-@@ -702,6 +743,8 @@
+@@ -706,6 +747,8 @@
   Define threads usage for handling queries, one of
   one-thread-per-connection, no-threads, loaded-dynamically
   --thread-stack=#    The stack size for each thread
@@ -411,7 +411,7 @@
   --time-format=name  The TIME format (ignored)
   --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
   currently supported)
-@@ -727,10 +770,17 @@
+@@ -731,10 +774,17 @@
   of the underlying table and the query uses a LIMIT clause
   (usually get from GUI tools)
   -u, --user=name     Run mysqld daemon as user.
@@ -429,7 +429,7 @@
  
  Variables (--variable-name=value)
  abort-slave-event-count 0
-@@ -813,10 +863,15 @@
+@@ -818,10 +868,15 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
@@ -445,7 +445,7 @@
  long-query-time 10
  low-priority-updates FALSE
  lower-case-table-names 1
-@@ -892,9 +947,12 @@
+@@ -897,9 +952,12 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0
@@ -458,7 +458,7 @@
  range-alloc-block-size 4096
  read-buffer-size 131072
  read-only FALSE
-@@ -929,6 +987,9 @@
+@@ -934,6 +992,9 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE
@@ -468,7 +468,7 @@
  sort-buffer-size 2097152
  sporadic-binlog-dump-fail FALSE
  sql-mode 
-@@ -946,6 +1007,7 @@
+@@ -951,6 +1012,7 @@
  thread-cache-size 0
  thread-handling one-thread-per-connection
  thread-stack 262144
@@ -476,7 +476,7 @@
  time-format %H:%i:%s
  timed-mutexes FALSE
  tmp-table-size 16777216
-@@ -953,8 +1015,10 @@
+@@ -958,8 +1020,10 @@
  transaction-isolation REPEATABLE-READ
  transaction-prealloc-size 4096
  updatable-views-with-limit YES
@@ -1258,7 +1258,7 @@
  drop table t2;
 --- a/mysql-test/suite/sys_vars/r/all_vars.result
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result
-@@ -1,23 +1,23 @@
+@@ -1,23 +1,27 @@
  create table t1 (test_name text);
  create table t2 (variable_name text);
  load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
@@ -1277,8 +1277,12 @@
  There should be *no* variables listed below:
 -INNODB_ROLLBACK_SEGMENTS
 -INNODB_STATS_METHOD
++INNODB_FAKE_CHANGES
++INNODB_FAKE_CHANGES
  INNODB_FILE_FORMAT_MAX
 +INNODB_FILE_FORMAT_MAX
++INNODB_KILL_IDLE_TRANSACTION
++INNODB_KILL_IDLE_TRANSACTION
 +INNODB_LARGE_PREFIX
  INNODB_LARGE_PREFIX
  INNODB_ROLLBACK_SEGMENTS
@@ -1672,7 +1676,6 @@
 +VERSION_COMPILE_MACHINE
 +VERSION_COMPILE_OS
 +WAIT_TIMEOUT
-+WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
 @@ -0,0 +1,370 @@
@@ -2046,7 +2049,6 @@
 +VERSION_COMPILE_MACHINE
 +VERSION_COMPILE_OS
 +WAIT_TIMEOUT
-+WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/t/percona_server_variables_debug.test
 @@ -0,0 +1,2 @@

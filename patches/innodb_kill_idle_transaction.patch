@@ -245,18 +245,18 @@
 +SET autocommit=0;
 +CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 +SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
-+Variable_name   Value
-+innodb_kill_idle_transaction    0
++Variable_name	Value
++innodb_kill_idle_transaction	0
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
-+VARIABLE_NAME   VARIABLE_VALUE
-+INNODB_KILL_IDLE_TRANSACTION    0
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
 +SET GLOBAL innodb_kill_idle_transaction=1;
 +SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
-+Variable_name   Value
-+innodb_kill_idle_transaction    1
++Variable_name	Value
++innodb_kill_idle_transaction	1
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
-+VARIABLE_NAME   VARIABLE_VALUE
-+INNODB_KILL_IDLE_TRANSACTION    1
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	1
 +BEGIN;
 +INSERT INTO t1 VALUES (1),(2),(3);
 +COMMIT;
@@ -277,11 +277,11 @@
 +DROP TABLE t1;
 +SET GLOBAL innodb_kill_idle_transaction=0;
 +SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
-+Variable_name   Value
-+innodb_kill_idle_transaction    0
++Variable_name	Value
++innodb_kill_idle_transaction	0
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
-+VARIABLE_NAME   VARIABLE_VALUE
-+INNODB_KILL_IDLE_TRANSACTION    0
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
 --- /dev/null
 +++ b/mysql-test/r/percona_innodb_kill_idle_trx_locks.result
 @@ -0,0 +1,45 @@
@@ -289,18 +289,18 @@
 +SET autocommit=0;
 +CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 +SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
-+Variable_name   Value
-+innodb_kill_idle_transaction    0
++Variable_name	Value
++innodb_kill_idle_transaction	0
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
-+VARIABLE_NAME   VARIABLE_VALUE
-+INNODB_KILL_IDLE_TRANSACTION    0
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
 +SET GLOBAL innodb_kill_idle_transaction=5;
 +SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
-+Variable_name   Value
-+innodb_kill_idle_transaction    5
++Variable_name	Value
++innodb_kill_idle_transaction	5
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
-+VARIABLE_NAME   VARIABLE_VALUE
-+INNODB_KILL_IDLE_TRANSACTION    5
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	5
 +BEGIN;
 +INSERT INTO t1 VALUES (1),(2),(3);
 +COMMIT;
@@ -325,11 +325,11 @@
 +DROP TABLE t1;
 +SET GLOBAL innodb_kill_idle_transaction=0;
 +SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
-+Variable_name   Value
-+innodb_kill_idle_transaction    0
++Variable_name	Value
++innodb_kill_idle_transaction	0
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
-+VARIABLE_NAME   VARIABLE_VALUE
-+INNODB_KILL_IDLE_TRANSACTION    0
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
 --- /dev/null
 +++ b/mysql-test/t/percona_innodb_kill_idle_trx.test
 @@ -0,0 +1,28 @@

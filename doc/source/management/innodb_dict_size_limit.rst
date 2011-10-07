@@ -1,3 +1,5 @@
+.. _innodb_dict_size_limit_page:
+
 =====================================
  |InnoDB| Data Dictionary Size Limit
 =====================================

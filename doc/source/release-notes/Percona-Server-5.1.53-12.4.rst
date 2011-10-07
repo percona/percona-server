@@ -1,8 +1,8 @@
 .. rn:: 5.1.53-12.4
 
-============================
-|Percona Server| 5.1.53-12.4
-============================
+==============================
+ |Percona Server| 5.1.53-12.4
+==============================
 
 Released on December 29, 2010 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.53-12.4/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_.)
 
@@ -19,7 +19,7 @@ Functionality Added or Changed
 
   * Other Changes: 
 
-    * :ref:`percona_innodb_doublewrite_path` - It's no longer necessary to recreate your database and |InnoDB| system files when a dedicated file to contain the doublewrite buffer is specified. (*Yasufumi Kinoshita*)
+    * ``percona_innodb_doublewrite_path`` - It's no longer necessary to recreate your database and |InnoDB| system files when a dedicated file to contain the doublewrite buffer is specified. (*Yasufumi Kinoshita*)
 
     * Added system variable :variable:`have_response_time_distribution` and compile option ``--without-response_time_distribution`` in :ref:`response_time_distribution`. (*Oleg Tsarev*)
 
@@ -27,7 +27,7 @@ Functionality Added or Changed
 Bugs Fixed
 ==========
 
-  * Bug :bug:`643149 - Slow query log entries were not written in the usual parsing format. (*Alexey Kopytov*)
+  * Bug :bug:`643149` - Slow query log entries were not written in the usual parsing format. (*Alexey Kopytov*)
 
   * Bug :bug:`671764` - ``innochecksum`` wasn't distributed with RPM and .DEB packages. (*Aleksandr Kuzminsky*)
 

@@ -1,11 +1,14 @@
-Suppress Warning Messages
-=========================
+.. _log_warnings_suppress_page:
+
+===========================
+ Suppress Warning Messages
+===========================
 
 This feature is intended to provide a general mechanism (using ``log_warnings_silence``) to disable certain warning messages to the log file. Currently, it is only implemented for disabling message #1592 warnings.
 
 
 Version Specific Information
-----------------------------
+============================
 
   * 5.1.47-11.0: 
     System variable :variable:`suppress_log_warning_1592` introduced.
@@ -17,7 +20,7 @@ Version Specific Information
     Renamed variable :variable:`log_warnings_silence` to :variable:`log_warnings_suppress`.
 
 System Variables
-----------------
+================
 
 .. variable:: suppress_log_warning_1592
 
@@ -43,7 +46,7 @@ In some circumstances, |MySQL| will warn you that a statement is unsafe to repli
 
   090213 16:58:54 [Warning] Statement is not safe to log in statement format.
 
-This variable was obsoleted, beginning in release 5.5.8-20.0. It still exists in versions 5.1.47-11.0 to 5.1.54-12.5.
+This variable was obsoleted, beginning in release :rn:`5.5.8-20.0`. It still exists in versions :rn:`5.1.47-11.0` to :rn:`5.1.54-12.5`.
 
 .. variable:: log_warnings_suppress
 
@@ -67,7 +70,7 @@ In the future, the ability to optionally disable additional warnings may also be
 
 
 Related Reading
----------------
+===============
 
   * `MySQL bug 42851 <http://bugs.mysql.com/bug.php?id=42851>`_
 

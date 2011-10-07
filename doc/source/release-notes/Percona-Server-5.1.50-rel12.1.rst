@@ -1,8 +1,8 @@
 .. rn:: 5.1.50-rel12.1
 
-===============================
-|Percona Server| 5.1.50-rel12.1
-===============================
+=================================
+ |Percona Server| 5.1.50-rel12.1
+=================================
 
 
 Functionality Added or Changed
@@ -12,11 +12,11 @@ Functionality Added or Changed
 
   * New Features Added:
 
-    *:ref:`innodb_lru_dump_restore` - Implemented automatic dumping of the buffer pool at specified intervals.
+    * :ref:`innodb_lru_dump_restore` - Implemented automatic dumping of the buffer pool at specified intervals.
 
     * :ref:`innodb_buffer_pool_shm` - Implemented option :variable:`innodb_buffer_pool_shm_checksum`; when enabled, shared memory buffer pool is checksum validated. Bugs fixed: :bug:`643724`, :bug:`649408`, and :bug:`649393`. (*Yasufumi Kinoshita*)
 
-    * :ref:`innodb_expand_import` - Implemented more exact checking to avoid corruption of the ``.ibd`` file using :variable:`innodb_expand_export`. (*Yasufumi Kinoshita*)
+    * :ref:`innodb_expand_import_page` - Implemented more exact checking to avoid corruption of the ``.ibd`` file using :variable:`innodb_expand_export`. (*Yasufumi Kinoshita*)
 
     * :ref:`mysql_remove_eol_carret` - Implemented a |MySQL| client option to handle end-of-line in BLOB fields differently. Bug fixed: :bug:`625066`. (*Sasha Pachev*)
 
@@ -29,7 +29,7 @@ Bugs Fixed
 
   * Bug :bug:`624362` - Corrected wording in an |InnoDB| error message regarding too many locks printed. (*Vadim Tkachenko*) 
 
-  * Bug :bug:`625066` - Fixed a problem handling end-of-line in ``BLOB`` fields in the |MySQL| client. (Sasha Pachev)
+  * Bug :bug:`625066` - Fixed a problem handling end-of-line in ``BLOB`` fields in the |MySQL| client. (*Sasha Pachev*)
 
   * Bug :bug:`640924` - Fixed a crash caused by ``innodb_doublewrite_file``. (*Yasufumi Kinoshita*)
 

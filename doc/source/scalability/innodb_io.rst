@@ -1,3 +1,5 @@
+.. _innodb_io_page:
+
 ===================================
  Improved |InnoDB| I/O Scalability
 ===================================
@@ -16,34 +18,36 @@ These new variables are divided into several categories:
 
   * Various other options
 
+
 Version Specific Information
 ============================
 
   * :rn:`5.1.53-12.4`
-
+  
     * Added variable :variable:`innodb_log_block_size`, method ``keep_average`` to :variable:`innodb_adaptive_checkpoint`.
 
   * :rn:`5.1.54-12.5`
-
+  
     * Added value ``ALL_O_DIRECT`` to :variable:`innodb_flush_method`.
+
 
 System Variables
 ================
 
 .. variable:: innodb_adaptive_checkpoint
 
-     :version: :rn:`5.5.8-20.0` - Renamed 
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: String
-     :default: ``none`` (~1.0.5), ``estimate`` (1.0.6~)
-     :values: ``none``, ``reflex``, ``estimate``, ``keep_average`` or 0/1/2/3 (for compatibility)
+   :version 5.5.8-20.0: Renamed 
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: Yes
+   :vartype: String
+   :default: ``none`` (1.0.5), ``estimate`` (1.0.6)
+   :values: ``none``, ``reflex``, ``estimate``, ``keep_average`` or 0/1/2/3 (for compatibility)
 
 This variable controls the way adaptive checkpointing is performed. |InnoDB| constantly flushes dirty blocks from the buffer pool. Normally, the checkpoint is done passively at the current oldest page modification (this is called “fuzzy checkpointing”). When the checkpoint age nears the maximum checkpoint age (determined by the total length of all transaction log files), |InnoDB| tries to keep the checkpoint age away from the maximum by flushing many dirty blocks. But, if there are many updates per second and many blocks have almost the same modification age, the huge number of flushes can cause stalls.
 
-Adaptive checkpointing forces a constant flushing activity at a rate of approximately [modified age / maximum checkpoint age]. This can avoid or soften the impact of stalls casued by aggressive flushing.
+Adaptive checkpointing forces a constant flushing activity at a rate of approximately ``[modified age / maximum checkpoint age]``. This can avoid or soften the impact of stalls casued by aggressive flushing.
 
 The following values are allowed:
 
@@ -54,7 +58,8 @@ The following values are allowed:
     If the oldest modified age exceeds 1/2 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by ``[number of modified blocks]``, ``[LSN progress speed]`` and ``[average age of all modified blocks]``. So, this behavior is independent of the innodb_io_capacity variable.
 
   * ``keep_average``: 
-  This method attempts to keep the I/O rate constant by using a much shorter loop cycle (0.1 second) than that of the other methods (1.0 second). It is designed for use with SSD cards.
+    This method attempts to keep the I/O rate constant by using a much shorter loop cycle (0.1 second) than that of the other methods (1.0 second). It is designed for use with SSD cards.
+
 
 In some cases :variable:`innodb_adaptive_checkpoint` needs larger transaction log files (:variable:`innodb_adaptive_checkpoint` makes the limit of modified age lower). So, doubling the length of the transaction log files may be safe.
 
@@ -84,8 +89,7 @@ It is not needed to shrink :variable:`innodb_log_file_size` to tune recovery tim
 
 .. variable:: innodb_enable_unsafe_group_commit
 
-
-     :version:  This variable is not needed after |XtraDB|-1.0.5.
+     :version:  This variable is not needed after |XtraDB| 1.0.5.
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -102,9 +106,10 @@ This variable allows you to change the default behavior of |InnoDB| concerning t
   * 1: 
     Transactions can be group-committed but the order between transactions will not be guaranteed to be kept anymore. Thus there is a slight risk of desynchronization between transaction logs and binary logs. However for servers that perform write-intensive workloads (and have RAID without BBU), you may expect a significant improvement in performance.
 
+
 .. variable:: innodb_flush_log_at_trx_commit_session
 
-     :version: :rn:`5.5.8-20.0` - Deleted
+     :version 5.5.8-20.0: Deleted
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -149,6 +154,7 @@ The following values are allowed:
 
   * ``ALL_O_DIRECT``: use ``O_DIRECT`` open and flush both the data and the log files. This value was added in |Percona Server| release :rn:`5.1.54-12.5`.
 
+
 .. variable:: innodb_flush_neighbor_pages
 
      :cli: Yes
@@ -165,7 +171,8 @@ This variable specifies whether, when the dirty pages are flushed to the data fi
     Disables the feature
 
   * 1 (default): 
-    Rnables the feature
+    Enables the feature
+
 
 If you use a storage which has no “head seek delay” (e.g. SSD or enough memory for write buffering), 0 may show better performance.
 
@@ -183,6 +190,7 @@ This variable allow a better control of the background thread processing the ins
 
   [real activity] = [default activity] * (innodb_io_capacity/100) * (innodb_ibuf_accel_rate/100)
 
+
 By increasing the value of :variable:`innodb_ibuf_accel_rate`, you will increase the insert buffer activity
 
 .. variable:: innodb_ibuf_active_contract
@@ -192,7 +200,7 @@ By increasing the value of :variable:`innodb_ibuf_accel_rate`, you will increase
      :scope: Global
      :dyn: Yes
      :vartype: Numeric
-     :default: 0(~1.0.5), 1(1.0.6~)
+     :default: 0(1.0.5), 1(1.0.6)
      :range: 0 - 1
 
 This variable specifies whether the insert buffer can be processed before it reaches its maximum size. The following values are allowed:
@@ -202,6 +210,7 @@ This variable specifies whether the insert buffer can be processed before it rea
 
   * 1: 
     The insert buffer can be processed even it is not full.
+
 
 .. variable:: innodb_ibuf_max_size
 
@@ -257,14 +266,16 @@ This variable controls the read-ahead algorithm of |InnoDB|. The following value
   * ``both``: 
     Enable both ``random`` and ``linear`` algorithms.
 
+
 You can also control the threshold from which |InnoDB| will perform a read ahead request with the innodb_read_ahead_threshold variable
 
-(*) ``random`` is removed from |InnoDB| Plugin 1.0.5, |XtraDB| ignores it after 1.0.5.
+``random`` is removed from |InnoDB| Plugin 1.0.5, |XtraDB| ignores it after 1.0.5.
+
 
 Status Variables
 ================
 
-The following information has been added to SHOW |InnoDB| STATUS to confirm the checkpointing activity:
+The following information has been added to ``SHOW INNODB STATUS`` to confirm the checkpointing activity:
 
   * The max checkpoint age
 
@@ -273,6 +284,7 @@ The following information has been added to SHOW |InnoDB| STATUS to confirm the 
   * The current age of the oldest page modification which has not been flushed to disk yet.
 
   * The current age of the last checkpoint
+
 
 ::
 

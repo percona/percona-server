@@ -1,3 +1,5 @@
+.. _show_slave_status_nolock:
+
 =============================
  Lock-Free SHOW SLAVE STATUS
 =============================

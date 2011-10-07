@@ -1,3 +1,5 @@
+.. _innodb_fast_index_renaming:
+
 =====================
  Fast Index Renaming
 =====================

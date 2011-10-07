@@ -16,13 +16,13 @@ The release includes following new features:
 
   * :ref:`innodb_stats` - the implementation of the fix for |MySQL| Bug #30423
 
-  * :ref:`innodb_expand_import`: Support of import |InnoDB| / |XtraDB| tables from another server
+  * :ref:`innodb_expand_import_page` - Support of import |InnoDB| / |XtraDB| tables from another server
 
-  * [[percona-|XtraDB|:patch:innodb_split_buf_pool_mutex|split-bufpool-mutex-3]] New patch to split buffer pool mutex
+  * New patch to split buffer pool mutex
 
   * ``g-style-io-thread``: Google's fixes to |InnoDB| IO threads
 
-  * :ref:`innodb_dict_size_limit`: Limit of internal data dictionary
+  * ``innodb_dict_size_limit`` - Limit of internal data dictionary
 
 Fixed bugs
 ==========

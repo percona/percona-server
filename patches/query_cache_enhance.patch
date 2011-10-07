@@ -3094,3 +3094,24 @@
 +--disconnect conn
 +DROP TABLE t;
 +SET GLOBAL query_cache_size=0;
+--- a/mysql-test/r/mysqld--help-notwin.result
++++ b/mysql-test/r/mysqld--help-notwin.result
+@@ -491,6 +491,10 @@
+  The minimum size for blocks allocated by the query cache
+  --query-cache-size=# 
+  The memory allocated to store results from old queries
++ --query-cache-strip-comments 
++ Enable and disable optimisation "strip comment for query
++ cache" - optimisation strip all comments from query while
++ search query result in query cache
+  --query-cache-type=name 
+  OFF = Don't cache or retrieve results. ON = Cache all
+  results except SELECT SQL_NO_CACHE ... queries. DEMAND =
+@@ -928,6 +932,7 @@
+ query-cache-limit 1048576
+ query-cache-min-res-unit 4096
+ query-cache-size 0
++query-cache-strip-comments FALSE
+ query-cache-type ON
+ query-cache-wlock-invalidate FALSE
+ query-prealloc-size 8192

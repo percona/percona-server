@@ -41,7 +41,7 @@
    using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -4854,7 +4854,7 @@
+@@ -4855,7 +4855,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
@@ -166,3 +166,23 @@
 +  print "Occurrences: $count\n";
 +  close(FILE);
 +EOF
+--- a/mysql-test/r/mysqld--help-notwin.result
++++ b/mysql-test/r/mysqld--help-notwin.result
+@@ -281,6 +281,9 @@
+  --log-tc-size=#     Size of transaction coordinator log.
+  -W, --log-warnings[=#] 
+  Log some not critical warnings to the log file
++ --log-warnings-suppress=name 
++ disable logging of enumerated warnings: 1592: unsafe
++ statements for binary logging; possible values : [1592]
+  --long-query-time=# Log all queries that have taken more than long_query_time
+  seconds to execute to file. The argument will be treated
+  as a decimal value with microsecond precision
+@@ -863,6 +866,7 @@
+ log-tc tc.log
+ log-tc-size 24576
+ log-warnings 1
++log-warnings-suppress 
+ long-query-time 10
+ low-priority-updates FALSE
+ lower-case-table-names 1

@@ -183,3 +183,24 @@
 +--source include/have_innodb.inc
 +select * from information_schema.XTRADB_ADMIN_COMMAND;
 +select * from information_schema.XTRADB_ADMIN_COMMAND /*!XTRA_HELLO*/;
+--- a/mysql-test/r/mysqld--help-notwin.result
++++ b/mysql-test/r/mysqld--help-notwin.result
+@@ -731,6 +731,10 @@
+  -V, --version       Output version information and exit.
+  --wait-timeout=#    The number of seconds the server waits for activity on a
+  connection before closing it
++ --xtradb-admin-command[=name] 
++ Enable or disable XTRADB_ADMIN_COMMAND plugin. Possible
++ values are ON, OFF, FORCE (don't start if the plugin
++ fails to load).
+ 
+ Variables (--variable-name=value)
+ abort-slave-event-count 0
+@@ -955,6 +959,7 @@
+ updatable-views-with-limit YES
+ verbose TRUE
+ wait-timeout 28800
++xtradb-admin-command ON
+ 
+ To see what values a running MySQL server is using, type
+ 'mysqladmin variables' instead of 'mysqld --verbose --help'.

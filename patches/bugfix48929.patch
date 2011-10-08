@@ -18,7 +18,7 @@
   sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -55,6 +55,10 @@
+@@ -56,6 +56,10 @@
  #include "sp_rcontext.h"
  #include "sp_cache.h"
  
@@ -29,7 +29,7 @@
  #define mysqld_charset &my_charset_latin1
  
  #ifdef HAVE_purify
-@@ -5136,28 +5140,49 @@
+@@ -5139,28 +5143,49 @@
  {
    my_socket sock,new_sock;
    uint error_count=0;
@@ -82,7 +82,7 @@
  #ifdef HAVE_FCNTL
    socket_flags=fcntl(unix_sock, F_GETFL, 0);
  #endif
-@@ -5167,12 +5192,15 @@
+@@ -5170,12 +5195,15 @@
    MAYBE_BROKEN_SYSCALL;
    while (!abort_loop)
    {
@@ -103,7 +103,7 @@
      {
        if (socket_errno != SOCKET_EINTR)
        {
-@@ -5182,7 +5210,7 @@
+@@ -5185,7 +5213,7 @@
        MAYBE_BROKEN_SYSCALL
        continue;
      }
@@ -112,7 +112,7 @@
      if (abort_loop)
      {
        MAYBE_BROKEN_SYSCALL;
-@@ -5190,6 +5218,21 @@
+@@ -5193,6 +5221,21 @@
      }
  
      /* Is this a new connection request ? */
@@ -134,7 +134,7 @@
  #ifdef HAVE_SYS_UN_H
      if (FD_ISSET(unix_sock,&readFDs))
      {
-@@ -5197,11 +5240,12 @@
+@@ -5200,11 +5243,12 @@
        flags= socket_flags;
      }
      else

@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/include/mysql/plugin.h
 +++ b/include/mysql/plugin.h
-@@ -694,6 +694,17 @@
+@@ -696,6 +696,17 @@
  /* Increments the row counter, see THD::row_count */
  void thd_inc_row_count(MYSQL_THD thd);
  
@@ -73,7 +73,7 @@
 +
 --- a/scripts/mysqldumpslow.sh
 +++ b/scripts/mysqldumpslow.sh
-@@ -101,8 +101,8 @@
+@@ -102,8 +102,8 @@
      s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
      my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
  
@@ -86,7 +86,7 @@
      # remove fluff that mysqld writes to log when it (re)starts:
 --- a/sql/event_scheduler.cc
 +++ b/sql/event_scheduler.cc
-@@ -193,6 +193,7 @@
+@@ -196,6 +196,7 @@
    thd->client_capabilities|= CLIENT_MULTI_RESULTS;
    pthread_mutex_lock(&LOCK_thread_count);
    thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
@@ -96,7 +96,7 @@
    /*
 --- a/sql/filesort.cc
 +++ b/sql/filesort.cc
-@@ -190,6 +190,7 @@
+@@ -192,6 +192,7 @@
    {
      status_var_increment(thd->status_var.filesort_scan_count);
    }
@@ -104,7 +104,7 @@
  #ifdef CAN_TRUST_RANGE
    if (select && select->quick && select->quick->records > 0L)
    {
-@@ -255,6 +256,7 @@
+@@ -257,6 +258,7 @@
    }
    else
    {
@@ -112,7 +112,7 @@
      if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
      {
        x_free(table_sort.buffpek);
-@@ -1203,6 +1205,7 @@
+@@ -1205,6 +1207,7 @@
    DBUG_ENTER("merge_buffers");
  
    status_var_increment(current_thd->status_var.filesort_merge_passes);
@@ -326,7 +326,7 @@
        if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
 --- a/sql/log.h
 +++ b/sql/log.h
-@@ -211,7 +211,7 @@
+@@ -213,7 +213,7 @@
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
               const char *sql_text, uint sql_text_len);
@@ -335,7 +335,7 @@
               const char *user_host, uint user_host_len,
               ulonglong query_utime, ulonglong lock_utime, bool is_command,
               const char *sql_text, uint sql_text_len);
-@@ -425,7 +425,7 @@
+@@ -427,7 +427,7 @@
    virtual bool init()= 0;
    virtual void cleanup()= 0;
  
@@ -344,7 +344,7 @@
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-@@ -454,7 +454,7 @@
+@@ -456,7 +456,7 @@
    virtual bool init();
    virtual void cleanup();
  
@@ -353,7 +353,7 @@
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-@@ -486,7 +486,7 @@
+@@ -488,7 +488,7 @@
    virtual bool init();
    virtual void cleanup();
  
@@ -364,7 +364,7 @@
                          ulonglong lock_utime, bool is_command,
 --- a/sql/log_event.cc
 +++ b/sql/log_event.cc
-@@ -2361,6 +2361,15 @@
+@@ -2368,6 +2368,15 @@
        start+= host.length;
      }
    }
@@ -380,7 +380,7 @@
    /*
      NOTE: When adding new status vars, please don't forget to update
      the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
-@@ -2790,6 +2799,17 @@
+@@ -2797,6 +2806,17 @@
        data_written= master_data_written= uint4korr(pos);
        pos+= 4;
        break;
@@ -398,7 +398,7 @@
      case Q_INVOKER:
      {
        CHECK_SPACE(pos, end, 1);
-@@ -3090,6 +3110,7 @@
+@@ -3097,6 +3117,7 @@
    LEX_STRING new_db;
    int expected_error,actual_error= 0;
    HA_CREATE_INFO db_options;
@@ -406,7 +406,7 @@
  
    /*
      Colleagues: please never free(thd->catalog) in MySQL. This would
-@@ -3271,19 +3292,7 @@
+@@ -3278,19 +3299,7 @@
        /* Execute the query (note that we bypass dispatch_command()) */
        const char* found_semicolon= NULL;
        mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
@@ -427,7 +427,7 @@
      }
      else
      {
-@@ -3428,11 +3437,27 @@
+@@ -3435,11 +3444,27 @@
      don't suffer from these assignments to 0 as DROP TEMPORARY
      TABLE uses the db.table syntax.
    */
@@ -458,7 +458,7 @@
      LAST_INSERT_ID() if that function returned 0 (and thus they will be able
 --- a/sql/mysql_priv.h
 +++ b/sql/mysql_priv.h
-@@ -638,6 +638,106 @@
+@@ -640,6 +640,106 @@
  
  #define STRING_BUFFER_USUAL_SIZE 80
  
@@ -565,7 +565,7 @@
  /*
    Some defines for exit codes for ::is_equal class functions.
  */
-@@ -1999,6 +2099,10 @@
+@@ -2001,6 +2101,10 @@
  extern my_bool opt_secure_auth;
  extern char* opt_secure_file_priv;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
@@ -578,7 +578,7 @@
  extern uint opt_crash_binlog_innodb;
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -440,6 +440,7 @@
+@@ -443,6 +443,7 @@
  static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
  static I_List<THD> thread_cache;
  static double long_query_time;
@@ -586,7 +586,7 @@
  
  static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
  
-@@ -525,6 +526,10 @@
+@@ -528,6 +529,10 @@
  char* opt_secure_file_priv= 0;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -597,7 +597,7 @@
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_myisam_use_mmap= 0;
-@@ -5808,7 +5813,13 @@
+@@ -5811,7 +5816,13 @@
    OPT_INNODB_ROLLBACK_ON_TIMEOUT,
    OPT_SECURE_FILE_PRIV,
    OPT_MIN_EXAMINED_ROW_LIMIT,
@@ -611,7 +611,7 @@
  #if defined(ENABLED_DEBUG_SYNC)
    OPT_DEBUG_SYNC_TIMEOUT,
  #endif /* defined(ENABLED_DEBUG_SYNC) */
-@@ -5816,6 +5827,9 @@
+@@ -5819,6 +5830,9 @@
    OPT_SLAVE_EXEC_MODE,
    OPT_GENERAL_LOG_FILE,
    OPT_SLOW_QUERY_LOG_FILE,
@@ -621,7 +621,7 @@
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD,
-@@ -6836,6 +6850,36 @@
+@@ -6839,6 +6853,36 @@
     "microsecond precision.",
     &long_query_time, &long_query_time, 0, GET_DOUBLE,
     REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
@@ -658,7 +658,7 @@
    {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
     "If set to 1, table names are stored in lowercase on disk and table names "
     "will be case-insensitive.  Should be set to 2 if you are using a case-"
-@@ -7073,6 +7117,13 @@
+@@ -7076,6 +7120,13 @@
     "is the plugin library in plugin_dir.",
     &opt_plugin_load, &opt_plugin_load, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -672,7 +672,7 @@
    {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
     "The size of the buffer that is allocated when preloading indexes.",
     &global_system_variables.preload_buff_size,
-@@ -7993,6 +8044,10 @@
+@@ -7991,6 +8042,10 @@
    global_system_variables.old_passwords= 0;
    global_system_variables.old_alter_table= 0;
    global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
@@ -683,7 +683,7 @@
    /*
      Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
      when collecting index statistics for MyISAM tables.
-@@ -8496,6 +8551,44 @@
+@@ -8494,6 +8549,44 @@
    case OPT_BOOTSTRAP:
      opt_noacl=opt_bootstrap=1;
      break;
@@ -730,7 +730,7 @@
      break;
 --- a/sql/set_var.cc
 +++ b/sql/set_var.cc
-@@ -162,6 +162,74 @@
+@@ -164,6 +164,74 @@
  
  static sys_var_chain vars = { NULL, NULL };
  
@@ -805,7 +805,7 @@
  static sys_var_thd_ulong
  sys_auto_increment_increment(&vars, "auto_increment_increment",
                               &SV::auto_increment_increment, NULL, NULL,
-@@ -901,6 +969,37 @@
+@@ -903,6 +971,37 @@
                                        QUERY_LOG_GENERAL);
  static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                           QUERY_LOG_SLOW);
@@ -843,7 +843,7 @@
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                            &opt_slow_log, QUERY_LOG_SLOW);
-@@ -3711,6 +3810,203 @@
+@@ -3713,6 +3812,203 @@
  #endif
  }
  
@@ -1157,7 +1157,7 @@
 +char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val);
 --- a/sql/slave.cc
 +++ b/sql/slave.cc
-@@ -1834,6 +1834,7 @@
+@@ -1836,6 +1836,7 @@
      + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
    thd->slave_thread = 1;
    thd->enable_slow_log= opt_log_slow_slave_statements;
@@ -1167,7 +1167,7 @@
    pthread_mutex_lock(&LOCK_thread_count);
 --- a/sql/sp_head.cc
 +++ b/sql/sp_head.cc
-@@ -1987,7 +1987,7 @@
+@@ -1989,7 +1989,7 @@
      DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                         m_name.str));
    }
@@ -1178,7 +1178,7 @@
      save_enable_slow_log= true;
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -1704,6 +1704,7 @@
+@@ -1706,6 +1706,7 @@
  
    thd->limit_found_rows = query->found_rows();
    thd->status_var.last_query_cost= 0.0;
@@ -1186,7 +1186,7 @@
    if (!thd->main_da.is_set())
      thd->main_da.disable_status();
  
-@@ -1713,6 +1714,7 @@
+@@ -1715,6 +1716,7 @@
  err_unlock:
    unlock();
  err:
@@ -1196,7 +1196,7 @@
  
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -340,6 +340,37 @@
+@@ -342,6 +342,37 @@
    thd->row_count++;
  }
  
@@ -1234,7 +1234,7 @@
  
  /**
    Dumps a text description of a thread, its security context
-@@ -760,6 +791,8 @@
+@@ -761,6 +792,8 @@
  bool THD::handle_error(uint sql_errno, const char *message,
                         MYSQL_ERROR::enum_warning_level level)
  {
@@ -1243,7 +1243,7 @@
    for (Internal_error_handler *error_handler= m_internal_handler;
         error_handler;
         error_handler= error_handler->m_prev_internal_handler)
-@@ -3195,6 +3228,12 @@
+@@ -3196,6 +3229,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -1256,7 +1256,7 @@
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !current_stmt_binlog_row_based)
-@@ -3214,6 +3253,14 @@
+@@ -3215,6 +3254,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -1271,7 +1271,7 @@
  }
  
  
-@@ -3276,6 +3323,12 @@
+@@ -3277,6 +3324,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -1286,7 +1286,7 @@
  
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -402,6 +402,21 @@
+@@ -404,6 +404,21 @@
    DATE_TIME_FORMAT *datetime_format;
    DATE_TIME_FORMAT *time_format;
    my_bool sysdate_is_now;
@@ -1308,7 +1308,7 @@
  };
  
  
-@@ -998,6 +1013,14 @@
+@@ -1000,6 +1015,14 @@
    uint in_sub_stmt;
    bool enable_slow_log;
    bool last_insert_id_used;
@@ -1323,7 +1323,7 @@
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1425,6 +1448,26 @@
+@@ -1427,6 +1450,26 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -1350,7 +1350,7 @@
    /* <> 0 if we are inside of trigger or stored function. */
    uint in_sub_stmt;
    /* TRUE when the current top has SQL_LOG_BIN ON */
-@@ -1777,6 +1820,11 @@
+@@ -1772,6 +1815,11 @@
      create_sort_index(); may differ from examined_row_count.
    */
    ulong      row_count;
@@ -1364,7 +1364,7 @@
    uint	     tmp_table, global_read_lock;
 --- a/sql/sql_connect.cc
 +++ b/sql/sql_connect.cc
-@@ -1419,6 +1419,15 @@
+@@ -1421,6 +1421,15 @@
      if (login_connection(thd))
        goto end_thread;
  
@@ -1382,7 +1382,7 @@
      while (!net->error && net->vio != 0 &&
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -46,6 +46,7 @@
+@@ -48,6 +48,7 @@
  
  static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
  static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
@@ -1390,7 +1390,7 @@
  
  const char *any_db="*any*";	// Special symbol for check_access
  
-@@ -1700,6 +1701,50 @@
+@@ -1702,6 +1703,50 @@
    DBUG_RETURN(error);
  }
  
@@ -1441,7 +1441,7 @@
  
  void log_slow_statement(THD *thd)
  {
-@@ -1713,17 +1758,51 @@
+@@ -1715,17 +1760,51 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -1496,7 +1496,7 @@
           ((thd->server_status &
             (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
            opt_log_queries_not_using_indexes &&
-@@ -2099,6 +2178,9 @@
+@@ -2101,6 +2180,9 @@
      context.resolve_in_table_list_only(select_lex->
                                         table_list.first);
  
@@ -1506,7 +1506,7 @@
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5827,6 +5909,21 @@
+@@ -5829,6 +5911,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  
@@ -2566,7 +2566,7 @@
 +--source include/log_grep.inc
 --- a/sql/log_event.h
 +++ b/sql/log_event.h
-@@ -336,6 +336,10 @@
+@@ -338,6 +338,10 @@
  
  #define Q_INVOKER 11
  

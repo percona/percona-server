@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/client/client_priv.h
 +++ b/client/client_priv.h
-@@ -68,6 +68,7 @@
+@@ -70,6 +70,7 @@
    OPT_MYSQL_LOCK_DIRECTORY,
    OPT_USE_THREADS,
    OPT_IMPORT_USE_THREADS,
@@ -17,7 +17,7 @@
    OPT_TZ_UTC, OPT_AUTO_CLOSE, OPT_CREATE_SLAP_SCHEMA,
 --- a/client/mysqldump.c
 +++ b/client/mysqldump.c
-@@ -98,7 +98,7 @@
+@@ -102,7 +102,7 @@
                  opt_complete_insert= 0, opt_drop_database= 0,
                  opt_replace_into= 0,
                  opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
@@ -26,7 +26,7 @@
                  opt_alltspcs=0, opt_notspcs= 0;
  static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
  static ulong opt_max_allowed_packet, opt_net_buffer_length;
-@@ -326,6 +326,9 @@
+@@ -330,6 +330,9 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
@@ -36,7 +36,7 @@
    {"lines-terminated-by", OPT_LTB, 
     "Lines in the output file are terminated by the given string.",
     &lines_terminated, &lines_terminated, 0, GET_STR,
-@@ -2319,12 +2322,20 @@
+@@ -2322,12 +2325,20 @@
        char buff[20+FN_REFLEN];
        MYSQL_FIELD *field;
  

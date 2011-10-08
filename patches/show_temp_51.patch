@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -3256,6 +3256,7 @@
+@@ -3259,6 +3259,7 @@
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
    {"show_thread_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_THREAD_STATS]), SHOW_LONG_STATUS},
@@ -17,7 +17,7 @@
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -116,7 +116,7 @@
+@@ -118,7 +118,7 @@
    SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
    SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
    SQLCOM_SHOW_CREATE_TRIGGER,
@@ -28,7 +28,7 @@
  
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -340,6 +340,9 @@
+@@ -342,6 +342,9 @@
     sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                   CF_SHOW_TABLE_COMMAND |
                                                   CF_REEXECUTION_FRAGILE);
@@ -38,7 +38,7 @@
    sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
                                                  CF_REEXECUTION_FRAGILE);
-@@ -1875,6 +1878,8 @@
+@@ -1877,6 +1880,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -47,7 +47,7 @@
    case SCH_VIEWS:
    case SCH_TRIGGERS:
    case SCH_EVENTS:
-@@ -2374,6 +2379,7 @@
+@@ -2376,6 +2381,7 @@
    }
    case SQLCOM_SHOW_DATABASES:
    case SQLCOM_SHOW_TABLES:
@@ -55,7 +55,7 @@
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -5527,6 +5533,8 @@
+@@ -5529,6 +5535,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -354,7 +354,7 @@
    {"THREAD_STATISTICS", thread_stats_fields_info, create_schema_table,
 --- a/sql/sql_yacc.yy
 +++ b/sql/sql_yacc.yy
-@@ -10096,6 +10096,15 @@
+@@ -10116,6 +10116,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }
@@ -461,7 +461,7 @@
    DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -732,6 +732,7 @@
+@@ -733,6 +733,7 @@
    active_vio = 0;
  #endif
    pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
@@ -469,7 +469,7 @@
  
    /* Variables with default values */
    proc_info="login";
-@@ -1144,6 +1145,7 @@
+@@ -1145,6 +1146,7 @@
  #endif
    mysys_var=0;					// Safety (shouldn't be needed)
    pthread_mutex_destroy(&LOCK_thd_data);
@@ -479,7 +479,7 @@
  #endif  
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -897,6 +897,11 @@
+@@ -899,6 +899,11 @@
    */
    TABLE *temporary_tables;
    /**

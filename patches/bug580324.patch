@@ -24,7 +24,7 @@
      int4store(key + key_length, thd->server_id);
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -1342,10 +1342,12 @@
+@@ -1344,10 +1344,12 @@
      break;
  #else
    {
@@ -39,7 +39,7 @@
  
      /* used as fields initializator */
      lex_start(thd);
-@@ -1357,26 +1359,22 @@
+@@ -1359,26 +1361,22 @@
      /*
        We have name + wildcard in packet, separated by endzero
      */
@@ -77,7 +77,7 @@
  
      if (is_schema_db(table_list.db, table_list.db_length))
      {
-@@ -1385,9 +1383,6 @@
+@@ -1387,9 +1385,6 @@
          table_list.schema_table= schema_table;
      }
  
@@ -89,7 +89,7 @@
      if (lower_case_table_names)
 --- a/strings/ctype-utf8.c
 +++ b/strings/ctype-utf8.c
-@@ -4116,6 +4116,10 @@
+@@ -4118,6 +4118,10 @@
  {
    int code;
    char hex[]= "0123456789abcdef";

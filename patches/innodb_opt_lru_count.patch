@@ -7,15 +7,15 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innodb_plugin/buf/buf0buddy.c
 +++ b/storage/innodb_plugin/buf/buf0buddy.c
-@@ -143,7 +143,7 @@
- 			      ut_ad(buf_page_get_state(ut_list_node_313)
- 				    == BUF_BLOCK_ZIP_FREE)));
- #endif /* !UNIV_DEBUG_VALGRIND */
+@@ -129,7 +129,7 @@
+ 
+ 	ut_d(BUF_BUDDY_LIST_VALIDATE(i));
+ 
 -	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 +	bpage = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
  
  	if (bpage) {
- 		UNIV_MEM_VALID(bpage, BUF_BUDDY_LOW << i);
+ 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 --- a/storage/innodb_plugin/buf/buf0buf.c
 +++ b/storage/innodb_plugin/buf/buf0buf.c
 @@ -669,9 +669,9 @@
@@ -29,7 +29,7 @@
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
  	block->n_pointers = 0;
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-@@ -1153,7 +1153,7 @@
+@@ -1085,7 +1085,7 @@
  
  	memcpy(dpage, bpage, sizeof *dpage);
  
@@ -38,7 +38,7 @@
  	ut_d(bpage->in_page_hash = FALSE);
  
  	/* relocate buf_pool->LRU */
-@@ -2966,8 +2966,8 @@
+@@ -2582,8 +2582,8 @@
  		bpage->in_zip_hash = FALSE;
  		bpage->in_flush_list = FALSE;
  		bpage->in_free_list = FALSE;
@@ -48,7 +48,7 @@
  
  		ut_d(bpage->in_page_hash = TRUE);
  		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
-@@ -3113,7 +3113,7 @@
+@@ -2731,7 +2731,7 @@
  	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -57,7 +57,7 @@
  
  	frame = block->frame;
  
-@@ -3867,7 +3867,7 @@
+@@ -3485,7 +3485,7 @@
  {
  	ulint	ratio;
  
@@ -66,7 +66,7 @@
  
  	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
  		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
-@@ -3875,7 +3875,7 @@
+@@ -3493,7 +3493,7 @@
  
  	/* 1 + is there to avoid division by zero */
  
@@ -109,7 +109,7 @@
  
  	return(FALSE);
  }
-@@ -1504,8 +1507,14 @@
+@@ -1506,8 +1509,14 @@
  	buf_page_t*	bpage;
  	ulint		n_replaceable;
  	ulint		distance	= 0;
@@ -125,7 +125,7 @@
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -1516,7 +1525,13 @@
+@@ -1518,7 +1527,13 @@
  		   + BUF_FLUSH_EXTRA_MARGIN)
  	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
  
@@ -140,7 +140,7 @@
  
  		mutex_enter(block_mutex);
  
-@@ -1531,11 +1546,18 @@
+@@ -1533,11 +1548,18 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -160,7 +160,7 @@
  	}
  
  	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
-@@ -1550,8 +1572,9 @@
+@@ -1552,8 +1574,9 @@
  immediately, without waiting. */
  UNIV_INTERN
  void
@@ -171,7 +171,7 @@
  {
  	ulint	n_to_flush;
  	ulint	n_flushed;
-@@ -1560,7 +1583,7 @@
+@@ -1562,7 +1585,7 @@
  
  	if (n_to_flush > 0) {
  		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);
@@ -182,7 +182,7 @@
  
 --- a/storage/innodb_plugin/buf/buf0lru.c
 +++ b/storage/innodb_plugin/buf/buf0lru.c
-@@ -936,7 +936,7 @@
+@@ -863,7 +863,7 @@
  
  	/* No free block was found: try to flush the LRU list */
  
@@ -191,7 +191,7 @@
  	++srv_buf_pool_wait_free;
  
  	os_aio_simulated_wake_handler_threads();
-@@ -1127,7 +1127,7 @@
+@@ -1054,7 +1054,7 @@
  
  	/* Remove the block from the LRU list */
  	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
@@ -200,7 +200,7 @@
  
  	buf_unzip_LRU_remove_block_if_needed(bpage);
  
-@@ -1202,7 +1202,7 @@
+@@ -1129,7 +1129,7 @@
  
  	ut_ad(!bpage->in_LRU_list);
  	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
@@ -209,7 +209,7 @@
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1270,7 +1270,7 @@
+@@ -1197,7 +1197,7 @@
  		buf_pool->LRU_old_len++;
  	}
  
@@ -218,7 +218,7 @@
  
  	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
  
-@@ -1513,7 +1513,7 @@
+@@ -1433,7 +1433,7 @@
  				buf_page_set_old(b, buf_page_is_old(b));
  #endif /* UNIV_LRU_DEBUG */
  			} else {
@@ -229,7 +229,7 @@
  
 --- a/storage/innodb_plugin/buf/buf0rea.c
 +++ b/storage/innodb_plugin/buf/buf0rea.c
-@@ -195,7 +195,7 @@
+@@ -365,7 +365,7 @@
  	}
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -238,7 +238,7 @@
  
  	/* Increment number of I/O operations used for LRU policy. */
  	buf_LRU_stat_inc_io();
-@@ -470,7 +470,7 @@
+@@ -640,7 +640,7 @@
  	os_aio_simulated_wake_handler_threads();
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -247,7 +247,7 @@
  
  #ifdef UNIV_DEBUG
  	if (buf_debug_prints && (count > 0)) {
-@@ -555,7 +555,7 @@
+@@ -725,7 +725,7 @@
  	os_aio_simulated_wake_handler_threads();
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -256,7 +256,7 @@
  
  #ifdef UNIV_DEBUG
  	if (buf_debug_prints) {
-@@ -648,7 +648,7 @@
+@@ -818,7 +818,7 @@
  	os_aio_simulated_wake_handler_threads();
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -276,7 +276,7 @@
  };
 --- a/storage/innodb_plugin/include/buf0buf.h
 +++ b/storage/innodb_plugin/include/buf0buf.h
-@@ -1118,11 +1118,11 @@
+@@ -1166,11 +1166,11 @@
  
  	UT_LIST_NODE_T(buf_page_t) LRU;
  					/*!< node of the LRU list */

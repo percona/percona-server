@@ -166,7 +166,7 @@
  #
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -8209,7 +8209,9 @@
+@@ -8207,7 +8207,9 @@
      thd_startup_options|=OPTION_BIG_TABLES;
      break;
    case (int) OPT_IGNORE_BUILTIN_INNODB:

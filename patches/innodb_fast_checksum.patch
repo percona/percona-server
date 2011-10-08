@@ -93,7 +93,7 @@
  					 - FIL_PAGE_END_LSN_OLD_CHKSUM),
 --- a/storage/innodb_plugin/buf/buf0flu.c
 +++ b/storage/innodb_plugin/buf/buf0flu.c
-@@ -957,7 +957,9 @@
+@@ -959,7 +959,9 @@
  
  	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  			srv_use_checksums
@@ -153,15 +153,15 @@
  static my_bool	innobase_extra_undoslots		= FALSE;
  static my_bool	innobase_fast_recovery			= FALSE;
  static my_bool	innobase_recovery_stats			= TRUE;
-@@ -2413,6 +2414,7 @@
+@@ -2417,6 +2418,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
 +	srv_fast_checksum = (ibool) innobase_fast_checksum;
  
- #ifdef HAVE_LARGE_PAGES
-         if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11191,6 +11193,15 @@
+ 	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
+ 
+@@ -11185,6 +11187,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -177,7 +177,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11671,6 +11682,7 @@
+@@ -11676,6 +11687,7 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(checksums),
@@ -196,7 +196,7 @@
  };
 --- a/storage/innodb_plugin/include/buf0buf.h
 +++ b/storage/innodb_plugin/include/buf0buf.h
-@@ -477,6 +477,11 @@
+@@ -525,6 +525,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */
@@ -220,7 +220,7 @@
  #define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/*!< the low 4 bytes of this are used
 --- a/storage/innodb_plugin/include/srv0srv.h
 +++ b/storage/innodb_plugin/include/srv0srv.h
-@@ -212,6 +212,7 @@
+@@ -213,6 +213,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
@@ -277,7 +277,7 @@
 +}
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -387,6 +387,7 @@
+@@ -392,6 +392,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

@@ -40,7 +40,7 @@
  	$(mkinstalldirs) $(DESTDIR)$(libexecdir) $(DESTDIR)$(pkglibdir)
 --- a/sql/lex.h
 +++ b/sql/lex.h
-@@ -392,6 +392,7 @@
+@@ -395,6 +395,7 @@
    { "PARTITIONING",     SYM(PARTITIONING_SYM)},
    { "PARTITIONS",       SYM(PARTITIONS_SYM)},
    { "PASSWORD",		SYM(PASSWORD)},
@@ -50,7 +50,7 @@
    { "PLUGINS",          SYM(PLUGINS_SYM)},
 --- a/sql/mysql_priv.h
 +++ b/sql/mysql_priv.h
-@@ -1360,6 +1360,7 @@
+@@ -1362,6 +1362,7 @@
  int mysqld_show_status(THD *thd);
  int mysqld_show_variables(THD *thd,const char *wild);
  bool mysqld_show_storage_engines(THD *thd);
@@ -60,7 +60,7 @@
  bool mysqld_show_privileges(THD *thd);
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -3215,6 +3215,7 @@
+@@ -3218,6 +3218,7 @@
    {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
    {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
    {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
@@ -138,7 +138,7 @@
 +HEADER
 --- a/sql/sp_head.cc
 +++ b/sql/sp_head.cc
-@@ -227,6 +227,7 @@
+@@ -229,6 +229,7 @@
    case SQLCOM_SHOW_MASTER_STAT:
    case SQLCOM_SHOW_NEW_MASTER:
    case SQLCOM_SHOW_OPEN_TABLES:
@@ -148,7 +148,7 @@
    case SQLCOM_SHOW_PROC_CODE:
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -118,6 +118,7 @@
+@@ -120,6 +120,7 @@
    SQLCOM_SHOW_CREATE_TRIGGER,
    SQLCOM_ALTER_DB_UPGRADE,
    SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
@@ -158,7 +158,7 @@
      When a command is added here, be sure it's also added in mysqld.cc
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -3494,6 +3494,9 @@
+@@ -3496,6 +3496,9 @@
    case SQLCOM_SHOW_CONTRIBUTORS:
      res= mysqld_show_contributors(thd);
      break;
@@ -233,7 +233,7 @@
 +}
 --- a/sql/sql_yacc.yy
 +++ b/sql/sql_yacc.yy
-@@ -1055,6 +1055,7 @@
+@@ -1057,6 +1057,7 @@
  %token  PARTITIONS_SYM
  %token  PARTITION_SYM                 /* SQL-2003-R */
  %token  PASSWORD
@@ -241,7 +241,7 @@
  %token  PHASE_SYM
  %token  PLUGINS_SYM
  %token  PLUGIN_SYM
-@@ -10197,6 +10198,11 @@
+@@ -10217,6 +10218,11 @@
              if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
                MYSQL_YYABORT;
            }
@@ -253,7 +253,7 @@
          | opt_storage ENGINES_SYM
            {
              LEX *lex=Lex;
-@@ -11810,6 +11816,7 @@
+@@ -11830,6 +11836,7 @@
          | PARTITIONING_SYM         {}
          | PARTITIONS_SYM           {}
          | PASSWORD                 {}

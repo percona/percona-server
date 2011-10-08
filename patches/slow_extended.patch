@@ -621,15 +621,6 @@
    OPT_IGNORE_BUILTIN_INNODB,
    OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    OPT_DEFAULT_CHARACTER_SET_OLD,
-@@ -6135,7 +6149,7 @@
-   {"log-slow-admin-statements", OPT_LOG_SLOW_ADMIN_STATEMENTS,
-    "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements "
-    "to the slow log if it is open.", &opt_log_slow_admin_statements,
--   &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-+   &opt_log_slow_admin_statements, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-slow-slave-statements", OPT_LOG_SLOW_SLAVE_STATEMENTS,
-   "Log slow statements executed by slave thread to the slow log if it is open.",
-   &opt_log_slow_slave_statements,
 @@ -6836,6 +6850,36 @@
     "microsecond precision.",
     &long_query_time, &long_query_time, 0, GET_DOUBLE,
@@ -2597,6 +2588,84 @@
 +LOG_SLOW_ADMIN_STATEMENTS	OFF
 --- /dev/null
 +++ b/mysql-test/t/percona_log_slow_admin_statements.test
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config_false.result
+@@ -0,0 +1,6 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config_foo.result
+@@ -0,0 +1,7 @@
++call mtr.add_suppression("ignoring option '--log-slow-admin-statements' due to invalid value 'foo'");
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config_true.result
+@@ -0,0 +1,6 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	ON
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	ON
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_false.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements=false
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_false.test
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_foo.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements=foo
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_foo.test
+@@ -0,0 +1,3 @@
++call mtr.add_suppression("ignoring option '--log-slow-admin-statements' due to invalid value 'foo'");
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_true.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements=true
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_true.test
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config.result
+@@ -0,0 +1,6 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	ON
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	ON
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config.test
 @@ -0,0 +1,2 @@
 +SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';

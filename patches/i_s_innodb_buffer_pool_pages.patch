@@ -24,7 +24,7 @@
  /********************************************************************//**
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11252,6 +11252,9 @@
+@@ -11248,6 +11248,9 @@
    innobase_system_variables, /* system variables */
    NULL /* reserved */
  },
@@ -773,7 +773,7 @@
  };
 --- a/storage/innodb_plugin/include/buf0buf.h
 +++ b/storage/innodb_plugin/include/buf0buf.h
-@@ -1286,6 +1286,15 @@
+@@ -1334,6 +1334,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  

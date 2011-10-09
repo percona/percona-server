@@ -3852,7 +3852,7 @@
  <ID>	root	<HOST_NAME>	information_schema	<COMMAND>	<TIME>	<STATE>	SHOW FULL PROCESSLIST
 --- a/mysql-test/include/mtr_warnings.sql
 +++ b/mysql-test/include/mtr_warnings.sql
-@@ -153,6 +153,9 @@
+@@ -168,6 +168,9 @@
      write()/read(). Bug #50414 */
   ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
   ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
@@ -3876,7 +3876,7 @@
 +--log-output=table,file --log-slow-queries
 --- a/mysql-test/include/mtr_check.sql
 +++ b/mysql-test/include/mtr_check.sql
-@@ -12,7 +12,9 @@
+@@ -27,7 +27,9 @@
    -- Dump all global variables except those
    -- that are supposed to change
    SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
@@ -4010,7 +4010,7 @@
 +0
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,351 @@
+@@ -0,0 +1,352 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -4146,6 +4146,7 @@
 +INNODB_OVERWRITE_RELAY_LOG_INFO
 +INNODB_PAGE_SIZE
 +INNODB_PASS_CORRUPT_TABLE
++INNODB_RANDOM_READ_AHEAD
 +INNODB_READ_AHEAD
 +INNODB_READ_AHEAD_THRESHOLD
 +INNODB_READ_IO_THREADS
@@ -4364,7 +4365,7 @@
 +WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
-@@ -0,0 +1,348 @@
+@@ -0,0 +1,349 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -4498,6 +4499,7 @@
 +INNODB_OVERWRITE_RELAY_LOG_INFO
 +INNODB_PAGE_SIZE
 +INNODB_PASS_CORRUPT_TABLE
++INNODB_RANDOM_READ_AHEAD
 +INNODB_READ_AHEAD
 +INNODB_READ_AHEAD_THRESHOLD
 +INNODB_READ_IO_THREADS

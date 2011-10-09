@@ -18,7 +18,7 @@
 +Ported to 5.1.42
 --- a/sql/mysql_priv.h
 +++ b/sql/mysql_priv.h
-@@ -2107,6 +2107,7 @@
+@@ -2109,6 +2109,7 @@
  extern ulong slave_exec_mode_options;
  extern my_bool opt_readonly, lower_case_file_system;
  extern my_bool opt_userstat_running, opt_thread_statistics;
@@ -28,7 +28,7 @@
  extern char* opt_secure_file_priv;
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -539,6 +539,7 @@
+@@ -542,6 +542,7 @@
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
  my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
@@ -36,7 +36,7 @@
  /*
    True if there is at least one per-hour limit for some user, so we should
    check them before each query (and possibly reset counters when hour is
-@@ -5862,6 +5863,7 @@
+@@ -5865,6 +5866,7 @@
    OPT_SLOW_QUERY_LOG_FILE,
    OPT_USERSTAT_RUNNING,
    OPT_THREAD_STATISTICS,
@@ -44,7 +44,7 @@
    OPT_USE_GLOBAL_LONG_QUERY_TIME,
    OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
    OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
-@@ -7378,6 +7380,10 @@
+@@ -7381,6 +7383,10 @@
     "Control TABLE_STATISTICS running, when userstat_running is enabled",
     (uchar**) &opt_thread_statistics, (uchar**) &opt_thread_statistics,
     0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
@@ -143,7 +143,7 @@
  
 --- a/sql/set_var.cc
 +++ b/sql/set_var.cc
-@@ -571,6 +571,8 @@
+@@ -573,6 +573,8 @@
  						     &opt_userstat_running);
  static sys_var_bool_ptr		sys_thread_statistics(&vars, "thread_statistics",
  						      &opt_thread_statistics);

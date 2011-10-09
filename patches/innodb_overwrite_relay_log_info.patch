@@ -48,7 +48,7 @@
  static my_bool	innobase_rollback_on_timeout		= FALSE;
  static my_bool	innobase_create_status_file		= FALSE;
  static my_bool	innobase_stats_on_metadata		= TRUE;
-@@ -2040,6 +2059,89 @@
+@@ -2042,6 +2061,89 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -138,7 +138,7 @@
  	/* Check that values don't overflow on 32-bit systems. */
  	if (sizeof(ulint) == 4) {
  		if (innobase_buffer_pool_size > UINT_MAX32) {
-@@ -2308,6 +2410,76 @@
+@@ -2310,6 +2412,76 @@
  		goto mem_free_and_error;
  	}
  
@@ -215,7 +215,7 @@
  	innobase_open_tables = hash_create(200);
  	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
  	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
-@@ -2422,6 +2594,26 @@
+@@ -2424,6 +2596,26 @@
  		return;
  	}
  
@@ -242,7 +242,7 @@
  	trx_commit_for_mysql(trx);
  }
  
-@@ -10791,6 +10983,12 @@
+@@ -10781,6 +10973,12 @@
    "don't use the datafile for normal mysqld or ibbackup! ####",
    NULL, NULL, FALSE);
  
@@ -255,7 +255,7 @@
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11216,6 +11414,7 @@
+@@ -11211,6 +11409,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),
@@ -284,7 +284,7 @@
  /** If this MySQL server uses binary logging, after InnoDB has been inited
  and if it has done a crash recovery, we store the binlog file name and position
  here. */
-@@ -300,7 +303,8 @@
+@@ -311,7 +314,8 @@
  void
  trx_sys_update_mysql_binlog_offset(
  /*===============================*/
@@ -294,7 +294,7 @@
  	ib_int64_t	offset,	/*!< in: position in that log file */
  	ulint		field,	/*!< in: offset of the MySQL log info field in
  				the trx sys header */
-@@ -482,6 +486,7 @@
+@@ -493,6 +497,7 @@
  @see trx_sys_mysql_master_log_name
  @see trx_sys_mysql_bin_log_name */
  #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
@@ -302,7 +302,7 @@
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
  
-@@ -491,6 +496,7 @@
+@@ -502,6 +507,7 @@
  /** The offset of the MySQL replication info in the trx system header;
  this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
  #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)

@@ -14,8 +14,8 @@
 -UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
 +UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
  
- /**********************************************************************//**
- Get the offset of the buddy of a compressed page frame.
+ /** Validate a given zip_free list. */
+ #define BUF_BUDDY_LIST_VALIDATE(i)				\
 --- a/storage/innodb_plugin/fil/fil0fil.c
 +++ b/storage/innodb_plugin/fil/fil0fil.c
 @@ -692,7 +692,7 @@
@@ -120,7 +120,7 @@
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2103,6 +2106,62 @@
+@@ -2107,6 +2110,62 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -183,7 +183,7 @@
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7007,9 +7066,9 @@
+@@ -6994,9 +7053,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -196,7 +196,7 @@
  		}
  	}
  
-@@ -11202,6 +11261,16 @@
+@@ -11196,6 +11255,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -213,7 +213,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11678,6 +11747,8 @@
+@@ -11683,6 +11752,8 @@
    NULL, NULL, 0, 0, 2, 0);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -233,7 +233,7 @@
  };
 --- a/storage/innodb_plugin/include/buf0buddy.h
 +++ b/storage/innodb_plugin/include/buf0buddy.h
-@@ -83,7 +83,7 @@
+@@ -78,7 +78,7 @@
  
  /** Statistics of the buddy system, indexed by block size.
  Protected by buf_pool_mutex. */
@@ -244,10 +244,10 @@
  # include "buf0buddy.ic"
 --- a/storage/innodb_plugin/include/buf0buf.h
 +++ b/storage/innodb_plugin/include/buf0buf.h
-@@ -1451,11 +1451,11 @@
- 	/* @{ */
+@@ -1503,11 +1503,11 @@
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
+ #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 -	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 +	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
  					/*!< buddy free lists */
@@ -262,9 +262,9 @@
  #endif
 --- a/storage/innodb_plugin/include/buf0types.h
 +++ b/storage/innodb_plugin/include/buf0types.h
-@@ -70,12 +70,13 @@
- 					buddy system; must be at least
- 					sizeof(buf_page_t) */
+@@ -65,12 +65,13 @@
+ #define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
+ 
  #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
 +#define BUF_BUDDY_SIZES_MAX	(UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT)
  					/*!< number of buddy sizes */
@@ -356,7 +356,7 @@
  Write the "deleted" flag of a record on a compressed page.  The flag must
 --- a/storage/innodb_plugin/include/trx0sys.h
 +++ b/storage/innodb_plugin/include/trx0sys.h
-@@ -515,9 +515,9 @@
+@@ -526,9 +526,9 @@
  /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
  #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
  
@@ -371,7 +371,7 @@
  #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
 --- a/storage/innodb_plugin/include/univ.i
 +++ b/storage/innodb_plugin/include/univ.i
-@@ -286,9 +286,13 @@
+@@ -285,9 +285,13 @@
  */
  
  /* The 2-logarithm of UNIV_PAGE_SIZE: */
@@ -387,7 +387,7 @@
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -402,7 +406,7 @@
+@@ -401,7 +405,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -396,7 +396,7 @@
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -505,4 +509,6 @@
+@@ -504,4 +508,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  
@@ -533,10 +533,11 @@
  
 --- a/storage/innodb_plugin/srv/srv0srv.c
 +++ b/storage/innodb_plugin/srv/srv0srv.c
-@@ -217,6 +217,13 @@
- UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
- UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
+@@ -219,6 +219,14 @@
  
+ /* Switch to enable random read ahead. */
+ UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
++
 +/* The universal page size of the database */
 +UNIV_INTERN ulint	srv_page_size_shift	= 0;
 +UNIV_INTERN ulint	srv_page_size		= 0;
@@ -549,7 +550,7 @@
  readahead request. */
 --- a/storage/innodb_plugin/srv/srv0start.c
 +++ b/storage/innodb_plugin/srv/srv0start.c
-@@ -1512,10 +1512,12 @@
+@@ -1513,10 +1513,12 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -564,7 +565,7 @@
  
  		return(DB_ERROR);
  	}
-@@ -1524,7 +1526,7 @@
+@@ -1525,7 +1527,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

@@ -17,7 +17,7 @@
  EXTRA_LIBRARIES=	libinnobase.a
 --- a/storage/innodb_plugin/handler/ha_innodb.cc
 +++ b/storage/innodb_plugin/handler/ha_innodb.cc
-@@ -11117,7 +11117,8 @@
+@@ -11113,7 +11113,8 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,

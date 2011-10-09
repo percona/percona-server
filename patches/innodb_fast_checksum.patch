@@ -153,15 +153,15 @@
  static my_bool	innobase_recovery_stats			= TRUE;
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
-@@ -2625,6 +2626,7 @@
+@@ -2627,6 +2628,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
 +	srv_fast_checksum = (ibool) innobase_fast_checksum;
  
- #ifdef HAVE_LARGE_PAGES
-         if ((os_use_large_pages = (ibool) my_use_large_pages))
-@@ -11432,6 +11434,15 @@
+ 	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
+ 
+@@ -11436,6 +11438,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -177,7 +177,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11946,6 +11957,7 @@
+@@ -11957,6 +11968,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),
@@ -268,7 +268,7 @@
 +}
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -414,6 +414,7 @@
+@@ -417,6 +417,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

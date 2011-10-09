@@ -1085,7 +1085,7 @@
  drop table t2;
 --- a/mysql-test/suite/sys_vars/r/all_vars.result
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result
-@@ -1,23 +1,23 @@
+@@ -1,23 +1,27 @@
  create table t1 (test_name text);
  create table t2 (variable_name text);
  load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
@@ -1104,8 +1104,12 @@
  There should be *no* variables listed below:
 -INNODB_ROLLBACK_SEGMENTS
 -INNODB_STATS_METHOD
++INNODB_FAKE_CHANGES
++INNODB_FAKE_CHANGES
  INNODB_FILE_FORMAT_MAX
 +INNODB_FILE_FORMAT_MAX
++INNODB_KILL_IDLE_TRANSACTION
++INNODB_KILL_IDLE_TRANSACTION
 +INNODB_LARGE_PREFIX
  INNODB_LARGE_PREFIX
  INNODB_ROLLBACK_SEGMENTS

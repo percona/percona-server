@@ -1,13 +1,12 @@
 # name       : innodb_kill_idle_transaction.patch
-# introduced : 5.5.14
+# introduced : 5.5.15
 # maintainer : Yasufumi
 #
 #!!! notice !!!
 # Any small change to this file in the main branch
 # should be done or reviewed by the maintainer!
-diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
---- a/include/mysql/plugin.h	2011-06-22 01:42:39.000000000 +0900
-+++ b/include/mysql/plugin.h	2011-07-12 22:19:58.000000000 +0900
+--- a/include/mysql/plugin.h
++++ b/include/mysql/plugin.h
 @@ -625,6 +625,12 @@
  */
  void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
@@ -21,9 +20,8 @@ diff -ruN a/include/mysql/plugin.h b/include/mysql/plugin.h
  #ifdef __cplusplus
  }
  #endif
-diff -ruN a/include/mysql/plugin_audit.h.pp b/include/mysql/plugin_audit.h.pp
---- a/include/mysql/plugin_audit.h.pp	2011-06-22 01:42:39.000000000 +0900
-+++ b/include/mysql/plugin_audit.h.pp	2011-07-13 00:53:06.000000000 +0900
+--- a/include/mysql/plugin_audit.h.pp
++++ b/include/mysql/plugin_audit.h.pp
 @@ -195,6 +195,9 @@
  void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
  void thd_set_ha_data(void* thd, const struct handlerton *hton,
@@ -34,9 +32,8 @@ diff -ruN a/include/mysql/plugin_audit.h.pp b/include/mysql/plugin_audit.h.pp
  struct mysql_event_general
  {
    unsigned int event_subclass;
-diff -ruN a/include/mysql/plugin_auth.h.pp b/include/mysql/plugin_auth.h.pp
---- a/include/mysql/plugin_auth.h.pp	2011-06-22 01:42:39.000000000 +0900
-+++ b/include/mysql/plugin_auth.h.pp	2011-07-13 00:53:06.000000000 +0900
+--- a/include/mysql/plugin_auth.h.pp
++++ b/include/mysql/plugin_auth.h.pp
 @@ -195,6 +195,9 @@
  void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
  void thd_set_ha_data(void* thd, const struct handlerton *hton,
@@ -47,9 +44,8 @@ diff -ruN a/include/mysql/plugin_auth.h.pp b/include/mysql/plugin_auth.h.pp
  #include <mysql/plugin_auth_common.h>
  typedef struct st_plugin_vio_info
  {
-diff -ruN a/include/mysql/plugin_ftparser.h.pp b/include/mysql/plugin_ftparser.h.pp
---- a/include/mysql/plugin_ftparser.h.pp	2011-06-22 01:42:39.000000000 +0900
-+++ b/include/mysql/plugin_ftparser.h.pp	2011-07-13 00:53:06.000000000 +0900
+--- a/include/mysql/plugin_ftparser.h.pp
++++ b/include/mysql/plugin_ftparser.h.pp
 @@ -148,6 +148,9 @@
  void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
  void thd_set_ha_data(void* thd, const struct handlerton *hton,
@@ -60,10 +56,9 @@ diff -ruN a/include/mysql/plugin_ftparser.h.pp b/include/mysql/plugin_ftparser.h
  enum enum_ftparser_mode
  {
    MYSQL_FTPARSER_SIMPLE_MODE= 0,
-diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
---- a/sql/sql_class.cc	2011-06-22 01:42:40.000000000 +0900
-+++ b/sql/sql_class.cc	2011-07-12 22:23:35.000000000 +0900
-@@ -711,6 +711,26 @@
+--- a/sql/sql_class.cc
++++ b/sql/sql_class.cc
+@@ -713,6 +713,26 @@
    return buffer;
  }
  
@@ -90,10 +85,9 @@ diff -ruN a/sql/sql_class.cc b/sql/sql_class.cc
  
  /**
    Implementation of Drop_table_error_handler::handle_condition().
-diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_innodb.cc
---- a/storage/innobase/handler/ha_innodb.cc	2011-07-12 17:10:37.000000000 +0900
-+++ b/storage/innobase/handler/ha_innodb.cc	2011-07-12 22:33:06.000000000 +0900
-@@ -2828,6 +2828,10 @@
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
+@@ -2831,6 +2831,10 @@
  
  	innobase_commit_concurrency_init_default();
  
@@ -104,7 +98,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  #ifdef HAVE_PSI_INTERFACE
  	/* Register keys with MySQL performance schema */
  	if (PSI_server) {
-@@ -11586,6 +11590,48 @@
+@@ -11589,6 +11593,48 @@
  	return(false);
  }
  
@@ -153,7 +147,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static SHOW_VAR innodb_status_variables_export[]= {
    {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
    {NullS, NullS, SHOW_LONG}
-@@ -11872,6 +11918,15 @@
+@@ -11875,6 +11921,15 @@
    "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
    NULL, NULL, 500L, 1L, ~0L, 0);
  
@@ -169,7 +163,7 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
  static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
    "Number of file I/O threads in InnoDB.",
-@@ -12162,6 +12217,7 @@
+@@ -12172,6 +12227,7 @@
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
@@ -177,9 +171,8 @@ diff -ruN a/storage/innobase/handler/ha_innodb.cc b/storage/innobase/handler/ha_
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(doublewrite_file),
    MYSQL_SYSVAR(data_home_dir),
-diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0srv.h
---- a/storage/innobase/include/srv0srv.h	2011-07-12 17:10:37.000000000 +0900
-+++ b/storage/innobase/include/srv0srv.h	2011-07-12 22:33:57.000000000 +0900
+--- a/storage/innobase/include/srv0srv.h
++++ b/storage/innobase/include/srv0srv.h
 @@ -291,6 +291,7 @@
  extern ulint	srv_activity_count;
  extern ulint	srv_fatal_semaphore_wait_threshold;
@@ -188,9 +181,8 @@ diff -ruN a/storage/innobase/include/srv0srv.h b/storage/innobase/include/srv0sr
  
  extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
  				query threads, and lock table: we allocate
-diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0trx.h
---- a/storage/innobase/include/trx0trx.h	2011-07-12 16:47:24.000000000 +0900
-+++ b/storage/innobase/include/trx0trx.h	2011-07-12 22:35:39.000000000 +0900
+--- a/storage/innobase/include/trx0trx.h
++++ b/storage/innobase/include/trx0trx.h
 @@ -594,6 +594,8 @@
  					replication has processed */
  	const char*	mysql_relay_log_file_name;
@@ -200,9 +192,8 @@ diff -ruN a/storage/innobase/include/trx0trx.h b/storage/innobase/include/trx0tr
  	/*------------------------------*/
  	ulint		n_mysql_tables_in_use; /* number of Innobase tables
  					used in the processing of the current
-diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
---- a/storage/innobase/srv/srv0srv.c	2011-07-12 17:10:37.000000000 +0900
-+++ b/storage/innobase/srv/srv0srv.c	2011-07-12 22:43:22.000000000 +0900
+--- a/storage/innobase/srv/srv0srv.c
++++ b/storage/innobase/srv/srv0srv.c
 @@ -87,6 +87,11 @@
  #include "mysql/plugin.h"
  #include "mysql/service_thd_wait.h"
@@ -225,7 +216,7 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  /* How much data manipulation language (DML) statements need to be delayed,
  in microseconds, in order to reduce the lagging of the purge thread. */
  UNIV_INTERN ulint	srv_dml_needed_delay = 0;
-@@ -2826,6 +2834,36 @@
+@@ -2829,6 +2837,36 @@
  		old_sema = sema;
  	}
  
@@ -262,9 +253,8 @@ diff -ruN a/storage/innobase/srv/srv0srv.c b/storage/innobase/srv/srv0srv.c
  	/* Flush stderr so that a database user gets the output
  	to possible MySQL error file */
  
-diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
---- a/storage/innobase/trx/trx0trx.c	2011-07-12 17:05:25.000000000 +0900
-+++ b/storage/innobase/trx/trx0trx.c	2011-07-12 22:44:08.000000000 +0900
+--- a/storage/innobase/trx/trx0trx.c
++++ b/storage/innobase/trx/trx0trx.c
 @@ -143,6 +143,9 @@
  	trx->mysql_relay_log_file_name = "";
  	trx->mysql_relay_log_pos = 0;
@@ -275,3 +265,165 @@ diff -ruN a/storage/innobase/trx/trx0trx.c b/storage/innobase/trx/trx0trx.c
  	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
  
  	trx->rseg = NULL;
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_kill_idle_trx.result
+@@ -0,0 +1,41 @@
++DROP TABLE IF EXISTS t1;
++SET autocommit=0;
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
++Variable_name	Value
++innodb_kill_idle_transaction	0
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
++SET GLOBAL innodb_kill_idle_transaction=1;
++SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
++Variable_name	Value
++innodb_kill_idle_transaction	1
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	1
++BEGIN;
++INSERT INTO t1 VALUES (1),(2),(3);
++COMMIT;
++SELECT * FROM t1;
++a
++1
++2
++3
++BEGIN;
++INSERT INTO t1 VALUES (4),(5),(6);
++SELECT * FROM t1;
++ERROR HY000: MySQL server has gone away
++SELECT * FROM t1;
++a
++1
++2
++3
++DROP TABLE t1;
++SET GLOBAL innodb_kill_idle_transaction=0;
++SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
++Variable_name	Value
++innodb_kill_idle_transaction	0
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_kill_idle_trx_locks.result
+@@ -0,0 +1,45 @@
++DROP TABLE IF EXISTS t1;
++SET autocommit=0;
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
++Variable_name	Value
++innodb_kill_idle_transaction	0
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
++SET GLOBAL innodb_kill_idle_transaction=5;
++SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
++Variable_name	Value
++innodb_kill_idle_transaction	5
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	5
++BEGIN;
++INSERT INTO t1 VALUES (1),(2),(3);
++COMMIT;
++SELECT * FROM t1;
++a
++1
++2
++3
++### Locking rows. Lock should be released when idle trx is killed.
++BEGIN;
++SELECT * FROM t1 FOR UPDATE;
++a
++1
++2
++3
++UPDATE t1 set a=4;
++SELECT * FROM t1;
++a
++4
++4
++4
++DROP TABLE t1;
++SET GLOBAL innodb_kill_idle_transaction=0;
++SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
++Variable_name	Value
++innodb_kill_idle_transaction	0
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';
++VARIABLE_NAME	VARIABLE_VALUE
++INNODB_KILL_IDLE_TRANSACTION	0
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_kill_idle_trx.test
+@@ -0,0 +1,28 @@
++--source include/have_innodb.inc
++--disable_warnings
++DROP TABLE IF EXISTS t1; 
++--enable_warnings
++
++SET autocommit=0;
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++
++--source include/percona_innodb_kill_idle_trx_show.inc
++SET GLOBAL innodb_kill_idle_transaction=1;
++--source include/percona_innodb_kill_idle_trx_show.inc
++
++BEGIN;
++INSERT INTO t1 VALUES (1),(2),(3);
++COMMIT;
++SELECT * FROM t1;
++
++BEGIN;
++INSERT INTO t1 VALUES (4),(5),(6);
++sleep 3;
++
++--enable_reconnect
++--error 2006 --error CR_SERVER_GONE_ERROR
++SELECT * FROM t1;
++SELECT * FROM t1;
++DROP TABLE t1;
++SET GLOBAL innodb_kill_idle_transaction=0;
++--source include/percona_innodb_kill_idle_trx_show.inc
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_kill_idle_trx_locks.test
+@@ -0,0 +1,31 @@
++--source include/have_innodb.inc
++--disable_warnings
++DROP TABLE IF EXISTS t1;
++--enable_warnings
++
++SET autocommit=0;
++CREATE TABLE t1 (a INT) ENGINE=InnoDB;
++
++--source include/percona_innodb_kill_idle_trx_show.inc
++SET GLOBAL innodb_kill_idle_transaction=5;
++--source include/percona_innodb_kill_idle_trx_show.inc
++
++connect (conn1,localhost,root,,);
++connection conn1;
++
++BEGIN;
++INSERT INTO t1 VALUES (1),(2),(3);
++COMMIT;
++SELECT * FROM t1;
++
++--echo ### Locking rows. Lock should be released when idle trx is killed.
++BEGIN;
++SELECT * FROM t1 FOR UPDATE;
++
++connection default;
++UPDATE t1 set a=4;
++
++SELECT * FROM t1;
++DROP TABLE t1;
++SET GLOBAL innodb_kill_idle_transaction=0;
++--source include/percona_innodb_kill_idle_trx_show.inc
+--- /dev/null
++++ b/mysql-test/include/percona_innodb_kill_idle_trx_show.inc
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES LIKE 'innodb_kill_idle_transaction';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_kill_idle_transaction';

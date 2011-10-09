@@ -1,3 +1,5 @@
+.. _innodb_lru_dump_restore:
+
 =================================
  Dump/Restore of the Buffer Pool
 =================================

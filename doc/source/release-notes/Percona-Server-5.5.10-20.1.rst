@@ -30,7 +30,7 @@ Variable Changes
 
   * Old system variable :variable:`userstat_running` was renamed to :variable:`userstat`. (*Oleg Tsarev*)
 
-  * Old system variable :variable:`innodb_expand_import` was renamed to :variable:`innodb_import_table_from_xtrabackup`. (*Yasufumi Kinoshita*)
+  * Old system variable :variable:`innodb_expand_import_page` was renamed to :variable:`innodb_import_table_from_xtrabackup`. (*Yasufumi Kinoshita*)
 
   * Old system variable :variable:`innodb_auto_lru_dump` was renamed to :variable:`innodb_buffer_pool_restore_at_startup`. (*Yasufumi Kinoshita*)
 
@@ -43,6 +43,6 @@ Bug Fixes
 
   * Bug :bug:`724674` - Ported an updated version of the original implementation of the :ref:`remove_fcntl_excessive_calls` feature, which removes some ``fcntl`` calls to improve performance. (*Oleg Tsarev*)
 
-  * Bug :bug:`727704` - When using the :ref:`innodb_expand_import` feature, importing .ibd files created on |MySQL| 5.0 or |Percona Server| versions prior to 5.1.7 could crash the server. (*Yasufumi Kinoshita*)
+  * Bug :bug:`727704` - When using the :ref:`innodb_expand_import_page` feature, importing .ibd files created on |MySQL| 5.0 or |Percona Server| versions prior to 5.1.7 could crash the server. (*Yasufumi Kinoshita*)
 
   * |MySQL| bugs `56433 <http://bugs.mysql.com/56433>`_ and `51325 <http://bugs.mysql.com/51325>`_ - These |MySQL| bugs have been fixed in |Percona Server|. (*Yasufumi Kinoshita*)

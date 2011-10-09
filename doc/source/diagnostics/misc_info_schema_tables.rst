@@ -1,6 +1,8 @@
-===============================
-Misc. INFORMATION_SCHEMA Tables
-===============================
+.. _misc_info_schema_tables:
+
+=================================
+ Misc. INFORMATION_SCHEMA Tables
+=================================
 
 This page lists the ``INFORMATION_SCHEMA`` tables added to standard |MySQL| by |Percona Server| that don``t exist elsewhere in the documentation.
 

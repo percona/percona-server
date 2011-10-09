@@ -1,3 +1,5 @@
+.. _sql_no_fcache:
+
 ==============================
 Prevent Caching to FlashCache
 ==============================

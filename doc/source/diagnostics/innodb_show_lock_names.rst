@@ -1,3 +1,5 @@
+.. _innodb_show_lock_names:
+
 =================
  Show Lock Names
 =================

@@ -1,3 +1,5 @@
+.. _innodb_recovery_patches:
+
 ================================
  Fast |InnoDB| Recovery Process
 ================================
@@ -6,8 +8,7 @@ This feature implements several changes related to the recovery process (bug fix
 
   * ``recv_apply_hashed_log_recs()`` may hang up when meets DB_TABLESPACE_DELETED pages
 
-  * Insert buffer operation may destroy the page during its recovery process
-adjustment of smaller sleep period in loop
+  * Insert buffer operation may destroy the page during its recovery process adjustment of smaller sleep period in loop
 
   * ``buf_flush_insert_sorted_into_flush_list()`` change to don't sort (new variable ``innodb_fast_recovery`` (default false(~1.0.5), true(1.0.6~)) - if set true, sorting is enabled.)
 

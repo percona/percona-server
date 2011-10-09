@@ -1,10 +1,10 @@
 .. rn:: 5.5.11-20.2
 
-============================
-|Percona Server| 5.5.11-20.2
-============================
+==============================
+ |Percona Server| 5.5.11-20.2
+==============================
 
-Released on April 28, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/LATEST/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_. An experimental build for MacOS is available `here <http://www.percona.com/downloads/TESTING/Percona-Server-55/Percona-Server-5.5.11-20.2/release-5.5.11-20.2/114/MacOSX/binary/>`_.)
+Released on April 28, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/LATEST/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_. An `experimental build for MacOS is available <http://www.percona.com/downloads/TESTING/Percona-Server-55/Percona-Server-5.5.11-20.2/release-5.5.11-20.2/114/MacOSX/binary/>`_.)
 
 |Percona Server| 5.5.11-20.2 is a stable release.
 

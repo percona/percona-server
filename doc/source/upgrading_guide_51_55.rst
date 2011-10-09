@@ -116,7 +116,9 @@ Grepping Old Variables
 You can check if old variables are being used in your configuration file by issuing the following line in a shell: ::
 
   egrep -ni 'innodb_adaptive_checkpoint|suppress_log_warning_1592|innodb_pass_corrupt_table|innodb_expand_import|innodb_auto_lru_dump|log_slow_timestamp_every|slow_query_log_microseconds_timestamp|use_global_log_slow_control|enable_query_response_time_stats|innodb_buffer_pool_shm_key|innodb_buffer_pool_shm_checksum' /PATH/TO/my.cnf
+
 New Features
+------------
 
 You may also want to check the new features available in |Percona Server| 5.5:
 
@@ -254,7 +256,7 @@ Before starting the upgrade, a full backup of the data must be done. Doing a ful
 
 This will backup all the data in your server to a time stamped subdirectory of the path provided.
 
-|innobackupex| is a *Perl* script distributed with |XtraBackup|, a hot-backup utility for |MySQL| -based servers that doesn't block your database during the backup. If you don't have |XtraBackup| installed already, instructions can be found :ref:`here <xbk:dochome>`.
+|innobackupex| is a *Perl* script distributed with |XtraBackup|, a hot-backup utility for |MySQL| -based servers that doesn't block your database during the backup. If you don't have |XtraBackup| installed already, instructions can be found `here <http://www.percona.com/doc/percona-xtrabackup/>`_.
 
 You should backup your entire configuration file - :file:`my.cnf` - also. The file is usually located in :file:`/etc/mysql/` or :file:`/etc/` or as :file:`.my.cnf` in user's home directory, ::
 

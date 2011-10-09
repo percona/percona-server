@@ -1,3 +1,5 @@
+.. _innodb_fast_checksum_page:
+
 ========================
  Fast |InnoDB| Checksum
 ========================

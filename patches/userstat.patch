@@ -726,7 +726,7 @@
    if (delete_table)
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -849,6 +849,13 @@
+@@ -869,6 +869,13 @@
    mysys_var=0;
    binlog_evt_union.do_union= FALSE;
    enable_slow_log= 0;
@@ -740,7 +740,7 @@
  #ifndef DBUG_OFF
    dbug_sentry=THD_SENTRY_MAGIC;
  #endif
-@@ -1228,6 +1235,7 @@
+@@ -1248,6 +1255,7 @@
      variables.option_bits|= OPTION_BIN_LOG;
    else
      variables.option_bits&= ~OPTION_BIN_LOG;
@@ -748,7 +748,7 @@
  
  #if defined(ENABLED_DEBUG_SYNC)
    /* Initialize the Debug Sync Facility. See debug_sync.cc. */
-@@ -1235,6 +1243,94 @@
+@@ -1255,6 +1263,94 @@
  #endif /* defined(ENABLED_DEBUG_SYNC) */
  }
  
@@ -843,7 +843,7 @@
  
  /*
    Init THD for query processing.
-@@ -1989,6 +2085,32 @@
+@@ -2009,6 +2105,32 @@
  }
  #endif
  
@@ -876,7 +876,7 @@
  
  struct Item_change_record: public ilink
  {
-@@ -2165,6 +2287,7 @@
+@@ -2185,6 +2307,7 @@
    }
  
    thd->sent_row_count++;
@@ -884,7 +884,7 @@
  
    if (thd->vio_ok())
      DBUG_RETURN(protocol->write());
-@@ -2257,6 +2380,7 @@
+@@ -2277,6 +2400,7 @@
  select_export::~select_export()
  {
    thd->sent_row_count=row_count;
@@ -892,7 +892,7 @@
  }
  
  
-@@ -3280,6 +3404,7 @@
+@@ -3300,6 +3424,7 @@
    if (likely(thd != 0))
    { /* current_thd==0 when close_connection() calls net_send_error() */
      thd->status_var.bytes_sent+= length;
@@ -900,7 +900,7 @@
    }
  }
  
-@@ -3287,6 +3412,7 @@
+@@ -3307,6 +3432,7 @@
  void thd_increment_bytes_received(ulong length)
  {
    current_thd->status_var.bytes_received+= length;

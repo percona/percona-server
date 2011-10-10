@@ -1,3 +1,5 @@
+.. _innodb_recovery_update_relay_log_page:
+
 =============================
  Crash-Resistant Replication
 =============================

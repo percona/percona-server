@@ -1339,7 +1339,7 @@
         "If non-zero, binary logs will be purged after expire_logs_days "
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -993,6 +993,19 @@
+@@ -999,6 +999,19 @@
  	return(THDVAR((THD*) thd, flush_log_at_trx_commit));
  }
  

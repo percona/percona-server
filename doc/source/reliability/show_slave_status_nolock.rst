@@ -1,6 +1,8 @@
-=============================
- Lock-Free SHOW SLAVE STATUS
-=============================
+.. _show_slave_status_nolock:
+
+=================================
+ Lock-Free ``SHOW SLAVE STATUS``
+=================================
 
 The ``STOP SLAVE`` and ``SHOW SLAVE STATUS`` commands can conflict due to a global lock in the situation where one thread on a slave attempts to execute a ``STOP SLAVE`` command, while a second thread on the slave is already running a command that takes a long time to execute.
 

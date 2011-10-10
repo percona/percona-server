@@ -1,3 +1,5 @@
+.. _innodb_deadlock_count:
+
 ==========================
  Count |InnoDB| Deadlocks
 ==========================

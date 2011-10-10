@@ -1,6 +1,8 @@
-=================================
- Improved InnoDB I/O Scalability
-=================================
+.. _innodb_io_55_page:
+
+===================================
+ Improved |InnoDB| I/O Scalability
+===================================
 
 .. default-domain:: psdom
 

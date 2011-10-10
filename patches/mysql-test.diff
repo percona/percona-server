@@ -1085,7 +1085,7 @@
  drop table t2;
 --- a/mysql-test/suite/sys_vars/r/all_vars.result
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result
-@@ -1,15 +1,15 @@
+@@ -1,16 +1,20 @@
  create table t1 (test_name text);
  create table t2 (variable_name text);
  load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
@@ -1102,8 +1102,13 @@
 -left join t1 on variable_name=test_name where test_name is null;
 +left join t1 on variable_name=test_name where test_name is null order by 1;
  There should be *no* variables listed below:
++INNODB_FAKE_CHANGES
++INNODB_FAKE_CHANGES
++INNODB_KILL_IDLE_TRANSACTION
++INNODB_KILL_IDLE_TRANSACTION
  INNODB_LARGE_PREFIX
  INNODB_LARGE_PREFIX
+ drop table t1;
 --- /dev/null
 +++ b/mysql-test/include/percona_server_variables.inc
 @@ -0,0 +1,3 @@
@@ -1112,7 +1117,7 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,376 @@
+@@ -0,0 +1,379 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1217,6 +1222,7 @@
 +INNODB_DICT_SIZE_LIMIT
 +INNODB_DOUBLEWRITE
 +INNODB_DOUBLEWRITE_FILE
++INNODB_FAKE_CHANGES
 +INNODB_FAST_CHECKSUM
 +INNODB_FAST_SHUTDOWN
 +INNODB_FILE_FORMAT
@@ -1232,6 +1238,7 @@
 +INNODB_IBUF_MAX_SIZE
 +INNODB_IMPORT_TABLE_FROM_XTRABACKUP
 +INNODB_IO_CAPACITY
++INNODB_KILL_IDLE_TRANSACTION
 +INNODB_LARGE_PREFIX
 +INNODB_LAZY_DROP_TABLE
 +INNODB_LOCKS_UNSAFE_FOR_BINLOG
@@ -1489,9 +1496,10 @@
 +VERSION_COMPILE_MACHINE
 +VERSION_COMPILE_OS
 +WAIT_TIMEOUT
++WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
-@@ -0,0 +1,371 @@
+@@ -0,0 +1,375 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1593,6 +1601,7 @@
 +INNODB_DICT_SIZE_LIMIT
 +INNODB_DOUBLEWRITE
 +INNODB_DOUBLEWRITE_FILE
++INNODB_FAKE_CHANGES
 +INNODB_FAST_CHECKSUM
 +INNODB_FAST_SHUTDOWN
 +INNODB_FILE_FORMAT
@@ -1608,6 +1617,7 @@
 +INNODB_IBUF_MAX_SIZE
 +INNODB_IMPORT_TABLE_FROM_XTRABACKUP
 +INNODB_IO_CAPACITY
++INNODB_KILL_IDLE_TRANSACTION
 +INNODB_LARGE_PREFIX
 +INNODB_LAZY_DROP_TABLE
 +INNODB_LOCKS_UNSAFE_FOR_BINLOG
@@ -1863,6 +1873,8 @@
 +VERSION_COMMENT
 +VERSION_COMPILE_MACHINE
 +VERSION_COMPILE_OS
++WAIT_TIMEOUT
++WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/t/percona_server_variables_debug.test
 @@ -0,0 +1,2 @@

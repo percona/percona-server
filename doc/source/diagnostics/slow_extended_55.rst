@@ -1,3 +1,5 @@
+.. _slow_extended_55:
+
 ================
  Slow Query Log
 ================

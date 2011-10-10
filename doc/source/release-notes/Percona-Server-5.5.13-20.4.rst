@@ -29,7 +29,7 @@ Bug Fixes
 
   * On a high concurrency environment with compressed tables, users may experience crashes due to improper mutex handling in ``buf_page_get_zip()``. Bug Fix: :bug:`802348` (*Yasufumi Kinoshita*).
 
-  * |XtraDB| crashed when importing big tables (e.g. 350G) using the :ref:`Expand Table Import <innodb_import_table_from_xtrabackup>` feature due to a timeout. Bug Fix: :bug:`684829` (*Yasufumi Kinoshita*).
+  * |XtraDB| crashed when importing big tables (e.g. 350G) using the :ref:`Expand Table Import <innodb_expand_import_page>` feature due to a timeout. Bug Fix: :bug:`684829` (*Yasufumi Kinoshita*).
 
   * Partitioning adaptive hash index may leave to a hangup of the server in some scenarios. Bug Fix: :bug:`791030` (*Yasufumi Kinoshita*).
 

@@ -18,7 +18,7 @@
  		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -881,9 +881,9 @@
+@@ -882,9 +882,9 @@
  	block->page.in_zip_hash = FALSE;
  	block->page.in_flush_list = FALSE;
  	block->page.in_free_list = FALSE;
@@ -29,7 +29,7 @@
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
  	block->n_pointers = 0;
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-@@ -1428,7 +1428,7 @@
+@@ -1429,7 +1429,7 @@
  
  	memcpy(dpage, bpage, sizeof *dpage);
  
@@ -38,7 +38,7 @@
  	ut_d(bpage->in_page_hash = FALSE);
  
  	/* relocate buf_pool->LRU */
-@@ -3279,8 +3279,8 @@
+@@ -3283,8 +3283,8 @@
  		bpage->in_zip_hash = FALSE;
  		bpage->in_flush_list = FALSE;
  		bpage->in_free_list = FALSE;
@@ -48,7 +48,7 @@
  
  		ut_d(bpage->in_page_hash = TRUE);
  
-@@ -3445,7 +3445,7 @@
+@@ -3449,7 +3449,7 @@
  	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -233,7 +233,7 @@
  
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
-@@ -200,7 +200,7 @@
+@@ -367,7 +367,7 @@
  	}
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -242,7 +242,7 @@
  
  	/* Increment number of I/O operations used for LRU policy. */
  	buf_LRU_stat_inc_io();
-@@ -474,7 +474,7 @@
+@@ -641,7 +641,7 @@
  	os_aio_simulated_wake_handler_threads();
  
  	/* Flush pages from the end of the LRU list if necessary */
@@ -251,7 +251,7 @@
  
  #ifdef UNIV_DEBUG
  	if (buf_debug_prints && (count > 0)) {
-@@ -562,7 +562,7 @@
+@@ -729,7 +729,7 @@
  	os_aio_simulated_wake_handler_threads();
  
  	/* Flush pages from the end of all the LRU lists if necessary */
@@ -260,7 +260,7 @@
  
  #ifdef UNIV_DEBUG
  	if (buf_debug_prints) {
-@@ -656,7 +656,7 @@
+@@ -823,7 +823,7 @@
  	os_aio_simulated_wake_handler_threads();
  
  	/* Flush pages from the end of all the LRU lists if necessary */
@@ -271,7 +271,7 @@
  	if (buf_debug_prints) {
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1426,11 +1426,11 @@
+@@ -1442,11 +1442,11 @@
  
  	UT_LIST_NODE_T(buf_page_t) LRU;
  					/*!< node of the LRU list */

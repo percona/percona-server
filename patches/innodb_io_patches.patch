@@ -45,8 +45,8 @@
  
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
-@@ -260,6 +260,10 @@
- 		= BUF_READ_AHEAD_LINEAR_AREA(buf_pool);
+@@ -427,6 +427,10 @@
+ 		= BUF_READ_AHEAD_AREA(buf_pool);
  	ulint		threshold;
  
 +	if (!(srv_read_ahead & 2)) {
@@ -147,7 +147,7 @@
  
  static handler *innobase_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
-@@ -839,6 +845,17 @@
+@@ -841,6 +847,17 @@
  	}
  }
  
@@ -165,7 +165,7 @@
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2442,6 +2459,9 @@
+@@ -2444,6 +2461,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -175,7 +175,7 @@
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -11036,7 +11056,7 @@
+@@ -11026,7 +11046,7 @@
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
    "Purge threads can be either 0 or 1.",
    NULL, NULL,
@@ -184,7 +184,7 @@
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -11078,12 +11098,18 @@
+@@ -11068,12 +11088,18 @@
    innodb_file_format_max_validate,
    innodb_file_format_max_update, "Antelope");
  
@@ -209,7 +209,7 @@
  
  static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11183,7 +11209,7 @@
+@@ -11173,7 +11199,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -218,7 +218,7 @@
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11335,6 +11361,95 @@
+@@ -11330,6 +11356,95 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -314,7 +314,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11355,6 +11470,7 @@
+@@ -11350,6 +11465,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -322,7 +322,7 @@
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(large_prefix),
-@@ -11393,6 +11509,13 @@
+@@ -11388,6 +11504,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -365,7 +365,7 @@
  
 --- a/storage/innobase/include/buf0rea.h
 +++ b/storage/innobase/include/buf0rea.h
-@@ -124,8 +124,7 @@
+@@ -149,8 +149,7 @@
  
  /** The size in pages of the area which the read-ahead algorithms read if
  invoked */
@@ -475,7 +475,7 @@
  extern char	srv_adaptive_flushing;
  
  
-@@ -216,6 +217,16 @@
+@@ -217,6 +218,16 @@
  extern ulong	srv_max_purge_lag;
  
  extern ulong	srv_replication_delay;
@@ -492,7 +492,7 @@
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -394,8 +405,9 @@
+@@ -395,8 +406,9 @@
  				when writing data files, but do flush
  				after writing to log files */
  	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
@@ -852,7 +852,7 @@
  
  /* Try to flush dirty pages so as to avoid IO bursts at
  the checkpoints. */
-@@ -402,6 +403,17 @@
+@@ -404,6 +405,17 @@
  
  UNIV_INTERN ulong	srv_replication_delay		= 0;
  
@@ -870,7 +870,7 @@
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2709,7 +2721,7 @@
+@@ -2713,7 +2725,7 @@
  
  	ut_ad(!mutex_own(&kernel_mutex));
  
@@ -879,7 +879,7 @@
  
  	do {
  		/* Check for shutdown and change in purge config. */
-@@ -2742,6 +2754,7 @@
+@@ -2746,6 +2758,7 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -887,7 +887,7 @@
  	ulint		n_bytes_archived;
  	ulint		n_tables_to_drop;
  	ulint		n_ios;
-@@ -2749,7 +2762,20 @@
+@@ -2753,7 +2766,20 @@
  	ulint		n_ios_very_old;
  	ulint		n_pend_ios;
  	ulint		next_itr_time;
@@ -908,7 +908,7 @@
  
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
-@@ -2771,6 +2797,9 @@
+@@ -2775,6 +2801,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -918,7 +918,7 @@
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2801,9 +2830,13 @@
+@@ -2805,9 +2834,13 @@
  	/* Sleep for 1 second on entrying the for loop below the first time. */
  	next_itr_time = ut_time_ms() + 1000;
  
@@ -932,7 +932,7 @@
  		/* ALTER TABLE in MySQL requires on Unix that the table handler
  		can drop tables lazily after there no longer are SELECT
  		queries to them. */
-@@ -2827,6 +2860,7 @@
+@@ -2831,6 +2864,7 @@
  		srv_main_thread_op_info = "sleeping";
  		srv_main_1_second_loops++;
  
@@ -940,7 +940,7 @@
  		if (next_itr_time > cur_time
  		    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
  
-@@ -2837,10 +2871,26 @@
+@@ -2841,10 +2875,26 @@
  					(next_itr_time - cur_time)
  					 * 1000));
  			srv_main_sleeps++;
@@ -967,7 +967,7 @@
  
  		/* Flush logs if needed */
  		srv_sync_log_buffer_in_background();
-@@ -2860,7 +2910,7 @@
+@@ -2864,7 +2914,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -976,7 +976,7 @@
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2877,7 +2927,11 @@
+@@ -2881,7 +2931,11 @@
  			n_pages_flushed = buf_flush_list(
  				PCT_IO(100), IB_ULONGLONG_MAX);
  
@@ -989,7 +989,7 @@
  
  			/* Try to keep the rate of flushing of dirty
  			pages such that redo log generation does not
-@@ -2893,6 +2947,224 @@
+@@ -2897,6 +2951,224 @@
  						n_flush,
  						IB_ULONGLONG_MAX);
  			}
@@ -1214,7 +1214,7 @@
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2941,12 +3213,12 @@
+@@ -2945,12 +3217,12 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1229,7 +1229,7 @@
  		srv_main_thread_op_info = "master purging";
  
  		srv_master_do_purge();
-@@ -3024,7 +3296,7 @@
+@@ -3028,7 +3300,7 @@
  		}
  	}
  
@@ -1238,7 +1238,7 @@
  		srv_main_thread_op_info = "master purging";
  
  		srv_master_do_purge();
-@@ -3049,7 +3321,7 @@
+@@ -3053,7 +3325,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -1247,7 +1247,7 @@
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-@@ -3189,6 +3461,7 @@
+@@ -3193,6 +3465,7 @@
  	srv_slot_t*	slot;
  	ulint		retries = 0;
  	ulint		n_total_purged = ULINT_UNDEFINED;
@@ -1255,7 +1255,7 @@
  
  	ut_a(srv_n_purge_threads == 1);
  
-@@ -3209,9 +3482,12 @@
+@@ -3213,9 +3486,12 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -1268,7 +1268,7 @@
  
  		/* If there are very few records to purge or the last
  		purge didn't purge any records then wait for activity.
-@@ -3258,6 +3534,16 @@
+@@ -3262,6 +3538,16 @@
  		} while (n_pages_purged > 0 && !srv_fast_shutdown);
  
  		srv_sync_log_buffer_in_background();

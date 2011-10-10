@@ -1,6 +1,6 @@
 FETCH_CMD=wget
-MASTER_SITE=http://s3.amazonaws.com/percona.com/downloads/community
-MYSQL_VERSION=5.5.15
+MASTER_SITE=http://www.percona.com/downloads/community
+MYSQL_VERSION=5.5.16
 PERCONA_SERVER_VERSION=rel21.0
 PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
 PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)
@@ -97,4 +97,4 @@ misc:
 	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
 clean:
-	rm -rf mysql-$(MYSQL_VERSION) $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1) $(PERCONA_SERVER_SHORT_2)
+	rm -rf mysql-$(MYSQL_VERSION) $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1) $(PERCONA_SERVER_SHORT_2) $(RELEASE_DIR) $(DEBUG_DIR)

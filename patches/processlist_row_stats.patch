@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -2288,6 +2288,7 @@
+@@ -2308,6 +2308,7 @@
  
    thd->sent_row_count++;
    thd->sent_row_count_2++;
@@ -87,7 +87,7 @@
        if (schema_table_store_record(thd, table))
        {
          mysql_mutex_unlock(&LOCK_thread_count);
-@@ -8117,6 +8143,12 @@
+@@ -8140,6 +8166,12 @@
     SKIP_OPEN_TABLE},
    {"TIME_MS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG,
     0, 0, "Time_ms", SKIP_OPEN_TABLE},

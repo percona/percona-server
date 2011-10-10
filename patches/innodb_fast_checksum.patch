@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -511,6 +511,27 @@
+@@ -512,6 +512,27 @@
  	return(checksum);
  }
  
@@ -35,7 +35,7 @@
  /********************************************************************//**
  In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
  looked at the first few bytes of the page. This calculates that old
-@@ -627,9 +648,21 @@
+@@ -628,9 +649,21 @@
  		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
  		(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
  
@@ -58,7 +58,7 @@
  		    != buf_calc_page_new_checksum(read_buf)) {
  
  			return(TRUE);
-@@ -653,6 +686,7 @@
+@@ -654,6 +687,7 @@
  	dict_index_t*	index;
  #endif /* !UNIV_HOTBACKUP */
  	ulint		checksum;
@@ -66,7 +66,7 @@
  	ulint		old_checksum;
  	ulint		size	= zip_size;
  
-@@ -739,12 +773,14 @@
+@@ -740,12 +774,14 @@
  
  	checksum = srv_use_checksums
  		? buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
@@ -82,7 +82,7 @@
  		" checksum %lu\n"
  		"InnoDB: stored checksum %lu, prior-to-4.0.14-form"
  		" stored checksum %lu\n"
-@@ -753,7 +789,7 @@
+@@ -754,7 +790,7 @@
  		"InnoDB: Page number (if stored to page already) %lu,\n"
  		"InnoDB: space id (if created with >= MySQL-4.1.1"
  		" and stored already) %lu\n",
@@ -153,7 +153,7 @@
  static my_bool	innobase_recovery_stats			= TRUE;
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
-@@ -2627,6 +2628,7 @@
+@@ -2629,6 +2630,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -161,7 +161,7 @@
  
  	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
  
-@@ -11436,6 +11438,15 @@
+@@ -11426,6 +11428,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -177,7 +177,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11957,6 +11968,7 @@
+@@ -11952,6 +11963,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),
@@ -187,7 +187,7 @@
    MYSQL_SYSVAR(data_file_path),
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -643,6 +643,11 @@
+@@ -659,6 +659,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */
@@ -211,7 +211,7 @@
  #define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/*!< the low 4 bytes of this are used
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -224,6 +224,7 @@
+@@ -225,6 +225,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;
@@ -268,7 +268,7 @@
 +}
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -417,6 +417,7 @@
+@@ -419,6 +419,7 @@
  
  UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
  UNIV_INTERN ibool	srv_use_checksums = TRUE;

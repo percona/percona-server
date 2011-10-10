@@ -38,8 +38,8 @@
 +  (char*) &export_vars.innodb_buffer_pool_pages_old,	  SHOW_LONG},
    {"buffer_pool_pages_total",
    (char*) &export_vars.innodb_buffer_pool_pages_total,	  SHOW_LONG},
-   {"buffer_pool_read_ahead",
-@@ -671,6 +687,12 @@
+   {"buffer_pool_read_ahead_rnd",
+@@ -673,6 +689,12 @@
    (char*) &export_vars.innodb_buffer_pool_wait_free,	  SHOW_LONG},
    {"buffer_pool_write_requests",
    (char*) &export_vars.innodb_buffer_pool_write_requests, SHOW_LONG},
@@ -52,7 +52,7 @@
    {"data_fsyncs",
    (char*) &export_vars.innodb_data_fsyncs,		  SHOW_LONG},
    {"data_pending_fsyncs",
-@@ -697,12 +719,66 @@
+@@ -699,12 +721,66 @@
    (char*) &export_vars.innodb_dict_tables,		  SHOW_LONG},
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
@@ -119,7 +119,7 @@
    {"os_log_fsyncs",
    (char*) &export_vars.innodb_os_log_fsyncs,		  SHOW_LONG},
    {"os_log_pending_fsyncs",
-@@ -719,8 +795,14 @@
+@@ -721,8 +797,14 @@
    (char*) &export_vars.innodb_pages_read,		  SHOW_LONG},
    {"pages_written",
    (char*) &export_vars.innodb_pages_written,		  SHOW_LONG},
@@ -134,7 +134,7 @@
    {"row_lock_time",
    (char*) &export_vars.innodb_row_lock_time,		  SHOW_LONGLONG},
    {"row_lock_time_avg",
-@@ -737,8 +819,20 @@
+@@ -739,8 +821,20 @@
    (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
    {"rows_updated",
    (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
@@ -240,7 +240,7 @@
  /** The lock system */
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -734,6 +734,11 @@
+@@ -735,6 +735,11 @@
  
  /** Status variables to be passed to MySQL */
  struct export_var_struct{
@@ -252,7 +252,7 @@
  	ulint innodb_data_pending_reads;	/*!< Pending reads */
  	ulint innodb_data_pending_writes;	/*!< Pending writes */
  	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
-@@ -751,6 +756,9 @@
+@@ -752,6 +757,9 @@
  #ifdef UNIV_DEBUG
  	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
  #endif /* UNIV_DEBUG */
@@ -262,8 +262,8 @@
  	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
-@@ -759,13 +767,43 @@
- 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
+@@ -761,13 +769,43 @@
+ 	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 +	ulint innodb_checkpoint_age;
@@ -306,7 +306,7 @@
  	ulint innodb_os_log_written;		/*!< srv_os_log_written */
  	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
  	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
-@@ -774,6 +812,8 @@
+@@ -776,6 +814,8 @@
  	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
  	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
  	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
@@ -315,7 +315,7 @@
  	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
  	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
  	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
-@@ -783,11 +823,18 @@
+@@ -785,11 +825,18 @@
  						/ srv_n_lock_wait_count */
  	ulint innodb_row_lock_time_max;		/*!< srv_n_lock_max_wait_time
  						/ 1000 */
@@ -383,7 +383,7 @@
  }
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -2256,12 +2256,49 @@
+@@ -2259,12 +2259,49 @@
  	ulint		LRU_len;
  	ulint		free_len;
  	ulint		flush_list_len;
@@ -433,7 +433,7 @@
  	export_vars.innodb_data_pending_reads
  		= os_n_pending_reads;
  	export_vars.innodb_data_pending_writes
-@@ -2298,6 +2335,92 @@
+@@ -2303,6 +2340,92 @@
  
  	export_vars.innodb_buffer_pool_pages_misc
  	       	= buf_pool_get_n_pages() - LRU_len - free_len;

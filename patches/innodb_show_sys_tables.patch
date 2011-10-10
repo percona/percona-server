@@ -39,7 +39,7 @@
  Determine the flags of a table described in SYS_TABLES.
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11789,7 +11789,14 @@
+@@ -11786,7 +11786,14 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,
@@ -69,7 +69,7 @@
  #include "dict0mem.h"
  #include "dict0types.h"
  #include "ha_prototypes.h" /* for innobase_convert_name() */
-@@ -1784,6 +1786,1675 @@
+@@ -1812,6 +1814,1675 @@
  	DBUG_RETURN(0);
  }
  

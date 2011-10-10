@@ -7,9 +7,9 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11545,6 +11545,7 @@
-   innobase_system_variables, /* system variables */
-   NULL /* reserved */
+@@ -11542,6 +11542,7 @@
+   NULL, /* reserved */
+   0,    /* flags */
  },
 +i_s_innodb_rseg,
  i_s_innodb_trx,
@@ -26,7 +26,7 @@
  }
  
  #define OK(expr)		\
-@@ -1779,3 +1781,166 @@
+@@ -1807,3 +1809,166 @@
  
  	DBUG_RETURN(0);
  }

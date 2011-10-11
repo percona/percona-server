@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -4157,6 +4157,36 @@
+@@ -4161,6 +4161,36 @@
  	mutex_exit(block_mutex);
  }
  
@@ -46,7 +46,7 @@
  @return	TRUE */
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -12177,6 +12177,9 @@
+@@ -12174,6 +12174,9 @@
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
  i_s_innodb_index_stats,
@@ -66,7 +66,7 @@
  }
  
  #define OK(expr)		\
-@@ -4344,3 +4345,701 @@
+@@ -4372,3 +4373,701 @@
  	STRUCT_FLD(system_vars, NULL),
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -781,7 +781,7 @@
  #endif /* i_s_h */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1183,6 +1183,14 @@
+@@ -1199,6 +1199,14 @@
  /*===========*/
  	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
  	__attribute__((nonnull, const));

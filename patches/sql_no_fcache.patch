@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/client/mysqldump.c
 +++ b/client/mysqldump.c
-@@ -141,6 +141,8 @@
+@@ -143,6 +143,8 @@
  static uint opt_protocol= 0;
  static char *opt_plugin_dir= 0, *opt_default_auth= 0;
  
@@ -16,7 +16,7 @@
  /*
  Dynamic_string wrapper functions. In this file use these
  wrappers, they will terminate the process if there is
-@@ -1494,6 +1496,17 @@
+@@ -1496,6 +1498,17 @@
      /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
      server_supports_switching_charsets= FALSE;
    } 
@@ -34,7 +34,7 @@
    /*
      As we're going to set SQL_MODE, it would be lost on reconnect, so we
      cannot reconnect.
-@@ -3175,7 +3188,12 @@
+@@ -3177,7 +3190,12 @@
  
      /* now build the query string */
  
@@ -48,7 +48,7 @@
      dynstr_append_checked(&query_string, filename);
      dynstr_append_checked(&query_string, "'");
  
-@@ -3225,7 +3243,12 @@
+@@ -3227,7 +3245,12 @@
        check_io(md_result_file);
      }
      
@@ -294,7 +294,7 @@
    mysqld_exit(0);
  }
  
-@@ -6557,6 +6666,7 @@
+@@ -6553,6 +6662,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -314,7 +314,7 @@
    lex->leaf_tables_insert= 0;
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -2298,6 +2298,7 @@
+@@ -2303,6 +2303,7 @@
  
    enum enum_yes_no_unknown tx_chain, tx_release;
    bool safe_to_cache_query;

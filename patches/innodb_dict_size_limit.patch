@@ -369,7 +369,7 @@
  	info = index->search_info;
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -675,6 +675,8 @@
+@@ -677,6 +677,8 @@
    (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
    {"dblwr_writes",
    (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
@@ -378,7 +378,7 @@
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11658,6 +11660,11 @@
+@@ -11653,6 +11655,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -390,7 +390,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11726,6 +11733,7 @@
+@@ -11721,6 +11728,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -426,7 +426,7 @@
  Drops possible hash index if the page happens to be in the buffer pool. */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1594,6 +1594,15 @@
+@@ -1610,6 +1610,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  
@@ -488,7 +488,7 @@
  	/* TODO: should get the type information from MySQL */
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -229,6 +229,7 @@
+@@ -230,6 +230,7 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_flushing_method;
  
@@ -496,7 +496,7 @@
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -709,6 +710,7 @@
+@@ -710,6 +711,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */
@@ -506,7 +506,7 @@
  	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -415,6 +415,8 @@
+@@ -417,6 +417,8 @@
  UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
  UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
  UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
@@ -515,7 +515,7 @@
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2220,6 +2222,7 @@
+@@ -2222,6 +2224,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

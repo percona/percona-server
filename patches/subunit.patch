@@ -189,7 +189,7 @@
  
  require "lib/mtr_process.pl";
  require "lib/mtr_io.pl";
-@@ -622,6 +623,7 @@
+@@ -624,6 +625,7 @@
  
  	  # Report test status
  	  mtr_report_test($result);

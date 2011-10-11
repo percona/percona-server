@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/include/mysql/plugin.h
 +++ b/include/mysql/plugin.h
-@@ -625,6 +625,12 @@
+@@ -634,6 +634,12 @@
  */
  void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                       const void *ha_data);
@@ -22,7 +22,7 @@
  #endif
 --- a/include/mysql/plugin_audit.h.pp
 +++ b/include/mysql/plugin_audit.h.pp
-@@ -195,6 +195,9 @@
+@@ -196,6 +196,9 @@
  void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
  void thd_set_ha_data(void* thd, const struct handlerton *hton,
                       const void *ha_data);
@@ -34,7 +34,7 @@
    unsigned int event_subclass;
 --- a/include/mysql/plugin_auth.h.pp
 +++ b/include/mysql/plugin_auth.h.pp
-@@ -195,6 +195,9 @@
+@@ -196,6 +196,9 @@
  void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
  void thd_set_ha_data(void* thd, const struct handlerton *hton,
                       const void *ha_data);
@@ -46,7 +46,7 @@
  {
 --- a/include/mysql/plugin_ftparser.h.pp
 +++ b/include/mysql/plugin_ftparser.h.pp
-@@ -148,6 +148,9 @@
+@@ -149,6 +149,9 @@
  void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
  void thd_set_ha_data(void* thd, const struct handlerton *hton,
                       const void *ha_data);
@@ -87,7 +87,7 @@
    Implementation of Drop_table_error_handler::handle_condition().
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -2831,6 +2831,10 @@
+@@ -2833,6 +2833,10 @@
  
  	innobase_commit_concurrency_init_default();
  
@@ -98,7 +98,7 @@
  #ifdef HAVE_PSI_INTERFACE
  	/* Register keys with MySQL performance schema */
  	if (PSI_server) {
-@@ -11589,6 +11593,48 @@
+@@ -11579,6 +11583,48 @@
  	return(false);
  }
  
@@ -147,7 +147,7 @@
  static SHOW_VAR innodb_status_variables_export[]= {
    {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
    {NullS, NullS, SHOW_LONG}
-@@ -11875,6 +11921,15 @@
+@@ -11865,6 +11911,15 @@
    "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
    NULL, NULL, 500L, 1L, ~0L, 0);
  
@@ -163,7 +163,7 @@
  static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
    "Number of file I/O threads in InnoDB.",
-@@ -12172,6 +12227,7 @@
+@@ -12167,6 +12222,7 @@
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
@@ -173,7 +173,7 @@
    MYSQL_SYSVAR(data_home_dir),
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -291,6 +291,7 @@
+@@ -292,6 +292,7 @@
  extern ulint	srv_activity_count;
  extern ulint	srv_fatal_semaphore_wait_threshold;
  extern ulint	srv_dml_needed_delay;
@@ -216,7 +216,7 @@
  /* How much data manipulation language (DML) statements need to be delayed,
  in microseconds, in order to reduce the lagging of the purge thread. */
  UNIV_INTERN ulint	srv_dml_needed_delay = 0;
-@@ -2829,6 +2837,36 @@
+@@ -2834,6 +2842,36 @@
  		old_sema = sema;
  	}
  

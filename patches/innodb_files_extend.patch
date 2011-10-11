@@ -109,7 +109,7 @@
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2323,6 +2326,65 @@
+@@ -2325,6 +2328,65 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -175,7 +175,7 @@
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7256,9 +7318,9 @@
+@@ -7239,9 +7301,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -188,7 +188,7 @@
  		}
  	}
  
-@@ -11447,6 +11509,16 @@
+@@ -11437,6 +11499,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -205,7 +205,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11963,6 +12035,8 @@
+@@ -11958,6 +12030,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -216,7 +216,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1722,7 +1722,7 @@
+@@ -1740,7 +1740,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -225,7 +225,7 @@
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1820,7 +1820,7 @@
+@@ -1838,7 +1838,7 @@
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -234,7 +234,7 @@
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1828,9 +1828,9 @@
+@@ -1846,9 +1846,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  
@@ -521,10 +521,11 @@
  
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -234,6 +234,13 @@
- UNIV_INTERN ulint	srv_n_read_io_threads	= ULINT_MAX;
- UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
+@@ -236,6 +236,14 @@
  
+ /* Switch to enable random read ahead. */
+ UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
++
 +/* The universal page size of the database */
 +UNIV_INTERN ulint	srv_page_size_shift	= 0;
 +UNIV_INTERN ulint	srv_page_size		= 0;

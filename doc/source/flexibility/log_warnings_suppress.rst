@@ -1,11 +1,14 @@
-Suppress Warning Messages
-=========================
+.. _log_warning_suppress:
+
+===========================
+ Suppress Warning Messages
+===========================
 
 This feature is intended to provide a general mechanism (using ``log_warnings_silence``) to disable certain warning messages to the log file. Currently, it is only implemented for disabling message #1592 warnings.
 
 
 Version Specific Information
-----------------------------
+============================
 
   * 5.1.47-11.0: 
     System variable :variable:`suppress_log_warning_1592` introduced.
@@ -17,7 +20,7 @@ Version Specific Information
     Renamed variable :variable:`log_warnings_silence` to :variable:`log_warnings_suppress`.
 
 System Variables
-----------------
+================
 
 .. variable:: suppress_log_warning_1592
 
@@ -67,7 +70,7 @@ In the future, the ability to optionally disable additional warnings may also be
 
 
 Related Reading
----------------
+===============
 
   * `MySQL bug 42851 <http://bugs.mysql.com/bug.php?id=42851>`_
 

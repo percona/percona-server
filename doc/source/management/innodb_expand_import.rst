@@ -1,3 +1,5 @@
+.. _innodb_expand_import_page:
+
 ===================
 Expand Table Import
 ===================

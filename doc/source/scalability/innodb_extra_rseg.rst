@@ -1,8 +1,8 @@
+.. _innodb_extra_rseg:
+
 ============================
  Multiple Rollback Segments
 ============================
-
-.. default-domain:: psdom
 
 In Percona Server 5.1, an improvement was provided for write-intensive
 workloads that allowed multiple rollback segments to be used. It has

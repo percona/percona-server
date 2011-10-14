@@ -1,6 +1,8 @@
-=========================
- Handle BLOB End of Line
-=========================
+.. _mysql_remove_eol_carret:
+
+=============================
+ Handle ``BLOB`` End of Line
+=============================
 
 At some point in the past, the |MySQL| command line client was modified to remove ``\r`` before ``\n`` in its input.
 

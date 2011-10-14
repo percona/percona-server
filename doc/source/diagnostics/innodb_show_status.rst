@@ -1,3 +1,5 @@
+.. _innodb_show_status:
+
 ======================
  Show |InnoDB| Status
 ======================

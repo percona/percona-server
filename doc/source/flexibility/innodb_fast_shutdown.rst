@@ -1,3 +1,5 @@
+.. _innodb_fast_shutdown:
+
 ===============
  Fast Shutdown
 ===============

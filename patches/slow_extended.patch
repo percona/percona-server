@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/include/mysql/plugin_audit.h.pp
 +++ b/include/mysql/plugin_audit.h.pp
-@@ -185,6 +185,16 @@
+@@ -186,6 +186,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -26,7 +26,7 @@
  unsigned long thd_get_thread_id(const void* thd);
 --- a/include/mysql/plugin_auth.h.pp
 +++ b/include/mysql/plugin_auth.h.pp
-@@ -185,6 +185,16 @@
+@@ -186,6 +186,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -45,7 +45,7 @@
  unsigned long thd_get_thread_id(const void* thd);
 --- a/include/mysql/plugin_ftparser.h.pp
 +++ b/include/mysql/plugin_ftparser.h.pp
-@@ -138,6 +138,16 @@
+@@ -139,6 +139,16 @@
  char *thd_security_context(void* thd, char *buffer, unsigned int length,
                             unsigned int max_query_len);
  void thd_inc_row_count(void* thd);
@@ -64,7 +64,7 @@
  unsigned long thd_get_thread_id(const void* thd);
 --- a/include/mysql/plugin.h
 +++ b/include/mysql/plugin.h
-@@ -536,6 +536,17 @@
+@@ -545,6 +545,17 @@
  /* Increments the row counter, see THD::row_count */
  void thd_inc_row_count(MYSQL_THD thd);
  
@@ -424,10 +424,14 @@
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5896,10 +5900,10 @@
-    "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
-    "the slow log if it is open.", &opt_log_slow_admin_statements,
-    &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+@@ -5892,14 +5896,10 @@
+    "Don't log extra information to update and slow-query logs.",
+    &opt_short_log_format, &opt_short_log_format,
+    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+-  {"log-slow-admin-statements", 0,
+-   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
+-   "the slow log if it is open.", &opt_log_slow_admin_statements,
+-   &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 - {"log-slow-slave-statements", 0,
 + /*{"log-slow-slave-statements", 0,
    "Log slow statements executed by slave thread to the slow log if it is open.",
@@ -437,7 +441,7 @@
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7288,6 +7292,10 @@
+@@ -7288,6 +7288,10 @@
  
  C_MODE_END
  
@@ -448,7 +452,7 @@
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7437,6 +7445,8 @@
+@@ -7437,6 +7441,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -549,7 +553,7 @@
  
  /**
    Dumps a text description of a thread, its security context
-@@ -907,6 +938,8 @@
+@@ -926,6 +957,8 @@
                             const char* msg,
                             MYSQL_ERROR ** cond_hdl)
  {
@@ -558,7 +562,7 @@
    if (!m_internal_handler)
    {
      *cond_hdl= NULL;
-@@ -3656,6 +3689,12 @@
+@@ -3675,6 +3708,12 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -571,7 +575,7 @@
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3676,6 +3715,14 @@
+@@ -3695,6 +3734,14 @@
    cuted_fields= 0;
    transaction.savepoints= 0;
    first_successful_insert_id_in_cur_stmt= 0;
@@ -586,7 +590,7 @@
  }
  
  
-@@ -3738,6 +3785,12 @@
+@@ -3757,6 +3804,12 @@
    */
    examined_row_count+= backup->examined_row_count;
    cuted_fields+=       backup->cuted_fields;
@@ -979,7 +983,7 @@
  static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
  {
    if (type == OPT_SESSION)
-@@ -2898,6 +2921,117 @@
+@@ -2898,6 +2921,123 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  
@@ -1053,6 +1057,12 @@
 +       "log_slow_slave_statements",
 +       "Log queries replayed be the slave SQL thread",
 +       GLOBAL_VAR(opt_log_slow_slave_statements), CMD_LINE(OPT_ARG),
++       DEFAULT(FALSE));
++static Sys_var_mybool Sys_log_slow_admin_statements(
++       "log_slow_admin_statements",
++       "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements"
++       " to the slow log if it is open.",
++       GLOBAL_VAR(opt_log_slow_admin_statements), CMD_LINE(OPT_ARG),
 +       DEFAULT(FALSE));
 +static Sys_var_mybool Sys_log_slow_sp_statements(
 +       "log_slow_sp_statements",
@@ -2319,7 +2329,7 @@
 +DROP TABLE t;
 --- a/sql/log_event.cc
 +++ b/sql/log_event.cc
-@@ -2380,6 +2380,14 @@
+@@ -2385,6 +2385,14 @@
        start+= host.length;
      }
    }
@@ -2334,7 +2344,7 @@
    /*
      NOTE: When adding new status vars, please don't forget to update
      the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
-@@ -2866,6 +2874,17 @@
+@@ -2871,6 +2879,17 @@
        data_written= master_data_written= uint4korr(pos);
        pos+= 4;
        break;
@@ -2415,3 +2425,229 @@
 +--let grep_pattern = Last_errno: 1050
 +--source include/log_grep.inc
 +DROP TABLE t;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_admin_statements_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_admin_statements;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_admin_statements_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_admin_statements;
++@@global.log_slow_admin_statements
++0
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements.result
+@@ -0,0 +1,35 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
++SET GLOBAL log_slow_admin_statements=true;
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	ON
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	ON
++SET GLOBAL log_slow_admin_statements=false;
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
++SET GLOBAL log_slow_admin_statements=foo;
++ERROR 42000: Variable 'log_slow_admin_statements' can't be set to the value of 'foo'
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
++SET GLOBAL log_slow_admin_statements=default;
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config_false.result
+@@ -0,0 +1,6 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config_foo.result
+@@ -0,0 +1,7 @@
++call mtr.add_suppression("option 'log_slow_admin_statements': boolean value 'foo' wasn't recognized. Set to OFF.");
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	OFF
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	OFF
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config_true.result
+@@ -0,0 +1,6 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	ON
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	ON
+--- /dev/null
++++ b/mysql-test/r/percona_log_slow_admin_statements-config.result
+@@ -0,0 +1,6 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++Variable_name	Value
++log_slow_admin_statements	ON
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++VARIABLE_NAME	VARIABLE_VALUE
++LOG_SLOW_ADMIN_STATEMENTS	ON
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_false.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements=false
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_foo.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements=foo
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_true.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements=true
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config.cnf
+@@ -0,0 +1,2 @@
++[mysqld.1]
++log-slow-admin-statements
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements.test
+@@ -0,0 +1,20 @@
++# default value
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++# set value to 'true'
++SET GLOBAL log_slow_admin_statements=true;
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++# set value to 'false'
++SET GLOBAL log_slow_admin_statements=false;
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++# set value to 'foo'
++--error ER_WRONG_VALUE_FOR_VAR
++SET GLOBAL log_slow_admin_statements=foo;
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
++# set value to default
++SET GLOBAL log_slow_admin_statements=default;
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_false.test
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_foo.test
+@@ -0,0 +1,3 @@
++call mtr.add_suppression("option 'log_slow_admin_statements': boolean value 'foo' wasn't recognized. Set to OFF.");
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config_true.test
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- /dev/null
++++ b/mysql-test/t/percona_log_slow_admin_statements-config.test
+@@ -0,0 +1,2 @@
++SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
++SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+--- a/mysql-test/r/mysqld--help-notwin.result
++++ b/mysql-test/r/mysqld--help-notwin.result
+@@ -250,15 +250,31 @@
+  --log-slow-admin-statements 
+  Log slow OPTIMIZE, ANALYZE, ALTER and other
+  administrative statements to the slow log if it is open.
++ --log-slow-filter=name 
++ Log only the queries that followed certain execution
++ plan. Multiple flags allowed in a comma-separated string.
++ [qc_miss, full_scan, full_join, tmp_table,
++ tmp_table_on_disk, filesort, filesort_on_disk]
+  --log-slow-queries[=name] 
+  Log slow queries to a table or log file. Defaults logging
+  to table mysql.slow_log or hostname-slow.log if
+  --log-output=file is used. Must be enabled to activate
+  other slow log options. Deprecated option, use
+  --slow-query-log/--slow-query-log-file instead.
++ --log-slow-rate-limit=# 
++ Rate limit statement writes to slow log to only those
++ from every (1/log_slow_rate_limit) session.
+  --log-slow-slave-statements 
+- Log slow statements executed by slave thread to the slow
+- log if it is open.
++ Log queries replayed be the slave SQL thread
++ --log-slow-sp-statements 
++ Log slow statements executed by stored procedure to the
++ slow log if it is open.
++ (Defaults to on; use --skip-log-slow-sp-statements to disable.)
++ --log-slow-verbosity=name 
++ Choose how verbose the messages to your slow log will be.
++ Multiple flags allowed in a comma-separated string.
++ [microtime, query_plan, innodb, profiling,
++ profiling_use_getrusage]
+  --log-tc=name       Path to transaction coordinator log (used for
+  transactions that affect more than one storage engine,
+  when binary log is disabled).
+@@ -660,6 +676,18 @@
+  Log slow queries to given log file. Defaults logging to
+  hostname-slow.log. Must be enabled to activate other slow
+  log options
++ --slow-query-log-timestamp-always 
++ Timestamp is printed for all records of the slow log even
++ if they are same time.
++ --slow-query-log-timestamp-precision=name 
++ Log slow statements executed by stored procedure to the
++ slow log if it is open. [second, microsecond]
++ --slow-query-log-use-global-control=name 
++ Choose flags, wich always use the global variables.
++ Multiple flags allowed in a comma-separated string.
++ [none, log_slow_filter, log_slow_rate_limit,
++ log_slow_verbosity, long_query_time,
++ min_examined_row_limit, all]
+  --socket=name       Socket file to use for connection
+  --sort-buffer-size=# 
+  Each thread that needs to do a sort allocates a buffer of
+@@ -817,7 +845,11 @@
+ log-short-format FALSE
+ log-slave-updates FALSE
+ log-slow-admin-statements FALSE
++log-slow-filter 
++log-slow-rate-limit 1
+ log-slow-slave-statements FALSE
++log-slow-sp-statements TRUE
++log-slow-verbosity 
+ log-tc tc.log
+ log-tc-size 24576
+ log-warnings 1
+@@ -933,6 +965,9 @@
+ slave-type-conversions 
+ slow-launch-time 2
+ slow-query-log FALSE
++slow-query-log-timestamp-always FALSE
++slow-query-log-timestamp-precision second
++slow-query-log-use-global-control 
+ sort-buffer-size 2097152
+ sporadic-binlog-dump-fail FALSE
+ sql-mode 

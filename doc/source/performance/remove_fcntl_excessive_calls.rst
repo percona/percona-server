@@ -1,3 +1,5 @@
+.. _remove_fcntl_excessive_calls:
+
 =============================================
  Remove Excessive Function Calls (``fcntl``)
 =============================================

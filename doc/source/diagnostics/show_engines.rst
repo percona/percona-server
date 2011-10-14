@@ -1,3 +1,5 @@
+.. _show_engines:
+
 ======================
  Show Storage Engines
 ======================

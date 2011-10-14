@@ -2975,7 +2975,7 @@
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
    {
-@@ -6909,6 +6921,11 @@
+@@ -6905,6 +6917,11 @@
  #else
    have_query_cache=SHOW_OPTION_NO;
  #endif
@@ -3462,7 +3462,7 @@
  #include "lock.h"                           // MYSQL_OPEN_IGNORE_FLUSH
  #include "debug_sync.h"
  #include "datadict.h"   // dd_frm_type()
-@@ -7865,6 +7866,14 @@
+@@ -7888,6 +7889,14 @@
  
  */
  
@@ -3477,7 +3477,7 @@
  ST_SCHEMA_TABLE schema_tables[]=
  {
    {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
-@@ -7918,6 +7927,13 @@
+@@ -7941,6 +7950,13 @@
     1, 9, 0, OPTIMIZE_I_S_TABLE|OPEN_TABLE_ONLY},
    {"ROUTINES", proc_fields_info, create_schema_table, 
     fill_schema_proc, make_proc_old_format, 0, -1, -1, 0, 0},
@@ -3501,7 +3501,7 @@
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -11080,6 +11081,15 @@
+@@ -11095,6 +11096,15 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -3517,10 +3517,10 @@
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11316,6 +11326,12 @@
-           { Lex->type|= REFRESH_STATUS; }
-         | SLAVE
-           { Lex->type|= REFRESH_SLAVE; }
+@@ -11334,6 +11344,12 @@
+             Lex->type|= REFRESH_SLAVE;
+             Lex->reset_slave_info.all= false;
+           }
 +        | QUERY_RESPONSE_TIME_SYM
 +          { 
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
@@ -3530,7 +3530,7 @@
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12617,6 +12633,7 @@
+@@ -12641,6 +12657,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}
@@ -3621,3 +3621,27 @@
  #endif
  
  /*
+--- a/mysql-test/r/mysqld--help-notwin.result
++++ b/mysql-test/r/mysqld--help-notwin.result
+@@ -503,6 +503,12 @@
+  Invalidate queries in query cache on LOCK for write
+  --query-prealloc-size=# 
+  Persistent buffer for query parsing and execution
++ --query-response-time-range-base=# 
++ Select base of log for query_response_time ranges.
++ WARNING: variable change affect only after flush
++ --query-response-time-stats 
++ Enable or disable query response time statisics
++ collecting
+  --range-alloc-block-size=# 
+  Allocation block size for storing ranges during
+  optimization
+@@ -936,6 +942,8 @@
+ query-cache-type ON
+ query-cache-wlock-invalidate FALSE
+ query-prealloc-size 8192
++query-response-time-range-base 10
++query-response-time-stats FALSE
+ range-alloc-block-size 4096
+ read-buffer-size 131072
+ read-only FALSE

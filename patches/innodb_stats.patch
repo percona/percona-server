@@ -907,7 +907,7 @@
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2439,6 +2440,8 @@
+@@ -2441,6 +2442,8 @@
  		goto error;
  	}
  
@@ -916,7 +916,7 @@
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -5247,6 +5250,10 @@
+@@ -5230,6 +5233,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -927,7 +927,7 @@
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5583,6 +5590,10 @@
+@@ -5566,6 +5573,10 @@
  		}
  	}
  
@@ -938,7 +938,7 @@
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5636,6 +5647,10 @@
+@@ -5619,6 +5630,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -949,7 +949,7 @@
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5954,6 +5969,11 @@
+@@ -5937,6 +5952,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -961,7 +961,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_KEY_NOT_FOUND;
-@@ -6163,6 +6183,11 @@
+@@ -6146,6 +6166,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -973,7 +973,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8105,11 +8130,35 @@
+@@ -8088,11 +8113,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1010,7 +1010,7 @@
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8187,7 +8236,7 @@
+@@ -8177,7 +8226,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1019,7 +1019,7 @@
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11401,6 +11450,26 @@
+@@ -11391,6 +11440,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1046,7 +1046,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11727,6 +11796,9 @@
+@@ -11722,6 +11791,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1056,7 +1056,7 @@
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11796,7 +11868,10 @@
+@@ -11793,7 +11865,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -1078,7 +1078,7 @@
  }
  
  #define OK(expr)		\
-@@ -3455,6 +3456,221 @@
+@@ -3483,6 +3484,221 @@
  	STRUCT_FLD(__reserved1, NULL)
  };
  
@@ -1300,7 +1300,7 @@
  /***********************************************************************
  */
  static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
-@@ -3617,3 +3833,347 @@
+@@ -3645,3 +3861,347 @@
  	/* void* */
  	STRUCT_FLD(__reserved1, NULL)
  };
@@ -1854,7 +1854,7 @@
  should be called after the indexes for a table have been created.
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -211,6 +211,9 @@
+@@ -212,6 +212,9 @@
  extern ibool	srv_innodb_status;
  
  extern unsigned long long	srv_stats_sample_pages;
@@ -2107,7 +2107,7 @@
  		dfield = dtuple_get_nth_field(entry, i);
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -398,6 +398,9 @@
+@@ -400,6 +400,9 @@
  /* When estimating number of different key values in an index, sample
  this many index pages */
  UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;

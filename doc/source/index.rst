@@ -154,6 +154,7 @@ Reference
    :maxdepth: 1
    :glob:
 
+   development
    faq
    release-notes/release-notes_index
    glossary

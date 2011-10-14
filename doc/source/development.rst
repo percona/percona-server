@@ -88,18 +88,18 @@ extra tests may be run (e.g. valgrind) along with testing that all
 branches behave well together (build and test) before pushing to
 trunk.
 
-**DO NOT push directly to trunk!**
+To ensure quality, **DO NOT push directly to trunk!** everything must go through adequate testing first. This ensures that at any point trunk is in a releasable state.
 
-**ALL changes must go through staging first** This is to ensure
-that several approved merge requests do not interact badly with each
+Please note that **ALL changes must go through staging first** This is to ensure that several approved merge requests do not interact badly with each
 other.
-
 
 * Merge captain (for lack of a better term for the person merging
   approved code into trunk) may collate several approved branches that
   have individually passed param-build as run by the original
   developers.
+
   * Workflow would look something like this:
+
     * ``bzr branch lp:percona-xtrabackup staging``
     * ``bzr merge lp:~user/percona-xtrabackup/featureX``
     * ``bzr commit -m "merge feature X"``
@@ -113,6 +113,7 @@ other.
       will need to be manually changed to 'Fix Released')
     * If build or test fails, attempt to find which branch may be the
       cause, and repeat process but without that branch.
+
 * Any failing branch will be set to 'Work in Progress' with a 'Needs
   fixing' review with the URL of the build in jenkins where the
   failure occured. This will allow developers to fix their code.
@@ -129,39 +130,38 @@ There is a link on launchpad to resubmit the merge proposal, this means it appea
 
 
 Percona Server
-==============
+~~~~~~~~~~~~~~
 
 The same process for Percona Server, but we have different branches (and merge requests) for 5.1 and 5.5 series.
 
 Upgrading MySQL base version
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  * Same process as other modifications.
-  * create local branch
-  * make changes
-  * param build
-  * merge request
+* Same process as other modifications.
+* create local branch
+* make changes
+* param build
+* merge request
 
 We will need some human processes to ensure that we do not merge extra
 things during the time when base MySQL version is being updated to
 avoid making life harder for the person doing the update.
 
 
+
 Making a release
 ================
 
-  * ``bzr branch lp:project release-project-VERSION``
-  * build packages
-  * perform any final tests (as we transition, this will already have
-    been done by jenkins)
-  * ``bzr tag project-version``
-  * merge request back to lp:project including the tag (TODO: write
-    exact bzr commands for this)
+* ``bzr branch lp:project release-project-VERSION``
+* build packages
+* perform any final tests (as we transition, this will already have
+  been done by jenkins)
+* ``bzr tag project-version``
+* merge request back to lp:project including the tag (TODO: write
+  exact bzr commands for this)
 
 This way anybody can easily check out an old release by just using bzr
 to branch the specific tag.
-
-.. _Jenkins:
 
 Jenkins
 =======

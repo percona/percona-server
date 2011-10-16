@@ -1,5 +1,5 @@
 CC:=gcc
-CPPFLAGS:=-isystem /usr/include/mysql
+CPPFLAGS:=$$(mysql_config --include)
 CFLAGS:=-fPIC -O3 -g -Wall -Wextra -Werror -fno-strict-aliasing
 
 PLUGINS:=auth_pam.so test_auth_pam_client.so

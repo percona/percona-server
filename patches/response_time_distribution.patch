@@ -3172,14 +3172,14 @@
 +  uint32 count(uint index) const
 +  {
 +    my_atomic_rwlock_rdlock(&time_collector_lock);
-+    uint32 result= my_atomic_load32((volatile int32*)&m_count[index]);
++    uint32 result= my_atomic_load32((int32*)&m_count[index]);
 +    my_atomic_rwlock_rdunlock(&time_collector_lock);
 +    return result;
 +  }
 +  uint64 total(uint index) const
 +  {
 +    my_atomic_rwlock_rdlock(&time_collector_lock);
-+    uint64 result= my_atomic_load64((volatile int64*)&m_total[index]);
++    uint64 result= my_atomic_load64((int64*)&m_total[index]);
 +    my_atomic_rwlock_rdunlock(&time_collector_lock);
 +    return result;
 +  }
@@ -3199,8 +3199,8 @@
 +      if(m_utility->bound(i) > time)
 +      {
 +        my_atomic_rwlock_wrlock(&time_collector_lock);
-+        my_atomic_add32((volatile int32*)(&m_count[i]), 1);
-+        my_atomic_add64((volatile int64*)(&m_total[i]), time);
++        my_atomic_add32((int32*)(&m_count[i]), 1);
++        my_atomic_add64((int64*)(&m_total[i]), time);
 +        my_atomic_rwlock_wrunlock(&time_collector_lock);
 +        break;
 +      }
@@ -3212,8 +3212,8 @@
 +  used on architectures that do not have atomic implementation of atomic
 +  operations. */
 +  my_atomic_rwlock_t time_collector_lock;
-+  volatile uint32   m_count[OVERALL_POWER_COUNT + 1];
-+  volatile uint64   m_total[OVERALL_POWER_COUNT + 1];
++  uint32   m_count[OVERALL_POWER_COUNT + 1];
++  uint64   m_total[OVERALL_POWER_COUNT + 1];
 +};
 +
 +class collector
@@ -3582,7 +3582,7 @@
 +have_response_time_distribution	YES
 --- a/include/atomic/x86-gcc.h
 +++ b/include/atomic/x86-gcc.h
-@@ -108,27 +108,22 @@
+@@ -108,27 +108,23 @@
    v=tmp;
  
  /*
@@ -3608,16 +3608,17 @@
 -                : "c" (&set), "m" (*a)                            \
 -                : "memory", "esp")
 +#define make_atomic_cas_body64                                     \
-+  asm ("movl %%edi, -4(%%esp);"                                    \
-+       "leal %0, %%edi;"                                           \
-+       "xchgl %%ebx, %%esi;"                                       \
-+       LOCK_prefix "; cmpxchg8b (%%edi);"                          \
-+       "movl %%esi, %%ebx;"                                        \
-+       "movl -4(%%esp), %%edi;"                                    \
-+       "setz %1;"                                                  \
-+       : "+m" (*a), "=q" (ret), "+A" (*cmp)                        \
-+       : "S" ((int32)(set & 0xFFFFFFFF)), "c" ((int32)(set >> 32)) \
-+       : "flags")
++  asm volatile ("movl %%edi, -4(%%esp);"                           \
++                "leal %0, %%edi;"                                  \
++                "xchgl %%ebx, %%esi;"                              \
++                LOCK_prefix "; cmpxchg8b (%%edi);"                 \
++                "movl %%esi, %%ebx;"                               \
++                "movl -4(%%esp), %%edi;"                           \
++                "setz %1;"                                         \
++                : "+m" (*a), "=q" (ret), "+A" (*cmp)               \
++                : "S" ((int32)(set & 0xFFFFFFFF)),                 \
++                  "c" ((int32)(set >> 32))                         \
++                : "memory", "flags")
  #endif
  
  /*

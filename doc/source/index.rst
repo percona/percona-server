@@ -121,6 +121,8 @@ Management Improvements
    management/innodb_fast_index_renaming
    management/sql_no_fcache
    management/udf_maatkit
+   management/innodb_fake_changes
+   management/innodb_kill_idle_trx
 
 Diagnostics Improvements
 ========================

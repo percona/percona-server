@@ -16,8 +16,8 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #
 #
-AC_PREREQ([2.68])
-AC_INIT([Percona PAM plugin for MySQL], [0.1], [mysql-dev@percona.com])
+AC_PREREQ([2.61])
+AC_INIT([Percona PAM plugin], [0.1], [mysql-dev@percona.com])
 AC_CONFIG_SRCDIR([src/lib_auth_pam_client.h])
 AM_INIT_AUTOMAKE
 
@@ -31,6 +31,8 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_PROG_LIBTOOL
+
+AC_CHECK_PROGS([BZR], [bzr])
 
 # mysql_config
 AC_ARG_WITH([mysql_config],
@@ -79,6 +81,23 @@ AC_CHECK_FUNCS([getpass strchr strdup])
 PLUGINDIR=$([$MYSQL_CONFIG --plugindir])
 AC_SUBST([PLUGINDIR])
 
+# Get the revision if bzr is present
+if test "x${BZR}" != "x"
+then
+    if cd "$(dirname "$0")" && bzr status >& /dev/null
+    then
+        REVISION="$(cd "$(dirname "$0")"; ${BZR} log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
+    else
+        REVISION=0
+    fi
+else
+    REVISION=0
+fi
+
+AC_SUBST([REVISION])
+
+# Output files
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+                 build/percona-pam-plugin.spec])
 AC_OUTPUT

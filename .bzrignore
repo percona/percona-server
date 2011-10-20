@@ -13,3 +13,4 @@ depcomp
 Makefile
 .deps
 .libs
+build/percona-pam-plugin.spec

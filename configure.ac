@@ -48,8 +48,10 @@ then
 fi
 
 # Checks for libraries.
-# FIXME: Replace `main' with a function in `-lpam':
-AC_CHECK_LIB([pam], [pam_start])
+AC_CHECK_LIB([pam], [pam_start], ,
+    AC_MSG_ERROR(
+        [Unable to find PAM. Please install the PAM development libraries])
+)
 
 # Checks for header files.
 MYSQL_INCLUDES="$(mysql_config --include)"
@@ -99,5 +101,6 @@ AC_SUBST([REVISION])
 # Output files
 AC_CONFIG_FILES([Makefile
                  src/Makefile
+                 build/build-binary.sh
                  build/percona-pam-plugin.spec])
 AC_OUTPUT

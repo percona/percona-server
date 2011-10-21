@@ -14,3 +14,4 @@ Makefile
 .deps
 .libs
 build/percona-pam-plugin.spec
+build/build-binary.sh

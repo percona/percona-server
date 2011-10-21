@@ -1027,7 +1027,7 @@
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11829,6 +11926,26 @@
+@@ -11855,6 +11952,26 @@
    "dump file (if present). Disabled by default.",
    NULL, NULL, FALSE);
  
@@ -1054,7 +1054,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11918,6 +12035,7 @@
+@@ -11944,6 +12061,7 @@
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),

@@ -177,7 +177,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11952,6 +11963,7 @@
+@@ -11978,6 +11989,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),

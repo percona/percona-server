@@ -287,7 +287,7 @@
  	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
  
  	/* Release a possible FIFO ticket and search latch. Since we will
-@@ -12307,6 +12351,7 @@
+@@ -12333,6 +12377,7 @@
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
    MYSQL_SYSVAR(lazy_drop_table),

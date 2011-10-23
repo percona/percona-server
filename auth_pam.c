@@ -300,6 +300,10 @@ mysql_declare_plugin(auth_pam)
   NULL,
   NULL,
   NULL
+#if MYSQL_PLUGIN_INTERFACE_VERSION >= 0x103
+  ,
+  0
+#endif
 },
 {
   MYSQL_AUTHENTICATION_PLUGIN,
@@ -315,7 +319,11 @@ mysql_declare_plugin(auth_pam)
   NULL,
   NULL,
   NULL
- }
+#if MYSQL_PLUGIN_INTERFACE_VERSION >= 0x103
+  ,
+  0
+#endif
+}
 mysql_declare_plugin_end;
 
 /* The client plugin */

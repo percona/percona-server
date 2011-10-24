@@ -30,7 +30,7 @@ This feature limits the age of idle |XtraDB| transactions. If a transaction is i
 Block Startup until LRU dump is loaded
 --------------------------------------
 
-Added a new boolean option, :variable:`innodb-blocking-lru-restore`, which is ``OFF`` by default. When set to ``ON``, restoring from the LRU dump file is synchronous, i.e. |XtraDB| waits until it is complete before reporting successful startup to the server. Bug Fixed: :bug:`785489` (*Alexey Kopytov*).
+Added a new boolean option, :variable:`innodb-blocking-buffer-pool-restore`, which is ``OFF`` by default. When set to ``ON``, restoring from the LRU dump file is synchronous, i.e. |XtraDB| waits until it is complete before reporting successful startup to the server. Bug Fixed: :bug:`785489` (*Alexey Kopytov*).
 
 Behavior changes
 ----------------

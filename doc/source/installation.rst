@@ -1,6 +1,6 @@
-=======================================
- Installing |XtraBackup| from Binaries
-=======================================
+=======================================================
+ Installing Percona PAM Authentication Plugin for MySQL
+=======================================================
 
 .. toctree::
    :hidden:

@@ -47,7 +47,13 @@
  static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
  			    ulong max_size);
  static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
-@@ -62,7 +64,7 @@
+@@ -57,12 +59,12 @@
+ char *batch_readline(LINE_BUFFER *line_buff)
+ {
+   char *pos;
+-  ulong out_length;
++  ulong UNINIT_VAR(out_length);
+ 
    if (!(pos=intern_read_line(line_buff, &out_length)))
      return 0;
    if (out_length && pos[out_length-1] == '\n')

@@ -113,7 +113,7 @@
 +  while (*ptr)
 +  {
 +    char *tmp, *orig_ptr, c;
-+    my_bool is_unique;
++    my_bool UNINIT_VAR(is_unique);
 +
 +    orig_ptr= ptr;
 +    /* Skip leading whitespace */
@@ -248,7 +248,7 @@
    int        len;
    MYSQL_RES  *result;
    MYSQL_ROW  row;
-+  my_bool    has_pk;
++  my_bool    UNINIT_VAR(has_pk);
    DBUG_ENTER("get_table_structure");
    DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
  

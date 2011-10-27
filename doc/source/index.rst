@@ -121,6 +121,8 @@ Management Improvements
    management/innodb_fast_index_renaming
    management/sql_no_fcache
    management/udf_maatkit
+   management/innodb_fake_changes
+   management/innodb_kill_idle_trx
 
 Diagnostics Improvements
 ========================
@@ -158,6 +160,7 @@ Reference
    :maxdepth: 1
    :glob:
 
+   development
    faq
    release-notes/release-notes_index
    glossary

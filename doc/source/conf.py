@@ -43,7 +43,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Percona PAM authenticatino plugin for MySQL'
+project = u'Percona PAM authentication plugin for MySQL'
 copyright = u'2011, Percona Inc'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -207,7 +207,7 @@ htmlhelp_basename = 'PerconaPAMForMySQL'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'PerconaPAMForMySQL.tex', u'Percona PAM Authentication Plugin for MySQl Documentation',
+  ('index', 'PerconaPAMForMySQL.tex', u'Percona PAM Authentication Plugin for MySQL Documentation',
    u'Percona Inc', 'manual'),
 ]
 

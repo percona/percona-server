@@ -80,10 +80,6 @@ can compile against unconfigured MySQL source tree.  */
 /** The MySQL service name for PAM configuration */
 static const char* service_name= "mysqld";
 
-/** The maximum length of MYSQL_SERVER_AUTH_INFO::external_user field.
-    Shouldn't be hardcoded in the plugin_auth.h but it is. */
-enum { max_auth_info_external_user_len = 512 };
-
 static int valid_pam_msg_style (int pam_msg_style)
 {
   switch (pam_msg_style)
@@ -202,7 +198,7 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
   pam_handle_t *pam_handle;
   struct pam_conv conv_func_info= { &vio_server_conv, vio };
   int error;
-  char *external_user_name;
+  char *pam_mapped_user_name;
 
   /* Impossible to tell if PAM will use passwords or something else */
   info->password_used= PASSWORD_USED_NO_MENTION;
@@ -249,7 +245,7 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
   }
 
   /* Get the authenticated user name from PAM */
-  error= pam_get_item(pam_handle, PAM_USER, (void *)&external_user_name);
+  error= pam_get_item(pam_handle, PAM_USER, (void *)&pam_mapped_user_name);
   if (error != PAM_SUCCESS)
   {
     pam_end(pam_handle, error);
@@ -257,12 +253,13 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
   }
 
   /* Check if user name from PAM is the same as provided for MySQL.  If
-  different, set @@external_user for the current session to the one provided by
-  PAM.  */
-  if (strcmp(info->user_name, external_user_name))
+  different, use the new user name for MySQL authorization and as
+  CURRENT_USER() value.  */
+  if (strcmp(info->user_name, pam_mapped_user_name))
   {
-    strncpy(info->external_user, external_user_name,
-            max_auth_info_external_user_len);
+    strncpy(info->authenticated_as, pam_mapped_user_name,
+            MYSQL_USERNAME_LENGTH);
+    info->authenticated_as[MYSQL_USERNAME_LENGTH]= '\0';
   }
 
   error= pam_end(pam_handle, error);

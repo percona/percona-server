@@ -87,7 +87,7 @@
    Implementation of Drop_table_error_handler::handle_condition().
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -2833,6 +2833,10 @@
+@@ -2860,6 +2860,10 @@
  
  	innobase_commit_concurrency_init_default();
  
@@ -98,7 +98,7 @@
  #ifdef HAVE_PSI_INTERFACE
  	/* Register keys with MySQL performance schema */
  	if (PSI_server) {
-@@ -11579,6 +11583,48 @@
+@@ -11686,6 +11690,48 @@
  	return(false);
  }
  
@@ -147,7 +147,7 @@
  static SHOW_VAR innodb_status_variables_export[]= {
    {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
    {NullS, NullS, SHOW_LONG}
-@@ -11865,6 +11911,15 @@
+@@ -11977,6 +12023,15 @@
    "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
    NULL, NULL, 500L, 1L, ~0L, 0);
  
@@ -163,7 +163,7 @@
  static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
    "Number of file I/O threads in InnoDB.",
-@@ -12193,6 +12248,7 @@
+@@ -12305,6 +12360,7 @@
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
@@ -173,7 +173,7 @@
    MYSQL_SYSVAR(data_home_dir),
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -292,6 +292,7 @@
+@@ -296,6 +296,7 @@
  extern ulint	srv_activity_count;
  extern ulint	srv_fatal_semaphore_wait_threshold;
  extern ulint	srv_dml_needed_delay;

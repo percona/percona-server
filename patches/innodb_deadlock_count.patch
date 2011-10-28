@@ -28,7 +28,7 @@
  Gets the size of a lock struct.
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -763,6 +763,7 @@
+@@ -767,6 +767,7 @@
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
  	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
  	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */

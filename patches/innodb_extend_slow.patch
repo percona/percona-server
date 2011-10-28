@@ -395,7 +395,7 @@
  
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -1580,6 +1580,16 @@
+@@ -1584,6 +1584,16 @@
  	trx->check_unique_secondary = !thd_test_options(
  		thd, OPTION_RELAXED_UNIQUE_CHECKS);
  
@@ -412,7 +412,7 @@
  	DBUG_VOID_RETURN;
  }
  
-@@ -1634,6 +1644,32 @@
+@@ -1638,6 +1648,32 @@
  	return(trx);
  }
  
@@ -445,7 +445,7 @@
  /*********************************************************************//**
  Note that a transaction has been registered with MySQL.
  @return true if transaction is registered with MySQL 2PC coordinator */
-@@ -9302,6 +9338,25 @@
+@@ -9409,6 +9445,25 @@
  	statement has ended */
  
  	if (trx->n_mysql_tables_in_use == 0) {

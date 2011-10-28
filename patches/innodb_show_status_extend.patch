@@ -240,7 +240,7 @@
  /** The lock system */
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -735,6 +735,11 @@
+@@ -739,6 +739,11 @@
  
  /** Status variables to be passed to MySQL */
  struct export_var_struct{
@@ -252,7 +252,7 @@
  	ulint innodb_data_pending_reads;	/*!< Pending reads */
  	ulint innodb_data_pending_writes;	/*!< Pending writes */
  	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
-@@ -752,6 +757,9 @@
+@@ -756,6 +761,9 @@
  #ifdef UNIV_DEBUG
  	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
  #endif /* UNIV_DEBUG */
@@ -262,7 +262,7 @@
  	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
-@@ -761,13 +769,43 @@
+@@ -765,13 +773,43 @@
  	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
@@ -306,7 +306,7 @@
  	ulint innodb_os_log_written;		/*!< srv_os_log_written */
  	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
  	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
-@@ -776,6 +814,8 @@
+@@ -780,6 +818,8 @@
  	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
  	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
  	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
@@ -315,7 +315,7 @@
  	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
  	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
  	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
-@@ -785,11 +825,18 @@
+@@ -789,11 +829,18 @@
  						/ srv_n_lock_wait_count */
  	ulint innodb_row_lock_time_max;		/*!< srv_n_lock_max_wait_time
  						/ 1000 */
@@ -336,7 +336,7 @@
  /** Thread slot in the thread table */
 --- a/storage/innobase/include/sync0sync.h
 +++ b/storage/innobase/include/sync0sync.h
-@@ -771,6 +771,10 @@
+@@ -767,6 +767,10 @@
  
  #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
  

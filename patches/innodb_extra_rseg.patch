@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11568,6 +11568,7 @@
+@@ -11681,6 +11681,7 @@
    NULL, /* reserved */
    0,    /* flags */
  },

@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -4369,6 +4369,7 @@
+@@ -4426,6 +4426,7 @@
  	}
  
  	total_info->pool_size += pool_info->pool_size;
@@ -15,7 +15,7 @@
  	total_info->lru_len += pool_info->lru_len;
  	total_info->old_lru_len += pool_info->old_lru_len;
  	total_info->free_list_len += pool_info->free_list_len;
-@@ -4434,6 +4435,8 @@
+@@ -4491,6 +4492,8 @@
  
  	pool_info->pool_size = buf_pool->curr_size;
  
@@ -24,7 +24,7 @@
  	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
  
  	pool_info->old_lru_len = buf_pool->LRU_old_len;
-@@ -4555,14 +4558,16 @@
+@@ -4612,14 +4615,16 @@
  	ut_ad(pool_info);
  
  	fprintf(file,
@@ -101,7 +101,7 @@
    {"buffer_pool_pages_free",
    (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
  #ifdef UNIV_DEBUG
-@@ -11087,6 +11089,16 @@
+@@ -11199,6 +11201,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -118,7 +118,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11274,7 +11286,7 @@
+@@ -11386,7 +11398,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -127,7 +127,7 @@
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11373,6 +11385,8 @@
+@@ -11486,6 +11498,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),
@@ -178,9 +178,9 @@
  Create a consistent cursor view for mysql to be used in cursors. In this
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -142,6 +142,9 @@
- extern char	srv_adaptive_flushing;
- 
+@@ -146,6 +146,9 @@
+ corrupted index and table */
+ extern my_bool	srv_load_corrupted;
  
 +extern ulint    srv_show_locks_held;
 +extern ulint    srv_show_verbose_locks;
@@ -188,7 +188,7 @@
  /* The sort order table of the MySQL latin1_swedish_ci character set
  collation */
  extern const byte*	srv_latin1_ordering;
-@@ -324,6 +327,8 @@
+@@ -328,6 +331,8 @@
  buffer pool to disk */
  extern ulint srv_buf_pool_flushed;
  
@@ -197,7 +197,7 @@
  /** Number of buffer pool reads that led to the
  reading of a disk page */
  extern ulint srv_buf_pool_reads;
-@@ -703,6 +708,7 @@
+@@ -707,6 +712,7 @@
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
  	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */

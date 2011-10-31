@@ -1,5 +1,4 @@
 #                                               -*- Autoconf -*-
-
 # (C) 2011 Percona Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -21,31 +20,22 @@ AC_INIT([Percona PAM plugin], [0.1], [mysql-dev@percona.com])
 AC_CONFIG_SRCDIR([src/lib_auth_pam_client.h])
 AM_INIT_AUTOMAKE
 
-# Checks for programs.
-AC_PROG_CXX
-AC_PROG_AWK
-AC_PROG_CC
-AC_PROG_CPP
-AC_PROG_INSTALL
-AC_PROG_LN_S
-AC_PROG_MAKE_SET
-AC_PROG_RANLIB
-AC_PROG_LIBTOOL
+AC_CONFIG_HEADERS([config.h])
 
+AC_PROG_CC
+AC_PROG_LIBTOOL
+AC_PROG_SED
 AC_CHECK_PROGS([BZR], [bzr])
 
-# mysql_config
 AC_ARG_WITH([mysql_config],
     AC_HELP_STRING(
-        [--with-mysql_config=PROGRAM],
+        [--with-mysql_config=PATH],
         [location of the mysql_config program]),
-    [mysql_config_prog="$withval"])
-AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], [$mysql_config_prog])
+    [MYSQL_CONFIG="$with_mysql_config"])
+AC_PATH_PROG([MYSQL_CONFIG], [mysql_config])
 
-if test "x$MYSQL_CONFIG" = "x"
-then
-    AC_MSG_ERROR([Unable to find mysql_config. Please install or specify.])
-fi
+AS_IF([test "x${MYSQL_CONFIG}" = x],
+      [AC_MSG_ERROR([Unable to find mysql_config. Please install or specify.])])
 
 # Checks for libraries.
 AC_CHECK_LIB([pam], [pam_start], ,
@@ -53,48 +43,28 @@ AC_CHECK_LIB([pam], [pam_start], ,
         [Unable to find PAM. Please install the PAM development libraries])
 )
 
-# Checks for header files.
-MYSQL_INCLUDES="$(mysql_config --include)"
+# Replace -I with -isystem MySQL header include GCC options to silence warnings
+# originating from them
+MYSQL_INCLUDES=`"${MYSQL_CONFIG}" --include | "${SED}" 's@^-I@-isystem @'`
 
-save_CFLAGS="${CFLAGS}"
-save_CPPFLAGS="${CPPFLAGS}"
-
-CFLAGS="${CFLAGS} ${MYSQL_INCLUDES}"
 CPPFLAGS="${CPPFLAGS} ${MYSQL_INCLUDES}"
 
-AC_CHECK_HEADERS([string.h unistd.h])
-AC_CHECK_HEADER([mysql/plugin.h], [],
+AC_CHECK_HEADERS([mysql/plugin.h mysql/plugin_auth.h], [],
     AC_MSG_ERROR(
-       [Unable to find mysql/plugin.h. Please install the mysql
-        development headers]))
-
-CFLAGS="${save_CFLAGS}"
-CPPFLAGS="${save_CPPFLAGS}"
-
-AC_SUBST([MYSQL_INCLUDES])
-
-# Checks for typedefs, structures, and compiler characteristics.
+       [Unable to find MySQL development headers. Please install them]))
 
 # Checks for library functions.
 AC_FUNC_MALLOC
-AC_CHECK_FUNCS([getpass strchr strdup])
+AC_CHECK_FUNCS([getpass])
 
 # Get the plugin dir
 PLUGINDIR=$([$MYSQL_CONFIG --plugindir])
 AC_SUBST([PLUGINDIR])
 
 # Get the revision if bzr is present
-if test "x${BZR}" != "x"
-then
-    if cd "$(dirname "$0")" && bzr status >& /dev/null
-    then
-        REVISION="$(cd "$(dirname "$0")"; ${BZR} log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
-    else
-        REVISION=0
-    fi
-else
-    REVISION=0
-fi
+AS_IF([test "x${BZR}" != x],
+      [REVISION=`${BZR} revno "$srcdir"`])
+REVISION=${REVISION:-0}
 
 AC_SUBST([REVISION])
 

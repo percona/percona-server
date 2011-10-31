@@ -20,6 +20,9 @@
 
  PAM authentication for MySQL, the test version of the client-side plugin.
 */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <string.h>
 

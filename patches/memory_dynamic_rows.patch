@@ -3945,7 +3945,7 @@
 +PRIMARY KEY (f1)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
++t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=33 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
@@ -3956,25 +3956,25 @@
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=34 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=34	
++t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=34	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=123 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=123	
++t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=123	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=1000 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=1000	
++t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=1000	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +PRIMARY KEY (f1)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
++t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=33 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
@@ -3985,19 +3985,19 @@
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=34 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=34	
++t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=34	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=121 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=121	
++t1	MEMORY	10	Dynamic	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=121	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=1000 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=1000	
++t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=1000	
 +DROP TABLE t1;
 --- /dev/null
 +++ b/mysql-test/r/percona_heap_bug784464_32bit.result
@@ -4021,13 +4021,13 @@
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=124	
++t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=124	
 +DROP TABLE t1;
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +PRIMARY KEY (f1)) KEY_BLOCK_SIZE=122 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=122	
++t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=122	
 +DROP TABLE t1;
 --- /dev/null
 +++ b/mysql-test/r/percona_heap_bug784468.result
@@ -4035,17 +4035,17 @@
 +CREATE TABLE t1 ( f1 VARCHAR(30)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	32	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
++t1	MEMORY	10	Fixed	0	32	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
 +DROP TABLE t1;
 +CREATE TABLE t1 ( f1 VARCHAR(31)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	33	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
++t1	MEMORY	10	Fixed	0	33	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
 +DROP TABLE t1;
 +CREATE TABLE t1 ( f1 VARCHAR(32)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
 +SHOW TABLE STATUS LIKE 't1';
 +Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-+t1	MEMORY	10	Fixed	0	34	0	X	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
++t1	MEMORY	10	Fixed	0	34	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC	
 +DROP TABLE t1;
 --- /dev/null
 +++ b/mysql-test/r/percona_heap_bug788544.result
@@ -4997,7 +4997,7 @@
 +DROP TABLE local_1_1;
 --- /dev/null
 +++ b/mysql-test/t/percona_heap_bug784464.test
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,66 @@
 +#
 +# Bug #784464: Silent conversion from Dynamic to Fixed row_format for certain
 +# values of key_block_size.
@@ -5006,59 +5006,61 @@
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +              	PRIMARY KEY (f1)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +--error ER_CANT_USE_OPTION_HERE
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=33 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
++--replace_column 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=34 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=123 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=1000 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +              	PRIMARY KEY (f1)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +--error ER_CANT_USE_OPTION_HERE
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=33 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
++--replace_column 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=34 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=121 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=1000 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
@@ -5089,13 +5091,13 @@
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
 +              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=122 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 6 X 8 X
++--replace_column 6 X 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 --- /dev/null
@@ -5106,17 +5108,17 @@
 +#
 +
 +CREATE TABLE t1 ( f1 VARCHAR(30)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 8 X
++--replace_column 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 ( f1 VARCHAR(31)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 8 X
++--replace_column 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +
 +CREATE TABLE t1 ( f1 VARCHAR(32)) ENGINE=HEAP ROW_FORMAT=DYNAMIC;
-+--replace_column 8 X
++--replace_column 8 X 12 X 13 X
 +SHOW TABLE STATUS LIKE 't1';
 +DROP TABLE t1;
 +

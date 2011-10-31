@@ -2,7 +2,7 @@
 #  https://bugs.launchpad.net/percona-server/+bug/794837
 --- a/mysql-test/valgrind.supp
 +++ b/mysql-test/valgrind.supp
-@@ -876,3 +876,12 @@
+@@ -876,6 +876,15 @@
     fun:buf_buddy_free_low
     fun:buf_buddy_free
  }
@@ -15,3 +15,6 @@
 +   fun:compress
 +   fun:my_compress_alloc
 +}
+ 
+ # Note the wildcard in the (mangled) function signatures of
+ # write_keys() and find_all_keys().

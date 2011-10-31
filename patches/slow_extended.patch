@@ -135,7 +135,7 @@
    /*
 --- a/sql/filesort.cc
 +++ b/sql/filesort.cc
-@@ -195,6 +195,7 @@
+@@ -193,6 +193,7 @@
    {
      status_var_increment(thd->status_var.filesort_scan_count);
    }
@@ -143,15 +143,15 @@
  #ifdef CAN_TRUST_RANGE
    if (select && select->quick && select->quick->records > 0L)
    {
-@@ -260,6 +261,7 @@
-   }
-   else
-   {
+@@ -261,6 +262,7 @@
+     /* filesort cannot handle zero-length records during merge. */
+     DBUG_ASSERT(param.sort_length != 0);
+ 
 +    thd->query_plan_flags|= QPLAN_FILESORT_DISK;
      if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
      {
        my_free(table_sort.buffpek);
-@@ -1219,6 +1221,7 @@
+@@ -1209,6 +1211,7 @@
    DBUG_ENTER("merge_buffers");
  
    status_var_increment(current_thd->status_var.filesort_merge_passes);
@@ -852,7 +852,7 @@
    /*
      Reset warning count for each query that uses tables
      A better approach would be to reset this for any commands
-@@ -5297,6 +5390,21 @@
+@@ -5303,6 +5396,21 @@
    thd->rand_used= 0;
    thd->sent_row_count= thd->examined_row_count= 0;
  

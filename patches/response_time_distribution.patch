@@ -3501,7 +3501,7 @@
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -11095,6 +11096,15 @@
+@@ -11099,6 +11100,15 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -3517,7 +3517,7 @@
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11334,6 +11344,12 @@
+@@ -11338,6 +11348,12 @@
              Lex->type|= REFRESH_SLAVE;
              Lex->reset_slave_info.all= false;
            }
@@ -3530,7 +3530,7 @@
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12641,6 +12657,7 @@
+@@ -12645,6 +12661,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}

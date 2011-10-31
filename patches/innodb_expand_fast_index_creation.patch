@@ -864,7 +864,7 @@
 +--source include/wait_until_count_sessions.inc
 --- a/sql/sql_lex.cc
 +++ b/sql/sql_lex.cc
-@@ -1631,6 +1631,9 @@
+@@ -1632,6 +1632,9 @@
    alter_list(rhs.alter_list, mem_root),
    key_list(rhs.key_list, mem_root),
    create_list(rhs.create_list, mem_root),
@@ -874,7 +874,7 @@
    flags(rhs.flags),
    keys_onoff(rhs.keys_onoff),
    tablespace_op(rhs.tablespace_op),
-@@ -1653,6 +1656,7 @@
+@@ -1654,6 +1657,7 @@
    list_copy_and_replace_each_value(alter_list, mem_root);
    list_copy_and_replace_each_value(key_list, mem_root);
    list_copy_and_replace_each_value(create_list, mem_root);
@@ -1300,7 +1300,7 @@
  
  /* Ignore posix_fadvise() on those platforms where it does not exist */
  #if defined __WIN__
-@@ -2672,6 +2673,9 @@
+@@ -2673,6 +2674,9 @@
  		}
  	}
  

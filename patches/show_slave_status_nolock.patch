@@ -105,7 +105,7 @@
  %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
  %token  STD_SYM
  %token  STOP_SYM
-@@ -11101,6 +11102,11 @@
+@@ -11105,6 +11106,11 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }

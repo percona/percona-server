@@ -378,7 +378,7 @@
  %token  SQL_SMALL_RESULT
  %token  SQL_SYM                       /* SQL-2003-R */
  %token  SQL_THREAD
-@@ -7353,6 +7354,10 @@
+@@ -7357,6 +7358,10 @@
                Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
              }
            }

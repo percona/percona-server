@@ -65,3 +65,4 @@ disable_query_cache_28249_test_sporadic_failure.patch
 bug53761.patch
 xtradb_bug317074.patch
 subunit.patch
+warning_fixes.patch

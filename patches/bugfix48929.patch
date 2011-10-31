@@ -29,16 +29,25 @@
  #define mysqld_charset &my_charset_latin1
  
  #ifdef HAVE_purify
-@@ -5139,28 +5143,49 @@
+@@ -5137,31 +5141,58 @@
+ #ifndef EMBEDDED_LIBRARY
+ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
  {
-   my_socket sock,new_sock;
+-  my_socket sock,new_sock;
++  my_socket UNINIT_VAR(sock),new_sock;
    uint error_count=0;
 -  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
 -  fd_set readFDs,clientFDs;
    THD *thd;
    struct sockaddr_in cAddr;
 -  int ip_flags=0,socket_flags=0,flags;
-+  int ip_flags=0,socket_flags=0,flags,retval;
++#if !defined(HAVE_POLL)
++  int ip_flags= 0;
++#endif
++#if defined(HAVE_SYS_UN_H) && !defined(HAVE_POLL)
++  int socket_flags= 0;
++#endif
++  int UNINIT_VAR(flags),retval;
    st_vio *vio_tmp;
 +#ifdef HAVE_POLL
 +  int socket_count= 0;
@@ -66,8 +75,9 @@
 +    socket_count++;
 +#else
      FD_SET(ip_sock,&clientFDs);
+-#ifdef HAVE_FCNTL
 +#endif
- #ifdef HAVE_FCNTL
++#if !defined (HAVE_POLL) && defined(HAVE_FCNTL)
      ip_flags = fcntl(ip_sock, F_GETFL, 0);
  #endif
    }
@@ -78,11 +88,13 @@
 +  socket_count++;
 +#else
    FD_SET(unix_sock,&clientFDs);
+-#ifdef HAVE_FCNTL
 +#endif
- #ifdef HAVE_FCNTL
++#if defined(HAVE_FCNTL) && defined(HAVE_SYS_UN_H) && !defined(HAVE_POLL)
    socket_flags=fcntl(unix_sock, F_GETFL, 0);
  #endif
-@@ -5170,12 +5195,15 @@
+ #endif
+@@ -5170,12 +5201,15 @@
    MAYBE_BROKEN_SYSCALL;
    while (!abort_loop)
    {
@@ -103,7 +115,7 @@
      {
        if (socket_errno != SOCKET_EINTR)
        {
-@@ -5185,7 +5213,7 @@
+@@ -5185,7 +5219,7 @@
        MAYBE_BROKEN_SYSCALL
        continue;
      }
@@ -112,7 +124,7 @@
      if (abort_loop)
      {
        MAYBE_BROKEN_SYSCALL;
-@@ -5193,6 +5221,21 @@
+@@ -5193,6 +5227,21 @@
      }
  
      /* Is this a new connection request ? */
@@ -134,7 +146,7 @@
  #ifdef HAVE_SYS_UN_H
      if (FD_ISSET(unix_sock,&readFDs))
      {
-@@ -5200,11 +5243,12 @@
+@@ -5200,11 +5249,12 @@
        flags= socket_flags;
      }
      else

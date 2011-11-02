@@ -17,5 +17,6 @@
 
 aclocal &&
 libtoolize --automake &&
+autoheader &&
 automake --add-missing --foreign &&
 autoconf

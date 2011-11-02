@@ -52,6 +52,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  CREATE USER ''@'hostname' IDENTIFIED WITH auth_pam_server;
 
 */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <assert.h>
 
@@ -69,7 +72,11 @@ can compile against unconfigured MySQL source tree.  */
 #include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
 
+#ifdef HAVE_GETPASS
 #include <unistd.h> /* getpass() */
+#else
+#error "Please add support for echo-less input for your platform"
+#endif
 
 #include "lib_auth_pam_client.h"
 

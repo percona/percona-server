@@ -22,6 +22,10 @@
 
  For the general description, see the top comment in auth_pam.c.
 */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "lib_auth_pam_client.h"
 
 #include <assert.h>

@@ -16,8 +16,6 @@
 
 plugindir = @PLUGINDIR@
 
-AM_CFLAGS = @MYSQL_INCLUDES@
-
 plugin_LTLIBRARIES = auth_pam.la test_auth_pam_client.la
 auth_pam_la_SOURCES = auth_pam.c lib_auth_pam_client.h lib_auth_pam_client.c
 auth_pam_la_CPPFLAGS = -DMYSQL_DYNAMIC_PLUGIN

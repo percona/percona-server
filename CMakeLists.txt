@@ -13,13 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #
-
-plugindir = @PLUGINDIR@
-
-plugin_LTLIBRARIES = auth_pam.la test_auth_pam_client.la
-auth_pam_la_SOURCES = auth_pam.c lib_auth_pam_client.h lib_auth_pam_client.c
-auth_pam_la_CPPFLAGS = -DMYSQL_DYNAMIC_PLUGIN
-auth_pam_la_LDFLAGS = -module -avoid-version -shared
-test_auth_pam_client_la_SOURCES = test_auth_pam_client.c \
-	lib_auth_pam_client.h lib_auth_pam_client.c
-test_auth_pam_client_la_LDFLAGS = -module -avoid-version -shared
+INCLUDE (CheckLibraryExists)
+CHECK_LIBRARY_EXISTS(pam pam_authenticate "" HAVE_PAM) 
+IF(HAVE_PAM)
+  SET(AUTH_PAM_SOURCES 
+    src/auth_pam.c src/lib_auth_pam_client.c src/lib_auth_pam_client.h)
+  MYSQL_ADD_PLUGIN(auth_pam ${AUTH_PAM_SOURCES} LINK_LIBRARIES pam)
+ENDIF(HAVE_PAM)

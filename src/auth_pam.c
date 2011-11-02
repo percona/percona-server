@@ -62,8 +62,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include <security/pam_modules.h>
 #include <security/pam_misc.h>
 
-#define MYSQL_DYNAMIC_PLUGIN
-
 /* Define these macros ourselves, so we don't have to include my_global.h and
 can compile against unconfigured MySQL source tree.  */
 #define STDCALL

@@ -66,3 +66,4 @@ bug53761.patch
 xtradb_bug317074.patch
 subunit.patch
 warning_fixes.patch
+bug860910.patch

@@ -44,10 +44,10 @@
  extern ulong log_backup_output_options;
  extern my_bool opt_log_queries_not_using_indexes;
 --- /dev/null
-+++ b/sql/query_strip_comments.h
++++ b/sql/query_cache_strip_comments.h
 @@ -0,0 +1,38 @@
-+#ifndef _SQL_QUERY_STRIPC_COMMENTS_H_
-+#define _SQL_QUERY_STRIPC_COMMENTS_H_
++#ifndef _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
++#define _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
 +#ifdef HAVE_QUERY_CACHE
 +
 +// implemented in sql_cache.cc
@@ -83,14 +83,14 @@
 +};
 +
 +#endif // HAVE_QUERY_CACHE
-+#endif // _SQL_QUERY_STRIPC_COMMENTS_H_
++#endif // _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
 @@ -344,6 +344,182 @@
  #include "probes_mysql.h"
  #include "transaction.h"
  
-+#include "query_strip_comments.h"
++#include "query_cache_strip_comments.h"
 +
 +Query_Cache_Strip_Comments::Query_Cache_Strip_Comments()
 +{
@@ -450,7 +450,7 @@
                                       THR_LOCK_INFO */
  
 +#ifdef HAVE_QUERY_CACHE
-+#include "query_strip_comments.h"
++#include "query_cache_strip_comments.h"
 +#endif // HAVE_QUERY_CACHE
  
  class Reprepare_observer;

@@ -45,22 +45,22 @@
  extern my_bool opt_log_queries_not_using_indexes;
 --- /dev/null
 +++ b/sql/query_strip_comments.h
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,38 @@
 +#ifndef _SQL_QUERY_STRIPC_COMMENTS_H_
 +#define _SQL_QUERY_STRIPC_COMMENTS_H_
 +#ifdef HAVE_QUERY_CACHE
 +
 +// implemented in sql_cache.cc
-+class QueryStripComments
++class Query_Cache_Strip_Comments
 +{
 +private:
-+  QueryStripComments(const QueryStripComments&);
-+  QueryStripComments& operator=(const QueryStripComments&);
++  Query_Cache_Strip_Comments(const Query_Cache_Strip_Comments&);
++  Query_Cache_Strip_Comments& operator=(const Query_Cache_Strip_Comments&);
 +public:
-+  QueryStripComments();
-+  ~QueryStripComments();
++  Query_Cache_Strip_Comments();
++  ~Query_Cache_Strip_Comments();
 +  void set(const char* a_query, uint a_query_length, uint a_additional_length);
-+  
++
 +  char* query()        { return buffer; }
 +  uint  query_length() { return length; }
 +private:
@@ -70,11 +70,12 @@
 +  uint  length /*query length, not buffer length*/;
 +  uint  buffer_length;
 +};
-+class QueryStripComments_Backup
++class Query_Cache_Strip_Comments_Backup
 +{
 +public:
-+  QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc);
-+  ~QueryStripComments_Backup();
++  Query_Cache_Strip_Comments_Backup(THD* a_thd,
++                                    Query_Cache_Strip_Comments* qsc);
++  ~Query_Cache_Strip_Comments_Backup();
 +private:
 +  THD*  thd;
 +  char* query;
@@ -91,22 +92,22 @@
  
 +#include "query_strip_comments.h"
 +
-+QueryStripComments::QueryStripComments()
++Query_Cache_Strip_Comments::Query_Cache_Strip_Comments()
 +{
 +  buffer = 0;
 +  length = 0;
 +  buffer_length = 0;
 +}
-+QueryStripComments::~QueryStripComments()
++Query_Cache_Strip_Comments::~Query_Cache_Strip_Comments()
 +{
 +  cleanup();
 +}
 +
-+inline bool query_strip_comments_is_white_space(char c)
++inline bool query_cache_strip_comments_is_white_space(char c)
 +{
 +  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
 +}
-+void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
++void Query_Cache_Strip_Comments::set(const char* query, uint query_length, uint additional_length)
 +{
 +  /* Don't forget about \0 in the end of query */
 +  uint new_buffer_length = query_length + 1 + additional_length;
@@ -118,7 +119,7 @@
 +  uint query_position = 0;
 +  uint position = 0;
 +  // Skip whitespaces from begin
-+  while((query_position < query_length) && query_strip_comments_is_white_space(query[query_position]))
++  while((query_position < query_length) && query_cache_strip_comments_is_white_space(query[query_position]))
 +  {
 +    ++query_position;
 +  }
@@ -203,7 +204,7 @@
 +        }
 +      }
 +    default:
-+      if(query_strip_comments_is_white_space(current))
++      if(query_cache_strip_comments_is_white_space(current))
 +      {
 +        insert_space = true;
 +        ++query_position;
@@ -223,14 +224,14 @@
 +      buffer[position++] = query[query_position++];
 +    }
 +  }
-+  while((0 < position) && query_strip_comments_is_white_space(buffer[position - 1]))
++  while((0 < position) && query_cache_strip_comments_is_white_space(buffer[position - 1]))
 +  {
 +    --position;
 +  }
 +  buffer[position] = 0;
 +  length = position;
 +}
-+void QueryStripComments::cleanup()
++void Query_Cache_Strip_Comments::cleanup()
 +{
 +  if(buffer)
 +  {
@@ -240,7 +241,7 @@
 +  length        = 0;
 +  buffer_length = 0;
 +}
-+QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc)
++Query_Cache_Strip_Comments_Backup::Query_Cache_Strip_Comments_Backup(THD* a_thd,Query_Cache_Strip_Comments* qsc)
 +{
 +  if(opt_query_cache_strip_comments)
 +  {
@@ -257,7 +258,7 @@
 +    length = 0;
 +  }
 +}
-+QueryStripComments_Backup::~QueryStripComments_Backup()
++Query_Cache_Strip_Comments_Backup::~Query_Cache_Strip_Comments_Backup()
 +{
 +  if(thd)
 +  {
@@ -283,26 +284,27 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1457,8 @@
+@@ -1274,6 +1457,9 @@
        unlock();
        DBUG_VOID_RETURN;
      }
-+    QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
-+    QueryStripComments_Backup backup(thd,query_strip_comments);
++    Query_Cache_Strip_Comments *query_cache_strip_comments =
++      &(thd->query_cache_strip_comments);
++    Query_Cache_Strip_Comments_Backup backup(thd,query_cache_strip_comments);
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1451,6 +1636,9 @@
+@@ -1451,6 +1637,9 @@
    Query_cache_block_table *block_table, *block_table_end;
    ulong tot_length;
    Query_cache_query_flags flags;
-+  QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
++  Query_Cache_Strip_Comments *query_cache_strip_comments = &(thd->query_cache_strip_comments);
 +  char *sql_backup          = sql;
 +  uint  query_length_backup = query_length;
    DBUG_ENTER("Query_cache::send_result_to_client");
  
    /*
-@@ -1472,21 +1660,103 @@
+@@ -1472,21 +1661,103 @@
  
    {
      uint i= 0;
@@ -419,20 +421,20 @@
      if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
           my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
           my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1521,6 +1791,12 @@
+@@ -1521,6 +1792,12 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
 +  if(opt_query_cache_strip_comments)
 +  {
-+    query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
-+    sql          = query_strip_comments->query();
-+    query_length = query_strip_comments->query_length();
++    query_cache_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    sql          = query_cache_strip_comments->query();
++    query_length = query_cache_strip_comments->query_length();
 +  }
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1587,6 +1863,8 @@
+@@ -1587,6 +1864,8 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);
@@ -458,7 +460,7 @@
    */
     ulong id;
 +#ifdef HAVE_QUERY_CACHE
-+  QueryStripComments query_strip_comments; // see sql_cache.cc
++  Query_Cache_Strip_Comments query_cache_strip_comments;
 +#endif //HAVE_QUERY_CACHE
  
    /*

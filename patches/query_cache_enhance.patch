@@ -59,22 +59,22 @@
 +public:
 +  Query_Cache_Strip_Comments();
 +  ~Query_Cache_Strip_Comments();
-+  void set(const char* a_query, uint a_query_length, uint a_additional_length);
++  void set(const char* query, size_t query_length, size_t db_length);
 +
-+  char* query()        { return buffer; }
-+  uint  query_length() { return length; }
++  char* query()        { return buffer;   }
++  uint  query_length() { return q_length; }
 +private:
-+  void cleanup();
++  void prepare(size_t query_length, size_t db_length);
 +private:
 +  char* buffer;
-+  uint  length /*query length, not buffer length*/;
-+  uint  buffer_length;
++  size_t q_length;
++  size_t b_length;
 +};
 +class Query_Cache_Strip_Comments_Backup
 +{
 +public:
 +  Query_Cache_Strip_Comments_Backup(THD* a_thd,
-+                                    Query_Cache_Strip_Comments* qsc);
++                                    Query_Cache_Strip_Comments* qcsc);
 +  ~Query_Cache_Strip_Comments_Backup();
 +private:
 +  THD*  thd;
@@ -86,36 +86,38 @@
 +#endif // _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -344,6 +344,182 @@
+@@ -344,6 +344,194 @@
  #include "probes_mysql.h"
  #include "transaction.h"
  
 +#include "query_cache_strip_comments.h"
 +
-+Query_Cache_Strip_Comments::Query_Cache_Strip_Comments()
++Query_Cache_Strip_Comments::Query_Cache_Strip_Comments() :
++  buffer(0),
++  q_length(0),
++  b_length(0)
 +{
-+  buffer = 0;
-+  length = 0;
-+  buffer_length = 0;
 +}
 +Query_Cache_Strip_Comments::~Query_Cache_Strip_Comments()
 +{
-+  cleanup();
++  if(buffer)
++  {
++    my_free(buffer);
++  }
++  buffer=   0;
++  q_length= 0;
++  b_length= 0;
 +}
 +
 +inline bool query_cache_strip_comments_is_white_space(char c)
 +{
 +  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
 +}
-+void Query_Cache_Strip_Comments::set(const char* query, uint query_length, uint additional_length)
++void Query_Cache_Strip_Comments::set(const char* query,
++                                     size_t query_length,
++                                     size_t db_length)
 +{
-+  /* Don't forget about \0 in the end of query */
-+  uint new_buffer_length = query_length + 1 + additional_length;
-+  if(new_buffer_length > buffer_length)
-+  {
-+    cleanup();
-+    buffer = (char*)my_malloc(new_buffer_length,MYF(0));
-+  }
++  prepare(query_length, db_length);
 +  uint query_position = 0;
 +  uint position = 0;
 +  // Skip whitespaces from begin
@@ -229,27 +231,37 @@
 +    --position;
 +  }
 +  buffer[position] = 0;
-+  length = position;
++  q_length = position;
 +}
-+void Query_Cache_Strip_Comments::cleanup()
++void Query_Cache_Strip_Comments::prepare(size_t query_length, size_t db_length)
 +{
-+  if(buffer)
++  /* according to sql_parse.cc memory allocation */
++  size_t new_b_length= (query_length + 1) + (db_length + 1) +
++    QUERY_CACHE_FLAGS_SIZE;
++
++  if (b_length < new_b_length)
 +  {
-+    my_free(buffer);
++    b_length= new_b_length;
++    if (buffer)
++    {
++      buffer= (char*) my_realloc(buffer, b_length, MYF(0));
++    }
++    else
++    {
++      buffer= (char *) my_malloc(b_length, MYF(0));
++    }
 +  }
-+  buffer        = 0;
-+  length        = 0;
-+  buffer_length = 0;
 +}
-+Query_Cache_Strip_Comments_Backup::Query_Cache_Strip_Comments_Backup(THD* a_thd,Query_Cache_Strip_Comments* qsc)
++Query_Cache_Strip_Comments_Backup::
++Query_Cache_Strip_Comments_Backup(THD* a_thd, Query_Cache_Strip_Comments* qsc)
 +{
 +  if(opt_query_cache_strip_comments)
 +  {
 +    thd = a_thd;
 +    query = thd->query();
 +    length = thd->query_length();
-+    qsc->set(query,length,thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
-+    thd->set_query(qsc->query(),qsc->query_length());
++    qsc->set(query, length, thd->db_length);
++    thd->set_query(qsc->query(), qsc->query_length());
 +  }
 +  else
 +  {
@@ -262,14 +274,14 @@
 +{
 +  if(thd)
 +  {
-+    thd->set_query(query,length);
++    thd->set_query(query, length);
 +  }
 +}
 +
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +630,14 @@
+@@ -454,7 +642,14 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
@@ -284,7 +296,7 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1457,9 @@
+@@ -1274,6 +1469,9 @@
        unlock();
        DBUG_VOID_RETURN;
      }
@@ -294,7 +306,7 @@
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1451,6 +1637,9 @@
+@@ -1451,6 +1649,9 @@
    Query_cache_block_table *block_table, *block_table_end;
    ulong tot_length;
    Query_cache_query_flags flags;
@@ -304,7 +316,7 @@
    DBUG_ENTER("Query_cache::send_result_to_client");
  
    /*
-@@ -1472,21 +1661,103 @@
+@@ -1472,21 +1673,103 @@
  
    {
      uint i= 0;
@@ -421,20 +433,20 @@
      if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
           my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
           my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1521,6 +1792,12 @@
+@@ -1521,6 +1804,12 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
 +  if(opt_query_cache_strip_comments)
 +  {
-+    query_cache_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    query_cache_strip_comments->set(sql, query_length, thd->db_length);
 +    sql          = query_cache_strip_comments->query();
 +    query_length = query_cache_strip_comments->query_length();
 +  }
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1587,6 +1864,8 @@
+@@ -1587,6 +1876,8 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);

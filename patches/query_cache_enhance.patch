@@ -86,7 +86,7 @@
 +#endif // _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -344,6 +344,194 @@
+@@ -344,6 +344,209 @@
  #include "probes_mysql.h"
  #include "transaction.h"
  
@@ -138,7 +138,9 @@
 +        buffer[position++] = query[query_position++]; // copy current symbol
 +        while(query_position < query_length)
 +        {
-+          if(current == query[query_position]) // found pair quote
++          /* found pair quotes, avoid \' and \" */
++          if(current == query[query_position] &&
++             '\\' != query[query_position - 1])
 +          {
 +            break;
 +          }
@@ -148,14 +150,25 @@
 +      }
 +    case '/':
 +      {
-+        if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
++        /*
++          check for slash-star, avoid slash-star-exclamation and
++          backslash-slash-star.
++        */
++        if(((query_position + 2) < query_length) &&
++           '*' == query[query_position+1] &&
++           '!' != query[query_position+2] &&
++           (0 == query_position ||
++            '\\' != query[query_position-1]))
 +        {
 +          query_position += 2; // skip "/*"
 +          do
 +          {
-+            if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
++            /* check for star-slash, avoid backslash-star-slash */
++            if('*' == query[query_position] &&
++               '/' == query[query_position+1] &&
++               '\\' != query[query_position-1])
 +            {
-+              query_position += 2; // skip "*/"
++              query_position += 2;
 +              insert_space = true;
 +              break;
 +            }
@@ -188,7 +201,9 @@
 +        do
 +        {
 +          ++query_position; // skip current symbol (# or -)
-+          if('\n' == query[query_position])  // check for '\n'
++          /* check for \n, avoid \\n */
++          if('\n' == query[query_position] &&
++             '\\' != query[query_position-1])
 +          {
 +            ++query_position; // skip '\n'
 +            insert_space = true;
@@ -281,7 +296,7 @@
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +642,14 @@
+@@ -454,7 +657,14 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
@@ -296,7 +311,7 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1469,9 @@
+@@ -1274,6 +1484,9 @@
        unlock();
        DBUG_VOID_RETURN;
      }
@@ -306,7 +321,7 @@
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1451,6 +1649,9 @@
+@@ -1451,6 +1664,9 @@
    Query_cache_block_table *block_table, *block_table_end;
    ulong tot_length;
    Query_cache_query_flags flags;
@@ -316,7 +331,7 @@
    DBUG_ENTER("Query_cache::send_result_to_client");
  
    /*
-@@ -1472,21 +1673,103 @@
+@@ -1472,21 +1688,103 @@
  
    {
      uint i= 0;
@@ -433,7 +448,7 @@
      if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
           my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
           my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1521,6 +1804,12 @@
+@@ -1521,6 +1819,12 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
@@ -446,7 +461,7 @@
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1587,6 +1876,8 @@
+@@ -1587,6 +1891,8 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);
@@ -493,7 +508,7 @@
         "Don't cache results that are bigger than this",
 --- /dev/null
 +++ b/mysql-test/include/percona_query_cache_with_comments.inc
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,100 @@
 +--source include/percona_query_cache_with_comments_clear.inc
 +let $query=/* with comment first */select * from t1;
 +eval $query;
@@ -587,7 +602,12 @@
 +;
 +--source include/percona_query_cache_with_comments_eval.inc
 +
++# following two quries related to bug #856404.
++# This is different queries, but opt_query_cache_strip_comments is thinking what are equal.
 +let $query=select ' \'  ' from t1;
++--source include/percona_query_cache_with_comments_eval.inc
++
++let $query=select ' \' /* comment inside quotes with internal backslash quote */' from t1;
 +--source include/percona_query_cache_with_comments_eval.inc
 --- /dev/null
 +++ b/mysql-test/include/percona_query_cache_with_comments_begin.inc
@@ -641,7 +661,7 @@
 +
 --- /dev/null
 +++ b/mysql-test/r/percona_query_cache_with_comments.result
-@@ -0,0 +1,866 @@
+@@ -0,0 +1,897 @@
 +set global query_cache_strip_comments=ON;
 +set GLOBAL query_cache_size=1355776;
 +drop table if exists t1;
@@ -1505,6 +1525,37 @@
 +show status like "Qcache_hits";
 +Variable_name	Value
 +Qcache_hits	51
++-----------------------------------------------------
++select ' \' /* comment inside quotes with internal backslash quote */' from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	2
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	2
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	51
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	3
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	3
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	52
 +DROP TABLE t1;
 +SET GLOBAL query_cache_size=default;
 +set global query_cache_strip_comments=OFF;
@@ -1534,7 +1585,7 @@
 +SET GLOBAL query_cache_size= default;
 --- /dev/null
 +++ b/mysql-test/r/percona_query_cache_with_comments_disable.result
-@@ -0,0 +1,865 @@
+@@ -0,0 +1,896 @@
 +set GLOBAL query_cache_size=1355776;
 +drop table if exists t1;
 +create table t1 (a int not null);
@@ -2397,6 +2448,37 @@
 +show status like "Qcache_hits";
 +Variable_name	Value
 +Qcache_hits	26
++-----------------------------------------------------
++select ' \' /* comment inside quotes with internal backslash quote */' from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	21
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	21
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	26
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	22
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	22
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	27
 +DROP TABLE t1;
 +SET GLOBAL query_cache_size=default;
 +set global query_cache_strip_comments=OFF;

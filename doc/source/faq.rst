@@ -22,3 +22,9 @@ Is it Free and Open Source Software?
 ====================================
 
 Yes.
+
+
+Can I use the PAM plugin to authenticate against /etc/shadow?
+=============================================================
+
+Yes, but you will need to run mysqld as root so that the PAM libraries can access /etc/shadow.

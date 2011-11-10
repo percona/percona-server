@@ -2,7 +2,7 @@
  Percona PAM authentication plugin For MySQL - Documentation
 ============================================================
 
-Percona PAM authentication plugin for MySQL
+Percona PAM authentication plugin for MySQL.
 
 Introduction
 ============
@@ -17,7 +17,7 @@ Installation
 ============
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :glob:
 
    installation

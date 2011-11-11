@@ -43,85 +43,29 @@
  extern ulonglong log_output_options;
  extern ulong log_backup_output_options;
  extern my_bool opt_log_queries_not_using_indexes;
---- /dev/null
-+++ b/sql/query_cache_strip_comments.h
-@@ -0,0 +1,38 @@
-+#ifndef _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
-+#define _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
-+#ifdef HAVE_QUERY_CACHE
-+
-+// implemented in sql_cache.cc
-+class Query_Cache_Strip_Comments
-+{
-+private:
-+  Query_Cache_Strip_Comments(const Query_Cache_Strip_Comments&);
-+  Query_Cache_Strip_Comments& operator=(const Query_Cache_Strip_Comments&);
-+public:
-+  Query_Cache_Strip_Comments();
-+  ~Query_Cache_Strip_Comments();
-+  void set(const char* query, size_t query_length, size_t db_length);
-+
-+  char* query()        { return buffer;   }
-+  uint  query_length() { return q_length; }
-+private:
-+  void prepare(size_t query_length, size_t db_length);
-+private:
-+  char* buffer;
-+  size_t q_length;
-+  size_t b_length;
-+};
-+class Query_Cache_Strip_Comments_Backup
-+{
-+public:
-+  Query_Cache_Strip_Comments_Backup(THD* a_thd,
-+                                    Query_Cache_Strip_Comments* qcsc);
-+  ~Query_Cache_Strip_Comments_Backup();
-+private:
-+  THD*  thd;
-+  char* query;
-+  uint  length;
-+};
-+
-+#endif // HAVE_QUERY_CACHE
-+#endif // _SQL_QUERY_CACHE_STRIP_COMMENTS_H_
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -344,6 +344,209 @@
+@@ -344,6 +344,333 @@
  #include "probes_mysql.h"
  #include "transaction.h"
  
-+#include "query_cache_strip_comments.h"
-+
-+Query_Cache_Strip_Comments::Query_Cache_Strip_Comments() :
-+  buffer(0),
-+  q_length(0),
-+  b_length(0)
-+{
-+}
-+Query_Cache_Strip_Comments::~Query_Cache_Strip_Comments()
-+{
-+  if(buffer)
-+  {
-+    my_free(buffer);
-+  }
-+  buffer=   0;
-+  q_length= 0;
-+  b_length= 0;
-+}
-+
-+inline bool query_cache_strip_comments_is_white_space(char c)
++inline bool query_without_comments_is_white_space(char c)
 +{
 +  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
 +}
-+void Query_Cache_Strip_Comments::set(const char* query,
-+                                     size_t query_length,
-+                                     size_t db_length)
++bool remove_comments_from_query(Query_Without_Comments * query_without_comments,
++                                const char* query,
++                                size_t query_length,
++                                size_t db_length)
 +{
-+  prepare(query_length, db_length);
-+  uint query_position = 0;
-+  uint position = 0;
++  if (!query_without_comments->allocate(query_length, db_length))
++    return false;
++  char* buffer= query_without_comments->query();
++
++  size_t query_position = 0;
++  size_t position = 0;
 +  // Skip whitespaces from begin
-+  while((query_position < query_length) && query_cache_strip_comments_is_white_space(query[query_position]))
++  while((query_position < query_length) && query_without_comments_is_white_space(query[query_position]))
 +  {
 +    ++query_position;
 +  }
@@ -221,7 +165,7 @@
 +        }
 +      }
 +    default:
-+      if(query_cache_strip_comments_is_white_space(current))
++      if(query_without_comments_is_white_space(current))
 +      {
 +        insert_space = true;
 +        ++query_position;
@@ -241,62 +185,201 @@
 +      buffer[position++] = query[query_position++];
 +    }
 +  }
-+  while((0 < position) && query_cache_strip_comments_is_white_space(buffer[position - 1]))
++  while((0 < position) &&
++        query_without_comments_is_white_space(buffer[position - 1]))
 +  {
 +    --position;
 +  }
-+  buffer[position] = 0;
-+  q_length = position;
++  query_without_comments->set_length(position);
++  return true;
 +}
-+void Query_Cache_Strip_Comments::prepare(size_t query_length, size_t db_length)
++size_t prefix_length_striped(const char* query, size_t query_length)
 +{
-+  /* according to sql_parse.cc memory allocation */
-+  size_t new_b_length= (query_length + 1) + (db_length + 1) +
-+    QUERY_CACHE_FLAGS_SIZE;
-+
-+  if (b_length < new_b_length)
++  /* Skip all comments and non-letter symbols */
++  size_t query_position = 0;
++  while(query_position < query_length)
 +  {
-+    b_length= new_b_length;
-+    if (buffer)
++    bool check = false;
++    char current = query[query_position];
++    switch(current)
 +    {
-+      buffer= (char*) my_realloc(buffer, b_length, MYF(0));
++    case '/':
++      if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
++      {
++        query_position += 2; // skip "/*"
++        do
++        {
++          if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
++          {
++            query_position += 2; // skip "*/" (without space)
++            break;
++          }
++          else
++          {
++            ++query_position;
++          }
++        }
++        while(query_position < query_length);
++        continue; // analyze current symbol
++      }
++      break;
++    case '-':
++      if(query[query_position+1] == '-')
++      {
++        ++query_position; // skip "-"
++      }
++      else
++      {
++        break;
++      }
++    case '#':
++      do
++      {
++        ++query_position; // skip current symbol
++        if('\n' == query[query_position])  // check for '\n'
++        {
++          ++query_position; // skip '\n'
++          break;
++        }
++      }
++      while(query_position < query_length);
++      continue; // analyze current symbol
++    case '\r':
++    case '\n':
++    case '\t':
++    case ' ':
++    case '(':
++    case ')':
++      break;
++    default:
++      check = true;
++      break; // make gcc happy
++    } // switch(current)
++    if(check)
++    {
++      if(query_position + 2 < query_length)
++      {
++        // cacheable
++        break;
++      }
++      else
++      {
++        return 0;
++      }
++    } // if(check)
++    ++query_position;
++  } // while(query_position < query_length)
++  return query_position;
++}
++size_t prefix_length_default(const char* query, size_t /* query_length */)
++{
++  size_t query_position= 0;
++  /*
++    Skip '(' characters in queries like following:
++    (select a from t1) union (select a from t1);
++  */
++  while (query[query_position]=='(')
++    query_position++;
++  return query_position;
++}
++class Comments_Processor
++{
++private:
++  Comments_Processor(const Comments_Processor&);
++  Comments_Processor& operator=(const Comments_Processor&);
++public:
++  Comments_Processor(THD *thd) :
++    backup_query          (thd->query()),
++    backup_query_length   (thd->query_length()),
++    db_length             (thd->db_length),
++    query                 (&(thd_query_string(thd)->str)),
++    query_length          (&(thd_query_string(thd)->length)),
++    query_without_comments(&(thd->query_without_comments)),
++    enabled               (opt_query_cache_strip_comments),
++    restore               (false)
++  {
++  }
++  Comments_Processor(Query_Without_Comments  *current_query_without_comments,
++                     char                   **original_query,
++                     size_t                  *original_query_length,
++                     size_t                   current_db_length) :
++    backup_query          (*original_query),
++    backup_query_length   (*original_query_length),
++    db_length             (current_db_length),
++    query                 (original_query),
++    query_length          (original_query_length),
++    query_without_comments(current_query_without_comments),
++    enabled               (opt_query_cache_strip_comments),
++    restore               (false)
++  {
++  }
++  ~Comments_Processor()
++  {
++    restore_comments();
++  }
++  size_t prefix_length()
++  {
++    if (enabled)
++    {
++      return prefix_length_striped(*query, *query_length);
 +    }
 +    else
 +    {
-+      buffer= (char *) my_malloc(b_length, MYF(0));
++      return prefix_length_default(*query, *query_length);
 +    }
 +  }
-+}
-+Query_Cache_Strip_Comments_Backup::
-+Query_Cache_Strip_Comments_Backup(THD* a_thd, Query_Cache_Strip_Comments* qsc)
-+{
-+  if(opt_query_cache_strip_comments)
++  bool remove_comments()
 +  {
-+    thd = a_thd;
-+    query = thd->query();
-+    length = thd->query_length();
-+    qsc->set(query, length, thd->db_length);
-+    thd->set_query(qsc->query(), qsc->query_length());
++    if (!enabled || restore)
++    {
++      return true;
++    }
++    /* Tried to remove comments */
++    if (remove_comments_from_query(query_without_comments,
++                                   *query,
++                                   *query_length,
++                                   db_length))
++    {
++      /* Replace original by striped */
++      *query=        query_without_comments->query();
++      *query_length= query_without_comments->length();
++
++      /* Mark replacement */
++      restore= true;
++    }
++    return restore;
 +  }
-+  else
++  void restore_comments()
 +  {
-+    thd = 0;
-+    query = 0;
-+    length = 0;
++    if (enabled && restore)
++    {
++      /* Replace striped by original from backup */
++      *query=        backup_query;
++      *query_length= backup_query_length;
++
++      /* Clean query_without_comments */
++      query_without_comments->set_length(0);
++
++      /* Mark restore */
++      restore= false;
++    }
 +  }
-+}
-+Query_Cache_Strip_Comments_Backup::~Query_Cache_Strip_Comments_Backup()
-+{
-+  if(thd)
-+  {
-+    thd->set_query(query, length);
-+  }
-+}
++private:
++  char         * const backup_query;
++  const size_t         backup_query_length;
++  const size_t         db_length;
++private:
++  char                  **query;
++  size_t                 *query_length;
++  Query_Without_Comments *query_without_comments;
++  bool                    enabled;
++  bool                    restore;
++};
 +
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +657,14 @@
+@@ -454,7 +781,14 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
@@ -311,187 +394,83 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1484,9 @@
+@@ -1274,6 +1608,8 @@
        unlock();
        DBUG_VOID_RETURN;
      }
-+    Query_Cache_Strip_Comments *query_cache_strip_comments =
-+      &(thd->query_cache_strip_comments);
-+    Query_Cache_Strip_Comments_Backup backup(thd,query_cache_strip_comments);
++    Comments_Processor comments_processor(thd);
++    comments_processor.remove_comments();
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1451,6 +1664,9 @@
-   Query_cache_block_table *block_table, *block_table_end;
+@@ -1440,7 +1776,7 @@
+ */
+ 
+ int
+-Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
++Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length_uint)
+ {
+   ulonglong engine_data;
+   Query_cache_query *query;
+@@ -1452,6 +1788,11 @@
    ulong tot_length;
    Query_cache_query_flags flags;
-+  Query_Cache_Strip_Comments *query_cache_strip_comments = &(thd->query_cache_strip_comments);
-+  char *sql_backup          = sql;
-+  uint  query_length_backup = query_length;
    DBUG_ENTER("Query_cache::send_result_to_client");
++  size_t query_length= query_length_uint;
++  Comments_Processor comments_processor(&(thd->query_without_comments),
++                                        &sql,
++                                        &query_length,
++                                        thd->db_length);
  
    /*
-@@ -1472,21 +1688,103 @@
+     Testing 'query_cache_size' without a lock here is safe: the thing
+@@ -1471,13 +1812,7 @@
+   }
  
    {
-     uint i= 0;
+-    uint i= 0;
 -    /*
 -      Skip '(' characters in queries like following:
 -      (select a from t1) union (select a from t1);
 -    */
 -    while (sql[i]=='(')
 -      i++;
-+    if(opt_query_cache_strip_comments)
-+    {
-+      /* Skip all comments and non-letter symbols */
-+      uint& query_position = i;
-+      char* query = sql;
-+      while(query_position < query_length)
-+      {
-+        bool check = false;
-+        char current = query[query_position];
-+        switch(current)
-+        {
-+        case '/':
-+          if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
-+          {
-+            query_position += 2; // skip "/*"
-+            do
-+            {
-+              if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
-+              {
-+                query_position += 2; // skip "*/" (without space)
-+                break;
-+              }
-+              else
-+              {
-+                ++query_position;
-+              }
-+            }
-+            while(query_position < query_length);
-+            continue; // analyze current symbol
-+          }
-+          break;
-+        case '-':
-+          if(query[query_position+1] == '-')
-+          {
-+            ++query_position; // skip "-"
-+          }
-+          else
-+          {
-+            break;
-+          }
-+        case '#':
-+          do
-+          {
-+            ++query_position; // skip current symbol
-+            if('\n' == query[query_position])  // check for '\n'
-+            {
-+              ++query_position; // skip '\n'
-+              break;
-+            }
-+          }
-+          while(query_position < query_length);
-+          continue; // analyze current symbol
-+        case '\r':
-+        case '\n':
-+        case '\t':
-+        case ' ':
-+        case '(':
-+        case ')':
-+          break;
-+        default:
-+          check = true;
-+          break; // make gcc happy
-+        } // switch(current)
-+        if(check)
-+        {
-+          if(query_position + 2 < query_length)
-+          {
-+            // cacheable
-+            break;
-+          }
-+          else
-+          {
-+            DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
-+            goto err;
-+          }
-+        } // if(check)
-+        ++query_position;
-+      } // while(query_position < query_length)
-+    }
-+    else // if(opt_query_cache_strip_comments)
-+    {
-+      /*
-+        Skip '(' characters in queries like following:
-+        (select a from t1) union (select a from t1);
-+      */
-+      while (sql[i]=='(')
-+        i++;
++    size_t i= comments_processor.prefix_length();
  
--    /*
--      Test if the query is a SELECT
--      (pre-space is removed in dispatch_command).
-+    } // if(opt_query_cache_strip_comments)    
-+      /*
-+        Test if the query is a SELECT
-+        (pre-space is removed in dispatch_command).
- 
--      First '/' looks like comment before command it is not
--      frequently appeared in real life, consequently we can
--      check all such queries, too.
--    */
-+        First '/' looks like comment before command it is not
-+        frequently appeared in real life, consequently we can
-+        check all such queries, too.
-+      */
-     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
-          my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
-          my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1521,6 +1819,12 @@
+     /*
+       Test if the query is a SELECT
+@@ -1487,10 +1822,11 @@
+       frequently appeared in real life, consequently we can
+       check all such queries, too.
+     */
+-    if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
+-         my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
+-         my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+-        sql[i] != '/')
++    if (!((i + 2 < query_length) &&
++          ((my_toupper(system_charset_info, sql[i])     == 'S' &&
++            my_toupper(system_charset_info, sql[i + 1]) == 'E' &&
++            my_toupper(system_charset_info, sql[i + 2]) == 'L') ||
++           sql[i] == '/')))
+     {
+       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+       goto err;
+@@ -1521,6 +1857,7 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
-+  if(opt_query_cache_strip_comments)
-+  {
-+    query_cache_strip_comments->set(sql, query_length, thd->db_length);
-+    sql          = query_cache_strip_comments->query();
-+    query_length = query_cache_strip_comments->query_length();
-+  }
++  comments_processor.remove_comments();
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1587,6 +1891,8 @@
+@@ -1587,6 +1924,7 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);
-+  sql          = sql_backup;
-+  query_length = query_length_backup;
++  comments_processor.restore_comments();
    /* Quick abort on unlocked data */
    if (query_block == 0 ||
        query_block->query()->result() == 0 ||
---- a/sql/sql_class.h
-+++ b/sql/sql_class.h
-@@ -40,6 +40,9 @@
- #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                      THR_LOCK_INFO */
- 
-+#ifdef HAVE_QUERY_CACHE
-+#include "query_cache_strip_comments.h"
-+#endif // HAVE_QUERY_CACHE
- 
- class Reprepare_observer;
- class Relay_log_info;
-@@ -764,6 +767,9 @@
-     statement lifetime. FIXME: must be const
-   */
-    ulong id;
-+#ifdef HAVE_QUERY_CACHE
-+  Query_Cache_Strip_Comments query_cache_strip_comments;
-+#endif //HAVE_QUERY_CACHE
- 
-   /*
-     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
 @@ -1809,6 +1809,11 @@
@@ -3239,3 +3218,156 @@
 +pk
 +DROP TABLE table17_int;
 +DROP TABLE table30_int;
+--- a/sql/sql_class.cc
++++ b/sql/sql_class.cc
+@@ -791,6 +791,84 @@
+           sql_errno == ER_TRG_NO_DEFINER);
+ }
+ 
++#ifdef HAVE_QUERY_CACHE
++Query_Without_Comments::Query_Without_Comments() :
++  buffer(0),
++  q_length(0),
++  b_length(0)
++{
++}
++Query_Without_Comments::~Query_Without_Comments()
++{
++  if(buffer)
++  {
++    my_free(buffer);
++  }
++}
++bool Query_Without_Comments::allocate(size_t query_length, size_t db_length)
++{
++  DBUG_ENTER("Query_Without_Comments::allocate");
++  DBUG_PRINT("info", ("old buffer: %p "
++                      "old query: '%-.4096s' "
++                      "old buffer length: %u "
++                      "old query length: %u",
++                      buffer,
++                      buffer,
++                      (uint) b_length,
++                      (uint) q_length));
++  /* save maximum query length for check in the set_length */
++  q_length= query_length;
++  /* according to sql_parse.cc memory allocation */
++  size_t new_b_length= (query_length + 1) + (db_length + 1) +
++    QUERY_CACHE_FLAGS_SIZE;
++  if (b_length < new_b_length)
++  {
++    b_length= new_b_length;
++    if (buffer)
++    {
++      buffer= (char*) my_realloc(buffer, b_length, MYF(0));
++    }
++    else
++    {
++      buffer= (char *) my_malloc(b_length, MYF(0));
++    }
++  }
++  buffer[0]= 0;
++  DBUG_PRINT("info", ("buffer: %p "
++                      "buffer length: %u "
++                      "query maximum length: %u",
++                      buffer,
++                      (uint) b_length,
++                      (uint) q_length));
++  DBUG_RETURN(buffer);
++}
++void Query_Without_Comments::set_length(size_t query_length)
++{
++  DBUG_ENTER("Query_Without_Comments::set_length");
++  DBUG_ASSERT(query_length <= q_length);
++  buffer[query_length]= 0;
++  DBUG_PRINT("info", ("buffer: %p "
++                      "query: '%-.4096s' "
++                      "buffer length: %u "
++                      "query maximum length: %u "
++                      "query length: %u",
++                      buffer,
++                      buffer,
++                      (uint) b_length,
++                      (uint) q_length,
++                      (uint) query_length));
++  q_length= query_length;
++  DBUG_VOID_RETURN;
++}
++char* Query_Without_Comments::query()
++{
++  return buffer;
++}
++size_t Query_Without_Comments::length()
++{
++  return q_length;
++}
++#endif // HAVE_QUERY_CACHE
+ 
+ THD::THD()
+    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
+--- a/sql/sql_class.h
++++ b/sql/sql_class.h
+@@ -1477,6 +1477,55 @@
+ 
+ extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
+ 
++#ifdef HAVE_QUERY_CACHE
++/*
++  @class Query_Without_Comments
++  This class provides way for safety (re)allocation
++  a memory for a query without comments.
++*/
++class Query_Without_Comments
++{
++private:
++  /*
++    Denied copy and assigment for object of this class.
++  */
++  Query_Without_Comments(const Query_Without_Comments&);
++  Query_Without_Comments& operator=(const Query_Without_Comments&);
++public:
++  /*
++    Constructor is filling fields by zero (no allocation).
++  */
++  Query_Without_Comments();
++  /*
++    Destructor clean allocated memory
++  */
++  ~Query_Without_Comments();
++public:
++  /*
++    (Re)allocate memory for query. Query length after that is 0.
++  */
++  bool allocate(size_t query_length, size_t db_length);
++  /*
++    Set result query length, when query
++    without comments is copied to buffer.
++  */
++  void set_length(size_t query_length);
++public:
++  /*
++    Result query.
++  */
++  char*  query();
++  /*
++    Result query length
++  */
++  size_t length();
++private:
++  char* buffer;
++  size_t q_length;
++  size_t b_length;
++};
++#endif /* HAVE_QUERY_CACHE */
++
+ /**
+   @class THD
+   For each client connection we create a separate thread with THD serving as
+@@ -1534,6 +1583,7 @@
+   struct st_mysql_stmt *current_stmt;
+ #endif
+ #ifdef HAVE_QUERY_CACHE
++  Query_Without_Comments query_without_comments;
+   Query_cache_tls query_cache_tls;
+ #endif
+   NET	  net;				// client connection descriptor

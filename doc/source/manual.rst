@@ -34,4 +34,4 @@ You will need to execute `CREATE USER` with specifying the PAM plugin. For examp
 
   CREATE USER 'username'@'host' IDENTIFIED WITH auth_pam_server;
 
-This creates a user `username` that can connect from `host` and will be authenticated using the PAM plugin.
+This creates a user `username` that can connect from `host` and will be authenticated using the PAM plugin. If you are using the `pam_unix` method in PAM (or similar) you will need to have an account for `username` existing on the system.

@@ -8,7 +8,7 @@
 Compiling from Source
 =====================
 
-You will need both the PAM headers and the MySQL 5.5 headers available on your system.
+You will need both the PAM headers and the MySQL 5.5 headers and corresponding `mysql_config` binary available on your system.
 
 If you are not using one of the pre-built binary packages, you will need to compile the plugin from source. You can either use a source tarball or the source repository.
 

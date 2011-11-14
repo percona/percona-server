@@ -18,17 +18,21 @@
 AC_PREREQ([2.59])
 AC_INIT([Percona PAM plugin], [0.1], [mysql-dev@percona.com])
 AC_CONFIG_SRCDIR([src/lib_auth_pam_client.h])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
+
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_HEADERS([config.h])
 
 AC_PROG_CC
-AC_PROG_LIBTOOL
-AC_PROG_SED
 AC_CHECK_PROGS([BZR], [bzr])
 
+# Remove AC_PROG_LIBTOOL and enable this once CentOS 5.6 support is dropped.
+# LT_INIT([disable-static])
+AC_PROG_LIBTOOL
+
 AC_ARG_WITH([mysql_config],
-    AC_HELP_STRING(
+    AS_HELP_STRING(
         [--with-mysql_config=PATH],
         [location of the mysql_config program]),
     [MYSQL_CONFIG="$with_mysql_config"])
@@ -45,7 +49,7 @@ AC_CHECK_LIB([pam], [pam_start], ,
 
 # Replace -I with -isystem for the MySQL header include GCC option to silence 
 # warnings originating from them
-MYSQL_INCLUDES=`"${MYSQL_CONFIG}" --include | "${SED}" 's@^-I@-isystem @'`
+MYSQL_INCLUDES=`"${MYSQL_CONFIG}" --include | sed 's@^-I@-isystem @'`
 
 CPPFLAGS="${CPPFLAGS} ${MYSQL_INCLUDES}"
 

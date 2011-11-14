@@ -34,11 +34,7 @@
  
  	/* We know that the writes have been flushed to disk now
  	and in recovery we will find them in the doublewrite buffer
-@@ -1375,10 +1375,11 @@
- 	ulint		high;
- 	ulint		count = 0;
- 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
-+	ibool		is_forward_scan;
+@@ -1378,7 +1378,7 @@
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -47,104 +43,6 @@
  		/* If there is little space, it is better not to flush
  		any block except from the end of the LRU list */
  
-@@ -1405,7 +1406,30 @@
- 		high = fil_space_get_size(space);
- 	}
- 
--	for (i = low; i < high; i++) {
-+	if (srv_flush_neighbor_pages == 2) {
-+		if (offset > low) {
-+			is_forward_scan = FALSE; /* start form backward */
-+		} else {
-+			is_forward_scan = TRUE;
-+		}
-+	} else {
-+		is_forward_scan = TRUE;
-+	}
-+
-+scan:
-+	if (srv_flush_neighbor_pages == 2) {
-+		if (is_forward_scan) {
-+			i = offset;
-+		} else {
-+			ut_a(offset > low);
-+			i = offset - 1;
-+		}
-+	} else {
-+		i = low;
-+	}
-+
-+	for (;is_forward_scan ? (i < high) : (i >= low);
-+	      is_forward_scan ? (i++) : (i--)) {
- 
- 		buf_page_t*	bpage;
- 
-@@ -1417,7 +1441,7 @@
- 			are flushing has not been flushed yet then
- 			we'll try to flush the victim that we
- 			selected originally. */
--			if (i <= offset) {
-+			if (is_forward_scan && i <= offset) {
- 				i = offset;
- 			} else {
- 				break;
-@@ -1434,6 +1458,10 @@
- 		if (!bpage) {
- 
- 			buf_pool_mutex_exit(buf_pool);
-+			/* not contiguous */
-+			if (srv_flush_neighbor_pages == 2) {
-+				break;
-+			}
- 			continue;
- 		}
- 
-@@ -1464,12 +1492,25 @@
- 				ut_ad(!mutex_own(block_mutex));
- 				ut_ad(!buf_pool_mutex_own(buf_pool));
- 				count++;
-+				/* contiguous */
- 				continue;
- 			} else {
- 				mutex_exit(block_mutex);
- 			}
- 		}
- 		buf_pool_mutex_exit(buf_pool);
-+
-+		/* not contiguous */
-+		if (srv_flush_neighbor_pages == 2) {
-+			break;
-+		}
-+	}
-+
-+	if (!is_forward_scan) {
-+		/* backward scan was done. */
-+		ut_a(srv_flush_neighbor_pages == 2);
-+		is_forward_scan = TRUE;
-+		goto scan;
- 	}
- 
- 	return(count);
-@@ -1940,6 +1981,19 @@
- 
- 		buf_pool = buf_pool_from_array(i);
- 
-+		if (lsn_limit != IB_ULONGLONG_MAX) {
-+			buf_page_t*	bpage;
-+
-+			buf_flush_list_mutex_enter(buf_pool);
-+			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-+			if (!bpage || bpage->oldest_modification >= lsn_limit) {
-+				buf_flush_list_mutex_exit(buf_pool);
-+				continue;
-+			} else {
-+				buf_flush_list_mutex_exit(buf_pool);
-+			}
-+		}
-+
- 		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
- 			/* We have two choices here. If lsn_limit was
- 			specified then skipping an instance of buffer
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
 @@ -427,6 +427,10 @@
@@ -320,7 +218,7 @@
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11442,6 +11468,121 @@
+@@ -11442,6 +11468,95 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -344,36 +242,10 @@
 +  "Control soft limit of checkpoint age. (0 : not control)",
 +  NULL, NULL, 0, 0, ~0UL, 0);
 +
-+static
-+void
-+innodb_flush_neighbor_pages_update(
-+  THD* thd,
-+  struct st_mysql_sys_var* var,
-+  void* var_ptr,
-+  const void* save)
-+{
-+  *(long *)var_ptr= (*(long *)save) % 3;
-+}
-+const char *flush_neighbor_pages_names[]=
-+{
-+  "none", /* 0 */
-+  "area",
-+  "contiguous", /* 2 */
-+  /* For compatibility of the older patch */
-+  "0", /* 3 ("none" + 3) */
-+  "1",
-+  "2", /* 5 ("contiguous" + 3) */
-+  NullS
-+};
-+TYPELIB flush_neighbor_pages_typelib=
-+{
-+  array_elements(flush_neighbor_pages_names) - 1, "flush_neighbor_pages_typelib",
-+  flush_neighbor_pages_names, NULL
-+};
-+static MYSQL_SYSVAR_ENUM(flush_neighbor_pages, srv_flush_neighbor_pages,
++static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
 +  PLUGIN_VAR_RQCMDARG,
-+  "Control flushing also neighbor pages (none, [area], contiguous).",
-+  NULL, innodb_flush_neighbor_pages_update, 1, &flush_neighbor_pages_typelib);
++  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
++  NULL, NULL, 1, 0, 1, 0);
 +
 +static
 +void
@@ -442,7 +314,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11462,6 +11603,7 @@
+@@ -11462,6 +11577,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -450,7 +322,7 @@
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(large_prefix),
-@@ -11501,6 +11643,13 @@
+@@ -11501,6 +11617,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -740,43 +612,20 @@
  		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
  	}
  
-@@ -1654,11 +1685,13 @@
- 
- 		recv_apply_hashed_log_recs(TRUE);
- 	}
--
-+retry:
- 	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
- 
--	if (sync) {
--		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-+	if (sync && n_pages != 0) {
-+		//buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-+		os_thread_sleep(100000);
-+		goto retry;
- 	}
- 
- 	if (n_pages == ULINT_UNDEFINED) {
-@@ -2119,13 +2152,15 @@
- 		/* A flush is urgent: we have to do a synchronous preflush */
+@@ -2120,10 +2151,10 @@
  
  		sync = TRUE;
--		advance = 2 * (age - log->max_modified_age_sync);
+ 		advance = 2 * (age - log->max_modified_age_sync);
 -	} else if (age > log->max_modified_age_async) {
-+		advance = (age - log->max_modified_age_sync); /* no need *2. sync=TRUE is enough as brake */
 +	} else if (age > log_max_modified_age_async()) {
  
  		/* A flush is not urgent: we do an asynchronous preflush */
 -		advance = age - log->max_modified_age_async;
 +		advance = age - log_max_modified_age_async();
-+		log->check_flush_or_checkpoint = FALSE;
  	} else {
  		advance = 0;
-+		log->check_flush_or_checkpoint = FALSE;
  	}
- 
- 	checkpoint_age = log->lsn - log->last_checkpoint_lsn;
-@@ -2137,21 +2172,21 @@
+@@ -2137,7 +2168,7 @@
  
  		do_checkpoint = TRUE;
  
@@ -785,33 +634,7 @@
  		/* A checkpoint is not urgent: do it asynchronously */
  
  		do_checkpoint = TRUE;
- 
--		log->check_flush_or_checkpoint = FALSE;
-+		//log->check_flush_or_checkpoint = FALSE;
- 	} else {
--		log->check_flush_or_checkpoint = FALSE;
-+		//log->check_flush_or_checkpoint = FALSE;
- 	}
- 
- 	mutex_exit(&(log->mutex));
- 
- 	if (advance) {
- 		ib_uint64_t	new_oldest = oldest_lsn + advance;
--
-+retry:
- 		success = log_preflush_pool_modified_pages(new_oldest, sync);
- 
- 		/* If the flush succeeded, this thread has done its part
-@@ -2166,7 +2201,7 @@
- 			log->check_flush_or_checkpoint = TRUE;
- 
- 			mutex_exit(&(log->mutex));
--			goto loop;
-+			goto retry;
- 		}
- 	}
- 
-@@ -2607,7 +2642,7 @@
+@@ -2607,7 +2638,7 @@
  
  	mutex_exit(&(log_sys->mutex));
  
@@ -820,7 +643,7 @@
  
  	mutex_enter(&(log_sys->mutex));
  
-@@ -3349,6 +3384,17 @@
+@@ -3349,6 +3380,17 @@
  		log_sys->flushed_to_disk_lsn,
  		log_sys->last_checkpoint_lsn);
  
@@ -1039,7 +862,7 @@
 +#define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
 +
 +UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
-+UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable 2:contiguous */
++UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
 +
 +UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
 +UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */

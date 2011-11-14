@@ -880,7 +880,7 @@
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11798,6 +11806,11 @@
+@@ -11772,6 +11780,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -892,7 +892,7 @@
  static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
    PLUGIN_VAR_RQCMDARG,
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
-@@ -11872,6 +11885,7 @@
+@@ -11846,6 +11859,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),

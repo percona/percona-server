@@ -163,7 +163,7 @@
  static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
    "Number of file I/O threads in InnoDB.",
-@@ -12305,6 +12360,7 @@
+@@ -12279,6 +12334,7 @@
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),

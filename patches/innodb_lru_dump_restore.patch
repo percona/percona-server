@@ -401,7 +401,7 @@
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
  		os_large_page_size = (ulint) opt_large_page_size;
-@@ -11942,6 +11946,19 @@
+@@ -11916,6 +11920,19 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -421,7 +421,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -12026,6 +12043,8 @@
+@@ -12000,6 +12017,8 @@
    MYSQL_SYSVAR(random_read_ahead),
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),

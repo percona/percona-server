@@ -452,7 +452,7 @@
  	ut_a(ret);
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -12167,6 +12167,12 @@
+@@ -12141,6 +12141,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -465,7 +465,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12261,6 +12267,7 @@
+@@ -12235,6 +12241,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -473,7 +473,7 @@
    NULL
  };
  
-@@ -12270,7 +12277,7 @@
+@@ -12244,7 +12251,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    plugin_author,

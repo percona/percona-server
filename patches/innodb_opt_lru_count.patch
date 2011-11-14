@@ -94,7 +94,7 @@
  
  	return(FALSE);
  }
-@@ -2039,8 +2042,14 @@
+@@ -1985,8 +1988,14 @@
  	buf_page_t*	bpage;
  	ulint		n_replaceable;
  	ulint		distance	= 0;
@@ -110,7 +110,7 @@
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -2051,7 +2060,13 @@
+@@ -1997,7 +2006,13 @@
  		   + BUF_FLUSH_EXTRA_MARGIN(buf_pool))
  	       && (distance < BUF_LRU_FREE_SEARCH_LEN(buf_pool))) {
  
@@ -125,7 +125,7 @@
  
  		mutex_enter(block_mutex);
  
-@@ -2066,11 +2081,18 @@
+@@ -2012,11 +2027,18 @@
  		bpage = UT_LIST_GET_PREV(LRU, bpage);
  	}
  
@@ -145,7 +145,7 @@
  	}
  
  	return(BUF_FLUSH_FREE_BLOCK_MARGIN(buf_pool)
-@@ -2088,7 +2110,8 @@
+@@ -2034,7 +2056,8 @@
  void
  buf_flush_free_margin(
  /*==================*/
@@ -155,7 +155,7 @@
  {
  	ulint	n_to_flush;
  
-@@ -2099,7 +2122,7 @@
+@@ -2045,7 +2068,7 @@
  
  		n_flushed = buf_flush_LRU(buf_pool, n_to_flush);
  
@@ -164,7 +164,7 @@
  			/* There was an LRU type flush batch already running;
  			let us wait for it to end */
  
-@@ -2112,8 +2135,9 @@
+@@ -2058,8 +2081,9 @@
  Flushes pages from the end of all the LRU lists. */
  UNIV_INTERN
  void
@@ -175,7 +175,7 @@
  {
  	ulint	i;
  
-@@ -2122,7 +2146,7 @@
+@@ -2068,7 +2092,7 @@
  
  		buf_pool = buf_pool_from_array(i);
  

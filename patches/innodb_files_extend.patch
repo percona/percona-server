@@ -205,7 +205,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -12096,6 +12168,8 @@
+@@ -12070,6 +12142,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -412,7 +412,7 @@
  	dest_offset = nth_file * group->file_size;
  
  #ifdef UNIV_DEBUG
-@@ -1796,9 +1801,7 @@
+@@ -1794,9 +1799,7 @@
  	ulint		i;
  
  	ut_ad(mutex_own(&(log_sys->mutex)));
@@ -423,7 +423,7 @@
  
  	buf = group->checkpoint_buf;
  
-@@ -1812,6 +1815,7 @@
+@@ -1810,6 +1813,7 @@
  	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
  
  #ifdef UNIV_LOG_ARCHIVE
@@ -431,7 +431,7 @@
  	if (log_sys->archiving_state == LOG_ARCH_OFF) {
  		archived_lsn = IB_ULONGLONG_MAX;
  	} else {
-@@ -1825,7 +1829,9 @@
+@@ -1823,7 +1827,9 @@
  
  	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
  #else /* UNIV_LOG_ARCHIVE */

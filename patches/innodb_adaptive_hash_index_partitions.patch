@@ -1054,7 +1054,7 @@
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12230,6 +12235,7 @@
+@@ -12204,6 +12209,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),

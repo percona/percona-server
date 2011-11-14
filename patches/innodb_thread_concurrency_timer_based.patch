@@ -38,7 +38,7 @@
  static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-@@ -11837,6 +11847,7 @@
+@@ -11811,6 +11821,7 @@
    MYSQL_SYSVAR(spin_wait_delay),
    MYSQL_SYSVAR(table_locks),
    MYSQL_SYSVAR(thread_concurrency),

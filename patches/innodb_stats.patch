@@ -1046,7 +1046,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11861,6 +11930,9 @@
+@@ -11835,6 +11904,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1056,7 +1056,7 @@
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11932,7 +12004,10 @@
+@@ -11906,7 +11978,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,

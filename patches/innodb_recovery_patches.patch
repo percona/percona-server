@@ -136,7 +136,7 @@
  static MYSQL_SYSVAR_BOOL(recovery_update_relay_log, innobase_overwrite_relay_log_info,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "During InnoDB crash recovery on slave overwrite relay-log.info "
-@@ -11896,6 +11904,7 @@
+@@ -11870,6 +11878,7 @@
    MYSQL_SYSVAR(data_file_path),
    MYSQL_SYSVAR(data_home_dir),
    MYSQL_SYSVAR(doublewrite),

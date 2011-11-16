@@ -45,233 +45,359 @@
  extern my_bool opt_log_queries_not_using_indexes;
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -344,6 +344,333 @@
+@@ -344,6 +344,469 @@
  #include "probes_mysql.h"
  #include "transaction.h"
  
-+inline bool query_without_comments_is_white_space(char c)
++namespace query_comments_parser
 +{
-+  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
-+}
-+bool remove_comments_from_query(Query_Without_Comments * query_without_comments,
-+                                const char* query,
-+                                size_t query_length,
-+                                size_t db_length)
-+{
-+  if (!query_without_comments->allocate(query_length, db_length))
-+    return false;
-+  char* buffer= query_without_comments->query();
 +
-+  size_t query_position = 0;
-+  size_t position = 0;
-+  // Skip whitespaces from begin
-+  while((query_position < query_length) && query_without_comments_is_white_space(query[query_position]))
++const char* find(const char  *where,
++                        const char  *what,
++                        const size_t what_length)
++{
++  DBUG_ASSERT(where != NULL);
++  DBUG_ASSERT(what  != NULL);
++  DBUG_ASSERT(what_length > 0);
++  DBUG_ASSERT(what_length == 1 || strlen(what) == what_length);
++  const char* result= where;
++  while(true)
 +  {
-+    ++query_position;
-+  }
-+  long int last_space = -1;
-+  while(query_position < query_length)
-+  {
-+    char current = query[query_position];
-+    bool insert_space = false; // insert space to buffer, (IMPORTANT) don't update query_position
-+    switch(current)
++    /* try to find */
++    if (what_length == 1)
 +    {
-+    case '\'':
-+    case '"':
-+      {
-+        buffer[position++] = query[query_position++]; // copy current symbol
-+        while(query_position < query_length)
-+        {
-+          /* found pair quotes, avoid \' and \" */
-+          if(current == query[query_position] &&
-+             '\\' != query[query_position - 1])
-+          {
-+            break;
-+          }
-+          buffer[position++] = query[query_position++]; // copy current symbol
-+        }
-+        break;
-+      }
-+    case '/':
-+      {
-+        /*
-+          check for slash-star, avoid slash-star-exclamation and
-+          backslash-slash-star.
-+        */
-+        if(((query_position + 2) < query_length) &&
-+           '*' == query[query_position+1] &&
-+           '!' != query[query_position+2] &&
-+           (0 == query_position ||
-+            '\\' != query[query_position-1]))
-+        {
-+          query_position += 2; // skip "/*"
-+          do
-+          {
-+            /* check for star-slash, avoid backslash-star-slash */
-+            if('*' == query[query_position] &&
-+               '/' == query[query_position+1] &&
-+               '\\' != query[query_position-1])
-+            {
-+              query_position += 2;
-+              insert_space = true;
-+              break;
-+            }
-+            else
-+            {
-+              ++query_position;
-+            }
-+          }
-+          while(query_position < query_length);
-+          if(!insert_space)
-+          {
-+            continue;
-+          }
-+        }
-+        break;
-+      }
-+    case '-':
-+      {
-+        if(query[query_position+1] == '-')
-+        {
-+          ++query_position; // skip "-", and go to search of "\n"
-+        }
-+        else
-+        {
-+          break;
-+        }
-+      }
-+    case '#':
-+      {
-+        do
-+        {
-+          ++query_position; // skip current symbol (# or -)
-+          /* check for \n, avoid \\n */
-+          if('\n' == query[query_position] &&
-+             '\\' != query[query_position-1])
-+          {
-+            ++query_position; // skip '\n'
-+            insert_space = true;
-+            break;
-+          }
-+        }
-+        while(query_position < query_length);
-+        if(insert_space)
-+        {
-+          break;
-+        }
-+        else
-+        {
-+          continue;
-+        }
-+      }
-+    default:
-+      if(query_without_comments_is_white_space(current))
-+      {
-+        insert_space = true;
-+        ++query_position;
-+      }
-+      break; // make gcc happy
++      result= index(result, *what);
 +    }
-+    if(insert_space)
++    else
 +    {
-+      if((last_space + 1) != position)
++      result= strstr(result, what);
++    }
++    if (NULL == result)
++    {
++      /* not found */
++      return NULL;
++    }
++    /* check for back-slash */
++    else if (result > where && '\\' == *(result - 1))
++    {
++      /* skip symbol with backslash */
++      result++;
++      if (*result == 0)
 +      {
-+        last_space = position;
-+        buffer[position++] = ' ';
++        /* not found */
++        return NULL;
++      }
++      else
++      {
++        /* repeat search */
++        continue;
 +      }
 +    }
 +    else
 +    {
-+      buffer[position++] = query[query_position++];
++      return result;
 +    }
 +  }
-+  while((0 < position) &&
-+        query_without_comments_is_white_space(buffer[position - 1]))
-+  {
-+    --position;
-+  }
-+  query_without_comments->set_length(position);
-+  return true;
 +}
-+size_t prefix_length_striped(const char* query, size_t query_length)
++inline const char* find(const char *where,
++                        const char *what)
 +{
-+  /* Skip all comments and non-letter symbols */
-+  size_t query_position = 0;
-+  while(query_position < query_length)
-+  {
-+    bool check = false;
-+    char current = query[query_position];
-+    switch(current)
-+    {
-+    case '/':
-+      if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
-+      {
-+        query_position += 2; // skip "/*"
-+        do
-+        {
-+          if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
-+          {
-+            query_position += 2; // skip "*/" (without space)
-+            break;
-+          }
-+          else
-+          {
-+            ++query_position;
-+          }
-+        }
-+        while(query_position < query_length);
-+        continue; // analyze current symbol
-+      }
-+      break;
-+    case '-':
-+      if(query[query_position+1] == '-')
-+      {
-+        ++query_position; // skip "-"
-+      }
-+      else
-+      {
-+        break;
-+      }
-+    case '#':
-+      do
-+      {
-+        ++query_position; // skip current symbol
-+        if('\n' == query[query_position])  // check for '\n'
-+        {
-+          ++query_position; // skip '\n'
-+          break;
-+        }
-+      }
-+      while(query_position < query_length);
-+      continue; // analyze current symbol
-+    case '\r':
-+    case '\n':
-+    case '\t':
-+    case ' ':
-+    case '(':
-+    case ')':
-+      break;
-+    default:
-+      check = true;
-+      break; // make gcc happy
-+    } // switch(current)
-+    if(check)
-+    {
-+      if(query_position + 2 < query_length)
-+      {
-+        // cacheable
-+        break;
-+      }
-+      else
-+      {
-+        return 0;
-+      }
-+    } // if(check)
-+    ++query_position;
-+  } // while(query_position < query_length)
-+  return query_position;
++  DBUG_ASSERT(what != NULL);
++  return find(where, what, strlen(what));
 +}
-+size_t prefix_length_default(const char* query, size_t /* query_length */)
++inline const char* find(const char *where,
++                        const char symbol)
++{
++  return find(where, &symbol, 1);
++}
++enum Kind
++{
++  /*
++    'Empty' symbol - epsilon in classic parsers
++  */
++  Empty= 0x0,
++  /*
++    Following symbols and constructions can be before SELECT statement
++    * whitespaces: ' ' \t \r \n
++    * bracets: ( )
++    * C-style and single-line comments
++    */
++  Special= 0x1,
++  /*
++    1) C-style comment (slash-star comment-body star-slash)
++    2) signle-line comment:
++    * sharp comment (sharp comment-body new-line)
++    * minus-minus comment (minus-minus comment-body new-line)
++    */
++  Comment= (Special | 0x2),
++  /*
++    Not a special symbols
++  */
++  Another= 0x4,
++  /*
++    Whitespaces: ' ' \t \r \n
++  */
++  WhiteSpace= (Special | 0x8),
++  /*
++    Error: not-closed quotes, not-closed C-style comment, end-of-query
++  */
++  Error= 0xF
++};
++
++Kind analyze(const char * const begin,
++             const char * const end,
++             const char **to_pointer)
++{
++  DBUG_ASSERT(begin <= end);
++  DBUG_ASSERT(end == index(begin, 0));
++  DBUG_ASSERT(to_pointer);
++  const char* &to= *to_pointer= begin;
++  /* if empty */
++  if (*to == 0)
++  {
++    return Empty;
++  }
++  const char current= *to;
++  switch(current)
++  {
++  case '\'':
++  case '"':
++    /* skip quote */
++    to++;
++    /* search pair */
++    to= find(to, current);
++    if (NULL == to)
++    {
++      /* not found - not closed quote */
++      return Error;
++    }
++    else
++    {
++      /* found */
++      DBUG_ASSERT(to < end);
++      DBUG_ASSERT(*to == current);
++      /* skip second quote */
++      to++;
++      return Another;
++    }
++  case '-':
++    /* Skip minus */
++    to++;
++    /* Check for second minus */
++    if (*to != '-')
++    {
++      /* Just minus, go to extract special */
++      return Special;
++    }
++    else
++    {
++      /*
++        Prefix is  minus-minus, next case-branch is processing
++        single line comments.
++      */
++    }
++  case '#':
++    /*
++      This is single-line comment, it started by "#" or "--".
++      Skip first symbol.
++    */
++    to++;
++    /* search new-line */
++    to= find(to, '\n');
++    if (NULL == to)
++    {
++      /* not found, end of the comment is the end of the query */
++      to= end;
++    }
++    else
++    {
++      /* found */
++      DBUG_ASSERT(to < end);
++      DBUG_ASSERT(*to == '\n');
++      /* skip end-of-line */
++      to++;
++    }
++    return Comment;
++  case '/':
++    {
++      /* skip slash */
++      to++;
++      /* check for star */
++      if (*to == '*')
++      {
++        /* skip star */
++        to++;
++        /* check for exclamation */
++        bool exclamation= (*to == '!');
++        /* search star-slash */
++        to= find(to, "*/");
++        if (NULL == to)
++        {
++          /* not found - not closed comment */
++          return Error;
++        }
++        else
++        {
++          /* found */
++          DBUG_ASSERT(to + 1 < end);
++          DBUG_ASSERT(0 == strncmp(to, "*/", 2));
++          /* skip star-slash */
++          to++;
++          to++;
++          return (exclamation ? Special : Comment);
++        }
++      }
++      else
++      {
++        /* just slash */
++        return Another;
++      }
++    }
++  case ' ':
++  case '\t':
++  case '\r':
++  case '\n':
++    {
++      /* skip space */
++      to++;
++      return WhiteSpace;
++    }
++  case '\\':
++    {
++      /* skip backslash */
++      to++;
++      if (*to == 0)
++      {
++        /*
++          query complete by backslash
++          probable error?
++        */
++        return Another;
++      }
++      else
++      {
++        /* skip after backslash symbol */
++        to++;
++        return Another;
++      }
++    }
++  case '(':
++  case ')':
++    {
++      /* skip bracet */
++      to++;
++      return Special;
++    }
++  default:
++    {
++      /* skip symbol */
++      to++;
++      return Another;
++    }
++  };
++}
++
++bool remove_comments_from_query(const char * const query,
++                                const size_t       q_length,
++                                char       * const result,
++                                size_t            *r_length)
++{
++  /* end of query */
++  const char * const end= query + q_length;
++  /* pointers to begin and end of parsed block */
++  const char *from=  query;
++  const char *to= from;
++  /* pointer to last space */
++  const char *space= NULL;
++  /* current position in result buffer */
++  char* current= result;
++  while(true)
++  {
++    from= to;
++    switch(analyze(from, end, &to))
++    {
++    case Empty:
++      {
++        /*
++          parse completed
++          check for whitespace in the end
++        */
++        if (current == space)
++        {
++          /* drop whitespace in the of query */
++          --current;
++        }
++        /* result is null-terminating string */
++        *current= 0;
++        /* set result length */
++        *r_length= current - result;
++        /* all right */
++        return true;
++      }
++    case Special:
++    case Another:
++      {
++        /* calculate parsed block size */
++        size_t block_size= to - from;
++        /* copy parsed block to result */
++        memcpy(current, from, block_size);
++        /* switch result after copied block */
++        current+= block_size;
++        /* switch after parsed block */
++        from= to;
++        /* parse again */
++        continue;
++      }
++    case Comment:
++      /* should just insert space instead of comment */
++    case WhiteSpace:
++      if (space == current || from == query)
++      {
++        /* previous symbol was space */
++      }
++      else
++      {
++        /* insert space to result buffer */
++        *current= ' ';
++        /* switch after inserted space */
++        current++;
++      }
++      /* remember last-after-space position */
++      space= current;
++      /* parse again */
++      continue;
++    case Error:
++    default:
++      {
++        /* bad source query */
++        return false;
++      }
++    }
++  }
++}
++
++size_t skip_not_another(const char * const query, const size_t query_length)
++{
++  const char * const end= query + query_length;
++  const char *from= query;
++  const char *to;
++  while(true)
++  {
++    switch(analyze(from, end, &to))
++    {
++    case Error:
++      return 0;
++    case Empty:
++    case Another:
++      return (from - query);
++    default:
++      from= to;
++      continue;
++    };
++  }
++}
++
++size_t skip_default(const char * const query, const size_t /* query_length */)
 +{
 +  size_t query_position= 0;
 +  /*
@@ -282,6 +408,10 @@
 +    query_position++;
 +  return query_position;
 +}
++
++} /* namespace query_comments_parser */
++
++
 +class Comments_Processor
 +{
 +private:
@@ -319,34 +449,40 @@
 +  }
 +  size_t prefix_length()
 +  {
++    using query_comments_parser::skip_not_another;
++    using query_comments_parser::skip_default;
 +    if (enabled)
 +    {
-+      return prefix_length_striped(*query, *query_length);
++      return skip_not_another(backup_query, backup_query_length);
 +    }
 +    else
 +    {
-+      return prefix_length_default(*query, *query_length);
++      return skip_default(backup_query, backup_query_length);
 +    }
 +  }
 +  bool remove_comments()
 +  {
++    using query_comments_parser::remove_comments_from_query;
 +    if (!enabled || restore)
 +    {
 +      return true;
 +    }
-+    /* Tried to remove comments */
-+    if (remove_comments_from_query(query_without_comments,
-+                                   *query,
-+                                   *query_length,
-+                                   db_length))
++    /* Allocate memory for query rewrite */
++    if (!query_without_comments->allocate(backup_query_length, db_length))
 +    {
-+      /* Replace original by striped */
-+      *query=        query_without_comments->query();
-+      *query_length= query_without_comments->length();
-+
-+      /* Mark replacement */
-+      restore= true;
++      return false;
 +    }
++    size_t result_length;
++    if (!(restore= remove_comments_from_query(backup_query,
++                                              backup_query_length,
++                                              query_without_comments->query(),
++                                              &result_length)))
++    {
++      return false;
++    }
++    query_without_comments->set_length(result_length);
++    *query=        query_without_comments->query();
++    *query_length= query_without_comments->length();
 +    return restore;
 +  }
 +  void restore_comments()
@@ -379,7 +515,7 @@
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +781,14 @@
+@@ -454,7 +917,14 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
@@ -394,7 +530,7 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1608,8 @@
+@@ -1274,6 +1744,8 @@
        unlock();
        DBUG_VOID_RETURN;
      }
@@ -403,7 +539,7 @@
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1440,7 +1776,7 @@
+@@ -1440,7 +1912,7 @@
  */
  
  int
@@ -412,7 +548,7 @@
  {
    ulonglong engine_data;
    Query_cache_query *query;
-@@ -1452,6 +1788,11 @@
+@@ -1452,6 +1924,11 @@
    ulong tot_length;
    Query_cache_query_flags flags;
    DBUG_ENTER("Query_cache::send_result_to_client");
@@ -424,7 +560,7 @@
  
    /*
      Testing 'query_cache_size' without a lock here is safe: the thing
-@@ -1471,13 +1812,7 @@
+@@ -1471,13 +1948,7 @@
    }
  
    {
@@ -439,7 +575,7 @@
  
      /*
        Test if the query is a SELECT
-@@ -1487,10 +1822,11 @@
+@@ -1487,10 +1958,11 @@
        frequently appeared in real life, consequently we can
        check all such queries, too.
      */
@@ -455,7 +591,7 @@
      {
        DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
        goto err;
-@@ -1521,6 +1857,7 @@
+@@ -1521,6 +1993,7 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
@@ -463,7 +599,7 @@
  
    tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
    if (thd->db_length)
-@@ -1587,6 +1924,7 @@
+@@ -1587,6 +2060,7 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);

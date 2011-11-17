@@ -13,8 +13,8 @@ Based on `MySQL 5.5.17 <http://dev.mysql.com/doc/refman/5.5/en/news-5-5-17.html>
 Bug Fixes
 =========
 
-  * MyISAM repair-by-sort buffer cannot be greater than 4GB even on 64bit architectures. Bug Fixed: :bug:`878404` (*Alexey Kopytov*).
+  * MyISAM repair-by-sort buffer could not be greater than 4GB even on 64bit architectures. Bug Fixed: :bug:`878404` (*Alexey Kopytov*).
 
   * The kill idle transactions feature in |XtraDB| (if enabled) could sometimes cause the server to crash. Bug Fixed: :bug:`871722` (*Yasufumi Kinoshita*).
 
-  * In a master-master setup when using SET user variables it was possible to have `SHOW SLAVE STATUS` give incorrect output. Bug Fixed: :bug:`860910` (*Alexey Kopytov*).
+  * In a master-master setup when using SET user variables it was possible to have `SHOW SLAVE STATUS` give incorrect output due to a corrupted relay log. Bug Fixed: :bug:`860910` (*Alexey Kopytov*).

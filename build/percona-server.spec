@@ -25,9 +25,9 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.15
+%define mysql_version   5.5.16
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 21
+%define majorversion 22
 %define minorversion 0
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
@@ -975,6 +975,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -991,6 +992,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_setpermission
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
+%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqlbug
 %attr(755, root, root) %{_bindir}/mysqld_multi
@@ -1006,6 +1008,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
+%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so

@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/dict/dict0load.c
 +++ b/storage/innobase/dict/dict0load.c
-@@ -437,7 +437,7 @@
+@@ -442,7 +442,7 @@
  
  }
  
@@ -16,7 +16,7 @@
  /********************************************************************//**
  This function parses a SYS_FOREIGN record and populate a dict_foreign_t
  structure with the information from the record. For detail information
-@@ -513,9 +513,9 @@
+@@ -518,9 +518,9 @@
  
  	return(NULL);
  }
@@ -28,7 +28,7 @@
  /********************************************************************//**
  This function parses a SYS_FOREIGN_COLS record and extract necessary
  information from the record and return to caller.
-@@ -579,7 +579,7 @@
+@@ -584,7 +584,7 @@
  
  	return(NULL);
  }
@@ -39,7 +39,7 @@
  Determine the flags of a table described in SYS_TABLES.
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11786,7 +11786,14 @@
+@@ -11899,7 +11899,14 @@
  i_s_innodb_cmp,
  i_s_innodb_cmp_reset,
  i_s_innodb_cmpmem,

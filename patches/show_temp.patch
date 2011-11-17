@@ -88,7 +88,7 @@
    case SQLCOM_SHOW_TRIGGERS:
    case SQLCOM_SHOW_TABLE_STATUS:
    case SQLCOM_SHOW_OPEN_TABLES:
-@@ -4846,6 +4852,8 @@
+@@ -4852,6 +4858,8 @@
  
    case SCH_TABLE_NAMES:
    case SCH_TABLES:
@@ -387,7 +387,7 @@
     OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
 --- a/sql/sql_yacc.yy
 +++ b/sql/sql_yacc.yy
-@@ -10888,6 +10888,15 @@
+@@ -10892,6 +10892,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }

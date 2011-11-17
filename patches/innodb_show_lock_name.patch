@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -9594,9 +9594,8 @@
+@@ -9701,9 +9701,8 @@
  			rw_lock_wait_time += mutex->lspent_time;
  		}
  #else /* UNIV_DEBUG */
@@ -19,7 +19,7 @@
  		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
  				     (ulong) mutex->count_os_wait);
  
-@@ -9611,10 +9610,8 @@
+@@ -9718,10 +9717,8 @@
  
  	if (block_mutex) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -32,7 +32,7 @@
  		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
  					     "os_waits=%lu",
  					     (ulong) block_mutex_oswait_count);
-@@ -9643,9 +9640,8 @@
+@@ -9750,9 +9747,8 @@
  			continue;
  		}
  
@@ -44,7 +44,7 @@
  		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
  				      (ulong) lock->count_os_wait);
  
-@@ -9659,10 +9655,8 @@
+@@ -9766,10 +9762,8 @@
  
  	if (block_lock) {
  		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
@@ -244,7 +244,7 @@
  /******************************************************************//**
  NOTE! Please use the corresponding macro mutex_enter(), not directly
  this function!
-@@ -733,9 +733,9 @@
+@@ -729,9 +729,9 @@
  	ulint	line;		/*!< Line where the mutex was locked */
  	ulint	level;		/*!< Level in the global latching order */
  #endif /* UNIV_SYNC_DEBUG */
@@ -255,7 +255,7 @@
  	os_thread_id_t thread_id; /*!< The thread id of the thread
  				which locked the mutex. */
  	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-@@ -750,9 +750,9 @@
+@@ -746,9 +746,9 @@
  	ulong		count_os_yield;	/*!< count of os_wait */
  	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
  	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */
@@ -268,7 +268,7 @@
  					instrumentation hook */
 --- a/storage/innobase/include/sync0sync.ic
 +++ b/storage/innobase/include/sync0sync.ic
-@@ -321,13 +321,13 @@
+@@ -320,13 +320,13 @@
  	mysql_pfs_key_t	key,		/*!< in: Performance Schema key */
  	mutex_t*	mutex,		/*!< in: pointer to memory */
  # ifdef UNIV_DEBUG
@@ -285,7 +285,7 @@
  {
  	mutex->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
  				? PSI_server->init_mutex(key, mutex)
-@@ -335,13 +335,13 @@
+@@ -334,13 +334,13 @@
  
  	mutex_create_func(mutex,
  # ifdef UNIV_DEBUG

@@ -14,7 +14,7 @@
 +
 +int thd_command(const MYSQL_THD thd);
 +long long thd_start_time(const MYSQL_THD thd);
-+void thd_kill(MYSQL_THD thd);
++void thd_kill(unsigned long id);
 +#define EXTENDED_FOR_KILLIDLE
 +
  #ifdef __cplusplus
@@ -28,7 +28,7 @@
                       const void *ha_data);
 +int thd_command(const void* thd);
 +long long thd_start_time(const void* thd);
-+void thd_kill(void* thd);
++void thd_kill(unsigned long id);
  struct mysql_event_general
  {
    unsigned int event_subclass;
@@ -40,7 +40,7 @@
                       const void *ha_data);
 +int thd_command(const void* thd);
 +long long thd_start_time(const void* thd);
-+void thd_kill(void* thd);
++void thd_kill(unsigned long id);
  #include <mysql/plugin_auth_common.h>
  typedef struct st_plugin_vio_info
  {
@@ -52,13 +52,13 @@
                       const void *ha_data);
 +int thd_command(const void* thd);
 +long long thd_start_time(const void* thd);
-+void thd_kill(void* thd);
++void thd_kill(unsigned long id);
  enum enum_ftparser_mode
  {
    MYSQL_FTPARSER_SIMPLE_MODE= 0,
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -713,6 +713,26 @@
+@@ -713,6 +713,42 @@
    return buffer;
  }
  
@@ -76,18 +76,34 @@
 +}
 +
 +extern "C"
-+void thd_kill(THD* thd)
++void thd_kill(ulong id)
 +{
-+  mysql_mutex_lock(&thd->LOCK_thd_data);
-+  thd->awake(THD::KILL_CONNECTION);
-+  mysql_mutex_unlock(&thd->LOCK_thd_data);
++  THD *tmp;
++  mysql_mutex_lock(&LOCK_thread_count);
++  I_List_iterator<THD> it(threads);
++  while ((tmp=it++))
++  {
++    if (tmp->command == COM_DAEMON)
++      continue;
++    if (tmp->thread_id == id)
++    {
++      mysql_mutex_lock(&tmp->LOCK_thd_data);
++      break;
++    }
++  }
++  mysql_mutex_unlock(&LOCK_thread_count);
++  if (tmp)
++  {
++    tmp->awake(THD::KILL_CONNECTION);
++    mysql_mutex_unlock(&tmp->LOCK_thd_data);
++  }
 +}
  
  /**
    Implementation of Drop_table_error_handler::handle_condition().
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -2833,6 +2833,10 @@
+@@ -2860,6 +2860,10 @@
  
  	innobase_commit_concurrency_init_default();
  
@@ -98,7 +114,7 @@
  #ifdef HAVE_PSI_INTERFACE
  	/* Register keys with MySQL performance schema */
  	if (PSI_server) {
-@@ -11579,6 +11583,48 @@
+@@ -11686,6 +11690,57 @@
  	return(false);
  }
  
@@ -134,20 +150,29 @@
 +void
 +innobase_thd_kill(
 +/*==============*/
-+	void*	thd)
++	ulong	thd_id)
 +{
 +#ifdef EXTENDED_FOR_KILLIDLE
-+	thd_kill((THD*) thd);
++	thd_kill(thd_id);
 +#else
 +	return;
 +#endif
++}
++
++extern "C"
++ulong
++innobase_thd_get_thread_id(
++/*=======================*/
++	const void*	thd)
++{
++	return(thd_get_thread_id((const THD*) thd));
 +}
 +
 +
  static SHOW_VAR innodb_status_variables_export[]= {
    {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
    {NullS, NullS, SHOW_LONG}
-@@ -11865,6 +11911,15 @@
+@@ -11977,6 +12032,15 @@
    "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
    NULL, NULL, 500L, 1L, ~0L, 0);
  
@@ -163,7 +188,7 @@
  static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
    "Number of file I/O threads in InnoDB.",
-@@ -12167,6 +12222,7 @@
+@@ -12279,6 +12343,7 @@
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
@@ -173,7 +198,7 @@
    MYSQL_SYSVAR(data_home_dir),
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -292,6 +292,7 @@
+@@ -296,6 +296,7 @@
  extern ulint	srv_activity_count;
  extern ulint	srv_fatal_semaphore_wait_threshold;
  extern ulint	srv_dml_needed_delay;
@@ -194,19 +219,20 @@
  					used in the processing of the current
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -87,6 +87,11 @@
+@@ -87,6 +87,12 @@
  #include "mysql/plugin.h"
  #include "mysql/service_thd_wait.h"
  
 +/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
 +ibool		innobase_thd_is_idle(const void* thd);
 +ib_int64_t	innobase_thd_get_start_time(const void* thd);
-+void		innobase_thd_kill(void* thd);
++void		innobase_thd_kill(ulong thd_id);
++ulong		innobase_thd_get_thread_id(const void* thd);
 +
  /* prototypes for new functions added to ha_innodb.cc */
  ibool	innobase_get_slow_log();
  
-@@ -97,6 +102,9 @@
+@@ -97,6 +103,9 @@
  /* The following is the maximum allowed duration of a lock wait. */
  UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
  
@@ -216,7 +242,7 @@
  /* How much data manipulation language (DML) statements need to be delayed,
  in microseconds, in order to reduce the lagging of the purge thread. */
  UNIV_INTERN ulint	srv_dml_needed_delay = 0;
-@@ -2834,6 +2842,36 @@
+@@ -2834,6 +2843,36 @@
  		old_sema = sema;
  	}
  
@@ -231,9 +257,9 @@
 +			if (trx->conc_state == TRX_ACTIVE
 +			    && trx->mysql_thd
 +			    && innobase_thd_is_idle(trx->mysql_thd)) {
-+				ib_int64_t	start_time; /* as stmt ID */
++				ib_int64_t	start_time = innobase_thd_get_start_time(trx->mysql_thd);
++				ulong		thd_id = innobase_thd_get_thread_id(trx->mysql_thd);
 +
-+				start_time = innobase_thd_get_start_time(trx->mysql_thd);
 +				if (trx->last_stmt_start != start_time) {
 +					trx->idle_start = now;
 +					trx->last_stmt_start = start_time;
@@ -241,7 +267,7 @@
 +					   > srv_kill_idle_transaction) {
 +					/* kill the session */
 +					mutex_exit(&kernel_mutex);
-+					innobase_thd_kill(trx->mysql_thd);
++					innobase_thd_kill(thd_id);
 +					goto rescan_idle;
 +				}
 +			}

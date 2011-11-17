@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/btr/btr0btr.c
 +++ b/storage/innobase/btr/btr0btr.c
-@@ -837,7 +837,7 @@
+@@ -838,7 +838,7 @@
  /**************************************************************//**
  Creates a new index page (not the root, and also not
  used in page reorganization).  @see btr_page_empty(). */
@@ -16,7 +16,7 @@
  void
  btr_page_create(
  /*============*/
-@@ -1707,7 +1707,7 @@
+@@ -1712,7 +1712,7 @@
  #ifndef UNIV_HOTBACKUP
  /*************************************************************//**
  Empties an index page.  @see btr_page_create(). */
@@ -25,7 +25,7 @@
  void
  btr_page_empty(
  /*===========*/
-@@ -2269,7 +2269,7 @@
+@@ -2274,7 +2274,7 @@
  /**************************************************************//**
  Attaches the halves of an index page on the appropriate level in an
  index tree. */
@@ -865,7 +865,7 @@
  #endif /* !UNIV_HOTBACKUP */
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -7371,6 +7371,14 @@
+@@ -7423,6 +7423,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
  		err = row_import_tablespace_for_mysql(dict_table->name, trx);
@@ -880,7 +880,7 @@
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11660,6 +11668,11 @@
+@@ -11772,6 +11780,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -892,7 +892,7 @@
  static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
    PLUGIN_VAR_RQCMDARG,
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
-@@ -11733,6 +11746,7 @@
+@@ -11846,6 +11859,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -902,10 +902,10 @@
    MYSQL_SYSVAR(use_native_aio),
 --- a/storage/innobase/include/btr0btr.h
 +++ b/storage/innobase/include/btr0btr.h
-@@ -219,6 +219,17 @@
+@@ -238,6 +238,17 @@
  @return the uncompressed page frame */
- # define btr_page_get(space,zip_size,page_no,mode,mtr) \
- 	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
+ # define btr_page_get(space,zip_size,page_no,mode,idx,mtr)		\
+ 	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,idx,mtr))
 +/**************************************************************//**
 +Sets the index id field of a page. */
 +UNIV_INLINE
@@ -920,7 +920,7 @@
  #endif /* !UNIV_HOTBACKUP */
  /**************************************************************//**
  Gets the index id field of a page.
-@@ -256,6 +267,17 @@
+@@ -275,6 +286,17 @@
  	const page_t*	page,	/*!< in: index page */
  	mtr_t*		mtr);	/*!< in: mini-transaction handle */
  /********************************************************//**
@@ -938,7 +938,7 @@
  Gets the previous index page number.
  @return	prev page number */
  UNIV_INLINE
-@@ -264,6 +286,17 @@
+@@ -283,6 +305,17 @@
  /*==============*/
  	const page_t*	page,	/*!< in: index page */
  	mtr_t*		mtr);	/*!< in: mini-transaction handle */
@@ -956,7 +956,7 @@
  /*************************************************************//**
  Gets pointer to the previous user record in the tree. It is assumed
  that the caller has appropriate latches on the page and its neighbor.
-@@ -309,6 +342,18 @@
+@@ -328,6 +361,18 @@
  /*===========================*/
  	const rec_t*	rec,	/*!< in: node pointer record */
  	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
@@ -975,7 +975,7 @@
  /************************************************************//**
  Creates the root node for a new index tree.
  @return	page number of the created root, FIL_NULL if did not succeed */
-@@ -379,6 +424,17 @@
+@@ -397,6 +442,17 @@
  	dict_index_t*	index,	/*!< in: record descriptor */
  	mtr_t*		mtr);	/*!< in: mtr */
  /*************************************************************//**
@@ -993,7 +993,7 @@
  Decides if the page should be split at the convergence point of
  inserts converging to left.
  @return	TRUE if split recommended */
-@@ -437,6 +493,20 @@
+@@ -455,6 +511,20 @@
  # define btr_insert_on_non_leaf_level(i,l,t,m)				\
  	btr_insert_on_non_leaf_level_func(i,l,t,__FILE__,__LINE__,m)
  #endif /* !UNIV_HOTBACKUP */
@@ -1006,7 +1006,7 @@
 +/*==================*/
 +	dict_index_t*	index,		/*!< in: the index tree */
 +	buf_block_t*	block,		/*!< in/out: page to be split */
-+	const rec_t*	split_rec,	/*!< in: first record on upper
++	rec_t*		split_rec,	/*!< in: first record on upper
 +					half page */
 +	buf_block_t*	new_block,	/*!< in/out: the new half page */
 +	ulint		direction,	/*!< in: FSP_UP or FSP_DOWN */
@@ -1016,7 +1016,7 @@
  UNIV_INTERN
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -230,6 +230,8 @@
+@@ -234,6 +234,8 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_flushing_method;
  
@@ -1027,7 +1027,7 @@
  
 --- a/storage/innobase/row/row0mysql.c
 +++ b/storage/innobase/row/row0mysql.c
-@@ -2546,6 +2546,11 @@
+@@ -2547,6 +2547,11 @@
  
  	current_lsn = log_get_lsn();
  
@@ -1039,7 +1039,7 @@
  	/* It is possible, though very improbable, that the lsn's in the
  	tablespace to be imported have risen above the current system lsn, if
  	a lengthy purge, ibuf merge, or rollback was performed on a backup
-@@ -2657,6 +2662,11 @@
+@@ -2658,6 +2663,11 @@
  
  	trx->op_info = "";
  

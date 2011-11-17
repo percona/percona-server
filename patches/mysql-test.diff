@@ -1004,31 +1004,6 @@
 +++ b/mysql-test/suite/sys_vars/t/optimizer_fix_basic.test
 @@ -0,0 +1 @@
 +SELECT @@global.optimizer_fix;
---- a/mysql-test/suite/sys_vars/t/plugin_dir_basic.test
-+++ b/mysql-test/suite/sys_vars/t/plugin_dir_basic.test
-@@ -6,17 +6,17 @@
- # on windows it's <basedir>/lib/plugin
- # on unix it's <basedir>/lib/mysql/plugin
- #
----replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
- select @@global.plugin_dir;
- --error ER_INCORRECT_GLOBAL_LOCAL_VAR
- select @@session.plugin_dir;
----replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
- show global variables like 'plugin_dir';
----replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
- show session variables like 'plugin_dir';
----replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
- select * from information_schema.global_variables where variable_name='plugin_dir';
----replace_result $MYSQL_LIBDIR MYSQL_LIBDIR /mysql/ /
-+--replace_result $MYSQL_LIBDIR MYSQL_LIBDIR MYSQL_LIBDIR64 MYSQL_LIBDIR /mysql/ /
- select * from information_schema.session_variables where variable_name='plugin_dir';
- 
- #
 --- /dev/null
 +++ b/mysql-test/suite/sys_vars/t/query_cache_strip_comments_basic.test
 @@ -0,0 +1 @@
@@ -1085,7 +1060,7 @@
  drop table t2;
 --- a/mysql-test/suite/sys_vars/r/all_vars.result
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result
-@@ -1,16 +1,20 @@
+@@ -1,15 +1,19 @@
  create table t1 (test_name text);
  create table t2 (variable_name text);
  load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
@@ -1106,9 +1081,8 @@
 +INNODB_FAKE_CHANGES
 +INNODB_KILL_IDLE_TRANSACTION
 +INNODB_KILL_IDLE_TRANSACTION
- INNODB_LARGE_PREFIX
- INNODB_LARGE_PREFIX
  drop table t1;
+ drop table t2;
 --- /dev/null
 +++ b/mysql-test/include/percona_server_variables.inc
 @@ -0,0 +1,3 @@
@@ -1117,7 +1091,7 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,379 @@
+@@ -0,0 +1,380 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1232,6 +1206,7 @@
 +INNODB_FLUSH_LOG_AT_TRX_COMMIT
 +INNODB_FLUSH_METHOD
 +INNODB_FLUSH_NEIGHBOR_PAGES
++INNODB_FORCE_LOAD_CORRUPTED
 +INNODB_FORCE_RECOVERY
 +INNODB_IBUF_ACCEL_RATE
 +INNODB_IBUF_ACTIVE_CONTRACT
@@ -1499,7 +1474,7 @@
 +WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
-@@ -0,0 +1,375 @@
+@@ -0,0 +1,376 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1611,6 +1586,7 @@
 +INNODB_FLUSH_LOG_AT_TRX_COMMIT
 +INNODB_FLUSH_METHOD
 +INNODB_FLUSH_NEIGHBOR_PAGES
++INNODB_FORCE_LOAD_CORRUPTED
 +INNODB_FORCE_RECOVERY
 +INNODB_IBUF_ACCEL_RATE
 +INNODB_IBUF_ACTIVE_CONTRACT

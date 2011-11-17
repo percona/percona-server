@@ -109,7 +109,7 @@
  static my_bool innobase_thread_concurrency_timer_based;
  static long long innobase_buffer_pool_size, innobase_log_file_size;
  
-@@ -2325,6 +2328,65 @@
+@@ -2352,6 +2355,65 @@
  	}
  #endif /* DBUG_OFF */
  
@@ -175,7 +175,7 @@
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7239,9 +7301,9 @@
+@@ -7291,9 +7353,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -188,7 +188,7 @@
  		}
  	}
  
-@@ -11437,6 +11499,16 @@
+@@ -11544,6 +11606,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -205,7 +205,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11958,6 +12030,8 @@
+@@ -12070,6 +12142,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -216,7 +216,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1740,7 +1740,7 @@
+@@ -1715,7 +1715,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -225,7 +225,7 @@
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1838,7 +1838,7 @@
+@@ -1813,7 +1813,7 @@
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -234,7 +234,7 @@
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1846,9 +1846,9 @@
+@@ -1821,9 +1821,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  
@@ -358,7 +358,7 @@
  #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
 --- a/storage/innobase/include/univ.i
 +++ b/storage/innobase/include/univ.i
-@@ -310,9 +310,13 @@
+@@ -313,9 +313,13 @@
  */
  
  /* The 2-logarithm of UNIV_PAGE_SIZE: */
@@ -374,7 +374,7 @@
  
  /* Maximum number of parallel threads in a parallelized operation */
  #define UNIV_MAX_PARALLELISM	32
-@@ -431,7 +435,7 @@
+@@ -434,7 +438,7 @@
  stored part of the field in the tablespace. The length field then
  contains the sum of the following flag and the locally stored len. */
  
@@ -383,7 +383,7 @@
  
  /* Some macros to improve branch prediction and reduce cache misses */
  #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
-@@ -534,4 +538,6 @@
+@@ -537,4 +541,6 @@
  	UNIV_MEM_ALLOC(addr, size);			\
  } while (0)
  

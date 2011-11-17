@@ -68,7 +68,7 @@
  			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
  			ut_a(block_mutex);
  		}
-@@ -3471,11 +3513,28 @@
+@@ -3472,11 +3514,28 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -97,7 +97,7 @@
  	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
  		/* The page is already in the buffer pool. */
  		watch_page = NULL;
-@@ -3606,6 +3665,7 @@
+@@ -3607,6 +3666,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -105,7 +105,7 @@
  
  #ifdef UNIV_DEBUG
  		bpage->in_page_hash = FALSE;
-@@ -3690,6 +3750,7 @@
+@@ -3691,6 +3751,7 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -113,7 +113,7 @@
  	//buf_pool_mutex_enter(buf_pool);
  	mutex_enter(&buf_pool->LRU_list_mutex);
  	rw_lock_x_lock(&buf_pool->page_hash_latch);
-@@ -3697,6 +3758,21 @@
+@@ -3698,6 +3759,21 @@
  	block = (buf_block_t*) buf_page_hash_get_low(
  		buf_pool, space, offset, fold);
  
@@ -135,7 +135,7 @@
  	if (block
  	    && buf_page_in_file(&block->page)
  	    && !buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
-@@ -3988,8 +4064,11 @@
+@@ -4051,8 +4127,11 @@
  	}
  
  	if (io_type == BUF_IO_WRITE
@@ -452,7 +452,7 @@
  	ut_a(ret);
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -12029,6 +12029,12 @@
+@@ -12141,6 +12141,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -465,7 +465,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12122,6 +12128,7 @@
+@@ -12235,6 +12241,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -473,7 +473,7 @@
    NULL
  };
  
-@@ -12131,7 +12138,7 @@
+@@ -12244,7 +12251,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    plugin_author,
@@ -484,7 +484,7 @@
    NULL, /* Plugin Deinit */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1493,6 +1493,7 @@
+@@ -1468,6 +1468,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -612,7 +612,7 @@
  
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -245,6 +245,8 @@
+@@ -249,6 +249,8 @@
  extern ulint	srv_pass_corrupt_table;
  
  extern ulint	srv_dict_size_limit;
@@ -623,17 +623,17 @@
  extern ulint	srv_n_rows_inserted;
 --- a/storage/innobase/include/sync0sync.h
 +++ b/storage/innobase/include/sync0sync.h
-@@ -693,6 +693,7 @@
+@@ -690,6 +690,7 @@
  #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
  #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
  #define SYNC_DOUBLEWRITE	140
 +#define	SYNC_OUTER_ANY_LATCH	136
  #define	SYNC_ANY_LATCH		135
- #define SYNC_THR_LOCAL		133
  #define	SYNC_MEM_HASH		131
+ #define	SYNC_MEM_POOL		130
 --- a/storage/innobase/include/univ.i
 +++ b/storage/innobase/include/univ.i
-@@ -52,6 +52,11 @@
+@@ -53,6 +53,11 @@
  #define INNODB_VERSION_MINOR	1
  #define INNODB_VERSION_BUGFIX	8
  
@@ -645,7 +645,7 @@
  /* The following is the InnoDB version as shown in
  SELECT plugin_version FROM information_schema.plugins;
  calculated in make_version_string() in sql/sql_show.cc like this:
-@@ -64,7 +69,8 @@
+@@ -65,7 +70,8 @@
  #define INNODB_VERSION_STR			\
  	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
  	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
@@ -764,7 +764,7 @@
  
  /** Provide optional 4.x backwards compatibility for 5.0 and above */
  UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
-@@ -1191,6 +1192,13 @@
+@@ -1192,6 +1193,13 @@
  
  	thr = que_fork_get_first_thr(prebuilt->ins_graph);
  
@@ -778,7 +778,7 @@
  	if (prebuilt->sql_stat_start) {
  		node->state = INS_NODE_SET_IX_LOCK;
  		prebuilt->sql_stat_start = FALSE;
-@@ -2575,10 +2583,29 @@
+@@ -2576,10 +2584,29 @@
  
  			err = DB_ERROR;
  		} else {
@@ -808,7 +808,7 @@
  		}
  	}
  
-@@ -2927,6 +2954,19 @@
+@@ -2928,6 +2955,19 @@
  			table->space = space;
  			index = dict_table_get_first_index(table);
  			do {
@@ -830,7 +830,7 @@
  			} while (index);
 --- a/storage/innobase/row/row0sel.c
 +++ b/storage/innobase/row/row0sel.c
-@@ -3407,6 +3407,7 @@
+@@ -3418,6 +3418,7 @@
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
  	ulint*		offsets				= offsets_;
  	ibool		table_lock_waited		= FALSE;
@@ -838,7 +838,7 @@
  
  	rec_offs_init(offsets_);
  
-@@ -3778,6 +3779,17 @@
+@@ -3796,6 +3797,17 @@
  
  	/* Do some start-of-statement preparations */
  
@@ -856,7 +856,7 @@
  	if (!prebuilt->sql_stat_start) {
  		/* No need to set an intention lock or assign a read view */
  
-@@ -3788,6 +3800,18 @@
+@@ -3806,6 +3818,18 @@
  			      " perform a consistent read\n"
  			      "InnoDB: but the read view is not assigned!\n",
  			      stderr);
@@ -899,9 +899,9 @@
  	}
 --- a/storage/innobase/sync/sync0sync.c
 +++ b/storage/innobase/sync/sync0sync.c
-@@ -1225,6 +1225,7 @@
+@@ -1219,6 +1219,7 @@
+ 	case SYNC_LOG:
  	case SYNC_LOG_FLUSH_ORDER:
- 	case SYNC_THR_LOCAL:
  	case SYNC_ANY_LATCH:
 +	case SYNC_OUTER_ANY_LATCH:
  	case SYNC_FILE_FORMAT_TAG:

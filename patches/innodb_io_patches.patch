@@ -165,7 +165,7 @@
  /********************************************************************//**
  Obtain the InnoDB transaction of a MySQL thread.
  @return	reference to transaction pointer */
-@@ -2444,6 +2461,9 @@
+@@ -2471,6 +2488,9 @@
  	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
  	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
  
@@ -175,7 +175,7 @@
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -11026,7 +11046,7 @@
+@@ -11133,7 +11153,7 @@
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
    "Purge threads can be either 0 or 1.",
    NULL, NULL,
@@ -184,7 +184,7 @@
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -11068,12 +11088,18 @@
+@@ -11175,12 +11195,18 @@
    innodb_file_format_max_validate,
    innodb_file_format_max_update, "Antelope");
  
@@ -209,7 +209,7 @@
  
  static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11173,7 +11199,7 @@
+@@ -11285,7 +11311,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -218,7 +218,7 @@
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11330,6 +11356,95 @@
+@@ -11442,6 +11468,95 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -314,7 +314,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11350,6 +11465,7 @@
+@@ -11462,6 +11577,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -322,7 +322,7 @@
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(large_prefix),
-@@ -11388,6 +11504,13 @@
+@@ -11501,6 +11617,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -474,8 +474,8 @@
 +extern char	srv_use_global_flush_log_at_trx_commit;
  extern char	srv_adaptive_flushing;
  
- 
-@@ -217,6 +218,16 @@
+ /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
+@@ -221,6 +222,16 @@
  extern ulong	srv_max_purge_lag;
  
  extern ulong	srv_replication_delay;
@@ -492,7 +492,7 @@
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -395,8 +406,9 @@
+@@ -399,8 +410,9 @@
  				when writing data files, but do flush
  				after writing to log files */
  	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */

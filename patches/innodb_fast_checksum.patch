@@ -153,7 +153,7 @@
  static my_bool	innobase_recovery_stats			= TRUE;
  static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
  static my_bool	innobase_overwrite_relay_log_info	= FALSE;
-@@ -2629,6 +2630,7 @@
+@@ -2656,6 +2657,7 @@
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
  	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -161,7 +161,7 @@
  
  	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
  
-@@ -11426,6 +11428,15 @@
+@@ -11533,6 +11535,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -177,7 +177,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -11952,6 +11963,7 @@
+@@ -12064,6 +12075,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),
@@ -187,7 +187,7 @@
    MYSQL_SYSVAR(data_file_path),
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -659,6 +659,11 @@
+@@ -634,6 +634,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */
@@ -211,7 +211,7 @@
  #define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/*!< the low 4 bytes of this are used
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -225,6 +225,7 @@
+@@ -229,6 +229,7 @@
  
  extern ibool	srv_use_doublewrite_buf;
  extern ibool	srv_use_checksums;

@@ -356,7 +356,7 @@
  	}
  
  	return(table);
-@@ -4343,6 +4343,295 @@
+@@ -4344,6 +4344,295 @@
  }
  
  /*********************************************************************//**
@@ -652,7 +652,7 @@
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4350,10 +4639,11 @@
+@@ -4351,10 +4640,11 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -665,7 +665,7 @@
  {
  	dict_index_t*	index;
  	ulint		sum_of_index_sizes	= 0;
-@@ -4370,6 +4660,27 @@
+@@ -4371,6 +4661,27 @@
  		return;
  	}
  
@@ -693,7 +693,7 @@
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4434,6 +4745,11 @@
+@@ -4435,6 +4746,11 @@
  		index = dict_table_get_next_index(index);
  	} while (index);
  
@@ -705,7 +705,7 @@
  	index = dict_table_get_first_index(table);
  
  	table->stat_n_rows = index->stat_n_diff_key_vals[
-@@ -4451,6 +4767,78 @@
+@@ -4452,6 +4768,78 @@
  	dict_table_stats_unlock(table, RW_X_LATCH);
  }
  
@@ -784,7 +784,7 @@
  /**********************************************************************//**
  Prints info of a foreign key constraint. */
  static
-@@ -4528,7 +4916,8 @@
+@@ -4529,7 +4917,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -804,9 +804,9 @@
 +	"SYS_FOREIGN_COLS",
 +	"SYS_STATS"
  };
- /****************************************************************//**
- Compare the name of an index column.
-@@ -343,12 +344,13 @@
+ 
+ /* If this flag is TRUE, then we will load the cluster index's (and tables')
+@@ -348,12 +349,13 @@
  	}
  
  	if ((status & DICT_TABLE_UPDATE_STATS)
@@ -821,7 +821,7 @@
  	}
  
  	return(NULL);
-@@ -582,6 +584,75 @@
+@@ -587,6 +589,75 @@
  //#endif  /* FOREIGN_NOT_USED */
  
  /********************************************************************//**
@@ -907,7 +907,7 @@
  
  
  static char*	internal_innobase_data_file_path	= NULL;
-@@ -2441,6 +2442,8 @@
+@@ -2468,6 +2469,8 @@
  		goto error;
  	}
  
@@ -916,7 +916,7 @@
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -5230,6 +5233,10 @@
+@@ -5257,6 +5260,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -927,7 +927,7 @@
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5566,6 +5573,10 @@
+@@ -5593,6 +5600,10 @@
  		}
  	}
  
@@ -938,7 +938,7 @@
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5619,6 +5630,10 @@
+@@ -5646,6 +5657,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -949,7 +949,7 @@
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5937,6 +5952,11 @@
+@@ -5966,6 +5981,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -961,7 +961,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_KEY_NOT_FOUND;
-@@ -6146,6 +6166,11 @@
+@@ -6198,6 +6218,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -973,7 +973,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8088,11 +8113,35 @@
+@@ -8144,11 +8169,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1010,7 +1010,7 @@
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8177,7 +8226,7 @@
+@@ -8233,7 +8282,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1019,7 +1019,7 @@
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11391,6 +11440,26 @@
+@@ -11503,6 +11552,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1046,7 +1046,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11722,6 +11791,9 @@
+@@ -11835,6 +11904,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1056,7 +1056,7 @@
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11793,7 +11865,10 @@
+@@ -11906,7 +11978,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -1682,8 +1682,8 @@
 +#define	DICT_HDR_XTRADB_MARK	256	/* Flag to distinguish expansion of XtraDB */
  /*-------------------------------------------------------------*/
  
- /* The field number of the page number field in the sys_indexes table
-@@ -144,11 +148,16 @@
+ /* The field numbers in the SYS_TABLES clustered index */
+@@ -146,11 +150,16 @@
  #define DICT_SYS_INDEXES_TYPE_FIELD	 6
  #define DICT_SYS_INDEXES_NAME_FIELD	 4
  
@@ -1757,7 +1757,7 @@
  #include "dict0crea.ic"
 --- a/storage/innobase/include/dict0dict.h
 +++ b/storage/innobase/include/dict0dict.h
-@@ -1109,10 +1109,18 @@
+@@ -1126,10 +1126,18 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -1777,7 +1777,7 @@
  /********************************************************************//**
  Reserves the dictionary system mutex for MySQL. */
  UNIV_INTERN
-@@ -1227,6 +1235,7 @@
+@@ -1244,6 +1252,7 @@
  	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
  	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
  	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
@@ -1854,7 +1854,7 @@
  should be called after the indexes for a table have been created.
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -212,6 +212,9 @@
+@@ -216,6 +216,9 @@
  extern ibool	srv_innodb_status;
  
  extern unsigned long long	srv_stats_sample_pages;
@@ -1908,7 +1908,7 @@
  	} else {
 --- a/storage/innobase/row/row0ins.c
 +++ b/storage/innobase/row/row0ins.c
-@@ -2013,6 +2013,8 @@
+@@ -2015,6 +2015,8 @@
  	}
  
  #ifdef UNIV_DEBUG
@@ -1930,7 +1930,7 @@
  		/* Drop the index definition and the B-tree. */
 --- a/storage/innobase/row/row0mysql.c
 +++ b/storage/innobase/row/row0mysql.c
-@@ -921,6 +921,9 @@
+@@ -922,6 +922,9 @@
  
  	table->stat_modified_counter = counter + 1;
  
@@ -1940,7 +1940,7 @@
  	/* Calculate new statistics if 1 / 16 of table has been modified
  	since the last time a statistics batch was run, or if
  	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
-@@ -931,7 +934,7 @@
+@@ -932,7 +935,7 @@
  	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
  
  		dict_update_statistics(table, FALSE /* update even if stats
@@ -1949,7 +1949,7 @@
  	}
  }
  
-@@ -2076,6 +2079,71 @@
+@@ -2077,6 +2080,71 @@
  }
  
  /*********************************************************************//**
@@ -2021,7 +2021,7 @@
  Scans a table create SQL string and adds to the data dictionary
  the foreign key constraints declared in the string. This function
  should be called after the indexes for a table have been created.
-@@ -3000,7 +3068,7 @@
+@@ -3001,7 +3069,7 @@
  	dict_table_autoinc_initialize(table, 1);
  	dict_table_autoinc_unlock(table);
  	dict_update_statistics(table, FALSE /* update even if stats are
@@ -2030,7 +2030,7 @@
  
  	trx_commit_for_mysql(trx);
  
-@@ -3302,6 +3370,8 @@
+@@ -3312,6 +3380,8 @@
  			   "       IF (SQL % NOTFOUND) THEN\n"
  			   "               found := 0;\n"
  			   "       ELSE\n"
@@ -2041,7 +2041,7 @@
  			   "               DELETE FROM SYS_INDEXES\n"
 --- a/storage/innobase/row/row0row.c
 +++ b/storage/innobase/row/row0row.c
-@@ -373,6 +373,14 @@
+@@ -364,6 +364,14 @@
  
  	rec_len = rec_offs_n_fields(offsets);
  
@@ -2056,7 +2056,7 @@
  	entry = dtuple_create(heap, rec_len);
  
  	dtuple_set_n_fields_cmp(entry,
-@@ -384,6 +392,14 @@
+@@ -375,6 +383,14 @@
  	for (i = 0; i < rec_len; i++) {
  
  		dfield = dtuple_get_nth_field(entry, i);
@@ -2119,12 +2119,12 @@
  UNIV_INTERN ibool	srv_use_checksums = TRUE;
 --- a/storage/innobase/trx/trx0rec.c
 +++ b/storage/innobase/trx/trx0rec.c
-@@ -669,15 +669,27 @@
+@@ -669,14 +669,27 @@
  	/* Save to the undo log the old values of the columns to be updated. */
  
  	if (update) {
 +		ulint	extended = 0;
- 
++
  		if (trx_undo_left(undo_page, ptr) < 5) {
  
  			return(0);
@@ -2135,8 +2135,7 @@
 +		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)) {
 +			for (i = 0; i < upd_get_n_fields(update); i++) {
 +				ulint	pos = upd_get_nth_field(update, i)->field_no;
- 
--		for (i = 0; i < upd_get_n_fields(update); i++) {
++
 +				if (pos >= rec_offs_n_fields(offsets)) {
 +					extended++;
 +				}
@@ -2144,7 +2143,8 @@
 +		}
 +
 +		ptr += mach_write_compressed(ptr, upd_get_n_fields(update) - extended);
-+
+ 
+-		for (i = 0; i < upd_get_n_fields(update); i++) {
 +		for (i = 0; i < upd_get_n_fields(update) - extended; i++) {
  
  			ulint	pos = upd_get_nth_field(update, i)->field_no;

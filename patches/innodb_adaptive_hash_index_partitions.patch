@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/btr/btr0btr.c
 +++ b/storage/innobase/btr/btr0btr.c
-@@ -1518,7 +1518,7 @@
+@@ -1523,7 +1523,7 @@
  	}
  	ut_a(block);
  
@@ -16,7 +16,7 @@
  
  	header = buf_block_get_frame(block) + PAGE_HEADER + PAGE_BTR_SEG_TOP;
  #ifdef UNIV_BTR_DEBUG
-@@ -1587,7 +1587,7 @@
+@@ -1592,7 +1592,7 @@
  
  #ifndef UNIV_HOTBACKUP
  	if (UNIV_LIKELY(!recovery)) {
@@ -25,7 +25,7 @@
  	}
  
  	block->check_index_page_at_flush = TRUE;
-@@ -1755,7 +1755,7 @@
+@@ -1760,7 +1760,7 @@
  	ut_a(!page_zip || page_zip_validate(page_zip, page));
  #endif /* UNIV_ZIP_DEBUG */
  
@@ -34,7 +34,7 @@
  	btr_blob_dbg_remove(page, index, "btr_page_empty");
  
  	/* Recreate the page: note that global data on page (possible
-@@ -3066,7 +3066,7 @@
+@@ -3093,7 +3093,7 @@
  		mem_heap_free(heap);
  	}
  
@@ -43,7 +43,7 @@
  
  	/* Make the father empty */
  	btr_page_empty(father_block, father_page_zip, index, page_level, mtr);
-@@ -3300,7 +3300,7 @@
+@@ -3317,7 +3317,7 @@
  			goto err_exit;
  		}
  
@@ -51,8 +51,8 @@
 +		btr_search_drop_page_hash_index(block, index);
  
  		/* Remove the page from the level list */
- 		btr_level_list_remove(space, zip_size, page, mtr);
-@@ -3345,7 +3345,7 @@
+ 		btr_level_list_remove(space, zip_size, page, index, mtr);
+@@ -3358,7 +3358,7 @@
  			goto err_exit;
  		}
  
@@ -61,7 +61,7 @@
  
  #ifdef UNIV_BTR_DEBUG
  		if (UNIV_LIKELY_NULL(merge_page_zip)) {
-@@ -3469,7 +3469,7 @@
+@@ -3473,7 +3473,7 @@
  		ut_a(btr_page_get_next(page, mtr) == FIL_NULL);
  
  		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -70,7 +70,7 @@
  
  		btr_page_get_father(index, block, mtr, &cursor);
  		father = btr_cur_get_block(&cursor);
-@@ -3574,7 +3574,7 @@
+@@ -3578,7 +3578,7 @@
  
  	page = buf_block_get_frame(block);
  	ut_a(page_is_comp(merge_page) == page_is_comp(page));
@@ -81,7 +81,7 @@
  
 --- a/storage/innobase/btr/btr0cur.c
 +++ b/storage/innobase/btr/btr0cur.c
-@@ -498,7 +498,7 @@
+@@ -502,7 +502,7 @@
  #ifdef UNIV_SEARCH_PERF_STAT
  	info->n_searches++;
  #endif
@@ -90,7 +90,7 @@
  	    && latch_mode <= BTR_MODIFY_LEAF
  	    && info->last_hash_succ
  	    && !estimate
-@@ -534,7 +534,7 @@
+@@ -538,7 +538,7 @@
  
  	if (has_search_latch) {
  		/* Release possible search latch to obey latching order */
@@ -99,7 +99,7 @@
  	}
  
  	/* Store the position of the tree latch we push to mtr so that we
-@@ -856,7 +856,7 @@
+@@ -862,7 +862,7 @@
  
  	if (has_search_latch) {
  
@@ -108,7 +108,7 @@
  	}
  }
  
-@@ -1971,7 +1971,7 @@
+@@ -1992,13 +1992,13 @@
  			btr_search_update_hash_on_delete(cursor);
  		}
  
@@ -116,50 +116,14 @@
 +		rw_lock_x_lock(btr_search_get_latch(cursor->index->id));
  	}
  
- 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
-@@ -1985,7 +1985,7 @@
  	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
  
- 	if (block->is_hashed) {
+ 	if (is_hashed) {
 -		rw_lock_x_unlock(&btr_search_latch);
 +		rw_lock_x_unlock(btr_search_get_latch(cursor->index->id));
  	}
  
  	if (page_zip && !dict_index_is_clust(index)
-@@ -2824,7 +2824,7 @@
- 	}
- 
- 	if (block->is_hashed) {
--		rw_lock_x_lock(&btr_search_latch);
-+		rw_lock_x_lock(btr_search_get_latch(index->id));
- 	}
- 
- 	page_zip = buf_block_get_page_zip(block);
-@@ -2840,7 +2840,7 @@
- 	}
- 
- 	if (block->is_hashed) {
--		rw_lock_x_unlock(&btr_search_latch);
-+		rw_lock_x_unlock(btr_search_get_latch(index->id));
- 	}
- 
- 	btr_cur_del_mark_set_clust_rec_log(flags, rec, index, val, trx,
-@@ -2967,13 +2967,13 @@
- 	      == dict_table_is_comp(cursor->index->table));
- 
- 	if (block->is_hashed) {
--		rw_lock_x_lock(&btr_search_latch);
-+		rw_lock_x_lock(btr_search_get_latch(cursor->index->id));
- 	}
- 
- 	btr_rec_set_deleted_flag(rec, buf_block_get_page_zip(block), val);
- 
- 	if (block->is_hashed) {
--		rw_lock_x_unlock(&btr_search_latch);
-+		rw_lock_x_unlock(btr_search_get_latch(cursor->index->id));
- 	}
- 
- 	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 --- a/storage/innobase/btr/btr0sea.c
 +++ b/storage/innobase/btr/btr0sea.c
 @@ -48,6 +48,8 @@
@@ -425,7 +389,7 @@
  	}
  
  	if (build_index) {
-@@ -881,17 +909,17 @@
+@@ -882,17 +910,17 @@
  	cursor->flag = BTR_CUR_HASH;
  
  	if (UNIV_LIKELY(!has_search_latch)) {
@@ -447,7 +411,7 @@
  
  	if (UNIV_UNLIKELY(!rec)) {
  		goto failure_unlock;
-@@ -909,7 +937,7 @@
+@@ -910,7 +938,7 @@
  			goto failure_unlock;
  		}
  
@@ -456,7 +420,7 @@
  
  		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
  	}
-@@ -1006,7 +1034,7 @@
+@@ -1007,7 +1035,7 @@
  	/*-------------------------------------------*/
  failure_unlock:
  	if (UNIV_LIKELY(!has_search_latch)) {
@@ -465,7 +429,7 @@
  	}
  failure:
  	cursor->flag = BTR_CUR_HASH_FAIL;
-@@ -1029,10 +1057,11 @@
+@@ -1030,10 +1058,11 @@
  void
  btr_search_drop_page_hash_index(
  /*============================*/
@@ -478,7 +442,7 @@
  {
  	hash_table_t*		table;
  	ulint			n_fields;
-@@ -1051,22 +1080,60 @@
+@@ -1052,22 +1081,60 @@
  	ulint*			offsets;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -544,7 +508,7 @@
  
  #ifdef UNIV_SYNC_DEBUG
  	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
-@@ -1076,14 +1143,14 @@
+@@ -1077,14 +1144,14 @@
  
  	n_fields = block->curr_n_fields;
  	n_bytes = block->curr_n_bytes;
@@ -561,7 +525,7 @@
  
  	ut_a(n_fields + n_bytes > 0);
  
-@@ -1133,7 +1200,7 @@
+@@ -1134,7 +1201,7 @@
  		mem_heap_free(heap);
  	}
  
@@ -570,7 +534,7 @@
  
  	if (UNIV_UNLIKELY(!block->is_hashed)) {
  		/* Someone else has meanwhile dropped the hash index */
-@@ -1149,7 +1216,7 @@
+@@ -1150,7 +1217,7 @@
  		/* Someone else has meanwhile built a new hash index on the
  		page, with different parameters */
  
@@ -579,7 +543,7 @@
  
  		mem_free(folds);
  		goto retry;
-@@ -1165,6 +1232,7 @@
+@@ -1166,6 +1233,7 @@
  
  	block->is_hashed = FALSE;
  	block->index = NULL;
@@ -587,7 +551,7 @@
  	
  cleanup:
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-@@ -1177,14 +1245,14 @@
+@@ -1178,14 +1246,14 @@
  			"InnoDB: the hash index to a page of %s,"
  			" still %lu hash nodes remain.\n",
  			index->name, (ulong) block->n_pointers);
@@ -605,7 +569,7 @@
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
  
  	mem_free(folds);
-@@ -1216,9 +1284,9 @@
+@@ -1217,9 +1285,9 @@
  	ulint*		offsets;
  	ibool		released_search_latch;
  
@@ -617,7 +581,7 @@
  
  	for (j = 0; j < srv_buf_pool_instances; j++) {
  		buf_pool_t*	buf_pool;
-@@ -1252,7 +1320,7 @@
+@@ -1253,7 +1321,7 @@
  
  
  					/* keeping latch order */
@@ -626,7 +590,7 @@
  					released_search_latch = TRUE;
  					rw_lock_x_lock(&block->lock);
  
-@@ -1304,7 +1372,7 @@
+@@ -1305,7 +1373,7 @@
  						mem_heap_empty(heap);
  					}
  
@@ -635,7 +599,7 @@
  
  					if (UNIV_UNLIKELY(!block->is_hashed)) {
  						goto cleanup;
-@@ -1314,12 +1382,12 @@
+@@ -1315,12 +1383,12 @@
  
  					if (UNIV_UNLIKELY(block->curr_n_fields != n_fields)
  					    || UNIV_UNLIKELY(block->curr_n_bytes != n_bytes)) {
@@ -650,7 +614,7 @@
  						goto retry;
  					}
  
-@@ -1333,6 +1401,7 @@
+@@ -1334,6 +1402,7 @@
  
  					block->is_hashed = FALSE;
  					block->index = NULL;
@@ -658,7 +622,7 @@
  
  cleanup:
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-@@ -1345,18 +1414,18 @@
+@@ -1346,18 +1415,18 @@
  							index->name, (ulong) block->n_pointers);
  					}
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -680,7 +644,7 @@
  
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-@@ -1403,7 +1472,7 @@
+@@ -1404,7 +1473,7 @@
  
  		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
  
@@ -689,7 +653,7 @@
  	}
  
  	mtr_commit(&mtr);
-@@ -1445,26 +1514,26 @@
+@@ -1446,26 +1515,26 @@
  	ut_ad(index);
  	ut_a(!dict_index_is_ibuf(index));
  
@@ -722,7 +686,7 @@
  	}
  
  	n_recs = page_get_n_recs(page);
-@@ -1558,9 +1627,9 @@
+@@ -1559,9 +1628,9 @@
  		fold = next_fold;
  	}
  
@@ -734,7 +698,7 @@
  
  	if (UNIV_UNLIKELY(btr_search_fully_disabled)) {
  		goto exit_func;
-@@ -1588,6 +1657,7 @@
+@@ -1589,6 +1658,7 @@
  	block->curr_n_bytes = n_bytes;
  	block->curr_left_side = left_side;
  	block->index = index;
@@ -742,7 +706,7 @@
  
  	for (i = 0; i < n_cached; i++) {
  
-@@ -1595,7 +1665,7 @@
+@@ -1596,7 +1666,7 @@
  	}
  
  exit_func:
@@ -751,7 +715,7 @@
  
  	mem_free(folds);
  	mem_free(recs);
-@@ -1634,13 +1704,13 @@
+@@ -1635,13 +1705,13 @@
  	ut_a(!(new_block->is_hashed || block->is_hashed)
  	     || !dict_index_is_ibuf(index));
  
@@ -768,7 +732,7 @@
  
  		return;
  	}
-@@ -1655,7 +1725,7 @@
+@@ -1656,7 +1726,7 @@
  		new_block->n_bytes = block->curr_n_bytes;
  		new_block->left_side = left_side;
  
@@ -777,7 +741,7 @@
  
  		ut_a(n_fields + n_bytes > 0);
  
-@@ -1667,7 +1737,7 @@
+@@ -1668,7 +1738,7 @@
  		return;
  	}
  
@@ -786,7 +750,7 @@
  }
  
  /********************************************************************//**
-@@ -1706,7 +1776,7 @@
+@@ -1707,7 +1777,7 @@
  	ut_a(block->curr_n_fields + block->curr_n_bytes > 0);
  	ut_a(!dict_index_is_ibuf(cursor->index));
  
@@ -795,7 +759,7 @@
  
  	index_id = cursor->index->id;
  	fold = rec_fold(rec, rec_get_offsets(rec, cursor->index, offsets_,
-@@ -1715,11 +1785,11 @@
+@@ -1716,11 +1786,11 @@
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
  	}
@@ -809,7 +773,7 @@
  }
  
  /********************************************************************//**
-@@ -1753,21 +1823,21 @@
+@@ -1754,21 +1824,21 @@
  	ut_a(block->index == cursor->index);
  	ut_a(!dict_index_is_ibuf(cursor->index));
  
@@ -835,7 +799,7 @@
  
  		btr_search_update_hash_on_insert(cursor);
  	}
-@@ -1802,9 +1872,9 @@
+@@ -1803,9 +1873,9 @@
  	ulint*		offsets		= offsets_;
  	rec_offs_init(offsets_);
  
@@ -847,7 +811,7 @@
  
  	rec = btr_cur_get_rec(cursor);
  
-@@ -1849,7 +1919,7 @@
+@@ -1850,7 +1920,7 @@
  	} else {
  		if (left_side) {
  
@@ -856,7 +820,7 @@
  
  			locked = TRUE;
  
-@@ -1863,7 +1933,7 @@
+@@ -1864,7 +1934,7 @@
  
  		if (!locked) {
  
@@ -865,7 +829,7 @@
  
  			locked = TRUE;
  		}
-@@ -1881,7 +1951,7 @@
+@@ -1882,7 +1952,7 @@
  		if (!left_side) {
  
  			if (!locked) {
@@ -874,7 +838,7 @@
  
  				locked = TRUE;
  			}
-@@ -1896,7 +1966,7 @@
+@@ -1897,7 +1967,7 @@
  
  		if (!locked) {
  
@@ -883,7 +847,7 @@
  
  			locked = TRUE;
  		}
-@@ -1919,7 +1989,7 @@
+@@ -1920,7 +1990,7 @@
  		mem_heap_free(heap);
  	}
  	if (locked) {
@@ -892,7 +856,7 @@
  	}
  }
  
-@@ -1935,7 +2005,7 @@
+@@ -1936,7 +2006,7 @@
  	ha_node_t*	node;
  	ulint		n_page_dumps	= 0;
  	ibool		ok		= TRUE;
@@ -901,7 +865,7 @@
  	ulint		cell_count;
  	mem_heap_t*	heap		= NULL;
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-@@ -1947,23 +2017,25 @@
+@@ -1948,23 +2018,25 @@
  
  	rec_offs_init(offsets_);
  
@@ -932,7 +896,7 @@
  
  		for (; node != NULL; node = node->next) {
  			const buf_block_t*	block
-@@ -2072,19 +2144,21 @@
+@@ -2073,19 +2145,21 @@
  		give other queries a chance to run. */
  		if (i != 0) {
  			buf_pool_page_hash_x_unlock_all();
@@ -1055,7 +1019,7 @@
  
 --- a/storage/innobase/dict/dict0dict.c
 +++ b/storage/innobase/dict/dict0dict.c
-@@ -1845,7 +1845,7 @@
+@@ -1846,7 +1846,7 @@
  	zero. */
  
  	for (;;) {
@@ -1078,7 +1042,7 @@
  #ifndef UNIV_HOTBACKUP
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11712,6 +11712,11 @@
+@@ -11824,6 +11824,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1090,7 +1054,7 @@
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12091,6 +12096,7 @@
+@@ -12204,6 +12209,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1283,7 +1247,7 @@
 +
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1601,7 +1601,7 @@
+@@ -1576,7 +1576,7 @@
  					pointers in the adaptive hash index
  					pointing to this frame */
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1292,7 +1256,7 @@
  					already been built on this
  					page; note that it does not
  					guarantee that the index is
-@@ -1615,6 +1615,7 @@
+@@ -1590,6 +1590,7 @@
  	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
  	dict_index_t*	index;		/*!< Index for which the adaptive
  					hash index has been created. */
@@ -1300,17 +1264,6 @@
  	/* @} */
  # ifdef UNIV_SYNC_DEBUG
  	/** @name Debug fields */
---- a/storage/innobase/include/row0upd.ic
-+++ b/storage/innobase/include/row0upd.ic
-@@ -158,7 +158,7 @@
- 	ut_ad(dict_index_is_clust(index));
- 	ut_ad(rec_offs_validate(rec, index, offsets));
- #ifdef UNIV_SYNC_DEBUG
--	if (!rw_lock_own(&btr_search_latch, RW_LOCK_EX)) {
-+	if (!rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_EX)) {
- 		ut_ad(!buf_block_align(rec)->is_hashed);
- 	}
- #endif /* UNIV_SYNC_DEBUG */
 --- a/storage/innobase/page/page0page.c
 +++ b/storage/innobase/page/page0page.c
 @@ -218,7 +218,7 @@
@@ -1344,7 +1297,7 @@
  	ut_ad(block == back_block1);
 --- a/storage/innobase/row/row0mysql.c
 +++ b/storage/innobase/row/row0mysql.c
-@@ -2593,7 +2593,7 @@
+@@ -2594,7 +2594,7 @@
  			/* check adaptive hash entries */
  			index = dict_table_get_first_index(table);
  			while (index) {
@@ -1353,7 +1306,7 @@
  				if (ref_count) {
  					fprintf(stderr, "InnoDB: Warning:"
  						" hash index ref_count (%lu) is not zero"
-@@ -2954,7 +2954,7 @@
+@@ -2955,7 +2955,7 @@
  			table->space = space;
  			index = dict_table_get_first_index(table);
  			do {
@@ -1364,7 +1317,7 @@
  					fprintf(stderr, "InnoDB: Warning:"
 --- a/storage/innobase/row/row0sel.c
 +++ b/storage/innobase/row/row0sel.c
-@@ -1211,7 +1211,7 @@
+@@ -1222,7 +1222,7 @@
  	ut_ad(plan->unique_search);
  	ut_ad(!plan->must_get_clust);
  #ifdef UNIV_SYNC_DEBUG
@@ -1373,7 +1326,7 @@
  #endif /* UNIV_SYNC_DEBUG */
  
  	row_sel_open_pcur(plan, TRUE, mtr);
-@@ -1382,10 +1382,10 @@
+@@ -1393,10 +1393,10 @@
  	    && !plan->must_get_clust
  	    && !plan->table->big_rows) {
  		if (!search_latch_locked) {
@@ -1386,7 +1339,7 @@
  
  			/* There is an x-latch request waiting: release the
  			s-latch for a moment; as an s-latch here is often
-@@ -1394,8 +1394,8 @@
+@@ -1405,8 +1405,8 @@
  			from acquiring an s-latch for a long time, lowering
  			performance significantly in multiprocessors. */
  
@@ -1397,7 +1350,7 @@
  		}
  
  		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
-@@ -1418,7 +1418,7 @@
+@@ -1429,7 +1429,7 @@
  	}
  
  	if (search_latch_locked) {
@@ -1406,7 +1359,7 @@
  
  		search_latch_locked = FALSE;
  	}
-@@ -1994,7 +1994,7 @@
+@@ -2005,7 +2005,7 @@
  
  func_exit:
  	if (search_latch_locked) {
@@ -1415,7 +1368,7 @@
  	}
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-@@ -3397,6 +3397,8 @@
+@@ -3408,6 +3408,8 @@
  	/* if the returned record was locked and we did a semi-consistent
  	read (fetch the newest committed version), then this is set to
  	TRUE */
@@ -1424,7 +1377,7 @@
  #ifdef UNIV_SEARCH_DEBUG
  	ulint		cnt				= 0;
  #endif /* UNIV_SEARCH_DEBUG */
-@@ -3487,18 +3489,33 @@
+@@ -3505,18 +3507,33 @@
  	/* PHASE 0: Release a possible s-latch we are holding on the
  	adaptive hash index latch if there is someone waiting behind */
  
@@ -1462,7 +1415,7 @@
  	}
  
  	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
-@@ -3649,9 +3666,28 @@
+@@ -3667,9 +3684,28 @@
  			hash index semaphore! */
  
  #ifndef UNIV_SEARCH_DEBUG
@@ -1494,7 +1447,7 @@
  			}
  #endif
  			switch (row_sel_try_search_shortcut_for_mysql(
-@@ -3712,7 +3748,11 @@
+@@ -3730,7 +3766,11 @@
  
  					trx->search_latch_timeout--;
  
@@ -1507,7 +1460,7 @@
  					trx->has_search_latch = FALSE;
  				}
  
-@@ -3736,7 +3776,12 @@
+@@ -3754,7 +3794,12 @@
  	/* PHASE 3: Open or restore index cursor position */
  
  	if (trx->has_search_latch) {
@@ -1569,7 +1522,7 @@
  			(ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t)),
 --- a/storage/innobase/sync/sync0sync.c
 +++ b/storage/innobase/sync/sync0sync.c
-@@ -1228,7 +1228,6 @@
+@@ -1222,7 +1222,6 @@
  	case SYNC_OUTER_ANY_LATCH:
  	case SYNC_FILE_FORMAT_TAG:
  	case SYNC_DOUBLEWRITE:
@@ -1577,7 +1530,7 @@
  	case SYNC_SEARCH_SYS_CONF:
  	case SYNC_TRX_LOCK_HEAP:
  	case SYNC_KERNEL:
-@@ -1249,6 +1248,7 @@
+@@ -1244,6 +1243,7 @@
  			ut_error;
  		}
  		break;

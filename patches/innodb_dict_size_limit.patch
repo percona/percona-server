@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/btr/btr0sea.c
 +++ b/storage/innobase/btr/btr0sea.c
-@@ -1185,6 +1185,179 @@
+@@ -1186,6 +1186,179 @@
  	mem_free(folds);
  }
  
@@ -355,7 +355,7 @@
  /****************************************************************//**
  If the given column name is reserved for InnoDB system columns, return
  TRUE.
-@@ -1762,6 +1824,11 @@
+@@ -1763,6 +1825,11 @@
  	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -378,7 +378,7 @@
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11653,6 +11655,11 @@
+@@ -11765,6 +11767,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -390,7 +390,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11721,6 +11728,7 @@
+@@ -11834,6 +11841,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -426,7 +426,7 @@
  Drops possible hash index if the page happens to be in the buffer pool. */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1610,6 +1610,15 @@
+@@ -1585,6 +1585,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  
@@ -444,7 +444,7 @@
  	ulint	n_page_gets;	/*!< number of page gets performed;
 --- a/storage/innobase/include/dict0dict.h
 +++ b/storage/innobase/include/dict0dict.h
-@@ -1183,6 +1183,12 @@
+@@ -1200,6 +1200,12 @@
  /*====================================*/
  	dict_table_t*	table,	/*!< in: table */
  	const char*	name);	/*!< in: name of the index to find */
@@ -459,7 +459,7 @@
  extern FILE*	dict_foreign_err_file;
 --- a/storage/innobase/include/dict0dict.ic
 +++ b/storage/innobase/include/dict0dict.ic
-@@ -824,6 +824,13 @@
+@@ -825,6 +825,13 @@
  	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
  		    dict_table_t*, table, ut_ad(table->cached),
  		    !strcmp(table->name, table_name));
@@ -473,7 +473,7 @@
  	return(table);
  }
  
-@@ -905,6 +912,12 @@
+@@ -918,6 +925,12 @@
  		table = dict_load_table_on_id(table_id);
  	}
  
@@ -488,7 +488,7 @@
  	/* TODO: should get the type information from MySQL */
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -230,6 +230,7 @@
+@@ -234,6 +234,7 @@
  extern ulint	srv_read_ahead;
  extern ulint	srv_adaptive_flushing_method;
  
@@ -496,7 +496,7 @@
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -710,6 +711,7 @@
+@@ -714,6 +715,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */

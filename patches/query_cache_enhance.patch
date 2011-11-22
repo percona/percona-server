@@ -3034,32 +3034,31 @@
 +set global query_cache_strip_comments=OFF;
 --- /dev/null
 +++ b/mysql-test/t/percona_status_wait_query_cache_mutex.test
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,35 @@
 +--source include/have_query_cache.inc
 +--source include/have_debug.inc
 +--source include/have_debug_sync.inc
 +SET GLOBAL query_cache_size=1355776;
 +--source include/percona_query_cache_with_comments_clear.inc
-+--let try_lock_mutex=SELECT "try_lock_mutex" as action
-+--let mutex_locked=SELECT "mutex_locked" as action
++--let try_lock_mutex_query=SELECT "try_lock_mutex_query" as action
 +
 +--connect (mutex_locked_conn, localhost, root,,)
 +--connect (try_mutex_lock_conn, localhost, root,,)
 +
 +--connection mutex_locked_conn
 +SET DEBUG_SYNC='after_query_cache_mutex SIGNAL mutex_locked WAIT_FOR unlock_mutex';
-+send_eval $mutex_locked;
++send SELECT "mutex_locked_query" as action;
 +
 +--connection default
 +SET DEBUG_SYNC='now WAIT_FOR mutex_locked';
 +
 +--connection try_mutex_lock_conn
 +SET DEBUG_SYNC='before_query_cache_mutex SIGNAL try_lock_mutex';
-+send_eval $try_lock_mutex;
++send_eval $try_lock_mutex_query;
 +
 +--connection default
 +SET DEBUG_SYNC='now WAIT_FOR try_lock_mutex';
-+eval SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='$try_lock_mutex';
++eval SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='$try_lock_mutex_query';
 +SET DEBUG_SYNC='now SIGNAL unlock_mutex';
 +
 +--connection mutex_locked_conn
@@ -3070,7 +3069,6 @@
 +--connection default
 +--disconnect mutex_locked_conn
 +--disconnect try_mutex_lock_conn
-+SET DEBUG_SYNC='reset';
 +SET GLOBAL query_cache_size=0;
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
@@ -3095,25 +3093,24 @@
  query-prealloc-size 8192
 --- /dev/null
 +++ b/mysql-test/r/percona_status_wait_query_cache_mutex.result
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,20 @@
 +SET GLOBAL query_cache_size=1355776;
 +flush query cache;
 +flush query cache;
 +reset query cache;
 +flush status;
 +SET DEBUG_SYNC='after_query_cache_mutex SIGNAL mutex_locked WAIT_FOR unlock_mutex';
-+SELECT "mutex_locked" as action;
++SELECT "mutex_locked_query" as action;
 +SET DEBUG_SYNC='now WAIT_FOR mutex_locked';
 +SET DEBUG_SYNC='before_query_cache_mutex SIGNAL try_lock_mutex';
-+SELECT "try_lock_mutex" as action;
++SELECT "try_lock_mutex_query" as action;
 +SET DEBUG_SYNC='now WAIT_FOR try_lock_mutex';
-+SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='SELECT "try_lock_mutex" as action';
++SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='SELECT "try_lock_mutex_query" as action';
 +state
 +Waiting on query cache mutex
 +SET DEBUG_SYNC='now SIGNAL unlock_mutex';
 +action
-+mutex_locked
++mutex_locked_query
 +action
-+try_lock_mutex
-+SET DEBUG_SYNC='reset';
++try_lock_mutex_query
 +SET GLOBAL query_cache_size=0;

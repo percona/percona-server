@@ -1,0 +1,7 @@
+File=mysql_remove_eol_carret.patch
+Name=
+Version=1.1
+Author=Percona <info@percona.com>
+License=GPL
+Comment=Do not remove carret before eol if --no-remove-eol-carret is enabled in MySQL client.
+Changelog

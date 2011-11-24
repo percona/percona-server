@@ -143,6 +143,8 @@ static char **defaults_argv;
 enum enum_info_type { INFO_INFO,INFO_ERROR,INFO_RESULT};
 typedef enum enum_info_type INFO_TYPE;
 
+my_bool opt_no_remove_eol_carret=0;
+
 static MYSQL mysql;			/* The connection */
 static my_bool ignore_errors=0,wait_flag=0,quick=0,
                connected=0,opt_raw_data=0,unbuffered=0,output_tables=0,
@@ -1438,6 +1440,10 @@ static struct my_option my_long_options[] =
    &line_numbers, &line_numbers, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},  
   {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-remove-eol-carret", OPT_NO_REMOVE_EOL_CARRET, "Do not remove \\r before \\n in batch mode", 
+  (uchar**)&opt_no_remove_eol_carret , (uchar**)&opt_no_remove_eol_carret, 0, 
+   GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unbuffered", 'n', "Flush buffer after each query.", &unbuffered,
    &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},

@@ -98,5 +98,6 @@ enum options_client
 #endif
   OPT_FIRST_SLAVE,
   OPT_ALL,
+  OPT_NO_REMOVE_EOL_CARRET,
   OPT_MAX_CLIENT_OPTION
 };

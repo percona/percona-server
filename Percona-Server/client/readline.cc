@@ -23,6 +23,8 @@
 #include <my_dir.h>
 #include "my_readline.h"
 
+extern my_bool opt_no_remove_eol_carret;
+
 static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
 			    ulong max_size);
 static bool init_line_buffer_from_string(LINE_BUFFER *buffer,char * str);
@@ -57,12 +59,12 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 char *batch_readline(LINE_BUFFER *line_buff)
 {
   char *pos;
-  ulong out_length;
+  ulong UNINIT_VAR(out_length);
 
   if (!(pos=intern_read_line(line_buff, &out_length)))
     return 0;
   if (out_length && pos[out_length-1] == '\n')
-    if (--out_length && pos[out_length-1] == '\r')  /* Remove '\n' */
+    if (--out_length && !opt_no_remove_eol_carret && pos[out_length-1] == '\r')  /* Remove '\n' */
       out_length--;                                 /* Remove '\r' */
   line_buff->read_length=out_length;
   pos[out_length]=0;

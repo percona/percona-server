@@ -268,4 +268,12 @@ thd_lock_wait_timeout(
 	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
 			the global innodb_lock_wait_timeout */
 
+/******************************************************************//**
+*/
+
+ulong
+thd_flush_log_at_trx_commit_session(
+/*================================*/
+	void*	thd);
+
 #endif

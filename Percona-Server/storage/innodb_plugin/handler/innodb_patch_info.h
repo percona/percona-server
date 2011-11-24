@@ -25,5 +25,6 @@ struct innodb_enhancement {
 }innodb_enhancements[] = {
 {"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
+{"innodb_io","Improvements to InnoDB IO","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {NULL, NULL, NULL, NULL}
 };

@@ -91,6 +91,28 @@ UNIV_INTERN ibool	os_aio_use_native_aio	= FALSE;
 /** Flag: enable debug printout for asynchronous i/o */
 UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
 
+/* State for the state of an IO request in simulated AIO.
+   Protocol for simulated aio:
+     client requests IO: find slot with reserved = FALSE. Add entry with
+                         status = OS_AIO_NOT_ISSUED.
+     IO thread wakes: find adjacent slots with reserved = TRUE and status =
+                      OS_AIO_NOT_ISSUED. Change status for slots to
+                      OS_AIO_ISSUED.
+     IO operation completes: set status for slots to OS_AIO_DONE. set status
+                             for the first slot to OS_AIO_CLAIMED and return
+                             result for that slot.
+   When there are multiple read and write threads, they all compete to execute
+   the requests in the array (os_aio_array_t). This avoids the need to load
+   balance requests at the time the request is made at the cost of waking all
+   threads when a request is available.
+*/
+typedef enum {
+	OS_AIO_NOT_ISSUED, /* Available to be processed by an IO thread. */
+	OS_AIO_ISSUED,     /* Being processed by an IO thread. */
+	OS_AIO_DONE,       /* Request processed. */
+	OS_AIO_CLAIMED     /* Result being returned to client. */
+} os_aio_status;
+
 /** The asynchronous i/o array slot structure */
 typedef struct os_aio_slot_struct	os_aio_slot_t;
 
@@ -100,6 +122,8 @@ struct os_aio_slot_struct{
 	ulint		pos;		/*!< index of the slot in the aio
 					array */
 	ibool		reserved;	/*!< TRUE if this slot is reserved */
+	os_aio_status   status;		/* Status for current request. Valid when reserved
+					is TRUE. Used only in simulated aio. */
 	time_t		reservation_time;/*!< time when reserved */
 	ulint		len;		/*!< length of the block to read or
 					write */
@@ -110,11 +134,11 @@ struct os_aio_slot_struct{
 	ulint		offset_high;	/*!< 32 high bits of file offset */
 	os_file_t	file;		/*!< file where to read or write */
 	const char*	name;		/*!< file name or path */
-	ibool		io_already_done;/*!< used only in simulated aio:
-					TRUE if the physical i/o already
-					made and only the slot message
-					needs to be passed to the caller
-					of os_aio_simulated_handle */
+//	ibool		io_already_done;/*!< used only in simulated aio:
+//					TRUE if the physical i/o already
+//					made and only the slot message
+//					needs to be passed to the caller
+//					of os_aio_simulated_handle */
 	fil_node_t*	message1;	/*!< message which is given by the */
 	void*		message2;	/*!< the requester of an aio operation
 					and which can be used to identify
@@ -168,6 +192,13 @@ struct os_aio_array_struct{
 /** Array of events used in simulated aio */
 static os_event_t*	os_aio_segment_wait_events	= NULL;
 
+/* Number for the first global segment for reading. */
+const ulint os_aio_first_read_segment = 2;
+
+/* Number for the first global segment for writing. Set to
+2 + os_aio_read_write_threads. */
+ulint os_aio_first_write_segment = 0;
+
 /** The aio arrays for non-ibuf i/o and ibuf i/o, as well as sync aio. These
 are NULL when the module has not yet been initialized. @{ */
 static os_aio_array_t*	os_aio_read_array	= NULL;	/*!< Reads */
@@ -177,12 +208,18 @@ static os_aio_array_t*	os_aio_log_array	= NULL;	/*!< Redo log */
 static os_aio_array_t*	os_aio_sync_array	= NULL;	/*!< Synchronous I/O */
 /* @} */
 
+/* Per thread buffer used for merged IO requests. Used by
+os_aio_simulated_handle so that a buffer doesn't have to be allocated
+for each request. */
+static byte* os_aio_thread_buffer[SRV_MAX_N_IO_THREADS];
+static ulint os_aio_thread_buffer_size[SRV_MAX_N_IO_THREADS];
+
 /** Number of asynchronous I/O segments.  Set by os_aio_init(). */
 static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 
 /** If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
-static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
+static volatile ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
 #endif /* UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint	os_n_file_reads		= 0;
@@ -1445,6 +1482,11 @@ try_again:
 		os_file_set_nocache(file, name, mode_str);
 	}
 
+	/* ALL_O_DIRECT: O_DIRECT also for transaction log file */
+	if (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
+		os_file_set_nocache(file, name, mode_str);
+	}
+
 #ifdef USE_FILE_LOCK
 	if (create_mode != OS_FILE_OPEN_RAW && os_file_lock(file, name)) {
 
@@ -1866,7 +1908,7 @@ os_file_set_size(
 
 	ut_free(buf2);
 
-	ret = os_file_flush(file);
+	ret = os_file_flush(file, TRUE);
 
 	if (ret) {
 		return(TRUE);
@@ -1904,7 +1946,8 @@ static
 int
 os_file_fsync(
 /*==========*/
-	os_file_t	file)	/*!< in: handle to a file */
+	os_file_t	file,	/*!< in: handle to a file */
+	ibool		metadata)
 {
 	int	ret;
 	int	failures;
@@ -1913,7 +1956,16 @@ os_file_fsync(
 	failures = 0;
 
 	do {
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
+		if (metadata) {
+			ret = fsync(file);
+		} else {
+			ret = fdatasync(file);
+		}
+#else
+		(void) metadata;
 		ret = fsync(file);
+#endif
 
 		os_n_fsyncs++;
 
@@ -1949,7 +2001,8 @@ UNIV_INTERN
 ibool
 os_file_flush(
 /*==========*/
-	os_file_t	file)	/*!< in, own: handle to a file */
+	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata)
 {
 #ifdef __WIN__
 	BOOL	ret;
@@ -1999,18 +2052,18 @@ os_file_flush(
 		/* If we are not on an operating system that supports this,
 		then fall back to a plain fsync. */
 
-		ret = os_file_fsync(file);
+		ret = os_file_fsync(file, metadata);
 	} else {
 		ret = fcntl(file, F_FULLFSYNC, NULL);
 
 		if (ret) {
 			/* If we are not on a file system that supports this,
 			then fall back to a plain fsync. */
-			ret = os_file_fsync(file);
+			ret = os_file_fsync(file, metadata);
 		}
 	}
 #else
-	ret = os_file_fsync(file);
+	ret = os_file_fsync(file, metadata);
 #endif
 
 	if (ret == 0) {
@@ -2193,7 +2246,7 @@ os_file_pwrite(
 		the OS crashes, a database page is only partially
 		physically written to disk. */
 
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2235,7 +2288,7 @@ os_file_pwrite(
 			the OS crashes, a database page is only partially
 			physically written to disk. */
 
-			ut_a(TRUE == os_file_flush(file));
+			ut_a(TRUE == os_file_flush(file, TRUE));
 		}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2601,7 +2654,7 @@ retry:
 
 # ifdef UNIV_DO_FLUSH
 	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -3088,11 +3141,14 @@ os_aio_init(
 
 	for (i = 0; i < n_segments; i++) {
 		srv_set_io_thread_op_info(i, "not started yet");
+		os_aio_thread_buffer[i] = 0;
+		os_aio_thread_buffer_size[i] = 0;
 	}
 
 
 	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
 
+	os_aio_first_write_segment = os_aio_first_read_segment + n_read_segs;
 	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
 
 	srv_io_thread_function[0] = "insert buffer thread";
@@ -3101,14 +3157,14 @@ os_aio_init(
 
 	srv_io_thread_function[1] = "log thread";
 
-	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
+	os_aio_read_array = os_aio_array_create(n_per_seg,
 						n_read_segs);
 	for (i = 2; i < 2 + n_read_segs; i++) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
 		srv_io_thread_function[i] = "read thread";
 	}
 
-	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
+	os_aio_write_array = os_aio_array_create(n_per_seg,
 						 n_write_segs);
 	for (i = 2 + n_read_segs; i < n_segments; i++) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
@@ -3390,7 +3446,8 @@ found:
 	slot->buf      = buf;
 	slot->offset   = offset;
 	slot->offset_high = offset_high;
-	slot->io_already_done = FALSE;
+//	slot->io_already_done = FALSE;
+	slot->status = OS_AIO_NOT_ISSUED;
 
 #ifdef WIN_ASYNC_IO
 	control = &(slot->control);
@@ -3421,6 +3478,7 @@ os_aio_array_free_slot(
 	ut_ad(slot->reserved);
 
 	slot->reserved = FALSE;
+	slot->status = OS_AIO_NOT_ISSUED;
 
 	array->n_reserved--;
 
@@ -3457,16 +3515,18 @@ os_aio_simulated_wake_handler_thread(
 
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 
-	n = array->n_slots / array->n_segments;
+	n = array->n_slots;
 
 	/* Look through n slots after the segment * n'th slot */
 
 	os_mutex_enter(array->mutex);
 
 	for (i = 0; i < n; i++) {
-		slot = os_aio_array_get_nth_slot(array, i + segment * n);
+		slot = os_aio_array_get_nth_slot(array, i);
 
-		if (slot->reserved) {
+		if (slot->reserved &&
+		    (slot->status == OS_AIO_NOT_ISSUED ||
+		     slot->status == OS_AIO_DONE)) {
 			/* Found an i/o request */
 
 			break;
@@ -3476,7 +3536,25 @@ os_aio_simulated_wake_handler_thread(
 	os_mutex_exit(array->mutex);
 
 	if (i < n) {
-		os_event_set(os_aio_segment_wait_events[global_segment]);
+		if (array == os_aio_ibuf_array) {
+			os_event_set(os_aio_segment_wait_events[0]);
+
+		} else if (array == os_aio_log_array) {
+			os_event_set(os_aio_segment_wait_events[1]);
+
+		} else if (array == os_aio_read_array) {
+			ulint	x;
+			for (x = os_aio_first_read_segment; x < os_aio_first_write_segment; x++)
+				os_event_set(os_aio_segment_wait_events[x]);
+
+		} else if (array == os_aio_write_array) {
+			ulint	x;
+			for (x = os_aio_first_write_segment; x < os_aio_n_segments; x++)
+				os_event_set(os_aio_segment_wait_events[x]);
+
+		} else {
+			ut_a(0);
+		}
 	}
 }
 
@@ -3487,8 +3565,6 @@ void
 os_aio_simulated_wake_handler_threads(void)
 /*=======================================*/
 {
-	ulint	i;
-
 	if (os_aio_use_native_aio) {
 		/* We do not use simulated aio: do nothing */
 
@@ -3497,9 +3573,10 @@ os_aio_simulated_wake_handler_threads(void)
 
 	os_aio_recommend_sleep_for_read_threads	= FALSE;
 
-	for (i = 0; i < os_aio_n_segments; i++) {
-		os_aio_simulated_wake_handler_thread(i);
-	}
+	os_aio_simulated_wake_handler_thread(0);
+	os_aio_simulated_wake_handler_thread(1);
+	os_aio_simulated_wake_handler_thread(os_aio_first_read_segment);
+	os_aio_simulated_wake_handler_thread(os_aio_first_write_segment);
 }
 
 /**********************************************************************//**
@@ -3790,7 +3867,7 @@ os_aio_windows_handle(
 	ut_ad(os_aio_validate());
 	ut_ad(segment < array->n_segments);
 
-	n = array->n_slots / array->n_segments;
+	n = array->n_slots;
 
 	if (array == os_aio_sync_array) {
 		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
@@ -3799,12 +3876,12 @@ os_aio_windows_handle(
 		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
 		i = os_event_wait_multiple(n,
 					   (array->native_events)
-					   + segment * n);
+					   );
 	}
 
 	os_mutex_enter(array->mutex);
 
-	slot = os_aio_array_get_nth_slot(array, i + segment * n);
+	slot = os_aio_array_get_nth_slot(array, i);
 
 	ut_a(slot->reserved);
 
@@ -3826,7 +3903,7 @@ os_aio_windows_handle(
 #ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write) {
-			ut_a(TRUE == os_file_flush(slot->file));
+			ut_a(TRUE == os_file_flush(slot->file, TRUE));
 		}
 #endif /* UNIV_DO_FLUSH */
 	} else if (os_file_handle_error(slot->name, "Windows aio")) {
@@ -3909,10 +3986,13 @@ os_aio_simulated_handle(
 	os_aio_slot_t*	slot;
 	os_aio_slot_t*	slot2;
 	os_aio_slot_t*	consecutive_ios[OS_AIO_MERGE_N_CONSECUTIVE];
+	os_aio_slot_t*  lowest_request;
+	os_aio_slot_t*	oldest_request;
 	ulint		n_consecutive;
 	ulint		total_len;
 	ulint		offs;
 	ulint		lowest_offset;
+	ulint		oldest_offset;
 	ulint		biggest_age;
 	ulint		age;
 	byte*		combined_buf;
@@ -3920,6 +4000,7 @@ os_aio_simulated_handle(
 	ibool		ret;
 	ulint		n;
 	ulint		i;
+	time_t          now;
 
 	/* Fix compiler warning */
 	*consecutive_ios = NULL;
@@ -3935,7 +4016,7 @@ restart:
 	ut_ad(os_aio_validate());
 	ut_ad(segment < array->n_segments);
 
-	n = array->n_slots / array->n_segments;
+	n = array->n_slots;
 
 	/* Look through n slots after the segment * n'th slot */
 
@@ -3957,9 +4038,9 @@ restart:
 	done */
 
 	for (i = 0; i < n; i++) {
-		slot = os_aio_array_get_nth_slot(array, i + segment * n);
+		slot = os_aio_array_get_nth_slot(array, i);
 
-		if (slot->reserved && slot->io_already_done) {
+		if (slot->reserved && slot->status == OS_AIO_DONE) {
 
 			if (os_aio_print_debug) {
 				fprintf(stderr,
@@ -3981,67 +4062,57 @@ restart:
 	then pick the one at the lowest offset. */
 
 	biggest_age = 0;
-	lowest_offset = ULINT_MAX;
+	now = time(NULL);
+	oldest_request = lowest_request = NULL;
+	oldest_offset = lowest_offset = ULINT_MAX;
 
+	/* Find the oldest request and the request with the smallest offset */
 	for (i = 0; i < n; i++) {
-		slot = os_aio_array_get_nth_slot(array, i + segment * n);
+		slot = os_aio_array_get_nth_slot(array, i);
 
-		if (slot->reserved) {
-			age = (ulint)difftime(time(NULL),
-					      slot->reservation_time);
+		if (slot->reserved && slot->status == OS_AIO_NOT_ISSUED) {
+			age = (ulint)difftime(now, slot->reservation_time);
 
 			if ((age >= 2 && age > biggest_age)
 			    || (age >= 2 && age == biggest_age
-				&& slot->offset < lowest_offset)) {
+				&& slot->offset < oldest_offset)) {
 
 				/* Found an i/o request */
-				consecutive_ios[0] = slot;
-
-				n_consecutive = 1;
-
 				biggest_age = age;
-				lowest_offset = slot->offset;
+				oldest_request = slot;
+				oldest_offset = slot->offset;
 			}
-		}
-	}
 
-	if (n_consecutive == 0) {
-		/* There were no old requests. Look for an i/o request at the
-		lowest offset in the array (we ignore the high 32 bits of the
-		offset in these heuristics) */
-
-		lowest_offset = ULINT_MAX;
-
-		for (i = 0; i < n; i++) {
-			slot = os_aio_array_get_nth_slot(array,
-							 i + segment * n);
-
-			if (slot->reserved && slot->offset < lowest_offset) {
-
+			/* Look for an i/o request at the lowest offset in the array
+			 * (we ignore the high 32 bits of the offset) */
+			if (slot->offset < lowest_offset) {
 				/* Found an i/o request */
-				consecutive_ios[0] = slot;
-
-				n_consecutive = 1;
-
+				lowest_request = slot;
 				lowest_offset = slot->offset;
 			}
 		}
 	}
 
-	if (n_consecutive == 0) {
+	if (!lowest_request && !oldest_request) {
 
 		/* No i/o requested at the moment */
 
 		goto wait_for_io;
 	}
 
-	slot = consecutive_ios[0];
+	if (oldest_request) {
+		slot = oldest_request;
+	} else {
+		slot = lowest_request;
+	}
+	consecutive_ios[0] = slot;
+	n_consecutive = 1;
 
 	/* Check if there are several consecutive blocks to read or write */
 
 consecutive_loop:
 	for (i = 0; i < n; i++) {
-		slot2 = os_aio_array_get_nth_slot(array, i + segment * n);
+		slot2 = os_aio_array_get_nth_slot(array, i);
 
 		if (slot2->reserved && slot2 != slot
 		    && slot2->offset == slot->offset + slot->len
@@ -4049,7 +4120,8 @@ consecutive_loop:
 		    && slot->offset + slot->len > slot->offset
 		    && slot2->offset_high == slot->offset_high
 		    && slot2->type == slot->type
-		    && slot2->file == slot->file) {
+		    && slot2->file == slot->file
+		    && slot2->status == OS_AIO_NOT_ISSUED) {
 
 			/* Found a consecutive i/o request */
 
@@ -4078,6 +4150,8 @@ consecutive_loop:
 
 	for (i = 0; i < n_consecutive; i++) {
 		total_len += consecutive_ios[i]->len;
+		ut_a(consecutive_ios[i]->status == OS_AIO_NOT_ISSUED);
+		consecutive_ios[i]->status = OS_AIO_ISSUED;
 	}
 
 	if (n_consecutive == 1) {
@@ -4085,7 +4159,14 @@ consecutive_loop:
 		combined_buf = slot->buf;
 		combined_buf2 = NULL;
 	} else {
-		combined_buf2 = ut_malloc(total_len + UNIV_PAGE_SIZE);
+		if ((total_len + UNIV_PAGE_SIZE) > os_aio_thread_buffer_size[global_segment]) {
+			if (os_aio_thread_buffer[global_segment])
+				ut_free(os_aio_thread_buffer[global_segment]);
+
+			os_aio_thread_buffer[global_segment] = ut_malloc(total_len + UNIV_PAGE_SIZE);
+			os_aio_thread_buffer_size[global_segment] = total_len + UNIV_PAGE_SIZE;
+		}
+		combined_buf2 = os_aio_thread_buffer[global_segment];
 
 		ut_a(combined_buf2);
 
@@ -4095,6 +4176,9 @@ consecutive_loop:
 	/* We release the array mutex for the time of the i/o: NOTE that
 	this assumes that there is just one i/o-handler thread serving
 	a single segment of slots! */
+
+	ut_a(slot->reserved);
+	ut_a(slot->status == OS_AIO_ISSUED);
 
 	os_mutex_exit(array->mutex);
 
@@ -4151,16 +4235,13 @@ consecutive_loop:
 		}
 	}
 
-	if (combined_buf2) {
-		ut_free(combined_buf2);
-	}
-
 	os_mutex_enter(array->mutex);
 
 	/* Mark the i/os done in slots */
 
 	for (i = 0; i < n_consecutive; i++) {
-		consecutive_ios[i]->io_already_done = TRUE;
+		ut_a(consecutive_ios[i]->status == OS_AIO_ISSUED);
+		consecutive_ios[i]->status = OS_AIO_DONE;
 	}
 
 	/* We return the messages for the first slot now, and if there were
@@ -4170,6 +4251,8 @@ consecutive_loop:
 slot_io_done:
 
 	ut_a(slot->reserved);
+	ut_a(slot->status == OS_AIO_DONE);
+	slot->status = OS_AIO_CLAIMED;
 
 	*message1 = slot->message1;
 	*message2 = slot->message2;

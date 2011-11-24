@@ -743,7 +743,7 @@ corrupted_page:
 flush:
 	/* Now flush the doublewrite buffer data to disk */
 
-	fil_flush(TRX_SYS_SPACE);
+	fil_flush(TRX_SYS_SPACE, FALSE);
 
 	/* We know that the writes have been flushed to disk now
 	and in recovery we will find them in the doublewrite buffer
@@ -1240,8 +1240,9 @@ buf_flush_try_neighbors(
 /*====================*/
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page offset */
-	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
+	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
+	ulint		flush_neighbors)
 {
 	buf_page_t*	bpage;
 	ulint		low, high;
@@ -1250,7 +1251,7 @@ buf_flush_try_neighbors(
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
+	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN || !flush_neighbors) {
 		/* If there is little space, it is better not to flush any
 		block except from the end of the LRU list */
 
@@ -1422,7 +1423,7 @@ flush_next:
 
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
-					space, offset, flush_type);
+					space, offset, flush_type, srv_flush_neighbor_pages);
 
 				buf_pool_mutex_enter();
 				goto flush_next;

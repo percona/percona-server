@@ -2893,8 +2893,11 @@ recv_recovery_from_checkpoint_start_func(
 	ib_uint64_t	archived_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
-	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
+	byte*		log_hdr_buf;
+	byte		log_hdr_buf_base[LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE];
 	ulint		err;
+
+	log_hdr_buf = ut_align(log_hdr_buf_base, OS_FILE_LOG_BLOCK_SIZE);
 
 #ifdef UNIV_LOG_ARCHIVE
 	ut_ad(type != LOG_CHECKPOINT || limit_lsn == IB_ULONGLONG_MAX);
@@ -3453,7 +3456,7 @@ recv_reset_log_files_for_backup(
 			exit(1);
 		}
 
-		os_file_flush(log_file);
+		os_file_flush(log_file, TRUE);
 		os_file_close(log_file);
 	}
 
@@ -3476,7 +3479,7 @@ recv_reset_log_files_for_backup(
 
 	os_file_write(name, log_file, buf, 0, 0,
 		      LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	os_file_flush(log_file);
+	os_file_flush(log_file, TRUE);
 	os_file_close(log_file);
 
 	ut_free(buf);

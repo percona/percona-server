@@ -332,6 +332,12 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
+static MYSQL_THDVAR_ULONG(flush_log_at_trx_commit_session, PLUGIN_VAR_RQCMDARG,
+  "Control innodb_flush_log_at_trx_commit for each sessions. "
+  "The value 0~2 are same meanings to innodb_flush_log_at_trx_commit. "
+  "The value 3 regards innodb_flush_log_at_trx_commit (default).",
+  NULL, NULL, 3, 0, 3, 0);
+
 
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
@@ -708,6 +714,17 @@ thd_lock_wait_timeout(
 	/* According to <mysql/plugin.h>, passing thd == NULL
 	returns the global value of the session variable. */
 	return(THDVAR((THD*) thd, lock_wait_timeout));
+}
+
+/******************************************************************//**
+*/
+extern "C" UNIV_INTERN
+ulong
+thd_flush_log_at_trx_commit_session(
+/*================================*/
+	void*	thd)
+{
+	return(THDVAR((THD*) thd, flush_log_at_trx_commit_session));
 }
 
 /********************************************************************//**
@@ -2233,6 +2250,9 @@ innobase_change_buffering_inited_ok:
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
+
+	srv_read_ahead &= 3;
+	srv_adaptive_checkpoint %= 4;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -9916,6 +9936,10 @@ innobase_xa_prepare(
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
 	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
 	{
+		if (srv_enable_unsafe_group_commit && !THDVAR(thd, support_xa)) {
+			/* choose group commit rather than binlog order */
+			return(error);
+		}
 
 		/* For ibbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
@@ -10891,7 +10915,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -11038,6 +11062,102 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
+static MYSQL_SYSVAR_LONGLONG(ibuf_max_size, srv_ibuf_max_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "The maximum size of the insert buffer. (in bytes)",
+  NULL, NULL, LONGLONG_MAX, 0, LONGLONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
+  NULL, NULL, 0, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
+  PLUGIN_VAR_RQCMDARG,
+  "Tunes amount of insert buffer processing of background, in addition to innodb_io_capacity. (in percentage)",
+  NULL, NULL, 100, 100, 999999999, 0);
+
+static MYSQL_SYSVAR_ULONG(checkpoint_age_target, srv_checkpoint_age_target,
+  PLUGIN_VAR_RQCMDARG,
+  "Control soft limit of checkpoint age. (0 : not control)",
+  NULL, NULL, 0, 0, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
+  NULL, NULL, 1, 0, 1, 0);
+
+static
+void
+innodb_read_ahead_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) & 3;
+}
+const char *read_ahead_names[]=
+{
+  "none", /* 0 */
+  "random",
+  "linear",
+  "both", /* 3 */
+  /* For compatibility of the older patch */
+  "0", /* 4 ("none" + 4) */
+  "1",
+  "2",
+  "3", /* 7 ("both" + 4) */
+  NullS
+};
+TYPELIB read_ahead_typelib=
+{
+  array_elements(read_ahead_names) - 1, "read_ahead_typelib",
+  read_ahead_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(read_ahead, srv_read_ahead,
+  PLUGIN_VAR_RQCMDARG,
+  "Control read ahead activity (none, random, [linear], both). [from 1.0.5: random read ahead is ignored]",
+  NULL, innodb_read_ahead_update, 2, &read_ahead_typelib);
+
+static
+void
+innodb_adaptive_checkpoint_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) % 4;
+}
+const char *adaptive_checkpoint_names[]=
+{
+  "none", /* 0 */
+  "reflex", /* 1 */
+  "estimate", /* 2 */
+  "keep_average", /* 3 */
+  /* For compatibility of the older patch */
+  "0", /* 4 ("none" + 3) */
+  "1", /* 5 ("reflex" + 3) */
+  "2", /* 6 ("estimate" + 3) */
+  "3", /* 7 ("keep_average" + 4) */
+  NullS
+};
+TYPELIB adaptive_checkpoint_typelib=
+{
+  array_elements(adaptive_checkpoint_names) - 1, "adaptive_checkpoint_typelib",
+  adaptive_checkpoint_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable flushing along modified age. ([none], reflex, estimate, keep_average)",
+  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
+
+static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
+  NULL, NULL, 0, 0, 1, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11093,6 +11213,15 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(show_verbose_locks),
   MYSQL_SYSVAR(show_locks_held),
   MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(ibuf_max_size),
+  MYSQL_SYSVAR(ibuf_active_contract),
+  MYSQL_SYSVAR(ibuf_accel_rate),
+  MYSQL_SYSVAR(checkpoint_age_target),
+  MYSQL_SYSVAR(flush_neighbor_pages),
+  MYSQL_SYSVAR(read_ahead),
+  MYSQL_SYSVAR(adaptive_checkpoint),
+  MYSQL_SYSVAR(flush_log_at_trx_commit_session),
+  MYSQL_SYSVAR(enable_unsafe_group_commit),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

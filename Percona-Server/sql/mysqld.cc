@@ -8207,7 +8207,9 @@ mysqld_get_one_option(int optid,
     thd_startup_options|=OPTION_BIG_TABLES;
     break;
   case (int) OPT_IGNORE_BUILTIN_INNODB:
-    opt_ignore_builtin_innodb= 1;
+    sql_print_error("The option ignore-builtin-innodb is incompatible with "
+                    "Percona Server with XtraDB");
+    unireg_abort(1);
     break;
   case (int) OPT_ISAM_LOG:
     opt_myisam_log=1;

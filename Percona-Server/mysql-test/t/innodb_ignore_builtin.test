@@ -1,3 +1,7 @@
+# For Percona Server this test is made a no-op, because ignore-builtin-innodb
+# is checked at the server startup time and the server aborts with an error
+# if it is found.  Ideally we would like to test this startup abort itself,
+# but MTR does not support that.
 #
 # Bug #42610:  Dynamic plugin broken in 5.1.31
 #

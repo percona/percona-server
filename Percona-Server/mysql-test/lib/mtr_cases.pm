@@ -944,7 +944,7 @@ sub collect_one_test_case {
     push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
   }
 
-  if ( $tinfo->{'innodb_test'} )
+  if ( $tinfo->{'innodb_test'} || $tinfo->{'innodb_plugin_test'} )
   {
     # This is a test that needs innodb
     if ( $::mysqld_variables{'innodb'} eq "OFF" ||
@@ -954,36 +954,6 @@ sub collect_one_test_case {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No innodb support";
       return $tinfo;
-    }
-  }
-  elsif ( $tinfo->{'innodb_plugin_test'} )
-  {
-    # This is a test that needs the innodb plugin
-    if (!&find_innodb_plugin)
-    {
-      # innodb plugin is not supported, skip it
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No innodb plugin support";
-      return $tinfo;
-    }
-
-    my $sep= (IS_WINDOWS) ? ';' : ':';
-    my $plugin_filename= basename($lib_innodb_plugin);
-    my $plugin_list=
-      "innodb=$plugin_filename$sep" .
-      "innodb_trx=$plugin_filename$sep" .
-      "innodb_locks=$plugin_filename$sep" .
-      "innodb_lock_waits=$plugin_filename$sep" .
-      "innodb_cmp=$plugin_filename$sep" .
-      "innodb_cmp_reset=$plugin_filename$sep" .
-      "innodb_cmpmem=$plugin_filename$sep" .
-      "innodb_cmpmem_reset=$plugin_filename";
-
-    foreach my $k ('master_opt', 'slave_opt') 
-    {
-      push(@{$tinfo->{$k}}, '--ignore-builtin-innodb');
-      push(@{$tinfo->{$k}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$tinfo->{$k}}, "--plugin-load=$plugin_list");
     }
   }
   else

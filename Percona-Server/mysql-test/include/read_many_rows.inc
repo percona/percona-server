@@ -112,8 +112,12 @@ connection con1;
 insert into t1 values(1);
 
 connection con2;
---error 1213
+#InnoDB Plugin treats this situation as "timeout" not "deadlock"
+#So, we need to rollback
+#--error 1213
+--error 1205
 reap;
+rollback;
 select @a;
 # check that the whole transaction was rolled back
 select * from t2;
@@ -134,6 +138,9 @@ insert into t1 values(1);
 
 connection con2;
 reap;
+#InnoDB Plugin treats this situation as "timeout" not "deadlock"
+#So, we need to rollback
+rollback;
 select @a,@b;
 # check that the whole transaction was rolled back
 select * from t2;
@@ -155,6 +162,9 @@ commit;
 
 connection con2;
 reap;
+#InnoDB Plugin treats this situation as "timeout" not "deadlock"
+#So, we need to rollback
+rollback;
 # check that the whole transaction was rolled back
 select * from t2;
 

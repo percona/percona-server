@@ -1175,6 +1175,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
 %token  STATUS_SYM
+%token  NOLOCK_SYM                    /* SHOW SLAVE STATUS NOLOCK */
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
 %token  STOP_SYM
@@ -10386,6 +10387,11 @@ show_param:
         | SLAVE STATUS_SYM
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
+          }
+	/* SHOW SLAVE STATUS NOLOCK */
+        | SLAVE STATUS_SYM NOLOCK_SYM
+          {
+	    Lex->sql_command = SQLCOM_SHOW_SLAVE_NOLOCK_STAT; //SQLCOM_SHOW_SLAVE_NOLOCK_STAT;
           }
         | CLIENT_STATS_SYM wild_and_where 
           {

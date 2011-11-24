@@ -1641,6 +1641,7 @@ bool show_master_info(THD* thd, Master_info* mi)
 
   if (mi->host[0])
   {
+    bool do_lock=SQLCOM_SHOW_SLAVE_NOLOCK_STAT != thd->lex->sql_command;
     DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
     protocol->prepare_for_resend();
@@ -1649,9 +1650,15 @@ bool show_master_info(THD* thd, Master_info* mi)
       slave_running can be accessed without run_lock but not other
       non-volotile members like mi->io_thd, which is guarded by the mutex.
     */
-    pthread_mutex_lock(&mi->run_lock);
+    if (do_lock)
+    {
+      pthread_mutex_lock(&mi->run_lock);
+    }
     protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
-    pthread_mutex_unlock(&mi->run_lock);
+    if (do_lock)
+    {
+      pthread_mutex_unlock(&mi->run_lock);
+    }
 
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);

@@ -1392,6 +1392,16 @@ innobase_trx_init(
 	trx->check_unique_secondary = !thd_test_options(
 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
 
+#ifdef EXTENDED_SLOWLOG
+	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
+		trx->take_stats = TRUE;
+	} else {
+		trx->take_stats = FALSE;
+	}
+#else
+	trx->take_stats = FALSE;
+#endif
+
 	DBUG_VOID_RETURN;
 }
 
@@ -1446,6 +1456,32 @@ check_trx_exists(
 	return(trx);
 }
 
+
+/*************************************************************************
+Gets current trx. */
+extern "C"
+trx_t*
+innobase_get_trx()
+{
+	THD *thd=current_thd;
+	if (likely(thd != 0)) {
+		trx_t*& trx = thd_to_trx(thd);
+		return(trx);
+	} else {
+		return(NULL);
+	}
+}
+
+extern "C"
+ibool
+innobase_get_slow_log()
+{
+#ifdef EXTENDED_SLOWLOG
+	return((ibool) thd_opt_slow_log());
+#else
+	return(FALSE);
+#endif
+}
 
 /*********************************************************************//**
 Construct ha_innobase handler. */
@@ -8965,6 +9001,25 @@ ha_innobase::external_lock(
 	statement has ended */
 
 	if (trx->n_mysql_tables_in_use == 0) {
+#ifdef EXTENDED_SLOWLOG
+		increment_thd_innodb_stats(thd,
+					(unsigned long long) ut_conv_dulint_to_longlong(trx->id),
+					trx->io_reads,
+					trx->io_read,
+					trx->io_reads_wait_timer,
+					trx->lock_que_wait_timer,
+					trx->innodb_que_wait_timer,
+					trx->distinct_page_access);
+
+		trx->io_reads = 0;
+		trx->io_read = 0;
+		trx->io_reads_wait_timer = 0;
+		trx->lock_que_wait_timer = 0;
+		trx->innodb_que_wait_timer = 0;
+		trx->distinct_page_access = 0;
+		if (trx->distinct_page_access_hash)
+			memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+#endif
 
 		trx->mysql_n_tables_locked = 0;
 		prebuilt->used_in_HANDLER = FALSE;

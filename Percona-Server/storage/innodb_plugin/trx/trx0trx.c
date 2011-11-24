@@ -182,6 +182,15 @@ trx_create(
 	trx->global_read_view = NULL;
 	trx->read_view = NULL;
 
+	trx->io_reads = 0;
+	trx->io_read = 0;
+	trx->io_reads_wait_timer = 0;
+	trx->lock_que_wait_timer = 0;
+	trx->innodb_que_wait_timer = 0;
+	trx->distinct_page_access = 0;
+	trx->distinct_page_access_hash = NULL;
+	trx->take_stats = FALSE;
+
 	/* Set X/Open XA transaction identification to NULL */
 	memset(&trx->xid, 0, sizeof(trx->xid));
 	trx->xid.formatID = -1;
@@ -218,6 +227,11 @@ trx_allocate_for_mysql(void)
 	trx->mysql_thread_id = os_thread_get_curr_id();
 
 	trx->mysql_process_no = os_proc_get_number();
+
+	if (innobase_get_slow_log() && trx->take_stats) {
+		trx->distinct_page_access_hash = mem_alloc(DPAH_SIZE);
+		memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+	}
 
 	return(trx);
 }
@@ -404,6 +418,12 @@ trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
+	if (trx->distinct_page_access_hash)
+	{
+		mem_free(trx->distinct_page_access_hash);
+		trx->distinct_page_access_hash= NULL;
+	}
+
 	mutex_enter(&kernel_mutex);
 
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
@@ -425,6 +445,12 @@ trx_free_for_background(
 /*====================*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
+	if (trx->distinct_page_access_hash)
+	{
+		mem_free(trx->distinct_page_access_hash);
+		trx->distinct_page_access_hash= NULL;
+	}
+
 	mutex_enter(&kernel_mutex);
 
 	trx_free(trx);
@@ -1157,6 +1183,9 @@ trx_end_lock_wait(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	que_thr_t*	thr;
+	ulint           sec;
+	ulint           ms;
+	ib_uint64_t     now;
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
@@ -1171,6 +1200,11 @@ trx_end_lock_wait(
 		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
 	}
 
+	if (innobase_get_slow_log() && trx->take_stats) {
+		ut_usectime(&sec, &ms);
+		now = (ib_uint64_t)sec * 1000000 + ms;
+		trx->lock_que_wait_timer += (ulint)(now - trx->lock_que_wait_ustarted);
+	}
 	trx->que_state = TRX_QUE_RUNNING;
 }
 
@@ -1184,6 +1218,9 @@ trx_lock_wait_to_suspended(
 	trx_t*	trx)	/*!< in: transaction in the TRX_QUE_LOCK_WAIT state */
 {
 	que_thr_t*	thr;
+	ulint           sec;
+	ulint           ms;
+	ib_uint64_t     now;
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx->que_state == TRX_QUE_LOCK_WAIT);
@@ -1198,6 +1235,11 @@ trx_lock_wait_to_suspended(
 		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
 	}
 
+	if (innobase_get_slow_log() && trx->take_stats) {
+		ut_usectime(&sec, &ms);
+		now = (ib_uint64_t)sec * 1000000 + ms;
+		trx->lock_que_wait_timer += (ulint)(now - trx->lock_que_wait_ustarted);
+	}
 	trx->que_state = TRX_QUE_RUNNING;
 }
 

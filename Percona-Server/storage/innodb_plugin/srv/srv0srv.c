@@ -86,6 +86,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
+
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
 UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
@@ -1158,6 +1161,10 @@ srv_conc_enter_innodb(
 	ibool			has_slept = FALSE;
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
+	ib_uint64_t             start_time = 0L;
+	ib_uint64_t             finish_time = 0L;
+	ulint                   sec;
+	ulint                   ms;
 
 	if (trx->mysql_thd != NULL
 	    && thd_is_replication_slave_thread(trx->mysql_thd)) {
@@ -1234,6 +1241,7 @@ retry:
 		switches. */
 		if (SRV_THREAD_SLEEP_DELAY > 0) {
 			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
+			trx->innodb_que_wait_timer += SRV_THREAD_SLEEP_DELAY;
 		}
 
 		trx->op_info = "";
@@ -1289,11 +1297,24 @@ retry:
 	/* Go to wait for the event; when a thread leaves InnoDB it will
 	release this thread */
 
+	if (innobase_get_slow_log() && trx->take_stats) {
+		ut_usectime(&sec, &ms);
+		start_time = (ib_uint64_t)sec * 1000000 + ms;
+	} else {
+		start_time = 0;
+	}
+
 	trx->op_info = "waiting in InnoDB queue";
 
 	os_event_wait(slot->event);
 
 	trx->op_info = "";
+
+	if (innobase_get_slow_log() && trx->take_stats && start_time) {
+		ut_usectime(&sec, &ms);
+		finish_time = (ib_uint64_t)sec * 1000000 + ms;
+		trx->innodb_que_wait_timer += (ulint)(finish_time - start_time);
+	}
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 

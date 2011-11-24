@@ -1,0 +1,9 @@
+File=show_patches.patch
+Name=SHOW PATCHES
+Version=1.0
+Author=Jeremy Cole
+License=N/A
+Comment=
+Changelog
+2010-01
+Ported to 5.1.42

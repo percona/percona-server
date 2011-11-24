@@ -3496,6 +3496,9 @@ end_with_restore_list:
   case SQLCOM_SHOW_CONTRIBUTORS:
     res= mysqld_show_contributors(thd);
     break;
+  case SQLCOM_SHOW_PATCHES:
+    res= mysqld_show_patches(thd);
+    break;
   case SQLCOM_SHOW_PRIVILEGES:
     res= mysqld_show_privileges(thd);
     break;

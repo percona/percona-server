@@ -1057,6 +1057,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARTITIONS_SYM
 %token  PARTITION_SYM                 /* SQL-2003-R */
 %token  PASSWORD
+%token  PATCHES
 %token  PHASE_SYM
 %token  PLUGINS_SYM
 %token  PLUGIN_SYM
@@ -10217,6 +10218,11 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
               MYSQL_YYABORT;
           }
+        | PATCHES
+          {
+            LEX *lex=Lex;
+            lex->sql_command= SQLCOM_SHOW_PATCHES;
+          }
         | opt_storage ENGINES_SYM
           {
             LEX *lex=Lex;
@@ -11830,6 +11836,7 @@ keyword_sp:
         | PARTITIONING_SYM         {}
         | PARTITIONS_SYM           {}
         | PASSWORD                 {}
+        | PATCHES                  {}
         | PHASE_SYM                {}
         | PLUGIN_SYM               {}
         | PLUGINS_SYM              {}

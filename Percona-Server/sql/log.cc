@@ -1892,7 +1892,7 @@ static void setup_windows_event_source()
 
 static int find_uniq_filename(char *name)
 {
-  long                  number;
+  long                  UNINIT_VAR(number);
   uint                  i;
   char                  buff[FN_REFLEN];
   struct st_my_dir     *dir_info;

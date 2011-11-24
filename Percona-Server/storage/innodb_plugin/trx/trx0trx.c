@@ -137,6 +137,9 @@ trx_create(
 	trx->mysql_relay_log_file_name = "";
 	trx->mysql_relay_log_pos = 0;
 
+	trx->idle_start = 0;
+	trx->last_stmt_start = 0;
+
 	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->rseg = NULL;

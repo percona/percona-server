@@ -86,6 +86,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 
+/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
+ibool		innobase_thd_is_idle(const void* thd);
+ib_int64_t	innobase_thd_get_start_time(const void* thd);
+void		innobase_thd_kill(void* thd);
+
 /* prototypes for new functions added to ha_innodb.cc */
 ibool	innobase_get_slow_log();
 
@@ -99,6 +104,9 @@ UNIV_INTERN ulint	srv_activity_count	= 0;
 
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
+
+/**/
+UNIV_INTERN lint	srv_kill_idle_transaction = 0;
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -2555,6 +2563,36 @@ loop:
 		fatal_cnt = 0;
 		old_waiter = waiter;
 		old_sema = sema;
+	}
+
+	if (srv_kill_idle_transaction && trx_sys) {
+		trx_t*	trx;
+		time_t	now;
+rescan_idle:
+		now = time(NULL);
+		mutex_enter(&kernel_mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			if (trx->conc_state == TRX_ACTIVE
+			    && trx->mysql_thd
+			    && innobase_thd_is_idle(trx->mysql_thd)) {
+				ib_int64_t	start_time; /* as stmt ID */
+
+				start_time = innobase_thd_get_start_time(trx->mysql_thd);
+				if (trx->last_stmt_start != start_time) {
+					trx->idle_start = now;
+					trx->last_stmt_start = start_time;
+				} else if (difftime(now, trx->idle_start)
+					   > srv_kill_idle_transaction) {
+					/* kill the session */
+					mutex_exit(&kernel_mutex);
+					innobase_thd_kill(trx->mysql_thd);
+					goto rescan_idle;
+				}
+			}
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&kernel_mutex);
 	}
 
 	/* Flush stderr so that a database user gets the output

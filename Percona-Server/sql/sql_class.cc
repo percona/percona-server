@@ -470,6 +470,26 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   return buffer;
 }
 
+/* extend for kill session of idle transaction from engine */
+extern "C"
+int thd_command(const THD* thd)
+{
+  return (int) thd->command;
+}
+
+extern "C"
+long long thd_start_time(const THD* thd)
+{
+  return (long long) thd->start_time;
+}
+
+extern "C"
+void thd_kill(THD* thd)
+{
+  pthread_mutex_lock(&thd->LOCK_thd_data);
+  thd->awake(THD::KILL_CONNECTION);
+  pthread_mutex_unlock(&thd->LOCK_thd_data);
+}
 
 /**
   Implementation of Drop_table_error_handler::handle_error().

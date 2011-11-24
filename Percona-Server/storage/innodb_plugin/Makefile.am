@@ -226,6 +226,7 @@ noinst_HEADERS=		\
 			include/ut0vec.h	\
 			include/ut0vec.ic	\
 			include/ut0wqueue.h	\
+			handler/innodb_patch_info.h	\
 			mem/mem0dbg.c
 
 EXTRA_LIBRARIES=	libinnobase.a

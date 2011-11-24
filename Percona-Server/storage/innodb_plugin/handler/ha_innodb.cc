@@ -369,6 +369,12 @@ static MYSQL_THDVAR_ULONG(flush_log_at_trx_commit_session, PLUGIN_VAR_RQCMDARG,
   "The value 3 regards innodb_flush_log_at_trx_commit (default).",
   NULL, NULL, 3, 0, 3, 0);
 
+static MYSQL_THDVAR_BOOL(fake_changes, PLUGIN_VAR_OPCMDARG,
+  "In the transaction after enabled, UPDATE, INSERT and DELETE only move the cursor to the records "
+  "and do nothing other operations (no changes, no ibuf, no undo, no transaction log) in the transaction. "
+  "This is to cause replication prefetch IO. ATTENTION: the transaction started after enabled is affected.",
+  NULL, NULL, FALSE);
+
 
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
@@ -1399,6 +1405,8 @@ innobase_trx_init(
 
 	trx->check_unique_secondary = !thd_test_options(
 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
+
+	trx->fake_changes = THDVAR(thd, fake_changes);
 
 #ifdef EXTENDED_SLOWLOG
 	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
@@ -2816,6 +2824,11 @@ innobase_commit(
 		trx_search_latch_release_if_reserved(trx);
 	}
 
+	if (trx->fake_changes && (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+		innobase_rollback(hton, thd, all); /* rollback implicitly */
+		thd->main_da.reset_diagnostics_area(); /* because debug assertion code complains, if something left */
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 	/* The flag trx->active_trans is set to 1 in
 
 	1. ::external_lock(),
@@ -7141,6 +7154,12 @@ ha_innobase::create(
 
 	trx = innobase_trx_allocate(thd);
 
+	if (trx->fake_changes) {
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during a table create operation.
 	Drop table etc. do this latching in row0mysql.c. */
@@ -7346,6 +7365,10 @@ ha_innobase::delete_all_rows(void)
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
+	if (prebuilt->trx->fake_changes) {
+		goto fallback;
+	}
+
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
@@ -7405,6 +7428,12 @@ ha_innobase::delete_table(
 	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx = innobase_trx_allocate(thd);
+
+	if (trx->fake_changes) {
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
 	name_len = strlen(name);
 
@@ -7494,6 +7523,12 @@ innobase_drop_database(
 	trx->mysql_thd = NULL;
 #else
 	trx = innobase_trx_allocate(thd);
+	if (trx->fake_changes) {
+		my_free(namebuf, MYF(0));
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		return; /* ignore */
+	}
 #endif
 	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf, MYF(0));
@@ -7601,6 +7636,11 @@ ha_innobase::rename_table(
 	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx = innobase_trx_allocate(thd);
+	if (trx->fake_changes) {
+		innobase_commit_low(trx);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
 	error = innobase_rename_table(trx, from, to, TRUE);
 
@@ -10373,6 +10413,10 @@ innobase_xa_prepare(
 		return(0);
 	}
 
+	if (trx->fake_changes) {
+		return(0);
+	}
+
 	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
@@ -11905,6 +11949,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(pass_corrupt_table),
   MYSQL_SYSVAR(lazy_drop_table),
+  MYSQL_SYSVAR(fake_changes),
   NULL
 };
 

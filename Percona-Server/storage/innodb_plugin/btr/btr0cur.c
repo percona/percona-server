@@ -1046,6 +1046,11 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
+
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
 
@@ -1177,7 +1182,7 @@ btr_cur_optimistic_insert(
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	leaf = page_is_leaf(page);
 
@@ -1270,6 +1275,12 @@ fail_err:
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
 		goto fail_err;
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		*big_rec = big_rec_vec;
+		return(err); /* == DB_SUCCESS */
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1414,10 +1425,10 @@ btr_cur_pessimistic_insert(
 
 	*big_rec = NULL;
 
-	ut_ad(mtr_memo_contains(mtr,
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
 	/* Try first an optimistic insert; reset the cursor flag: we do not
@@ -1483,6 +1494,16 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		if (n_extents > 0) {
+			fil_space_release_free_extents(index->space,
+						       n_reserved);
+		}
+		*big_rec = big_rec_vec;
+		return(DB_SUCCESS);
+	}
+
 	if (dict_index_get_page(index)
 	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
 
@@ -1538,6 +1559,11 @@ btr_cur_upd_lock_and_undo(
 	ulint		err;
 
 	ut_ad(cursor && update && thr && roll_ptr);
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -1837,6 +1863,14 @@ btr_cur_update_in_place(
 		return(err);
 	}
 
+	if (trx->fake_changes) {
+		/* skip CHANGE, LOG */
+		if (UNIV_LIKELY_NULL(heap)) {
+			mem_heap_free(heap);
+		}
+		return(err); /* == DB_SUCCESS */
+	}
+
 	if (block->is_hashed) {
 		/* The function row_upd_changes_ord_field_binary works only
 		if the update vector was built for a clustered index, we must
@@ -1939,7 +1973,7 @@ btr_cur_optimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 
@@ -2051,6 +2085,11 @@ any_extern:
 	if (err != DB_SUCCESS) {
 
 		goto err_exit;
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		goto err_exit; /* == DB_SUCCESS */
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2203,9 +2242,9 @@ btr_cur_pessimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2293,6 +2332,9 @@ btr_cur_pessimistic_update(
 
 		ut_ad(big_rec_vec == NULL);
 
+		/* fake_changes should not cause undo. so never reaches here */
+		ut_ad(!(trx->fake_changes));
+
 		btr_rec_free_updated_extern_fields(
 			index, rec, page_zip, offsets, update,
 			trx_is_recv(trx) ? RB_RECOVERY : RB_NORMAL, mtr);
@@ -2329,6 +2371,12 @@ make_external:
 		ut_ad(page_is_leaf(page));
 		ut_ad(dict_index_is_clust(index));
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
+	}
+
+	if (trx->fake_changes) {
+		/* skip CHANGE, LOG */
+		err = DB_SUCCESS;
+		goto return_after_reservations;
 	}
 
 	/* Store state of explicit locks on rec on the page infimum record,
@@ -2686,6 +2734,11 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO, CHANGE, LOG */
+		return(DB_SUCCESS);
+	}
+
 	err = lock_clust_rec_modify_check_and_lock(flags, block,
 						   rec, index, offsets, thr);
 
@@ -2822,6 +2875,11 @@ btr_cur_del_mark_set_sec_rec(
 	buf_block_t*	block;
 	rec_t*		rec;
 	ulint		err;
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, CHANGE, LOG */
+		return(DB_SUCCESS);
+	}
 
 	block = btr_cur_get_block(cursor);
 	rec = btr_cur_get_rec(cursor);

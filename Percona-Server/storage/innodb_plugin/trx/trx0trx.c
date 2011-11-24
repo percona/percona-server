@@ -114,6 +114,8 @@ trx_create(
 
 	trx->flush_log_at_trx_commit_session = 3; /* means to use innodb_flush_log_at_trx_commit value */
 
+	trx->fake_changes = FALSE;
+
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 

@@ -509,6 +509,7 @@ struct trx_struct{
 					150 bytes in the undo log size as then
 					we skip XA steps */
 	ulint		flush_log_at_trx_commit_session;
+	ulint		fake_changes;
 	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we

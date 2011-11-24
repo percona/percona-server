@@ -132,6 +132,10 @@ trx_create(
 
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
+	trx->mysql_master_log_file_name = "";
+	trx->mysql_master_log_pos = 0;
+	trx->mysql_relay_log_file_name = "";
+	trx->mysql_relay_log_pos = 0;
 
 	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
 
@@ -791,6 +795,7 @@ trx_commit_off_kernel(
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 	mtr_t		mtr;
+	trx_sysf_t*	sys_header = NULL;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -848,11 +853,33 @@ trx_commit_off_kernel(
 
 		if (trx->mysql_log_file_name
 		    && trx->mysql_log_file_name[0] != '\0') {
+			if (!sys_header) {
+				sys_header = trx_sysf_get(&mtr);
+			}
 			trx_sys_update_mysql_binlog_offset(
+				sys_header,
 				trx->mysql_log_file_name,
 				trx->mysql_log_offset,
 				TRX_SYS_MYSQL_LOG_INFO, &mtr);
 			trx->mysql_log_file_name = NULL;
+		}
+
+		if (trx->mysql_master_log_file_name[0] != '\0') {
+			/* This database server is a MySQL replication slave */
+			if (!sys_header) {
+				sys_header = trx_sysf_get(&mtr);
+			}
+			trx_sys_update_mysql_binlog_offset(
+				sys_header,
+				trx->mysql_relay_log_file_name,
+				trx->mysql_relay_log_pos,
+				TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
+			trx_sys_update_mysql_binlog_offset(
+				sys_header,
+				trx->mysql_master_log_file_name,
+				trx->mysql_master_log_pos,
+				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
+			trx->mysql_master_log_file_name = "";
 		}
 
 		/* The following call commits the mini-transaction, making the

@@ -1026,6 +1026,18 @@ static sys_var_microseconds sys_var_query_exec_time(&vars, "query_exec_time",
                                                     &SV::query_exec_time,
                                                     sys_var::SESSION_VARIABLE_IN_BINLOG);
 #endif
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+static sys_var_bool_ptr
+sys_enable_query_response_time_stats(&vars,
+                                     "enable_query_response_time_stats",
+                                     &opt_enable_query_response_time_stats);
+static sys_var_long_ptr
+sys_query_response_time_range_base(&vars,
+                                   "query_response_time_range_base",
+                                   &opt_query_response_time_range_base);
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
+static sys_var_have_variable sys_have_response_time_distribution(&vars, "have_response_time_distribution",
++                                                        &have_response_time_distribution);
 /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
 static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                           &opt_slow_log, QUERY_LOG_SLOW);

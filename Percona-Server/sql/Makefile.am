@@ -66,7 +66,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
 			log_event.h rpl_record.h \
 			log_event_old.h rpl_record_old.h \
-			sql_sort.h sql_cache.h set_var.h \
+			sql_sort.h sql_cache.h set_var.h query_response_time.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
 			tztime.h my_decimal.h\
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
@@ -89,7 +89,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_string.cc sql_manager.cc sql_map.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
-			set_var.cc sql_yacc.yy \
+			set_var.cc query_response_time.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_profile.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \

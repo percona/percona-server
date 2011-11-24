@@ -33,6 +33,7 @@
 
 #include "rpl_injector.h"
 
+#include "query_response_time.h"
 #ifdef HAVE_SYS_PRCTL_H
 #include <sys/prctl.h>
 #endif
@@ -538,6 +539,10 @@ my_bool opt_log_slow_timestamp_every= 0;
 my_bool opt_query_cache_strip_comments = 0;
 my_bool opt_use_global_long_query_time= 0;
 my_bool opt_slow_query_log_microseconds_timestamp= 0;
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+ulong   opt_query_response_time_range_base  = QRT_DEFAULT_BASE;
+my_bool opt_enable_query_response_time_stats= 0;
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
@@ -688,6 +693,7 @@ CHARSET_INFO *character_set_filesystem;
 MY_LOCALE *my_default_lc_time_names;
 
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
+SHOW_COMP_OPTION have_response_time_distribution;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_community_features;
@@ -1398,6 +1404,9 @@ void clean_up(bool print_message)
   free_global_thread_stats();
   free_global_table_stats();
   free_global_index_stats();
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  query_response_time_free();
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
@@ -4118,6 +4127,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   init_global_table_stats();
   init_global_index_stats();
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  query_response_time_init();
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
 
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
@@ -5938,6 +5950,10 @@ enum options_mysqld
   OPT_USE_GLOBAL_LONG_QUERY_TIME,
   OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
   OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  OPT_QRT_RANGE_BASE,
+  OPT_ENABLE_QRT_STATS,
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD,
@@ -7009,6 +7025,23 @@ thread is in the relay logs.",
    "Use microsecond time's precision in slow query log",
    (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
    0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  {"query_response_time_range_base", OPT_QRT_RANGE_BASE,
+     "Select base of log for query_response_time ranges. WARNING: variable change affect only after flush",
+   (uchar**) &opt_query_response_time_range_base, (uchar**) &opt_query_response_time_range_base,
+   0, GET_ULONG, REQUIRED_ARG, 
+   /* def_value */  QRT_DEFAULT_BASE,
+   /* min_value */  2,
+   /* max_value */  QRT_MAXIMUM_BASE, 
+   /* sub_size */   0,
+   /* block_size */ 1,
+   /* app_type */ 0
+  },
+  {"enable_query_response_time_stats", OPT_ENABLE_QRT_STATS,
+   "Enable or disable query response time statisics collecting",
+   (uchar**) &opt_enable_query_response_time_stats, (uchar**) &opt_enable_query_response_time_stats,
+   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
    "If set to 1, table names are stored in lowercase on disk and table names "
    "will be case-insensitive.  Should be set to 2 if you are using a case-"
@@ -8232,6 +8265,11 @@ static int mysql_init_variables(void)
 #else
   have_query_cache=SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  have_response_time_distribution= SHOW_OPTION_YES;
+#else /* HAVE_RESPONSE_TIME_DISTRIBUTION */
+  have_response_time_distribution= SHOW_OPTION_NO;
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
 #ifdef HAVE_SPATIAL
   have_geometry=SHOW_OPTION_YES;
 #else

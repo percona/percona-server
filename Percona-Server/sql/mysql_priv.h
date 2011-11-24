@@ -2120,6 +2120,11 @@ extern my_bool opt_log_slow_timestamp_every;
 extern my_bool opt_query_cache_strip_comments;
 extern my_bool opt_use_global_long_query_time;
 extern my_bool opt_slow_query_log_microseconds_timestamp;
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+extern ulong   opt_query_response_time_range_base;
+extern my_bool opt_enable_query_response_time_stats;
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
+extern SHOW_COMP_OPTION have_response_time_distribution;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;

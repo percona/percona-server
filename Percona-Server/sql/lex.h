@@ -418,6 +418,7 @@ static SYMBOL symbols[] = {
   { "PURGE",		SYM(PURGE)},
   { "QUARTER",          SYM(QUARTER_SYM)},
   { "QUERY",		SYM(QUERY_SYM)},
+  { "QUERY_RESPONSE_TIME", SYM(QUERY_RESPONSE_TIME_SYM)},
   { "QUICK",	        SYM(QUICK)},
   { "RANGE",            SYM(RANGE_SYM)},
   { "READ",		SYM(READ_SYM)},

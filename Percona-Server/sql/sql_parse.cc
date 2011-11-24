@@ -30,6 +30,7 @@
 #include "events.h"
 #include "sql_trigger.h"
 #include "debug_sync.h"
+#include "query_response_time.h"
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -1780,6 +1781,12 @@ void log_slow_statement(THD *thd)
 
   ulonglong end_utime_of_query= thd->current_utime();
   ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  if (opt_enable_query_response_time_stats)
+  {
+    query_response_time_collect(query_exec_time);
+  }
+#endif
 
   /*
     Low long_query_time value most likely means user is debugging stuff and even
@@ -1950,6 +1957,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   case SCH_CHARSETS:
   case SCH_ENGINES:
   case SCH_COLLATIONS:
+  case SCH_QUERY_RESPONSE_TIME:
   case SCH_COLLATION_CHARACTER_SET_APPLICABILITY:
   case SCH_USER_PRIVILEGES:
   case SCH_SCHEMA_PRIVILEGES:
@@ -7292,6 +7300,12 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     init_global_index_stats();
     pthread_mutex_unlock(&LOCK_global_index_stats);
   }
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  if (options & REFRESH_QUERY_RESPONSE_TIME)
+  {
+    query_response_time_flush();
+  }
+#endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */
   if (options & (REFRESH_USER_STATS | REFRESH_CLIENT_STATS | REFRESH_THREAD_STATS))
   {
     pthread_mutex_lock(&LOCK_global_user_client_stats);

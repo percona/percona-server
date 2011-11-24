@@ -1334,6 +1334,15 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */
 
+/** A chunk of buffers.  The buffer pool is allocated in chunks. */
+struct buf_chunk_struct{
+	ulint		mem_size;	/*!< allocated size of the chunk */
+	ulint		size;		/*!< size of frames[] and blocks[] */
+	void*		mem;		/*!< pointer to the memory area which
+					was allocated for the frames */
+	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+};
+
 /** @brief The buffer pool statistics structure. */
 struct buf_pool_stat_struct{
 	ulint	n_page_gets;	/*!< number of page gets performed;

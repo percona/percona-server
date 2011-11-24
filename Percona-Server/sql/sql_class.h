@@ -425,6 +425,8 @@ struct system_variables
   ulong      innodb_lock_que_wait_timer;
   ulong      innodb_innodb_que_wait_timer;
   ulong      innodb_page_access;
+
+  my_bool expand_fast_index_creation;
 };
 
 

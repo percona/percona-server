@@ -6067,7 +6067,8 @@ enum options_mysqld
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD,
-  OPT_MAX_LONG_DATA_SIZE
+  OPT_MAX_LONG_DATA_SIZE,
+  OPT_EXPAND_FAST_INDEX_CREATION
 };
 
 
@@ -6303,6 +6304,13 @@ struct my_option my_long_options[] =
 each time the SQL thread starts.",
    &opt_init_slave, &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"expand-fast-index-creation", OPT_EXPAND_FAST_INDEX_CREATION,
+   "Enable/disable improvements to the InnoDB fast index creation functionality. "
+   "Has no effect when fast index creation is disabled with the "
+   "fast-index-creation option",
+   &global_system_variables.expand_fast_index_creation,
+   &max_system_variables.expand_fast_index_creation,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, NULL},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
    &language_ptr, &language_ptr, 0, GET_STR, REQUIRED_ARG,

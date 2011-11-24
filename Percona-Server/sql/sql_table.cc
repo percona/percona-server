@@ -3016,6 +3016,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   if (!*key_info_buffer || ! key_part_info)
     DBUG_RETURN(TRUE);				// Out of memory
 
+  List_iterator<Key> delayed_key_iterator(alter_info->delayed_key_list);
+  alter_info->delayed_key_count= 0;
+  if (alter_info->delayed_key_list.elements > 0)
+  {
+    alter_info->delayed_key_info= (KEY *) sql_calloc(sizeof(KEY) *
+                                                     (*key_count));
+  }
+
   key_iterator.rewind();
   key_number=0;
   for (; (key=key_iterator++) ; key_number++)
@@ -3394,8 +3402,26 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(TRUE);
     }
+
+    if (alter_info->delayed_key_list.elements > 0)
+    {
+      Key *delayed_key;
+
+      delayed_key_iterator.rewind();
+      while ((delayed_key= delayed_key_iterator++))
+      {
+        if (delayed_key == key)
+        {
+         alter_info->delayed_key_info[alter_info->delayed_key_count++]=
+           *key_info;
+         break;
+        }
+      }
+    }
+
     key_info++;
   }
+
   if (!unique_key && !primary_key &&
       (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
   {
@@ -6094,6 +6120,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List<Create_field> new_create_list;
   /* New key definitions are added here */
   List<Key> new_key_list;
+  /* List with secondary keys which should be created after copying the data */
+  List<Key> delayed_key_list;
+  /* Foreign key list returned by handler::get_foreign_key_list() */
+  List<FOREIGN_KEY_INFO> f_key_list;
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Alter_column> alter_it(alter_info->alter_list);
@@ -6106,6 +6136,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= TRUE;
+  bool skip_secondary;
 
   DBUG_ENTER("mysql_prepare_alter_table");
 
@@ -6133,6 +6164,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
     /*
        Regular alter table of disk stored table (no tablespace/storage change)
+
        Copy tablespace name
     */
     if (tablespace &&
@@ -6300,7 +6332,26 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   /*
     Collect all keys which isn't in drop list. Add only those
     for which some fields exists.
+
+    We also store secondary keys in delayed_key_list to make use of
+    the InnoDB fast index creation. The following conditions must be
+    met:
+
+    - fast_index_creation is enabled for the current session
+    - expand_fast_index_creation is enabled for the current session;
+    - we are going to create an InnoDB table (this is checked later when the
+      target engine is known);
+    - the key most be a non-UNIQUE one;
+    - there are no foreign keys. This can be optimized later to exclude only
+      those keys which are a part of foreign key constraints. Currently we
+      simply disable this optimization for all keys if there are any foreign
+      key constraints in the table.
   */
+
+  skip_secondary= thd->variables.online_alter_index &&
+    thd->variables.expand_fast_index_creation &&
+    !table->file->get_foreign_key_list(thd, &f_key_list) &&
+    f_key_list.elements == 0;
 
   for (uint i=0 ; i < table->s->keys ; i++,key_info++)
   {
@@ -6403,6 +6454,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                    test(key_info->flags & HA_GENERATED_KEY),
                    key_parts);
       new_key_list.push_back(key);
+      if (skip_secondary && key_type == Key::MULTIPLE)
+        delayed_key_list.push_back(key);
     }
   }
   {
@@ -6410,7 +6463,21 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     while ((key=key_it++))			// Add new keys
     {
       if (key->type != Key::FOREIGN_KEY)
-        new_key_list.push_back(key);
+      {
+          new_key_list.push_back(key);
+        if (skip_secondary && key->type == Key::MULTIPLE)
+          delayed_key_list.push_back(key);
+      }
+      else if (skip_secondary)
+      {
+        /*
+          We are adding a foreign key so disable the secondary keys
+          optimization.
+        */
+        skip_secondary= FALSE;
+        delayed_key_list.empty();
+      }
+
       if (key->name &&
 	  !my_strcasecmp(system_charset_info,key->name,primary_key_name))
       {
@@ -6459,10 +6526,98 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   rc= FALSE;
   alter_info->create_list.swap(new_create_list);
   alter_info->key_list.swap(new_key_list);
+  alter_info->delayed_key_list.swap(delayed_key_list);
 err:
   DBUG_RETURN(rc);
 }
 
+
+/*
+  Temporarily remove secondary keys previously stored in
+  alter_info->delayed_key_info.
+*/
+static int
+remove_secondary_keys(THD *thd, TABLE *table, Alter_info *alter_info)
+{
+  uint *key_numbers;
+  uint key_counter= 0;
+  uint i;
+  int error;
+  DBUG_ENTER("remove_secondary_keys");
+  DBUG_ASSERT(alter_info->delayed_key_count > 0);
+
+  key_numbers= (uint *) thd->alloc(sizeof(uint) *
+                                   alter_info->delayed_key_count);
+  for (i= 0; i < alter_info->delayed_key_count; i++)
+  {
+    KEY *key= alter_info->delayed_key_info + i;
+    uint j;
+
+    for (j= 0; j < table->s->keys; j++)
+    {
+      if (!strcmp(table->key_info[j].name, key->name))
+      {
+        key_numbers[key_counter++]= j;
+        break;
+      }
+    }
+  }
+
+  DBUG_ASSERT(key_counter == alter_info->delayed_key_count);
+
+  if ((error= table->file->prepare_drop_index(table, key_numbers,
+                                              key_counter)) ||
+      (error= table->file->final_drop_index(table)))
+  {
+    table->file->print_error(error, MYF(0));
+  }
+
+  DBUG_RETURN(error);
+}
+
+/*
+  Restore secondary keys previously removed in remove_secondary_keys.
+*/
+
+static int
+restore_secondary_keys(THD *thd, TABLE *table, Alter_info *alter_info)
+{
+  uint i;
+  int error;
+  DBUG_ENTER("restore_secondary_keys");
+  DBUG_ASSERT(alter_info->delayed_key_count > 0);
+
+  thd_proc_info(thd, "restoring secondary keys");
+
+  /* Fix the key parts */
+  for (i= 0; i < alter_info->delayed_key_count; i++)
+  {
+    KEY *key = alter_info->delayed_key_info + i;
+    KEY_PART_INFO *key_part;
+    KEY_PART_INFO *part_end;
+
+    part_end= key->key_part + key->key_parts;
+    for (key_part= key->key_part; key_part < part_end; key_part++)
+      key_part->field= table->field[key_part->fieldnr];
+  }
+
+  if ((error= table->file->add_index(table, alter_info->delayed_key_info,
+                                     alter_info->delayed_key_count)))
+  {
+    /*
+      Exchange the key_info for the error message. If we exchange
+      key number by key name in the message later, we need correct info.
+    */
+    KEY *save_key_info= table->key_info;
+    table->key_info= alter_info->delayed_key_info;
+    table->file->print_error(error, MYF(0));
+    table->key_info= save_key_info;
+
+    DBUG_RETURN(error);
+  }
+
+  DBUG_RETURN(0);
+}
 
 /*
   Alter table
@@ -7248,6 +7403,12 @@ view_err:
   else
     create_info->data_file_name=create_info->index_file_name=0;
 
+  /*
+    Postpone secondary index creation for InnoDB tables if the data has to be
+    copied.
+    TODO: is there a better way to check for InnoDB?
+  */
+
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   /*
     Create a table with a temporary name.
@@ -7304,15 +7465,33 @@ view_err:
   */
   if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
   {
+    /*
+      Check if we can temporarily remove secondary indexes from the table
+      before copying the data and recreate them later to utilize InnoDB fast
+      index creation.
+      TODO: is there a better way to check for InnoDB?
+    */
+    bool optimize_keys= (alter_info->delayed_key_count > 0) &&
+      !my_strcasecmp(system_charset_info,
+                     new_table->file->table_type(), "InnoDB");
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
+
+    if (optimize_keys)
+    {
+      /* ignore the error */
+      error= remove_secondary_keys(thd, new_table, alter_info);
+    }
+
     thd_proc_info(thd, "copy to tmp table");
     error= copy_data_between_tables(table, new_table,
                                     alter_info->create_list, ignore,
                                     order_num, order, &copied, &deleted,
                                     alter_info->keys_onoff,
                                     alter_info->error_if_not_empty);
+    if (!error && optimize_keys)
+      error= restore_secondary_keys(thd, new_table, alter_info);
   }
   else
   {

@@ -47,6 +47,7 @@
 #include <m_ctype.h>
 #include <hash.h>
 #include <stdarg.h>
+#include <my_list.h>
 
 #include "client_priv.h"
 #include "mysql.h"
@@ -138,6 +139,8 @@ static uint opt_protocol= 0;
 
 static my_bool server_supports_sql_no_fcache= FALSE;
 
+static my_bool opt_innodb_optimize_keys= FALSE;
+
 /*
 Dynamic_string wrapper functions. In this file use these
 wrappers, they will terminate the process if there is
@@ -182,6 +185,8 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
                                   "", compatible_mode_names, NULL};
 
 HASH ignore_table;
+
+LIST *skipped_keys_list;
 
 static struct my_option my_long_options[] =
 {
@@ -329,6 +334,11 @@ static struct my_option my_long_options[] =
    "be specified with both database and table names, e.g., "
    "--ignore-table=database.table.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"innodb-optimize-keys", OPT_INNODB_OPTIMIZE_KEYS,
+   "Use InnoDB fast index creation by creating secondary indexes after "
+   "dumping the data.",
+   &opt_innodb_optimize_keys, &opt_innodb_optimize_keys, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
    &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -2249,6 +2259,189 @@ static uint dump_routines_for_db(char *db)
 }
 
 /*
+  Parse the specified key definition string and check if the key indexes
+  any of the columns from ignored_columns.
+*/
+static my_bool contains_ignored_column(HASH *ignored_columns, char *keydef)
+{
+  char *leftp, *rightp;
+
+  if ((leftp = strchr(keydef, '(')) &&
+      (rightp = strchr(leftp, ')')) &&
+      rightp > leftp + 3 &&                      /* (`...`) */
+      leftp[1] == '`' &&
+      rightp[-1] == '`' &&
+      hash_search(ignored_columns, (uchar *) leftp + 2, rightp - leftp - 3))
+    return TRUE;
+
+  return FALSE;
+}
+
+/*
+  Remove secondary/foreign key definitions from a given SHOW CREATE TABLE string
+  and store them into a temporary list to be used later.
+
+  SYNOPSIS
+    skip_secondary_keys()
+    create_str                SHOW CREATE TABLE output
+    has_pk                    TRUE, if the table has PRIMARY KEY
+                              (or UNIQUE key on non-nullable columns)
+
+
+  DESCRIPTION
+
+    Stores all lines starting with "KEY" or "UNIQUE KEY"
+    into skipped_keys_list and removes them from the input string.
+    Ignoring FOREIGN KEYS constraints when creating the table is ok, because
+    mysqldump sets foreign_key_checks to 0 anyway.
+*/
+
+static void skip_secondary_keys(char *create_str, my_bool has_pk)
+{
+  char *ptr, *strend;
+  char *last_comma = NULL;
+  HASH ignored_columns;
+  my_bool pk_processed= FALSE;
+
+  if (hash_init(&ignored_columns, charset_info, 16, 0, 0,
+                (hash_get_key) get_table_key,
+                (hash_free_key) free_table_ent, 0))
+    exit(EX_EOM);
+
+  strend= create_str + strlen(create_str);
+
+  ptr= create_str;
+  while (*ptr)
+  {
+    char *tmp, *orig_ptr, c;
+    my_bool UNINIT_VAR(is_unique);
+
+    orig_ptr= ptr;
+    /* Skip leading whitespace */
+    while (*ptr && my_isspace(charset_info, *ptr))
+      ptr++;
+
+    /* Read the next line */
+    for (tmp= ptr; *tmp != '\n' && *tmp != '\0'; tmp++);
+
+    c= *tmp;
+    *tmp= '\0'; /* so strstr() only processes the current line */
+
+    /* Is it a secondary index definition? */
+    if (c == '\n' &&
+        (((is_unique= !strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ")-1)) &&
+          (pk_processed || !has_pk)) ||
+         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1)) &&
+        !contains_ignored_column(&ignored_columns, ptr))
+    {
+      char *data, *end= tmp - 1;
+
+      /* Remove the trailing comma */
+      if (*end == ',')
+        end--;
+      data= my_strndup(ptr, end - ptr + 1, MYF(MY_FAE));
+      skipped_keys_list= list_cons(data, skipped_keys_list);
+
+      memmove(orig_ptr, tmp + 1, strend - tmp);
+      ptr= orig_ptr;
+      strend-= tmp + 1 - ptr;
+
+      /* Remove the comma on the previos line */
+      if (last_comma != NULL)
+      {
+        *last_comma= ' ';
+      }
+    }
+    else
+    {
+      char *end;
+
+      if (last_comma != NULL && *ptr != ')')
+      {
+        /*
+          It's not the last line of CREATE TABLE, so we have skipped a key
+          definition. We have to restore the last removed comma.
+        */
+        *last_comma= ',';
+      }
+
+      if ((has_pk && is_unique && !pk_processed) ||
+          !strncmp(ptr, "PRIMARY KEY ", sizeof("PRIMARY KEY ") - 1))
+        pk_processed= TRUE;
+
+      if (strstr(ptr, "AUTO_INCREMENT") && *ptr == '`')
+      {
+        /*
+          If a secondary key is defined on this column later,
+          it cannot be skipped, as CREATE TABLE would fail on import.
+        */
+        for (end= ptr + 1; *end != '`' && *end != '\0'; end++);
+        if (*end == '`' && end > ptr + 1 &&
+            my_hash_insert(&ignored_columns,
+                           (uchar *) my_strndup(ptr + 1,
+                                                end - ptr - 1, MYF(0))))
+        {
+          exit(EX_EOM);
+        }
+      }
+
+      *tmp= c;
+
+      if (tmp[-1] == ',')
+        last_comma= tmp - 1;
+      ptr= (*tmp == '\0') ? tmp : tmp + 1;
+    }
+  }
+
+  hash_free(&ignored_columns);
+}
+
+/*
+  Check if the table has a primary key defined either explicitly or
+  implicitly (i.e. a unique key on non-nullable columns).
+
+  SYNOPSIS
+    my_bool has_primary_key(const char *table_name)
+
+    table_name  quoted table name
+
+  RETURNS     TRUE if the table has a primary key
+
+  DESCRIPTION
+*/
+
+static my_bool has_primary_key(const char *table_name)
+{
+  MYSQL_RES  *res= NULL;
+  MYSQL_ROW  row;
+  char query_buff[QUERY_LENGTH];
+  my_bool has_pk= TRUE;
+
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE "
+              "TABLE_SCHEMA=DATABASE() AND TABLE_NAME='%s' AND "
+              "COLUMN_KEY='PRI'", table_name);
+  if (mysql_query(mysql, query_buff) || !(res= mysql_store_result(mysql)) ||
+      !(row= mysql_fetch_row(res)))
+  {
+    fprintf(stderr, "Warning: Couldn't determine if table %s has a "
+            "primary key (%s). "
+            "--innodb-optimize-keys may work inefficiently.\n",
+            table_name, mysql_error(mysql));
+    goto cleanup;
+  }
+
+  has_pk= atoi(row[0]) > 0;
+
+cleanup:
+  if (res)
+    mysql_free_result(res);
+
+  return has_pk;
+}
+
+
+/*
   get_table_structure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat if the table is the type we will
   be dumping.
@@ -2285,6 +2478,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   int        len;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
+  my_bool    UNINIT_VAR(has_pk);
   DBUG_ENTER("get_table_structure");
   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
@@ -2325,6 +2519,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
   result_table=     quote_name(table, table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
+
+  if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
+    has_pk= has_primary_key(table);
 
   if (opt_order_by_primary)
     order_by= primary_key_fields(result_table);
@@ -2488,6 +2685,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       }
 
       row= mysql_fetch_row(result);
+
+      if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
+        skip_secondary_keys(row[1], has_pk);
 
       fprintf(sql_file, (opt_compatible_mode & 3) ? "%s;\n" :
               "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
@@ -3579,6 +3779,27 @@ static void dump_table(char *table, char *db)
       fputs(buf,stderr);
       error= EX_CONSCHECK;
       goto err;
+    }
+
+    /* Perform delayed secondary index creation for --innodb-optimize-keys */
+    if (skipped_keys_list)
+    {
+      uint keys;
+      skipped_keys_list= list_reverse(skipped_keys_list);
+      fprintf(md_result_file, "ALTER TABLE %s ", opt_quoted_table);
+      for (keys= list_length(skipped_keys_list); keys > 0; keys--)
+      {
+        LIST *node= skipped_keys_list;
+        char *def= node->data;
+
+        fprintf(md_result_file, "ADD %s%s", def, (keys > 1) ? ", " : ";\n");
+
+        skipped_keys_list= list_delete(skipped_keys_list, node);
+        my_free(def, MYF(0));
+        my_free(node, MYF(0));
+      }
+
+      DBUG_ASSERT(skipped_keys_list == NULL);
     }
 
     /* Moved enable keys to before unlock per bug 15977 */

@@ -15,6 +15,12 @@
 
 -- source include/have_innodb_plugin.inc
 
+# Suppress the error log message occuring on duplicate key error
+# during ALTER TABLE when using fast index creation
+--disable_query_log
+call mtr.add_suppression("Cannot find index v_2 in InnoDB index translation table.");
+--enable_query_log
+
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 # Save the original values of some variables in order to be able to

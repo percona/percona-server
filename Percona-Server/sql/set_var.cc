@@ -1056,6 +1056,9 @@ static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
                                                      SHOW_LONGLONG,
                                                      get_myisam_mmap_size);
 
+static sys_var_thd_bool
+sys_expand_fast_index_creation(&vars,
+  "expand_fast_index_creation", &SV::expand_fast_index_creation);
 
 bool sys_var::check(THD *thd, set_var *var)
 {

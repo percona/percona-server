@@ -562,6 +562,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  {"dict_tables",
+  (char*) &export_vars.innodb_dict_tables,		  SHOW_LONG},
   {"have_atomic_builtins",
   (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"log_waits",
@@ -11381,6 +11383,11 @@ static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
   "Number of extra user rollback segments when create new database.",
   NULL, NULL, 0, 0, 126, 0);
 
+static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
+  PLUGIN_VAR_RQCMDARG,
+  "Limit the allocated memory for dictionary cache. (0: unlimited)",
+  NULL, NULL, 0, 0, LONG_MAX, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11449,6 +11456,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit_session),
   MYSQL_SYSVAR(enable_unsafe_group_commit),
   MYSQL_SYSVAR(extra_rsegments),
+  MYSQL_SYSVAR(dict_size_limit),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

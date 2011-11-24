@@ -140,6 +140,13 @@ btr_search_drop_page_hash_index(
 				s- or x-latched, or an index page
 				for which we know that
 				block->buf_fix_count == 0 */
+/************************************************************************
+Drops a page hash index based on index */
+UNIV_INTERN
+void
+btr_search_drop_page_hash_index_on_index(
+/*=====================================*/
+	dict_index_t*	index);		/* in: record descriptor */
 /********************************************************************//**
 Drops a page hash index when a page is freed from a fseg to the file system.
 Drops possible hash index if the page happens to be in the buffer pool. */

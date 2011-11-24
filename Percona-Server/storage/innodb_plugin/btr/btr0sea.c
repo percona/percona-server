@@ -1173,6 +1173,173 @@ cleanup:
 	mem_free(folds);
 }
 
+/************************************************************************
+Drops a page hash index based on index */
+UNIV_INTERN
+void
+btr_search_drop_page_hash_index_on_index(
+/*=====================================*/
+	dict_index_t*	index)		/* in: record descriptor */
+{
+
+	hash_table_t*	table;
+	buf_block_t*	block;
+	ulint		n_fields;
+	ulint		n_bytes;
+	const page_t*		page;
+	const rec_t*		rec;
+	ulint		fold;
+	ulint		prev_fold;
+	dulint			index_id;
+	ulint		n_cached;
+	ulint		n_recs;
+	ulint*		folds;
+	ulint		i;
+	mem_heap_t*	heap	= NULL;
+	ulint*		offsets;
+	ibool		released_search_latch;
+
+	rw_lock_s_lock(&btr_search_latch);
+
+	table = btr_search_sys->hash_index;
+
+	do {
+		buf_chunk_t*	chunks	= buf_pool->chunks;
+		buf_chunk_t*	chunk	= chunks + buf_pool->n_chunks;
+
+		released_search_latch = FALSE;
+
+		while (--chunk >= chunks) {
+			block	= chunk->blocks;
+			i	= chunk->size;
+
+retry:
+			for (; i--; block++) {
+				if (buf_block_get_state(block)
+				    != BUF_BLOCK_FILE_PAGE
+				    || block->index != index
+				    || !block->is_hashed) {
+					continue;
+				}
+
+				page = block->frame;
+
+				/* from btr_search_drop_page_hash_index() */
+				n_fields = block->curr_n_fields;
+				n_bytes = block->curr_n_bytes;
+
+
+				/* keeping latch order */
+				rw_lock_s_unlock(&btr_search_latch);
+				released_search_latch = TRUE;
+				rw_lock_x_lock(&block->lock);
+
+
+				ut_a(n_fields + n_bytes > 0);
+
+				n_recs = page_get_n_recs(page);
+
+				/* Calculate and cache fold values into an array for fast deletion
+				from the hash index */
+
+				folds = mem_alloc(n_recs * sizeof(ulint));
+
+				n_cached = 0;
+
+				rec = page_get_infimum_rec(page);
+				rec = page_rec_get_next_low(rec, page_is_comp(page));
+
+				index_id = btr_page_get_index_id(page);
+	
+				ut_a(0 == ut_dulint_cmp(index_id, index->id));
+
+				prev_fold = 0;
+
+				offsets = NULL;
+
+				while (!page_rec_is_supremum(rec)) {
+					offsets = rec_get_offsets(rec, index, offsets,
+								n_fields + (n_bytes > 0), &heap);
+					ut_a(rec_offs_n_fields(offsets) == n_fields + (n_bytes > 0));
+					fold = rec_fold(rec, offsets, n_fields, n_bytes, index_id);
+
+					if (fold == prev_fold && prev_fold != 0) {
+
+						goto next_rec;
+					}
+
+					/* Remove all hash nodes pointing to this page from the
+					hash chain */
+
+					folds[n_cached] = fold;
+					n_cached++;
+next_rec:
+					rec = page_rec_get_next_low(rec, page_rec_is_comp(rec));
+					prev_fold = fold;
+				}
+
+				if (UNIV_LIKELY_NULL(heap)) {
+					mem_heap_empty(heap);
+				}
+
+				rw_lock_x_lock(&btr_search_latch);
+
+				if (UNIV_UNLIKELY(!block->is_hashed)) {
+					goto cleanup;
+				}
+
+				ut_a(block->index == index);
+
+				if (UNIV_UNLIKELY(block->curr_n_fields != n_fields)
+				    || UNIV_UNLIKELY(block->curr_n_bytes != n_bytes)) {
+					rw_lock_x_unlock(&btr_search_latch);
+					rw_lock_x_unlock(&block->lock);
+
+					mem_free(folds);
+
+					rw_lock_s_lock(&btr_search_latch);
+					goto retry;
+				}
+
+				for (i = 0; i < n_cached; i++) {
+
+					ha_remove_all_nodes_to_page(table, folds[i], page);
+				}
+
+				ut_a(index->search_info->ref_count > 0);
+				index->search_info->ref_count--;
+
+				block->is_hashed = FALSE;
+				block->index = NULL;
+
+cleanup:	
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+				if (UNIV_UNLIKELY(block->n_pointers)) {
+					/* Corruption */
+					ut_print_timestamp(stderr);
+					fprintf(stderr,
+"  InnoDB: Corruption of adaptive hash index. After dropping\n"
+"InnoDB: the hash index to a page of %s, still %lu hash nodes remain.\n",
+						index->name, (ulong) block->n_pointers);
+				}
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+				rw_lock_x_unlock(&btr_search_latch);
+				rw_lock_x_unlock(&block->lock);
+
+				mem_free(folds);
+
+				rw_lock_s_lock(&btr_search_latch);
+			}
+		}
+	} while (released_search_latch);
+
+	rw_lock_s_unlock(&btr_search_latch);
+
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
+	}
+}
+
 /********************************************************************//**
 Drops a page hash index when a page is freed from a fseg to the file system.
 Drops possible hash index if the page happens to be in the buffer pool. */

@@ -220,7 +220,7 @@ extern ulint	srv_read_ahead;
 extern ulint	srv_adaptive_checkpoint;
 
 extern ulint	srv_extra_rsegments;
-
+extern ulint	srv_dict_size_limit;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
@@ -626,6 +626,7 @@ struct export_var_struct{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
+	ulint innodb_dict_tables;
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */

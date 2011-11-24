@@ -9,9 +9,6 @@
 # 'old_innodb_file_format_check'
 set @old_innodb_file_format_check=@@innodb_file_format_check;
 
-# @old_innodb_file_format_check shall have the value of 'Antelope'
-select @old_innodb_file_format_check;
-
 # Reset the value in 'innodb_file_format_check' to 'Barracuda'
 set global innodb_file_format_check = Barracuda;
 
@@ -27,7 +24,7 @@ select @@innodb_file_format_check;
 set global innodb_file_format_check = @old_innodb_file_format_check;
 
 # Check whether 'innodb_file_format_check' get its original value.
-select @@innodb_file_format_check;
+select @@innodb_file_format_check = @old_innodb_file_format_check;
 
 # Following are negative tests, all should fail.
 --disable_warnings

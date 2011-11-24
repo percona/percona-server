@@ -124,6 +124,22 @@ trx_sys_hdr_page(
 /*=============*/
 	ulint	space,	/*!< in: space */
 	ulint	page_no);/*!< in: page number */
+/***************************************************************//**
+Checks if a space is the system tablespaces.
+@return TRUE if system tablespace */
+UNIV_INLINE
+ibool
+trx_sys_sys_space(
+/*==============*/
+	ulint	space);	/*!< in: space */
+/***************************************************************//**
+Checks if a space is the doublewrite tablespace.
+@return TRUE if doublewrite tablespace */
+UNIV_INLINE
+ibool
+trx_sys_doublewrite_space(
+/*======================*/
+	ulint	space);	/*!< in: space */
 /*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
@@ -137,6 +153,13 @@ UNIV_INTERN
 void
 trx_sys_create(void);
 /*================*/
+/*****************************************************************//**
+Creates and initializes the dummy transaction system page for tablespace. */
+UNIV_INTERN
+void
+trx_sys_dummy_create(
+/*=================*/
+	ulint	space);
 /*********************************************************************
 Create extra rollback segments when create_new_db */
 UNIV_INTERN
@@ -458,6 +481,8 @@ trx_sys_file_format_id_to_name(
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+#define	TRX_DOUBLEWRITE_SPACE	0xFFFFFFE0UL	/* the doublewrite buffer tablespace if used */
+#define	TRX_SYS_SPACE_MAX	9	/* reserved max space id for system tablespaces */
 #include "fsp0fsp.h"
 #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
 

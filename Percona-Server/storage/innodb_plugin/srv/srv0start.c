@@ -709,6 +709,7 @@ open_or_create_data_files(
 /*======================*/
 	ibool*		create_new_db,	/*!< out: TRUE if new database should be
 					created */
+	ibool*		create_new_doublewrite_file,
 #ifdef UNIV_LOG_ARCHIVE
 	ulint*		min_arch_log_no,/*!< out: min of archived log
 					numbers in data files */
@@ -741,6 +742,7 @@ open_or_create_data_files(
 	*sum_of_new_sizes = 0;
 
 	*create_new_db = FALSE;
+	*create_new_doublewrite_file = FALSE;
 
 	srv_normalize_path_for_win(srv_data_home);
 
@@ -973,6 +975,142 @@ skip_size_check:
 				srv_data_file_is_raw_partition[i] != 0);
 	}
 
+	/* special file for doublewrite buffer */
+	if (srv_doublewrite_file)
+	{
+		srv_normalize_path_for_win(srv_doublewrite_file);
+
+		fprintf(stderr,
+			"InnoDB: Notice: innodb_doublewrite_file is specified.\n"
+			"InnoDB: This is for expert only. Don't use if you don't understand what is it 'WELL'.\n"
+			"InnoDB: ### Don't specify older file than the last checkpoint ###\n"
+			"InnoDB: otherwise the older doublewrite buffer will break your data during recovery!\n");
+
+		strcpy(name, srv_doublewrite_file);
+
+		/* First we try to create the file: if it already
+		exists, ret will get value FALSE */
+
+		files[i] = os_file_create(name, OS_FILE_CREATE,
+					  OS_FILE_NORMAL,
+					  OS_DATA_FILE, &ret);
+
+		if (ret == FALSE && os_file_get_last_error(FALSE)
+		    != OS_FILE_ALREADY_EXISTS
+#ifdef UNIV_AIX
+		    /* AIX 5.1 after security patch ML7 may have
+		    errno set to 0 here, which causes our function
+		    to return 100; work around that AIX problem */
+		    && os_file_get_last_error(FALSE) != 100
+#endif
+		    ) {
+			fprintf(stderr,
+				"InnoDB: Error in creating"
+				" or opening %s\n",
+				name);
+
+			return(DB_ERROR);
+		}
+
+		if (ret == FALSE) {
+			/* We open the data file */
+
+			files[i] = os_file_create(
+				name, OS_FILE_OPEN, OS_FILE_NORMAL,
+				OS_DATA_FILE, &ret);
+
+			if (!ret) {
+				fprintf(stderr,
+					"InnoDB: Error in opening %s\n", name);
+				os_file_get_last_error(TRUE);
+
+				return(DB_ERROR);
+			}
+
+			ret = os_file_get_size(files[i], &size, &size_high);
+			ut_a(ret);
+			/* Round size downward to megabytes */
+
+			rounded_size_pages
+				= (size / (1024 * 1024) + 4096 * size_high)
+					<< (20 - UNIV_PAGE_SIZE_SHIFT);
+
+			if (rounded_size_pages != TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9) {
+
+				fprintf(stderr,
+					"InnoDB: Warning: doublewrite buffer file %s"
+					" is of a different size\n"
+					"InnoDB: %lu pages"
+					" (rounded down to MB)\n"
+					"InnoDB: than intended size"
+					" %lu pages...\n",
+					name,
+					(ulong) rounded_size_pages,
+					(ulong) TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9);
+			}
+
+			fil_read_flushed_lsn_and_arch_log_no(
+				files[i], one_opened,
+#ifdef UNIV_LOG_ARCHIVE
+				min_arch_log_no, max_arch_log_no,
+#endif /* UNIV_LOG_ARCHIVE */
+				min_flushed_lsn, max_flushed_lsn);
+			one_opened = TRUE;
+		} else {
+			/* We created the data file and now write it full of
+			zeros */
+
+			*create_new_doublewrite_file = TRUE;
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Doublewrite buffer file %s did not"
+				" exist: new to be created\n",
+				name);
+
+			if (*create_new_db == FALSE) {
+				fprintf(stderr,
+					"InnoDB: Warning: Previous version's ibdata files may cause crash.\n"
+					"        If you use that, please use the ibdata files of this version.\n");
+			}
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Setting file %s size to %lu MB\n",
+				name,
+				(ulong) ((TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9)
+					 >> (20 - UNIV_PAGE_SIZE_SHIFT)));
+
+			fprintf(stderr,
+				"InnoDB: Database physically writes the"
+				" file full: wait...\n");
+
+			ret = os_file_set_size(
+				name, files[i],
+				srv_calc_low32(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9),
+				srv_calc_high32(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9));
+
+			if (!ret) {
+				fprintf(stderr,
+					"InnoDB: Error in creating %s:"
+					" probably out of disk space\n", name);
+
+				return(DB_ERROR);
+			}
+		}
+
+		ret = os_file_close(files[i]);
+		ut_a(ret);
+
+		fil_space_create(name, TRX_DOUBLEWRITE_SPACE, 0, FIL_TABLESPACE);
+
+		ut_a(fil_validate());
+
+		fil_node_create(name, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9, TRX_DOUBLEWRITE_SPACE, FALSE);
+
+		i++;
+	}
+
 	ios = 0;
 
 	mutex_create(&ios_mutex, SYNC_NO_ORDER_CHECK);
@@ -991,6 +1129,7 @@ innobase_start_or_create_for_mysql(void)
 {
 	buf_pool_t*	ret;
 	ibool		create_new_db;
+	ibool		create_new_doublewrite_file;
 	ibool		log_file_created;
 	ibool		log_created	= FALSE;
 	ibool		log_opened	= FALSE;
@@ -1408,6 +1547,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	err = open_or_create_data_files(&create_new_db,
+					&create_new_doublewrite_file,
 #ifdef UNIV_LOG_ARCHIVE
 					&min_arch_log_no, &max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
@@ -1531,6 +1671,15 @@ innobase_start_or_create_for_mysql(void)
 		mtr_commit(&mtr);
 
 		trx_sys_create();
+
+		if (create_new_doublewrite_file) {
+			mtr_start(&mtr);
+			fsp_header_init(TRX_DOUBLEWRITE_SPACE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9, &mtr);
+			mtr_commit(&mtr);
+
+			trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
+		}
+
 		dict_create();
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1568,6 +1717,13 @@ innobase_start_or_create_for_mysql(void)
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
 	} else {
+		char*	save_srv_doublewrite_file = NULL;
+
+		if (create_new_doublewrite_file) {
+			/* doublewrite_file cannot be used for recovery yet. */
+			save_srv_doublewrite_file = srv_doublewrite_file;
+			srv_doublewrite_file = NULL;
+		}
 
 		/* Check if we support the max format that is stamped
 		on the system tablespace. 
@@ -1654,6 +1810,17 @@ innobase_start_or_create_for_mysql(void)
 		we have finished the recovery process so that the
 		image of TRX_SYS_PAGE_NO is not stale. */
 		trx_sys_file_format_tag_init();
+
+		if (create_new_doublewrite_file) {
+			/* restore the value */
+			srv_doublewrite_file = save_srv_doublewrite_file;
+
+			mtr_start(&mtr);
+			fsp_header_init(TRX_DOUBLEWRITE_SPACE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9, &mtr);
+			mtr_commit(&mtr);
+
+			trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
+		}
 	}
 
 	if (!create_new_db && sum_of_new_sizes > 0) {

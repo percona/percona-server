@@ -695,7 +695,8 @@ corrupted_page:
 	write_buf = trx_doublewrite->write_buf;
 	i = 0;
 
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
+	fil_io(OS_FILE_WRITE, TRUE,
+	       (srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE), 0,
 	       trx_doublewrite->block1, 0, len,
 	       (void*) write_buf, NULL);
 
@@ -732,7 +733,8 @@ corrupted_page:
 		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 	ut_ad(i == TRX_SYS_DOUBLEWRITE_BLOCK_SIZE);
 
-	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
+	fil_io(OS_FILE_WRITE, TRUE,
+	       (srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE), 0,
 	       trx_doublewrite->block2, 0, len,
 	       (void*) write_buf, NULL);
 
@@ -762,7 +764,7 @@ corrupted_page:
 flush:
 	/* Now flush the doublewrite buffer data to disk */
 
-	fil_flush(TRX_SYS_SPACE, FALSE);
+	fil_flush(srv_doublewrite_file ? TRX_DOUBLEWRITE_SPACE : TRX_SYS_SPACE, FALSE);
 
 	/* We know that the writes have been flushed to disk now
 	and in recovery we will find them in the doublewrite buffer

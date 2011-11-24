@@ -619,7 +619,7 @@ fil_node_create(
 
 	UT_LIST_ADD_LAST(chain, space->chain, node);
 
-	if (id < SRV_LOG_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
+	if (id < SRV_EXTRA_SYS_SPACE_FIRST_ID && fil_system->max_assigned_id < id) {
 
 		fil_system->max_assigned_id = id;
 	}
@@ -682,14 +682,14 @@ fil_node_open_file(
 		size_bytes = (((ib_int64_t)size_high) << 32)
 			+ (ib_int64_t)size_low;
 #ifdef UNIV_HOTBACKUP
-		if (space->id == 0) {
+		if (trx_sys_sys_space(space->id)) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 			os_file_close(node->handle);
 			goto add_size;
 		}
 #endif /* UNIV_HOTBACKUP */
 		ut_a(space->purpose != FIL_LOG);
-		ut_a(space->id != 0);
+		ut_a(!trx_sys_sys_space(space->id));
 
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 			fprintf(stderr,
@@ -735,7 +735,7 @@ fil_node_open_file(
 		}
 
 		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
-				  || space_id == 0)) {
+				  || trx_sys_sys_space(space_id))) {
 			fprintf(stderr,
 				"InnoDB: Error: tablespace id %lu"
 				" in file %s is not sensible\n",
@@ -797,7 +797,7 @@ add_size:
 
 	system->n_open++;
 
-	if (space->purpose == FIL_TABLESPACE && space->id != 0) {
+	if (space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(space->id)) {
 		/* Put the node to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
@@ -830,7 +830,7 @@ fil_node_close_file(
 	ut_a(system->n_open > 0);
 	system->n_open--;
 
-	if (node->space->purpose == FIL_TABLESPACE && node->space->id != 0) {
+	if (node->space->purpose == FIL_TABLESPACE && !trx_sys_sys_space(node->space->id)) {
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
 
 		/* The node is in the LRU list, remove it */
@@ -916,7 +916,7 @@ fil_mutex_enter_and_prepare_for_io(
 retry:
 	mutex_enter(&fil_system->mutex);
 
-	if (space_id == 0 || space_id >= SRV_LOG_SPACE_FIRST_ID) {
+	if (trx_sys_sys_space(space_id) || space_id >= SRV_LOG_SPACE_FIRST_ID) {
 		/* We keep log files and system tablespace files always open;
 		this is important in preventing deadlocks in this module, as
 		a page read completion often performs another read from the
@@ -1147,7 +1147,7 @@ try_again:
 			" tablespace memory cache!\n",
 			(ulong) space->id);
 
-		if (id == 0 || purpose != FIL_TABLESPACE) {
+		if (trx_sys_sys_space(id) || purpose != FIL_TABLESPACE) {
 
 			mutex_exit(&fil_system->mutex);
 
@@ -1209,6 +1209,7 @@ try_again:
 	space->mark = FALSE;
 
 	if (UNIV_LIKELY(purpose == FIL_TABLESPACE && !recv_recovery_on)
+	    && UNIV_UNLIKELY(id < SRV_EXTRA_SYS_SPACE_FIRST_ID)
 	    && UNIV_UNLIKELY(id > fil_system->max_assigned_id)) {
 		if (!fil_system->space_id_reuse_warned) {
 			fil_system->space_id_reuse_warned = TRUE;
@@ -1292,7 +1293,7 @@ fil_assign_new_space_id(
 			(ulong) SRV_LOG_SPACE_FIRST_ID);
 	}
 
-	success = (id < SRV_LOG_SPACE_FIRST_ID);
+	success = (id < SRV_EXTRA_SYS_SPACE_FIRST_ID);
 
 	if (success) {
 		*space_id = fil_system->max_assigned_id = id;
@@ -1554,6 +1555,8 @@ fil_init(
 	UT_LIST_INIT(fil_system->LRU);
 
 	fil_system->max_n_open = max_n_open;
+
+	fil_system->max_assigned_id = TRX_SYS_SPACE_MAX;
 }
 
 /*******************************************************************//**
@@ -1575,7 +1578,7 @@ fil_open_log_and_system_tablespace_files(void)
 	space = UT_LIST_GET_FIRST(fil_system->space_list);
 
 	while (space != NULL) {
-		if (space->purpose != FIL_TABLESPACE || space->id == 0) {
+		if (space->purpose != FIL_TABLESPACE || trx_sys_sys_space(space->id)) {
 			node = UT_LIST_GET_FIRST(space->chain);
 
 			while (node != NULL) {
@@ -1665,6 +1668,10 @@ fil_set_max_space_id_if_bigger(
 		ut_error;
 	}
 
+	if (max_id >= SRV_EXTRA_SYS_SPACE_FIRST_ID) {
+		return;
+	}
+
 	mutex_enter(&fil_system->mutex);
 
 	if (fil_system->max_assigned_id < max_id) {
@@ -1683,6 +1690,7 @@ static
 ulint
 fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
+	ulint		space_id,
 	ulint		sum_of_sizes,	/*!< in: combined size of previous files
 					in space, in database pages */
 	ib_uint64_t	lsn,		/*!< in: lsn to write */
@@ -1692,14 +1700,16 @@ fil_write_lsn_and_arch_no_to_file(
 	byte*	buf1;
 	byte*	buf;
 
+	ut_a(trx_sys_sys_space(space_id));
+
 	buf1 = mem_alloc(2 * UNIV_PAGE_SIZE);
 	buf = ut_align(buf1, UNIV_PAGE_SIZE);
 
-	fil_read(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	fil_read(TRUE, space_id, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
 	mach_write_ull(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
-	fil_write(TRUE, 0, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	fil_write(TRUE, space_id, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
 
 	mem_free(buf1);
 
@@ -1735,7 +1745,7 @@ fil_write_flushed_lsn_to_data_files(
 		always open. */
 
 		if (space->purpose == FIL_TABLESPACE
-		    && space->id == 0) {
+		    && trx_sys_sys_space(space->id)) {
 			sum_of_sizes = 0;
 
 			node = UT_LIST_GET_FIRST(space->chain);
@@ -1743,7 +1753,7 @@ fil_write_flushed_lsn_to_data_files(
 				mutex_exit(&fil_system->mutex);
 
 				err = fil_write_lsn_and_arch_no_to_file(
-					sum_of_sizes, lsn, arch_log_no);
+					space->id, sum_of_sizes, lsn, arch_log_no);
 				if (err != DB_SUCCESS) {
 
 					return(err);
@@ -4106,7 +4116,7 @@ fil_load_single_table_tablespace(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (space_id == ULINT_UNDEFINED || space_id == 0) {
+	if (space_id == ULINT_UNDEFINED || trx_sys_sys_space(space_id)) {
 		fprintf(stderr,
 			"InnoDB: Error: tablespace id %lu in file %s"
 			" is not sensible\n",
@@ -4115,7 +4125,7 @@ fil_load_single_table_tablespace(
 		goto func_exit;
 	}
 #else
-	if (space_id == ULINT_UNDEFINED || space_id == 0) {
+	if (space_id == ULINT_UNDEFINED || trx_sys_sys_space(space_id)) {
 		char*	new_path;
 
 		fprintf(stderr,
@@ -4936,7 +4946,7 @@ fil_node_prepare_for_io(
 	}
 
 	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
-	    && space->id != 0) {
+	    && !trx_sys_sys_space(space->id)) {
 		/* The node is in the LRU list, remove it */
 
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
@@ -4982,7 +4992,7 @@ fil_node_complete_io(
 	}
 
 	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
-	    && node->space->id != 0) {
+	    && !trx_sys_sys_space(node->space->id)) {
 		/* The node must be put back to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
@@ -5588,7 +5598,7 @@ fil_validate(void)
 		ut_a(fil_node->n_pending == 0);
 		ut_a(fil_node->open);
 		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
-		ut_a(fil_node->space->id != 0);
+		ut_a(!trx_sys_sys_space(fil_node->space->id));
 
 		fil_node = UT_LIST_GET_NEXT(LRU, fil_node);
 	}

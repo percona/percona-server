@@ -145,6 +145,8 @@ UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
 UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
+UNIV_INTERN char*	srv_doublewrite_file = NULL;
+
 UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;

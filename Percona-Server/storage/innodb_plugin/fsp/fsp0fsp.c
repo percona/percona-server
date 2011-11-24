@@ -48,7 +48,7 @@ Created 11/29/1995 Heikki Tuuri
 # include "log0log.h"
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
-
+#include "trx0sys.h"
 
 #define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
 						within a file page */
@@ -1000,10 +1000,10 @@ fsp_header_init(
 	flst_init(header + FSP_SEG_INODES_FREE, mtr);
 
 	mlog_write_dulint(header + FSP_SEG_ID, ut_dulint_create(0, 1), mtr);
-	if (space == 0) {
+	if (space == TRX_SYS_SPACE || space == TRX_DOUBLEWRITE_SPACE) {
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
-			   0, 0, ut_dulint_add(DICT_IBUF_ID_MIN, space),
+			   space, 0, ut_dulint_add(DICT_IBUF_ID_MIN, space),
 			   dict_ind_redundant, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);

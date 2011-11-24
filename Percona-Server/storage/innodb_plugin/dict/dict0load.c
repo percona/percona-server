@@ -40,6 +40,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "trx0sys.h"
 
 /****************************************************************//**
 Compare the name of an index column.
@@ -396,7 +397,7 @@ loop:
 
 		mtr_commit(&mtr);
 
-		if (space_id == 0) {
+		if (trx_sys_sys_space(space_id)) {
 			/* The system tablespace always exists. */
 		} else if (in_crash_recovery) {
 			/* Check that the tablespace (the .ibd file) really
@@ -946,7 +947,7 @@ err_exit:
 	space = mach_read_from_4(field);
 
 	/* Check if the tablespace exists and has the right name */
-	if (space != 0) {
+	if (!trx_sys_sys_space(space)) {
 		flags = dict_sys_tables_get_flags(rec);
 
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
@@ -999,7 +1000,7 @@ err_exit:
 	}
 
 	/* See if the tablespace is available. */
-	if (space == 0) {
+	if (trx_sys_sys_space(space)) {
 		/* The system tablespace is always available. */
 	} else if (!fil_space_for_table_exists_in_mem(
 			   space, name,

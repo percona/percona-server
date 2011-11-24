@@ -3331,7 +3331,7 @@ check_next_foreign:
 		/* Do not drop possible .ibd tablespace if something went
 		wrong: we do not want to delete valuable data of the user */
 
-		if (err == DB_SUCCESS && space_id > 0) {
+		if (err == DB_SUCCESS && !trx_sys_sys_space(space_id)) {
 			if (!fil_space_for_table_exists_in_mem(space_id,
 							       name_or_path,
 							       is_temp, FALSE,

@@ -94,7 +94,9 @@ buf_read_page_low(
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
 
-	if (trx_doublewrite && space == TRX_SYS_SPACE
+	if (trx_doublewrite
+	    && (space == TRX_SYS_SPACE
+		|| (srv_doublewrite_file && space == TRX_DOUBLEWRITE_SPACE))
 	    && (   (offset >= trx_doublewrite->block1
 		    && offset < trx_doublewrite->block1
 		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)

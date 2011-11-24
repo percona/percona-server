@@ -166,6 +166,7 @@ static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
+static char*	innobase_doublewrite_file		= NULL;
 
 /* Note: This variable can be set to on/off and any of the supported
 file formats in the configuration file, but can only be set to any
@@ -2269,6 +2270,8 @@ mem_free_and_error:
 						MYF(MY_ALLOW_ZERO_PTR));
 		goto error;
 	}
+
+	srv_doublewrite_file = innobase_doublewrite_file;
 
 	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
 
@@ -11313,6 +11316,11 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   "Path to individual files and their sizes.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(doublewrite_file, innobase_doublewrite_file,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Path to special datafile for doublewrite buffer. (default is "": not used) ### ONLY FOR EXPERTS!!! ###",
+  NULL, NULL, NULL);
+
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The AUTOINC lock modes supported by InnoDB:               "
@@ -11497,6 +11505,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
   MYSQL_SYSVAR(data_file_path),
+  MYSQL_SYSVAR(doublewrite_file),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
   MYSQL_SYSVAR(extra_undoslots),

@@ -1641,6 +1641,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
 int ha_federated::close(void)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("ha_federated::close");
 
   free_result();
@@ -1650,6 +1651,10 @@ int ha_federated::close(void)
   /* Disconnect from mysql */
   mysql_close(mysql);
   mysql= NULL;
+
+  /* Clear possible errors from mysql_close(), see LP bug #813587. */
+  if (thd)
+    thd->clear_error();
 
   DBUG_RETURN(free_share(share));
 }

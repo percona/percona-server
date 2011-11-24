@@ -494,7 +494,7 @@ QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripCommen
     thd = a_thd;
     query = thd->query();
     length = thd->query_length();
-    qsc->set(query,length,thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+    qsc->set(query,length,thd->db_length + sizeof(size_t) + 1 + QUERY_CACHE_FLAGS_SIZE);
     thd->set_query(qsc->query(),qsc->query_length());
   }
   else
@@ -1433,8 +1433,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     /* Key is query + database + flag */
     if (thd->db_length)
     {
-      memcpy(thd->query() + thd->query_length() + 1, thd->db, 
-        thd->db_length);
+      memcpy(thd->query() + thd->query_length() + 1 + sizeof(size_t),
+             thd->db, thd->db_length);
       DBUG_PRINT("qcache", ("database: %s  length: %u",
 			    thd->db, (unsigned) thd->db_length)); 
     }
@@ -1443,7 +1443,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       DBUG_PRINT("qcache", ("No active database"));
     }
     tot_length= thd->query_length() + thd->db_length + 1 +
-      QUERY_CACHE_FLAGS_SIZE;
+      sizeof(size_t) + QUERY_CACHE_FLAGS_SIZE;
     /*
       We should only copy structure (don't use it location directly)
       because of alignment issue
@@ -1738,7 +1738,29 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err;
     }
   }
+  {
+    /*
+      We have allocated buffer space (in alloc_query) to hold the
+      SQL statement(s) + the current database name + a flags struct.
+      If the database name has changed during execution, which might
+      happen if there are multiple statements, we need to make
+      sure the new current database has a name with the same length
+      as the previous one.
+    */
+    size_t db_len;
+    memcpy((char *) &db_len, (sql + query_length + 1), sizeof(size_t));
+    if (thd->db_length != db_len)
+    {
+      /*
+        We should probably reallocate the buffer in this case,
+        but for now we just leave it uncached
+      */
 
+      DBUG_PRINT("qcache", 
+                 ("Current database has changed since start of query"));
+      goto err;
+    }
+  }
   /*
     Try to obtain an exclusive lock on the query cache. If the cache is
     disabled or if a full cache flush is in progress, the attempt to
@@ -1759,17 +1781,21 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
   Query_cache_block *query_block;
+
   if(opt_query_cache_strip_comments)
   {
-    query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+    query_strip_comments->set(sql, query_length, 1 + sizeof(size_t) + 
+			      thd->db_length + QUERY_CACHE_FLAGS_SIZE);
     sql          = query_strip_comments->query();
     query_length = query_strip_comments->query_length();
   }
 
-  tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
+  tot_length= query_length + 1 + sizeof(size_t) + 
+              thd->db_length + QUERY_CACHE_FLAGS_SIZE;
+
   if (thd->db_length)
   {
-    memcpy(sql+query_length+1, thd->db, thd->db_length);
+    memcpy(sql + query_length + 1 + sizeof(size_t), thd->db, thd->db_length);
     DBUG_PRINT("qcache", ("database: '%s'  length: %u",
 			  thd->db, (unsigned)thd->db_length));
   }

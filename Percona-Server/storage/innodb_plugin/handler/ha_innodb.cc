@@ -9258,8 +9258,8 @@ innodb_mutex_show_status(
 			rw_lock_wait_time += mutex->lspent_time;
 		}
 #else /* UNIV_DEBUG */
-		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-				     mutex->cfile_name, (ulong) mutex->cline);
+		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s",
+				     mutex->cmutex_name);
 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     (ulong) mutex->count_os_wait);
 
@@ -9274,9 +9274,8 @@ innodb_mutex_show_status(
 
 	if (block_mutex) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
-					     "combined %s:%lu",
-					     block_mutex->cfile_name,
-					     (ulong) block_mutex->cline);
+					     "combined %s",
+					     block_mutex->cmutex_name);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
 					     (ulong) block_mutex_oswait_count);
@@ -9305,8 +9304,8 @@ innodb_mutex_show_status(
 			continue;
 		}
 
-		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
-				     lock->cfile_name, (ulong) lock->cline);
+		buf1len = my_snprintf(buf1, sizeof buf1, "%s",
+				     lock->lock_name);
 		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
 				      (ulong) lock->count_os_wait);
 
@@ -9320,9 +9319,8 @@ innodb_mutex_show_status(
 
 	if (block_lock) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
-					     "combined %s:%lu",
-					     block_lock->cfile_name,
-					     (ulong) block_lock->cline);
+					     "combined %s",
+					     block_lock->lock_name);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
 					     (ulong) block_lock_oswait_count);

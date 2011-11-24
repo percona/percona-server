@@ -73,14 +73,14 @@ necessary only if the memory block containing it is freed. */
 #ifdef UNIV_DEBUG
 # ifdef UNIV_SYNC_DEBUG
 #  define mutex_create(M, level)					\
-	mutex_create_func((M), #M, (level), __FILE__, __LINE__)
+	mutex_create_func((M), (level), __FILE__, __LINE__, #M)
 # else
 #  define mutex_create(M, level)					\
-	mutex_create_func((M), #M, __FILE__, __LINE__)
+	mutex_create_func((M), __FILE__, __LINE__, #M)
 # endif
 #else
 # define mutex_create(M, level)					\
-	mutex_create_func((M), __FILE__, __LINE__)
+	mutex_create_func((M), #M)
 #endif
 
 /******************************************************************//**
@@ -94,13 +94,13 @@ mutex_create_func(
 /*==============*/
 	mutex_t*	mutex,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline);		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name);	/*!< in: mutex name */
 
 #undef mutex_free			/* Fix for MacOS X */
 
@@ -538,9 +538,9 @@ struct mutex_struct {
 	ulint	line;		/*!< Line where the mutex was locked */
 	ulint	level;		/*!< Level in the global latching order */
 #endif /* UNIV_SYNC_DEBUG */
+#ifdef UNIV_DEBUG
 	const char*	cfile_name;/*!< File name where mutex created */
 	ulint		cline;	/*!< Line where created */
-#ifdef UNIV_DEBUG
 	os_thread_id_t thread_id; /*!< The thread id of the thread
 				which locked the mutex. */
 	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
@@ -555,9 +555,9 @@ struct mutex_struct {
 	ulong		count_os_yield;	/*!< count of os_wait */
 	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
 	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */
-	const char*	cmutex_name;	/*!< mutex name */
 	ulint		mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
 #endif /* UNIV_DEBUG */
+	const char*	cmutex_name;	/*!< mutex name */
 };
 
 /** The global array of wait cells for implementation of the databases own

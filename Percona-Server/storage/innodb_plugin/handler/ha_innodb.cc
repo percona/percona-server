@@ -11874,6 +11874,9 @@ i_s_innodb_cmpmem_reset,
 i_s_innodb_table_stats,
 i_s_innodb_index_stats,
 i_s_innodb_admin_command,
+i_s_innodb_sys_tables,
+i_s_innodb_sys_indexes,
+i_s_innodb_sys_stats,
 i_s_innodb_patches
 mysql_declare_plugin_end;
 

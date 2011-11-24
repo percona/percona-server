@@ -535,6 +535,7 @@ my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
 my_bool opt_log_slow_sp_statements= 0;
 my_bool opt_log_slow_timestamp_every= 0;
+my_bool opt_query_cache_strip_comments = 0;
 my_bool opt_use_global_long_query_time= 0;
 my_bool opt_slow_query_log_microseconds_timestamp= 0;
 my_bool lower_case_file_system= 0;
@@ -5920,6 +5921,7 @@ enum options_mysqld
   OPT_THREAD_STATISTICS,
   OPT_OPTIMIZER_FIX,
   OPT_SUPPRESS_LOG_WARNING_1592,
+  OPT_QUERY_CACHE_STRIP_COMMENTS,
   OPT_USE_GLOBAL_LONG_QUERY_TIME,
   OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
   OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -6975,6 +6977,10 @@ thread is in the relay logs.",
   {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
     "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
+  {"query_cache_strip_comments", OPT_QUERY_CACHE_STRIP_COMMENTS,
+   "Enable and disable optimisation \"strip comment for query cache\" - optimisation strip all comments from query while search query result in query cache",
+   (uchar**) &opt_query_cache_strip_comments, (uchar**) &opt_query_cache_strip_comments,
+   0, GET_BOOL, REQUIRED_ARG, 0, 0, 1, 0, 1, 0},
   {"use_global_long_query_time", OPT_USE_GLOBAL_LONG_QUERY_TIME,
    "Control always use global long_query_time or local long_query_time.",
    (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,

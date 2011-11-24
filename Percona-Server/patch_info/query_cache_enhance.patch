@@ -1,0 +1,14 @@
+File=query_cache_enhance.patch
+Name= query cache Percona's cumulative patch
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment= 1) Add new status - Waiting on query cache mutex (status_wait_query_cache_mutex.patch)
+         2) Remove comments from query (need for cache hit) (query_cache_with_comments.patch)
+         3) Totally disable query cache (query_cache_totally_disable.info)
+2010-05 - First version avaliable (query_cache_with_comments.patch)
+2010-07 - First version avaliable (status_wait_query_cache_mutex.patch
+2010-07 - First version avaliable (query_cache_totally_disable.info)
+2010-07 - Fix crash (query_cache_with_comments.patch)
+2010-07 - Fix incorrect behavior diff (query_cache_with_comments.patch)
+2010-09 - Merge patches to one

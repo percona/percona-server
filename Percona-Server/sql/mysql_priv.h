@@ -2117,6 +2117,7 @@ extern char* opt_secure_file_priv;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern my_bool opt_log_slow_sp_statements;
 extern my_bool opt_log_slow_timestamp_every;
+extern my_bool opt_query_cache_strip_comments;
 extern my_bool opt_use_global_long_query_time;
 extern my_bool opt_slow_query_log_microseconds_timestamp;
 extern my_bool sp_automatic_privileges, opt_noacl;

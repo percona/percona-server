@@ -6213,3 +6213,8 @@ ER_DEBUG_SYNC_TIMEOUT
 ER_DEBUG_SYNC_HIT_LIMIT
   eng "debug sync point hit limit reached"
   ger "Debug Sync Point Hit Limit erreicht"
+PADD_QUERY_CACHE_DISABLED 1651
+  eng "ER_QUERY_CACHE_DISABLED padding to 1651 error"
+ER_QUERY_CACHE_DISABLED
+  eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
+

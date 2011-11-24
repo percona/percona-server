@@ -24,7 +24,9 @@
 
 #include "log.h"
 #include "rpl_tblmap.h"
-
+#ifdef HAVE_QUERY_CACHE
+#include "query_strip_comments.h"
+#endif // HAVE_QUERY_CACHE
 /**
   An interface that is used to take an action when
   the locking module notices that a table version has changed
@@ -672,6 +674,9 @@ public:
   */
   LEX_STRING query_string;
   Server_side_cursor *cursor;
+#ifdef HAVE_QUERY_CACHE
+  QueryStripComments query_strip_comments; // see sql_cache.cc
+#endif //HAVE_QUERY_CACHE
 
   inline char *query() { return query_string.str; }
   inline uint32 query_length() { return query_string.length; }

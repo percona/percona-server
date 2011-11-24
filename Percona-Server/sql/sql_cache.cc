@@ -288,6 +288,7 @@ functions:
          if (and only if) this query has a registered result set writer
          (thd->net.query_cache_query).
  4. Query_cache::invalidate
+    Query_cache::invalidate_locked_for_write
        - Called from various places to invalidate query cache based on data-
          base, table and myisam file name. During an on going invalidation
          the query cache is temporarily disabled.
@@ -335,6 +336,181 @@ TODO list:
 #include <hash.h>
 #include "../storage/myisammrg/ha_myisammrg.h"
 #include "../storage/myisammrg/myrg_def.h"
+#include "query_strip_comments.h"
+
+QueryStripComments::QueryStripComments()
+{
+  buffer = 0;
+  length = 0;
+  buffer_length = 0;
+}
+QueryStripComments::~QueryStripComments()
+{
+  cleanup();
+}
+
+inline bool query_strip_comments_is_white_space(char c)
+{
+  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
+}
+void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
+{
+  uint new_buffer_length = query_length + additional_length;
+  if(new_buffer_length > buffer_length)
+  {
+    cleanup();
+    buffer = (char*)my_malloc(new_buffer_length,MYF(0));
+    memset(buffer,0,new_buffer_length);
+  }
+  uint query_position = 0;
+  uint position = 0;
+  // Skip whitespaces from begin
+  while((query_position < query_length) && query_strip_comments_is_white_space(query[query_position]))
+  {
+    ++query_position;
+  }
+  long int last_space = -1;
+  while(query_position < query_length)
+  {
+    char current = query[query_position];
+    bool insert_space = false; // insert space to buffer, (IMPORTANT) don't update query_position
+    switch(current)
+    {
+    case '\'':
+    case '"':
+      {
+        buffer[position++] = query[query_position++]; // copy current symbol
+        while(query_position < query_length)
+        {
+          if(current == query[query_position]) // found pair quote
+          {
+            break;
+          }
+          buffer[position++] = query[query_position++]; // copy current symbol
+        }
+        break;
+      }
+    case '/':
+      {
+        if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
+        {
+          query_position += 2; // skip "/*"
+          do
+          {
+            if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
+            {
+              query_position += 2; // skip "*/"
+              insert_space = true;
+              break;
+            }
+            else
+            {
+              ++query_position;
+            }
+          }
+          while(query_position < query_length);
+          if(!insert_space)
+          {
+            continue;
+          }
+        }
+        break;
+      }
+    case '-':
+      {
+        if(query[query_position+1] == '-')
+        {
+          ++query_position; // skip "-", and go to search of "\n"
+        }
+        else
+        {
+          break;
+        }
+      }
+    case '#':
+      {
+        do
+        {
+          ++query_position; // skip current symbol (# or -)
+          if('\n' == query[query_position])  // check for '\n'
+          {
+            ++query_position; // skip '\n'
+            insert_space = true;
+            break;
+          }
+        }
+        while(query_position < query_length);
+        if(insert_space)
+        {
+          break;
+        }
+        else
+        {
+          continue;
+        }
+      }
+    default:
+      if(query_strip_comments_is_white_space(current))
+      {
+        insert_space = true;
+        ++query_position;
+      }
+      break; // make gcc happy
+    }
+    if(insert_space)
+    {
+      if((uint) (last_space + 1) != position)
+      {
+        last_space = position;
+        buffer[position++] = ' ';
+      }
+    }
+    else
+    {
+      buffer[position++] = query[query_position++];
+    }
+  }
+  while((0 < position) && query_strip_comments_is_white_space(buffer[position - 1]))
+  {
+    --position;
+  }
+  buffer[position] = 0;
+  length = position;
+}
+void QueryStripComments::cleanup()
+{
+  if(buffer)
+  {
+    my_free(buffer,MYF(0));
+  }
+  buffer        = 0;
+  length        = 0;
+  buffer_length = 0;
+}
+QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc)
+{
+  if(opt_query_cache_strip_comments)
+  {
+    thd = a_thd;
+    query = thd->query();
+    length = thd->query_length();
+    qsc->set(query,length,thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+    thd->set_query(qsc->query(),qsc->query_length());
+  }
+  else
+  {
+    thd = 0;
+    query = 0;
+    length = 0;
+  }
+}
+QueryStripComments_Backup::~QueryStripComments_Backup()
+{
+  if(thd)
+  {
+    thd->set_query(query,length);
+  }
+}
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
@@ -437,7 +613,13 @@ bool Query_cache::try_lock(bool use_timeout)
   bool interrupt= FALSE;
   DBUG_ENTER("Query_cache::try_lock");
 
+  THD *thd = current_thd;
+  const char* old_proc_info= thd->proc_info;
+  thd_proc_info(thd,"Waiting on query cache mutex");
   pthread_mutex_lock(&structure_guard_mutex);
+  DBUG_EXECUTE_IF("status_wait_query_cache_mutex_sleep", {
+      sleep(5);
+    });
   while (1)
   {
     if (m_cache_lock_status == Query_cache::UNLOCKED)
@@ -485,6 +667,7 @@ bool Query_cache::try_lock(bool use_timeout)
     }
   }
   pthread_mutex_unlock(&structure_guard_mutex);
+  thd->proc_info = old_proc_info;
 
   DBUG_RETURN(interrupt);
 }
@@ -865,11 +1048,14 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
   DBUG_EXECUTE_IF("wait_in_query_cache_insert",
                   debug_wait_for_kill("wait_in_query_cache_insert"); );
 
+  if(query_cache.is_disabled())
+    DBUG_VOID_RETURN;
+
   if (query_cache.try_lock())
     DBUG_VOID_RETURN;
 
   Query_cache_block *query_block= (Query_cache_block*)net->query_cache_query;
-  if (!query_block)
+  if (NULL == query_block)
   {
     /*
       We lost the writer and the currently processed query has been
@@ -921,6 +1107,9 @@ void query_cache_abort(NET *net)
 
   /* See the comment on double-check locking usage above. */
   if (net->query_cache_query == 0)
+    DBUG_VOID_RETURN;
+
+  if(query_cache.is_disabled())
     DBUG_VOID_RETURN;
 
   if (query_cache.try_lock())
@@ -1056,6 +1245,7 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
    total_blocks(0), lowmem_prunes(0),
+   m_query_cache_is_disabled(FALSE),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
@@ -1237,6 +1427,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       unlock();
       DBUG_VOID_RETURN;
     }
+    QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
+    QueryStripComments_Backup backup(thd,query_strip_comments);
 
     /* Key is query + database + flag */
     if (thd->db_length)
@@ -1407,6 +1599,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
+  QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
+  char *sql_backup          = sql;
+  uint  query_length_backup = query_length;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
@@ -1416,8 +1611,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
     See also a note on double-check locking usage above.
   */
-  if (thd->locked_tables || thd->variables.query_cache_type == 0 ||
-      query_cache_size == 0)
+  if (is_disabled() || thd->locked_tables ||
+      thd->variables.query_cache_type == 0 || query_cache_size == 0)
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
@@ -1428,6 +1623,87 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
   {
     uint i= 0;
+    if(opt_query_cache_strip_comments)
+    {
+      /* Skip all comments and non-letter symbols */
+      uint& query_position = i;
+      char* query = sql;
+      while(query_position < query_length)
+      {
+        bool check = false;
+        char current = query[query_position];
+        switch(current)
+        {
+        case '/':
+          if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
+          {
+            query_position += 2; // skip "/*"
+            do
+            {
+              if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
+              {
+                query_position += 2; // skip "*/" (without space)
+                break;
+              }
+              else
+              {
+                ++query_position;
+              }
+            }
+            while(query_position < query_length);
+            continue; // analyze current symbol
+          }
+          break;
+        case '-':
+          if(query[query_position+1] == '-')
+          {
+            ++query_position; // skip "-"
+          }
+          else
+          {
+            break;
+          }
+        case '#':
+          do
+          {
+            ++query_position; // skip current symbol
+            if('\n' == query[query_position])  // check for '\n'
+            {
+              ++query_position; // skip '\n'
+              break;
+            }
+          }
+          while(query_position < query_length);
+          continue; // analyze current symbol
+        case '\r':
+        case '\n':
+        case '\t':
+        case ' ':
+        case '(':
+        case ')':
+          break;
+        default:
+          check = true;
+          break; // make gcc happy
+        } // switch(current)
+        if(check)
+        {
+          if(query_position + 2 < query_length)
+          {
+            // cacheable
+            break;
+          }
+          else
+          {
+            DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+            goto err;
+          }
+        } // if(check)
+        ++query_position;
+      } // while(query_position < query_length)
+    }
+    else // if(opt_query_cache_strip_comments)
+    {
     /*
       Skip '(' characters in queries like following:
       (select a from t1) union (select a from t1);
@@ -1435,6 +1711,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     while (sql[i]=='(')
       i++;
 
+    } // if(opt_query_cache_strip_comments)    
     /*
       Test if the query is a SELECT
       (pre-space is removed in dispatch_command).
@@ -1451,7 +1728,6 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
       goto err;
     }
-    
     if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
     {
       /*
@@ -1483,6 +1759,12 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   DBUG_ASSERT(thd->net.query_cache_query == 0);
 
   Query_cache_block *query_block;
+  if(opt_query_cache_strip_comments)
+  {
+    query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
+    sql          = query_strip_comments->query();
+    query_length = query_strip_comments->query_length();
+  }
 
   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
   if (thd->db_length)
@@ -1549,6 +1831,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
   query_block = (Query_cache_block *)  hash_search(&queries, (uchar*) sql,
 						   tot_length);
+  sql          = sql_backup;
+  query_length = query_length_backup;
   /* Quick abort on unlocked data */
   if (query_block == 0 ||
       query_block->query()->result() == 0 ||
@@ -1729,6 +2013,8 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table list)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1759,6 +2045,9 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 {
   DBUG_ENTER("Query_cache::invalidate (changed table list)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
   THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next)
   {
@@ -1784,8 +2073,11 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 */
 void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
 {
-  THD *thd= current_thd;
   DBUG_ENTER("Query_cache::invalidate_locked_for_write");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
+  THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next_local)
   {
     thd_proc_info(thd, "invalidating query cache entries (table)");
@@ -1806,6 +2098,8 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
   
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1823,6 +2117,8 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (key)");
+  if (is_disabled())
+   DBUG_VOID_RETURN;
 
   using_transactions= using_transactions &&
     (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
@@ -1841,9 +2137,11 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 
 void Query_cache::invalidate(char *db)
 {
-  bool restart= FALSE;
-  DBUG_ENTER("Query_cache::invalidate (db)");
 
+  DBUG_ENTER("Query_cache::invalidate (db)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+  bool restart= FALSE;
   /*
     Lock the query cache and queue all invalidation attempts to avoid
     the risk of a race between invalidation, cache inserts and flushes.
@@ -1928,6 +2226,9 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
 void Query_cache::flush()
 {
   DBUG_ENTER("Query_cache::flush");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
   DBUG_EXECUTE_IF("wait_in_query_cache_flush1",
                   debug_wait_for_kill("wait_in_query_cache_flush1"););
 
@@ -1958,6 +2259,9 @@ void Query_cache::flush()
 void Query_cache::pack(ulong join_limit, uint iteration_limit)
 {
   DBUG_ENTER("Query_cache::pack");
+
+  if (is_disabled())
+    DBUG_VOID_RETURN;
 
   /*
     If the entire qc is being invalidated we can bail out early
@@ -2016,6 +2320,15 @@ void Query_cache::init()
   pthread_cond_init(&COND_cache_status_changed, NULL);
   m_cache_lock_status= Query_cache::UNLOCKED;
   initialized = 1;
+  /*
+    If we explicitly turn off query cache from the command line query cache will
+    be disabled for the reminder of the server life time. This is because we
+    want to avoid locking the QC specific mutex if query cache isn't going to
+    be used.
+  */
+  if (global_system_variables.query_cache_type == 0)
+    query_cache.disable_query_cache();
+
   DBUG_VOID_RETURN;
 }
 
@@ -4719,3 +5032,4 @@ err2:
 #endif /* DBUG_OFF */
 
 #endif /*HAVE_QUERY_CACHE*/
+

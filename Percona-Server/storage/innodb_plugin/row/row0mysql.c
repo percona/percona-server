@@ -2520,6 +2520,11 @@ row_import_tablespace_for_mysql(
 
 	current_lsn = log_get_lsn();
 
+	/* Enlarge the fatal lock wait timeout during import. */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
+
 	/* It is possible, though very improbable, that the lsn's in the
 	tablespace to be imported have risen above the current system lsn, if
 	a lengthy purge, ibuf merge, or rollback was performed on a backup
@@ -2630,6 +2635,11 @@ funct_exit:
 	row_mysql_unlock_data_dictionary(trx);
 
 	trx->op_info = "";
+
+	/* Restore the fatal semaphore wait timeout */
+	mutex_enter(&kernel_mutex);
+	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+	mutex_exit(&kernel_mutex);
 
 	return((int) err);
 }

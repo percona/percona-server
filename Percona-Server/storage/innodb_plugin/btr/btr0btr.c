@@ -837,7 +837,7 @@ btr_get_next_user_rec(
 /**************************************************************//**
 Creates a new index page (not the root, and also not
 used in page reorganization).  @see btr_page_empty(). */
-static
+UNIV_INTERN
 void
 btr_page_create(
 /*============*/
@@ -1704,7 +1704,7 @@ btr_parse_page_reorganize(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Empties an index page.  @see btr_page_create(). */
-static
+UNIV_INTERN
 void
 btr_page_empty(
 /*===========*/
@@ -2266,7 +2266,7 @@ btr_insert_on_non_leaf_level_func(
 /**************************************************************//**
 Attaches the halves of an index page on the appropriate level in an
 index tree. */
-static
+UNIV_INTERN
 void
 btr_attach_half_pages(
 /*==================*/

@@ -7102,6 +7102,14 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
 	} else {
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
+
+		/* in expanded import mode re-initialize auto_increment again */
+		if ((err == DB_SUCCESS) && srv_expand_import &&
+		    (table->found_next_number_field != NULL)) {
+			dict_table_autoinc_lock(dict_table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(dict_table);
+		}
 	}
 
 	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
@@ -11378,6 +11386,11 @@ static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_co
   "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
   NULL, NULL, 0, 0, 1, 0);
 
+static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable converting automatically *.ibd files when import tablespace.",
+  NULL, NULL, 0, 0, 1, 0);
+
 static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of extra user rollback segments when create new database.",
@@ -11455,6 +11468,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(adaptive_checkpoint),
   MYSQL_SYSVAR(flush_log_at_trx_commit_session),
   MYSQL_SYSVAR(enable_unsafe_group_commit),
+  MYSQL_SYSVAR(expand_import),
   MYSQL_SYSVAR(extra_rsegments),
   MYSQL_SYSVAR(dict_size_limit),
   MYSQL_SYSVAR(use_sys_malloc),

@@ -208,6 +208,17 @@ btr_block_get_func(
 @return the uncompressed page frame */
 # define btr_page_get(space,zip_size,page_no,mode,mtr) \
 	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
+/**************************************************************//**
+Sets the index id field of a page. */
+UNIV_INLINE
+void
+btr_page_set_index_id(
+/*==================*/
+	page_t*		page,	/*!< in: page to be created */
+	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
+				part will be updated, or NULL */
+	dulint		id,	/*!< in: index id */
+	mtr_t*		mtr);	/*!< in: mtr */
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
@@ -245,6 +256,17 @@ btr_page_get_next(
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /********************************************************//**
+Sets the next index page field. */
+UNIV_INLINE
+void
+btr_page_set_next(
+/*==============*/
+	page_t*		page,	/*!< in: index page */
+	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
+				part will be updated, or NULL */
+	ulint		next,	/*!< in: next page number */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
+/********************************************************//**
 Gets the previous index page number.
 @return	prev page number */
 UNIV_INLINE
@@ -252,6 +274,17 @@ ulint
 btr_page_get_prev(
 /*==============*/
 	const page_t*	page,	/*!< in: index page */
+	mtr_t*		mtr);	/*!< in: mini-transaction handle */
+/********************************************************//**
+Sets the previous index page field. */
+UNIV_INLINE
+void
+btr_page_set_prev(
+/*==============*/
+	page_t*		page,	/*!< in: index page */
+	page_zip_des_t*	page_zip,/*!< in: compressed page whose uncompressed
+				part will be updated, or NULL */
+	ulint		prev,	/*!< in: previous page number */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /*************************************************************//**
 Gets pointer to the previous user record in the tree. It is assumed
@@ -298,6 +331,18 @@ btr_node_ptr_get_child_page_no(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+/**************************************************************//**
+Creates a new index page (not the root, and also not
+used in page reorganization).  @see btr_page_empty(). */
+UNIV_INTERN
+void
+btr_page_create(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page to be created */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
+	dict_index_t*	index,	/*!< in: index */
+	ulint		level,	/*!< in: the B-tree level of the page */
+	mtr_t*		mtr);	/*!< in: mtr */
 /************************************************************//**
 Creates the root node for a new index tree.
 @return	page number of the created root, FIL_NULL if did not succeed */
@@ -368,6 +413,17 @@ btr_page_reorganize(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************//**
+Empties an index page.  @see btr_page_create(). */
+UNIV_INTERN
+void
+btr_page_empty(
+/*===========*/
+	buf_block_t*	block,	/*!< in: page to be emptied */
+	page_zip_des_t*	page_zip,/*!< out: compressed page, or NULL */
+	dict_index_t*	index,	/*!< in: index of the page */
+	ulint		level,	/*!< in: the B-tree level of the page */
+	mtr_t*		mtr);	/*!< in: mtr */
+/*************************************************************//**
 Decides if the page should be split at the convergence point of
 inserts converging to left.
 @return	TRUE if split recommended */
@@ -426,6 +482,20 @@ btr_insert_on_non_leaf_level_func(
 # define btr_insert_on_non_leaf_level(i,l,t,m)				\
 	btr_insert_on_non_leaf_level_func(i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
+/**************************************************************//**
+Attaches the halves of an index page on the appropriate level in an
+index tree. */
+UNIV_INTERN
+void
+btr_attach_half_pages(
+/*==================*/
+	dict_index_t*	index,		/*!< in: the index tree */
+	buf_block_t*	block,		/*!< in/out: page to be split */
+	const rec_t*	split_rec,	/*!< in: first record on upper
+					half page */
+	buf_block_t*	new_block,	/*!< in/out: the new half page */
+	ulint		direction,	/*!< in: FSP_UP or FSP_DOWN */
+	mtr_t*		mtr);		/*!< in: mtr */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
 UNIV_INTERN

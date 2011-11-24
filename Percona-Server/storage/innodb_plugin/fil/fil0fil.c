@@ -225,6 +225,7 @@ struct fil_space_struct {
 				file we have written to */
 	ibool		is_in_unflushed_spaces; /*!< TRUE if this space is
 				currently in unflushed_spaces */
+	ibool		is_corrupt;
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
@@ -1247,6 +1248,8 @@ try_again:
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = FALSE;
+
+	space->is_corrupt = FALSE;
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -5217,6 +5220,34 @@ _fil_io(
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
+	if (srv_pass_corrupt_table == 1 && space->is_corrupt) {
+		/* should ignore i/o for the crashed space */
+		mutex_enter(&fil_system->mutex);
+		fil_node_complete_io(node, fil_system, type);
+		mutex_exit(&fil_system->mutex);
+		if (mode == OS_AIO_NORMAL) {
+			ut_a(space->purpose == FIL_TABLESPACE);
+			buf_page_io_complete(message);
+		}
+		if (type == OS_FILE_READ) {
+			return(DB_TABLESPACE_DELETED);
+		} else {
+			return(DB_SUCCESS);
+		}
+	} else {
+		if (srv_pass_corrupt_table > 1 && space->is_corrupt) {
+			/* should ignore write i/o for the crashed space */
+			if (type == OS_FILE_WRITE) {
+				mutex_enter(&fil_system->mutex);
+				fil_node_complete_io(node, fil_system, type);
+				mutex_exit(&fil_system->mutex);
+				if (mode == OS_AIO_NORMAL) {
+					ut_a(space->purpose == FIL_TABLESPACE);
+					buf_page_io_complete(message);
+				}
+				return(DB_SUCCESS);
+			}
+		}
 #ifdef UNIV_HOTBACKUP
 	/* In ibbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
@@ -5231,6 +5262,8 @@ _fil_io(
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
 		     offset_low, offset_high, len, node, message, trx);
 #endif
+	} /**/
+
 	ut_a(ret);
 
 	if (mode == OS_AIO_SYNC) {
@@ -5724,3 +5757,46 @@ fil_system_hash_nodes(void)
                return 0;
        }
 }
+
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+	ibool		ret = FALSE;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space && space->is_corrupt) {
+		ret = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(ret);
+}
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space) {
+		space->is_corrupt = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
+

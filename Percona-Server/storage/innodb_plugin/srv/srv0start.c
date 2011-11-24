@@ -2006,6 +2006,13 @@ innobase_start_or_create_for_mysql(void)
 
 	os_fast_mutex_free(&srv_os_test_mutex);
 
+	if (!srv_file_per_table_original_value
+	    && srv_pass_corrupt_table) {
+		fprintf(stderr, "InnoDB: Warning:"
+			" innodb_file_per_table is diabled."
+			" So innodb_pass_corrupt_table doesn't make sence\n");
+	}
+
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,

@@ -370,6 +370,12 @@ fsp_get_space_header(
 	ut_ad(id || !zip_size);
 
 	block = buf_page_get(id, zip_size, 0, RW_X_LATCH, mtr);
+
+	if (srv_pass_corrupt_table && !block) {
+		return(0);
+	}
+	ut_a(block);
+
 	header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -788,6 +794,12 @@ xdes_get_descriptor(
 	fsp_header_t*	sp_header;
 
 	block = buf_page_get(space, zip_size, 0, RW_X_LATCH, mtr);
+
+	if (srv_pass_corrupt_table && !block) {
+		return(0);
+	}
+	ut_a(block);
+
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 	sp_header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
@@ -1867,6 +1879,11 @@ fsp_seg_inode_page_find_free(
 {
 	fseg_inode_t*	inode;
 
+	if (srv_pass_corrupt_table && !page) {
+		return(ULINT_UNDEFINED);
+	}
+	ut_a(page);
+
 	for (; i < FSP_SEG_INODES_PER_PAGE(zip_size); i++) {
 
 		inode = fsp_seg_inode_page_get_nth_inode(
@@ -1980,6 +1997,11 @@ fsp_alloc_seg_inode(
 
 	page = buf_block_get_frame(block);
 
+	if (srv_pass_corrupt_table && !page) {
+		return(0);
+	}
+	ut_a(page);
+
 	n = fsp_seg_inode_page_find_free(page, 0, zip_size, mtr);
 
 	ut_a(n != ULINT_UNDEFINED);
@@ -2073,6 +2095,11 @@ fseg_inode_try_get(
 
 	inode = fut_get_ptr(space, zip_size, inode_addr, RW_X_LATCH, mtr);
 
+	if (srv_pass_corrupt_table && !inode) {
+		return(0);
+	}
+	ut_a(inode);
+
 	if (UNIV_UNLIKELY
 	    (ut_dulint_is_zero(mach_read_from_8(inode + FSEG_ID)))) {
 
@@ -2100,7 +2127,7 @@ fseg_inode_get(
 {
 	fseg_inode_t*	inode
 		= fseg_inode_try_get(header, space, zip_size, mtr);
-	ut_a(inode);
+	ut_a(srv_pass_corrupt_table || inode);
 	return(inode);
 }
 
@@ -3309,6 +3336,11 @@ fseg_free_page_low(
 
 	descr = xdes_get_descriptor(space, zip_size, page, mtr);
 
+	if (srv_pass_corrupt_table && !descr) {
+		/* The page may be corrupt. pass it. */
+		return;
+	}
+
 	ut_a(descr);
 	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)) {
 		fputs("InnoDB: Dump of the tablespace extent descriptor: ",
@@ -3561,6 +3593,11 @@ fseg_free_step(
 
 	descr = xdes_get_descriptor(space, zip_size, header_page, mtr);
 
+	if (srv_pass_corrupt_table && !descr) {
+		/* The page may be corrupt. pass it. */
+		return(TRUE);
+	}
+
 	/* Check that the header resides on a page which has not been
 	freed yet */
 
@@ -3644,6 +3681,12 @@ fseg_free_step_not_header(
 	mtr_x_lock(latch, mtr);
 
 	inode = fseg_inode_get(header, space, zip_size, mtr);
+
+	if (srv_pass_corrupt_table && !inode) {
+		/* ignore the corruption */
+		return(TRUE);
+	}
+	ut_a(inode);
 
 	descr = fseg_get_first_extent(inode, space, zip_size, mtr);
 

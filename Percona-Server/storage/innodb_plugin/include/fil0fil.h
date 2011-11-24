@@ -749,6 +749,19 @@ ulint
 fil_system_hash_nodes(void);
 /*========================*/
 
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id);
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id);
+
 typedef	struct fil_space_struct	fil_space_t;
 
 #endif

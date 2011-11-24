@@ -239,6 +239,11 @@ btr_cur_latch_leaves(
 	case BTR_MODIFY_LEAF:
 		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
 		get_block = btr_block_get(space, zip_size, page_no, mode, mtr);
+
+		if (srv_pass_corrupt_table && !get_block) {
+			return;
+		}
+		ut_a(get_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -252,6 +257,11 @@ btr_cur_latch_leaves(
 			get_block = btr_block_get(space, zip_size,
 						  left_page_no,
 						  RW_X_LATCH, mtr);
+
+			if (srv_pass_corrupt_table && !get_block) {
+				return;
+			}
+			ut_a(get_block);
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -263,6 +273,11 @@ btr_cur_latch_leaves(
 
 		get_block = btr_block_get(space, zip_size, page_no,
 					  RW_X_LATCH, mtr);
+
+		if (srv_pass_corrupt_table && !get_block) {
+			return;
+		}
+		ut_a(get_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -274,6 +289,11 @@ btr_cur_latch_leaves(
 			get_block = btr_block_get(space, zip_size,
 						  right_page_no,
 						  RW_X_LATCH, mtr);
+
+			if (srv_pass_corrupt_table && !get_block) {
+				return;
+			}
+			ut_a(get_block);
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -295,6 +315,11 @@ btr_cur_latch_leaves(
 			get_block = btr_block_get(space, zip_size,
 						  left_page_no, mode, mtr);
 			cursor->left_block = get_block;
+
+			if (srv_pass_corrupt_table && !get_block) {
+				return;
+			}
+			ut_a(get_block);
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -305,6 +330,11 @@ btr_cur_latch_leaves(
 		}
 
 		get_block = btr_block_get(space, zip_size, page_no, mode, mtr);
+
+		if (srv_pass_corrupt_table && !get_block) {
+			return;
+		}
+		ut_a(get_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -536,6 +566,16 @@ retry_page_get:
 					 rw_latch, guess, buf_mode,
 					 file, line, mtr);
 		if (block == NULL) {
+			if (srv_pass_corrupt_table && buf_mode != BUF_GET_IF_IN_POOL) {
+				page_cursor->block = 0;
+				page_cursor->rec = 0;
+				if (estimate) {
+					cursor->path_arr->nth_rec = ULINT_UNDEFINED;
+				}
+				break;
+			}
+			ut_a(buf_mode == BUF_GET_IF_IN_POOL);
+
 			/* This must be a search to perform an insert;
 			try insert to the insert buffer */
 
@@ -562,6 +602,16 @@ retry_page_get:
 		}
 
 		page = buf_block_get_frame(block);
+
+		if (srv_pass_corrupt_table && !page) {
+			page_cursor->block = 0;
+			page_cursor->rec = 0;
+			if (estimate) {
+				cursor->path_arr->nth_rec = ULINT_UNDEFINED;
+			}
+			break;
+		}
+		ut_a(page);
 
 		block->check_index_page_at_flush = TRUE;
 
@@ -746,6 +796,17 @@ btr_cur_open_at_index_side_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
+
+		if (srv_pass_corrupt_table && !page) {
+			page_cursor->block = 0;
+			page_cursor->rec = 0;
+			if (estimate) {
+				cursor->path_arr->nth_rec = ULINT_UNDEFINED;
+			}
+			break;
+		}
+		ut_a(page);
+
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
 
@@ -867,6 +928,14 @@ btr_cur_open_at_rnd_pos_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
+
+		if (srv_pass_corrupt_table && !page) {
+			page_cursor->block = 0;
+			page_cursor->rec = 0;
+			break;
+		}
+		ut_a(page);
+
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
 
@@ -1081,6 +1150,12 @@ btr_cur_optimistic_insert(
 	*big_rec = NULL;
 
 	block = btr_cur_get_block(cursor);
+
+	if (srv_pass_corrupt_table && !block) {
+		return(DB_CORRUPTION);
+	}
+	ut_a(block);
+
 	page = buf_block_get_frame(block);
 	index = cursor->index;
 	zip_size = buf_block_get_zip_size(block);
@@ -2869,6 +2944,11 @@ btr_cur_optimistic_delete(
 
 	block = btr_cur_get_block(cursor);
 
+	if (srv_pass_corrupt_table && !block) {
+		return(DB_CORRUPTION);
+	}
+	ut_a(block);
+
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
 	rec = btr_cur_get_rec(cursor);
@@ -3412,6 +3492,11 @@ btr_estimate_number_of_different_key_vals(
 		for an index where there is just one key value. */
 
 		page = btr_cur_get_page(&cursor);
+
+		if (srv_pass_corrupt_table && !page) {
+			break;
+		}
+		ut_a(page);
 
 		rec = page_rec_get_next(page_get_infimum_rec(page));
 

@@ -898,7 +898,7 @@ buf_block_get_frame(
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
 #else /* UNIV_DEBUG */
-# define buf_block_get_frame(block) (block)->frame
+# define buf_block_get_frame(block) (block ? (block)->frame : 0)
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets the space id of a block.
@@ -1198,6 +1198,7 @@ struct buf_page_struct{
 					0 if the block was never accessed
 					in the buffer pool */
 	/* @} */
+	ibool		is_corrupt;
 # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when fsp

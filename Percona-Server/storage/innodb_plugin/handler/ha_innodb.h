@@ -52,6 +52,7 @@ typedef struct st_innobase_share {
 	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
 						table between MySQL and
 						Innodb */
+	dict_table_t*		ib_table;
 } INNOBASE_SHARE;
 
 
@@ -135,6 +136,7 @@ class ha_innobase: public handler
 	int close(void);
 	double scan_time();
 	double read_time(uint index, uint ranges, ha_rows rows);
+	bool is_corrupt() const;
 
 	int write_row(uchar * buf);
 	int update_row(const uchar * old_data, uchar * new_data);

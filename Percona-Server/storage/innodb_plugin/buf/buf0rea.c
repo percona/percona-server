@@ -197,7 +197,14 @@ not_to_recover:
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage, trx);
 	}
+
+	if (srv_pass_corrupt_table) {
+		if (*err != DB_SUCCESS) {
+			bpage->is_corrupt = TRUE;
+		}
+	} else {
 	ut_a(*err == DB_SUCCESS);
+	}
 
 	if (sync) {
 		/* The i/o is already completed when we arrive from

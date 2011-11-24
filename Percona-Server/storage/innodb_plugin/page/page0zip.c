@@ -1195,6 +1195,10 @@ page_zip_compress(
 	FILE*		logfile = NULL;
 #endif
 
+	if (!page) {
+		return(FALSE);
+	}
+
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));

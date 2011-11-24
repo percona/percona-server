@@ -300,7 +300,7 @@ case "$mode" in
       manager=$sbindir/mysqlmanager
     fi
 
-    echo $echo_n "Starting MySQL"
+    echo $echo_n "Starting MySQL (Percona Server)"
     if test -x $manager -a "$use_mysqld_safe" = "0"
     then
       if test -n "$other_args"

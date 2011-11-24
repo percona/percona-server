@@ -1,0 +1,8 @@
+include/master-slave.inc
+[connection master]
+create table t1 (a int) engine=myisam;
+flush tables;
+drop table if exists t1;
+Warnings:
+Error	2	Can't find file: 't1' (errno: 2)
+include/rpl_end.inc

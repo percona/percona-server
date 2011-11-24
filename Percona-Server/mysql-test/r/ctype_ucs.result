@@ -1,0 +1,1252 @@
+DROP TABLE IF EXISTS t1;
+SET @test_character_set= 'ucs2';
+SET @test_collation= 'ucs2_general_ci';
+SET @safe_character_set_server= @@character_set_server;
+SET @safe_collation_server= @@collation_server;
+SET @safe_character_set_client= @@character_set_client;
+SET @safe_character_set_results= @@character_set_results;
+SET character_set_server= @test_character_set;
+SET collation_server= @test_collation;
+CREATE DATABASE d1;
+USE d1;
+CREATE TABLE t1 (c CHAR(10), KEY(c));
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c	char(10)	ucs2_general_ci	YES	MUL	NULL			
+INSERT INTO t1 VALUES ('aaa'),('aaaa'),('aaaaa');
+SELECT c as want3results FROM t1 WHERE c LIKE 'aaa%';
+want3results
+aaa
+aaaa
+aaaaa
+DROP TABLE t1;
+CREATE TABLE t1 (c1 varchar(15), KEY c1 (c1(2)));
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+c1	varchar(15)	ucs2_general_ci	YES	MUL	NULL			
+INSERT INTO t1 VALUES ('location'),('loberge'),('lotre'),('boabab');
+SELECT c1 as want3results from t1 where c1 like 'l%';
+want3results
+location
+loberge
+lotre
+SELECT c1 as want3results from t1 where c1 like 'lo%';
+want3results
+location
+loberge
+lotre
+SELECT c1 as want1result  from t1 where c1 like 'loc%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'loca%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locat%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locati%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'locatio%';
+want1result
+location
+SELECT c1 as want1result  from t1 where c1 like 'location%';
+want1result
+location
+DROP TABLE t1;
+create table t1 (a set('a') not null);
+insert into t1 values (),();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+select cast(a as char(1)) from t1;
+cast(a as char(1))
+
+
+select a sounds like a from t1;
+a sounds like a
+1
+1
+select 1 from t1 order by cast(a as char(1));
+1
+1
+1
+drop table t1;
+set names utf8;
+create table t1 (
+name varchar(10),
+level smallint unsigned);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `name` varchar(10) DEFAULT NULL,
+  `level` smallint(5) unsigned DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2
+insert into t1 values ('string',1);
+select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+concat(name,space(level))	concat(name, repeat(' ',level))
+string 	string 
+drop table t1;
+DROP DATABASE d1;
+USE test;
+SET character_set_server= @safe_character_set_server;
+SET collation_server= @safe_collation_server;
+SET character_set_client= @safe_character_set_client;
+SET character_set_results= @safe_character_set_results;
+SET NAMES latin1;
+SET character_set_connection=ucs2;
+select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
+'a' = 'a'	'a' = 'a '	'a ' = 'a'
+1	1	1
+select 'a\0' = 'a', 'a\0' < 'a', 'a\0' > 'a';
+'a\0' = 'a'	'a\0' < 'a'	'a\0' > 'a'
+0	1	0
+select 'a' = 'a\0', 'a' < 'a\0', 'a' > 'a\0';
+'a' = 'a\0'	'a' < 'a\0'	'a' > 'a\0'
+0	0	1
+select 'a\0' = 'a ', 'a\0' < 'a ', 'a\0' > 'a ';
+'a\0' = 'a '	'a\0' < 'a '	'a\0' > 'a '
+0	1	0
+select 'a ' = 'a\0', 'a ' < 'a\0', 'a ' > 'a\0';
+'a ' = 'a\0'	'a ' < 'a\0'	'a ' > 'a\0'
+0	0	1
+select 'a  a' > 'a', 'a  \0' < 'a';
+'a  a' > 'a'	'a  \0' < 'a'
+1	1
+select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
+binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
+1	1	1
+SET CHARACTER SET koi8r;
+create table t1 (a varchar(2) character set ucs2 collate ucs2_bin, key(a));
+insert into t1 values ('A'),('A'),('B'),('C'),('D'),('A\t');
+insert into t1 values ('A\0'),('A\0'),('A\0'),('A\0'),('AZ');
+select hex(a) from t1 where a like 'A_' order by a;
+hex(a)
+00410000
+00410000
+00410000
+00410000
+00410009
+0041005A
+select hex(a) from t1 ignore key(a) where a like 'A_' order by a;
+hex(a)
+00410000
+00410000
+00410000
+00410000
+00410009
+0041005A
+drop table t1;
+CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2, word2 CHAR(64) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (_koi8r'ò',_koi8r'ò'), (X'2004',X'2004');
+SELECT hex(word) FROM t1 ORDER BY word;
+hex(word)
+0420
+2004
+SELECT hex(word2) FROM t1 ORDER BY word2;
+hex(word2)
+0420
+2004
+DELETE FROM t1;
+INSERT INTO t1 VALUES (X'042000200020',X'042000200020'), (X'200400200020', X'200400200020');
+SELECT hex(word) FROM t1 ORDER BY word;
+hex(word)
+042000200020
+200400200020
+SELECT hex(word2) FROM t1 ORDER BY word2;
+hex(word2)
+0420
+2004
+DROP TABLE t1;
+SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'0421');
+LPAD(_ucs2 X'0420',10,_ucs2 X'0421')
+óóóóóóóóóò
+SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'04210422');
+LPAD(_ucs2 X'0420',10,_ucs2 X'04210422')
+óôóôóôóôóò
+SELECT LPAD(_ucs2 X'0420',10,_ucs2 X'042104220423');
+LPAD(_ucs2 X'0420',10,_ucs2 X'042104220423')
+óôõóôõóôõò
+SELECT LPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
+LPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423')
+òóôõæèãþûý
+SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'0421');
+RPAD(_ucs2 X'0420',10,_ucs2 X'0421')
+òóóóóóóóóó
+SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'04210422');
+RPAD(_ucs2 X'0420',10,_ucs2 X'04210422')
+òóôóôóôóôó
+SELECT RPAD(_ucs2 X'0420',10,_ucs2 X'042104220423');
+RPAD(_ucs2 X'0420',10,_ucs2 X'042104220423')
+òóôõóôõóôõ
+SELECT RPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
+RPAD(_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423')
+òóôõæèãþûý
+CREATE TABLE t1 SELECT 
+LPAD(_ucs2 X'0420',10,_ucs2 X'0421') l,
+RPAD(_ucs2 X'0420',10,_ucs2 X'0421') r;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `l` varchar(10) CHARACTER SET ucs2 NOT NULL DEFAULT '',
+  `r` varchar(10) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+create table t2(f1 Char(30));
+insert into t2 values ("103000"), ("22720000"), ("3401200"), ("78000");
+select lpad(f1, 12, "-o-/") from t2;
+lpad(f1, 12, "-o-/")
+-o-/-o103000
+-o-/22720000
+-o-/-3401200
+-o-/-o-78000
+drop table t2;
+SET NAMES koi8r;
+SET character_set_connection=ucs2;
+create table t1 (a varchar(10) character set ucs2, key(a));
+insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+explain select * from t1 where a like 'abc%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+explain select * from t1 where a like concat('abc','%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+select * from t1 where a like "abc%";
+a
+abc
+abcd
+select * from t1 where a like concat("abc","%");
+a
+abc
+abcd
+select * from t1 where a like "ABC%";
+a
+abc
+abcd
+select * from t1 where a like "test%";
+a
+test
+select * from t1 where a like "te_t";
+a
+test
+select * from t1 where a like "%a%";
+a
+a
+abc
+abcd
+select * from t1 where a like "%abcd%";
+a
+abcd
+select * from t1 where a like "%abc\d%";
+a
+abcd
+drop table t1;
+select 'AA' like 'AA';
+'AA' like 'AA'
+1
+select 'AA' like 'A%A';
+'AA' like 'A%A'
+1
+select 'AA' like 'A%%A';
+'AA' like 'A%%A'
+1
+select 'AA' like 'AA%';
+'AA' like 'AA%'
+1
+select 'AA' like '%AA%';
+'AA' like '%AA%'
+1
+select 'AA' like '%A';
+'AA' like '%A'
+1
+select 'AA' like '%AA';
+'AA' like '%AA'
+1
+select 'AA' like 'A%A%';
+'AA' like 'A%A%'
+1
+select 'AA' like '_%_%';
+'AA' like '_%_%'
+1
+select 'AA' like '%A%A';
+'AA' like '%A%A'
+1
+select 'AAA'like 'A%A%A';
+'AAA'like 'A%A%A'
+1
+select 'AZ' like 'AZ';
+'AZ' like 'AZ'
+1
+select 'AZ' like 'A%Z';
+'AZ' like 'A%Z'
+1
+select 'AZ' like 'A%%Z';
+'AZ' like 'A%%Z'
+1
+select 'AZ' like 'AZ%';
+'AZ' like 'AZ%'
+1
+select 'AZ' like '%AZ%';
+'AZ' like '%AZ%'
+1
+select 'AZ' like '%Z';
+'AZ' like '%Z'
+1
+select 'AZ' like '%AZ';
+'AZ' like '%AZ'
+1
+select 'AZ' like 'A%Z%';
+'AZ' like 'A%Z%'
+1
+select 'AZ' like '_%_%';
+'AZ' like '_%_%'
+1
+select 'AZ' like '%A%Z';
+'AZ' like '%A%Z'
+1
+select 'AZ' like 'A_';
+'AZ' like 'A_'
+1
+select 'AZ' like '_Z';
+'AZ' like '_Z'
+1
+select 'AMZ'like 'A%M%Z';
+'AMZ'like 'A%M%Z'
+1
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES ('ÆÙ×Á'),('æÙ×Á'),('Æù×Á'),('ÆÙ÷Á'),('ÆÙ×á'),('æù÷á');
+INSERT INTO t1 VALUES ('ÆÙ×ÁÐÒÏÌÄÖ'),('æÙ×ÁÐÒÏÌÄÖ'),('Æù×ÁÐÒÏÌÄÖ'),('ÆÙ÷ÁÐÒÏÌÄÖ');
+INSERT INTO t1 VALUES ('ÆÙ×áÐÒÏÌÄÖ'),('ÆÙ×ÁðÒÏÌÄÖ'),('ÆÙ×ÁÐòÏÌÄÖ'),('ÆÙ×ÁÐÒïÌÄÖ');
+INSERT INTO t1 VALUES ('ÆÙ×ÁÐÒÏìÄÖ'),('ÆÙ×ÁÐÒÏÌäÖ'),('ÆÙ×ÁÐÒÏÌÄö'),('æù÷áðòïìäö');
+SELECT * FROM t1 WHERE a LIKE '%Æù×Á%';
+a
+ÆÙ×Á
+æÙ×Á
+Æù×Á
+ÆÙ÷Á
+ÆÙ×á
+æù÷á
+ÆÙ×ÁÐÒÏÌÄÖ
+æÙ×ÁÐÒÏÌÄÖ
+Æù×ÁÐÒÏÌÄÖ
+ÆÙ÷ÁÐÒÏÌÄÖ
+ÆÙ×áÐÒÏÌÄÖ
+ÆÙ×ÁðÒÏÌÄÖ
+ÆÙ×ÁÐòÏÌÄÖ
+ÆÙ×ÁÐÒïÌÄÖ
+ÆÙ×ÁÐÒÏìÄÖ
+ÆÙ×ÁÐÒÏÌäÖ
+ÆÙ×ÁÐÒÏÌÄö
+æù÷áðòïìäö
+SELECT * FROM t1 WHERE a LIKE '%Æù×%';
+a
+ÆÙ×Á
+æÙ×Á
+Æù×Á
+ÆÙ÷Á
+ÆÙ×á
+æù÷á
+ÆÙ×ÁÐÒÏÌÄÖ
+æÙ×ÁÐÒÏÌÄÖ
+Æù×ÁÐÒÏÌÄÖ
+ÆÙ÷ÁÐÒÏÌÄÖ
+ÆÙ×áÐÒÏÌÄÖ
+ÆÙ×ÁðÒÏÌÄÖ
+ÆÙ×ÁÐòÏÌÄÖ
+ÆÙ×ÁÐÒïÌÄÖ
+ÆÙ×ÁÐÒÏìÄÖ
+ÆÙ×ÁÐÒÏÌäÖ
+ÆÙ×ÁÐÒÏÌÄö
+æù÷áðòïìäö
+SELECT * FROM t1 WHERE a LIKE 'Æù×Á%';
+a
+ÆÙ×Á
+æÙ×Á
+Æù×Á
+ÆÙ÷Á
+ÆÙ×á
+æù÷á
+ÆÙ×ÁÐÒÏÌÄÖ
+æÙ×ÁÐÒÏÌÄÖ
+Æù×ÁÐÒÏÌÄÖ
+ÆÙ÷ÁÐÒÏÌÄÖ
+ÆÙ×áÐÒÏÌÄÖ
+ÆÙ×ÁðÒÏÌÄÖ
+ÆÙ×ÁÐòÏÌÄÖ
+ÆÙ×ÁÐÒïÌÄÖ
+ÆÙ×ÁÐÒÏìÄÖ
+ÆÙ×ÁÐÒÏÌäÖ
+ÆÙ×ÁÐÒÏÌÄö
+æù÷áðòïìäö
+SELECT * FROM t1 WHERE a LIKE 'Æù×Á%' COLLATE ucs2_bin;
+a
+Æù×Á
+Æù×ÁÐÒÏÌÄÖ
+DROP TABLE t1;
+CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
+ENGINE=MyISAM CHARACTER SET ucs2 COLLATE ucs2_general_ci;
+INSERT INTO t1 (word) VALUES ("cat");
+SELECT * FROM t1 WHERE word LIKE "c%";
+word
+cat
+SELECT * FROM t1 WHERE word LIKE "ca_";
+word
+cat
+SELECT * FROM t1 WHERE word LIKE "cat";
+word
+cat
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630025';
+word
+cat
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
+word
+cat
+DROP TABLE t1;
+select insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066);
+insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066)
+abc
+select insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066);
+insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066)
+defc
+SET NAMES latin1;
+CREATE TABLE t1 (
+word VARCHAR(64),
+bar INT(11) default 0,
+PRIMARY KEY (word))
+ENGINE=MyISAM
+CHARSET ucs2
+COLLATE ucs2_general_ci ;
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a");
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY word;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+SELECT * FROM t1 ORDER BY word;
+word	bar
+a	0
+aar	0
+aardvar	0
+aardvara	0
+aardvark	0
+aardvarz	0
+EXPLAIN SELECT word FROM t1 ORDER BY word;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	130	NULL	6	Using index
+SELECT word FROM t1 ORDER by word;
+word
+a
+aar
+aardvar
+aardvara
+aardvark
+aardvarz
+DROP TABLE t1;
+CREATE TABLE t1 (
+word VARCHAR(64) ,
+PRIMARY KEY (word))
+ENGINE=MyISAM
+CHARSET ucs2
+COLLATE ucs2_general_ci;
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a");
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY WORD;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	130	NULL	6	Using index
+SELECT * FROM t1 ORDER BY word;
+word
+a
+aar
+aardvar
+aardvara
+aardvark
+aardvarz
+DROP TABLE t1;
+CREATE TABLE t1 (
+word TEXT,
+bar INT(11) AUTO_INCREMENT,
+PRIMARY KEY (bar))
+ENGINE=MyISAM
+CHARSET ucs2
+COLLATE ucs2_general_ci ;
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a" );
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY word;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+SELECT * FROM t1 ORDER BY word;
+word	bar
+a	2
+aar	1
+aardvar	3
+aardvara	5
+aardvark	4
+aardvarz	6
+EXPLAIN SELECT word FROM t1 ORDER BY word;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using filesort
+SELECT word FROM t1 ORDER BY word;
+word
+a
+aar
+aardvar
+aardvara
+aardvark
+aardvarz
+DROP TABLE t1;
+SELECT HEX(_ucs2 0x0);
+HEX(_ucs2 0x0)
+0000
+SELECT HEX(_ucs2 0x01);
+HEX(_ucs2 0x01)
+0001
+SELECT HEX(_ucs2 0x012);
+HEX(_ucs2 0x012)
+0012
+SELECT HEX(_ucs2 0x0123);
+HEX(_ucs2 0x0123)
+0123
+SELECT HEX(_ucs2 0x01234);
+HEX(_ucs2 0x01234)
+00001234
+SELECT HEX(_ucs2 0x012345);
+HEX(_ucs2 0x012345)
+00012345
+SELECT HEX(_ucs2 0x0123456);
+HEX(_ucs2 0x0123456)
+00123456
+SELECT HEX(_ucs2 0x01234567);
+HEX(_ucs2 0x01234567)
+01234567
+SELECT HEX(_ucs2 0x012345678);
+HEX(_ucs2 0x012345678)
+000012345678
+SELECT HEX(_ucs2 0x0123456789);
+HEX(_ucs2 0x0123456789)
+000123456789
+SELECT HEX(_ucs2 0x0123456789A);
+HEX(_ucs2 0x0123456789A)
+00123456789A
+SELECT HEX(_ucs2 0x0123456789AB);
+HEX(_ucs2 0x0123456789AB)
+0123456789AB
+SELECT HEX(_ucs2 0x0123456789ABC);
+HEX(_ucs2 0x0123456789ABC)
+0000123456789ABC
+SELECT HEX(_ucs2 0x0123456789ABCD);
+HEX(_ucs2 0x0123456789ABCD)
+000123456789ABCD
+SELECT HEX(_ucs2 0x0123456789ABCDE);
+HEX(_ucs2 0x0123456789ABCDE)
+00123456789ABCDE
+SELECT HEX(_ucs2 0x0123456789ABCDEF);
+HEX(_ucs2 0x0123456789ABCDEF)
+0123456789ABCDEF
+SELECT hex(cast(0xAA as char character set ucs2));
+hex(cast(0xAA as char character set ucs2))
+00AA
+SELECT hex(convert(0xAA using ucs2));
+hex(convert(0xAA using ucs2))
+00AA
+CREATE TABLE t1 (a char(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(10) character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a text character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a mediumtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+CREATE TABLE t1 (a longtext character set ucs2);
+INSERT INTO t1 VALUES (0xA),(0xAA),(0xAAA),(0xAAAA),(0xAAAAA);
+SELECT HEX(a) FROM t1;
+HEX(a)
+000A
+00AA
+0AAA
+AAAA
+000AAAAA
+DROP TABLE t1;
+create table t1 (s1 char character set `ucs2` collate `ucs2_czech_ci`);
+insert into t1 values ('0'),('1'),('2'),('a'),('b'),('c');
+select s1 from t1 where s1 > 'a' order by s1;
+s1
+b
+c
+drop table t1;
+create table t1(a char(1)) default charset = ucs2;
+insert into t1 values ('a'),('b'),('c');
+alter table t1 modify a char(5);
+select a, hex(a) from t1;
+a	hex(a)
+a	0061
+b	0062
+c	0063
+drop table t1;
+set @ivar= 1234;
+set @str1 = 'select ?';
+set @str2 = convert(@str1 using ucs2);
+prepare stmt1 from @str2;
+execute stmt1 using @ivar;
+?
+1234
+set names latin1;
+create table t1 (a enum('x','y','z') character set ucs2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('x','y','z') CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('x');
+insert into t1 values ('y');
+insert into t1 values ('z');
+select a, hex(a) from t1 order by a;
+a	hex(a)
+x	0078
+y	0079
+z	007A
+alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set ucs2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('D');
+insert into t1 values ('E ');
+insert into t1 values ('Ä');
+insert into t1 values ('Ö');
+insert into t1 values ('Ü');
+select a, hex(a) from t1 order by a;
+a	hex(a)
+x	0078
+y	0079
+z	007A
+d	0064
+e	0065
+ä	00E4
+ö	00F6
+ü	00FC
+drop table t1;
+create table t1 (a set ('x','y','z','ä','ö','ü') character set ucs2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` set('x','y','z','ä','ö','ü') CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('x');
+insert into t1 values ('y');
+insert into t1 values ('z');
+insert into t1 values ('x,y');
+insert into t1 values ('x,y,z,Ä,Ö,Ü');
+select a, hex(a) from t1 order by a;
+a	hex(a)
+x	0078
+y	0079
+x,y	0078002C0079
+z	007A
+x,y,z,ä,ö,ü	0078002C0079002C007A002C00E4002C00F6002C00FC
+drop table t1;
+create table t1(a enum('a','b','c')) default character set ucs2;
+insert into t1 values('a'),('b'),('c');
+alter table t1 add b char(1);
+show warnings;
+Level	Code	Message
+select * from t1 order by a;
+a	b
+a	NULL
+b	NULL
+c	NULL
+drop table t1;
+SET collation_connection='ucs2_general_ci';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_general_ci	00610009
+ucs2_general_ci	0061
+ucs2_general_ci	00610020
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+ucs2_general_ci
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
+drop table if exists t1;
+create table t1 as select repeat(' ', 64) as s1;
+select collation(s1) from t1;
+collation(s1)
+ucs2_general_ci
+delete from t1;
+insert into t1 values ('a'),('ae'),(_latin1 0xE4);
+insert into t1 values ('o'),('oe'),(_latin1 0xF6);
+insert into t1 values ('s'),('ss'),(_latin1 0xDF);
+insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+select s1, hex(s1) from t1 order by s1, binary s1;
+s1	hex(s1)
+a	0061
+ä	00E4
+ae	00610065
+o	006F
+ö	00F6
+oe	006F0065
+s	0073
+ß	00DF
+ss	00730073
+u	0075
+ü	00FC
+ue	00750065
+select group_concat(s1 order by binary s1) from t1 group by s1;
+group_concat(s1 order by binary s1)
+a,ä
+ae
+o,ö
+oe
+s,ß
+ss
+u,ü
+ue
+drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F20025
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
+SET NAMES latin1;
+SET collation_connection='ucs2_bin';
+create table t1 select repeat('a',4000) a;
+delete from t1;
+insert into t1 values ('a'), ('a '), ('a\t');
+select collation(a),hex(a) from t1 order by a;
+collation(a)	hex(a)
+ucs2_bin	00610009
+ucs2_bin	0061
+ucs2_bin	00610020
+drop table t1;
+select @@collation_connection;
+@@collation_connection
+ucs2_bin
+create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
+insert into t1 values('abcdef');
+insert into t1 values('_bcdef');
+insert into t1 values('a_cdef');
+insert into t1 values('ab_def');
+insert into t1 values('abc_ef');
+insert into t1 values('abcd_f');
+insert into t1 values('abcde_');
+select c1 as c1u from t1 where c1 like 'ab\_def';
+c1u
+ab_def
+select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
+c2h
+ab_def
+drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F20025
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
+select hex(substr(_ucs2 0x00e400e50068,1));
+hex(substr(_ucs2 0x00e400e50068,1))
+00E400E50068
+select hex(substr(_ucs2 0x00e400e50068,2));
+hex(substr(_ucs2 0x00e400e50068,2))
+00E50068
+select hex(substr(_ucs2 0x00e400e50068,3));
+hex(substr(_ucs2 0x00e400e50068,3))
+0068
+select hex(substr(_ucs2 0x00e400e50068,-1));
+hex(substr(_ucs2 0x00e400e50068,-1))
+0068
+select hex(substr(_ucs2 0x00e400e50068,-2));
+hex(substr(_ucs2 0x00e400e50068,-2))
+00E50068
+select hex(substr(_ucs2 0x00e400e50068,-3));
+hex(substr(_ucs2 0x00e400e50068,-3))
+00E400E50068
+SET NAMES latin1;
+SET collation_connection='ucs2_swedish_ci';
+CREATE TABLE t1 (Field1 int(10) default '0');
+INSERT INTO t1 VALUES ('-1');
+SELECT * FROM t1;
+Field1
+-1
+DROP TABLE t1;
+CREATE TABLE t1 (Field1 int(10) unsigned default '0');
+INSERT INTO t1 VALUES ('-1');
+Warnings:
+Warning	1264	Out of range value for column 'Field1' at row 1
+DROP TABLE t1;
+SET NAMES latin1;
+SELECT CONVERT(103, CHAR(50) UNICODE);
+CONVERT(103, CHAR(50) UNICODE)
+103
+SELECT CONVERT(103.0, CHAR(50) UNICODE);
+CONVERT(103.0, CHAR(50) UNICODE)
+103.0
+SELECT CONVERT(-103, CHAR(50) UNICODE);
+CONVERT(-103, CHAR(50) UNICODE)
+-103
+SELECT CONVERT(-103.0, CHAR(50) UNICODE);
+CONVERT(-103.0, CHAR(50) UNICODE)
+-103.0
+CREATE TABLE t1 (
+a varchar(255) NOT NULL default '',
+KEY a (a)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE ucs2_general_ci;
+insert into t1 values (0x803d);
+insert into t1 values (0x005b);
+select hex(a) from t1;
+hex(a)
+005B
+803D
+drop table t1;
+create table t1(f1 varchar(5) CHARACTER SET ucs2 COLLATE ucs2_bin NOT NULL) engine=InnoDB;
+insert into t1 values('a');
+create index t1f1 on t1(f1);
+select f1 from t1 where f1 like 'a%';
+f1
+a
+drop table t1;
+create table t1 (utext varchar(20) character set ucs2);
+insert into t1 values ("lily");
+insert into t1 values ("river");
+prepare stmt from 'select utext from t1 where utext like ?';
+set @param1='%%';
+execute stmt using @param1;
+utext
+lily
+river
+execute stmt using @param1;
+utext
+lily
+river
+select utext from t1 where utext like '%%';
+utext
+lily
+river
+drop table t1;
+deallocate prepare stmt;
+create table t1 (
+a char(10) unicode not null, 
+index a (a)
+) engine=myisam;
+insert into t1 values (repeat(0x201f, 10));
+insert into t1 values (repeat(0x2020, 10));
+insert into t1 values (repeat(0x2021, 10));
+explain select hex(a) from t1 order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	a	20	NULL	3	Using index
+select hex(a) from t1 order by a;
+hex(a)
+201F201F201F201F201F201F201F201F201F201F
+2020202020202020202020202020202020202020
+2021202120212021202120212021202120212021
+alter table t1 drop index a;
+select hex(a) from t1 order by a;
+hex(a)
+201F201F201F201F201F201F201F201F201F201F
+2020202020202020202020202020202020202020
+2021202120212021202120212021202120212021
+drop table t1;
+CREATE TABLE t1 (id int, s char(5) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES (1, 'ZZZZZ'), (1, 'ZZZ'), (2, 'ZZZ'), (2, 'ZZZZZ');
+SELECT id, MIN(s) FROM t1 GROUP BY id;
+id	MIN(s)
+1	ZZZ
+2	ZZZ
+DROP TABLE t1;
+drop table if exists bug20536;
+set names latin1;
+create table bug20536 (id bigint not null auto_increment primary key, name
+varchar(255) character set ucs2 not null);
+insert into `bug20536` (`id`,`name`) values (1, _latin1 x'7465737431'), (2, "'test\\_2'");
+select md5(name) from bug20536;
+md5(name)
+f4b7ce8b45a20e3c4e84bef515d1525c
+48d95db0d8305c2fe11548a3635c9385
+select sha1(name) from bug20536;
+sha1(name)
+e0b52f38deddb9f9e8d5336b153592794cb49baf
+677d4d505355eb5b0549b865fcae4b7f0c28aef5
+select make_set(3, name, upper(name)) from bug20536;
+make_set(3, name, upper(name))
+test1,TEST1
+'test\_2','TEST\_2'
+select export_set(5, name, upper(name)) from bug20536;
+export_set(5, name, upper(name))
+test1,TEST1,test1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1
+'test\_2','TEST\_2','test\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2'
+select export_set(5, name, upper(name), ",", 5) from bug20536;
+export_set(5, name, upper(name), ",", 5)
+test1,TEST1,test1,TEST1,TEST1
+'test\_2','TEST\_2','test\_2','TEST\_2','TEST\_2'
+CREATE TABLE t1 (
+status enum('active','passive') collate latin1_general_ci 
+NOT NULL default 'passive'
+);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `status` enum('active','passive') CHARACTER SET latin1 COLLATE latin1_general_ci NOT NULL DEFAULT 'passive'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD a int NOT NULL AFTER status;
+CREATE TABLE t2 (
+status enum('active','passive') collate ucs2_turkish_ci 
+NOT NULL default 'passive'
+);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `status` enum('active','passive') CHARACTER SET ucs2 COLLATE ucs2_turkish_ci NOT NULL DEFAULT 'passive'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+ALTER TABLE t2 ADD a int NOT NULL AFTER status;
+DROP TABLE t1,t2;
+select password(name) from bug20536;
+password(name)
+????????????????????
+????????????????????
+select old_password(name) from bug20536;
+old_password(name)
+????????
+????????
+select quote(name) from bug20536;
+quote(name)
+'test1'
+'\'test\\_2\''
+drop table bug20536;
+set names ucs2;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
+set names ucs2 collate ucs2_bin;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
+set character_set_client= ucs2;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
+set character_set_client= concat('ucs', substr('2', 1));
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES('abcd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+a
+abcd
+DROP TABLE t1;
+End of 4.1 tests
+CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
+INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
+update t1 set b=a;
+SELECT * FROM t1;
+a	b
+1.1	1.100
+2.1	2.100
+DROP TABLE t1;
+create table t1 (utext varchar(20) character set ucs2);
+insert into t1 values ("lily");
+insert into t1 values ("river");
+prepare stmt from 'select utext from t1 where utext like ?';
+set @param1='%%';
+execute stmt using @param1;
+utext
+lily
+river
+execute stmt using @param1;
+utext
+lily
+river
+select utext from t1 where utext like '%%';
+utext
+lily
+river
+drop table t1;
+deallocate prepare stmt;
+set names latin1;
+set character_set_connection=ucs2;
+select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
+soundex('')	soundex('he')	soundex('hello all folks')	soundex('#3556 in bugdb')
+	H000	H4142	I51231
+select hex(soundex('')),hex(soundex('he')),hex(soundex('hello all folks')),hex(soundex('#3556 in bugdb'));
+hex(soundex(''))	hex(soundex('he'))	hex(soundex('hello all folks'))	hex(soundex('#3556 in bugdb'))
+	0048003000300030	00480034003100340032	004900350031003200330031
+select 'mood' sounds like 'mud';
+'mood' sounds like 'mud'
+1
+select hex(soundex(_ucs2 0x041004110412));
+hex(soundex(_ucs2 0x041004110412))
+0410003000300030
+select hex(soundex(_ucs2 0x00BF00C0));
+hex(soundex(_ucs2 0x00BF00C0))
+00C0003000300030
+set names latin1;
+create table t1(a blob, b text charset utf8, c text charset ucs2);
+select data_type, character_octet_length, character_maximum_length
+from information_schema.columns where table_name='t1';
+data_type	character_octet_length	character_maximum_length
+blob	65535	65535
+text	65535	65535
+text	65535	32767
+drop table t1;
+create table t1 (a char(1) character set ucs2);
+insert into t1 values ('a'),('b'),('c');
+select hex(group_concat(a)) from t1;
+hex(group_concat(a))
+0061002C0062002C0063
+select collation(group_concat(a)) from t1;
+collation(group_concat(a))
+ucs2_general_ci
+drop table t1;
+set names latin1;
+create table t1 (a char(1) character set latin1);
+insert into t1 values ('a'),('b'),('c');
+set character_set_connection=ucs2;
+select hex(group_concat(a separator ',')) from t1;
+hex(group_concat(a separator ','))
+612C622C63
+select collation(group_concat(a separator ',')) from t1;
+collation(group_concat(a separator ','))
+latin1_swedish_ci
+drop table t1;
+set names latin1;
+create table t1 (s1 char(1) character set ascii, s2 char(1) character set ucs2);
+insert into t1 (s1) values (0x7f);
+update t1 set s2 = s1;
+select hex(s2) from t1;
+hex(s2)
+007F
+select hex(convert(s1 using latin1)) from t1;
+hex(convert(s1 using latin1))
+7F
+drop table t1;
+create table t1 (a varchar(15) character set ascii not null, b int);
+insert into t1 values ('a',1);
+select concat(a,if(b<10,_ucs2 0x0061,_ucs2 0x0062)) from t1;
+concat(a,if(b<10,_ucs2 0x0061,_ucs2 0x0062))
+aa
+select concat(a,if(b>10,_ucs2 0x0061,_ucs2 0x0062)) from t1;
+concat(a,if(b>10,_ucs2 0x0061,_ucs2 0x0062))
+ab
+select * from t1 where a=if(b<10,_ucs2 0x0061,_ucs2 0x0062);
+a	b
+a	1
+select * from t1 where a=if(b>10,_ucs2 0x0061,_ucs2 0x0062);
+a	b
+select concat(a,if(b<10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select concat(a,if(b>10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select concat(a,if(b<10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select concat(a,if(b>10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
+select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation '='
+select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
+ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation '='
+drop table t1;
+CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET UCS2);
+INSERT INTO t1 VALUES ('a');
+SET @@sql_mode=pad_char_to_full_length;
+SELECT HEX(s1) FROM t1;
+HEX(s1)
+00610020002000200020
+SET @@sql_mode=default;
+SELECT HEX(s1) FROM t1;
+HEX(s1)
+0061
+DROP TABLE t1;
+set collation_connection=ucs2_general_ci;
+drop table if exists t1;
+create table t1 as
+select repeat(' ', 64) as s1, repeat(' ',64) as s2
+union
+select null, null;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varchar(64) CHARACTER SET ucs2 DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET ucs2 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+delete from t1;
+insert into t1 values('aaa','aaa');
+insert into t1 values('aaa|qqq','qqq');
+insert into t1 values('gheis','^[^a-dXYZ]+$');
+insert into t1 values('aab','^aa?b');
+insert into t1 values('Baaan','^Ba*n');
+insert into t1 values('aaa','qqq|aaa');
+insert into t1 values('qqq','qqq|aaa');
+insert into t1 values('bbb','qqq|aaa');
+insert into t1 values('bbb','qqq');
+insert into t1 values('aaa','aba');
+insert into t1 values(null,'abc');
+insert into t1 values('def',null);
+insert into t1 values(null,null);
+insert into t1 values('ghi','ghi[');
+select HIGH_PRIORITY s1 regexp s2 from t1;
+s1 regexp s2
+1
+1
+1
+1
+1
+1
+1
+0
+0
+0
+NULL
+NULL
+NULL
+NULL
+drop table t1;
+set names latin1;
+select hex(char(0x41 using ucs2));
+hex(char(0x41 using ucs2))
+0041
+SET character_set_connection=ucs2;
+SELECT CHARSET(DAYNAME(19700101));
+CHARSET(DAYNAME(19700101))
+ucs2
+SELECT CHARSET(MONTHNAME(19700101));
+CHARSET(MONTHNAME(19700101))
+ucs2
+SELECT LOWER(DAYNAME(19700101));
+LOWER(DAYNAME(19700101))
+thursday
+SELECT LOWER(MONTHNAME(19700101));
+LOWER(MONTHNAME(19700101))
+january
+SELECT UPPER(DAYNAME(19700101));
+UPPER(DAYNAME(19700101))
+THURSDAY
+SELECT UPPER(MONTHNAME(19700101));
+UPPER(MONTHNAME(19700101))
+JANUARY
+SELECT HEX(MONTHNAME(19700101));
+HEX(MONTHNAME(19700101))
+004A0061006E0075006100720079
+SELECT HEX(DAYNAME(19700101));
+HEX(DAYNAME(19700101))
+00540068007500720073006400610079
+SET LC_TIME_NAMES=ru_RU;
+SET NAMES utf8;
+SET character_set_connection=ucs2;
+SELECT CHARSET(DAYNAME(19700101));
+CHARSET(DAYNAME(19700101))
+ucs2
+SELECT CHARSET(MONTHNAME(19700101));
+CHARSET(MONTHNAME(19700101))
+ucs2
+SELECT LOWER(DAYNAME(19700101));
+LOWER(DAYNAME(19700101))
+Ñ‡ÐµÑ‚Ð²ÐµÑ€Ð³
+SELECT LOWER(MONTHNAME(19700101));
+LOWER(MONTHNAME(19700101))
+ÑÐ½Ð²Ð°Ñ€Ñ
+SELECT UPPER(DAYNAME(19700101));
+UPPER(DAYNAME(19700101))
+Ð§Ð•Ð¢Ð’Ð•Ð Ð“
+SELECT UPPER(MONTHNAME(19700101));
+UPPER(MONTHNAME(19700101))
+Ð¯ÐÐ’ÐÐ Ð¯
+SELECT HEX(MONTHNAME(19700101));
+HEX(MONTHNAME(19700101))
+042F043D043204300440044F
+SELECT HEX(DAYNAME(19700101));
+HEX(DAYNAME(19700101))
+0427043504420432043504400433
+SET character_set_connection=latin1;
+#
+# Bug#52120 create view cause Assertion failed: 0, file .\item_subselect.cc, line 817
+#
+CREATE TABLE t1 (a CHAR(1) CHARSET ascii, b CHAR(1) CHARSET latin1);
+CREATE VIEW v1 AS SELECT 1 from t1
+WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#59648 my_strtoll10_mb2: Assertion `(*endptr - s) % 2 == 0' failed.
+#
+SELECT HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850));
+HEX(CHAR(COALESCE(NULL, CHAR(COUNT('%s') USING ucs2), 1, @@global.license, NULL) USING cp850))
+00
+SELECT CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED);
+CONVERT(QUOTE(CHAR(0xf5 using ucs2)), SIGNED)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+End of 5.0 tests

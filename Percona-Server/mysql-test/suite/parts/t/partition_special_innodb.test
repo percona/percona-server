@@ -1,0 +1,80 @@
+################################################################################
+# t/partition_special_innodb.test                                              #
+#                                                                              #
+# Purpose:                                                                     #
+#  different Tests                                                             #
+#        InnoDB branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: HH                                                          #
+# Original Date: 2006-08-01                                                    #
+# Change Author: MattiasJ                                                      #
+# Change Date: 2008-08-20                                                      #
+# Change: added test for bug#34604                                             #
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+# Please read the README at the end of inc/partition.pre before changing
+# any of the variables.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+
+##### Options, for debugging support #####
+let $debug= 0;
+
+# The server must support partitioning.
+--source include/have_partition.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+--source include/have_innodb.inc
+let $engine= 'InnoDB';
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_key_4col.inc
+--source suite/parts/inc/partition_key_8col.inc
+--source suite/parts/inc/partition_key_16col.inc
+--source suite/parts/inc/partition_key_32col.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+--echo # Bug#34604 - Assertion 'inited==RND' failed in handler::ha_rnd_end
+
+CREATE TABLE t1 (
+  a INT AUTO_INCREMENT,
+  b VARCHAR(255),
+  PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY HASH (a)
+PARTITIONS 2;
+
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
+
+--connection con1
+SET autocommit=OFF;
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL, 'first row t2');
+
+--connection con2
+SET autocommit=OFF;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 AUTO_INCREMENT = 10;
+
+--connection con1
+INSERT INTO t1 VALUES (NULL, 'second row t2');
+SELECT a,b FROM t1 ORDER BY a;
+--disconnect con2
+--disconnect con1
+--connection default
+DROP TABLE t1;

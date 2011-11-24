@@ -1,0 +1,54 @@
+##########################################################################
+# This test verifies if the slave fails gracefully when the temporary 
+# file used to load data is removed while it is about to be used it. 
+# Similar errors are caught if the temporary directory is removed.
+#
+# Steps:
+#    1 - Creates a table and populates it through "LOAD DATA INFILE".
+#    2 - Catches error.
+##########################################################################
+
+--source include/have_binlog_format_statement.inc
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+--source include/not_embedded.inc
+
+##########################################################################
+#                            Loading data
+##########################################################################
+connection master;
+
+create table t1(a int not null auto_increment, b int, primary key(a)) engine=innodb;
+
+start transaction;
+  insert into t1(b) values (1);
+  insert into t1(b) values (2);
+  load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+commit;
+
+##########################################################################
+#                            Catch Error
+##########################################################################
+connection slave;
+# Errno 9 is what we get although it's wrong (see BUG#52768).
+--let $slave_sql_errno= 9
+--source include/wait_for_slave_sql_error.inc
+
+##########################################################################
+#                             Clean up
+##########################################################################
+connection master;
+
+drop table t1;
+
+--source include/sync_slave_io_with_master.inc
+--source include/stop_slave_io.inc
+RESET SLAVE;
+
+drop table t1;
+
+call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' .Errcode: 9. Error_code: 3");
+call mtr.add_suppression("Slave SQL.*Error in Begin_load_query event: write to.* failed, Error_code: 9");
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

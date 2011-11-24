@@ -1,0 +1,69 @@
+#
+# Test some error conditions
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+--error 1146
+insert into t1 values(1);
+--error 1146
+delete from t1;
+--error 1146
+update t1 set a=1;
+create table t1 (a int);
+--error 1054
+select count(test.t1.b) from t1;
+--error 1054
+select count(not_existing_database.t1) from t1;
+--error 1054
+select count(not_existing_database.t1.a) from t1;
+--error 1044,1146
+select count(not_existing_database.t1.a) from not_existing_database.t1;
+--error 1054
+select 1 from t1 order by 2;
+--error 1054
+select 1 from t1 group by 2;
+--error 1054
+select 1 from t1 order by t1.b;
+--error 1054
+select count(*),b from t1;
+drop table t1;
+
+# End of 4.1 tests
+
+#
+# Bug #6080: Error message for a field with a display width that is too long
+#
+--error 1439
+create table t1 (a int(256));
+set sql_mode='traditional';
+--error 1074
+create table t1 (a varchar(66000));
+set sql_mode=default;
+
+#
+# Bug #27513: mysql 5.0.x + NULL pointer DoS
+#
+CREATE TABLE t1 (a INT);
+SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
+INSERT INTO t1 VALUES(1);
+SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
+INSERT INTO t1 VALUES(2),(3);
+SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
+DROP TABLE t1;
+
+#
+# Bug #28677: SELECT on missing column gives extra error
+#
+CREATE TABLE t1( a INT );
+--error ER_BAD_FIELD_ERROR
+SELECT b FROM t1;
+SHOW ERRORS;
+--error ER_BAD_FIELD_ERROR
+CREATE TABLE t2 SELECT b FROM t1;
+SHOW ERRORS;
+--error ER_BAD_FIELD_ERROR
+INSERT INTO t1 SELECT b FROM t1;
+DROP TABLE t1;
+# End of 5.0 tests

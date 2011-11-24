@@ -1,0 +1,7 @@
+include/master-slave.inc
+[connection master]
+load table t1 from master;
+ERROR 08S01: Error connecting to master: Master is not configured
+load table t1 from master;
+ERROR HY000: Error from master: 'Table 'test.t1' doesn't exist'
+include/rpl_end.inc

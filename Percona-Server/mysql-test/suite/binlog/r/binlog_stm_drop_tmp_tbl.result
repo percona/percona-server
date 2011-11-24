@@ -1,0 +1,44 @@
+DROP DATABASE IF EXISTS `drop-temp+table-test`;
+RESET MASTER;
+CREATE DATABASE `drop-temp+table-test`;
+USE `drop-temp+table-test`;
+CREATE TEMPORARY TABLE shortn1 (a INT);
+CREATE TEMPORARY TABLE `table:name` (a INT);
+CREATE TEMPORARY TABLE shortn2 (a INT);
+CREATE TEMPORARY TABLE tmp(c1 int);
+CREATE TEMPORARY TABLE tmp1(c1 int);
+CREATE TEMPORARY TABLE tmp2(c1 int);
+CREATE TEMPORARY TABLE tmp3(c1 int);
+CREATE TABLE t(c1 int);
+DROP TEMPORARY TABLE IF EXISTS tmp;
+DROP TEMPORARY TABLE IF EXISTS tmp;
+DROP TEMPORARY TABLE IF EXISTS tmp, tmp1;
+DROP TEMPORARY TABLE tmp3;
+DROP TABLE IF EXISTS tmp2, t;
+DROP TABLE IF EXISTS tmp2, t;
+SELECT GET_LOCK("a",10);
+GET_LOCK("a",10)
+1
+USE test;
+SELECT GET_LOCK("a",10);
+GET_LOCK("a",10)
+1
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	CREATE DATABASE `drop-temp+table-test`
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TEMPORARY TABLE shortn1 (a INT)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TEMPORARY TABLE `table:name` (a INT)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TEMPORARY TABLE shortn2 (a INT)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TEMPORARY TABLE tmp(c1 int)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TEMPORARY TABLE tmp1(c1 int)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TEMPORARY TABLE tmp2(c1 int)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TEMPORARY TABLE tmp3(c1 int)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; CREATE TABLE t(c1 int)
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; DROP TEMPORARY TABLE IF EXISTS tmp
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; DROP TEMPORARY TABLE IF EXISTS tmp
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; DROP TEMPORARY TABLE IF EXISTS tmp, tmp1
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; DROP TEMPORARY TABLE tmp3
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; DROP TABLE IF EXISTS tmp2, t
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; DROP TABLE IF EXISTS tmp2, t
+master-bin.000001	#	Query	#	#	use `drop-temp+table-test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `shortn2`,`table:name`,`shortn1`
+DROP DATABASE `drop-temp+table-test`;

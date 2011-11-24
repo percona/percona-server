@@ -1,0 +1,447 @@
+# ==== Purpose ====
+#
+# Some statements can not be written to the binlog in a safe manner
+# with statement-based replication, either because they rely on
+# features that are local to the server they are replicated from
+# (e.g., @@variables), or because they include nondeterministic
+# queries (e.g., LIMIT), or because the time at which the query is
+# executed cannot be determined (e.g., INSERT DELAYED).  Such
+# statements should be marked unsafe.  All unsafe statements should
+# give a warning.
+# Yet the warning/error message isn't issued when SQL_LOG_BIN is turned off.
+#
+# This test verifies that a warning is generated for statements that
+# should be unsafe, when they are executed under statement mode
+# logging.
+#
+# All variables should be unsafe, with some exceptions.  Therefore,
+# this test also verifies that the exceptions do *not* generare a
+# warning.
+#
+#
+# ==== Method ====
+#
+# We try an INSERT DELAYED statement and verify that a warning is
+# issued.
+#
+# We try to insert unsafe variables into a table in several ways:
+# directly with an INSERT statement, from a stored procedure, from a
+# stored function, from a trigger, from a prepared statement, and from
+# a complicated nesting of triggers, functions, procedures, and
+# prepared statements.  In all cases, a warning should be issued.
+#
+# We try to insert the variables that should not be unsafe into a
+# table, and verify that *no* warning is issued.
+#
+# Execute a unsafe statement calling a trigger or stored function
+# or neither when SQL_LOG_BIN is turned ON, a warning/error should be issued
+# Execute a unsafe statement calling a trigger or stored function
+# or neither when @@SQL_LOG_BIN is turned OFF,
+# no warning/error is issued
+
+# ==== Related bugs and worklogs ====
+#
+# WL#3339: Issue warnings when statement-based replication may fail
+# BUG#31168: @@hostname does not replicate
+# BUG#34732: mysqlbinlog does not print default values for auto_increment variables
+# BUG#34768: nondeterministic INSERT using LIMIT logged in stmt mode if binlog_format=mixed
+# BUG#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0
+# BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
+# BUG#47995: Mark user functions as unsafe
+# BUG#49222: Mare RAND() unsafe
+#
+# ==== Related test cases ====
+#
+# rpl.rpl_variables verifies that variables which cannot be replicated
+# safely in statement mode are replicated correctly in mixed or row
+# mode.
+#
+# rpl.rpl_variables_stm tests the small subset of variables that
+# actually can be replicated safely in statement mode.
+#
+#
+# ==== Todo ====
+#
+# There are several other ways to create unsafe statements: see, e.g.,
+# WL#3339, BUG#34768.
+
+source include/have_log_bin.inc;
+source include/have_binlog_format_statement.inc;
+
+--echo ==== Setup tables ====
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a TEXT);
+CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE trigger_table (a TEXT);
+CREATE TABLE trigger_table2 (a INT);
+
+
+--echo ==== Non-deterministic statements ====
+
+INSERT DELAYED INTO t1 VALUES (5);
+
+
+--echo ==== Some variables that *should* be unsafe ====
+
+--echo ---- Insert directly ----
+
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+INSERT INTO t1 VALUES (@@session.insert_id);
+INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
+INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@hostname);
+
+--echo ---- Insert from stored procedure ----
+
+DELIMITER |;
+CREATE PROCEDURE proc()
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+END|
+DELIMITER ;|
+
+CALL proc();
+
+--echo ---- Insert from stored function ----
+
+DELIMITER |;
+CREATE FUNCTION func()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+  RETURN 0;
+END|
+DELIMITER ;|
+
+SELECT func();
+
+--echo ---- Insert from trigger ----
+
+DELIMITER |;
+CREATE TRIGGER trig
+BEFORE INSERT ON trigger_table
+FOR EACH ROW
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+END|
+DELIMITER ;|
+
+INSERT INTO trigger_table VALUES ('bye.');
+
+--echo ---- Insert from prepared statement ----
+
+PREPARE p1 FROM 'INSERT INTO t1 VALUES (@@global.sync_binlog)';
+PREPARE p2 FROM 'INSERT INTO t1 VALUES (@@session.insert_id)';
+PREPARE p3 FROM 'INSERT INTO t1 VALUES (@@global.auto_increment_increment)';
+PREPARE p4 FROM 'INSERT INTO t2 SELECT UUID()';
+PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@session.sql_mode)';
+PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
+PREPARE p7 FROM 'INSERT INTO t2 VALUES (@@hostname)';
+
+EXECUTE p1; EXECUTE p2; EXECUTE p3; EXECUTE p4; EXECUTE p5;
+EXECUTE p6; EXECUTE p7;
+
+--echo ---- Insert from nested call of triggers / functions / procedures ----
+
+DELIMITER |;
+
+# proc1: cause trigger 'trig' above to be triggered.
+CREATE PROCEDURE proc1()
+  INSERT INTO trigger_table VALUES ('ha!')|
+
+# func2: call proc1 above.
+CREATE FUNCTION func2()
+RETURNS INT
+BEGIN
+  CALL proc1();
+  RETURN 0;
+END|
+
+# trig3: call func2 above
+CREATE TRIGGER trig3
+BEFORE INSERT ON trigger_table2
+FOR EACH ROW
+BEGIN
+  DECLARE tmp INT;
+  SELECT func2() INTO tmp;
+END|
+
+# proc4: cause trig3 above to be triggered.
+CREATE PROCEDURE proc4()
+  INSERT INTO trigger_table2 VALUES (1)|
+
+# func5: call proc4 above.
+CREATE FUNCTION func5()
+RETURNS INT
+BEGIN
+  CALL proc4;
+  RETURN 0;
+END|
+
+# prep6: call func5() above.
+PREPARE prep6 FROM 'SELECT func5()'|
+
+DELIMITER ;|
+
+# try a complicated call path to trigger 'trig'.
+EXECUTE prep6;
+
+
+--echo ==== Variables that should *not* be unsafe ====
+
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.foreign_key_checks);
+INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
+INSERT INTO t1 VALUES (@@session.unique_checks);
+INSERT INTO t1 VALUES (@@session.auto_increment_increment);
+INSERT INTO t1 VALUES (@@session.auto_increment_offset);
+INSERT INTO t2 VALUES (@@session.character_set_client);
+INSERT INTO t2 VALUES (@@session.collation_connection);
+INSERT INTO t2 VALUES (@@session.collation_server);
+INSERT INTO t2 VALUES (@@session.time_zone);
+INSERT INTO t2 VALUES (@@session.lc_time_names);
+INSERT INTO t2 VALUES (@@session.collation_database);
+INSERT INTO t2 VALUES (@@session.timestamp);
+INSERT INTO t2 VALUES (@@session.last_insert_id);
+SET @my_var= 4711;
+INSERT INTO t1 VALUES (@my_var);
+
+# using insert_id implicitly should be ok.
+SET insert_id=12;
+INSERT INTO t3 VALUES (NULL);
+
+
+--echo ==== Clean up ====
+
+DROP PROCEDURE proc;
+DROP FUNCTION  func;
+DROP TRIGGER   trig;
+DROP PROCEDURE proc1;
+DROP FUNCTION  func2;
+DROP TRIGGER   trig3;
+DROP PROCEDURE proc4;
+DROP FUNCTION  func5;
+DROP PREPARE   prep6;
+DROP TABLE t1, t2, t3, trigger_table, trigger_table2;
+#
+# BUG#34768 - nondeterministic INSERT using LIMIT logged in stmt mode if
+#             binlog_format=mixed
+#
+CREATE TABLE t1(a INT, b INT, KEY(a), PRIMARY KEY(b));
+INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+UPDATE t1 SET a=1 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+  REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+  UPDATE t1 SET a=1 LIMIT 1;
+  DELETE FROM t1 LIMIT 1;
+END|
+delimiter ;|
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+#
+# Bug#42634: % character in query can cause mysqld signal 11 segfault
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a VARCHAR(100), b VARCHAR(100));
+INSERT INTO t1 VALUES ('a','b');
+UPDATE t1 SET b = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' WHERE a = 'a' LIMIT 1;
+DROP TABLE t1;
+
+#
+#For bug#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0 
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+CREATE TABLE t1(i INT PRIMARY KEY);
+CREATE TABLE t2(i INT PRIMARY KEY);
+CREATE TABLE t3(i INT, ch CHAR(50));
+
+--echo "Should issue message Statement may not be safe to log in statement format."
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+
+DELIMITER |;
+CREATE FUNCTION func6()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (10);
+  INSERT INTO t1 VALUES (11);
+  INSERT INTO t1 VALUES (12);
+  RETURN 0;
+END|
+DELIMITER ;|
+--echo "Should issue message Statement may not be safe to log in statement format only once"
+INSERT INTO t3 VALUES(func6(), UUID());
+
+--echo "Check whether SET @@SQL_LOG_BIN = 0/1 doesn't work in substatements"
+DELIMITER |;
+CREATE FUNCTION fun_check_log_bin() RETURNS INT
+BEGIN
+  SET @@SQL_LOG_BIN = 0;
+  INSERT INTO t1 VALUES(@@global.sync_binlog);
+  RETURN 100;
+END|
+DELIMITER ;|
+--echo "One unsafe warning should be issued in the following statement"
+SELECT fun_check_log_bin();
+--echo "SQL_LOG_BIN should be ON still"
+SHOW VARIABLES LIKE "SQL_LOG_BIN";
+
+set @save_log_bin = @@SESSION.SQL_LOG_BIN;
+set @@SESSION.SQL_LOG_BIN = 0;
+--echo "Should NOT have any warning message issued in the following statements"
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+DROP TABLE t1,t2;
+
+--echo "Should NOT have any warning message issued in the following func7() and trig"
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a TEXT);
+CREATE TABLE trigger_table (a CHAR(7));
+DELIMITER |;
+CREATE FUNCTION func7()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  RETURN 0;
+END|
+DELIMITER ;|
+SHOW VARIABLES LIKE "SQL_LOG_BIN";
+SELECT func7();
+
+--echo ---- Insert from trigger ----
+
+DELIMITER |;
+CREATE TRIGGER trig
+BEFORE INSERT ON trigger_table
+FOR EACH ROW
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+END|
+DELIMITER ;|
+
+INSERT INTO trigger_table VALUES ('bye.');
+
+#clean up
+DROP FUNCTION fun_check_log_bin;
+DROP FUNCTION func6;
+DROP FUNCTION func7;
+DROP TRIGGER  trig;
+DROP TABLE t1, t2, t3, trigger_table;
+set @@SESSION.SQL_LOG_BIN = @save_log_bin;
+
+#
+# For BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
+#
+SET @save_sql_mode = @@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE = STRICT_ALL_TABLES;
+
+CREATE TABLE t1(i INT PRIMARY KEY);
+CREATE TABLE t2(i INT PRIMARY KEY);
+
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+INSERT INTO t1 VALUES(@@global.sync_binlog);
+
+UPDATE t1 SET i = 999 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+
+DROP TABLE t1, t2;
+SET @@SESSION.SQL_MODE = @save_sql_mode;
+
+#
+# BUG#47995: Mark user functions as unsafe
+# BUG#49222: Mare RAND() unsafe
+#
+# Test that the system functions that are supposed to be marked unsafe
+# generate a warning.  Each INSERT statement below should generate a
+# warning.
+#
+
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (FOUND_ROWS());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));   #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat')); #marked unsafe in BUG#39701
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (ROW_COUNT());          #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SESSION_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SLEEP(1));             #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSDATE());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSTEM_USER());        #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (USER());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID_SHORT());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (VERSION());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (RAND());               #marked unsafe in BUG#49222
+DELETE FROM t1;
+
+# Since we replicate the TIMESTAMP variable, functions affected by the
+# TIMESTAMP variable are safe to replicate.  So we check that the
+# following following functions that depend on the TIMESTAMP variable
+# are not unsafe and don't generate a warning.
+
+SET TIMESTAMP=1000000;
+INSERT INTO t1 VALUES
+  (CURDATE()),
+  (CURRENT_DATE()),
+  (CURRENT_TIME()),
+  (CURRENT_TIMESTAMP()),
+  (CURTIME()),
+  (LOCALTIME()),
+  (LOCALTIMESTAMP()),
+  (NOW()),
+  (UNIX_TIMESTAMP()),
+  (UTC_DATE()),
+  (UTC_TIME()),
+  (UTC_TIMESTAMP());
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo "End of tests"

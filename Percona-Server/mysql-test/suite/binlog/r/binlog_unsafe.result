@@ -1,0 +1,415 @@
+==== Setup tables ====
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a TEXT);
+CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE trigger_table (a TEXT);
+CREATE TABLE trigger_table2 (a INT);
+==== Non-deterministic statements ====
+INSERT DELAYED INTO t1 VALUES (5);
+==== Some variables that *should* be unsafe ====
+---- Insert directly ----
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (@@session.insert_id);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t2 SELECT UUID();
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t2 VALUES (@@session.sql_mode);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t2 VALUES (@@global.init_slave);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t2 VALUES (@@hostname);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+---- Insert from stored procedure ----
+CREATE PROCEDURE proc()
+BEGIN
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+INSERT INTO t1 VALUES (@@session.insert_id);
+INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
+INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@hostname);
+END|
+CALL proc();
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+---- Insert from stored function ----
+CREATE FUNCTION func()
+RETURNS INT
+BEGIN
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+INSERT INTO t1 VALUES (@@session.insert_id);
+INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
+INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@hostname);
+RETURN 0;
+END|
+SELECT func();
+func()
+0
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+---- Insert from trigger ----
+CREATE TRIGGER trig
+BEFORE INSERT ON trigger_table
+FOR EACH ROW
+BEGIN
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+INSERT INTO t1 VALUES (@@session.insert_id);
+INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
+INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@hostname);
+END|
+INSERT INTO trigger_table VALUES ('bye.');
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+---- Insert from prepared statement ----
+PREPARE p1 FROM 'INSERT INTO t1 VALUES (@@global.sync_binlog)';
+PREPARE p2 FROM 'INSERT INTO t1 VALUES (@@session.insert_id)';
+PREPARE p3 FROM 'INSERT INTO t1 VALUES (@@global.auto_increment_increment)';
+PREPARE p4 FROM 'INSERT INTO t2 SELECT UUID()';
+PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@session.sql_mode)';
+PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
+PREPARE p7 FROM 'INSERT INTO t2 VALUES (@@hostname)';
+EXECUTE p1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+EXECUTE p2;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+EXECUTE p3;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+EXECUTE p4;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+EXECUTE p5;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+EXECUTE p6;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+EXECUTE p7;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+---- Insert from nested call of triggers / functions / procedures ----
+CREATE PROCEDURE proc1()
+INSERT INTO trigger_table VALUES ('ha!')|
+CREATE FUNCTION func2()
+RETURNS INT
+BEGIN
+CALL proc1();
+RETURN 0;
+END|
+CREATE TRIGGER trig3
+BEFORE INSERT ON trigger_table2
+FOR EACH ROW
+BEGIN
+DECLARE tmp INT;
+SELECT func2() INTO tmp;
+END|
+CREATE PROCEDURE proc4()
+INSERT INTO trigger_table2 VALUES (1)|
+CREATE FUNCTION func5()
+RETURNS INT
+BEGIN
+CALL proc4;
+RETURN 0;
+END|
+PREPARE prep6 FROM 'SELECT func5()'|
+EXECUTE prep6;
+func5()
+0
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+==== Variables that should *not* be unsafe ====
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.foreign_key_checks);
+INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
+INSERT INTO t1 VALUES (@@session.unique_checks);
+INSERT INTO t1 VALUES (@@session.auto_increment_increment);
+INSERT INTO t1 VALUES (@@session.auto_increment_offset);
+INSERT INTO t2 VALUES (@@session.character_set_client);
+INSERT INTO t2 VALUES (@@session.collation_connection);
+INSERT INTO t2 VALUES (@@session.collation_server);
+INSERT INTO t2 VALUES (@@session.time_zone);
+INSERT INTO t2 VALUES (@@session.lc_time_names);
+INSERT INTO t2 VALUES (@@session.collation_database);
+INSERT INTO t2 VALUES (@@session.timestamp);
+INSERT INTO t2 VALUES (@@session.last_insert_id);
+SET @my_var= 4711;
+INSERT INTO t1 VALUES (@my_var);
+SET insert_id=12;
+INSERT INTO t3 VALUES (NULL);
+==== Clean up ====
+DROP PROCEDURE proc;
+DROP FUNCTION  func;
+DROP TRIGGER   trig;
+DROP PROCEDURE proc1;
+DROP FUNCTION  func2;
+DROP TRIGGER   trig3;
+DROP PROCEDURE proc4;
+DROP FUNCTION  func5;
+DROP PREPARE   prep6;
+DROP TABLE t1, t2, t3, trigger_table, trigger_table2;
+CREATE TABLE t1(a INT, b INT, KEY(a), PRIMARY KEY(b));
+INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+UPDATE t1 SET a=1 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DELETE FROM t1 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+UPDATE t1 SET a=1 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+END|
+CALL p1();
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Statement may not be safe to log in statement format.
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a VARCHAR(100), b VARCHAR(100));
+INSERT INTO t1 VALUES ('a','b');
+UPDATE t1 SET b = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s' WHERE a = 'a' LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1(i INT PRIMARY KEY);
+CREATE TABLE t2(i INT PRIMARY KEY);
+CREATE TABLE t3(i INT, ch CHAR(50));
+"Should issue message Statement may not be safe to log in statement format."
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+CREATE FUNCTION func6()
+RETURNS INT
+BEGIN
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (11);
+INSERT INTO t1 VALUES (12);
+RETURN 0;
+END|
+"Should issue message Statement may not be safe to log in statement format only once"
+INSERT INTO t3 VALUES(func6(), UUID());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+"Check whether SET @@SQL_LOG_BIN = 0/1 doesn't work in substatements"
+CREATE FUNCTION fun_check_log_bin() RETURNS INT
+BEGIN
+SET @@SQL_LOG_BIN = 0;
+INSERT INTO t1 VALUES(@@global.sync_binlog);
+RETURN 100;
+END|
+"One unsafe warning should be issued in the following statement"
+SELECT fun_check_log_bin();
+fun_check_log_bin()
+100
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+"SQL_LOG_BIN should be ON still"
+SHOW VARIABLES LIKE "SQL_LOG_BIN";
+Variable_name	Value
+sql_log_bin	ON
+set @save_log_bin = @@SESSION.SQL_LOG_BIN;
+set @@SESSION.SQL_LOG_BIN = 0;
+"Should NOT have any warning message issued in the following statements"
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+DROP TABLE t1,t2;
+"Should NOT have any warning message issued in the following func7() and trig"
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a TEXT);
+CREATE TABLE trigger_table (a CHAR(7));
+CREATE FUNCTION func7()
+RETURNS INT
+BEGIN
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+INSERT INTO t1 VALUES (@@session.insert_id);
+INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
+INSERT INTO t2 VALUES (@@global.init_slave);
+RETURN 0;
+END|
+SHOW VARIABLES LIKE "SQL_LOG_BIN";
+Variable_name	Value
+sql_log_bin	OFF
+SELECT func7();
+func7()
+0
+---- Insert from trigger ----
+CREATE TRIGGER trig
+BEFORE INSERT ON trigger_table
+FOR EACH ROW
+BEGIN
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+INSERT INTO t1 VALUES (@@session.insert_id);
+INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
+INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@hostname);
+END|
+INSERT INTO trigger_table VALUES ('bye.');
+DROP FUNCTION fun_check_log_bin;
+DROP FUNCTION func6;
+DROP FUNCTION func7;
+DROP TRIGGER  trig;
+DROP TABLE t1, t2, t3, trigger_table;
+set @@SESSION.SQL_LOG_BIN = @save_log_bin;
+SET @save_sql_mode = @@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE = STRICT_ALL_TABLES;
+CREATE TABLE t1(i INT PRIMARY KEY);
+CREATE TABLE t2(i INT PRIMARY KEY);
+INSERT INTO t1 SELECT * FROM t2 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES(@@global.sync_binlog);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+UPDATE t1 SET i = 999 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DELETE FROM t1 LIMIT 1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DROP TABLE t1, t2;
+SET @@SESSION.SQL_MODE = @save_sql_mode;
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (FOUND_ROWS());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (ROW_COUNT());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SESSION_USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SLEEP(1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SYSDATE());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SYSTEM_USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (UUID());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (UUID_SHORT());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (VERSION());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (RAND());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DELETE FROM t1;
+SET TIMESTAMP=1000000;
+INSERT INTO t1 VALUES
+(CURDATE()),
+(CURRENT_DATE()),
+(CURRENT_TIME()),
+(CURRENT_TIMESTAMP()),
+(CURTIME()),
+(LOCALTIME()),
+(LOCALTIMESTAMP()),
+(NOW()),
+(UNIX_TIMESTAMP()),
+(UTC_DATE()),
+(UTC_TIME()),
+(UTC_TIMESTAMP());
+SELECT * FROM t1;
+a
+1970-01-12
+1970-01-12
+16:46:40
+1970-01-12 16:46:40
+16:46:40
+1970-01-12 16:46:40
+1970-01-12 16:46:40
+1970-01-12 16:46:40
+1000000
+1970-01-12
+13:46:40
+1970-01-12 13:46:40
+DROP TABLE t1;
+"End of tests"

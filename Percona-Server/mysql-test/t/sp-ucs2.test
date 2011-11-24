@@ -1,0 +1,57 @@
+-- source include/have_ucs2.inc
+
+delimiter |;
+
+#
+# BUG#17615: problem with character set
+#
+--disable_warnings
+drop function if exists bug17615|
+--enable_warnings
+
+create table t3 (a varchar(256) unicode)|
+
+create function bug17615() returns varchar(256) unicode
+begin
+  declare tmp_res varchar(256) unicode;
+  set tmp_res= 'foo string';
+  return tmp_res;
+end|
+
+insert into t3 values(bug17615())|
+select * from t3|
+
+drop function bug17615|
+drop table t3|
+
+
+delimiter ;|
+
+#
+# Bug#48766 SHOW CREATE FUNCTION returns extra data in return clause
+#
+SET NAMES utf8;
+--disable_warnings
+DROP FUNCTION IF EXISTS bug48766;
+--enable_warnings
+#
+# Test that Latin letters are not prepended with extra '\0'.
+#
+CREATE FUNCTION bug48766 ()
+  RETURNS ENUM( 'w' ) CHARACTER SET ucs2
+  RETURN 0;
+SHOW CREATE FUNCTION bug48766;
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_NAME='bug48766';
+DROP FUNCTION bug48766;
+#
+# Test non-Latin characters
+#
+CREATE FUNCTION bug48766 ()
+  RETURNS ENUM('а','б','в','г') CHARACTER SET ucs2
+  RETURN 0;
+SHOW CREATE FUNCTION bug48766;
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_NAME='bug48766';
+
+DROP FUNCTION bug48766;

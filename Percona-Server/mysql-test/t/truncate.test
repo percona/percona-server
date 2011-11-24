@@ -1,0 +1,71 @@
+#
+# Test of truncate
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a integer, b integer,c1 CHAR(10));
+insert into t1 (a) values (1),(2);
+truncate table t1;
+select count(*) from t1;
+insert into t1 values(1,2,"test");
+select count(*) from t1;
+delete from t1;
+select * from t1;
+drop table t1;
+# The following should fail
+--error 1146
+select count(*) from t1;
+create temporary table t1 (n int);
+insert into t1 values (1),(2),(3);
+truncate table t1;
+select * from t1;
+drop table t1;
+--error 1146
+truncate non_existing_table;
+
+#
+# test autoincrement with TRUNCATE; verifying difference with DELETE
+#
+
+create table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+drop table t1;
+
+# Verifying that temp tables are handled the same way
+
+create temporary table t1 (a integer auto_increment primary key);
+insert into t1 (a) values (NULL),(NULL);
+truncate table t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+delete from t1;
+insert into t1 (a) values (NULL),(NULL);
+SELECT * from t1;
+drop table t1;
+
+# End of 4.1 tests
+
+# Test for Bug#5507 "TRUNCATE should work with views"
+#
+# when it'll be fixed, the error should become 1347
+# (test.v1' is not BASE TABLE)
+#
+
+create table t1 (s1 int); 
+insert into t1 (s1) values (1), (2), (3), (4), (5);
+create view v1 as select * from t1;
+--error 1146
+truncate table v1;
+drop view v1;
+drop table t1;
+
+# End of 5.0 tests
+

@@ -1,0 +1,421 @@
+drop table if exists t1, t2;
+#
+# Bug#56287: crash when using Partition datetime in sub in query
+#
+CREATE TABLE t1
+(c1 bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+c2 varchar(40) not null default '',
+c3 datetime not  NULL,
+PRIMARY KEY (c1,c3),
+KEY partidx(c3))
+ENGINE=InnoDB
+PARTITION BY RANGE (TO_DAYS(c3))
+(PARTITION p200912 VALUES LESS THAN (to_days('2010-01-01')),
+PARTITION p201103 VALUES LESS THAN (to_days('2011-04-01')),
+PARTITION p201912 VALUES LESS THAN MAXVALUE);
+insert into t1(c2,c3) values ("Test row",'2010-01-01 00:00:00');
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
+PARTITION_NAME	TABLE_ROWS
+p200912	0
+p201103	1
+p201912	0
+SELECT count(*) FROM t1 p where c3 in
+(select c3 from t1 t where t.c3 < date '2011-04-26 19:19:44'
+ and t.c3 > date '2011-04-26 19:18:44') ;
+count(*)
+0
+DROP TABLE t1;
+#
+# Bug#51830: Incorrect partition pruning on range partition (regression)
+#
+CREATE TABLE t1 (a INT NOT NULL)
+ENGINE = InnoDB
+PARTITION BY RANGE(a)
+(PARTITION p10 VALUES LESS THAN (10),
+PARTITION p30 VALUES LESS THAN (30),
+PARTITION p50 VALUES LESS THAN (50),
+PARTITION p70 VALUES LESS THAN (70),
+PARTITION p90 VALUES LESS THAN (90));
+INSERT INTO t1 VALUES (10),(30),(50);
+INSERT INTO t1 VALUES (70);
+INSERT INTO t1 VALUES (80);
+INSERT INTO t1 VALUES (89);
+INSERT INTO t1 VALUES (90);
+ERROR HY000: Table has no partition for value 90
+INSERT INTO t1 VALUES (100);
+ERROR HY000: Table has no partition for value 100
+insert INTO t1 VALUES (110);
+ERROR HY000: Table has no partition for value 110
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+DROP TABLE t1;
+#
+# Bug#50104: Partitioned table with just 1 partion works with fk
+#
+CREATE TABLE t2 (
+id INT,
+PRIMARY KEY (id)
+) ENGINE=InnoDB ;
+CREATE TABLE t1 (
+id INT NOT NULL AUTO_INCREMENT,
+parent_id INT DEFAULT NULL,
+PRIMARY KEY (id),
+KEY parent_id (parent_id)
+) ENGINE=InnoDB;
+ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 1;
+ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
+ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
+ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 2;
+ALTER TABLE t1 ADD CONSTRAINT test_ibfk_1 FOREIGN KEY (parent_id) REFERENCES t2 (id);
+ERROR HY000: Foreign key clause is not yet supported in conjunction with partitioning
+DROP TABLE t1, t2;
+create table t1 (a int not null,
+b datetime not null,
+primary key (a,b))
+engine=innodb
+partition by range (to_days(b))
+subpartition by hash (a)
+subpartitions 2
+( partition p0 values less than (to_days('2009-01-01')),
+partition p1 values less than (to_days('2009-02-01')),
+partition p2 values less than (to_days('2009-03-01')),
+partition p3 values less than maxvalue);
+alter table t1 reorganize partition p1,p2 into
+( partition p2 values less than (to_days('2009-03-01')));
+drop table t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB 
+PARTITION BY RANGE(id) ( 
+PARTITION p0 VALUES LESS THAN (5), 
+PARTITION p1 VALUES LESS THAN (10), 
+PARTITION p2 VALUES LESS THAN MAXVALUE 
+);
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
+(9,9), (10,10), (11,11);
+SET @old_tx_isolation := @@session.tx_isolation;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET autocommit = 0;
+UPDATE t1 SET DATA = data*2 WHERE id = 3;
+SHOW ENGINE InnoDB STATUS;
+Type	Name	Status
+InnoDB		2 lock struct(s) 1 row lock(s)
+UPDATE t1 SET data = data*2 WHERE data = 2;
+SHOW ENGINE InnoDB STATUS;
+Type	Name	Status
+InnoDB		6 lock struct(s) 2 row lock(s)
+SET @@session.tx_isolation = @old_tx_isolation;
+DROP TABLE t1;
+# Bug#37721, test of ORDER BY on PK and WHERE on INDEX
+CREATE TABLE t1 (
+a INT,
+b INT,
+PRIMARY KEY (a),
+INDEX (b))
+ENGINE InnoDB
+PARTITION BY HASH(a)
+PARTITIONS 3;
+INSERT INTO t1 VALUES (0,0),(4,0),(2,0);
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+a
+0
+2
+4
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+a
+4
+2
+0
+ALTER TABLE t1 DROP INDEX b;
+SELECT a FROM t1 WHERE b = 0 ORDER BY a ASC;
+a
+0
+2
+4
+SELECT a FROM t1 WHERE b = 0 ORDER BY a DESC;
+a
+4
+2
+0
+DROP TABLE t1;
+CREATE TABLE t1 (
+a VARCHAR(600),
+b VARCHAR(600),
+PRIMARY KEY (a),
+INDEX (b))
+ENGINE InnoDB
+PARTITION BY KEY(a)
+PARTITIONS 3;
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'1'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'3'),repeat('0',257));
+INSERT INTO t1 VALUES (concat(repeat('MySQL',100),'2'),repeat('0',257));
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+right(a,1)
+1
+2
+3
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+right(a,1)
+3
+2
+1
+ALTER TABLE t1 DROP INDEX b;
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a ASC;
+right(a,1)
+1
+2
+3
+SELECT right(a,1) FROM t1 WHERE b = repeat('0',257) ORDER BY a DESC;
+right(a,1)
+3
+2
+1
+DROP TABLE t1;
+# Bug#32948
+CREATE TABLE t1 (c1 INT, PRIMARY KEY (c1)) ENGINE=INNODB;
+CREATE TABLE t2 (c1 INT, PRIMARY KEY (c1),
+FOREIGN KEY (c1) REFERENCES t1 (c1)
+ON DELETE CASCADE)
+ENGINE=INNODB;
+ALTER TABLE t1 PARTITION BY HASH(c1) PARTITIONS 5;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ALTER TABLE t1 ENGINE=MyISAM;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE t2;
+DROP TABLE t1;
+create table t1 (a int) engine=innodb partition by hash(a) ;
+show table status like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int)
+engine = innodb
+partition by key (a);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (0), (1), (2), (3);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	4	4096	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int auto_increment primary key)
+engine = innodb
+partition by key (a);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	#	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	4	4096	16384	0	0	#	5	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	8	2048	16384	0	0	#	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int)
+partition by key (a)
+(partition p1 engine = innodb);
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+alter table t1 rebuild partition p1;
+drop table t1;
+create table t1 (a date)
+engine = innodb
+partition by range (year(a))
+(partition p0 values less than (2006),
+partition p1 values less than (2007));
+explain partitions select * from t1
+where a between '2006-01-01' and '2007-06-01';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
+create table t1 (a int)
+engine = x
+partition by key (a);
+Warnings:
+Warning	1286	Unknown table engine 'x'
+Warning	1266	Using storage engine MyISAM for table 't1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a) */
+drop table t1;
+create table t1 (a int)
+engine = innodb
+partition by list (a)
+(partition p0 values in (0));
+alter table t1 engine = x;
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB) */
+drop table t1;
+create table t1
+(
+id int unsigned auto_increment,
+time datetime not null,
+first_name varchar(40),
+last_name varchar(50),
+primary key (id, time),
+index first_index (first_name),
+index last_index (last_name)	
+) engine=Innodb partition by range (to_days(time)) (
+partition p1 values less than (to_days('2007-02-07')),
+partition p2 values less than (to_days('2007-02-08')),
+partition p3 values less than MAXVALUE
+);
+insert into t1 (time, first_name, last_name) values ('2007-02-07', 'Q', 'Robert'),
+('2007-02-07', 'Mark', 'Nate'), ('2007-02-07', 'Nate', 'Oscar'),
+('2007-02-07', 'Zack', 'Alice'), ('2007-02-07', 'Jack', 'Kathy'),
+('2007-02-06', 'Alice', 'Alice'), ('2007-02-06', 'Brian', 'Charles'),
+('2007-02-06', 'Charles', 'David'), ('2007-02-06', 'David', 'Eric'),
+('2007-02-07', 'Hector', 'Isaac'), ('2007-02-07', 'Oscar', 'Patricia'),
+('2007-02-07', 'Patricia', 'Q'), ('2007-02-07', 'X', 'Yuri'),
+('2007-02-07', 'Robert', 'Shawn'), ('2007-02-07', 'Kathy', 'Lois'),
+('2007-02-07', 'Eric', 'Francis'), ('2007-02-06', 'Shawn', 'Theron'),
+('2007-02-06', 'U', 'Vincent'), ('2007-02-06', 'Francis', 'George'),
+('2007-02-06', 'George', 'Hector'), ('2007-02-06', 'Vincent', 'Walter'),
+('2007-02-06', 'Walter', 'X'), ('2007-02-07', 'Lois', 'Mark'),
+('2007-02-07', 'Yuri', 'Zack'), ('2007-02-07', 'Isaac', 'Jack'),
+('2007-02-07', 'Sharon', 'Mark'), ('2007-02-07', 'Michael', 'Michelle'),
+('2007-02-07', 'Derick', 'Nathan'), ('2007-02-07', 'Peter', 'Xavier'),
+('2007-02-07', 'Fred', 'Harold'), ('2007-02-07', 'Katherine', 'Lisa'),
+('2007-02-07', 'Tom', 'Rina'), ('2007-02-07', 'Jerry', 'Victor'),
+('2007-02-07', 'Alexander', 'Terry'), ('2007-02-07', 'Justin', 'John'),
+('2007-02-07', 'Greg', 'Ernest'), ('2007-02-07', 'Robert', 'Q'),
+('2007-02-07', 'Nate', 'Mark'), ('2007-02-07', 'Oscar', 'Nate'),
+('2007-02-07', 'Alice', 'Zack'), ('2007-02-07', 'Kathy', 'Jack'),
+('2007-02-06', 'Alice', 'Alice'), ('2007-02-06', 'Charles', 'Brian'),
+('2007-02-06', 'David', 'Charles'), ('2007-02-06', 'Eric', 'David'),
+('2007-02-07', 'Isaac', 'Hector'), ('2007-02-07', 'Patricia', 'Oscar'),
+('2007-02-07', 'Q', 'Patricia'), ('2007-02-07', 'Yuri', 'X'),
+('2007-02-07', 'Shawn', 'Robert'), ('2007-02-07', 'Lois', 'Kathy'),
+('2007-02-07', 'Francis', 'Eric'), ('2007-02-06', 'Theron', 'Shawn'),
+('2007-02-06', 'Vincent', 'U'), ('2007-02-06', 'George', 'Francis'),
+('2007-02-06', 'Hector', 'George'), ('2007-02-06', 'Walter', 'Vincent'),
+('2007-02-06', 'X', 'Walter'), ('2007-02-07', 'Mark', 'Lois'),
+('2007-02-07', 'Zack', 'Yuri'), ('2007-02-07', 'Jack', 'Isaac'),
+('2007-02-07', 'Mark', 'Sharon'), ('2007-02-07', 'Michelle', 'Michael'),
+('2007-02-07', 'Nathan', 'Derick'), ('2007-02-07', 'Xavier', 'Peter'),
+('2007-02-07', 'Harold', 'Fred'), ('2007-02-07', 'Lisa', 'Katherine'),
+('2007-02-07', 'Rina', 'Tom'), ('2007-02-07', 'Victor', 'Jerry'),
+('2007-02-07', 'Terry', 'Alexander'), ('2007-02-07', 'John', 'Justin'),
+('2007-02-07', 'Ernest', 'Greg');
+SELECT * FROM t1 WHERE first_name='Andy' OR last_name='Jake';
+id	time	first_name	last_name
+drop table t1;
+CREATE TABLE t1 (a DOUBLE NOT NULL, KEY(a)) ENGINE=InnoDB
+PARTITION BY KEY(a) PARTITIONS 10;
+INSERT INTO t1 VALUES(1),(2);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+DROP TABLE t1;
+create table t1 (int_column int, char_column char(5))
+PARTITION BY RANGE (int_column) subpartition by key (char_column) subpartitions 2
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = InnoDB);
+alter table t1
+ENGINE = MyISAM
+PARTITION BY RANGE (int_column)
+subpartition by key (char_column) subpartitions 2
+(PARTITION p1 VALUES LESS THAN (5));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `int_column` int(11) DEFAULT NULL,
+  `char_column` char(5) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (int_column)
+SUBPARTITION BY KEY (char_column)
+SUBPARTITIONS 2
+(PARTITION p1 VALUES LESS THAN (5) ENGINE = MyISAM) */
+drop table t1;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB
+PARTITION BY list(a) (PARTITION p1 VALUES IN (1));
+CREATE INDEX i1 ON t1 (a);
+DROP TABLE t1;
+#
+# Bug#47343: InnoDB fails to clean-up after lock wait timeout on
+#            REORGANIZE PARTITION
+#
+CREATE TABLE t1 (
+a INT,
+b DATE NOT NULL,
+PRIMARY KEY (a, b)
+) ENGINE=InnoDB
+PARTITION BY RANGE (a) (
+PARTITION pMAX VALUES LESS THAN MAXVALUE
+) ;
+INSERT INTO t1 VALUES (1, '2001-01-01'), (2, '2002-02-02'), (3, '2003-03-03');
+START TRANSACTION;
+SELECT * FROM t1 FOR UPDATE;
+a	b
+1	2001-01-01
+2	2002-02-02
+3	2003-03-03
+# Connection con1
+ALTER TABLE t1 REORGANIZE PARTITION pMAX INTO
+(PARTITION p3 VALUES LESS THAN (3),
+PARTITION pMAX VALUES LESS THAN MAXVALUE);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t1 REORGANIZE PARTITION pMAX INTO
+(PARTITION p3 VALUES LESS THAN (3),
+PARTITION pMAX VALUES LESS THAN MAXVALUE);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+t1.frm
+t1.par
+# Connection default
+SELECT * FROM t1;
+a	b
+1	2001-01-01
+2	2002-02-02
+3	2003-03-03
+COMMIT;
+DROP TABLE t1;
+CREATE TABLE t1 (i1 int NOT NULL primary key, f1 int) ENGINE = InnoDB
+PARTITION BY HASH(i1) PARTITIONS 2;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT * FROM t1 WHERE i1 = ( SELECT i1 FROM t1 WHERE f1=0 LIMIT 1 );
+i1	f1
+DROP TABLE t1;

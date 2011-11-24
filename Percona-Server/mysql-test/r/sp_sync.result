@@ -1,0 +1,35 @@
+Tests of synchronization of stored procedure execution.
+#
+# Bug#48157: crash in Item_field::used_tables
+#
+CREATE TABLE t1 AS SELECT 1 AS a, 1 AS b;
+CREATE TABLE t2 AS SELECT 1 AS a, 1 AS b;
+CREATE PROCEDURE p1()
+BEGIN
+UPDATE t1 JOIN t2 USING( a, b ) SET t1.b = 1, t2.b = 1;
+END|
+LOCK TABLES t1 WRITE, t2 WRITE;
+SET DEBUG_SYNC = 'multi_update_reopen_tables SIGNAL parked WAIT_FOR go';
+CALL p1();
+DROP TABLE t1, t2;
+SET DEBUG_SYNC = 'now WAIT_FOR parked';
+CREATE TABLE t1 AS SELECT 1 AS a, 1 AS b;
+CREATE TABLE t2 AS SELECT 1 AS a, 1 AS b;
+SET DEBUG_SYNC = 'now SIGNAL go';
+# Without the DEBUG_SYNC supplied in the same patch as this test in the 
+# code, this test statement will hang.
+DROP TABLE t1, t2;
+DROP PROCEDURE p1;
+#
+# test for bug#11756013
+#
+DROP SCHEMA IF EXISTS s1;
+CREATE SCHEMA s1;
+CREATE PROCEDURE s1.p1() BEGIN END;
+SET DEBUG_SYNC='before_db_dir_check SIGNAL check_db WAIT_FOR dropped_schema';
+CALL s1.p1;
+SET DEBUG_SYNC='now WAIT_FOR check_db';
+DROP SCHEMA s1;
+SET DEBUG_SYNC='now SIGNAL dropped_schema';
+ERROR 42000: Unknown database 's1'
+SET DEBUG_SYNC = 'RESET';

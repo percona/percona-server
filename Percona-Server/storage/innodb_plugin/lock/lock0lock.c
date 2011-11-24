@@ -3330,6 +3330,7 @@ retry:
 		break;
 
 	case LOCK_VICTIM_IS_START:
+		srv_n_lock_deadlock_count++;
 		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
 		      lock_latest_err_file);
 		break;

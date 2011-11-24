@@ -458,7 +458,7 @@ static ulint	srv_n_rows_inserted_old		= 0;
 static ulint	srv_n_rows_updated_old		= 0;
 static ulint	srv_n_rows_deleted_old		= 0;
 static ulint	srv_n_rows_read_old		= 0;
-
+UNIV_INTERN ulint               srv_n_lock_deadlock_count       = 0;
 UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
 UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
@@ -2171,6 +2171,8 @@ srv_export_innodb_status(void)
 		= UT_LIST_GET_LEN(buf_pool->flush_list);
 	export_vars.innodb_buffer_pool_pages_free
 		= UT_LIST_GET_LEN(buf_pool->free);
+	export_vars.innodb_deadlocks
+	        = srv_n_lock_deadlock_count;
 #ifdef UNIV_DEBUG
 	export_vars.innodb_buffer_pool_pages_latched
 		= buf_get_latched_pages_number();

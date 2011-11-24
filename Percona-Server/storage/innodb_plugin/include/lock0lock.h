@@ -43,6 +43,7 @@ extern ibool	lock_print_waits;
 #endif /* UNIV_DEBUG */
 /* Buffer for storing information about the most recent deadlock error */
 extern FILE*	lock_latest_err_file;
+extern ulint    srv_n_lock_deadlock_count;
 
 /*********************************************************************//**
 Gets the size of a lock struct.

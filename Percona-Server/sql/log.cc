@@ -4616,6 +4616,12 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
                                  user_var_event->length,
                                  user_var_event->type,
                                  user_var_event->charset_number);
+            /*
+              These User_var_log_events must be logged with event_info's
+              server_id, rather than the current one.
+            */
+            e.server_id= event_info->server_id;
+
             if (e.write(file))
               goto err;
             if (file == &log_file)

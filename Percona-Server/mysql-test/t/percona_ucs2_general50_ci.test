@@ -1,0 +1,12 @@
+#
+# Test that ucs2_general50_ci provides pre-5.1.24 utf8_general_ci behavior,
+# i.e. SHARP S is only equal to itself.
+#
+
+--source include/have_ucs2.inc
+
+SET NAMES latin1;
+
+SET collation_connection='ucs2_general50_ci';
+
+--source include/ctype_german.inc

@@ -11751,6 +11751,12 @@ static	MYSQL_SYSVAR_ULONG(pass_corrupt_table, srv_pass_corrupt_table,
   "except for the deletion.",
   NULL, NULL, 0, 0, 2, 0);
 
+static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
+  PLUGIN_VAR_RQCMDARG,
+  "At deleting tablespace, only miminum needed processes at the time are done. "
+  "e.g. for http://bugs.mysql.com/51325",
+  NULL, NULL, 0, 0, 1, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_block_size),
@@ -11842,6 +11848,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(blocking_lru_restore),
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(pass_corrupt_table),
+  MYSQL_SYSVAR(lazy_drop_table),
   NULL
 };
 
@@ -11851,7 +11858,7 @@ mysql_declare_plugin(innodb_plugin)
   &innobase_storage_engine,
   innobase_hton_name,
   "Innobase Oy",
-  "Supports transactions, row-level locking, and foreign keys",
+  "Percona-XtraDB, Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */

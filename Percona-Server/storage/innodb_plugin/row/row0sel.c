@@ -3414,6 +3414,7 @@ row_search_for_mysql(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
 	ibool		table_lock_waited		= FALSE;
+	ibool		problematic_use = FALSE;
 
 	rec_offs_init(offsets_);
 
@@ -3780,6 +3781,15 @@ release_search_latch_if_needed:
 
 	/* Do some start-of-statement preparations */
 
+	if (!prebuilt->mysql_has_locked) {
+		fprintf(stderr, "InnoDB: Error: row_search_for_mysql() is called without ha_innobase::external_lock()\n");
+		if (trx->mysql_thd != NULL) {
+			innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
+		}
+		problematic_use = TRUE;
+	}
+retry_check:
+	
 	if (!prebuilt->sql_stat_start) {
 		/* No need to set an intention lock or assign a read view */
 
@@ -3790,6 +3800,14 @@ release_search_latch_if_needed:
 			      " perform a consistent read\n"
 			      "InnoDB: but the read view is not assigned!\n",
 			      stderr);
+			if (problematic_use) {
+				fprintf(stderr, "InnoDB: It may be caused by calling "
+						"without ha_innobase::external_lock()\n"
+						"InnoDB: For the first-aid, avoiding the crash. "
+						"But it should be fixed ASAP.\n");
+				prebuilt->sql_stat_start = TRUE;
+				goto retry_check;
+			}
 			trx_print(stderr, trx, 600);
 			fputc('\n', stderr);
 			ut_error;

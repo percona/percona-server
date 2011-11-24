@@ -72,6 +72,13 @@ void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
 	ulint	id);	/*!< in: space id */
+/******************************************************************//**
+*/
+UNIV_INTERN
+void
+buf_LRU_mark_space_was_deleted(
+/*===========================*/
+	ulint	id);	/*!< in: space id */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */

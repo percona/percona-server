@@ -424,6 +424,8 @@ UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 
 UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
 UNIV_INTERN ulint	srv_dict_size_limit = 0;
+
+UNIV_INTERN ulint	srv_lazy_drop_table = 0;
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;

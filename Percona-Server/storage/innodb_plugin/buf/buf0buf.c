@@ -1454,6 +1454,27 @@ lookup:
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	}
 
+	if (UNIV_UNLIKELY(bpage->space_was_being_deleted)) {
+		/* This page is obsoleted, should discard and retry */
+		rw_lock_s_unlock(&page_hash_latch);
+
+		mutex_enter(&LRU_list_mutex);
+		block_mutex = buf_page_get_mutex_enter(bpage);
+
+		if (UNIV_UNLIKELY(!block_mutex)) {
+			mutex_exit(&LRU_list_mutex);
+			goto lookup;
+		}
+
+		buf_LRU_free_block(bpage, TRUE, TRUE);
+
+		mutex_exit(&LRU_list_mutex);
+		mutex_exit(block_mutex);
+		block_mutex = NULL;
+
+		goto lookup;
+	}
+
 	if (UNIV_UNLIKELY(!bpage->zip.data)) {
 		/* There is no compressed page. */
 err_exit:
@@ -1897,6 +1918,27 @@ loop:
 		rw_lock_s_lock(&page_hash_latch);
 		block = (buf_block_t*) buf_page_hash_get(space, offset);
 		if (block) {
+			if (UNIV_UNLIKELY(block->page.space_was_being_deleted)) {
+				/* This page is obsoleted, should discard and retry */
+				rw_lock_s_unlock(&page_hash_latch);
+
+				mutex_enter(&LRU_list_mutex);
+				block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
+
+				if (UNIV_UNLIKELY(!block_mutex)) {
+					mutex_exit(&LRU_list_mutex);
+					goto loop;
+				}
+
+				buf_LRU_free_block((buf_page_t*)block, TRUE, TRUE);
+
+				mutex_exit(&LRU_list_mutex);
+				mutex_exit(block_mutex);
+				block_mutex = NULL;
+
+				goto loop;
+			}
+
 			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
 			ut_a(block_mutex);
 		}
@@ -2713,6 +2755,7 @@ buf_page_init_for_read(
 {
 	buf_block_t*	block;
 	buf_page_t*	bpage;
+	buf_page_t*	bpage_in_bp;
 	mtr_t		mtr;
 	ibool		lru	= FALSE;
 	void*		data;
@@ -2748,11 +2791,29 @@ buf_page_init_for_read(
 		ut_ad(block);
 	}
 
+retry:
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
 	rw_lock_x_lock(&page_hash_latch);
 
-	if (buf_page_hash_get(space, offset)) {
+	bpage_in_bp = buf_page_hash_get(space, offset);
+
+	if (UNIV_UNLIKELY(bpage_in_bp && bpage_in_bp->space_was_being_deleted)) {
+		mutex_t*	block_mutex = buf_page_get_mutex_enter(bpage_in_bp);
+
+		/* This page is obsoleted, should discard and retry */
+		rw_lock_x_unlock(&page_hash_latch);
+		ut_a(block_mutex);
+
+		buf_LRU_free_block(bpage_in_bp, TRUE, TRUE);
+
+		mutex_exit(&LRU_list_mutex);
+		mutex_exit(block_mutex);
+
+		goto retry;
+	}
+
+	if (bpage_in_bp) {
 		/* The page is already in the buffer pool. */
 err_exit:
 		if (block) {
@@ -2864,6 +2925,7 @@ err_exit:
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
 		bpage->space	= space;
 		bpage->offset	= offset;
+		bpage->space_was_being_deleted = FALSE;
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
@@ -2936,11 +2998,27 @@ buf_page_create(
 
 	free_block = buf_LRU_get_free_block();
 
+retry:
 	//buf_pool_mutex_enter();
 	mutex_enter(&LRU_list_mutex);
 	rw_lock_x_lock(&page_hash_latch);
 
 	block = (buf_block_t*) buf_page_hash_get(space, offset);
+
+	if (UNIV_UNLIKELY(block && block->page.space_was_being_deleted)) {
+		mutex_t*	block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
+
+		/* This page is obsoleted, should discard and retry */
+		rw_lock_x_unlock(&page_hash_latch);
+		ut_a(block_mutex);
+
+		buf_LRU_free_block((buf_page_t*)block, TRUE, TRUE);
+
+		mutex_exit(&LRU_list_mutex);
+		mutex_exit(block_mutex);
+
+		goto retry;
+	}
 
 	if (block && buf_page_in_file(&block->page)) {
 #ifdef UNIV_IBUF_COUNT_DEBUG

@@ -658,6 +658,7 @@ os_aio(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	ulint		space_id,
 	trx_t*		trx);
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
@@ -718,7 +719,8 @@ os_aio_windows_handle(
 				parameters are valid and can be used to
 				restart the operation, for example */
 	void**	message2,
-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id);
 #endif
 
 /**********************************************************************//**
@@ -740,7 +742,8 @@ os_aio_simulated_handle(
 				parameters are valid and can be used to
 				restart the operation, for example */
 	void**	message2,
-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id);
 /**********************************************************************//**
 Validates the consistency of the aio system.
 @return	TRUE if ok */

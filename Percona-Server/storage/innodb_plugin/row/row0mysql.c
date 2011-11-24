@@ -51,6 +51,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0sea.h"
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
+#include "ha_prototypes.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -1134,6 +1135,13 @@ row_insert_for_mysql(
 	savept = trx_savept_take(trx);
 
 	thr = que_fork_get_first_thr(prebuilt->ins_graph);
+
+	if (!prebuilt->mysql_has_locked) {
+		fprintf(stderr, "InnoDB: Error: row_insert_for_mysql is called without ha_innobase::external_lock()\n");
+		if (trx->mysql_thd != NULL) {
+			innobase_mysql_print_thd(stderr, trx->mysql_thd, 600);
+		}
+	}
 
 	if (prebuilt->sql_stat_start) {
 		node->state = INS_NODE_SET_IX_LOCK;
@@ -2547,10 +2555,29 @@ row_discard_tablespace_for_mysql(
 
 			err = DB_ERROR;
 		} else {
+			dict_index_t*	index;
+
 			/* Set the flag which tells that now it is legal to
 			IMPORT a tablespace for this table */
 			table->tablespace_discarded = TRUE;
 			table->ibd_file_missing = TRUE;
+
+			/* check adaptive hash entries */
+			index = dict_table_get_first_index(table);
+			while (index) {
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
+				if (ref_count) {
+					fprintf(stderr, "InnoDB: Warning:"
+						" hash index ref_count (%lu) is not zero"
+						" after fil_discard_tablespace().\n"
+						"index: \"%s\""
+						" table: \"%s\"\n",
+						ref_count,
+						index->name,
+						table->name);
+				}
+				index = dict_table_get_next_index(index);
+			}
 		}
 	}
 
@@ -2902,6 +2929,19 @@ row_truncate_table_for_mysql(
 			table->space = space;
 			index = dict_table_get_first_index(table);
 			do {
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
+				/* check adaptive hash entries */
+				if (ref_count) {
+					fprintf(stderr, "InnoDB: Warning:"
+						" hash index ref_count (%lu) is not zero"
+						" after fil_discard_tablespace().\n"
+						"index: \"%s\""
+						" table: \"%s\"\n",
+						ref_count,
+						index->name,
+						table->name);
+				}
+
 				index->space = space;
 				index = dict_table_get_next_index(index);
 			} while (index);

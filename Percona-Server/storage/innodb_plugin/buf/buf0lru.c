@@ -505,6 +505,55 @@ next_page:
 	}
 }
 
+/******************************************************************//**
+*/
+UNIV_INTERN
+void
+buf_LRU_mark_space_was_deleted(
+/*===========================*/
+	ulint	id)	/*!< in: space id */
+{
+	buf_page_t*	bpage;
+	buf_chunk_t*	chunk;
+	ulint		i, j;
+
+	mutex_enter(&LRU_list_mutex);
+
+	bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+
+	while (bpage != NULL) {
+		if (buf_page_get_space(bpage) == id) {
+			bpage->space_was_being_deleted = TRUE;
+		}
+		bpage = UT_LIST_GET_NEXT(LRU, bpage);
+	}
+
+	mutex_exit(&LRU_list_mutex);
+
+	rw_lock_s_lock(&btr_search_latch);
+	chunk = buf_pool->chunks;
+	for (i = buf_pool->n_chunks; i--; chunk++) {
+		buf_block_t*	block	= chunk->blocks;
+		for (j = chunk->size; j--; block++) {
+			if (buf_block_get_state(block)
+			    != BUF_BLOCK_FILE_PAGE
+			    || !block->is_hashed
+			    || buf_page_get_space(&block->page) != id) {
+				continue;
+			}
+
+			rw_lock_s_unlock(&btr_search_latch);
+
+			rw_lock_x_lock(&block->lock);
+			btr_search_drop_page_hash_index(block);
+			rw_lock_x_unlock(&block->lock);
+
+			rw_lock_s_lock(&btr_search_latch);
+		}
+	}
+	rw_lock_s_unlock(&btr_search_latch);
+}
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
@@ -1415,6 +1464,10 @@ buf_LRU_free_block(
 
 		/* Do not free buffer-fixed or I/O-fixed blocks. */
 		return(FALSE);
+	}
+
+	if (bpage->space_was_being_deleted && bpage->oldest_modification != 0) {
+		buf_flush_remove(bpage);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

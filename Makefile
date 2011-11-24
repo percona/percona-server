@@ -33,34 +33,17 @@ install-lic:
 	@echo "Installing license files"
 	install -m 644 COPYING.* $(PERCONA_SERVER)
 
-prepare: mysql-$(MYSQL_VERSION).tar.gz
+prepare: 
 	@echo "Prepare Percona Server sources"
-	rm -rf mysql-$(MYSQL_VERSION)
-	rm -rf $(PERCONA_SERVER)
-	rm -rf $(PERCONA_SERVER_SHORT_1)
-	rm -rf $(PERCONA_SERVER_SHORT_2)
-	tar zxf mysql-$(MYSQL_VERSION).tar.gz
-	mv mysql-$(MYSQL_VERSION) $(PERCONA_SERVER)
-	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
-	ln -s $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_2)
-	ln -s ../patches $(PERCONA_SERVER)/patches
-	ln -s ../quiltrc $(PERCONA_SERVER)/quiltrc
-	(cd $(PERCONA_SERVER)/mysql-test && rm mtr mysql-test-run)
+	rm -f $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
+	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER)
+	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
 
 main: prepare
-	(cd $(PERCONA_SERVER) && ../apply_patches)
-
-regenerate: clean prepare
-	(cd $(PERCONA_SERVER) && ../normalize_patches)
-
-mysql-$(MYSQL_VERSION).tar.gz:
-	@echo "Downloading MySQL sources from $(MASTER_SITE)"
-	$(FETCH_CMD) $(MASTER_SITE)/mysql-$(MYSQL_VERSION).tar.gz
-
 
 misc:
 	@echo "Installing other files"
 	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
 clean:
-	rm -rf mysql-$(MYSQL_VERSION) $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1) $(PERCONA_SERVER_SHORT_2)
+	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)

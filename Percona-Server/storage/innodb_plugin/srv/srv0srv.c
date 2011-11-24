@@ -171,6 +171,9 @@ UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 the checkpoints. */
 UNIV_INTERN char	srv_adaptive_flushing	= TRUE;
 
+UNIV_INTERN ulint	srv_show_locks_held	= 10;
+UNIV_INTERN ulint	srv_show_verbose_locks	= 0;
+
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
 #define MAX_MUTEX_NOWAIT	20
@@ -1707,6 +1710,13 @@ srv_printf_innodb_monitor(
 	ulint	n_reserved;
 	ibool	ret;
 
+	ulint	btr_search_sys_subtotal;
+	ulint	lock_sys_subtotal;
+	ulint	recv_sys_subtotal;
+
+	ulint	i;
+	trx_t*	trx;
+
 	mutex_enter(&srv_innodb_monitor_mutex);
 
 	current_time = time(NULL);
@@ -1755,31 +1765,6 @@ srv_printf_innodb_monitor(
 
 	mutex_exit(&dict_foreign_err_mutex);
 
-	/* Only if lock_print_info_summary proceeds correctly,
-	before we call the lock_print_info_all_transactions
-	to print all the lock information. */
-	ret = lock_print_info_summary(file, nowait);
-
-	if (ret) {
-		if (trx_start) {
-			long	t = ftell(file);
-			if (t < 0) {
-				*trx_start = ULINT_UNDEFINED;
-			} else {
-				*trx_start = (ulint) t;
-			}
-		}
-		lock_print_info_all_transactions(file);
-		if (trx_end) {
-			long	t = ftell(file);
-			if (t < 0) {
-				*trx_end = ULINT_UNDEFINED;
-			} else {
-				*trx_end = (ulint) t;
-			}
-		}
-	}
-
 	fputs("--------\n"
 	      "FILE I/O\n"
 	      "--------\n", file);
@@ -1810,10 +1795,84 @@ srv_printf_innodb_monitor(
 	      "BUFFER POOL AND MEMORY\n"
 	      "----------------------\n", file);
 	fprintf(file,
-		"Total memory allocated " ULINTPF
-		"; in additional pool allocated " ULINTPF "\n",
-		ut_total_allocated_memory,
-		mem_pool_get_reserved(mem_comm_pool));
+			"Total memory allocated " ULINTPF
+			"; in additional pool allocated " ULINTPF "\n",
+			ut_total_allocated_memory,
+			mem_pool_get_reserved(mem_comm_pool));
+	/* Calcurate reserved memories */
+	if (btr_search_sys && btr_search_sys->hash_index->heap) {
+		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index->heap);
+	} else {
+		btr_search_sys_subtotal = 0;
+		for (i=0; i < btr_search_sys->hash_index->n_mutexes; i++) {
+			btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index->heaps[i]);
+		}
+	}
+
+	lock_sys_subtotal = 0;
+	if (trx_sys) {
+		mutex_enter(&kernel_mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			lock_sys_subtotal += ((trx->lock_heap) ? mem_heap_get_size(trx->lock_heap) : 0);
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&kernel_mutex);
+	}
+
+	recv_sys_subtotal = ((recv_sys && recv_sys->addr_hash)
+			? mem_heap_get_size(recv_sys->heap) : 0);
+
+	fprintf(file,
+			"Internal hash tables (constant factor + variable factor)\n"
+			"    Adaptive hash index %lu \t(%lu + %lu)\n"
+			"    Page hash           %lu\n"
+			"    Dictionary cache    %lu \t(%lu + %lu)\n"
+			"    File system         %lu \t(%lu + %lu)\n"
+			"    Lock system         %lu \t(%lu + %lu)\n"
+			"    Recovery system     %lu \t(%lu + %lu)\n"
+			"    Threads             %lu \t(%lu + %lu)\n",
+
+			(ulong) (btr_search_sys
+				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0)
+			+ btr_search_sys_subtotal,
+			(ulong) (btr_search_sys
+				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0),
+			(ulong) btr_search_sys_subtotal,
+
+			(ulong) (buf_pool->page_hash->n_cells * sizeof(hash_cell_t)),
+
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+						+ dict_sys->table_id_hash->n_cells
+						) * sizeof(hash_cell_t)
+					+ dict_sys->size) : 0),
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+							+ dict_sys->table_id_hash->n_cells
+							) * sizeof(hash_cell_t)) : 0),
+			(ulong) (dict_sys ? (dict_sys->size) : 0),
+
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)
+					+ fil_system_hash_nodes()),
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)),
+			(ulong) fil_system_hash_nodes(),
+
+			(ulong) ((lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ lock_sys_subtotal),
+			(ulong) (lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			(ulong) lock_sys_subtotal,
+
+			(ulong) (((recv_sys && recv_sys->addr_hash)
+						? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ recv_sys_subtotal),
+			(ulong) ((recv_sys && recv_sys->addr_hash)
+					? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			(ulong) recv_sys_subtotal,
+
+			(ulong) (thr_local_hash_cells() * sizeof(hash_cell_t)
+					+ thr_local_hash_nodes()),
+			(ulong) (thr_local_hash_cells() * sizeof(hash_cell_t)),
+			(ulong) thr_local_hash_nodes());
+
 	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
 		dict_sys->size);
 
@@ -1871,6 +1930,31 @@ srv_printf_innodb_monitor(
 	srv_n_rows_updated_old = srv_n_rows_updated;
 	srv_n_rows_deleted_old = srv_n_rows_deleted;
 	srv_n_rows_read_old = srv_n_rows_read;
+
+	/* Only if lock_print_info_summary proceeds correctly,
+	before we call the lock_print_info_all_transactions
+	to print all the lock information. */
+	ret = lock_print_info_summary(file, nowait);
+
+	if (ret) {
+		if (trx_start) {
+			long	t = ftell(file);
+			if (t < 0) {
+				*trx_start = ULINT_UNDEFINED;
+			} else {
+				*trx_start = (ulint) t;
+			}
+		}
+		lock_print_info_all_transactions(file);
+		if (trx_end) {
+			long	t = ftell(file);
+			if (t < 0) {
+				*trx_end = ULINT_UNDEFINED;
+			} else {
+				*trx_end = (ulint) t;
+			}
+		}
+	}
 
 	fputs("----------------------------\n"
 	      "END OF INNODB MONITOR OUTPUT\n"

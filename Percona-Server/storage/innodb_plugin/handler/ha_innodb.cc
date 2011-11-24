@@ -10807,6 +10807,16 @@ static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binl
   "Force InnoDB to not use next-key locking, to use only row-level locking.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(show_verbose_locks, srv_show_verbose_locks,
+  PLUGIN_VAR_OPCMDARG,
+  "Whether to show records locked in SHOW INNODB STATUS.",
+  NULL, NULL, 0, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(show_locks_held, srv_show_locks_held,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of locks held to print for each InnoDB transaction in SHOW INNODB STATUS.",
+  NULL, NULL, 10, 0, 1000, 0);
+
 #ifdef UNIV_LOG_ARCHIVE
 static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -10989,7 +10999,7 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
 
 static MYSQL_SYSVAR_STR(version, innodb_version_str,
   PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
-  "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
+  "Percona-InnoDB-plugin version", NULL, NULL, INNODB_VERSION_STR);
 
 static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -11080,6 +11090,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(thread_concurrency),
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
+  MYSQL_SYSVAR(show_verbose_locks),
+  MYSQL_SYSVAR(show_locks_held),
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),

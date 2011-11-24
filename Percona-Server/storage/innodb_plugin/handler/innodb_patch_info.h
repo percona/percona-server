@@ -24,5 +24,6 @@ struct innodb_enhancement {
        const char *link;
 }innodb_enhancements[] = {
 {"xtradb_show_enhancements","I_S.XTRADB_ENHANCEMENTS","","http://www.percona.com/docs/wiki/percona-xtradb"},
+{"innodb_show_status","Improvements to SHOW INNODB STATUS","Memory information and lock info fixes","http://www.percona.com/docs/wiki/percona-xtradb"},
 {NULL, NULL, NULL, NULL}
 };

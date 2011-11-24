@@ -725,6 +725,17 @@ fil_tablespace_is_being_deleted(
 /*============================*/
 	ulint		id);	/*!< in: space id */
 
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+fil_system_hash_cells(void);
+/*========================*/
+
+ulint
+fil_system_hash_nodes(void);
+/*========================*/
+
 typedef	struct fil_space_struct	fil_space_t;
 
 #endif

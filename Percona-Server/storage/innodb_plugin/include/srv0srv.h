@@ -128,6 +128,9 @@ extern ulong	srv_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 
 
+extern ulint    srv_show_locks_held;
+extern ulint    srv_show_verbose_locks;
+
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 extern const byte*	srv_latin1_ordering;

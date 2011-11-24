@@ -49,6 +49,7 @@ static mutex_t		thr_local_mutex;
 
 /** The hash table. The module is not yet initialized when it is NULL. */
 static hash_table_t*	thr_local_hash	= NULL;
+ulint		thr_local_hash_n_nodes = 0;
 
 /** Thread local data */
 typedef struct thr_local_struct thr_local_t;
@@ -216,6 +217,7 @@ thr_local_create(void)
 		    os_thread_pf(os_thread_get_curr_id()),
 		    local);
 
+	thr_local_hash_n_nodes++;
 	mutex_exit(&thr_local_mutex);
 }
 
@@ -244,6 +246,7 @@ thr_local_free(
 
 	HASH_DELETE(thr_local_t, hash, thr_local_hash,
 		    os_thread_pf(id), local);
+	thr_local_hash_n_nodes--;
 
 	mutex_exit(&thr_local_mutex);
 
@@ -298,4 +301,30 @@ thr_local_close(void)
 
 	hash_table_free(thr_local_hash);
 	thr_local_hash = NULL;
+}
+
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+thr_local_hash_cells(void)
+/*======================*/
+{
+	if (thr_local_hash) {
+		return (thr_local_hash->n_cells);
+	} else {
+		return 0;
+	}
+}
+
+ulint
+thr_local_hash_nodes(void)
+/*======================*/
+{
+	if (thr_local_hash) {
+		return (thr_local_hash_n_nodes
+			* (sizeof(thr_local_t) + MEM_BLOCK_HEADER_SIZE));
+	} else {
+		return 0;
+	}
 }

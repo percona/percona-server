@@ -1730,6 +1730,7 @@ typedef struct st_lex : public Query_tables_list
 
   uint8 context_analysis_only;
   bool safe_to_cache_query;
+  bool disable_flashcache;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
   Alter_info alter_info;

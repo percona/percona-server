@@ -46,6 +46,11 @@
 #define OPT_NDB_SHM_DEFAULT 0
 #endif
 #endif
+#if defined(__linux__)
+#include <mntent.h>
+#include <sys/statfs.h>
+#include "flashcache_ioctl.h"
+#endif//__linux__
 
 #ifndef DEFAULT_SKIP_THREAD_PRIORITY
 #define DEFAULT_SKIP_THREAD_PRIORITY 0
@@ -608,6 +613,11 @@ ulong max_connections, max_connect_errors;
 ulong max_long_data_size;
 uint  max_user_connections= 0;
 ulonglong denied_connections = 0;
+
+/* flashcache */
+int cachedev_fd;
+my_bool cachedev_enabled= FALSE;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -4412,6 +4422,97 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+#if defined(__linux__)
+/*
+ * Auto detect if we support flash cache on the host system.
+ * This needs to be called before we setuid away from root
+ * to avoid permission problems on opening the device node.
+ */
+static void init_cachedev(void)
+{
+  struct statfs stfs_data_home_dir;
+  struct statfs stfs;
+  struct mntent *ent;
+  pid_t pid = getpid();
+  FILE *mounts;
+  const char *error_message= NULL;
+
+  // disabled by default
+  cachedev_fd = -1;
+  cachedev_enabled= FALSE;
+
+  if (!mysql_data_home)
+  {
+    error_message= "mysql_data_home not set";
+    goto epilogue;
+  }
+
+  if (statfs(mysql_data_home, &stfs_data_home_dir) < 0)
+  {
+    error_message= "statfs failed";
+    goto epilogue;
+  }
+
+  mounts = setmntent("/etc/mtab", "r");
+  if (mounts == NULL)
+  {
+    error_message= "setmntent failed";
+    goto epilogue;
+  }
+
+  while ((ent = getmntent(mounts)) != NULL)
+  {
+    if (statfs(ent->mnt_dir, &stfs) < 0)
+      continue;
+    if (memcmp(&stfs.f_fsid, &stfs_data_home_dir.f_fsid, sizeof(fsid_t)) == 0)
+      break;
+  }
+  endmntent(mounts);
+
+  if (ent == NULL)
+  {
+    error_message= "getmntent loop failed";
+    goto epilogue;
+  }
+
+  cachedev_fd = open(ent->mnt_fsname, O_RDONLY);
+  if (cachedev_fd < 0)
+  {
+    error_message= "open flash device failed";
+    goto epilogue;
+  }
+
+  /* cleanup previous whitelistings */
+  if (ioctl(cachedev_fd, FLASHCACHEDELALLWHITELIST, &pid) < 0)
+  {
+    close(cachedev_fd);
+    cachedev_fd = -1;
+    error_message= "ioctl failed";
+  } else {
+    ioctl(cachedev_fd, FLASHCACHEADDWHITELIST, &pid);
+  }
+
+epilogue:
+  sql_print_information("Flashcache bypass: %s",
+      (cachedev_fd > 0) ? "enabled" : "disabled");
+  if (error_message)
+    sql_print_information("Flashcache setup error is : %s\n", error_message);
+  else
+    cachedev_enabled= TRUE;
+
+}
+
+static void cleanup_cachedev(void)
+{
+  pid_t pid = getpid();
+
+  if (cachedev_enabled) {
+    ioctl(cachedev_fd, FLASHCACHEDELWHITELIST, &pid);
+    close(cachedev_fd);
+    cachedev_fd = -1;
+  }
+}
+#endif//__linux__
 
 #ifdef __WIN__
 int win_main(int argc, char **argv)
@@ -4515,6 +4616,10 @@ int main(int argc, char **argv)
 #ifndef DBUG_OFF
   test_lc_time_sz();
 #endif
+
+#if defined(__linux__)
+  init_cachedev();
+#endif//__linux__
 
   /*
     We have enough space for fiddling with the argv, continue
@@ -4716,6 +4821,10 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   wait_for_signal_thread_to_end();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+
+#if defined(__linux__)
+  cleanup_cachedev();
+#endif//__linux__
 
   exit(0);
   return(0);					/* purecov: deadcode */
@@ -7896,6 +8005,7 @@ SHOW_VAR status_vars[]= {
   {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
+  {"Flashcache_enabled",       (char*) &cachedev_enabled,       SHOW_BOOL },
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},

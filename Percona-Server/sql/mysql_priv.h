@@ -825,6 +825,8 @@ enum enum_table_ref_type
 */
 extern ulong server_id, concurrency;
 
+/* flashcache */
+extern int cachedev_fd;
 
 typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,

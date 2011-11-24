@@ -37,6 +37,12 @@
 #include <hash.h>
 #include <ft_global.h>
 
+#include <sys/syscall.h>
+#include <sys/ioctl.h>
+#if defined(__linux__)
+#include "flashcache_ioctl.h"
+#endif//__linux__
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -239,9 +245,20 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
+#if defined(__linux__)
+  pid_t pid;
+#endif
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 
+#if defined(__linux__)
+  if(lex->disable_flashcache && cachedev_fd > 0)
+  {
+    pid = syscall(SYS_gettid);
+    ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid);
+  }
+#endif//__linux__
+ 
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
@@ -274,6 +291,12 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   if (unlikely(res))
     result->abort();
 
+#if defined(__linux__)
+  if (lex->disable_flashcache && cachedev_fd > 0)
+  {
+    ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
+  }
+#endif//__linux__ 
   DBUG_RETURN(res);
 }
 

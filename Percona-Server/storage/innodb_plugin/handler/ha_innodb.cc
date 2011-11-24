@@ -151,6 +151,7 @@ static ulong innobase_commit_concurrency = 0;
 static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
 
+static my_bool innobase_thread_concurrency_timer_based;
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
 /** Percentage of the buffer pool to reserve for 'old' blocks.
@@ -2342,6 +2343,9 @@ innobase_change_buffering_inited_ok:
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
 	srv_log_file_size = (ulint) innobase_log_file_size;
+
+	srv_thread_concurrency_timer_based =
+		(ibool) innobase_thread_concurrency_timer_based;
 
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
@@ -11202,6 +11206,12 @@ static MYSQL_SYSVAR_ULONG(spin_wait_delay, srv_spin_wait_delay,
   "Maximum delay between polling for a spin lock (6 by default)",
   NULL, NULL, 6L, 0L, ~0L, 0);
 
+static MYSQL_SYSVAR_BOOL(thread_concurrency_timer_based,
+  innobase_thread_concurrency_timer_based,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Use InnoDB timer based concurrency throttling. ",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
@@ -11423,6 +11433,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),
   MYSQL_SYSVAR(thread_concurrency),
+  MYSQL_SYSVAR(thread_concurrency_timer_based),
   MYSQL_SYSVAR(thread_sleep_delay),
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(show_verbose_locks),

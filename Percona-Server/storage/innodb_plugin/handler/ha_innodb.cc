@@ -193,6 +193,7 @@ static my_bool	innobase_overwrite_relay_log_info	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
+static my_bool	innobase_use_sys_stats_table		= FALSE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -2274,6 +2275,8 @@ mem_free_and_error:
 	srv_doublewrite_file = innobase_doublewrite_file;
 
 	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
+
+	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
 
 	/* -------------- Log files ---------------------------*/
 
@@ -5053,6 +5056,10 @@ no_commit:
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
+#ifdef EXTENDED_FOR_USERSTAT
+	if (error == DB_SUCCESS) rows_changed++;
+#endif
+
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
 		ulint		err;
@@ -5397,6 +5404,10 @@ ha_innobase::update_row(
 		}
 	}
 
+#ifdef EXTENDED_FOR_USERSTAT
+	if (error == DB_SUCCESS) rows_changed++;
+#endif
+
 	innodb_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(error,
@@ -5457,6 +5468,10 @@ ha_innobase::delete_row(
 	innodb_srv_conc_enter_innodb(trx);
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
+
+#ifdef EXTENDED_FOR_USERSTAT
+	if (error == DB_SUCCESS) rows_changed++;
+#endif
 
 	innodb_srv_conc_exit_innodb(trx);
 
@@ -5788,6 +5803,11 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+#ifdef EXTENDED_FOR_USERSTAT
+		rows_read++;
+		if (active_index < MAX_KEY)
+			index_rows_read[active_index]++;
+#endif
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -6009,6 +6029,11 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+#ifdef EXTENDED_FOR_USERSTAT
+		rows_read++;
+		if (active_index < MAX_KEY)
+			index_rows_read[active_index]++;
+#endif
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -7966,11 +7991,35 @@ ha_innobase::info_low(
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
+			if (srv_use_sys_stats_table && !((ib_table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)
+			    && called_from_analyze) {
+				/* If the indexes on the table don't have enough rows in SYS_STATS system table, */
+				/* they need to be created. */
+				dict_index_t*	index;
+
+				prebuilt->trx->op_info = "confirming rows of SYS_STATS to store statistics";
+
+				ut_a(prebuilt->trx->conc_state == TRX_NOT_STARTED);
+
+				for (index = dict_table_get_first_index(ib_table);
+				     index != NULL;
+				     index = dict_table_get_next_index(index)) {
+					if (dict_is_older_statistics(index)) {
+						row_delete_stats_for_mysql(index, prebuilt->trx);
+						innobase_commit_low(prebuilt->trx);
+					}
+					row_insert_stats_for_mysql(index, prebuilt->trx);
+					innobase_commit_low(prebuilt->trx);
+				}
+
+				ut_a(prebuilt->trx->conc_state == TRX_NOT_STARTED);
+			}
+
 			prebuilt->trx->op_info = "updating table statistics";
 
 			dict_update_statistics(ib_table,
 					       FALSE /* update even if stats
-						     are initialized */);
+						     are initialized */, called_from_analyze);
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}
@@ -8055,7 +8104,7 @@ ha_innobase::info_low(
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
 		See Bug#38185. */
-		if (flag & HA_STATUS_NO_LOCK) {
+		if (flag & HA_STATUS_NO_LOCK || !srv_stats_update_need_lock) {
 			/* We do not update delete_length if no
 			locking is requested so the "old" value can
 			remain. delete_length is initialized to 0 in
@@ -11288,6 +11337,26 @@ static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_sample_pages,
   "The number of index pages to sample when calculating statistics (default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
 
+static MYSQL_SYSVAR_ULONG(stats_auto_update, srv_stats_auto_update,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable InnoDB's auto update statistics of indexes. "
+  "(except for ANALYZE TABLE command) 0:disable 1:enable",
+  NULL, NULL, 1, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(stats_update_need_lock, srv_stats_update_need_lock,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable InnoDB's update statistics which needs to lock dictionary. "
+  "e.g. Data_free.",
+  NULL, NULL, 1, 0, 1, 0);
+
+static MYSQL_SYSVAR_BOOL(use_sys_stats_table, innobase_use_sys_stats_table,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable to use SYS_STATS system table to store statistics statically, "
+  "And avoids to calculate statistics at every first open of the tables. "
+  "This option may make the opportunities of update statistics less. "
+  "So you should use ANALYZE TABLE command intentionally.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -11646,6 +11715,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(overwrite_relay_log_info),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
+  MYSQL_SYSVAR(stats_auto_update),
+  MYSQL_SYSVAR(stats_update_need_lock),
+  MYSQL_SYSVAR(use_sys_stats_table),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(stats_method),
@@ -11716,6 +11788,8 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
+i_s_innodb_table_stats,
+i_s_innodb_index_stats,
 i_s_innodb_admin_command,
 i_s_innodb_patches
 mysql_declare_plugin_end;

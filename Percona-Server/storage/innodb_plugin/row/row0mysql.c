@@ -862,6 +862,9 @@ row_update_statistics_if_needed(
 
 	table->stat_modified_counter = counter + 1;
 
+	if (!srv_stats_auto_update)
+		return;
+
 	/* Calculate new statistics if 1 / 16 of table has been modified
 	since the last time a statistics batch was run, or if
 	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
@@ -872,7 +875,7 @@ row_update_statistics_if_needed(
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
 		dict_update_statistics(table, FALSE /* update even if stats
-						    are initialized */);
+						    are initialized */, TRUE);
 	}
 }
 
@@ -2046,6 +2049,71 @@ error_handling:
 }
 
 /*********************************************************************//**
+*/
+UNIV_INTERN
+int
+row_insert_stats_for_mysql(
+/*=======================*/
+	dict_index_t*	index,
+	trx_t*		trx)
+{
+	ind_node_t*	node;
+	mem_heap_t*	heap;
+	que_thr_t*	thr;
+	ulint		err;
+
+	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+
+	trx->op_info = "try to insert rows to SYS_STATS";
+
+	trx_start_if_not_started(trx);
+	trx->error_state = DB_SUCCESS;
+
+	heap = mem_heap_create(512);
+
+	node = ind_insert_stats_graph_create(index, heap);
+
+	thr = pars_complete_graph_for_exec(node, trx, heap);
+
+	ut_a(thr == que_fork_start_command(que_node_get_parent(thr)));
+	que_run_threads(thr);
+
+	err = trx->error_state;
+
+	que_graph_free((que_t*) que_node_get_parent(thr));
+
+	trx->op_info = "";
+
+	return((int) err);
+}
+
+/*********************************************************************//**
+*/
+UNIV_INTERN
+int
+row_delete_stats_for_mysql(
+/*=============================*/
+	dict_index_t*	index,
+	trx_t*		trx)
+{
+	pars_info_t*	info	= pars_info_create();
+
+	trx->op_info = "delete rows from SYS_STATS";
+
+	trx_start_if_not_started(trx);
+	trx->error_state = DB_SUCCESS;
+
+	pars_info_add_dulint_literal(info, "indexid", index->id);
+
+	return((int) que_eval_sql(info,
+				  "PROCEDURE DELETE_STATISTICS_PROC () IS\n"
+				  "BEGIN\n"
+				  "DELETE FROM SYS_STATS WHERE INDEX_ID = :indexid;\n"
+				  "END;\n"
+				  , TRUE, trx));
+}
+
+/*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
@@ -2976,7 +3044,7 @@ next_rec:
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
 	dict_update_statistics(table, FALSE /* update even if stats are
-					    initialized */);
+					    initialized */, TRUE);
 
 	trx_commit_for_mysql(trx);
 
@@ -3278,6 +3346,8 @@ check_next_foreign:
 			   "       IF (SQL % NOTFOUND) THEN\n"
 			   "               found := 0;\n"
 			   "       ELSE\n"
+			   "               DELETE FROM SYS_STATS\n"
+			   "               WHERE INDEX_ID = index_id;\n"
 			   "               DELETE FROM SYS_FIELDS\n"
 			   "               WHERE INDEX_ID = index_id;\n"
 			   "               DELETE FROM SYS_INDEXES\n"

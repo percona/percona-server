@@ -2027,6 +2027,8 @@ row_ins_index_entry_low(
 	}
 
 #ifdef UNIV_DEBUG
+	if (!srv_use_sys_stats_table
+	    || index != UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes))
 	{
 		page_t*	page = btr_cur_get_page(&cursor);
 		rec_t*	first_rec = page_rec_get_next(

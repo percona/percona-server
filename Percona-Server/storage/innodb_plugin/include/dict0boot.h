@@ -101,6 +101,7 @@ dict_create(void);
 #define DICT_COLUMNS_ID		ut_dulint_create(0, 2)
 #define DICT_INDEXES_ID		ut_dulint_create(0, 3)
 #define DICT_FIELDS_ID		ut_dulint_create(0, 4)
+#define DICT_STATS_ID		ut_dulint_create(0, 6)
 /* The following is a secondary index on SYS_TABLES */
 #define DICT_TABLE_IDS_ID	ut_dulint_create(0, 5)
 
@@ -128,10 +129,13 @@ dict_create(void);
 #define	DICT_HDR_INDEXES	44	/* Root of the index index tree */
 #define	DICT_HDR_FIELDS		48	/* Root of the index field
 					index tree */
+#define	DICT_HDR_STATS		52	/* Root of the stats tree */
 
 #define DICT_HDR_FSEG_HEADER	56	/* Segment header for the tablespace
 					segment into which the dictionary
 					header is created */
+
+#define	DICT_HDR_XTRADB_MARK	256	/* Flag to distinguish expansion of XtraDB */
 /*-------------------------------------------------------------*/
 
 /* The field number of the page number field in the sys_indexes table
@@ -141,10 +145,15 @@ clustered index */
 #define DICT_SYS_INDEXES_TYPE_FIELD	 6
 #define DICT_SYS_INDEXES_NAME_FIELD	 4
 
+#define DICT_SYS_STATS_DIFF_VALS_FIELD	 4
+#define DICT_SYS_STATS_NON_NULL_VALS_FIELD	5
+
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
 updated */
 #define DICT_HDR_ROW_ID_WRITE_MARGIN	256
+
+#define DICT_HDR_XTRADB_FLAG		ut_dulint_create(0x58545241UL,0x44425F31UL)	/* "XTRADB_1" */
 
 #ifndef UNIV_NONINL
 #include "dict0boot.ic"

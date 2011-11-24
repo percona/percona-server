@@ -224,7 +224,7 @@ loop:
 
 			if (dict_table_get_first_index(table)) {
 				dict_update_statistics(table, FALSE /* update
-						       even if initialized */);
+						       even if initialized */, FALSE);
 			}
 
 			dict_table_print_low(table);

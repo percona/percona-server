@@ -1057,10 +1057,18 @@ void
 dict_update_statistics(
 /*===================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		only_calc_if_missing_stats);/*!< in: only
+	ibool		only_calc_if_missing_stats,	/*!< in: only
 					update/recalc the stats if they have
 					not been initialized yet, otherwise
 					do nothing */
+	ibool		sync);
+/*********************************************************************//**
+*/
+UNIV_INTERN
+ibool
+dict_is_older_statistics(
+/*=====================*/
+	dict_index_t*	index);
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN
@@ -1175,6 +1183,7 @@ struct dict_sys_struct{
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
+	dict_table_t*	sys_stats;	/*!< SYS_STATS table */
 };
 #endif /* !UNIV_HOTBACKUP */
 

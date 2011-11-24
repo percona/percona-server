@@ -2028,6 +2028,8 @@ row_merge_drop_index(
 		"UPDATE SYS_INDEXES SET NAME=CONCAT('"
 		TEMP_INDEX_PREFIX_STR "', NAME) WHERE ID = :indexid;\n"
 		"COMMIT WORK;\n"
+		/* Drop the statistics of the index. */
+		"DELETE FROM SYS_STATS WHERE INDEX_ID = :indexid;\n"
 		/* Drop the field definitions of the index. */
 		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
 		/* Drop the index definition and the B-tree. */

@@ -45,6 +45,7 @@ extern "C" {
 #include "btr0btr.h" /* for btr_page_get_index_id */
 #include "trx0rseg.h" /* for trx_rseg_struct */
 #include "trx0sys.h" /* for trx_sys */
+#include "dict0dict.h" /* for dict_sys */
 #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
 }
 
@@ -2763,6 +2764,350 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_admin_command =
 	STRUCT_FLD(descr, "XtraDB specific command acceptor"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_admin_command_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+/***********************************************************************
+*/
+static ST_FIELD_INFO	i_s_innodb_table_stats_info[] =
+{
+	{STRUCT_FLD(field_name,		"table_schema"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"table_name"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"rows"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"clust_size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"other_size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"modified"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+static ST_FIELD_INFO	i_s_innodb_index_stats_info[] =
+{
+	{STRUCT_FLD(field_name,		"table_schema"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"table_name"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"index_name"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"fields"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"row_per_keys"),
+	 STRUCT_FLD(field_length,	256),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"index_size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"leaf_pages"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+static
+int
+i_s_innodb_table_stats_fill(
+/*========================*/
+	THD*		thd,
+	TABLE_LIST*	tables,
+	COND*		cond)
+{
+	TABLE*	i_s_table	= (TABLE *) tables->table;
+	int	status	= 0;
+	dict_table_t*	table;
+
+	DBUG_ENTER("i_s_innodb_table_stats_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	mutex_enter(&(dict_sys->mutex));
+
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+
+	while (table) {
+		char	buf[NAME_LEN * 2 + 2];
+		char*	ptr;
+
+		if (table->stat_clustered_index_size == 0) {
+			table = UT_LIST_GET_NEXT(table_LRU, table);
+			continue;
+		}
+
+		buf[NAME_LEN * 2 + 1] = 0;
+		strncpy(buf, table->name, NAME_LEN * 2 + 1);
+		ptr = strchr(buf, '/');
+		if (ptr) {
+			*ptr = '\0';
+			++ptr;
+		} else {
+			ptr = buf;
+		}
+
+		field_store_string(i_s_table->field[0], buf);
+		field_store_string(i_s_table->field[1], ptr);
+		i_s_table->field[2]->store(table->stat_n_rows);
+		i_s_table->field[3]->store(table->stat_clustered_index_size);
+		i_s_table->field[4]->store(table->stat_sum_of_other_index_sizes);
+		i_s_table->field[5]->store(table->stat_modified_counter);
+
+		if (schema_table_store_record(thd, i_s_table)) {
+			status = 1;
+			break;
+		}
+
+		table = UT_LIST_GET_NEXT(table_LRU, table);
+	}
+
+	mutex_exit(&(dict_sys->mutex));
+
+	DBUG_RETURN(status);
+}
+
+static
+int
+i_s_innodb_index_stats_fill(
+/*========================*/
+	THD*		thd,
+	TABLE_LIST*	tables,
+	COND*		cond)
+{
+	TABLE*	i_s_table	= (TABLE *) tables->table;
+	int	status	= 0;
+	dict_table_t*	table;
+	dict_index_t*	index;
+
+	DBUG_ENTER("i_s_innodb_index_stats_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	mutex_enter(&(dict_sys->mutex));
+
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+
+	while (table) {
+		if (table->stat_clustered_index_size == 0) {
+			table = UT_LIST_GET_NEXT(table_LRU, table);
+			continue;
+		}
+
+		ib_int64_t	n_rows = table->stat_n_rows;
+
+		if (n_rows < 0) {
+			n_rows = 0;
+		}
+
+		index = dict_table_get_first_index(table);
+
+		while (index) {
+			char	buff[256+1];
+			char	row_per_keys[256+1];
+			char	buf[NAME_LEN * 2 + 2];
+			char*	ptr;
+			ulint	i;
+
+			buf[NAME_LEN * 2 + 1] = 0;
+			strncpy(buf, table->name, NAME_LEN * 2 + 1);
+			ptr = strchr(buf, '/');
+			if (ptr) {
+				*ptr = '\0';
+				++ptr;
+			} else {
+				ptr = buf;
+			}
+
+			field_store_string(i_s_table->field[0], buf);
+			field_store_string(i_s_table->field[1], ptr);
+			field_store_string(i_s_table->field[2], index->name);
+			i_s_table->field[3]->store(index->n_uniq);
+
+			row_per_keys[0] = '\0';
+
+			/* It is remained optimistic operation still for now */
+			//dict_index_stat_mutex_enter(index);
+			if (index->stat_n_diff_key_vals) {
+				for (i = 1; i <= index->n_uniq; i++) {
+					ib_int64_t	rec_per_key;
+					if (index->stat_n_diff_key_vals[i]) {
+						rec_per_key = n_rows / index->stat_n_diff_key_vals[i];
+					} else {
+						rec_per_key = n_rows;
+					}
+					ut_snprintf(buff, 256, (i == index->n_uniq)?"%llu":"%llu, ",
+						 rec_per_key);
+					strncat(row_per_keys, buff, 256 - strlen(row_per_keys));
+				}
+			}
+			//dict_index_stat_mutex_exit(index);
+
+			field_store_string(i_s_table->field[4], row_per_keys);
+
+			i_s_table->field[5]->store(index->stat_index_size);
+			i_s_table->field[6]->store(index->stat_n_leaf_pages);
+
+			if (schema_table_store_record(thd, i_s_table)) {
+				status = 1;
+				break;
+			}
+
+			index = dict_table_get_next_index(index);
+		}
+
+		if (status == 1) {
+			break;
+		}
+
+		table = UT_LIST_GET_NEXT(table_LRU, table);
+	}
+
+	mutex_exit(&(dict_sys->mutex));
+
+	DBUG_RETURN(status);
+}
+
+static
+int
+i_s_innodb_table_stats_init(
+/*========================*/
+	void*   p)
+{
+	DBUG_ENTER("i_s_innodb_table_stats_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_table_stats_info;
+	schema->fill_table = i_s_innodb_table_stats_fill;
+
+	DBUG_RETURN(0);
+}
+
+static
+int
+i_s_innodb_index_stats_init(
+/*========================*/
+	void*	p)
+{
+	DBUG_ENTER("i_s_innodb_index_stats_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_index_stats_info;
+	schema->fill_table = i_s_innodb_index_stats_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_table_stats =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "INNODB_TABLE_STATS"),
+	STRUCT_FLD(author, "Percona"),
+	STRUCT_FLD(descr, "InnoDB table statistics in memory"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_table_stats_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_index_stats =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "INNODB_INDEX_STATS"),
+	STRUCT_FLD(author, "Percona"),
+	STRUCT_FLD(descr, "InnoDB index statistics in memory"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_index_stats_init),
 	STRUCT_FLD(deinit, i_s_common_deinit),
 	STRUCT_FLD(version, 0x0100 /* 1.0 */),
 	STRUCT_FLD(status_vars, NULL),

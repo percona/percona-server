@@ -508,6 +508,56 @@ dict_create_sys_fields_tuple(
 }
 
 /*****************************************************************//**
+Based on an index object, this function builds the entry to be inserted
+in the SYS_STATS system table.
+@return	the tuple which should be inserted */
+static
+dtuple_t*
+dict_create_sys_stats_tuple(
+/*========================*/
+	const dict_index_t*	index,
+	ulint			i,
+	mem_heap_t*		heap)
+{
+	dict_table_t*	sys_stats;
+	dtuple_t*	entry;
+	dfield_t*	dfield;
+	byte*		ptr;
+
+	ut_ad(index);
+	ut_ad(heap);
+
+	sys_stats = dict_sys->sys_stats;
+
+	entry = dtuple_create(heap, 4 + DATA_N_SYS_COLS);
+
+	dict_table_copy_types(entry, sys_stats);
+
+	/* 0: INDEX_ID -----------------------*/
+	dfield = dtuple_get_nth_field(entry, 0/*INDEX_ID*/);
+	ptr = mem_heap_alloc(heap, 8);
+	mach_write_to_8(ptr, index->id);
+	dfield_set_data(dfield, ptr, 8);
+	/* 1: KEY_COLS -----------------------*/
+	dfield = dtuple_get_nth_field(entry, 1/*KEY_COLS*/);
+	ptr = mem_heap_alloc(heap, 4);
+	mach_write_to_4(ptr, i);
+	dfield_set_data(dfield, ptr, 4);
+	/* 4: DIFF_VALS ----------------------*/
+	dfield = dtuple_get_nth_field(entry, 2/*DIFF_VALS*/);
+	ptr = mem_heap_alloc(heap, 8);
+	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
+	dfield_set_data(dfield, ptr, 8);
+	/* 5: NON_NULL_VALS ------------------*/
+	dfield = dtuple_get_nth_field(entry, 3/*NON_NULL_VALS*/);
+	ptr = mem_heap_alloc(heap, 8);
+	mach_write_to_8(ptr, ut_dulint_zero); /* initial value is 0 */
+	dfield_set_data(dfield, ptr, 8);
+
+	return(entry);
+}
+
+/*****************************************************************//**
 Creates the tuple with which the index entry is searched for writing the index
 tree root page number, if such a tree is created.
 @return	the tuple for search */
@@ -612,6 +662,27 @@ dict_build_field_def_step(
 	row = dict_create_sys_fields_tuple(index, node->field_no, node->heap);
 
 	ins_node_set_new_row(node->field_def, row);
+
+	return(DB_SUCCESS);
+}
+
+/***************************************************************//**
+Builds a row for storing stats to insert.
+@return DB_SUCCESS */
+static
+ulint
+dict_build_stats_def_step(
+/*======================*/
+	ind_node_t*	node)
+{
+	dict_index_t*	index;
+	dtuple_t*	row;
+
+	index = node->index;
+
+	row = dict_create_sys_stats_tuple(index, node->stats_no, node->heap);
+
+	ins_node_set_new_row(node->stats_def, row);
 
 	return(DB_SUCCESS);
 }
@@ -938,6 +1009,49 @@ ind_create_graph_create(
 					  dict_sys->sys_fields, heap);
 	node->field_def->common.parent = node;
 
+	if (srv_use_sys_stats_table) {
+		node->stats_def = ins_node_create(INS_DIRECT,
+						  dict_sys->sys_stats, heap);
+		node->stats_def->common.parent = node;
+	} else {
+		node->stats_def = NULL;
+	}
+
+	node->commit_node = commit_node_create(heap);
+	node->commit_node->common.parent = node;
+
+	return(node);
+}
+
+/*********************************************************************//**
+*/
+UNIV_INTERN
+ind_node_t*
+ind_insert_stats_graph_create(
+/*==========================*/
+	dict_index_t*	index,
+	mem_heap_t*	heap)
+{
+	ind_node_t*	node;
+
+	node = mem_heap_alloc(heap, sizeof(ind_node_t));
+
+	node->common.type = QUE_NODE_INSERT_STATS;
+
+	node->index = index;
+
+	node->state = INDEX_BUILD_STATS_COLS;
+	node->page_no = FIL_NULL;
+	node->heap = mem_heap_create(256);
+
+	node->ind_def = NULL;
+	node->field_def = NULL;
+
+	node->stats_def = ins_node_create(INS_DIRECT,
+					  dict_sys->sys_stats, heap);
+	node->stats_def->common.parent = node;
+	node->stats_no = 0;
+
 	node->commit_node = commit_node_create(heap);
 	node->commit_node->common.parent = node;
 
@@ -1088,6 +1202,7 @@ dict_create_index_step(
 
 		node->state = INDEX_BUILD_FIELD_DEF;
 		node->field_no = 0;
+		node->stats_no = 0;
 
 		thr->run_node = node->ind_def;
 
@@ -1133,7 +1248,31 @@ dict_create_index_step(
 			goto function_exit;
 		}
 
-		node->state = INDEX_CREATE_INDEX_TREE;
+		if (srv_use_sys_stats_table
+		    && !((node->table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)) {
+			node->state = INDEX_BUILD_STATS_COLS;
+		} else {
+			node->state = INDEX_CREATE_INDEX_TREE;
+		}
+	}
+	if (node->state == INDEX_BUILD_STATS_COLS) {
+		if (node->stats_no <= dict_index_get_n_unique(node->index)) {
+
+			err = dict_build_stats_def_step(node);
+
+			if (err != DB_SUCCESS) {
+
+				goto function_exit;
+			}
+
+			node->stats_no++;
+
+			thr->run_node = node->stats_def;
+
+			return(thr);
+		} else {
+			node->state = INDEX_CREATE_INDEX_TREE;
+		}
 	}
 
 	if (node->state == INDEX_CREATE_INDEX_TREE) {
@@ -1176,6 +1315,66 @@ function_exit:
 	} else {
 		/* SQL error detected */
 
+		return(NULL);
+	}
+
+	thr->run_node = que_node_get_parent(node);
+
+	return(thr);
+}
+
+/****************************************************************//**
+*/
+UNIV_INTERN
+que_thr_t*
+dict_insert_stats_step(
+/*===================*/
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	ind_node_t*	node;
+	ulint		err	= DB_ERROR;
+	trx_t*		trx;
+
+	ut_ad(thr);
+
+	trx = thr_get_trx(thr);
+
+	node = thr->run_node;
+
+	if (thr->prev_node == que_node_get_parent(node)) {
+		node->state = INDEX_BUILD_STATS_COLS;
+	}
+
+	if (node->state == INDEX_BUILD_STATS_COLS) {
+		if (node->stats_no <= dict_index_get_n_unique(node->index)) {
+
+			err = dict_build_stats_def_step(node);
+
+			if (err != DB_SUCCESS) {
+
+				goto function_exit;
+			}
+
+			node->stats_no++;
+
+			thr->run_node = node->stats_def;
+
+			return(thr);
+		} else {
+			node->state = INDEX_COMMIT_WORK;
+		}
+	}
+
+	if (node->state == INDEX_COMMIT_WORK) {
+
+		/* do not commit transaction here for now */
+	}
+
+function_exit:
+	trx->error_state = err;
+
+	if (err == DB_SUCCESS) {
+	} else {
 		return(NULL);
 	}
 

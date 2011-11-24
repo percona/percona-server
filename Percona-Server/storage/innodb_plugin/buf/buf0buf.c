@@ -773,10 +773,12 @@ buf_chunk_init(
 	buf_block_t*	block;
 	byte*		frame;
 	ulint		i;
+	ulint		size_target;
 
 	/* Round down to a multiple of page size,
 	although it already should be. */
 	mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
+	size_target = (mem_size / UNIV_PAGE_SIZE) - 1;
 	/* Reserve space for the block descriptors. */
 	mem_size += ut_2pow_round((mem_size / UNIV_PAGE_SIZE) * (sizeof *block)
 				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
@@ -812,6 +814,10 @@ buf_chunk_init(
 		}
 
 		chunk->size = size;
+	}
+
+	if (chunk->size > size_target) {
+		chunk->size = size_target;
 	}
 
 	/* Init block structs and assign frames for them. Then we

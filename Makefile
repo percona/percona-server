@@ -35,7 +35,7 @@ install-lic:
 
 prepare: 
 	@echo "Prepare Percona Server sources"
-	rm -f $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
+	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
 	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER)
 	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
 

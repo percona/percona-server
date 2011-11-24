@@ -543,6 +543,7 @@ uint    opt_debug_sync_timeout= 0;
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
 my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
 my_bool opt_optimizer_fix= 0;
+my_bool opt_suppress_log_warning_1592= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -5868,6 +5869,7 @@ enum options_mysqld
   OPT_USERSTAT_RUNNING,
   OPT_THREAD_STATISTICS,
   OPT_OPTIMIZER_FIX,
+  OPT_SUPPRESS_LOG_WARNING_1592,
   OPT_USE_GLOBAL_LONG_QUERY_TIME,
   OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
   OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -7388,6 +7390,10 @@ thread is in the relay logs.",
    "Enable unofficial optimizer fixes.",
    (uchar**) &opt_optimizer_fix, (uchar**) &opt_optimizer_fix,
    0, GET_BOOL, NO_ARG, 1, 0, 1, 0, 1, 0},
+  {"suppress_log_warning_1592", OPT_SUPPRESS_LOG_WARNING_1592,
+   "suppress warning about unsafe statements for binary logging",
+   (uchar**) &opt_suppress_log_warning_1592, (uchar**) &opt_suppress_log_warning_1592,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    "Causes updates to non-transactional engines using statement format to be "
    "written directly to binary log. Before using this option, make sure that "

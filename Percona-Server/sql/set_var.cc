@@ -575,6 +575,8 @@ static sys_var_bool_ptr		sys_thread_statistics(&vars, "thread_statistics",
 						      &opt_thread_statistics);
 static sys_var_bool_ptr		sys_optimizer_fix(&vars, "optimizer_fix",
 						  &opt_optimizer_fix);
+static sys_var_bool_ptr		sys_suppress_log_warning_1592(&vars, "suppress_log_warning_1592",
+							      &opt_suppress_log_warning_1592);
 static sys_var_thd_ulong	sys_read_rnd_buff_size(&vars, "read_rnd_buffer_size",
 					       &SV::read_rnd_buff_size);
 static sys_var_thd_ulong	sys_div_precincrement(&vars, "div_precision_increment",

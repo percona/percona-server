@@ -4183,6 +4183,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                  ER_BINLOG_UNSAFE_STATEMENT,
                  ER(ER_BINLOG_UNSAFE_STATEMENT));
     if (global_system_variables.log_warnings &&
+        !opt_suppress_log_warning_1592 &&
         !(binlog_flags & BINLOG_FLAG_UNSAFE_STMT_PRINTED))
     {
       sql_print_warning("%s Statement: %.*s",

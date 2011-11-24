@@ -201,12 +201,12 @@ select * from t1 where text1 like 'teststring_%';
 text1
 teststring	
 teststring 
-select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%';
+select text1, length(text1) from t1 where text1='teststring' or text1 like 'teststring_%' order by 1, 2;
 text1	length(text1)
 teststring		11
 teststring	10
 teststring 	11
-select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t';
+select text1, length(text1) from t1 where text1='teststring' or text1 >= 'teststring\t' order by 1, 2;
 text1	length(text1)
 teststring		11
 teststring	10

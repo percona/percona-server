@@ -541,6 +541,7 @@ uint    opt_large_page_size= 0;
 uint    opt_debug_sync_timeout= 0;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
+my_bool opt_userstat_running= 0, opt_thread_statistics= 0;
 /*
   True if there is at least one per-hour limit for some user, so we should
   check them before each query (and possibly reset counters when hour is
@@ -594,6 +595,7 @@ ulong max_connections, max_connect_errors;
 */
 ulong max_long_data_size;
 uint  max_user_connections= 0;
+ulonglong denied_connections = 0;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -695,6 +697,10 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 	        LOCK_global_system_variables,
 		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
                 LOCK_connection_count;
+pthread_mutex_t LOCK_stats;
+pthread_mutex_t LOCK_global_user_client_stats;
+pthread_mutex_t LOCK_global_table_stats;
+pthread_mutex_t LOCK_global_index_stats;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -1380,6 +1386,11 @@ void clean_up(bool print_message)
   x_free(opt_secure_file_priv);
   bitmap_free(&temp_pool);
   free_max_user_conn();
+  free_global_user_stats();
+  free_global_client_stats();
+  free_global_thread_stats();
+  free_global_table_stats();
+  free_global_index_stats();
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
@@ -1496,6 +1507,10 @@ static void clean_up_mutexes()
   (void) pthread_cond_destroy(&COND_thread_cache);
   (void) pthread_cond_destroy(&COND_flush_thread_cache);
   (void) pthread_cond_destroy(&COND_manager);
+  (void) pthread_mutex_destroy(&LOCK_stats);
+  (void) pthread_mutex_destroy(&LOCK_global_user_client_stats);
+  (void) pthread_mutex_destroy(&LOCK_global_table_stats);
+  (void) pthread_mutex_destroy(&LOCK_global_index_stats);
 }
 
 #endif /*EMBEDDED_LIBRARY*/
@@ -3198,6 +3213,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
   {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
   {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
+  {"show_client_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CLIENT_STATS]), SHOW_LONG_STATUS},
   {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
   {"show_column_types",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLUMN_TYPES]), SHOW_LONG_STATUS},
   {"show_contributors",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CONTRIBUTORS]), SHOW_LONG_STATUS},
@@ -3219,6 +3235,7 @@ SHOW_VAR com_status_vars[]= {
 #endif
   {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
   {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
+  {"show_index_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_INDEX_STATS]), SHOW_LONG_STATUS},
   {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
   {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
   {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
@@ -3237,9 +3254,12 @@ SHOW_VAR com_status_vars[]= {
   {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
   {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
   {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
+  {"show_table_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATS]), SHOW_LONG_STATUS},
   {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
   {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
+  {"show_thread_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_THREAD_STATS]), SHOW_LONG_STATUS},
   {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
+  {"show_user_statistics", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_USER_STATS]), SHOW_LONG_STATUS},
   {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
   {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
   {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
@@ -3683,6 +3703,10 @@ static int init_thread_environment()
 #endif
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
+  (void) pthread_mutex_init(&LOCK_stats, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_global_user_client_stats, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_global_table_stats, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_global_index_stats, MY_MUTEX_INIT_FAST);
   sp_cache_init();
 #ifdef HAVE_EVENT_SCHEDULER
   Events::init_mutexes();
@@ -4084,6 +4108,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (!errmesg[0][0])
     unireg_abort(1);
 
+  init_global_table_stats();
+  init_global_index_stats();
+
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
   {
@@ -4230,6 +4257,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   init_max_user_conn();
   init_update_queries();
+  init_global_user_stats();
+  init_global_client_stats();
+  init_global_thread_stats();
   DBUG_RETURN(0);
 }
 
@@ -5047,6 +5077,7 @@ static void create_new_thread(THD *thd)
 
     DBUG_PRINT("error",("Too many connections"));
     close_connection(thd, ER_CON_COUNT_ERROR, 1);
+    statistic_increment(denied_connections, &LOCK_status);
     delete thd;
     DBUG_VOID_RETURN;
   }
@@ -5832,6 +5863,8 @@ enum options_mysqld
   OPT_SLAVE_EXEC_MODE,
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
+  OPT_USERSTAT_RUNNING,
+  OPT_THREAD_STATISTICS,
   OPT_USE_GLOBAL_LONG_QUERY_TIME,
   OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
   OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
@@ -7340,6 +7373,14 @@ thread is in the relay logs.",
    &max_system_variables.net_wait_timeout, 0, GET_ULONG,
    REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT),
    0, 1, 0},
+  {"userstat_running", OPT_USERSTAT_RUNNING,
+   "Control USER_STATISTICS, CLIENT_STATISTICS, THREAD_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS running",
+   (uchar**) &opt_userstat_running, (uchar**) &opt_userstat_running,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+  {"thread_statistics", OPT_THREAD_STATISTICS,
+   "Control TABLE_STATISTICS running, when userstat_running is enabled",
+   (uchar**) &opt_thread_statistics, (uchar**) &opt_thread_statistics,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
    "Causes updates to non-transactional engines using statement format to be "
    "written directly to binary log. Before using this option, make sure that "

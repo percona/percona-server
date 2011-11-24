@@ -4055,6 +4055,8 @@ no_commit:
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
+	if (error == DB_SUCCESS) rows_changed++;
+
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
 		ulint		err;
@@ -4392,6 +4394,8 @@ ha_innobase::update_row(
 		}
 	}
 
+	if (error == DB_SUCCESS) rows_changed++;
+
 	innodb_srv_conc_exit_innodb(trx);
 
 	error = convert_error_code_to_mysql(error, user_thd);
@@ -4443,6 +4447,8 @@ ha_innobase::delete_row(
 	innodb_srv_conc_enter_innodb(trx);
 
 	error = row_update_for_mysql((byte*) record, prebuilt);
+
+	if (error == DB_SUCCESS) rows_changed++;
 
 	innodb_srv_conc_exit_innodb(trx);
 
@@ -4923,6 +4929,9 @@ ha_innobase::general_fetch(
 	if (ret == DB_SUCCESS) {
 		error = 0;
 		table->status = 0;
+		rows_read++;
+		if (active_index < MAX_KEY)
+			index_rows_read[active_index]++;
 
 	} else if (ret == DB_RECORD_NOT_FOUND) {
 		error = HA_ERR_END_OF_FILE;

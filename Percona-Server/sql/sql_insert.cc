@@ -982,6 +982,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->row_count_func= info.copied + info.deleted + updated;
     ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
+  thd->updated_row_count += thd->row_count_func;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -3310,6 +3311,7 @@ bool select_insert::send_eof()
      thd->first_successful_insert_id_in_prev_stmt :
      (info.copied ? autoinc_value_of_last_inserted_row : 0));
   ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
+  thd->updated_row_count += thd->row_count_func;
   DBUG_RETURN(0);
 }
 

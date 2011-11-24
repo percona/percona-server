@@ -454,6 +454,7 @@ cleanup:
     my_ok(thd, (ha_rows) thd->row_count_func);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
+  thd->updated_row_count += deleted;
   DBUG_RETURN(error >= 0 || thd->is_error());
 }
 
@@ -1061,6 +1062,7 @@ bool multi_delete::send_eof()
     thd->row_count_func= deleted;
     ::my_ok(thd, (ha_rows) thd->row_count_func);
   }
+  thd->updated_row_count += deleted;
   return 0;
 }
 

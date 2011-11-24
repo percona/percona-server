@@ -1,0 +1,11 @@
+File=userstats.patch
+Name=SHOW USER/TABLE/INDEX statistics
+Version=V2
+Author=Google
+License=GPL
+Comment=Added INFORMATION_SCHEMA.*_STATISTICS
+2008-12-01
+YK: fix behavior for prepared statements
+
+2008-11-26
+YK: add switch variable "userstat_running" to control INFORMATION_SCHEMA.*_STATISTICS (default:OFF)

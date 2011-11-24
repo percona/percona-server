@@ -706,6 +706,13 @@ THD::THD()
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
+  busy_time = 0;
+  cpu_time = 0;
+  bytes_received = 0;
+  bytes_sent = 0;
+  binlog_bytes_written = 0;
+  updated_row_count = 0;
+  sent_row_count_2 = 0;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -909,6 +916,7 @@ void THD::init(void)
   reset_current_stmt_binlog_row_based();
   bzero((char *) &status_var, sizeof(status_var));
   sql_log_bin_toplevel= options & OPTION_BIN_LOG;
+  reset_stats();
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
@@ -918,6 +926,84 @@ void THD::init(void)
   clear_slow_extended();
 }
 
+// Resets stats in a THD.
+void THD::reset_stats(void) {
+  current_connect_time = time(NULL);
+  last_global_update_time = current_connect_time;
+  reset_diff_stats();
+}
+
+// Resets the 'diff' stats, which are used to update global stats.
+void THD::reset_diff_stats(void) {
+  diff_total_busy_time = 0;
+  diff_total_cpu_time = 0;
+  diff_total_bytes_received = 0;
+  diff_total_bytes_sent = 0;
+  diff_total_binlog_bytes_written = 0;
+  diff_total_sent_rows = 0;
+  diff_total_updated_rows = 0;
+  diff_total_read_rows = 0;
+  diff_select_commands = 0;
+  diff_update_commands = 0;
+  diff_other_commands = 0;
+  diff_commit_trans = 0;
+  diff_rollback_trans = 0;
+  diff_denied_connections = 0;
+  diff_lost_connections = 0;
+  diff_access_denied_errors = 0;
+  diff_empty_queries = 0;
+}
+
+// Updates 'diff' stats of a THD.
+void THD::update_stats(bool ran_command) {
+  if (opt_userstat_running) {
+  diff_total_busy_time += busy_time;
+  diff_total_cpu_time += cpu_time;
+  diff_total_bytes_received += bytes_received;
+  diff_total_bytes_sent += bytes_sent;
+  diff_total_binlog_bytes_written += binlog_bytes_written;
+  diff_total_sent_rows += sent_row_count_2;
+  diff_total_updated_rows += updated_row_count;
+  // diff_total_read_rows is updated in handler.cc.
+
+  if (ran_command) {
+    // The replication thread has the COM_CONNECT command.
+    if ((old_command == COM_QUERY || command == COM_CONNECT) &&
+        (lex->sql_command >= 0 && lex->sql_command < SQLCOM_END)) {
+      // A SQL query.
+      if (lex->sql_command == SQLCOM_SELECT) {
+        diff_select_commands++;
+        if (!sent_row_count_2)
+          diff_empty_queries++;
+      } else if (! sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) {
+        // 'SHOW ' commands become SQLCOM_SELECT.
+        diff_other_commands++;
+        // 'SHOW ' commands shouldn't inflate total sent row count.
+        diff_total_sent_rows -= sent_row_count_2;
+      } else if (is_update_query(lex->sql_command)) {
+        diff_update_commands++;
+      } else {
+        diff_other_commands++;
+      }
+    }
+  }
+  // diff_commit_trans is updated in handler.cc.
+  // diff_rollback_trans is updated in handler.cc.
+  // diff_denied_connections is updated in sql_parse.cc.
+  // diff_lost_connections is updated in sql_parse.cc.
+  // diff_access_denied_errors is updated in sql_parse.cc.
+
+  /* reset counters to zero to avoid double-counting since values
+     are already store in diff_total_*. */
+  }
+  busy_time = 0;
+  cpu_time = 0;
+  bytes_received = 0;
+  bytes_sent = 0;
+  binlog_bytes_written = 0;
+  updated_row_count = 0;
+  sent_row_count_2 = 0;
+}
 
 /*
   Init THD for query processing.
@@ -1568,6 +1654,32 @@ void THD::close_active_vio()
 }
 #endif
 
+char *THD::get_client_host_port(THD *client)
+{
+  Security_context *client_sctx= client->security_ctx;
+  char *client_host= NULL;
+
+  if (client->peer_port && (client_sctx->host || client_sctx->ip) &&
+      security_ctx->host_or_ip[0])
+  {
+    if ((client_host= (char *) this->alloc(LIST_PROCESS_HOST_LEN+1)))
+      my_snprintf((char *) client_host, LIST_PROCESS_HOST_LEN,
+                  "%s:%u", client_sctx->host_or_ip, client->peer_port);
+  }
+  else
+    client_host= this->strdup(client_sctx->host_or_ip[0] ?
+                              client_sctx->host_or_ip :
+                              client_sctx->host ? client_sctx->host : "");
+
+  return client_host;
+}
+
+const char *get_client_host(THD *client)
+{
+  return client->security_ctx->host_or_ip[0] ?
+      client->security_ctx->host_or_ip :
+      client->security_ctx->host ? client->security_ctx->host : "";
+}
 
 struct Item_change_record: public ilink
 {
@@ -1755,6 +1867,7 @@ bool select_send::send_data(List<Item> &items)
     buffer.set(buff, sizeof(buff), &my_charset_bin);
   }
   thd->sent_row_count++;
+  thd->sent_row_count_2++;
   if (thd->is_error())
   {
     protocol->remove_last_row();
@@ -1859,6 +1972,7 @@ select_to_file::~select_to_file()
 select_export::~select_export()
 {
   thd->sent_row_count=row_count;
+  thd->sent_row_count_2=row_count;
 }
 
 
@@ -2891,6 +3005,7 @@ void thd_increment_bytes_sent(ulong length)
   if (likely(thd != 0))
   { /* current_thd==0 when close_connection() calls net_send_error() */
     thd->status_var.bytes_sent+= length;
+    thd->bytes_sent+= length;
   }
 }
 
@@ -2898,6 +3013,7 @@ void thd_increment_bytes_sent(ulong length)
 void thd_increment_bytes_received(ulong length)
 {
   current_thd->status_var.bytes_received+= length;
+  current_thd->bytes_received+= length;
 }
 
 

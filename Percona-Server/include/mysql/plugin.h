@@ -707,6 +707,9 @@ void increment_thd_innodb_stats(MYSQL_THD thd,
 unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 int thd_opt_slow_log();
 #define EXTENDED_SLOWLOG
+
+#define EXTENDED_FOR_USERSTAT
+
 /**
   Create a temporary file.
 

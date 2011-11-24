@@ -2059,7 +2059,7 @@ AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask port_create sleep \
-  snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
+  snprintf socket strsep stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd printstack \
   fedisableexcept)
@@ -2067,6 +2067,9 @@ AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
 #
 #
 #
+# The following change can be safely null-merged to 5.5
+# since configure.cmake in 5.5 does the same check
+AC_SEARCH_LIBS(clock_gettime, rt, LIBRT="-lrt")
 case "$target" in
  *-*-aix4* | *-*-sco*)
 	# (grr) aix 4.3 has a stub for clock_gettime, (returning ENOSYS)
@@ -2754,7 +2757,7 @@ then
 fi
 sql_client_dirs="$sql_client_dirs client"
 
-CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
+CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $LIBRT $STATIC_NSS_FLAGS"
 
 AC_SUBST(CLIENT_LIBS)
 AC_SUBST(CLIENT_THREAD_LIBS)

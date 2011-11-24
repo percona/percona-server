@@ -438,6 +438,39 @@ struct recv_sys_struct{
 	hash_table_t*	addr_hash;/*!< hash table of file addresses of pages */
 	ulint		n_addrs;/*!< number of not processed hashed file
 				addresses in the hash table */
+
+/* If you modified the following defines at original file,
+   You should also modify them. */
+/* defined in os0file.c */
+#define OS_AIO_MERGE_N_CONSECUTIVE	64
+/* defined in log0recv.c */
+#define RECV_READ_AHEAD_AREA	32
+	time_t		stats_recv_start_time;
+	ulint		stats_recv_turns;
+
+	ulint		stats_read_requested_pages;
+	ulint		stats_read_in_area[RECV_READ_AHEAD_AREA];
+
+	ulint		stats_read_io_pages;
+	ulint		stats_read_io_consecutive[OS_AIO_MERGE_N_CONSECUTIVE];
+	ulint		stats_write_io_pages;
+	ulint		stats_write_io_consecutive[OS_AIO_MERGE_N_CONSECUTIVE];
+
+	ulint		stats_doublewrite_check_pages;
+	ulint		stats_doublewrite_overwrite_pages;
+
+	ulint		stats_recover_pages_with_read;
+	ulint		stats_recover_pages_without_read;
+
+	ulint		stats_log_recs;
+	ulint		stats_log_len_sum;
+
+	ulint		stats_applied_log_recs;
+	ulint		stats_applied_log_len_sum;
+	ulint		stats_pages_already_new;
+
+	ib_uint64_t	stats_oldest_modified_lsn;
+	ib_uint64_t	stats_newest_modified_lsn;
 };
 
 /** The recovery system */

@@ -179,6 +179,9 @@ recv_sys_create(void)
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
+
+	recv_sys->stats_recv_start_time = time(NULL);
+	recv_sys->stats_oldest_modified_lsn = IB_ULONGLONG_MAX;
 }
 
 /********************************************************//**
@@ -315,6 +318,11 @@ recv_sys_init(
 	if (buf_pool_get_curr_size() >= (10 * 1024 * 1024)) {
 		/* Buffer pool of size greater than 10 MB. */
 		recv_n_pool_free_frames = 512;
+	}
+
+	if (buf_pool_get_curr_size() >= (32 * 1024 * 1024)) {
+		/* Buffer pool of size greater than 32 MB. */
+		recv_n_pool_free_frames = 1024;
 	}
 
 	recv_sys->buf = ut_malloc(RECV_PARSING_BUF_SIZE);
@@ -1353,6 +1361,11 @@ recv_add_to_hash_table(
 
 	len = rec_end - body;
 
+	if (srv_recovery_stats) {
+		recv_sys->stats_log_recs++;
+		recv_sys->stats_log_len_sum += len;
+	}
+
 	recv = mem_heap_alloc(recv_sys->heap, sizeof(recv_t));
 	recv->type = type;
 	recv->len = rec_end - body;
@@ -1464,6 +1477,7 @@ recv_recover_page_func(
 	ib_uint64_t	start_lsn;
 	ib_uint64_t	end_lsn;
 	ib_uint64_t	page_lsn;
+	ib_uint64_t	page_lsn_orig;
 	ib_uint64_t	page_newest_lsn;
 	ibool		modification_to_page;
 #ifndef UNIV_HOTBACKUP
@@ -1486,6 +1500,8 @@ recv_recover_page_func(
 					     buf_block_get_page_no(block));
 
 	if ((recv_addr == NULL)
+		/* bugfix: http://bugs.mysql.com/bug.php?id=44140 */
+	    || (recv_addr->state == RECV_BEING_READ && !just_read_in)
 	    || (recv_addr->state == RECV_BEING_PROCESSED)
 	    || (recv_addr->state == RECV_PROCESSED)) {
 
@@ -1500,6 +1516,14 @@ recv_recover_page_func(
 #endif
 
 	recv_addr->state = RECV_BEING_PROCESSED;
+
+	if (srv_recovery_stats) {
+		if (just_read_in) {
+			recv_sys->stats_recover_pages_with_read++;
+		} else {
+			recv_sys->stats_recover_pages_without_read++;
+		}
+	}
 
 	mutex_exit(&(recv_sys->mutex));
 
@@ -1530,6 +1554,7 @@ recv_recover_page_func(
 
 	/* Read the newest modification lsn from the page */
 	page_lsn = mach_read_ull(page + FIL_PAGE_LSN);
+	page_lsn_orig = page_lsn;
 
 #ifndef UNIV_HOTBACKUP
 	/* It may be that the page has been modified in the buffer
@@ -1548,6 +1573,21 @@ recv_recover_page_func(
 
 	modification_to_page = FALSE;
 	start_lsn = end_lsn = 0;
+
+	if (srv_recovery_stats) {
+		mutex_enter(&(recv_sys->mutex));
+		if (page_lsn_orig && recv_sys->stats_oldest_modified_lsn > page_lsn_orig) {
+			recv_sys->stats_oldest_modified_lsn = page_lsn_orig;
+		}
+		if (page_lsn_orig && recv_sys->stats_newest_modified_lsn < page_lsn_orig) {
+			recv_sys->stats_newest_modified_lsn = page_lsn_orig;
+		}
+		if (UT_LIST_GET_LAST(recv_addr->rec_list)->start_lsn
+		    < page_lsn_orig) {
+			recv_sys->stats_pages_already_new++;
+		}
+		mutex_exit(&(recv_sys->mutex));
+	}
 
 	recv = UT_LIST_GET_FIRST(recv_addr->rec_list);
 
@@ -1602,6 +1642,13 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr);
+
+			if (srv_recovery_stats) {
+				mutex_enter(&(recv_sys->mutex));
+				recv_sys->stats_applied_log_recs++;
+				recv_sys->stats_applied_log_len_sum += recv->len;
+				mutex_exit(&(recv_sys->mutex));
+			}
 
 			end_lsn = recv->start_lsn + recv->len;
 			mach_write_ull(FIL_PAGE_LSN + page, end_lsn);
@@ -1701,6 +1748,13 @@ recv_read_in_area(
 
 			mutex_exit(&(recv_sys->mutex));
 		}
+	}
+
+	if (srv_recovery_stats && n) {
+		mutex_enter(&(recv_sys->mutex));
+		recv_sys->stats_read_requested_pages += n;
+		recv_sys->stats_read_in_area[n - 1]++;
+		mutex_exit(&(recv_sys->mutex));
 	}
 
 	buf_read_recv_pages(FALSE, space, zip_size, page_nos, n);
@@ -1856,6 +1910,10 @@ loop:
 
 	if (has_printed) {
 		fprintf(stderr, "InnoDB: Apply batch completed\n");
+
+		if (srv_recovery_stats) {
+			recv_sys->stats_recv_turns++;
+		}
 	}
 
 	mutex_exit(&(recv_sys->mutex));
@@ -3256,6 +3314,83 @@ recv_recovery_from_checkpoint_finish(void)
 			"InnoDB: Log records applied to the database\n");
 	}
 #endif /* UNIV_DEBUG */
+
+	if (recv_needed_recovery && srv_recovery_stats) {
+		ulint	i;
+
+		fprintf(stderr,
+			"InnoDB: Applying log records was done. Its statistics are followings.\n");
+
+		fprintf(stderr,
+			"============================================================\n"
+			"-------------------\n"
+			"RECOVERY STATISTICS\n"
+			"-------------------\n");
+		fprintf(stderr,
+			"Recovery time: %g sec. (%lu turns)\n",
+			difftime(time(NULL), recv_sys->stats_recv_start_time),
+			recv_sys->stats_recv_turns);
+
+		fprintf(stderr,
+			"\n"
+			"Data page IO statistics\n"
+			"  Requested pages: %lu\n"
+			"  Read pages:      %lu\n"
+			"  Written pages:   %lu\n"
+			"  (Dirty blocks):  %lu\n",
+			recv_sys->stats_read_requested_pages,
+			recv_sys->stats_read_io_pages,
+			recv_sys->stats_write_io_pages,
+			UT_LIST_GET_LEN(buf_pool->flush_list));
+
+		fprintf(stderr,
+			"  Grouping IO [times]:\n"
+			"\tnumber of pages,\n"
+			"\t\tread request neighbors (in %d pages chunk),\n"
+			"\t\t\tcombined read IO,\n"
+			"\t\t\t\tcombined write IO\n",
+			RECV_READ_AHEAD_AREA);
+		for (i = 0; i < ut_max(RECV_READ_AHEAD_AREA,
+					OS_AIO_MERGE_N_CONSECUTIVE); i++) {
+			fprintf(stderr,
+				"\t%3lu,\t%lu,\t%lu,\t%lu\n", i + 1,
+				(i < RECV_READ_AHEAD_AREA) ?
+					recv_sys->stats_read_in_area[i] : 0,
+				(i < OS_AIO_MERGE_N_CONSECUTIVE) ?
+					recv_sys->stats_read_io_consecutive[i] : 0,
+				(i < OS_AIO_MERGE_N_CONSECUTIVE) ?
+					recv_sys->stats_write_io_consecutive[i] : 0);
+		}
+
+		fprintf(stderr,
+			"\n"
+			"Recovery process statistics\n"
+			"  Checked pages by doublewrite buffer: %lu\n"
+			"  Overwritten pages from doublewrite:  %lu\n"
+			"  Recovered pages by io_thread:        %lu\n"
+			"  Recovered pages by main thread:      %lu\n"
+			"  Parsed log records to apply:         %lu\n"
+			"            Sum of the length:         %lu\n"
+			"  Applied log records:                 %lu\n"
+			"            Sum of the length:         %lu\n"
+			"  Pages which are already new enough:  %lu (It may not be accurate, if turns > 1)\n"
+			"  Oldest page's LSN:                   %llu\n"
+			"  Newest page's LSN:                   %llu\n",
+			recv_sys->stats_doublewrite_check_pages,
+			recv_sys->stats_doublewrite_overwrite_pages,
+			recv_sys->stats_recover_pages_with_read,
+			recv_sys->stats_recover_pages_without_read,
+			recv_sys->stats_log_recs,
+			recv_sys->stats_log_len_sum,
+			recv_sys->stats_applied_log_recs,
+			recv_sys->stats_applied_log_len_sum,
+			recv_sys->stats_pages_already_new,
+			recv_sys->stats_oldest_modified_lsn,
+			recv_sys->stats_newest_modified_lsn);
+
+		fprintf(stderr,
+			"============================================================\n");
+	}
 
 	if (recv_needed_recovery) {
 		trx_sys_print_mysql_master_log_pos();

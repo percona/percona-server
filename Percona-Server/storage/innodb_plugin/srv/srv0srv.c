@@ -144,6 +144,8 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
 UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
+UNIV_INTERN ibool	srv_recovery_stats = FALSE;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the

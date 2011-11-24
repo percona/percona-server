@@ -38,6 +38,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "log0recv.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 # include "os0thread.h"
@@ -4233,6 +4234,18 @@ consecutive_loop:
 				  consecutive_ios[i]->len);
 			offs += consecutive_ios[i]->len;
 		}
+	}
+
+	if (srv_recovery_stats && recv_recovery_is_on() && n_consecutive) {
+		mutex_enter(&(recv_sys->mutex));
+		if (slot->type == OS_FILE_READ) {
+			recv_sys->stats_read_io_pages += n_consecutive;
+			recv_sys->stats_read_io_consecutive[n_consecutive - 1]++;
+		} else if (slot->type == OS_FILE_WRITE) {
+			recv_sys->stats_write_io_pages += n_consecutive;
+			recv_sys->stats_write_io_consecutive[n_consecutive - 1]++;
+		}
+		mutex_exit(&(recv_sys->mutex));
 	}
 
 	os_mutex_enter(array->mutex);

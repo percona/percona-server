@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "log0log.h"
+#include "log0recv.h"
 #include "os0file.h"
 #include "read0read.h"
 
@@ -559,6 +560,12 @@ trx_sys_doublewrite_init_or_restore_pages(
 			       zip_size ? zip_size : UNIV_PAGE_SIZE,
 			       read_buf, NULL);
 
+			if (srv_recovery_stats && recv_recovery_is_on()) {
+				mutex_enter(&(recv_sys->mutex));
+				recv_sys->stats_doublewrite_check_pages++;
+				mutex_exit(&(recv_sys->mutex));
+			}
+
 			/* Check if the page is corrupt */
 
 			if (UNIV_UNLIKELY
@@ -606,6 +613,13 @@ trx_sys_doublewrite_init_or_restore_pages(
 				       zip_size, page_no, 0,
 				       zip_size ? zip_size : UNIV_PAGE_SIZE,
 				       page, NULL);
+
+				if (srv_recovery_stats && recv_recovery_is_on()) {
+					mutex_enter(&(recv_sys->mutex));
+					recv_sys->stats_doublewrite_overwrite_pages++;
+					mutex_exit(&(recv_sys->mutex));
+				}
+
 				fprintf(stderr,
 					"InnoDB: Recovered the page from"
 					" the doublewrite buffer.\n");

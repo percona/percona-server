@@ -1,0 +1,8 @@
+File=optimizer_fix.patch
+Name=Unofficial optimizer fixes
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment=
+2010-01
+Ported to 5.1.42

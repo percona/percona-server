@@ -2423,6 +2423,11 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
           my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
       tmp_errno= errno;
     }
+
+#if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
+    thd->profiling.print_current(&log_file);
+#endif
+
     if (thd->db && strcmp(thd->db, db))
     {						// Database changed
       if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)

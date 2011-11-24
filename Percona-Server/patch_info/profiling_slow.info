@@ -1,0 +1,9 @@
+File=profiling_slow.info
+Name=profiling from SHOW PROFILE to slow.log
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment=
+Changelog
+2009-05-18
+Initial implementation

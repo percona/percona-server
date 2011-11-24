@@ -860,6 +860,10 @@ static sys_var_thd_bit  sys_profiling(&vars, "profiling", NULL,
                                       ulonglong(OPTION_PROFILING));
 static sys_var_thd_ulong	sys_profiling_history_size(&vars, "profiling_history_size",
 					      &SV::profiling_history_size);
+static sys_var_thd_bool	sys_profiling_server(&vars, "profiling_server",
+					      &SV::profiling_server);
+static sys_var_thd_bool	sys_profiling_use_getrusage(&vars, "profiling_use_getrusage",
+					      &SV::profiling_use_getrusage);
 #endif
 
 /* Local state variables */

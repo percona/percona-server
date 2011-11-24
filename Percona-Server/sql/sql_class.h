@@ -330,6 +330,8 @@ struct system_variables
   ulong optimizer_switch;
   ulong preload_buff_size;
   ulong profiling_history_size;
+  my_bool profiling_server;
+  my_bool profiling_use_getrusage;
   ulong query_cache_type;
   ulong read_buff_size;
   ulong read_rnd_buff_size;

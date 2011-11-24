@@ -129,7 +129,7 @@ buf_buddy_alloc_zip(
 
 	ut_d(BUF_BUDDY_LIST_VALIDATE(i));
 
-	bpage = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
+	bpage = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
 
 	if (bpage) {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);

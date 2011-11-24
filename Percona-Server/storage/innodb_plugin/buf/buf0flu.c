@@ -351,17 +351,19 @@ buf_flush_ready_for_replace(
 	buf_page_t*	bpage)	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 {
-	ut_ad(buf_pool_mutex_own());
-	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-	ut_ad(bpage->in_LRU_list);
+	//ut_ad(buf_pool_mutex_own());
+	//ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	//ut_ad(bpage->in_LRU_list); /* optimistic use */
 
-	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
+	if (UNIV_LIKELY(bpage->in_LRU_list && buf_page_in_file(bpage))) {
 
 		return(bpage->oldest_modification == 0
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
 		       && bpage->buf_fix_count == 0);
 	}
 
+	/* permited not to own LRU_mutex..  */
+/*
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Error: buffer block state %lu"
@@ -369,6 +371,7 @@ buf_flush_ready_for_replace(
 		(ulong) buf_page_get_state(bpage));
 	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
 	putc('\n', stderr);
+*/
 
 	return(FALSE);
 }
@@ -1506,8 +1509,14 @@ buf_flush_LRU_recommendation(void)
 	buf_page_t*	bpage;
 	ulint		n_replaceable;
 	ulint		distance	= 0;
+	ibool		have_LRU_mutex = FALSE;
 
-	buf_pool_mutex_enter();
+	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
+		have_LRU_mutex = TRUE;
+retry:
+	//buf_pool_mutex_enter();
+	if (have_LRU_mutex)
+		buf_pool_mutex_enter();
 
 	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
 
@@ -1518,7 +1527,13 @@ buf_flush_LRU_recommendation(void)
 		   + BUF_FLUSH_EXTRA_MARGIN)
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
-		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		mutex_t* block_mutex;
+		if (!bpage->in_LRU_list) {
+			/* reatart. but it is very optimistic */
+			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+			continue;
+		}
+		block_mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(block_mutex);
 
@@ -1533,11 +1548,18 @@ buf_flush_LRU_recommendation(void)
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	if (have_LRU_mutex)
+		buf_pool_mutex_exit();
 
 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
 
 		return(0);
+	} else if (!have_LRU_mutex) {
+		/* confirm it again with LRU_mutex for exactness */
+		have_LRU_mutex = TRUE;
+		distance = 0;
+		goto retry;
 	}
 
 	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
@@ -1552,8 +1574,9 @@ flush only pages such that the s-lock required for flushing can be acquired
 immediately, without waiting. */
 UNIV_INTERN
 void
-buf_flush_free_margin(void)
+buf_flush_free_margin(
 /*=======================*/
+	ibool	wait)
 {
 	ulint	n_to_flush;
 	ulint	n_flushed;
@@ -1562,7 +1585,7 @@ buf_flush_free_margin(void)
 
 	if (n_to_flush > 0) {
 		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush, 0);
-		if (n_flushed == ULINT_UNDEFINED) {
+		if (wait && n_flushed == ULINT_UNDEFINED) {
 			/* There was an LRU type flush batch already running;
 			let us wait for it to end */
 

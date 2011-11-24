@@ -669,9 +669,9 @@ buf_block_init(
 	block->page.in_zip_hash = FALSE;
 	block->page.in_flush_list = FALSE;
 	block->page.in_free_list = FALSE;
-	block->page.in_LRU_list = FALSE;
 	block->in_unzip_LRU_list = FALSE;
 #endif /* UNIV_DEBUG */
+	block->page.in_LRU_list = FALSE;
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	block->n_pointers = 0;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -1085,7 +1085,7 @@ buf_relocate(
 
 	memcpy(dpage, bpage, sizeof *dpage);
 
-	ut_d(bpage->in_LRU_list = FALSE);
+	bpage->in_LRU_list = FALSE;
 	ut_d(bpage->in_page_hash = FALSE);
 
 	/* relocate buf_pool->LRU */
@@ -2582,8 +2582,8 @@ err_exit:
 		bpage->in_zip_hash = FALSE;
 		bpage->in_flush_list = FALSE;
 		bpage->in_free_list = FALSE;
-		bpage->in_LRU_list = FALSE;
 #endif /* UNIV_DEBUG */
+		bpage->in_LRU_list = FALSE;
 
 		ut_d(bpage->in_page_hash = TRUE);
 		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
@@ -2731,7 +2731,7 @@ buf_page_create(
 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin();
+	buf_flush_free_margin(FALSE);
 
 	frame = block->frame;
 
@@ -3485,7 +3485,7 @@ buf_get_modified_ratio_pct(void)
 {
 	ulint	ratio;
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter(); /* optimistic */
 
 	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
 		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
@@ -3493,7 +3493,7 @@ buf_get_modified_ratio_pct(void)
 
 	/* 1 + is there to avoid division by zero */
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit(); /* optimistic */
 
 	return(ratio);
 }

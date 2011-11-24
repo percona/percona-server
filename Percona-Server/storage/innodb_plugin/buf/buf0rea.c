@@ -233,18 +233,22 @@ buf_read_ahead_random(
 		high = fil_space_get_size(space);
 	}
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(&buf_pool_mutex);
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_mutex);
 
 		return(0);
 	}
+	mutex_exit(&buf_pool_mutex);
 
 	/* Count how many blocks in the area have been recently accessed,
 	that is, reside near the start of the LRU list. */
 
+	rw_lock_s_lock(&page_hash_latch);
 	for (i = low; i < high; i++) {
 		const buf_page_t*	bpage = buf_page_hash_get(space, i);
 
@@ -256,13 +260,15 @@ buf_read_ahead_random(
 
 			if (recent_blocks >= BUF_READ_AHEAD_RANDOM_THRESHOLD) {
 
-				buf_pool_mutex_exit();
+				//buf_pool_mutex_exit();
+				rw_lock_s_unlock(&page_hash_latch);
 				goto read_ahead;
 			}
 		}
 	}
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	rw_lock_s_unlock(&page_hash_latch);
 	/* Do nothing */
 	return(0);
 
@@ -460,10 +466,12 @@ buf_read_ahead_linear(
 
 	tablespace_version = fil_space_get_version(space);
 
-	buf_pool_mutex_enter();
+	//buf_pool_mutex_enter();
+	mutex_enter(&buf_pool_mutex);
 
 	if (high > fil_space_get_size(space)) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_mutex);
 		/* The area is not whole, return */
 
 		return(0);
@@ -471,10 +479,12 @@ buf_read_ahead_linear(
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		mutex_exit(&buf_pool_mutex);
 
 		return(0);
 	}
+	mutex_exit(&buf_pool_mutex);
 
 	/* Check that almost all pages in the area have been accessed; if
 	offset == low, the accesses must be in a descending order, otherwise,
@@ -493,6 +503,7 @@ buf_read_ahead_linear(
 
 	fail_count = 0;
 
+	rw_lock_s_lock(&page_hash_latch);
 	for (i = low; i < high; i++) {
 		bpage = buf_page_hash_get(space, i);
 
@@ -520,7 +531,8 @@ buf_read_ahead_linear(
 
 		if (fail_count > threshold) {
 			/* Too many failures: return */
-			buf_pool_mutex_exit();
+			//buf_pool_mutex_exit();
+			rw_lock_s_unlock(&page_hash_latch);
 			return(0);
 		}
 
@@ -535,7 +547,8 @@ buf_read_ahead_linear(
 	bpage = buf_page_hash_get(space, offset);
 
 	if (bpage == NULL) {
-		buf_pool_mutex_exit();
+		//buf_pool_mutex_exit();
+		rw_lock_s_unlock(&page_hash_latch);
 
 		return(0);
 	}
@@ -561,7 +574,8 @@ buf_read_ahead_linear(
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
 
-	buf_pool_mutex_exit();
+	//buf_pool_mutex_exit();
+	rw_lock_s_unlock(&page_hash_latch);
 
 	if ((offset == low) && (succ_offset == offset + 1)) {
 

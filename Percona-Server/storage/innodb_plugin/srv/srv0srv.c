@@ -2873,7 +2873,7 @@ loop:
 
 					mutex_exit(&(log_sys->mutex));
 
-					buf_pool_mutex_enter();
+					mutex_enter(&flush_list_mutex);
 
 					level = 0;
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
@@ -2895,7 +2895,7 @@ loop:
 						bpl = 0;
 					}
 
-					buf_pool_mutex_exit();
+					mutex_exit(&flush_list_mutex);
 
 					if (!srv_use_doublewrite_buf) {
 						/* flush is faster than when doublewrite */

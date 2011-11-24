@@ -761,6 +761,15 @@ buf_page_get_mutex(
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
 	__attribute__((pure));
 
+/*************************************************************************
+Gets the mutex of a block and enter the mutex with consistency. */
+UNIV_INLINE
+mutex_t*
+buf_page_get_mutex_enter(
+/*=========================*/
+	const buf_page_t*	bpage)	/*!< in: pointer to control block */
+	__attribute__((pure));
+
 /*********************************************************************//**
 Get the flush type of a page.
 @return	flush type */
@@ -1114,7 +1123,7 @@ struct buf_page_struct{
 	All these are protected by buf_pool_mutex. */
 	/* @{ */
 
-	UT_LIST_NODE_T(buf_page_t) list;
+	/* UT_LIST_NODE_T(buf_page_t) list; */
 					/*!< based on state, this is a
 					list node, protected only by
 					buf_pool_mutex, in one of the
@@ -1134,6 +1143,10 @@ struct buf_page_struct{
 					BUF_BLOCK_REMOVE_HASH or
 					BUF_BLOCK_READY_IN_USE. */
 
+	/* resplit for optimistic use */
+	UT_LIST_NODE_T(buf_page_t) free;
+	UT_LIST_NODE_T(buf_page_t) flush_list;
+	UT_LIST_NODE_T(buf_page_t) zip_list; /* zip_clean or zip_free[] */
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
 					when buf_pool_mutex is free, the
@@ -1214,11 +1227,11 @@ struct buf_block_struct{
 					a block is in the unzip_LRU list
 					if page.state == BUF_BLOCK_FILE_PAGE
 					and page.zip.data != NULL */
-#ifdef UNIV_DEBUG
+//#ifdef UNIV_DEBUG
 	ibool		in_unzip_LRU_list;/*!< TRUE if the page is in the
 					decompressed LRU list;
 					used in debugging */
-#endif /* UNIV_DEBUG */
+//#endif /* UNIV_DEBUG */
 	mutex_t		mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
@@ -1498,6 +1511,12 @@ struct buf_pool_struct{
 /** mutex protecting the buffer pool struct and control blocks, except the
 read-write lock in them */
 extern mutex_t	buf_pool_mutex;
+extern mutex_t	LRU_list_mutex;
+extern mutex_t	flush_list_mutex;
+extern rw_lock_t	page_hash_latch;
+extern mutex_t	free_list_mutex;
+extern mutex_t	zip_free_mutex;
+extern mutex_t	zip_hash_mutex;
 /** mutex protecting the control blocks of compressed-only pages
 (of type buf_page_t, not buf_block_t) */
 extern mutex_t	buf_pool_zip_mutex;
@@ -1509,8 +1528,8 @@ Use these instead of accessing buf_pool_mutex directly. */
 /** Test if buf_pool_mutex is owned. */
 #define buf_pool_mutex_own() mutex_own(&buf_pool_mutex)
 /** Acquire the buffer pool mutex. */
+/* the buf_pool_mutex is changed the latch order */
 #define buf_pool_mutex_enter() do {		\
-	ut_ad(!mutex_own(&buf_pool_zip_mutex));	\
 	mutex_enter(&buf_pool_mutex);		\
 } while (0)
 

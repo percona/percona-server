@@ -489,8 +489,14 @@ or row lock! */
 					SYNC_SEARCH_SYS, as memory allocation
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
+#define SYNC_BUF_LRU_LIST	157
+#define SYNC_BUF_PAGE_HASH	156
+#define	SYNC_BUF_BLOCK		155
+#define SYNC_BUF_FREE_LIST	153
+#define SYNC_BUF_ZIP_FREE	152
+#define SYNC_BUF_ZIP_HASH	151
 #define	SYNC_BUF_POOL		150
-#define	SYNC_BUF_BLOCK		149
+#define SYNC_BUF_FLUSH_LIST	149
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
 #define SYNC_THR_LOCAL		133
@@ -521,7 +527,7 @@ struct mutex_struct {
 		os_fast_mutex;	/*!< We use this OS mutex in place of lock_word
 				when atomic operations are not enabled */
 #endif
-	ulint	waiters;	/*!< This ulint is set to 1 if there are (or
+	volatile ulint	waiters;	/*!< This ulint is set to 1 if there are (or
 				may be) threads waiting in the global wait
 				array for this mutex to be released.
 				Otherwise, this is 0. */

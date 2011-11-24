@@ -525,6 +525,11 @@ ulint
 buf_calc_page_new_checksum(
 /*=======================*/
 	const byte*	page);	/*!< in: buffer page */
+UNIV_INTERN
+ulint
+buf_calc_page_new_checksum_32(
+/*==========================*/
+	const byte*	page);	/*!< in: buffer page */
 /********************************************************************//**
 In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
 looked at the first few bytes of the page. This calculates that old

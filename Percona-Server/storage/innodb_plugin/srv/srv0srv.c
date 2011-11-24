@@ -392,6 +392,7 @@ UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
+UNIV_INTERN ibool	srv_fast_checksum = FALSE;
 
 UNIV_INTERN ibool	srv_set_thread_priorities = TRUE;
 UNIV_INTERN int	srv_query_thread_priority = 0;

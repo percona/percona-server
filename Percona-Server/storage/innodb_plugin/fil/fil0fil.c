@@ -3046,8 +3046,19 @@ fil_page_buf_page_is_corrupted_offline(
 		return(TRUE);
 	}
 
-	if (checksum_field != 0
+	if (!srv_fast_checksum
+	    && checksum_field != 0
 	    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+	    && checksum_field
+	    != buf_calc_page_new_checksum(page)) {
+		return(TRUE);
+	}
+
+	if (srv_fast_checksum
+	    && checksum_field != 0
+	    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+	    && checksum_field
+	    != buf_calc_page_new_checksum_32(page)
 	    && checksum_field
 	    != buf_calc_page_new_checksum(page)) {
 		return(TRUE);
@@ -3068,7 +3079,9 @@ fil_page_buf_page_store_checksum(
 	if (!zip_size) {
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 				srv_use_checksums
-				? buf_calc_page_new_checksum(page)
+				? (!srv_fast_checksum
+				   ? buf_calc_page_new_checksum(page)
+				   : buf_calc_page_new_checksum_32(page))
 						: BUF_NO_CHECKSUM_MAGIC);
 		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 				srv_use_checksums

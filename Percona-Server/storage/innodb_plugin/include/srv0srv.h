@@ -213,6 +213,7 @@ extern ibool	srv_use_sys_stats_table;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
+extern ibool	srv_fast_checksum;
 
 extern ibool	srv_set_thread_priorities;
 extern int	srv_query_thread_priority;

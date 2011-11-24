@@ -185,6 +185,7 @@ static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
+static my_bool	innobase_fast_checksum			= FALSE;
 static my_bool	innobase_extra_undoslots		= FALSE;
 static my_bool	innobase_fast_recovery			= FALSE;
 static my_bool	innobase_recovery_stats			= TRUE;
@@ -2417,6 +2418,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
+	srv_fast_checksum = (ibool) innobase_fast_checksum;
 
 	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
 
@@ -11185,6 +11187,15 @@ static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
   "Disable with --skip-innodb-checksums.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(fast_checksum, innobase_fast_checksum,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Change the algorithm of checksum for the whole of datapage to 4-bytes word based. "
+  "The original checksum is checked after the new one. It may be slow for reading page"
+  " which has orginal checksum. Overwrite the page or recreate the InnoDB database, "
+  "if you want the entire benefit for performance at once. "
+  "#### Attention: The checksum is not compatible for normal or disabled version! ####",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
   "The common part for InnoDB table spaces.",
@@ -11676,6 +11687,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(checksums),
+  MYSQL_SYSVAR(fast_checksum),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
   MYSQL_SYSVAR(data_file_path),

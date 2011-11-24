@@ -1459,12 +1459,16 @@ void close_temporary_tables(THD *thd)
       (thd->current_stmt_binlog_row_based && thd->variables.binlog_format == BINLOG_FORMAT_ROW))
   {
     TABLE *tmp_next;
+
+    pthread_mutex_lock(&thd->LOCK_temporary_tables);
     for (table= thd->temporary_tables; table; table= tmp_next)
     {
       tmp_next= table->next;
       close_temporary(table, 1, 1);
     }
     thd->temporary_tables= 0;
+    pthread_mutex_unlock(&thd->LOCK_temporary_tables);
+
     return;
   }
 
@@ -1476,6 +1480,8 @@ void close_temporary_tables(THD *thd)
   bool found_user_tables= FALSE;
 
   memcpy(buf, stub, stub_len);
+
+  pthread_mutex_lock(&thd->LOCK_temporary_tables);
 
   /*
     Insertion sort of temp tables by pseudo_thread_id to build ordered list
@@ -1581,6 +1587,7 @@ void close_temporary_tables(THD *thd)
   if (!was_quote_show)
     thd->options&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
+  pthread_mutex_unlock(&thd->LOCK_temporary_tables);
 }
 
 /*
@@ -1883,6 +1890,8 @@ void close_temporary_table(THD *thd, TABLE *table,
   if (table->child_l || table->parent)
     detach_merge_children(table, TRUE);
 
+  pthread_mutex_lock(&thd->LOCK_temporary_tables);
+
   if (table->prev)
   {
     table->prev->next= table->next;
@@ -1909,6 +1918,9 @@ void close_temporary_table(THD *thd, TABLE *table,
     slave_open_temp_tables--;
   }
   close_temporary(table, free_share, delete_table);
+
+  pthread_mutex_unlock(&thd->LOCK_temporary_tables);
+
   DBUG_VOID_RETURN;
 }
 
@@ -5626,6 +5638,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   if (link_in_list)
   {
     /* growing temp list at the head */
+    pthread_mutex_lock(&thd->LOCK_temporary_tables);
     tmp_table->next= thd->temporary_tables;
     if (tmp_table->next)
       tmp_table->next->prev= tmp_table;
@@ -5633,6 +5646,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
     thd->temporary_tables->prev= 0;
     if (thd->slave_thread)
       slave_open_temp_tables++;
+    pthread_mutex_unlock(&thd->LOCK_temporary_tables);
   }
   tmp_table->pos_in_table_list= 0;
   DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,

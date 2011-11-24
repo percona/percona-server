@@ -733,6 +733,7 @@ THD::THD()
   active_vio = 0;
 #endif
   pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_temporary_tables, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -1147,6 +1148,7 @@ THD::~THD()
 #endif
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_thd_data);
+  pthread_mutex_destroy(&LOCK_temporary_tables);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  

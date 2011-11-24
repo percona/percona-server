@@ -899,6 +899,11 @@ public:
   */
   TABLE *temporary_tables;
   /**
+     Protects temporary_tables.
+  */
+  pthread_mutex_t LOCK_temporary_tables;
+
+  /**
     List of tables that were opened with HANDLER OPEN and are
     still in use by this thread.
   */

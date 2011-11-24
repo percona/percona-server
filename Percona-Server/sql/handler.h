@@ -171,6 +171,19 @@
 #define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
 #define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
 #define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+
+#define HA_ONLINE_ALTER_INDEX_MASK	(HA_ONLINE_ADD_INDEX_NO_WRITES \
+						| HA_ONLINE_DROP_INDEX_NO_WRITES \
+						| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES \
+						| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES \
+						| HA_ONLINE_ADD_PK_INDEX_NO_WRITES \
+						| HA_ONLINE_DROP_PK_INDEX_NO_WRITES \
+						| HA_ONLINE_ADD_INDEX \
+						| HA_ONLINE_DROP_INDEX \
+						| HA_ONLINE_ADD_UNIQUE_INDEX \
+						| HA_ONLINE_DROP_UNIQUE_INDEX \
+						| HA_ONLINE_ADD_PK_INDEX \
+						| HA_ONLINE_DROP_PK_INDEX)
 /*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.

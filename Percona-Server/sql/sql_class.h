@@ -383,6 +383,8 @@ struct system_variables
   my_bool ndb_use_transactions;
   my_bool ndb_index_stat_enable;
 
+  my_bool online_alter_index;
+
   my_bool old_alter_table;
   my_bool old_passwords;
 

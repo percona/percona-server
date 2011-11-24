@@ -7023,6 +7023,10 @@ view_err:
     uint  *idx_end_p;
 
     alter_flags= table->file->alter_table_flags(alter_info->flags);
+    if (!thd->variables.online_alter_index)
+    {
+      alter_flags&= ~((ulong)HA_ONLINE_ALTER_INDEX_MASK);
+    }
     DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
     /* Check dropped indexes. */
     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;

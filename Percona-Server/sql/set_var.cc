@@ -760,6 +760,11 @@ static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
 
+/* Control online operations of ALTER TABLE */
+static sys_var_thd_bool
+sys_online_alter_index(&vars, "fast_index_creation",
+			&SV::online_alter_index);
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 /* ndb thread specific variable settings */
 static sys_var_thd_ulong

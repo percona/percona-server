@@ -5920,6 +5920,7 @@ enum options_mysqld
   OPT_USERSTAT_RUNNING,
   OPT_THREAD_STATISTICS,
   OPT_OPTIMIZER_FIX,
+  OPT_ONLINE_ALTER_INDEX,
   OPT_SUPPRESS_LOG_WARNING_1592,
   OPT_QUERY_CACHE_STRIP_COMMENTS,
   OPT_USE_GLOBAL_LONG_QUERY_TIME,
@@ -5952,6 +5953,13 @@ struct my_option my_long_options[] =
    "from libc.so",
    &opt_allow_suspicious_udfs, &opt_allow_suspicious_udfs,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"fast_index_creation",
+   OPT_ONLINE_ALTER_INDEX,
+   "If disabled, suppresses online operations for indexes of ALTER TABLE "
+   "(e.g. fast index creation of InnoDB Plugin) for the session.",
+   (uchar**) &global_system_variables.online_alter_index,
+   (uchar**) &global_system_variables.online_alter_index,
+   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode "
    "will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},

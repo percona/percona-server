@@ -1503,11 +1503,11 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
+	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
 					/*!< buddy free lists */
-#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
-# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
-#endif
+//#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
+//# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
+//#endif
 #if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
 # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
 #endif

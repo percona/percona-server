@@ -151,6 +151,9 @@ static ulong innobase_commit_concurrency = 0;
 static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
 
+static ulong innobase_page_size;
+static ulong innobase_log_block_size;
+
 static my_bool innobase_thread_concurrency_timer_based;
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -2106,6 +2109,62 @@ innobase_init(
 		goto error;
 	}
 #endif /* UNIV_DEBUG */
+
+	srv_page_size = 0;
+	srv_page_size_shift = 0;
+
+	if (innobase_page_size != (1 << 14)) {
+		uint n_shift;
+
+		fprintf(stderr,
+			"InnoDB: Warning: innodb_page_size has been changed from default value 16384. (###EXPERIMENTAL### operation)\n");
+		for (n_shift = 12; n_shift <= UNIV_PAGE_SIZE_SHIFT_MAX; n_shift++) {
+			if (innobase_page_size == ((ulong)1 << n_shift)) {
+				srv_page_size_shift = n_shift;
+				srv_page_size = (1 << srv_page_size_shift);
+				fprintf(stderr,
+					"InnoDB: The universal page size of the database is set to %lu.\n",
+					srv_page_size);
+				break;
+			}
+		}
+	} else {
+		srv_page_size_shift = 14;
+		srv_page_size = (1 << srv_page_size_shift);
+	}
+
+	if (!srv_page_size_shift) {
+		fprintf(stderr,
+			"InnoDB: Error: %lu is not valid value for innodb_page_size.\n",
+			innobase_page_size);
+		goto error;
+	}
+
+	srv_log_block_size = 0;
+	if (innobase_log_block_size != (1 << 9)) { /*!=512*/
+		uint	n_shift;
+
+		fprintf(stderr,
+			"InnoDB: Warning: innodb_log_block_size has been changed from default value 512. (###EXPERIMENTAL### operation)\n");
+		for (n_shift = 9; n_shift <= UNIV_PAGE_SIZE_SHIFT_MAX; n_shift++) {
+			if (innobase_log_block_size == ((ulong)1 << n_shift)) {
+				srv_log_block_size = (1 << n_shift);
+				fprintf(stderr,
+					"InnoDB: The log block size is set to %lu.\n",
+					srv_log_block_size);
+				break;
+			}
+		}
+	} else {
+		srv_log_block_size = 512;
+	}
+
+	if (!srv_log_block_size) {
+		fprintf(stderr,
+			"InnoDB: Error: %lu is not valid value for innodb_log_block_size.\n",
+			innobase_log_block_size);
+		goto error;
+	}
 
 #ifndef MYSQL_SERVER
 	innodb_overwrite_relay_log_info = FALSE;
@@ -6994,9 +7053,9 @@ ha_innobase::create(
 				| DICT_TF_COMPACT
 				| DICT_TF_FORMAT_ZIP
 				<< DICT_TF_FORMAT_SHIFT;
-#if DICT_TF_ZSSIZE_MAX < 1
-# error "DICT_TF_ZSSIZE_MAX < 1"
-#endif
+//#if DICT_TF_ZSSIZE_MAX < 1
+//# error "DICT_TF_ZSSIZE_MAX < 1"
+//#endif
 		}
 	}
 
@@ -11196,6 +11255,16 @@ static MYSQL_SYSVAR_BOOL(fast_checksum, innobase_fast_checksum,
   "#### Attention: The checksum is not compatible for normal or disabled version! ####",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(page_size, innobase_page_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "###EXPERIMENTAL###: The universal page size of the database. Changing for created database is not supported. Use on your own risk!",
+  NULL, NULL, (1 << 14), (1 << 12), (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
+
+static MYSQL_SYSVAR_ULONG(log_block_size, innobase_log_block_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "###EXPERIMENTAL###: The log block size of the transaction log file. Changing for created log file is not supported. Use on your own risk!",
+  NULL, NULL, (1 << 9)/*512*/, (1 << 9)/*512*/, (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
+
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
   "The common part for InnoDB table spaces.",
@@ -11683,6 +11752,8 @@ static	MYSQL_SYSVAR_ULONG(pass_corrupt_table, srv_pass_corrupt_table,
   NULL, NULL, 0, 0, 2, 0);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
+  MYSQL_SYSVAR(page_size),
+  MYSQL_SYSVAR(log_block_size),
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),

@@ -657,16 +657,18 @@ xdes_calc_descriptor_page(
 				0 for uncompressed pages */
 	ulint	offset)		/*!< in: page offset */
 {
-#ifndef DOXYGEN /* Doxygen gets confused of these */
-# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
-		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
-#  error
-# endif
-# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
-		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
-#  error
-# endif
-#endif /* !DOXYGEN */
+//#ifndef DOXYGEN /* Doxygen gets confused of these */
+//# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET
+//		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+//#  error
+//# endif
+//# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET
+//		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+//#  error
+//# endif
+//#endif /* !DOXYGEN */
+	ut_a(UNIV_PAGE_SIZE > XDES_ARR_OFFSET + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
+	ut_a(PAGE_ZIP_MIN_SIZE > XDES_ARR_OFFSET + (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE);
 	ut_ad(ut_is_2pow(zip_size));
 
 	if (!zip_size) {
@@ -1465,12 +1467,12 @@ fsp_fill_free_list(
 							   mtr);
 		xdes_init(descr, mtr);
 
-#if UNIV_PAGE_SIZE % FSP_EXTENT_SIZE
-# error "UNIV_PAGE_SIZE % FSP_EXTENT_SIZE != 0"
-#endif
-#if PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE
-# error "PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE != 0"
-#endif
+//#if UNIV_PAGE_SIZE % FSP_EXTENT_SIZE
+//# error "UNIV_PAGE_SIZE % FSP_EXTENT_SIZE != 0"
+//#endif
+//#if PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE
+//# error "PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE != 0"
+//#endif
 
 		if (UNIV_UNLIKELY(init_xdes)) {
 

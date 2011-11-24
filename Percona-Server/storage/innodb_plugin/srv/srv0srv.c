@@ -219,6 +219,14 @@ UNIV_INTERN ulint	srv_n_write_io_threads	= ULINT_MAX;
 
 /* Switch to enable random read ahead. */
 UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
+
+/* The universal page size of the database */
+UNIV_INTERN ulint	srv_page_size_shift	= 0;
+UNIV_INTERN ulint	srv_page_size		= 0;
+
+/* The log block size */
+UNIV_INTERN ulint	srv_log_block_size	= 0;
+
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */

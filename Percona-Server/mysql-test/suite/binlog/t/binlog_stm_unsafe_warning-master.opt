@@ -1,1 +1,1 @@
---binlog-ignore-db=b42851 --log-error
+--binlog-ignore-db=b42851 --log-error=$MYSQLTEST_VARDIR/log/binlog.binlog_stm_unsafe_warning.err

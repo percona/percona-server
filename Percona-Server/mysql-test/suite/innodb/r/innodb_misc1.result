@@ -659,7 +659,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1, t2, t3, t5, t6, t8, t9;
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
 CREATE TABLE t1 (
 a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)
@@ -763,6 +763,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=latin1
 DROP TABLE t1,t2;
+SET SESSION innodb_strict_mode = on;
 CREATE TABLE t1 (
 c01 CHAR(255), c02 CHAR(255), c03 CHAR(255), c04 CHAR(255),
 c05 CHAR(255), c06 CHAR(255), c07 CHAR(255), c08 CHAR(255),

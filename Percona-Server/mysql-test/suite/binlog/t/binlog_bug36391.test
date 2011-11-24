@@ -21,10 +21,10 @@ let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
 let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;
 SHOW TABLES;
 FLUSH LOGS;
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
 
 --exec $MYSQL_BINLOG $binlog_path | $MYSQL test
 SHOW TABLES;
 
 # Clean up
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;

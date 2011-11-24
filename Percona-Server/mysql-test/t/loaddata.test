@@ -638,6 +638,7 @@ create table t1(a point);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 --eval LOAD DATA INFILE '$file' INTO TABLE t1
+--remove_file $MYSQLTEST_VARDIR/tmp/bug11735141.txt
 drop table t1;
 
 --echo End of 5.1 tests

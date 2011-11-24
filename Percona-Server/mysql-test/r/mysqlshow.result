@@ -80,14 +80,17 @@ Database: information_schema
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
+| INDEX_STATISTICS                      |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
 | GLOBAL_STATUS                         |
+| GLOBAL_TEMPORARY_TABLES               |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
@@ -96,6 +99,7 @@ Database: information_schema
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | ROUTINES                              |
+| QUERY_RESPONSE_TIME                   |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
 | SESSION_STATUS                        |
@@ -104,23 +108,48 @@ Database: information_schema
 | TABLES                                |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TEMPORARY_TABLES                      |
+| TABLE_STATISTICS                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_RSEG                           |
+| INNODB_LOCKS                          |
+| INNODB_BUFFER_POOL_PAGES              |
+| XTRADB_ENHANCEMENTS                   |
+| INNODB_TRX                            |
+| XTRADB_ADMIN_COMMAND                  |
+| INNODB_LOCK_WAITS                     |
+| INNODB_SYS_TABLES                     |
+| INNODB_CMP                            |
+| INNODB_SYS_STATS                      |
+| INNODB_CMP_RESET                      |
+| INNODB_CMPMEM                         |
+| INNODB_INDEX_STATS                    |
+| INNODB_SYS_INDEXES                    |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_TABLE_STATS                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
+| INDEX_STATISTICS                      |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
 | GLOBAL_STATUS                         |
+| GLOBAL_TEMPORARY_TABLES               |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
@@ -129,6 +158,7 @@ Database: INFORMATION_SCHEMA
 | PROFILING                             |
 | REFERENTIAL_CONSTRAINTS               |
 | ROUTINES                              |
+| QUERY_RESPONSE_TIME                   |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
 | SESSION_STATUS                        |
@@ -137,9 +167,31 @@ Database: INFORMATION_SCHEMA
 | TABLES                                |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TEMPORARY_TABLES                      |
+| TABLE_STATISTICS                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
+| INNODB_BUFFER_POOL_PAGES_INDEX        |
+| INNODB_RSEG                           |
+| INNODB_LOCKS                          |
+| INNODB_BUFFER_POOL_PAGES              |
+| XTRADB_ENHANCEMENTS                   |
+| INNODB_TRX                            |
+| XTRADB_ADMIN_COMMAND                  |
+| INNODB_LOCK_WAITS                     |
+| INNODB_SYS_TABLES                     |
+| INNODB_CMP                            |
+| INNODB_SYS_STATS                      |
+| INNODB_CMP_RESET                      |
+| INNODB_CMPMEM                         |
+| INNODB_INDEX_STATS                    |
+| INNODB_SYS_INDEXES                    |
+| INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_TABLE_STATS                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

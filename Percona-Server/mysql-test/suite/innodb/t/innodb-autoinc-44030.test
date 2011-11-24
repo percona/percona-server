@@ -6,6 +6,8 @@
 drop table if exists t1;
 --enable_warnings
 
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+
 #
 # 44030: Error: (1500) Couldn't read the MAX(ID) autoinc value from
 # the index (PRIMARY)
@@ -32,3 +34,6 @@ SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
+
+-- disable_query_log
+eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;

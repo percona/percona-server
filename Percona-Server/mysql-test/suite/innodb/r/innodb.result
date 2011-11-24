@@ -691,14 +691,16 @@ count(*)
 select count(*) from t1 where sca_pic is null;
 count(*)
 2
-alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
 select count(*) from t1 where cat_code='E';
 count(*)
 0
-alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -1432,7 +1434,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop index id2 on t2;
 drop index id on t2;
-Got one of the listed errors
+ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1662,7 +1664,7 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-512
+8192
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
@@ -1671,7 +1673,7 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1063
+1102
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 865
@@ -1690,9 +1692,10 @@ variable_value - @innodb_row_lock_time_max_orig
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
+SET @old_innodb_sync_spin_loops= @@global.innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
-innodb_sync_spin_loops	20
+innodb_sync_spin_loops	30
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
@@ -1705,10 +1708,11 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
+SET @@global.innodb_sync_spin_loops= @old_innodb_sync_spin_loops;
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	8
+innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
 Warning	1292	Truncated incorrect thread_concurrency value: '1001'
@@ -1894,7 +1898,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 alter table t1 add unique(v);
-ERROR 23000: Duplicate entry '{ ' for key 'v_2'
+ERROR 23000: Duplicate entry 'v' for key 'v_2'
 alter table t1 add key(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
 qq
@@ -2301,6 +2305,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

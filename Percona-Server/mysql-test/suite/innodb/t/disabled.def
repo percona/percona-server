@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb.innodb_bug56143   : Bug #684250 2010-12-03 akuzminsky https://bugs.launchpad.net/percona-server/+bug/684250

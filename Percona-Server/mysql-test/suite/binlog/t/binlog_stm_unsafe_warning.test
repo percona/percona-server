@@ -114,4 +114,7 @@ perl;
   my $count = () = grep(/Bug#46265/g,<FILE>);
   print "Occurrences: $count\n";
   close(FILE);
+  # Clean log error file
+  open(FILE, '>', $log_error);
+  close(FILE);
 EOF

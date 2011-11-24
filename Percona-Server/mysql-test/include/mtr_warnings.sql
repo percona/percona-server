@@ -168,6 +168,9 @@ INSERT INTO global_suppressions VALUES
     write()/read(). Bug #50414 */
  ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
  ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
+ 
+ /* Suppress innodb_buffer_pool_shm_key warning */
+ ("InnoDB: Warning: The innodb_buffer_pool_shm_key option has been specified."),
 
  ("THE_LAST_SUPPRESSION")||
 

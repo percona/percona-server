@@ -6,6 +6,8 @@
 drop table if exists t1;
 --enable_warnings
 
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+
 #
 # Bug #34335
 #
@@ -637,3 +639,6 @@ INSERT INTO t1 VALUES (18446744073709551615);
 -- source include/restart_mysqld.inc
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+-- disable_query_log
+eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;

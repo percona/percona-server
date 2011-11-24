@@ -434,11 +434,11 @@ echo
 # SHOW FULL PROCESSLIST                          Complete statement
 # SHOW PROCESSLIST                               statement truncated after 100 char
 ;
---replace_column 1 <ID> 3 <HOST_NAME> 5 <COMMAND> 6 <TIME> 7 <STATE>
+--replace_column 1 <ID> 3 <HOST_NAME> 5 <COMMAND> 6 <TIME> 7 <STATE> 9 <TIME_MS>
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID> 3 <HOST_NAME> 5 <COMMAND> 6 <TIME> 7 <STATE>
+--replace_column 1 <ID> 3 <HOST_NAME> 5 <COMMAND> 6 <TIME> 7 <STATE> 9 <TIME_MS>
 SHOW FULL PROCESSLIST;
---replace_column 1 <ID> 3 <HOST_NAME> 5 <COMMAND> 6 <TIME> 7 <STATE>
+--replace_column 1 <ID> 3 <HOST_NAME> 5 <COMMAND> 6 <TIME> 7 <STATE> 9 <TIME_MS>
 SHOW PROCESSLIST;
 UNLOCK TABLES;
 echo

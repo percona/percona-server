@@ -27,9 +27,11 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
 		mtr_report_test_skipped mtr_print
+		mtr_report_test_subunit
 		mtr_report_test);
 
 use mtr_match;
+use Subunit;
 use My::Platform;
 use POSIX qw[ _exit ];
 use IO::Handle qw[ flush ];
@@ -220,6 +222,68 @@ sub mtr_report_test ($) {
     {
       mtr_report($tinfo->{'check'});
     }
+  }
+}
+
+sub mtr_report_test_subunit ($) {
+  my ($tinfo)= @_;
+  my $subunit_testname= $tinfo->{name};
+  $subunit_testname.= " '$tinfo->{combination}'"
+    if defined $tinfo->{combination};
+
+
+  my $comment=  $tinfo->{'comment'};
+  my $logfile=  $tinfo->{'logfile'};
+  my $warnings= $tinfo->{'warnings'};
+  my $result=   $tinfo->{'result'};
+  my $retry=    $tinfo->{'retries'} ? "retry-" : "";
+
+  my $test_name_sub = $tinfo->{name};
+
+  if ($result eq 'MTR_RES_FAILED'){
+
+    my $timest = format_time();
+    my $fail = "fail";
+
+    if ( $warnings )
+    {
+      Subunit::subunit_start_test($subunit_testname);
+      Subunit::subunit_fail_test($subunit_testname, "Found warnings/errors in server log file!");
+      return;
+    }
+    my $timeout= $tinfo->{'timeout'};
+    if ( $timeout )
+    {
+      Subunit::subunit_start_test($subunit_testname);
+      Subunit::subunit_fail_test($subunit_testname, "Timeout after $timeout seconds\n\n$tinfo->{'comment'}");
+      return;
+    }
+    Subunit::subunit_start_test($subunit_testname);
+    Subunit::subunit_fail_test($subunit_testname, "Comment: $comment\n\nLogfile:\n$logfile");
+  }
+  elsif ($result eq 'MTR_RES_SKIPPED')
+  {
+    if ( $tinfo->{'disable'} )
+    {
+      $comment="DISABLED: $comment";
+    }
+    # report into to subunit for Jenkins reporting
+    Subunit::subunit_start_test($subunit_testname);
+    Subunit::subunit_skip_test($subunit_testname, $comment);
+  }
+  elsif ($result eq 'MTR_RES_PASSED')
+  {
+    # Show any problems check-testcase found
+    if ( defined $tinfo->{'check'} )
+    {
+      mtr_report($tinfo->{'check'});
+    }
+    # report info to subunit for Jenkins reporting
+    # TODO:  catch 'check-testcase' output??
+    Subunit::report_time(time() - $tinfo->{timer}/1000);
+    Subunit::subunit_start_test($subunit_testname);
+    Subunit::report_time(time());
+    Subunit::subunit_pass_test($subunit_testname);
   }
 }
 

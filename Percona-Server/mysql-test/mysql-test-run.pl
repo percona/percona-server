@@ -99,6 +99,7 @@ use mtr_match;
 use mtr_unique;
 use IO::Socket::INET;
 use IO::Select;
+use Subunit;
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
@@ -529,6 +530,7 @@ sub run_test_server ($$$) {
 
 	  # Report test status
 	  mtr_report_test($result);
+	  mtr_report_test_subunit($result);
 
 	  if ( $result->is_failed() ) {
 

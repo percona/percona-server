@@ -217,6 +217,8 @@ extern ulint	srv_enable_unsafe_group_commit;
 extern ulint	srv_read_ahead;
 extern ulint	srv_adaptive_checkpoint;
 
+extern ulint	srv_extra_rsegments;
+
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;

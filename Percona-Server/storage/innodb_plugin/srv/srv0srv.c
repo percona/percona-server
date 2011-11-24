@@ -390,6 +390,8 @@ UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
 UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
 UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
 UNIV_INTERN ulint	srv_adaptive_checkpoint = 0; /* 0: none  1: reflex  2: estimate */
+
+UNIV_INTERN ulint	srv_extra_rsegments = 0; /* extra rseg for users */
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
 UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;

@@ -1045,6 +1045,31 @@ trx_sys_create(void)
 	trx_sys_init_at_db_start();
 }
 
+/*********************************************************************
+Create extra rollback segments when create_new_db */
+UNIV_INTERN
+void
+trx_sys_create_extra_rseg(
+/*======================*/
+	ulint	num)	/* in: number of extra user rollback segments */
+{
+	mtr_t	mtr;
+	ulint	slot_no;
+	ulint	i;
+
+	/* Craete extra rollback segments */
+	mtr_start(&mtr);
+	for (i = 1; i < num + 1; i++) {
+		if(!trx_rseg_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no, &mtr)) {
+			fprintf(stderr,
+"InnoDB: Warning: Failed to create extra rollback segments.\n");
+			break;
+		}
+		ut_a(slot_no == i);
+	}
+	mtr_commit(&mtr);
+}
+
 /*****************************************************************//**
 Update the file format tag.
 @return	always TRUE */

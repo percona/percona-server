@@ -11168,6 +11168,11 @@ static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_co
   "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine.",
   NULL, NULL, 0, 0, 1, 0);
 
+static MYSQL_SYSVAR_ULONG(extra_rsegments, srv_extra_rsegments,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of extra user rollback segments when create new database.",
+  NULL, NULL, 0, 0, 126, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11233,6 +11238,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(adaptive_checkpoint),
   MYSQL_SYSVAR(flush_log_at_trx_commit_session),
   MYSQL_SYSVAR(enable_unsafe_group_commit),
+  MYSQL_SYSVAR(extra_rsegments),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -11259,6 +11265,7 @@ mysql_declare_plugin(innodb_plugin)
   innobase_system_variables, /* system variables */
   NULL /* reserved */
 },
+i_s_innodb_rseg,
 i_s_innodb_buffer_pool_pages,
 i_s_innodb_buffer_pool_pages_index,
 i_s_innodb_buffer_pool_pages_blob,

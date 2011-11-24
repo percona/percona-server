@@ -43,6 +43,8 @@ extern "C" {
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 #include "srv0start.h" /* for srv_was_started */
 #include "btr0btr.h" /* for btr_page_get_index_id */
+#include "trx0rseg.h" /* for trx_rseg_struct */
+#include "trx0sys.h" /* for trx_sys */
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -2435,3 +2437,166 @@ i_s_common_deinit(
 
 	DBUG_RETURN(0);
 }
+
+/***********************************************************************
+*/
+static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
+{
+	{STRUCT_FLD(field_name,		"rseg_id"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"space_id"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"zip_size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"page_no"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"max_size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"curr_size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+static
+int
+i_s_innodb_rseg_fill(
+/*=================*/
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+	trx_rseg_t*	rseg;
+
+	DBUG_ENTER("i_s_innodb_rseg_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
+	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+
+	while (rseg) {
+		table->field[0]->store(rseg->id);
+		table->field[1]->store(rseg->space);
+		table->field[2]->store(rseg->zip_size);
+		table->field[3]->store(rseg->page_no);
+		table->field[4]->store(rseg->max_size);
+		table->field[5]->store(rseg->curr_size);
+
+		if (schema_table_store_record(thd, table)) {
+			status = 1;
+			break;
+		}
+
+		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
+	}
+
+	DBUG_RETURN(status);
+}
+
+static
+int
+i_s_innodb_rseg_init(
+/*=================*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_innodb_rseg_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_rseg_fields_info;
+	schema->fill_table = i_s_innodb_rseg_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_rseg =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_RSEG"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, "Percona"),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB rollback segment information"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_innodb_rseg_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};

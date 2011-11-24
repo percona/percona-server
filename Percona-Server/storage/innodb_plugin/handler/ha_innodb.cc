@@ -197,6 +197,8 @@ static char*	internal_innobase_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+static my_bool	innobase_blocking_lru_restore		= FALSE;
+
 /** Possible values for system variable "innodb_stats_method". The values
 are defined the same as its corresponding MyISAM system variable
 "myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
@@ -2409,6 +2411,8 @@ innobase_change_buffering_inited_ok:
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
+
+	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
 
 #ifdef HAVE_LARGE_PAGES
         if ((os_use_large_pages = (ibool) my_use_large_pages))
@@ -11473,6 +11477,18 @@ static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
   "Limit the allocated memory for dictionary cache. (0: unlimited)",
   NULL, NULL, 0, 0, LONG_MAX, 0);
 
+static MYSQL_SYSVAR_UINT(auto_lru_dump, srv_auto_lru_dump,
+  PLUGIN_VAR_RQCMDARG,
+  "Time in seconds between automatic buffer pool dumps. "
+  "0 (the default) disables automatic dumps.",
+  NULL, NULL, 0, 0, UINT_MAX32, 0);
+
+static MYSQL_SYSVAR_BOOL(blocking_lru_restore, innobase_blocking_lru_restore,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Block XtraDB startup process until buffer pool is full restored from a "
+  "dump file (if present). Disabled by default.",
+  NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11553,6 +11569,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(auto_lru_dump),
+  MYSQL_SYSVAR(blocking_lru_restore),
   MYSQL_SYSVAR(use_purge_thread),
   NULL
 };

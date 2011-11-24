@@ -643,6 +643,14 @@ _fil_io(
 	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
 	trx_t*	trx);
+/********************************************************************//**
+Confirm whether the parameters are valid or not */
+UNIV_INTERN
+ibool
+fil_is_exist(
+/*==============*/
+	ulint	space_id,	/*!< in: space id */
+	ulint	block_offset);	/*!< in: offset in number of blocks */
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided

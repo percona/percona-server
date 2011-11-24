@@ -88,6 +88,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 # include "zlib.h" /* for ZLIB_VERSION */
+# include "buf0lru.h" /* for buf_LRU_file_restore() */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -126,9 +127,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 6 + UNIV_MAX_PARALLELISM];
+static ulint		n[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + UNIV_MAX_PARALLELISM];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1706,6 +1707,15 @@ innobase_start_or_create_for_mysql(void)
 	os_thread_create(&srv_monitor_thread, NULL,
 			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
 
+	/* Create the thread which automaticaly dumps/restore buffer pool */
+	os_thread_create(&srv_LRU_dump_restore_thread, NULL,
+			 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+
+	/* If srv_blocking_lru_restore is TRUE, load buffer pool contents
+	synchronously */
+	if (srv_auto_lru_dump && srv_blocking_lru_restore)
+		buf_LRU_file_restore();
+
 	srv_is_being_started = FALSE;
 
 	if (trx_doublewrite == NULL) {
@@ -1730,13 +1740,13 @@ innobase_start_or_create_for_mysql(void)
 		ulint i;
 
 		os_thread_create(&srv_purge_thread, NULL, thread_ids
-				 + (5 + SRV_MAX_N_IO_THREADS));
+				 + (6 + SRV_MAX_N_IO_THREADS));
 
 		for (i = 0; i < srv_use_purge_thread - 1; i++) {
-			n[6 + i + SRV_MAX_N_IO_THREADS] = i; /* using as index for arrays in purge_sys */
+			n[7 + i + SRV_MAX_N_IO_THREADS] = i; /* using as index for arrays in purge_sys */
 			os_thread_create(&srv_purge_worker_thread,
-					 n + (6 + i + SRV_MAX_N_IO_THREADS),
-					 thread_ids + (6 + i + SRV_MAX_N_IO_THREADS));
+					 n + (7 + i + SRV_MAX_N_IO_THREADS),
+					 thread_ids + (7 + i + SRV_MAX_N_IO_THREADS));
 		}
 	}
 #ifdef UNIV_DEBUG

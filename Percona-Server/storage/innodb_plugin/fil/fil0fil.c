@@ -5239,6 +5239,70 @@ _fil_io(
 	return(DB_SUCCESS);
 }
 
+/********************************************************************//**
+Confirm whether the parameters are valid or not */
+UNIV_INTERN
+ibool
+fil_is_exist(
+/*==============*/
+	ulint	space_id,	/*!< in: space id */
+	ulint	block_offset)	/*!< in: offset in number of blocks */
+{
+	fil_space_t*	space;
+	fil_node_t*	node;
+
+	/* Reserve the fil_system mutex and make sure that we can open at
+	least one file while holding it, if the file is not already open */
+
+	fil_mutex_enter_and_prepare_for_io(space_id);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (!space) {
+		mutex_exit(&fil_system->mutex);
+		return(FALSE);
+	}
+
+	node = UT_LIST_GET_FIRST(space->chain);
+
+	for (;;) {
+		if (UNIV_UNLIKELY(node == NULL)) {
+			mutex_exit(&fil_system->mutex);
+			return(FALSE);
+		}
+
+		if (space->id != 0 && node->size == 0) {
+			/* We do not know the size of a single-table tablespace
+			before we open the file */
+
+			break;
+		}
+
+		if (node->size > block_offset) {
+			/* Found! */
+			break;
+		} else {
+			block_offset -= node->size;
+			node = UT_LIST_GET_NEXT(chain, node);
+		}
+	}
+
+	/* Open file if closed */
+	fil_node_prepare_for_io(node, fil_system, space);
+	fil_node_complete_io(node, fil_system, OS_FILE_READ);
+
+	/* Check that at least the start offset is within the bounds of a
+	single-table tablespace */
+	if (UNIV_UNLIKELY(node->size <= block_offset)
+	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
+		mutex_exit(&fil_system->mutex);
+		return(FALSE);
+	}
+
+	mutex_exit(&fil_system->mutex);
+	return(TRUE);
+}
+
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the

@@ -1,0 +1,17 @@
+--source include/have_innodb_plugin.inc
+
+--echo #
+--echo # LP bug #692211: innodb_auto_lru_dump crashes if ib_lru_dump doesn't 
+--echo #                 exist
+--echo #
+
+SELECT @@innodb_auto_lru_dump;
+
+# We want to check that the server does not crash on startup when there is no 
+# ib_lru_dump in the datadir. If we are here, we have already started up
+# successfully. So we only have to check that there is no ib_lru_dump in the 
+# datadir.
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--error 1
+--file_exists $MYSQLD_DATADIR/ib_lru_dump;

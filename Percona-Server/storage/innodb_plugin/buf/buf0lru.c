@@ -2042,6 +2042,282 @@ func_exit:
 	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
 }
 
+/********************************************************************//**
+Dump the LRU page list to the specific file. */
+#define LRU_DUMP_FILE "ib_lru_dump"
+
+UNIV_INTERN
+ibool
+buf_LRU_file_dump(void)
+/*===================*/
+{
+	os_file_t	dump_file = -1;
+	ibool		success;
+	byte*		buffer_base = NULL;
+	byte*		buffer = NULL;
+	buf_page_t*	bpage;
+	ulint		buffers;
+	ulint		offset;
+	ibool		ret = FALSE;
+	ulint		i;
+
+	for (i = 0; i < srv_n_data_files; i++) {
+		if (strstr(srv_data_file_names[i], LRU_DUMP_FILE) != NULL) {
+			fprintf(stderr,
+				" InnoDB: The name '%s' seems to be used for"
+				" innodb_data_file_path. Dumping LRU list is not"
+				" done for safeness.\n", LRU_DUMP_FILE);
+			goto end;
+		}
+	}
+
+	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
+	if (!buffer) {
+		fprintf(stderr,
+			" InnoDB: cannot allocate buffer.\n");
+		goto end;
+	}
+
+	dump_file = os_file_create(LRU_DUMP_FILE, OS_FILE_OVERWRITE,
+				OS_FILE_NORMAL, OS_DATA_FILE, &success);
+	if (!success) {
+		os_file_get_last_error(TRUE);
+		fprintf(stderr,
+			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
+		goto end;
+	}
+
+	mutex_enter(&LRU_list_mutex);
+	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+
+	buffers = offset = 0;
+	while (bpage != NULL) {
+		if (offset == 0) {
+			memset(buffer, 0, UNIV_PAGE_SIZE);
+		}
+
+		mach_write_to_4(buffer + offset * 4, bpage->space);
+		offset++;
+		mach_write_to_4(buffer + offset * 4, bpage->offset);
+		offset++;
+
+		if (offset == UNIV_PAGE_SIZE/4) {
+			success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
+					(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
+					(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
+					UNIV_PAGE_SIZE);
+			if (!success) {
+				mutex_exit(&LRU_list_mutex);
+				fprintf(stderr,
+					" InnoDB: cannot write page %lu of %s\n",
+					buffers, LRU_DUMP_FILE);
+				goto end;
+			}
+			buffers++;
+			offset = 0;
+		}
+
+		bpage = UT_LIST_GET_PREV(LRU, bpage);
+	}
+	mutex_exit(&LRU_list_mutex);
+
+	if (offset == 0) {
+		memset(buffer, 0, UNIV_PAGE_SIZE);
+	}
+
+	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
+	offset++;
+	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
+	offset++;
+
+	success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
+			(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
+			(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
+			UNIV_PAGE_SIZE);
+	if (!success) {
+		goto end;
+	}
+
+	ret = TRUE;
+end:
+	if (dump_file != -1)
+		os_file_close(dump_file);
+	if (buffer_base)
+		ut_free(buffer_base);
+
+	return(ret);
+}
+
+typedef struct {
+	ib_uint32_t space_id;
+	ib_uint32_t page_no;
+} dump_record_t;
+
+static int dump_record_cmp(const void *a, const void *b)
+{
+	const dump_record_t *rec1 = (dump_record_t *) a;
+	const dump_record_t *rec2 = (dump_record_t *) b;
+
+	if (rec1->space_id < rec2->space_id)
+		return -1;
+	if (rec1->space_id > rec2->space_id)
+		return 1;
+	if (rec1->page_no < rec2->page_no)
+		return -1;
+	return rec1->page_no > rec2->page_no;
+}
+
+/********************************************************************//**
+Read the pages based on the specific file.*/
+UNIV_INTERN
+ibool
+buf_LRU_file_restore(void)
+/*======================*/
+{
+	os_file_t	dump_file = -1;
+	ibool		success;
+	byte*		buffer_base = NULL;
+	byte*		buffer = NULL;
+	ulint		buffers;
+	ulint		offset;
+	ulint		reads = 0;
+	ulint		req = 0;
+	ibool		terminated = FALSE;
+	ibool		ret = FALSE;
+	dump_record_t*	records = NULL;
+	ulint		size;
+	ulint		size_high;
+	ulint		length;
+
+	dump_file = os_file_create_simple_no_error_handling(
+		LRU_DUMP_FILE, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+	if (!success || !os_file_get_size(dump_file, &size, &size_high)) {
+		os_file_get_last_error(TRUE);
+		fprintf(stderr,
+			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
+		goto end;
+	}
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: Restoring buffer pool pages from %s\n",
+		LRU_DUMP_FILE);
+
+	if (size == 0 || size_high > 0 || size % 8) {
+		fprintf(stderr, " InnoDB: broken LRU dump file\n");
+		goto end;
+	}
+	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
+	records = ut_malloc(size);
+	if (!buffer || !records) {
+		fprintf(stderr,
+			" InnoDB: cannot allocate buffer.\n");
+		goto end;
+	}
+
+	buffers = 0;
+	length = 0;
+	while (!terminated) {
+		success = os_file_read(dump_file, buffer,
+				(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
+				(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
+				UNIV_PAGE_SIZE);
+		if (!success) {
+			fprintf(stderr,
+				" InnoDB: cannot read page %lu of %s,"
+				" or meet unexpected terminal.\n",
+				buffers, LRU_DUMP_FILE);
+			goto end;
+		}
+
+		for (offset = 0; offset < UNIV_PAGE_SIZE/4; offset += 2) {
+			ulint	space_id;
+			ulint	page_no;
+
+			space_id = mach_read_from_4(buffer + offset * 4);
+			page_no = mach_read_from_4(buffer + (offset + 1) * 4);
+			if (space_id == 0xFFFFFFFFUL
+			    || page_no == 0xFFFFFFFFUL) {
+				terminated = TRUE;
+				break;
+			}
+
+			records[length].space_id = space_id;
+			records[length].page_no = page_no;
+			length++;
+			if (length * 8 >= size) {
+				fprintf(stderr,
+					" InnoDB: could not find the "
+					"end-of-file marker after reading "
+					"the expected %lu bytes from the "
+					"LRU dump file.\n"
+					" InnoDB: this could be caused by a "
+					"broken or incomplete file.\n"
+					" InnoDB: trying to process what has "
+					"been read so far.\n",
+					size);
+				terminated= TRUE;
+				break;
+			}
+		}
+		buffers++;
+	}
+
+	qsort(records, length, sizeof(dump_record_t), dump_record_cmp);
+
+	for (offset = 0; offset < length; offset++) {
+		ulint		space_id;
+		ulint		page_no;
+		ulint		zip_size;
+		ulint		err;
+		ib_int64_t	tablespace_version;
+
+		space_id = records[offset].space_id;
+		page_no = records[offset].page_no;
+
+		if (offset % 16 == 15) {
+			os_aio_simulated_wake_handler_threads();
+			buf_flush_free_margin(FALSE);
+		}
+
+		zip_size = fil_space_get_zip_size(space_id);
+		if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+			continue;
+		}
+
+		if (fil_is_exist(space_id, page_no)) {
+
+			tablespace_version = fil_space_get_version(space_id);
+
+			req++;
+			reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
+						   | OS_AIO_SIMULATED_WAKE_LATER,
+						   space_id, zip_size, TRUE,
+						   tablespace_version, page_no, NULL);
+			buf_LRU_stat_inc_io();
+		}
+	}
+
+	os_aio_simulated_wake_handler_threads();
+	buf_flush_free_margin(FALSE);
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		" InnoDB: Completed reading buffer pool pages"
+		" (requested: %lu, read: %lu)\n", req, reads);
+	ret = TRUE;
+end:
+	if (dump_file != -1)
+		os_file_close(dump_file);
+	if (buffer_base)
+		ut_free(buffer_base);
+	if (records)
+		ut_free(records);
+
+	return(ret);
+}
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Validates the LRU list.

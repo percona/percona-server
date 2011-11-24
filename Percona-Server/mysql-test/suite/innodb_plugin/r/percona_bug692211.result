@@ -1,0 +1,7 @@
+#
+# LP bug #692211: innodb_auto_lru_dump crashes if ib_lru_dump doesn't 
+#                 exist
+#
+SELECT @@innodb_auto_lru_dump;
+@@innodb_auto_lru_dump
+300

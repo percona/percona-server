@@ -48,6 +48,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
                 myf MyFlags)
 {
   size_t readbytes;
+  size_t total_readbytes= 0;
   int error= 0;
   DBUG_ENTER("my_pread");
   DBUG_PRINT("my",("Fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
@@ -68,6 +69,9 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
       my_errno= errno ? errno : -1;
 #endif
+    if (readbytes > 0)
+      total_readbytes+= readbytes;
+
     if (error || readbytes != Count)
     {
       DBUG_PRINT("warning",("Read only %d bytes off %u from %d, errno: %d",
@@ -80,6 +84,24 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
         continue;                              /* Interrupted */
       }
 #endif
+      if (readbytes > 0 && readbytes < Count && errno == 0)
+      {
+        /*
+          pread() may return less bytes than requested even if enough bytes are
+          available according to the Linux man page.
+          This makes determining the end-of-file condition a bit harder.
+          We just do another pread() call to see if more bytes can be read,
+          since all my_pread() users expect it to always return all available
+          bytes. For end-of-file 0 bytes is returned. This can never be the case
+          for a partial read, since according to the man page, -1 is returned
+          with errno set to EINTR if no data has been read.
+        */
+        Buffer+= readbytes;
+        offset+= readbytes;
+        Count-= readbytes;
+
+        continue;
+      }
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
 	if (readbytes == (size_t) -1)
@@ -94,7 +116,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     }
     if (MyFlags & (MY_NABP | MY_FNABP))
       DBUG_RETURN(0);				/* Read went ok; Return 0 */
-    DBUG_RETURN(readbytes);			/* purecov: inspected */
+    DBUG_RETURN(total_readbytes);			/* purecov: inspected */
   }
 } /* my_pread */
 

@@ -347,10 +347,10 @@ typedef struct st_mi_sort_param
   int (*key_write)(struct st_mi_sort_param *, const void *);
   void (*lock_in_memory)(MI_CHECK *);
   NEAR int (*write_keys)(struct st_mi_sort_param *, register uchar **,
-                     uint , struct st_buffpek *, IO_CACHE *);
-  NEAR uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
+                         ulong, struct st_buffpek *, IO_CACHE *);
+  NEAR ulong (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
   NEAR int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
-                       uint, uint);
+                       uint, ulong);
 } MI_SORT_PARAM;
 
 	/* Some defines used by isam-funktions */

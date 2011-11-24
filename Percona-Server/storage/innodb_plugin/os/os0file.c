@@ -1988,6 +1988,9 @@ os_file_fsync(
 			failures++;
 
 			retry = TRUE;
+		} else if (ret == -1 && errno == EINTR) {
+			/* Handle signal interruptions correctly */
+			retry = TRUE;
 		} else {
 
 			retry = FALSE;
@@ -2120,6 +2123,7 @@ _os_file_pread(
 	off_t	offs;
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
 	ssize_t	n_bytes;
+	ssize_t n_read;
 #endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
 	ulint		sec;
 	ulint		ms;
@@ -2160,7 +2164,18 @@ _os_file_pread(
 	os_n_pending_reads++;
 	os_mutex_exit(os_file_count_mutex);
 
-	n_bytes = pread(file, buf, (ssize_t)n, offs);
+	/* Handle signal interruptions correctly */
+	for (n_bytes = 0; n_bytes < (ssize_t) n; ) {
+		n_read = pread(file, buf, (ssize_t)n, offs);
+		if (n_read > 0) {
+			n_bytes += n_read;
+			offs += n_read;
+		} else if (n_read == -1 && errno == EINTR) {
+			continue;
+		} else {
+			break;
+		}
+	}
 
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
@@ -2179,6 +2194,7 @@ _os_file_pread(
 	{
 		off_t	ret_offset;
 		ssize_t	ret;
+		ssize_t n_read;
 #ifndef UNIV_HOTBACKUP
 		ulint	i;
 #endif /* !UNIV_HOTBACKUP */
@@ -2199,7 +2215,17 @@ _os_file_pread(
 		if (ret_offset < 0) {
 			ret = -1;
 		} else {
-			ret = read(file, buf, (ssize_t)n);
+			/* Handle signal interruptions correctly */
+			for (ret = 0; ret < (ssize_t) n; ) {
+				n_read = read(file, buf, (ssize_t)n);
+				if (n_read > 0) {
+					ret += n_read;
+				} else if (n_read == -1 && errno == EINTR) {
+					continue;
+				} else {
+					break;
+				}
+			}
 		}
 
 #ifndef UNIV_HOTBACKUP
@@ -2238,6 +2264,7 @@ os_file_pwrite(
 				offset */
 {
 	ssize_t	ret;
+	ssize_t n_written;
 	off_t	offs;
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
@@ -2265,7 +2292,18 @@ os_file_pwrite(
 	os_n_pending_writes++;
 	os_mutex_exit(os_file_count_mutex);
 
-	ret = pwrite(file, buf, (ssize_t)n, offs);
+	/* Handle signal interruptions correctly */
+	for (ret = 0; ret < (ssize_t) n; ) {
+		n_written = pwrite(file, buf, (ssize_t)n, offs);
+		if (n_written > 0) {
+			ret += n_written;
+			offs += n_written;
+		} else if (n_written == -1 && errno == EINTR) {
+			continue;
+		} else {
+			break;
+		}
+	}
 
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
@@ -2312,7 +2350,17 @@ os_file_pwrite(
 			goto func_exit;
 		}
 
-		ret = write(file, buf, (ssize_t)n);
+		/* Handle signal interruptions correctly */
+		for (ret = 0; ret < (ssize_t) n; ) {
+			n_written = write(file, buf, (ssize_t)n);
+			if (n_written > 0) {
+				ret += n_written;
+			} else if (n_written == -1 && errno == EINTR) {
+				continue;
+			} else {
+				break;
+			}
+		}
 
 # ifdef UNIV_DO_FLUSH
 		if (srv_unix_file_flush_method != SRV_UNIX_LITTLESYNC

@@ -11001,6 +11001,11 @@ static MYSQL_SYSVAR_BOOL(recovery_stats, innobase_recovery_stats,
   "Output statistics of recovery process after it.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
+  NULL, NULL, 0, 0, UNIV_MAX_PARALLELISM, 0);
+
 static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "During InnoDB crash recovery on slave overwrite relay-log.info "
@@ -11495,6 +11500,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(use_purge_thread),
   NULL
 };
 

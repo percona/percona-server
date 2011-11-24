@@ -126,9 +126,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 6];
+static ulint		n[SRV_MAX_N_IO_THREADS + 6 + UNIV_MAX_PARALLELISM];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + UNIV_MAX_PARALLELISM];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1725,6 +1725,20 @@ innobase_start_or_create_for_mysql(void)
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
+
+	if (srv_use_purge_thread) {
+		ulint i;
+
+		os_thread_create(&srv_purge_thread, NULL, thread_ids
+				 + (5 + SRV_MAX_N_IO_THREADS));
+
+		for (i = 0; i < srv_use_purge_thread - 1; i++) {
+			n[6 + i + SRV_MAX_N_IO_THREADS] = i; /* using as index for arrays in purge_sys */
+			os_thread_create(&srv_purge_worker_thread,
+					 n + (6 + i + SRV_MAX_N_IO_THREADS),
+					 thread_ids + (6 + i + SRV_MAX_N_IO_THREADS));
+		}
+	}
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */

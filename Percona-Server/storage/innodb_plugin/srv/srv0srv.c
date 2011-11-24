@@ -146,6 +146,8 @@ UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
+UNIV_INTERN ulint	srv_use_purge_thread = 0;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the
@@ -2640,10 +2642,10 @@ srv_master_thread(
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
-	srv_table_reserve_slot(SRV_MASTER);
 
 	mutex_enter(&kernel_mutex);
 
+	srv_table_reserve_slot(SRV_MASTER);
 	srv_n_threads_active[SRV_MASTER]++;
 
 	mutex_exit(&kernel_mutex);
@@ -3101,6 +3103,7 @@ retry_flush_batch:
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
 
+	if (!srv_use_purge_thread) {
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
 	do {
@@ -3117,6 +3120,7 @@ retry_flush_batch:
 		srv_sync_log_buffer_in_background();
 
 	} while (n_pages_purged);
+	}
 
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
@@ -3185,6 +3189,7 @@ background_loop:
 		os_thread_sleep(100000);
 	}
 
+	if (!srv_use_purge_thread) {
 	srv_main_thread_op_info = "purging";
 
 	/* Run a full purge */
@@ -3201,6 +3206,7 @@ background_loop:
 		srv_sync_log_buffer_in_background();
 
 	} while (n_pages_purged);
+	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -3352,4 +3358,144 @@ suspend_thread:
 	goto loop;
 
 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
+}
+
+/*************************************************************************
+A thread which is devoted to purge, for take over the master thread's
+purging */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_thread(
+/*=============*/
+	void*	arg __attribute__((unused)))
+			/* in: a dummy parameter required by os_thread_create */
+{
+	ulint	n_pages_purged;
+	ulint	n_pages_purged_sum = 1; /* dummy */
+	ulint	history_len;
+	ulint	sleep_ms= 10000; /* initial: 10 sec. */
+	ibool	can_be_last = FALSE;
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Purge thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+
+	mutex_enter(&kernel_mutex);
+	srv_table_reserve_slot(SRV_PURGE);
+	srv_n_threads_active[SRV_PURGE]++;
+	mutex_exit(&kernel_mutex);
+
+loop:
+	if (srv_shutdown_state > 0) {
+		if (srv_fast_shutdown) {
+			/* someone other should wait the end of the workers */
+			goto exit_func;
+		}
+
+		mutex_enter(&kernel_mutex);
+		if (srv_n_threads_active[SRV_PURGE_WORKER]) {
+			can_be_last = FALSE;
+		} else {
+			can_be_last = TRUE;
+		}
+		mutex_exit(&kernel_mutex);
+
+		sleep_ms = 10;
+	}
+
+	os_thread_sleep( sleep_ms * 1000 );
+
+	history_len = trx_sys->rseg_history_len;
+	if (history_len > 1000)
+		sleep_ms /= 10;
+	if (sleep_ms < 10)
+		sleep_ms = 10;
+
+	n_pages_purged_sum = 0;
+
+	do {
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+			goto exit_func;
+		}
+		n_pages_purged = trx_purge();
+		n_pages_purged_sum += n_pages_purged;
+	} while (n_pages_purged);
+
+	if (srv_shutdown_state > 0 && can_be_last) {
+		/* the last trx_purge() is executed without workers */
+		goto exit_func;
+	}
+
+	if (n_pages_purged_sum) {
+		srv_active_wake_master_thread();
+	}
+
+	if (n_pages_purged_sum == 0)
+		sleep_ms *= 10;
+	if (sleep_ms > 10000)
+		sleep_ms = 10000;
+
+	goto loop;
+
+exit_func:
+	trx_purge_worker_wake(); /* It may not make sense. for safety only */
+
+	/* wake master thread to flush the pages */
+	srv_wake_master_thread();
+
+	mutex_enter(&kernel_mutex);
+	srv_n_threads_active[SRV_PURGE]--;
+	mutex_exit(&kernel_mutex);
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*************************************************************************
+A thread which is devoted to purge, for take over the master thread's
+purging */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_worker_thread(
+/*====================*/
+	void*	arg)
+{
+	ulint	worker_id; /* index for array */
+
+	worker_id = *((ulint*)arg);
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Purge worker thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+	mutex_enter(&kernel_mutex);
+	srv_table_reserve_slot(SRV_PURGE_WORKER);
+	srv_n_threads_active[SRV_PURGE_WORKER]++;
+	mutex_exit(&kernel_mutex);
+
+loop:
+	/* purge worker threads only works when srv_shutdown_state==0 */
+	/* for safety and exactness. */
+	if (srv_shutdown_state > 0) {
+		goto exit_func;
+	}
+
+	trx_purge_worker_wait();
+
+	if (srv_shutdown_state > 0) {
+		goto exit_func;
+	}
+
+	trx_purge_worker(worker_id);
+
+	goto loop;
+
+exit_func:
+	mutex_enter(&kernel_mutex);
+	srv_n_threads_active[SRV_PURGE_WORKER]--;
+	mutex_exit(&kernel_mutex);
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
 }

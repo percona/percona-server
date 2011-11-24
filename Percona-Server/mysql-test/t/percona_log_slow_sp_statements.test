@@ -1,0 +1,27 @@
+--source include/have_debug.inc
+
+SET long_query_time=1;
+SET GLOBAL log_slow_sp_statements=1;
+--let log_file=percona.slow_extended.log_slow_sp_statements
+--source include/log_start.inc
+
+delimiter ^;
+CREATE PROCEDURE test_f()
+BEGIN
+  SET SESSION query_exec_time=1.1; SELECT 1;
+  SET SESSION query_exec_time=2.1; SELECT 1;
+  SET SESSION query_exec_time=3.1; SELECT 1;
+  SET SESSION query_exec_time=default;
+END^
+delimiter ;^	
+
+CALL test_f();
+
+--source include/log_stop.inc
+SET GLOBAL log_slow_sp_statements=default;
+SET long_query_time=default;
+
+--let grep_pattern = Query_time
+--source include/log_grep.inc
+
+DROP PROCEDURE test_f;

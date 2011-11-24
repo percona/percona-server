@@ -640,6 +640,106 @@ void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 #define STRING_BUFFER_USUAL_SIZE 80
 
+/* Slow log */
+
+struct msl_opts
+{
+  ulong val;
+  const char *name;
+};
+
+/* use global log slow control */
+#define SLOG_UG_NONE                        (1UL << 0)
+#define SLOG_UG_LOG_SLOW_FILTER             (1UL << 1)
+#define SLOG_UG_LOG_SLOW_RATE_LIMIT         (1UL << 2)
+#define SLOG_UG_LOG_SLOW_VERBOSITY          (1UL << 3)
+#define SLOG_UG_LONG_QUERY_TIME             (1UL << 4)
+#define SLOG_UG_MIN_EXAMINED_ROW_LIMIT      (1UL << 5)
+#define SLOG_UG_ALL                         SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY | SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT
+/* ... */
+#define SLOG_UG_INVALID                     1##UL << 31
+
+static const struct msl_opts slog_use_global[]=
+  {
+    /* Basic flags */
+    { SLOG_UG_NONE                      , "none" },
+    { SLOG_UG_LOG_SLOW_FILTER           , "log_slow_filter" },
+    { SLOG_UG_LOG_SLOW_RATE_LIMIT       , "log_slow_rate_limit" },
+    { SLOG_UG_LOG_SLOW_VERBOSITY        , "log_slow_verbosity" },
+    { SLOG_UG_LONG_QUERY_TIME           , "long_query_time" },
+    { SLOG_UG_MIN_EXAMINED_ROW_LIMIT    , "min_examined_row_limit" },
+    /* ... */
+    { 0, "" },
+    /* Complex flags */
+    { SLOG_UG_ALL                       , "all" },
+    /* ... */
+    { SLOG_UG_INVALID                   , (char*)0 }
+  };
+
+#define SLOG_V_MICROTIME      1 << 0
+#define SLOG_V_QUERY_PLAN     1 << 1
+#define SLOG_V_INNODB         1 << 2
+/* ... */
+#define SLOG_V_INVALID        1##UL << 31
+#define SLOG_V_NONE           SLOG_V_MICROTIME
+
+static const struct msl_opts slog_verb[]= 
+{
+  /* Basic flags */
+
+  { SLOG_V_MICROTIME, "microtime" },
+  { SLOG_V_QUERY_PLAN, "query_plan" },
+  { SLOG_V_INNODB, "innodb" },
+
+  /* End of baisc flags */
+
+  { 0, "" },
+
+  /* Complex flags */
+
+  { SLOG_V_MICROTIME, "minimal" },
+  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN, "standard" },
+  { SLOG_V_MICROTIME|SLOG_V_QUERY_PLAN|SLOG_V_INNODB, "full" },
+
+  /* End of complex flags */
+
+  { SLOG_V_INVALID, (char *)0 }
+};
+
+#define QPLAN_NONE            0
+#define QPLAN_QC              1 << 0
+#define QPLAN_QC_NO           1 << 1
+#define QPLAN_FULL_SCAN       1 << 2
+#define QPLAN_FULL_JOIN       1 << 3
+#define QPLAN_TMP_TABLE       1 << 4
+#define QPLAN_TMP_DISK        1 << 5
+#define QPLAN_FILESORT        1 << 6
+#define QPLAN_FILESORT_DISK   1 << 7
+/* ... */
+#define QPLAN_MAX             1 << 31
+
+#define SLOG_F_QC_NO          QPLAN_QC_NO
+#define SLOG_F_FULL_SCAN      QPLAN_FULL_SCAN
+#define SLOG_F_FULL_JOIN      QPLAN_FULL_JOIN
+#define SLOG_F_TMP_TABLE      QPLAN_TMP_TABLE
+#define SLOG_F_TMP_DISK       QPLAN_TMP_DISK
+#define SLOG_F_FILESORT       QPLAN_FILESORT
+#define SLOG_F_FILESORT_DISK  QPLAN_FILESORT_DISK
+#define SLOG_F_INVALID        1##UL << 31
+#define SLOG_F_NONE           0
+
+static const struct msl_opts slog_filter[]= 
+{
+  { SLOG_F_QC_NO,         "qc_miss" },
+  { SLOG_F_FULL_SCAN,     "full_scan" },
+  { SLOG_F_FULL_JOIN,     "full_join" },
+  { SLOG_F_TMP_TABLE,     "tmp_table" },
+  { SLOG_F_TMP_DISK,      "tmp_table_on_disk" },
+  { SLOG_F_FILESORT,      "filesort" },
+  { SLOG_F_FILESORT_DISK, "filesort_on_disk" },
+  { SLOG_F_INVALID,       (char *)0 }
+};
+
 /*
   Some defines for exit codes for ::is_equal class functions.
 */
@@ -2001,6 +2101,10 @@ extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
+extern my_bool opt_log_slow_sp_statements;
+extern my_bool opt_log_slow_timestamp_every;
+extern my_bool opt_use_global_long_query_time;
+extern my_bool opt_slow_query_log_microseconds_timestamp;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;

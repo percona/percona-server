@@ -1,0 +1,171 @@
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(a INT) engine=InnoDB;
+INSERT INTO t VALUES(0),(1),(2),(3),(4);
+[log_start.inc] percona.slow_extended.error_on_quit
+SET log_slow_verbosity=innodb;
+SET long_query_time= 0;
+CREATE TABLE t(a INT) engine=InnoDB;
+# Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+[log_stop.inc] percona.slow_extended.error_on_quit
+################################################################################
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: CREATE
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: INSERT
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: SELECT
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Quit
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Last_errno: [^0]+
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Last_errno: 0
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_sent: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_sent: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_examined: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_examined: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: [^0]+
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: 0
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: [^0]+
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: 0
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_tables: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_tables: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_disk_tables: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_disk_tables: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_table_sizes: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_table_sizes: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: # No InnoDB statistics available for this query
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: # InnoDB_trx_id: 
+[log_grep.inc] lines:   0
+################################################################################
+[log_start.inc] percona.slow_extended.error_on_quit
+SET log_slow_verbosity=innodb;
+SET long_query_time= 0;
+INSERT INTO t SELECT * FROM t ORDER BY RAND();
+# Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+[log_stop.inc] percona.slow_extended.error_on_quit
+################################################################################
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: CREATE
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: INSERT
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: SELECT
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Quit
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Last_errno: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Last_errno: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_sent: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_sent: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_examined: [^0]+
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_examined: 0
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: [^0]+
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: 0
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: [^0]+
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: 0
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: [^0]+
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: 0
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_tables: [^0]+
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_tables: 0
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_disk_tables: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_disk_tables: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_table_sizes: [^0]+
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_table_sizes: 0
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: # No InnoDB statistics available for this query
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: # InnoDB_trx_id: 
+[log_grep.inc] lines:   1
+################################################################################
+[log_start.inc] percona.slow_extended.error_on_quit
+SET log_slow_verbosity=innodb;
+SET long_query_time= 0;
+SELECT * FROM t;
+# Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+[log_stop.inc] percona.slow_extended.error_on_quit
+################################################################################
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: CREATE
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: INSERT
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: SELECT
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Quit
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Last_errno: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Last_errno: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_sent: [^0]+
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_sent: 0
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_examined: [^0]+
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_examined: 0
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: [^0]+
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: 0
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: [^0]+
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: 0
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_tables: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_tables: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_disk_tables: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_disk_tables: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_table_sizes: [^0]+
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Tmp_table_sizes: 0
+[log_grep.inc] lines:   3
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: # No InnoDB statistics available for this query
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: # InnoDB_trx_id: 
+[log_grep.inc] lines:   1
+################################################################################

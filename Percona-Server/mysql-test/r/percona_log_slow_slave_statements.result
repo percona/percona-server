@@ -1,0 +1,46 @@
+include/master-slave.inc
+[connection master]
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT);
+[log_start.inc] percona.slow_extended.log_slow_slave_statements
+LINE 1
+LOG_SLOW_SLAVE_STATAMENTS is OFF
+LOG_SLOW_SLAVE_STATEMENTS=1
+LOG_SLOW_SLAVE_STATAMENTS is ON
+LINE 2
+include/restart_slave.inc
+LOG_SLOW_SLAVE_STATAMENTS is ON
+LINE 3
+LOG_SLOW_SLAVE_STATAMENTS is ON
+LOG_SLOW_SLAVE_STATEMENTS=0
+LOG_SLOW_SLAVE_STATAMENTS is OFF
+LINE 4
+include/restart_slave.inc
+LOG_SLOW_SLAVE_STATAMENTS is OFF
+LINE 5
+LOG_SLOW_SLAVE_STATAMENTS is OFF
+LOG_SLOW_SLAVE_STATEMENTS=1
+LOG_SLOW_SLAVE_STATAMENTS is ON
+LINE 6
+include/restart_slave.inc
+LOG_SLOW_SLAVE_STATAMENTS is ON
+LINE 7
+[log_stop.inc] percona.slow_extended.log_slow_slave_statements
+SET GLOBAL log_slow_slave_statements=default;
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(1\)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(2\)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(3\)
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(4\)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(5\)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(6\)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(7\)
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(8\)
+[log_grep.inc] lines:   0
+include/rpl_end.inc

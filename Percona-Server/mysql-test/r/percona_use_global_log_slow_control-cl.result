@@ -1,0 +1,6 @@
+SHOW VARIABLES LIKE 'use_global_log_slow_control';
+Variable_name	Value
+use_global_log_slow_control	log_slow_verbosity,long_query_time
+SHOW GLOBAL VARIABLES LIKE 'use_global_log_slow_control';
+Variable_name	Value
+use_global_log_slow_control	log_slow_verbosity,long_query_time

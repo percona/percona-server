@@ -48,6 +48,7 @@
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
+static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -1001,6 +1002,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log= TRUE;
+  thd->clear_slow_extended();
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   if (!thd->is_valid_time())
@@ -1702,6 +1704,50 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_RETURN(error);
 }
 
+/**
+   Calculate execution time for the current query.
+
+   For debug builds, check the session value of query_exec_time
+   and if it is not zero, return it instead of the actual execution time.
+
+   SET queries are ignored so that statements changing query_exec_time are not
+   affected by themselves.
+
+   @param thd              thread handle
+   @param lex              current relative time in microseconds
+
+   @return                 time in microseconds from utime_after_lock
+*/
+
+static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime)
+{
+#ifndef DBUG_OFF
+  if (thd->variables.query_exec_time)
+    return thd->lex->sql_command != SQLCOM_SET_OPTION ?
+      thd->variables.query_exec_time : 0;
+#endif
+
+  return cur_utime - thd->utime_after_lock;
+}
+
+
+static inline void copy_global_to_session(THD *thd, ulong flag,
+                                          const ulong *val)
+{
+  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  if (global_system_variables.use_global_log_slow_control & flag)
+    *(ulong *)((char *) &thd->variables + offset) = *val;
+}
+
+
+static inline void copy_global_to_session(THD *thd, ulong flag,
+                                          const ulonglong *val)
+{
+  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  if (global_system_variables.use_global_log_slow_control & flag)
+    *(ulonglong *)((char *) &thd->variables + offset) = *val;
+}
+
 
 void log_slow_statement(THD *thd)
 {
@@ -1715,17 +1761,51 @@ void log_slow_statement(THD *thd)
   if (unlikely(thd->in_sub_stmt))
     DBUG_VOID_RETURN;                           // Don't set time for sub stmt
 
+  /* Follow the slow log filter configuration. */
+  if (thd->variables.log_slow_filter != SLOG_F_NONE &&
+      (!(thd->variables.log_slow_filter & thd->query_plan_flags) ||
+       ((thd->variables.log_slow_filter & SLOG_F_QC_NO) &&
+        (thd->query_plan_flags & QPLAN_QC))))
+    DBUG_VOID_RETURN;
+
+  ulonglong end_utime_of_query= thd->current_utime();
+  ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
+
+  /*
+    Low long_query_time value most likely means user is debugging stuff and even
+    though some thread's queries are not supposed to be logged b/c of the rate
+    limit, if one of them takes long enough (>= 1 second) it will be sensible
+    to make an exception and write to slow log anyway.
+  */
+
+  /* use_global_log_slow_control */
+  system_variables const &g= global_system_variables;
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER,
+                         &g.log_slow_filter);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
+                         &g.log_slow_rate_limit);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
+                         &g.log_slow_verbosity);
+  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME,
+                         &g.long_query_time);
+  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+                         &g.min_examined_row_limit);
+
+  /* Do not log this thread's queries due to rate limiting. */
+  if (thd->write_to_slow_log != TRUE
+      && (thd->variables.long_query_time >= 1000000
+          || (ulong) query_exec_time < 1000000))
+    DBUG_VOID_RETURN;
+
   /*
     Do not log administrative statements unless the appropriate option is
     set.
   */
   if (thd->enable_slow_log)
   {
-    ulonglong end_utime_of_query= thd->current_utime();
     thd_proc_info(thd, "logging slow query");
 
-    if (((end_utime_of_query - thd->utime_after_lock) >
-         thd->variables.long_query_time ||
+    if (((query_exec_time > thd->variables.long_query_time) ||
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
           opt_log_queries_not_using_indexes &&
@@ -5827,7 +5907,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->main_da.reset_diagnostics_area();
   thd->total_warn_count=0;			// Warnings for this query
   thd->rand_used= 0;
-  thd->sent_row_count= thd->examined_row_count= 0;
+
+  thd->clear_slow_extended();
 
   /*
     Because we come here only for start of top-statements, binlog format is

@@ -1,0 +1,6 @@
+SHOW VARIABLES LIKE 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+SHOW GLOBAL VARIABLES LIKE 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON

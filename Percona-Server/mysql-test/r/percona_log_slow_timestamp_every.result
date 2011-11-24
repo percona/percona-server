@@ -1,0 +1,39 @@
+SET long_query_time=2;
+SET GLOBAL log_slow_timestamp_every=1;
+[log_start.inc] percona.slow_extended.log_slow_timestamp_every
+SET SESSION query_exec_time=2.1;
+SELECT 1;
+1
+1
+SELECT 2;
+2
+2
+SELECT 3;
+3
+3
+SET GLOBAL log_slow_timestamp_every=0;
+SELECT 1;
+1
+1
+SELECT 2;
+2
+2
+SELECT 3;
+3
+3
+SET GLOBAL log_slow_timestamp_every=1;
+SELECT 1;
+1
+1
+SELECT 2;
+2
+2
+SELECT 3;
+3
+3
+SET SESSION query_exec_time = default;
+[log_stop.inc] percona.slow_extended.log_slow_timestamp_every
+SET GLOBAL log_slow_timestamp_every=default;
+SET long_query_time=default;
+[log_grep.inc] file: percona.slow_extended.log_slow_timestamp_every pattern: # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+
+[log_grep.inc] lines:   6

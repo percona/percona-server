@@ -1,0 +1,33 @@
+--source include/have_debug.inc
+
+SET long_query_time=2;
+SET GLOBAL log_slow_timestamp_every=1;
+--let log_file=percona.slow_extended.log_slow_timestamp_every
+--source include/log_start.inc
+
+SET SESSION query_exec_time=2.1;
+
+SELECT 1;
+SELECT 2;
+SELECT 3;
+
+SET GLOBAL log_slow_timestamp_every=0;
+
+SELECT 1;
+SELECT 2;
+SELECT 3;
+
+SET GLOBAL log_slow_timestamp_every=1;
+
+SELECT 1;
+SELECT 2;
+SELECT 3;
+
+SET SESSION query_exec_time = default;
+
+--source include/log_stop.inc
+SET GLOBAL log_slow_timestamp_every=default;
+SET long_query_time=default;
+
+--let grep_pattern =  # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+
+--source include/log_grep.inc

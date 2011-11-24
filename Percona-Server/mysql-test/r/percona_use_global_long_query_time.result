@@ -1,0 +1,34 @@
+[log_start.inc] percona.slow_extended.use_global_long_query_time
+SET long_query_time=2;
+SET SESSION query_exec_time=1.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=3.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=5.1;
+SELECT 1;
+1
+1
+SET GLOBAL long_query_time=4;
+SET GLOBAL use_global_long_query_time=1;
+SET SESSION query_exec_time=1.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=3.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=5.1;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=0;
+[log_stop.inc] percona.slow_extended.use_global_long_query_time
+SET GLOBAL long_query_time=default;
+SET GLOBAL use_global_long_query_time=0;
+[log_grep.inc] file: percona.slow_extended.use_global_long_query_time pattern: Query_time
+[log_grep.inc] lines:   3

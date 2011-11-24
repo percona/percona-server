@@ -443,6 +443,7 @@ static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static double long_query_time;
+static double query_exec_time;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
@@ -528,6 +529,10 @@ my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv= 0;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
+my_bool opt_log_slow_sp_statements= 0;
+my_bool opt_log_slow_timestamp_every= 0;
+my_bool opt_use_global_long_query_time= 0;
+my_bool opt_slow_query_log_microseconds_timestamp= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
@@ -5811,7 +5816,13 @@ enum options_mysqld
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
+  OPT_QUERY_EXEC_TIME,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
+  OPT_LOG_SLOW_RATE_LIMIT,
+  OPT_LOG_SLOW_VERBOSITY,
+  OPT_LOG_SLOW_FILTER,
+  OPT_LOG_SLOW_SP_STATEMENTS,
+  OPT_LOG_SLOW_TIMESTAMP_EVERY,
 #if defined(ENABLED_DEBUG_SYNC)
   OPT_DEBUG_SYNC_TIMEOUT,
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -5819,6 +5830,9 @@ enum options_mysqld
   OPT_SLAVE_EXEC_MODE,
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
+  OPT_USE_GLOBAL_LONG_QUERY_TIME,
+  OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
+  OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
   OPT_IGNORE_BUILTIN_INNODB,
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD,
@@ -6839,6 +6853,36 @@ thread is in the relay logs.",
    "microsecond precision.",
    &long_query_time, &long_query_time, 0, GET_DOUBLE,
    REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
+  {"log_slow_filter", OPT_LOG_SLOW_FILTER,
+    "Log only the queries that followed certain execution plan. Multiple flags allowed in a comma-separated string. [qc_miss, full_scan, full_join, tmp_table, tmp_table_on_disk, filesort, filesort_on_disk]",
+    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_F_NONE, 0, 0},
+  {"log_slow_rate_limit", OPT_LOG_SLOW_RATE_LIMIT,
+    "Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
+    (uchar**) &global_system_variables.log_slow_rate_limit,
+    (uchar**) &max_system_variables.log_slow_rate_limit, 0, GET_ULONG,
+    REQUIRED_ARG, 1, 1, LONG_MAX, 0, 1L, 0},
+  {"log_slow_verbosity", OPT_LOG_SLOW_VERBOSITY,
+    "Choose how verbose the messages to your slow log will be. Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb]",
+    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_V_MICROTIME, 0, 0},
+  {"log_slow_sp_statements", OPT_LOG_SLOW_SP_STATEMENTS,
+   "Log slow statements executed by stored procedure to the slow log if it is open.",
+   (uchar**) &opt_log_slow_sp_statements, (uchar**) &opt_log_slow_sp_statements,
+   0, GET_BOOL, OPT_ARG, 1, 0, 1, 0, 1, 0},
+  {"log_slow_timestamp_every", OPT_LOG_SLOW_TIMESTAMP_EVERY,
+   "Timestamp is printed for all records of the slow log even if they are same time.",
+   (uchar**) &opt_log_slow_timestamp_every, (uchar**) &opt_log_slow_timestamp_every,
+   0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
+  {"use_global_log_slow_control", OPT_USE_GLOBAL_LOG_SLOW_CONTROL,
+    "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, SLOG_UG_NONE, 0, 0},
+  {"use_global_long_query_time", OPT_USE_GLOBAL_LONG_QUERY_TIME,
+   "Control always use global long_query_time or local long_query_time.",
+   (uchar**) &opt_use_global_long_query_time, (uchar**) &opt_use_global_long_query_time,
+   0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
+  {"slow_query_log_microseconds_timestamp", OPT_SLOW_QUERY_LOG_MICROSECONDS_TIMESTAMP,
+   "Use microsecond time's precision in slow query log",
+   (uchar**) &opt_slow_query_log_microseconds_timestamp, (uchar**) &opt_slow_query_log_microseconds_timestamp,
+   0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 1, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
    "If set to 1, table names are stored in lowercase on disk and table names "
    "will be case-insensitive.  Should be set to 2 if you are using a case-"
@@ -7076,6 +7120,13 @@ thread is in the relay logs.",
    "is the plugin library in plugin_dir.",
    &opt_plugin_load, &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+  {"query_exec_time", OPT_QUERY_EXEC_TIME,
+   "Pretend queries take this many seconds. When 0 (the default) use the "
+   "actual execution time. Used only for debugging.",
+   &query_exec_time, &query_exec_time, 0, GET_DOUBLE,
+   REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
+#endif
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
    "The size of the buffer that is allocated when preloading indexes.",
    &global_system_variables.preload_buff_size,
@@ -7991,6 +8042,10 @@ static int mysql_init_variables(void)
   global_system_variables.old_passwords= 0;
   global_system_variables.old_alter_table= 0;
   global_system_variables.binlog_format= BINLOG_FORMAT_UNSPEC;
+
+  global_system_variables.log_slow_verbosity= SLOG_V_MICROTIME;
+  global_system_variables.use_global_log_slow_control= SLOG_UG_NONE;
+  global_system_variables.log_slow_filter= SLOG_F_NONE;
   /*
     Default behavior for 4.1 and 5.0 is to treat NULL values as unequal
     when collecting index statistics for MyISAM tables.
@@ -8494,6 +8549,44 @@ mysqld_get_one_option(int optid,
   case OPT_BOOTSTRAP:
     opt_noacl=opt_bootstrap=1;
     break;
+  case OPT_LOG_SLOW_FILTER:
+    if ((global_system_variables.log_slow_filter= 
+          msl_flag_resolve_by_name(slog_filter, argument,
+                                   SLOG_F_NONE, SLOG_F_INVALID)) == SLOG_F_INVALID)
+    {
+      fprintf(stderr,"Invalid argument in log_slow_filter: %s\n", argument);
+      exit(1);
+    }
+    break;
+  case OPT_LOG_SLOW_VERBOSITY:
+    if ((global_system_variables.log_slow_verbosity= 
+         msl_flag_resolve_by_name(slog_verb, argument,
+                                  SLOG_V_NONE, SLOG_V_INVALID)) == SLOG_V_INVALID)
+    {
+      fprintf(stderr,"Invalid argument in log_slow_verbosity: %s\n", argument);
+      exit(1);
+    }
+    break;
+  case OPT_USE_GLOBAL_LONG_QUERY_TIME:
+    use_global_long_query_time_update(opt_use_global_long_query_time);
+    break;
+  case OPT_USE_GLOBAL_LOG_SLOW_CONTROL:
+    {
+      ulong &v= global_system_variables.use_global_log_slow_control;
+      v= msl_flag_resolve_by_name(slog_use_global, argument, SLOG_UG_NONE, SLOG_UG_INVALID);
+      if (v != SLOG_UG_NONE)
+      {
+        v&= ~SLOG_UG_NONE;
+      }
+      if (v == SLOG_UG_INVALID)
+      {
+        fprintf(stderr,"Invalid argument in use_global_log_slow_control: %s\n", argument);
+        exit(1);
+      }
+      use_global_long_query_time_update
+        (global_system_variables.use_global_log_slow_control & SLOG_UG_LONG_QUERY_TIME);
+      break;
+    }
   case OPT_SERVER_ID:
     server_id_supplied = 1;
     break;

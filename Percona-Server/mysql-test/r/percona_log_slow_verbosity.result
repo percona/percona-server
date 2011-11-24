@@ -1,0 +1,16 @@
+SET SESSION long_query_time=1;
+[log_start.inc] percona.slow_extended.log_slow_verbosity
+SET SESSION query_exec_time=2.1;
+SELECT 1;
+1
+1
+SET SESSION log_slow_verbosity=innodb;
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=default;
+[log_stop.inc] percona.slow_extended.log_slow_verbosity
+SET log_slow_verbosity='';
+SET long_query_time=default;
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity pattern: No InnoDB statistics available for this query
+[log_grep.inc] lines:   1

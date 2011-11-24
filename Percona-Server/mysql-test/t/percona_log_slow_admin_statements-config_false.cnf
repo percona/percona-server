@@ -1,0 +1,2 @@
+[mysqld.1]
+log-slow-admin-statements=false

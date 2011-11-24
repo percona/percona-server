@@ -404,6 +404,21 @@ struct system_variables
   DATE_TIME_FORMAT *datetime_format;
   DATE_TIME_FORMAT *time_format;
   my_bool sysdate_is_now;
+
+#ifndef DBUG_OFF
+  ulonglong query_exec_time;
+#endif
+  ulong log_slow_rate_limit;
+  ulong log_slow_filter;
+  ulong log_slow_verbosity;
+  ulong use_global_log_slow_control;
+
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
 };
 
 
@@ -1000,6 +1015,24 @@ public:
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
+
+  /*** Following variables used in slow_extended.patch ***/
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+
+  bool       innodb_was_used;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  ulong      query_plan_flags;
+  ulong      query_plan_fsort_passes;
+  /*** The variables above used in slow_extended.patch ***/
+
   SAVEPOINT *savepoints;
   enum enum_check_fields count_cuted_fields;
 };
@@ -1426,6 +1459,77 @@ public:
   
   thr_lock_type update_lock_default;
   Delayed_insert *di;
+
+  /*** Following variables used in slow_extended.patch ***/
+  /*
+    Variable write_to_slow_log:
+     1) initialized in
+       * sql_connect.cc (log_slow_rate_limit support)
+       * slave.cc       (log_slow_slave_statements support)
+     2) The variable is initialized on the thread startup and remains
+        constant afterwards.  This will change when 
+        LP #712396 ("log_slow_slave_statements not work on replication 
+        threads without RESTART") is implemented.
+     3) An implementation of LP #688646 ("Make query sampling possible 
+        by query") should use it.
+  */
+  bool       write_to_slow_log;
+  /*
+    Variable bytes_send_old saves value of thd->status_var.bytes_sent
+    before query execution.
+  */
+  ulonglong  bytes_sent_old;
+  /*
+    Original row_count value at the start of query execution
+    (used by the slow_extended patch).
+  */
+  ulong      orig_row_count;
+  /*
+    Variables tmp_tables_*** collect statistics about usage of temporary tables
+  */
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool       innodb_was_used;
+  /*
+    Following Variables innodb_*** (is |should be) different from
+    default values only if (innodb_was_used==TRUE)
+  */
+  ulonglong  innodb_trx_id;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  /*
+    Variable query_plan_flags collects information about query plan entites
+    used on query execution.
+  */
+  ulong      query_plan_flags;
+  /*
+    Variable query_plan_fsort_passes collects information about file sort passes
+    acquired during query execution.
+  */
+  ulong      query_plan_fsort_passes;
+  /*
+    Query can generate several errors/warnings during execution
+    (see THD::handle_condition comment in sql_class.h)
+    Variable last_errno contains the last error/warning acquired during
+    query execution.
+  */
+  uint       last_errno;
+  /*** The variables above used in slow_extended.patch ***/
+
+  /*** Following methods used in slow_extended.patch ***/
+  void clear_slow_extended();
+  void reset_sub_statement_state_slow_extended(Sub_statement_state *backup);
+  void restore_sub_statement_state_slow_extended(const Sub_statement_state *backup);
+  /*** The methods above used in slow_extended.patch ***/
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;

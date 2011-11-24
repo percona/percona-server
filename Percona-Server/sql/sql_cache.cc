@@ -1706,6 +1706,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
+  thd->query_plan_flags|= QPLAN_QC;
   if (!thd->main_da.is_set())
     thd->main_da.disable_status();
 
@@ -1715,6 +1716,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 err_unlock:
   unlock();
 err:
+  thd->query_plan_flags|= QPLAN_QC_NO;
   DBUG_RETURN(0);				// Query was not cached
 }
 

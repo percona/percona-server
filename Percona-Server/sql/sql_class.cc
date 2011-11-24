@@ -342,6 +342,37 @@ void thd_inc_row_count(THD *thd)
   thd->row_count++;
 }
 
+extern "C"
+void increment_thd_innodb_stats(THD* thd,
+                                unsigned long long trx_id,
+                                long io_reads,
+                                long long  io_read,
+                                long      io_reads_wait_timer,
+                                long      lock_que_wait_timer,
+                                long      que_wait_timer,
+                                long      page_access)
+{
+  thd->innodb_was_used=               TRUE;
+  thd->innodb_trx_id=                 trx_id;
+  thd->innodb_io_reads+=              io_reads;
+  thd->innodb_io_read+=               io_read;
+  thd->innodb_io_reads_wait_timer+=   io_reads_wait_timer;
+  thd->innodb_lock_que_wait_timer+=   lock_que_wait_timer;
+  thd->innodb_innodb_que_wait_timer+= que_wait_timer;
+  thd->innodb_page_access+=           page_access;
+}
+
+extern "C"
+unsigned long thd_log_slow_verbosity(const THD *thd)
+{
+  return (unsigned long) thd->variables.log_slow_verbosity;
+}
+
+extern "C"
+int thd_opt_slow_log()
+{
+  return (int) opt_slow_log;
+}
 
 /**
   Dumps a text description of a thread, its security context
@@ -761,6 +792,8 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
+  last_errno = sql_errno;
+
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
        error_handler= error_handler->m_prev_internal_handler)
@@ -881,6 +914,8 @@ void THD::init(void)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+
+  clear_slow_extended();
 }
 
 
@@ -3187,8 +3222,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
   backup->limit_found_rows= limit_found_rows;
-  backup->examined_row_count= examined_row_count;
-  backup->sent_row_count=   sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
@@ -3196,6 +3229,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     first_successful_insert_id_in_prev_stmt;
   backup->first_successful_insert_id_in_cur_stmt= 
     first_successful_insert_id_in_cur_stmt;
+  reset_sub_statement_state_slow_extended(backup);
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !current_stmt_binlog_row_based)
@@ -3210,13 +3244,75 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
-  examined_row_count= 0;
-  sent_row_count= 0;
   cuted_fields= 0;
   transaction.savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
 }
 
+void THD::clear_slow_extended()
+{
+  DBUG_ENTER("THD::clear_slow_extended");
+  sent_row_count=               0;
+  orig_row_count=               row_count;
+  examined_row_count=           0;
+  bytes_sent_old=               status_var.bytes_sent;
+  tmp_tables_used=              0;
+  tmp_tables_disk_used=         0;
+  tmp_tables_size=              0;
+  innodb_was_used=              FALSE;
+  innodb_trx_id=                0;
+  innodb_io_reads=              0;
+  innodb_io_read=               0;
+  innodb_io_reads_wait_timer=   0;
+  innodb_lock_que_wait_timer=   0;
+  innodb_innodb_que_wait_timer= 0;
+  innodb_page_access=           0;
+  query_plan_flags=             QPLAN_NONE;
+  query_plan_fsort_passes=      0;
+  last_errno=                   0;
+  DBUG_VOID_RETURN;
+}
+
+void THD::reset_sub_statement_state_slow_extended(Sub_statement_state *backup)
+{
+  DBUG_ENTER("THD::reset_sub_statement_state_slow_extended");
+  backup->sent_row_count=               sent_row_count;
+  backup->examined_row_count=           examined_row_count;
+  backup->tmp_tables_used=              tmp_tables_used;
+  backup->tmp_tables_disk_used=         tmp_tables_disk_used;
+  backup->tmp_tables_size=              tmp_tables_size;
+  backup->innodb_was_used=              innodb_was_used;
+  backup->innodb_io_reads=              innodb_io_reads;
+  backup->innodb_io_read=               innodb_io_read;
+  backup->innodb_io_reads_wait_timer=   innodb_io_reads_wait_timer;
+  backup->innodb_lock_que_wait_timer=   innodb_lock_que_wait_timer;
+  backup->innodb_innodb_que_wait_timer= innodb_innodb_que_wait_timer;
+  backup->innodb_page_access=           innodb_page_access;
+  backup->query_plan_flags=             query_plan_flags;
+  backup->query_plan_fsort_passes=      query_plan_fsort_passes;
+  clear_slow_extended();
+  DBUG_VOID_RETURN;
+}
+
+void THD::restore_sub_statement_state_slow_extended(const Sub_statement_state *backup)
+{
+  DBUG_ENTER("THD::restore_sub_statement_state_slow_extended");
+  sent_row_count=                backup->sent_row_count;
+  examined_row_count+=           backup->examined_row_count;
+  tmp_tables_used+=              backup->tmp_tables_used;
+  tmp_tables_disk_used+=         backup->tmp_tables_disk_used;
+  tmp_tables_size+=              backup->tmp_tables_size;
+  innodb_was_used=               (innodb_was_used || backup->innodb_was_used);
+  innodb_io_reads+=              backup->innodb_io_reads;
+  innodb_io_read+=               backup->innodb_io_read;
+  innodb_io_reads_wait_timer+=   backup->innodb_io_reads_wait_timer;
+  innodb_lock_que_wait_timer+=   backup->innodb_lock_que_wait_timer;
+  innodb_innodb_que_wait_timer+= backup->innodb_innodb_que_wait_timer;
+  innodb_page_access+=           backup->innodb_page_access;
+  query_plan_flags|=             backup->query_plan_flags;
+  query_plan_fsort_passes+=      backup->query_plan_fsort_passes;
+  DBUG_VOID_RETURN;
+}
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
@@ -3257,7 +3353,6 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   first_successful_insert_id_in_cur_stmt= 
     backup->first_successful_insert_id_in_cur_stmt;
   limit_found_rows= backup->limit_found_rows;
-  sent_row_count=   backup->sent_row_count;
   client_capabilities= backup->client_capabilities;
   /*
     If we've left sub-statement mode, reset the fatal error flag.
@@ -3275,8 +3370,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     The following is added to the old values as we are interested in the
     total complexity of the query
   */
-  examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+  restore_sub_statement_state_slow_extended(backup);
   DBUG_VOID_RETURN;
 }
 

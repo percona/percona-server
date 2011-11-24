@@ -1,0 +1,34 @@
+drop table if exists t;
+create table t(id INT PRIMARY KEY);
+insert into t values(1);
+insert into t values(2);
+insert into t values(3);
+SET GLOBAL long_query_time=2;
+SET GLOBAL use_global_log_slow_control='long_query_time,min_examined_row_limit';
+[log_start.inc] percona.slow_extended.min_examined_row_limit
+SET SESSION query_exec_time=2.1;
+SELECT 1;
+1
+1
+SET GLOBAL min_examined_row_limit=5;
+SELECT * FROM t AS t1, t AS t2;
+id	id
+1	1
+2	1
+3	1
+1	2
+2	2
+3	2
+1	3
+2	3
+3	3
+SELECT 1;
+1
+1
+SET SESSION query_exec_time=default;
+[log_stop.inc] percona.slow_extended.min_examined_row_limit
+SET GLOBAL min_examined_row_limit=default;
+SET GLOBAL use_global_log_slow_control='';
+SET GLOBAL long_query_time=default;
+[log_grep.inc] file: percona.slow_extended.min_examined_row_limit pattern: Query_time
+[log_grep.inc] lines:   1

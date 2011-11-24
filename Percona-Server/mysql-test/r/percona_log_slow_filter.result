@@ -1,0 +1,15 @@
+CREATE TABLE t(id INT PRIMARY KEY);
+INSERT INTO t VALUES(1);
+INSERT INTO t VALUES(2);
+INSERT INTO t VALUES(3);
+SET long_query_time=1;
+SET log_slow_filter=full_join;
+[log_start.inc] percona.slow_extended.log_slow_filter
+SET query_exec_time = 1.1;
+SELECT * FROM t AS t1, t AS t2;
+SET query_exec_time = default;
+[log_stop.inc] percona.slow_extended.log_slow_filter
+SET log_slow_filter=default;
+SET long_query_time=default;
+[log_grep.inc] file: percona.slow_extended.log_slow_filter pattern: Query_time
+[log_grep.inc] lines:   1

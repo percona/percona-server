@@ -569,6 +569,82 @@ public:
 };
 
 
+extern void use_global_long_query_time_update(bool enable);
+
+class sys_var_thd_msl_option :public sys_var_thd
+{
+protected:
+  ulong SV::*offset;
+  const ulong none_val;
+  const ulong default_val;
+  const ulong invalid_val;
+  const struct msl_opts *opts;
+public:
+  sys_var_thd_msl_option(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
+                         const ulong none_val_arg,
+                         const ulong default_val_arg,
+                         const ulong invalid_val_arg,
+                         const struct msl_opts *opts_arg)
+    :sys_var_thd(name_arg), offset(offset_arg), none_val(none_val_arg),
+     default_val(default_val_arg), invalid_val(invalid_val_arg), 
+     opts(opts_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;              /* Only accept strings */
+  }
+  void set_default(THD *thd, enum_var_type type);
+  bool update(THD *thd, set_var *var);
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
+
+class sys_var_thd_msl_flag :public sys_var_thd
+{
+protected:
+  char flags_string[2 * STRING_BUFFER_USUAL_SIZE];
+  ulong SV::*offset;
+  const ulong none_val;
+  const ulong default_val;
+  const ulong invalid_val;
+  const struct msl_opts *flags;
+public:
+  sys_var_thd_msl_flag(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg, 
+                       const ulong none_val_arg, 
+                       const ulong default_val_arg, 
+                       const ulong invalid_val_arg,
+                       const struct msl_opts *flags_arg)
+    :sys_var_thd(name_arg), offset(offset_arg), none_val(none_val_arg),
+     default_val(default_val_arg), invalid_val(invalid_val_arg), 
+     flags(flags_arg)
+  { chain_sys_var(chain); }
+  bool check(THD *thd, set_var *var);
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;              /* Only accept strings */
+  }
+  void set_default(THD *thd, enum_var_type type);
+  bool update(THD *thd, set_var *var);
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+};
+
+class sys_var_thd_msl_flag_correct_none : public sys_var_thd_msl_flag
+{
+ public:
+  sys_var_thd_msl_flag_correct_none(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
+				    const ulong none_val_arg,
+				    const ulong default_val_arg,
+				    const ulong invalid_val_arg,
+				    const struct msl_opts *flags_arg)
+    : sys_var_thd_msl_flag(chain,name_arg,offset_arg,none_val_arg,default_val_arg,invalid_val_arg,flags_arg)
+    {
+    }
+  virtual bool update(THD *thd, set_var *var);
+};
+
 class sys_var_thd_storage_engine :public sys_var_thd
 {
 protected:
@@ -1178,8 +1254,9 @@ class sys_var_microseconds :public sys_var_thd
   ulonglong SV::*offset;
 public:
   sys_var_microseconds(sys_var_chain *chain, const char *name_arg,
-                       ulonglong SV::*offset_arg):
-    sys_var_thd(name_arg), offset(offset_arg)
+                       ulonglong SV::*offset_arg,
+                       Binlog_status_enum binlog_status= NOT_IN_BINLOG):
+  sys_var_thd(name_arg, NULL, binlog_status), offset(offset_arg)
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var) {return 0;}
   bool update(THD *thd, set_var *var);
@@ -1470,3 +1547,10 @@ void free_key_cache(const char *name, KEY_CACHE *key_cache);
 bool process_key_caches(process_key_cache_t func);
 void delete_elements(I_List<NAMED_LIST> *list,
 		     void (*free_element)(const char*, uchar*));
+
+/* Slow log functions */
+ulong msl_option_resolve_by_name(const struct msl_opts *opts, const char *name, ulong len);
+ulong msl_flag_resolve_by_name(const struct msl_opts *opts, const char *names_list, 
+                               const ulong none_val, const ulong invalid_val);
+const char *msl_option_get_name(const struct msl_opts *opts, ulong val);
+char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val);

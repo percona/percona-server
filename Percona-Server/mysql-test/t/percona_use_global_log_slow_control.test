@@ -1,0 +1,28 @@
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+SET GLOBAL long_query_time=1;
+
+--let log_file=percona.slow_extended.use_global_log_slow_control
+--source include/log_start.inc
+
+SET SESSION query_exec_time=1.1;
+
+SELECT 1;
+
+SET GLOBAL log_slow_verbosity=innodb;
+SET GLOBAL use_global_log_slow_control="log_slow_verbosity,long_query_time";
+
+SELECT 1;
+
+SET SESSION query_exec_time=default;
+
+--source include/log_stop.inc
+
+SET GLOBAL use_global_log_slow_control='';
+SET GLOBAL log_slow_verbosity='';
+SET GLOBAL long_query_time=default;
+
+--let grep_pattern = No InnoDB statistics available for this query
+--source include/log_grep.inc
+

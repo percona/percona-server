@@ -1,0 +1,22 @@
+SET long_query_time=1;
+SET GLOBAL log_slow_sp_statements=1;
+[log_start.inc] percona.slow_extended.log_slow_sp_statements
+CREATE PROCEDURE test_f()
+BEGIN
+SET SESSION query_exec_time=1.1; SELECT 1;
+SET SESSION query_exec_time=2.1; SELECT 1;
+SET SESSION query_exec_time=3.1; SELECT 1;
+SET SESSION query_exec_time=default;
+END^
+CALL test_f();
+1
+1
+1
+1
+1
+1
+[log_stop.inc] percona.slow_extended.log_slow_sp_statements
+SET GLOBAL log_slow_sp_statements=default;
+SET long_query_time=default;
+[log_grep.inc] file: percona.slow_extended.log_slow_sp_statements pattern: Query_time
+[log_grep.inc] lines:   3

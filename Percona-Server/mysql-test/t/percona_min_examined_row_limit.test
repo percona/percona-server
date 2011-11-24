@@ -1,0 +1,35 @@
+--source include/have_debug.inc
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+create table t(id INT PRIMARY KEY);
+insert into t values(1);
+insert into t values(2);
+insert into t values(3);
+
+SET GLOBAL long_query_time=2;
+SET GLOBAL use_global_log_slow_control='long_query_time,min_examined_row_limit';
+--let log_file=percona.slow_extended.min_examined_row_limit
+--source include/log_start.inc
+
+SET SESSION query_exec_time=2.1;
+SELECT 1;
+
+SET GLOBAL min_examined_row_limit=5;
+
+SELECT * FROM t AS t1, t AS t2;
+SELECT 1;
+
+SET SESSION query_exec_time=default;
+
+--source include/log_stop.inc
+SET GLOBAL min_examined_row_limit=default;
+SET GLOBAL use_global_log_slow_control='';
+SET GLOBAL long_query_time=default;
+
+--let grep_pattern = Query_time
+--source include/log_grep.inc
+
+DROP TABLE t;

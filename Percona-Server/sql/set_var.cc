@@ -164,6 +164,74 @@ static int check_net_buffer_length(THD *thd,  set_var *var);
 
 static sys_var_chain vars = { NULL, NULL };
 
+void use_global_long_query_time_update(bool enable)
+{
+  ulong &log_slow_control= global_system_variables.use_global_log_slow_control;
+  opt_use_global_long_query_time= enable;
+  if (enable)
+    log_slow_control|= SLOG_UG_LONG_QUERY_TIME;
+  else
+    log_slow_control&= ~SLOG_UG_LONG_QUERY_TIME;
+  log_slow_control&= ~SLOG_UG_NONE;
+  if (log_slow_control == 0)
+    log_slow_control= SLOG_UG_NONE;
+}
+
+class sys_var_use_global_long_query_time : public sys_var_bool_ptr
+{
+public:
+  sys_var_use_global_long_query_time()
+    :sys_var_bool_ptr(&vars,"use_global_long_query_time",&opt_use_global_long_query_time)
+  {
+    chain_sys_var(&vars);
+  }
+  virtual bool update(THD *thd, set_var *var)
+  {
+    bool result = sys_var_bool_ptr::update(thd,var);
+    sync();
+    return result;
+  }
+  virtual void set_default(THD *thd, enum_var_type type)
+  {
+    sys_var_bool_ptr::set_default(thd,type);
+    sync();
+  }
+private:
+  void sync()
+  {
+    use_global_long_query_time_update(opt_use_global_long_query_time);    
+  }
+};
+class sys_var_use_global_log_slow_control : public sys_var_thd_msl_flag_correct_none
+{
+ public:
+  sys_var_use_global_log_slow_control() : sys_var_thd_msl_flag_correct_none(
+								 &vars
+								 ,"use_global_log_slow_control"
+								 ,&SV::use_global_log_slow_control
+								 ,SLOG_UG_NONE,SLOG_UG_NONE,SLOG_UG_INVALID
+								 ,slog_use_global)
+    {
+    }
+  virtual bool update(THD *thd, set_var *var)
+  {
+    bool result = sys_var_thd_msl_flag_correct_none::update(thd,var);
+    sync();
+    return result;
+  }
+  virtual void set_default(THD *thd, enum_var_type type)
+  {
+    sys_var_thd_msl_flag_correct_none::set_default(thd,type);
+    sync();
+  }
+private:
+  void sync()
+  {
+    ulong const &variable= global_system_variables.use_global_log_slow_control;
+    use_global_long_query_time_update((variable & SLOG_UG_LONG_QUERY_TIME));
+  }
+};
+
 static sys_var_thd_ulong
 sys_auto_increment_increment(&vars, "auto_increment_increment",
                              &SV::auto_increment_increment, NULL, NULL,
@@ -903,6 +971,37 @@ static sys_var_log_state sys_var_log(&vars, "log", &opt_log,
                                       QUERY_LOG_GENERAL);
 static sys_var_log_state sys_var_slow_query_log(&vars, "slow_query_log", &opt_slow_log,
                                          QUERY_LOG_SLOW);
+static sys_var_thd_ulong      sys_log_slow_rate_limit(&vars, "log_slow_rate_limit",
+                                            &SV::log_slow_rate_limit);
+static sys_var_thd_msl_flag   sys_log_slow_filter(&vars, "log_slow_filter",
+                                      &SV::log_slow_filter,
+                                       SLOG_F_NONE,
+                                       SLOG_F_NONE,
+                                       SLOG_F_INVALID,
+                                       slog_filter);
+static sys_var_thd_msl_flag   sys_log_slow_verbosity(&vars, "log_slow_verbosity",
+                                      &SV::log_slow_verbosity,
+                                       SLOG_V_NONE,
+                                       SLOG_V_MICROTIME,
+                                       SLOG_V_INVALID,
+                                       slog_verb);
+static sys_var_use_global_log_slow_control sys_use_global_log_slow_control;
+static sys_var_bool_ptr       sys_log_slow_admin_statements(&vars, "log_slow_admin_statements",
+                                                            &opt_log_slow_admin_statements);
+static sys_var_bool_ptr       sys_log_slow_slave_statements(&vars, "log_slow_slave_statements",
+                                                            &opt_log_slow_slave_statements);
+static sys_var_bool_ptr       sys_log_slow_sp_statements(&vars, "log_slow_sp_statements",
+                                                         &opt_log_slow_sp_statements);
+static sys_var_bool_ptr       sys_log_slow_timestamp_every(&vars, "log_slow_timestamp_every",
+                                                           &opt_log_slow_timestamp_every);
+static sys_var_use_global_long_query_time sys_use_global_long_query_time;
+static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "slow_query_log_microseconds_timestamp",
+                                                       &opt_slow_query_log_microseconds_timestamp);
+#ifndef DBUG_OFF
+static sys_var_microseconds sys_var_query_exec_time(&vars, "query_exec_time",
+                                                    &SV::query_exec_time,
+                                                    sys_var::SESSION_VARIABLE_IN_BINLOG);
+#endif
 /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
 static sys_var_log_state sys_var_log_slow(&vars, "log_slow_queries",
                                           &opt_slow_log, QUERY_LOG_SLOW);
@@ -3712,6 +3811,203 @@ int set_var_password::update(THD *thd)
   return 0;
 #endif
 }
+
+/* Slow log stuff */
+
+ulong msl_option_resolve_by_name(const struct msl_opts *opts, const char *name, ulong len)
+{
+  ulong i;
+  
+  for (i=0; opts[i].name; i++)
+  {
+    if (!my_strnncoll(&my_charset_latin1,
+                      (const uchar *)name, len,
+                      (const uchar *)opts[i].name, strlen(opts[i].name)))
+      return opts[i].val;
+  }
+  return opts[i].val;
+}
+
+ulong msl_flag_resolve_by_name(const struct msl_opts *opts, const char *names_list, 
+                               const ulong none_val, const ulong invalid_val)
+{
+  const char *p, *e;
+  ulong val= none_val;
+  
+  if (!*names_list)
+    return val;
+  
+  for (p= e= names_list; ; e++)
+  {
+    ulong i;
+    
+    if (*e != ',' && *e)
+      continue;
+    for (i=0; opts[i].name; i++)
+    {
+      if (!my_strnncoll(&my_charset_latin1,
+                        (const uchar *)p, e - p,
+                        (const uchar *)opts[i].name, strlen(opts[i].name)))
+      {
+        val= val | opts[i].val;
+        break;
+      }
+    }
+    if (opts[i].val == invalid_val)
+      return invalid_val;
+    if (!*e)
+      break;
+    p= e + 1;
+  }
+  return val;
+}
+
+const char *msl_option_get_name(const struct msl_opts *opts, ulong val)
+{
+  for (ulong i=0; opts[i].name && opts[i].name[0]; i++)
+  {
+    if (opts[i].val == val)
+      return opts[i].name;
+  }
+  return "*INVALID*";
+}
+
+char *msl_flag_get_name(const struct msl_opts *opts, char *buf, ulong val)
+{
+  uint offset= 0;
+  
+  *buf= '\0';
+  for (ulong i=0; opts[i].name && opts[i].name[0]; i++)
+  {
+    if (opts[i].val & val)
+      offset+= snprintf(buf+offset, STRING_BUFFER_USUAL_SIZE - offset - 1,
+                        "%s%s", (offset ? "," : ""), opts[i].name);
+  }
+  return buf;
+}
+
+/****************************************************************************
+ Functions to handle log_slow_verbosity
+****************************************************************************/
+
+/* Based upon sys_var::check_enum() */
+
+bool sys_var_thd_msl_option::check(THD *thd, set_var *var)
+{
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String str(buff, sizeof(buff), &my_charset_latin1), *res;
+
+  if (var->value->result_type() == STRING_RESULT)
+  {
+    ulong verb= this->invalid_val;
+    if (!(res=var->value->val_str(&str)) ||
+             (var->save_result.ulong_value=
+          (ulong) (verb= msl_option_resolve_by_name(this->opts, res->ptr(), res->length()))) == this->invalid_val)
+      goto err;
+    return 0;
+  }
+
+err:
+  my_error(ER_WRONG_ARGUMENTS, MYF(0), var->var->name);
+  return 1;
+}
+
+uchar *sys_var_thd_msl_option::value_ptr(THD *thd, enum_var_type type,
+                                       LEX_STRING *base)
+{
+  ulong val;
+  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset);
+  const char *verbosity= msl_option_get_name(this->opts, val);
+  return (uchar *) verbosity;
+}
+
+
+void sys_var_thd_msl_option::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= (ulong) this->default_val;
+  else
+    thd->variables.*offset= (ulong) (global_system_variables.*offset);
+}
+
+
+bool sys_var_thd_msl_option::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.*offset= var->save_result.ulong_value;
+  else
+    thd->variables.*offset= var->save_result.ulong_value;
+  return 0;
+}
+
+/****************************************************************************
+ Functions to handle log_slow_filter
+****************************************************************************/
+  
+/* Based upon sys_var::check_enum() */
+
+bool sys_var_thd_msl_flag::check(THD *thd, set_var *var)
+{
+  char buff[2 * STRING_BUFFER_USUAL_SIZE];
+  String str(buff, sizeof(buff), &my_charset_latin1), *res;
+
+  if (var->value->result_type() == STRING_RESULT)
+  {
+    ulong filter= this->none_val;
+    if (!(res=var->value->val_str(&str)) ||
+        (var->save_result.ulong_value=
+          (ulong) (filter= msl_flag_resolve_by_name(this->flags, res->ptr(), this->none_val, 
+                                                    this->invalid_val))) == this->invalid_val)
+      goto err;
+    return 0;
+  }
+
+err:
+  my_error(ER_WRONG_ARGUMENTS, MYF(0), var->var->name);
+  return 1;
+}
+
+uchar *sys_var_thd_msl_flag::value_ptr(THD *thd, enum_var_type type,
+                                       LEX_STRING *base)
+{
+  ulong val;
+  val= ((type == OPT_GLOBAL) ? global_system_variables.*offset :
+        thd->variables.*offset);
+  msl_flag_get_name(this->flags, this->flags_string, val);
+  return (uchar *) this->flags_string;
+}
+
+
+void sys_var_thd_msl_flag::set_default(THD *thd, enum_var_type type)
+{
+  if (type == OPT_GLOBAL)
+    global_system_variables.*offset= (ulong) this->default_val;
+  else
+    thd->variables.*offset= (ulong) (global_system_variables.*offset);
+}
+
+
+bool sys_var_thd_msl_flag::update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.*offset= var->save_result.ulong_value;
+  else
+    thd->variables.*offset= var->save_result.ulong_value;
+  return 0;
+}
+bool sys_var_thd_msl_flag_correct_none::update(THD *thd, set_var *var)
+{
+  ulong result = var->save_result.ulong_value;
+  if (result != none_val)
+    result = result & (~none_val);
+  if (var->type == OPT_GLOBAL)
+    global_system_variables.*offset = result;
+  else
+    thd->variables.*offset = result;
+  return 0;
+}
+
 
 /****************************************************************************
  Functions to handle table_type

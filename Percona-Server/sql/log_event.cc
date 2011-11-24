@@ -2368,6 +2368,15 @@ bool Query_log_event::write(IO_CACHE* file)
       start+= host.length;
     }
   }
+#ifndef DBUG_OFF
+  if (thd && thd->variables.query_exec_time > 0)
+  {
+    *start++= Q_QUERY_EXEC_TIME;;
+    int8store(start, thd->variables.query_exec_time);
+    start+= 8;
+  }
+#endif
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -2797,6 +2806,17 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       data_written= master_data_written= uint4korr(pos);
       pos+= 4;
       break;
+#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
+    case Q_QUERY_EXEC_TIME:
+    {
+      THD *thd= current_thd;
+      CHECK_SPACE(pos, end, 8);
+      if (thd)
+        thd->variables.query_exec_time= uint8korr(pos);
+      pos+= 8;
+      break;
+    }
+#endif
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);
@@ -3097,6 +3117,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   LEX_STRING new_db;
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
+  bool process_log_slow_statement= false;
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -3278,19 +3299,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       /* Execute the query (note that we bypass dispatch_command()) */
       const char* found_semicolon= NULL;
       mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
-      log_slow_statement(thd);
-
-      /*
-        Resetting the enable_slow_log thd variable.
-
-        We need to reset it back to the opt_log_slow_slave_statements
-        value after the statement execution (and slow logging
-        is done). It might have changed if the statement was an
-        admin statement (in which case, down in mysql_parse execution
-        thd->enable_slow_log is set to the value of
-        opt_log_slow_admin_statements).
-      */
-      thd->enable_slow_log= opt_log_slow_slave_statements;
+      process_log_slow_statement= true;
     }
     else
     {
@@ -3435,11 +3444,27 @@ end:
     don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax.
   */
+  close_thread_tables(thd);      
+  if(process_log_slow_statement)
+  {
+      log_slow_statement(thd);
+
+      /*
+        Resetting the enable_slow_log thd variable.
+
+        We need to reset it back to the opt_log_slow_slave_statements
+        value after the statement execution (and slow logging
+        is done). It might have changed if the statement was an
+        admin statement (in which case, down in mysql_parse execution
+        thd->enable_slow_log is set to the value of
+        opt_log_slow_admin_statements).
+      */
+      thd->enable_slow_log= opt_log_slow_slave_statements;
+  }
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
   thd->set_query(NULL, 0);
   DBUG_PRINT("info", ("end: query= 0"));
-  close_thread_tables(thd);      
   /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able

@@ -6798,7 +6798,10 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    if (statistics)
+            {
 	      status_var_increment(join->thd->status_var.select_scan_count);
+              join->thd->query_plan_flags|= QPLAN_FULL_SCAN;
+            }
 	  }
 	}
 	else
@@ -6812,7 +6815,10 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  {
 	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
 	    if (statistics)
+            {
 	      status_var_increment(join->thd->status_var.select_full_join_count);
+              join->thd->query_plan_flags|= QPLAN_FULL_JOIN;
+            }
 	  }
 	}
 	if (!table->no_keyread)
@@ -10016,6 +10022,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               (ulong) rows_limit,test(group)));
 
   status_var_increment(thd->status_var.created_tmp_tables);
+  thd->query_plan_flags|= QPLAN_TMP_TABLE;
 
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
@@ -10897,6 +10904,7 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     goto err;
   }
   status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
+  table->in_use->query_plan_flags|= QPLAN_TMP_DISK;
   share->db_record_offset= 1;
   DBUG_RETURN(0);
  err:
@@ -10914,6 +10922,14 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "removing tmp table");
+
+  thd->tmp_tables_used++;
+  if (entry->file)
+  {
+    thd->tmp_tables_size += entry->file->stats.data_file_length;
+    if (entry->file->ht->db_type != DB_TYPE_HEAP)
+      thd->tmp_tables_disk_used++;
+  }
 
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);

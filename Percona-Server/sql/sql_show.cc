@@ -1971,8 +1971,17 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         table->field[4]->store(command_name[tmp->command].str,
                                command_name[tmp->command].length, cs);
       /* MYSQL_TIME */
-      table->field[5]->store((longlong)(tmp->start_time ?
-                                      now - tmp->start_time : 0), FALSE);
+      longlong value_in_time_column= 0;
+      if(tmp->start_time)
+      {
+        value_in_time_column = (now - tmp->start_time);
+        if(value_in_time_column > now)
+        {
+          value_in_time_column= 0;
+        }
+      }
+      table->field[5]->store(value_in_time_column, FALSE);
+
       /* STATE */
 #ifndef EMBEDDED_LIBRARY
       val= (char*) (tmp->locked ? "Locked" :

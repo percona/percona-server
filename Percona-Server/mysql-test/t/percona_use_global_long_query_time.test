@@ -1,0 +1,27 @@
+--source include/have_debug.inc
+
+--let log_file=percona.slow_extended.use_global_long_query_time
+--source include/log_start.inc
+
+SET long_query_time=2;
+
+SET SESSION query_exec_time=1.1; SELECT 1;
+SET SESSION query_exec_time=3.1; SELECT 1;
+SET SESSION query_exec_time=5.1; SELECT 1;
+
+SET GLOBAL long_query_time=4;
+SET GLOBAL use_global_long_query_time=1;
+
+SET SESSION query_exec_time=1.1; SELECT 1;
+SET SESSION query_exec_time=3.1; SELECT 1;
+SET SESSION query_exec_time=5.1; SELECT 1;
+
+SET SESSION query_exec_time=0;
+
+--source include/log_stop.inc
+
+SET GLOBAL long_query_time=default;
+SET GLOBAL use_global_long_query_time=0;
+
+--let grep_pattern = Query_time
+--source include/log_grep.inc

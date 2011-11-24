@@ -1,0 +1,6 @@
+SHOW VARIABLES LIKE 'log_slow_timestamp_every';
+Variable_name	Value
+log_slow_timestamp_every	ON
+SHOW GLOBAL VARIABLES LIKE 'log_slow_timestamp_every';
+Variable_name	Value
+log_slow_timestamp_every	ON

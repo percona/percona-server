@@ -68,11 +68,11 @@ The configuration options and table columns for the following features have been
 Shared Memory Buffer Pool
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ''SHM'' Buffer Pool has been replaced with the safer LRU Dump/Restore patch, which provides similar improvements in restart performance and has the advantage of persisting across machine restarts.
+The :ref:`SHM buffer pool <innodb_buffer_pool_shm>` patch has been replaced with the safer :ref:`LRU Dump/Restore <innodb_lru_dump_restore>` patch, which provides similar improvements in restart performance and has the advantage of persisting across machine restarts.
 
-The configuration variables for my.cnf have been kept for compatibility and warnings will be printed for the deprecated options (innodb_buffer_pool_shm_key and innodb_buffer_pool_shm_checksum) if used.
+The configuration variables for my.cnf have been kept for compatibility and warnings will be printed for the deprecated options (:variable:`innodb_buffer_pool_shm_key` and :variable:`innodb_buffer_pool_shm_checksum`) if used.
 
-Instructions for disabling the SHM buffer pool can be found here and for setting up LRU dump/restore here.
+Instructions for disabling the SHM buffer pool can be found :ref:`here <innodb_buffer_pool_shm>` and for setting up LRU dump/restore :ref:`here <innodb_lru_dump_restore>`.
 
 Multiple Rollback Segments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

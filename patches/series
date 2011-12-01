@@ -58,3 +58,6 @@ valgrind_zlib_suppression.patch
 memory_dynamic_rows.patch
 xtradb_bug317074.patch
 subunit.patch
+group_commit_binlog_PerconaServer5.5.patch
+group_commit_binlog_XtraDB5.5.patch
+group_commit_binlog_mysql-test5.5.patch

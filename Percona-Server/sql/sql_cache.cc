@@ -329,6 +329,7 @@ TODO list:
       (This could be done with almost no speed penalty)
 */
 
+#include "debug_sync.h"
 #include "mysql_priv.h"
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
@@ -616,10 +617,10 @@ bool Query_cache::try_lock(bool use_timeout)
   THD *thd = current_thd;
   const char* old_proc_info= thd->proc_info;
   thd_proc_info(thd,"Waiting on query cache mutex");
+  DEBUG_SYNC(thd, "before_query_cache_mutex");
   pthread_mutex_lock(&structure_guard_mutex);
-  DBUG_EXECUTE_IF("status_wait_query_cache_mutex_sleep", {
-      sleep(5);
-    });
+  DEBUG_SYNC(thd, "after_query_cache_mutex");
+  thd->proc_info = old_proc_info;
   while (1)
   {
     if (m_cache_lock_status == Query_cache::UNLOCKED)
@@ -667,7 +668,6 @@ bool Query_cache::try_lock(bool use_timeout)
     }
   }
   pthread_mutex_unlock(&structure_guard_mutex);
-  thd->proc_info = old_proc_info;
 
   DBUG_RETURN(interrupt);
 }

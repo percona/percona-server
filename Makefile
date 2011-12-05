@@ -3,6 +3,8 @@ PERCONA_SERVER_VERSION=rel13.1
 PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
 PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)
 PERCONA_SERVER_SHORT_2 ?=Percona-Server
+KEWPIE ?=kewpie
+BASEDIR = $(CURDIR)
 
 all:  main install-lic misc handlersocket maatkit-udf autorun
 	@echo ""
@@ -45,3 +47,33 @@ misc:
 
 clean:
 	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
+
+test-qp-crashme:
+	cd $(KEWPIE) && ./kewpie.py --suite=crashme --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+test-qp-sqlbench:
+        cd $(KEWPIE) && ./kewpie.py --suite=sqlbench --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+test-qp-randgen:
+	cd $(KEWPIE) && ./kewpie.py --suite=randgen_basic --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+test-qp-randgen-bugs:
+	cd $(KEWPIE) && ./kewpie.py --suite=randgen_bugs --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+test-qp-cluster:
+	cd $(KEWPIE) && ./kewpie.py --suite=cluster_basic,cluster_randgen --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+test-qp-cluster-basic:
+	cd $(KEWPIE) && ./kewpie.py --suite=cluster_basic --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+test-qp-cluster-randgen:
+	cd $(KEWPIE) && ./kewpie.py --suite=cluster_randgen --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+test-qp-cluster-bugs:
+	cd $(KEWPIE) && ./kewpie.py --suite=cluster_bugs --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+
+
+
+
+
+

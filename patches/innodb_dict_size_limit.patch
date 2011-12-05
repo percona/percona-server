@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/btr/btr0sea.c
 +++ b/storage/innobase/btr/btr0sea.c
-@@ -1186,6 +1186,179 @@
+@@ -1187,6 +1187,179 @@
  	mem_free(folds);
  }
  
@@ -185,8 +185,8 @@
 +}
 +
  /********************************************************************//**
- Drops a page hash index when a page is freed from a fseg to the file system.
- Drops possible hash index if the page happens to be in the buffer pool. */
+ Drops a possible page hash index when a page is evicted from the buffer pool
+ or freed in a file segment. */
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
 @@ -294,14 +294,14 @@
@@ -422,11 +422,11 @@
 +/*=====================================*/
 +	dict_index_t*	index);		/* in: record descriptor */
  /********************************************************************//**
- Drops a page hash index when a page is freed from a fseg to the file system.
- Drops possible hash index if the page happens to be in the buffer pool. */
+ Drops a possible page hash index when a page is evicted from the buffer pool
+ or freed in a file segment. */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1585,6 +1585,15 @@
+@@ -1575,6 +1575,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  

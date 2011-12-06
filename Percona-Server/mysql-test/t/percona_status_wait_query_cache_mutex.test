@@ -1,37 +1,35 @@
 --source include/have_query_cache.inc
 --source include/have_debug.inc
-set GLOBAL query_cache_size=1355776;
+--source include/have_debug_sync.inc
+SET GLOBAL query_cache_size=1355776;
 --source include/percona_query_cache_with_comments_clear.inc
+--let try_lock_mutex_query=SELECT "try_lock_mutex_query" as action
 
--- disable_warnings
-DROP TABLE IF EXISTS t;
--- enable_warnings
-CREATE TABLE t(id INT, number INT);
-INSERT INTO t VALUES (0,1);
-INSERT INTO t VALUES (1,2);
-INSERT INTO t VALUES (2,3);
-SELECT number from t where id > 0;
---connect (conn0,localhost,root,,)
---connect (conn1,localhost,root,,)
---connect (conn2,localhost,root,,)
+--connect (mutex_locked_conn, localhost, root,,)
+--connect (try_mutex_lock_conn, localhost, root,,)
 
---connection conn0
---error 0, ER_UNKNOWN_SYSTEM_VARIABLE
-SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
-SEND SELECT number from t where id > 0;
-SLEEP 1.0;
+--connection mutex_locked_conn
+SET DEBUG_SYNC='after_query_cache_mutex SIGNAL mutex_locked WAIT_FOR unlock_mutex';
+send SELECT "mutex_locked_query" as action;
 
---connection conn1
---error 0, ER_UNKNOWN_SYSTEM_VARIABLE
-SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
-SEND SELECT number from t where id > 0;
-SLEEP 1.0;
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR mutex_locked';
 
---connection conn2
---error 0, ER_UNKNOWN_SYSTEM_VARIABLE
-SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
---replace_column 1 Id 6 Time
-SHOW PROCESSLIST;
+--connection try_mutex_lock_conn
+SET DEBUG_SYNC='before_query_cache_mutex SIGNAL try_lock_mutex';
+send_eval $try_lock_mutex_query;
 
-DROP TABLE t;
-set GLOBAL query_cache_size=0;
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR try_lock_mutex';
+eval SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='$try_lock_mutex_query';
+SET DEBUG_SYNC='now SIGNAL unlock_mutex';
+
+--connection mutex_locked_conn
+reap;
+--connection try_mutex_lock_conn
+reap;
+
+--connection default
+--disconnect mutex_locked_conn
+--disconnect try_mutex_lock_conn
+SET GLOBAL query_cache_size=0;

@@ -241,7 +241,7 @@
  	ut_ad(page_is_leaf(buf_block_get_frame(block)));
  
  	rec = btr_cur_get_rec(cursor);
-@@ -3650,6 +3733,11 @@
+@@ -3645,6 +3728,11 @@
  
  		page = btr_cur_get_page(&cursor);
  
@@ -302,9 +302,9 @@
 -
 +#include "srv0srv.h"
  /** Flag: has the search system been enabled?
- Protected by btr_search_latch and btr_search_enabled_mutex. */
+ Protected by btr_search_latch. */
  UNIV_INTERN char		btr_search_enabled	= TRUE;
-@@ -607,6 +607,11 @@
+@@ -609,6 +609,11 @@
  
  	block = btr_cur_get_block(cursor);
  
@@ -326,7 +326,7 @@
  
  /* prototypes for new functions added to ha_innodb.cc */
  trx_t* innobase_get_trx();
-@@ -1136,6 +1137,11 @@
+@@ -1134,6 +1135,11 @@
  			ready = buf_flush_ready_for_replace(&block->page);
  			mutex_exit(&block->mutex);
  
@@ -338,7 +338,7 @@
  			if (!ready) {
  
  				return(block);
-@@ -2007,6 +2013,13 @@
+@@ -1910,6 +1916,13 @@
  		return(NULL);
  	}
  
@@ -352,7 +352,7 @@
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&buf_pool->page_hash_latch);
-@@ -2587,6 +2600,13 @@
+@@ -2489,6 +2502,13 @@
  		return(NULL);
  	}
  
@@ -366,7 +366,7 @@
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -3261,6 +3281,7 @@
+@@ -3163,6 +3183,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -374,7 +374,7 @@
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
-@@ -3899,6 +3920,7 @@
+@@ -3801,6 +3822,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -382,7 +382,7 @@
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -3940,6 +3962,23 @@
+@@ -3842,6 +3864,23 @@
  			      REFMAN "forcing-innodb-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -406,7 +406,7 @@
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				/* If page space id is larger than TRX_SYS_SPACE
  				(0), we will attempt to mark the corresponding
-@@ -3956,6 +3995,7 @@
+@@ -3858,6 +3897,7 @@
  				}
  			}
  		}
@@ -414,7 +414,7 @@
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -3965,8 +4005,11 @@
+@@ -3867,8 +3907,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(
@@ -787,7 +787,7 @@
  	if (descr != NULL) {
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -4012,6 +4012,12 @@
+@@ -4011,6 +4011,12 @@
  		DBUG_RETURN(1);
  	}
  
@@ -800,7 +800,7 @@
  	/* Create buffers for packing the fields of a record. Why
  	table->reclength did not work here? Obviously, because char
  	fields when packed actually became 1 byte longer, when we also
-@@ -4039,6 +4045,19 @@
+@@ -4038,6 +4044,19 @@
  	/* Get pointer to a table object in InnoDB dictionary cache */
  	ib_table = dict_table_get(norm_name, TRUE);
  	
@@ -820,7 +820,7 @@
  	if (NULL == ib_table) {
  		if (is_part && retries < 10) {
  			++retries;
-@@ -5188,6 +5207,10 @@
+@@ -5187,6 +5206,10 @@
  
  	ha_statistic_increment(&SSV::ha_write_count);
  
@@ -831,7 +831,7 @@
  	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
  		table->timestamp_field->set_time();
  
-@@ -5405,6 +5428,10 @@
+@@ -5404,6 +5427,10 @@
  func_exit:
  	innobase_active_small();
  
@@ -1104,7 +1104,7 @@
  			block, index != NULL && dict_index_is_ibuf(index)
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1016,7 +1016,7 @@
+@@ -1003,7 +1003,7 @@
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  	__attribute__((pure));
  #else /* UNIV_DEBUG */
@@ -1113,7 +1113,7 @@
  #endif /* UNIV_DEBUG */
  /*********************************************************************//**
  Gets the space id of a block.
-@@ -1463,6 +1463,7 @@
+@@ -1450,6 +1450,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -1277,7 +1277,7 @@
  	ut_ad(page_simple_validate_new((page_t*) page));
 --- a/storage/innobase/row/row0ins.c
 +++ b/storage/innobase/row/row0ins.c
-@@ -1338,6 +1338,12 @@
+@@ -1341,6 +1341,12 @@
  		const rec_t*		rec = btr_pcur_get_rec(&pcur);
  		const buf_block_t*	block = btr_pcur_get_block(&pcur);
  

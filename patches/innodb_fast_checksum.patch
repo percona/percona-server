@@ -187,7 +187,7 @@
    MYSQL_SYSVAR(data_file_path),
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -634,6 +634,11 @@
+@@ -621,6 +621,11 @@
  buf_calc_page_new_checksum(
  /*=======================*/
  	const byte*	page);	/*!< in: buffer page */

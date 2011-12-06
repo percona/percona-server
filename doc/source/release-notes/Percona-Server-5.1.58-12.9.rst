@@ -53,6 +53,8 @@ Instructions for disabling the ``SHM`` buffer pool can be found :ref:`innodb_buf
 Bug Fixes
 ==========
 
+  * On a high concurrency environment with compressed tables, users may experience crashes due to improper mutex handling in ``buf_page_get_zip()``. Bug Fix: :bug:`802348` (*Yasufumi Kinoshita*).
+
   * When adding a table to the cache, the server may evict and close another if the table cache is full. If the closed table was on the ``FEDERATED`` engine and a replication environment, its client connection to the remote server was closed leading to an unappropriated network error and stopping the Slave SQL thread. Bugs Fixed :bug:`813587` / `#51196 <http://bugs.mysql.com/bug.php?id=51196>`_ and `#61790 <http://bugs.mysql.com/bug.php?id=61790>`_ in |MySQL| (*Alexey Kopytov*).
 
   * Uninitialized values in the :ref:`Slow Query Log <slow_extended>` patch. Bug Fixed: :bug:`794774` (*Oleg Tsarev*).

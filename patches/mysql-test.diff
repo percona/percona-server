@@ -629,12 +629,6 @@
 +@@global.innodb_corrupt_table_action
 +assert
 --- /dev/null
-+++ b/mysql-test/suite/sys_vars/r/innodb_dict_size_limit_basic.result
-@@ -0,0 +1,3 @@
-+SELECT @@global.innodb_dict_size_limit;
-+@@global.innodb_dict_size_limit
-+0
---- /dev/null
 +++ b/mysql-test/suite/sys_vars/r/innodb_doublewrite_file_basic.result
 @@ -0,0 +1,3 @@
 +SELECT @@global.innodb_doublewrite_file;
@@ -874,10 +868,6 @@
 +++ b/mysql-test/suite/sys_vars/t/innodb_corrupt_table_action_basic.test
 @@ -0,0 +1 @@
 +SELECT @@global.innodb_corrupt_table_action;
---- /dev/null
-+++ b/mysql-test/suite/sys_vars/t/innodb_dict_size_limit_basic.test
-@@ -0,0 +1 @@
-+SELECT @@global.innodb_dict_size_limit;
 --- /dev/null
 +++ b/mysql-test/suite/sys_vars/t/innodb_doublewrite_file_basic.test
 @@ -0,0 +1 @@

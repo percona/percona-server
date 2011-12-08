@@ -635,12 +635,6 @@
 +@@global.innodb_doublewrite_file
 +NULL
 --- /dev/null
-+++ b/mysql-test/suite/sys_vars/r/innodb_fast_checksum_basic.result
-@@ -0,0 +1,3 @@
-+SELECT @@global.innodb_fast_checksum;
-+@@global.innodb_fast_checksum
-+0
---- /dev/null
 +++ b/mysql-test/suite/sys_vars/r/innodb_flush_neighbor_pages_basic.result
 @@ -0,0 +1,3 @@
 +SELECT @@global.innodb_flush_neighbor_pages;
@@ -872,10 +866,6 @@
 +++ b/mysql-test/suite/sys_vars/t/innodb_doublewrite_file_basic.test
 @@ -0,0 +1 @@
 +SELECT @@global.innodb_doublewrite_file;
---- /dev/null
-+++ b/mysql-test/suite/sys_vars/t/innodb_fast_checksum_basic.test
-@@ -0,0 +1 @@
-+SELECT @@global.innodb_fast_checksum;
 --- /dev/null
 +++ b/mysql-test/suite/sys_vars/t/innodb_flush_neighbor_pages_basic.test
 @@ -0,0 +1 @@

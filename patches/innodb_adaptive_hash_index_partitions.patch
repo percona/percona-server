@@ -605,7 +605,7 @@
 -					rw_lock_x_lock(&btr_search_latch);
 +					rw_lock_x_lock(btr_search_get_latch(index->id));
  
- 					if (UNIV_UNLIKELY(!block->is_hashed)) {
+ 					if (UNIV_UNLIKELY(!block->index)) {
  						goto cleanup;
 @@ -1316,12 +1395,12 @@
  
@@ -622,15 +622,15 @@
  						goto retry;
  					}
  
-@@ -1335,6 +1414,7 @@
+@@ -1334,6 +1413,7 @@
+ 					index->search_info->ref_count--;
  
- 					block->is_hashed = FALSE;
  					block->index = NULL;
 +					block->btr_search_latch = NULL;
  
  cleanup:
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-@@ -1347,18 +1427,18 @@
+@@ -1346,18 +1426,18 @@
  							index->name, (ulong) block->n_pointers);
  					}
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -652,7 +652,7 @@
  
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
-@@ -1396,7 +1476,7 @@
+@@ -1395,7 +1475,7 @@
  
  		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
  
@@ -661,7 +661,7 @@
  	}
  
  	mtr_commit(&mtr);
-@@ -1437,31 +1517,26 @@
+@@ -1436,31 +1516,26 @@
  	ut_ad(index);
  	ut_a(!dict_index_is_ibuf(index));
  
@@ -703,7 +703,7 @@
  	}
  
  	n_recs = page_get_n_recs(page);
-@@ -1555,9 +1630,9 @@
+@@ -1554,9 +1629,9 @@
  		fold = next_fold;
  	}
  
@@ -715,7 +715,7 @@
  
  	if (UNIV_UNLIKELY(!btr_search_enabled)) {
  		goto exit_func;
-@@ -1584,6 +1659,7 @@
+@@ -1583,6 +1658,7 @@
  	block->curr_n_bytes = n_bytes;
  	block->curr_left_side = left_side;
  	block->index = index;
@@ -723,7 +723,7 @@
  
  	for (i = 0; i < n_cached; i++) {
  
-@@ -1591,7 +1667,7 @@
+@@ -1590,7 +1666,7 @@
  	}
  
  exit_func:
@@ -732,7 +732,7 @@
  
  	mem_free(folds);
  	mem_free(recs);
-@@ -1633,11 +1709,13 @@
+@@ -1632,11 +1708,13 @@
  	ut_a(!(new_block->index || block->index)
  	     || !dict_index_is_ibuf(index));
  
@@ -748,7 +748,7 @@
  
  		return;
  	}
-@@ -1652,7 +1730,7 @@
+@@ -1651,7 +1729,7 @@
  		new_block->n_bytes = block->curr_n_bytes;
  		new_block->left_side = left_side;
  
@@ -757,7 +757,7 @@
  
  		ut_a(n_fields + n_bytes > 0);
  
-@@ -1664,7 +1742,7 @@
+@@ -1663,7 +1741,7 @@
  		return;
  	}
  
@@ -766,7 +766,7 @@
  }
  
  /********************************************************************//**
-@@ -1703,7 +1781,7 @@
+@@ -1702,7 +1780,7 @@
  	ut_a(block->curr_n_fields + block->curr_n_bytes > 0);
  	ut_a(!dict_index_is_ibuf(index));
  
@@ -775,7 +775,7 @@
  
  	rec = btr_cur_get_rec(cursor);
  
-@@ -1714,7 +1792,7 @@
+@@ -1713,7 +1791,7 @@
  		mem_heap_free(heap);
  	}
  
@@ -784,7 +784,7 @@
  
  	if (block->index) {
  		ut_a(block->index == index);
-@@ -1722,7 +1800,7 @@
+@@ -1721,7 +1799,7 @@
  		ha_search_and_delete_if_found(table, fold, rec);
  	}
  
@@ -793,7 +793,7 @@
  }
  
  /********************************************************************//**
-@@ -1759,7 +1837,7 @@
+@@ -1758,7 +1836,7 @@
  	ut_a(cursor->index == index);
  	ut_a(!dict_index_is_ibuf(index));
  
@@ -802,7 +802,7 @@
  
  	if (!block->index) {
  
-@@ -1773,15 +1851,15 @@
+@@ -1772,15 +1850,15 @@
  	    && (cursor->n_bytes == block->curr_n_bytes)
  	    && !block->curr_left_side) {
  
@@ -821,7 +821,7 @@
  
  		btr_search_update_hash_on_insert(cursor);
  	}
-@@ -1816,9 +1894,9 @@
+@@ -1815,9 +1893,9 @@
  	ulint*		offsets		= offsets_;
  	rec_offs_init(offsets_);
  
@@ -833,7 +833,7 @@
  
  	rec = btr_cur_get_rec(cursor);
  
-@@ -1863,7 +1941,7 @@
+@@ -1862,7 +1940,7 @@
  	} else {
  		if (left_side) {
  
@@ -842,7 +842,7 @@
  
  			locked = TRUE;
  
-@@ -1881,7 +1959,7 @@
+@@ -1880,7 +1958,7 @@
  
  		if (!locked) {
  
@@ -851,7 +851,7 @@
  
  			locked = TRUE;
  
-@@ -1903,7 +1981,7 @@
+@@ -1902,7 +1980,7 @@
  		if (!left_side) {
  
  			if (!locked) {
@@ -860,7 +860,7 @@
  
  				locked = TRUE;
  
-@@ -1922,7 +2000,7 @@
+@@ -1921,7 +1999,7 @@
  
  		if (!locked) {
  
@@ -869,7 +869,7 @@
  
  			locked = TRUE;
  
-@@ -1949,7 +2027,7 @@
+@@ -1948,7 +2026,7 @@
  		mem_heap_free(heap);
  	}
  	if (locked) {
@@ -878,7 +878,7 @@
  	}
  }
  
-@@ -1965,7 +2043,7 @@
+@@ -1964,7 +2042,7 @@
  	ha_node_t*	node;
  	ulint		n_page_dumps	= 0;
  	ibool		ok		= TRUE;
@@ -887,7 +887,7 @@
  	ulint		cell_count;
  	mem_heap_t*	heap		= NULL;
  	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-@@ -1977,23 +2055,25 @@
+@@ -1976,23 +2054,25 @@
  
  	rec_offs_init(offsets_);
  
@@ -918,7 +918,7 @@
  
  		for (; node != NULL; node = node->next) {
  			const buf_block_t*	block
-@@ -2100,19 +2180,21 @@
+@@ -2099,19 +2179,21 @@
  		give other queries a chance to run. */
  		if (i != 0) {
  			buf_pool_page_hash_x_unlock_all();

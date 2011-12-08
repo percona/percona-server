@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/btr/btr0sea.c
 +++ b/storage/innobase/btr/btr0sea.c
-@@ -1187,6 +1187,179 @@
+@@ -1187,6 +1187,178 @@
  	mem_free(folds);
  }
  
@@ -61,7 +61,7 @@
 +					if (buf_block_get_state(block)
 +					    != BUF_BLOCK_FILE_PAGE
 +					    || block->index != index
-+					    || !block->is_hashed) {
++					    || !block->index) {
 +						continue;
 +					}
 +
@@ -127,7 +127,7 @@
 +
 +					rw_lock_x_lock(&btr_search_latch);
 +
-+					if (UNIV_UNLIKELY(!block->is_hashed)) {
++					if (UNIV_UNLIKELY(!block->index)) {
 +						goto cleanup;
 +					}
 +
@@ -152,7 +152,6 @@
 +					ut_a(index->search_info->ref_count > 0);
 +					index->search_info->ref_count--;
 +
-+					block->is_hashed = FALSE;
 +					block->index = NULL;
 +
 +cleanup:

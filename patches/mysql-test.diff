@@ -504,17 +504,6 @@
  unlock tables;
  drop procedure bug9486;
  drop table t1, t2;
---- a/mysql-test/suite/innodb/r/innodb.result
-+++ b/mysql-test/suite/innodb/r/innodb.result
-@@ -1664,7 +1664,7 @@
- drop table t1;
- SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
- variable_value
--511
-+2047
- SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
- variable_value
- 16384
 --- a/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result
 +++ b/mysql-test/suite/sys_vars/r/innodb_flush_log_at_trx_commit_basic.result
 @@ -10,7 +10,6 @@

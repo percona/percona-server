@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -4224,6 +4224,36 @@
+@@ -4200,6 +4200,36 @@
  	mutex_exit(block_mutex);
  }
  
@@ -781,7 +781,7 @@
  #endif /* i_s_h */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1174,6 +1174,14 @@
+@@ -1161,6 +1161,14 @@
  /*===========*/
  	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
  	__attribute__((nonnull, const));

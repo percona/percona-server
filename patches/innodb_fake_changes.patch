@@ -202,7 +202,7 @@
  #ifdef EXTENDED_SLOWLOG
  	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
  		trx->take_stats = TRUE;
-@@ -3196,6 +3204,11 @@
+@@ -3195,6 +3203,11 @@
  		trx_search_latch_release_if_reserved(trx);
  	}
  
@@ -287,7 +287,7 @@
  	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
  
  	/* Release a possible FIFO ticket and search latch. Since we will
-@@ -12420,6 +12464,7 @@
+@@ -12429,6 +12473,7 @@
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
    MYSQL_SYSVAR(lazy_drop_table),
@@ -453,7 +453,7 @@
  	}
 --- a/storage/innobase/row/row0ins.c
 +++ b/storage/innobase/row/row0ins.c
-@@ -1502,6 +1502,11 @@
+@@ -1505,6 +1505,11 @@
  	if (UNIV_LIKELY_NULL(heap)) {
  		mem_heap_free(heap);
  	}
@@ -465,7 +465,7 @@
  	return(err);
  }
  
-@@ -2007,7 +2012,7 @@
+@@ -2010,7 +2015,7 @@
  	}
  
  	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -474,7 +474,7 @@
  				    &cursor, 0, __FILE__, __LINE__, &mtr);
  
  	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
-@@ -2067,7 +2072,7 @@
+@@ -2070,7 +2075,7 @@
  
  			btr_cur_search_to_nth_level(index, 0, entry,
  						    PAGE_CUR_LE,
@@ -483,7 +483,7 @@
  						    &cursor, 0,
  						    __FILE__, __LINE__, &mtr);
  		}
-@@ -2121,6 +2126,22 @@
+@@ -2124,6 +2129,22 @@
  	if (UNIV_LIKELY_NULL(big_rec)) {
  		rec_t*	rec;
  		ulint*	offsets;

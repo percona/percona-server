@@ -218,7 +218,7 @@
 +			for (k = chunk->size; k--; block++) {
 +				if (buf_block_get_state(block)
 +				    != BUF_BLOCK_FILE_PAGE
-+				    || !block->is_hashed
++				    || !block->index
 +				    || buf_page_get_space(&block->page) != id) {
 +					continue;
 +				}

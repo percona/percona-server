@@ -45,7 +45,7 @@
  
 --- a/storage/innobase/btr/btr0sea.c
 +++ b/storage/innobase/btr/btr0sea.c
-@@ -1973,7 +1973,7 @@
+@@ -1972,7 +1972,7 @@
  	rec_offs_init(offsets_);
  
  	rw_lock_x_lock(&btr_search_latch);
@@ -54,7 +54,7 @@
  
  	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
  
-@@ -1981,11 +1981,11 @@
+@@ -1980,11 +1980,11 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if ((i != 0) && ((i % chunk_size) == 0)) {
@@ -68,7 +68,7 @@
  		}
  
  		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
-@@ -2094,11 +2094,11 @@
+@@ -2093,11 +2093,11 @@
  		/* We release btr_search_latch every once in a while to
  		give other queries a chance to run. */
  		if (i != 0) {
@@ -82,7 +82,7 @@
  		}
  
  		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
-@@ -2106,7 +2106,7 @@
+@@ -2105,7 +2105,7 @@
  		}
  	}
  

@@ -19,4 +19,5 @@ IF(HAVE_PAM)
   SET(AUTH_PAM_SOURCES 
     src/auth_pam.c src/lib_auth_pam_client.c src/lib_auth_pam_client.h)
   MYSQL_ADD_PLUGIN(auth_pam ${AUTH_PAM_SOURCES} LINK_LIBRARIES pam)
+  MYSQL_ADD_PLUGIN(dialog src/dialog.c)
 ENDIF(HAVE_PAM)

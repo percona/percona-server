@@ -211,7 +211,7 @@
 +    }
 +    if(insert_space)
 +    {
-+      if((last_space + 1) != position)
++      if((uint) (last_space + 1) != position)
 +      {
 +        last_space = position;
 +        buffer[position++] = ' ';

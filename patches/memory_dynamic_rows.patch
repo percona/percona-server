@@ -1028,25 +1028,15 @@
      records_in_block= 10;
 --- a/storage/heap/hp_delete.c
 +++ b/storage/heap/hp_delete.c
-@@ -22,6 +22,8 @@
+@@ -22,6 +22,7 @@
    uchar *pos;
    HP_SHARE *share=info->s;
    HP_KEYDEF *keydef, *end, *p_lastinx;
-+  uint rec_length, chunk_count;
 +
    DBUG_ENTER("heap_delete");
    DBUG_PRINT("enter",("info: 0x%lx  record: 0x%lx", (long) info, (long) record));
  
-@@ -31,6 +33,8 @@
-     DBUG_RETURN(my_errno);			/* Record changed */
-   share->changed=1;
- 
-+  rec_length = hp_get_encoded_data_length(share, record, &chunk_count);
-+
-   if ( --(share->records) < share->blength >> 1) share->blength>>=1;
-   pos=info->current_ptr;
- 
-@@ -43,10 +47,7 @@
+@@ -43,10 +44,7 @@
    }
  
    info->update=HA_STATE_DELETED;
@@ -1058,7 +1048,7 @@
    info->current_hash_ptr=0;
  #if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
    DBUG_EXECUTE("check_heap",heap_check_heap(info, 0););
-@@ -75,7 +76,8 @@
+@@ -75,7 +73,8 @@
      info->last_pos= NULL; /* For heap_rnext/heap_rprev */
  
    custom_arg.keyseg= keyinfo->seg;
@@ -1068,7 +1058,7 @@
    custom_arg.search_flag= SEARCH_SAME;
    old_allocated= keyinfo->rb_tree.allocated;
    res= tree_delete(&keyinfo->rb_tree, info->recbuf, custom_arg.key_length,
-@@ -112,6 +114,7 @@
+@@ -112,6 +111,7 @@
    blength=share->blength;
    if (share->records+1 == blength)
      blength+= blength;
@@ -2538,15 +2528,7 @@
  
  #define MAX_RECORDS 100000
  #define MAX_KEYS 4
-@@ -44,6 +45,7 @@
-   register uint i,j;
-   uint ant,n1,n2,n3;
-   uint write_count,update,opt_delete,check2,dupp_keys,found_key;
-+  uint mem_per_keys;
-   int error;
-   ulong pos;
-   unsigned long key_check;
-@@ -53,6 +55,7 @@
+@@ -53,6 +54,7 @@
    HP_SHARE *tmp_share;
    HP_KEYDEF keyinfo[MAX_KEYS];
    HA_KEYSEG keyseg[MAX_KEYS*5];
@@ -2554,7 +2536,7 @@
    HEAP_PTR UNINIT_VAR(position);
    HP_CREATE_INFO hp_create_info;
    CHARSET_INFO *cs= &my_charset_latin1;
-@@ -65,12 +68,16 @@
+@@ -65,12 +67,16 @@
    get_options(argc,argv);
  
    bzero(&hp_create_info, sizeof(hp_create_info));
@@ -2572,7 +2554,7 @@
  
    write_count=update=opt_delete=0;
    key_check=0;
-@@ -118,11 +125,30 @@
+@@ -118,11 +124,28 @@
    keyinfo[3].seg[0].null_pos=38;
    keyinfo[3].seg[0].charset=cs;
  
@@ -2591,8 +2573,6 @@
 +  columndef[3].length= 1;
 +  columndef[3].null_bit= 1;
 +  columndef[3].null_pos= 38;
-+
-+  mem_per_keys= (sizeof(char*) * 2) * 4;
 +
    bzero((char*) key1,sizeof(key1));
    bzero((char*) key3,sizeof(key3));
@@ -2618,7 +2598,7 @@
    HP_KEYDEF *keydef, *end;
    uchar *pos;
    HP_SHARE *share=info->s;
-+  uint rec_length, chunk_count;
++  uint chunk_count;
 +
    DBUG_ENTER("heap_write");
  #ifndef DBUG_OFF
@@ -2637,7 +2617,7 @@
 +    DBUG_RETURN(my_errno);
 +  }
 +
-+  rec_length= hp_get_encoded_data_length(share, record, &chunk_count);
++  hp_get_encoded_data_length(share, record, &chunk_count);
 +
 +  if (!(pos= hp_allocate_chunkset(&share->recordspace, chunk_count)))
      DBUG_RETURN(my_errno);
@@ -2721,7 +2701,7 @@
    Write a hash-key to the hash-index
 --- a/storage/heap/hp_update.c
 +++ b/storage/heap/hp_update.c
-@@ -17,43 +17,66 @@
+@@ -17,43 +17,65 @@
  
  #include "heapdef.h"
  
@@ -2732,7 +2712,6 @@
    uchar *pos;
    my_bool auto_key_changed= 0;
    HP_SHARE *share= info->s;
-+  uint old_length, new_length;
 +  uint old_chunk_count, new_chunk_count;
 +
    DBUG_ENTER("heap_update");
@@ -2744,8 +2723,8 @@
 +  if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, old_record))
      DBUG_RETURN(my_errno);				/* Record changed */
 +
-+  old_length = hp_get_encoded_data_length(share, old_record, &old_chunk_count);
-+  new_length = hp_get_encoded_data_length(share, new_record, &new_chunk_count);
++  hp_get_encoded_data_length(share, old_record, &old_chunk_count);
++  hp_get_encoded_data_length(share, new_record, &new_chunk_count);
 +
 +  if (new_chunk_count > old_chunk_count)
 +  {
@@ -2795,7 +2774,7 @@
    DBUG_RETURN(0);
  
   err:
-@@ -63,7 +86,7 @@
+@@ -63,7 +85,7 @@
      if (keydef->algorithm == HA_KEY_ALG_BTREE)
      {
        /* we don't need to delete non-inserted key from rb-tree */
@@ -2804,7 +2783,7 @@
        {
          if (++(share->records) == share->blength)
  	  share->blength+= share->blength;
-@@ -73,10 +96,10 @@
+@@ -73,10 +95,10 @@
      }
      while (keydef >= share->keydef)
      {
@@ -2818,7 +2797,7 @@
  	  break;
        }
        keydef--;
-@@ -84,5 +107,12 @@
+@@ -84,5 +106,12 @@
    }
    if (++(share->records) == share->blength)
      share->blength+= share->blength;

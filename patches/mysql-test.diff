@@ -540,7 +540,7 @@
 +set global log_warnings=1;
 --- a/mysql-test/t/show_check.test
 +++ b/mysql-test/t/show_check.test
-@@ -1376,10 +1376,10 @@
+@@ -1358,10 +1358,10 @@
  let $wait_timeout= 10;
  let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
  --source include/wait_condition.inc
@@ -996,7 +996,7 @@
 +SELECT @@global.userstat;
 --- a/mysql-test/suite/sys_vars/t/all_vars.test
 +++ b/mysql-test/suite/sys_vars/t/all_vars.test
-@@ -59,8 +59,8 @@
+@@ -44,8 +44,8 @@
  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
  eval load data infile "$MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
  
@@ -1007,7 +1007,7 @@
  
  # This is only present in debug builds.
  delete from t2 where variable_name='innodb_change_buffering_debug';
-@@ -77,7 +77,7 @@
+@@ -62,7 +62,7 @@
    where length(variable_name) > 50;
  
  select variable_name as `There should be *no* variables listed below:` from t2

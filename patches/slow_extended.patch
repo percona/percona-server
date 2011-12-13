@@ -227,29 +227,16 @@
      }
      else
      {
-@@ -1239,8 +1255,20 @@
-       query_length= command_name[thd->command].length;
+@@ -1240,7 +1256,7 @@
      }
  
-+    if (!query_length)
-+    {
-+      thd->sent_row_count= thd->examined_row_count= 0;
-+      thd->sent_row_count= 0;
-+      thd->bytes_sent_old= thd->status_var.bytes_sent;
-+      thd->tmp_tables_used= thd->tmp_tables_disk_used= 0;
-+      thd->tmp_tables_size= 0;
-+      thd->innodb_was_used= FALSE;
-+      thd->query_plan_flags= QPLAN_NONE;
-+      thd->query_plan_fsort_passes= 0;
-+    }
-+
      for (current_handler= slow_log_handler_list; *current_handler ;)
 -      error= (*current_handler++)->log_slow(thd, current_time, thd->start_time,
 +      error= (*current_handler++)->log_slow(thd, current_utime, thd->start_time,
                                              user_host_buff, user_host_len,
                                              query_utime, lock_utime, is_command,
                                              query, query_length) || error;
-@@ -2656,12 +2684,13 @@
+@@ -2656,12 +2672,13 @@
      TRUE - error occured
  */
  
@@ -264,7 +251,7 @@
    bool error= 0;
    DBUG_ENTER("MYSQL_QUERY_LOG::write");
  
-@@ -2683,17 +2712,28 @@
+@@ -2683,17 +2700,28 @@
  
      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
      {
@@ -300,9 +287,11 @@
  
          /* Note that my_b_write() assumes it knows the length for this */
          if (my_b_write(&log_file, (uchar*) buff, buff_len))
-@@ -2711,12 +2751,69 @@
+@@ -2710,13 +2738,71 @@
+     /* For slow query log */
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
++    DBUG_PRINT("info", ("Last_errno: %u", thd->last_errno));
      if (my_b_printf(&log_file,
 -                    "# Query_time: %s  Lock_time: %s"
 -                    " Rows_sent: %lu  Rows_examined: %lu\n",
@@ -521,22 +510,22 @@
  
 +extern "C"
 +void increment_thd_innodb_stats(THD* thd,
-+                    unsigned long long trx_id,
-+                    long io_reads,
-+                    long long  io_read,
-+                    long      io_reads_wait_timer,
-+                    long      lock_que_wait_timer,
-+                    long      que_wait_timer,
-+                    long      page_access)
++                                unsigned long long trx_id,
++                                long io_reads,
++                                long long  io_read,
++                                long      io_reads_wait_timer,
++                                long      lock_que_wait_timer,
++                                long      que_wait_timer,
++                                long      page_access)
 +{
-+  thd->innodb_was_used = TRUE;
-+  thd->innodb_trx_id = trx_id;
-+  thd->innodb_io_reads += io_reads;
-+  thd->innodb_io_read += io_read;
-+  thd->innodb_io_reads_wait_timer += io_reads_wait_timer;
-+  thd->innodb_lock_que_wait_timer += lock_que_wait_timer;
-+  thd->innodb_innodb_que_wait_timer += que_wait_timer;
-+  thd->innodb_page_access += page_access;
++  thd->innodb_was_used=               TRUE;
++  thd->innodb_trx_id=                 trx_id;
++  thd->innodb_io_reads+=              io_reads;
++  thd->innodb_io_read+=               io_read;
++  thd->innodb_io_reads_wait_timer+=   io_reads_wait_timer;
++  thd->innodb_lock_que_wait_timer+=   lock_que_wait_timer;
++  thd->innodb_innodb_que_wait_timer+= que_wait_timer;
++  thd->innodb_page_access+=           page_access;
 +}
 +
 +extern "C"
@@ -553,7 +542,7 @@
  
  /**
    Dumps a text description of a thread, its security context
-@@ -926,6 +957,8 @@
+@@ -942,6 +973,8 @@
                             const char* msg,
                             MYSQL_ERROR ** cond_hdl)
  {
@@ -562,44 +551,124 @@
    if (!m_internal_handler)
    {
      *cond_hdl= NULL;
-@@ -3675,6 +3708,12 @@
-     first_successful_insert_id_in_prev_stmt;
-   backup->first_successful_insert_id_in_cur_stmt= 
-     first_successful_insert_id_in_cur_stmt;
-+  backup->innodb_io_reads= innodb_io_reads;
-+  backup->innodb_io_read= innodb_io_read;
-+  backup->innodb_io_reads_wait_timer= innodb_io_reads_wait_timer;
-+  backup->innodb_lock_que_wait_timer= innodb_lock_que_wait_timer;
-+  backup->innodb_innodb_que_wait_timer= innodb_innodb_que_wait_timer;
-+  backup->innodb_page_access= innodb_page_access;
- 
-   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
-       !is_current_stmt_binlog_format_row())
-@@ -3695,6 +3734,14 @@
-   cuted_fields= 0;
-   transaction.savepoints= 0;
-   first_successful_insert_id_in_cur_stmt= 0;
-+  last_errno= 0;
-+  innodb_trx_id= 0;
-+  innodb_io_reads= 0;
-+  innodb_io_read= 0;
-+  innodb_io_reads_wait_timer= 0;
-+  innodb_lock_que_wait_timer= 0;
-+  innodb_innodb_que_wait_timer= 0;
-+  innodb_page_access= 0;
+@@ -1236,6 +1269,8 @@
+   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
+   debug_sync_init_thread(this);
+ #endif /* defined(ENABLED_DEBUG_SYNC) */
++
++  clear_slow_extended();
  }
  
  
-@@ -3757,6 +3804,12 @@
-   */
-   examined_row_count+= backup->examined_row_count;
-   cuted_fields+=       backup->cuted_fields;
-+  innodb_io_reads+= backup->innodb_io_reads;
-+  innodb_io_read+= backup->innodb_io_read;
-+  innodb_io_reads_wait_timer+= backup->innodb_io_reads_wait_timer;
-+  innodb_lock_que_wait_timer+= backup->innodb_lock_que_wait_timer;
+@@ -3682,8 +3717,6 @@
+   backup->in_sub_stmt=     in_sub_stmt;
+   backup->enable_slow_log= enable_slow_log;
+   backup->limit_found_rows= limit_found_rows;
+-  backup->examined_row_count= examined_row_count;
+-  backup->sent_row_count=   sent_row_count;
+   backup->cuted_fields=     cuted_fields;
+   backup->client_capabilities= client_capabilities;
+   backup->savepoints= transaction.savepoints;
+@@ -3691,6 +3724,7 @@
+     first_successful_insert_id_in_prev_stmt;
+   backup->first_successful_insert_id_in_cur_stmt= 
+     first_successful_insert_id_in_cur_stmt;
++  reset_sub_statement_state_slow_extended(backup);
+ 
+   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
+       !is_current_stmt_binlog_format_row())
+@@ -3706,13 +3740,74 @@
+   /* Disable result sets */
+   client_capabilities &= ~CLIENT_MULTI_RESULTS;
+   in_sub_stmt|= new_state;
+-  examined_row_count= 0;
+-  sent_row_count= 0;
+   cuted_fields= 0;
+   transaction.savepoints= 0;
+   first_successful_insert_id_in_cur_stmt= 0;
+ }
+ 
++void THD::clear_slow_extended()
++{
++  DBUG_ENTER("THD::clear_slow_extended");
++  sent_row_count=               0;
++  examined_row_count=           0;
++  bytes_sent_old=               status_var.bytes_sent;
++  tmp_tables_used=              0;
++  tmp_tables_disk_used=         0;
++  tmp_tables_size=              0;
++  innodb_was_used=              FALSE;
++  innodb_trx_id=                0;
++  innodb_io_reads=              0;
++  innodb_io_read=               0;
++  innodb_io_reads_wait_timer=   0;
++  innodb_lock_que_wait_timer=   0;
++  innodb_innodb_que_wait_timer= 0;
++  innodb_page_access=           0;
++  query_plan_flags=             QPLAN_NONE;
++  query_plan_fsort_passes=      0;
++  last_errno=                   0;
++  DBUG_VOID_RETURN;
++}
++
++void THD::reset_sub_statement_state_slow_extended(Sub_statement_state *backup)
++{
++  DBUG_ENTER("THD::reset_sub_statement_state_slow_extended");
++  backup->sent_row_count=               sent_row_count;
++  backup->examined_row_count=           examined_row_count;
++  backup->tmp_tables_used=              tmp_tables_used;
++  backup->tmp_tables_disk_used=         tmp_tables_disk_used;
++  backup->tmp_tables_size=              tmp_tables_size;
++  backup->innodb_was_used=              innodb_was_used;
++  backup->innodb_io_reads=              innodb_io_reads;
++  backup->innodb_io_read=               innodb_io_read;
++  backup->innodb_io_reads_wait_timer=   innodb_io_reads_wait_timer;
++  backup->innodb_lock_que_wait_timer=   innodb_lock_que_wait_timer;
++  backup->innodb_innodb_que_wait_timer= innodb_innodb_que_wait_timer;
++  backup->innodb_page_access=           innodb_page_access;
++  backup->query_plan_flags=             query_plan_flags;
++  backup->query_plan_fsort_passes=      query_plan_fsort_passes;
++  clear_slow_extended();
++  DBUG_VOID_RETURN;
++}
++
++void THD::restore_sub_statement_state_slow_extended(const Sub_statement_state *backup)
++{
++  DBUG_ENTER("THD::restore_sub_statement_state_slow_extended");
++  sent_row_count=                backup->sent_row_count;
++  examined_row_count+=           backup->examined_row_count;
++  tmp_tables_used+=              backup->tmp_tables_used;
++  tmp_tables_disk_used+=         backup->tmp_tables_disk_used;
++  tmp_tables_size+=              backup->tmp_tables_size;
++  innodb_was_used=               (innodb_was_used || backup->innodb_was_used);
++  innodb_io_reads+=              backup->innodb_io_reads;
++  innodb_io_read+=               backup->innodb_io_read;
++  innodb_io_reads_wait_timer+=   backup->innodb_io_reads_wait_timer;
++  innodb_lock_que_wait_timer+=   backup->innodb_lock_que_wait_timer;
 +  innodb_innodb_que_wait_timer+= backup->innodb_innodb_que_wait_timer;
-+  innodb_page_access+= backup->innodb_page_access;
++  innodb_page_access+=           backup->innodb_page_access;
++  query_plan_flags|=             backup->query_plan_flags;
++  query_plan_fsort_passes+=      backup->query_plan_fsort_passes;
++  DBUG_VOID_RETURN;
++}
+ 
+ void THD::restore_sub_statement_state(Sub_statement_state *backup)
+ {
+@@ -3753,7 +3848,6 @@
+   first_successful_insert_id_in_cur_stmt= 
+     backup->first_successful_insert_id_in_cur_stmt;
+   limit_found_rows= backup->limit_found_rows;
+-  sent_row_count=   backup->sent_row_count;
+   client_capabilities= backup->client_capabilities;
+   /*
+     If we've left sub-statement mode, reset the fatal error flag.
+@@ -3771,8 +3865,8 @@
+     The following is added to the old values as we are interested in the
+     total complexity of the query
+   */
+-  examined_row_count+= backup->examined_row_count;
+   cuted_fields+=       backup->cuted_fields;
++  restore_sub_statement_state_slow_extended(backup);
    DBUG_VOID_RETURN;
  }
  
@@ -661,33 +730,17 @@
    double long_query_time_double;
  
  } SV;
-@@ -1140,6 +1182,14 @@
+@@ -1140,6 +1182,24 @@
    uint in_sub_stmt;
    bool enable_slow_log;
    bool last_insert_id_used;
 +
-+  ulong      innodb_io_reads;
-+  ulonglong  innodb_io_read;
-+  ulong      innodb_io_reads_wait_timer;
-+  ulong      innodb_lock_que_wait_timer;
-+  ulong      innodb_innodb_que_wait_timer;
-+  ulong      innodb_page_access;
-+
-   SAVEPOINT *savepoints;
-   enum enum_check_fields count_cuted_fields;
- };
-@@ -1588,6 +1638,26 @@
-   thr_lock_type update_lock_default;
-   Delayed_insert *di;
- 
-+  bool       write_to_slow_log;
-+
-+  ulonglong  bytes_sent_old;
++  /*** Following variables used in slow_extended.patch ***/
 +  ulong      tmp_tables_used;
 +  ulong      tmp_tables_disk_used;
 +  ulonglong  tmp_tables_size;
++
 +  bool       innodb_was_used;
-+  ulonglong  innodb_trx_id;
 +  ulong      innodb_io_reads;
 +  ulonglong  innodb_io_read;
 +  ulong      innodb_io_reads_wait_timer;
@@ -697,8 +750,79 @@
 +
 +  ulong      query_plan_flags;
 +  ulong      query_plan_fsort_passes;
++  /*** The variables above used in slow_extended.patch ***/
 +
+   SAVEPOINT *savepoints;
+   enum enum_check_fields count_cuted_fields;
+ };
+@@ -1588,6 +1648,71 @@
+   thr_lock_type update_lock_default;
+   Delayed_insert *di;
+ 
++  /*** Following variables used in slow_extended.patch ***/
++  /*
++    Variable write_to_slow_log:
++     1) initialized in
++       * sql_connect.cc (log_slow_rate_limit support)
++       * slave.cc       (log_slow_slave_statements support)
++     2) The variable is initialized on the thread startup and remains
++        constant afterwards.  This will change when 
++        LP #712396 ("log_slow_slave_statements not work on replication 
++        threads without RESTART") is implemented.
++     3) An implementation of LP #688646 ("Make query sampling possible by query") should use it.
++  */
++  bool       write_to_slow_log;
++  /*
++    Variable bytes_send_old saves value of thd->status_var.bytes_sent
++    before query execution.
++  */
++  ulonglong  bytes_sent_old;
++  /*
++    Variables tmp_tables_*** collect statistics about usage of temporary tables
++  */
++  ulong      tmp_tables_used;
++  ulong      tmp_tables_disk_used;
++  ulonglong  tmp_tables_size;
++  /*
++    Variable innodb_was_used shows used or not InnoDB engine in current query.
++  */
++  bool       innodb_was_used;
++  /*
++    Following Variables innodb_*** (is |should be) different from
++    default values only if (innodb_was_used==TRUE)
++  */
++  ulonglong  innodb_trx_id;
++  ulong      innodb_io_reads;
++  ulonglong  innodb_io_read;
++  ulong      innodb_io_reads_wait_timer;
++  ulong      innodb_lock_que_wait_timer;
++  ulong      innodb_innodb_que_wait_timer;
++  ulong      innodb_page_access;
++
++  /*
++    Variable query_plan_flags collects information about query plan entites
++    used on query execution.
++  */
++  ulong      query_plan_flags;
++  /*
++    Variable query_plan_fsort_passes collects information about file sort passes
++    acquired during query execution.
++  */
++  ulong      query_plan_fsort_passes;
++  /*
++    Query can generate several errors/warnings during execution
++    (see THD::handle_condition comment in sql_class.h)
++    Variable last_errno contains the last error/warning acquired during
++    query execution.
++  */
 +  uint       last_errno;
++  /*** The variables above used in slow_extended.patch ***/
++
++  /*** Following methods used in slow_extended.patch ***/
++  void clear_slow_extended();
++  void reset_sub_statement_state_slow_extended(Sub_statement_state *backup);
++  void restore_sub_statement_state_slow_extended(const Sub_statement_state *backup);
++  /*** The methods above used in slow_extended.patch ***/
 +
    /* <> 0 if we are inside of trigger or stored function. */
    uint in_sub_stmt;
@@ -731,7 +855,15 @@
  
  const char *any_db="*any*";	// Special symbol for check_access
  
-@@ -1430,6 +1431,60 @@
+@@ -888,6 +889,7 @@
+     the slow log only if opt_log_slow_admin_statements is set.
+   */
+   thd->enable_slow_log= TRUE;
++  thd->clear_slow_extended();
+   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
+   thd->set_time();
+   if (!thd->is_valid_time())
+@@ -1430,6 +1432,60 @@
    DBUG_RETURN(error);
  }
  
@@ -792,7 +924,7 @@
  
  void log_slow_statement(THD *thd)
  {
-@@ -1443,13 +1498,48 @@
+@@ -1443,13 +1499,48 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -842,38 +974,16 @@
      thd_proc_info(thd, "logging slow query");
  
      if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
-@@ -1879,6 +1969,9 @@
-     context.resolve_in_table_list_only(select_lex->
-                                        table_list.first);
- 
-+  /* Reset the counter at all cases for the extended slow query log */
-+  thd->sent_row_count= 0;
-+
-   /*
-     Reset warning count for each query that uses tables
-     A better approach would be to reset this for any commands
-@@ -5303,6 +5396,21 @@
+@@ -5301,7 +5392,8 @@
+   thd->stmt_da->reset_diagnostics_area();
+   thd->warning_info->reset_for_next_command();
    thd->rand_used= 0;
-   thd->sent_row_count= thd->examined_row_count= 0;
- 
-+  thd->bytes_sent_old= thd->status_var.bytes_sent;
-+  thd->tmp_tables_used= thd->tmp_tables_disk_used= 0;
-+  thd->tmp_tables_size= 0;
-+  thd->innodb_was_used= FALSE;
-+  thd->innodb_trx_id= 0;
-+  thd->innodb_io_reads= 0;
-+  thd->innodb_io_read= 0;
-+  thd->innodb_io_reads_wait_timer= 0;
-+  thd->innodb_lock_que_wait_timer= 0;
-+  thd->innodb_innodb_que_wait_timer= 0;
-+  thd->innodb_page_access= 0;
-+  thd->query_plan_flags= QPLAN_NONE;
-+  thd->query_plan_fsort_passes= 0;
-+  thd->last_errno= 0;
+-  thd->sent_row_count= thd->examined_row_count= 0;
 +
++  thd->clear_slow_extended();
+ 
    thd->reset_current_stmt_binlog_format_row();
    thd->binlog_unsafe_warning_flags= 0;
- 
 --- a/sql/sql_select.cc
 +++ b/sql/sql_select.cc
 @@ -6902,7 +6902,10 @@

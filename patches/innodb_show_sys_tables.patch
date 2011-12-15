@@ -1761,18 +1761,3 @@
  extern struct st_mysql_plugin	i_s_innodb_rseg;
  
  #endif /* i_s_h */
---- /dev/null
-+++ b/mysql-test/r/percona_innodb_use_sys_stats_table.result
-@@ -0,0 +1,3 @@
-+show variables like 'innodb_use_sys_stats%';
-+Variable_name	Value
-+innodb_use_sys_stats_table	ON
---- /dev/null
-+++ b/mysql-test/t/percona_innodb_use_sys_stats_table-master.opt
-@@ -0,0 +1 @@
-+--innodb_use_sys_stats_table
---- /dev/null
-+++ b/mysql-test/t/percona_innodb_use_sys_stats_table.test
-@@ -0,0 +1,2 @@
-+--source include/have_innodb.inc
-+show variables like 'innodb_use_sys_stats%';

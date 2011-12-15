@@ -640,7 +640,7 @@
 +DROP TABLE t1;
 --- a/sql/opt_range.cc
 +++ b/sql/opt_range.cc
-@@ -11716,7 +11716,7 @@
+@@ -11728,7 +11728,7 @@
    }
    if (min_max_ranges.elements > 0)
    {

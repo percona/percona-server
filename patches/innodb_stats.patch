@@ -278,10 +278,16 @@
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1183,6 +1322,66 @@
- }
+@@ -1177,6 +1316,66 @@
+ 		return(NULL);
+ 	}
  
- /****************************************************************//**
++	thr->run_node = que_node_get_parent(node);
++
++	return(thr);
++}
++
++/****************************************************************//**
 +*/
 +UNIV_INTERN
 +que_thr_t*
@@ -336,15 +342,9 @@
 +		return(NULL);
 +	}
 +
-+	thr->run_node = que_node_get_parent(node);
-+
-+	return(thr);
-+}
-+
-+/****************************************************************//**
- Creates the foreign key constraints system tables inside InnoDB
- at database creation or database start if they are not found or are
- not of the right form.
+ 	thr->run_node = que_node_get_parent(node);
+ 
+ 	return(thr);
 --- a/storage/innobase/dict/dict0dict.c
 +++ b/storage/innobase/dict/dict0dict.c
 @@ -755,7 +755,7 @@
@@ -916,7 +916,7 @@
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -5257,6 +5260,10 @@
+@@ -5256,6 +5259,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -1908,7 +1908,7 @@
  	} else {
 --- a/storage/innobase/row/row0ins.c
 +++ b/storage/innobase/row/row0ins.c
-@@ -2015,6 +2015,8 @@
+@@ -2018,6 +2018,8 @@
  	}
  
  #ifdef UNIV_DEBUG
@@ -2149,3 +2149,18 @@
  
  			ulint	pos = upd_get_nth_field(update, i)->field_no;
  
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_use_sys_stats_table.result
+@@ -0,0 +1,3 @@
++show variables like 'innodb_use_sys_stats%';
++Variable_name	Value
++innodb_use_sys_stats_table	ON
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_use_sys_stats_table-master.opt
+@@ -0,0 +1 @@
++--innodb_use_sys_stats_table
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_use_sys_stats_table.test
+@@ -0,0 +1,2 @@
++--source include/have_innodb.inc
++show variables like 'innodb_use_sys_stats%';

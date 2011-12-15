@@ -12,7 +12,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -2041,6 +2041,27 @@
+@@ -1944,6 +1944,27 @@
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
  	}
  
@@ -40,7 +40,7 @@
  	if (UNIV_UNLIKELY(!bpage->zip.data)) {
  		/* There is no compressed page. */
  err_exit:
-@@ -2550,6 +2571,27 @@
+@@ -2452,6 +2473,27 @@
  		block = (buf_block_t*) buf_page_hash_get_low(
  			buf_pool, space, offset, fold);
  		if (block) {
@@ -68,7 +68,7 @@
  			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
  			ut_a(block_mutex);
  		}
-@@ -3472,11 +3514,28 @@
+@@ -3374,11 +3416,28 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -97,7 +97,7 @@
  	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
  		/* The page is already in the buffer pool. */
  		watch_page = NULL;
-@@ -3607,6 +3666,7 @@
+@@ -3509,6 +3568,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -105,7 +105,7 @@
  
  #ifdef UNIV_DEBUG
  		bpage->in_page_hash = FALSE;
-@@ -3691,6 +3751,7 @@
+@@ -3593,6 +3653,7 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -113,7 +113,7 @@
  	//buf_pool_mutex_enter(buf_pool);
  	mutex_enter(&buf_pool->LRU_list_mutex);
  	rw_lock_x_lock(&buf_pool->page_hash_latch);
-@@ -3698,6 +3759,21 @@
+@@ -3600,6 +3661,21 @@
  	block = (buf_block_t*) buf_page_hash_get_low(
  		buf_pool, space, offset, fold);
  
@@ -135,7 +135,7 @@
  	if (block
  	    && buf_page_in_file(&block->page)
  	    && !buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
-@@ -4051,8 +4127,11 @@
+@@ -3953,8 +4029,11 @@
  	}
  
  	if (io_type == BUF_IO_WRITE
@@ -218,7 +218,7 @@
 +			for (k = chunk->size; k--; block++) {
 +				if (buf_block_get_state(block)
 +				    != BUF_BLOCK_FILE_PAGE
-+				    || !block->is_hashed
++				    || !block->index
 +				    || buf_page_get_space(&block->page) != id) {
 +					continue;
 +				}
@@ -484,7 +484,7 @@
    NULL, /* Plugin Deinit */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1468,6 +1468,7 @@
+@@ -1455,6 +1455,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -623,7 +623,7 @@
  extern ulint	srv_n_rows_inserted;
 --- a/storage/innobase/include/sync0sync.h
 +++ b/storage/innobase/include/sync0sync.h
-@@ -690,6 +690,7 @@
+@@ -689,6 +689,7 @@
  #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
  #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
  #define SYNC_DOUBLEWRITE	140

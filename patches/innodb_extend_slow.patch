@@ -48,7 +48,7 @@
  
  /*
  		IMPLEMENTATION OF THE BUFFER POOL
-@@ -1931,8 +1965,16 @@
+@@ -1834,8 +1868,16 @@
  	mutex_t*	block_mutex;
  	ibool		must_read;
  	unsigned	access_time;
@@ -65,7 +65,7 @@
  	buf_pool->stat.n_page_gets++;
  
  	for (;;) {
-@@ -1950,7 +1992,7 @@
+@@ -1853,7 +1895,7 @@
  		//buf_pool_mutex_exit(buf_pool);
  		rw_lock_s_unlock(&buf_pool->page_hash_latch);
  
@@ -74,7 +74,7 @@
  
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  		ut_a(++buf_dbg_counter % 37 || buf_validate());
-@@ -2046,6 +2088,13 @@
+@@ -1949,6 +1991,13 @@
  		/* Let us wait until the read operation
  		completes */
  
@@ -88,7 +88,7 @@
  		for (;;) {
  			enum buf_io_fix	io_fix;
  
-@@ -2060,6 +2109,12 @@
+@@ -1963,6 +2012,12 @@
  				break;
  			}
  		}
@@ -101,7 +101,7 @@
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2375,6 +2430,11 @@
+@@ -2277,6 +2332,11 @@
  	ibool		must_read;
  	ulint		retries = 0;
  	mutex_t*	block_mutex = NULL;
@@ -113,7 +113,7 @@
  	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
  
  	ut_ad(mtr);
-@@ -2404,6 +2464,9 @@
+@@ -2306,6 +2366,9 @@
  	      || ibuf_page_low(space, zip_size, offset,
  			       FALSE, file, line, NULL));
  #endif
@@ -123,7 +123,7 @@
  	buf_pool->stat.n_page_gets++;
  	fold = buf_page_address_fold(space, offset);
  loop:
-@@ -2474,9 +2537,9 @@
+@@ -2376,9 +2439,9 @@
  			return(NULL);
  		}
  
@@ -135,7 +135,7 @@
  
  			retries = 0;
  		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
-@@ -2786,6 +2849,13 @@
+@@ -2688,6 +2751,13 @@
  			/* Let us wait until the read operation
  			completes */
  
@@ -149,7 +149,7 @@
  			for (;;) {
  				enum buf_io_fix	io_fix;
  
-@@ -2800,6 +2870,12 @@
+@@ -2702,6 +2772,12 @@
  					break;
  				}
  			}
@@ -162,7 +162,7 @@
  		}
  
  		fix_type = MTR_MEMO_BUF_FIX;
-@@ -2826,13 +2902,17 @@
+@@ -2728,13 +2804,17 @@
  		read-ahead */
  
  		buf_read_ahead_linear(space, zip_size, offset,
@@ -181,7 +181,7 @@
  	return(block);
  }
  
-@@ -2856,6 +2936,7 @@
+@@ -2758,6 +2838,7 @@
  	unsigned	access_time;
  	ibool		success;
  	ulint		fix_type;
@@ -189,7 +189,7 @@
  
  	ut_ad(block);
  	ut_ad(mtr);
-@@ -2933,6 +3014,10 @@
+@@ -2835,6 +2916,10 @@
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	ut_a(block->page.file_page_was_freed == FALSE);
  #endif
@@ -200,7 +200,7 @@
  	if (UNIV_UNLIKELY(!access_time)) {
  		/* In the case of a first access, try to apply linear
  		read-ahead */
-@@ -2940,7 +3025,7 @@
+@@ -2842,7 +2927,7 @@
  		buf_read_ahead_linear(buf_block_get_space(block),
  				      buf_block_get_zip_size(block),
  				      buf_block_get_page_no(block),
@@ -209,7 +209,7 @@
  	}
  
  #ifdef UNIV_IBUF_COUNT_DEBUG
-@@ -2950,6 +3035,9 @@
+@@ -2852,6 +2937,9 @@
  	buf_pool = buf_pool_from_block(block);
  	buf_pool->stat.n_page_gets++;
  
@@ -219,7 +219,7 @@
  	return(TRUE);
  }
  
-@@ -2972,6 +3060,7 @@
+@@ -2874,6 +2962,7 @@
  	buf_pool_t*	buf_pool;
  	ibool		success;
  	ulint		fix_type;
@@ -227,7 +227,7 @@
  
  	ut_ad(mtr);
  	ut_ad(mtr->state == MTR_ACTIVE);
-@@ -3058,6 +3147,11 @@
+@@ -2960,6 +3049,11 @@
  #endif
  	buf_pool->stat.n_page_gets++;
  

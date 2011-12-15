@@ -128,7 +128,7 @@
  	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
  	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
  #ifdef UNIV_DEBUG
-@@ -692,10 +693,10 @@
+@@ -693,10 +694,10 @@
  # ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  # endif /* UNIV_SYNC_DEBUG */
@@ -144,7 +144,7 @@
  Performance schema instrumented wrap function for rw_lock_x_lock_func()
 --- a/storage/innobase/include/sync0rw.ic
 +++ b/storage/innobase/include/sync0rw.ic
-@@ -640,10 +640,10 @@
+@@ -641,10 +641,10 @@
  #  ifdef UNIV_SYNC_DEBUG
  	ulint		level,		/*!< in: level */
  #  endif /* UNIV_SYNC_DEBUG */
@@ -158,7 +158,7 @@
  {
  	/* Initialize the rwlock for performance schema */
  	lock->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
-@@ -656,10 +656,10 @@
+@@ -657,10 +657,10 @@
  #  ifdef UNIV_SYNC_DEBUG
  			    level,
  #  endif /* UNIV_SYNC_DEBUG */
@@ -244,7 +244,7 @@
  /******************************************************************//**
  NOTE! Please use the corresponding macro mutex_enter(), not directly
  this function!
-@@ -729,9 +729,9 @@
+@@ -728,9 +728,9 @@
  	ulint	line;		/*!< Line where the mutex was locked */
  	ulint	level;		/*!< Level in the global latching order */
  #endif /* UNIV_SYNC_DEBUG */
@@ -255,7 +255,7 @@
  	os_thread_id_t thread_id; /*!< The thread id of the thread
  				which locked the mutex. */
  	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-@@ -746,9 +746,9 @@
+@@ -745,9 +745,9 @@
  	ulong		count_os_yield;	/*!< count of os_wait */
  	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
  	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */
@@ -406,7 +406,7 @@
  		}
  
  		/* these stats may not be accurate */
-@@ -665,10 +662,9 @@
+@@ -668,10 +665,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu spin wait rw-x-lock at %p"
@@ -419,7 +419,7 @@
  	}
  
  	sync_array_reserve_cell(sync_primary_wait_array,
-@@ -689,10 +685,9 @@
+@@ -692,10 +688,9 @@
  	if (srv_print_latch_waits) {
  		fprintf(stderr,
  			"Thread %lu OS wait for rw-x-lock at %p"

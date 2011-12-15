@@ -60,3 +60,4 @@ xtradb_bug317074.patch
 subunit.patch
 bug860910.patch
 bug45702.patch
+group_commit.patch

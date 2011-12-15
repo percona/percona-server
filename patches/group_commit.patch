@@ -1600,7 +1600,7 @@
  /* Returns string as 'IP' for the client-side of the connection represented by
 --- a/sql/sql_parse.cc
 +++ b/sql/sql_parse.cc
-@@ -887,6 +887,10 @@
+@@ -889,6 +889,10 @@
    DBUG_ENTER("dispatch_command");
    DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
  
@@ -1640,3 +1640,958 @@
  select * from performance_schema.setup_instruments
  where name='Wait';
  select * from performance_schema.setup_instruments
+--- a/storage/innobase/handler/ha_innodb.cc
++++ b/storage/innobase/handler/ha_innodb.cc
+@@ -375,6 +375,9 @@
+ static INNOBASE_SHARE *get_share(const char *table_name);
+ static void free_share(INNOBASE_SHARE *share);
+ static int innobase_close_connection(handlerton *hton, THD* thd);
++#ifdef EXTENDED_FOR_COMMIT_ORDERED
++static void innobase_commit_ordered(handlerton *hton, THD* thd, bool all);
++#endif
+ static int innobase_commit(handlerton *hton, THD* thd, bool all);
+ static int innobase_rollback(handlerton *hton, THD* thd, bool all);
+ static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
+@@ -1699,7 +1702,10 @@
+ 	trx_t*	trx)	/*!< in/out: InnoDB transaction handle */
+ {
+ 	DBUG_ENTER("innobase_trx_init");
++#ifndef EXTENDED_FOR_COMMIT_ORDERED
++	/* used by innobase_commit_ordered */
+ 	DBUG_ASSERT(EQ_CURRENT_THD(thd));
++#endif
+ 	DBUG_ASSERT(thd == trx->mysql_thd);
+ 
+ 	trx->check_foreigns = !thd_test_options(
+@@ -1760,7 +1766,10 @@
+ {
+ 	trx_t*&	trx = thd_to_trx(thd);
+ 
++#ifndef EXTENDED_FOR_COMMIT_ORDERED
++	/* used by innobase_commit_ordered */
+ 	ut_ad(EQ_CURRENT_THD(thd));
++#endif
+ 
+ 	if (trx == NULL) {
+ 		trx = innobase_trx_allocate(thd);
+@@ -1846,6 +1855,7 @@
+ {
+ 	trx->is_registered = 0;
+ 	trx->owns_prepare_mutex = 0;
++	trx->called_commit_ordered = 0;
+ }
+ 
+ /*********************************************************************//**
+@@ -1861,6 +1871,29 @@
+ }
+ 
+ /*********************************************************************//**
++*/
++static inline
++void
++trx_called_commit_ordered_set(
++/*==========================*/
++	trx_t*	trx)
++{
++	ut_a(trx_is_registered_for_2pc(trx));
++	trx->called_commit_ordered = 1;
++}
++
++/*********************************************************************//**
++*/
++static inline
++bool
++trx_called_commit_ordered(
++/*======================*/
++	const trx_t*	trx)
++{
++	return(trx->called_commit_ordered == 1);
++}
++
++/*********************************************************************//**
+ Check if transaction is started.
+ @reutrn true if transaction is in state started */
+ static
+@@ -2435,6 +2468,9 @@
+         innobase_hton->savepoint_set=innobase_savepoint;
+         innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
+         innobase_hton->savepoint_release=innobase_release_savepoint;
++#ifdef EXTENDED_FOR_COMMIT_ORDERED
++	innobase_hton->commit_ordered=innobase_commit_ordered;
++#endif
+         innobase_hton->commit=innobase_commit;
+         innobase_hton->rollback=innobase_rollback;
+         innobase_hton->prepare=innobase_xa_prepare;
+@@ -3187,6 +3223,126 @@
+ 	DBUG_RETURN(0);
+ }
+ 
++#ifdef EXTENDED_FOR_COMMIT_ORDERED
++/* MEMO:
++  InnoDB is coded with intention that always trx is accessed by the owner thd.
++  (not protected by any mutex/lock)
++  So, the caller of innobase_commit_ordered() should be conscious of
++  cache coherency between multi CPU about the trx, if called from another thd.
++
++  MariaDB's first implementation about it seems the cherency is protected by
++  the pthread_mutex LOCK_wakeup_ready. So, no problem for now.
++
++  But we should be aware the importance of the coherency.
++ */
++/*****************************************************************//**
++low function function innobase_commit_ordered().*/
++static
++void
++innobase_commit_ordered_low(
++/*========================*/
++	trx_t*	trx, 	/*!< in: Innodb transaction */
++	THD*	thd)	/*!< in: MySQL thread handle */
++{
++	ulonglong tmp_pos;
++	DBUG_ENTER("innobase_commit_ordered");
++
++	/* This part was from innobase_commit() */
++
++	/* We need current binlog position for ibbackup to work.
++	Note, the position is current because commit_ordered is guaranteed
++	to be called in same sequenece as writing to binlog. */
++retry:
++	if (innobase_commit_concurrency > 0) {
++		mysql_mutex_lock(&commit_cond_m);
++		commit_threads++;
++
++		if (commit_threads > innobase_commit_concurrency) {
++			commit_threads--;
++			mysql_cond_wait(&commit_cond,
++					  &commit_cond_m);
++			mysql_mutex_unlock(&commit_cond_m);
++			goto retry;
++		}
++		else {
++			mysql_mutex_unlock(&commit_cond_m);
++		}
++	}
++
++	mysql_bin_log_commit_pos(thd, &tmp_pos, &(trx->mysql_log_file_name));
++	trx->mysql_log_offset = (ib_int64_t) tmp_pos;
++
++	/* Don't do write + flush right now. For group commit
++	   to work we want to do the flush in the innobase_commit()
++	   method, which runs without holding any locks. */
++	trx->flush_log_later = TRUE;
++	innobase_commit_low(trx);
++	trx->flush_log_later = FALSE;
++
++	if (innobase_commit_concurrency > 0) {
++		mysql_mutex_lock(&commit_cond_m);
++		commit_threads--;
++		mysql_cond_signal(&commit_cond);
++		mysql_mutex_unlock(&commit_cond_m);
++	}
++
++	DBUG_VOID_RETURN;
++}
++
++/*****************************************************************//**
++Perform the first, fast part of InnoDB commit.
++
++Doing it in this call ensures that we get the same commit order here
++as in binlog and any other participating transactional storage engines.
++
++Note that we want to do as little as really needed here, as we run
++under a global mutex. The expensive fsync() is done later, in
++innobase_commit(), without a lock so group commit can take place.
++
++Note also that this method can be called from a different thread than
++the one handling the rest of the transaction. */
++static
++void
++innobase_commit_ordered(
++/*====================*/
++	handlerton *hton, /*!< in: Innodb handlerton */
++	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
++			the transaction should be committed */
++	bool	all)	/*!< in:	TRUE - commit transaction
++				FALSE - the current SQL statement ended */
++{
++	trx_t*		trx;
++	DBUG_ENTER("innobase_commit_ordered");
++	DBUG_ASSERT(hton == innodb_hton_ptr);
++
++	trx = check_trx_exists(thd);
++
++	/* Since we will reserve the kernel mutex, we have to release
++	the search system latch first to obey the latching order. */
++
++	if (trx->has_search_latch) {
++		trx_search_latch_release_if_reserved(trx);
++	}
++
++	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
++		/* We cannot throw error here; instead we will catch this error
++		again in innobase_commit() and report it from there. */
++		DBUG_VOID_RETURN;
++	}
++
++	/* commit_ordered is only called when committing the whole transaction
++	(or an SQL statement when autocommit is on). */
++	DBUG_ASSERT(all ||
++		(!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
++
++	innobase_commit_ordered_low(trx, thd);
++
++	trx_called_commit_ordered_set(trx);
++
++	DBUG_VOID_RETURN;
++}
++#endif /* EXTENDED_FOR_COMMIT_ORDERED */
++
+ /*****************************************************************//**
+ Commits a transaction in an InnoDB database or marks an SQL statement
+ ended.
+@@ -3238,6 +3394,16 @@
+ 		/* We were instructed to commit the whole transaction, or
+ 		this is an SQL statement end and autocommit is on */
+ 
++#ifdef EXTENDED_FOR_COMMIT_ORDERED
++		ut_ad(!trx_has_prepare_commit_mutex(trx));
++
++		/* Run the fast part of commit if we did not already. */
++		if (!trx_called_commit_ordered(trx)) {
++			innobase_commit_ordered_low(trx, thd);
++		}
++#else
++		ut_ad(!trx_called_commit_ordered(trx));
++
+ 		/* We need current binlog position for ibbackup to work.
+ 		Note, the position is current because of
+ 		prepare_commit_mutex */
+@@ -3292,6 +3458,7 @@
+   
+ 			mysql_mutex_unlock(&prepare_commit_mutex);
+   		}
++#endif /* EXTENDED_FOR_COMMIT_ORDERED */
+   
+ 		trx_deregister_from_2pc(trx);
+ 
+@@ -10973,6 +11140,7 @@
+ 
+ 	srv_active_wake_master_thread();
+ 
++#ifndef EXTENDED_FOR_COMMIT_ORDERED
+ 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
+ 	    && (all
+ 		|| !thd_test_options(
+@@ -10999,6 +11167,7 @@
+ 		mysql_mutex_lock(&prepare_commit_mutex);
+ 		trx_owns_prepare_commit_mutex_set(trx);
+ 	}
++#endif /* ifndef EXTENDED_FOR_COMMIT_ORDERED */
+ 
+ 	return(error);
+ }
+--- a/storage/innobase/handler/ha_innodb.h
++++ b/storage/innobase/handler/ha_innodb.h
+@@ -240,6 +240,12 @@
+ struct charset_info_st *thd_charset(MYSQL_THD thd);
+ LEX_STRING *thd_query_string(MYSQL_THD thd);
+ 
++#ifdef EXTENDED_FOR_COMMIT_ORDERED
++/** Get the file name and position of the MySQL binlog corresponding to the
++ * current commit.
++ */
++void mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file);
++#else
+ /** Get the file name of the MySQL binlog.
+  * @return the name of the binlog file
+  */
+@@ -249,6 +255,7 @@
+  * @return byte offset from the beginning of the binlog
+  */
+ ulonglong mysql_bin_log_file_pos(void);
++#endif
+ 
+ /**
+   Check if a user thread is a replication slave thread
+--- a/storage/innobase/include/trx0trx.h
++++ b/storage/innobase/include/trx0trx.h
+@@ -494,6 +494,7 @@
+ 					this is set to 1 then registered should
+ 					also be set to 1. This is used in the
+ 					XA code */
++	unsigned	called_commit_ordered:1;/* 1 if innobase_commit_ordered has run. */
+ 	/*------------------------------*/
+ 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
+ 	ulint		check_foreigns;	/* normally TRUE, but if the user
+--- a/storage/innobase/trx/trx0trx.c
++++ b/storage/innobase/trx/trx0trx.c
+@@ -111,6 +111,7 @@
+ 
+ 	trx->is_registered = 0;
+ 	trx->owns_prepare_mutex = 0;
++	trx->called_commit_ordered = 0;
+ 
+ 	trx->start_time = ut_time();
+ 
+--- /dev/null
++++ b/mysql-test/r/group_commit.result
+@@ -0,0 +1,63 @@
++CREATE TABLE t1 (a VARCHAR(10) PRIMARY KEY) ENGINE=innodb;
++SELECT variable_value INTO @commits FROM information_schema.global_status
++WHERE variable_name = 'binlog_commits';
++SELECT variable_value INTO @group_commits FROM information_schema.global_status
++WHERE variable_name = 'binlog_group_commits';
++SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group1_running WAIT_FOR group2_queued";
++INSERT INTO t1 VALUES ("con1");
++set DEBUG_SYNC= "now WAIT_FOR group1_running";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL group2_con2";
++SET DEBUG_SYNC= "commit_after_release_LOCK_log WAIT_FOR group3_committed";
++SET DEBUG_SYNC= "commit_after_group_run_commit_ordered SIGNAL group2_visible WAIT_FOR group2_checked";
++INSERT INTO t1 VALUES ("con2");
++SET DEBUG_SYNC= "now WAIT_FOR group2_con2";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL group2_con3";
++INSERT INTO t1 VALUES ("con3");
++SET DEBUG_SYNC= "now WAIT_FOR group2_con3";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL group2_con4";
++INSERT INTO t1 VALUES ("con4");
++SET DEBUG_SYNC= "now WAIT_FOR group2_con4";
++SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
++SELECT * FROM t1 ORDER BY a;
++a
++SET DEBUG_SYNC= "now SIGNAL group2_queued";
++SELECT * FROM t1 ORDER BY a;
++a
++con1
++SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group3_con5";
++SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con5_leader WAIT_FOR con6_queued";
++INSERT INTO t1 VALUES ("con5");
++SET DEBUG_SYNC= "now WAIT_FOR con5_leader";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL con6_queued";
++INSERT INTO t1 VALUES ("con6");
++SET DEBUG_SYNC= "now WAIT_FOR group3_con5";
++SELECT * FROM t1 ORDER BY a;
++a
++con1
++SET DEBUG_SYNC= "now SIGNAL group3_committed";
++SET DEBUG_SYNC= "now WAIT_FOR group2_visible";
++SELECT * FROM t1 ORDER BY a;
++a
++con1
++con2
++con3
++con4
++SET DEBUG_SYNC= "now SIGNAL group2_checked";
++SELECT * FROM t1 ORDER BY a;
++a
++con1
++con2
++con3
++con4
++con5
++con6
++SELECT variable_value - @commits FROM information_schema.global_status
++WHERE variable_name = 'binlog_commits';
++variable_value - @commits
++6
++SELECT variable_value - @group_commits FROM information_schema.global_status
++WHERE variable_name = 'binlog_group_commits';
++variable_value - @group_commits
++3
++SET DEBUG_SYNC= 'RESET';
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/r/group_commit_binlog_pos.result
+@@ -0,0 +1,35 @@
++CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
++INSERT INTO t1 VALUES (0);
++SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con1_waiting WAIT_FOR con3_queued";
++SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont EXECUTE 3";
++INSERT INTO t1 VALUES (1);
++SET DEBUG_SYNC= "now WAIT_FOR con1_waiting";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL con2_queued";
++INSERT INTO t1 VALUES (2);
++SET DEBUG_SYNC= "now WAIT_FOR con2_queued";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL con3_queued";
++INSERT INTO t1 VALUES (3);
++SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
++SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
++SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
++SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
++SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
++SELECT * FROM t1 ORDER BY a;
++a
++0
++1
++2
++SET SESSION debug="+d,crash_dispatch_command_before";
++SELECT 1;
++Got one of the listed errors
++Got one of the listed errors
++Got one of the listed errors
++SELECT * FROM t1 ORDER BY a;
++a
++0
++1
++2
++3
++InnoDB: Last MySQL binlog file position 0 768, file name ./master-bin.000001
++SET DEBUG_SYNC= 'RESET';
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/r/group_commit_crash.result
+@@ -0,0 +1,120 @@
++CREATE TABLE t1(a CHAR(255),
++b CHAR(255),
++c CHAR(255),
++d CHAR(255),
++id INT AUTO_INCREMENT,
++PRIMARY KEY(id)) ENGINE=InnoDB;
++create table t2 like t1;
++create procedure setcrash(IN i INT)
++begin
++CASE i
++WHEN 1 THEN SET SESSION debug="d,crash_commit_after_prepare";
++WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
++WHEN 3 THEN SET SESSION debug="d,crash_commit_before_unlog";
++WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
++WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
++ELSE BEGIN END;
++END CASE;
++end //
++FLUSH TABLES;
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++RESET MASTER;
++START TRANSACTION;
++insert into t1 select * from t2;
++call setcrash(5);
++COMMIT;
++Got one of the listed errors
++SELECT * FROM t1 ORDER BY id;
++a	b	c	d	id
++SHOW BINLOG EVENTS LIMIT 2,1;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++delete from t1;
++RESET MASTER;
++START TRANSACTION;
++insert into t1 select * from t2;
++call setcrash(4);
++COMMIT;
++Got one of the listed errors
++SELECT * FROM t1 ORDER BY id;
++a	b	c	d	id
++a	b	c	d	1
++a	b	c	d	2
++a	b	c	d	3
++a	b	c	d	4
++a	b	c	d	5
++a	b	c	d	6
++a	b	c	d	7
++a	b	c	d	8
++a	b	c	d	9
++a	b	c	d	10
++SHOW BINLOG EVENTS LIMIT 2,1;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++master-bin.000001	175	Query	1	269	use `test`; insert into t1 select * from t2
++delete from t1;
++RESET MASTER;
++START TRANSACTION;
++insert into t1 select * from t2;
++call setcrash(3);
++COMMIT;
++Got one of the listed errors
++SELECT * FROM t1 ORDER BY id;
++a	b	c	d	id
++a	b	c	d	1
++a	b	c	d	2
++a	b	c	d	3
++a	b	c	d	4
++a	b	c	d	5
++a	b	c	d	6
++a	b	c	d	7
++a	b	c	d	8
++a	b	c	d	9
++a	b	c	d	10
++SHOW BINLOG EVENTS LIMIT 2,1;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++master-bin.000001	175	Query	1	269	use `test`; insert into t1 select * from t2
++delete from t1;
++RESET MASTER;
++START TRANSACTION;
++insert into t1 select * from t2;
++call setcrash(2);
++COMMIT;
++Got one of the listed errors
++SELECT * FROM t1 ORDER BY id;
++a	b	c	d	id
++a	b	c	d	1
++a	b	c	d	2
++a	b	c	d	3
++a	b	c	d	4
++a	b	c	d	5
++a	b	c	d	6
++a	b	c	d	7
++a	b	c	d	8
++a	b	c	d	9
++a	b	c	d	10
++SHOW BINLOG EVENTS LIMIT 2,1;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++master-bin.000001	175	Query	1	269	use `test`; insert into t1 select * from t2
++delete from t1;
++RESET MASTER;
++START TRANSACTION;
++insert into t1 select * from t2;
++call setcrash(1);
++COMMIT;
++Got one of the listed errors
++SELECT * FROM t1 ORDER BY id;
++a	b	c	d	id
++SHOW BINLOG EVENTS LIMIT 2,1;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++delete from t1;
++DROP TABLE t1;
++DROP TABLE t2;
++DROP PROCEDURE setcrash;
+--- /dev/null
++++ b/mysql-test/r/xa_binlog.result
+@@ -0,0 +1,32 @@
++CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
++SET binlog_format= mixed;
++RESET MASTER;
++XA START 'xatest';
++INSERT INTO t1 VALUES (1);
++XA END 'xatest';
++XA PREPARE 'xatest';
++XA COMMIT 'xatest';
++XA START 'xatest';
++INSERT INTO t1 VALUES (2);
++XA END 'xatest';
++XA COMMIT 'xatest' ONE PHASE;
++BEGIN;
++INSERT INTO t1 VALUES (3);
++COMMIT;
++SELECT * FROM t1 ORDER BY a;
++a
++1
++2
++3
++SHOW BINLOG EVENTS LIMIT 1,9;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++master-bin.000001	#	Query	1	#	BEGIN
++master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1)
++master-bin.000001	#	Query	1	#	COMMIT
++master-bin.000001	#	Query	1	#	BEGIN
++master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (2)
++master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
++master-bin.000001	#	Query	1	#	BEGIN
++master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (3)
++master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/suite/binlog/r/binlog_ioerr.result
+@@ -0,0 +1,28 @@
++CALL mtr.add_suppression("Error writing file 'master-bin'");
++RESET MASTER;
++CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
++INSERT INTO t1 VALUES(0);
++SET SESSION debug='+d,fail_binlog_write_1';
++INSERT INTO t1 VALUES(1);
++ERROR HY000: Error writing file 'master-bin' (errno: 28)
++INSERT INTO t1 VALUES(2);
++ERROR HY000: Error writing file 'master-bin' (errno: 28)
++SET SESSION debug='';
++INSERT INTO t1 VALUES(3);
++SELECT * FROM t1;
++a
++0
++3
++SHOW BINLOG EVENTS;
++Log_name	Pos	Event_type	Server_id	End_log_pos	Info
++BINLOG	POS	Format_desc	1	ENDPOS	Server ver: #, Binlog ver: #
++BINLOG	POS	Query	1	ENDPOS	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb
++BINLOG	POS	Query	1	ENDPOS	BEGIN
++BINLOG	POS	Query	1	ENDPOS	use `test`; INSERT INTO t1 VALUES(0)
++BINLOG	POS	Xid	1	ENDPOS	COMMIT /* XID */
++BINLOG	POS	Query	1	ENDPOS	BEGIN
++BINLOG	POS	Query	1	ENDPOS	BEGIN
++BINLOG	POS	Query	1	ENDPOS	BEGIN
++BINLOG	POS	Query	1	ENDPOS	use `test`; INSERT INTO t1 VALUES(3)
++BINLOG	POS	Xid	1	ENDPOS	COMMIT /* XID */
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/suite/binlog/t/binlog_ioerr.test
+@@ -0,0 +1,30 @@
++source include/have_debug.inc;
++source include/have_innodb.inc;
++source include/have_log_bin.inc;
++source include/have_binlog_format_mixed_or_statement.inc;
++
++CALL mtr.add_suppression("Error writing file 'master-bin'");
++
++RESET MASTER;
++
++CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
++INSERT INTO t1 VALUES(0);
++SET SESSION debug='+d,fail_binlog_write_1';
++--error ER_ERROR_ON_WRITE
++INSERT INTO t1 VALUES(1);
++--error ER_ERROR_ON_WRITE
++INSERT INTO t1 VALUES(2);
++SET SESSION debug='';
++INSERT INTO t1 VALUES(3);
++SELECT * FROM t1;
++
++# Actually the output from this currently shows a bug.
++# The injected IO error leaves partially written transactions in the binlog in
++# the form of stray "BEGIN" events.
++# These should disappear from the output if binlog error handling is improved
++# (see MySQL Bug#37148 and WL#1790).
++--replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
++--replace_column 1 BINLOG 2 POS 5 ENDPOS
++SHOW BINLOG EVENTS;
++
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/t/group_commit.test
+@@ -0,0 +1,115 @@
++--source include/have_debug_sync.inc
++--source include/have_innodb.inc
++--source include/have_log_bin.inc
++
++# Test some group commit code paths by using debug_sync to do controlled
++# commits of 6 transactions: first 1 alone, then 3 as a group, then 2 as a
++# group.
++#
++# Group 3 is allowed to race as far as possible ahead before group 2 finishes
++# to check some edge case for concurrency control.
++
++CREATE TABLE t1 (a VARCHAR(10) PRIMARY KEY) ENGINE=innodb;
++
++SELECT variable_value INTO @commits FROM information_schema.global_status
++ WHERE variable_name = 'binlog_commits';
++SELECT variable_value INTO @group_commits FROM information_schema.global_status
++ WHERE variable_name = 'binlog_group_commits';
++
++connect(con1,localhost,root,,);
++connect(con2,localhost,root,,);
++connect(con3,localhost,root,,);
++connect(con4,localhost,root,,);
++connect(con5,localhost,root,,);
++connect(con6,localhost,root,,);
++
++# Start group1 (with one thread) doing commit, waiting for
++# group2 to queue up before finishing.
++
++connection con1;
++SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group1_running WAIT_FOR group2_queued";
++send INSERT INTO t1 VALUES ("con1");
++
++# Make group2 (with three threads) queue up.
++# Make sure con2 is the group commit leader for group2.
++# Make group2 wait with running commit_ordered() until group3 has committed.
++
++connection con2;
++set DEBUG_SYNC= "now WAIT_FOR group1_running";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL group2_con2";
++SET DEBUG_SYNC= "commit_after_release_LOCK_log WAIT_FOR group3_committed";
++SET DEBUG_SYNC= "commit_after_group_run_commit_ordered SIGNAL group2_visible WAIT_FOR group2_checked";
++send INSERT INTO t1 VALUES ("con2");
++connection con3;
++SET DEBUG_SYNC= "now WAIT_FOR group2_con2";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL group2_con3";
++send INSERT INTO t1 VALUES ("con3");
++connection con4;
++SET DEBUG_SYNC= "now WAIT_FOR group2_con3";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL group2_con4";
++send INSERT INTO t1 VALUES ("con4");
++
++# When group2 is queued, let group1 continue and queue group3.
++
++connection default;
++SET DEBUG_SYNC= "now WAIT_FOR group2_con4";
++
++# At this point, trasaction 1 is still not visible as commit_ordered() has not
++# been called yet.
++SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
++SELECT * FROM t1 ORDER BY a;
++
++SET DEBUG_SYNC= "now SIGNAL group2_queued";
++connection con1;
++reap;
++
++# Now transaction 1 is visible.
++connection default;
++SELECT * FROM t1 ORDER BY a;
++
++connection con5;
++SET DEBUG_SYNC= "commit_before_get_LOCK_commit_ordered SIGNAL group3_con5";
++SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con5_leader WAIT_FOR con6_queued";
++send INSERT INTO t1 VALUES ("con5");
++
++connection con6;
++SET DEBUG_SYNC= "now WAIT_FOR con5_leader";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL con6_queued";
++send INSERT INTO t1 VALUES ("con6");
++
++connection default;
++SET DEBUG_SYNC= "now WAIT_FOR group3_con5";
++# Still only transaction 1 visible, as group2 have not yet run commit_ordered().
++SELECT * FROM t1 ORDER BY a;
++SET DEBUG_SYNC= "now SIGNAL group3_committed";
++SET DEBUG_SYNC= "now WAIT_FOR group2_visible";
++# Now transactions 1-4 visible.
++SELECT * FROM t1 ORDER BY a;
++SET DEBUG_SYNC= "now SIGNAL group2_checked";
++
++connection con2;
++reap;
++
++connection con3;
++reap;
++
++connection con4;
++reap;
++
++connection con5;
++reap;
++
++connection con6;
++reap;
++
++connection default;
++# Check all transactions finally visible.
++SELECT * FROM t1 ORDER BY a;
++
++SELECT variable_value - @commits FROM information_schema.global_status
++ WHERE variable_name = 'binlog_commits';
++SELECT variable_value - @group_commits FROM information_schema.global_status
++ WHERE variable_name = 'binlog_group_commits';
++
++SET DEBUG_SYNC= 'RESET';
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/t/group_commit_binlog_pos-master.opt
+@@ -0,0 +1 @@
++--skip-stack-trace --skip-core-file
+--- /dev/null
++++ b/mysql-test/t/group_commit_binlog_pos.test
+@@ -0,0 +1,89 @@
++--source include/have_debug_sync.inc
++--source include/have_innodb.inc
++--source include/have_log_bin.inc
++--source include/have_binlog_format_mixed_or_statement.inc
++
++# Need DBUG to crash the server intentionally
++--source include/have_debug.inc
++# Don't test this under valgrind, memory leaks will occur as we crash
++--source include/not_valgrind.inc
++
++# The test case currently uses grep and tail, which may be unavailable on
++# some windows systems. But see MWL#191 for how to remove the need for grep.
++--source include/not_windows.inc
++
++# XtraDB stores the binlog position corresponding to the last commit, and
++# prints it during crash recovery.
++# Test that we get the correct position when we group commit several
++# transactions together.
++
++CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
++INSERT INTO t1 VALUES (0);
++
++connect(con1,localhost,root,,);
++connect(con2,localhost,root,,);
++connect(con3,localhost,root,,);
++
++# Queue up three commits for group commit.
++
++connection con1;
++SET DEBUG_SYNC= "commit_after_get_LOCK_log SIGNAL con1_waiting WAIT_FOR con3_queued";
++SET DEBUG_SYNC= "commit_loop_entry_commit_ordered SIGNAL con1_loop WAIT_FOR con1_loop_cont EXECUTE 3";
++send INSERT INTO t1 VALUES (1);
++
++connection con2;
++SET DEBUG_SYNC= "now WAIT_FOR con1_waiting";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL con2_queued";
++send INSERT INTO t1 VALUES (2);
++
++connection con3;
++SET DEBUG_SYNC= "now WAIT_FOR con2_queued";
++SET DEBUG_SYNC= "commit_group_commit_queue SIGNAL con3_queued";
++send INSERT INTO t1 VALUES (3);
++
++connection default;
++SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
++# At this point, no transactions are committed.
++SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
++SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
++# At this point, 1 transaction is committed.
++SET DEBUG_SYNC= "now SIGNAL con1_loop_cont";
++SET DEBUG_SYNC= "now WAIT_FOR con1_loop";
++
++# At this point, 2 transactions are committed.
++SELECT * FROM t1 ORDER BY a;
++
++connection con2;
++reap;
++
++# Now crash the server with 1+2 in-memory committed, 3 only prepared.
++connection default;
++system echo wait-group_commit_binlog_pos.test >> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
++SET SESSION debug="+d,crash_dispatch_command_before";
++--error 2006,2013
++SELECT 1;
++
++connection con1;
++--error 2006,2013
++reap;
++connection con3;
++--error 2006,2013
++reap;
++
++system echo restart-group_commit_binlog_pos.test >> $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
++
++connection default;
++--enable_reconnect
++--source include/wait_until_connected_again.inc
++
++# Crash recovery should recover all three transactions.
++SELECT * FROM t1 ORDER BY a;
++
++# Check that the binlog position reported by InnoDB is the correct one
++# for the end of the second transaction (as can be checked with
++# mysqlbinlog).
++let $MYSQLD_DATADIR= `SELECT @@datadir`;
++--exec grep 'InnoDB: Last MySQL binlog file position' $MYSQLD_DATADIR/../../log/mysqld.1.err | tail -1
++
++SET DEBUG_SYNC= 'RESET';
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/t/group_commit_crash-master.opt
+@@ -0,0 +1 @@
++--skip-stack-trace --skip-core-file
+--- /dev/null
++++ b/mysql-test/t/group_commit_crash.test
+@@ -0,0 +1,80 @@
++# Testing group commit by crashing a few times.
++# Test adapted from the Facebook patch: lp:mysqlatfacebook
++--source include/not_embedded.inc
++# Don't test this under valgrind, memory leaks will occur
++--source include/not_valgrind.inc
++
++# Binary must be compiled with debug for crash to occur
++--source include/have_debug.inc
++--source include/have_innodb.inc
++--source include/have_log_bin.inc
++
++let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
++CREATE TABLE t1(a CHAR(255),
++                b CHAR(255),
++                c CHAR(255),
++                d CHAR(255),
++                id INT AUTO_INCREMENT,
++                PRIMARY KEY(id)) ENGINE=InnoDB;
++create table t2 like t1;
++delimiter //;
++create procedure setcrash(IN i INT)
++begin
++  CASE i
++    WHEN 1 THEN SET SESSION debug="d,crash_commit_after_prepare";
++    WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
++    WHEN 3 THEN SET SESSION debug="d,crash_commit_before_unlog";
++    WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
++    WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
++    ELSE BEGIN END;
++  END CASE;
++end //
++delimiter ;//
++# Avoid getting a crashed mysql.proc table.
++FLUSH TABLES;
++
++let $numtests = 5;
++
++let $numinserts = 10;
++while ($numinserts)
++{
++  dec $numinserts;
++  INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
++}
++
++--enable_reconnect
++
++while ($numtests)
++{
++  RESET MASTER;
++
++  START TRANSACTION;
++  insert into t1 select * from t2;
++  # Write file to make mysql-test-run.pl expect crash
++  --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
++
++  eval call setcrash($numtests);
++
++  # Run the crashing query
++  --error 2006,2013
++  COMMIT;
++
++  # Poll the server waiting for it to be back online again.
++  --source include/wait_until_connected_again.inc
++
++  # table and binlog should be in sync.
++  SELECT * FROM t1 ORDER BY id;
++  SHOW BINLOG EVENTS LIMIT 2,1;
++
++  delete from t1;
++
++  dec $numtests;
++}
++
++# final cleanup
++DROP TABLE t1;
++DROP TABLE t2;
++DROP PROCEDURE setcrash;
++--disable_query_log
++eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
++--enable_query_log
+--- /dev/null
++++ b/mysql-test/t/xa_binlog.test
+@@ -0,0 +1,32 @@
++--source include/have_innodb.inc
++--source include/have_log_bin.inc
++
++CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
++
++# Fix binlog format (otherwise SHOW BINLOG EVENTS will fluctuate).
++SET binlog_format= mixed;
++
++RESET MASTER;
++
++XA START 'xatest';
++INSERT INTO t1 VALUES (1);
++XA END 'xatest';
++XA PREPARE 'xatest';
++XA COMMIT 'xatest';
++
++XA START 'xatest';
++INSERT INTO t1 VALUES (2);
++XA END 'xatest';
++XA COMMIT 'xatest' ONE PHASE;
++
++BEGIN;
++INSERT INTO t1 VALUES (3);
++COMMIT;
++
++SELECT * FROM t1 ORDER BY a;
++
++--replace_column 2 # 5 #
++--replace_regex /xid=[0-9]+/xid=XX/
++SHOW BINLOG EVENTS LIMIT 1,9;
++
++DROP TABLE t1;

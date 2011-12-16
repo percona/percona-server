@@ -1,4 +1,4 @@
-# name       : query_cache_with_comments.patch
+# name       : query_cache_enhance.patch
 # introduced : 11 or before
 # maintainer : Oleg
 #
@@ -43,235 +43,510 @@
  extern ulonglong log_output_options;
  extern ulong log_backup_output_options;
  extern my_bool opt_log_queries_not_using_indexes;
---- /dev/null
-+++ b/sql/query_strip_comments.h
-@@ -0,0 +1,37 @@
-+#ifndef _SQL_QUERY_STRIPC_COMMENTS_H_
-+#define _SQL_QUERY_STRIPC_COMMENTS_H_
-+#ifdef HAVE_QUERY_CACHE
-+
-+// implemented in sql_cache.cc
-+class QueryStripComments
-+{
-+private:
-+  QueryStripComments(const QueryStripComments&);
-+  QueryStripComments& operator=(const QueryStripComments&);
-+public:
-+  QueryStripComments();
-+  ~QueryStripComments();
-+  void set(const char* a_query, uint a_query_length, uint a_additional_length);
-+  
-+  char* query()        { return buffer; }
-+  uint  query_length() { return length; }
-+private:
-+  void cleanup();
-+private:
-+  char* buffer;
-+  uint  length /*query length, not buffer length*/;
-+  uint  buffer_length;
-+};
-+class QueryStripComments_Backup
-+{
-+public:
-+  QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc);
-+  ~QueryStripComments_Backup();
-+private:
-+  THD*  thd;
-+  char* query;
-+  uint  length;
-+};
-+
-+#endif // HAVE_QUERY_CACHE
-+#endif // _SQL_QUERY_STRIPC_COMMENTS_H_
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -344,6 +344,181 @@
+@@ -344,6 +344,496 @@
  #include "probes_mysql.h"
  #include "transaction.h"
  
-+#include "query_strip_comments.h"
 +
-+QueryStripComments::QueryStripComments()
++namespace query_comments_parser
 +{
-+  buffer = 0;
-+  length = 0;
-+  buffer_length = 0;
-+}
-+QueryStripComments::~QueryStripComments()
-+{
-+  cleanup();
-+}
 +
-+inline bool query_strip_comments_is_white_space(char c)
++
++enum Kind
 +{
-+  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
-+}
-+void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
++  /* 'Empty' symbol - epsilon in classic parsers */
++  Empty,
++  /*
++    Special symbols:
++      * exclamation comment: slash-star-exclamation comment-body star-slash
++      * single-line and multi-line comments
++  */
++  Special,
++  /* Whitespaces: ' ' \t \r \n */
++  WhiteSpace,
++  /*
++    1) C-style comment (slash-star comment-body star-slash)
++    2) signle-line comment:
++      * sharp comment (sharp comment-body new-line)
++      * minus-minus comment (minus-minus comment-body new-line)
++  */
++  Comment,
++  /* Not a special symbols (this symbols can't be before SELECT ). */
++  Another,
++  /* Error: not-closed quotes, not-closed C-style comment, end-of-query */
++  Error
++};
++
++
++/**
++  Analyze kind of prefix of input string.
++
++  @param where pointer to pointer to begin of string. After analyzing input
++  string function skip analyzed prefix and return pointer to the next part
++  of string in the @param where.
++
++  @return kind of analyzed prefix.
++*/
++static Kind analyze(const char **where, const char *const end)
 +{
-+  uint new_buffer_length = query_length + additional_length;
-+  if(new_buffer_length > buffer_length)
++  DBUG_ASSERT(where != NULL);
++  DBUG_ASSERT(*where != NULL);
++  const char*&to= *where;
++  /* if empty */
++  if (*to == '\0')
 +  {
-+    cleanup();
-+    buffer = (char*)my_malloc(new_buffer_length,MYF(0));
++    return Empty;
 +  }
-+  uint query_position = 0;
-+  uint position = 0;
-+  // Skip whitespaces from begin
-+  while((query_position < query_length) && query_strip_comments_is_white_space(query[query_position]))
++
++  /* current symbol */
++  char current= *to;
++
++  switch (current)
 +  {
-+    ++query_position;
-+  }
-+  long int last_space = -1;
-+  while(query_position < query_length)
-+  {
-+    char current = query[query_position];
-+    bool insert_space = false; // insert space to buffer, (IMPORTANT) don't update query_position
-+    switch(current)
++  case '\'':
++  case '"':
++    /* skip quote */
++    to++;
++    /* search pair */
++    while (true)
 +    {
-+    case '\'':
-+    case '"':
++      /* check for pair of quote */
++      if (*to == current)
 +      {
-+        buffer[position++] = query[query_position++]; // copy current symbol
-+        while(query_position < query_length)
++        /* skip second quote */
++        to++;
++        /* check for same symbol after second quote */
++        if (to < end && *to == current)
 +        {
-+          if(current == query[query_position]) // found pair quote
++          /* same symbol, skip it */
++          to++;
++          /* check for end-of-line */
++          if (to == end)
 +          {
-+            break;
++            /* not found - not closed quote */
++            return Error;
 +          }
-+          buffer[position++] = query[query_position++]; // copy current symbol
-+        }
-+        break;
-+      }
-+    case '/':
-+      {
-+        if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
-+        {
-+          query_position += 2; // skip "/*"
-+          do
++          else
 +          {
-+            if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
-+            {
-+              query_position += 2; // skip "*/"
-+              insert_space = true;
-+              break;
-+            }
-+            else
-+            {
-+              ++query_position;
-+            }
-+          }
-+          while(query_position < query_length);
-+          if(!insert_space)
-+          {
++            /* continue search of pair */
 +            continue;
 +          }
 +        }
-+        break;
-+      }
-+    case '-':
-+      {
-+        if(query[query_position+1] == '-')
-+        {
-+          ++query_position; // skip "-", and go to search of "\n"
-+        }
 +        else
 +        {
-+          break;
++          return Another;
 +        }
 +      }
-+    case '#':
++      /* check for escaped symbols */
++      if (*to == '\\')
 +      {
-+        do
-+        {
-+          ++query_position; // skip current symbol (# or -)
-+          if('\n' == query[query_position])  // check for '\n'
-+          {
-+            ++query_position; // skip '\n'
-+            insert_space = true;
-+            break;
-+          }
-+        }
-+        while(query_position < query_length);
-+        if(insert_space)
-+        {
-+          break;
-+        }
-+        else
-+        {
-+          continue;
-+        }
++        /* backslash, skip it */
++        to++;
 +      }
-+    default:
-+      if(query_strip_comments_is_white_space(current))
++      /* check for end-of-line */
++      if (to == end)
 +      {
-+        insert_space = true;
-+        ++query_position;
++        /* not found - not closed quote */
++        return Error;
 +      }
-+      break; // make gcc happy
++      /* skip current symbol */
++      to++;
 +    }
-+    if(insert_space)
++  case '-':
++    /* Skip minus */
++    to++;
++    /* Check for second minus */
++    if (*to != '-')
 +    {
-+      if((last_space + 1) != position)
++      /* Just minus */
++      return Another;
++    }
++    else
++    {
++      /*
++        Prefix is  minus-minus, next case-branch is processing
++        single line comments.
++      */
++    }
++  case '#':
++    /*
++      This is single-line comment, it started by "#" or "--".
++      Skip first symbol.
++    */
++    to++;
++    /* search new-line */
++    to= strchr(to, '\n');
++    if (NULL == to)
++    {
++      /* not found, end of the comment is the end of the query */
++      to= end;
++    }
++    else
++    {
++      /* skip end-of-line */
++      to++;
++    }
++    return Comment;
++  case '/':
++    /* skip slash */
++    to++;
++    /* check for star */
++    if (*to == '*')
++    {
++      /* skip star */
++      to++;
++      /* check for exclamation */
++      bool exclamation= (*to == '!');
++      /* search star-slash */
++      to= strstr(to, "*/");
++      if (NULL == to)
 +      {
-+        last_space = position;
-+        buffer[position++] = ' ';
++        /* not found - not closed comment */
++        return Error;
++      }
++      else
++      {
++        /* found */
++        DBUG_ASSERT(to + 1 < end);
++        DBUG_ASSERT(0 == strncmp(to, "*/", 2));
++        /* skip star-slash */
++        to++;
++        to++;
++        return (exclamation ? Special : Comment);
 +      }
 +    }
 +    else
 +    {
-+      buffer[position++] = query[query_position++];
++      /* just slash */
++      return Another;
++    }
++  case ' ':
++  case '\t':
++  case '\r':
++  case '\n':
++    {
++      /* skip space */
++      to++;
++      return WhiteSpace;
++    }
++  case '\\':
++    {
++      /* skip backslash */
++      to++;
++      if (to == end)
++      {
++        /*
++          query complete by backslash
++          probable error?
++        */
++        return Another;
++      }
++      else
++      {
++        /* skip after backslash symbol */
++        to++;
++        return Another;
++      }
++    }
++  case '(':
++  case ')':
++    {
++      /* skip parenthese */
++      to++;
++      return Special;
++    }
++  default:
++    {
++      /* skip symbol */
++      to++;
++      return Another;
++    }
++  };
++}
++
++
++static bool remove_comments_from_query(const char *const query,
++                                       const size_t       query_length,
++                                       char       *const result,
++                                       size_t            *result_length)
++{
++  /* pointer to begin of parsed block */
++  const char *from=  query;
++  const char *to=    query;
++  /* pointer to end of the query */
++  const char *const end= query + query_length;
++  /* pointer to last space */
++  const char *space= NULL;
++  /* current position in result buffer */
++  char *current= result;
++  while (true)
++  {
++    from= to;
++    switch (analyze(&to, end))
++    {
++    case Empty:
++      {
++        /*
++          parse completed
++          check for whitespace in the end
++        */
++        if (current == space)
++        {
++          /* drop whitespace in the end of query */
++          --current;
++        }
++        /* result is null-terminated string */
++        *current= 0;
++        /* set result length */
++        *result_length= current - result;
++        /* all right */
++        return true;
++      }
++    case Comment:
++      /* should just insert space instead of comment */
++    case WhiteSpace:
++      if (space == current || from == query)
++      {
++        /* previous symbol was space */
++      }
++      else
++      {
++        /* insert space to result buffer */
++        *current= ' ';
++        /* switch after inserted space */
++        current++;
++      }
++      /* remember last-after-space position */
++      space= current;
++      /* parse again */
++      continue;
++    case Special:
++    case Another:
++      {
++        /* calculate parsed block size */
++        size_t block_size= to - from;
++        /* copy parsed block to result */
++        memcpy(current, from, block_size);
++        /* switch result after copied block */
++        current+= block_size;
++        /* switch after parsed block */
++        from= to;
++        /* parse again */
++        continue;
++      }
++    case Error:
++    default:
++      {
++        /* bad source query */
++        return false;
++      }
 +    }
 +  }
-+  while((0 < position) && query_strip_comments_is_white_space(buffer[position - 1]))
-+  {
-+    --position;
-+  }
-+  buffer[position] = 0;
-+  length = position;
 +}
-+void QueryStripComments::cleanup()
++
++
++static size_t skip_not_another(const char *const query, size_t query_length)
 +{
-+  if(buffer)
++  const char *from= query;
++  const char *to=   query;
++  const char *const end= query + query_length;
++  while (true)
 +  {
-+    my_free(buffer);
++    switch (analyze(&to, end))
++    {
++    case Error:
++      return 0;
++    case Empty:
++    case Another:
++      return (from - query);
++    default:
++      from= to;
++      continue;
++    };
 +  }
-+  buffer        = 0;
-+  length        = 0;
-+  buffer_length = 0;
 +}
-+QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc)
++
++
++static size_t skip_default(const char *const query, size_t /* query_length */)
 +{
-+  if(opt_query_cache_strip_comments)
-+  {
-+    thd = a_thd;
-+    query = thd->query();
-+    length = thd->query_length();
-+    qsc->set(query,length,thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
-+    thd->set_query(qsc->query(),qsc->query_length());
-+  }
-+  else
-+  {
-+    thd = 0;
-+    query = 0;
-+    length = 0;
-+  }
++  size_t query_position= 0;
++  /*
++    Skip '(' characters in queries like following:
++    (select a from t1) union (select a from t1);
++  */
++  while (query[query_position]=='(')
++    query_position++;
++  return query_position;
 +}
-+QueryStripComments_Backup::~QueryStripComments_Backup()
++
++
++} /* namespace query_comments_parser */
++
++class Query_Switcher
 +{
-+  if(thd)
++private:
++  Query_Switcher(const Query_Switcher&);
++  Query_Switcher& operator=(const Query_Switcher&);
++
++
++public:
++  Query_Switcher(THD *thd) :
++    target_query(&(thd_query_string(thd)->str)),
++    target_length(&(thd_query_string(thd)->length)),
++    backup_query(thd->query()),
++    backup_length(thd->query_length())
 +  {
-+    thd->set_query(query,length);
 +  }
-+}
++
++  Query_Switcher(char   **query,
++                 size_t  *length) :
++    target_query(query),
++    target_length(length),
++    backup_query(*query),
++    backup_length(*length)
++  {
++  }
++public:
++  void replace(Query_Without_Comments *query_without_comments)
++  {
++    *target_query=  query_without_comments->query();
++    *target_length= query_without_comments->length();
++  }
++  void restore()
++  {
++    *target_query=  backup_query;
++    *target_length= backup_length;
++  }
++private:
++  char*  *target_query;
++  size_t *target_length;
++public:
++  char *const  backup_query;
++  size_t const backup_length;
++};
++
++class Comments_Processor
++{
++private:
++  Comments_Processor(const Comments_Processor&);
++  Comments_Processor& operator=(const Comments_Processor&);
++
++
++public:
++  Comments_Processor(THD *thd) :
++    query_switcher        (thd),
++    db_length             (thd->db_length),
++    query_without_comments(&(thd->query_without_comments)),
++    enabled               (opt_query_cache_strip_comments),
++    restore               (false)
++  {
++  }
++
++
++  Comments_Processor(Query_Without_Comments *current_query_without_comments,
++                     char                  **query,
++                     size_t                 *length,
++                     const size_t            current_db_length) :
++    query_switcher        (query, length),
++    db_length             (current_db_length),
++    query_without_comments(current_query_without_comments),
++    enabled               (opt_query_cache_strip_comments),
++    restore               (false)
++  {
++  }
++
++
++  ~Comments_Processor()
++  {
++    restore_comments();
++  }
++
++
++  size_t prefix_length()
++  {
++    using query_comments_parser::skip_not_another;
++    using query_comments_parser::skip_default;
++    if (enabled)
++    {
++      return skip_not_another(query_switcher.backup_query,
++                              query_switcher.backup_length);
++    }
++    else
++    {
++      return skip_default(query_switcher.backup_query,
++                          query_switcher.backup_length);
++    }
++  }
++
++
++  bool remove_comments()
++  {
++    if (!enabled || restore)
++    {
++      return true;
++    }
++    /* Allocate memory for query rewrite */
++    if (!query_without_comments->allocate(query_switcher.backup_length,
++                                          db_length))
++    {
++      return false;
++    }
++    /* Remove comment from query */
++    size_t result_length;
++    using query_comments_parser::remove_comments_from_query;
++    if (!(restore= remove_comments_from_query(query_switcher.backup_query,
++                                              query_switcher.backup_length,
++                                              query_without_comments->query(),
++                                              &result_length)))
++    {
++      return false;
++    }
++    query_without_comments->set_length(result_length);
++    size_t db_length_from_query=
++        *((size_t*)(query_switcher.backup_query +
++                    query_switcher.backup_length + 1));
++    *((size_t*)(query_without_comments->query() +
++                result_length + 1))= db_length_from_query;
++    /* Replace original query by striped */
++    query_switcher.replace(query_without_comments);
++    return restore;
++  }
++
++
++  void restore_comments()
++  {
++    if (enabled && restore)
++    {
++      /* Replace striped query by original */
++      query_switcher.restore();
++
++      /* Clean query_without_comments */
++      query_without_comments->set_length(0);
++
++      /* Mark as restored */
++      restore= false;
++    }
++  }
++private:
++  Query_Switcher query_switcher;
++private:
++  const size_t db_length;
++private:
++  Query_Without_Comments *query_without_comments;
++  bool                    enabled;
++  bool                    restore;
++};
 +
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +629,12 @@
+@@ -454,7 +939,12 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
-+  const char* old_proc_info= thd->proc_info;
++  const char *old_proc_info= thd->proc_info;
 +  thd_proc_info(thd,"Waiting on query cache mutex");
 +  DEBUG_SYNC(thd, "before_query_cache_mutex");
    mysql_mutex_lock(&structure_guard_mutex);
@@ -280,186 +555,168 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1454,8 @@
+@@ -1274,6 +1764,8 @@
        unlock();
        DBUG_VOID_RETURN;
      }
-+    QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
-+    QueryStripComments_Backup backup(thd,query_strip_comments);
++    Comments_Processor comments_processor(thd);
++    comments_processor.remove_comments();
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1451,6 +1633,9 @@
-   Query_cache_block_table *block_table, *block_table_end;
+@@ -1440,7 +1932,7 @@
+ */
+ 
+ int
+-Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
++Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length_uint)
+ {
+   ulonglong engine_data;
+   Query_cache_query *query;
+@@ -1452,6 +1944,11 @@
    ulong tot_length;
    Query_cache_query_flags flags;
-+  QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
-+  char *sql_backup          = sql;
-+  uint  query_length_backup = query_length;
    DBUG_ENTER("Query_cache::send_result_to_client");
++  size_t query_length= query_length_uint;
++  Comments_Processor comments_processor(&(thd->query_without_comments),
++                                        &sql,
++                                        &query_length,
++                                        thd->db_length);
  
    /*
-@@ -1472,21 +1657,103 @@
+     Testing 'query_cache_size' without a lock here is safe: the thing
+@@ -1471,13 +1968,7 @@
+   }
  
    {
-     uint i= 0;
+-    uint i= 0;
 -    /*
 -      Skip '(' characters in queries like following:
 -      (select a from t1) union (select a from t1);
 -    */
 -    while (sql[i]=='(')
 -      i++;
-+    if(opt_query_cache_strip_comments)
-+    {
-+      /* Skip all comments and non-letter symbols */
-+      uint& query_position = i;
-+      char* query = sql;
-+      while(query_position < query_length)
-+      {
-+        bool check = false;
-+        char current = query[query_position];
-+        switch(current)
-+        {
-+        case '/':
-+          if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
-+          {
-+            query_position += 2; // skip "/*"
-+            do
-+            {
-+              if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
-+              {
-+                query_position += 2; // skip "*/" (without space)
-+                break;
-+              }
-+              else
-+              {
-+                ++query_position;
-+              }
-+            }
-+            while(query_position < query_length);
-+            continue; // analyze current symbol
-+          }
-+          break;
-+        case '-':
-+          if(query[query_position+1] == '-')
-+          {
-+            ++query_position; // skip "-"
-+          }
-+          else
-+          {
-+            break;
-+          }
-+        case '#':
-+          do
-+          {
-+            ++query_position; // skip current symbol
-+            if('\n' == query[query_position])  // check for '\n'
-+            {
-+              ++query_position; // skip '\n'
-+              break;
-+            }
-+          }
-+          while(query_position < query_length);
-+          continue; // analyze current symbol
-+        case '\r':
-+        case '\n':
-+        case '\t':
-+        case ' ':
-+        case '(':
-+        case ')':
-+          break;
-+        default:
-+          check = true;
-+          break; // make gcc happy
-+        } // switch(current)
-+        if(check)
-+        {
-+          if(query_position + 2 < query_length)
-+          {
-+            // cacheable
-+            break;
-+          }
-+          else
-+          {
-+            DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
-+            goto err;
-+          }
-+        } // if(check)
-+        ++query_position;
-+      } // while(query_position < query_length)
-+    }
-+    else // if(opt_query_cache_strip_comments)
-+    {
-+      /*
-+        Skip '(' characters in queries like following:
-+        (select a from t1) union (select a from t1);
-+      */
-+      while (sql[i]=='(')
-+        i++;
++    size_t i= comments_processor.prefix_length();
  
--    /*
--      Test if the query is a SELECT
--      (pre-space is removed in dispatch_command).
-+    } // if(opt_query_cache_strip_comments)    
-+      /*
-+        Test if the query is a SELECT
-+        (pre-space is removed in dispatch_command).
- 
--      First '/' looks like comment before command it is not
--      frequently appeared in real life, consequently we can
--      check all such queries, too.
--    */
-+        First '/' looks like comment before command it is not
-+        frequently appeared in real life, consequently we can
-+        check all such queries, too.
-+      */
-     if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
-          my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
-          my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1521,6 +1788,12 @@
+     /*
+       Test if the query is a SELECT
+@@ -1487,10 +1978,11 @@
+       frequently appeared in real life, consequently we can
+       check all such queries, too.
+     */
+-    if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
+-         my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
+-         my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
+-        sql[i] != '/')
++    if (!((i + 2 < query_length) &&
++          ((my_toupper(system_charset_info, sql[i])     == 'S' &&
++            my_toupper(system_charset_info, sql[i + 1]) == 'E' &&
++            my_toupper(system_charset_info, sql[i + 2]) == 'L') ||
++           sql[i] == '/')))
+     {
+       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+       goto err;
+@@ -1543,6 +2035,7 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
-+  if(opt_query_cache_strip_comments)
-+  {
-+    query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
-+    sql          = query_strip_comments->query();
-+    query_length = query_strip_comments->query_length();
-+  }
++  comments_processor.remove_comments();
  
-   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
-   if (thd->db_length)
-@@ -1587,6 +1860,8 @@
+   tot_length= query_length + 1 + sizeof(size_t) + 
+               thd->db_length + QUERY_CACHE_FLAGS_SIZE;
+@@ -1611,6 +2104,7 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);
-+  sql          = sql_backup;
-+  query_length = query_length_backup;
++  comments_processor.restore_comments();
    /* Quick abort on unlocked data */
    if (query_block == 0 ||
        query_block->query()->result() == 0 ||
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -40,6 +40,9 @@
- #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
-                                      THR_LOCK_INFO */
+@@ -1487,6 +1487,74 @@
  
+ extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
+ 
++
 +#ifdef HAVE_QUERY_CACHE
-+#include "query_strip_comments.h"
-+#endif // HAVE_QUERY_CACHE
- 
- class Reprepare_observer;
- class Relay_log_info;
-@@ -764,6 +767,9 @@
-     statement lifetime. FIXME: must be const
-   */
-    ulong id;
-+#ifdef HAVE_QUERY_CACHE
-+  QueryStripComments query_strip_comments; // see sql_cache.cc
-+#endif //HAVE_QUERY_CACHE
- 
-   /*
-     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
++
++
++/*
++  @class Query_Without_Comments
++  This class provides way for safety (re)allocation
++  a memory for a query without comments.
++*/
++class Query_Without_Comments
++{
++private:
++  /*
++    Denied copy and assigment for object of this class.
++  */
++  Query_Without_Comments(const Query_Without_Comments&);
++  Query_Without_Comments& operator=(const Query_Without_Comments&);
++
++
++public:
++  /*
++    Constructor is filling fields by zero (no allocation).
++  */
++  Query_Without_Comments();
++
++
++  /*
++    Destructor clean allocated memory
++  */
++  ~Query_Without_Comments();
++public:
++
++
++/*
++    (Re)allocate memory for query. Query length after that is 0.
++  */
++  bool allocate(size_t query_length, size_t db_length);
++
++
++  /*
++    Set result query length, when query
++    without comments is copied to buffer.
++  */
++  void set_length(size_t query_length);
++
++
++public:
++  /*
++    Result query.
++  */
++  char*  query();
++
++
++  /*
++    Result query length
++  */
++  size_t length();
++
++
++private:
++  char* buffer;
++  size_t q_length;
++  size_t b_length;
++};
++
++
++#endif /* HAVE_QUERY_CACHE */
++
+ /**
+   @class THD
+   For each client connection we create a separate thread with THD serving as
+@@ -1544,6 +1612,7 @@
+   struct st_mysql_stmt *current_stmt;
+ #endif
+ #ifdef HAVE_QUERY_CACHE
++  Query_Without_Comments query_without_comments;
+   Query_cache_tls query_cache_tls;
+ #endif
+   NET	  net;				// client connection descriptor
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
 @@ -1809,6 +1809,11 @@
@@ -476,7 +733,7 @@
         "Don't cache results that are bigger than this",
 --- /dev/null
 +++ b/mysql-test/include/percona_query_cache_with_comments.inc
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,117 @@
 +--source include/percona_query_cache_with_comments_clear.inc
 +let $query=/* with comment first */select * from t1;
 +eval $query;
@@ -570,7 +827,29 @@
 +;
 +--source include/percona_query_cache_with_comments_eval.inc
 +
++let $query=select */* a comment \*/from t1;
++--source include/percona_query_cache_with_comments_eval.inc
++
++let $query=select *# a comment \\
++from t1;
++--source include/percona_query_cache_with_comments_eval.inc
++
++let $query=select *-- a comment \\
++from t1;
++--source include/percona_query_cache_with_comments_eval.inc
++
++let $query=select "\\\\"" /* not a comment */" from t1;
++--source include/percona_query_cache_with_comments_eval.inc
++
++let $query=select "\\\\"" /*! not a comment */" from t1;
++--source include/percona_query_cache_with_comments_eval.inc
++
++# following two queries related to bug #856404.
++# There are different queries, but opt_query_cache_strip_comments thinks that they are equal.
 +let $query=select ' \'  ' from t1;
++--source include/percona_query_cache_with_comments_eval.inc
++
++let $query=select ' \' /* comment inside quotes with internal backslash quote */' from t1;
 +--source include/percona_query_cache_with_comments_eval.inc
 --- /dev/null
 +++ b/mysql-test/include/percona_query_cache_with_comments_begin.inc
@@ -624,7 +903,7 @@
 +
 --- /dev/null
 +++ b/mysql-test/r/percona_query_cache_with_comments.result
-@@ -0,0 +1,866 @@
+@@ -0,0 +1,1058 @@
 +set global query_cache_strip_comments=ON;
 +set GLOBAL query_cache_size=1355776;
 +drop table if exists t1;
@@ -1458,7 +1737,7 @@
 +Variable_name	Value
 +Qcache_hits	50
 +-----------------------------------------------------
-+select ' \'  ' from t1
++select */* a comment \*/from t1
 +-----------------------------------------------------
 +show status like "Qcache_queries_in_cache";
 +Variable_name	Value
@@ -1469,6 +1748,167 @@
 +show status like "Qcache_hits";
 +Variable_name	Value
 +Qcache_hits	50
++select */* a comment \*/from t1;
++a
++1
++2
++3
++select */* a comment \*/from t1;
++a
++1
++2
++3
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	1
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	1
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	52
++-----------------------------------------------------
++select *# a comment \
++from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	1
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	1
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	52
++select *# a comment \
++from t1;
++a
++1
++2
++3
++select *# a comment \
++from t1;
++a
++1
++2
++3
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	1
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	1
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	54
++-----------------------------------------------------
++select *-- a comment \
++from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	1
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	1
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	54
++select *-- a comment \
++from t1;
++a
++1
++2
++3
++select *-- a comment \
++from t1;
++a
++1
++2
++3
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	1
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	1
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	56
++-----------------------------------------------------
++select "\\"" /* not a comment */" from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	1
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	1
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	56
++select "\\"" /* not a comment */" from t1;
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++select "\\"" /* not a comment */" from t1;
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	2
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	2
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	57
++-----------------------------------------------------
++select "\\"" /*! not a comment */" from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	2
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	2
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	57
++select "\\"" /*! not a comment */" from t1;
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++select "\\"" /*! not a comment */" from t1;
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	3
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	3
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	58
++-----------------------------------------------------
++select ' \'  ' from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	3
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	3
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	58
 +select ' \'  ' from t1;
 +'  
 + '  
@@ -1481,13 +1921,44 @@
 + '  
 +show status like "Qcache_queries_in_cache";
 +Variable_name	Value
-+Qcache_queries_in_cache	2
++Qcache_queries_in_cache	4
 +show status like "Qcache_inserts";
 +Variable_name	Value
-+Qcache_inserts	2
++Qcache_inserts	4
 +show status like "Qcache_hits";
 +Variable_name	Value
-+Qcache_hits	51
++Qcache_hits	59
++-----------------------------------------------------
++select ' \' /* comment inside quotes with internal backslash quote */' from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	4
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	4
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	59
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	5
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	5
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	60
 +DROP TABLE t1;
 +SET GLOBAL query_cache_size=default;
 +set global query_cache_strip_comments=OFF;
@@ -1517,7 +1988,7 @@
 +SET GLOBAL query_cache_size= default;
 --- /dev/null
 +++ b/mysql-test/r/percona_query_cache_with_comments_disable.result
-@@ -0,0 +1,865 @@
+@@ -0,0 +1,1057 @@
 +set GLOBAL query_cache_size=1355776;
 +drop table if exists t1;
 +create table t1 (a int not null);
@@ -2350,7 +2821,7 @@
 +Variable_name	Value
 +Qcache_hits	25
 +-----------------------------------------------------
-+select ' \'  ' from t1
++select */* a comment \*/from t1
 +-----------------------------------------------------
 +show status like "Qcache_queries_in_cache";
 +Variable_name	Value
@@ -2361,6 +2832,167 @@
 +show status like "Qcache_hits";
 +Variable_name	Value
 +Qcache_hits	25
++select */* a comment \*/from t1;
++a
++1
++2
++3
++select */* a comment \*/from t1;
++a
++1
++2
++3
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	21
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	21
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	26
++-----------------------------------------------------
++select *# a comment \
++from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	21
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	21
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	26
++select *# a comment \
++from t1;
++a
++1
++2
++3
++select *# a comment \
++from t1;
++a
++1
++2
++3
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	22
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	22
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	27
++-----------------------------------------------------
++select *-- a comment \
++from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	22
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	22
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	27
++select *-- a comment \
++from t1;
++a
++1
++2
++3
++select *-- a comment \
++from t1;
++a
++1
++2
++3
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	23
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	23
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	28
++-----------------------------------------------------
++select "\\"" /* not a comment */" from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	23
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	23
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	28
++select "\\"" /* not a comment */" from t1;
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++select "\\"" /* not a comment */" from t1;
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++\" /* not a comment */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	24
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	24
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	29
++-----------------------------------------------------
++select "\\"" /*! not a comment */" from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	24
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	24
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	29
++select "\\"" /*! not a comment */" from t1;
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++select "\\"" /*! not a comment */" from t1;
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++\" /*! not a comment */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	25
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	25
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	30
++-----------------------------------------------------
++select ' \'  ' from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	25
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	25
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	30
 +select ' \'  ' from t1;
 +'  
 + '  
@@ -2373,13 +3005,44 @@
 + '  
 +show status like "Qcache_queries_in_cache";
 +Variable_name	Value
-+Qcache_queries_in_cache	21
++Qcache_queries_in_cache	26
 +show status like "Qcache_inserts";
 +Variable_name	Value
-+Qcache_inserts	21
++Qcache_inserts	26
 +show status like "Qcache_hits";
 +Variable_name	Value
-+Qcache_hits	26
++Qcache_hits	31
++-----------------------------------------------------
++select ' \' /* comment inside quotes with internal backslash quote */' from t1
++-----------------------------------------------------
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	26
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	26
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	31
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++select ' \' /* comment inside quotes with internal backslash quote */' from t1;
++' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++ ' /* comment inside quotes with internal backslash quote */
++show status like "Qcache_queries_in_cache";
++Variable_name	Value
++Qcache_queries_in_cache	27
++show status like "Qcache_inserts";
++Variable_name	Value
++Qcache_inserts	27
++show status like "Qcache_hits";
++Variable_name	Value
++Qcache_hits	32
 +DROP TABLE t1;
 +SET GLOBAL query_cache_size=default;
 +set global query_cache_strip_comments=OFF;
@@ -3114,3 +3777,132 @@
 +action
 +try_lock_mutex_query
 +SET GLOBAL query_cache_size=0;
+--- /dev/null
++++ b/mysql-test/r/percona_query_cache_with_comments_crash_2.result
+@@ -0,0 +1,8 @@
++DROP TABLE IF EXISTS table17_int;
++DROP TABLE IF EXISTS table30_int;
++CREATE TABLE `table17_int` (pk integer auto_increment primary key, `col_char_10_not_null_key` char(10), `col_enum_not_null_key` int);
++CREATE TABLE `table30_int` (pk integer auto_increment primary key, `col_enum_not_null_key` int);
++SELECT X . `pk` FROM `table17_int` AS X LEFT JOIN `table30_int` AS Y USING ( `col_enum_not_null_key` ) WHERE X . `col_char_10_not_null_key` != '   you need to translate Views labels into other languages, consider installing the <a href=\" !path\">Internationalization</a> package\'s Views translation module.' LIMIT 7  /*Generated by THREAD_ID 1*/;
++pk
++DROP TABLE table17_int;
++DROP TABLE table30_int;
+--- /dev/null
++++ b/mysql-test/t/percona_query_cache_with_comments_crash_2-master.opt
+@@ -0,0 +1 @@
++--query-cache-size=10M --query-cache-strip-comments
+--- /dev/null
++++ b/mysql-test/t/percona_query_cache_with_comments_crash_2.test
+@@ -0,0 +1,9 @@
++--disable_warnings
++DROP TABLE IF EXISTS table17_int;
++DROP TABLE IF EXISTS table30_int;
++--enable_warnings
++CREATE TABLE `table17_int` (pk integer auto_increment primary key, `col_char_10_not_null_key` char(10), `col_enum_not_null_key` int);
++CREATE TABLE `table30_int` (pk integer auto_increment primary key, `col_enum_not_null_key` int);
++SELECT X . `pk` FROM `table17_int` AS X LEFT JOIN `table30_int` AS Y USING ( `col_enum_not_null_key` ) WHERE X . `col_char_10_not_null_key` != '   you need to translate Views labels into other languages, consider installing the <a href=\" !path\">Internationalization</a> package\'s Views translation module.' LIMIT 7  /*Generated by THREAD_ID 1*/;
++DROP TABLE table17_int;
++DROP TABLE table30_int;
+--- a/sql/sql_class.cc
++++ b/sql/sql_class.cc
+@@ -807,6 +807,99 @@
+           sql_errno == ER_TRG_NO_DEFINER);
+ }
+ 
++#ifdef HAVE_QUERY_CACHE
++
++
++Query_Without_Comments::Query_Without_Comments() :
++  buffer(0),
++  q_length(0),
++  b_length(0)
++{
++}
++
++
++Query_Without_Comments::~Query_Without_Comments()
++{
++  if(buffer)
++  {
++    my_free(buffer);
++  }
++}
++
++
++bool Query_Without_Comments::allocate(size_t query_length, size_t db_length)
++{
++  DBUG_ENTER("Query_Without_Comments::allocate");
++  DBUG_PRINT("info", ("old buffer: %p "
++                      "old query: '%-.4096s' "
++                      "old buffer length: %u "
++                      "old query length: %u",
++                      buffer,
++                      buffer,
++                      (uint) b_length,
++                      (uint) q_length));
++  /* save maximum query length for check in the set_length */
++  q_length= query_length;
++  /* according to sql_parse.cc memory allocation */
++  size_t new_b_length= (query_length + 1) + sizeof(size_t) + db_length +
++    QUERY_CACHE_FLAGS_SIZE;
++  if (b_length < new_b_length)
++  {
++    b_length= new_b_length;
++    if (buffer)
++    {
++      buffer= (char*) my_realloc(buffer, b_length, MYF(0));
++    }
++    else
++    {
++      buffer= (char *) my_malloc(b_length, MYF(0));
++    }
++  }
++  buffer[0]= 0;
++  DBUG_PRINT("info", ("buffer: %p "
++                      "buffer length: %u "
++                      "query maximum length: %u",
++                      buffer,
++                      (uint) b_length,
++                      (uint) q_length));
++  DBUG_RETURN(buffer);
++}
++
++
++void Query_Without_Comments::set_length(size_t query_length)
++{
++  DBUG_ENTER("Query_Without_Comments::set_length");
++  DBUG_ASSERT(query_length <= q_length);
++  buffer[query_length]= 0;
++  DBUG_PRINT("info", ("buffer: %p "
++                      "query: '%-.4096s' "
++                      "buffer length: %u "
++                      "query maximum length: %u "
++                      "query length: %u",
++                      buffer,
++                      buffer,
++                      (uint) b_length,
++                      (uint) q_length,
++                      (uint) query_length));
++  q_length= query_length;
++  DBUG_VOID_RETURN;
++}
++
++
++char* Query_Without_Comments::query()
++{
++  return buffer;
++}
++
++
++size_t Query_Without_Comments::length()
++{
++  return q_length;
++}
++
++
++#endif // HAVE_QUERY_CACHE
++
+ 
+ THD::THD()
+    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,

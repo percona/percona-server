@@ -69,7 +69,7 @@
  #include "dict0mem.h"
  #include "dict0types.h"
  #include "ha_prototypes.h" /* for innobase_convert_name() */
-@@ -1812,6 +1814,1675 @@
+@@ -1812,6 +1814,1703 @@
  	DBUG_RETURN(0);
  }
  
@@ -318,7 +318,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 +/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
@@ -615,7 +619,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 +/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_INDEXES */
@@ -861,7 +869,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 +/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_COLUMNS */
@@ -1097,7 +1109,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_fields */
 +static ST_FIELD_INFO    innodb_sys_fields_fields_info[] =
@@ -1304,7 +1320,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 +/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign */
@@ -1525,7 +1545,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols */
 +static ST_FIELD_INFO    innodb_sys_foreign_cols_fields_info[] =
@@ -1739,7 +1763,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
  /***********************************************************************

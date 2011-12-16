@@ -19,9 +19,9 @@
  /** @brief Initialize the default value of innodb_commit_concurrency.
 --- a/storage/innobase/handler/i_s.cc
 +++ b/storage/innobase/handler/i_s.cc
-@@ -4205,3 +4205,139 @@
- 	STRUCT_FLD(system_vars, NULL),
- 	STRUCT_FLD(__reserved1, NULL)
+@@ -4243,3 +4243,140 @@
+ 	STRUCT_FLD(__reserved1, NULL),
+ 	STRUCT_FLD(flags, 0UL)
  };
 +
 +/***********************************************************************
@@ -157,7 +157,8 @@
 +	STRUCT_FLD(version, 0x0100 /* 1.0 */),
 +	STRUCT_FLD(status_vars, NULL),
 +	STRUCT_FLD(system_vars, NULL),
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++	STRUCT_FLD(flags, 0UL)
 +};
 --- a/storage/innobase/handler/i_s.h
 +++ b/storage/innobase/handler/i_s.h

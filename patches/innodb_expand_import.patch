@@ -612,7 +612,7 @@
  	ut_free(buf2);
  
  	if (UNIV_UNLIKELY(space_id != id
-@@ -3167,6 +3703,271 @@
+@@ -3167,6 +3703,269 @@
  	os_file_close(file);
  	mem_free(filepath);
  
@@ -620,7 +620,6 @@
 +		ulint		page_no;
 +		ulint		zip_size;
 +		ulint		height;
-+		ulint		root_height = 0;
 +		rec_t*		node_ptr;
 +		dict_table_t*	table;
 +		dict_index_t*	index;
@@ -659,7 +658,6 @@
 +
 +			if (height == ULINT_UNDEFINED) {
 +				height = btr_page_get_level(page, &mtr);
-+				root_height = height;
 +			}
 +
 +			if (height == 0) {

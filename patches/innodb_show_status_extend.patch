@@ -336,7 +336,7 @@
  /** Thread slot in the thread table */
 --- a/storage/innobase/include/sync0sync.h
 +++ b/storage/innobase/include/sync0sync.h
-@@ -767,6 +767,10 @@
+@@ -766,6 +766,10 @@
  
  #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
  

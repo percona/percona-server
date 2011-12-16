@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -2308,6 +2308,7 @@
+@@ -2326,6 +2326,7 @@
  
    thd->sent_row_count++;
    thd->sent_row_count_2++;

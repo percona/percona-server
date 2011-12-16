@@ -278,10 +278,16 @@
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1183,6 +1322,66 @@
- }
+@@ -1177,6 +1316,66 @@
+ 		return(NULL);
+ 	}
  
- /****************************************************************//**
++	thr->run_node = que_node_get_parent(node);
++
++	return(thr);
++}
++
++/****************************************************************//**
 +*/
 +UNIV_INTERN
 +que_thr_t*
@@ -336,15 +342,9 @@
 +		return(NULL);
 +	}
 +
-+	thr->run_node = que_node_get_parent(node);
-+
-+	return(thr);
-+}
-+
-+/****************************************************************//**
- Creates the foreign key constraints system tables inside InnoDB
- at database creation or database start if they are not found or are
- not of the right form.
+ 	thr->run_node = que_node_get_parent(node);
+ 
+ 	return(thr);
 --- a/storage/innobase/dict/dict0dict.c
 +++ b/storage/innobase/dict/dict0dict.c
 @@ -755,7 +755,7 @@
@@ -916,7 +916,7 @@
  	/* -------------- Log files ---------------------------*/
  
  	/* The default dir for log files is the datadir of MySQL */
-@@ -5257,6 +5260,10 @@
+@@ -5256,6 +5259,10 @@
  
  	error = row_insert_for_mysql((byte*) record, prebuilt);
  
@@ -1078,8 +1078,8 @@
  }
  
  #define OK(expr)		\
-@@ -3483,6 +3484,221 @@
- 	STRUCT_FLD(__reserved1, NULL)
+@@ -3511,6 +3512,225 @@
+ 	STRUCT_FLD(flags, 0UL)
  };
  
 +/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_stats */
@@ -1294,15 +1294,19 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
  /***********************************************************************
  */
  static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
-@@ -3645,3 +3861,347 @@
- 	/* void* */
- 	STRUCT_FLD(__reserved1, NULL)
+@@ -3677,3 +3897,349 @@
+ 	/* unsigned long */
+ 	STRUCT_FLD(flags, 0UL)
  };
 +
 +/***********************************************************************
@@ -1630,7 +1634,8 @@
 +	STRUCT_FLD(version, 0x0100 /* 1.0 */),
 +	STRUCT_FLD(status_vars, NULL),
 +	STRUCT_FLD(system_vars, NULL),
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 +UNIV_INTERN struct st_mysql_plugin	i_s_innodb_index_stats =
@@ -1646,7 +1651,8 @@
 +	STRUCT_FLD(version, 0x0100 /* 1.0 */),
 +	STRUCT_FLD(status_vars, NULL),
 +	STRUCT_FLD(system_vars, NULL),
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++	STRUCT_FLD(flags, 0UL)
 +};
 --- a/storage/innobase/handler/i_s.h
 +++ b/storage/innobase/handler/i_s.h
@@ -1908,7 +1914,7 @@
  	} else {
 --- a/storage/innobase/row/row0ins.c
 +++ b/storage/innobase/row/row0ins.c
-@@ -2015,6 +2015,8 @@
+@@ -2018,6 +2018,8 @@
  	}
  
  #ifdef UNIV_DEBUG
@@ -2149,3 +2155,18 @@
  
  			ulint	pos = upd_get_nth_field(update, i)->field_no;
  
+--- /dev/null
++++ b/mysql-test/r/percona_innodb_use_sys_stats_table.result
+@@ -0,0 +1,3 @@
++show variables like 'innodb_use_sys_stats%';
++Variable_name	Value
++innodb_use_sys_stats_table	ON
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_use_sys_stats_table-master.opt
+@@ -0,0 +1 @@
++--innodb_use_sys_stats_table
+--- /dev/null
++++ b/mysql-test/t/percona_innodb_use_sys_stats_table.test
+@@ -0,0 +1,2 @@
++--source include/have_innodb.inc
++show variables like 'innodb_use_sys_stats%';

@@ -55,7 +55,7 @@
    sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
    sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
-@@ -2368,12 +2369,17 @@
+@@ -2393,12 +2394,17 @@
      mysql_mutex_unlock(&LOCK_active_mi);
      break;
    }
@@ -74,7 +74,7 @@
      if (active_mi != NULL)
      {
        res = show_master_info(thd, active_mi);
-@@ -2384,7 +2390,19 @@
+@@ -2409,7 +2415,19 @@
                     WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
        my_ok(thd);
      }
@@ -105,7 +105,7 @@
  %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
  %token  STD_SYM
  %token  STOP_SYM
-@@ -11105,6 +11106,11 @@
+@@ -11106,6 +11107,11 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }

@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -4224,6 +4224,36 @@
+@@ -4126,6 +4126,36 @@
  	mutex_exit(block_mutex);
  }
  
@@ -66,9 +66,9 @@
  }
  
  #define OK(expr)		\
-@@ -4372,3 +4373,701 @@
- 	STRUCT_FLD(system_vars, NULL),
- 	STRUCT_FLD(__reserved1, NULL)
+@@ -4411,3 +4412,713 @@
+ 	STRUCT_FLD(__reserved1, NULL),
+ 	STRUCT_FLD(flags, 0UL)
  };
 +
 +/***********************************************************************
@@ -453,7 +453,7 @@
 +				table->field[2]->store(block->page.offset);
 +				table->field[3]->store(page_get_n_recs(frame));
 +				table->field[4]->store(page_get_data_size(frame));
-+				table->field[5]->store(block->is_hashed);
++				table->field[5]->store(block->index != NULL);
 +				table->field[6]->store(block->page.access_time);
 +				table->field[7]->store(block->page.newest_modification != 0);
 +				table->field[8]->store(block->page.oldest_modification != 0);
@@ -667,7 +667,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 +UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_index =
@@ -716,7 +720,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 +UNIV_INTERN struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob =
@@ -765,7 +773,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* flags for plugin */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL)
 +};
 +
 --- a/storage/innobase/handler/i_s.h
@@ -781,7 +793,7 @@
  #endif /* i_s_h */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1174,6 +1174,14 @@
+@@ -1161,6 +1161,14 @@
  /*===========*/
  	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
  	__attribute__((nonnull, const));

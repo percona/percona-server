@@ -3392,7 +3392,7 @@
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1507,6 +1508,12 @@
+@@ -1518,6 +1519,12 @@
  
    ulonglong end_utime_of_query= thd->current_utime();
    ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
@@ -3405,7 +3405,7 @@
  
    /*
      Low long_query_time value most likely means user is debugging stuff and even
-@@ -1671,6 +1678,7 @@
+@@ -1682,6 +1689,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -3424,7 +3424,7 @@
  
  /**
    Reload/resets privileges and the different caches.
-@@ -296,6 +296,12 @@
+@@ -322,6 +322,12 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
@@ -3486,7 +3486,7 @@
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -11099,6 +11100,15 @@
+@@ -11100,6 +11101,15 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -3502,7 +3502,7 @@
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11338,6 +11348,12 @@
+@@ -11339,6 +11349,12 @@
              Lex->type|= REFRESH_SLAVE;
              Lex->reset_slave_info.all= false;
            }
@@ -3515,7 +3515,7 @@
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12645,6 +12661,7 @@
+@@ -12646,6 +12662,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}

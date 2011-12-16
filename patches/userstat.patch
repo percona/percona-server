@@ -96,7 +96,7 @@
    DBUG_RETURN(error);
  }
  
-@@ -3638,6 +3645,127 @@
+@@ -3644,6 +3651,127 @@
    return;
  }
  
@@ -263,7 +263,7 @@
    SCH_VARIABLES,
    SCH_VIEWS
  };
-@@ -1231,6 +1240,9 @@
+@@ -1233,6 +1242,9 @@
    bool locked;
    bool implicit_emptied;                /* Can be !=0 only if HEAP */
    const COND *pushed_cond;
@@ -273,7 +273,7 @@
    /**
      next_insert_id is the next value which should be inserted into the
      auto_increment column: in a inserting-multi-row statement (like INSERT
-@@ -1282,10 +1294,12 @@
+@@ -1284,10 +1296,12 @@
      ref_length(sizeof(my_off_t)),
      ft_handler(0), inited(NONE),
      locked(FALSE), implicit_emptied(0),
@@ -288,7 +288,7 @@
    virtual ~handler(void)
    {
      DBUG_ASSERT(locked == FALSE);
-@@ -1408,6 +1422,8 @@
+@@ -1410,6 +1424,8 @@
    {
      table= table_arg;
      table_share= share;
@@ -297,7 +297,7 @@
    }
    virtual double scan_time()
    { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
-@@ -1803,6 +1819,8 @@
+@@ -1805,6 +1821,8 @@
    virtual bool is_crashed() const  { return 0; }
    virtual bool auto_repair() const { return 0; }
  
@@ -363,7 +363,7 @@
  /*
    Log error with all enabled log event handlers
  
-@@ -5040,6 +5047,8 @@
+@@ -5029,6 +5036,8 @@
                               thd->first_successful_insert_id_in_prev_stmt_for_binlog);
            if (e.write(file))
              goto err;
@@ -372,7 +372,7 @@
          }
          if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
          {
-@@ -5051,12 +5060,16 @@
+@@ -5040,12 +5049,16 @@
                               minimum());
            if (e.write(file))
              goto err;
@@ -389,7 +389,7 @@
          }
          if (thd->user_var_events.elements)
          {
-@@ -5079,6 +5092,8 @@
+@@ -5068,6 +5081,8 @@
                                   flags);
              if (e.write(file))
                goto err;
@@ -398,7 +398,7 @@
            }
          }
        }
-@@ -5090,6 +5105,8 @@
+@@ -5079,6 +5094,8 @@
      if (event_info->write(file) ||
          DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
        goto err;
@@ -407,7 +407,7 @@
  
      error= 0;
  err:
-@@ -5275,7 +5292,8 @@
+@@ -5264,7 +5281,8 @@
      be reset as a READ_CACHE to be able to read the contents from it.
   */
  
@@ -417,7 +417,7 @@
  {
    Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
  
-@@ -5322,6 +5340,7 @@
+@@ -5311,6 +5329,7 @@
        /* write the first half of the split header */
        if (my_b_write(&log_file, header, carry))
          return ER_ERROR_ON_WRITE;
@@ -425,7 +425,7 @@
  
        /*
          copy fixed second half of header to cache so the correct
-@@ -5390,6 +5409,7 @@
+@@ -5379,6 +5398,7 @@
      /* Write data to the binary log file */
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
@@ -433,7 +433,7 @@
      cache->read_pos=cache->read_end;		// Mark buffer used up
    } while ((length= my_b_fill(cache)));
  
-@@ -5504,20 +5524,23 @@
+@@ -5493,20 +5513,23 @@
        Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE, TRUE, 0);
        if (qinfo.write(&log_file))
          goto err;
@@ -726,7 +726,7 @@
    if (delete_table)
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -869,6 +869,13 @@
+@@ -885,6 +885,13 @@
    mysys_var=0;
    binlog_evt_union.do_union= FALSE;
    enable_slow_log= 0;
@@ -740,7 +740,7 @@
  #ifndef DBUG_OFF
    dbug_sentry=THD_SENTRY_MAGIC;
  #endif
-@@ -1248,6 +1255,7 @@
+@@ -1264,6 +1271,7 @@
      variables.option_bits|= OPTION_BIN_LOG;
    else
      variables.option_bits&= ~OPTION_BIN_LOG;
@@ -748,8 +748,8 @@
  
  #if defined(ENABLED_DEBUG_SYNC)
    /* Initialize the Debug Sync Facility. See debug_sync.cc. */
-@@ -1255,6 +1263,94 @@
- #endif /* defined(ENABLED_DEBUG_SYNC) */
+@@ -1273,6 +1281,94 @@
+   clear_slow_extended();
  }
  
 +// Resets stats in a THD.
@@ -843,7 +843,7 @@
  
  /*
    Init THD for query processing.
-@@ -2009,6 +2105,32 @@
+@@ -2027,6 +2123,32 @@
  }
  #endif
  
@@ -876,7 +876,7 @@
  
  struct Item_change_record: public ilink
  {
-@@ -2185,6 +2307,7 @@
+@@ -2203,6 +2325,7 @@
    }
  
    thd->sent_row_count++;
@@ -884,7 +884,7 @@
  
    if (thd->vio_ok())
      DBUG_RETURN(protocol->write());
-@@ -2277,6 +2400,7 @@
+@@ -2295,6 +2418,7 @@
  select_export::~select_export()
  {
    thd->sent_row_count=row_count;
@@ -892,7 +892,7 @@
  }
  
  
-@@ -3300,6 +3424,7 @@
+@@ -3318,6 +3442,7 @@
    if (likely(thd != 0))
    { /* current_thd==0 when close_connection() calls net_send_error() */
      thd->status_var.bytes_sent+= length;
@@ -900,7 +900,7 @@
    }
  }
  
-@@ -3307,6 +3432,7 @@
+@@ -3325,6 +3450,7 @@
  void thd_increment_bytes_received(ulong length)
  {
    current_thd->status_var.bytes_received+= length;
@@ -910,7 +910,7 @@
  
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -1634,6 +1634,8 @@
+@@ -1644,6 +1644,8 @@
    */
    enum enum_server_command command;
    uint32     server_id;
@@ -919,7 +919,7 @@
    uint32     file_id;			// for LOAD DATA INFILE
    /* remote (peer) port */
    uint16 peer_port;
-@@ -2098,6 +2100,8 @@
+@@ -2153,6 +2155,8 @@
    */
    enum_tx_isolation tx_isolation;
    enum_check_fields count_cuted_fields;
@@ -928,7 +928,7 @@
  
    DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
    MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
-@@ -2192,6 +2196,49 @@
+@@ -2247,6 +2251,49 @@
    */
    LOG_INFO*  current_linfo;
    NET*       slave_net;			// network connection from slave -> m.
@@ -978,7 +978,7 @@
    /* Used by the sys_var class to store temporary values */
    union
    {
-@@ -2272,6 +2319,11 @@
+@@ -2327,6 +2374,11 @@
      alloc_root. 
    */
    void init_for_queries();
@@ -990,7 +990,7 @@
    void change_user(void);
    void cleanup(void);
    void cleanup_after_query();
-@@ -2744,6 +2796,15 @@
+@@ -2799,6 +2851,15 @@
    }
    thd_scheduler scheduler;
  
@@ -1006,7 +1006,7 @@
  public:
    inline Internal_error_handler *get_internal_handler()
    { return m_internal_handler; }
-@@ -2944,6 +3005,10 @@
+@@ -2999,6 +3060,10 @@
    LEX_STRING invoker_host;
  };
  
@@ -1772,7 +1772,7 @@
  const char *any_db="*any*";	// Special symbol for check_access
  
  const LEX_STRING command_name[]={
-@@ -701,6 +704,12 @@
+@@ -703,6 +706,12 @@
    */
    thd->clear_error();				// Clear error message
    thd->stmt_da->reset_diagnostics_area();
@@ -1785,7 +1785,7 @@
  
    net_new_transaction(net);
  
-@@ -886,6 +895,10 @@
+@@ -888,6 +897,10 @@
                        (char *) thd->security_ctx->host_or_ip);
    
    thd->command=command;
@@ -1796,7 +1796,7 @@
    /*
      Commands which always take a long time are logged into
      the slow log only if opt_log_slow_admin_statements is set.
-@@ -1672,6 +1685,13 @@
+@@ -1683,6 +1696,13 @@
      thd->profiling.discard_current_query();
  #endif
      break;
@@ -1810,7 +1810,7 @@
    case SCH_OPEN_TABLES:
    case SCH_VARIABLES:
    case SCH_STATUS:
-@@ -1829,6 +1849,7 @@
+@@ -1857,6 +1877,7 @@
                         thd->security_ctx->priv_host)) &&
          check_global_access(thd, SUPER_ACL))
      {
@@ -1818,7 +1818,7 @@
        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
        DBUG_RETURN(TRUE);
      }
-@@ -4827,6 +4848,7 @@
+@@ -4892,6 +4913,7 @@
        case ACL_INTERNAL_ACCESS_DENIED:
          if (! no_errors)
          {
@@ -1826,7 +1826,7 @@
            my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                     sctx->priv_user, sctx->priv_host, db);
          }
-@@ -4877,6 +4899,7 @@
+@@ -4942,6 +4964,7 @@
      DBUG_PRINT("error",("No possible access"));
      if (!no_errors)
      {
@@ -1834,7 +1834,7 @@
        if (thd->password == 2)
          my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
                   sctx->priv_user,
-@@ -4993,6 +5016,7 @@
+@@ -5058,6 +5081,7 @@
  
      if (!thd->col_access && check_grant_db(thd, dst_db_name))
      {
@@ -1842,7 +1842,7 @@
        my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                 thd->security_ctx->priv_user,
                 thd->security_ctx->priv_host,
-@@ -5263,6 +5287,7 @@
+@@ -5328,6 +5352,7 @@
    if ((thd->security_ctx->master_access & want_access))
      return 0;
    get_privilege_desc(command, sizeof(command), want_access);
@@ -1850,7 +1850,7 @@
    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
    return 1;
  #else
-@@ -5644,6 +5669,32 @@
+@@ -5695,6 +5720,32 @@
    lex_start(thd);
    mysql_reset_thd_for_next_command(thd);
  
@@ -1883,7 +1883,7 @@
    if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
    {
      LEX *lex= thd->lex;
-@@ -5712,6 +5763,52 @@
+@@ -5763,6 +5814,52 @@
      DBUG_ASSERT(thd->change_list.is_empty());
    }
  
@@ -2341,7 +2341,7 @@
  
 --- a/sql/sql_reload.cc
 +++ b/sql/sql_reload.cc
-@@ -294,14 +294,48 @@
+@@ -320,14 +320,48 @@
     mysql_mutex_unlock(&LOCK_active_mi);
   }
  #endif
@@ -2944,7 +2944,7 @@
  %token  USE_FRM
  %token  USE_SYM
  %token  USING                         /* SQL-2003-R */
-@@ -11120,6 +11125,41 @@
+@@ -11121,6 +11126,41 @@
               MYSQL_YYABORT;
  #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
           }
@@ -2986,7 +2986,7 @@
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11365,6 +11405,16 @@
+@@ -11366,6 +11406,16 @@
              Lex->type|= REFRESH_QUERY_RESPONSE_TIME;
  #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
            }
@@ -3003,7 +3003,7 @@
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12509,6 +12559,7 @@
+@@ -12510,6 +12560,7 @@
          | CHAIN_SYM                {}
          | CHANGED                  {}
          | CIPHER_SYM               {}
@@ -3011,7 +3011,7 @@
          | CLIENT_SYM               {}
          | CLASS_ORIGIN_SYM         {}
          | COALESCE                 {}
-@@ -12577,6 +12628,7 @@
+@@ -12578,6 +12629,7 @@
          | HOSTS_SYM                {}
          | HOUR_SYM                 {}
          | IDENTIFIED_SYM           {}
@@ -3019,7 +3019,7 @@
          | IGNORE_SERVER_IDS_SYM    {}
          | INVOKER_SYM              {}
          | IMPORT                   {}
-@@ -12728,6 +12780,7 @@
+@@ -12729,6 +12781,7 @@
          | SUSPEND_SYM              {}
          | SWAPS_SYM                {}
          | SWITCHES_SYM             {}
@@ -3027,7 +3027,7 @@
          | TABLE_NAME_SYM           {}
          | TABLES                   {}
          | TABLE_CHECKSUM_SYM       {}
-@@ -12753,6 +12806,7 @@
+@@ -12754,6 +12807,7 @@
          | UNKNOWN_SYM              {}
          | UNTIL_SYM                {}
          | USER                     {}
@@ -3263,7 +3263,7 @@
  }
  
  int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
-@@ -1537,16 +1540,24 @@
+@@ -1553,16 +1556,24 @@
  
  int ha_myisam::update_row(const uchar *old_data, uchar *new_data)
  {
@@ -3290,7 +3290,7 @@
  }
  
  int ha_myisam::index_read_map(uchar *buf, const uchar *key,
-@@ -1558,6 +1569,14 @@
+@@ -1574,6 +1585,14 @@
    ha_statistic_increment(&SSV::ha_read_key_count);
    int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3305,7 +3305,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1570,6 +1589,14 @@
+@@ -1586,6 +1605,14 @@
    ha_statistic_increment(&SSV::ha_read_key_count);
    int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3320,7 +3320,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1584,6 +1611,14 @@
+@@ -1600,6 +1627,14 @@
    int error=mi_rkey(file, buf, active_index, key, keypart_map,
                      HA_READ_PREFIX_LAST);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3335,7 +3335,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    DBUG_RETURN(error);
  }
-@@ -1595,6 +1630,13 @@
+@@ -1611,6 +1646,13 @@
    ha_statistic_increment(&SSV::ha_read_next_count);
    int error=mi_rnext(file,buf,active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3349,7 +3349,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1606,6 +1648,13 @@
+@@ -1622,6 +1664,13 @@
    ha_statistic_increment(&SSV::ha_read_prev_count);
    int error=mi_rprev(file,buf, active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3363,7 +3363,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1617,6 +1666,14 @@
+@@ -1633,6 +1682,14 @@
    ha_statistic_increment(&SSV::ha_read_first_count);
    int error=mi_rfirst(file, buf, active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3378,7 +3378,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1628,6 +1685,14 @@
+@@ -1644,6 +1701,14 @@
    ha_statistic_increment(&SSV::ha_read_last_count);
    int error=mi_rlast(file, buf, active_index);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3393,7 +3393,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1645,6 +1710,14 @@
+@@ -1661,6 +1726,14 @@
      error= mi_rnext_same(file,buf);
    } while (error == HA_ERR_RECORD_DELETED);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3408,7 +3408,7 @@
    MYSQL_INDEX_READ_ROW_DONE(error);
    return error;
  }
-@@ -1664,6 +1737,8 @@
+@@ -1680,6 +1753,8 @@
    ha_statistic_increment(&SSV::ha_read_rnd_next_count);
    int error=mi_scan(file, buf);
    table->status=error ? STATUS_NOT_FOUND: 0;
@@ -3417,7 +3417,7 @@
    MYSQL_READ_ROW_DONE(error);
    return error;
  }
-@@ -1680,6 +1755,8 @@
+@@ -1696,6 +1771,8 @@
    ha_statistic_increment(&SSV::ha_read_rnd_count);
    int error=mi_rrnd(file, buf, my_get_ptr(pos,ref_length));
    table->status=error ? STATUS_NOT_FOUND: 0;

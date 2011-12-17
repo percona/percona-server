@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -4426,6 +4426,7 @@
+@@ -4330,6 +4330,7 @@
  	}
  
  	total_info->pool_size += pool_info->pool_size;
@@ -15,7 +15,7 @@
  	total_info->lru_len += pool_info->lru_len;
  	total_info->old_lru_len += pool_info->old_lru_len;
  	total_info->free_list_len += pool_info->free_list_len;
-@@ -4491,6 +4492,8 @@
+@@ -4395,6 +4396,8 @@
  
  	pool_info->pool_size = buf_pool->curr_size;
  
@@ -24,7 +24,7 @@
  	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
  
  	pool_info->old_lru_len = buf_pool->LRU_old_len;
-@@ -4612,14 +4615,16 @@
+@@ -4516,14 +4519,16 @@
  	ut_ad(pool_info);
  
  	fprintf(file,

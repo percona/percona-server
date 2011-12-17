@@ -193,7 +193,16 @@
                                      user_host, user_host_len,
                                      query_utime, lock_utime, is_command,
                                      sql_text, sql_text_len);
-@@ -1216,7 +1218,7 @@
+@@ -1200,8 +1202,6 @@
+ 
+   if (*slow_log_handler_list)
+   {
+-    time_t current_time;
+-
+     /* do not log slow queries from replication threads */
+     if (thd->slave_thread && !opt_log_slow_slave_statements)
+       return 0;
+@@ -1216,16 +1216,29 @@
      /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
      user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                               sctx->priv_user ? sctx->priv_user : "", "[",
@@ -202,8 +211,8 @@
                               sctx->host ? sctx->host : "", " [",
                               sctx->ip ? sctx->ip : "", "]", NullS) -
                      user_host_buff);
-@@ -1224,8 +1226,22 @@
-     current_time= my_time_possible_from_micro(current_utime);
+ 
+-    current_time= my_time_possible_from_micro(current_utime);
      if (thd->start_utime)
      {
 -      query_utime= (current_utime - thd->start_utime);
@@ -227,7 +236,7 @@
      }
      else
      {
-@@ -1240,7 +1256,7 @@
+@@ -1240,7 +1253,7 @@
      }
  
      for (current_handler= slow_log_handler_list; *current_handler ;)
@@ -236,7 +245,7 @@
                                              user_host_buff, user_host_len,
                                              query_utime, lock_utime, is_command,
                                              query, query_length) || error;
-@@ -2656,12 +2672,13 @@
+@@ -2656,12 +2669,13 @@
      TRUE - error occured
  */
  
@@ -251,7 +260,7 @@
    bool error= 0;
    DBUG_ENTER("MYSQL_QUERY_LOG::write");
  
-@@ -2683,17 +2700,28 @@
+@@ -2683,17 +2697,28 @@
  
      if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
      {
@@ -287,7 +296,7 @@
  
          /* Note that my_b_write() assumes it knows the length for this */
          if (my_b_write(&log_file, (uchar*) buff, buff_len))
-@@ -2710,13 +2738,71 @@
+@@ -2710,13 +2735,71 @@
      /* For slow query log */
      sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
      sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);

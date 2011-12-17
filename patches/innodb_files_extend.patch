@@ -216,7 +216,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1715,7 +1715,7 @@
+@@ -1705,7 +1705,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -225,7 +225,7 @@
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1813,7 +1813,7 @@
+@@ -1803,7 +1803,7 @@
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -234,7 +234,7 @@
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1821,9 +1821,9 @@
+@@ -1811,9 +1811,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  

@@ -136,7 +136,20 @@
  Tries to open a single-table tablespace and optionally checks the space id is
  right in it. If does not succeed, prints an error message to the .err log. This
  function is used to open a tablespace when we start up mysqld, and also in
-@@ -3079,7 +3165,7 @@
+@@ -3055,8 +3141,11 @@
+ 					accessing the first page of the file */
+ 	ulint		id,		/*!< in: space id */
+ 	ulint		flags,		/*!< in: tablespace flags */
+-	const char*	name)		/*!< in: table name in the
++	const char*	name,		/*!< in: table name in the
+ 					databasename/tablename format */
++	trx_t*		trx)		/*!< in: transaction. This is only used
++					for IMPORT TABLESPACE, must be NULL
++					otherwise */
+ {
+ 	os_file_t	file;
+ 	char*		filepath;
+@@ -3079,7 +3168,7 @@
  
  	file = os_file_create_simple_no_error_handling(
  		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -145,7 +158,7 @@
  	if (!success) {
  		/* The following call prints an error message */
  		os_file_get_last_error(TRUE);
-@@ -3126,6 +3212,445 @@
+@@ -3126,6 +3215,453 @@
  	space_id = fsp_header_get_space_id(page);
  	space_flags = fsp_header_get_flags(page);
  
@@ -296,6 +309,11 @@
 +			size = (ulint) (size_bytes / (zip_size ? zip_size : UNIV_PAGE_SIZE));
 +			/* over write space id of all pages */
 +			rec_offs_init(offsets_);
++
++			/* Unlock the data dictionary to not block queries
++			accessing other tables */
++			ut_a(trx);
++			row_mysql_unlock_data_dictionary(trx);
 +
 +			fprintf(stderr, "InnoDB: Progress in %%:");
 +
@@ -498,6 +516,9 @@
 +
 +			fprintf(stderr, " done.\n");
 +
++			/* Reacquire the data dictionary lock */
++			row_mysql_lock_data_dictionary(trx);
++
 +			/* update SYS_INDEXES set root page */
 +			index = dict_table_get_first_index(table);
 +			while (index) {
@@ -591,7 +612,7 @@
  	ut_free(buf2);
  
  	if (UNIV_UNLIKELY(space_id != id
-@@ -3167,6 +3692,271 @@
+@@ -3167,6 +3703,269 @@
  	os_file_close(file);
  	mem_free(filepath);
  
@@ -599,7 +620,6 @@
 +		ulint		page_no;
 +		ulint		zip_size;
 +		ulint		height;
-+		ulint		root_height = 0;
 +		rec_t*		node_ptr;
 +		dict_table_t*	table;
 +		dict_index_t*	index;
@@ -638,7 +658,6 @@
 +
 +			if (height == ULINT_UNDEFINED) {
 +				height = btr_page_get_level(page, &mtr);
-+				root_height = height;
 +			}
 +
 +			if (height == 0) {
@@ -1039,6 +1058,15 @@
  	/* It is possible, though very improbable, that the lsn's in the
  	tablespace to be imported have risen above the current system lsn, if
  	a lengthy purge, ibuf merge, or rollback was performed on a backup
+@@ -2632,7 +2637,7 @@
+ 	success = fil_open_single_table_tablespace(
+ 		TRUE, table->space,
+ 		table->flags == DICT_TF_COMPACT ? 0 : table->flags,
+-		table->name);
++		table->name, trx);
+ 	if (success) {
+ 		table->ibd_file_missing = FALSE;
+ 		table->tablespace_discarded = FALSE;
 @@ -2658,6 +2663,11 @@
  
  	trx->op_info = "";
@@ -1062,3 +1090,46 @@
  UNIV_INTERN ulint	srv_dict_size_limit = 0;
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
+--- a/storage/innobase/dict/dict0load.c
++++ b/storage/innobase/dict/dict0load.c
+@@ -778,7 +778,7 @@
+ 			object and check that the .ibd file exists. */
+ 
+ 			fil_open_single_table_tablespace(FALSE, space_id,
+-							 flags, name);
++							 flags, name, NULL);
+ 		}
+ 
+ 		mem_free(name);
+@@ -1833,7 +1833,7 @@
+ 			if (!fil_open_single_table_tablespace(
+ 				TRUE, table->space,
+ 				table->flags == DICT_TF_COMPACT ? 0 :
+-				table->flags & ~(~0 << DICT_TF_BITS), name)) {
++				table->flags & ~(~0 << DICT_TF_BITS), name, NULL)) {
+ 				/* We failed to find a sensible
+ 				tablespace file */
+ 
+--- a/storage/innobase/include/fil0fil.h
++++ b/storage/innobase/include/fil0fil.h
+@@ -34,6 +34,7 @@
+ #include "sync0rw.h"
+ #include "ibuf0types.h"
+ #endif /* !UNIV_HOTBACKUP */
++#include "trx0types.h"
+ 
+ /** When mysqld is run, the default directory "." is the mysqld datadir,
+ but in the MySQL Embedded Server Library and ibbackup it is not the default
+@@ -473,8 +474,11 @@
+ 					accessing the first page of the file */
+ 	ulint		id,		/*!< in: space id */
+ 	ulint		flags,		/*!< in: tablespace flags */
+-	const char*	name);		/*!< in: table name in the
++	const char*	name,		/*!< in: table name in the
+ 					databasename/tablename format */
++	trx_t*		trx);		/*!< in: transaction. This is only used
++					for IMPORT TABLESPACE, must be NULL
++					otherwise */
+ /********************************************************************//**
+ It is possible, though very improbable, that the lsn's in the tablespace to be
+ imported have risen above the current system lsn, if a lengthy purge, ibuf

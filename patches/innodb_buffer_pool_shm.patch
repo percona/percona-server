@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -1007,10 +1007,12 @@
+@@ -1005,10 +1005,12 @@
  	buf_block_t*	block;
  	byte*		frame;
  	ulint		i;
@@ -20,7 +20,7 @@
  	/* Reserve space for the block descriptors. */
  	mem_size += ut_2pow_round((mem_size / UNIV_PAGE_SIZE) * (sizeof *block)
  				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
-@@ -1048,6 +1050,10 @@
+@@ -1046,6 +1048,10 @@
  		chunk->size = size;
  	}
  

@@ -297,10 +297,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -343,10 +343,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
@@ -448,10 +448,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -494,10 +494,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
@@ -572,7 +572,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -588,7 +588,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
@@ -666,7 +666,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -685,7 +685,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
@@ -753,7 +753,7 @@
 +      1.000000	34	     12.250000
 +    156.000000	33	     77.099997
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -762,7 +762,7 @@
 +      1.000000	34	     12.250000
 +    156.000000	33	     77.099997
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
@@ -829,7 +829,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	34	     12.250000
 +   1000.000000	33	     77.099997
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -837,7 +837,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	34	     12.250000
 +   1000.000000	33	     77.099997
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
@@ -906,7 +906,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	34	     12.250000
 +   1000.000000	33	     77.099997
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -914,7 +914,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	34	     12.250000
 +   1000.000000	33	     77.099997
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
@@ -972,10 +972,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1018,10 +1018,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 +SET SESSION query_exec_time=0.31;
@@ -1158,10 +1158,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1204,10 +1204,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -1255,10 +1255,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1301,10 +1301,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 +SET SESSION query_exec_time=0.31;
@@ -1441,10 +1441,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1487,10 +1487,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -1511,7 +1511,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1527,7 +1527,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 +SET SESSION query_exec_time=0.31;
@@ -1637,7 +1637,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1653,7 +1653,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -1677,7 +1677,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1696,7 +1696,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 +SET SESSION query_exec_time=0.31;
@@ -1809,7 +1809,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1828,7 +1828,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -1842,7 +1842,7 @@
 +      1.000000	0	      0.000000
 +    156.000000	0	      0.000000
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1851,7 +1851,7 @@
 +      1.000000	0	      0.000000
 +    156.000000	0	      0.000000
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 +SET SESSION query_exec_time=0.31;
@@ -1954,7 +1954,7 @@
 +      1.000000	11	      4.050000
 +    156.000000	11	     25.699999
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1963,7 +1963,7 @@
 +      1.000000	11	      4.050000
 +    156.000000	11	     25.699999
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -1976,7 +1976,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	0	      0.000000
 +   1000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -1984,7 +1984,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	0	      0.000000
 +   1000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 +SET SESSION query_exec_time=0.31;
@@ -2086,7 +2086,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	11	      4.050000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2094,7 +2094,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	11	      4.050000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -2109,7 +2109,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	0	      0.000000
 +   1000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2117,7 +2117,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	0	      0.000000
 +   1000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 +SET SESSION query_exec_time=0.31;
@@ -2219,7 +2219,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	11	      4.050000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2227,7 +2227,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	11	      4.050000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
@@ -2317,10 +2317,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2363,10 +2363,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -2441,10 +2441,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2487,10 +2487,10 @@
 + 131072.000000	0	      0.000000
 + 262144.000000	0	      0.000000
 + 524288.000000	0	      0.000000
-+ 1048576.00000	0	      0.000000
-+ 2097152.00000	0	      0.000000
-+ 4194304.00000	0	      0.000000
-+ 8388608.00000	0	      0.000000
++1048576.000000	0	      0.000000
++2097152.000000	0	      0.000000
++4194304.000000	0	      0.000000
++8388608.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -2538,7 +2538,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2554,7 +2554,7 @@
 +   1000.000000	0	      0.000000
 +  10000.000000	0	      0.000000
 + 100000.000000	0	      0.000000
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -2605,7 +2605,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2624,7 +2624,7 @@
 +  16807.000000	0	      0.000000
 + 117649.000000	0	      0.000000
 + 823543.000000	0	      0.000000
-+ 5764801.00000	0	      0.000000
++5764801.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -2665,7 +2665,7 @@
 +      1.000000	55	      8.450000
 +    156.000000	11	     25.699999
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2674,7 +2674,7 @@
 +      1.000000	55	      8.450000
 +    156.000000	11	     25.699999
 +  24336.000000	0	      0.000000
-+ 3796416.00000	0	      0.000000
++3796416.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -2714,7 +2714,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	55	      8.450000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2722,7 +2722,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	55	      8.450000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET SESSION query_exec_time=0.1;
@@ -2764,7 +2764,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	55	      8.450000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 +time	count	total
@@ -2772,7 +2772,7 @@
 +      0.001000	0	      0.000000
 +      1.000000	55	      8.450000
 +   1000.000000	11	     25.699999
-+ 1000000.00000	0	      0.000000
++1000000.000000	0	      0.000000
 +TOO LONG	0	TOO LONG
 +SET SESSION query_exec_time=default;
 +SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
@@ -3002,7 +3002,7 @@
  extern bool in_bootstrap;
 --- /dev/null
 +++ b/sql/query_response_time.cc
-@@ -0,0 +1,310 @@
+@@ -0,0 +1,302 @@
 +#include "mysql_version.h"
 +#include "my_global.h"
 +#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
@@ -3021,7 +3021,6 @@
 +#define MAXIMUM_BASE QRT_MAXIMUM_BASE
 +#define POSITIVE_POWER_FILLER QRT_POSITIVE_POWER_FILLER
 +#define NEGATIVE_POWER_FILLER QRT_NEGATIVE_POWER_FILLER
-+#define STRING_OVERFLOW QRT_STRING_OVERFLOW
 +#define TIME_OVERFLOW   QRT_TIME_OVERFLOW
 +#define DEFAULT_BASE    QRT_DEFAULT_BASE
 +
@@ -3142,20 +3141,13 @@
 +  ulonglong m_bound[OVERALL_POWER_COUNT];
 +};
 +
-+void print_time(char* buffer, std::size_t buffer_size, std::size_t string_positive_power_length, const char* format, uint64 value)
++static
++void print_time(char* buffer, std::size_t buffer_size, const char* format,
++                uint64 value)
 +{
-+  memset(buffer,'X',buffer_size);
-+  buffer[string_positive_power_length]= '.';
 +  ulonglong second=      (value / MILLION);
 +  ulonglong microsecond= (value % MILLION);
-+  std::size_t result_length= snprintf(buffer,buffer_size,format,second,microsecond);
-+  if(result_length < 0)
-+  {
-+    assert(sizeof(STRING_OVERFLOW) <= buffer_size);
-+    memcpy(buffer, STRING_OVERFLOW, sizeof(STRING_OVERFLOW));
-+    return;
-+  }
-+  buffer[result_length]= 0;
++  my_snprintf(buffer, buffer_size, format, second, microsecond);
 +}
 +
 +class time_collector
@@ -3172,14 +3164,14 @@
 +  uint32 count(uint index) const
 +  {
 +    my_atomic_rwlock_rdlock(&time_collector_lock);
-+    uint32 result= my_atomic_load32((volatile int32*)&m_count[index]);
++    uint32 result= my_atomic_load32((int32*)&m_count[index]);
 +    my_atomic_rwlock_rdunlock(&time_collector_lock);
 +    return result;
 +  }
 +  uint64 total(uint index) const
 +  {
 +    my_atomic_rwlock_rdlock(&time_collector_lock);
-+    uint64 result= my_atomic_load64((volatile int64*)&m_total[index]);
++    uint64 result= my_atomic_load64((int64*)&m_total[index]);
 +    my_atomic_rwlock_rdunlock(&time_collector_lock);
 +    return result;
 +  }
@@ -3199,8 +3191,8 @@
 +      if(m_utility->bound(i) > time)
 +      {
 +        my_atomic_rwlock_wrlock(&time_collector_lock);
-+        my_atomic_add32((volatile int32*)(&m_count[i]), 1);
-+        my_atomic_add64((volatile int64*)(&m_total[i]), time);
++        my_atomic_add32((int32*)(&m_count[i]), 1);
++        my_atomic_add64((int64*)(&m_total[i]), time);
 +        my_atomic_rwlock_wrunlock(&time_collector_lock);
 +        break;
 +      }
@@ -3212,8 +3204,8 @@
 +  used on architectures that do not have atomic implementation of atomic
 +  operations. */
 +  my_atomic_rwlock_t time_collector_lock;
-+  volatile uint32   m_count[OVERALL_POWER_COUNT + 1];
-+  volatile uint64   m_total[OVERALL_POWER_COUNT + 1];
++  uint32   m_count[OVERALL_POWER_COUNT + 1];
++  uint64   m_total[OVERALL_POWER_COUNT + 1];
 +};
 +
 +class collector
@@ -3248,8 +3240,8 @@
 +      }
 +      else
 +      {
-+        print_time(time,sizeof(time),TIME_STRING_POSITIVE_POWER_LENGTH,TIME_STRING_FORMAT,this->bound(i));
-+        print_time(total,sizeof(total),TOTAL_STRING_POSITIVE_POWER_LENGTH,TOTAL_STRING_FORMAT,this->total(i));
++        print_time(time, sizeof(time), TIME_STRING_FORMAT, this->bound(i));
++        print_time(total, sizeof(total), TOTAL_STRING_FORMAT, this->total(i));
 +      }
 +      fields[0]->store(time,strlen(time),system_charset_info);
 +      fields[1]->store(this->count(i));
@@ -3315,7 +3307,7 @@
 +#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
 --- /dev/null
 +++ b/sql/query_response_time.h
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,64 @@
 +#ifndef QUERY_RESPONSE_TIME_H
 +#define QUERY_RESPONSE_TIME_H
 +
@@ -3348,16 +3340,11 @@
 +  and number 7234 result is:
 +  '   7234'
 +*/
-+#define QRT_POSITIVE_POWER_FILLER " "
++#define QRT_POSITIVE_POWER_FILLER ""
 +/*
 +  Filler for fractional number. Similiary to whole number
 +*/
 +#define QRT_NEGATIVE_POWER_FILLER "0"
-+
-+/*
-+  Message if string overflow (string overflow - internal error, this string say about bug in QRT)
-+*/
-+#define QRT_STRING_OVERFLOW "TOO BIG STRING"
 +
 +/*
 +  Message if time too big for statistic collecting (very long query)
@@ -3368,13 +3355,11 @@
 +
 +#define QRT_TIME_STRING_LENGTH				\
 +  max( (QRT_TIME_STRING_POSITIVE_POWER_LENGTH + 1 /* '.' */ + 6 /*QRT_TIME_STRING_NEGATIVE_POWER_LENGTH*/), \
-+       max( (sizeof(QRT_TIME_OVERFLOW) - 1),		\
-+	    (sizeof(QRT_STRING_OVERFLOW) - 1) ) )
++       (sizeof(QRT_TIME_OVERFLOW) - 1) )
 +
 +#define QRT_TOTAL_STRING_LENGTH				\
 +  max( (QRT_TOTAL_STRING_POSITIVE_POWER_LENGTH + 1 /* '.' */ + 6 /*QRT_TOTAL_STRING_NEGATIVE_POWER_LENGTH*/), \
-+       max( (sizeof(QRT_TIME_OVERFLOW) - 1),		\
-+	    (sizeof(QRT_STRING_OVERFLOW) - 1) ) )
++       (sizeof(QRT_TIME_OVERFLOW) - 1) )
 +
 +extern ST_SCHEMA_TABLE query_response_time_table;
 +
@@ -3407,7 +3392,7 @@
  #include "transaction.h"
  #include "sql_audit.h"
  #include "sql_prepare.h"
-@@ -1507,6 +1508,12 @@
+@@ -1518,6 +1519,12 @@
  
    ulonglong end_utime_of_query= thd->current_utime();
    ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
@@ -3420,7 +3405,7 @@
  
    /*
      Low long_query_time value most likely means user is debugging stuff and even
-@@ -1671,6 +1678,7 @@
+@@ -1682,6 +1689,7 @@
    case SCH_CHARSETS:
    case SCH_ENGINES:
    case SCH_COLLATIONS:
@@ -3439,7 +3424,7 @@
  
  /**
    Reload/resets privileges and the different caches.
-@@ -296,6 +296,12 @@
+@@ -322,6 +322,12 @@
  #endif
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
@@ -3501,7 +3486,7 @@
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -11099,6 +11100,15 @@
+@@ -11100,6 +11101,15 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -3517,7 +3502,7 @@
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11338,6 +11348,12 @@
+@@ -11339,6 +11349,12 @@
              Lex->type|= REFRESH_SLAVE;
              Lex->reset_slave_info.all= false;
            }
@@ -3530,7 +3515,7 @@
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12645,6 +12661,7 @@
+@@ -12646,6 +12662,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}
@@ -3582,7 +3567,7 @@
 +have_response_time_distribution	YES
 --- a/include/atomic/x86-gcc.h
 +++ b/include/atomic/x86-gcc.h
-@@ -108,27 +108,22 @@
+@@ -108,27 +108,23 @@
    v=tmp;
  
  /*
@@ -3608,16 +3593,17 @@
 -                : "c" (&set), "m" (*a)                            \
 -                : "memory", "esp")
 +#define make_atomic_cas_body64                                     \
-+  asm ("movl %%edi, -4(%%esp);"                                    \
-+       "leal %0, %%edi;"                                           \
-+       "xchgl %%ebx, %%esi;"                                       \
-+       LOCK_prefix "; cmpxchg8b (%%edi);"                          \
-+       "movl %%esi, %%ebx;"                                        \
-+       "movl -4(%%esp), %%edi;"                                    \
-+       "setz %1;"                                                  \
-+       : "+m" (*a), "=q" (ret), "+A" (*cmp)                        \
-+       : "S" ((int32)(set & 0xFFFFFFFF)), "c" ((int32)(set >> 32)) \
-+       : "flags")
++  asm volatile ("movl %%edi, -4(%%esp);"                           \
++                "leal %0, %%edi;"                                  \
++                "xchgl %%ebx, %%esi;"                              \
++                LOCK_prefix "; cmpxchg8b (%%edi);"                 \
++                "movl %%esi, %%ebx;"                               \
++                "movl -4(%%esp), %%edi;"                           \
++                "setz %1;"                                         \
++                : "+m" (*a), "=q" (ret), "+A" (*cmp)               \
++                : "S" ((int32)(set & 0xFFFFFFFF)),                 \
++                  "c" ((int32)(set >> 32))                         \
++                : "memory", "flags")
  #endif
  
  /*

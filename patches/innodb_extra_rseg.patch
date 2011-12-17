@@ -26,7 +26,7 @@
  }
  
  #define OK(expr)		\
-@@ -1807,3 +1809,166 @@
+@@ -1807,3 +1809,170 @@
  
  	DBUG_RETURN(0);
  }
@@ -191,7 +191,11 @@
 +
 +	/* reserved for dependency checking */
 +	/* void* */
-+	STRUCT_FLD(__reserved1, NULL)
++	STRUCT_FLD(__reserved1, NULL),
++
++	/* Plugin flags */
++	/* unsigned long */
++	STRUCT_FLD(flags, 0UL),
 +};
 --- a/storage/innobase/handler/i_s.h
 +++ b/storage/innobase/handler/i_s.h

@@ -402,7 +402,7 @@
                          ulonglong lock_utime, bool is_command,
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -421,6 +421,10 @@
+@@ -421,6 +421,11 @@
  char* opt_secure_file_priv;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -410,10 +410,11 @@
 +my_bool opt_slow_query_log_timestamp_always= 0;
 +ulonglong opt_slow_query_log_use_global_control= 0;
 +ulong opt_slow_query_log_timestamp_precision= 0;
++ulong opt_slow_query_log_rate_type= 0;
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5892,14 +5896,10 @@
+@@ -5892,14 +5897,10 @@
     "Don't log extra information to update and slow-query logs.",
     &opt_short_log_format, &opt_short_log_format,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -430,7 +431,7 @@
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7288,6 +7288,10 @@
+@@ -7288,6 +7289,10 @@
  
  C_MODE_END
  
@@ -441,7 +442,7 @@
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7437,6 +7441,8 @@
+@@ -7437,6 +7442,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -452,7 +453,7 @@
  
 --- a/sql/mysqld.h
 +++ b/sql/mysqld.h
-@@ -116,6 +116,10 @@
+@@ -116,6 +116,11 @@
  extern char* opt_secure_backup_file_priv;
  extern size_t opt_secure_backup_file_priv_len;
  extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
@@ -460,6 +461,7 @@
 +extern my_bool opt_slow_query_log_timestamp_always;
 +extern ulonglong opt_slow_query_log_use_global_control;
 +extern ulong opt_slow_query_log_timestamp_precision;
++extern ulong opt_slow_query_log_rate_type;
  extern my_bool sp_automatic_privileges, opt_noacl;
  extern my_bool opt_old_style_user_limits, trust_function_creators;
  extern uint opt_crash_binlog_innodb;
@@ -672,9 +674,52 @@
    DBUG_VOID_RETURN;
  }
  
+@@ -3802,7 +3896,7 @@
+ {
+   mysql_mutex_lock(&LOCK_thd_data);
+   set_query_inner(query_arg, query_length_arg, cs);
+-  query_id= new_query_id;
++  do_set_query_id(new_query_id);
+   mysql_mutex_unlock(&LOCK_thd_data);
+ }
+ 
+@@ -3811,9 +3905,32 @@
+ void THD::set_query_id(query_id_t new_query_id)
+ {
+   mysql_mutex_lock(&LOCK_thd_data);
+-  query_id= new_query_id;
++  do_set_query_id(new_query_id);
+   mysql_mutex_unlock(&LOCK_thd_data);
+ }
++void THD::do_set_query_id(query_id_t new_query_id)
++{
++#ifndef DBUG_OFF
++  if (variables.query_exec_id != 0 &&
++      lex->sql_command != SQLCOM_SET_OPTION)
++  {
++    new_query_id= variables.query_exec_id;
++  }
++#endif /* DBUG_OFF */
++  query_id= new_query_id;
++  if (opt_slow_query_log_rate_type == SLOG_RT_QUERY)
++  {
++    if ((variables.log_slow_rate_limit == 0) ||
++        (query_id % variables.log_slow_rate_limit) == 0)
++    {
++      write_to_slow_log= TRUE;
++    }
++    else
++    {
++      write_to_slow_log= FALSE;
++    }
++  }
++}
+ 
+ /** Assign a new value to thd->mysys_var.  */
+ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -60,6 +60,33 @@
+@@ -60,6 +60,36 @@
  enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
  enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
  			    DELAY_KEY_WRITE_ALL };
@@ -690,6 +735,9 @@
 +};
 +enum enum_slow_query_log_timestamp_precision {
 +  SLOG_SECOND, SLOG_MICROSECOND
++};
++enum enum_slow_query_log_rate_type {
++  SLOG_RT_SESSION, SLOG_RT_QUERY
 +};
 +#define QPLAN_NONE            0
 +#define QPLAN_QC              1 << 0
@@ -708,13 +756,14 @@
  enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                              SLAVE_EXEC_MODE_IDEMPOTENT,
                              SLAVE_EXEC_MODE_LAST_BIT};
-@@ -508,6 +535,21 @@
+@@ -508,6 +538,22 @@
  
    my_bool sysdate_is_now;
  
 +#ifndef DBUG_OFF
 +  ulonglong query_exec_time;
 +  double    query_exec_time_double;
++  ulong     query_exec_id;
 +#endif
 +  ulong log_slow_rate_limit;
 +  ulonglong log_slow_filter;
@@ -730,7 +779,7 @@
    double long_query_time_double;
  
  } SV;
-@@ -1140,6 +1182,24 @@
+@@ -1140,6 +1186,24 @@
    uint in_sub_stmt;
    bool enable_slow_log;
    bool last_insert_id_used;
@@ -755,7 +804,7 @@
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1588,6 +1648,71 @@
+@@ -1588,6 +1652,71 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -827,20 +876,36 @@
    /* <> 0 if we are inside of trigger or stored function. */
    uint in_sub_stmt;
  
+@@ -2784,6 +2913,9 @@
+   void set_query_and_id(char *query_arg, uint32 query_length_arg,
+                         CHARSET_INFO *cs, query_id_t new_query_id);
+   void set_query_id(query_id_t new_query_id);
++private:
++  void do_set_query_id(query_id_t new_query_id);
++public:
+   void set_open_tables(TABLE *open_tables_arg)
+   {
+     mysql_mutex_lock(&LOCK_thd_data);
 --- a/sql/sql_connect.cc
 +++ b/sql/sql_connect.cc
-@@ -721,6 +721,15 @@
+@@ -721,6 +721,21 @@
    MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
                           (char *) thd->security_ctx->host_or_ip);
  
-+    /* 
++    /*
 +      If rate limiting of slow log writes is enabled, decide whether to log this 
-+      new thread's queries or not. Uses extremely simple algorithm. :) 
-+    */ 
-+    thd->write_to_slow_log= FALSE; 
-+    if (thd->variables.log_slow_rate_limit <= 1 ||  
-+        (thd->thread_id % thd->variables.log_slow_rate_limit) == 0) 
-+         thd->write_to_slow_log= TRUE; 
++      new thread's queries or not. Uses extremely simple algorithm. :)
++    */
++    if (opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
++        (thd->variables.log_slow_rate_limit == 0 ||
++         (thd->thread_id % thd->variables.log_slow_rate_limit) == 0))
++    {
++      thd->write_to_slow_log= TRUE;
++    }
++    else
++    {
++      thd->write_to_slow_log= FALSE;
++    }
 +
    prepare_new_connection_state(thd);
    return FALSE;
@@ -1063,7 +1128,7 @@
        {
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -972,6 +972,29 @@
+@@ -972,6 +972,36 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(update_cached_long_query_time));
  
@@ -1088,12 +1153,19 @@
 +       NO_CMD_LINE, VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0),
 +       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0),
 +       ON_UPDATE(update_cached_query_exec_time));
++static Sys_var_ulong sys_query_exec_id(
++       "query_exec_id",
++       "Pretend queries take this query id. When 0 (the default) use the"
++       "actual query id. Used only for debussing.",
++       SESSION_VAR(query_exec_id),
++       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
++       NO_MUTEX_GUARD, IN_BINLOG);
 +#endif
 +
  static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
  {
    if (type == OPT_SESSION)
-@@ -2898,6 +2921,123 @@
+@@ -2898,6 +2928,134 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  
@@ -1213,7 +1285,18 @@
 +       "Log slow statements executed by stored procedure to the slow log if it is open. [second, microsecond]",
 +       GLOBAL_VAR(opt_slow_query_log_timestamp_precision), CMD_LINE(REQUIRED_ARG),
 +       slow_query_log_timestamp_precision_name, DEFAULT(SLOG_SECOND));
-+ 
++
++const char* slow_query_log_rate_name[]= {"session", "query", 0};
++static Sys_var_enum Sys_slow_query_log_rate_type(
++       "log_slow_rate_type",
++       "Choose the log_slow_rate_limit behavior: session or query. "
++       "When you choose 'session' - every %log_slow_rate_limit connection "
++       "will be processed to slow query log. "
++       "When you choose 'query' - every %log_slow_rate_limit query "
++       "will be processed to slow query log. "
++       "[session, query]",
++       GLOBAL_VAR(opt_slow_query_log_rate_type), CMD_LINE(REQUIRED_ARG),
++       slow_query_log_rate_name, DEFAULT(SLOG_RT_SESSION));
  /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
  static Sys_var_mybool Sys_log_slow(
         "log_slow_queries",
@@ -1467,23 +1550,47 @@
  #  endif /* HAVE_PROFILING */
 --- /dev/null
 +++ b/mysql-test/include/log_grep.inc
-@@ -0,0 +1,17 @@
-+--disable_query_log
+@@ -0,0 +1,41 @@
 +--echo [log_grep.inc] file: $log_file pattern: $grep_pattern
 +perl;
 +  $log_file=           $ENV{'log_file'};
 +  $log_file_full_path= $ENV{'log_file_full_path'};
-+  $grep_pattern=       $ENV{'grep_pattern'};
-+
++  $log_slow_rate_test= $ENV{'log_slow_rate_test'};
 +  open(FILE, "$log_file_full_path") 
 +    or die("Cannot open file $log_file_full_path: $!\n");
 +
-+  $lines = 0;
-+  while(<FILE>) {
-+    $lines++ if (/$grep_pattern/);
++  if ($log_slow_rate_test) {
++    $one= 0;
++    $two= 0;
++    $three= 0;
++    while(<FILE>) {
++      $one++   if(/'connection_one'/);
++      $two++   if(/'connection_two'/);
++      $three++ if(/'connection_three'/);
++    }
++    $sum= $one + $two + $three;
++    $zero= 0;
++    if ($one == 0) {
++      $zero++;
++    }
++    if ($two == 0) {
++      $zero++;
++    }
++    if ($three == 0) {
++      $zero++;
++    }
++    print "[log_grep.inc] sum:  $sum\n";
++    print "[log_grep.inc] zero: $zero\n";
++  }
++  else {
++    $grep_pattern=       $ENV{'grep_pattern'};
++    $lines= 0;
++    while(<FILE>) {
++      $lines++ if (/$grep_pattern/);
++    }
++    print "[log_grep.inc] lines:   $lines\n";
 +  }
 +  close(FILE);
-+  print "[log_grep.inc] lines:   $lines\n";
 +EOF
 --- /dev/null
 +++ b/mysql-test/include/log_start.inc
@@ -1504,7 +1611,6 @@
 +EVAL SET GLOBAL slow_query_log_file="$log_file_full_path";
 +SET GLOBAL slow_query_log=ON;
 +--enable_query_log
-\ No newline at end of file
 --- /dev/null
 +++ b/mysql-test/include/log_stop.inc
 @@ -0,0 +1,7 @@
@@ -1550,7 +1656,7 @@
 +log_slow_filter	full_join
 --- /dev/null
 +++ b/mysql-test/r/percona_log_slow_filter.result
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,16 @@
 +CREATE TABLE t(id INT PRIMARY KEY);
 +INSERT INTO t VALUES(1);
 +INSERT INTO t VALUES(2);
@@ -1566,6 +1672,7 @@
 +SET long_query_time=default;
 +[log_grep.inc] file: percona.slow_extended.log_slow_filter pattern: Query_time
 +[log_grep.inc] lines:   1
++DROP TABLE t;
 --- /dev/null
 +++ b/mysql-test/r/percona_log_slow_slave_statements-cl.result
 @@ -0,0 +1,6 @@
@@ -1577,7 +1684,7 @@
 +log_slow_slave_statements	ON
 --- /dev/null
 +++ b/mysql-test/r/percona_log_slow_slave_statements-innodb.result
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,19 @@
 +include/master-slave.inc
 +[connection master]
 +DROP TABLE IF EXISTS t;
@@ -1595,10 +1702,11 @@
 +[log_stop.inc] percona.slow_extended.log_slow_slave_statements-innodb
 +[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements-innodb pattern: InnoDB_IO_r_ops
 +[log_grep.inc] lines:   1
++DROP TABLE t;
 +include/rpl_end.inc
 --- /dev/null
 +++ b/mysql-test/r/percona_log_slow_slave_statements.result
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,45 @@
 +include/master-slave.inc
 +[connection master]
 +DROP TABLE IF EXISTS t;
@@ -1642,6 +1750,7 @@
 +[log_grep.inc] lines:   0
 +[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(7\)
 +[log_grep.inc] lines:   1
++DROP TABLE t;
 +include/rpl_end.inc
 --- /dev/null
 +++ b/mysql-test/r/percona_log_slow_sp_statements-cl.result
@@ -1654,7 +1763,7 @@
 +log_slow_sp_statements	ON
 --- /dev/null
 +++ b/mysql-test/r/percona_log_slow_sp_statements.result
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,25 @@
 +SET long_query_time=1;
 +SET GLOBAL log_slow_sp_statements=ON;
 +SET SESSION query_exec_time=0.1;
@@ -1679,6 +1788,7 @@
 +SET long_query_time=default;
 +[log_grep.inc] file: percona.slow_extended.log_slow_sp_statements pattern: Query_time
 +[log_grep.inc] lines:   3
++DROP PROCEDURE test_f;
 --- /dev/null
 +++ b/mysql-test/r/percona_log_slow_verbosity-cl.result
 @@ -0,0 +1,6 @@
@@ -2364,7 +2474,7 @@
 +SHOW GLOBAL VARIABLES LIKE 'slow_query_log_use_global_control';
 --- /dev/null
 +++ b/mysql-test/r/percona_min_examined_row_limit.result
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,35 @@
 +drop table if exists t;
 +create table t(id INT PRIMARY KEY);
 +insert into t values(1);
@@ -2399,6 +2509,7 @@
 +SET GLOBAL long_query_time=default;
 +[log_grep.inc] file: percona.slow_extended.min_examined_row_limit pattern: Query_time
 +[log_grep.inc] lines:   1
++DROP TABLE t;
 --- /dev/null
 +++ b/mysql-test/t/percona_min_examined_row_limit.test
 @@ -0,0 +1,35 @@
@@ -2507,7 +2618,7 @@
 +SET GLOBAL slow_query_log_use_global_control=default;
 --- /dev/null
 +++ b/mysql-test/r/percona_slow_extended_log_error.result
-@@ -0,0 +1,9 @@
+@@ -0,0 +1,10 @@
 +SET long_query_time=0;
 +DROP TABLE IF EXISTS t1;
 +CREATE TABLE t(a INT);
@@ -2517,6 +2628,7 @@
 +[log_stop.inc] percona.slow_extended.log_error
 +[log_grep.inc] file: percona.slow_extended.log_error pattern: Last_errno: 1050
 +[log_grep.inc] lines:   1
++DROP TABLE t;
 --- /dev/null
 +++ b/mysql-test/t/percona_slow_extended_log_error.test
 @@ -0,0 +1,15 @@
@@ -2686,7 +2798,7 @@
 +SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
-@@ -250,15 +250,31 @@
+@@ -250,15 +250,38 @@
   --log-slow-admin-statements 
   Log slow OPTIMIZE, ANALYZE, ALTER and other
   administrative statements to the slow log if it is open.
@@ -2704,6 +2816,13 @@
 + --log-slow-rate-limit=# 
 + Rate limit statement writes to slow log to only those
 + from every (1/log_slow_rate_limit) session.
++ --log-slow-rate-type=name 
++ Choose the log_slow_rate_limit behavior: session or
++ query. When you choose 'session' - every
++ %log_slow_rate_limit connection will be processed to slow
++ query log. When you choose 'query' - every
++ %log_slow_rate_limit query will be processed to slow
++ query log. [session, query]
   --log-slow-slave-statements 
 - Log slow statements executed by slave thread to the slow
 - log if it is open.
@@ -2720,7 +2839,7 @@
   --log-tc=name       Path to transaction coordinator log (used for
   transactions that affect more than one storage engine,
   when binary log is disabled).
-@@ -660,6 +676,18 @@
+@@ -660,6 +683,18 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
@@ -2739,19 +2858,20 @@
   --socket=name       Socket file to use for connection
   --sort-buffer-size=# 
   Each thread that needs to do a sort allocates a buffer of
-@@ -817,7 +845,11 @@
+@@ -817,7 +852,12 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
 +log-slow-filter 
 +log-slow-rate-limit 1
++log-slow-rate-type session
  log-slow-slave-statements FALSE
 +log-slow-sp-statements TRUE
 +log-slow-verbosity 
  log-tc tc.log
  log-tc-size 24576
  log-warnings 1
-@@ -933,6 +965,9 @@
+@@ -933,6 +973,9 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE
@@ -2761,3 +2881,180 @@
  sort-buffer-size 2097152
  sporadic-binlog-dump-fail FALSE
  sql-mode 
+--- /dev/null
++++ b/mysql-test/r/percona_slow_query_log_rate.result
+@@ -0,0 +1,78 @@
++SET GLOBAL long_query_time=1;
++SET GLOBAL log_slow_rate_type='session';
++SET GLOBAL log_slow_rate_limit=3;
++[log_start.inc] percona.slow_extended.log_slow_rate_limit
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=1;
++SELECT 'connection_one';
++connection_one
++connection_one
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=2;
++SELECT 'connection_two';
++connection_two
++connection_two
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=3;
++SELECT 'connection_three';
++connection_three
++connection_three
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=4;
++SELECT 'connection_one';
++connection_one
++connection_one
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=5;
++SELECT 'connection_two';
++connection_two
++connection_two
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=6;
++SELECT 'connection_three';
++connection_three
++connection_three
++[log_stop.inc] percona.slow_extended.log_slow_rate_limit
++[log_grep.inc] file: percona.slow_extended.log_slow_rate_limit pattern: 
++[log_grep.inc] sum:  2
++[log_grep.inc] zero: 2
++SET GLOBAL log_slow_rate_type='query';
++SET GLOBAL log_slow_rate_limit=2;
++[log_start.inc] percona.slow_extended.log_slow_rate_limit
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=1;
++SELECT 'connection_one';
++connection_one
++connection_one
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=2;
++SELECT 'connection_two';
++connection_two
++connection_two
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=3;
++SELECT 'connection_three';
++connection_three
++connection_three
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=4;
++SELECT 'connection_one';
++connection_one
++connection_one
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=5;
++SELECT 'connection_two';
++connection_two
++connection_two
++SET SESSION query_exec_time=1.1;
++SET SESSION query_exec_id=6;
++SELECT 'connection_three';
++connection_three
++connection_three
++[log_stop.inc] percona.slow_extended.log_slow_rate_limit
++[log_grep.inc] file: percona.slow_extended.log_slow_rate_limit pattern: 
++[log_grep.inc] sum:  3
++[log_grep.inc] zero: 0
++SET GLOBAL long_query_time=default;
++SET GLOBAL log_slow_rate_type=default;
++SET GLOBAL log_slow_rate_limit=default;
+--- /dev/null
++++ b/mysql-test/t/percona_slow_query_log_rate.test
+@@ -0,0 +1,16 @@
++--source include/have_debug.inc
++--let log_file=percona.slow_extended.log_slow_rate_limit
++
++SET GLOBAL long_query_time=1;
++
++SET GLOBAL log_slow_rate_type='session';
++SET GLOBAL log_slow_rate_limit=3;
++--source include/percona_slow_query_log_rate.inc
++
++SET GLOBAL log_slow_rate_type='query';
++SET GLOBAL log_slow_rate_limit=2;
++--source include/percona_slow_query_log_rate.inc
++
++SET GLOBAL long_query_time=default;
++SET GLOBAL log_slow_rate_type=default;
++SET GLOBAL log_slow_rate_limit=default;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_rate_limit_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_rate_limit;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_rate_limit_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_rate_limit;
++@@global.log_slow_rate_limit
++1
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/log_slow_rate_type_basic.test
+@@ -0,0 +1 @@
++SELECT @@global.log_slow_rate_type;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/log_slow_rate_type_basic.result
+@@ -0,0 +1,3 @@
++SELECT @@global.log_slow_rate_type;
++@@global.log_slow_rate_type
++session
+--- /dev/null
++++ b/mysql-test/include/percona_slow_query_log_rate.inc
+@@ -0,0 +1,42 @@
++--let wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST;
++--connection default
++--source include/log_start.inc
++
++--connect (connection_one,localhost,root,,)
++--connect (connection_two,localhost,root,,)
++--connect (connection_three,localhost,root,,)
++
++--let i=2
++--let k=1
++
++while($i)
++{
++--connection connection_one
++SET SESSION query_exec_time=1.1;
++eval SET SESSION query_exec_id=$k;
++inc $k;
++SELECT 'connection_one';
++
++--connection connection_two
++SET SESSION query_exec_time=1.1;
++eval SET SESSION query_exec_id=$k;
++inc $k;
++SELECT 'connection_two';
++
++--connection connection_three
++SET SESSION query_exec_time=1.1;
++eval SET SESSION query_exec_id=$k;
++inc $k;
++SELECT 'connection_three';
++
++dec $i;
++}
++
++--connection default
++--disconnect connection_one
++--disconnect connection_two
++--disconnect connection_three
++--source include/wait_condition.inc
++--source include/log_stop.inc
++--let log_slow_rate_test=1
++--source include/log_grep.inc
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/r/query_exec_id_basic.result
+@@ -0,0 +1,2 @@
++SET GLOBAL query_exec_id=default;
++SET SESSION query_exec_id=default;
+--- /dev/null
++++ b/mysql-test/suite/sys_vars/t/query_exec_id_basic.test
+@@ -0,0 +1,4 @@
++--source include/have_debug.inc
++
++SET GLOBAL query_exec_id=default;
++SET SESSION query_exec_id=default;

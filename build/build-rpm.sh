@@ -84,6 +84,17 @@ else
 
 fi
 
+# If we're in 32 bits, ensure that we're compiling for i686.
+if test "x$TARGET" == "x"
+then
+    if test "x$(uname -m)" != "xx86_64"
+    then
+        TARGET='--target i686'
+        TARGET_CFLAGS='-m32 -march=i686'
+    fi
+
+fi
+
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
 test -e "$SOURCEDIR/Makefile" || exit 2
 

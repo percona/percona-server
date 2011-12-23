@@ -118,7 +118,27 @@ class testManager(test_management.testManager):
                    tests_to_use.append(test)
            testlist = tests_to_use
         for test_case in testlist:
-            self.add_test(self.process_test_file(suite_name, test_case))
+            self.add_test(self.process_test_file( suite_name
+                                                , test_case
+                                                ))
+
+    def get_server_reqs(self, module_file):
+        """ Code to handle extraction of server_requests & requirements
+            from unittest test modules
+
+        """
+
+        module_name = os.path.basename(module_file).replace('.py','')
+        my_module = imp.load_source(module_name, module_file)
+        server_requirements = None
+        server_requests = None
+        try:
+            server_requirements = my_module.server_requirements
+        except AttributeError, NameError: pass
+        try:
+            server_requests = my_module.server_requests
+        except AttributeError, NameError: pass
+        return server_requirements, server_requests
 
 
     def process_test_file(self, suite_name, testfile):
@@ -127,12 +147,8 @@ class testManager(test_management.testManager):
         # test_name = filename - .py...simpler
         test_name = os.path.basename(testfile).replace('.py','')
         test_comment = None
-        test_module = imp.load_source(test_name, testfile)
-        server_requirements = test_module.server_requirements
-        try:
-            server_requests = test_module.server_requests
-        except AttributeError, NameError:
-            server_requests = None
+        server_requirements, server_requests = self.get_server_reqs(testfile)
+        
         return testCase( self.system_manager
                        , name = test_name
                        , fullname = "%s.%s" %(suite_name, test_name)
@@ -141,7 +157,6 @@ class testManager(test_management.testManager):
                        , request_dict = server_requests
                        , test_path = testfile
                        , debug = self.debug )
-
 
 
     def record_test_result(self, test_case, test_status, output, exec_time):

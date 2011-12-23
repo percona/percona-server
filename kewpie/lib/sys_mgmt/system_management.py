@@ -58,7 +58,7 @@ class systemManager:
             self.logging.verbose("Initializing system manager...")
 
         self.skip_keys = [ 'port_manager'
-                         , 'logging_manager'
+                         , 'logging'
                          , 'code_manager'
                          , 'env_manager'
                          , 'environment_reqs'
@@ -69,9 +69,10 @@ class systemManager:
         self.shm_path = self.find_path(["/dev/shm", "/tmp"], required=0)
         self.cur_os = os.uname()[0]
         self.cur_user = getpass.getuser()
+        self.rootdir = variables['qp_root']
         self.workdir = os.path.abspath(variables['workdir'])
         self.testdir = os.path.abspath(variables['testdir'])
-        self.datadir = os.path.abspath(os.path.join(variables['testdir'],'qp_data'))
+        self.datadir = os.path.join(self.rootdir,'qp_data')
         self.top_srcdir = os.path.abspath(variables['topsrcdir'])
         self.top_builddir = os.path.abspath(variables['topbuilddir'])
         self.start_dirty = variables['startdirty']
@@ -84,6 +85,7 @@ class systemManager:
         self.gdb = variables['gdb']
         self.manual_gdb = variables['manualgdb']
         self.randgen_path = variables['randgenpath']
+        self.randgen_seed = variables['randgenseed']
         # there may be a better place to put this...
         self.innobackupex_path = variables['innobackupexpath']
         self.xtrabackup_path = variables['xtrabackuppath']
@@ -239,7 +241,12 @@ class systemManager:
             else:
                 shutil.rmtree(full_path)
             self.logging.debug("Creating directory: %s" %(dirname))   
-        os.makedirs(full_path)
+        try:
+            os.makedirs(full_path)
+        except IOError, e:
+            self.logging.error("Problem creating directory: %s" %(full_path))
+            self.logging.error(e)
+            sys.exit(1)
         return full_path
 
     def remove_dir(self, dirname, require_empty=0 ):

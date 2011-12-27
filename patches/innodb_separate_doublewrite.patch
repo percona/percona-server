@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -3770,7 +3770,8 @@
+@@ -3805,7 +3805,8 @@
  		read_space_id = mach_read_from_4(
  			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
  
@@ -262,7 +262,7 @@
  				if (err != DB_SUCCESS) {
  
  					return(err);
-@@ -4159,7 +4169,7 @@
+@@ -4168,7 +4178,7 @@
  	}
  
  #ifndef UNIV_HOTBACKUP
@@ -271,7 +271,7 @@
  		fprintf(stderr,
  			"InnoDB: Error: tablespace id %lu in file %s"
  			" is not sensible\n",
-@@ -4168,7 +4178,7 @@
+@@ -4177,7 +4187,7 @@
  		goto func_exit;
  	}
  #else
@@ -280,7 +280,7 @@
  		char*	new_path;
  
  		fprintf(stderr,
-@@ -4989,7 +4999,7 @@
+@@ -4998,7 +5008,7 @@
  	}
  
  	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
@@ -289,7 +289,7 @@
  		/* The node is in the LRU list, remove it */
  
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
-@@ -5035,7 +5045,7 @@
+@@ -5044,7 +5054,7 @@
  	}
  
  	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
@@ -298,7 +298,7 @@
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5646,7 +5656,7 @@
+@@ -5655,7 +5665,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
@@ -350,7 +350,7 @@
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
  
  	/* -------------- Log files ---------------------------*/
-@@ -11763,6 +11766,11 @@
+@@ -11772,6 +11775,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -362,7 +362,7 @@
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11942,6 +11950,7 @@
+@@ -11951,6 +11959,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),

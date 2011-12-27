@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -1005,10 +1005,12 @@
+@@ -1022,10 +1022,12 @@
  	buf_block_t*	block;
  	byte*		frame;
  	ulint		i;
@@ -20,7 +20,7 @@
  	/* Reserve space for the block descriptors. */
  	mem_size += ut_2pow_round((mem_size / UNIV_PAGE_SIZE) * (sizeof *block)
  				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
-@@ -1046,6 +1048,10 @@
+@@ -1063,6 +1065,10 @@
  		chunk->size = size;
  	}
  
@@ -55,7 +55,7 @@
  	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
  
  	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
-@@ -11855,6 +11863,16 @@
+@@ -11864,6 +11872,16 @@
    "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
    NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
  
@@ -72,7 +72,7 @@
  static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments.",
-@@ -12161,6 +12179,8 @@
+@@ -12170,6 +12188,8 @@
    MYSQL_SYSVAR(autoextend_increment),
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),

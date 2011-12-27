@@ -953,7 +953,7 @@
      key_info++;
    }
    if (!unique_key && !primary_key &&
-@@ -5256,6 +5280,10 @@
+@@ -5261,6 +5285,10 @@
    List<Create_field> new_create_list;
    /* New key definitions are added here */
    List<Key> new_key_list;
@@ -964,7 +964,7 @@
    List_iterator<Alter_drop> drop_it(alter_info->drop_list);
    List_iterator<Create_field> def_it(alter_info->create_list);
    List_iterator<Alter_column> alter_it(alter_info->alter_list);
-@@ -5268,6 +5296,7 @@
+@@ -5273,6 +5301,7 @@
    uint used_fields= create_info->used_fields;
    KEY *key_info=table->key_info;
    bool rc= TRUE;
@@ -972,7 +972,7 @@
  
    DBUG_ENTER("mysql_prepare_alter_table");
  
-@@ -5457,7 +5486,26 @@
+@@ -5462,7 +5491,26 @@
    /*
      Collect all keys which isn't in drop list. Add only those
      for which some fields exists.
@@ -1000,7 +1000,7 @@
  
    for (uint i=0 ; i < table->s->keys ; i++,key_info++)
    {
-@@ -5574,6 +5622,8 @@
+@@ -5579,6 +5627,8 @@
                     test(key_info->flags & HA_GENERATED_KEY),
                     key_parts);
        new_key_list.push_back(key);
@@ -1009,7 +1009,7 @@
      }
    }
    {
-@@ -5581,7 +5631,21 @@
+@@ -5586,7 +5636,21 @@
      while ((key=key_it++))			// Add new keys
      {
        if (key->type != Key::FOREIGN_KEY)
@@ -1031,7 +1031,7 @@
        if (key->name.str &&
  	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
        {
-@@ -5630,12 +5694,104 @@
+@@ -5635,12 +5699,104 @@
    rc= FALSE;
    alter_info->create_list.swap(new_create_list);
    alter_info->key_list.swap(new_key_list);
@@ -1136,7 +1136,7 @@
    Alter table
  
    SYNOPSIS
-@@ -6428,19 +6584,38 @@
+@@ -6434,19 +6590,38 @@
    */
    if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
    {
@@ -1312,7 +1312,7 @@
  
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -556,6 +556,7 @@
+@@ -551,6 +551,7 @@
  
    double long_query_time_double;
  
@@ -1404,7 +1404,7 @@
   --expire-logs-days=# 
   If non-zero, binary logs will be purged after
   expire_logs_days days; possible purges happen at startup
-@@ -821,6 +825,7 @@
+@@ -823,6 +827,7 @@
  div-precision-increment 4
  engine-condition-pushdown TRUE
  event-scheduler OFF
@@ -1425,7 +1425,7 @@
   --expire-logs-days=# 
   If non-zero, binary logs will be purged after
   expire_logs_days days; possible purges happen at startup
-@@ -775,6 +779,7 @@
+@@ -777,6 +781,7 @@
  div-precision-increment 4
  engine-condition-pushdown TRUE
  event-scheduler OFF

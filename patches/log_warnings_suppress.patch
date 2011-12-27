@@ -41,7 +41,7 @@
    using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -4931,7 +4931,7 @@
+@@ -5024,7 +5024,7 @@
                            ER_BINLOG_UNSAFE_STATEMENT,
                            ER(ER_BINLOG_UNSAFE_STATEMENT),
                            ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
@@ -52,7 +52,7 @@
          sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -90,6 +90,7 @@
+@@ -87,6 +87,7 @@
    SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
    SLOG_F_FILESORT_DISK
  };
@@ -62,7 +62,7 @@
                              SLAVE_EXEC_MODE_LAST_BIT};
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -1493,6 +1493,15 @@
+@@ -1499,6 +1499,15 @@
         READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
         VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
  
@@ -178,7 +178,7 @@
   --long-query-time=# Log all queries that have taken more than long_query_time
   seconds to execute to file. The argument will be treated
   as a decimal value with microsecond precision
-@@ -863,6 +866,7 @@
+@@ -865,6 +868,7 @@
  log-tc tc.log
  log-tc-size 24576
  log-warnings 1

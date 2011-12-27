@@ -12,7 +12,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -1944,6 +1944,27 @@
+@@ -1979,6 +1979,27 @@
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
  	}
  
@@ -40,7 +40,7 @@
  	if (UNIV_UNLIKELY(!bpage->zip.data)) {
  		/* There is no compressed page. */
  err_exit:
-@@ -2452,6 +2473,27 @@
+@@ -2487,6 +2508,27 @@
  		block = (buf_block_t*) buf_page_hash_get_low(
  			buf_pool, space, offset, fold);
  		if (block) {
@@ -68,7 +68,7 @@
  			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
  			ut_a(block_mutex);
  		}
-@@ -3374,11 +3416,28 @@
+@@ -3409,11 +3451,28 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -97,7 +97,7 @@
  	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
  		/* The page is already in the buffer pool. */
  		watch_page = NULL;
-@@ -3509,6 +3568,7 @@
+@@ -3544,6 +3603,7 @@
  		bpage->state	= BUF_BLOCK_ZIP_PAGE;
  		bpage->space	= space;
  		bpage->offset	= offset;
@@ -105,7 +105,7 @@
  
  #ifdef UNIV_DEBUG
  		bpage->in_page_hash = FALSE;
-@@ -3593,6 +3653,7 @@
+@@ -3628,6 +3688,7 @@
  
  	fold = buf_page_address_fold(space, offset);
  
@@ -113,7 +113,7 @@
  	//buf_pool_mutex_enter(buf_pool);
  	mutex_enter(&buf_pool->LRU_list_mutex);
  	rw_lock_x_lock(&buf_pool->page_hash_latch);
-@@ -3600,6 +3661,21 @@
+@@ -3635,6 +3696,21 @@
  	block = (buf_block_t*) buf_page_hash_get_low(
  		buf_pool, space, offset, fold);
  
@@ -135,7 +135,7 @@
  	if (block
  	    && buf_page_in_file(&block->page)
  	    && !buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
-@@ -3953,8 +4029,11 @@
+@@ -3988,8 +4064,11 @@
  	}
  
  	if (io_type == BUF_IO_WRITE
@@ -308,7 +308,7 @@
  #endif
  	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
  
-@@ -4722,6 +4729,10 @@
+@@ -4731,6 +4738,10 @@
  	ulint		page_size;
  	ibool		success		= TRUE;
  
@@ -319,7 +319,7 @@
  	fil_mutex_enter_and_prepare_for_io(space_id);
  
  	space = fil_space_get_by_id(space_id);
-@@ -4733,6 +4744,7 @@
+@@ -4742,6 +4753,7 @@
  		*actual_size = space->size;
  
  		mutex_exit(&fil_system->mutex);
@@ -327,7 +327,7 @@
  
  		return(TRUE);
  	}
-@@ -4765,6 +4777,8 @@
+@@ -4774,6 +4786,8 @@
  		offset_low  = ((start_page_no - file_start_page_no)
  			       % (4096 * ((1024 * 1024) / page_size)))
  			* page_size;
@@ -336,7 +336,7 @@
  #ifdef UNIV_HOTBACKUP
  		success = os_file_write(node->name, node->handle, buf,
  					offset_low, offset_high,
-@@ -4774,8 +4788,10 @@
+@@ -4783,8 +4797,10 @@
  				 node->name, node->handle, buf,
  				 offset_low, offset_high,
  				 page_size * n_pages,
@@ -348,7 +348,7 @@
  		if (success) {
  			node->size += n_pages;
  			space->size += n_pages;
-@@ -4821,6 +4837,7 @@
+@@ -4830,6 +4846,7 @@
  	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
  	size_after_extend, *actual_size); */
  	mutex_exit(&fil_system->mutex);
@@ -356,7 +356,7 @@
  
  	fil_flush(space_id, TRUE);
  
-@@ -5183,6 +5200,22 @@
+@@ -5192,6 +5209,22 @@
  		srv_data_written+= len;
  	}
  
@@ -379,7 +379,7 @@
  	/* Reserve the fil_system mutex and make sure that we can open at
  	least one file while holding it, if the file is not already open */
  
-@@ -5324,10 +5357,24 @@
+@@ -5333,10 +5366,24 @@
  #else
  	/* Queue the aio request */
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
@@ -405,7 +405,7 @@
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5427,6 +5474,7 @@
+@@ -5436,6 +5483,7 @@
  	fil_node_t*	fil_node;
  	void*		message;
  	ulint		type;
@@ -413,7 +413,7 @@
  
  	ut_ad(fil_validate_skip());
  
-@@ -5434,10 +5482,10 @@
+@@ -5443,10 +5491,10 @@
  		srv_set_io_thread_op_info(segment, "native aio handle");
  #ifdef WIN_ASYNC_IO
  		ret = os_aio_windows_handle(segment, 0, &fil_node,
@@ -426,7 +426,7 @@
  #else
  		ut_error;
  		ret = 0; /* Eliminate compiler warning */
-@@ -5446,7 +5494,22 @@
+@@ -5455,7 +5503,22 @@
  		srv_set_io_thread_op_info(segment, "simulated aio handle");
  
  		ret = os_aio_simulated_handle(segment, &fil_node,
@@ -452,7 +452,7 @@
  	ut_a(ret);
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -12141,6 +12141,12 @@
+@@ -12150,6 +12150,12 @@
    "except for the deletion.",
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
@@ -465,7 +465,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(page_size),
    MYSQL_SYSVAR(log_block_size),
-@@ -12235,6 +12241,7 @@
+@@ -12244,6 +12250,7 @@
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
@@ -473,7 +473,7 @@
    NULL
  };
  
-@@ -12244,7 +12251,7 @@
+@@ -12253,7 +12260,7 @@
    &innobase_storage_engine,
    innobase_hton_name,
    plugin_author,

@@ -138,7 +138,7 @@
    DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -2180,6 +2180,12 @@
+@@ -2186,6 +2186,12 @@
         VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
         DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
  

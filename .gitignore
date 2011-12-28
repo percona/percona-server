@@ -26,6 +26,8 @@ ltmain.sh
 handlersocket/Makefile.plain
 handlersocket/*.spec
 libhsclient/*.spec
+client/hstest
+client/hsclient
 perl-Net-HandlerSocket/*.spec
 regtest/*/*.log
 regtest/*/*.log2

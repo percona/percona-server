@@ -26,7 +26,6 @@
 
 use strict;
 use Getopt::Long;
-use List::Util qw(min);
 
 # t=time, l=lock time, r=rows
 # at, al, and ar are the corresponding averages
@@ -90,17 +89,7 @@ warn "\nReading mysql slow query log from @ARGV\n";
 my @pending;
 my %stmt;
 $/ = ";\n#";		# read entire statements using paragraph mode
-# Read initial two paragraphs
-push @pending, scalar <> while @pending<2 && !eof();
-while (defined($_= shift @pending)) {
-    # Pending always should have 2 elements, while not eof
-    push @pending, scalar <> while @pending<2 && !eof();
-    # Check for ";\n# administrator command"
-    if ($pending[0] =~ / administrator command: /) {
-	# concatenate "... ;\n#" and " administrator command: ..."
-	$pending[0]= $_.$pending[0];
-	next;
-    }
+while ( defined($_ = shift @pending) or defined($_ = <>) ) {
     warn "[[$_]]\n" if $opt{d};	# show raw paragraph being read
 
     my @chunks = split /^\/.*Version.*started with[\000-\377]*?Time.*Id.*Command.*Argument.*\n/m;
@@ -110,35 +99,18 @@ while (defined($_= shift @pending)) {
 	next;
     }
 
-    s/^#? Time: \d{6}\s+\d+:\d+:\d+(.\d+)?\n//;
+    s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
     my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
 
-    s/^# Thread_id: \d+  Schema: \w+  Last_errno: \d+  Killed: \d+\n//;
-
-    s/^# Query_time: (\d+(\.\d+)?)  Lock_time: (\d+(\.\d+)?)  Rows_sent: (\d+)  Rows_examined: \d+  Rows_affected: \d+  Rows_read: \d+\n//;
+    s/^# Query_time: (\d+(\.\d+)?)  Lock_time: (\d+(\.\d+)?)  Rows_sent: (\d+(\.\d+)?).*\n//;
     my ($t, $l, $r)= ($1, $3, $5);
     $t -= $l unless $opt{l};
-    s/^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+\n//;
-
-    s/^# InnoDB_trx_id: [\w\d]+\n//;
-
-    s/^# QC_Hit: \S+  Full_scan: \S+  Full_join: \S+  Tmp_table: \S+  Tmp_table_on_disk: \S+\n//;
-
-    s/^# Filesort: \S+  Filesort_on_disk: \S+  Merge_passes: \S+\n//;
-
-    s/^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d+\.\d+\n//;
-
-    s/^#   InnoDB_rec_lock_wait: \d+\.\d+  InnoDB_queue_wait: \d+\.\d+\n//;
-
-    s/^#   InnoDB_pages_distinct: \d+\n//;
-
-    s/^# No InnoDB statistics available for this query\n//;
 
     # remove fluff that mysqld writes to log when it (re)starts:
     s!^/.*Version.*started with:.*\n!!mg;
     s!^Tcp port: \d+  Unix socket: \S+\n!!mg;
     s!^Time.*Id.*Command.*Argument.*\n!!mg;
-    
+
     s/^use \w+;\n//;	# not consistently added
     s/^SET timestamp=\d+;\n//;
 
@@ -149,9 +121,6 @@ while (defined($_= shift @pending)) {
     next if $opt{g} and !m/$opt{g}/io;
 
     unless ($opt{a}) {
-	s/# InnoDB_trx_id: [\w\d]+/# InnoDB_trx_id: N/g;
-        s/: Yes/: S/g;
-        s/: No/: S/g;
 	s/\b\d+\b/N/g;
 	s/\b0x[0-9A-Fa-f]+\b/N/g;
         s/''/'S'/g;
@@ -176,6 +145,7 @@ while (defined($_= shift @pending)) {
 
     warn "{{$_}}\n\n" if $opt{d};	# show processed statement string
 }
+
 foreach (keys %stmt) {
     my $v = $stmt{$_} || die;
     my ($c, $t, $l, $r) = @{ $v }{qw(c t l r)};
@@ -185,7 +155,7 @@ foreach (keys %stmt) {
 }
 
 my @sorted = sort { $stmt{$b}->{$opt{s}} <=> $stmt{$a}->{$opt{s}} } keys %stmt;
-@sorted = @sorted[0 .. (min($opt{t},scalar(@sorted)) - 1)] if $opt{t};
+@sorted = @sorted[0 .. $opt{t}-1] if $opt{t};
 @sorted = reverse @sorted         if $opt{r};
 
 foreach (@sorted) {

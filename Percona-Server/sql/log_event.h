@@ -340,8 +340,6 @@ struct sql_ex_info
 
 #ifndef DBUG_OFF
 #define Q_QUERY_EXEC_TIME 250
-#define Q_SLOW_QUERY_LOG_QUERY_TIME 251
-#define Q_SLOW_QUERY_LOG_LOCK_TIME 252
 #endif
 
 /* Intvar event post-header */

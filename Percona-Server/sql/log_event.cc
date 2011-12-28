@@ -2371,20 +2371,8 @@ bool Query_log_event::write(IO_CACHE* file)
 #ifndef DBUG_OFF
   if (thd && thd->variables.query_exec_time > 0)
   {
-    *start++= Q_QUERY_EXEC_TIME;
+    *start++= Q_QUERY_EXEC_TIME;;
     int8store(start, thd->variables.query_exec_time);
-    start+= 8;
-  }
-  if (thd && thd->variables.slow_query_log_query_time > 0)
-  {
-    *start++= Q_SLOW_QUERY_LOG_QUERY_TIME;
-    int8store(start, thd->variables.slow_query_log_query_time);
-    start+= 8;
-  }
-  if (thd && thd->variables.slow_query_log_lock_time > 0)
-  {
-    *start++= Q_SLOW_QUERY_LOG_LOCK_TIME;
-    int8store(start, thd->variables.slow_query_log_lock_time);
     start+= 8;
   }
 #endif
@@ -2825,24 +2813,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, 8);
       if (thd)
         thd->variables.query_exec_time= uint8korr(pos);
-      pos+= 8;
-      break;
-    }
-    case Q_SLOW_QUERY_LOG_QUERY_TIME:
-    {
-      THD *thd= current_thd;
-      CHECK_SPACE(pos, end, 8);
-      if (thd)
-        thd->variables.slow_query_log_query_time= uint8korr(pos);
-      pos+= 8;
-      break;
-    }
-    case Q_SLOW_QUERY_LOG_LOCK_TIME:
-    {
-      THD *thd= current_thd;
-      CHECK_SPACE(pos, end, 8);
-      if (thd)
-        thd->variables.slow_query_log_lock_time= uint8korr(pos);
       pos+= 8;
       break;
     }

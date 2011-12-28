@@ -3124,8 +3124,11 @@ fil_open_single_table_tablespace(
 					accessing the first page of the file */
 	ulint		id,		/*!< in: space id */
 	ulint		flags,		/*!< in: tablespace flags */
-	const char*	name)		/*!< in: table name in the
+	const char*	name,		/*!< in: table name in the
 					databasename/tablename format */
+	trx_t*		trx)		/*!< in: transaction. This is only used
+					for IMPORT TABLESPACE, must be NULL
+					otherwise */
 {
 	os_file_t	file;
 	char*		filepath;
@@ -3342,6 +3345,11 @@ skip_info:
 			/* over write space id of all pages */
 			rec_offs_init(offsets_);
 
+			/* Unlock the data dictionary to not block queries
+			accessing other tables */
+			ut_a(trx);
+			row_mysql_unlock_data_dictionary(trx);
+
 			fprintf(stderr, "InnoDB: Progress in %%:");
 
 			for (offset = 0; offset < free_limit_bytes;
@@ -3542,6 +3550,9 @@ skip_write:
 			}
 
 			fprintf(stderr, " done.\n");
+
+			/* Reacquire the data dictionary lock */
+			row_mysql_lock_data_dictionary(trx);
 
 			/* update SYS_INDEXES set root page */
 			index = dict_table_get_first_index(table);

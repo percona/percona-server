@@ -8580,10 +8580,10 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
        left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->clone_item();
-    tmp->collation.set(right_item->collation);
     
     if (tmp)
     {
+      tmp->collation.set(right_item->collation);
       thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
@@ -8604,10 +8604,10 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
             right_item->collation.collation == value->collation.collation))
   {
     Item *tmp= value->clone_item();
-    tmp->collation.set(left_item->collation);
     
     if (tmp)
     {
+      tmp->collation.set(left_item->collation);
       thd->change_item_tree(args, tmp);
       value= tmp;
       func->update_used_tables();

@@ -48,30 +48,32 @@ misc:
 clean:
 	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
 
-test-qp-crashme:
+test-crashme:
 	cd $(KEWPIE) && ./kewpie.py --suite=crashme --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
-test-qp-sqlbench:
+test-sqlbench:
         cd $(KEWPIE) && ./kewpie.py --suite=sqlbench --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
-test-qp-randgen:
+test-randgen:
 	cd $(KEWPIE) && ./kewpie.py --suite=randgen_basic --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
-test-qp-randgen-bugs:
+test-randgen-bugs:
 	cd $(KEWPIE) && ./kewpie.py --suite=randgen_bugs --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
-test-qp-cluster:
+test-cluster:
 	cd $(KEWPIE) && ./kewpie.py --suite=cluster_basic,cluster_randgen --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
-test-qp-cluster-basic:
+test-cluster-basic:
 	cd $(KEWPIE) && ./kewpie.py --suite=cluster_basic --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
-test-qp-cluster-randgen:
+test-cluster-randgen:
 	cd $(KEWPIE) && ./kewpie.py --suite=cluster_randgen --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
-test-qp-cluster-bugs:
+test-cluster-bugs:
 	cd $(KEWPIE) && ./kewpie.py --suite=cluster_bugs --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
+test-innodb-crash:
+	cd $(KEWPIE) && ./kewpie.py --suite=innodbCrash --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
 
 

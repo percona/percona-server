@@ -2708,7 +2708,7 @@ row_import_tablespace_for_mysql(
 	success = fil_open_single_table_tablespace(
 		TRUE, table->space,
 		table->flags == DICT_TF_COMPACT ? 0 : table->flags,
-		table->name);
+		table->name, trx);
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;

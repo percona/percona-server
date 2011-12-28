@@ -1,0 +1,128 @@
+'\" t
+.\"     Title: \fBndb_drop_index\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 10/26/2011
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBNDB_DROP_INDEX\FR" "1" "10/26/2011" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" ndb_drop_index
+.SH "NAME"
+ndb_drop_index \- drop index from an NDB table
+.SH "SYNOPSIS"
+.HP \w'\fBndb_drop_index\ \fR\fB\fIoptions\fR\fR\ 'u
+\fBndb_drop_index \fR\fB\fIoptions\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBndb_drop_index\fR
+drops the specified index from an
+NDB
+table\&.
+\fIIt is recommended that you use this utility only as an example for writing NDB API applications\fR\(emsee the Warning later in this section for details\&.
+          Usage
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndb_drop_index \-c \fIconnect_string\fR \fItable_name\fR \fIindex\fR \-d \fIdb_name\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The statement shown above drops the index named
+\fIindex\fR
+from the
+\fItable\fR
+in the
+\fIdatabase\fR\&.
+          Additional Options
+        .PP
+None that are specific to this application\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.PP
+\fIOperations performed on Cluster table indexes using the NDB API are not visible to MySQL and make the table unusable by a MySQL server\fR\&. If you use this program to drop an index, then try to access the table from an SQL node, an error results, as shown here:
+.sp .5v
+.RE
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fB\&./ndb_drop_index \-c localhost dogs ix \-d ctest1\fR
+Dropping index dogs/idx\&.\&.\&.OK
+NDBT_ProgramExit: 0 \- OK
+shell> \fB\&./mysql \-u jon \-p ctest1\fR
+Enter password: *******
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with \-A
+Welcome to the MySQL monitor\&.  Commands end with ; or \eg\&.
+Your MySQL connection id is 7 to server version: 5\&.1\&.56\-ndb\-7\&.1\&.17
+Type \'help;\' or \'\eh\' for help\&. Type \'\ec\' to clear the buffer\&.
+mysql> \fBSHOW TABLES;\fR
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| Tables_in_ctest1 |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| a                |
+| bt1              |
+| bt2              |
+| dogs             |
+| employees        |
+| fish             |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+6 rows in set (0\&.00 sec)
+mysql> \fBSELECT * FROM dogs;\fR
+ERROR 1296 (HY000): Got error 4243 \'Index not found\' from NDBCLUSTER
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+In such a case, your
+\fIonly\fR
+option for making the table available to MySQL again is to drop the table and re\-create it\&. You can use either the SQL statementDROP TABLE
+or the
+\fBndb_drop_table\fR
+utility (see
+\fBndb_drop_table\fR(1)) to drop the table\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

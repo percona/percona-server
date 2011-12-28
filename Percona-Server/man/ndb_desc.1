@@ -1,0 +1,321 @@
+'\" t
+.\"     Title: \fBndb_desc\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 10/26/2011
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBNDB_DESC\FR" "1" "10/26/2011" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" ndb_desc
+.SH "NAME"
+ndb_desc \- describe NDB tables
+.SH "SYNOPSIS"
+.HP \w'\fBndb_desc\ \fR\fB\fIoptions\fR\fR\ 'u
+\fBndb_desc \fR\fB\fIoptions\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBndb_desc\fR
+provides a detailed description of one or more
+NDB
+tables\&.
+          Usage
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndb_desc \-c \fIconnect_string\fR \fItbl_name\fR \-d \fIdb_name\fR [\-p]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+          Sample Output
+        .PP
+MySQL table creation and population statements:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+USE test;
+CREATE TABLE fish (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    name VARCHAR(20) NOT NULL,
+    length_mm INT(11) NOT NULL,
+    weight_gm INT(11) NOT NULL,
+    PRIMARY KEY pk (id),
+    UNIQUE KEY uk (name)
+) ENGINE=NDB;
+INSERT INTO fish VALUES
+    (\'\',\'guppy\', 35, 2), (\'\',\'tuna\', 2500, 150000),
+    (\'\',\'shark\', 3000, 110000), (\'\',\'manta ray\', 1500, 50000),
+    (\'\',\'grouper\', 900, 125000), (\'\',\'puffer\', 250, 2500);
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Output from
+\fBndb_desc\fR:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+\-\- fish \-\-
+Version: 2
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: 311
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+\-\- Attributes \-\-
+id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+length_mm Int NOT NULL AT=FIXED ST=MEMORY
+weight_gm Int NOT NULL AT=FIXED ST=MEMORY
+\-\- Indexes \-\-
+PRIMARY KEY(id) \- UniqueHashIndex
+PRIMARY(id) \- OrderedIndex
+uk$unique(name) \- UniqueHashIndex
+uk(name) \- OrderedIndex
+\-\- Per partition info \-\-
+Partition  Row count  Commit count  Frag fixed memory  Frag varsized memory  Extent_space  Free extent_space
+0          2          2             32768              32768                 0             0
+1          4          4             32768              32768                 0             0
+NDBT_ProgramExit: 0 \- OK
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Information about multiple tables can be obtained in a single invocation of
+\fBndb_desc\fR
+by using their names, separated by spaces\&. All of the tables must be in the same database\&.
+.PP
+The
+Extent_space
+and
+Free extent_space
+columns were added in MySQL Cluster NDB 6\&.3\&.27 and MySQL Cluster NDB 7\&.0\&.8\&. They are applicable only to
+NDB
+tables having columns on disk; for tables having only in\-memory columns, these columns always contain the value
+0\&.
+.PP
+To illustrate their use, we modify the previous example\&. First, we must create the necessary Disk Data objects, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+CREATE LOGFILE GROUP lg_1
+    ADD UNDOFILE \'undo_1\&.log\'
+    INITIAL_SIZE 16M
+    UNDO_BUFFER_SIZE 2M
+    ENGINE NDB;
+ALTER LOGFILE GROUP lg_1
+    ADD UNDOFILE \'undo_2\&.log\'
+    INITIAL_SIZE 12M
+    ENGINE NDB;
+CREATE TABLESPACE ts_1
+    ADD DATAFILE \'data_1\&.dat\'
+    USE LOGFILE GROUP lg_1
+    INITIAL_SIZE 32M
+    ENGINE NDB;
+ALTER TABLESPACE ts_1
+    ADD DATAFILE \'data_2\&.dat\'
+    INITIAL_SIZE 48M
+    ENGINE NDB;
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+(For more information on the statements just shown and the objects created by them, see
+Section\ \&16.5.11.1, \(lqMySQL Cluster Disk Data Objects\(rq, as well as
+Section\ \&12.1.14, \(lqCREATE LOGFILE GROUP Syntax\(rq, and
+Section\ \&12.1.18, \(lqCREATE TABLESPACE Syntax\(rq\&.)
+.PP
+Now we can create and populate a version of the
+fish
+table that stores 2 of its columns on disk (deleting the previous version of the table first, if it already exists):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+CREATE TABLE fish (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    name VARCHAR(20) NOT NULL,
+    length_mm INT(11) NOT NULL,
+    weight_gm INT(11) NOT NULL,
+    PRIMARY KEY pk (id),
+    UNIQUE KEY uk (name)
+) TABLESPACE ts_1 STORAGE DISK 
+ENGINE=NDB;
+INSERT INTO fish VALUES
+    (\'\',\'guppy\', 35, 2), (\'\',\'tuna\', 2500, 150000),
+    (\'\',\'shark\', 3000, 110000), (\'\',\'manta ray\', 1500, 50000),
+    (\'\',\'grouper\', 900, 125000), (\'\',\'puffer\', 250, 2500);
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+When run against this version of the table,
+\fBndb_desc\fR
+displays the following output:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fB\&./ndb_desc \-c localhost fish \-d test \-p\fR
+\-\- fish \-\-
+Version: 3
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: 321
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+\-\- Attributes \-\-
+id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+length_mm Int NOT NULL AT=FIXED ST=DISK
+weight_gm Int NOT NULL AT=FIXED ST=DISK
+\-\- Indexes \-\-
+PRIMARY KEY(id) \- UniqueHashIndex
+PRIMARY(id) \- OrderedIndex
+uk$unique(name) \- UniqueHashIndex
+uk(name) \- OrderedIndex
+\-\- Per partition info \-\-
+Partition  Row count  Commit count  Frag fixed memory  Frag varsized memory  Extent_space  Free extent_space
+0          2          2             32768              32768                 1048576       1044440
+1          4          4             32768              32768                 1048576       1044400
+NDBT_ProgramExit: 0 \- OK
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+This means that 1048576 bytes are allocated from the tablespace for this table on each partition, of which 1044440 bytes remain free for additional storage\&. In other words, 1048576 \- 1044440 = 4136 bytes per partition is currently being used to store the data from this table\'s disk\-based columns\&. The number of bytes shown as
+Free extent_space
+is available for storing on\-disk column data from the
+fish
+table only; for this reason, it is not visible when selecting from the
+INFORMATION_SCHEMA\&.FILES
+table\&.
+          Additional Options
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: extra-partition-info option
+.\" extra-partition-info option: ndb_desc
+\fB\-\-extra\-partition\-info\fR,
+\fB\-p\fR
+.sp
+Print additional information about the table\'s partitions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: blob-info option
+.\" blob-info option: ndb_desc
+\fB\-\-blob\-info\fR,
+\fB\-b\fR
+.sp
+Include information about subordinate
+BLOB
+and
+TEXT
+columns\&.
+.sp
+Use of this option also requires the use of the
+\fB\-\-extra\-partition\-info\fR
+(\fB\-p\fR) option\&.
+.sp
+This option was added in MySQL Cluster NDB 6\&.3\&.32, MySQL Cluster NDB 7\&.0\&.13, and MySQL Cluster NDB 7\&.1\&.2\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: extra-node-info option
+.\" extra-node-info option: ndb_desc
+\fB\-\-extra\-node\-info\fR,
+\fB\-n\fR
+.sp
+Include information about the mappings between table partitions and the data nodes upon which they reside\&. This information can be useful for verifying distribution awareness mechanisms and supporting more efficient application access to the data stored in MySQL Cluster\&.
+.sp
+Use of this option also requires the use of the
+\fB\-\-extra\-partition\-info\fR
+(\fB\-p\fR) option\&.
+.sp
+This option was added in MySQL Cluster NDB 6\&.2\&.19, MySQL Cluster NDB 6\&.3\&.33, MySQL Cluster NDB 7\&.0\&.14, and MySQL Cluster NDB 7\&.1\&.2\&.
+.RE
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

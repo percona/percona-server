@@ -68,12 +68,15 @@ PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= "$SOURCEDIR/Makefile" | 
 PRODUCT="Percona-Server-$MYSQL_VERSION"
 DEBIAN_VERSION="$(lsb_release -sc)"
 
-
 # Build information
 export BB_PERCONA_REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 export DEB_BUILD_OPTIONS='nostrip debug nocheck'
 export MYSQL_BUILD_CC='gcc'
 export MYSQL_BUILD_CXX='gcc'
+export HS_CXX=${HS_CXX:-g++}
+export UDF_CXX=${UDF_CXX:-g++}
+export MYSQL_BUILD_CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+export MYSQL_BUILD_CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
 
 # Prepare sources
 (

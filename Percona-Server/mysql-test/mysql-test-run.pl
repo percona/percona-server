@@ -2075,6 +2075,7 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'master-port'} || 3306;
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  $ENV{'MYSQLDUMPSLOW'}=      mtr_script_exists("$basedir/scripts/mysqldumpslow");
   
   if (IS_WINDOWS)
   {

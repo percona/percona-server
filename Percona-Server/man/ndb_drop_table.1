@@ -1,0 +1,70 @@
+'\" t
+.\"     Title: \fBndb_drop_table\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
+.\"      Date: 10/26/2011
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 5.1
+.\"  Language: English
+.\"
+.TH "\FBNDB_DROP_TABLE\FR" "1" "10/26/2011" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.\" ndb_drop_table
+.SH "NAME"
+ndb_drop_table \- drop an NDB table
+.SH "SYNOPSIS"
+.HP \w'\fBndb_drop_table\ \fR\fB\fIoptions\fR\fR\ 'u
+\fBndb_drop_table \fR\fB\fIoptions\fR\fR
+.SH "DESCRIPTION"
+.PP
+\fBndb_drop_table\fR
+drops the specified
+NDB
+table\&. (If you try to use this on a table created with a storage engine other than
+NDB, the attempt fails with the error
+723: No such table exists\&.) This operation is extremely fast; in some cases, it can be an order of magnitude faster than using a MySQL
+DROP TABLE
+statement on an
+NDB
+table\&.
+          Usage
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndb_drop_table \-c \fIconnect_string\fR \fItbl_name\fR \-d \fIdb_name\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+          Additional Options
+        .PP
+None\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

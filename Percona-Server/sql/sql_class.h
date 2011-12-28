@@ -413,6 +413,8 @@ struct system_variables
 
 #ifndef DBUG_OFF
   ulonglong query_exec_time;
+  ulonglong slow_query_log_query_time;
+  ulonglong slow_query_log_lock_time;
 #endif
   ulong log_slow_rate_limit;
   ulong log_slow_filter;

@@ -1025,6 +1025,12 @@ static sys_var_bool_ptr       sys_slow_query_log_microseconds_timestamp(&vars, "
 static sys_var_microseconds sys_var_query_exec_time(&vars, "query_exec_time",
                                                     &SV::query_exec_time,
                                                     sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_microseconds sys_var_slow_query_log_query_time(&vars, "slow_query_log_query_time",
+                                                    &SV::slow_query_log_query_time,
+                                                    sys_var::SESSION_VARIABLE_IN_BINLOG);
+static sys_var_microseconds sys_var_slow_query_log_lock_time(&vars, "slow_query_log_lock_time",
+                                                    &SV::slow_query_log_lock_time,
+                                                    sys_var::SESSION_VARIABLE_IN_BINLOG);
 #endif
 #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
 static sys_var_bool_ptr

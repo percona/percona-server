@@ -453,7 +453,11 @@ static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static I_List<THD> thread_cache;
 static double long_query_time;
+#ifndef DBUG_OFF
 static double query_exec_time;
+static double slow_query_log_query_time;
+static double slow_query_log_lock_time;
+#endif /* DBUG_OFF */
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 
@@ -6038,6 +6042,10 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_QUERY_EXEC_TIME,
+#ifndef DBUG_OFF
+  OPT_SLOW_QUERY_LOG_QUERY_TIME,
+  OPT_SLOW_QUERY_LOG_LOCK_TIME,
+#endif /* DBUG_OFF */
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
   OPT_LOG_SLOW_RATE_LIMIT,
   OPT_LOG_SLOW_VERBOSITY,
@@ -7402,6 +7410,18 @@ thread is in the relay logs.",
    "Pretend queries take this many seconds. When 0 (the default) use the "
    "actual execution time. Used only for debugging.",
    &query_exec_time, &query_exec_time, 0, GET_DOUBLE,
+   REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
+  {"slow_query_log_query_time", OPT_SLOW_QUERY_LOG_QUERY_TIME,
+   "A value to replace the Query_time values "
+   "in the slow query log. "
+   "When 0 (the default) does nothing. Used only for debugging.",
+   &slow_query_log_query_time, &slow_query_log_query_time, 0, GET_DOUBLE,
+   REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
+  {"slow_query_log_lock_time", OPT_SLOW_QUERY_LOG_LOCK_TIME,
+   "A value to replace the Lock_time values "
+   "in the slow query log. "
+   "When 0 (the default) does nothing. Used only for debugging.",
+   &slow_query_log_lock_time, &slow_query_log_lock_time, 0, GET_DOUBLE,
    REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
 #endif
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,

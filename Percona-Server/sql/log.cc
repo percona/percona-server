@@ -995,8 +995,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
 
   if (*slow_log_handler_list)
   {
-    time_t current_time;
-
     /* do not log slow queries from replication threads */
     if (thd->slave_thread && !opt_log_slow_slave_statements)
       return 0;
@@ -1016,7 +1014,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
                              sctx->ip ? sctx->ip : "", "]", NullS) -
                     user_host_buff);
 
-    current_time= my_time_possible_from_micro(current_utime);
     if (thd->start_utime)
     {
       if(current_utime < thd->start_utime)

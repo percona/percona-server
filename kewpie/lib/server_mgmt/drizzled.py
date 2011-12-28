@@ -93,9 +93,17 @@ class drizzleServer(Server):
         self.logdir = os.path.join(self.vardir,'log')
         self.datadir = os.path.join(self.vardir,'master-data')
 
-        self.error_log = os.path.join(self.logdir,('%s.err' %(self.name)))
+        self.error_log = os.path.join(self.logdir,'error.log')
         self.pid_file = os.path.join(self.rundir,('%s.pid' %(self.name)))
         self.socket_file = os.path.join(self.vardir, ('%s.sock' %(self.name)))
+        if len(self.socket_file) > 107:
+            # MySQL has a limitation of 107 characters for socket file path
+            # we copy the mtr workaround of creating one in /tmp
+            self.logging.verbose("Default socket file path: %s" %(self.socket_file))
+            self.socket_file = "/tmp/%s_%s.%s.sock" %(self.system_manager.uuid
+                                                    ,self.owner
+                                                    ,self.name)
+            self.logging.verbose("Changing to alternate: %s" %(self.socket_file))
         self.timer_file = os.path.join(self.logdir,('timer'))
 
         # Do magic to create a config file for use with the slave

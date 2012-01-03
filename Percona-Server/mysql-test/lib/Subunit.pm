@@ -84,7 +84,7 @@ sub report_time($)
 	my ($time) = @_;
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime($time);
         open(SUBUNITOUT, ">>$SUBUNIT_OUT");
-	printf SUBUNITOUT "time: %04d-%02d-%02d %02d:%02d:%02dZ\n", $year+1900, $mon, $mday, $hour, $min, $sec;
+	printf SUBUNITOUT "time: %04d-%02d-%02d %02d:%02d:%02dZ\n", $year+1900, ($mon+1), $mday, $hour, $min, $sec;
         close(SUBUNITOUT);
         return;
 }

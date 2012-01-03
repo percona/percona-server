@@ -52,7 +52,7 @@ test-crashme:
 	cd $(KEWPIE) && ./kewpie.py --suite=crashme --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
 test-sqlbench:
-        cd $(KEWPIE) && ./kewpie.py --suite=sqlbench --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
+	cd $(KEWPIE) && ./kewpie.py --suite=sqlbench --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)
 
 test-randgen:
 	cd $(KEWPIE) && ./kewpie.py --suite=randgen_basic --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)

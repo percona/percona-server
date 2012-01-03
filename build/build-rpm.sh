@@ -84,6 +84,17 @@ else
 
 fi
 
+# If we're in 32 bits, ensure that we're compiling for i686.
+if test "x$TARGET" == "x"
+then
+    if test "x$(uname -m)" != "xx86_64"
+    then
+        TARGET='--target i686'
+        TARGET_CFLAGS='-m32 -march=i686'
+    fi
+
+fi
+
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
 test -e "$SOURCEDIR/Makefile" || exit 2
 
@@ -104,8 +115,8 @@ export CC=${CC:-gcc}
 export CXX=${CXX:-gcc}
 export HS_CXX=${HS_CXX:-g++}
 export UDF_CXX=${UDF_CXX:-g++}
-export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer $TARGET_CFLAGS ${CFLAGS:-}"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions $TARGET_CFLAGS ${CXXFLAGS:-}"
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
 
 # Create directories for rpmbuild if these don't exist

@@ -10,9 +10,7 @@ Ready-to-use binaries are available from the |Percona Server| `download page <ht
 
  * ``RPM`` packages for *RHEL* 5 and *RHEL* 6
 
- * *Debian* packages
-
- * *FreeBSD* ``.tbz`` packages
+ * *Debian* packages for *Debian* and *Ubuntu*
 
 .. * *Microsoft Windows* binaries
 

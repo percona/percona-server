@@ -34,7 +34,11 @@
  
  	/* We know that the writes have been flushed to disk now
  	and in recovery we will find them in the doublewrite buffer
-@@ -1378,7 +1378,7 @@
+@@ -1375,10 +1375,11 @@
+ 	ulint		high;
+ 	ulint		count = 0;
+ 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
++	ibool		is_forward_scan;
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -43,6 +47,76 @@
  		/* If there is little space, it is better not to flush
  		any block except from the end of the LRU list */
  
+@@ -1405,7 +1406,32 @@
+ 		high = fil_space_get_size(space);
+ 	}
+ 
+-	for (i = low; i < high; i++) {
++	if (srv_flush_neighbor_pages == 2) {
++
++		/* In the case of contiguous flush where the requested page
++		does not fall at the start of flush area, first scan backward
++		from the page and later forward from it. */
++		is_forward_scan = (offset == low);
++	}
++	else {
++		is_forward_scan = TRUE;
++	}
++
++scan:
++	if (srv_flush_neighbor_pages == 2) {
++		if (is_forward_scan) {
++			i = offset;
++		}
++		else {
++			i = offset - 1;
++		}
++	}
++	else {
++		i = low;
++	}
++
++	for (; is_forward_scan ? (i < high) : (i >= low);
++	     is_forward_scan ? i++ : i--) {
+ 
+ 		buf_page_t*	bpage;
+ 
+@@ -1434,6 +1460,12 @@
+ 		if (!bpage) {
+ 
+ 			buf_pool_mutex_exit(buf_pool);
++			if (srv_flush_neighbor_pages == 2) {
++
++				/* This is contiguous neighbor page flush and
++				the pages here are not contiguous. */
++				break;
++			}
+ 			continue;
+ 		}
+ 
+@@ -1470,6 +1502,22 @@
+ 			}
+ 		}
+ 		buf_pool_mutex_exit(buf_pool);
++
++		if (srv_flush_neighbor_pages == 2) {
++
++			/* We are trying to do the contiguous neighbor page
++			flush, but the last page we checked was unflushable,
++			making a "hole" in the flush, so stop this attempt. */
++			break;
++		}
++	}
++
++	if (!is_forward_scan) {
++
++		/* Backward scan done, now do the forward scan */
++		ut_a (srv_flush_neighbor_pages == 2);
++		is_forward_scan = TRUE;
++		goto scan;
+ 	}
+ 
+ 	return(count);
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
 @@ -427,6 +427,10 @@
@@ -218,7 +292,7 @@
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11442,6 +11468,95 @@
+@@ -11442,6 +11468,127 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -242,10 +316,42 @@
 +  "Control soft limit of checkpoint age. (0 : not control)",
 +  NULL, NULL, 0, 0, ~0UL, 0);
 +
-+static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
-+  PLUGIN_VAR_RQCMDARG,
-+  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
-+  NULL, NULL, 1, 0, 1, 0);
++static
++void
++innodb_flush_neighbor_pages_update(
++  THD* thd,
++  struct st_mysql_sys_var* var,
++  void* var_ptr,
++  const void* save)
++{
++  *(long *)var_ptr = (*(long *)save) % 3;
++}
++
++const char *flush_neighbor_pages_names[]=
++{
++  "none", /* 0 */
++  "area",
++  "cont", /* 2 */
++  /* For compatibility with the older patch */
++  "0", /* "none" + 3 */
++  "1", /* "area" + 3 */
++  "2", /* "cont" + 3 */
++  NullS
++};
++
++TYPELIB flush_neighbor_pages_typelib=
++{
++  array_elements(flush_neighbor_pages_names) - 1,
++  "flush_neighbor_pages_typelib",
++  flush_neighbor_pages_names,
++  NULL
++};
++
++static MYSQL_SYSVAR_ENUM(flush_neighbor_pages, srv_flush_neighbor_pages,
++  PLUGIN_VAR_RQCMDARG, "Neighbor page flushing behaviour: none: do not flush, "
++                       "[area]: flush selected pages one-by-one, "
++                       "cont: flush a contiguous block of pages", NULL,
++  innodb_flush_neighbor_pages_update, 1, &flush_neighbor_pages_typelib);
 +
 +static
 +void
@@ -314,7 +420,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11462,6 +11577,7 @@
+@@ -11462,6 +11609,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -322,7 +428,7 @@
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(large_prefix),
-@@ -11501,6 +11617,13 @@
+@@ -11501,6 +11649,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -862,7 +968,7 @@
 +#define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
 +
 +UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
-+UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
++UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:area 2:contiguous */
 +
 +UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
 +UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
@@ -1449,3 +1555,68 @@
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
  variable_value
  16384
+--- /dev/null
++++ b/mysql-test/suite/innodb/r/percona_flush_contiguous_neighbors.result
+@@ -0,0 +1,21 @@
++DROP TABLE IF EXISTS t1;
++CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
++INSERT INTO t1(foo) VALUES ('a'), ('b');
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/suite/innodb/t/percona_flush_contiguous_neighbors-master.opt
+@@ -0,0 +1 @@
++--innodb_flush_neighbor_pages=contiguous
+--- /dev/null
++++ b/mysql-test/suite/innodb/t/percona_flush_contiguous_neighbors.test
+@@ -0,0 +1,34 @@
++# Test for innodb_flush_neighbor_pages=contiguous.
++# The test is very crude: we simply overflow the buffer pool with such a number of
++# new/modified pages that some flushing is bound to happen.
++
++--disable_warnings
++DROP TABLE IF EXISTS t1;
++--enable_warnings
++
++CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
++
++INSERT INTO t1(foo) VALUES ('a'), ('b');
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++
++# TODO: cannot record a stable value here.  A check of > 0 should be enough,
++# but the variable is not accessible through INFORMATION_SCHEMA currently.
++# SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_pages_flushed';
++
++DROP TABLE t1;

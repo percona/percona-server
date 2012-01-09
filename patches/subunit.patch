@@ -189,7 +189,15 @@
  
  require "lib/mtr_process.pl";
  require "lib/mtr_io.pl";
-@@ -630,6 +631,7 @@
+@@ -291,6 +292,7 @@
+ my $opt_valgrind_path;
+ my $valgrind_reports= 0;
+ my $opt_callgrind;
++my $opt_helgrind;
+ my %mysqld_logs;
+ my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
+ 
+@@ -630,6 +632,7 @@
  
  	  # Report test status
  	  mtr_report_test($result);
@@ -197,3 +205,42 @@
  
  	  if ( $result->is_failed() ) {
  
+@@ -1142,6 +1145,7 @@
+              'valgrind-option=s'        => \@valgrind_args,
+              'valgrind-path=s'          => \$opt_valgrind_path,
+ 	     'callgrind'                => \$opt_callgrind,
++             'helgrind'                 => \$opt_helgrind,
+ 	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
+ 
+ 	     # Directories
+@@ -1703,11 +1707,18 @@
+       unless @valgrind_args;
+   }
+ 
++  if ( $opt_helgrind )
++  {
++    mtr_report("Turning on valgrind with helgrind for mysqld(s)");
++    $opt_valgrind= 1;
++    $opt_valgrind_mysqld= 1;
++  }
++
+   if ( $opt_valgrind )
+   {
+     # Set valgrind_options to default unless already defined
+     push(@valgrind_args, @default_valgrind_args)
+-      unless @valgrind_args;
++      unless @valgrind_args || $opt_helgrind;
+ 
+     # Don't add --quiet; you will loose the summary reports.
+ 
+@@ -5796,6 +5807,10 @@
+     mtr_add_arg($args, "--tool=callgrind");
+     mtr_add_arg($args, "--base=$opt_vardir/log");
+   }
++  elsif ( $opt_helgrind )
++  {
++    mtr_add_arg($args, "--tool=helgrind");
++  }
+   else
+   {
+     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option

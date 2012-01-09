@@ -24,11 +24,8 @@ Remember to update the local cache: ::
 Supported Platforms
 ===================
 
- * ``x86_64`` (also known as ``amd64``)
-
- * ``i386``
-
- * ``i686``
+ * x86
+ * x86_64 (also known as ``amd64``)
 
 Supported Releases
 ==================
@@ -36,21 +33,15 @@ Supported Releases
 Debian
 ------
 
- * ``lenny``
-
- * ``squeeze``
+ * 5.0 (lenny)
+ * 6.0 (squeeze)
 
 Ubuntu
 ------
 
- * ``hardy``
-
- * ``lucid``
-
- * ``maverick``
-
-
-.. note:: ``natty`` users should use ``maverick`` in :file:`/etc/apt/sources.list`.
+ * 10.04LTS (lucid)
+ * 11.04 (natty)
+ * 11.10 (oneiric)
 
 
 Release Candidate Repository

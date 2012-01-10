@@ -884,7 +884,7 @@
  #endif /* !UNIV_HOTBACKUP */
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -7423,6 +7423,14 @@
+@@ -7422,6 +7422,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
  		err = row_import_tablespace_for_mysql(dict_table->name, trx);
@@ -899,7 +899,7 @@
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11772,6 +11780,11 @@
+@@ -11781,6 +11789,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -911,7 +911,7 @@
  static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
    PLUGIN_VAR_RQCMDARG,
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
-@@ -11846,6 +11859,7 @@
+@@ -11855,6 +11868,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),

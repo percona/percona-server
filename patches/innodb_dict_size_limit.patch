@@ -377,7 +377,7 @@
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11765,6 +11767,11 @@
+@@ -11774,6 +11776,11 @@
    "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
    NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
  
@@ -389,7 +389,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11834,6 +11841,7 @@
+@@ -11843,6 +11850,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -399,7 +399,7 @@
    MYSQL_SYSVAR(change_buffering),
 --- a/storage/innobase/ibuf/ibuf0ibuf.c
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c
-@@ -566,6 +566,7 @@
+@@ -575,6 +575,7 @@
  
  	/* Use old-style record format for the insert buffer. */
  	table = dict_mem_table_create(IBUF_TABLE_NAME, IBUF_SPACE_ID, 1, 0);

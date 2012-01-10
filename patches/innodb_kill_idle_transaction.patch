@@ -114,7 +114,7 @@
  #ifdef HAVE_PSI_INTERFACE
  	/* Register keys with MySQL performance schema */
  	if (PSI_server) {
-@@ -11686,6 +11690,57 @@
+@@ -11695,6 +11699,57 @@
  	return(false);
  }
  
@@ -172,7 +172,7 @@
  static SHOW_VAR innodb_status_variables_export[]= {
    {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
    {NullS, NullS, SHOW_LONG}
-@@ -11977,6 +12032,15 @@
+@@ -11986,6 +12041,15 @@
    "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
    NULL, NULL, 500L, 1L, ~0L, 0);
  
@@ -188,7 +188,7 @@
  static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
    "Number of file I/O threads in InnoDB.",
-@@ -12279,6 +12343,7 @@
+@@ -12288,6 +12352,7 @@
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),

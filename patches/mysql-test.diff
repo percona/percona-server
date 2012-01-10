@@ -1049,7 +1049,7 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,380 @@
+@@ -0,0 +1,381 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1280,6 +1280,7 @@
 +MAX_TMP_TABLES
 +MAX_USER_CONNECTIONS
 +MAX_WRITE_LOCK_COUNT
++METADATA_LOCKS_CACHE_SIZE
 +MIN_EXAMINED_ROW_LIMIT
 +MULTI_RANGE_COUNT
 +MYISAM_DATA_POINTER_SIZE
@@ -1432,7 +1433,7 @@
 +WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
-@@ -0,0 +1,376 @@
+@@ -0,0 +1,377 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1660,6 +1661,7 @@
 +MAX_TMP_TABLES
 +MAX_USER_CONNECTIONS
 +MAX_WRITE_LOCK_COUNT
++METADATA_LOCKS_CACHE_SIZE
 +MIN_EXAMINED_ROW_LIMIT
 +MULTI_RANGE_COUNT
 +MYISAM_DATA_POINTER_SIZE
@@ -1819,3 +1821,7 @@
 @@ -0,0 +1,2 @@
 +--source include/have_nodebug.inc
 +--source include/percona_server_variables.inc
+--- a/mysql-test/suite/innodb/t/innodb_cmp_drop_table-master.opt
++++ /dev/null
+@@ -1 +0,0 @@
+---innodb-buffer-pool-size=8M

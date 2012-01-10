@@ -542,7 +542,7 @@
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +939,12 @@
+@@ -454,7 +944,12 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
@@ -555,7 +555,7 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1764,8 @@
+@@ -1274,6 +1769,8 @@
        unlock();
        DBUG_VOID_RETURN;
      }
@@ -564,7 +564,7 @@
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1440,7 +1932,7 @@
+@@ -1440,7 +1937,7 @@
  */
  
  int
@@ -573,7 +573,7 @@
  {
    ulonglong engine_data;
    Query_cache_query *query;
-@@ -1452,6 +1944,11 @@
+@@ -1452,6 +1949,11 @@
    ulong tot_length;
    Query_cache_query_flags flags;
    DBUG_ENTER("Query_cache::send_result_to_client");
@@ -585,7 +585,7 @@
  
    /*
      Testing 'query_cache_size' without a lock here is safe: the thing
-@@ -1471,13 +1968,7 @@
+@@ -1471,13 +1973,7 @@
    }
  
    {
@@ -600,7 +600,7 @@
  
      /*
        Test if the query is a SELECT
-@@ -1487,10 +1978,11 @@
+@@ -1487,10 +1983,11 @@
        frequently appeared in real life, consequently we can
        check all such queries, too.
      */
@@ -616,7 +616,7 @@
      {
        DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
        goto err;
-@@ -1543,6 +2035,7 @@
+@@ -1543,6 +2040,7 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
@@ -624,7 +624,7 @@
  
    tot_length= query_length + 1 + sizeof(size_t) + 
                thd->db_length + QUERY_CACHE_FLAGS_SIZE;
-@@ -1611,6 +2104,7 @@
+@@ -1611,6 +2109,7 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);
@@ -634,7 +634,7 @@
        query_block->query()->result() == 0 ||
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -1487,6 +1487,74 @@
+@@ -1485,6 +1485,74 @@
  
  extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
  
@@ -709,7 +709,7 @@
  /**
    @class THD
    For each client connection we create a separate thread with THD serving as
-@@ -1544,6 +1612,7 @@
+@@ -1542,6 +1610,7 @@
    struct st_mysql_stmt *current_stmt;
  #endif
  #ifdef HAVE_QUERY_CACHE
@@ -719,7 +719,7 @@
    NET	  net;				// client connection descriptor
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -1809,6 +1809,11 @@
+@@ -1815,6 +1815,11 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_query_cache_size));
  
@@ -3735,7 +3735,7 @@
 +SET GLOBAL query_cache_size=0;
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
-@@ -491,6 +491,10 @@
+@@ -493,6 +493,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -3746,7 +3746,7 @@
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -928,6 +932,7 @@
+@@ -931,6 +935,7 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0

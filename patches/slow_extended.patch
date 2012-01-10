@@ -382,7 +382,7 @@
               const char *user_host, uint user_host_len,
               ulonglong query_utime, ulonglong lock_utime, bool is_command,
               const char *sql_text, uint sql_text_len);
-@@ -515,7 +515,7 @@
+@@ -517,7 +517,7 @@
    virtual bool init()= 0;
    virtual void cleanup()= 0;
  
@@ -391,7 +391,7 @@
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-@@ -544,7 +544,7 @@
+@@ -546,7 +546,7 @@
    virtual bool init();
    virtual void cleanup();
  
@@ -400,7 +400,7 @@
                          time_t query_start_arg, const char *user_host,
                          uint user_host_len, ulonglong query_utime,
                          ulonglong lock_utime, bool is_command,
-@@ -576,7 +576,7 @@
+@@ -578,7 +578,7 @@
    virtual bool init();
    virtual void cleanup();
  
@@ -484,7 +484,7 @@
    mysql_mutex_lock(&LOCK_thread_count);
 --- a/sql/sp_head.cc
 +++ b/sql/sp_head.cc
-@@ -2152,7 +2152,7 @@
+@@ -2164,7 +2164,7 @@
      DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                         m_name.str));
    }
@@ -495,7 +495,7 @@
      save_enable_slow_log= true;
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -1756,6 +1756,7 @@
+@@ -1780,6 +1780,7 @@
      response, we can't handle it anyway.
    */
    (void) trans_commit_stmt(thd);
@@ -503,7 +503,7 @@
    if (!thd->stmt_da->is_set())
      thd->stmt_da->disable_status();
  
-@@ -1766,6 +1767,7 @@
+@@ -1790,6 +1791,7 @@
  err_unlock:
    unlock();
  err:
@@ -717,7 +717,7 @@
  enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                              SLAVE_EXEC_MODE_IDEMPOTENT,
                              SLAVE_EXEC_MODE_LAST_BIT};
-@@ -508,6 +535,21 @@
+@@ -506,6 +533,21 @@
  
    my_bool sysdate_is_now;
  
@@ -739,7 +739,7 @@
    double long_query_time_double;
  
  } SV;
-@@ -1140,6 +1182,24 @@
+@@ -1138,6 +1180,24 @@
    uint in_sub_stmt;
    bool enable_slow_log;
    bool last_insert_id_used;
@@ -764,7 +764,7 @@
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1588,6 +1648,71 @@
+@@ -1586,6 +1646,71 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -864,7 +864,7 @@
  
  const char *any_db="*any*";	// Special symbol for check_access
  
-@@ -888,6 +889,7 @@
+@@ -890,6 +891,7 @@
      the slow log only if opt_log_slow_admin_statements is set.
    */
    thd->enable_slow_log= TRUE;
@@ -872,7 +872,7 @@
    thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
    thd->set_time();
    if (!thd->is_valid_time())
-@@ -1430,6 +1432,60 @@
+@@ -1440,6 +1442,60 @@
    DBUG_RETURN(error);
  }
  
@@ -933,7 +933,7 @@
  
  void log_slow_statement(THD *thd)
  {
-@@ -1443,13 +1499,48 @@
+@@ -1453,13 +1509,48 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -983,7 +983,7 @@
      thd_proc_info(thd, "logging slow query");
  
      if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
-@@ -5301,7 +5392,8 @@
+@@ -5368,7 +5459,8 @@
    thd->stmt_da->reset_diagnostics_area();
    thd->warning_info->reset_for_next_command();
    thd->rand_used= 0;
@@ -995,7 +995,7 @@
    thd->binlog_unsafe_warning_flags= 0;
 --- a/sql/sql_select.cc
 +++ b/sql/sql_select.cc
-@@ -6902,7 +6902,10 @@
+@@ -6912,7 +6912,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1006,7 +1006,7 @@
  	  }
  	}
  	else
-@@ -6916,7 +6919,10 @@
+@@ -6926,7 +6929,10 @@
  	  {
  	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
  	    if (statistics)
@@ -1017,7 +1017,7 @@
  	  }
  	}
  	if (!table->no_keyread)
-@@ -10264,6 +10270,7 @@
+@@ -10274,6 +10280,7 @@
                (ulong) rows_limit,test(group)));
  
    status_var_increment(thd->status_var.created_tmp_tables);
@@ -1025,7 +1025,7 @@
  
    if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
      temp_pool_slot = bitmap_lock_set_next(&temp_pool);
-@@ -11162,6 +11169,7 @@
+@@ -11175,6 +11182,7 @@
      goto err;
    }
    status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
@@ -1033,7 +1033,7 @@
    share->db_record_offset= 1;
    DBUG_RETURN(0);
   err:
-@@ -11180,6 +11188,14 @@
+@@ -11193,6 +11201,14 @@
    save_proc_info=thd->proc_info;
    thd_proc_info(thd, "removing tmp table");
  
@@ -1102,7 +1102,7 @@
  static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
  {
    if (type == OPT_SESSION)
-@@ -2898,6 +2921,123 @@
+@@ -2904,6 +2927,123 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  
@@ -2483,7 +2483,7 @@
        CHECK_SPACE(pos, end, 1);
 --- a/sql/log_event.h
 +++ b/sql/log_event.h
-@@ -342,6 +342,10 @@
+@@ -343,6 +343,10 @@
  
  #define Q_INVOKER 11
  
@@ -2729,7 +2729,7 @@
   --log-tc=name       Path to transaction coordinator log (used for
   transactions that affect more than one storage engine,
   when binary log is disabled).
-@@ -660,6 +676,18 @@
+@@ -662,6 +678,18 @@
   Log slow queries to given log file. Defaults logging to
   hostname-slow.log. Must be enabled to activate other slow
   log options
@@ -2748,7 +2748,7 @@
   --socket=name       Socket file to use for connection
   --sort-buffer-size=# 
   Each thread that needs to do a sort allocates a buffer of
-@@ -817,7 +845,11 @@
+@@ -819,7 +847,11 @@
  log-short-format FALSE
  log-slave-updates FALSE
  log-slow-admin-statements FALSE
@@ -2760,7 +2760,7 @@
  log-tc tc.log
  log-tc-size 24576
  log-warnings 1
-@@ -933,6 +965,9 @@
+@@ -936,6 +968,9 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE

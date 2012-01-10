@@ -310,7 +310,7 @@
  /*==============*/
 --- a/storage/innobase/fil/fil0fil.c
 +++ b/storage/innobase/fil/fil0fil.c
-@@ -5290,6 +5290,70 @@
+@@ -5299,6 +5299,70 @@
  	return(DB_SUCCESS);
  }
  
@@ -401,7 +401,7 @@
  #ifdef HAVE_LARGE_PAGES
          if ((os_use_large_pages = (ibool) my_use_large_pages))
  		os_large_page_size = (ulint) opt_large_page_size;
-@@ -11916,6 +11920,19 @@
+@@ -11925,6 +11929,19 @@
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
    NULL, NULL, 0, 0, LONG_MAX, 0);
  
@@ -421,7 +421,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -12000,6 +12017,8 @@
+@@ -12009,6 +12026,8 @@
    MYSQL_SYSVAR(random_read_ahead),
    MYSQL_SYSVAR(read_ahead_threshold),
    MYSQL_SYSVAR(io_capacity),
@@ -440,7 +440,7 @@
  }
  
  #define OK(expr)		\
-@@ -4298,6 +4299,36 @@
+@@ -4336,6 +4337,36 @@
  			"Hello!");
  		goto end_func;
  	}
@@ -540,7 +540,7 @@
  an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 --- a/storage/innobase/include/fil0fil.h
 +++ b/storage/innobase/include/fil0fil.h
-@@ -644,6 +644,14 @@
+@@ -648,6 +648,14 @@
  	void*	message,	/*!< in: message for aio handler if non-sync
  				aio used, else ignored */
  	trx_t*	trx);

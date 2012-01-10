@@ -157,6 +157,7 @@ Reference
    :glob:
 
    development
+   trademark-policy
    faq
    release-notes/release-notes_index
    glossary

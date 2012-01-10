@@ -81,7 +81,7 @@
  
 --- a/storage/innobase/btr/btr0cur.c
 +++ b/storage/innobase/btr/btr0cur.c
-@@ -502,7 +502,7 @@
+@@ -500,7 +500,7 @@
  #ifdef UNIV_SEARCH_PERF_STAT
  	info->n_searches++;
  #endif
@@ -90,7 +90,7 @@
  	    && latch_mode <= BTR_MODIFY_LEAF
  	    && info->last_hash_succ
  	    && !estimate
-@@ -538,7 +538,7 @@
+@@ -536,7 +536,7 @@
  
  	if (has_search_latch) {
  		/* Release possible search latch to obey latching order */
@@ -99,7 +99,7 @@
  	}
  
  	/* Store the position of the tree latch we push to mtr so that we
-@@ -862,7 +862,7 @@
+@@ -847,7 +847,7 @@
  
  	if (has_search_latch) {
  
@@ -108,7 +108,7 @@
  	}
  }
  
-@@ -1992,13 +1992,13 @@
+@@ -1977,13 +1977,13 @@
  			btr_search_update_hash_on_delete(cursor);
  		}
  
@@ -946,7 +946,7 @@
  	}
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -950,6 +950,7 @@
+@@ -960,6 +960,7 @@
  
  	block->check_index_page_at_flush = FALSE;
  	block->index = NULL;
@@ -954,7 +954,7 @@
  
  #ifdef UNIV_DEBUG
  	block->page.in_page_hash = FALSE;
-@@ -1392,7 +1393,11 @@
+@@ -1427,7 +1428,11 @@
  	ulint	p;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -967,7 +967,7 @@
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2107,6 +2112,7 @@
+@@ -2142,6 +2147,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;
@@ -1029,7 +1029,7 @@
  		}
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11824,6 +11824,11 @@
+@@ -11833,6 +11833,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -1041,7 +1041,7 @@
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12204,6 +12209,7 @@
+@@ -12213,6 +12218,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),

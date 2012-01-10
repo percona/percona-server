@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/btr/btr0cur.c
 +++ b/storage/innobase/btr/btr0cur.c
-@@ -1173,6 +1173,11 @@
+@@ -1158,6 +1158,11 @@
  	rec_t*		rec;
  	roll_ptr_t	roll_ptr;
  
@@ -19,7 +19,7 @@
  	/* Check if we have to wait for a lock: enqueue an explicit lock
  	request if yes */
  
-@@ -1304,7 +1309,7 @@
+@@ -1289,7 +1294,7 @@
  	}
  #endif /* UNIV_DEBUG */
  
@@ -28,7 +28,7 @@
  	max_size = page_get_max_insert_size_after_reorganize(page, 1);
  	leaf = page_is_leaf(page);
  
-@@ -1399,6 +1404,12 @@
+@@ -1384,6 +1389,12 @@
  		goto fail_err;
  	}
  
@@ -41,7 +41,7 @@
  	page_cursor = btr_cur_get_page_cur(cursor);
  
  	/* Now, try the insert */
-@@ -1541,10 +1552,10 @@
+@@ -1526,10 +1537,10 @@
  
  	*big_rec = NULL;
  
@@ -54,7 +54,7 @@
  				MTR_MEMO_PAGE_X_FIX));
  
  	/* Try first an optimistic insert; reset the cursor flag: we do not
-@@ -1610,6 +1621,16 @@
+@@ -1595,6 +1606,16 @@
  		}
  	}
  
@@ -71,7 +71,7 @@
  	if (dict_index_get_page(index)
  	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
  
-@@ -1666,6 +1687,11 @@
+@@ -1651,6 +1672,11 @@
  
  	ut_ad(cursor && update && thr && roll_ptr);
  
@@ -83,7 +83,7 @@
  	rec = btr_cur_get_rec(cursor);
  	index = cursor->index;
  
-@@ -1965,6 +1991,14 @@
+@@ -1950,6 +1976,14 @@
  		return(err);
  	}
  
@@ -98,7 +98,7 @@
  	if (!(flags & BTR_KEEP_SYS_FLAG)) {
  		row_upd_rec_sys_fields(rec, NULL,
  				       index, offsets, trx, roll_ptr);
-@@ -2074,7 +2108,7 @@
+@@ -2059,7 +2093,7 @@
  	rec = btr_cur_get_rec(cursor);
  	index = cursor->index;
  	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
@@ -107,7 +107,7 @@
  	/* The insert buffer tree should never be updated in place. */
  	ut_ad(!dict_index_is_ibuf(index));
  
-@@ -2187,6 +2221,11 @@
+@@ -2172,6 +2206,11 @@
  		goto err_exit;
  	}
  
@@ -119,7 +119,7 @@
  	/* Ok, we may do the replacement. Store on the page infimum the
  	explicit locks on rec, before deleting rec (see the comment in
  	btr_cur_pessimistic_update). */
-@@ -2337,9 +2376,9 @@
+@@ -2322,9 +2361,9 @@
  	rec = btr_cur_get_rec(cursor);
  	index = cursor->index;
  
@@ -131,7 +131,7 @@
  #ifdef UNIV_ZIP_DEBUG
  	ut_a(!page_zip || page_zip_validate(page_zip, page));
  #endif /* UNIV_ZIP_DEBUG */
-@@ -2427,6 +2466,9 @@
+@@ -2412,6 +2451,9 @@
  
  		ut_ad(big_rec_vec == NULL);
  
@@ -141,7 +141,7 @@
  		btr_rec_free_updated_extern_fields(
  			index, rec, page_zip, offsets, update,
  			trx_is_recv(trx) ? RB_RECOVERY : RB_NORMAL, mtr);
-@@ -2461,6 +2503,12 @@
+@@ -2446,6 +2488,12 @@
  		}
  	}
  
@@ -154,7 +154,7 @@
  	/* Store state of explicit locks on rec on the page infimum record,
  	before deleting rec. The page infimum acts as a dummy carrier of the
  	locks, taking care also of lock releases, before we can move the locks
-@@ -2763,6 +2811,11 @@
+@@ -2748,6 +2796,11 @@
  	ut_ad(dict_index_is_clust(index));
  	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
  
@@ -166,7 +166,7 @@
  	err = lock_clust_rec_modify_check_and_lock(flags, block,
  						   rec, index, offsets, thr);
  
-@@ -2897,6 +2950,11 @@
+@@ -2882,6 +2935,11 @@
  	rec_t*		rec;
  	ulint		err;
  
@@ -214,7 +214,7 @@
  	/* Transaction is deregistered only in a commit or a rollback. If
  	it is deregistered we know there cannot be resources to be freed
  	and we could return immediately.  For the time being, we play safe
-@@ -7545,6 +7558,12 @@
+@@ -7544,6 +7557,12 @@
  
  	trx = innobase_trx_allocate(thd);
  
@@ -227,7 +227,7 @@
  	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
  	or lock waits can happen in it during a table create operation.
  	Drop table etc. do this latching in row0mysql.c. */
-@@ -7765,6 +7784,10 @@
+@@ -7764,6 +7783,10 @@
  		DBUG_RETURN(HA_ERR_CRASHED);
  	}
  
@@ -238,7 +238,7 @@
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7821,6 +7844,12 @@
+@@ -7820,6 +7843,12 @@
  
  	trx = innobase_trx_allocate(thd);
  
@@ -251,7 +251,7 @@
  	name_len = strlen(name);
  
  	ut_a(name_len < 1000);
-@@ -7907,6 +7936,12 @@
+@@ -7906,6 +7935,12 @@
  	trx->mysql_thd = NULL;
  #else
  	trx = innobase_trx_allocate(thd);
@@ -264,7 +264,7 @@
  #endif
  	row_drop_database_for_mysql(namebuf, trx);
  	my_free(namebuf);
-@@ -8012,6 +8047,11 @@
+@@ -8011,6 +8046,11 @@
  	trx_search_latch_release_if_reserved(parent_trx);
  
  	trx = innobase_trx_allocate(thd);
@@ -276,7 +276,7 @@
  
  	error = innobase_rename_table(trx, from, to, TRUE);
  
-@@ -10872,6 +10912,10 @@
+@@ -10881,6 +10921,10 @@
  		return(0);
  	}
  
@@ -287,7 +287,7 @@
  	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
  
  	/* Release a possible FIFO ticket and search latch. Since we will
-@@ -12429,6 +12473,7 @@
+@@ -12438,6 +12482,7 @@
    MYSQL_SYSVAR(rollback_segments),
    MYSQL_SYSVAR(corrupt_table_action),
    MYSQL_SYSVAR(lazy_drop_table),
@@ -348,7 +348,7 @@
  	/* Flag this transaction as a dictionary operation, so that
 --- a/storage/innobase/ibuf/ibuf0ibuf.c
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c
-@@ -3496,6 +3496,8 @@
+@@ -3424,6 +3424,8 @@
  
  	ut_a(trx_sys_multiple_tablespace_format);
  

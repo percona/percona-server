@@ -639,7 +639,7 @@
 @@ -0,0 +1,3 @@
 +SELECT @@global.innodb_flush_neighbor_pages;
 +@@global.innodb_flush_neighbor_pages
-+1
++area
 --- /dev/null
 +++ b/mysql-test/suite/sys_vars/r/innodb_ibuf_accel_rate_basic.result
 @@ -0,0 +1,3 @@
@@ -1005,9 +1005,9 @@
 +insert into t2 select variable_name from information_schema.global_variables order by variable_name;
 +insert into t2 select variable_name from information_schema.session_variables order by variable_name;
  
- # This is only present in debug builds.
+ # These are only present in debug builds.
  delete from t2 where variable_name='innodb_change_buffering_debug';
-@@ -62,7 +62,7 @@
+@@ -63,7 +63,7 @@
    where length(variable_name) > 50;
  
  select variable_name as `There should be *no* variables listed below:` from t2
@@ -1018,7 +1018,7 @@
  drop table t2;
 --- a/mysql-test/suite/sys_vars/r/all_vars.result
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result
-@@ -1,15 +1,19 @@
+@@ -1,8 +1,8 @@
  create table t1 (test_name text);
  create table t2 (variable_name text);
  load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
@@ -1027,8 +1027,9 @@
 +insert into t2 select variable_name from information_schema.global_variables order by variable_name;
 +insert into t2 select variable_name from information_schema.session_variables order by variable_name;
  delete from t2 where variable_name='innodb_change_buffering_debug';
+ delete from t2 where variable_name='innodb_flush_checkpoint_debug';
  update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
- select variable_name as `There should be *no* long test name listed below:` from t2
+@@ -10,7 +10,11 @@
  where length(variable_name) > 50;
  There should be *no* long test name listed below:
  select variable_name as `There should be *no* variables listed below:` from t2
@@ -1049,7 +1050,7 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,380 @@
+@@ -0,0 +1,382 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1161,6 +1162,7 @@
 +INNODB_FILE_FORMAT_CHECK
 +INNODB_FILE_FORMAT_MAX
 +INNODB_FILE_PER_TABLE
++INNODB_FLUSH_CHECKPOINT_DEBUG
 +INNODB_FLUSH_LOG_AT_TRX_COMMIT
 +INNODB_FLUSH_METHOD
 +INNODB_FLUSH_NEIGHBOR_PAGES
@@ -1280,6 +1282,7 @@
 +MAX_TMP_TABLES
 +MAX_USER_CONNECTIONS
 +MAX_WRITE_LOCK_COUNT
++METADATA_LOCKS_CACHE_SIZE
 +MIN_EXAMINED_ROW_LIMIT
 +MULTI_RANGE_COUNT
 +MYISAM_DATA_POINTER_SIZE
@@ -1432,7 +1435,7 @@
 +WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
-@@ -0,0 +1,376 @@
+@@ -0,0 +1,377 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1660,6 +1663,7 @@
 +MAX_TMP_TABLES
 +MAX_USER_CONNECTIONS
 +MAX_WRITE_LOCK_COUNT
++METADATA_LOCKS_CACHE_SIZE
 +MIN_EXAMINED_ROW_LIMIT
 +MULTI_RANGE_COUNT
 +MYISAM_DATA_POINTER_SIZE
@@ -1819,3 +1823,7 @@
 @@ -0,0 +1,2 @@
 +--source include/have_nodebug.inc
 +--source include/percona_server_variables.inc
+--- a/mysql-test/suite/innodb/t/innodb_cmp_drop_table-master.opt
++++ /dev/null
+@@ -1 +0,0 @@
+---innodb-buffer-pool-size=8M

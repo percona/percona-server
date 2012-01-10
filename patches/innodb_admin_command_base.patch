@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11990,7 +11990,8 @@
+@@ -11999,7 +11999,8 @@
  i_s_innodb_sys_foreign_cols,
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,
@@ -186,7 +186,7 @@
 +select * from information_schema.XTRADB_ADMIN_COMMAND /*!XTRA_HELLO*/;
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
-@@ -731,6 +731,10 @@
+@@ -733,6 +733,10 @@
   -V, --version       Output version information and exit.
   --wait-timeout=#    The number of seconds the server waits for activity on a
   connection before closing it
@@ -197,7 +197,7 @@
  
  Variables (--variable-name=value)
  abort-slave-event-count 0
-@@ -955,6 +959,7 @@
+@@ -958,6 +962,7 @@
  updatable-views-with-limit YES
  verbose TRUE
  wait-timeout 28800

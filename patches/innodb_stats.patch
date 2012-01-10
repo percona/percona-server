@@ -278,16 +278,10 @@
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1177,6 +1316,66 @@
- 		return(NULL);
- 	}
+@@ -1183,6 +1322,66 @@
+ }
  
-+	thr->run_node = que_node_get_parent(node);
-+
-+	return(thr);
-+}
-+
-+/****************************************************************//**
+ /****************************************************************//**
 +*/
 +UNIV_INTERN
 +que_thr_t*
@@ -342,9 +336,15 @@
 +		return(NULL);
 +	}
 +
- 	thr->run_node = que_node_get_parent(node);
- 
- 	return(thr);
++	thr->run_node = que_node_get_parent(node);
++
++	return(thr);
++}
++
++/****************************************************************//**
+ Creates the foreign key constraints system tables inside InnoDB
+ at database creation or database start if they are not found or are
+ not of the right form.
 --- a/storage/innobase/dict/dict0dict.c
 +++ b/storage/innobase/dict/dict0dict.c
 @@ -755,7 +755,7 @@
@@ -927,7 +927,7 @@
  	/* Handle duplicate key errors */
  	if (auto_inc_used) {
  		ulint		err;
-@@ -5593,6 +5600,10 @@
+@@ -5591,6 +5598,10 @@
  		}
  	}
  
@@ -938,7 +938,7 @@
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(error,
-@@ -5646,6 +5657,10 @@
+@@ -5644,6 +5655,10 @@
  
  	error = row_update_for_mysql((byte*) record, prebuilt);
  
@@ -949,7 +949,7 @@
  	innodb_srv_conc_exit_innodb(trx);
  
  	error = convert_error_code_to_mysql(
-@@ -5966,6 +5981,11 @@
+@@ -5965,6 +5980,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -961,7 +961,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_KEY_NOT_FOUND;
-@@ -6198,6 +6218,11 @@
+@@ -6197,6 +6217,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -973,7 +973,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8144,11 +8169,35 @@
+@@ -8150,11 +8175,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1010,7 +1010,7 @@
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8233,7 +8282,7 @@
+@@ -8239,7 +8288,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1019,7 +1019,7 @@
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11503,6 +11552,26 @@
+@@ -11512,6 +11561,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1046,7 +1046,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11835,6 +11904,9 @@
+@@ -11844,6 +11913,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1056,7 +1056,7 @@
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11906,7 +11978,10 @@
+@@ -11915,7 +11987,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,
@@ -1306,7 +1306,7 @@
  static ST_FIELD_INFO	i_s_innodb_rseg_fields_info[] =
 @@ -3677,3 +3897,349 @@
  	/* unsigned long */
- 	STRUCT_FLD(flags, 0UL)
+ 	STRUCT_FLD(flags, 0UL),
  };
 +
 +/***********************************************************************

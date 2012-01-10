@@ -18,7 +18,7 @@
    supported at all.
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -481,6 +481,8 @@
+@@ -479,6 +479,8 @@
    my_bool engine_condition_pushdown;
    my_bool keep_files_on_create;
  
@@ -45,7 +45,7 @@
        goto err;
 --- a/sql/sql_table.cc
 +++ b/sql/sql_table.cc
-@@ -6140,6 +6140,10 @@
+@@ -6146,6 +6146,10 @@
      uint  *idx_end_p;
  
      alter_flags= table->file->alter_table_flags(alter_info->flags);
@@ -58,7 +58,7 @@
      for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -2186,6 +2186,13 @@
+@@ -2192,6 +2192,13 @@
         GLOBAL_VAR(opt_optimizer_fix),
         NO_CMD_LINE, DEFAULT(TRUE));
  

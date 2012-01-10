@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -4330,6 +4330,7 @@
+@@ -4365,6 +4365,7 @@
  	}
  
  	total_info->pool_size += pool_info->pool_size;
@@ -15,7 +15,7 @@
  	total_info->lru_len += pool_info->lru_len;
  	total_info->old_lru_len += pool_info->old_lru_len;
  	total_info->free_list_len += pool_info->free_list_len;
-@@ -4395,6 +4396,8 @@
+@@ -4430,6 +4431,8 @@
  
  	pool_info->pool_size = buf_pool->curr_size;
  
@@ -24,7 +24,7 @@
  	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
  
  	pool_info->old_lru_len = buf_pool->LRU_old_len;
-@@ -4516,14 +4519,16 @@
+@@ -4551,14 +4554,16 @@
  	ut_ad(pool_info);
  
  	fprintf(file,
@@ -101,7 +101,7 @@
    {"buffer_pool_pages_free",
    (char*) &export_vars.innodb_buffer_pool_pages_free,	  SHOW_LONG},
  #ifdef UNIV_DEBUG
-@@ -11199,6 +11201,16 @@
+@@ -11208,6 +11210,16 @@
    "Force InnoDB to not use next-key locking, to use only row-level locking.",
    NULL, NULL, FALSE);
  
@@ -118,7 +118,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11386,7 +11398,7 @@
+@@ -11395,7 +11407,7 @@
  
  static MYSQL_SYSVAR_STR(version, innodb_version_str,
    PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
@@ -127,7 +127,7 @@
  
  static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-@@ -11486,6 +11498,8 @@
+@@ -11495,6 +11507,8 @@
    MYSQL_SYSVAR(thread_concurrency),
    MYSQL_SYSVAR(thread_sleep_delay),
    MYSQL_SYSVAR(autoinc_lock_mode),

@@ -34,7 +34,11 @@
  
  	/* We know that the writes have been flushed to disk now
  	and in recovery we will find them in the doublewrite buffer
-@@ -1378,7 +1378,7 @@
+@@ -1375,10 +1375,11 @@
+ 	ulint		high;
+ 	ulint		count = 0;
+ 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
++	ibool		is_forward_scan;
  
  	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
  
@@ -43,6 +47,99 @@
  		/* If there is little space, it is better not to flush
  		any block except from the end of the LRU list */
  
+@@ -1405,7 +1406,32 @@
+ 		high = fil_space_get_size(space);
+ 	}
+ 
+-	for (i = low; i < high; i++) {
++	if (srv_flush_neighbor_pages == 2) {
++
++		/* In the case of contiguous flush where the requested page
++		does not fall at the start of flush area, first scan backward
++		from the page and later forward from it. */
++		is_forward_scan = (offset == low);
++	}
++	else {
++		is_forward_scan = TRUE;
++	}
++
++scan:
++	if (srv_flush_neighbor_pages == 2) {
++		if (is_forward_scan) {
++			i = offset;
++		}
++		else {
++			i = offset - 1;
++		}
++	}
++	else {
++		i = low;
++	}
++
++	for (; is_forward_scan ? (i < high) : (i >= low);
++	     is_forward_scan ? i++ : i--) {
+ 
+ 		buf_page_t*	bpage;
+ 
+@@ -1434,6 +1460,12 @@
+ 		if (!bpage) {
+ 
+ 			buf_pool_mutex_exit(buf_pool);
++			if (srv_flush_neighbor_pages == 2) {
++
++				/* This is contiguous neighbor page flush and
++				the pages here are not contiguous. */
++				break;
++			}
+ 			continue;
+ 		}
+ 
+@@ -1470,6 +1502,22 @@
+ 			}
+ 		}
+ 		buf_pool_mutex_exit(buf_pool);
++
++		if (srv_flush_neighbor_pages == 2) {
++
++			/* We are trying to do the contiguous neighbor page
++			flush, but the last page we checked was unflushable,
++			making a "hole" in the flush, so stop this attempt. */
++			break;
++		}
++	}
++
++	if (!is_forward_scan) {
++
++		/* Backward scan done, now do the forward scan */
++		ut_a (srv_flush_neighbor_pages == 2);
++		is_forward_scan = TRUE;
++		goto scan;
+ 	}
+ 
+ 	return(count);
+@@ -1940,6 +1988,22 @@
+ 
+ 		buf_pool = buf_pool_from_array(i);
+ 
++		if (lsn_limit != IB_ULONGLONG_MAX) {
++			buf_page_t*	bpage;
++
++			buf_flush_list_mutex_enter(buf_pool);
++			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
++			if (!bpage
++			    || bpage->oldest_modification >= lsn_limit) {
++
++				buf_flush_list_mutex_exit(buf_pool);
++				continue;
++			} else {
++
++				buf_flush_list_mutex_exit(buf_pool);
++			}
++		}
++
+ 		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
+ 			/* We have two choices here. If lsn_limit was
+ 			specified then skipping an instance of buffer
 --- a/storage/innobase/buf/buf0rea.c
 +++ b/storage/innobase/buf/buf0rea.c
 @@ -427,6 +427,10 @@
@@ -175,7 +272,7 @@
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -11133,7 +11153,7 @@
+@@ -11142,7 +11162,7 @@
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
    "Purge threads can be either 0 or 1.",
    NULL, NULL,
@@ -184,7 +281,7 @@
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -11175,12 +11195,18 @@
+@@ -11184,12 +11204,18 @@
    innodb_file_format_max_validate,
    innodb_file_format_max_update, "Antelope");
  
@@ -209,7 +306,7 @@
  
  static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11285,7 +11311,7 @@
+@@ -11294,7 +11320,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -218,7 +315,7 @@
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11442,6 +11468,95 @@
+@@ -11451,6 +11477,135 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -242,10 +339,42 @@
 +  "Control soft limit of checkpoint age. (0 : not control)",
 +  NULL, NULL, 0, 0, ~0UL, 0);
 +
-+static MYSQL_SYSVAR_ULONG(flush_neighbor_pages, srv_flush_neighbor_pages,
-+  PLUGIN_VAR_RQCMDARG,
-+  "Enable/Disable flushing also neighbor pages. 0:disable 1:enable",
-+  NULL, NULL, 1, 0, 1, 0);
++static
++void
++innodb_flush_neighbor_pages_update(
++  THD* thd,
++  struct st_mysql_sys_var* var,
++  void* var_ptr,
++  const void* save)
++{
++  *(long *)var_ptr = (*(long *)save) % 3;
++}
++
++const char *flush_neighbor_pages_names[]=
++{
++  "none", /* 0 */
++  "area",
++  "cont", /* 2 */
++  /* For compatibility with the older patch */
++  "0", /* "none" + 3 */
++  "1", /* "area" + 3 */
++  "2", /* "cont" + 3 */
++  NullS
++};
++
++TYPELIB flush_neighbor_pages_typelib=
++{
++  array_elements(flush_neighbor_pages_names) - 1,
++  "flush_neighbor_pages_typelib",
++  flush_neighbor_pages_names,
++  NULL
++};
++
++static MYSQL_SYSVAR_ENUM(flush_neighbor_pages, srv_flush_neighbor_pages,
++  PLUGIN_VAR_RQCMDARG, "Neighbor page flushing behaviour: none: do not flush, "
++                       "[area]: flush selected pages one-by-one, "
++                       "cont: flush a contiguous block of pages", NULL,
++  innodb_flush_neighbor_pages_update, 1, &flush_neighbor_pages_typelib);
 +
 +static
 +void
@@ -311,10 +440,18 @@
 +  "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
 +  NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
 +
++#ifdef UNIV_DEBUG
++static MYSQL_SYSVAR_ULONG(flush_checkpoint_debug, srv_flush_checkpoint_debug,
++  PLUGIN_VAR_RQCMDARG,
++  "Debug flags for InnoDB flushing and checkpointing (0=none,"
++  "1=stop preflush and checkpointing)",
++  NULL, NULL, 0, 0, 1, 0);
++#endif
++
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11462,6 +11577,7 @@
+@@ -11471,6 +11626,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -322,7 +459,7 @@
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(large_prefix),
-@@ -11501,6 +11617,13 @@
+@@ -11510,6 +11666,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -336,9 +473,19 @@
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
+@@ -11522,6 +11685,9 @@
+   MYSQL_SYSVAR(purge_threads),
+   MYSQL_SYSVAR(purge_batch_size),
+   MYSQL_SYSVAR(rollback_segments),
++#ifdef UNIV_DEBUG
++  MYSQL_SYSVAR(flush_checkpoint_debug),
++#endif
+   NULL
+ };
+ 
 --- a/storage/innobase/ibuf/ibuf0ibuf.c
 +++ b/storage/innobase/ibuf/ibuf0ibuf.c
-@@ -514,8 +514,10 @@
+@@ -523,8 +523,10 @@
  	grow in size, as the references on the upper levels of the tree can
  	change */
  
@@ -351,7 +498,7 @@
  
  	mutex_create(ibuf_pessimistic_insert_mutex_key,
  		     &ibuf_pessimistic_insert_mutex,
-@@ -2753,9 +2755,11 @@
+@@ -2763,9 +2765,11 @@
  	size = ibuf->size;
  	max_size = ibuf->max_size;
  
@@ -492,7 +639,17 @@
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -399,8 +410,9 @@
+@@ -255,6 +266,9 @@
+ extern	ibool	srv_print_buf_io;
+ extern	ibool	srv_print_log_io;
+ extern	ibool	srv_print_latch_waits;
++
++extern	ulint	srv_flush_checkpoint_debug;
++
+ #else /* UNIV_DEBUG */
+ # define srv_print_thread_releases	FALSE
+ # define srv_print_lock_waits		FALSE
+@@ -399,8 +413,9 @@
  				when writing data files, but do flush
  				after writing to log files */
  	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
@@ -612,20 +769,84 @@
  		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
  	}
  
-@@ -2120,10 +2151,10 @@
+@@ -1655,10 +1686,13 @@
+ 		recv_apply_hashed_log_recs(TRUE);
+ 	}
+ 
++ retry:
+ 	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
+ 
+-	if (sync) {
+-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
++	if (sync && n_pages != 0) {
++		//buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
++		os_thread_sleep(100000);
++		goto retry;
+ 	}
+ 
+ 	if (n_pages == ULINT_UNDEFINED) {
+@@ -1979,6 +2013,13 @@
+ {
+ 	ib_uint64_t	oldest_lsn;
+ 
++#ifdef UNIV_DEBUG
++	if (srv_flush_checkpoint_debug == 1) {
++
++		return TRUE;
++	}
++#endif
++
+ 	if (recv_recovery_is_on()) {
+ 		recv_apply_hashed_log_recs(TRUE);
+ 	}
+@@ -2070,7 +2111,11 @@
+ 					physical write will always be made to
+ 					log files */
+ {
+-	/* Preflush pages synchronously */
++#ifdef UNIV_DEBUG
++	if (srv_flush_checkpoint_debug == 1)
++		return;
++#endif
++/* Preflush pages synchronously */
+ 
+ 	while (!log_preflush_pool_modified_pages(lsn, TRUE));
+ 
+@@ -2096,7 +2141,13 @@
+ 	ibool		checkpoint_sync;
+ 	ibool		do_checkpoint;
+ 	ibool		success;
+-loop:
++
++#ifdef UNIV_DEBUG
++	if (srv_flush_checkpoint_debug == 1)
++		return;
++#endif
++
++ loop:
+ 	sync = FALSE;
+ 	checkpoint_sync = FALSE;
+ 	do_checkpoint = FALSE;
+@@ -2119,13 +2170,15 @@
+ 		/* A flush is urgent: we have to do a synchronous preflush */
  
  		sync = TRUE;
- 		advance = 2 * (age - log->max_modified_age_sync);
+-		advance = 2 * (age - log->max_modified_age_sync);
 -	} else if (age > log->max_modified_age_async) {
++		advance = age - log->max_modified_age_sync;
 +	} else if (age > log_max_modified_age_async()) {
  
  		/* A flush is not urgent: we do an asynchronous preflush */
 -		advance = age - log->max_modified_age_async;
 +		advance = age - log_max_modified_age_async();
++		log->check_flush_or_checkpoint = FALSE;
  	} else {
  		advance = 0;
++		log->check_flush_or_checkpoint = FALSE;
  	}
-@@ -2137,7 +2168,7 @@
+ 
+ 	checkpoint_age = log->lsn - log->last_checkpoint_lsn;
+@@ -2137,14 +2190,14 @@
  
  		do_checkpoint = TRUE;
  
@@ -634,7 +855,33 @@
  		/* A checkpoint is not urgent: do it asynchronously */
  
  		do_checkpoint = TRUE;
-@@ -2607,7 +2638,7 @@
+ 
+-		log->check_flush_or_checkpoint = FALSE;
++		//log->check_flush_or_checkpoint = FALSE;
+ 	} else {
+-		log->check_flush_or_checkpoint = FALSE;
++		//log->check_flush_or_checkpoint = FALSE;
+ 	}
+ 
+ 	mutex_exit(&(log->mutex));
+@@ -2152,6 +2205,7 @@
+ 	if (advance) {
+ 		ib_uint64_t	new_oldest = oldest_lsn + advance;
+ 
++retry:
+ 		success = log_preflush_pool_modified_pages(new_oldest, sync);
+ 
+ 		/* If the flush succeeded, this thread has done its part
+@@ -2166,7 +2220,7 @@
+ 			log->check_flush_or_checkpoint = TRUE;
+ 
+ 			mutex_exit(&(log->mutex));
+-			goto loop;
++			goto retry;
+ 		}
+ 	}
+ 
+@@ -2607,7 +2661,7 @@
  
  	mutex_exit(&(log_sys->mutex));
  
@@ -643,7 +890,20 @@
  
  	mutex_enter(&(log_sys->mutex));
  
-@@ -3349,6 +3380,17 @@
+@@ -3044,7 +3098,11 @@
+ log_check_margins(void)
+ /*===================*/
+ {
+-loop:
++#ifdef UNIV_DEBUG
++	if (srv_flush_checkpoint_debug == 1)
++		return;
++#endif
++ loop:
+ 	log_flush_margin();
+ 
+ 	log_checkpoint_margin();
+@@ -3349,6 +3407,17 @@
  		log_sys->flushed_to_disk_lsn,
  		log_sys->last_checkpoint_lsn);
  
@@ -862,7 +1122,7 @@
 +#define PCT_IBUF_IO(pct) ((ulint) (srv_io_capacity * srv_ibuf_accel_rate * ((double) pct / 10000.0)))
 +
 +UNIV_INTERN ulint	srv_checkpoint_age_target = 0;
-+UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:enable */
++UNIV_INTERN ulint	srv_flush_neighbor_pages = 1; /* 0:disable 1:area 2:contiguous */
 +
 +UNIV_INTERN ulint	srv_enable_unsafe_group_commit = 0; /* 0:disable 1:enable */
 +UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
@@ -870,7 +1130,17 @@
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2713,7 +2725,7 @@
+@@ -417,6 +429,9 @@
+ UNIV_INTERN ibool	srv_print_buf_io		= FALSE;
+ UNIV_INTERN ibool	srv_print_log_io		= FALSE;
+ UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
++
++UNIV_INTERN ulong	srv_flush_checkpoint_debug = 0;
++
+ #endif /* UNIV_DEBUG */
+ 
+ UNIV_INTERN ulint		srv_n_rows_inserted		= 0;
+@@ -2713,7 +2728,7 @@
  
  	ut_ad(!mutex_own(&kernel_mutex));
  
@@ -879,7 +1149,7 @@
  
  	do {
  		/* Check for shutdown and change in purge config. */
-@@ -2746,6 +2758,7 @@
+@@ -2746,6 +2761,7 @@
  	ulint		n_pages_purged	= 0;
  	ulint		n_bytes_merged;
  	ulint		n_pages_flushed;
@@ -887,7 +1157,7 @@
  	ulint		n_bytes_archived;
  	ulint		n_tables_to_drop;
  	ulint		n_ios;
-@@ -2753,7 +2766,20 @@
+@@ -2753,7 +2769,20 @@
  	ulint		n_ios_very_old;
  	ulint		n_pend_ios;
  	ulint		next_itr_time;
@@ -908,7 +1178,7 @@
  
  #ifdef UNIV_DEBUG_THREAD_CREATION
  	fprintf(stderr, "Master thread starts, id %lu\n",
-@@ -2775,6 +2801,9 @@
+@@ -2775,6 +2804,9 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -918,7 +1188,7 @@
  loop:
  	/*****************************************************************/
  	/* ---- When there is database activity by users, we cycle in this
-@@ -2805,9 +2834,13 @@
+@@ -2805,9 +2837,13 @@
  	/* Sleep for 1 second on entrying the for loop below the first time. */
  	next_itr_time = ut_time_ms() + 1000;
  
@@ -932,7 +1202,7 @@
  		/* ALTER TABLE in MySQL requires on Unix that the table handler
  		can drop tables lazily after there no longer are SELECT
  		queries to them. */
-@@ -2831,6 +2864,7 @@
+@@ -2831,6 +2867,7 @@
  		srv_main_thread_op_info = "sleeping";
  		srv_main_1_second_loops++;
  
@@ -940,7 +1210,7 @@
  		if (next_itr_time > cur_time
  		    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
  
-@@ -2841,10 +2875,26 @@
+@@ -2841,10 +2878,26 @@
  					(next_itr_time - cur_time)
  					 * 1000));
  			srv_main_sleeps++;
@@ -967,7 +1237,7 @@
  
  		/* Flush logs if needed */
  		srv_sync_log_buffer_in_background();
-@@ -2864,7 +2914,7 @@
+@@ -2864,7 +2917,7 @@
  		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
  		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
  			srv_main_thread_op_info = "doing insert buffer merge";
@@ -976,7 +1246,7 @@
  
  			/* Flush logs if needed */
  			srv_sync_log_buffer_in_background();
-@@ -2881,7 +2931,11 @@
+@@ -2881,7 +2934,11 @@
  			n_pages_flushed = buf_flush_list(
  				PCT_IO(100), IB_ULONGLONG_MAX);
  
@@ -989,7 +1259,7 @@
  
  			/* Try to keep the rate of flushing of dirty
  			pages such that redo log generation does not
-@@ -2897,6 +2951,224 @@
+@@ -2897,6 +2954,224 @@
  						n_flush,
  						IB_ULONGLONG_MAX);
  			}
@@ -1214,7 +1484,7 @@
  		}
  
  		if (srv_activity_count == old_activity_count) {
-@@ -2945,12 +3217,12 @@
+@@ -2945,12 +3220,12 @@
  	even if the server were active */
  
  	srv_main_thread_op_info = "doing insert buffer merge";
@@ -1229,7 +1499,29 @@
  		srv_main_thread_op_info = "master purging";
  
  		srv_master_do_purge();
-@@ -3028,7 +3300,7 @@
+@@ -2982,11 +3257,18 @@
+ 			  PCT_IO(10), IB_ULONGLONG_MAX);
+ 	}
+ 
+-	srv_main_thread_op_info = "making checkpoint";
++#ifdef UNIV_DEBUG
++	if (srv_flush_checkpoint_debug != 1) {
++#endif
+ 
+-	/* Make a new checkpoint about once in 10 seconds */
++		srv_main_thread_op_info = "making checkpoint";
+ 
+-	log_checkpoint(TRUE, FALSE);
++		/* Make a new checkpoint about once in 10 seconds */
++
++		log_checkpoint(TRUE, FALSE);
++#ifdef UNIV_DEBUG
++	}
++#endif
+ 
+ 	srv_main_thread_op_info = "reserving kernel mutex";
+ 
+@@ -3028,7 +3310,7 @@
  		}
  	}
  
@@ -1238,7 +1530,7 @@
  		srv_main_thread_op_info = "master purging";
  
  		srv_master_do_purge();
-@@ -3053,7 +3325,7 @@
+@@ -3053,7 +3335,7 @@
  		buf_flush_list below. Otherwise, the system favors
  		clean pages over cleanup throughput. */
  		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
@@ -1247,7 +1539,28 @@
  	}
  
  	srv_main_thread_op_info = "reserving kernel mutex";
-@@ -3193,6 +3465,7 @@
+@@ -3065,6 +3347,10 @@
+ 	}
+ 	mutex_exit(&kernel_mutex);
+ 
++#ifdef UNIV_DEBUG
++	if (srv_flush_checkpoint_debug == 1)
++		goto skip_flush;
++#endif
+ flush_loop:
+ 	srv_main_thread_op_info = "flushing buffer pool pages";
+ 	srv_main_flush_loops++;
+@@ -3105,6 +3391,9 @@
+ 		goto flush_loop;
+ 	}
+ 
++#ifdef UNIV_DEBUG
++skip_flush:
++#endif
+ 	srv_main_thread_op_info = "reserving kernel mutex";
+ 
+ 	mutex_enter(&kernel_mutex);
+@@ -3193,6 +3482,7 @@
  	srv_slot_t*	slot;
  	ulint		retries = 0;
  	ulint		n_total_purged = ULINT_UNDEFINED;
@@ -1255,7 +1568,7 @@
  
  	ut_a(srv_n_purge_threads == 1);
  
-@@ -3213,9 +3486,12 @@
+@@ -3213,9 +3503,12 @@
  
  	mutex_exit(&kernel_mutex);
  
@@ -1268,7 +1581,7 @@
  
  		/* If there are very few records to purge or the last
  		purge didn't purge any records then wait for activity.
-@@ -3262,6 +3538,16 @@
+@@ -3262,6 +3555,16 @@
  		} while (n_pages_purged > 0 && !srv_fast_shutdown);
  
  		srv_sync_log_buffer_in_background();
@@ -1449,3 +1762,167 @@
  SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
  variable_value
  16384
+--- /dev/null
++++ b/mysql-test/suite/innodb/r/percona_flush_contiguous_neighbors.result
+@@ -0,0 +1,21 @@
++DROP TABLE IF EXISTS t1;
++CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
++INSERT INTO t1(foo) VALUES ('a'), ('b');
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/suite/innodb/t/percona_flush_contiguous_neighbors-master.opt
+@@ -0,0 +1 @@
++--innodb_flush_neighbor_pages=cont
+--- /dev/null
++++ b/mysql-test/suite/innodb/t/percona_flush_contiguous_neighbors.test
+@@ -0,0 +1,36 @@
++# Test for innodb_flush_neighbor_pages=contiguous.
++# The test is very crude: we simply overflow the buffer pool with such a number of
++# new/modified pages that some flushing is bound to happen.
++
++--source include/have_innodb.inc
++
++--disable_warnings
++DROP TABLE IF EXISTS t1;
++--enable_warnings
++
++CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
++
++INSERT INTO t1(foo) VALUES ('a'), ('b');
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++INSERT INTO t1(foo) SELECT foo FROM t1;
++
++# TODO: cannot record a stable value here.  A check of > 0 should be enough,
++# but the variable is not accessible through INFORMATION_SCHEMA currently.
++# SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_pages_flushed';
++
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/suite/innodb/r/percona_sync_flush.result
+@@ -0,0 +1,35 @@
++DROP TABLE IF EXISTS t1;
++CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
++SET @@global.innodb_flush_checkpoint_debug=1;
++INSERT INTO t1(foo) VALUES ('a'), ('b');
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++INSERT INTO t1(foo) SELECT foo FROM t1;
++UPDATE t1 SET foo='c';
++SET @@global.innodb_flush_checkpoint_debug=0;
++UPDATE t1 SET foo='d' WHERE foo='c';
++DROP TABLE t1;
+--- /dev/null
++++ b/mysql-test/suite/innodb/t/percona_sync_flush.test
+@@ -0,0 +1,33 @@
++# Test for InnoDB sync state flushing.
++
++--source include/have_innodb.inc
++--source include/have_debug.inc
++
++--disable_warnings
++DROP TABLE IF EXISTS t1;
++--enable_warnings
++
++CREATE TABLE t1 (id INT AUTO_INCREMENT, foo CHAR(255), PRIMARY KEY (id)) ENGINE=InnoDB;
++
++# It is hard to get to InnoDB sync state flushing in MTR with regular workload.  Perhaps
++# it is possible with many parallel connections, but that would be brittle anyway.
++# So, just disable preflushing and checkpointing and issue simple workload.
++SET @@global.innodb_flush_checkpoint_debug=1;
++
++INSERT INTO t1(foo) VALUES ('a'), ('b');
++
++let $rep=0;
++while ($rep < 14)
++{
++        INSERT INTO t1(foo) SELECT foo FROM t1;
++        UPDATE t1 SET foo='c';
++        inc $rep;
++}
++
++# By now checkpoint age should be well past sync flush point.  Allow
++# preflushing/checkpointing again and do some work in order to do the sync flush.
++SET @@global.innodb_flush_checkpoint_debug=0;
++
++UPDATE t1 SET foo='d' WHERE foo='c';
++
++DROP TABLE t1;
+--- a/mysql-test/suite/sys_vars/r/all_vars.result
++++ b/mysql-test/suite/sys_vars/r/all_vars.result
+@@ -4,6 +4,7 @@
+ insert into t2 select variable_name from information_schema.global_variables;
+ insert into t2 select variable_name from information_schema.session_variables;
+ delete from t2 where variable_name='innodb_change_buffering_debug';
++delete from t2 where variable_name='innodb_flush_checkpoint_debug';
+ update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
+ select variable_name as `There should be *no* long test name listed below:` from t2
+ where length(variable_name) > 50;
+--- a/mysql-test/suite/sys_vars/t/all_vars.test
++++ b/mysql-test/suite/sys_vars/t/all_vars.test
+@@ -47,8 +47,9 @@
+ insert into t2 select variable_name from information_schema.global_variables;
+ insert into t2 select variable_name from information_schema.session_variables;
+ 
+-# This is only present in debug builds.
++# These are only present in debug builds.
+ delete from t2 where variable_name='innodb_change_buffering_debug';
++delete from t2 where variable_name='innodb_flush_checkpoint_debug';
+ 
+ # Performance schema variables are too long for files named
+ # 'mysql-test/suite/sys_vars/t/' ...

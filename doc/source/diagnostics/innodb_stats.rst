@@ -6,7 +6,7 @@
 
 This feature provides new startup options (control method and collection of index statistics estimation) and information schema views to confirm the statistics.
 
-This implements the fix for `MySQL Bug #30423 <http://bugs.|MySQL|.com/bug.php?id=30423>`_.
+This implements the fix for `MySQL Bug #30423 <http://bugs.mysql.com/bug.php?id=30423>`_.
 
 Version Specific Information
 ============================
@@ -156,5 +156,5 @@ This example uses the same data to Bug #30423 of |MySQL|.
 Other reading
 =============
 
-  * `InnoDB Table/Index stats <http://www.|MySQL|performanceblog.com/2010/03/20/|InnoDB|-tableindex-stats/>`_
+  * `InnoDB Table/Index stats <http://www.mysqlperformanceblog.com/2010/03/20/|InnoDB|-tableindex-stats/>`_
 

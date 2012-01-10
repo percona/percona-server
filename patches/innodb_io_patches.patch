@@ -1789,13 +1789,15 @@
 --- /dev/null
 +++ b/mysql-test/suite/innodb/t/percona_flush_contiguous_neighbors-master.opt
 @@ -0,0 +1 @@
-+--innodb_flush_neighbor_pages=contiguous
++--innodb_flush_neighbor_pages=cont
 --- /dev/null
 +++ b/mysql-test/suite/innodb/t/percona_flush_contiguous_neighbors.test
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,36 @@
 +# Test for innodb_flush_neighbor_pages=contiguous.
 +# The test is very crude: we simply overflow the buffer pool with such a number of
 +# new/modified pages that some flushing is bound to happen.
++
++--source include/have_innodb.inc
 +
 +--disable_warnings
 +DROP TABLE IF EXISTS t1;

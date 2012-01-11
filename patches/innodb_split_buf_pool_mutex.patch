@@ -551,12 +551,12 @@
  
 +	rw_lock_x_lock(&buf_pool->page_hash_latch);
  	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
-+	if (bpage) {
-+		block_mutex = buf_page_get_mutex_enter(bpage);
-+		ut_a(block_mutex);
-+	}
  
  	if (UNIV_LIKELY_NULL(bpage)) {
++
++		block_mutex = buf_page_get_mutex_enter(bpage);
++		ut_a(block_mutex);
++
  		if (!buf_pool_watch_is_sentinel(buf_pool, bpage)) {
  			/* The page was loaded meanwhile. */
 +			rw_lock_x_unlock(&buf_pool->page_hash_latch);
@@ -1871,7 +1871,7 @@
  	ut_ad(buf_flush_ready_for_flush(bpage, flush_type));
  
  	buf_page_set_io_fix(bpage, BUF_IO_WRITE);
-@@ -1457,14 +1467,16 @@
+@@ -1455,14 +1465,16 @@
  
  		buf_pool = buf_pool_get(space, i);
  
@@ -1890,7 +1890,7 @@
  			if (srv_flush_neighbor_pages == 2) {
  
  				/* This is contiguous neighbor page flush and
-@@ -1482,11 +1494,9 @@
+@@ -1480,11 +1492,9 @@
  		if (flush_type != BUF_FLUSH_LRU
  		    || i == offset
  		    || buf_page_is_old(bpage)) {
@@ -1904,7 +1904,7 @@
  			    && (i == offset || !bpage->buf_fix_count)) {
  				/* We only try to flush those
  				neighbors != offset where the buf fix
-@@ -1502,11 +1512,12 @@
+@@ -1500,11 +1510,12 @@
  				ut_ad(!buf_pool_mutex_own(buf_pool));
  				count++;
  				continue;
@@ -1917,9 +1917,9 @@
 +		//buf_pool_mutex_exit(buf_pool);
 +		rw_lock_s_unlock(&buf_pool->page_hash_latch);
  
- 		if (srv_flush_neigbor_pages == 2) {
+ 		if (srv_flush_neighbor_pages == 2) {
  
-@@ -1555,21 +1566,25 @@
+@@ -1553,21 +1564,25 @@
  	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
  #endif /* UNIV_DEBUG */
  
@@ -1951,7 +1951,7 @@
  
  		/* These fields are protected by both the
  		buffer pool mutex and block mutex. */
-@@ -1585,13 +1600,18 @@
+@@ -1583,13 +1598,18 @@
  						  *count,
  						  n_to_flush);
  
@@ -1973,7 +1973,7 @@
  
  	return(flushed);
  }
-@@ -1612,7 +1632,8 @@
+@@ -1610,7 +1630,8 @@
  	buf_page_t*	bpage;
  	ulint		count = 0;
  
@@ -1983,7 +1983,7 @@
  
  	do {
  		/* Start from the end of the list looking for a
-@@ -1634,7 +1655,8 @@
+@@ -1632,7 +1653,8 @@
  	should be flushed, we factor in this value. */
  	buf_lru_flush_page_count += count;
  
@@ -1993,7 +1993,7 @@
  
  	return(count);
  }
-@@ -1662,9 +1684,10 @@
+@@ -1660,9 +1682,10 @@
  {
  	ulint		len;
  	buf_page_t*	bpage;
@@ -2005,7 +2005,7 @@
  
  	/* If we have flushed enough, leave the loop */
  	do {
-@@ -1683,6 +1706,7 @@
+@@ -1681,6 +1704,7 @@
  
  		if (bpage) {
  			ut_a(bpage->oldest_modification > 0);
@@ -2013,7 +2013,7 @@
  		}
  
  		if (!bpage || bpage->oldest_modification >= lsn_limit) {
-@@ -1724,9 +1748,17 @@
+@@ -1722,9 +1746,17 @@
  				break;
  			}
  
@@ -2033,7 +2033,7 @@
  
  			buf_flush_list_mutex_exit(buf_pool);
  
-@@ -1735,7 +1767,7 @@
+@@ -1733,7 +1765,7 @@
  
  	} while (count < min_n && bpage != NULL && len > 0);
  
@@ -2042,7 +2042,7 @@
  
  	return(count);
  }
-@@ -1774,13 +1806,15 @@
+@@ -1772,13 +1804,15 @@
  	      || sync_thread_levels_empty_except_dict());
  #endif /* UNIV_SYNC_DEBUG */
  
@@ -2059,7 +2059,7 @@
  		break;
  	case BUF_FLUSH_LIST:
  		count = buf_flush_flush_list_batch(buf_pool, min_n, lsn_limit);
-@@ -1789,7 +1823,7 @@
+@@ -1787,7 +1821,7 @@
  		ut_error;
  	}
  
@@ -2068,7 +2068,7 @@
  
  	buf_flush_buffered_writes();
  
-@@ -2045,7 +2079,7 @@
+@@ -2059,7 +2093,7 @@
  retry:
  	//buf_pool_mutex_enter(buf_pool);
  	if (have_LRU_mutex)
@@ -2077,7 +2077,7 @@
  
  	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
  
-@@ -2062,15 +2096,15 @@
+@@ -2076,15 +2110,15 @@
  			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
  			continue;
  		}
@@ -2098,7 +2098,7 @@
  
  		distance++;
  
-@@ -2079,7 +2113,7 @@
+@@ -2093,7 +2127,7 @@
  
  	//buf_pool_mutex_exit(buf_pool);
  	if (have_LRU_mutex)
@@ -2107,7 +2107,7 @@
  
  	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN(buf_pool)) {
  
-@@ -2278,7 +2312,7 @@
+@@ -2292,7 +2326,7 @@
  
  	ut_ad(buf_flush_list_mutex_own(buf_pool));
  
@@ -2116,7 +2116,7 @@
  			 ut_ad(ut_list_node_313->in_flush_list));
  
  	bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-@@ -2318,7 +2352,7 @@
+@@ -2332,7 +2366,7 @@
  			rnode = rbt_next(buf_pool->flush_rbt, rnode);
  		}
  
@@ -3695,7 +3695,7 @@
  				Otherwise, this is 0. */
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -3102,7 +3102,7 @@
+@@ -3105,7 +3105,7 @@
  								level += log_sys->max_checkpoint_age
  									 - (lsn - oldest_modification);
  							}
@@ -3704,7 +3704,7 @@
  							n_blocks++;
  						}
  
-@@ -3188,7 +3188,7 @@
+@@ -3191,7 +3191,7 @@
  							found = TRUE;
  							break;
  						}

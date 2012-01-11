@@ -1206,7 +1206,7 @@
 +  }
 +  else
 +  {
-+    *out_pos= NULL;
++    *out_pos= 0ULL;
 +    *out_file= NULL;
 +  }
 +}

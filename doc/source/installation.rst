@@ -187,7 +187,7 @@ talk about building the latest Percona Server 5.5 development tree. ::
   $ bzr branch lp:percona-server/5.5
 
 You can now change into the 5.5 directory and build Percona Server
-5.1: ::
+5.5: ::
 
   $ make
 

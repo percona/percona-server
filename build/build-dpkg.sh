@@ -12,12 +12,13 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "kK:" --longoptions key:,nosign \
+go_out="$(getopt --options "kK:b" --longoptions key:,nosign,binary \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
 
 BUILDPKG_KEY=''
+BINARY=''
 
 for arg
 do
@@ -25,6 +26,7 @@ do
     -- ) shift; break;;
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
     -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
+    -b | --binary ) shift; BINARY='-b';;
     esac
 done
 
@@ -104,7 +106,7 @@ export MAKE_JFLAG=-j4
         dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
 
         DEB_CFLAGS_APPEND="$CFLAGS" DEB_CXXFLAGS_APPEND="$CXXFLAGS" \
-                dpkg-buildpackage -rfakeroot $BUILDPKG_KEY
+                dpkg-buildpackage $BINARY -rfakeroot $BUILDPKG_KEY
 
     )
 

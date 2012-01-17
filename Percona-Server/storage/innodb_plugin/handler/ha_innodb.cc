@@ -795,6 +795,12 @@ thd_to_trx(
 	return(*(trx_t**) thd_ha_data(thd, innodb_hton_ptr));
 }
 
+my_bool
+ha_innobase::is_fake_change_enabled(THD* thd)
+{
+	trx_t*  trx = thd_to_trx(thd);
+	return (trx && trx->fake_changes);
+}
 /********************************************************************//**
 Call this function when mysqld passes control to the client. That is to
 avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more

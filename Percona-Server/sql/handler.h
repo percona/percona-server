@@ -1655,6 +1655,12 @@ public:
 
   void update_global_table_stats();
   void update_global_index_stats();
+  
+  /** 
+    Return true when innodb_fake_changes was set for the current transaction
+    on this handler
+  */
+  virtual my_bool is_fake_change_enabled(THD *thd) { return FALSE; }
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1

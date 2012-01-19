@@ -98,6 +98,8 @@ test -e "$SOURCEDIR/Makefile" || exit 2
 MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
     | cut -d = -f 2)"
 PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= "$SOURCEDIR/Makefile" | cut -d = -f 2)"
+PERCONA_INNODB_VERSION="$(echo "$PERCONA_SERVER_VERSION" |
+    sed s/rel//)"
 PRODUCT="Percona-Server-$MYSQL_VERSION"
 
 # Build information
@@ -111,8 +113,8 @@ export CC=${CC:-gcc}
 export CXX=${CXX:-gcc}
 export HS_CXX=${HS_CXX:-g++}
 export UDF_CXX=${UDF_CXX:-g++}
-export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS"
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_INNODB_VERSION $TARGET_CFLAGS"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_INNODB_VERSION $TARGET_CFLAGS"
 export MAKE_JFLAG=-j4
 
 export MYSQL_RPMBUILD_TEST="$TEST"

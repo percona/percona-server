@@ -15,7 +15,7 @@ has been found to both keep trunk in a constant state of stability
 (allowing for a release at any time) and minimizing wasted time by
 developers due to broken code from somebody else interfering with their day.
 
-You should also be familiar with our :ref:`Jenkins` setup.
+You should also be familiar with our |Jenkins| setup.
 
 Overview
 ~~~~~~~~
@@ -165,13 +165,6 @@ to branch the specific tag.
 
 Jenkins
 =======
-
-`Jenkins <http://www.jenkins-ci.org>`_ is a continuous integration
-system that we use to help ensure the continued quality of the
-software we produce. It helps us achieve the aims of:
-* no failed tests in trunk on any platform
-* aid developers in ensuring merge requests build and test on all platforms
-* no known performance regressions (without a damn good explanation)
 
 Our Jenkins instance uses a mixture of VMs on physical hosts that
 Percona runs and Virtual Machines in Amazon EC2 that are launched on

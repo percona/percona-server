@@ -69,6 +69,7 @@ Performance Improvements
    :glob:
 
    performance/innodb_purge_thread
+   performance/innodb_lazy_drop_table
    performance/innodb_doublewrite_path
    performance/query_cache_enhance
    performance/innodb_fast_checksum

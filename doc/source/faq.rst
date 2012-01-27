@@ -27,4 +27,16 @@ Yes.
 Can I use the PAM plugin to authenticate against /etc/shadow?
 =============================================================
 
-Yes, but you will need to run mysqld as root so that the PAM libraries such as 'pam_unix.so` can access /etc/shadow.
+Yes, you need to add the mysql user to the shadow group. Because PAM libraries, such as 'pam_unix.so', need to access /etc/shadow.
+
+For example this is how you can do it in *Ubuntu*: ::
+
+   root@lucid64:/var/lib/mysql# getent group shadow
+   shadow:x:42:mysql
+
+   root@lucid64:/var/lib/mysql# ls -alhs /etc/shadow
+   4.0K -rw-r----- 1 root shadow 912 Dec 21 10:39 /etc/shadow
+
+After you restart mysqld for changes to take effect, pam_unix authentication will work.
+
+The other option is to run mysqld as root. This should be used for testing only or as a last resort method.

@@ -98,6 +98,8 @@ rst_prolog = '''
 
 .. |XtraDB|  replace:: *XtraDB*
 
+.. |Jenkins|  replace:: :term:`Jenkins`
+
 .. |InnoDB|  replace:: *InnoDB*
 
 .. |MyISAM|  replace:: *MyISAM*

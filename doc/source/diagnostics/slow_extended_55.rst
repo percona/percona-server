@@ -67,6 +67,18 @@ Values are OR'ed together. If the string is empty, then the filter is disabled. 
 
 For example, to log only queries that perform a full table scan, set the value to ``full_scan``. To log only queries that use on-disk temporary storage for intermediate results, set the value to ``tmp_table_on_disk,filesort_on_disk``.
 
+.. variable:: log_slow_rate_type
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: Enumerated
+     :default: ``session``
+     :range: ``session``, ``query``
+
+Specifies semantic of :variable:`log_slow_rate_limit` - ``session`` or ``query``.
+
 .. variable:: log_slow_rate_limit
 
      :cli: Yes
@@ -74,10 +86,26 @@ For example, to log only queries that perform a full table scan, set the value t
      :scope: Global, session
      :dyn: Yes
 
-Specifies that only a fraction of sessions should be logged. Logging is enabled for every nth session. By default, n is 1, so logging is enabled for every session. Rate limiting is disabled for the replication thread.
+Behavior of this variable depends from :variable:`log_slow_rate_type`.
 
-Logging all queries might consume I/O bandwidth and cause the log file to grow large. This option lets you log full sessions, so you have complete records of sessions for later analysis; but you can rate-limit the number of sessions that are logged. For example, if you set the value to 100, then one percent of sessions will be logged in their entirety. Note that this feature will not work well if your application uses any type of connection pooling or persistent connections.
+Specifies that only a fraction of ``session/query`` should be logged. Logging is enabled for every nth ``session/query``. By default, n is 1, so logging is enabled for every ``session/query``. Please note: when :variable:`log_slow_rate_type` is ``session`` rate limiting is disabled for the replication thread.
 
+Logging all queries might consume I/O bandwidth and cause the log file to grow large.
+ * When :variable:`log_slow_rate_type` is ``session``, this option lets you log full sessions, so you have complete records of sessions for later analysis; but you can rate-limit the number of sessions that are logged. Note that this feature will not work well if your application uses any type of connection pooling or persistent connections.
+ Note that you change :variable:`log_slow_rate_limit` in ``session`` mode, you should reconnect for get effect.
+
+ * When :variable:`log_slow_rate_type` is ``query``, this option lets you log just some queries for later analysis. For example, if you set the value to 100, then one percona of queryies will logged.
+
+Note that every query has global unique ``query_id`` and every connection can has it own (session) :variable:``log_slow_rate_limit`.
+Decision "log or no" calculated in following manner:
+
+ * if ``log_slow_rate_limit`` is 0 - log every query
+
+ * If ``log_slow_rate_limit`` > 0 - log query when (``query_id`` % ``log_slow_rate_limit``) is zero.
+
+This allows flexible setup logging behavior.
+
+For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged.
 
 .. variable:: log_slow_slave_statements
 

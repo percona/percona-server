@@ -3533,7 +3533,7 @@
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1860,6 +1861,26 @@
+@@ -1866,6 +1867,26 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  
@@ -3609,7 +3609,7 @@
  /*
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
-@@ -503,6 +503,12 @@
+@@ -505,6 +505,12 @@
   Invalidate queries in query cache on LOCK for write
   --query-prealloc-size=# 
   Persistent buffer for query parsing and execution
@@ -3622,7 +3622,7 @@
   --range-alloc-block-size=# 
   Allocation block size for storing ranges during
   optimization
-@@ -936,6 +942,8 @@
+@@ -939,6 +945,8 @@
  query-cache-type ON
  query-cache-wlock-invalidate FALSE
  query-prealloc-size 8192

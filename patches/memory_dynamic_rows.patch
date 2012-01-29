@@ -3726,13 +3726,12 @@
 +2
 +DROP FUNCTION f1;
 +DROP TABLE t1;
-+SET default_storage_engine=@old_default_storage_engine;
 +SET @old_max_heap_table_size = @@global.max_heap_table_size;
 +SET @old_max_allowed_packet = @@global.max_allowed_packet;
 +SET GLOBAL max_heap_table_size = 18 * 1024 * 1024;
 +SET GLOBAL max_allowed_packet = 24 * 1024 * 1024;
 +drop table if exists t1;
-+CREATE TABLE t1 (data LONGBLOB) ENGINE=memory;
++CREATE TABLE t1 (data LONGBLOB);
 +INSERT INTO t1 (data) VALUES (NULL);
 +UPDATE t1 set data=repeat('a',18*1024*1024);
 +select length(data) from t1;
@@ -3754,7 +3753,7 @@
 +length(data)
 +0
 +drop table t1;
-+CREATE TABLE t1 (data BLOB) ENGINE=myisam;
++CREATE TABLE t1 (data BLOB);
 +INSERT INTO t1 (data) VALUES (NULL);
 +UPDATE t1 set data=repeat('a',18*1024*1024);
 +Warnings:
@@ -3765,6 +3764,7 @@
 +drop table t1;
 +SET GLOBAL max_allowed_packet = @old_max_allowed_packet;
 +SET GLOBAL max_heap_table_size = @old_max_heap_table_size;
++SET default_storage_engine=@old_default_storage_engine;
 --- /dev/null
 +++ b/mysql-test/r/percona_heap_bug783366.result
 @@ -0,0 +1,14 @@
@@ -4879,7 +4879,6 @@
 +
 +
 +
-+SET default_storage_engine=@old_default_storage_engine;
 +
 +
 +########################################################################
@@ -4900,7 +4899,7 @@
 +
 +# Bug #2159 (Problem with update of blob to > 16M)
 +
-+CREATE TABLE t1 (data LONGBLOB) ENGINE=memory;
++CREATE TABLE t1 (data LONGBLOB);
 +INSERT INTO t1 (data) VALUES (NULL);
 +UPDATE t1 set data=repeat('a',18*1024*1024);
 +select length(data) from t1;
@@ -4922,7 +4921,7 @@
 +select length(data) from t1;
 +drop table t1;
 +
-+CREATE TABLE t1 (data BLOB) ENGINE=myisam;
++CREATE TABLE t1 (data BLOB);
 +INSERT INTO t1 (data) VALUES (NULL);
 +UPDATE t1 set data=repeat('a',18*1024*1024);
 +select length(data) from t1;
@@ -4933,6 +4932,7 @@
 +
 +SET GLOBAL max_allowed_packet = @old_max_allowed_packet;
 +SET GLOBAL max_heap_table_size = @old_max_heap_table_size;
++SET default_storage_engine=@old_default_storage_engine;
 --- /dev/null
 +++ b/mysql-test/t/percona_heap_bug783366.test
 @@ -0,0 +1,19 @@

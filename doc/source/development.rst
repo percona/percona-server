@@ -15,7 +15,7 @@ has been found to both keep trunk in a constant state of stability
 (allowing for a release at any time) and minimizing wasted time by
 developers due to broken code from somebody else interfering with their day.
 
-You should also be familiar with our :ref:`Jenkins` setup.
+You should also be familiar with our :ref:`Jenkin` setup.
 
 Overview
 ~~~~~~~~
@@ -162,6 +162,9 @@ Making a release
 
 This way anybody can easily check out an old release by just using bzr
 to branch the specific tag.
+
+
+.. _Jenkin:
 
 Jenkins
 =======

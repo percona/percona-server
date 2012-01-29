@@ -76,8 +76,8 @@ export DEB_BUILD_OPTIONS='nostrip debug nocheck'
 # Compilation flags
 export CC=${CC:-gcc}
 export CXX=${CXX:-gcc}
-export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer ${CFLAGS:-}"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions ${CXXFLAGS:-}"
+export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION ${CFLAGS:-}"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
 
 # Prepare sources

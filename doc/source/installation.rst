@@ -10,9 +10,7 @@ Ready-to-use binaries are available from the |Percona Server| `download page <ht
 
  * ``RPM`` packages for *RHEL* 5 and *RHEL* 6
 
- * *Debian* packages
-
- * *FreeBSD* ``.tbz`` packages
+ * *Debian* packages for *Debian* and *Ubuntu*
 
 .. * *Microsoft Windows* binaries
 
@@ -189,7 +187,7 @@ talk about building the latest Percona Server 5.5 development tree. ::
   $ bzr branch lp:percona-server/5.5
 
 You can now change into the 5.5 directory and build Percona Server
-5.1: ::
+5.5: ::
 
   $ make
 

@@ -18,7 +18,7 @@
  		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_FREE);
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -880,9 +880,9 @@
+@@ -890,9 +890,9 @@
  	block->page.in_zip_hash = FALSE;
  	block->page.in_flush_list = FALSE;
  	block->page.in_free_list = FALSE;
@@ -29,7 +29,7 @@
  #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
  	block->n_pointers = 0;
  #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-@@ -1366,7 +1366,7 @@
+@@ -1401,7 +1401,7 @@
  
  	memcpy(dpage, bpage, sizeof *dpage);
  
@@ -38,7 +38,7 @@
  	ut_d(bpage->in_page_hash = FALSE);
  
  	/* relocate buf_pool->LRU */
-@@ -3188,8 +3188,8 @@
+@@ -3223,8 +3223,8 @@
  		bpage->in_zip_hash = FALSE;
  		bpage->in_flush_list = FALSE;
  		bpage->in_free_list = FALSE;
@@ -48,7 +48,7 @@
  
  		ut_d(bpage->in_page_hash = TRUE);
  
-@@ -3354,7 +3354,7 @@
+@@ -3389,7 +3389,7 @@
  	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
  
  	/* Flush pages from the end of the LRU list if necessary */

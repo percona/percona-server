@@ -282,15 +282,7 @@
     int  (*recover)(handlerton *hton, XID *xid_list, uint len);
 --- a/sql/log.cc
 +++ b/sql/log.cc
-@@ -49,6 +49,7 @@
- 
- #include "sql_plugin.h"
- #include "rpl_handler.h"
-+#include "debug_sync.h"
- 
- /* max size of the log message */
- #define MAX_LOG_BUFFER_SIZE 1024
-@@ -71,6 +72,25 @@
+@@ -71,6 +71,25 @@
  static int binlog_rollback(handlerton *hton, THD *thd, bool all);
  static int binlog_prepare(handlerton *hton, THD *thd, bool all);
  
@@ -316,7 +308,7 @@
  /**
     purge logs, master and slave sides both, related error code
     convertor.
-@@ -167,41 +187,6 @@
+@@ -167,41 +186,6 @@
  }
  
  /*
@@ -358,7 +350,7 @@
    Helper classes to store non-transactional and transactional data
    before copying it to the binary log.
  */
-@@ -211,7 +196,8 @@
+@@ -211,7 +195,8 @@
    binlog_cache_data(): m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF),
    incident(FALSE), changes_to_non_trans_temp_table_flag(FALSE),
    saved_max_binlog_cache_size(0), ptr_binlog_cache_use(0),
@@ -368,7 +360,7 @@
    { }
    
    ~binlog_cache_data()
-@@ -270,6 +256,8 @@
+@@ -270,6 +255,8 @@
        variable after truncating the cache.
      */
      cache_log.disk_writes= 0;
@@ -377,7 +369,7 @@
      DBUG_ASSERT(empty());
    }
  
-@@ -411,6 +399,20 @@
+@@ -411,6 +398,20 @@
   
    binlog_cache_data& operator=(const binlog_cache_data& info);
    binlog_cache_data(const binlog_cache_data& info);
@@ -398,7 +390,7 @@
  };
  
  class binlog_cache_mngr {
-@@ -1627,7 +1629,7 @@
+@@ -1624,7 +1625,7 @@
  */
  static inline int
  binlog_flush_cache(THD *thd, binlog_cache_data* cache_data, Log_event *end_evt,
@@ -407,7 +399,7 @@
  {
    DBUG_ENTER("binlog_flush_cache");
    int error= 0;
-@@ -1646,8 +1648,8 @@
+@@ -1643,8 +1644,8 @@
        were, we would have to ensure that we're not ending a statement
        inside a stored function.
      */
@@ -418,7 +410,7 @@
    }
    cache_data->reset();
  
-@@ -1666,12 +1668,12 @@
+@@ -1663,12 +1664,12 @@
  */
  static inline int
  binlog_commit_flush_stmt_cache(THD *thd,
@@ -433,7 +425,7 @@
  }
  
  /**
-@@ -1684,12 +1686,12 @@
+@@ -1681,12 +1682,12 @@
      nonzero if an error pops up when flushing the cache.
  */
  static inline int
@@ -448,7 +440,7 @@
  }
  
  /**
-@@ -1702,12 +1704,12 @@
+@@ -1699,12 +1700,12 @@
      nonzero if an error pops up when flushing the cache.
  */
  static inline int
@@ -463,7 +455,7 @@
  }
  
  /**
-@@ -1722,11 +1724,11 @@
+@@ -1719,11 +1720,11 @@
  */
  static inline int
  binlog_commit_flush_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr,
@@ -477,7 +469,7 @@
  }
  
  /**
-@@ -1788,7 +1790,7 @@
+@@ -1785,7 +1786,7 @@
      do nothing.
      just pretend we can do 2pc, so that MySQL won't
      switch to 1pc.
@@ -486,7 +478,7 @@
    */
    return 0;
  }
-@@ -1821,7 +1823,7 @@
+@@ -1818,7 +1819,7 @@
  
    if (!cache_mngr->stmt_cache.empty())
    {
@@ -495,7 +487,7 @@
    }
  
    if (cache_mngr->trx_cache.empty())
-@@ -1840,7 +1842,7 @@
+@@ -1837,7 +1838,7 @@
      Otherwise, we accumulate the changes.
    */
    if (!error && ending_trans(thd, all))
@@ -504,7 +496,7 @@
  
    /*
      This is part of the stmt rollback.
-@@ -1884,7 +1886,7 @@
+@@ -1881,7 +1882,7 @@
    }
    else if (!cache_mngr->stmt_cache.empty())
    {
@@ -513,7 +505,7 @@
    }
  
    if (cache_mngr->trx_cache.empty())
-@@ -1932,7 +1934,7 @@
+@@ -1929,7 +1930,7 @@
           (trans_has_updated_non_trans_table(thd) &&
            ending_single_stmt_trans(thd,all) &&
            thd->variables.binlog_format == BINLOG_FORMAT_MIXED)))
@@ -522,7 +514,7 @@
      /*
        Truncate the cache if:
          . aborting a single or multi-statement transaction or;
-@@ -2907,6 +2909,7 @@
+@@ -2904,6 +2905,7 @@
  MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
     need_start_event(TRUE),
@@ -530,7 +522,7 @@
     sync_period_ptr(sync_period),
     is_relay_log(0), signal_cnt(0),
     description_event_for_exec(0), description_event_for_queue(0)
-@@ -5279,19 +5282,15 @@
+@@ -5325,19 +5327,15 @@
    SYNOPSIS
      write_cache()
      cache    Cache to write to the binary log
@@ -552,7 +544,7 @@
    if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
      return ER_ERROR_ON_WRITE;
    uint length= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
-@@ -5402,6 +5401,8 @@
+@@ -5448,6 +5446,8 @@
      }
  
      /* Write data to the binary log file */
@@ -561,7 +553,7 @@
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
      thd->binlog_bytes_written+= length;
-@@ -5410,9 +5411,6 @@
+@@ -5456,9 +5456,6 @@
  
    DBUG_ASSERT(carry == 0);
  
@@ -571,7 +563,7 @@
    return 0;                                     // All OK
  }
  
-@@ -5453,8 +5451,6 @@
+@@ -5499,8 +5496,6 @@
    if (!is_open())
      DBUG_RETURN(error);
  
@@ -580,7 +572,7 @@
    Incident incident= INCIDENT_LOST_EVENTS;
    Incident_log_event ev(thd, incident, write_error_msg);
    if (lock)
-@@ -5496,104 +5492,320 @@
+@@ -5549,112 +5544,332 @@
      'cache' needs to be reinitialized after this functions returns.
  */
  
@@ -589,8 +581,7 @@
 +bool
 +MYSQL_BIN_LOG::write_transaction_to_binlog(THD *thd, binlog_cache_data *cache_data,
 +                                           Log_event *end_ev, bool all)
- {
--  DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
++{
 +  group_commit_entry entry;
 +  bool ret;
 +  DBUG_ENTER("MYSQL_BIN_LOG::write_transaction_to_binlog");
@@ -631,7 +622,8 @@
 +
 +bool
 +MYSQL_BIN_LOG::write_transaction_to_binlog_events(group_commit_entry *entry)
-+{
+ {
+-  DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
 +  /*
 +    To facilitate group commit for the binlog, we first queue up ourselves in
 +    the group commit queue. Then the first thread to enter the queue waits for
@@ -678,7 +670,7 @@
 +                    "Error writing transaction to binary log: %d",
 +                    MYF(ME_NOREFRESH), entry->error);
 +  }
-+
+ 
 +  /*
 +    Since we return error, this transaction XID will not be committed, so
 +    we need to mark it as not needed for recovery (unlog() is not called
@@ -706,38 +698,42 @@
 +  DBUG_ENTER("MYSQL_BIN_LOG::trx_group_commit_leader");
 +  uint xid_count= 0;
 +  uint write_count= 0;
-+
-+  /*
-+    Lock the LOCK_log(), and once we get it, collect any additional writes
-+    that queued up while we were waiting.
-+  */
-   mysql_mutex_lock(&LOCK_log);
-+  DEBUG_SYNC(leader->thd, "commit_after_get_LOCK_log");
-+  mysql_mutex_lock(&LOCK_group_commit_queue);
-+  group_commit_entry *current= group_commit_queue;
-+  group_commit_queue= NULL;
-+  mysql_mutex_unlock(&LOCK_group_commit_queue);
-+
-+  /* As the queue is in reverse order of entering, reverse it. */
-+  group_commit_entry *queue= NULL;
-+  while (current)
-+  {
-+    group_commit_entry *next= current->next;
-+    current->next= queue;
-+    queue= current;
-+    current= next;
-+  }
-+  DBUG_ASSERT(leader == queue /* the leader should be first in queue */);
- 
-+  /* Now we have in queue the list of transactions to be committed in order. */
++  bool check_purge= false;
++  group_commit_entry *current= 0;
    DBUG_ASSERT(is_open());
    if (likely(is_open()))                       // Should always be true
    {
+-    bool check_purge;
+-    
++    /*
++      Lock the LOCK_log(), and once we get it, collect any additional writes
++      that queued up while we were waiting.
++    */
+     mysql_mutex_lock(&LOCK_log);
++
++    DEBUG_SYNC(leader->thd, "commit_after_get_LOCK_log");
++    mysql_mutex_lock(&LOCK_group_commit_queue);
++    current= group_commit_queue;
++    group_commit_queue= NULL;
++    mysql_mutex_unlock(&LOCK_group_commit_queue);
++
++    /* As the queue is in reverse order of entering, reverse it. */
++    group_commit_entry *queue= NULL;
++    while (current)
++    {
++      group_commit_entry *next= current->next;
++      current->next= queue;
++      queue= current;
++      current= next;
++    }
++    DBUG_ASSERT(leader == queue /* the leader should be first in queue */);
      /*
 -      We only bother to write to the binary log if there is anything
 -      to write.
 -     */
 -    if (my_b_tell(cache) > 0)
++      Now we have in queue the list of transactions to be committed in order.
++
 +      Commit every transaction in the queue.
 +
 +      Note that we are doing this in a different thread than the one running
@@ -771,27 +767,27 @@
 -                        DBUG_PRINT("info", ("crashing before writing xid"));
 -                        DBUG_SUICIDE();
 -                      });
-+      if (my_b_tell(cache) > 0)
-+      {
-+        if ((current->error= write_transaction(current)))
-+          current->commit_errno= errno;
- 
+-
 -      if ((write_error= write_cache(thd, cache, false, false)))
 -        goto err;
-+        write_count++;
-+      }
- 
+-
 -      if (commit_event && commit_event->write(&log_file))
 -        goto err;
 -      if (commit_event)
 -        thd->binlog_bytes_written+= commit_event->data_written;
++      if (my_b_tell(cache) > 0)
++      {
++        if ((current->error= write_transaction(current)))
++          current->commit_errno= errno;
++        write_count++;
++      }
+ 
+-      if (incident && write_incident(thd, FALSE))
+-        goto err;
 +      cache_data->commit_bin_log_file_pos= my_b_write_tell(&log_file);
 +      if (cache_data->using_xa && cache_data->xa_xid)
 +        xid_count++;
 +    }
- 
--      if (incident && write_incident(thd, FALSE))
--        goto err;
  
 +    if (write_count > 0)
 +    {
@@ -856,11 +852,16 @@
 -      mysql_mutex_lock(&LOCK_prep_xids);
 -      prepared_xids++;
 -      mysql_mutex_unlock(&LOCK_prep_xids);
+-      mysql_mutex_unlock(&LOCK_log);
 +      mark_xids_active(xid_count);
      }
      else
-       if (rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED))
+     {
+       if (rotate(false, &check_purge))
 -        goto err;
+-      mysql_mutex_unlock(&LOCK_log);
+-      if (check_purge) 
+-        purge();
 +      {
 +        for (current= queue; current != NULL; current= current->next)
 +        {
@@ -871,55 +872,66 @@
 +          }
 +        }
 +      }
-   }
-+  DEBUG_SYNC(leader->thd, "commit_before_get_LOCK_commit_ordered");
-+  mysql_mutex_lock(&LOCK_commit_ordered);
-+  /*
-+    We cannot unlock LOCK_log until we have locked LOCK_commit_ordered;
-+    otherwise scheduling could allow the next group commit to run ahead of us,
-+    messing up the order of commit_ordered() calls. But as soon as
-+    LOCK_commit_ordered is obtained, we can let the next group commit start.
-+  */
-   mysql_mutex_unlock(&LOCK_log);
-+  DEBUG_SYNC(leader->thd, "commit_after_release_LOCK_log");
-+  ++num_group_commits;
+     }
+-  }
  
 -  DBUG_RETURN(0);
--
++    DEBUG_SYNC(leader->thd, "commit_before_get_LOCK_commit_ordered");
++    mysql_mutex_lock(&LOCK_commit_ordered);
++    /*
++      We cannot unlock LOCK_log until we have locked LOCK_commit_ordered;
++      otherwise scheduling could allow the next group commit to run ahead of us,
++      messing up the order of commit_ordered() calls. But as soon as
++      LOCK_commit_ordered is obtained, we can let the next group commit start.
++    */
+ 
 -err:
 -  if (!write_error)
-+  /*
-+    Wakeup each participant waiting for our group commit, first calling the
-+    commit_ordered() methods for any transactions doing 2-phase commit.
-+  */
-+  current= queue;
-+  while (current != NULL)
-   {
+-  {
 -    write_error= 1;
 -    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
-+    group_commit_entry *next;
++    mysql_mutex_unlock(&LOCK_log);
 +
-+    DEBUG_SYNC(leader->thd, "commit_loop_entry_commit_ordered");
-+    ++num_commits;
-+    if (current->cache_data->using_xa && !current->error)
-+      run_commit_ordered(current->thd, current->all);
++    if (xid_count > 0 && check_purge)
++    {
++      purge();
++    }
++
++    DEBUG_SYNC(leader->thd, "commit_after_release_LOCK_log");
++    ++num_group_commits;
 +
 +    /*
-+      Careful not to access current->next after waking up the other thread! As
-+      it may change immediately after wakeup.
++      Wakeup each participant waiting for our group commit, first calling the
++      commit_ordered() methods for any transactions doing 2-phase commit.
 +    */
-+    next= current->next;
-+    if (current != leader)                      // Don't wake up ourself
-+      current->thd->signal_wakeup_ready();
-+    current= next;
++    current= queue;
++    while (current != NULL)
++    {
++      group_commit_entry *next;
++
++      DEBUG_SYNC(leader->thd, "commit_loop_entry_commit_ordered");
++      ++num_commits;
++      if (current->cache_data->using_xa && !current->error)
++        run_commit_ordered(current->thd, current->all);
++
++      /*
++        Careful not to access current->next after waking up the other thread! As
++        it may change immediately after wakeup.
++      */
++      next= current->next;
++      if (current != leader)                      // Don't wake up ourself
++        current->thd->signal_wakeup_ready();
++      current= next;
++    }
++    DEBUG_SYNC(leader->thd, "commit_after_group_run_commit_ordered");
++    mysql_mutex_unlock(&LOCK_commit_ordered);
    }
 -  mysql_mutex_unlock(&LOCK_log);
 -  DBUG_RETURN(1);
-+  DEBUG_SYNC(leader->thd, "commit_after_group_run_commit_ordered");
-+  mysql_mutex_unlock(&LOCK_commit_ordered);
 +
 +  DBUG_VOID_RETURN;
  }
+ 
  
 +int
 +MYSQL_BIN_LOG::write_transaction(group_commit_entry *entry)
@@ -955,10 +967,11 @@
 +
 +  return 0;
 +}
- 
++
  /**
    Wait until we get a signal that the relay log has been updated.
-@@ -5999,6 +6211,68 @@
+ 
+@@ -6059,6 +6274,68 @@
  }
  
  
@@ -1027,7 +1040,7 @@
  /********* transaction coordinator log for 2pc - mmap() based solution *******/
  
  /*
-@@ -6135,6 +6409,7 @@
+@@ -6195,6 +6472,7 @@
    mysql_mutex_init(key_LOCK_pool, &LOCK_pool, MY_MUTEX_INIT_FAST);
    mysql_cond_init(key_COND_active, &COND_active, 0);
    mysql_cond_init(key_COND_pool, &COND_pool, 0);
@@ -1035,7 +1048,7 @@
  
    inited=6;
  
-@@ -6142,6 +6417,8 @@
+@@ -6202,6 +6480,8 @@
    active=pages;
    pool=pages+1;
    pool_last=pages+npages-1;
@@ -1044,7 +1057,7 @@
  
    return 0;
  
-@@ -6247,7 +6524,7 @@
+@@ -6307,7 +6587,7 @@
      to the position in memory where xid was logged to.
  */
  
@@ -1053,7 +1066,7 @@
  {
    int err;
    PAGE *p;
-@@ -6386,7 +6663,9 @@
+@@ -6446,7 +6726,9 @@
      mysql_mutex_destroy(&LOCK_sync);
      mysql_mutex_destroy(&LOCK_active);
      mysql_mutex_destroy(&LOCK_pool);
@@ -1063,7 +1076,7 @@
    case 5:
      data[0]='A'; // garble the first (signature) byte, in case mysql_file_delete fails
    case 4:
-@@ -6596,42 +6875,87 @@
+@@ -6656,42 +6938,87 @@
    mysql_cond_destroy(&COND_prep_xids);
  }
  
@@ -1163,7 +1176,7 @@
  }
  
  int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
-@@ -6700,9 +7024,67 @@
+@@ -6760,9 +7087,67 @@
  {
    return (ulonglong) mysql_bin_log.get_log_file()->pos_in_file;
  }
@@ -1193,7 +1206,7 @@
 +  }
 +  else
 +  {
-+    *out_pos= NULL;
++    *out_pos= 0ULL;
 +    *out_file= NULL;
 +  }
 +}
@@ -1231,7 +1244,7 @@
  struct st_mysql_storage_engine binlog_storage_engine=
  { MYSQL_HANDLERTON_INTERFACE_VERSION };
  
-@@ -6717,7 +7099,7 @@
+@@ -6777,7 +7162,7 @@
    binlog_init, /* Plugin Init */
    NULL, /* Plugin Deinit */
    0x0100 /* 1.0 */,
@@ -1423,7 +1436,7 @@
    void set_write_error(THD *thd, bool is_transactional);
    bool check_write_error(THD *thd);
  
-@@ -507,6 +595,7 @@
+@@ -509,6 +597,7 @@
    inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
    inline IO_CACHE *get_index_file() { return &index_file;}
    inline uint32 get_open_count() { return open_count; }
@@ -1521,7 +1534,7 @@
    key_thread_handle_manager, key_thread_kill_server, key_thread_main,
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -912,6 +912,8 @@
+@@ -1005,6 +1005,8 @@
    mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
    mysql_mutex_init(key_LOCK_temporary_tables, &LOCK_temporary_tables,
                     MY_MUTEX_INIT_FAST);
@@ -1530,7 +1543,7 @@
  
    /* Variables with default values */
    proc_info="login";
-@@ -1516,6 +1518,8 @@
+@@ -1609,6 +1611,8 @@
    my_free(db);
    db= NULL;
    free_root(&transaction.mem_root,MYF(0));
@@ -1539,7 +1552,7 @@
    mysql_mutex_destroy(&LOCK_thd_data);
    mysql_mutex_destroy(&LOCK_temporary_tables);
  #ifndef DBUG_OFF
-@@ -5199,6 +5203,24 @@
+@@ -5292,6 +5296,24 @@
    DBUG_RETURN(0);
  }
  
@@ -1566,7 +1579,7 @@
  {
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -3017,6 +3017,14 @@
+@@ -3078,6 +3078,14 @@
    LEX_STRING get_invoker_user() { return invoker_user; }
    LEX_STRING get_invoker_host() { return invoker_host; }
    bool has_invoker() { return invoker_user.length > 0; }
@@ -1581,7 +1594,7 @@
  private:
  
    /** The current internal error handler for this thread, or NULL. */
-@@ -3059,6 +3067,16 @@
+@@ -3120,6 +3128,16 @@
     */
    LEX_STRING invoker_user;
    LEX_STRING invoker_host;
@@ -1874,7 +1887,7 @@
    
  		trx_deregister_from_2pc(trx);
  
-@@ -10973,6 +11140,7 @@
+@@ -10982,6 +11149,7 @@
  
  	srv_active_wake_master_thread();
  
@@ -1882,7 +1895,7 @@
  	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
  	    && (all
  		|| !thd_test_options(
-@@ -10999,6 +11167,7 @@
+@@ -11008,6 +11176,7 @@
  		mysql_mutex_lock(&prepare_commit_mutex);
  		trx_owns_prepare_commit_mutex_set(trx);
  	}

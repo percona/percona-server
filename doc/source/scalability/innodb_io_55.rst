@@ -21,6 +21,10 @@ These new variables are divided into several categories:
 Version Specific Information
 ============================
 
+  * 5.5.19-24.0
+
+    * Added option value ``cont`` for variable :variable:`innodb_flush_neighbor_pages`.
+
   * 5.5.8-20.0
 
     * Added variable :variable:`innodb_adaptive_flushing_method`.
@@ -135,21 +139,38 @@ The following values are allowed:
 
 .. variable:: innodb_flush_neighbor_pages
 
+   :version 5.5.19-24.0: Introduced option value ``cont``
    :cli: Yes
    :conf: Yes
    :scope: Global
    :dyn: Yes
-   :vartype: Numeric
-   :default: 1
-   :range: 0-1
+   :vartype: Enumeration
+   :default: ``area``
+   :range: ``none``, ``area``, ``cont``
 
-This variable specifies whether, when the dirty pages are flushed to the data file, the neighbor pages in the data file are also flushed at the same time or not. The following values are available:
+This variable specifies whether, when the dirty pages are flushed to
+the data file, the neighbor pages in the data file are also flushed at
+the same time or not. The following values (and their numeric
+counterparts ``0``, ``1`` and ``2`` for older patch compatibility) are
+available:
 
-  * 0: 
-    disables the feature
+  * ``none``: 
+    disables the feature.
 
-  * 1 (default): 
-    enables the feature If you use a storage which has no “head seek delay” (e.g. SSD or enough memory for write buffering), 0 may show better performance.
+  * ``area`` (default): 
+    enables flushing of non-contiguous neighbor pages. For each page
+    that is about to be flushed, look into its vicinity for other
+    dirty pages and flush them too. This value implements the standard
+    |InnoDB| behavior. If you use a storage which has no “head seek
+    delay” (e.g. SSD or enough memory for write buffering), ``none``
+    or ``cont`` may show better performance. 
+
+  * ``cont``:
+    enable flushing of contiguous neighbor pages. For each page that
+    is about to be flushed, look if there is a contiguous block of
+    dirty pages surrounding it. If such block is found it is flushed
+    in a sequential I/O operation as opposed to several random I/Os if
+    ``area`` is used.
 
 .. variable:: innodb_ibuf_active_merge
 

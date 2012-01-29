@@ -48,7 +48,7 @@ INFORMATION_SCHEMA Tables
   :column CONCURRENT_CONNECTIONS: The number of concurrent connections for this client.
   :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this client.
   :column BUSY_TIME: The cumulative number of seconds there was activity on connections from this client.
-  :column CPU_TIME: The cumulative CPU time elapsed while servicing this client``s connections.
+  :column CPU_TIME: The cumulative CPU time elapsed, in seconds, while servicing this client``s connections.
   :column BYTES_RECEIVED: The number of bytes received from this client's connections.
   :column BYTES_SENT: The number of bytes sent to this client's connections.
   :column BINLOG_BYTES_WRITTEN:	The number of bytes written to the binary log from this client's connections.
@@ -169,7 +169,7 @@ Example: ::
   :column CONCURRENT_CONNECTIONS: The number of concurrent connections for this user.
   :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this user.
   :column BUSY_TIME: The cumulative number of seconds there was activity on connections from this user.
-  :column CPU_TIME: The cumulative CPU time elapsed while servicing this user's connections.
+  :column CPU_TIME: The cumulative CPU time elapsed, in seconds, while servicing this user's connections.
   :column BYTES_RECEIVED: The number of bytes received from this user's connections.
   :column BYTES_SENT: The number of bytes sent to this user's connections.
   :column BINLOG_BYTES_WRITTEN: The number of bytes written to the binary log from this user's connections.

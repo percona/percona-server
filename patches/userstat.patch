@@ -363,7 +363,7 @@
  /*
    Log error with all enabled log event handlers
  
-@@ -5029,6 +5036,8 @@
+@@ -5026,6 +5033,8 @@
                               thd->first_successful_insert_id_in_prev_stmt_for_binlog);
            if (e.write(file))
              goto err;
@@ -372,7 +372,7 @@
          }
          if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
          {
-@@ -5040,12 +5049,16 @@
+@@ -5037,12 +5046,16 @@
                               minimum());
            if (e.write(file))
              goto err;
@@ -389,7 +389,7 @@
          }
          if (thd->user_var_events.elements)
          {
-@@ -5068,6 +5081,8 @@
+@@ -5065,6 +5078,8 @@
                                   flags);
              if (e.write(file))
                goto err;
@@ -398,7 +398,7 @@
            }
          }
        }
-@@ -5079,6 +5094,8 @@
+@@ -5076,6 +5091,8 @@
      if (event_info->write(file) ||
          DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
        goto err;
@@ -407,7 +407,7 @@
  
      error= 0;
  err:
-@@ -5264,7 +5281,8 @@
+@@ -5310,7 +5327,8 @@
      be reset as a READ_CACHE to be able to read the contents from it.
   */
  
@@ -417,7 +417,7 @@
  {
    Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
  
-@@ -5311,6 +5329,7 @@
+@@ -5357,6 +5375,7 @@
        /* write the first half of the split header */
        if (my_b_write(&log_file, header, carry))
          return ER_ERROR_ON_WRITE;
@@ -425,7 +425,7 @@
  
        /*
          copy fixed second half of header to cache so the correct
-@@ -5379,6 +5398,7 @@
+@@ -5425,6 +5444,7 @@
      /* Write data to the binary log file */
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
@@ -433,7 +433,7 @@
      cache->read_pos=cache->read_end;		// Mark buffer used up
    } while ((length= my_b_fill(cache)));
  
-@@ -5493,20 +5513,23 @@
+@@ -5548,20 +5568,23 @@
        Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE, TRUE, 0);
        if (qinfo.write(&log_file))
          goto err;
@@ -471,7 +471,7 @@
    void set_write_error(THD *thd, bool is_transactional);
    bool check_write_error(THD *thd);
  
-@@ -589,6 +590,7 @@
+@@ -591,6 +592,7 @@
                             const char *sql_text, uint sql_text_len,
                             CHARSET_INFO *client_cs);
    void flush();
@@ -726,7 +726,7 @@
    if (delete_table)
 --- a/sql/sql_class.cc
 +++ b/sql/sql_class.cc
-@@ -885,6 +885,13 @@
+@@ -978,6 +978,13 @@
    mysys_var=0;
    binlog_evt_union.do_union= FALSE;
    enable_slow_log= 0;
@@ -740,7 +740,7 @@
  #ifndef DBUG_OFF
    dbug_sentry=THD_SENTRY_MAGIC;
  #endif
-@@ -1264,6 +1271,7 @@
+@@ -1357,6 +1364,7 @@
      variables.option_bits|= OPTION_BIN_LOG;
    else
      variables.option_bits&= ~OPTION_BIN_LOG;
@@ -748,7 +748,7 @@
  
  #if defined(ENABLED_DEBUG_SYNC)
    /* Initialize the Debug Sync Facility. See debug_sync.cc. */
-@@ -1273,6 +1281,94 @@
+@@ -1366,6 +1374,94 @@
    clear_slow_extended();
  }
  
@@ -843,7 +843,7 @@
  
  /*
    Init THD for query processing.
-@@ -2027,6 +2123,32 @@
+@@ -2120,6 +2216,32 @@
  }
  #endif
  
@@ -876,7 +876,7 @@
  
  struct Item_change_record: public ilink
  {
-@@ -2203,6 +2325,7 @@
+@@ -2296,6 +2418,7 @@
    }
  
    thd->sent_row_count++;
@@ -884,7 +884,7 @@
  
    if (thd->vio_ok())
      DBUG_RETURN(protocol->write());
-@@ -2295,6 +2418,7 @@
+@@ -2388,6 +2511,7 @@
  select_export::~select_export()
  {
    thd->sent_row_count=row_count;
@@ -892,7 +892,7 @@
  }
  
  
-@@ -3318,6 +3442,7 @@
+@@ -3411,6 +3535,7 @@
    if (likely(thd != 0))
    { /* current_thd==0 when close_connection() calls net_send_error() */
      thd->status_var.bytes_sent+= length;
@@ -900,7 +900,7 @@
    }
  }
  
-@@ -3325,6 +3450,7 @@
+@@ -3418,6 +3543,7 @@
  void thd_increment_bytes_received(ulong length)
  {
    current_thd->status_var.bytes_received+= length;
@@ -910,7 +910,7 @@
  
 --- a/sql/sql_class.h
 +++ b/sql/sql_class.h
-@@ -1644,6 +1644,8 @@
+@@ -1705,6 +1705,8 @@
    */
    enum enum_server_command command;
    uint32     server_id;
@@ -919,7 +919,7 @@
    uint32     file_id;			// for LOAD DATA INFILE
    /* remote (peer) port */
    uint16 peer_port;
-@@ -2153,6 +2155,8 @@
+@@ -2214,6 +2216,8 @@
    */
    enum_tx_isolation tx_isolation;
    enum_check_fields count_cuted_fields;
@@ -928,7 +928,7 @@
  
    DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
    MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
-@@ -2247,6 +2251,49 @@
+@@ -2308,6 +2312,49 @@
    */
    LOG_INFO*  current_linfo;
    NET*       slave_net;			// network connection from slave -> m.
@@ -978,7 +978,7 @@
    /* Used by the sys_var class to store temporary values */
    union
    {
-@@ -2327,6 +2374,11 @@
+@@ -2388,6 +2435,11 @@
      alloc_root. 
    */
    void init_for_queries();
@@ -990,7 +990,7 @@
    void change_user(void);
    void cleanup(void);
    void cleanup_after_query();
-@@ -2799,6 +2851,15 @@
+@@ -2860,6 +2912,15 @@
    }
    thd_scheduler scheduler;
  
@@ -1006,7 +1006,7 @@
  public:
    inline Internal_error_handler *get_internal_handler()
    { return m_internal_handler; }
-@@ -2999,6 +3060,10 @@
+@@ -3060,6 +3121,10 @@
    LEX_STRING invoker_host;
  };
  
@@ -1710,7 +1710,7 @@
  
 --- a/sql/sql_insert.cc
 +++ b/sql/sql_insert.cc
-@@ -1070,13 +1070,14 @@
+@@ -1072,13 +1072,14 @@
  
    if (error)
      goto abort;
@@ -1728,7 +1728,7 @@
    }
    else
    {
-@@ -1092,8 +1093,10 @@
+@@ -1094,8 +1095,10 @@
        sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
  	      (ulong) (info.deleted + updated),
                (ulong) thd->warning_info->statement_warn_count());
@@ -1740,7 +1740,7 @@
    thd->abort_on_warning= 0;
    DBUG_RETURN(FALSE);
  
-@@ -3535,6 +3538,7 @@
+@@ -3540,6 +3543,7 @@
       thd->first_successful_insert_id_in_prev_stmt :
       (info.copied ? autoinc_value_of_last_inserted_row : 0));
    ::my_ok(thd, row_count, id, buff);
@@ -3219,7 +3219,7 @@
  #define REG_NEW_RECORD		2	/* Write a new record if not found */
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -1632,6 +1632,17 @@
+@@ -1638,6 +1638,17 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
  
@@ -3461,7 +3461,7 @@
 \ No newline at end of file
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
-@@ -743,6 +743,8 @@
+@@ -745,6 +745,8 @@
   Define threads usage for handling queries, one of
   one-thread-per-connection, no-threads, loaded-dynamically
   --thread-stack=#    The stack size for each thread
@@ -3470,7 +3470,7 @@
   --time-format=name  The TIME format (ignored)
   --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
   currently supported)
-@@ -768,6 +770,9 @@
+@@ -770,6 +772,9 @@
   of the underlying table and the query uses a LIMIT clause
   (usually get from GUI tools)
   -u, --user=name     Run mysqld daemon as user.
@@ -3480,7 +3480,7 @@
   -v, --verbose       Used with --help option for detailed help.
   -V, --version       Output version information and exit.
   --wait-timeout=#    The number of seconds the server waits for activity on a
-@@ -1002,6 +1007,7 @@
+@@ -1005,6 +1010,7 @@
  thread-cache-size 0
  thread-handling one-thread-per-connection
  thread-stack 262144
@@ -3488,7 +3488,7 @@
  time-format %H:%i:%s
  timed-mutexes FALSE
  tmp-table-size 16777216
-@@ -1009,6 +1015,7 @@
+@@ -1012,6 +1018,7 @@
  transaction-isolation REPEATABLE-READ
  transaction-prealloc-size 4096
  updatable-views-with-limit YES

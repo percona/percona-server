@@ -77,7 +77,7 @@
 +--source include/rpl_end.inc
 --- a/sql/log.cc
 +++ b/sql/log.cc
-@@ -5079,6 +5079,12 @@
+@@ -5076,6 +5076,12 @@
                                   user_var_event->type,
                                   user_var_event->charset_number,
                                   flags);

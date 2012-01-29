@@ -813,7 +813,7 @@
    SAVEPOINT *savepoints;
    enum enum_check_fields count_cuted_fields;
  };
-@@ -1588,0 +1652,0 @@
+@@ -1588,6 +1652,71 @@
    thr_lock_type update_lock_default;
    Delayed_insert *di;
  
@@ -1174,7 +1174,7 @@
  static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
  {
    if (type == OPT_SESSION)
-@@ -2898,0 +2928,0 @@
+@@ -2898,6 +2928,134 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  
@@ -2880,7 +2880,7 @@
  log-tc tc.log
  log-tc-size 24576
  log-warnings 1
-@@ -933,0 +973,0 @@
+@@ -933,6 +973,9 @@
  slave-type-conversions 
  slow-launch-time 2
  slow-query-log FALSE

@@ -33,3 +33,4 @@ reap;
 --disconnect mutex_locked_conn
 --disconnect try_mutex_lock_conn
 SET GLOBAL query_cache_size=0;
+SET DEBUG_SYNC='reset';

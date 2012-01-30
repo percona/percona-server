@@ -1038,6 +1038,31 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       query_utime= lock_utime= 0;
     }
 
+#ifndef DBUG_OFF
+  if (thd->variables.slow_query_log_lock_time)
+  {
+    if (thd->lex->sql_command == SQLCOM_SET_OPTION)
+    {
+      lock_utime= 0;
+    }
+    else
+    {
+      lock_utime= thd->variables.slow_query_log_lock_time;
+    }
+  }
+  if (thd->variables.slow_query_log_query_time)
+  {
+    if (thd->lex->sql_command == SQLCOM_SET_OPTION)
+    {
+      query_utime= 0;
+    }
+    else
+    {
+      query_utime= thd->variables.slow_query_log_query_time;
+    }
+  }
+#endif
+
     if (!query)
     {
       is_command= TRUE;

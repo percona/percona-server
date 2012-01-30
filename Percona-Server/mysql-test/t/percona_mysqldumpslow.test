@@ -1,0 +1,214 @@
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--let wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST;
+SET @old_long_query_time=@@long_query_time;
+SET @old_log_slow_verbosity=@@log_slow_verbosity;
+SET @old_log_slow_timestamp_every=@@log_slow_timestamp_every;
+SET @old_log_slow_sp_statements=@@log_slow_sp_statements;
+SET @old_slow_query_log_microseconds_timestamp=@@slow_query_log_microseconds_timestamp;
+SET @old_log_slow_admin_statements=@@log_slow_admin_statements;
+
+SET GLOBAL long_query_time=1;
+SET SESSION query_exec_time=0.5; # avoid unstable test work (for slow machines)
+--let log_file=percona.mysqldumpslow
+--source include/log_start.inc
+
+--let log_slow_timestamp_every_counter=2
+while($log_slow_timestamp_every_counter)
+{
+--let log_slow_timestamp_every=`SELECT ($log_slow_timestamp_every_counter - 1)`
+
+# log_slow_verbosity: microtime
+--let log_slow_verbosity_microtime_counter=2
+while($log_slow_verbosity_microtime_counter)
+{
+--let log_slow_verbosity_microtime=`SELECT ($log_slow_verbosity_microtime_counter - 1)`
+
+# log_slow_verbosity: query_plan
+--let log_slow_verbosity_query_plan_counter=2
+while($log_slow_verbosity_query_plan_counter)
+{
+--let log_slow_verbosity_query_plan=`SELECT ($log_slow_verbosity_query_plan_counter - 1)`
+
+# log_slow_verbosity: innodb
+--let log_slow_verbosity_innodb_counter=2
+while($log_slow_verbosity_innodb_counter)
+{
+--let log_slow_verbosity_innodb=`SELECT ($log_slow_verbosity_innodb_counter - 1)`
+
+# log_slow_sp_statements
+--let log_slow_sp_statements_counter=2
+
+while($log_slow_sp_statements_counter)
+{
+--let log_slow_sp_statements=`SELECT ($log_slow_sp_statements_counter - 1)`
+
+# slow_query_log_microseconds_timestamp
+--let slow_query_log_microseconds_timestamp_counter=2
+
+while($slow_query_log_microseconds_timestamp_counter)
+{
+--let slow_query_log_microseconds_timestamp=`SELECT ($slow_query_log_microseconds_timestamp_counter - 1)`
+
+# log_slow_admin_statements
+--let log_slow_admin_statements_counter=2
+
+while($log_slow_admin_statements_counter)
+{
+--let log_slow_admin_statements=`SELECT ($log_slow_admin_statements_counter - 1)`
+
+#
+# Begin of setup slow query log options
+#
+
+
+# Setup log_slow_verbosity
+--let log_slow_verbosity_value=
+--let log_slow_verbosity_value_counter=0;
+
+# Set log_slow_verbosity: microtime
+if ($log_slow_verbosity_microtime)
+{
+
+if ($log_slow_verbosity_value_counter)
+{
+--let log_slow_verbosity_value=,$log_slow_verbosity_value
+}
+
+--let log_slow_verbosity_value=microtime$log_slow_verbosity_value
+
+inc $log_slow_verbosity_value_counter;
+}
+
+# Set log_slow_verbosity: query_plan
+if ($log_slow_verbosity_query_plan)
+{
+
+if ($log_slow_verbosity_value_counter)
+{
+--let log_slow_verbosity_value=,$log_slow_verbosity_value
+}
+
+--let log_slow_verbosity_value=query_plan$log_slow_verbosity_value
+
+inc $log_slow_verbosity_value_counter;
+}
+
+# Set log_slow_verbosity: innodb
+if ($log_slow_verbosity_innodb)
+{
+
+if ($log_slow_verbosity_value_counter)
+{
+--let log_slow_verbosity_value=,$log_slow_verbosity_value
+}
+
+--let log_slow_verbosity_value=innodb$log_slow_verbosity_value
+
+inc $log_slow_verbosity_value_counter;
+}
+
+eval SET GLOBAL log_slow_verbosity='$log_slow_verbosity_value';
+eval SET GLOBAL log_slow_timestamp_every=$log_slow_timestamp_every;
+eval SET GLOBAL log_slow_sp_statements=$log_slow_sp_statements;
+eval SET GLOBAL slow_query_log_microseconds_timestamp=$slow_query_log_microseconds_timestamp;
+eval SET GLOBAL log_slow_admin_statements=$log_slow_admin_statements;
+
+--connect (conn,localhost,root)
+--connection conn
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+SET SESSION query_exec_time=1.11;
+SET SESSION slow_query_log_query_time=1.11;
+SET SESSION slow_query_log_lock_time=0.1;
+CREATE TABLE t1(id INT) ENGINE=InnoDB;
+SET SESSION query_exec_time=1.22;
+SET SESSION slow_query_log_query_time=1.22;
+SET SESSION slow_query_log_lock_time=0.2;
+CREATE TABLE t2(id INT) ENGINE=MyISAM;
+SET SESSION query_exec_time=1.33;
+SET SESSION slow_query_log_query_time=1.33;
+SET SESSION slow_query_log_lock_time=0.3;
+INSERT INTO t1 VALUES(0);
+SET SESSION query_exec_time=1.44;
+SET SESSION slow_query_log_query_time=1.44;
+SET SESSION slow_query_log_lock_time=0.4;
+INSERT INTO t1 VALUES(1);
+SET SESSION query_exec_time=1.55;
+SET SESSION slow_query_log_query_time=1.55;
+SET SESSION slow_query_log_lock_time=0.5;
+INSERT INTO t1 VALUES(2);
+SET SESSION query_exec_time=1.66;
+SET SESSION slow_query_log_query_time=1.66;
+SET SESSION slow_query_log_lock_time=0.6;
+INSERT INTO t1 SELECT * FROM t1 ORDER BY id DESC;
+SET SESSION query_exec_time=1.77;
+SET SESSION slow_query_log_query_time=1.77;
+SET SESSION slow_query_log_lock_time=0.7;
+INSERT INTO t1 SELECT * FROM t1 ORDER BY id ASC;
+SET SESSION query_exec_time=1.88;
+SET SESSION slow_query_log_query_time=1.88;
+SET SESSION slow_query_log_lock_time=0.8;
+INSERT INTO t2 SELECT * FROM t1 ORDER BY id DESC;
+SET SESSION query_exec_time=1.99;
+SET SESSION slow_query_log_query_time=1.99;
+SET SESSION slow_query_log_lock_time=0.9;
+INSERT INTO t2 SELECT * FROM t1 ORDER BY id ASC;
+SET SESSION query_exec_time=2.1;
+SET SESSION slow_query_log_query_time=2.1;
+SET SESSION slow_query_log_lock_time=1.0;
+SELECT COUNT(*) FROM t1;
+SET SESSION query_exec_time=2.21;
+SET SESSION slow_query_log_query_time=2.21;
+SET SESSION slow_query_log_lock_time=1.1;
+SELECT COUNT(*) FROM t2;
+SET SESSION query_exec_time=2.32;
+SET SESSION slow_query_log_query_time=2.32;
+SET SESSION slow_query_log_lock_time=1.2;
+DROP TABLE t1;
+SET SESSION query_exec_time=2.43;
+SET SESSION slow_query_log_query_time=2.43;
+SET SESSION slow_query_log_lock_time=1.3;
+DROP TABLE t2;
+SET SESSION query_exec_time=2.54;
+SET SESSION slow_query_log_query_time=2.54;
+SET SESSION slow_query_log_lock_time=1.4;
+--connection default
+--disconnect conn
+--source include/wait_condition.inc
+SET GLOBAL log_slow_verbosity=@old_log_slow_verbosity;
+SET GLOBAL log_slow_timestamp_every=@old_log_slow_timestamp_every;
+SET GLOBAL log_slow_sp_statements=@old_log_slow_sp_statements;
+SET GLOBAL slow_query_log_microseconds_timestamp=@old_slow_query_log_microseconds_timestamp;
+SET GLOBAL log_slow_admin_statements=@old_log_slow_admin_statements;
+
+dec $log_slow_admin_statements_counter;
+}
+
+dec $slow_query_log_microseconds_timestamp_counter;
+}
+
+dec $log_slow_sp_statements_counter;
+}
+
+dec $log_slow_verbosity_innodb_counter;
+}
+
+dec $log_slow_verbosity_query_plan_counter;
+}
+
+dec $log_slow_verbosity_microtime_counter;
+}
+
+dec $log_slow_timestamp_every_counter;
+}
+
+--source include/log_stop.inc
+
+SET GLOBAL long_query_time=@old_long_query_time;
+
+exec $MYSQLDUMPSLOW -t 20 $log_file_full_path;

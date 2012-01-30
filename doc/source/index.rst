@@ -117,6 +117,7 @@ Management Improvements
    management/innodb_buffer_pool_shm
    management/innodb_lru_dump_restore
    management/innodb_fast_index_creation
+   management/innodb_extended_fast_index_creation
    management/innodb_fast_index_renaming
    management/sql_no_fcache
    management/udf_maatkit

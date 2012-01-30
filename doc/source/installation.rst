@@ -10,9 +10,7 @@ Ready-to-use binaries are available from the |Percona Server| `download page <ht
 
  * ``RPM`` packages for *RHEL* 5 and *RHEL* 6
 
- * *Debian* packages
-
- * *FreeBSD* ``.tbz`` packages
+ * *Debian* packages for *Debian* and *Ubuntu*
 
 .. * *Microsoft Windows* binaries
 
@@ -193,12 +191,9 @@ You can now change into the 5.1 directory and build Percona Server
 
   $ make
 
-This will fetch the upstream MySQL source tarball and apply the
-Percona Server patches to it. If you have the quilt utility installed,
-it will use it to apply the patches, otherwise it will just use the
-standard patch utility. You will then have a directory named
-Percona-Server that is ready to run the configure script and
-build. ::
+If you are building an older version of Percona Server 5.1, this will fetch the upstream MySQL source tarball and apply the Percona Server patches to it either using quilt or patch. If you are building a modern Percona Server 5.1, this will simply prepare the additional plugins that are distributed as part of Percona Server.
+
+You will now have a directory named Percona-Server that is ready to run the configure script and build. ::
 
   $ ./configure --without-plugin-innobase --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin --without-embedded-server --with-pic --with-extra-charsets=complex --with-ssl --enable-assembler --enable-local-infile --enable-thread-safe-client --enable-profiling --with-readline
   $ make

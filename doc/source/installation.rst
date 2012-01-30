@@ -42,7 +42,7 @@ Make sure that after installed, the library has got the appropiate permissions (
 
 Most packages should do this for you, so this is likely only required with the binary tarballs.
 
-  In order to load the plugin into the working server, issue the following command: ::
+In order to load the plugin into the working server, issue the following command: ::
 
  mysql> INSTALL PLUGIN auth_pam_server SONAME 'auth_pam.so';
 

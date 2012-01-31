@@ -60,7 +60,7 @@ If you meet contention of ``&dict_operation_lock``, setting 0 reduces the conten
 
 If this option is enabled, |XtraDB| uses the ``SYS_STATS`` system table to store statistics of table indexes. Also, when |InnoDB| opens a table for the first time, it loads the statistics from ``SYS_STATS`` instead of sampling index pages. If you use a high ``stats_sample_pages`` value, the first open of a table is expensive. In such a case, this option will help. Note: This option may cause less frequent updating of statistics. So, you should intentionally use the ``ANALYZE TABLE`` command more often.
 
-(This variable was introduced in release 5.1.50-11.4.)
+(This variable was introduced in release 5.1.49-rel11.3)
 
 
 INFORMATION_SCHEMA Tables

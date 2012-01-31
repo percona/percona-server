@@ -37,6 +37,7 @@
      * Simple design for ease of use and administration
      * Reliable, ACID transactional
 
+
   Durability
     Once a transaction is committed, it will remain so.
 
@@ -65,6 +66,7 @@
      * no failed tests in trunk on any platform,
      * aid developers in ensuring merge requests build and test on all platforms,
      * no known performance regressions (without a damn good explanation).
+
 
   LSN
     Log Serial Number. A term used in relation to the :term:`InnoDB` or
@@ -108,3 +110,4 @@
   XtraDB
     Percona's improved version of :term:`InnoDB` providing performance,
     features and reliability above what is shipped by Oracle in InnoDB.
+

@@ -104,7 +104,11 @@ rst_prolog = '''
 
 .. |LSN|  replace:: *LSN*
 
+.. |Jenkins|  replace:: :term:`Jenkins`
+
 .. |XtraBackup|  replace:: *XtraBackup*
+
+.. |myisamchk|  replace:: *myisamchk*
 
 .. |Percona Server|  replace:: *Percona Server*
 

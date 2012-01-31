@@ -5,8 +5,9 @@
 .. glossary::
 
   ACID
-    :term:`Atomicity` :term:`Consistency` :term:`Isolation`
-    :term:`Durability`
+    Set of properties that guarantee database transactions are 
+    processed reliably. Stands for: :term:`Atomicity`,
+    :term:`Consistency`, :term:`Isolation`, :term:`Durability`.
 
   Atomicity
     Atomicity means that database operations are applied following a
@@ -20,21 +21,21 @@
   Drizzle
     Drizzle: a database for the cloud.
 
-    Drizzle is a community-driven open source project that is forked
+    `Drizzle <http://www.drizzle.org/>`_ is a community-driven open source project that is forked
     from the popular MySQL database. The Drizzle team has removed
     non-essential code, re-factored the remaining code into a
     plugin-based architecture and modernized the code base moving to
     C++.
 
-    Drizzle Charter
-    * A database optimized for Cloud infrastructure and Web applications.
-    * Design for massive concurrency on modern multi-cpu architecture
-    * Optimize memory for increased performance and parallelism
-    * Open source, open community, open design
-    Scope
-    * Re-designed modular architecture providing plugins with defined APIs
-    * Simple design for ease of use and administration
-    * Reliable, ACID transactional
+    Drizzle Charter:
+
+     * A database optimized for Cloud infrastructure and Web applications.
+     * Design for massive concurrency on modern multi-cpu architecture
+     * Optimize memory for increased performance and parallelism
+     * Open source, open community, open design Scope
+     * Re-designed modular architecture providing plugins with defined APIs
+     * Simple design for ease of use and administration
+     * Reliable, ACID transactional
 
   Durability
     Once a transaction is committed, it will remain so.
@@ -55,6 +56,15 @@
     compliant storage engine with :term:`foreign key` support. As of
     :term:`MySQL` version 5.5, InnoDB became the default storage engine
     on all platforms.
+
+  Jenkins
+     `Jenkins <http://www.jenkins-ci.org>`_ is a continuous integration
+    system that we use to help ensure the continued quality of the
+    software we produce. It helps us achieve the aims of:
+
+     * no failed tests in trunk on any platform,
+     * aid developers in ensuring merge requests build and test on all platforms,
+     * no known performance regressions (without a damn good explanation).
 
   LSN
     Log Serial Number. A term used in relation to the :term:`InnoDB` or

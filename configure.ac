@@ -46,6 +46,10 @@ AC_CHECK_LIB([pam], [pam_start], ,
     AC_MSG_ERROR(
         [Unable to find PAM. Please install the PAM development libraries])
 )
+AC_CHECK_LIB([mysqlclient], [mysql_init], ,
+    AC_MSG_ERROR(
+        [Unable to find libmysqlclient. Please install the mysql development libraries])
+)
 
 # Replace -I with -isystem for the MySQL header include GCC option to silence 
 # warnings originating from them

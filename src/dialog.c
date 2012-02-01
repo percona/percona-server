@@ -212,13 +212,28 @@ static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          const char *prompt,
                          char *buf, int buf_len)
 {
-  char *ptr;
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (fgets(buf, buf_len, stdin) == NULL)
-    return NULL;
-  if ((ptr= strchr(buf, '\n')))
-    *ptr= 0;
+
+  if (type == 2) /* password */
+  {
+    char *password;
+    password= get_tty_password("");
+    strncpy(buf, password, buf_len-1);
+    buf[buf_len-1]= 0;
+    free(password);
+  }
+  else
+  {
+    if (!fgets(buf, buf_len-1, stdin))
+      buf[0]= 0;
+    else
+    {
+      int len= strlen(buf);
+      if (len && buf[len-1] == '\n')
+        buf[len-1]= 0;
+    }
+  }
 
   return buf;
 }
@@ -244,6 +259,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   unsigned char *pkt, cmd= 0;
   int pkt_len, res;
   char reply_buf[1024], *reply;
+  int first = 1;
 
   do
   {
@@ -252,7 +268,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     if (pkt_len < 0)
       return CR_ERROR;
 
-    if (pkt == 0)
+    if (pkt == 0 && first)
     {
       /*
         in mysql_change_user() the client sends the first packet, so
@@ -274,10 +290,10 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         return CR_OK_HANDSHAKE_COMPLETE; /* yes. we're done */
 
       /*
-        asking for a password with an empty prompt means mysql->password
+        asking for a password in the first packet mean mysql->password, if it's set
         otherwise we ask the user and read the reply
       */
-      if ((cmd >> 1) == 2 && *pkt == 0)
+      if ((cmd >> 1) == 2 && first && mysql->passwd[0])
         reply= mysql->passwd;
       else
         reply= ask(mysql, cmd >> 1, (const char *) pkt, 
@@ -296,6 +312,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       return CR_ERROR;
 
     /* repeat unless it was the last question */
+    first= 0;
   } while ((cmd & 1) != 1);
 
   /* the job of reading the ok/error packet is left to the server */

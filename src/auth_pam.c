@@ -37,12 +37,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
  To install this plugin, copy the .so file to the plugin directory and do
 
- INSTALL PLUGIN auth_pam_server SONAME 'auth_pam.so';
+ INSTALL PLUGIN auth_pam SONAME 'auth_pam.so';
 
  To use this plugin for one particular user, specify it at user's creation time
  (TODO: tested with localhost only):
 
- CREATE USER 'username'@'hostname' IDENTIFIED WITH auth_pam_server;
+ CREATE USER 'username'@'hostname' IDENTIFIED WITH auth_pam;
 
  Alternatively UPDATE the mysql.user table to set the plugin value for an
  existing user.
@@ -114,6 +114,18 @@ static char pam_msg_style_to_char (int pam_msg_style)
   }
 }
 
+/** The maximum length of buffered PAM messages, i.e. any messages up to the
+    next PAM reply-requiring message. 10K should be more than enough by order
+    of magnitude. */
+enum { max_pam_buffered_msg_len = 10240 };
+
+struct pam_conv_data {
+    MYSQL_PLUGIN_VIO *vio;
+    MYSQL_SERVER_AUTH_INFO *info;
+    unsigned char buf[max_pam_buffered_msg_len];
+    unsigned char* ptr;
+};
+
 static void free_pam_response (struct pam_response ** resp, int n)
 {
   int i;
@@ -129,15 +141,13 @@ static int vio_server_conv (int num_msg, const struct pam_message **msg,
                             struct pam_response ** resp, void *appdata_ptr)
 {
   int i;
-  int pkt_len;
-  MYSQL_PLUGIN_VIO *vio= NULL;
+  struct pam_conv_data *data= (struct pam_conv_data *)appdata_ptr;
 
-  if (appdata_ptr == NULL)
+  if (data == NULL)
   {
     MY_ASSERT_UNREACHABLE();
     return PAM_CONV_ERR;
   }
-  vio= (MYSQL_PLUGIN_VIO *)appdata_ptr;
 
   *resp = calloc (sizeof (struct pam_response), num_msg);
   if (*resp == NULL)
@@ -145,54 +155,69 @@ static int vio_server_conv (int num_msg, const struct pam_message **msg,
 
   for (i = 0; i < num_msg; i++)
   {
-    char *buf;
-
     if (!valid_pam_msg_style(msg[i]->msg_style))
     {
       free_pam_response(resp, i);
       return PAM_CONV_ERR;
     }
 
-    /* Format the message.  The first byte is the message type, followed by the
-    NUL-terminated message string itself.  */
-    buf= malloc(strlen(msg[i]->msg) + 2);
-    if (!buf)
+    /* Append the PAM message or prompt to the unsent message buffer */
+    if (msg[i]->msg)
     {
-      free_pam_response(resp, i);
-      return PAM_BUF_ERR;
-    }
-    buf[0]= pam_msg_style_to_char(msg[i]->msg_style);
-    strcpy(buf + 1, msg[i]->msg);
-
-    /* Write the message.  */
-    if (vio->write_packet(vio, (unsigned char *)buf, strlen(buf) + 1))
-    {
-      free(buf);
-      free_pam_response(resp, i);
-      return PAM_CONV_ERR;
-    }
-    free(buf);
-
-    /* Is the answer expected? */
-    if ((msg[i]->msg_style != PAM_PROMPT_ECHO_ON)
-        && (msg[i]->msg_style != PAM_PROMPT_ECHO_OFF))
-      continue;
-
-    /* Read the answer */
-    if ((pkt_len= vio->read_packet(vio, (unsigned char **)&buf)) < 0)
-    {
-      free_pam_response(resp, i);
-      return PAM_CONV_ERR;
+      unsigned char *last_buf_pos = data->buf + max_pam_buffered_msg_len - 1;
+      if (data->ptr + strlen(msg[i]->msg) >= last_buf_pos)
+      {
+        free_pam_response(resp, i);
+        /* Cannot happen: the PAM message buffer too small. */
+        MY_ASSERT_UNREACHABLE();
+        return PAM_CONV_ERR;
+      }
+      memcpy(data->ptr, msg[i]->msg, strlen(msg[i]->msg));
+      data->ptr+= strlen(msg[i]->msg);
+      *(data->ptr)++= '\n';
     }
 
-    (*resp)[i].resp= malloc(pkt_len + 1);
-    if ((*resp)[i].resp == NULL)
+    if (msg[i]->msg_style == PAM_PROMPT_ECHO_OFF
+        || msg[i]->msg_style == PAM_PROMPT_ECHO_ON)
     {
-      free_pam_response(resp, i);
-      return PAM_BUF_ERR;
+      int pkt_len;
+      unsigned char *pkt;
+
+      /* Magic byte for the dialog plugin, '\2' is defined as ORDINARY_QUESTION
+         and '\4' as PASSWORD_QUESTION there. */
+      data->buf[0]= (msg[i]->msg_style == PAM_PROMPT_ECHO_ON ? '\2' : '\4');
+
+      /* Write the message.  */
+      if (data->vio->write_packet(data->vio, data->buf,
+                                  data->ptr - data->buf - 1))
+      {
+        free_pam_response(resp, i);
+        return PAM_CONV_ERR;
+      }
+
+      /* Read the answer */
+      if ((pkt_len= data->vio->read_packet(data->vio, &pkt))
+          < 0)
+      {
+        free_pam_response(resp, i);
+        return PAM_CONV_ERR;
+      }
+
+      (*resp)[i].resp= malloc(pkt_len + 1);
+      if ((*resp)[i].resp == NULL)
+      {
+        free_pam_response(resp, i);
+        return PAM_BUF_ERR;
+      }
+
+      strncpy((*resp)[i].resp, (char *)pkt, pkt_len);
+      (*resp)[i].resp[pkt_len]= '\0';
+
+      if (msg[i]->msg_style == PAM_PROMPT_ECHO_OFF)
+        data->info->password_used= PASSWORD_USED_YES;
+
+      data->ptr= data->buf + 1;
     }
-    strncpy((*resp)[i].resp, buf, pkt_len);
-    (*resp)[i].resp[pkt_len]= '\0';
   }
   return PAM_SUCCESS;
 }
@@ -201,11 +226,11 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
                                               MYSQL_SERVER_AUTH_INFO *info)
 {
   pam_handle_t *pam_handle;
-  struct pam_conv conv_func_info= { &vio_server_conv, vio };
+  struct pam_conv_data data= { vio, info, "", data.buf+1 };
+  struct pam_conv conv_func_info= { &vio_server_conv, &data };
   int error;
   char *pam_mapped_user_name;
 
-  /* Impossible to tell if PAM will use passwords or something else */
   info->password_used= PASSWORD_USED_NO_MENTION;
 
   error= pam_start(service_name,
@@ -242,13 +267,6 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
     return CR_ERROR;
   }
 
-  /* Send end-of-auth message */
-  if (vio->write_packet(vio, (const unsigned char *)"\0", 1))
-  {
-    pam_end(pam_handle, error);
-    return CR_ERROR;
-  }
-
   /* Get the authenticated user name from PAM */
   error= pam_get_item(pam_handle, PAM_USER, (void *)&pam_mapped_user_name);
   if (error != PAM_SUCCESS)
@@ -277,7 +295,7 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
 static struct st_mysql_auth pam_auth_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
-  "auth_pam",
+  "dialog",
   &authenticate_user_with_pam_server
 };
 
@@ -292,7 +310,7 @@ mysql_declare_plugin(auth_pam)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
   &pam_auth_handler,
-  "auth_pam_server",
+  "auth_pam",
   "Percona, Inc.",
   "PAM authentication plugin",
   PLUGIN_LICENSE_GPL,
@@ -327,68 +345,3 @@ mysql_declare_plugin(auth_pam)
 #endif
 }
 mysql_declare_plugin_end;
-
-/* The client plugin */
-
-/* Returns malloc-allocated string, NULL in case of memory error. */
-static char * prompt_echo_off (const char * prompt)
-{
-  /* TODO: getpass not thread safe.  Probably not a big deal in the mysql
-     client program, but may be missing on non-glibc systems.  */
-  char* getpass_input= getpass(prompt);
-  return strdup(getpass_input);
-}
-
-/* Returns malloc-allocated string, NULL in case of memory or (unlikely)
-I/O error.  */
-static char * prompt_echo_on (const char * prompt)
-{
-  char* c;
-  char fgets_buf[1024];
-  fputs(prompt, stdout);
-  fputc(' ', stdout);
-  c= fgets(fgets_buf, sizeof(fgets_buf), stdin);
-  if (c == NULL)
-  {
-    if (ferror(stdin))
-      return NULL;
-    fgets_buf[0]= '\0';
-  }
-  if ((c= strchr(fgets_buf, '\n')))
-    *c= '\0';
-  else
-    fgets_buf[sizeof(fgets_buf) - 1]= '\0';
-  return strdup(fgets_buf);
-}
-
-static void show_error(const char * message)
-{
-  fprintf(stderr, "ERROR %s\n", message);
-}
-
-static void show_info(const char * message)
-{
-  printf("%s\n", message);
-}
-
-static int authenticate_user_with_pam_client (MYSQL_PLUGIN_VIO *vio,
-                                              struct st_mysql *mysql)
-{
-  return authenticate_user_with_pam_client_common (vio, mysql,
-                                                   &prompt_echo_off,
-                                                   &prompt_echo_on,
-                                                   &show_error, &show_info);
-}
-
-mysql_declare_client_plugin(AUTHENTICATION)
-  "auth_pam",
-  "Percona, Inc.",
-  "PAM authentication plugin",
-  {0,1,0},
-  "GPL",
-  NULL,
-  NULL, /* init */
-  NULL, /* deinit */
-  NULL, /* options */
-  &authenticate_user_with_pam_client
-mysql_end_client_plugin;

@@ -2886,7 +2886,7 @@
 +2010-09-15 add column 'total'
 --- a/sql/CMakeLists.txt
 +++ b/sql/CMakeLists.txt
-@@ -51,7 +51,7 @@
+@@ -52,7 +52,7 @@
                 message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                 mysqld.cc net_serv.cc  keycaches.cc
                 ../sql-common/client_plugin.c
@@ -2895,7 +2895,7 @@
                 ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                 protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
                 slave.cc sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
-@@ -59,7 +59,7 @@
+@@ -60,7 +60,7 @@
                 sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                 sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                 sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
@@ -2935,7 +2935,7 @@
  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
  #include "../storage/perfschema/pfs_server.h"
  #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-@@ -611,7 +613,7 @@
+@@ -615,7 +617,7 @@
  MY_LOCALE *my_default_lc_messages;
  MY_LOCALE *my_default_lc_time_names;
  
@@ -2944,7 +2944,7 @@
  SHOW_COMP_OPTION have_geometry, have_rtree_keys;
  SHOW_COMP_OPTION have_crypt, have_compress;
  SHOW_COMP_OPTION have_profiling;
-@@ -912,6 +914,10 @@
+@@ -917,6 +919,10 @@
  my_bool opt_enable_shared_memory;
  HANDLE smem_event_connect_request= 0;
  #endif
@@ -2955,7 +2955,7 @@
  
  my_bool opt_use_ssl  = 0;
  char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
-@@ -1483,6 +1489,9 @@
+@@ -1488,6 +1494,9 @@
    my_free(opt_bin_logname);
    bitmap_free(&temp_pool);
    free_max_user_conn();
@@ -2965,7 +2965,7 @@
  #ifdef HAVE_REPLICATION
    end_slave_list();
  #endif
-@@ -4010,6 +4019,9 @@
+@@ -3860,6 +3869,9 @@
    if (!DEFAULT_ERRMSGS[0][0])
      unireg_abort(1);  
  
@@ -2975,7 +2975,7 @@
    /* We have to initialize the storage engines before CSV logging */
    if (ha_init())
    {
-@@ -6905,6 +6917,11 @@
+@@ -6773,6 +6785,11 @@
  #else
    have_query_cache=SHOW_OPTION_NO;
  #endif
@@ -3374,7 +3374,7 @@
 +#endif // QUERY_RESPONSE_TIME_H
 --- a/sql/set_var.h
 +++ b/sql/set_var.h
-@@ -293,6 +293,7 @@
+@@ -294,6 +294,7 @@
  
  extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
  extern SHOW_COMP_OPTION have_query_cache;
@@ -3486,7 +3486,7 @@
  %token  QUICK
  %token  RANGE_SYM                     /* SQL-2003-R */
  %token  READS_SYM                     /* SQL-2003-R */
-@@ -11100,6 +11101,15 @@
+@@ -11105,6 +11106,15 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }
@@ -3502,7 +3502,7 @@
          | CREATE PROCEDURE_SYM sp_name
            {
              LEX *lex= Lex;
-@@ -11339,6 +11349,12 @@
+@@ -11344,6 +11354,12 @@
              Lex->type|= REFRESH_SLAVE;
              Lex->reset_slave_info.all= false;
            }
@@ -3515,7 +3515,7 @@
          | MASTER_SYM
            { Lex->type|= REFRESH_MASTER; }
          | DES_KEY_FILE
-@@ -12646,6 +12662,7 @@
+@@ -12651,6 +12667,7 @@
          | PROXY_SYM                {}
          | QUARTER_SYM              {}
          | QUERY_SYM                {}
@@ -3525,15 +3525,15 @@
          | REBUILD_SYM              {}
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -49,6 +49,7 @@
- #include "../storage/perfschema/pfs_server.h"
- #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+@@ -51,6 +51,7 @@
+ 
+ TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
  
 +#include "query_response_time.h" 
  /*
    This forward declaration is needed because including sql_base.h
    causes further includes.  [TODO] Eliminate this forward declaration
-@@ -1866,6 +1867,26 @@
+@@ -1939,6 +1940,26 @@
         DEFAULT(FALSE));
  #endif /* HAVE_QUERY_CACHE */
  

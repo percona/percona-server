@@ -240,7 +240,7 @@
  /** The lock system */
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -739,6 +739,11 @@
+@@ -742,6 +742,11 @@
  
  /** Status variables to be passed to MySQL */
  struct export_var_struct{
@@ -252,7 +252,7 @@
  	ulint innodb_data_pending_reads;	/*!< Pending reads */
  	ulint innodb_data_pending_writes;	/*!< Pending writes */
  	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
-@@ -756,6 +761,9 @@
+@@ -759,6 +764,9 @@
  #ifdef UNIV_DEBUG
  	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
  #endif /* UNIV_DEBUG */
@@ -262,7 +262,7 @@
  	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
  	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
  	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
-@@ -765,13 +773,43 @@
+@@ -768,13 +776,43 @@
  	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
  	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
  	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
@@ -306,7 +306,7 @@
  	ulint innodb_os_log_written;		/*!< srv_os_log_written */
  	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
  	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
-@@ -780,6 +818,8 @@
+@@ -783,6 +821,8 @@
  	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
  	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
  	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
@@ -315,7 +315,7 @@
  	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
  	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
  	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
-@@ -789,11 +829,18 @@
+@@ -792,11 +832,18 @@
  						/ srv_n_lock_wait_count */
  	ulint innodb_row_lock_time_max;		/*!< srv_n_lock_max_wait_time
  						/ 1000 */
@@ -383,7 +383,7 @@
  }
 --- a/storage/innobase/srv/srv0srv.c
 +++ b/storage/innobase/srv/srv0srv.c
-@@ -2259,12 +2259,49 @@
+@@ -2262,12 +2262,49 @@
  	ulint		LRU_len;
  	ulint		free_len;
  	ulint		flush_list_len;
@@ -433,7 +433,7 @@
  	export_vars.innodb_data_pending_reads
  		= os_n_pending_reads;
  	export_vars.innodb_data_pending_writes
-@@ -2303,6 +2340,92 @@
+@@ -2306,6 +2343,92 @@
  
  	export_vars.innodb_buffer_pool_pages_misc
  	       	= buf_pool_get_n_pages() - LRU_len - free_len;

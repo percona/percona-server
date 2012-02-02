@@ -338,7 +338,7 @@
  			if (!ready) {
  
  				return(block);
-@@ -1945,6 +1951,13 @@
+@@ -1947,6 +1953,13 @@
  		return(NULL);
  	}
  
@@ -352,7 +352,7 @@
  	block_mutex = buf_page_get_mutex_enter(bpage);
  
  	rw_lock_s_unlock(&buf_pool->page_hash_latch);
-@@ -2524,6 +2537,13 @@
+@@ -2526,6 +2539,13 @@
  		return(NULL);
  	}
  
@@ -366,7 +366,7 @@
  	switch (buf_block_get_state(block)) {
  		buf_page_t*	bpage;
  		ibool		success;
-@@ -3198,6 +3218,7 @@
+@@ -3200,6 +3220,7 @@
  	bpage->newest_modification = 0;
  	bpage->oldest_modification = 0;
  	HASH_INVALIDATE(bpage, hash);
@@ -374,7 +374,7 @@
  #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
  	bpage->file_page_was_freed = FALSE;
  #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
-@@ -3836,6 +3857,7 @@
+@@ -3838,6 +3859,7 @@
  				(ulong) bpage->offset);
  		}
  
@@ -382,7 +382,7 @@
  		/* From version 3.23.38 up we store the page checksum
  		to the 4 first bytes of the page end lsn field */
  
-@@ -3877,6 +3899,23 @@
+@@ -3879,6 +3901,23 @@
  			      REFMAN "forcing-innodb-recovery.html\n"
  			      "InnoDB: about forcing recovery.\n", stderr);
  
@@ -406,7 +406,7 @@
  			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
  				/* If page space id is larger than TRX_SYS_SPACE
  				(0), we will attempt to mark the corresponding
-@@ -3893,6 +3932,7 @@
+@@ -3895,6 +3934,7 @@
  				}
  			}
  		}
@@ -414,7 +414,7 @@
  
  		if (recv_recovery_is_on()) {
  			/* Pages must be uncompressed for crash recovery. */
-@@ -3902,8 +3942,11 @@
+@@ -3904,8 +3944,11 @@
  
  		if (uncompressed && !recv_no_ibuf_operations) {
  			ibuf_merge_or_delete_for_page(
@@ -462,7 +462,7 @@
  		/* If table->ibd_file_missing == TRUE, this will
  		print an error message and return without doing
  		anything. */
-@@ -1293,7 +1294,7 @@
+@@ -1298,7 +1299,7 @@
  		    + dict_sys->size) > srv_dict_size_limit ) {
  		prev_table = UT_LIST_GET_PREV(table_LRU, table);
  
@@ -471,7 +471,7 @@
  			goto next_loop;
  
  		cached_foreign_tables = 0;
-@@ -4367,6 +4368,12 @@
+@@ -4377,6 +4378,12 @@
  	heap = mem_heap_create(1000);
  
  	while (index) {
@@ -484,7 +484,7 @@
  		size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  		index->stat_index_size = size;
-@@ -4514,6 +4521,12 @@
+@@ -4524,6 +4531,12 @@
  	heap = mem_heap_create(1000);
  
  	while (index) {
@@ -497,7 +497,7 @@
  /*===========================================*/
  {
  	dict_table_t*	sys_stats;
-@@ -4706,6 +4719,13 @@
+@@ -4716,6 +4729,13 @@
  		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
  			 && dict_index_is_clust(index)))) {
  			ulint	size;
@@ -511,7 +511,7 @@
  			size = btr_get_size(index, BTR_TOTAL_SIZE);
  
  			index->stat_index_size = size;
-@@ -5685,4 +5705,42 @@
+@@ -5695,4 +5715,42 @@
  
  	index->type |= DICT_CORRUPT;
  }
@@ -584,7 +584,7 @@
  	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
  
  	mutex_exit(&fil_system->mutex);
-@@ -5277,6 +5280,34 @@
+@@ -5285,6 +5288,34 @@
  	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
  	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
  
@@ -619,7 +619,7 @@
  #ifdef UNIV_HOTBACKUP
  	/* In ibbackup do normal i/o, not aio */
  	if (type == OS_FILE_READ) {
-@@ -5291,6 +5322,8 @@
+@@ -5299,6 +5330,8 @@
  	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
  		     offset_low, offset_high, len, node, message, trx);
  #endif
@@ -628,7 +628,7 @@
  	ut_a(ret);
  
  	if (mode == OS_AIO_SYNC) {
-@@ -5791,3 +5824,46 @@
+@@ -5799,3 +5832,46 @@
                 return 0;
         }
  }
@@ -677,7 +677,7 @@
 +
 --- a/storage/innobase/fsp/fsp0fsp.c
 +++ b/storage/innobase/fsp/fsp0fsp.c
-@@ -369,6 +369,12 @@
+@@ -308,6 +308,12 @@
  	ut_ad(id || !zip_size);
  
  	block = buf_page_get(id, zip_size, 0, RW_X_LATCH, mtr);
@@ -690,7 +690,7 @@
  	header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
  	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
  
-@@ -787,6 +793,12 @@
+@@ -726,6 +732,12 @@
  	fsp_header_t*	sp_header;
  
  	block = buf_page_get(space, zip_size, 0, RW_X_LATCH, mtr);
@@ -703,7 +703,7 @@
  	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
  
  	sp_header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
-@@ -1866,6 +1878,11 @@
+@@ -1805,6 +1817,11 @@
  {
  	fseg_inode_t*	inode;
  
@@ -715,7 +715,7 @@
  	for (; i < FSP_SEG_INODES_PER_PAGE(zip_size); i++) {
  
  		inode = fsp_seg_inode_page_get_nth_inode(
-@@ -1979,6 +1996,11 @@
+@@ -1918,6 +1935,11 @@
  
  	page = buf_block_get_frame(block);
  
@@ -727,7 +727,7 @@
  	n = fsp_seg_inode_page_find_free(page, 0, zip_size, mtr);
  
  	ut_a(n != ULINT_UNDEFINED);
-@@ -2072,6 +2094,11 @@
+@@ -2011,6 +2033,11 @@
  
  	inode = fut_get_ptr(space, zip_size, inode_addr, RW_X_LATCH, mtr);
  
@@ -739,7 +739,7 @@
  	if (UNIV_UNLIKELY(!mach_read_from_8(inode + FSEG_ID))) {
  
  		inode = NULL;
-@@ -2098,7 +2125,7 @@
+@@ -2037,7 +2064,7 @@
  {
  	fseg_inode_t*	inode
  		= fseg_inode_try_get(header, space, zip_size, mtr);
@@ -748,7 +748,7 @@
  	return(inode);
  }
  
-@@ -3304,6 +3331,11 @@
+@@ -3243,6 +3270,11 @@
  
  	descr = xdes_get_descriptor(space, zip_size, page, mtr);
  
@@ -760,7 +760,7 @@
  	ut_a(descr);
  	if (xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)) {
  		fputs("InnoDB: Dump of the tablespace extent descriptor: ",
-@@ -3551,6 +3583,11 @@
+@@ -3490,6 +3522,11 @@
  
  	descr = xdes_get_descriptor(space, zip_size, header_page, mtr);
  
@@ -772,7 +772,7 @@
  	/* Check that the header resides on a page which has not been
  	freed yet */
  
-@@ -3635,6 +3672,12 @@
+@@ -3574,6 +3611,12 @@
  
  	inode = fseg_inode_get(header, space, zip_size, mtr);
  
@@ -908,7 +908,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -6137,6 +6188,10 @@
+@@ -6136,6 +6187,10 @@
  {
  	DBUG_ENTER("change_active_index");
  
@@ -919,7 +919,7 @@
  	ut_ad(user_thd == ha_thd());
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
-@@ -6250,6 +6305,10 @@
+@@ -6249,6 +6304,10 @@
  
  	DBUG_ENTER("general_fetch");
  
@@ -930,7 +930,7 @@
  	ut_a(prebuilt->trx == thd_to_trx(user_thd));
  
  	innodb_srv_conc_enter_innodb(prebuilt->trx);
-@@ -6259,6 +6318,10 @@
+@@ -6258,6 +6317,10 @@
  
  	innodb_srv_conc_exit_innodb(prebuilt->trx);
  
@@ -941,7 +941,7 @@
  	switch (ret) {
  	case DB_SUCCESS:
  		error = 0;
-@@ -7525,10 +7588,18 @@
+@@ -7524,10 +7587,18 @@
  
  	update_thd(ha_thd());
  
@@ -960,7 +960,7 @@
  	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
  					    NULL);
  
-@@ -8040,6 +8111,16 @@
+@@ -8039,6 +8110,16 @@
  	return(ranges + (double) rows / (double) total_rows * time_for_scan);
  }
  
@@ -977,7 +977,7 @@
  /*********************************************************************//**
  Calculates the key number used inside MySQL for an Innobase index. We will
  first check the "index translation table" for a match of the index to get
-@@ -8217,7 +8298,7 @@
+@@ -8216,7 +8297,7 @@
  	ib_table = prebuilt->table;
  
  	if (flag & HA_STATUS_TIME) {
@@ -986,7 +986,7 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
-@@ -8517,10 +8598,18 @@
+@@ -8516,10 +8597,18 @@
  	THD*		thd,		/*!< in: connection thread handle */
  	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
  {
@@ -1005,7 +1005,7 @@
  	return(0);
  }
  
-@@ -8756,6 +8845,10 @@
+@@ -8755,6 +8844,10 @@
  		my_error(ER_QUERY_INTERRUPTED, MYF(0));
  	}
  
@@ -1016,7 +1016,7 @@
  	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
  }
  
-@@ -9526,6 +9619,10 @@
+@@ -9525,6 +9618,10 @@
  
  	update_thd(thd);
  
@@ -1027,7 +1027,7 @@
  	if (prebuilt->table->ibd_file_missing && !thd_tablespace_op(thd)) {
  		ut_print_timestamp(stderr);
  		fprintf(stderr,
-@@ -11990,6 +12087,26 @@
+@@ -11989,6 +12086,26 @@
    "dump file (if present). Disabled by default.",
    NULL, NULL, FALSE);
  
@@ -1054,7 +1054,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -12083,6 +12200,7 @@
+@@ -12082,6 +12199,7 @@
  #ifdef UNIV_DEBUG
    MYSQL_SYSVAR(flush_checkpoint_debug),
  #endif
@@ -1104,7 +1104,7 @@
  			block, index != NULL && dict_index_is_ibuf(index)
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1003,7 +1003,7 @@
+@@ -1023,7 +1023,7 @@
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  	__attribute__((pure));
  #else /* UNIV_DEBUG */
@@ -1113,7 +1113,7 @@
  #endif /* UNIV_DEBUG */
  /*********************************************************************//**
  Gets the space id of a block.
-@@ -1450,6 +1450,7 @@
+@@ -1470,6 +1470,7 @@
  					0 if the block was never accessed
  					in the buffer pool */
  	/* @} */
@@ -1132,7 +1132,7 @@
  /*********************************************************************//**
  Gets the current size of buffer buf_pool in bytes.
  @return size in bytes */
-@@ -637,6 +637,12 @@
+@@ -681,6 +681,12 @@
  /*================*/
  	const buf_block_t*	block)	/*!< in: pointer to the control block */
  {
@@ -1175,7 +1175,7 @@
  #ifdef UNIV_DEBUG
 --- a/storage/innobase/include/fil0fil.h
 +++ b/storage/innobase/include/fil0fil.h
-@@ -754,6 +754,19 @@
+@@ -759,6 +759,19 @@
  fil_system_hash_nodes(void);
  /*========================*/
  
@@ -1359,7 +1359,7 @@
  /*-------------------------------------------*/
 --- a/storage/innobase/srv/srv0start.c
 +++ b/storage/innobase/srv/srv0start.c
-@@ -2155,6 +2155,13 @@
+@@ -2175,6 +2175,13 @@
  
  	os_fast_mutex_free(&srv_os_test_mutex);
  

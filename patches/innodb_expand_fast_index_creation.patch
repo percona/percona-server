@@ -884,7 +884,7 @@
  
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -1013,6 +1013,9 @@
+@@ -1014,6 +1014,9 @@
    List<Alter_column>            alter_list;
    List<Key>                     key_list;
    List<Create_field>            create_list;
@@ -894,7 +894,7 @@
    uint                          flags;
    enum enum_enable_or_disable   keys_onoff;
    enum tablespace_op_type       tablespace_op;
-@@ -1024,6 +1027,8 @@
+@@ -1025,6 +1028,8 @@
  
  
    Alter_info() :
@@ -903,7 +903,7 @@
      flags(0),
      keys_onoff(LEAVE_AS_IS),
      tablespace_op(NO_TABLESPACE_OP),
-@@ -1039,6 +1044,9 @@
+@@ -1040,6 +1045,9 @@
      alter_list.empty();
      key_list.empty();
      create_list.empty();
@@ -1322,7 +1322,7 @@
  
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -710,6 +710,14 @@
+@@ -783,6 +783,14 @@
         ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
  #endif
  
@@ -1425,7 +1425,7 @@
   --expire-logs-days=# 
   If non-zero, binary logs will be purged after
   expire_logs_days days; possible purges happen at startup
-@@ -777,6 +781,7 @@
+@@ -781,6 +785,7 @@
  div-precision-increment 4
  engine-condition-pushdown TRUE
  event-scheduler OFF

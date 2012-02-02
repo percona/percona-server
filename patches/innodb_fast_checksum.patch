@@ -106,7 +106,7 @@
  	/* We overwrite the first 4 bytes of the end lsn field to store
 --- a/storage/innobase/fil/fil0fil.c
 +++ b/storage/innobase/fil/fil0fil.c
-@@ -3095,13 +3095,24 @@
+@@ -3103,13 +3103,24 @@
  		return(TRUE);
  	}
  
@@ -132,7 +132,7 @@
  	return(FALSE);
  }
  
-@@ -3117,7 +3128,9 @@
+@@ -3125,7 +3136,9 @@
  	if (!zip_size) {
  		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
  				srv_use_checksums
@@ -161,7 +161,7 @@
  
  	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
  
-@@ -11542,6 +11544,15 @@
+@@ -11541,6 +11543,15 @@
    "Disable with --skip-innodb-checksums.",
    NULL, NULL, TRUE);
  
@@ -177,7 +177,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -12073,6 +12084,7 @@
+@@ -12112,6 +12123,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
    MYSQL_SYSVAR(buffer_pool_instances),
    MYSQL_SYSVAR(checksums),

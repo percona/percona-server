@@ -139,7 +139,7 @@
    { "SQL_TSI_SECOND",   SYM(SECOND_SYM)},
 --- a/sql/mysqld.h
 +++ b/sql/mysqld.h
-@@ -194,6 +194,8 @@
+@@ -195,6 +195,8 @@
  extern char language[FN_REFLEN];
  extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
  extern ulong concurrency;
@@ -162,7 +162,7 @@
  
  #include <thr_alarm.h>
  #include <ft_global.h>
-@@ -487,6 +492,11 @@
+@@ -491,6 +496,11 @@
  ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
  ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
  ulong max_connections, max_connect_errors;
@@ -174,7 +174,7 @@
  /*
    Maximum length of parameter value which can be set through
    mysql_send_long_data() call.
-@@ -4252,6 +4262,97 @@
+@@ -4102,6 +4112,97 @@
  #define decrement_handler_count()
  #endif /* defined(_WIN32) || defined(HAVE_SMEM) */
  
@@ -272,7 +272,7 @@
  
  #ifndef EMBEDDED_LIBRARY
  #ifndef DBUG_OFF
-@@ -4510,6 +4611,10 @@
+@@ -4363,6 +4464,10 @@
    test_lc_time_sz();
  #endif
  
@@ -283,7 +283,7 @@
    /*
      We have enough space for fiddling with the argv, continue
    */
-@@ -4713,6 +4818,10 @@
+@@ -4574,6 +4679,10 @@
    }
  #endif
    clean_up(1);
@@ -294,7 +294,7 @@
    mysqld_exit(0);
  }
  
-@@ -6553,6 +6662,7 @@
+@@ -6421,6 +6530,7 @@
    {"Delayed_errors",           (char*) &delayed_insert_errors,  SHOW_LONG},
    {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
    {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
@@ -314,7 +314,7 @@
    lex->leaf_tables_insert= 0;
 --- a/sql/sql_lex.h
 +++ b/sql/sql_lex.h
-@@ -2345,6 +2345,7 @@
+@@ -2346,6 +2346,7 @@
  
    enum enum_yes_no_unknown tx_chain, tx_release;
    bool safe_to_cache_query;
@@ -378,7 +378,7 @@
  %token  SQL_SMALL_RESULT
  %token  SQL_SYM                       /* SQL-2003-R */
  %token  SQL_THREAD
-@@ -7357,6 +7358,10 @@
+@@ -7362,6 +7363,10 @@
                Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
              }
            }

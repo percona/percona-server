@@ -278,10 +278,16 @@
  	}
  
  	if (node->state == INDEX_CREATE_INDEX_TREE) {
-@@ -1183,6 +1322,66 @@
- }
+@@ -1177,6 +1316,66 @@
+ 		return(NULL);
+ 	}
  
- /****************************************************************//**
++	thr->run_node = que_node_get_parent(node);
++
++	return(thr);
++}
++
++/****************************************************************//**
 +*/
 +UNIV_INTERN
 +que_thr_t*
@@ -336,15 +342,9 @@
 +		return(NULL);
 +	}
 +
-+	thr->run_node = que_node_get_parent(node);
-+
-+	return(thr);
-+}
-+
-+/****************************************************************//**
- Creates the foreign key constraints system tables inside InnoDB
- at database creation or database start if they are not found or are
- not of the right form.
+ 	thr->run_node = que_node_get_parent(node);
+ 
+ 	return(thr);
 --- a/storage/innobase/dict/dict0dict.c
 +++ b/storage/innobase/dict/dict0dict.c
 @@ -755,7 +755,7 @@
@@ -356,7 +356,7 @@
  	}
  
  	return(table);
-@@ -4344,6 +4344,295 @@
+@@ -4354,6 +4354,295 @@
  }
  
  /*********************************************************************//**
@@ -652,7 +652,7 @@
  Calculates new estimates for table and index statistics. The statistics
  are used in query optimization. */
  UNIV_INTERN
-@@ -4351,10 +4640,11 @@
+@@ -4361,10 +4650,11 @@
  dict_update_statistics(
  /*===================*/
  	dict_table_t*	table,		/*!< in/out: table */
@@ -665,7 +665,7 @@
  {
  	dict_index_t*	index;
  	ulint		sum_of_index_sizes	= 0;
-@@ -4371,6 +4661,27 @@
+@@ -4381,6 +4671,27 @@
  		return;
  	}
  
@@ -693,7 +693,7 @@
  	/* Find out the sizes of the indexes and how many different values
  	for the key they approximately have */
  
-@@ -4435,6 +4746,11 @@
+@@ -4445,6 +4756,11 @@
  		index = dict_table_get_next_index(index);
  	} while (index);
  
@@ -705,7 +705,7 @@
  	index = dict_table_get_first_index(table);
  
  	table->stat_n_rows = index->stat_n_diff_key_vals[
-@@ -4452,6 +4768,78 @@
+@@ -4462,6 +4778,78 @@
  	dict_table_stats_unlock(table, RW_X_LATCH);
  }
  
@@ -784,7 +784,7 @@
  /**********************************************************************//**
  Prints info of a foreign key constraint. */
  static
-@@ -4529,7 +4917,8 @@
+@@ -4539,7 +4927,8 @@
  
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -961,7 +961,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_KEY_NOT_FOUND;
-@@ -6197,6 +6217,11 @@
+@@ -6196,6 +6216,11 @@
  	case DB_SUCCESS:
  		error = 0;
  		table->status = 0;
@@ -973,7 +973,7 @@
  		break;
  	case DB_RECORD_NOT_FOUND:
  		error = HA_ERR_END_OF_FILE;
-@@ -8150,11 +8175,35 @@
+@@ -8149,11 +8174,35 @@
  			/* In sql_show we call with this flag: update
  			then statistics so that they are up-to-date */
  
@@ -1010,7 +1010,7 @@
  
  			prebuilt->trx->op_info = "returning various info to MySQL";
  		}
-@@ -8239,7 +8288,7 @@
+@@ -8238,7 +8287,7 @@
  		are asked by MySQL to avoid locking. Another reason to
  		avoid the call is that it uses quite a lot of CPU.
  		See Bug#38185. */
@@ -1019,7 +1019,7 @@
  		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
  			/* We do not update delete_length if no
  			locking is requested so the "old" value can
-@@ -11512,6 +11561,26 @@
+@@ -11511,6 +11560,26 @@
    "The number of index pages to sample when calculating statistics (default 8)",
    NULL, NULL, 8, 1, ~0ULL, 0);
  
@@ -1046,7 +1046,7 @@
  static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
    PLUGIN_VAR_OPCMDARG,
    "Enable InnoDB adaptive hash index (enabled by default).  "
-@@ -11844,6 +11913,9 @@
+@@ -11883,6 +11952,9 @@
    MYSQL_SYSVAR(recovery_update_relay_log),
    MYSQL_SYSVAR(rollback_on_timeout),
    MYSQL_SYSVAR(stats_on_metadata),
@@ -1056,7 +1056,7 @@
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
    MYSQL_SYSVAR(stats_method),
-@@ -11915,7 +11987,10 @@
+@@ -11957,7 +12029,10 @@
  i_s_innodb_sys_columns,
  i_s_innodb_sys_fields,
  i_s_innodb_sys_foreign,

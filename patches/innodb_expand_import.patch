@@ -51,7 +51,7 @@
  #ifndef UNIV_HOTBACKUP
  # include "buf0lru.h"
  # include "ibuf0ibuf.h"
-@@ -3033,6 +3041,84 @@
+@@ -3041,6 +3049,84 @@
  }
  
  /********************************************************************//**
@@ -136,7 +136,7 @@
  Tries to open a single-table tablespace and optionally checks the space id is
  right in it. If does not succeed, prints an error message to the .err log. This
  function is used to open a tablespace when we start up mysqld, and also in
-@@ -3055,8 +3141,11 @@
+@@ -3063,8 +3149,11 @@
  					accessing the first page of the file */
  	ulint		id,		/*!< in: space id */
  	ulint		flags,		/*!< in: tablespace flags */
@@ -149,7 +149,7 @@
  {
  	os_file_t	file;
  	char*		filepath;
-@@ -3079,7 +3168,7 @@
+@@ -3087,7 +3176,7 @@
  
  	file = os_file_create_simple_no_error_handling(
  		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -158,7 +158,7 @@
  	if (!success) {
  		/* The following call prints an error message */
  		os_file_get_last_error(TRUE);
-@@ -3126,6 +3215,453 @@
+@@ -3134,6 +3223,453 @@
  	space_id = fsp_header_get_space_id(page);
  	space_flags = fsp_header_get_flags(page);
  
@@ -612,7 +612,7 @@
  	ut_free(buf2);
  
  	if (UNIV_UNLIKELY(space_id != id
-@@ -3167,6 +3703,269 @@
+@@ -3175,6 +3711,269 @@
  	os_file_close(file);
  	mem_free(filepath);
  
@@ -884,7 +884,7 @@
  #endif /* !UNIV_HOTBACKUP */
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -7422,6 +7422,14 @@
+@@ -7421,6 +7421,14 @@
  		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
  	} else {
  		err = row_import_tablespace_for_mysql(dict_table->name, trx);
@@ -899,9 +899,9 @@
  	}
  
  	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
-@@ -11781,6 +11789,11 @@
-   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
-   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
+@@ -11820,6 +11828,11 @@
+   NULL, NULL, 0, 0, 1, 0);
+ #endif
  
 +static MYSQL_SYSVAR_ULONG(import_table_from_xtrabackup, srv_expand_import,
 +  PLUGIN_VAR_RQCMDARG,
@@ -911,7 +911,7 @@
  static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
    PLUGIN_VAR_RQCMDARG,
    "Limit the allocated memory for dictionary cache. (0: unlimited)",
-@@ -11855,6 +11868,7 @@
+@@ -11894,6 +11907,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -1120,7 +1120,7 @@
  
  /** When mysqld is run, the default directory "." is the mysqld datadir,
  but in the MySQL Embedded Server Library and ibbackup it is not the default
-@@ -473,8 +474,11 @@
+@@ -478,8 +479,11 @@
  					accessing the first page of the file */
  	ulint		id,		/*!< in: space id */
  	ulint		flags,		/*!< in: tablespace flags */

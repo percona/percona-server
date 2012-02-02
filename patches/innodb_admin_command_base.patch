@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11999,7 +11999,8 @@
+@@ -12041,7 +12041,8 @@
  i_s_innodb_sys_foreign_cols,
  i_s_innodb_sys_stats,
  i_s_innodb_table_stats,

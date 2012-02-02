@@ -40,3 +40,12 @@ For example this is how you can do it in *Ubuntu*: ::
 After you restart mysqld for changes to take effect, pam_unix authentication will work.
 
 The other option is to run mysqld as root. This should be used for testing only or as a last resort method.
+
+
+I'm getting the: "ERROR 2059 (HY000): Authentication plugin 'auth_pam' cannot be loaded"
+========================================================================================
+
+This means that the default client :option:`plugin-dir` setting doesn't work or it isn't set up properly. You'll need to add the location of the plugin folder to your client configuration: :: 
+  
+  [client]
+  plugin_dir='/usr/lib/mysql/plugin'

@@ -155,7 +155,7 @@
  		return(0);
 --- a/storage/innobase/fil/fil0fil.c
 +++ b/storage/innobase/fil/fil0fil.c
-@@ -2601,7 +2601,7 @@
+@@ -2609,7 +2609,7 @@
  
  		os_thread_sleep(20000);
  
@@ -164,7 +164,7 @@
  
  		goto retry;
  
-@@ -2815,7 +2815,7 @@
+@@ -2823,7 +2823,7 @@
  		goto error_exit;
  	}
  
@@ -173,7 +173,7 @@
  
  	if (!ret) {
  		fputs("InnoDB: Error: file flush of tablespace ", stderr);
-@@ -3001,7 +3001,7 @@
+@@ -3009,7 +3009,7 @@
  		}
  	}
  
@@ -182,7 +182,7 @@
  	if (!success) {
  
  		goto func_exit;
-@@ -3023,7 +3023,7 @@
+@@ -3031,7 +3031,7 @@
  
  		goto func_exit;
  	}
@@ -191,7 +191,7 @@
  func_exit:
  	os_file_close(file);
  	ut_free(buf2);
-@@ -4006,7 +4006,7 @@
+@@ -4014,7 +4014,7 @@
  	size_after_extend, *actual_size); */
  	mutex_exit(&fil_system->mutex);
  
@@ -200,7 +200,7 @@
  
  	return(success);
  }
-@@ -4577,8 +4577,9 @@
+@@ -4585,8 +4585,9 @@
  void
  fil_flush(
  /*======*/
@@ -211,7 +211,7 @@
  {
  	fil_space_t*	space;
  	fil_node_t*	node;
-@@ -4649,7 +4650,7 @@
+@@ -4657,7 +4658,7 @@
  			/* fprintf(stderr, "Flushing to file %s\n",
  			node->name); */
  
@@ -220,7 +220,7 @@
  
  			mutex_enter(&fil_system->mutex);
  
-@@ -4732,7 +4733,7 @@
+@@ -4740,7 +4741,7 @@
  	a non-existing space id. */
  	for (i = 0; i < n_space_ids; i++) {
  
@@ -272,7 +272,7 @@
  	srv_force_recovery = (ulint) innobase_force_recovery;
  
  	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
-@@ -11142,7 +11162,7 @@
+@@ -11141,7 +11161,7 @@
    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
    "Purge threads can be either 0 or 1.",
    NULL, NULL,
@@ -281,7 +281,7 @@
    0,			/* Minimum value */
    1, 0);		/* Maximum value */
  
-@@ -11184,12 +11204,18 @@
+@@ -11183,12 +11203,18 @@
    innodb_file_format_max_validate,
    innodb_file_format_max_update, "Antelope");
  
@@ -306,7 +306,7 @@
  
  static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11294,7 +11320,7 @@
+@@ -11293,7 +11319,7 @@
  static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -315,7 +315,7 @@
  
  static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-@@ -11451,6 +11477,135 @@
+@@ -11450,6 +11476,135 @@
    "trigger a readahead.",
    NULL, NULL, 56, 0, 64, 0);
  
@@ -451,7 +451,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11471,6 +11626,7 @@
+@@ -11470,6 +11625,7 @@
    MYSQL_SYSVAR(file_format_check),
    MYSQL_SYSVAR(file_format_max),
    MYSQL_SYSVAR(flush_log_at_trx_commit),
@@ -459,7 +459,7 @@
    MYSQL_SYSVAR(flush_method),
    MYSQL_SYSVAR(force_recovery),
    MYSQL_SYSVAR(large_prefix),
-@@ -11510,6 +11666,13 @@
+@@ -11509,6 +11665,13 @@
    MYSQL_SYSVAR(show_verbose_locks),
    MYSQL_SYSVAR(show_locks_held),
    MYSQL_SYSVAR(version),
@@ -473,7 +473,7 @@
    MYSQL_SYSVAR(use_sys_malloc),
    MYSQL_SYSVAR(use_native_aio),
    MYSQL_SYSVAR(change_buffering),
-@@ -11522,6 +11685,9 @@
+@@ -11521,6 +11684,9 @@
    MYSQL_SYSVAR(purge_threads),
    MYSQL_SYSVAR(purge_batch_size),
    MYSQL_SYSVAR(rollback_segments),
@@ -524,7 +524,7 @@
  /** read only pages belonging to the insert buffer tree */
 --- a/storage/innobase/include/fil0fil.h
 +++ b/storage/innobase/include/fil0fil.h
-@@ -658,8 +658,9 @@
+@@ -663,8 +663,9 @@
  void
  fil_flush(
  /*======*/
@@ -1600,7 +1600,7 @@
  	mutex_enter(&kernel_mutex);
 --- a/storage/innobase/srv/srv0start.c
 +++ b/storage/innobase/srv/srv0start.c
-@@ -1217,6 +1217,9 @@
+@@ -1237,6 +1237,9 @@
  	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT")) {
  		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
  
@@ -1926,3 +1926,27 @@
  
  # Performance schema variables are too long for files named
  # 'mysql-test/suite/sys_vars/t/' ...
+--- a/mysql-test/suite/innodb/t/innodb_cmp_drop_table-master.opt
++++ b/mysql-test/suite/innodb/t/innodb_cmp_drop_table-master.opt
+@@ -1 +1 @@
+---innodb-buffer-pool-size=8M
++--innodb-buffer-pool-size=32M
+--- a/mysql-test/suite/innodb/t/innodb_cmp_drop_table.test
++++ b/mysql-test/suite/innodb/t/innodb_cmp_drop_table.test
+@@ -36,13 +36,14 @@
+ 
+ -- disable_query_log
+ 
+--- let $i = 400
++-- let $i = 4000
++begin;
+ while ($i)
+ {
+   insert into t2 values(repeat('abcdefghijklmnopqrstuvwxyz',1000));
+   dec $i;
+ }
+-
++commit;
+ -- enable_query_log
+ 
+ # now there should be no 8K pages in the buffer pool

@@ -11,7 +11,7 @@ Released on February 16, 2011 (Downloads are available `here <http://www.percona
 New Features
 ============
 
-  * |InnoDB| adaptive hash function searches can now be spread across multiple partitions (see :ref:`innodb_adaptive_hash_partitions_page`). Bug fixed: :bug:`688866`. (*Yasufumi Kinoshita*)
+  * |InnoDB| adaptive hash function searches can now be spread across multiple partitions (see :ref:`innodb_adaptive_hash_index_partitions_page`). Bug fixed: :bug:`688866`. (*Yasufumi Kinoshita*)
 
   * Information from ``SHOW INNODB STATUS`` was made available in new status variables in |InnoDB| Show Status. Bug fixed: :bug:`698797`.
 

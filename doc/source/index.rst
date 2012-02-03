@@ -60,7 +60,7 @@ Scalability Improvements
    scalability/innodb_split_buf_pool_mutex
    scalability/innodb_io_55
    scalability/innodb_expand_undo_slots
-   scalability/innodb_adaptive_hash_partitions
+   scalability/innodb_adaptive_hash_index_partitions
 
 Performance Improvements
 ========================

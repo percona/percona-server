@@ -522,7 +522,7 @@
     sync_period_ptr(sync_period),
     is_relay_log(0), signal_cnt(0),
     description_event_for_exec(0), description_event_for_queue(0)
-@@ -5325,19 +5327,15 @@
+@@ -5361,19 +5363,15 @@
    SYNOPSIS
      write_cache()
      cache    Cache to write to the binary log
@@ -544,7 +544,7 @@
    if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
      return ER_ERROR_ON_WRITE;
    uint length= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
-@@ -5448,6 +5446,8 @@
+@@ -5484,6 +5482,8 @@
      }
  
      /* Write data to the binary log file */
@@ -553,7 +553,7 @@
      if (my_b_write(&log_file, cache->read_pos, length))
        return ER_ERROR_ON_WRITE;
      thd->binlog_bytes_written+= length;
-@@ -5456,9 +5456,6 @@
+@@ -5492,9 +5492,6 @@
  
    DBUG_ASSERT(carry == 0);
  
@@ -563,7 +563,7 @@
    return 0;                                     // All OK
  }
  
-@@ -5499,8 +5496,6 @@
+@@ -5535,8 +5532,6 @@
    if (!is_open())
      DBUG_RETURN(error);
  
@@ -572,7 +572,7 @@
    Incident incident= INCIDENT_LOST_EVENTS;
    Incident_log_event ev(thd, incident, write_error_msg);
    if (lock)
-@@ -5549,112 +5544,332 @@
+@@ -5585,112 +5580,332 @@
      'cache' needs to be reinitialized after this functions returns.
  */
  
@@ -971,7 +971,7 @@
  /**
    Wait until we get a signal that the relay log has been updated.
  
-@@ -6059,6 +6274,68 @@
+@@ -6095,6 +6310,68 @@
  }
  
  
@@ -1040,7 +1040,7 @@
  /********* transaction coordinator log for 2pc - mmap() based solution *******/
  
  /*
-@@ -6195,6 +6472,7 @@
+@@ -6231,6 +6508,7 @@
    mysql_mutex_init(key_LOCK_pool, &LOCK_pool, MY_MUTEX_INIT_FAST);
    mysql_cond_init(key_COND_active, &COND_active, 0);
    mysql_cond_init(key_COND_pool, &COND_pool, 0);
@@ -1048,7 +1048,7 @@
  
    inited=6;
  
-@@ -6202,6 +6480,8 @@
+@@ -6238,6 +6516,8 @@
    active=pages;
    pool=pages+1;
    pool_last=pages+npages-1;
@@ -1057,7 +1057,7 @@
  
    return 0;
  
-@@ -6307,7 +6587,7 @@
+@@ -6343,7 +6623,7 @@
      to the position in memory where xid was logged to.
  */
  
@@ -1066,7 +1066,7 @@
  {
    int err;
    PAGE *p;
-@@ -6446,7 +6726,9 @@
+@@ -6482,7 +6762,9 @@
      mysql_mutex_destroy(&LOCK_sync);
      mysql_mutex_destroy(&LOCK_active);
      mysql_mutex_destroy(&LOCK_pool);
@@ -1076,7 +1076,7 @@
    case 5:
      data[0]='A'; // garble the first (signature) byte, in case mysql_file_delete fails
    case 4:
-@@ -6656,42 +6938,87 @@
+@@ -6692,42 +6974,87 @@
    mysql_cond_destroy(&COND_prep_xids);
  }
  
@@ -1176,7 +1176,7 @@
  }
  
  int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
-@@ -6760,9 +7087,67 @@
+@@ -6796,9 +7123,67 @@
  {
    return (ulonglong) mysql_bin_log.get_log_file()->pos_in_file;
  }
@@ -1244,7 +1244,7 @@
  struct st_mysql_storage_engine binlog_storage_engine=
  { MYSQL_HANDLERTON_INTERFACE_VERSION };
  
-@@ -6777,7 +7162,7 @@
+@@ -6813,7 +7198,7 @@
    binlog_init, /* Plugin Init */
    NULL, /* Plugin Deinit */
    0x0100 /* 1.0 */,
@@ -1446,7 +1446,7 @@
  class Log_event_handler
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -1490,6 +1490,7 @@
+@@ -1495,6 +1495,7 @@
    ha_end();
    if (tc_log)
      tc_log->close();
@@ -1454,7 +1454,7 @@
    delegates_destroy();
    xid_cache_free();
    table_def_free();
-@@ -4061,6 +4062,8 @@
+@@ -3911,6 +3912,8 @@
    query_response_time_init();
  #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
    /* We have to initialize the storage engines before CSV logging */
@@ -1463,7 +1463,7 @@
    init_global_table_stats();
    init_global_index_stats();
  
-@@ -8004,6 +8007,7 @@
+@@ -7872,6 +7875,7 @@
    key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
    key_PARTITION_LOCK_auto_inc;
  PSI_mutex_key key_RELAYLOG_LOCK_index;
@@ -1471,7 +1471,7 @@
  
  static PSI_mutex_info all_server_mutexes[]=
  {
-@@ -8024,6 +8028,7 @@
+@@ -7892,6 +7896,7 @@
    { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
    { &key_hash_filo_lock, "hash_filo::lock", 0},
    { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
@@ -1479,7 +1479,7 @@
    { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL},
    { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
    { &key_LOCK_delayed_create, "LOCK_delayed_create", PSI_FLAG_GLOBAL},
-@@ -8039,6 +8044,7 @@
+@@ -7907,6 +7912,7 @@
      "LOCK_global_index_stats", PSI_FLAG_GLOBAL},
    { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
    { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
@@ -1487,7 +1487,7 @@
    { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
    { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
    { &key_LOCK_rpl_status, "LOCK_rpl_status", PSI_FLAG_GLOBAL},
-@@ -8050,6 +8056,7 @@
+@@ -7918,6 +7924,7 @@
    { &key_LOCK_temporary_tables, "THD::LOCK_temporary_tables", 0},
    { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
    { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
@@ -1495,7 +1495,7 @@
    { &key_LOG_LOCK_log, "LOG::LOCK_log", 0},
    { &key_master_info_data_lock, "Master_info::data_lock", 0},
    { &key_master_info_run_lock, "Master_info::run_lock", 0},
-@@ -8097,6 +8104,7 @@
+@@ -7965,6 +7972,7 @@
    key_TABLE_SHARE_cond, key_user_level_lock_cond,
    key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
  PSI_cond_key key_RELAYLOG_update_cond;
@@ -1503,7 +1503,7 @@
  
  static PSI_cond_info all_server_conds[]=
  {
-@@ -8113,8 +8121,10 @@
+@@ -7981,8 +7989,10 @@
    { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
    { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
    { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
@@ -1516,7 +1516,7 @@
    { &key_item_func_sleep_cond, "Item_func_sleep::cond", 0},
 --- a/sql/mysqld.h
 +++ b/sql/mysqld.h
-@@ -273,6 +273,7 @@
+@@ -274,6 +274,7 @@
    key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
    key_LOCK_error_messages, key_LOCK_thread_count, key_PARTITION_LOCK_auto_inc;
  extern PSI_mutex_key key_RELAYLOG_LOCK_index;
@@ -1524,7 +1524,7 @@
  
  extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
    key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
-@@ -293,6 +294,7 @@
+@@ -294,6 +295,7 @@
    key_TABLE_SHARE_cond, key_user_level_lock_cond,
    key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
  extern PSI_cond_key key_RELAYLOG_update_cond;
@@ -1552,7 +1552,7 @@
    mysql_mutex_destroy(&LOCK_thd_data);
    mysql_mutex_destroy(&LOCK_temporary_tables);
  #ifndef DBUG_OFF
-@@ -5292,6 +5296,24 @@
+@@ -5297,6 +5301,24 @@
    DBUG_RETURN(0);
  }
  
@@ -1887,7 +1887,7 @@
    
  		trx_deregister_from_2pc(trx);
  
-@@ -10982,6 +11149,7 @@
+@@ -10981,6 +11148,7 @@
  
  	srv_active_wake_master_thread();
  
@@ -1895,7 +1895,7 @@
  	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
  	    && (all
  		|| !thd_test_options(
-@@ -11008,6 +11176,7 @@
+@@ -11007,6 +11175,7 @@
  		mysql_mutex_lock(&prepare_commit_mutex);
  		trx_owns_prepare_commit_mutex_set(trx);
  	}

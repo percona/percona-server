@@ -289,7 +289,7 @@
  	mutex_exit(&(dict_sys->mutex));
  
  	if (table != NULL) {
-@@ -1259,6 +1263,64 @@
+@@ -1264,6 +1268,64 @@
  	dict_mem_table_free(table);
  }
  
@@ -354,7 +354,7 @@
  /****************************************************************//**
  If the given column name is reserved for InnoDB system columns, return
  TRUE.
-@@ -1763,6 +1825,11 @@
+@@ -1768,6 +1830,11 @@
  	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
  	ut_ad(mutex_own(&(dict_sys->mutex)));
  
@@ -377,9 +377,9 @@
    {"have_atomic_builtins",
    (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
    {"log_waits",
-@@ -11774,6 +11776,11 @@
-   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
-   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
+@@ -11813,6 +11815,11 @@
+   NULL, NULL, 0, 0, 1, 0);
+ #endif
  
 +static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
 +  PLUGIN_VAR_RQCMDARG,
@@ -389,7 +389,7 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -11843,6 +11850,7 @@
+@@ -11882,6 +11889,7 @@
    MYSQL_SYSVAR(flush_neighbor_pages),
    MYSQL_SYSVAR(read_ahead),
    MYSQL_SYSVAR(adaptive_flushing_method),
@@ -425,7 +425,7 @@
  or freed in a file segment. */
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1575,6 +1575,15 @@
+@@ -1595,6 +1595,15 @@
  #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
  /* @} */
  
@@ -495,7 +495,7 @@
  /*-------------------------------------------*/
  
  extern ulint	srv_n_rows_inserted;
-@@ -714,6 +715,7 @@
+@@ -717,6 +718,7 @@
  	ulint innodb_data_writes;		/*!< I/O write requests */
  	ulint innodb_data_written;		/*!< Data bytes written */
  	ulint innodb_data_reads;		/*!< I/O read requests */
@@ -514,7 +514,7 @@
  /*-------------------------------------------*/
  UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;
  UNIV_INTERN ulong	srv_n_free_tickets_to_enter = 500;
-@@ -2222,6 +2224,7 @@
+@@ -2225,6 +2227,7 @@
  	export_vars.innodb_data_reads = os_n_file_reads;
  	export_vars.innodb_data_writes = os_n_file_writes;
  	export_vars.innodb_data_written = srv_data_written;

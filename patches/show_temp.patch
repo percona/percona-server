@@ -25,7 +25,7 @@
    SCH_VARIABLES,
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -3101,6 +3101,7 @@
+@@ -2951,6 +2951,7 @@
    {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
    {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
    {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
@@ -33,7 +33,7 @@
    {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
    {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
    {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
-@@ -7802,6 +7803,7 @@
+@@ -7670,6 +7671,7 @@
  PSI_mutex_key key_LOCK_des_key_file;
  #endif /* HAVE_OPENSSL */
  
@@ -41,7 +41,7 @@
  PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
    key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
    key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
-@@ -7855,6 +7857,7 @@
+@@ -7723,6 +7725,7 @@
    { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
    { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
    { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
@@ -387,7 +387,7 @@
     OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},
 --- a/sql/sql_yacc.yy
 +++ b/sql/sql_yacc.yy
-@@ -10893,6 +10893,15 @@
+@@ -10898,6 +10898,15 @@
               if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                 MYSQL_YYABORT;
             }
@@ -405,7 +405,7 @@
               LEX *lex= Lex;
 --- a/sql/mysqld.h
 +++ b/sql/mysqld.h
-@@ -233,6 +233,7 @@
+@@ -234,6 +234,7 @@
  extern PSI_mutex_key key_LOCK_des_key_file;
  #endif
  

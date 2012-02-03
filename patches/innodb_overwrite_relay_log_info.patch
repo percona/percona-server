@@ -248,7 +248,7 @@
  
  		trx_commit_for_mysql(trx);
  	}
-@@ -11131,6 +11323,12 @@
+@@ -11130,6 +11322,12 @@
    "The common part for InnoDB table spaces.",
    NULL, NULL, NULL);
  
@@ -261,7 +261,7 @@
  static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
    "Enable InnoDB doublewrite buffer (enabled by default). "
-@@ -11608,6 +11806,7 @@
+@@ -11647,6 +11845,7 @@
    MYSQL_SYSVAR(old_blocks_pct),
    MYSQL_SYSVAR(old_blocks_time),
    MYSQL_SYSVAR(open_files),

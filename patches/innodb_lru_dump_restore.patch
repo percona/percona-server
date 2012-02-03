@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0lru.c
 +++ b/storage/innobase/buf/buf0lru.c
-@@ -2192,6 +2192,289 @@
+@@ -2197,6 +2197,289 @@
  	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
  }
  

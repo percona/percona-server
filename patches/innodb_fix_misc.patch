@@ -176,7 +176,7 @@
  			return(TRUE);
 --- a/storage/innobase/buf/buf0lru.c
 +++ b/storage/innobase/buf/buf0lru.c
-@@ -540,6 +540,62 @@
+@@ -545,6 +545,62 @@
  	}
  }
  
@@ -239,7 +239,7 @@
  #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
  /********************************************************************//**
  Insert a compressed block into buf_pool->zip_clean in the LRU order. */
-@@ -1494,6 +1550,10 @@
+@@ -1499,6 +1555,10 @@
  		return(FALSE);
  	}
  

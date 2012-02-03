@@ -874,7 +874,7 @@
  	block->n_fields		= 1;
 --- a/storage/innobase/buf/buf0lru.c
 +++ b/storage/innobase/buf/buf0lru.c
-@@ -571,7 +571,7 @@
+@@ -576,7 +576,7 @@
  
  		mutex_exit(&buf_pool->LRU_list_mutex);
  
@@ -883,7 +883,7 @@
  		chunk = buf_pool->chunks;
  		for (j = buf_pool->n_chunks; j--; chunk++) {
  			buf_block_t*	block	= chunk->blocks;
-@@ -583,16 +583,16 @@
+@@ -588,16 +588,16 @@
  					continue;
  				}
  

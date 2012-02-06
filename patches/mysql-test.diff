@@ -1823,7 +1823,3 @@
 @@ -0,0 +1,2 @@
 +--source include/have_nodebug.inc
 +--source include/percona_server_variables.inc
---- a/mysql-test/suite/innodb/t/innodb_cmp_drop_table-master.opt
-+++ /dev/null
-@@ -1 +0,0 @@
----innodb-buffer-pool-size=8M

@@ -189,7 +189,7 @@
  
  require "lib/mtr_process.pl";
  require "lib/mtr_io.pl";
-@@ -291,6 +292,7 @@
+@@ -292,6 +293,7 @@
  my $opt_valgrind_path;
  my $valgrind_reports= 0;
  my $opt_callgrind;
@@ -197,7 +197,7 @@
  my %mysqld_logs;
  my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
  
-@@ -630,6 +632,7 @@
+@@ -631,6 +633,7 @@
  
  	  # Report test status
  	  mtr_report_test($result);
@@ -205,7 +205,7 @@
  
  	  if ( $result->is_failed() ) {
  
-@@ -1142,6 +1145,7 @@
+@@ -1144,6 +1147,7 @@
               'valgrind-option=s'        => \@valgrind_args,
               'valgrind-path=s'          => \$opt_valgrind_path,
  	     'callgrind'                => \$opt_callgrind,
@@ -213,7 +213,7 @@
  	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
  
  	     # Directories
-@@ -1703,11 +1707,18 @@
+@@ -1705,11 +1709,18 @@
        unless @valgrind_args;
    }
  
@@ -233,7 +233,7 @@
  
      # Don't add --quiet; you will loose the summary reports.
  
-@@ -5796,6 +5807,10 @@
+@@ -5831,6 +5842,10 @@
      mtr_add_arg($args, "--tool=callgrind");
      mtr_add_arg($args, "--base=$opt_vardir/log");
    }

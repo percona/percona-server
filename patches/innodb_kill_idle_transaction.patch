@@ -114,7 +114,7 @@
  #ifdef HAVE_PSI_INTERFACE
  	/* Register keys with MySQL performance schema */
  	if (PSI_server) {
-@@ -11695,6 +11699,57 @@
+@@ -11694,6 +11698,57 @@
  	return(false);
  }
  
@@ -172,7 +172,7 @@
  static SHOW_VAR innodb_status_variables_export[]= {
    {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
    {NullS, NullS, SHOW_LONG}
-@@ -11986,6 +12041,15 @@
+@@ -11985,6 +12040,15 @@
    "Number of times a thread is allowed to enter InnoDB within the same SQL query after it has once got the ticket",
    NULL, NULL, 500L, 1L, ~0L, 0);
  
@@ -188,7 +188,7 @@
  static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,
    "Number of file I/O threads in InnoDB.",
-@@ -12288,6 +12352,7 @@
+@@ -12327,6 +12391,7 @@
    MYSQL_SYSVAR(fast_checksum),
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
@@ -198,7 +198,7 @@
    MYSQL_SYSVAR(data_home_dir),
 --- a/storage/innobase/include/srv0srv.h
 +++ b/storage/innobase/include/srv0srv.h
-@@ -296,6 +296,7 @@
+@@ -299,6 +299,7 @@
  extern ulint	srv_activity_count;
  extern ulint	srv_fatal_semaphore_wait_threshold;
  extern ulint	srv_dml_needed_delay;
@@ -242,7 +242,7 @@
  /* How much data manipulation language (DML) statements need to be delayed,
  in microseconds, in order to reduce the lagging of the purge thread. */
  UNIV_INTERN ulint	srv_dml_needed_delay = 0;
-@@ -2834,6 +2843,36 @@
+@@ -2837,6 +2846,36 @@
  		old_sema = sema;
  	}
  

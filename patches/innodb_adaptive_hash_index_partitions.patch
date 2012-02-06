@@ -851,7 +851,7 @@
  
  #ifdef UNIV_DEBUG
  	block->page.in_page_hash = FALSE;
-@@ -1427,7 +1428,11 @@
+@@ -1429,7 +1430,11 @@
  	ulint	p;
  
  #ifdef UNIV_SYNC_DEBUG
@@ -864,7 +864,7 @@
  #endif /* UNIV_SYNC_DEBUG */
  	ut_ad(!btr_search_enabled);
  
-@@ -2142,6 +2147,7 @@
+@@ -2144,6 +2149,7 @@
  {
  	block->check_index_page_at_flush = FALSE;
  	block->index		= NULL;
@@ -874,7 +874,7 @@
  	block->n_fields		= 1;
 --- a/storage/innobase/buf/buf0lru.c
 +++ b/storage/innobase/buf/buf0lru.c
-@@ -560,7 +560,7 @@
+@@ -576,7 +576,7 @@
  
  		mutex_exit(&buf_pool->LRU_list_mutex);
  
@@ -883,7 +883,7 @@
  		chunk = buf_pool->chunks;
  		for (j = buf_pool->n_chunks; j--; chunk++) {
  			buf_block_t*	block	= chunk->blocks;
-@@ -572,16 +572,16 @@
+@@ -588,16 +588,16 @@
  					continue;
  				}
  
@@ -905,7 +905,7 @@
  
 --- a/storage/innobase/dict/dict0dict.c
 +++ b/storage/innobase/dict/dict0dict.c
-@@ -1846,7 +1846,7 @@
+@@ -1851,7 +1851,7 @@
  	zero. */
  
  	for (;;) {
@@ -916,7 +916,7 @@
  		}
 --- a/storage/innobase/handler/ha_innodb.cc
 +++ b/storage/innobase/handler/ha_innodb.cc
-@@ -11833,6 +11833,11 @@
+@@ -11832,6 +11832,11 @@
    "Disable with --skip-innodb-adaptive-hash-index.",
    NULL, innodb_adaptive_hash_index_update, TRUE);
  
@@ -928,7 +928,7 @@
  static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
    PLUGIN_VAR_RQCMDARG,
    "Replication thread delay (ms) on the slave server if "
-@@ -12253,6 +12258,7 @@
+@@ -12252,6 +12257,7 @@
    MYSQL_SYSVAR(use_sys_stats_table),
    MYSQL_SYSVAR(stats_sample_pages),
    MYSQL_SYSVAR(adaptive_hash_index),
@@ -1411,7 +1411,7 @@
  
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1580,6 +1580,7 @@
+@@ -1600,6 +1600,7 @@
  					complete, though: there may
  					have been hash collisions,
  					record deletions, etc. */

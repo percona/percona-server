@@ -411,7 +411,7 @@
                          ulonglong lock_utime, bool is_command,
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -421,6 +421,10 @@
+@@ -425,6 +425,10 @@
  char* opt_secure_file_priv;
  my_bool opt_log_slow_admin_statements= 0;
  my_bool opt_log_slow_slave_statements= 0;
@@ -422,7 +422,7 @@
  my_bool lower_case_file_system= 0;
  my_bool opt_large_pages= 0;
  my_bool opt_super_large_pages= 0;
-@@ -5892,14 +5896,10 @@
+@@ -5753,14 +5757,10 @@
     "Don't log extra information to update and slow-query logs.",
     &opt_short_log_format, &opt_short_log_format,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -439,7 +439,7 @@
    {"log-slow-queries", OPT_SLOW_QUERY_LOG,
     "Log slow queries to a table or log file. Defaults logging to table "
     "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-@@ -7288,6 +7288,10 @@
+@@ -7156,6 +7156,10 @@
  
  C_MODE_END
  
@@ -450,7 +450,7 @@
  /**
    Get server options from the command line,
    and perform related server initializations.
-@@ -7437,6 +7441,8 @@
+@@ -7305,6 +7309,8 @@
    global_system_variables.long_query_time= (ulonglong)
      (global_system_variables.long_query_time_double * 1e6);
  
@@ -569,7 +569,7 @@
  }
  
  
-@@ -3682,8 +3717,6 @@
+@@ -3687,8 +3722,6 @@
    backup->in_sub_stmt=     in_sub_stmt;
    backup->enable_slow_log= enable_slow_log;
    backup->limit_found_rows= limit_found_rows;
@@ -578,7 +578,7 @@
    backup->cuted_fields=     cuted_fields;
    backup->client_capabilities= client_capabilities;
    backup->savepoints= transaction.savepoints;
-@@ -3691,6 +3724,7 @@
+@@ -3696,6 +3729,7 @@
      first_successful_insert_id_in_prev_stmt;
    backup->first_successful_insert_id_in_cur_stmt= 
      first_successful_insert_id_in_cur_stmt;
@@ -586,7 +586,7 @@
  
    if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
        !is_current_stmt_binlog_format_row())
-@@ -3706,13 +3740,74 @@
+@@ -3711,13 +3745,74 @@
    /* Disable result sets */
    client_capabilities &= ~CLIENT_MULTI_RESULTS;
    in_sub_stmt|= new_state;
@@ -663,7 +663,7 @@
  
  void THD::restore_sub_statement_state(Sub_statement_state *backup)
  {
-@@ -3753,7 +3848,6 @@
+@@ -3758,7 +3853,6 @@
    first_successful_insert_id_in_cur_stmt= 
      backup->first_successful_insert_id_in_cur_stmt;
    limit_found_rows= backup->limit_found_rows;
@@ -671,7 +671,7 @@
    client_capabilities= backup->client_capabilities;
    /*
      If we've left sub-statement mode, reset the fatal error flag.
-@@ -3771,8 +3865,8 @@
+@@ -3776,8 +3870,8 @@
      The following is added to the old values as we are interested in the
      total complexity of the query
    */
@@ -1072,7 +1072,7 @@
        {
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -972,6 +972,29 @@
+@@ -1045,6 +1045,29 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(update_cached_long_query_time));
  
@@ -1102,7 +1102,7 @@
  static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
  {
    if (type == OPT_SESSION)
-@@ -2904,6 +2927,123 @@
+@@ -2977,6 +3000,123 @@
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_log_state));
  

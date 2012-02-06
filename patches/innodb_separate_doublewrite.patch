@@ -7,7 +7,7 @@
 # should be done or reviewed by the maintainer!
 --- a/storage/innobase/buf/buf0buf.c
 +++ b/storage/innobase/buf/buf0buf.c
-@@ -3805,7 +3805,8 @@
+@@ -3807,7 +3807,8 @@
  		read_space_id = mach_read_from_4(
  			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
  
@@ -262,7 +262,7 @@
  				if (err != DB_SUCCESS) {
  
  					return(err);
-@@ -4168,7 +4178,7 @@
+@@ -4176,7 +4186,7 @@
  	}
  
  #ifndef UNIV_HOTBACKUP
@@ -271,7 +271,7 @@
  		fprintf(stderr,
  			"InnoDB: Error: tablespace id %lu in file %s"
  			" is not sensible\n",
-@@ -4177,7 +4187,7 @@
+@@ -4185,7 +4195,7 @@
  		goto func_exit;
  	}
  #else
@@ -280,7 +280,7 @@
  		char*	new_path;
  
  		fprintf(stderr,
-@@ -4998,7 +5008,7 @@
+@@ -5006,7 +5016,7 @@
  	}
  
  	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
@@ -289,7 +289,7 @@
  		/* The node is in the LRU list, remove it */
  
  		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
-@@ -5044,7 +5054,7 @@
+@@ -5052,7 +5062,7 @@
  	}
  
  	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
@@ -298,7 +298,7 @@
  		/* The node must be put back to the LRU list */
  		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
  	}
-@@ -5655,7 +5665,7 @@
+@@ -5663,7 +5673,7 @@
  		ut_a(fil_node->n_pending == 0);
  		ut_a(fil_node->open);
  		ut_a(fil_node->space->purpose == FIL_TABLESPACE);
@@ -316,9 +316,9 @@
 -
 +#include "trx0sys.h"
  
- #define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
- 						within a file page */
-@@ -999,10 +999,10 @@
+ /*			FILE SEGMENT INODE
+ 			==================
+@@ -938,10 +938,10 @@
  	flst_init(header + FSP_SEG_INODES_FREE, mtr);
  
  	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
@@ -350,7 +350,7 @@
  	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
  
  	/* -------------- Log files ---------------------------*/
-@@ -11772,6 +11775,11 @@
+@@ -11771,6 +11774,11 @@
    "Path to individual files and their sizes.",
    NULL, NULL, NULL);
  
@@ -362,7 +362,7 @@
  static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
    "The AUTOINC lock modes supported by InnoDB:               "
-@@ -11951,6 +11959,7 @@
+@@ -11990,6 +11998,7 @@
    MYSQL_SYSVAR(commit_concurrency),
    MYSQL_SYSVAR(concurrency_tickets),
    MYSQL_SYSVAR(data_file_path),
@@ -536,7 +536,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  	ulint*		min_arch_log_no,/*!< out: min of archived log
  					numbers in data files */
-@@ -747,6 +748,7 @@
+@@ -748,6 +749,7 @@
  	*sum_of_new_sizes = 0;
  
  	*create_new_db = FALSE;
@@ -544,7 +544,7 @@
  
  	srv_normalize_path_for_win(srv_data_home);
  
-@@ -984,6 +986,142 @@
+@@ -1004,6 +1006,142 @@
  				srv_data_file_is_raw_partition[i] != 0);
  	}
  
@@ -622,8 +622,8 @@
 +					(ulong) TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9);
 +			}
 +
-+			fil_read_flushed_lsn_and_arch_log_no(
-+				files[i], one_opened,
++			fil_read_first_page(
++				files[i], one_opened, &flags,
 +#ifdef UNIV_LOG_ARCHIVE
 +				min_arch_log_no, max_arch_log_no,
 +#endif /* UNIV_LOG_ARCHIVE */
@@ -687,7 +687,7 @@
  	return(DB_SUCCESS);
  }
  
-@@ -997,6 +1135,7 @@
+@@ -1017,6 +1155,7 @@
  /*====================================*/
  {
  	ibool		create_new_db;
@@ -695,7 +695,7 @@
  	ibool		log_file_created;
  	ibool		log_created	= FALSE;
  	ibool		log_opened	= FALSE;
-@@ -1462,6 +1601,7 @@
+@@ -1482,6 +1621,7 @@
  	}
  
  	err = open_or_create_data_files(&create_new_db,
@@ -703,7 +703,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  					&min_arch_log_no, &max_arch_log_no,
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -1629,6 +1769,14 @@
+@@ -1649,6 +1789,14 @@
  		after the double write buffer has been created. */
  		trx_sys_create();
  
@@ -718,7 +718,7 @@
  		dict_create();
  
  		srv_startup_is_before_trx_rollback_phase = FALSE;
-@@ -1662,6 +1810,13 @@
+@@ -1682,6 +1830,13 @@
  		recv_recovery_from_archive_finish();
  #endif /* UNIV_LOG_ARCHIVE */
  	} else {
@@ -732,7 +732,7 @@
  
  		/* Check if we support the max format that is stamped
  		on the system tablespace. 
-@@ -1748,6 +1903,17 @@
+@@ -1768,6 +1923,17 @@
  		we have finished the recovery process so that the
  		image of TRX_SYS_PAGE_NO is not stale. */
  		trx_sys_file_format_tag_init();

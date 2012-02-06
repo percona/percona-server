@@ -58,7 +58,7 @@
      for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -2192,6 +2192,13 @@
+@@ -2265,6 +2265,13 @@
         GLOBAL_VAR(opt_optimizer_fix),
         NO_CMD_LINE, DEFAULT(TRUE));
  

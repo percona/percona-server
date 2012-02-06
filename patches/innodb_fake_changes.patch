@@ -214,7 +214,7 @@
  	/* Transaction is deregistered only in a commit or a rollback. If
  	it is deregistered we know there cannot be resources to be freed
  	and we could return immediately.  For the time being, we play safe
-@@ -7544,6 +7557,12 @@
+@@ -7543,6 +7556,12 @@
  
  	trx = innobase_trx_allocate(thd);
  
@@ -227,7 +227,7 @@
  	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
  	or lock waits can happen in it during a table create operation.
  	Drop table etc. do this latching in row0mysql.c. */
-@@ -7764,6 +7783,10 @@
+@@ -7763,6 +7782,10 @@
  		DBUG_RETURN(HA_ERR_CRASHED);
  	}
  
@@ -238,7 +238,7 @@
  	/* Truncate the table in InnoDB */
  
  	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-@@ -7820,6 +7843,12 @@
+@@ -7819,6 +7842,12 @@
  
  	trx = innobase_trx_allocate(thd);
  
@@ -251,7 +251,7 @@
  	name_len = strlen(name);
  
  	ut_a(name_len < 1000);
-@@ -7906,6 +7935,12 @@
+@@ -7905,6 +7934,12 @@
  	trx->mysql_thd = NULL;
  #else
  	trx = innobase_trx_allocate(thd);
@@ -264,7 +264,7 @@
  #endif
  	row_drop_database_for_mysql(namebuf, trx);
  	my_free(namebuf);
-@@ -8011,6 +8046,11 @@
+@@ -8010,6 +8045,11 @@
  	trx_search_latch_release_if_reserved(parent_trx);
  
  	trx = innobase_trx_allocate(thd);
@@ -276,7 +276,7 @@
  
  	error = innobase_rename_table(trx, from, to, TRUE);
  
-@@ -10881,6 +10921,10 @@
+@@ -10880,6 +10920,10 @@
  		return(0);
  	}
  
@@ -287,8 +287,8 @@
  	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
  
  	/* Release a possible FIFO ticket and search latch. Since we will
-@@ -12438,6 +12482,7 @@
-   MYSQL_SYSVAR(rollback_segments),
+@@ -12480,6 +12524,7 @@
+ #endif
    MYSQL_SYSVAR(corrupt_table_action),
    MYSQL_SYSVAR(lazy_drop_table),
 +  MYSQL_SYSVAR(fake_changes),

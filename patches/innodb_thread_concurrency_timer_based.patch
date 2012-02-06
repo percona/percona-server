@@ -25,7 +25,7 @@
  #ifdef UNIV_LOG_ARCHIVE
  	srv_log_archive_on = (ulint) innobase_log_archive;
  #endif /* UNIV_LOG_ARCHIVE */
-@@ -11602,6 +11606,12 @@
+@@ -11601,6 +11605,12 @@
    "Maximum delay between polling for a spin lock (6 by default)",
    NULL, NULL, 6L, 0L, ~0L, 0);
  
@@ -38,7 +38,7 @@
  static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
    PLUGIN_VAR_RQCMDARG,
    "Helps in performance tuning in heavily concurrent environments. Sets the maximum number of threads allowed inside InnoDB. Value 0 will disable the thread throttling.",
-@@ -11820,6 +11830,7 @@
+@@ -11859,6 +11869,7 @@
    MYSQL_SYSVAR(spin_wait_delay),
    MYSQL_SYSVAR(table_locks),
    MYSQL_SYSVAR(thread_concurrency),
@@ -67,7 +67,7 @@
  UNIV_INTERN ulong	srv_thread_concurrency	= 0;
  
  /* this mutex protects srv_conc data structures */
-@@ -1145,6 +1146,75 @@
+@@ -1148,6 +1149,75 @@
  /*********************************************************************//**
  Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -143,7 +143,7 @@
  UNIV_INTERN
  void
  srv_conc_enter_innodb(
-@@ -1179,6 +1249,13 @@
+@@ -1182,6 +1252,13 @@
  		return;
  	}
  
@@ -157,7 +157,7 @@
  	os_fast_mutex_lock(&srv_conc_mutex);
  retry:
  	if (trx->declared_to_be_inside_innodb) {
-@@ -1332,6 +1409,14 @@
+@@ -1335,6 +1412,14 @@
  	}
  
  	ut_ad(srv_conc_n_threads >= 0);
@@ -172,7 +172,7 @@
  
  	os_fast_mutex_lock(&srv_conc_mutex);
  
-@@ -1365,6 +1450,13 @@
+@@ -1368,6 +1453,13 @@
  		return;
  	}
  

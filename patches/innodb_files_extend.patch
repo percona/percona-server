@@ -16,7 +16,7 @@
  			fprintf(stderr,
  				"InnoDB: Error: the size of single-table"
  				" tablespace file %s\n"
-@@ -4161,7 +4161,7 @@
+@@ -4169,7 +4169,7 @@
  
  	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
  #ifndef UNIV_HOTBACKUP
@@ -25,7 +25,7 @@
  		fprintf(stderr,
  			"InnoDB: Error: the size of single-table tablespace"
  			" file %s\n"
-@@ -4181,7 +4181,7 @@
+@@ -4189,7 +4189,7 @@
  	/* Align the memory for file i/o if we might have O_DIRECT set */
  	page = ut_align(buf2, UNIV_PAGE_SIZE);
  
@@ -34,7 +34,7 @@
  		success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
  
  		/* We have to read the tablespace id from the file */
-@@ -5159,9 +5159,9 @@
+@@ -5167,9 +5167,9 @@
  	ut_ad(ut_is_2pow(zip_size));
  	ut_ad(buf);
  	ut_ad(len > 0);
@@ -49,7 +49,7 @@
  # ifndef UNIV_LOG_DEBUG
 --- a/storage/innobase/fsp/fsp0fsp.c
 +++ b/storage/innobase/fsp/fsp0fsp.c
-@@ -656,16 +656,18 @@
+@@ -595,16 +595,18 @@
  				0 for uncompressed pages */
  	ulint	offset)		/*!< in: page offset */
  {
@@ -78,7 +78,7 @@
  	ut_ad(ut_is_2pow(zip_size));
  
  	if (!zip_size) {
-@@ -1464,12 +1466,12 @@
+@@ -1403,12 +1405,12 @@
  							   mtr);
  		xdes_init(descr, mtr);
  
@@ -175,7 +175,7 @@
  #ifndef MYSQL_SERVER
  	innodb_overwrite_relay_log_info = FALSE;
  #endif
-@@ -7290,9 +7352,9 @@
+@@ -7289,9 +7351,9 @@
  				| DICT_TF_COMPACT
  				| DICT_TF_FORMAT_ZIP
  				<< DICT_TF_FORMAT_SHIFT;
@@ -188,7 +188,7 @@
  		}
  	}
  
-@@ -11553,6 +11615,16 @@
+@@ -11552,6 +11614,16 @@
    "#### Attention: The checksum is not compatible for normal or disabled version! ####",
    NULL, NULL, FALSE);
  
@@ -205,7 +205,7 @@
  static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
    PLUGIN_VAR_READONLY,
    "The common part for InnoDB table spaces.",
-@@ -12079,6 +12151,8 @@
+@@ -12118,6 +12190,8 @@
    NULL, NULL, 0, &corrupt_table_action_typelib);
  
  static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -216,7 +216,7 @@
    MYSQL_SYSVAR(buffer_pool_size),
 --- a/storage/innobase/include/buf0buf.h
 +++ b/storage/innobase/include/buf0buf.h
-@@ -1705,7 +1705,7 @@
+@@ -1725,7 +1725,7 @@
  	time_t		last_printout_time;
  					/*!< when buf_print_io was last time
  					called */
@@ -225,7 +225,7 @@
  					/*!< Statistics of buddy system,
  					indexed by block size */
  	buf_pool_stat_t	stat;		/*!< current statistics */
-@@ -1803,7 +1803,7 @@
+@@ -1823,7 +1823,7 @@
  	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
  					/*!< unmodified compressed pages */
  #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -234,7 +234,7 @@
  					/*!< buddy free lists */
  
  	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
-@@ -1811,9 +1811,9 @@
+@@ -1831,9 +1831,9 @@
  					pool watches. Protected by
  				       	buf_pool->mutex. */
  
@@ -249,7 +249,7 @@
  #endif
 --- a/storage/innobase/include/buf0types.h
 +++ b/storage/innobase/include/buf0types.h
-@@ -67,12 +67,13 @@
+@@ -70,12 +70,13 @@
  #define BUF_BUDDY_LOW		(1 << BUF_BUDDY_LOW_SHIFT)
  
  #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
@@ -412,7 +412,7 @@
  	dest_offset = nth_file * group->file_size;
  
  #ifdef UNIV_DEBUG
-@@ -1794,9 +1799,7 @@
+@@ -1797,9 +1802,7 @@
  	ulint		i;
  
  	ut_ad(mutex_own(&(log_sys->mutex)));
@@ -423,7 +423,7 @@
  
  	buf = group->checkpoint_buf;
  
-@@ -1810,6 +1813,7 @@
+@@ -1813,6 +1816,7 @@
  	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
  
  #ifdef UNIV_LOG_ARCHIVE
@@ -431,7 +431,7 @@
  	if (log_sys->archiving_state == LOG_ARCH_OFF) {
  		archived_lsn = IB_ULONGLONG_MAX;
  	} else {
-@@ -1823,7 +1827,9 @@
+@@ -1826,7 +1830,9 @@
  
  	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
  #else /* UNIV_LOG_ARCHIVE */
@@ -538,7 +538,7 @@
  readahead request. */
 --- a/storage/innobase/srv/srv0start.c
 +++ b/storage/innobase/srv/srv0start.c
-@@ -1562,11 +1562,13 @@
+@@ -1582,11 +1582,13 @@
  	}
  #endif /* UNIV_LOG_ARCHIVE */
  
@@ -554,7 +554,7 @@
  
  		return(DB_ERROR);
  	}
-@@ -1575,7 +1577,7 @@
+@@ -1595,7 +1597,7 @@
  
  	for (i = 0; i < srv_n_data_files; i++) {
  #ifndef __WIN__

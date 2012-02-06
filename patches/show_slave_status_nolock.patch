@@ -26,7 +26,7 @@
    { "NVARCHAR",		SYM(NVARCHAR_SYM)},
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -3121,6 +3121,7 @@
+@@ -2971,6 +2971,7 @@
    {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
    {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
    {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
@@ -105,7 +105,7 @@
  %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
  %token  STD_SYM
  %token  STOP_SYM
-@@ -11106,6 +11107,11 @@
+@@ -11111,6 +11112,11 @@
            {
              Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
            }

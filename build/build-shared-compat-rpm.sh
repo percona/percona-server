@@ -60,8 +60,6 @@ then
         exit 1
     fi
 
-    WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
-
 elif test "$#" -eq 1
 then
     WORKDIR="$1"
@@ -73,11 +71,23 @@ then
         exit 1
     fi
 
-    WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
-
 else
     echo >&2 "Usage: $0 [target dir]"
     exit 1
+
+fi
+
+WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
+
+# If we're in 32 bits, ensure that we're compiling for i686.
+if test "x$TARGET" == "x"
+then
+    if test "x$(uname -m)" != "xx86_64"
+    then
+        TARGET='i686'
+        TARGET_ARG="--target i686"
+        TARGET_CFLAGS='-m32 -march=i686'
+    fi
 
 fi
 

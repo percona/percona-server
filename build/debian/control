@@ -22,14 +22,13 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libmysqlclient15-dev
+Package: libmysqlclient18-dev
 Architecture: any
 Section: libdevel
 Depends: libmysqlclient-dev (= ${binary:Version}), ${misc:Depends}
-Replaces: libpercona-server-client15-dev
 Description: Percona Server database development files - empty transitional 
  package. This is an empty package that depends on libmysqlclient-dev to ease 
- the transition for packages with versioned build-deps on libmysqlclient15-dev.
+ the transition for packages with versioned build-deps on libmysqlclient18-dev.
 
 Package: libmysqlclient-dev
 Architecture: any
@@ -47,11 +46,11 @@ Description: Percona Server database development files
 
 Package: percona-server-common-5.5
 Section: database
-Architecture: all
+Architecture: any
 Depends: ${misc:Depends}
-Conflicts: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
+Conflicts: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common, percona-server-common-5.1
 Provides: mysql-common
-Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
+Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common, percona-server-common-5.1
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL 
  database server. SQL (Structured Query Language) is the most popular database
@@ -62,7 +61,7 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  (e.g. /etc/mysql/my.cnf).
 
 Package: percona-server-test-5.5
-Architecture: all
+Architecture: any
 Depends: percona-server-client-5.5 (>= ${source:Version}), percona-server-server-5.5 (>= ${source:Version})
 Provides: mysql-client
 Description: Percona Server database test suite
@@ -107,7 +106,7 @@ Description: Percona Server database server binaries
 
 Package: percona-server-server
 Section: database
-Architecture: all
+Architecture: any
 Depends: percona-server-server-5.5, ${misc:Depends}
 Description: Percona Server database server
  (metapackage depending on the latest version)
@@ -124,7 +123,7 @@ Description: Percona Server database server
 
 Package: percona-server-client
 Section: database
-Architecture: all
+Architecture: any
 Depends: percona-server-client-5.5, ${misc:Depends}
 Description: Percona Server database client
  (metapackage depending on the latest version)

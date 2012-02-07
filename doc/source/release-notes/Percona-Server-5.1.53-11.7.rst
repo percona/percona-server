@@ -20,4 +20,4 @@ Bugs Fixed
 
   * Bug :bug:`643149` - Slow query log entries were not being done in the usual parsing format. (*Alexey Kopytov*)
 
-  * Bug :bug:`677407 - The ``INNODB.innodb_information_schema`` test could fail sporadically due to flawed logic in the ``INFORMATION_SCHEMA.INNODB_LOCKS`` caching mechanism. (*Alexey Kopytov*)
+  * Bug :bug:`677407` - The ``INNODB.innodb_information_schema`` test could fail sporadically due to flawed logic in the ``INFORMATION_SCHEMA.INNODB_LOCKS`` caching mechanism. (*Alexey Kopytov*)

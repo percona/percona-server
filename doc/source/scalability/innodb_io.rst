@@ -36,7 +36,7 @@ System Variables
 
 .. variable:: innodb_adaptive_checkpoint
 
-   :version 5.5.8-20.0: Renamed 
+   :version 5.1.54-12.5 Added 
    :cli: Yes
    :conf: Yes
    :scope: Global
@@ -109,7 +109,7 @@ This variable allows you to change the default behavior of |InnoDB| concerning t
 
 .. variable:: innodb_flush_log_at_trx_commit_session
 
-     :version 5.5.8-20.0: Deleted
+     :version 5.1.49-13 Added
      :cli: Yes
      :conf: Yes
      :scope: Global

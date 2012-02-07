@@ -8,7 +8,7 @@ Released on January 11, 2011 (Downloads are available `here <http://www.percona.
 
 |Percona Server| 5.1.54-12.5 is now the current stable release version.
 
-=Functionality Added or Changed
+Functionality Added or Changed
 ===============================
 
   * |Percona Server| 5.1.54-12.5 is based on |MySQL| 5.1.54.

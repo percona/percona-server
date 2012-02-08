@@ -8,3 +8,4 @@
 
    Percona-Server-5.5.8-20.0
    Percona-Server-5.5.1*
+   Percona-Server-5.5.2*

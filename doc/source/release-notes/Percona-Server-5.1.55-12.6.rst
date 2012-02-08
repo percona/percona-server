@@ -13,11 +13,11 @@ Changes
 
   * Fixed compiler warnings in both the core server and in |XtraDB|. (*Alexey Kopytov*, *Yasufumi Kinoshita*)
 
-=Bugs Fixed
+Bugs Fixed
 ===========
 
   * Bug :bug:`602047` - The ``ROWS_READ`` columns of ``TABLE_STATISTICS`` and ``INDEX_STATISTICS`` were not properly updated when a query involved index lookups on an |InnoDB| table. (*Yasufumi Kinoshita*)
 
   * Bug :bug:`707742` - The server could crash when trying to import a table which had not been previously prepared using :command:`xtrabackup --prepare --export`. Also, on servers with huge buffer pools, adding or removing an index even on an empty |InnoDB| table could take a long time due to excessive locking when :variable:`innodb_dict_size_limit` was non-zero. Locking was relaxed to alleviate this. (*Yasufumi Kinoshita*)
 
-  * Bug :bug:`724674 - Ported an updated version of the original implementation of the :ref:`remove_fcntl_excessive_calls` feature, which removes some ``fcntl`` calls to improve performance. (*Oleg Tsarev*)
+  * Bug :bug:`724674` - Ported an updated version of the original implementation of the :ref:`remove_fcntl_excessive_calls` feature, which removes some ``fcntl`` calls to improve performance. (*Oleg Tsarev*)

@@ -60,10 +60,16 @@ CPPFLAGS="${CPPFLAGS} ${MYSQL_INCLUDES}"
 AC_CHECK_HEADERS([mysql/plugin.h mysql/plugin_auth.h], [],
     AC_MSG_ERROR(
        [Unable to find MySQL development headers. Please install them]))
+AC_CHECK_HEADERS([pwd.h grp.h], [],
+    AC_MSG_ERROR(
+       [Unable to find pwd.h/grp.h headers. Your libc version is not supported]))
 
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([getpass])
+AC_CHECK_FUNCS([getpwnam_r getgrgid_r], [],
+    AC_MSG_ERROR(
+       [Unable to find getpwnam_r/getgrgid_r functions. Your libc version is not supported]))
 
 CFLAGS="-Wall -Wextra ${CFLAGS}"
 

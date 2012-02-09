@@ -15,9 +15,13 @@
 #
 INCLUDE (CheckLibraryExists)
 CHECK_LIBRARY_EXISTS(pam pam_authenticate "" HAVE_PAM) 
-IF(HAVE_PAM)
+CHECK_LIBRARY_EXISTS(mysqlclient mysql_init "" HAVE_MYSQLCLIENT) 
+CHECK_SYMBOL_EXISTS(getpwnam_r "pwd.h" HAVE_GETPWNAM_R)
+CHECK_SYMBOL_EXISTS(getgrgid_r "grp.h" HAVE_GETGRGID_R)
+IF(HAVE_PAM AND HAVE_MYSQLCLIENT AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R)
   SET(AUTH_PAM_SOURCES 
-    src/auth_pam.c src/lib_auth_pam_client.c src/lib_auth_pam_client.h)
+    src/auth_pam.c src/lib_auth_pam_client.c src/lib_auth_pam_client.h
+    src/auth_mapping.h src/auth_mapping.c)
   MYSQL_ADD_PLUGIN(auth_pam ${AUTH_PAM_SOURCES} LINK_LIBRARIES pam)
-  MYSQL_ADD_PLUGIN(dialog src/dialog.c)
-ENDIF(HAVE_PAM)
+  MYSQL_ADD_PLUGIN(dialog src/dialog.c LINK_LIBRARIES mysqlclient)
+ENDIF(HAVE_PAM AND HAVE_MYSQLCLIENT AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R)

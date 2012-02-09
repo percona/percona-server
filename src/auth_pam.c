@@ -49,7 +49,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
  Also it is possible to use this plugin to authenticate anonymous users:
 
- CREATE USER ''@'hostname' IDENTIFIED WITH auth_pam_server;
+ CREATE USER ''@'hostname' IDENTIFIED WITH auth_pam;
 
 */
 #ifdef HAVE_CONFIG_H
@@ -78,12 +78,12 @@ can compile against unconfigured MySQL source tree.  */
 #error "Please add support for echo-less input for your platform"
 #endif
 
-#include "lib_auth_pam_client.h"
+#include "auth_mapping.h"
 
 /* The server plugin */
 
 /** The MySQL service name for PAM configuration */
-static const char* service_name= "mysqld";
+static const char* service_name_default= "mysqld";
 
 static int valid_pam_msg_style (int pam_msg_style)
 {
@@ -118,6 +118,10 @@ static char pam_msg_style_to_char (int pam_msg_style)
     next PAM reply-requiring message. 10K should be more than enough by order
     of magnitude. */
 enum { max_pam_buffered_msg_len = 10240 };
+
+/** The maximum length of service name. It shouldn't be too long as it's
+    filename in pam.d directory also */
+enum { max_pam_service_name_len = 64 };
 
 struct pam_conv_data {
     MYSQL_PLUGIN_VIO *vio;
@@ -230,6 +234,14 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
   struct pam_conv conv_func_info= { &vio_server_conv, &data };
   int error;
   char *pam_mapped_user_name;
+  char user_group[MYSQL_USERNAME_LENGTH];
+  char service_name[max_pam_service_name_len];
+
+  /* Set service name as specified in auth_string. If no auth_string
+  provided or parsing error occurs, then keep default value */
+  strcpy(service_name, service_name_default);
+  if (info->auth_string)
+    mapping_get_service_name(service_name, sizeof(service_name), info->auth_string);
 
   info->password_used= PASSWORD_USED_NO_MENTION;
 
@@ -283,6 +295,15 @@ static int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
     strncpy(info->authenticated_as, pam_mapped_user_name,
             MYSQL_USERNAME_LENGTH);
     info->authenticated_as[MYSQL_USERNAME_LENGTH]= '\0';
+  }
+
+  /* If auth_string specified, then lookup user group,
+  get mapped MySQL user name and use it as CURRENT_USER() value */
+  if (info->auth_string &&
+      lookup_user_group(pam_mapped_user_name, user_group, sizeof(user_group)))
+  {
+    mapping_get_value(user_group, info->authenticated_as,
+                      MYSQL_USERNAME_LENGTH, info->auth_string);
   }
 
   error= pam_end(pam_handle, error);

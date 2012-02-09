@@ -20,7 +20,7 @@ plugin_LTLIBRARIES = auth_pam.la test_auth_pam_client.la dialog.la
 plugin_CPPFLAGS = -DMYSQL_DYNAMIC_PLUGIN
 plugin_LDFLAGS = -module -avoid-version -shared
 
-auth_pam_la_SOURCES = auth_pam.c lib_auth_pam_client.h lib_auth_pam_client.c
+auth_pam_la_SOURCES = auth_pam.c lib_auth_pam_client.h lib_auth_pam_client.c auth_mapping.c
 auth_pam_la_CPPFLAGS = $(plugin_CPPFLAGS)
 auth_pam_la_LDFLAGS = $(plugin_LDFLAGS)
 

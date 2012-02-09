@@ -1,3 +1,6 @@
+#ifndef MYSQL_SQL_STRING_H_INCLUDED
+#define MYSQL_SQL_STRING_H_INCLUDED
+
 /*
    Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
@@ -24,6 +27,10 @@
 #ifndef NOT_FIXED_DEC
 #define NOT_FIXED_DEC			31
 #endif
+
+#ifdef MYSQL_CLIENT
+#error Attempt to use server-side sql_string on client. Use client/sql_string.h
+#endif 
 
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
@@ -408,3 +415,5 @@ static inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str,
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
+
+#endif // MYSQL_SQL_STRING_H_INCLUDED

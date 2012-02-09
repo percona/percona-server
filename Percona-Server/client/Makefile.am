@@ -24,6 +24,7 @@ endif
 INCLUDES =			-I$(top_builddir)/include \
 				-I$(top_srcdir)/include \
 				-I$(top_srcdir)/regex \
+				-I$(top_srcdir)/sql \
                                 $(openssl_includes)
 
 LIBS =				@CLIENT_LIBS@
@@ -107,7 +108,8 @@ sql_src=log_event.h mysql_priv.h rpl_constants.h \
 	rpl_utility.h rpl_tblmap.h rpl_tblmap.cc \
 	log_event.cc my_decimal.h my_decimal.cc \
 	log_event_old.h log_event_old.cc \
-	rpl_record_old.h rpl_record_old.cc
+	rpl_record_old.h rpl_record_old.cc \
+        sql_list.h rpl_filter.h sql_list.cc rpl_filter.cc
 strings_src=decimal.c
 
 link_sources:

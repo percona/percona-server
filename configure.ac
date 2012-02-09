@@ -42,11 +42,11 @@ AS_IF([test "x${MYSQL_CONFIG}" = x],
       [AC_MSG_ERROR([Unable to find mysql_config. Please install or specify.])])
 
 # Checks for libraries.
-AC_CHECK_LIB([pam], [pam_start], ,
+AC_CHECK_LIB([pam], [pam_start], [AUTH_PAM_LIBS="$AUTH_PAM_LIBS -lpam"],
     AC_MSG_ERROR(
         [Unable to find PAM. Please install the PAM development libraries])
 )
-AC_CHECK_LIB([mysqlclient], [mysql_init], ,
+AC_CHECK_LIB([mysqlclient], [mysql_init], [DIALOG_LIBS="$DIALOG_LIBS -lmysqlclient"],
     AC_MSG_ERROR(
         [Unable to find libmysqlclient. Please install the mysql development libraries])
 )
@@ -77,6 +77,9 @@ AS_IF([test "x${BZR}" != x],
 REVISION=${REVISION:-0}
 
 AC_SUBST([REVISION])
+
+AC_SUBST([AUTH_PAM_LIBS])
+AC_SUBST([DIALOG_LIBS])
 
 # Output files
 AC_CONFIG_FILES([Makefile

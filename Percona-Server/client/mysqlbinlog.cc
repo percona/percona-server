@@ -741,9 +741,19 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (!((Query_log_event*)ev)->is_trans_keyword() &&
-          shall_skip_database(((Query_log_event*)ev)->db))
-        goto end;
+      if (!((Query_log_event*)ev)->is_trans_keyword())
+      {
+        if (shall_skip_database(((Query_log_event*)ev)->db))
+          goto end;
+      }
+      else
+      {
+        /*
+          In case the event for one of these statements is obtained
+          from 5.0 binary log, make it compatible with 5.1.
+        */
+        ev->flags|= LOG_EVENT_SUPPRESS_USE_F;
+      }
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
       {
         if ((retval= write_event_header_and_base64(ev, result_file,

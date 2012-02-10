@@ -2,7 +2,7 @@
 
 export DH_VERBOSE=1
 
-PACKAGE=percona-server-dfsg-5.1
+PACKAGE=percona-server-5.1
 
 include /usr/share/dpatch/dpatch.make
 
@@ -248,7 +248,7 @@ install: build
 	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
 	# lintian overrides
 	mkdir -p $(TMP)/usr/share/lintian/overrides/
-	cp debian/percona-server-common.lintian-overrides     $(TMP)/usr/share/lintian/overrides/percona-server-common
+	cp debian/percona-server-common-5.1.lintian-overrides     $(TMP)/usr/share/lintian/overrides/percona-server-common-5.1
 	cp debian/percona-server-server-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/percona-server-server-5.1
 	cp debian/percona-server-client-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/percona-server-client-5.1
 

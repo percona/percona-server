@@ -88,7 +88,6 @@ Flexibility Improvements
    flexibility/innodb_files_extend
    flexibility/log_warnings_suppress
    flexibility/mysql_remove_eol_carret
-   flexibility/replication_skip_single_statement
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
    flexibility/improved_memory_engine
@@ -119,7 +118,6 @@ Management Improvements
    management/innodb_lru_dump_restore
    management/innodb_fast_index_creation
    management/innodb_extended_fast_index_creation
-   management/innodb_fast_index_renaming
    management/sql_no_fcache
    management/udf_maatkit
    management/innodb_fake_changes

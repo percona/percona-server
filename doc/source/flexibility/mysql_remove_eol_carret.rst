@@ -14,7 +14,7 @@ When the :variable:`no-remove-eol-carret` option is specified, ``\r`` before ``\
 Version Specific Information
 ============================
 
-  * 5.1.50-12.1:
+  * 5.5.8-20.0:
     Full functionality.
 
 Client Command Line Parameter

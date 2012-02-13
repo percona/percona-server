@@ -18,7 +18,7 @@ This change is a port of the feature from Facebook:
 Version Specific Information
 ============================
 
-  * :rn:`5.1.47-12.0` :
+  * :rn:`5.5.8-20.0` :
     Full functionality available.
 
 Other Information

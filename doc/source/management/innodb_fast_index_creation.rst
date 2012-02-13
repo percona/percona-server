@@ -44,10 +44,10 @@ Internally, ``OPTIMIZE TABLE`` is mapped to ``ALTER TABLE ... ENGINE=innodb`` fo
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0: 
+  * 5.5.8-20.0: 
     Variable :variable:`fast_index_creation` implemented.
 
-  * 5.1.56-12.7, 5.5.11-21.2:
+  * 5.5.11-21.2:
     Expanded the applicability of fast index creation to :command:`mysqldump`, ``ALTER TABLE``, and ``OPTIMIZE TABLE``.
 
 

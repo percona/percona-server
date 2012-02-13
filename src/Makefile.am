@@ -16,13 +16,17 @@
 
 plugindir = @PLUGINDIR@
 
-plugin_LTLIBRARIES = auth_pam.la test_auth_pam_client.la dialog.la
+plugin_LTLIBRARIES = auth_pam.la auth_pam_compat.la test_auth_pam_client.la dialog.la
 plugin_CPPFLAGS = -DMYSQL_DYNAMIC_PLUGIN
 plugin_LDFLAGS = -module -avoid-version -shared
 
-auth_pam_la_SOURCES = auth_pam.c lib_auth_pam_client.h lib_auth_pam_client.c auth_mapping.c
+auth_pam_la_SOURCES = auth_pam_common.c auth_pam.c lib_auth_pam_client.h lib_auth_pam_client.c auth_mapping.c
 auth_pam_la_CPPFLAGS = $(plugin_CPPFLAGS)
 auth_pam_la_LDFLAGS = $(plugin_LDFLAGS) $(AUTH_PAM_LIBS)
+
+auth_pam_compat_la_SOURCES = auth_pam_common.c auth_pam_compat.c lib_auth_pam_client.h lib_auth_pam_client.c auth_mapping.c
+auth_pam_compat_la_CPPFLAGS = $(plugin_CPPFLAGS)
+auth_pam_compat_la_LDFLAGS = $(plugin_LDFLAGS) $(AUTH_PAM_LIBS)
 
 test_auth_pam_client_la_SOURCES = test_auth_pam_client.c \
 	lib_auth_pam_client.h lib_auth_pam_client.c

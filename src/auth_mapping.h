@@ -20,9 +20,8 @@
 /**
  @file
 
- PAM authentication for MySQL, common definitions for side plugins.
+ PAM authentication for MySQL, interface for user mapping.
 
- For the general description, see the top comment in auth_pam.c.
 */
 
 #ifdef __cplusplus

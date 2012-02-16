@@ -4,7 +4,7 @@
 More Concurrent Transactions Available
 ======================================
 
-|InnoDB| provides a fixed number of 1024 undo slots in its rollback segment, leaving room for 1024 transactions to run in parallel. If all the slots are used any new transaction will fail until a slot is freed, which can cause st:range: behaviors. This change provides a variable to expand the number of undo slots, up to 4072.
+|InnoDB| provides a fixed number of 1024 undo slots in its rollback segment, leaving room for 1024 transactions to run in parallel. If all the slots are used any new transaction will fail until a slot is freed, which can cause strange behaviors. This change provides a variable to expand the number of undo slots, up to 4072.
 
 This option is provided for servers that run out of undo slots. Use it if you find the following warning in the error log: ``Warning: cannot find a free slot for an undo log``.
 

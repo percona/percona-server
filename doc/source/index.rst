@@ -164,6 +164,7 @@ Reference
    development
    trademark-policy
    faq
+   compatibility
    release-notes/release-notes_index
    glossary
 

@@ -193,21 +193,18 @@ Limitations
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0:
-    Full functionality available.
-
-  * 5.1.53-12.4:
-    Introduced have_response_time_distribution.
+  * 5.5.8-20.0:
+    Introduced variable variable:`have_response_time_distribution`.
 
   * 5.5.8-20.0:
-    Renamed variable :variable:`enable_query_response_time_stats` to :variable:`query_response_time_stats`.
+    Introduced  variable variable:`query_response_time_stats`.
 
 System Variables
 ================
 
 .. variable:: have_response_time_distribution
 
-     :version 5.1.53-12.4: Introduced.
+     :version 5.5.8-20.0: Introduced.
      :scope: Global
      :dyn: No
      :vartype: Boolean

@@ -105,7 +105,7 @@ The dump file is not deleted after loading, so you should delete it if you wish 
 Version Specific Information
 ============================
 
-  * 5.1.50-12.1:
+  * 5.5.8-20.0:
     Automatic dump/restore implemented.
   * 5.5.10-20.1:
     Renamed variable :variable:`innodb_auto_lru_dump` to :variable:`innodb_buffer_pool_restore_at_startup`.

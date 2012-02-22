@@ -26,6 +26,7 @@ Client Variables
 
      :cli: Yes
      :conf: Yes
+     :server: No
      :scope: Global
      :dyn: Yes
      :vartype: Boolean

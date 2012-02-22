@@ -10,5 +10,5 @@ This feature issues the warning ``Too many connections`` to the log, if ``log_wa
 Version-Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * 5.5.8-20.0:
     Full functionality available.

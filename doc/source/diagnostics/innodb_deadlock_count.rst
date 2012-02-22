@@ -1,4 +1,4 @@
-.. _innodb_deadlock_count:
+.. _innodb_deadlocks_page:
 
 ==========================
  Count |InnoDB| Deadlocks
@@ -14,7 +14,7 @@ It adds a new global status variable (:variable:`innodb_deadlocks`) showing the 
 
 You can use it with ``SHOW GLOBAL STATUS``, e.g.: ::
 
-  mysql> SHOW GLOBAL_STATUS LIKE ``innodb_deadlocks``;
+  mysql> SHOW GLOBAL STATUS LIKE 'innodb_deadlocks';
   +------------------+-------+
   | Variable_name    | Value |
   +------------------+-------+
@@ -23,7 +23,7 @@ You can use it with ``SHOW GLOBAL STATUS``, e.g.: ::
 
 or with ``INFORMATION_SCHEMA``, e.g.: ::
 
-  mysql> SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = ``innodb_deadlocks``; 
+  mysql> SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'innodb_deadlocks'; 
   +----------------+
   | VARIABLE_VALUE |
   +----------------+
@@ -36,7 +36,7 @@ A deadlock will occur when at least two transactions are mutually waiting for th
 Version Specific Information
 ============================
 
-  * 5.1.47-11.0:
+  * 5.5.8-20.0:
     Full functionality available.
 
 Status Variables

@@ -19,7 +19,7 @@ The plugin is disabled by default. To enable it in |Percona Server| with |XtraDB
 Version Specific Information
 ============================
 
-  * 5.1.52-12.3
+  * 5.5.11-20.2
     Full functionality available.
 
 Other Information

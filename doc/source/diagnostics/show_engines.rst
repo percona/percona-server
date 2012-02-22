@@ -29,7 +29,7 @@ After the Change: ::
 Version-Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * 5.5.8-20.0:
     Full functionality available.
 
 Other Information

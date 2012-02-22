@@ -20,65 +20,132 @@
 
 We provide these benefits by significantly enhancing |Percona Server| as compared to the standard |MySQL| database server:
 
-.. raw:: html
++---------------------------------------+----------------------+--------------+
+|Features                               |Percona Server 5.5.20 |MySQL 5.5.20  |
++=======================================+======================+==============+
+|Open source                            | Yes                  | Yes          |      
++---------------------------------------+----------------------+--------------+
+|ACID Compliance                        | Yes                  | Yes          |                     
++---------------------------------------+----------------------+--------------+
+|Multi-Version Concurrency Control      | Yes                  | Yes          |                      
++---------------------------------------+----------------------+--------------+
+|Row-Level Locking                      | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Automatic Crash Recovery               | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Table Partitioning                     | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Views                                  | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Subqueries                             | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Triggers                               | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Stored Procedures                      | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Foreign Keys                           | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
 
-   <table class="datatable">
-   <tr><th class="label">Feature</th><th>Percona Server 5.5.8</th><th>MySQL 5.5.8</th></tr>  
-   <tr><td class="label">Open source</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">ACID Compliance</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Multi-Version Concurrency Control</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Row-Level Locking</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Automatic Crash Recovery</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Table Partitioning</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Views</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Subqueries</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Triggers</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Stored Procedures</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Foreign Keys</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><th class="label">Extra Features for Developers</th><th>Percona Server 5.5.8</th><th>MySQL 5.5.8</th></tr>
-   <tr><td class="label">NoSQL Socket-Level Interface</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Extra Hash/Digest Functions</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><th class="label">Extra Diagnostic Features</th><th>Percona Server 5.5.8</th><th>MySQL 5.5.8</th></tr>
-   <tr><td class="label">PERFORMANCE_SCHEMA Diagnostics Tables</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">INFORMATION_SCHEMA Tables</td><td>60</td><td>37</td></tr>
-   <tr><td class="label">Global Performance and Status Counters</td><td>366</td><td>308</td></tr>
-   <tr><td class="label">Per-Table Performance Counters</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Per-Index Performance Counters</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Per-User Performance Counters</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Per-Client Performance Counters</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">High-Resolution Process List Timing</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Detailed Query Execution and Plan Log</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Global Query Response Time Statistics</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">InnoDB Data Dictionary as I_S Tables</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Access to InnoDB Data Statistics</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Enhanced SHOW INNODB STATUS</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Enhanced Mutex Diagnostics</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><th class="label">Durability and Reliability Enhancements</th><th>Percona Server 5.5.8</th><th>MySQL 5.5.8</th></tr>
-   <tr><td class="label">Transactional Replication State</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Handles Corrupted Tables Gracefully</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><th class="label">Performance &amp; Scalability Enhancements</th><th>Percona Server 5.5.8</th><th>MySQL 5.5.8</th></tr>
-   <tr><td class="label">Support for &gt; 1024 Concurrent Transactions</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Support for Multiple I/O Threads</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Dedicated Purge Threads</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td></tr>
-   <tr><td class="label">Self-Tuning Checkpoint Algorithm</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Fine-Grained Mutex Locking</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Lock-Free Algorithms</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Partitioned Adaptive Hash Search</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Separate Doublewrite File</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Fast Checksum Algorithm</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Buffer Pool Pre-Load</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Fast Shut-Down</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Support for FlashCache</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Read-Ahead Improvements</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>  
-   <tr><th class="label">Extra Features for DBA/Operations Staff</th><th>Percona Server 5.5.8</th><th>MySQL 5.5.8</th></tr>
-   <tr><td class="label">Configurable Page Sizes</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Shared-Memory Buffer Pool</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Import Tables From Different Servers</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Configurable Data Dictionary Size</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Configurable Insert Buffer Size</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Active Change Buffer Purging</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Error/Warning Logging Enhancements</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Configurable Fast Index Creation</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   <tr><td class="label">Fast Index Renaming</td><td><img src="http://s0.percona.com/check-yes.png" alt="Yes" width="24" height="24" /></td><td></td></tr>
-   </table>
++---------------------------------------+----------------------+--------------+
+|Extra Features for Developers          |Percona Server 5.5.20 |MySQL 5.5.20  |
++=======================================+======================+==============+
+|NoSQL Socket-Level Interface           | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Extra Hash/Digest Functions            | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+
++---------------------------------------+----------------------+--------------+
+|Extra Diagnostic Features              |Percona Server 5.5.20 |MySQL 5.5.20  |
++=======================================+======================+==============+
+|INFORMATION_SCHEMA Tables              | 60                   | 37           |
++---------------------------------------+----------------------+--------------+
+|Global Performance and Status Counters | 370                  | 310          |
++---------------------------------------+----------------------+--------------+
+|Per-Table Performance Counters         | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Per-Index Performance Counters         | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Per-User Performance Counters          | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Per-Client Performance Counters        | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Per-Thread Performance Counters        | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|High-Resolution Process List Timing    | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Detailed Query Execution and Plan Log  | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Global Query Response Time Statistics  | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|InnoDB Data Dictionary as I_S Tables   | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Access to InnoDB Data Statistics       | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Enhanced SHOW INNODB STATUS            | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Enhanced Mutex Diagnostics             | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+
++---------------------------------------+----------------------+--------------+
+|Durability and Reliability Enhancements|Percona Server 5.5.20 |MySQL 5.5.20  |
++=======================================+======================+==============+
+|Transactional Replication State        | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Handles Corrupted Tables Gracefully    | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+
++---------------------------------------+----------------------+--------------+
+|Performance & Scalability Enhancements |Percona Server 5.5.20 |MySQL 5.5.20  |
++=======================================+======================+==============+
+|Support for Multiple I/O Threads       | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Dedicated Purge Threads                | Yes                  | Yes          |
++---------------------------------------+----------------------+--------------+
+|Self-Tuning Checkpoint Algorithm       | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Fine-Grained Mutex Locking             | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Lock-Free Algorithms                   | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Improved MEMORY Storage Engine         | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Partitioned Adaptive Hash Search       | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Separate Doublewrite File              | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Fast Checksum Algorithm                | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Buffer Pool Pre-Load                   | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Fast Shut-Down                         | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Background Table Drop                  | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Support for FlashCache                 | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Read-Ahead Improvements                | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+
++---------------------------------------+----------------------+--------------+
+|Extra Features for DBA/Operations Staff|Percona Server 5.5.20 |MySQL 5.5.20  |
++=======================================+======================+==============+
+|Configurable Page Sizes                | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Import Tables From Different Servers   | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Configurable Data Dictionary Size      | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Configurable Insert Buffer Size        | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Active Change Buffer Purging           | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Error/Warning Logging Enhancements     | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Configurable Fast Index Creation       | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Fast Index Renaming                    | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Support for Fake Changes               | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+
 

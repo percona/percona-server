@@ -129,7 +129,7 @@
    thd->client_capabilities|= CLIENT_MULTI_RESULTS;
    mysql_mutex_lock(&LOCK_thread_count);
    thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-+  thd->write_to_slow_log = TRUE;
++  thd->write_to_slow_log= true;
    mysql_mutex_unlock(&LOCK_thread_count);
  
    /*
@@ -692,7 +692,7 @@
    mysql_mutex_unlock(&LOCK_thd_data);
  }
  
-@@ -3811,9 +3905,32 @@
+@@ -3811,9 +3905,25 @@
  void THD::set_query_id(query_id_t new_query_id)
  {
    mysql_mutex_lock(&LOCK_thd_data);
@@ -712,15 +712,8 @@
 +  query_id= new_query_id;
 +  if (opt_slow_query_log_rate_type == SLOG_RT_QUERY)
 +  {
-+    if ((variables.log_slow_rate_limit == 0) ||
-+        (query_id % variables.log_slow_rate_limit) == 0)
-+    {
-+      write_to_slow_log= TRUE;
-+    }
-+    else
-+    {
-+      write_to_slow_log= FALSE;
-+    }
++    const ulong& limit= variables.log_slow_rate_limit;
++    write_to_slow_log= limit == 0 || (query_id % limit) == 0;
 +  }
 +}
  
@@ -897,24 +890,17 @@
      mysql_mutex_lock(&LOCK_thd_data);
 --- a/sql/sql_connect.cc
 +++ b/sql/sql_connect.cc
-@@ -721,6 +721,21 @@
+@@ -721,6 +721,14 @@
    MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
                           (char *) thd->security_ctx->host_or_ip);
  
-+    /*
-+      If rate limiting of slow log writes is enabled, decide whether to log this 
-+      new thread's queries or not. Uses extremely simple algorithm. :)
-+    */
-+    if (opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
-+        (thd->variables.log_slow_rate_limit == 0 ||
-+         (thd->thread_id % thd->variables.log_slow_rate_limit) == 0))
-+    {
-+      thd->write_to_slow_log= TRUE;
-+    }
-+    else
-+    {
-+      thd->write_to_slow_log= FALSE;
-+    }
++  /*
++    If rate limiting of slow log writes is enabled, decide whether to log this 
++    new thread's queries or not. Uses extremely simple algorithm. :)
++  */
++  const ulong& limit= thd->variables.log_slow_rate_limit;
++  thd->write_to_slow_log= opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
++                          (limit == 0 || (thd->thread_id % limit) == 0);
 +
    prepare_new_connection_state(thd);
    return FALSE;
@@ -998,7 +984,7 @@
  
  void log_slow_statement(THD *thd)
  {
-@@ -1453,13 +1509,48 @@
+@@ -1453,13 +1509,47 @@
    if (unlikely(thd->in_sub_stmt))
      DBUG_VOID_RETURN;                           // Don't set time for sub stmt
  
@@ -1032,9 +1018,8 @@
 +                         &g.min_examined_row_limit);
 +
 +  /* Do not log this thread's queries due to rate limiting. */
-+  if (thd->write_to_slow_log != TRUE
-+      && (thd->variables.long_query_time >= 1000000
-+          || (ulong) query_exec_time < 1000000))
++  if (!thd->write_to_slow_log && (thd->variables.long_query_time >= 1000000
++                                  || (ulong) query_exec_time < 1000000))
 +    DBUG_VOID_RETURN;
 +
 +

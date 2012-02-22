@@ -8,7 +8,7 @@ This feature makes replication much more reliable after a crash by making the re
 
 |MySQL| replication normally stores its position in a file that is neither durable nor consistent. Thus, if the replica crashes, it can re-execute committed transactions. This usually causes replication to fail, potentially forcing the replica``s data to be re-initialized from the master or from a recent backup.
 
-The improvement in |Percona Server| makes |InnoDB| store the replication position transactionally, and overwrite the usual master.info file upon recovery, so replication restarts from the correct position and does not try to re-execute committed transactions. This change greatly improves the durability of |MySQL| replication. It can be set to activate automatically, so replication “just works” and no intervention is necessary after a crash.
+The improvement in |Percona Server| makes |InnoDB| store the replication position transactionally, and overwrite the usual relay_log.info file upon recovery, so replication restarts from the correct position and does not try to re-execute committed transactions. This change greatly improves the durability of |MySQL| replication. It can be set to activate automatically, so replication “just works” and no intervention is necessary after a crash.
 
 
 Restrictions

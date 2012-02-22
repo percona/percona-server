@@ -4,7 +4,7 @@
  Support for Fake Changes
 ==========================
 
-When restarting a slave server in a replication environment, the process can be speed up by having prefetch threads to warm the server: replay statements and then rollback at commit.
+Restarting a slave server in a replication environment or setting up new slave server can cause a replication reads slower. This is happening because replication in |MySQL| is single-threaded and because it needs to read the data before it can execute the queries. The process can be speeded up by having prefetch threads to warm the server: replay statements and then rollback at commit.
 
 That makes prefetch simple but has high overhead from locking rows only to undo changes at rollback.
 
@@ -63,3 +63,8 @@ Implementation Details
   * It will not prefetch allocate/free, split/merge, ``INODE``, ``XDES`` or other management pages. The same is for extern pages, i.e. large ``BLOB`` s).
 
   * Foreign key constraints are checked (for causing IO), but passed always.
+
+Related Reading
+===============
+
+  * `on MySQL replication prefetching <http://dom.as/2011/12/03/replication-prefetching/>`_

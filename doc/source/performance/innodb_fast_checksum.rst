@@ -10,7 +10,7 @@
 
 The original algorithm is checked after the new one, so you can have data pages with old checksums and data pages with new checksums. However in this case, you may experience slow reads from pages having old checksums. If you want to have the entire benefit of this change, you will need to recreate all your |InnoDB| tables, for instance by dumping and reloading all |InnoDB| tables.
 
-Once enabled, turning it off will require table re-creation as well, since it will fail to start on data files created when ``innodb_fast_checksums`` was enabled.
+Once enabled, turning it off will require table(s) to be dump/imported, since it will fail to start on data files created when ``innodb_fast_checksums`` was enabled. In this case ALTER TABLE won't work due to its implementation. 
 
 
 System Variables

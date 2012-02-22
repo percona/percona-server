@@ -38,6 +38,7 @@ pamcfg = '/etc/pam.d/mysqld'
 class basicTest(mysqlBaseTestCase):
 
     def test_pam_basic(self):
+        percent_string = '%'
         opt_matrix_req = ['pam_plugin_dir']
         self.servers = servers
         logging = test_executor.logging
@@ -82,7 +83,7 @@ class basicTest(mysqlBaseTestCase):
         self.assertEqual(retcode, 0, msg = cmd)
         self.assertEqual(output, expected_result, msg = "%s || %s" %(output, expected_result))
 	# Create user
-        query = "CREATE USER \'%s\'@\'%\' IDENTIFIED WITH auth_pam;" %(pam_user)
+        query = "CREATE USER \'%s\'@\'%s\' IDENTIFIED WITH auth_pam;" %(pam_user, percent_string)
         expected_result = ''
         cmd = "%s --protocol=tcp --port=%d -uroot -e \"%s\"" %(master_server.mysql_client
               , master_server.master_port
@@ -91,7 +92,7 @@ class basicTest(mysqlBaseTestCase):
         self.assertEqual(retcode, 0, msg = output)
         self.assertEqual(output, expected_result, msg = "%s || %s" %(output, expected_result))
 	# Grant permissions
-        query = "GRANT ALL ON test.* TO \'%s\'@\'%\';" %(pam_user)
+        query = "GRANT ALL ON test.* TO \'%s\'@\'%s\';" %(pam_user, percent_string)
         expected_result = ''
         cmd = "%s --protocol=tcp --port=%d --user=root -e \"%s\"" %(master_server.mysql_client
               , master_server.master_port

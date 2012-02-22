@@ -33,7 +33,6 @@ server_requirements = [[]]
 servers = []
 server_manager = None
 test_executor = None
-pam_user = 'pamuser'
 pamcfg = '/etc/pam.d/mysqld'
 
 class basicTest(mysqlBaseTestCase):
@@ -46,6 +45,10 @@ class basicTest(mysqlBaseTestCase):
         output_path = os.path.join(master_server.vardir, 'pam.out')
         test_executor.matrix_manager.matrix_check_req(opt_matrix_req)
         # This is a master
+        if (test_executor.matrix_manager.option_matrix['pam_user']):
+          pam_user = test_executor.matrix_manager.option_matrix['pam_user']
+        else:
+          pam_user = 'pamuser'
 
         # Create UNIX system account
         if (test_executor.system_manager.user_exists(pam_user)):

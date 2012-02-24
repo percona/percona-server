@@ -63,3 +63,4 @@ bug45702.patch
 group_commit.patch
 warning_fixes.patch
 bug917246.patch
+bug54330.patch

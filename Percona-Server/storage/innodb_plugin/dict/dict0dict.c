@@ -270,15 +270,39 @@ dict_table_stats_lock(
 	ulint			latch_mode)	/*!< in: RW_S_LATCH or
 						RW_X_LATCH */
 {
+	rw_lock_t *want, *got;
+
 	ut_ad(table != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	switch (latch_mode) {
 	case RW_S_LATCH:
-		rw_lock_s_lock(GET_TABLE_STATS_LATCH(table));
+		/* Lock one of dict_table_stats_latches in S-mode.
+		Latch is picked using table->id. table->id might be
+		changed while we are waiting for lock to be grabbed */
+		for (;;) {
+			want= GET_TABLE_STATS_LATCH(table);
+			rw_lock_s_lock(want);
+			got= GET_TABLE_STATS_LATCH(table);
+			if (want == got) {
+				break;
+			}
+			rw_lock_s_unlock(want);
+		}
 		break;
 	case RW_X_LATCH:
-		rw_lock_x_lock(GET_TABLE_STATS_LATCH(table));
+		/* Lock one of dict_table_stats_latches in X-mode.
+		Latch is picked using table->id. table->id might be
+		changed while we are waiting for lock to be grabbed */
+		for (;;) {
+			want= GET_TABLE_STATS_LATCH(table);
+			rw_lock_x_lock(want);
+			got= GET_TABLE_STATS_LATCH(table);
+			if (want == got) {
+				break;
+			}
+			rw_lock_x_unlock(want);
+		}
 		break;
 	case RW_NO_LATCH:
 		/* fall through */
@@ -1164,11 +1188,20 @@ dict_table_change_id_in_cache(
 	dict_table_t*	table,	/*!< in/out: table object already in cache */
 	dulint		new_id)	/*!< in: new id to set */
 {
+	dict_table_t table_tmp;
+
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Remove the table from the hash table of id's */
+
+	/* Lock is needed to prevent dict_table_stats_latches from
+	being leaked. dict_table_stats_lock picks one latch using
+	table->id. We are changing table->id below. That is why
+	we also should remember the old value to unlock table */
+	dict_table_stats_lock(table, RW_X_LATCH);
+	table_tmp= *table;
 
 	HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
 		    ut_fold_dulint(table->id), table);
@@ -1177,6 +1210,8 @@ dict_table_change_id_in_cache(
 	/* Add the table back to the hash table */
 	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
 		    ut_fold_dulint(table->id), table);
+
+	dict_table_stats_unlock(&table_tmp, RW_X_LATCH);
 }
 
 /**********************************************************************//**

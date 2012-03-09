@@ -266,5 +266,5 @@ man_pages = [
 intersphinx_mapping = {
     'ps55' : ('http://www.percona.com/doc/percona-server/5.5/', None),
     'xtrabackup' : ('http://www.percona.com/doc/percona-xtrabackup', None),
-    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit', None)
+    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit/2.0/', None)
  }

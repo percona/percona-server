@@ -29,14 +29,13 @@
 
     Drizzle Charter:
 
-     * A database optimized for Cloud infrastructure and Web applications.
-     * Design for massive concurrency on modern multi-cpu architecture
-     * Optimize memory for increased performance and parallelism
-     * Open source, open community, open design Scope
-     * Re-designed modular architecture providing plugins with defined APIs
-     * Simple design for ease of use and administration
-     * Reliable, ACID transactional
-
+      * A database optimized for Cloud infrastructure and Web applications.
+      * Design for massive concurrency on modern multi-cpu architecture
+      * Optimize memory for increased performance and parallelism
+      * Open source, open community, open design Scope
+      * Re-designed modular architecture providing plugins with defined APIs
+      * Simple design for ease of use and administration
+      * Reliable, ACID transactional
 
   Durability
     Once a transaction is committed, it will remain so.
@@ -59,14 +58,13 @@
     on all platforms.
 
   Jenkins
-     `Jenkins <http://www.jenkins-ci.org>`_ is a continuous integration
+    `Jenkins <http://www.jenkins-ci.org>`_ is a continuous integration
     system that we use to help ensure the continued quality of the
     software we produce. It helps us achieve the aims of:
 
-     * no failed tests in trunk on any platform,
-     * aid developers in ensuring merge requests build and test on all platforms,
-     * no known performance regressions (without a damn good explanation).
-
+      * no failed tests in trunk on any platform,
+      * aid developers in ensuring merge requests build and test on all platforms,
+      * no known performance regressions (without a damn good explanation).
 
   LSN
     Log Serial Number. A term used in relation to the :term:`InnoDB` or
@@ -91,7 +89,6 @@
     Oracle owns the MySQL trademark, the term MySQL is often used for
     the Oracle distribution of MySQL as distinct from the drop-in
     replacements such as :term:`MariaDB` and :term:`Percona Server`.
-
 
   Percona Server
     Percona's branch of :term:`MySQL` with performance and management improvements.

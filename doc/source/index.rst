@@ -57,6 +57,7 @@ Scalability Improvements
    :glob:
 
    scalability/innodb_split_buf_pool_mutex
+   scalability/innodb_insert_buffer
    scalability/innodb_io
    scalability/innodb_extra_rseg
    scalability/innodb_expand_undo_slots

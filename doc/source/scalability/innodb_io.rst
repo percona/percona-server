@@ -36,7 +36,7 @@ System Variables
 
 .. variable:: innodb_adaptive_checkpoint
 
-   :version 5.1.54-12.5 Added 
+   :version: 5.1.54-12.5 Added 
    :cli: Yes
    :conf: Yes
    :scope: Global
@@ -109,7 +109,7 @@ This variable allows you to change the default behavior of |InnoDB| concerning t
 
 .. variable:: innodb_flush_log_at_trx_commit_session
 
-     :version 5.1.49-13 Added
+     :version: 5.1.49-13 Added
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -175,60 +175,6 @@ This variable specifies whether, when the dirty pages are flushed to the data fi
 
 
 If you use a storage which has no “head seek delay” (e.g. SSD or enough memory for write buffering), 0 may show better performance.
-
-.. variable:: innodb_ibuf_accel_rate
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Numeric
-     :default: 100
-     :range: 100 - 999999999
-
-This variable allow a better control of the background thread processing the insert buffer. Each the thread is called, its activity is altered by the value of both :variable:`innodb_io_capacity` and :variable:`innodb_ibuf_accel_rate` this way: ::
-
-  [real activity] = [default activity] * (innodb_io_capacity/100) * (innodb_ibuf_accel_rate/100)
-
-
-By increasing the value of :variable:`innodb_ibuf_accel_rate`, you will increase the insert buffer activity
-
-.. variable:: innodb_ibuf_active_contract
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Numeric
-     :default: 0(1.0.5), 1(1.0.6)
-     :range: 0 - 1
-
-This variable specifies whether the insert buffer can be processed before it reaches its maximum size. The following values are allowed:
-
-  * 0: 
-    The insert buffer is not processed until it is full. This is the standard |InnoDB| behavior.
-
-  * 1: 
-    The insert buffer can be processed even it is not full.
-
-
-.. variable:: innodb_ibuf_max_size
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: No
-     :vartype: Numeric
-     :default: Half the size of the |InnoDB| buffer pool
-     :range: 0 - Half the size of the |InnoDB| buffer pool
-     :unit: Bytes
-
-This variable specifies the maximum size of the insert buffer. By default the insert buffer is half the size of the buffer pool so if you have a very large buffer pool, the insert buffer will be very large too and you may want to restrict its size with this variable.
-
-Setting this variable to 0 is equivalent to disabling the insert buffer. But then all changes to secondary indexes will be performed synchronously which will probably cause performance degradation. Likewise a too small value can hurt performance.
-
-If you have very fast storage (ie storage with RAM-level speed, not just a RAID with fast disks), a value of a few MB may be the best choice for maximum performance.
-
 
 .. variable:: innodb_log_block_size
 

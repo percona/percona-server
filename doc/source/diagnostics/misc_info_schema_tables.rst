@@ -4,7 +4,7 @@
  Misc. INFORMATION_SCHEMA Tables
 =================================
 
-This page lists the ``INFORMATION_SCHEMA`` tables added to standard |MySQL| by |Percona Server| that don``t exist elsewhere in the documentation.
+This page lists the ``INFORMATION_SCHEMA`` tables added to standard |MySQL| by |Percona Server| that don't exist elsewhere in the documentation.
 
 Compressed pages in |InnoDB| tables
 ===================================
@@ -93,12 +93,14 @@ This table was introduced by the |InnoDB| plugin and you can find the full docum
    :column TRX_MYSQL_THREAD_ID: Thread id
    :column TRX_QUERY: SQL query being executed
 
-This table holds information on every transaction running in the |InnoDB| kernel. Contrary to the output of SHOW |InnoDB| STATUS, it doesn``t show information on idle transactions.
+This table holds information on every transaction running in the |InnoDB| kernel. Contrary to the output of SHOW |InnoDB| STATUS, it doesn't show information on idle transactions.
 
 This table was introduced by the |InnoDB| plugin and you can find the full documentation here.
 
 Temporary tables
 ================
+
+ Only the temporary tables that were explicitly created with `CREATE TEMPORARY TABLE` or `ALTER TABLE` are shown, and not the ones created to process complex queries.
 
 .. table:: INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES
 

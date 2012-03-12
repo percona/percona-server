@@ -219,6 +219,22 @@ If ``innodb_use_global_flush_log_at_trx_commit=0`` (False), the client can set t
 
 If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will use the current value of ``innodb_flush_log_at_trx_commit``, and the user cannot reset the value of the global variable using a ``SET`` command.
 
+.. variable:: innodb_log_file_size
+
+   :version 5.5.8-20.0: Introduced
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: No
+   :type: Numeric
+   :default: 5242880
+   :range: 1048576 .. 4294967295
+
+In upstream |MySQL| the limit for the combined size of log files must be less than 4GB. But in Percona Server it is:
+  * on 32-bit systems: individual log file limit is 4 GB and total log file size limit is 4 GB, i.e. the same as in the upstream server.
+  * on 64-bit systems: both individual log files and total log file size are practically unlimited (the limit is 2^63 - 1 bytes which is 8+ million TB).
+
+
 Status Variables
 ----------------
 

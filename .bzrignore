@@ -18,3 +18,4 @@ build/percona-pam-plugin.spec
 build/build-binary.sh
 *.tar.gz
 m4/*.m4
+doc/build

@@ -1,3 +1,4 @@
+bug933969.patch
 microsec_process.patch
 optimizer_fix.patch
 mysql_dump_ignore_ct.patch

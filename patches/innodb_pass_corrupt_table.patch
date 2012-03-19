@@ -1054,10 +1054,10 @@
  static struct st_mysql_sys_var* innobase_system_variables[]= {
    MYSQL_SYSVAR(additional_mem_pool_size),
    MYSQL_SYSVAR(autoextend_increment),
-@@ -12082,6 +12199,7 @@
- #ifdef UNIV_DEBUG
-   MYSQL_SYSVAR(flush_checkpoint_debug),
- #endif
+@@ -12040,6 +12157,7 @@
+   MYSQL_SYSVAR(purge_threads),
+   MYSQL_SYSVAR(purge_batch_size),
+   MYSQL_SYSVAR(rollback_segments),
 +  MYSQL_SYSVAR(corrupt_table_action),
    NULL
  };

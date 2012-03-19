@@ -995,9 +995,9 @@
 +insert into t2 select variable_name from information_schema.global_variables order by variable_name;
 +insert into t2 select variable_name from information_schema.session_variables order by variable_name;
  
- # These are only present in debug builds.
- delete from t2 where variable_name='innodb_change_buffering_debug';
-@@ -63,7 +63,7 @@
+ # Performance schema variables are too long for files named
+ # 'mysql-test/suite/sys_vars/t/' ...
+@@ -59,7 +59,7 @@
    where length(variable_name) > 50;
  
  select variable_name as `There should be *no* variables listed below:` from t2
@@ -1008,7 +1008,7 @@
  drop table t2;
 --- a/mysql-test/suite/sys_vars/r/all_vars.result
 +++ b/mysql-test/suite/sys_vars/r/all_vars.result
-@@ -1,8 +1,8 @@
+@@ -1,14 +1,18 @@
  create table t1 (test_name text);
  create table t2 (variable_name text);
  load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
@@ -1016,10 +1016,8 @@
 -insert into t2 select variable_name from information_schema.session_variables;
 +insert into t2 select variable_name from information_schema.global_variables order by variable_name;
 +insert into t2 select variable_name from information_schema.session_variables order by variable_name;
- delete from t2 where variable_name='innodb_change_buffering_debug';
- delete from t2 where variable_name='innodb_flush_checkpoint_debug';
  update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
-@@ -10,7 +10,11 @@
+ select variable_name as `There should be *no* long test name listed below:` from t2
  where length(variable_name) > 50;
  There should be *no* long test name listed below:
  select variable_name as `There should be *no* variables listed below:` from t2
@@ -1040,7 +1038,7 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_debug.result
-@@ -0,0 +1,384 @@
+@@ -0,0 +1,385 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1152,7 +1150,6 @@
 +INNODB_FILE_FORMAT_CHECK
 +INNODB_FILE_FORMAT_MAX
 +INNODB_FILE_PER_TABLE
-+INNODB_FLUSH_CHECKPOINT_DEBUG
 +INNODB_FLUSH_LOG_AT_TRX_COMMIT
 +INNODB_FLUSH_METHOD
 +INNODB_FLUSH_NEIGHBOR_PAGES
@@ -1206,6 +1203,7 @@
 +INNODB_THREAD_CONCURRENCY
 +INNODB_THREAD_CONCURRENCY_TIMER_BASED
 +INNODB_THREAD_SLEEP_DELAY
++INNODB_TRX_RSEG_N_SLOTS_DEBUG
 +INNODB_USE_GLOBAL_FLUSH_LOG_AT_TRX_COMMIT
 +INNODB_USE_NATIVE_AIO
 +INNODB_USE_SYS_MALLOC
@@ -1394,6 +1392,7 @@
 +SSL_CIPHER
 +SSL_KEY
 +STORAGE_ENGINE
++STORED_PROGRAM_CACHE
 +SYNC_BINLOG
 +SYNC_FRM
 +SYNC_MASTER_INFO
@@ -1427,7 +1426,7 @@
 +WARNING_COUNT
 --- /dev/null
 +++ b/mysql-test/r/percona_server_variables_release.result
-@@ -0,0 +1,378 @@
+@@ -0,0 +1,379 @@
 +SELECT Variable_name FROM INFORMATION_SCHEMA.SESSION_VARIABLES ORDER BY 1;
 +Variable_name
 +AUTOCOMMIT
@@ -1775,6 +1774,7 @@
 +SSL_CIPHER
 +SSL_KEY
 +STORAGE_ENGINE
++STORED_PROGRAM_CACHE
 +SYNC_BINLOG
 +SYNC_FRM
 +SYNC_MASTER_INFO

@@ -1,0 +1,48 @@
+CREATE DATABASE a;
+USE a;
+CREATE TABLE t1(a INT);
+CREATE DATABASE b;
+USE b;
+CREATE TABLE t1(b INT);
+CREATE DATABASE c;
+USE c;
+CREATE TABLE t1(c INT);
+RESET MASTER;
+USE a;
+INSERT INTO t1 VALUES(0);
+USE b;
+INSERT INTO t1 VALUES(1);
+FLUSH LOGS;
+#
+# Apply log with ''
+#
+a
+0
+b
+1
+c
+#
+# Apply log with '--rewrite-db="a->c"'
+#
+a
+b
+1
+c
+0
+#
+# Apply log with '--rewrite-db="a->b"'
+#
+a
+b
+0
+1
+c
+USE a;
+DROP TABLE t1;
+DROP DATABASE a;
+USE b;
+DROP TABLE t1;
+DROP DATABASE b;
+USE c;
+DROP TABLE t1;
+DROP DATABASE c;

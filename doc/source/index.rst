@@ -89,6 +89,7 @@ Flexibility Improvements
    flexibility/innodb_files_extend
    flexibility/log_warnings_suppress
    flexibility/mysql_remove_eol_carret
+   flexibility/mysqlbinlog_change_db
    flexibility/replication_skip_single_statement
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown

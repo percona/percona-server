@@ -38,6 +38,15 @@
 #include "sql_common.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+/* Needed for Rpl_filter */
+CHARSET_INFO* system_charset_info= &my_charset_utf8_general_ci;
+
+#include "sql_string.h"                          // needed for Rpl_filter
+#include "sql_list.h"                            // needed for Rpl_filter
+#include "rpl_filter.h"
+
+Rpl_filter *binlog_filter;
+
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 
@@ -623,6 +632,49 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
+  Print "use <db>" statement when current db is to be changed.
+
+  We have to control emiting USE statements according to rewrite-db options.
+  We have to do it here (see process_event() below) and to suppress
+  producing USE statements by corresponding log event print-functions.
+*/
+void print_use_stmt(PRINT_EVENT_INFO* pinfo, const char* db, size_t db_len)
+{
+  /*
+    pinfo->db is the current db.
+    If current db is the same as required db, do nothing.
+  */
+  if (!db || !memcmp(pinfo->db, db, db_len + 1))
+    return;
+
+  /*
+    Current db and required db are different.
+    Check for rewrite rule for required db. (Note that in a rewrite rule
+    neither db_from nor db_to part can be empty)
+  */
+  size_t      len_to= 0;
+  const char* db_to=  binlog_filter->get_rewrite_db(db, &len_to);
+
+  /*
+    If there is no rewrite rule for db (in this case len_to is left = 0),
+    printing of the corresponding USE statement is left for log event
+    print-function.
+  */
+  if (!len_to)
+    return;
+
+  // In case of rewrite rule print USE statement for db_to
+  fprintf(result_file, "use %s%s\n", db_to, pinfo->delimiter);
+
+  /*
+    Copy the *original* db to pinfo to suppress emiting
+    of USE stmts by log_event print-functions.
+  */
+  memcpy(pinfo->db, db, db_len + 1);
+}
+
+
+/**
   Prints the given event in base64 format.
 
   The header is printed to the head cache and the body is printed to
@@ -741,9 +793,22 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (!((Query_log_event*)ev)->is_trans_keyword() &&
-          shall_skip_database(((Query_log_event*)ev)->db))
-        goto end;
+    {
+      Query_log_event *qe= (Query_log_event*)ev;
+      if (!qe->is_trans_keyword())
+      {
+        if (shall_skip_database(qe->db))
+          goto end;
+      }
+      else
+      {
+        /*
+          In case the event for one of these statements is obtained
+          from 5.0 binary log, make it compatible with 5.1.
+        */
+        ev->flags|= LOG_EVENT_SUPPRESS_USE_F;
+      }
+      print_use_stmt(print_event_info, qe->db, qe->db_len);
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
       {
         if ((retval= write_event_header_and_base64(ev, result_file,
@@ -754,6 +819,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       else
         ev->print(result_file, print_event_info);
       break;
+    }
 
     case CREATE_FILE_EVENT:
     {
@@ -875,6 +941,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       if (!shall_skip_database(exlq->db))
       {
+        print_use_stmt(print_event_info, exlq->db, exlq->db_len);
         if (fname)
         {
           convert_path_to_forward_slashes(fname);
@@ -897,6 +964,14 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         print_event_info->m_table_map_ignored.set_table(map->get_table_id(), map);
         destroy_evt= FALSE;
         goto end;
+      }
+      size_t      len_to= 0;
+      const char* db_to=  binlog_filter->get_rewrite_db(map->get_db_name(),
+                                                        &len_to);
+      if (len_to && map->rewrite_db(db_to, len_to, glob_description_event))
+      {
+        error("Could not rewrite database name");
+        goto err;
       }
     }
     case WRITE_ROWS_EVENT:
@@ -983,15 +1058,19 @@ err:
   retval= ERROR_STOP;
 end:
   rec_count++;
+
+
   /*
-    Destroy the log_event object. If reading from a remote host,
-    set the temp_buf to NULL so that memory isn't freed twice.
+    Destroy the log_event object.
+    MariaDB MWL#36: mainline does this:
+      If reading from a remote host,
+      set the temp_buf to NULL so that memory isn't freed twice.
+    We no longer do that, we use Rpl_filter::event_owns_temp_buf instead.
   */
   if (ev)
   {
-    if (remote_opt)
-      ev->temp_buf= 0;
-    if (destroy_evt) /* destroy it later if not set (ignored table map) */
+    /* destroy it later if not set (ignored table map) */
+    if (destroy_evt)
       delete ev;
   }
   DBUG_RETURN(retval);
@@ -1156,6 +1235,10 @@ that may lead to an endless loop.",
    "Used to reserve file descriptors for use by this program.",
    &open_files_limit, &open_files_limit, 0, GET_ULONG,
    REQUIRED_ARG, MY_NFILE, 8, OS_FILE_LIMIT, 0, 1, 0},
+  {"rewrite-db", OPT_REWRITE_DB,
+   "Updates to a database with a different name than the original. \
+Example: rewrite-db='from->to'.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1347,6 +1430,53 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
         (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
     }
     break;
+  case OPT_REWRITE_DB:    // db_from->db_to
+  {
+    /* See also handling of OPT_REPLICATE_REWRITE_DB in sql/mysqld.cc */
+    char* ptr;
+    char* key= argument;                         // db-from
+    char* val;                                   // db-to
+
+    // Where key begins
+    while (*key && my_isspace(&my_charset_latin1, *key))
+      key++;
+
+    // Where val begins
+    if (!(ptr= strstr(argument, "->")))
+    {
+      sql_print_error("Bad syntax in rewrite-db: missing '->'!\n");
+      return 1;
+    }
+    val= ptr + 2;
+    while (*val && my_isspace(&my_charset_latin1, *val))
+      val++;
+
+    // Write \0 and skip blanks at the end of key
+    *ptr-- = 0;
+    while (my_isspace(&my_charset_latin1, *ptr) && ptr > argument)
+      *ptr-- = 0;
+
+    if (!*key)
+    {
+      sql_print_error("Bad syntax in rewrite-db: empty db-from!\n");
+      return 1;
+    }
+
+    // Skip blanks at the end of val
+    ptr= val;
+    while (*ptr && !my_isspace(&my_charset_latin1, *ptr))
+      ptr++;
+    *ptr= 0;
+
+    if (!*val)
+    {
+      sql_print_error("Bad syntax in rewrite-db: empty db-to!\n");
+      return 1;
+    }
+
+    binlog_filter->add_db_rewrite(key, val);
+    break;
+  }
   case 'v':
     if (argument == disabled_my_option)
       verbose= 0;
@@ -1616,7 +1746,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       If reading from a remote host, ensure the temp_buf for the
       Log_event class is pointing to the incoming stream.
     */
-    ev->register_temp_buf((char *) net->read_pos + 1);
+    ev->register_temp_buf((char *) net->read_pos + 1, FALSE);
 
     Log_event_type type= ev->get_type_code();
     if (glob_description_event->binlog_version >= 3 ||
@@ -1752,7 +1882,7 @@ static Exit_status check_header(IO_CACHE* file,
   }
 
   pos= my_b_tell(file);
-  my_b_seek(file, (my_off_t)0);
+  DBUG_ASSERT(pos == 0);
   if (my_b_read(file, header, sizeof(header)))
   {
     error("Failed reading header; probably an empty file.");
@@ -1912,7 +2042,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     /* read from normal file */
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
       return ERROR_STOP;
-    if (init_io_cache(file, fd, 0, READ_CACHE, start_position_mot, 0,
+    if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) 0, 0,
 		      MYF(MY_WME | MY_NABP)))
     {
       my_close(fd, MYF(MY_WME));
@@ -1920,6 +2050,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
     if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
       goto end;
+    my_b_seek(file, start_position_mot);
   }
   else
   {
@@ -2016,6 +2147,8 @@ end:
   return retval;
 }
 
+/* Used in sql_alloc(). Inited and freed in main() */
+MEM_ROOT s_mem_root;
 
 int main(int argc, char** argv)
 {
@@ -2027,6 +2160,13 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
+
+  init_alloc_root(&s_mem_root, 16384, 0);
+  if (!(binlog_filter= new Rpl_filter))
+  {
+    error("Failed to create Rpl_filter");
+    exit(1);
+  }
 
   if (load_defaults("my", load_default_groups, &argc, &argv))
     exit(1);
@@ -2116,6 +2256,8 @@ int main(int argc, char** argv)
   if (result_file != stdout)
     my_fclose(result_file, MYF(0));
   cleanup();
+  delete binlog_filter;
+  free_root(&s_mem_root, MYF(0));
   free_defaults(defaults_argv);
   my_free_open_file_info();
   load_processor.destroy();
@@ -2125,6 +2267,12 @@ int main(int argc, char** argv)
   exit(retval == ERROR_STOP ? 1 : 0);
   /* Keep compilers happy. */
   DBUG_RETURN(retval == ERROR_STOP ? 1 : 0);
+}
+
+
+void *sql_alloc(size_t size)
+{
+  return alloc_root(&s_mem_root, size);
 }
 
 /*
@@ -2137,4 +2285,7 @@ int main(int argc, char** argv)
 #include "my_decimal.cc"
 #include "log_event.cc"
 #include "log_event_old.cc"
+#include "sql_string.cc"
+#include "sql_list.cc"
+#include "rpl_filter.cc"
 

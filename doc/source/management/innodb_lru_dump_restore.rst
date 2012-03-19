@@ -141,7 +141,7 @@ This variable specifies the time in seconds between automatic buffer pool dumps.
      :range: 0-UINT_MAX32
      :unit:  Seconds
 
-This variable specifies the time in seconds between automatic buffer pool dumps. When set to zero, automatic dumps are disabled and must be done manually. When set to a non-zero value, an automatic restore of the buffer pool is also performed at startup, as described above.
+This variable specifies the time in seconds between automatic buffer pool dumps. When set to zero, automatic dumps are disabled and must be done manually. The variable :variable:`innodb_buffer_pool_restore_at_startup` controls both automatic buffer pool dumps and automatic restore on startup. When set to a non-zero value, an automatic restore of the buffer pool is also performed at startup, as described above.
 
  This variable was added in release 5.5.10-20.1. Prior to that, it was named :variable:`innodb_auto_lru_dump`, which still exists in earlier versions.
 
@@ -149,4 +149,4 @@ This variable specifies the time in seconds between automatic buffer pool dumps.
 Other reading
 =============
 
-  * `Save / restore buffer pool <http://www.|MySQL|performanceblog.com/2010/01/20/|XtraDB|-feature-save-restore-buffer-pool/>`_
+  * `Save / restore buffer pool <http://www.mysqlperformanceblog.com/2010/01/20/xtradb-feature-save-restore-buffer-pool/>`_

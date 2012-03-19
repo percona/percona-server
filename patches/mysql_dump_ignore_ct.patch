@@ -17,16 +17,16 @@
    OPT_TZ_UTC, OPT_CREATE_SLAP_SCHEMA,
 --- a/client/mysqldump.c
 +++ b/client/mysqldump.c
-@@ -105,7 +105,7 @@
+@@ -106,7 +106,7 @@
+                 opt_complete_insert= 0, opt_drop_database= 0,
+                 opt_replace_into= 0,
                  opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
-                 opt_slave_apply= 0, 
+-                opt_slave_apply= 0, 
++                opt_slave_apply= 0, opt_ignore_show_create_table_error=0,
                  opt_include_master_host_port= 0,
--                opt_events= 0,
-+                opt_events= 0, opt_ignore_show_create_table_error=0,
+                 opt_events= 0, opt_comments_used= 0,
                  opt_alltspcs=0, opt_notspcs= 0;
- static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
- static ulong opt_max_allowed_packet, opt_net_buffer_length;
-@@ -354,6 +354,9 @@
+@@ -357,6 +357,9 @@
    {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
     &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
     0, 0},
@@ -36,7 +36,7 @@
    {"lines-terminated-by", OPT_LTB,
     "Lines in the output file are terminated by the given string.",
     &lines_terminated, &lines_terminated, 0, GET_STR,
-@@ -2312,13 +2315,21 @@
+@@ -2505,13 +2508,21 @@
        /* Make an sql-file, if path was given iow. option -T was given */
        char buff[20+FN_REFLEN];
        MYSQL_FIELD *field;

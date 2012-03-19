@@ -1,12 +1,12 @@
-.. rn:: 5.5.21-24.2
+.. rn:: 5.5.21-25.0
 
 ==============================
- |Percona Server| 5.5.21-24.2
+ |Percona Server| 5.5.21-25.0
 ==============================
 
-Percona is glad to announce the release of |Percona Server| 5.5.21-24.2 on March 20, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.21-24.2/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
+Percona is glad to announce the release of |Percona Server| 5.5.21-25.0 on March 20, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.21-25.0/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
 
-Based on `MySQL 5.5.21 <http://dev.mysql.com/doc/refman/5.5/en/news-5-5-21.html>`_, including all the bug fixes in it, |Percona Server| 5.5.21-24.2 is now the current stable release in the 5.5 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.5.21-24.2 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.5.21-24.2>`_.
+Based on `MySQL 5.5.21 <http://dev.mysql.com/doc/refman/5.5/en/news-5-5-21.html>`_, including all the bug fixes in it, |Percona Server| 5.5.21-25.0 is now the current stable release in the 5.5 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.5.21-25.0 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.5.21-25.0>`_.
 
 Improvements to the XtraDB’s sync flush algorithm made in |Percona Server| `5.5.19-24.0 <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.19-24.0/>`_ have been reverted because of the performance issues on SSDs (*Laurynas Biveinis*). 
 

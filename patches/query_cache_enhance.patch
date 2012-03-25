@@ -25,7 +25,7 @@
 +2010-11 - Ported to 5.5
 --- a/sql/mysqld.cc
 +++ b/sql/mysqld.cc
-@@ -904,6 +904,7 @@
+@@ -915,6 +915,7 @@
  #endif
  #ifdef HAVE_QUERY_CACHE
  ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
@@ -85,11 +85,27 @@
 +#endif // _SQL_QUERY_STRIPC_COMMENTS_H_
 --- a/sql/sql_cache.cc
 +++ b/sql/sql_cache.cc
-@@ -344,6 +344,181 @@
+@@ -344,6 +344,198 @@
  #include "probes_mysql.h"
  #include "transaction.h"
  
 +#include "query_strip_comments.h"
++
++/*
++  Number of bytes to be allocated in a query cache buffer in addition to the
++  query string length.
++
++  The query buffer layout is:
++
++  buffer :==
++    <statement>   The input statement(s)
++    '\0'          Terminating null char
++    <db_length>   Length of following current database name (size_t)
++    <db_name>     Name of current database
++    <flags>       Flags struct
++*/
++#define QUERY_BUFFER_ADDITIONAL_LENGTH(db_length)               \
++  (1 + sizeof(size_t) + db_length + QUERY_CACHE_FLAGS_SIZE)
 +
 +QueryStripComments::QueryStripComments()
 +{
@@ -211,13 +227,13 @@
 +    }
 +    if(insert_space)
 +    {
-+      if((last_space + 1) != position)
++      if((uint) (last_space + 1) != position)
 +      {
 +        last_space = position;
 +        buffer[position++] = ' ';
 +      }
 +    }
-+    else
++    else if (query_position < query_length)
 +    {
 +      buffer[position++] = query[query_position++];
 +    }
@@ -246,7 +262,8 @@
 +    thd = a_thd;
 +    query = thd->query();
 +    length = thd->query_length();
-+    qsc->set(query,length,thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    qsc->set(query, length, QUERY_BUFFER_ADDITIONAL_LENGTH(thd->db_length));
++    *(size_t *) (qsc->query() + qsc->query_length() + 1)= thd->db_length;
 +    thd->set_query(qsc->query(),qsc->query_length());
 +  }
 +  else
@@ -267,7 +284,7 @@
  #ifdef EMBEDDED_LIBRARY
  #include "emb_qcache.h"
  #endif
-@@ -454,7 +629,12 @@
+@@ -454,7 +646,12 @@
    Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
    DBUG_ENTER("Query_cache::try_lock");
  
@@ -280,7 +297,7 @@
    while (1)
    {
      if (m_cache_lock_status == Query_cache::UNLOCKED)
-@@ -1274,6 +1454,8 @@
+@@ -1274,6 +1471,8 @@
        unlock();
        DBUG_VOID_RETURN;
      }
@@ -289,7 +306,7 @@
  
      /* Key is query + database + flag */
      if (thd->db_length)
-@@ -1451,6 +1633,9 @@
+@@ -1451,6 +1650,9 @@
    Query_cache_block_table *block_table, *block_table_end;
    ulong tot_length;
    Query_cache_query_flags flags;
@@ -299,7 +316,7 @@
    DBUG_ENTER("Query_cache::send_result_to_client");
  
    /*
-@@ -1472,21 +1657,103 @@
+@@ -1472,21 +1674,103 @@
  
    {
      uint i= 0;
@@ -416,20 +433,22 @@
      if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
           my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
           my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-@@ -1521,6 +1788,12 @@
+@@ -1543,6 +1827,14 @@
      goto err_unlock;
  
    Query_cache_block *query_block;
 +  if(opt_query_cache_strip_comments)
 +  {
-+    query_strip_comments->set(sql, query_length, thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE);
++    query_strip_comments->set(sql, query_length,
++                              QUERY_BUFFER_ADDITIONAL_LENGTH(thd->db_length));
 +    sql          = query_strip_comments->query();
 +    query_length = query_strip_comments->query_length();
++    *(size_t *) (sql + query_length + 1)= thd->db_length;
 +  }
  
-   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
-   if (thd->db_length)
-@@ -1587,6 +1860,8 @@
+   tot_length= query_length + 1 + sizeof(size_t) + 
+               thd->db_length + QUERY_CACHE_FLAGS_SIZE;
+@@ -1611,6 +1903,8 @@
  	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
    query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
                                                        tot_length);
@@ -450,7 +469,7 @@
  
  class Reprepare_observer;
  class Relay_log_info;
-@@ -764,6 +767,9 @@
+@@ -766,6 +769,9 @@
      statement lifetime. FIXME: must be const
    */
     ulong id;
@@ -462,7 +481,7 @@
      MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
 --- a/sql/sys_vars.cc
 +++ b/sql/sys_vars.cc
-@@ -1809,6 +1809,11 @@
+@@ -1895,6 +1895,11 @@
         NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
         ON_UPDATE(fix_query_cache_size));
  
@@ -3072,7 +3091,7 @@
 +SET GLOBAL query_cache_size=0;
 --- a/mysql-test/r/mysqld--help-notwin.result
 +++ b/mysql-test/r/mysqld--help-notwin.result
-@@ -491,6 +491,10 @@
+@@ -500,6 +500,10 @@
   The minimum size for blocks allocated by the query cache
   --query-cache-size=# 
   The memory allocated to store results from old queries
@@ -3083,7 +3102,7 @@
   --query-cache-type=name 
   OFF = Don't cache or retrieve results. ON = Cache all
   results except SELECT SQL_NO_CACHE ... queries. DEMAND =
-@@ -928,6 +932,7 @@
+@@ -942,6 +946,7 @@
  query-cache-limit 1048576
  query-cache-min-res-unit 4096
  query-cache-size 0
@@ -3114,3 +3133,36 @@
 +action
 +try_lock_mutex_query
 +SET GLOBAL query_cache_size=0;
+--- /dev/null
++++ b/mysql-test/r/percona_bug856404.result
+@@ -0,0 +1,8 @@
++DROP TABLE IF EXISTS table17_int;
++DROP TABLE IF EXISTS table30_int;
++CREATE TABLE `table17_int` (pk integer auto_increment primary key, `col_char_10_not_null_key` char(10), `col_enum_not_null_key` int);
++CREATE TABLE `table30_int` (pk integer auto_increment primary key, `col_enum_not_null_key` int);
++SELECT X . `pk` FROM `table17_int` AS X LEFT JOIN `table30_int` AS Y USING ( `col_enum_not_null_key` ) WHERE X . `col_char_10_not_null_key` != '   you need to translate Views labels into other languages, consider installing the <a href=\" !path\">Internationalization</a> package\'s Views translation module.' LIMIT 7  /*Generated by THREAD_ID 1*/;
++pk
++DROP TABLE table17_int;
++DROP TABLE table30_int;
+--- /dev/null
++++ b/mysql-test/t/percona_bug856404-master.opt
+@@ -0,0 +1 @@
++--query-cache-size=10M --query-cache-strip-comments
+--- /dev/null
++++ b/mysql-test/t/percona_bug856404.test
+@@ -0,0 +1,15 @@
++########################################################################
++# Bug #856404: Crash when query_cache_strip_comments enabled
++########################################################################
++
++--disable_warnings
++DROP TABLE IF EXISTS table17_int;
++DROP TABLE IF EXISTS table30_int;
++--enable_warnings
++
++CREATE TABLE `table17_int` (pk integer auto_increment primary key, `col_char_10_not_null_key` char(10), `col_enum_not_null_key` int);
++CREATE TABLE `table30_int` (pk integer auto_increment primary key, `col_enum_not_null_key` int);
++SELECT X . `pk` FROM `table17_int` AS X LEFT JOIN `table30_int` AS Y USING ( `col_enum_not_null_key` ) WHERE X . `col_char_10_not_null_key` != '   you need to translate Views labels into other languages, consider installing the <a href=\" !path\">Internationalization</a> package\'s Views translation module.' LIMIT 7  /*Generated by THREAD_ID 1*/;
++
++DROP TABLE table17_int;
++DROP TABLE table30_int;

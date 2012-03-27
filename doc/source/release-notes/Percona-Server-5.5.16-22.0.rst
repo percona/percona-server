@@ -18,7 +18,7 @@ That makes prefetch simple but has high overhead from locking rows only to undo 
 
 Using this approach, support for Fake Changes have been implemented in order to remove the overhead and make it faster.
 
-By reading the rows for “INSERT“, “UPDATE“ and “DELETE“ statements but not updating them (Fake Changes), the rollback is very fast as in most cases there is nothing to do.
+By reading the rows for "INSERT", "UPDATE" and "DELETE" statements but not updating them (Fake Changes), the rollback is very fast as in most cases there is nothing to do.
 
 Kill Idle Transactions
 ----------------------
@@ -30,7 +30,7 @@ This feature limits the age of idle |XtraDB| transactions. If a transaction is i
 Block Startup until LRU dump is loaded
 --------------------------------------
 
-Added a new boolean option, :variable:`innodb-blocking-buffer-pool-restore`, which is ``OFF`` by default. When set to ``ON``, restoring from the LRU dump file is synchronous, i.e. |XtraDB| waits until it is complete before reporting successful startup to the server. Bug Fixed: :bug:`785489` (*Alexey Kopytov*).
+Added a new boolean option, :variable:`innodb_blocking_buffer_pool_restore`, which is ``OFF`` by default. When set to ``ON``, restoring from the LRU dump file is synchronous, i.e. |XtraDB| waits until it is complete before reporting successful startup to the server. Bug Fixed: :bug:`785489` (*Alexey Kopytov*).
 
 Behavior changes
 ----------------

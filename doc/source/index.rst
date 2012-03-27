@@ -27,8 +27,6 @@
 
 Does this sound too good to be true? It's not. |Percona Server| offers breakthrough performance, scalability, features, and instrumentation. Its self-tuning algorithms and support for extremely high-performance hardware make it the clear choice for companies who demand the utmost performance and reliability from their database server.
 
-Contents:
-
 Introduction
 ============
 
@@ -62,6 +60,7 @@ Scalability Improvements
    scalability/innodb_io_55
    scalability/innodb_expand_undo_slots
    scalability/innodb_adaptive_hash_index_partitions
+   scalability/innodb_extra_rseg
 
 Performance Improvements
 ========================
@@ -150,7 +149,6 @@ Obsolete and Removed Features
    :maxdepth: 1
    :glob:
 
-   scalability/innodb_extra_rseg
    management/innodb_buffer_pool_shm
 
 Reference

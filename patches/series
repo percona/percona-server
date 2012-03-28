@@ -65,3 +65,4 @@ group_commit.patch
 warning_fixes.patch
 bug917246.patch
 bug54330.patch
+bug966844_page_size_error_on_5520_upgrade.patch

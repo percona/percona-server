@@ -85,6 +85,11 @@
           {%- else %}
             {#- old style sidebars: using blocks -- should be deprecated #}
             {%- block serverseries %}
+<h3>Server Series</h3>
+     <ul>
+       <li><a href="http://www.percona.com/doc/percona-server/5.5/">Percona Server 5.5</a></li>
+       <li><a href="http://www.percona.com/doc/percona-server/5.1/">Percona Server 5.1</a></li>
+     </ul>
             {%- endblock %}
             {%- block sidebartoc %}
             {%- include "localtoc.html" %}

@@ -1,8 +1,8 @@
 .. _mysqlbinlog_change_db:
 
-=========================
+==========================================
 Ability to change database for mysqlbinlog
-=========================
+==========================================
 
 Sometimes there is a need to take a binary log and apply it to a database with 
 a different name than the original name of the database on binlog producer.

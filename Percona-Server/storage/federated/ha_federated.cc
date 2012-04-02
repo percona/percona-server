@@ -1641,7 +1641,6 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
 int ha_federated::close(void)
 {
-  THD *thd= current_thd;
   DBUG_ENTER("ha_federated::close");
 
   free_result();

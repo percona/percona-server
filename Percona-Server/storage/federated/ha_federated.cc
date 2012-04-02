@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1652,9 +1652,15 @@ int ha_federated::close(void)
   mysql_close(mysql);
   mysql= NULL;
 
-  /* Clear possible errors from mysql_close(), see LP bug #813587. */
-  if (thd)
-    thd->clear_error();
+  /*
+    mysql_close() might return an error if a remote server's gone
+    for some reason. If that happens while removing a table from
+    the table cache, the error will be propagated to a client even
+    if the original query was not issued against the FEDERATED table.
+    So, don't propagate errors from mysql_close().
+  */
+  if (table->in_use)
+    table->in_use->clear_error();
 
   DBUG_RETURN(free_share(share));
 }

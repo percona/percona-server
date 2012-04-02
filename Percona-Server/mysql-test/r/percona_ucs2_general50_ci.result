@@ -4,7 +4,7 @@ drop table if exists t1;
 create table t1 as select repeat(' ', 64) as s1;
 select collation(s1) from t1;
 collation(s1)
-ucs2_general50_ci
+ucs2_general_mysql500_ci
 delete from t1;
 insert into t1 values ('a'),('ae'),(_latin1 0xE4);
 insert into t1 values ('o'),('oe'),(_latin1 0xF6);

@@ -50,7 +50,22 @@ get_collation_number_internal(const char *name)
     if ( cs[0] && cs[0]->name && 
          !my_strcasecmp(&my_charset_latin1, cs[0]->name, name))
       return cs[0]->number;
-  }  
+  }
+
+  /* We have backwards-compat code for the fact that Oracle (after Percona)
+     added a MySQl 5.0 compatible UCS2 charset but with a different name than
+     the Percona one yet the same number.
+
+     i.e. both ucs2_general50_ci and ucs2_general_mysql500_ci map to 159
+
+     We work around this by adding in some code here to redirect the Percona
+     name to the MySQL name, so both will continue to work.
+  */
+  if(!my_strcasecmp(&my_charset_latin1, name, "ucs2_general50_ci"))
+  {
+    return get_collation_number_internal("ucs2_general_mysql500_ci");
+  }
+
   return 0;
 }
 
@@ -456,7 +471,8 @@ uint get_charset_number(const char *charset_name, uint cs_flags)
     if ( cs[0] && cs[0]->csname && (cs[0]->state & cs_flags) &&
          !my_strcasecmp(&my_charset_latin1, cs[0]->csname, charset_name))
       return cs[0]->number;
-  }  
+  }
+
   return 0;
 }
 

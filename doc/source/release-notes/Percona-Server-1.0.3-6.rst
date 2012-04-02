@@ -27,7 +27,7 @@ The release includes following new features:
 Fixed bugs
 ==========
 
-  * |MySQL| Bug: ``#39793 <http://bugs.mysql.com/39793>`_: Foreign keys not constructed when column has a ``#`` in a comment or default value
+  * |MySQL| Bug: `#39793 <http://bugs.mysql.com/39793>`_: Foreign keys not constructed when column has a ``#`` in a comment or default value
 
   * Bug :bug:`395784` in Percona-XtraDB: ``main.innodb_xtradb_bug317074 internal check fails on 5.1.36``
 

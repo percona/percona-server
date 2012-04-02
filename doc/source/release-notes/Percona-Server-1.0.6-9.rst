@@ -28,8 +28,8 @@ The release includes following new features:
 
 Fixed bugs:
 
-    * Bug :bug:`488315`: rename columns and add unique index cause serious inconsistent with :command:`mysqld`
+    * Bug :bug:`488315`: rename columns and add unique index cause serious inconsistent with :command:`mysqld`.
 
-    * Bug :bug:495342]]: “MySQL 5.1.41 + InnoDB 1.0.6 + XtraDB patches extensions-1.0.6, rev. 127 fails to compile on OpenSolaris”
+    * Bug :bug:`495342`: MySQL 5.1.41 + InnoDB 1.0.6 + XtraDB patches extensions-1.0.6, rev. 127 fails to compile on OpenSolaris.
 
-    * |MySQL| bug `#47621 <http://bugs.mysql.com/47621>`_: change the fix of http://bugs.mysql.com/47621 more reasonable
+    * |MySQL| bug `#47621 <http://bugs.mysql.com/47621>`_: change the fix of http://bugs.mysql.com/47621 more reasonable.

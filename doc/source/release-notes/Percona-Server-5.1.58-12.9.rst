@@ -23,7 +23,7 @@ Compatibility Collations
 
 Two new collations, ``utf8_general50_ci`` and ``ucs2_general50_ci``, have been to improve compatibility for those upgrading from |MySQL| 5.0 or 5.1 prior to version 5.1.24.
 
-A fix for a |MySQL| bug ([[`#27877 <http://bugs.mysql.com/bug.php?id=27877>`) introduced an incompatible change in collations in |MySQL| 5.1.24. If the following collations were used:
+A fix for a |MySQL| bug `#27877 <http://bugs.mysql.com/bug.php?id=27877>`_ introduced an incompatible change in collations in |MySQL| 5.1.24. If the following collations were used:
 
   * ``utf8_general_ci`` 
   * ``ucs2_general_ci``
@@ -37,7 +37,7 @@ This problem is avoided when upgrading to |Percona Server| by converting the aff
   * ``utf8_general_ci`` to ``utf8_general50_ci``, and 
   * ``ucs2_general_ci`` to ``ucs2_general50_ci``.
 
-Blueprint:[[https://blueprints.launchpad.net/percona-server/+spec/utf8-general50-ci-5.1|utf8-general50-ci-5.1]] (*Alexey Kopytov*).
+Blueprint: `utf8-general50-ci-5.1 <https://blueprints.launchpad.net/percona-server/+spec/utf8-general50-ci-5.1>`_ (*Alexey Kopytov*).
 
 SHM Buffer Pool has been removed
 --------------------------------

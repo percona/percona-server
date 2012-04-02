@@ -13,10 +13,10 @@ The release includes following new features:
 Fixed bugs:
 ===========
 
-    * [[https://bugs.launchpad.net/percona-xtradb/+bug/413858|Bugs#413858: Crash from failed assertion in dict0dict.c]]
+    * :bug:`413858`: Crash from failed assertion in dict0dict.c]]
 
-    * [[https://bugs.launchpad.net/percona-xtradb/+bug/417751|Bug#417751: |XtraDB| crashes on startup on windows]]
+    * :bug:`417751`: |XtraDB| crashes on startup on windows]]
 
-    * [[https://code.launchpad.net/~percona-dev/percona-xtradb/fix-import-extern-pages|fix-import-extern-pages]]
+    * `fix-import-extern-pages <https://code.launchpad.net/~percona-dev/percona-xtradb/fix-import-extern-pages>`_
 
     * Number of |MySQL|-tests are fixed

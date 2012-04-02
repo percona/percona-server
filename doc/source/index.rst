@@ -103,6 +103,7 @@ Reliability Improvements
    reliability/log_connection_error
    reliability/error_pad
    reliability/innodb_corrupt_table_action
+   reliability/innodb_recovery_update_relay_log
    reliability/show_slave_status_nolock
 
 Management Improvements
@@ -162,6 +163,7 @@ Reference
    development
    trademark-policy
    faq
+   compatibility
    release-notes/release-notes_index
    glossary
 

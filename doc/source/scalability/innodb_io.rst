@@ -188,6 +188,21 @@ If you use a storage which has no “head seek delay” (e.g. SSD or enough memo
 
 This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use.
 
+.. variable:: innodb_log_file_size
+
+   :version 1.0.6-10: Introduced
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: No
+   :type: Numeric
+   :default: 5242880
+   :range: 1048576 .. 4294967295
+
+In upstream |MySQL| the limit for the combined size of log files must be less than 4GB. But in Percona Server it is:
+  * on 32-bit systems: individual log file limit is 4 GB and total log file size limit is 4 GB, i.e. the same as in the upstream server.
+  * on 64-bit systems: both individual log files and total log file size are practically unlimited (the limit is 2^63 - 1 bytes which is 8+ million TB).
+
 .. variable:: innodb_read_ahead
 
      :cli: Yes

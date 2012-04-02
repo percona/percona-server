@@ -36,7 +36,7 @@ Fixed bugs
 
   * :bug:`580324` - Security bug in upstream 
 
-  * :bug:`586579` -|Percona Server| 11 fails to compile with ``CFLAGS=-DUNIV_DEBUG`` 
+  * :bug:`586579` - |Percona Server| 11 fails to compile with ``CFLAGS=-DUNIV_DEBUG`` 
 
   * :bug:`569156` - CentOS 5: ``mysql-server`` conflicts with ``mysql-server`` 
 

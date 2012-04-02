@@ -98,6 +98,8 @@ This table was introduced by the |InnoDB| plugin and you can find the full docum
 Temporary tables
 ================
 
+ Only temporary tables that were explicitly created with `CREATE TEMPORARY TABLE` or `ALTER TABLE` are shown, and not the ones created during query execution.
+
 .. table:: INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES
 
    :column SESSION_ID: |MySQL| connection id

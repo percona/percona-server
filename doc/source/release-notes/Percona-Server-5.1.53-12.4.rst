@@ -45,7 +45,7 @@ Bugs Fixed
 
   * Bug :bug:`677407` - The ``innodb_information_schema`` test could fail sporadically due to flawed logic in the ``INFORMATION_SCHEMA.INNODB_LOCKS`` caching mechanism. (contributed by *Kristian Nielsen*) (*Alexey Kopytov*)
 
-  * Bug :bug:`681486` - A dependency between Debian packages ``lib|MySQL|client16`` and ``percona-server-common`` was removed. (*Aleksandr Kuzminsky*)
+  * Bug :bug:`681486` - A dependency between Debian packages ``libmysqlclient16`` and ``percona-server-common`` was removed. (*Aleksandr Kuzminsky*)
 
   * Bug :bug:`693815` - The test ``percona_innodb_buffer_pool_shm`` was failing. It should be run with the ``--big-test`` option. As the buffer pool size used in the test is 128M, the shared memory segment should be increased appropriately in order to run the test successfully.
 

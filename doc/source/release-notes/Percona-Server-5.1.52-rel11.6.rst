@@ -18,7 +18,7 @@ Functionality Added or Changed
 Bugs Fixed
 ===========
 
-  * Bug :bug:`671764` - ``innochecksum`` wasn``t distributed with RPM and .DEB packages (Aleksandr Kuzminsky)
+  * Bug :bug:`671764` - ``innochecksum`` wasn't distributed with RPM and .DEB packages (Aleksandr Kuzminsky)
 
   * Bug :bug:`673426` - Use of some system variables as command-line options caused a crash or undefined behavior. (*Oleg Tsarev*)
 

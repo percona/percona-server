@@ -594,6 +594,8 @@ struct trx_struct{
 					replication has processed */
 	const char*	mysql_relay_log_file_name;
 	ib_int64_t	mysql_relay_log_pos;
+	time_t		idle_start;
+	ib_int64_t	last_stmt_start;
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /* number of Innobase tables
 					used in the processing of the current

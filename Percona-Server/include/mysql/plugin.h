@@ -634,6 +634,12 @@ void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 */
 void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data);
+
+int thd_command(const MYSQL_THD thd);
+long long thd_start_time(const MYSQL_THD thd);
+void thd_kill(unsigned long id);
+#define EXTENDED_FOR_KILLIDLE
+
 #ifdef __cplusplus
 }
 #endif

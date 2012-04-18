@@ -1,0 +1,16 @@
+SET @old_max_connections = @@max_connections;
+SET @old_log_error_verbosity = @@log_error_verbosity;
+SET GLOBAL max_connections=2;
+SET GLOBAL LOG_ERROR_VERBOSITY = 1;
+connect(localhost,root,,test,port,socket);
+ERROR HY000: Too many connections
+SET GLOBAL LOG_ERROR_VERBOSITY = 2;
+connect(localhost,root,,test,port,socket);
+ERROR HY000: Too many connections
+SET GLOBAL LOG_ERROR_VERBOSITY = 1;
+connect(localhost,root,,test,port,socket);
+ERROR HY000: Too many connections
+SET GLOBAL max_connections = @old_max_connections;
+SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
+[log_grep.inc] file: percona.log_connection_error.err pattern: Too many connections
+[log_grep.inc] lines:   1

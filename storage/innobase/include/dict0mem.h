@@ -1194,6 +1194,7 @@ struct dict_table_t{
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks;	/*!< list of locks on the table; protected
 				by lock_sys->mutex */
+	ibool		is_corrupt;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

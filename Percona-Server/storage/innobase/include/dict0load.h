@@ -41,6 +41,7 @@ enum dict_system_table_id {
 	SYS_FIELDS,
 	SYS_FOREIGN,
 	SYS_FOREIGN_COLS,
+	SYS_STATS,
 
 	/* This must be last item. Defines the number of system tables. */
 	SYS_NUM_SYSTEM_TABLES
@@ -327,6 +328,20 @@ dict_process_sys_foreign_col_rec(
 	const char**	ref_col_name,	/*!< out: referenced column name
 					in referenced table */
 	ulint*		pos);		/*!< out: column position */
+/********************************************************************//**
+This function parses a SYS_STATS record and extract necessary
+information from the record and return to caller.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_stats_rec(
+/*=============================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_STATS rec */
+	index_id_t*	index_id,	/*!< out: INDEX_ID */
+	ulint*		key_cols,	/*!< out: KEY_COLS */
+	ib_uint64_t*	diff_vals,	/*!< out: DIFF_VALS */
+	ib_uint64_t*	non_null_vals);	/*!< out: NON_NULL_VALS */
 #ifndef UNIV_NONINL
 #include "dict0load.ic"
 #endif

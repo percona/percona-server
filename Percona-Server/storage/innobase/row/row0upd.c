@@ -439,6 +439,12 @@ row_upd_changes_field_size_or_external(
 				0);
 		}
 
+		if (srv_use_sys_stats_table
+		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)
+		    && upd_field->field_no >= rec_offs_n_fields(offsets)) {
+			return(TRUE);
+		}
+
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
 
 		if (rec_offs_comp(offsets)
@@ -878,6 +884,18 @@ row_upd_build_difference_binary(
 				  ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
+
+		if (srv_use_sys_stats_table
+		    && index == UT_LIST_GET_FIRST(dict_sys->sys_stats->indexes)
+		    && i >= rec_offs_n_fields(offsets)) {
+			dfield = dtuple_get_nth_field(entry, i);
+
+			upd_field = upd_get_nth_field(update, n_diff);
+			dfield_copy(&(upd_field->new_val), dfield);
+			upd_field_set_field_no(upd_field, i, index, trx);
+			n_diff++;
+			goto skip_compare;
+		}
 
 		data = rec_get_nth_field(rec, offsets, i, &len);
 

@@ -50,7 +50,8 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_COLUMNS",
 	"SYS_FIELDS",
 	"SYS_FOREIGN",
-	"SYS_FOREIGN_COLS"
+	"SYS_FOREIGN_COLS",
+	"SYS_STATS"
 };
 
 /* If this flag is TRUE, then we will load the cluster index's (and tables')
@@ -348,12 +349,13 @@ dict_process_sys_tables_rec(
 	}
 
 	if ((status & DICT_TABLE_UPDATE_STATS)
+	    && srv_stats_auto_update
 	    && dict_table_get_first_index(*table)) {
 
 		/* Update statistics if DICT_TABLE_UPDATE_STATS
 		is set */
 		dict_update_statistics(*table, FALSE /* update even if
-				       initialized */);
+				       initialized */, FALSE);
 	}
 
 	return(NULL);
@@ -586,6 +588,75 @@ err_len:
 }
 //#endif  /* FOREIGN_NOT_USED */
 
+/********************************************************************//**
+This function parses a SYS_STATS record and extract necessary
+information from the record and return to caller.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_stats_rec(
+/*=============================*/
+	mem_heap_t*	heap __attribute__((unused)),		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_STATS rec */
+	index_id_t*	index_id,	/*!< out: INDEX_ID */
+	ulint*		key_cols,	/*!< out: KEY_COLS */
+	ib_uint64_t*	diff_vals,	/*!< out: DIFF_VALS */
+	ib_uint64_t*	non_null_vals)	/*!< out: NON_NULL_VALS */
+{
+	ulint		len;
+	const byte*	field;
+	ulint		n_fields;
+
+	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
+		return("delete-marked record in SYS_STATS");
+	}
+
+	n_fields = rec_get_n_fields_old(rec);
+
+	if (UNIV_UNLIKELY(n_fields < 5)) {
+		return("wrong number of columns in SYS_STATS record");
+	}
+
+	field = rec_get_nth_field_old(rec, 0/*INDEX_ID*/, &len);
+	if (UNIV_UNLIKELY(len != 8)) {
+err_len:
+		return("incorrect column length in SYS_STATS");
+	}
+	*index_id = mach_read_from_8(field);
+
+	field = rec_get_nth_field_old(rec, 1/*KEY_COLS*/, &len);
+	if (UNIV_UNLIKELY(len != 4)) {
+		goto err_len;
+	}
+	*key_cols = mach_read_from_4(field);
+
+	rec_get_nth_field_offs_old(rec, 2/*DB_TRX_ID*/, &len);
+	if (UNIV_UNLIKELY(len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL)) {
+		goto err_len;
+	}
+	rec_get_nth_field_offs_old(rec, 3/*DB_ROLL_PTR*/, &len);
+	if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL)) {
+		goto err_len;
+	}
+
+	field = rec_get_nth_field_old(rec, 4/*DIFF_VALS*/, &len);
+	if (UNIV_UNLIKELY(len != 8)) {
+		goto err_len;
+	}
+	*diff_vals = mach_read_from_8(field);
+
+	if (n_fields < 6) {
+		*non_null_vals = ((ib_uint64_t)(-1));
+	} else {
+		field = rec_get_nth_field_old(rec, 5/*NON_NULL_VALS*/, &len);
+		if (UNIV_UNLIKELY(len != 8)) {
+			goto err_len;
+		}
+		*non_null_vals = mach_read_from_8(field);
+	}
+
+	return(NULL);
+}
 /********************************************************************//**
 Determine the flags of a table described in SYS_TABLES.
 @return compressed page size in kilobytes; or 0 if the tablespace is

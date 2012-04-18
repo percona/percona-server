@@ -2331,6 +2331,7 @@ bool select_send::send_data(List<Item> &items)
 
   thd->sent_row_count++;
   thd->sent_row_count_2++;
+  DEBUG_SYNC(thd, "sent_row");
 
   if (thd->vio_ok())
     DBUG_RETURN(protocol->write());

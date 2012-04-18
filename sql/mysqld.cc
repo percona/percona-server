@@ -458,6 +458,7 @@ my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
+my_bool opt_secure_file_priv_noarg= FALSE;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
 my_bool opt_log_slow_sp_statements= 0;
@@ -1249,6 +1250,7 @@ int deny_severity = LOG_WARNING;
 #endif /* HAVE_LIBWRAP */
 #ifdef HAVE_QUERY_CACHE
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
+my_bool opt_query_cache_strip_comments= FALSE;
 Query_cache query_cache;
 #endif
 #ifdef HAVE_SMEM
@@ -3560,6 +3562,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
   {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
   {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
+  {"show_client_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CLIENT_STATS]), SHOW_LONG_STATUS},
   {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
   {"show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
   {"show_create_event",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_EVENT]), SHOW_LONG_STATUS},
@@ -3577,6 +3580,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_function_code",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_FUNC_CODE]), SHOW_LONG_STATUS},
   {"show_function_status", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS_FUNC]), SHOW_LONG_STATUS},
   {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
+  {"show_index_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_INDEX_STATS]), SHOW_LONG_STATUS},
   {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
   {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
   {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
@@ -3593,9 +3597,12 @@ SHOW_VAR com_status_vars[]= {
   {"show_slave_status_nolock", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_NOLOCK_STAT]), SHOW_LONG_STATUS},
   {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
   {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
+  {"show_table_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATS]), SHOW_LONG_STATUS},
   {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
   {"show_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLES]), SHOW_LONG_STATUS},
+  {"show_thread_statistics",(char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_THREAD_STATS]), SHOW_LONG_STATUS},
   {"show_triggers",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TRIGGERS]), SHOW_LONG_STATUS},
+  {"show_user_statistics", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_USER_STATS]), SHOW_LONG_STATUS},
   {"show_variables",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_VARIABLES]), SHOW_LONG_STATUS},
   {"show_warnings",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_WARNS]), SHOW_LONG_STATUS},
   {"slave_start",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SLAVE_START]), SHOW_LONG_STATUS},
@@ -4940,6 +4947,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
 
   /* We have to initialize the storage engines before CSV logging */
+
   if (ha_init())
   {
     sql_print_error("Can't init databases");
@@ -4994,6 +5002,41 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (initialize_storage_engine(default_tmp_storage_engine, " temp",
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(1);
+
+  /*
+    Validate any enforced storage engine
+  */
+  if (enforce_storage_engine)
+  {
+    LEX_STRING name= { enforce_storage_engine,
+      strlen(enforce_storage_engine) };
+    plugin_ref plugin;
+    if ((plugin= ha_resolve_by_name(0, &name, false)))
+    {
+      handlerton *hton = plugin_data(plugin, handlerton*);
+      LEX_STRING defname= { default_storage_engine,
+        strlen(default_storage_engine) };
+      plugin_ref defplugin;
+      handlerton* defhton;
+      if ((defplugin= ha_resolve_by_name(0, &defname, false)))
+      {
+        defhton = plugin_data(defplugin, handlerton*);
+        if (defhton != hton)
+        {
+          sql_print_warning("Default storage engine (%s)"
+            " is not the same as enforced storage engine (%s)",
+            default_storage_engine,
+            enforce_storage_engine);
+        }
+      }
+    }
+    else
+    {
+      sql_print_error("Unknown/unsupported storage engine: %s",
+                    enforce_storage_engine);
+      unireg_abort(1);
+    }
+  }
 
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))
   {
@@ -6188,6 +6231,10 @@ static void create_new_thread(THD *thd)
       A client expecting a SQLSTATE will not find any, and assume 'HY000'.
     */
     close_connection(thd, ER_CON_COUNT_ERROR);
+    if (log_warnings)
+    {
+      sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
+    }
     delete thd;
     statistic_increment(connection_errors_max_connection, &LOCK_status);
     DBUG_VOID_RETURN;
@@ -6601,6 +6648,10 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
   my_net_init(&thd->net, thd->net.vio))
     {
+      if (global_system_variables.log_warnings)
+      {
+        sql_print_warning("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
+      }
       close_connection(thd, ER_OUT_OF_RESOURCES);
       delete thd;
       continue;
@@ -6796,6 +6847,10 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
                                                    event_conn_closed)) ||
                         my_net_init(&thd->net, thd->net.vio))
     {
+      if (global_system_variables.log_warnings)
+      {
+        sql_print_warning("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
+      }
       close_connection(thd, ER_OUT_OF_RESOURCES);
       errmsg= 0;
       goto errorconn;
@@ -6931,14 +6986,14 @@ void adjust_open_files_limit(ulong *requested_open_files)
   ulong effective_open_files;
 
   /* MyISAM requires two file handles per table. */
-  limit_1= 10 + max_connections + table_cache_size * 2;
+  limit_1= 10 + max_connections + extra_max_connections + table_cache_size * 2;
 
   /*
     We are trying to allocate no less than max_connections*5 file
     handles (i.e. we are trying to set the limit so that they will
     be available).
   */
-  limit_2= max_connections * 5;
+  limit_2= (max_connections + extra_max_connections) * 5;
 
   /* Try to allocate no less than 5000 by default. */
   limit_3= open_files_limit ? open_files_limit : 5000;
@@ -8921,6 +8976,10 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 
 C_MODE_END
 
+/* defined in sys_vars.cc */
+extern void init_log_slow_verbosity();
+extern void init_slow_query_log_use_global_control();
+
 /**
   Get server options from the command line,
   and perform related server initializations.
@@ -9084,6 +9143,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.long_query_time= (ulonglong)
     (global_system_variables.long_query_time_double * 1e6);
 
+  init_log_slow_verbosity();
+  init_slow_query_log_use_global_control();
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
 
@@ -9114,7 +9175,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     one_thread_scheduler(thread_scheduler);
   else
     pool_of_threads_scheduler(thread_scheduler,  &max_connections,
-                                        &connection_count); 
+                                        &connection_count);
 
   one_thread_per_connection_scheduler(extra_thread_scheduler,
                                       &extra_max_connections,
@@ -9206,6 +9267,14 @@ bool is_secure_file_path(char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
   size_t opt_secure_file_priv_len;
+
+  /*
+    --secure-file-priv without argument means
+    disable SELECT INTO OUTFILE/LOAD DATA INFILE
+  */
+  if (opt_secure_file_priv_noarg)
+    return FALSE;
+
   /*
     All paths are secure if opt_secure_file_path is 0
   */
@@ -9309,7 +9378,7 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
    */
-  if (opt_secure_file_priv)
+  if (opt_secure_file_priv && !opt_secure_file_priv_noarg)
   {
     if (*opt_secure_file_priv == 0)
       opt_secure_file_priv= NULL;

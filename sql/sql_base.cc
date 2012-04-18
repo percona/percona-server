@@ -1489,9 +1489,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
                                              MDL_SHARED));
   table->mdl_ticket= NULL;
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
   *table_ptr=table->next;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   if (! table->needs_reopen())
   {
@@ -5305,6 +5303,12 @@ restart:
         if (need_prelocking && ! *start)
           *start= thd->lex->query_tables;
 
+        if (need_prelocking && ! thd->lex->requires_prelocking())
+          thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+        if (need_prelocking && ! *start)
+          *start= thd->lex->query_tables;
+
         if (error)
         {
           if (ot_ctx.can_recover_from_failed_open())
@@ -5633,6 +5637,12 @@ static bool check_lock_and_start_stmt(THD *thd,
   int error;
   thr_lock_type lock_type;
   DBUG_ENTER("check_lock_and_start_stmt");
+
+  /*
+    Prelocking placeholder is not set for TABLE_LIST that
+    are directly used by TOP level statement.
+  */
+  DBUG_ASSERT(table_list->prelocking_placeholder == false);
 
   /*
     TL_WRITE_DEFAULT and TL_READ_DEFAULT are supposed to be parser only

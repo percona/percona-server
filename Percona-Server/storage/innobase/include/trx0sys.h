@@ -53,6 +53,9 @@ there was no master log position info inside InnoDB.*/
 extern ib_int64_t	trx_sys_mysql_master_log_pos;
 /* @} */
 
+extern char		trx_sys_mysql_relay_log_name[];
+extern ib_int64_t	trx_sys_mysql_relay_log_pos;
+
 /** If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
 here. */
@@ -304,7 +307,8 @@ UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	const char*	file_name,/*!< in: MySQL log file name */
+	trx_sysf_t*	sys_header,
+	const char*	file_name_in,/*!< in: MySQL log file name */
 	ib_int64_t	offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
@@ -499,6 +503,7 @@ We must remember this limit in order to keep file compatibility. */
 @see trx_sys_mysql_master_log_name
 @see trx_sys_mysql_bin_log_name */
 #define TRX_SYS_MYSQL_LOG_NAME_LEN	512
+#define TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN	480	/* (500 - 12) is dead line. */
 /** Contents of TRX_SYS_MYSQL_LOG_MAGIC_N_FLD */
 #define TRX_SYS_MYSQL_LOG_MAGIC_N	873422344
 
@@ -508,6 +513,7 @@ We must remember this limit in order to keep file compatibility. */
 /** The offset of the MySQL replication info in the trx system header;
 this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
 #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
+#define TRX_SYS_MYSQL_RELAY_LOG_INFO	(UNIV_PAGE_SIZE - 1500)
 
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)

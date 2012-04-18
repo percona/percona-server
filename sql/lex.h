@@ -394,6 +394,7 @@ static SYMBOL symbols[] = {
   { "NONE",		SYM(NONE_SYM)},
   { "NOT",		SYM(NOT_SYM)},
   { "NO_WRITE_TO_BINLOG",  SYM(NO_WRITE_TO_BINLOG)},
+  { "NOLOCK",           SYM(NOLOCK_SYM)},
   { "NULL",		SYM(NULL_SYM)},
   { "NUMBER",           SYM(NUMBER_SYM)},
   { "NUMERIC",		SYM(NUMERIC_SYM)},

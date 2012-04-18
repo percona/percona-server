@@ -421,6 +421,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_NOLOCK_STAT]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
@@ -2811,14 +2812,31 @@ case SQLCOM_PREPARE:
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
+  case SQLCOM_SHOW_SLAVE_NOLOCK_STAT:
   case SQLCOM_SHOW_SLAVE_STAT:
   {
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    mysql_mutex_lock(&LOCK_active_mi);
-    res= show_slave_status(thd, active_mi);
-    mysql_mutex_unlock(&LOCK_active_mi);
+    bool do_lock=SQLCOM_SHOW_SLAVE_NOLOCK_STAT != lex->sql_command;
+    if(do_lock)
+    {
+      mysql_mutex_lock(&LOCK_active_mi);
+    }
+    res = show_slave_status(thd, active_mi);
+    if(do_lock)
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+    }
+    DBUG_EXECUTE_IF("after_show_slave_status",
+                    {
+                      const char act[]=
+                        "now "
+                        "signal signal.after_show_slave_status";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:

@@ -1557,7 +1557,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SQL_CACHE_SYM
 %token  SQL_CALC_FOUND_ROWS
 %token  SQL_NO_CACHE_SYM
-%token  SQL_NO_FCACHE_SYM
 %token  SQL_SMALL_RESULT
 %token  SQL_SYM                       /* SQL-2003-R */
 %token  SQL_THREAD
@@ -1569,6 +1568,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STATS_PERSISTENT_SYM
 %token  STATS_SAMPLE_PAGES_SYM
 %token  STATUS_SYM
+%token  NOLOCK_SYM                    /* SHOW SLAVE STATUS NOLOCK */
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
 %token  STOP_SYM
@@ -8741,10 +8741,6 @@ select_option:
               Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
             }
           }
-	| SQL_NO_FCACHE_SYM
-	  {
-	    Lex->disable_flashcache= TRUE;
-	  }
         | SQL_CACHE_SYM
           {
             /* 
@@ -12666,6 +12662,11 @@ show_param:
         | SLAVE STATUS_SYM
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
+          }
+	/* SHOW SLAVE STATUS NOLOCK */
+        | SLAVE STATUS_SYM NOLOCK_SYM
+          {
+	    Lex->sql_command = SQLCOM_SHOW_SLAVE_NOLOCK_STAT; //SQLCOM_SHOW_SLAVE_NOLOCK_STAT;
           }
         | CREATE PROCEDURE_SYM sp_name
           {

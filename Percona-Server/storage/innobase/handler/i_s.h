@@ -47,5 +47,8 @@ extern struct st_mysql_plugin	i_s_innodb_sys_stats;
 extern struct st_mysql_plugin	i_s_innodb_table_stats;
 extern struct st_mysql_plugin	i_s_innodb_index_stats;
 extern struct st_mysql_plugin	i_s_innodb_admin_command;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_index;
+extern struct st_mysql_plugin	i_s_innodb_buffer_pool_pages_blob;
 
 #endif /* i_s_h */

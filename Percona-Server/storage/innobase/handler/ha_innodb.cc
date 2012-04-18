@@ -12420,6 +12420,9 @@ i_s_innodb_sys_foreign_cols,
 i_s_innodb_sys_stats,
 i_s_innodb_table_stats,
 i_s_innodb_index_stats,
+i_s_innodb_buffer_pool_pages,
+i_s_innodb_buffer_pool_pages_index,
+i_s_innodb_buffer_pool_pages_blob,
 i_s_innodb_admin_command
 mysql_declare_plugin_end;
 

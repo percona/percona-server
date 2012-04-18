@@ -40,6 +40,9 @@
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 
+#ifdef HAVE_QUERY_CACHE
+#include "query_strip_comments.h"
+#endif // HAVE_QUERY_CACHE
 
 class Reprepare_observer;
 class Relay_log_info;
@@ -766,6 +769,9 @@ public:
     statement lifetime. FIXME: must be const
   */
    ulong id;
+#ifdef HAVE_QUERY_CACHE
+  QueryStripComments query_strip_comments; // see sql_cache.cc
+#endif //HAVE_QUERY_CACHE
 
   /*
     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to

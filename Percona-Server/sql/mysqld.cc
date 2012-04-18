@@ -915,6 +915,7 @@ int deny_severity = LOG_WARNING;
 #endif
 #ifdef HAVE_QUERY_CACHE
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
+my_bool opt_query_cache_strip_comments= FALSE;
 Query_cache query_cache;
 #endif
 #ifdef HAVE_SMEM

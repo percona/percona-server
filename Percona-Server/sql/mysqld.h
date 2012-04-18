@@ -91,6 +91,7 @@ extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
+extern my_bool opt_query_cache_strip_comments;
 extern ulonglong log_output_options;
 extern ulong log_backup_output_options;
 extern my_bool opt_log_queries_not_using_indexes;

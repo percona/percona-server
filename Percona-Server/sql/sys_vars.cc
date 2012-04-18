@@ -1895,6 +1895,11 @@ static Sys_var_ulong Sys_query_cache_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_query_cache_size));
 
+static Sys_var_mybool Sys_query_cache_strip_comments(
+       "query_cache_strip_comments", "Enable and disable optimisation \"strip comment for query cache\" - optimisation strip all comments from query while search query result in query cache",
+       GLOBAL_VAR(opt_query_cache_strip_comments), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 static Sys_var_ulong Sys_query_cache_limit(
        "query_cache_limit",
        "Don't cache results that are bigger than this",

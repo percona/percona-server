@@ -4965,6 +4965,10 @@ static void create_new_thread(THD *thd)
 
     DBUG_PRINT("error",("Too many connections"));
     close_connection(thd, ER_CON_COUNT_ERROR);
+    if (global_system_variables.log_warnings)
+    {
+      sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
+    }
     delete thd;
     DBUG_VOID_RETURN;
   }
@@ -5348,6 +5352,10 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
 	my_net_init(&thd->net, thd->net.vio))
     {
+      if (global_system_variables.log_warnings)
+      {
+        sql_print_warning("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
+      }
       close_connection(thd, ER_OUT_OF_RESOURCES);
       delete thd;
       continue;
@@ -5543,6 +5551,10 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
                                                    event_conn_closed)) ||
                         my_net_init(&thd->net, thd->net.vio))
     {
+      if (global_system_variables.log_warnings)
+      {
+        sql_print_warning("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
+      }
       close_connection(thd, ER_OUT_OF_RESOURCES);
       errmsg= 0;
       goto errorconn;

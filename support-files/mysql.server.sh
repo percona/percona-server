@@ -2,7 +2,7 @@
 # Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
 # This file is public domain and comes with NO WARRANTY of any kind
 
-# MySQL daemon start/stop script.
+# MySQL (Percona Server) daemon start/stop script.
 
 # Usually this is put in /etc/init.d (at least on machines SYSV R4 based
 # systems) and linked to /etc/rc3.d/S99mysql and /etc/rc0.d/K01mysql.
@@ -21,8 +21,8 @@
 # Required-Stop: $local_fs $network $remote_fs
 # Default-Start:  2 3 4 5
 # Default-Stop: 0 1 6
-# Short-Description: start and stop MySQL
-# Description: MySQL is a very fast and reliable SQL database engine.
+# Short-Description: start and stop MySQL (Percona Server)
+# Description: Percona-Server is a SQL database engine with focus on high performance.
 ### END INIT INFO
  
 # If you install MySQL on some other places than @prefix@, then you
@@ -258,7 +258,7 @@ case "$mode" in
     # Safeguard (relative paths, core dumps..)
     cd $basedir
 
-    echo $echo_n "Starting MySQL"
+    echo $echo_n "Starting MySQL (Percona Server)"
     if test -x $bindir/mysqld_safe
     then
       # Give extra arguments to mysqld with the my.cnf file. This script
@@ -291,12 +291,12 @@ case "$mode" in
 
       if (kill -0 $mysqld_pid 2>/dev/null)
       then
-        echo $echo_n "Shutting down MySQL"
+        echo $echo_n "Shutting down MySQL (Percona Server)"
         kill $mysqld_pid
         # mysqld should remove the pid file when it exits, so wait for it.
         wait_for_pid removed "$mysqld_pid" "$mysqld_pid_file_path"; return_value=$?
       else
-        log_failure_msg "MySQL server process #$mysqld_pid is not running!"
+        log_failure_msg "MySQL (Percona Server) server process #$mysqld_pid is not running!"
         rm "$mysqld_pid_file_path"
       fi
 
@@ -307,7 +307,7 @@ case "$mode" in
       fi
       exit $return_value
     else
-      log_failure_msg "MySQL server PID file could not be found!"
+      log_failure_msg "MySQL (Percona Server) PID file could not be found!"
     fi
     ;;
 
@@ -325,10 +325,10 @@ case "$mode" in
   'reload'|'force-reload')
     if test -s "$mysqld_pid_file_path" ; then
       read mysqld_pid <  "$mysqld_pid_file_path"
-      kill -HUP $mysqld_pid && log_success_msg "Reloading service MySQL"
+      kill -HUP $mysqld_pid && log_success_msg "Reloading service MySQL (Percona Server)"
       touch "$mysqld_pid_file_path"
     else
-      log_failure_msg "MySQL PID file could not be found!"
+      log_failure_msg "MySQL (Percona Server) PID file could not be found!"
       exit 1
     fi
     ;;
@@ -337,10 +337,10 @@ case "$mode" in
     if test -s "$mysqld_pid_file_path" ; then 
       read mysqld_pid < "$mysqld_pid_file_path"
       if kill -0 $mysqld_pid 2>/dev/null ; then 
-        log_success_msg "MySQL running ($mysqld_pid)"
+        log_success_msg "MySQL (Percona Server) running ($mysqld_pid)"
         exit 0
       else
-        log_failure_msg "MySQL is not running, but PID file exists"
+        log_failure_msg "MySQL (Percona Server) is not running, but PID file exists"
         exit 1
       fi
     else
@@ -354,13 +354,13 @@ case "$mode" in
         exit 5
       elif test -z $mysqld_pid ; then 
         if test -f "$lock_file_path" ; then 
-          log_failure_msg "MySQL is not running, but lock file ($lock_file_path) exists"
+          log_failure_msg "MySQL (Percona Server) is not running, but lock file ($lock_file_path) exists"
           exit 2
         fi 
-        log_failure_msg "MySQL is not running"
+        log_failure_msg "MySQL (Percona Server) is not running"
         exit 3
       else
-        log_failure_msg "MySQL is running but PID file could not be found"
+        log_failure_msg "MySQL (Percona Server) is running but PID file could not be found"
         exit 4
       fi
     fi
@@ -368,7 +368,7 @@ case "$mode" in
     *)
       # usage
       basename=`basename "$0"`
-      echo "Usage: $basename  {start|stop|restart|reload|force-reload|status}  [ MySQL server options ]"
+      echo "Usage: $basename  {start|stop|restart|reload|force-reload|status}  [ MySQL (Percona Server) options ]"
       exit 1
     ;;
 esac

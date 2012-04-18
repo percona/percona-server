@@ -203,6 +203,11 @@ sub new
     $limits{'max_tables'}	= 500;
     $self->{'transactions'}	= 1;	# Transactions enabled
   }
+  if (defined($main::opt_create_options) &&
+      $main::opt_create_options =~ /engine=tokudb/i)
+  {
+    $self->{'transactions'}	= 1;	# Transactions enabled
+  }
 
   return $self;
 }

@@ -1962,6 +1962,7 @@ btr_cur_update_in_place(
 	roll_ptr_t	roll_ptr	= 0;
 	ulint		was_delete_marked;
 	ibool		is_hashed;
+	trx_t*		trx;
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;

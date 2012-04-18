@@ -175,14 +175,14 @@ necessary only if the memory block containing it is freed. */
 # ifdef UNIV_DEBUG
 #  ifdef UNIV_SYNC_DEBUG
 #   define mutex_create(K, M, level)				\
-	pfs_mutex_create_func((K), (M), #M, (level), __FILE__, __LINE__)
+	pfs_mutex_create_func((K), (M), (level), __FILE__, __LINE__, #M)
 #  else
 #   define mutex_create(K, M, level)				\
-	pfs_mutex_create_func((K), (M), #M, __FILE__, __LINE__)
+	pfs_mutex_create_func((K), (M), __FILE__, __LINE__, #M)
 #  endif/* UNIV_SYNC_DEBUG */
 # else
 #  define mutex_create(K, M, level)				\
-	pfs_mutex_create_func((K), (M), __FILE__, __LINE__)
+	pfs_mutex_create_func((K), (M), #M)
 # endif	/* UNIV_DEBUG */
 
 # define mutex_enter(M)						\
@@ -202,14 +202,14 @@ original non-instrumented functions */
 # ifdef UNIV_DEBUG
 #  ifdef UNIV_SYNC_DEBUG
 #   define mutex_create(K, M, level)			\
-	mutex_create_func((M), #M, (level), __FILE__, __LINE__)
+	mutex_create_func((M), (level), __FILE__, __LINE__, #M)
 #  else /* UNIV_SYNC_DEBUG */
 #   define mutex_create(K, M, level)				\
-	mutex_create_func((M), #M, __FILE__, __LINE__)
+	mutex_create_func((M), __FILE__, __LINE__, #M)
 #  endif /* UNIV_SYNC_DEBUG */
 # else /* UNIV_DEBUG */
 #  define mutex_create(K, M, level)				\
-	mutex_create_func((M), __FILE__, __LINE__)
+	mutex_create_func((M), #M)
 # endif	/* UNIV_DEBUG */
 
 # define mutex_enter(M)	mutex_enter_func((M), __FILE__, __LINE__)
@@ -234,13 +234,13 @@ mutex_create_func(
 /*==============*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline);		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name);	/*!< in: mutex name */
 
 /******************************************************************//**
 NOTE! Use the corresponding macro mutex_free(), not directly this function!
@@ -308,13 +308,13 @@ pfs_mutex_create_func(
 	PSI_mutex_key	key,		/*!< in: Performance Schema key */
 	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
 #  ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 #  endif /* UNIV_SYNC_DEBUG */
-# endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline);		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+# endif /* UNIV_DEBUG */
+	const char*	cmutex_name);
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter(), not directly
 this function!
@@ -768,8 +768,10 @@ struct ib_mutex_t {
 	ulint	line;		/*!< Line where the mutex was locked */
 	ulint	level;		/*!< Level in the global latching order */
 #endif /* UNIV_SYNC_DEBUG */
+#ifdef UNIV_DEBUG
 	const char*	cfile_name;/*!< File name where mutex created */
 	ulint		cline;	/*!< Line where created */
+#endif
 	ulong		count_os_wait;	/*!< count of os_wait */
 #ifdef UNIV_DEBUG
 
@@ -779,9 +781,9 @@ struct ib_mutex_t {
 	os_thread_id_t thread_id; /*!< The thread id of the thread
 				which locked the mutex. */
 	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-	const char*	cmutex_name;	/*!< mutex name */
 	ulint		ib_mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
 #endif /* UNIV_DEBUG */
+	const char*	cmutex_name;	/*!< mutex name */
 #ifdef UNIV_PFS_MUTEX
 	struct PSI_mutex* pfs_psi;	/*!< The performance schema
 					instrumentation hook */

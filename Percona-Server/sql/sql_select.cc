@@ -55,6 +55,12 @@
 
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
+#include <sys/syscall.h>
+#include <sys/ioctl.h>
+#if defined(__linux__)
+#include "flashcache_ioctl.h"
+#endif//__linux__
+
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
@@ -266,8 +272,17 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
+  pid_t pid;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
+#if defined(__linux__)
+  if(lex->disable_flashcache && cachedev_fd > 0)
+  {
+    pid = syscall(SYS_gettid);
+    ioctl(cachedev_fd, FLASHCACHEADDNCPID, &pid);
+  }
+#endif//__linux__
+ 
   MYSQL_SELECT_START(thd->query());
 
   if (select_lex->master_unit()->is_union() || 
@@ -302,6 +317,12 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   if (unlikely(res))
     result->abort_result_set();
 
+#if defined(__linux__)
+  if (lex->disable_flashcache && cachedev_fd > 0)
+  {
+    ioctl(cachedev_fd, FLASHCACHEDELNCPID, &pid);
+  }
+#endif//__linux__ 
   MYSQL_SELECT_DONE((int) res, (ulong) thd->limit_found_rows);
   DBUG_RETURN(res);
 }

@@ -93,6 +93,7 @@ enum enum_log_slow_filter {
   SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
   SLOG_F_FILESORT_DISK
 };
+enum enum_log_warnings_suppress { log_warnings_suppress_1592 };
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
                             SLAVE_EXEC_MODE_LAST_BIT};

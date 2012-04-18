@@ -1579,6 +1579,15 @@ static Sys_var_uint Sys_port(
        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
 
+const char *log_warnings_suppress_name[]= { "1592" };
+static Sys_var_set Sys_log_warnings_suppress(
+       "log_warnings_suppress",
+       "disable logging of enumerated warnings: "
+       "1592: unsafe statements for binary logging; "
+       "possible values : [1592]",
+       GLOBAL_VAR(opt_log_warnings_suppress), CMD_LINE(REQUIRED_ARG),
+       log_warnings_suppress_name, DEFAULT(0));
+
 static Sys_var_ulong Sys_preload_buff_size(
        "preload_buffer_size",
        "The size of the buffer that is allocated when preloading indexes",

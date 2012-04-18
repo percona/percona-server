@@ -88,6 +88,7 @@ UNIV_INTERN
 void
 read_view_print(
 /*============*/
+	FILE*			file,
 	const read_view_t*	view);	/*!< in: read view */
 /*********************************************************************//**
 Create a consistent cursor view for mysql to be used in cursors. In this

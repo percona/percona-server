@@ -146,6 +146,9 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
+extern ulint    srv_show_locks_held;
+extern ulint    srv_show_verbose_locks;
+
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
 extern const byte*	srv_latin1_ordering;
@@ -327,6 +330,8 @@ extern ulint srv_buf_pool_wait_free;
 /* variable to count the number of pages that were written from the
 buffer pool to disk */
 extern ulint srv_buf_pool_flushed;
+
+extern ulint buf_lru_flush_page_count;
 
 /** Number of buffer pool reads that led to the
 reading of a disk page */
@@ -707,6 +712,7 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
+	ulint innodb_buffer_pool_pages_LRU_flushed;	/*!< buf_lru_flush_page_count */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
 	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */

@@ -1213,7 +1213,7 @@ trx_purge_sys_print(void)
 /*=====================*/
 {
 	fprintf(stderr, "InnoDB: Purge system view:\n");
-	read_view_print(purge_sys->view);
+	read_view_print(stderr, purge_sys->view);
 
 	fprintf(stderr, "InnoDB: Purge trx n:o " TRX_ID_FMT
 		", undo n:o " TRX_ID_FMT "\n",

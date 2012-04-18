@@ -75,7 +75,7 @@ Updated by buf_flush_stat_update(). Not protected by any mutex. */
 static buf_flush_stat_t	buf_flush_stat_sum;
 
 /** Number of pages flushed through non flush_list flushes. */
-static ulint buf_lru_flush_page_count = 0;
+// static ulint buf_lru_flush_page_count = 0;
 
 /* @} */
 

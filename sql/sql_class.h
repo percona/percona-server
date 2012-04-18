@@ -53,6 +53,8 @@
 
 #include "violite.h"                       /* SSL_handle */
 
+#include "query_strip_comments.h"
+
 class Reprepare_observer;
 class sp_cache;
 class Rows_log_event;
@@ -1443,6 +1445,12 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
 
 class Modification_plan;
 
+typedef struct
+{
+  struct timeval start_time;
+  ulonglong start_utime;
+} QUERY_START_TIME_INFO;
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -1956,6 +1964,8 @@ private:
 public:
   uint32     unmasked_server_id;
   uint32     server_id;
+  // Used to save the command, before it is set to COM_SLEEP.
+  enum enum_server_command old_command;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;
@@ -2699,6 +2709,8 @@ public:
   query_id_t query_id;
   ulong      col_access;
 
+  QueryStripComments query_strip_comments; // see sql_cache.cc
+
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
@@ -2767,6 +2779,8 @@ public:
   int thd_tx_priority;
 
   enum_check_fields count_cuted_fields;
+  ha_rows    updated_row_count;
+  ha_rows    sent_row_count_2; /* for userstat */
 
   // For user variables replication
   Prealloced_array<BINLOG_USER_VAR_EVENT*, 2> user_var_events;
@@ -2962,6 +2976,49 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
+
+  /*
+    Used to update global user stats.  The global user stats are updated
+    occasionally with the 'diff' variables.  After the update, the 'diff'
+    variables are reset to 0.
+  */
+  // Time when the current thread connected to MySQL.
+  time_t current_connect_time;
+  // Last time when THD stats were updated in global_user_stats.
+  time_t last_global_update_time;
+  // Busy (non-idle) time for just one command.
+  double busy_time;
+  // Busy time not updated in global_user_stats yet.
+  double diff_total_busy_time;
+  // Cpu (non-idle) time for just one thread.
+  double cpu_time;
+  // Cpu time not updated in global_user_stats yet.
+  double diff_total_cpu_time;
+  /* bytes counting */
+  ulonglong bytes_received;
+  ulonglong diff_total_bytes_received;
+  ulonglong bytes_sent;
+  ulonglong diff_total_bytes_sent;
+  ulonglong binlog_bytes_written;
+  ulonglong diff_total_binlog_bytes_written;
+
+  // Number of rows not reflected in global_user_stats yet.
+  ha_rows diff_total_sent_rows, diff_total_updated_rows, diff_total_read_rows;
+  // Number of commands not reflected in global_user_stats yet.
+  ulonglong diff_select_commands, diff_update_commands, diff_other_commands;
+  // Number of transactions not reflected in global_user_stats yet.
+  ulonglong diff_commit_trans, diff_rollback_trans;
+  // Number of connection errors not reflected in global_user_stats yet.
+  ulonglong diff_denied_connections, diff_lost_connections;
+  // Number of db access denied, not reflected in global_user_stats yet.
+  ulonglong diff_access_denied_errors;
+  // Number of queries that return 0 rows
+  ulonglong diff_empty_queries;
+
+  // Per account query delay in miliseconds. When not 0, sleep this number of
+  // milliseconds before every SQL command.
+  ulonglong query_delay_millis;
+
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -3265,6 +3322,16 @@ public:
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
+  }
+  void get_time(QUERY_START_TIME_INFO *time_info)
+  {
+    time_info->start_time= start_time;
+    time_info->start_utime= start_utime;
+  }
+  void set_time(QUERY_START_TIME_INFO *time_info)
+  {
+    start_time= time_info->start_time;
+    start_utime= time_info->start_utime;
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time()
@@ -4186,6 +4253,15 @@ public:
     return false;
   }
   thd_scheduler scheduler;
+
+  /* Returns string as 'IP:port' for the client-side
+     of the connnection represented
+     by 'client' as displayed by SHOW PROCESSLIST.
+     Allocates memory from the heap of
+     this THD and that is not reclaimed
+     immediately, so use sparingly. May return NULL.
+  */
+  char *get_client_host_port(THD *client);
 
 public:
   /**
@@ -5437,6 +5513,7 @@ public:
 
 class Query_dumpvar :public Query_result_interceptor {
   ha_rows row_count;
+  Item_func_set_user_var **set_var_items;
 public:
   List<PT_select_var> var_list;
   Query_dumpvar()  { var_list.empty(); row_count= 0;}

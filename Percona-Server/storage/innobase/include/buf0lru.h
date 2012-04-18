@@ -204,6 +204,18 @@ UNIV_INTERN
 void
 buf_LRU_stat_update(void);
 /*=====================*/
+/********************************************************************//**
+Dump the LRU page list to the specific file. */
+UNIV_INTERN
+ibool
+buf_LRU_file_dump(void);
+/*===================*/
+/********************************************************************//**
+Read the pages based on the specific file.*/
+UNIV_INTERN
+ibool
+buf_LRU_file_restore(void);
+/*======================*/
 
 /******************************************************************//**
 Remove one page from LRU list and put it to free list */

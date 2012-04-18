@@ -50,6 +50,7 @@ extern "C" {
 #include "trx0rseg.h" /* for trx_rseg_struct */
 #include "trx0sys.h" /* for trx_sys */
 #include "dict0dict.h" /* for dict_sys */
+#include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
 }
 
 #define OK(expr)		\
@@ -4334,6 +4335,36 @@ nomatch:
 
 		field_store_string(i_s_table->field[0],
 			"Hello!");
+		goto end_func;
+	}
+	else if (!strncasecmp("XTRA_LRU_DUMP", ptr, 13)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Administrative command 'XTRA_LRU_DUMP'"
+				" was detected.\n");
+
+		if (buf_LRU_file_dump()) {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_DUMP was succeeded.");
+		} else {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_DUMP was failed.");
+		}
+
+		goto end_func;
+	}
+	else if (!strncasecmp("XTRA_LRU_RESTORE", ptr, 16)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Administrative command 'XTRA_LRU_RESTORE'"
+				" was detected.\n");
+
+		if (buf_LRU_file_restore()) {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_RESTORE was succeeded.");
+		} else {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_RESTORE was failed.");
+		}
+
 		goto end_func;
 	}
 

@@ -2812,7 +2812,7 @@
  } /* heap_update */
 --- /dev/null
 +++ b/mysql-test/r/percona_heap_blob.result
-@@ -0,0 +1,952 @@
+@@ -0,0 +1,956 @@
 +SET @old_default_storage_engine=@@default_storage_engine;
 +SET default_storage_engine=MEMORY;
 +drop table if exists t1,t2,t3,t4,t5,t6,t7;
@@ -2884,7 +2884,7 @@
 +a
 +Where
 +drop table t1;
-+create table t1 (t text,c char(10),b blob, d varbinary(10));
++create table t1 (t text,c char(10),b blob, d varbinary(10)) collate latin1_general_cs;
 +insert into t1 values (NULL,NULL,NULL,NULL);
 +insert into t1 values ("","","","");
 +insert into t1 values ("hello","hello","hello","hello");
@@ -2897,26 +2897,24 @@
 +lock tables t1 READ;
 +show full fields from t1;
 +Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-+t	text	latin1_swedish_ci	YES		NULL		#	
-+c	char(10)	latin1_swedish_ci	YES		NULL		#	
++t	text	latin1_general_cs	YES		NULL		#	
++c	char(10)	latin1_general_cs	YES		NULL		#	
 +b	blob	NULL	YES		NULL		#	
 +d	varbinary(10)	NULL	YES		NULL		#	
 +lock tables t1 WRITE;
 +show full fields from t1;
 +Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-+t	text	latin1_swedish_ci	YES		NULL		#	
-+c	char(10)	latin1_swedish_ci	YES		NULL		#	
++t	text	latin1_general_cs	YES		NULL		#	
++c	char(10)	latin1_general_cs	YES		NULL		#	
 +b	blob	NULL	YES		NULL		#	
 +d	varbinary(10)	NULL	YES		NULL		#	
 +unlock tables;
 +select t from t1 where t like "hello";
 +t
 +hello
-+HELLO
 +select c from t1 where c like "hello";
 +c
 +hello
-+HELLO
 +select b from t1 where b like "hello";
 +b
 +hello
@@ -2926,18 +2924,15 @@
 +select c from t1 having c like "hello";
 +c
 +hello
-+HELLO
 +select d from t1 having d like "hello";
 +d
 +hello
 +select t from t1 where t like "%HELLO%";
 +t
-+hello
 +HELLO
 +HELLO MY
 +select c from t1 where c like "%HELLO%";
 +c
-+hello
 +HELLO
 +HELLO MY
 +select b from t1 where b like "%HELLO%";
@@ -2950,7 +2945,6 @@
 +HELLO MY
 +select c from t1 having c like "%HELLO%";
 +c
-+hello
 +HELLO
 +HELLO MY
 +select d from t1 having d like "%HELLO%";
@@ -2968,9 +2962,9 @@
 +
 +1
 +a
-+hello
 +HELLO
 +HELLO MY
++hello
 +select c from t1 order by c;
 +c
 +NULL
@@ -2978,9 +2972,9 @@
 +
 +
 +a
-+hello
 +HELLO
 +HELLO MY
++hello
 +select b from t1 order by b;
 +b
 +NULL
@@ -3006,6 +3000,7 @@
 +NULL
 +
 +hello
++HELLO
 +HELLO MY
 +a
 +1
@@ -3023,8 +3018,9 @@
 +
 +1
 +a
-+hello
++HELLO
 +HELLO MY
++hello
 +select distinct b from t1 order by b;
 +b
 +NULL
@@ -3039,8 +3035,9 @@
 +
 +1
 +a
-+hello
++HELLO
 +HELLO MY
++hello
 +select b from t1 group by b;
 +b
 +NULL
@@ -3055,6 +3052,7 @@
 +NULL
 +
 +hello
++HELLO
 +HELLO MY
 +a
 +1
@@ -3072,8 +3070,9 @@
 +
 +1
 +a
-+hello
++HELLO
 +HELLO MY
++hello
 +select distinct b from t1 order by b;
 +b
 +NULL
@@ -3087,6 +3086,7 @@
 +NULL
 +
 +hello
++HELLO
 +HELLO MY
 +a
 +select distinct d from t1;
@@ -3103,8 +3103,9 @@
 +NULL
 +
 +a
-+hello
++HELLO
 +HELLO MY
++hello
 +select distinct d from t1 order by d;
 +d
 +NULL
@@ -3119,8 +3120,9 @@
 +NULL
 +
 +a
-+hello
++HELLO
 +HELLO MY
++hello
 +select d from t1 group by d;
 +d
 +NULL
@@ -3146,8 +3148,9 @@
 +	1
 +1	1
 +a	1
-+hello	2
++HELLO	1
 +HELLO MY	1
++hello	1
 +select b,count(*) from t1 group by b;
 +b	count(*)
 +NULL	3
@@ -3161,8 +3164,9 @@
 +NULL	2
 +	2
 +a	1
-+hello	2
++HELLO	1
 +HELLO MY	1
++hello	1
 +select d,count(*) from t1 group by d;
 +d	count(*)
 +NULL	2
@@ -4369,7 +4373,7 @@
 +#
 +# test of blob, text, char and varbinary
 +#
-+create table t1 (t text,c char(10),b blob, d varbinary(10));
++create table t1 (t text,c char(10),b blob, d varbinary(10)) collate latin1_general_cs;
 +insert into t1 values (NULL,NULL,NULL,NULL);
 +insert into t1 values ("","","","");
 +insert into t1 values ("hello","hello","hello","hello");

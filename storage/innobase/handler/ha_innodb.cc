@@ -2393,6 +2393,19 @@ ha_innobase::update_thd()
 	update_thd(thd);
 }
 
+trx_t*
+innobase_get_trx()
+{
+	THD*	thd = current_thd;
+
+	if (thd != NULL) {
+		trx_t*& trx = thd_to_trx(thd);
+		return(trx);
+	}
+
+	return(NULL);
+}
+
 ibool
 innobase_get_slow_log()
 {

@@ -53,7 +53,42 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "buf0checksum.h"
+#include "trx0trx.h"
 #include "srv0start.h"
+
+/* prototypes for new functions added to ha_innodb.cc */
+trx_t* innobase_get_trx();
+
+static inline
+void
+_increment_page_get_statistics(buf_block_t* block, trx_t* trx)
+{
+	ulint           block_hash;
+	ulint           block_hash_byte;
+	byte            block_hash_offset;
+
+	ut_ad(block);
+	ut_ad(trx && trx->take_stats);
+
+	if (!trx->distinct_page_access_hash) {
+		trx->distinct_page_access_hash
+			= static_cast<byte *>(mem_alloc(DPAH_SIZE));
+		memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+	}
+
+	block_hash = ut_hash_ulint((block->page.space << 20) + block->page.space +
+					block->page.offset, DPAH_SIZE << 3);
+	block_hash_byte = block_hash >> 3;
+	block_hash_offset = (byte) block_hash & 0x07;
+	if (block_hash_byte >= DPAH_SIZE)
+		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
+	if (block_hash_offset > 7)
+		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
+	if ((trx->distinct_page_access_hash[block_hash_byte] & ((byte) 0x01 << block_hash_offset)) == 0)
+		trx->distinct_page_access++;
+	trx->distinct_page_access_hash[block_hash_byte] |= (byte) 0x01 << block_hash_offset;
+	return;
+}
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -1099,21 +1134,24 @@ buf_chunk_init(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_chunk_t*	chunk,		/*!< out: chunk of buffers */
-	ulint		mem_size)	/*!< in: requested size in bytes */
+	ulint		mem_size,	/*!< in: requested size in bytes */
+	ibool		populate)	/*!< in: virtual page preallocation */
 {
 	buf_block_t*	block;
 	byte*		frame;
 	ulint		i;
+	ulint		size_target;
 
 	/* Round down to a multiple of page size,
 	although it already should be. */
 	mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
+	size_target = (mem_size / UNIV_PAGE_SIZE) - 1;
 	/* Reserve space for the block descriptors. */
 	mem_size += ut_2pow_round((mem_size / UNIV_PAGE_SIZE) * (sizeof *block)
 				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
 
 	chunk->mem_size = mem_size;
-	chunk->mem = os_mem_alloc_large(&chunk->mem_size, FALSE);
+	chunk->mem = os_mem_alloc_large(&chunk->mem_size, populate);
 
 	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 
@@ -1143,6 +1181,10 @@ buf_chunk_init(
 		}
 
 		chunk->size = size;
+	}
+
+	if (chunk->size > size_target) {
+		chunk->size = size_target;
 	}
 
 	/* Init block structs and assign frames for them. Then we
@@ -1265,6 +1307,12 @@ buf_chunk_not_freed(
 			ready = buf_flush_ready_for_replace(&block->page);
 			mutex_exit(&block->mutex);
 
+			if (UNIV_UNLIKELY(block->page.is_corrupt)) {
+				/* corrupt page may remain, it can be
+				skipped */
+				break;
+			}
+
 			if (!ready) {
 
 				return(block);
@@ -1311,6 +1359,7 @@ buf_pool_init_instance(
 /*===================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint		buf_pool_size,	/*!< in: size in bytes */
+	ibool		populate,	/*!< in: virtual page preallocation */
 	ulint		instance_no)	/*!< in: id of the instance */
 {
 	ulint		i;
@@ -1333,7 +1382,7 @@ buf_pool_init_instance(
 
 		UT_LIST_INIT(buf_pool->free);
 
-		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size)) {
+		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size, populate)) {
 			mem_free(chunk);
 			mem_free(buf_pool);
 
@@ -1441,6 +1490,7 @@ dberr_t
 buf_pool_init(
 /*==========*/
 	ulint	total_size,	/*!< in: size of the total pool in bytes */
+	ibool	populate,	/*!< in: virtual page preallocation */
 	ulint	n_instances)	/*!< in: number of instances */
 {
 	ulint		i;
@@ -1456,7 +1506,7 @@ buf_pool_init(
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
 
-		if (buf_pool_init_instance(ptr, size, i) != DB_SUCCESS) {
+		if (buf_pool_init_instance(ptr, size, populate, i) != DB_SUCCESS) {
 
 			/* Free all the instances created so far. */
 			buf_pool_free(i);
@@ -2080,8 +2130,16 @@ buf_page_get_zip(
 	rw_lock_t*	hash_lock;
 	ibool		discard_attempted = FALSE;
 	ibool		must_read;
+	trx_t*		trx = NULL;
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	start_time;
+	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
+	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
+		trx = innobase_get_trx();
+	}
 	buf_pool->stat.n_page_gets++;
 
 	for (;;) {
@@ -2099,7 +2157,7 @@ lookup:
 		/* Page not in buf_pool: needs to be read from file */
 
 		ut_ad(!hash_lock);
-		buf_read_page(space, zip_size, offset, NULL);
+		buf_read_page(space, zip_size, offset, trx);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(++buf_dbg_counter % 5771 || buf_validate());
@@ -2112,6 +2170,13 @@ lookup:
 		/* There is no compressed page. */
 err_exit:
 		rw_lock_s_unlock(hash_lock);
+		return(NULL);
+	}
+
+	if (UNIV_UNLIKELY(bpage->is_corrupt && srv_pass_corrupt_table <= 1)) {
+
+		rw_lock_s_unlock(hash_lock);
+
 		return(NULL);
 	}
 
@@ -2179,6 +2244,13 @@ got_block:
 		/* Let us wait until the read operation
 		completes */
 
+		if (UNIV_UNLIKELY(trx && trx->take_stats))
+		{
+			ut_usectime(&sec, &ms);
+			start_time = (ib_uint64_t)sec * 1000000 + ms;
+		} else {
+			start_time = 0;
+		}
 		for (;;) {
 			enum buf_io_fix	io_fix;
 
@@ -2192,6 +2264,12 @@ got_block:
 			} else {
 				break;
 			}
+		}
+		if (UNIV_UNLIKELY(start_time != 0))
+		{
+			ut_usectime(&sec, &ms);
+			finish_time = (ib_uint64_t)sec * 1000000 + ms;
+			trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
 		}
 	}
 
@@ -2564,13 +2642,18 @@ buf_page_get_gen(
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
 	buf_block_t*	block;
+	buf_block_t*	fix_block;
+	ib_mutex_t*	fix_mutex = NULL;
 	ulint		fold;
 	unsigned	access_time;
 	ulint		fix_type;
 	rw_lock_t*	hash_lock;
 	ulint		retries = 0;
-	buf_block_t*	fix_block;
-	ib_mutex_t*	fix_mutex = NULL;
+	trx_t*		trx = NULL;
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	start_time;
+	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
 	ut_ad(mtr);
@@ -2600,6 +2683,9 @@ buf_page_get_gen(
 	      || ibuf_page_low(space, zip_size, offset,
 			       FALSE, file, line, NULL));
 #endif
+	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
+		trx = innobase_get_trx();
+	}
 	buf_pool->stat.n_page_gets++;
 	fold = buf_page_address_fold(space, offset);
 	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
@@ -2670,9 +2756,9 @@ loop:
 			return(NULL);
 		}
 
-		if (buf_read_page(space, zip_size, offset, NULL)) {
+		if (buf_read_page(space, zip_size, offset, trx)) {
 			buf_read_ahead_random(space, zip_size, offset,
-					      ibuf_inside(mtr), NULL);
+					      ibuf_inside(mtr), trx);
 
 			retries = 0;
 		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
@@ -2746,7 +2832,15 @@ got_block:
 		}
 	}
 
-	switch(buf_block_get_state(fix_block)) {
+	if (UNIV_UNLIKELY(fix_block->page.is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
+
+		buf_block_unfix(fix_block);
+
+		return(NULL);
+	}
+
+	switch (buf_block_get_state(block)) {
 		buf_page_t*	bpage;
 
 	case BUF_BLOCK_FILE_PAGE:
@@ -3088,7 +3182,7 @@ got_block:
 		read-ahead */
 
 		buf_read_ahead_linear(
-			space, zip_size, offset, ibuf_inside(mtr), NULL);
+			space, zip_size, offset, ibuf_inside(mtr), trx);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3099,6 +3193,11 @@ got_block:
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
+
+	if (UNIV_UNLIKELY(trx && trx->take_stats)) {
+		_increment_page_get_statistics(block, trx);
+	}
+
 	return(fix_block);
 }
 
@@ -3121,6 +3220,7 @@ buf_page_optimistic_get(
 	unsigned	access_time;
 	ibool		success;
 	ulint		fix_type;
+	trx_t*		trx = NULL;
 
 	ut_ad(block);
 	ut_ad(mtr);
@@ -3194,6 +3294,9 @@ buf_page_optimistic_get(
 	ut_a(!block->page.file_page_was_freed);
 	mutex_exit(&block->mutex);
 #endif
+	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
+		trx = innobase_get_trx();
+	}
 
 	if (!access_time) {
 		/* In the case of a first access, try to apply linear
@@ -3202,7 +3305,7 @@ buf_page_optimistic_get(
 		buf_read_ahead_linear(buf_block_get_space(block),
 				      buf_block_get_zip_size(block),
 				      buf_block_get_page_no(block),
-				      ibuf_inside(mtr), NULL);
+				      ibuf_inside(mtr), trx);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3212,6 +3315,9 @@ buf_page_optimistic_get(
 	buf_pool = buf_pool_from_block(block);
 	buf_pool->stat.n_page_gets++;
 
+	if (UNIV_UNLIKELY(trx && trx->take_stats)) {
+		_increment_page_get_statistics(block, trx);
+	}
 	return(TRUE);
 }
 
@@ -3234,6 +3340,7 @@ buf_page_get_known_nowait(
 	buf_pool_t*	buf_pool;
 	ibool		success;
 	ulint		fix_type;
+	trx_t*		trx = NULL;
 
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -3314,6 +3421,15 @@ buf_page_get_known_nowait(
 				buf_block_get_page_no(block)) == 0));
 #endif
 	buf_pool->stat.n_page_gets++;
+
+	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
+
+		trx = innobase_get_trx();
+		if (trx != NULL && trx->take_stats) {
+
+			_increment_page_get_statistics(block, trx);
+		}
+	}
 
 	return(TRUE);
 }
@@ -3424,6 +3540,7 @@ buf_page_init_low(
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
 	HASH_INVALIDATE(bpage, hash);
+	bpage->is_corrupt = FALSE;
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	bpage->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
@@ -4186,6 +4303,8 @@ buf_page_io_complete(
 				(ulong) bpage->offset);
 		}
 
+		if (UNIV_LIKELY(!bpage->is_corrupt ||
+				!srv_pass_corrupt_table)) {
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
@@ -4240,6 +4359,23 @@ corrupt:
 			      REFMAN "forcing-innodb-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
+			if (srv_pass_corrupt_table && bpage->space != 0
+			    && bpage->space < SRV_LOG_SPACE_FIRST_ID) {
+				trx_t*	trx;
+
+				fprintf(stderr,
+					"InnoDB: space %u will be treated as corrupt.\n",
+					bpage->space);
+				fil_space_set_corrupt(bpage->space);
+
+				trx = innobase_get_trx();
+				if (trx && trx->dict_operation_lock_mode == RW_X_LATCH) {
+					dict_table_set_corrupt_by_space(bpage->space, FALSE);
+				} else {
+					dict_table_set_corrupt_by_space(bpage->space, TRUE);
+				}
+				bpage->is_corrupt = TRUE;
+			} else
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				/* If page space id is larger than TRX_SYS_SPACE
 				(0), we will attempt to mark the corresponding
@@ -4257,6 +4393,7 @@ corrupt:
 				}
 			}
 		}
+		} /**/
 
 		DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
 				page_not_corrupt:  bpage = bpage; );
@@ -4285,9 +4422,9 @@ corrupt:
 			}
 
 			ibuf_merge_or_delete_for_page(
-				(buf_block_t*) bpage, bpage->space,
+				block, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),
-				TRUE);
+				update_ibuf_bitmap);
 		}
 	}
 
@@ -5241,7 +5378,7 @@ buf_print_io_instance(
 
 	fprintf(file,
 		"Buffer pool size        %lu\n"
-		"Buffer pool size, bytes %lu\n"
+		"Buffer pool size, bytes " ULINTPF "\n"
 		"Free buffers            %lu\n"
 		"Database pages          %lu\n"
 		"Old database pages      %lu\n"

@@ -182,6 +182,7 @@ static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
+static my_bool	innobase_recovery_stats			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_overwrite_relay_log_info	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
@@ -2609,6 +2610,8 @@ innobase_change_buffering_inited_ok:
 	srv_adaptive_flushing_method %= 3;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
+
+	srv_recovery_stats = (ibool) innobase_recovery_stats;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
@@ -11475,6 +11478,11 @@ static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   "The common part for InnoDB table spaces.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_BOOL(recovery_stats, innobase_recovery_stats,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Output statistics of recovery process after it.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(recovery_update_relay_log, innobase_overwrite_relay_log_info,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "During InnoDB crash recovery on slave overwrite relay-log.info "
@@ -12002,6 +12010,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(recovery_stats),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),

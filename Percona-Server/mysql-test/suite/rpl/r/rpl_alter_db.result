@@ -1,0 +1,9 @@
+include/master-slave.inc
+[connection master]
+==== Verify that alter database does not stop replication ====
+create database temp_db;
+use temp_db;
+alter database collate latin1_bin;
+==== Clean up ====
+drop database temp_db;
+include/rpl_end.inc

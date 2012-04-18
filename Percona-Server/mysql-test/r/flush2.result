@@ -1,0 +1,12 @@
+flush logs;
+set global expire_logs_days = 3;
+show variables like 'log_bin%';
+Variable_name	Value
+log_bin	OFF
+log_bin_trust_function_creators	ON
+flush logs;
+show variables like 'log_bin%';
+Variable_name	Value
+log_bin	OFF
+log_bin_trust_function_creators	ON
+set global expire_logs_days = 0;

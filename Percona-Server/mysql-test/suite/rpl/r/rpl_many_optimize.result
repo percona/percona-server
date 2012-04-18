@@ -1,0 +1,6 @@
+include/master-slave.inc
+[connection master]
+create table t1 (a int not null auto_increment primary key, b int, key(b));
+INSERT INTO t1 (a) VALUES (1),(2);
+drop table t1;
+include/rpl_end.inc

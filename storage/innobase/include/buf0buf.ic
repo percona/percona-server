@@ -45,6 +45,9 @@ struct buf_chunk_t{
 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
 };
 
+
+#include "srv0srv.h"
+
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return size in bytes */
@@ -663,7 +666,7 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 {
-	ut_ad(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return(0););
 
 	switch (buf_block_get_state(block)) {
 	case BUF_BLOCK_POOL_WATCH:

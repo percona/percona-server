@@ -740,10 +740,10 @@ buf_page_print(
 	const byte*	read_buf,	/*!< in: a database page */
 	ulint		zip_size,	/*!< in: compressed page size, or
 					0 for uncompressed pages */
-	ulint		flags)		/*!< in: 0 or
+	ulint		flags);		/*!< in: 0 or
 					BUF_PAGE_PRINT_NO_CRASH or
 					BUF_PAGE_PRINT_NO_FULL */
-	UNIV_COLD __attribute__((nonnull));
+
 /********************************************************************//**
 Decompress a block.
 @return	TRUE if successful */
@@ -1065,7 +1065,7 @@ buf_block_get_frame(
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
 #else /* UNIV_DEBUG */
-# define buf_block_get_frame(block) (block)->frame
+# define buf_block_get_frame(block) (block ? (block)->frame : 0)
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets the space id of a block.
@@ -1606,6 +1606,7 @@ struct buf_page_t{
 					0 if the block was never accessed
 					in the buffer pool. Protected by
 					block mutex */
+	ibool		is_corrupt;
 # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when
@@ -1850,6 +1851,9 @@ struct buf_pool_t{
 	ulint		n_chunks;	/*!< number of buffer pool chunks */
 	buf_chunk_t*	chunks;		/*!< buffer pool chunks */
 	ulint		curr_size;	/*!< current pool size in pages */
+	ulint		read_ahead_area;/*!< size in pages of the area which
+					the read-ahead algorithms read if
+					invoked */
 	hash_table_t*	page_hash;	/*!< hash table of buf_page_t or
 					buf_block_t file pages,
 					buf_page_in_file() == TRUE,

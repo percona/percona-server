@@ -1,0 +1,47 @@
+# Tests for innodb_corrupt_table_action variable
+
+--source include/have_innodb.inc
+
+SET @saved_val = @@global.innodb_corrupt_table_action;
+
+# Valid values
+SELECT @@global.innodb_corrupt_table_action IN ('assert', 'warn', 'salvage');
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_corrupt_table_action;
+
+# Test its writability
+SET GLOBAL innodb_corrupt_table_action='assert';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+
+SET GLOBAL innodb_corrupt_table_action='warn';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+
+SET GLOBAL innodb_corrupt_table_action='salvage';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+
+# Cannot set it for session
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION innodb_corrupt_table_action='warn';
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_corrupt_table_action='salvage';
+
+# Incorrect types and values
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_corrupt_table_action=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_corrupt_table_action=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_corrupt_table_action='foo';
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_corrupt_table_action=-2;
+
+# Cleanup
+SET @@global.innodb_corrupt_table_action = @saved_val;

@@ -28,6 +28,9 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0mem_h
 
 #include "univ.i"
+
+#ifndef UNIV_INNOCHECKSUM
+
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -108,6 +111,8 @@ are described in fsp0fsp.h. */
 the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
 #define DICT_N_COLS_COMPACT	0x80000000UL
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 /** Width of the COMPACT flag */
 #define DICT_TF_WIDTH_COMPACT		1
 /** Width of the ZIP_SSIZE flag */
@@ -185,6 +190,8 @@ allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_GET_UNUSED(flags)			\
 		(flags >> DICT_TF_POS_UNUSED)
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** @brief Table Flags set number 2.
 
@@ -1325,5 +1332,7 @@ dict_table_autoinc_own(
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
 #endif
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

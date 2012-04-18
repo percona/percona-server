@@ -1028,4 +1028,11 @@ ulint
 fil_system_hash_nodes(void);
 /*========================*/
 
+/*************************************************************************
+Set the is_corrupt flag of fil_space_t. */
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id);
+
 #endif /* fil0fil_h */

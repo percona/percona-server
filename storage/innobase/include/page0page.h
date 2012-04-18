@@ -28,6 +28,10 @@ Created 2/2/1994 Heikki Tuuri
 
 #include "univ.i"
 
+#include "buf0types.h"
+
+#ifndef UNIV_INNOCHECKSUM
+
 #include "page0types.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
@@ -524,7 +528,7 @@ bool
 page_is_leaf(
 /*=========*/
 	const page_t*	page)	/*!< in: page */
-	__attribute__((nonnull, pure));
+	__attribute__((pure));
 /************************************************************//**
 Determine whether the page is empty.
 @return	true if the page is empty (PAGE_N_RECS = 0) */
@@ -1111,6 +1115,8 @@ const rec_t*
 page_find_rec_max_not_deleted(
 	const page_t*	page);
 
+#endif /* #ifndef UNIV_INNOCHECKSUM */
+
 /** Issue a warning when the checksum that is stored in the page is valid,
 but different than the global setting innodb_checksum_algorithm.
 @param[in]	current_algo	current checksum algorithm
@@ -1124,6 +1130,8 @@ page_warn_strict_checksum(
 	ulint				space_id,
 	ulint				page_no);
 
+#ifndef UNIV_INNOCHECKSUM
+
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL
@@ -1132,5 +1140,7 @@ page_warn_strict_checksum(
 #ifndef UNIV_NONINL
 #include "page0page.ic"
 #endif
+
+#endif /* #ifndef UNIV_INNOCHECKSUM */
 
 #endif

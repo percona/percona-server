@@ -2846,9 +2846,16 @@ files_checked:
 
 	os_fast_mutex_free(&srv_os_test_mutex);
 
+	if (!srv_file_per_table && srv_pass_corrupt_table) {
+		fprintf(stderr, "InnoDB: Warning:"
+			" The option innodb_file_per_table is disabled,"
+			" so using the option innodb_pass_corrupt_table doesn't make sense.\n");
+	}
+
 	if (srv_print_verbose_log) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"%s started; log sequence number " LSN_PF "",
+			" Percona XtraDB (http://www.percona.com) %s started; "
+			"log sequence number " LSN_PF "",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 

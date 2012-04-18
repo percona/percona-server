@@ -57,6 +57,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "read0read.h"
 #include "buf0lru.h"
 #include "ha_prototypes.h"
+#include "srv0start.h"
 #include "m_string.h" /* for my_sys.h */
 #include "my_sys.h" /* DEBUG_SYNC_C */
 
@@ -4186,6 +4187,13 @@ rec_loop:
 	/* PHASE 4: Look for matching records in a loop */
 
 	rec = btr_pcur_get_rec(pcur);
+
+	SRV_CORRUPT_TABLE_CHECK(rec,
+	{
+		err = DB_CORRUPTION;
+		goto lock_wait_or_error;
+	});
+
 	ut_ad(!!page_rec_is_comp(rec) == comp);
 #ifdef UNIV_SEARCH_DEBUG
 	/*
@@ -4265,7 +4273,14 @@ rec_loop:
 	if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
 
 wrong_offs:
-		if (srv_force_recovery == 0 || moves_up == FALSE) {
+		if (srv_pass_corrupt_table && index->table->space != 0 &&
+		    index->table->space < SRV_LOG_SPACE_FIRST_ID) {
+			index->table->is_corrupt = TRUE;
+			fil_space_set_corrupt(index->table->space);
+		}
+
+		if ((srv_force_recovery == 0 || moves_up == FALSE)
+		    && srv_pass_corrupt_table <= 1) {
 			ut_print_timestamp(stderr);
 			buf_page_print(page_align(rec), 0,
 				       BUF_PAGE_PRINT_NO_CRASH);
@@ -4320,7 +4335,9 @@ wrong_offs:
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
+	if (UNIV_UNLIKELY(srv_force_recovery > 0
+			  || (index->table->is_corrupt &&
+			      srv_pass_corrupt_table == 2))) {
 		if (!rec_validate(rec, offsets)
 		    || !btr_index_rec_validate(rec, index, FALSE)) {
 			fprintf(stderr,

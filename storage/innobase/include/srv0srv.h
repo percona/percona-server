@@ -359,7 +359,29 @@ extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
 
 extern ulong	srv_replication_delay;
+
+extern ulint	srv_pass_corrupt_table;
+
+/* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is FALSE,
+execute 'code' if srv_pass_corrupt_table is non-zero, or trigger a fatal error
+otherwise. The break statement in 'code' will obviously not work as
+expected. */
+
+#define SRV_CORRUPT_TABLE_CHECK(cond,code)		\
+	do {						\
+		if (UNIV_UNLIKELY(!(cond))) {		\
+			if (srv_pass_corrupt_table) {	\
+				code			\
+			} else {			\
+				ut_error;		\
+			}				\
+		}					\
+	} while(0)
+
 /*-------------------------------------------*/
+
+extern ulint	srv_read_views_memory;
+extern ulint	srv_descriptors_memory;
 
 extern my_bool	srv_print_innodb_monitor;
 extern my_bool	srv_print_innodb_lock_monitor;

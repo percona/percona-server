@@ -53,6 +53,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "buf0checksum.h"
+#include "srv0start.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -789,6 +790,13 @@ buf_page_print(
 	dict_index_t*	index;
 #endif /* !UNIV_HOTBACKUP */
 	ulint		size = zip_size;
+
+	if (!read_buf) {
+		fprintf(stderr,
+			" InnoDB: Not dumping page as (in memory) pointer "
+			"is NULL\n");
+		return;
+	}
 
 	if (!size) {
 		size = UNIV_PAGE_SIZE;
@@ -4260,6 +4268,22 @@ corrupt:
 		}
 
 		if (uncompressed && !recv_no_ibuf_operations) {
+
+			buf_block_t*	block;
+			ibool		update_ibuf_bitmap;
+
+			if (UNIV_UNLIKELY(bpage->is_corrupt &&
+					  srv_pass_corrupt_table)) {
+
+				block = NULL;
+				update_ibuf_bitmap = FALSE;
+
+			} else {
+
+				block = (buf_block_t *) bpage;
+				update_ibuf_bitmap = TRUE;
+			}
+
 			ibuf_merge_or_delete_for_page(
 				(buf_block_t*) bpage, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),

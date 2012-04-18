@@ -243,8 +243,8 @@ not_to_recover:
 			buf_read_page_handle_error(bpage);
 			return(0);
 		}
-		/* else */
-		ut_error;
+		SRV_CORRUPT_TABLE_CHECK(*err == DB_SUCCESS,
+					bpage->is_corrupt = TRUE;);
 	}
 
 	if (sync) {

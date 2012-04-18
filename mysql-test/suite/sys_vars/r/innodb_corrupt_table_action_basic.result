@@ -1,0 +1,49 @@
+SET @saved_val = @@global.innodb_corrupt_table_action;
+SELECT @@global.innodb_corrupt_table_action IN ('assert', 'warn', 'salvage');
+@@global.innodb_corrupt_table_action IN ('assert', 'warn', 'salvage')
+1
+SELECT @@session.innodb_corrupt_table_action;
+ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable
+SET GLOBAL innodb_corrupt_table_action='assert';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+@@GLOBAL.innodb_corrupt_table_action
+assert
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	assert
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	assert
+SET GLOBAL innodb_corrupt_table_action='warn';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+@@GLOBAL.innodb_corrupt_table_action
+warn
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	warn
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	warn
+SET GLOBAL innodb_corrupt_table_action='salvage';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+@@GLOBAL.innodb_corrupt_table_action
+salvage
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	salvage
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	salvage
+SET SESSION innodb_corrupt_table_action='warn';
+ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.innodb_corrupt_table_action='salvage';
+ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable and should be set with SET GLOBAL
+SET global innodb_corrupt_table_action=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_corrupt_table_action'
+SET global innodb_corrupt_table_action=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_corrupt_table_action'
+SET global innodb_corrupt_table_action='foo';
+ERROR 42000: Variable 'innodb_corrupt_table_action' can't be set to the value of 'foo'
+SET global innodb_corrupt_table_action=-2;
+ERROR 42000: Variable 'innodb_corrupt_table_action' can't be set to the value of '-2'
+SET @@global.innodb_corrupt_table_action = @saved_val;

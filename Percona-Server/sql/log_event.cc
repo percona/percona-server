@@ -2385,6 +2385,14 @@ bool Query_log_event::write(IO_CACHE* file)
       start+= host.length;
     }
   }
+#ifndef DBUG_OFF
+  if (thd && thd->variables.query_exec_time > 0)
+  {
+    *start++= Q_QUERY_EXEC_TIME;
+    int8store(start, thd->variables.query_exec_time);
+    start+= 8;
+  }
+#endif
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
@@ -2871,6 +2879,17 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       data_written= master_data_written= uint4korr(pos);
       pos+= 4;
       break;
+#if !defined(DBUG_OFF) && !defined(MYSQL_CLIENT)
+    case Q_QUERY_EXEC_TIME:
+    {
+      THD *thd= current_thd;
+      CHECK_SPACE(pos, end, 8);
+      if (thd)
+        thd->variables.query_exec_time= uint8korr(pos);
+      pos+= 8;
+      break;
+    }
+#endif
     case Q_INVOKER:
     {
       CHECK_SPACE(pos, end, 1);

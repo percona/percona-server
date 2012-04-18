@@ -1045,6 +1045,36 @@ static Sys_var_double Sys_long_query_time(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_long_query_time));
 
+#ifndef DBUG_OFF
+static bool update_cached_query_exec_time(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  if (type == OPT_SESSION)
+    thd->variables.query_exec_time=
+      double2ulonglong(thd->variables.query_exec_time_double * 1e6);
+  else
+    global_system_variables.query_exec_time=
+      double2ulonglong(global_system_variables.query_exec_time_double * 1e6);
+  return false;
+}
+
+static Sys_var_double Sys_query_exec_time(
+       "query_exec_time",
+       "Pretend queries take this many seconds. When 0 (the default) use the "
+       "actual execution time. Used only for debugging.",
+       SESSION_VAR(query_exec_time_double),
+       NO_CMD_LINE, VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0),
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_cached_query_exec_time));
+static Sys_var_ulong sys_query_exec_id(
+       "query_exec_id",
+       "Pretend queries take this query id. When 0 (the default) use the"
+       "actual query id. Used only for debugging.",
+       SESSION_VAR(query_exec_id),
+       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, IN_BINLOG);
+#endif
+
 static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type == OPT_SESSION)
@@ -2977,6 +3007,134 @@ static Sys_var_mybool Sys_slow_query_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_log_state));
 
+const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
+                                      "tmp_table", "tmp_table_on_disk", "filesort", "filesort_on_disk", 0};
+static Sys_var_set Sys_log_slow_filter(
+       "log_slow_filter",
+       "Log only the queries that followed certain execution plan. "
+       "Multiple flags allowed in a comma-separated string. "
+       "[qc_miss, full_scan, full_join, tmp_table, tmp_table_on_disk, "
+       "filesort, filesort_on_disk]",
+       SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG),
+       log_slow_filter_name, DEFAULT(0));
+static Sys_var_ulong sys_log_slow_rate_limit(
+       "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
+       SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+const char* log_slow_verbosity_name[] = { 
+  "microtime", "query_plan", "innodb", 
+  "profiling", "profling_use_getrusage", 
+  "minimal", "standard", "full", 0
+};
+static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong what, ulonglong by)
+{
+  if((value & what) == what)
+  {
+    value = value & (~what);
+    value = value | by;
+  }
+  return value;
+}
+void update_log_slow_verbosity(ulonglong* value_ptr)
+{
+  ulonglong &value    = *value_ptr;
+  ulonglong microtime= ULL(1) << SLOG_V_MICROTIME;
+  ulonglong query_plan= ULL(1) << SLOG_V_QUERY_PLAN;
+  ulonglong innodb= ULL(1) << SLOG_V_INNODB;
+  ulonglong minimal= ULL(1) << SLOG_V_MINIMAL;
+  ulonglong standard= ULL(1) << SLOG_V_STANDARD;
+  ulonglong full= ULL(1) << SLOG_V_FULL;
+  value= update_log_slow_verbosity_replace(value,minimal,microtime);
+  value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
+  value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
+}
+static bool update_log_slow_verbosity_helper(sys_var */*self*/, THD *thd,
+                                          enum_var_type type)
+{
+  if(type == OPT_SESSION)
+  {
+    update_log_slow_verbosity(&(thd->variables.log_slow_verbosity));
+  }
+  else
+  {
+    update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
+  }
+  return false;
+}
+void init_slow_query_log_use_global_control()
+{
+  update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
+}
+static Sys_var_set Sys_log_slow_verbosity(
+        "log_slow_verbosity",
+        "Choose how verbose the messages to your slow log will be. "
+        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb, profiling, profiling_use_getrusage]",
+        SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
+        log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME),
+        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+        ON_UPDATE(update_log_slow_verbosity_helper));
+static Sys_var_mybool Sys_log_slow_slave_statements(
+       "log_slow_slave_statements",
+       "Log queries replayed be the slave SQL thread",
+       GLOBAL_VAR(opt_log_slow_slave_statements), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+static Sys_var_mybool Sys_log_slow_admin_statements(
+       "log_slow_admin_statements",
+       "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements"
+       " to the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_admin_statements), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+static Sys_var_mybool Sys_log_slow_sp_statements(
+       "log_slow_sp_statements",
+       "Log slow statements executed by stored procedure to the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_sp_statements), CMD_LINE(OPT_ARG),
+       DEFAULT(TRUE));
+static Sys_var_mybool Sys_slow_query_log_timestamp_always(
+       "slow_query_log_timestamp_always",
+       "Timestamp is printed for all records of the slow log even if they are same time.",
+       GLOBAL_VAR(opt_slow_query_log_timestamp_always), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+const char *slow_query_log_use_global_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
+static bool update_slow_query_log_use_global_control(sys_var */*self*/, THD */*thd*/,
+                                               enum_var_type /*type*/)
+{
+  if(opt_slow_query_log_use_global_control & (ULL(1) << SLOG_UG_ALL))
+  {
+    opt_slow_query_log_use_global_control=
+      SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY |
+      SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT;
+  }
+  return false;
+}
+void init_log_slow_verbosity()
+{
+  update_slow_query_log_use_global_control(0,0,OPT_GLOBAL);
+}
+static Sys_var_set Sys_slow_query_log_use_global_control(
+       "slow_query_log_use_global_control",
+       "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
+       GLOBAL_VAR(opt_slow_query_log_use_global_control), CMD_LINE(REQUIRED_ARG),
+       slow_query_log_use_global_control_name, DEFAULT(0),
+        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_slow_query_log_use_global_control));
+const char *slow_query_log_timestamp_precision_name[]= { "second", "microsecond", 0 };
+static Sys_var_enum Sys_slow_query_log_timestamp_precision(
+       "slow_query_log_timestamp_precision",
+       "Log slow statements executed by stored procedure to the slow log if it is open. [second, microsecond]",
+       GLOBAL_VAR(opt_slow_query_log_timestamp_precision), CMD_LINE(REQUIRED_ARG),
+       slow_query_log_timestamp_precision_name, DEFAULT(SLOG_SECOND));
+
+const char* slow_query_log_rate_name[]= {"session", "query", 0};
+static Sys_var_enum Sys_slow_query_log_rate_type(
+       "log_slow_rate_type",
+       "Choose the log_slow_rate_limit behavior: session or query. "
+       "When you choose 'session' - every %log_slow_rate_limit connection "
+       "will be processed to slow query log. "
+       "When you choose 'query' - every %log_slow_rate_limit query "
+       "will be processed to slow query log. "
+       "[session, query]",
+       GLOBAL_VAR(opt_slow_query_log_rate_type), CMD_LINE(REQUIRED_ARG),
+       slow_query_log_rate_name, DEFAULT(SLOG_RT_SESSION));
 /* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
 static Sys_var_mybool Sys_log_slow(
        "log_slow_queries",

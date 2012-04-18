@@ -250,15 +250,38 @@ The following options may be given as the first argument:
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
+ --log-slow-filter=name 
+ Log only the queries that followed certain execution
+ plan. Multiple flags allowed in a comma-separated string.
+ [qc_miss, full_scan, full_join, tmp_table,
+ tmp_table_on_disk, filesort, filesort_on_disk]
  --log-slow-queries[=name] 
  Log slow queries to a table or log file. Defaults logging
  to table mysql.slow_log or hostname-slow.log if
  --log-output=file is used. Must be enabled to activate
  other slow log options. Deprecated option, use
  --slow-query-log/--slow-query-log-file instead.
+ --log-slow-rate-limit=# 
+ Rate limit statement writes to slow log to only those
+ from every (1/log_slow_rate_limit) session.
+ --log-slow-rate-type=name 
+ Choose the log_slow_rate_limit behavior: session or
+ query. When you choose 'session' - every
+ %log_slow_rate_limit connection will be processed to slow
+ query log. When you choose 'query' - every
+ %log_slow_rate_limit query will be processed to slow
+ query log. [session, query]
  --log-slow-slave-statements 
- Log slow statements executed by slave thread to the slow
- log if it is open.
+ Log queries replayed be the slave SQL thread
+ --log-slow-sp-statements 
+ Log slow statements executed by stored procedure to the
+ slow log if it is open.
+ (Defaults to on; use --skip-log-slow-sp-statements to disable.)
+ --log-slow-verbosity=name 
+ Choose how verbose the messages to your slow log will be.
+ Multiple flags allowed in a comma-separated string.
+ [microtime, query_plan, innodb, profiling,
+ profiling_use_getrusage]
  --log-tc=name       Path to transaction coordinator log (used for
  transactions that affect more than one storage engine,
  when binary log is disabled).
@@ -662,6 +685,18 @@ The following options may be given as the first argument:
  Log slow queries to given log file. Defaults logging to
  hostname-slow.log. Must be enabled to activate other slow
  log options
+ --slow-query-log-timestamp-always 
+ Timestamp is printed for all records of the slow log even
+ if they are same time.
+ --slow-query-log-timestamp-precision=name 
+ Log slow statements executed by stored procedure to the
+ slow log if it is open. [second, microsecond]
+ --slow-query-log-use-global-control=name 
+ Choose flags, wich always use the global variables.
+ Multiple flags allowed in a comma-separated string.
+ [none, log_slow_filter, log_slow_rate_limit,
+ log_slow_verbosity, long_query_time,
+ min_examined_row_limit, all]
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -822,7 +857,12 @@ log-queries-not-using-indexes FALSE
 log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
+log-slow-filter 
+log-slow-rate-limit 1
+log-slow-rate-type session
 log-slow-slave-statements FALSE
+log-slow-sp-statements TRUE
+log-slow-verbosity 
 log-tc tc.log
 log-tc-size 24576
 log-warnings 1
@@ -939,6 +979,9 @@ slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
+slow-query-log-timestamp-always FALSE
+slow-query-log-timestamp-precision second
+slow-query-log-use-global-control 
 sort-buffer-size 2097152
 sporadic-binlog-dump-fail FALSE
 sql-mode 

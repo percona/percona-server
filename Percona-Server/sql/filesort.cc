@@ -193,6 +193,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     status_var_increment(thd->status_var.filesort_scan_count);
   }
+  thd->query_plan_flags|= QPLAN_FILESORT;
 #ifdef CAN_TRUST_RANGE
   if (select && select->quick && select->quick->records > 0L)
   {
@@ -261,6 +262,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     /* filesort cannot handle zero-length records during merge. */
     DBUG_ASSERT(param.sort_length != 0);
 
+    thd->query_plan_flags|= QPLAN_FILESORT_DISK;
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       my_free(table_sort.buffpek);
@@ -1209,6 +1211,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   DBUG_ENTER("merge_buffers");
 
   status_var_increment(current_thd->status_var.filesort_merge_passes);
+  current_thd->query_plan_fsort_passes++;
   if (param->not_killable)
   {
     killed= &not_killable;

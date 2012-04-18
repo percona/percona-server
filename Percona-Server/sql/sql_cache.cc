@@ -1780,6 +1780,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     response, we can't handle it anyway.
   */
   (void) trans_commit_stmt(thd);
+  thd->query_plan_flags|= QPLAN_QC;
   if (!thd->stmt_da->is_set())
     thd->stmt_da->disable_status();
 
@@ -1790,6 +1791,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 err_unlock:
   unlock();
 err:
+  thd->query_plan_flags|= QPLAN_QC_NO;
   MYSQL_QUERY_CACHE_MISS(thd->query());
   DBUG_RETURN(0);				// Query was not cached
 }

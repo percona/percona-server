@@ -425,6 +425,11 @@ my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
+my_bool opt_log_slow_sp_statements= 0;
+my_bool opt_slow_query_log_timestamp_always= 0;
+ulonglong opt_slow_query_log_use_global_control= 0;
+ulong opt_slow_query_log_timestamp_precision= 0;
+ulong opt_slow_query_log_rate_type= 0;
 my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
@@ -5758,14 +5763,10 @@ struct my_option my_long_options[]=
    "Don't log extra information to update and slow-query logs.",
    &opt_short_log_format, &opt_short_log_format,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-slow-admin-statements", 0,
-   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
-   "the slow log if it is open.", &opt_log_slow_admin_statements,
-   &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
- {"log-slow-slave-statements", 0,
+ /*{"log-slow-slave-statements", 0,
   "Log slow statements executed by slave thread to the slow log if it is open.",
   &opt_log_slow_slave_statements, &opt_log_slow_slave_statements,
-  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},*/
   {"log-slow-queries", OPT_SLOW_QUERY_LOG,
    "Log slow queries to a table or log file. Defaults logging to table "
    "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
@@ -7161,6 +7162,10 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 
 C_MODE_END
 
+/* defined in sys_vars.cc */
+extern void init_log_slow_verbosity();
+extern void init_slow_query_log_use_global_control();
+
 /**
   Get server options from the command line,
   and perform related server initializations.
@@ -7310,6 +7315,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.long_query_time= (ulonglong)
     (global_system_variables.long_query_time_double * 1e6);
 
+  init_log_slow_verbosity();
+  init_slow_query_log_use_global_control();
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
 

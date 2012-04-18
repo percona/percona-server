@@ -60,6 +60,36 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
+enum enum_slow_query_log_use_global_control {
+  SLOG_UG_LOG_SLOW_FILTER, SLOG_UG_LOG_SLOW_RATE_LIMIT
+  , SLOG_UG_LOG_SLOW_VERBOSITY, SLOG_UG_LONG_QUERY_TIME
+  , SLOG_UG_MIN_EXAMINED_ROW_LIMIT, SLOG_UG_ALL
+};
+enum enum_log_slow_verbosity { 
+  SLOG_V_MICROTIME, SLOG_V_QUERY_PLAN, SLOG_V_INNODB, 
+  SLOG_V_PROFILING, SLOG_V_PROFILING_USE_GETRUSAGE,
+  SLOG_V_MINIMAL, SLOG_V_STANDARD, SLOG_V_FULL
+};
+enum enum_slow_query_log_timestamp_precision {
+  SLOG_SECOND, SLOG_MICROSECOND
+};
+enum enum_slow_query_log_rate_type {
+  SLOG_RT_SESSION, SLOG_RT_QUERY
+};
+#define QPLAN_NONE            0
+#define QPLAN_QC              1 << 0
+#define QPLAN_QC_NO           1 << 1
+#define QPLAN_FULL_SCAN       1 << 2
+#define QPLAN_FULL_JOIN       1 << 3
+#define QPLAN_TMP_TABLE       1 << 4
+#define QPLAN_TMP_DISK        1 << 5
+#define QPLAN_FILESORT        1 << 6
+#define QPLAN_FILESORT_DISK   1 << 7
+enum enum_log_slow_filter {
+  SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN,
+  SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
+  SLOG_F_FILESORT_DISK
+};
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
                             SLAVE_EXEC_MODE_LAST_BIT};
@@ -505,6 +535,22 @@ typedef struct system_variables
   Time_zone *time_zone;
 
   my_bool sysdate_is_now;
+
+#ifndef DBUG_OFF
+  ulonglong query_exec_time;
+  double    query_exec_time_double;
+  ulong     query_exec_id;
+#endif
+  ulong log_slow_rate_limit;
+  ulonglong log_slow_filter;
+  ulonglong log_slow_verbosity;
+
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
 
   double long_query_time_double;
 
@@ -1138,6 +1184,24 @@ public:
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
+
+  /*** Following variables used in slow_extended.patch ***/
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+
+  bool       innodb_was_used;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  ulong      query_plan_flags;
+  ulong      query_plan_fsort_passes;
+  /*** The variables above used in slow_extended.patch ***/
+
   SAVEPOINT *savepoints;
   enum enum_check_fields count_cuted_fields;
 };
@@ -1585,6 +1649,71 @@ public:
 
   thr_lock_type update_lock_default;
   Delayed_insert *di;
+
+  /*** Following variables used in slow_extended.patch ***/
+  /*
+    Variable write_to_slow_log:
+     1) initialized in
+       * sql_connect.cc (log_slow_rate_limit support)
+       * slave.cc       (log_slow_slave_statements support)
+     2) The variable is initialized on the thread startup and remains
+        constant afterwards.  This will change when 
+        LP #712396 ("log_slow_slave_statements not work on replication 
+        threads without RESTART") is implemented.
+     3) An implementation of LP #688646 ("Make query sampling possible by query") should use it.
+  */
+  bool       write_to_slow_log;
+  /*
+    Variable bytes_send_old saves value of thd->status_var.bytes_sent
+    before query execution.
+  */
+  ulonglong  bytes_sent_old;
+  /*
+    Variables tmp_tables_*** collect statistics about usage of temporary tables
+  */
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool       innodb_was_used;
+  /*
+    Following Variables innodb_*** (is |should be) different from
+    default values only if (innodb_was_used==TRUE)
+  */
+  ulonglong  innodb_trx_id;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  /*
+    Variable query_plan_flags collects information about query plan entites
+    used on query execution.
+  */
+  ulong      query_plan_flags;
+  /*
+    Variable query_plan_fsort_passes collects information about file sort passes
+    acquired during query execution.
+  */
+  ulong      query_plan_fsort_passes;
+  /*
+    Query can generate several errors/warnings during execution
+    (see THD::handle_condition comment in sql_class.h)
+    Variable last_errno contains the last error/warning acquired during
+    query execution.
+  */
+  uint       last_errno;
+  /*** The variables above used in slow_extended.patch ***/
+
+  /*** Following methods used in slow_extended.patch ***/
+  void clear_slow_extended();
+  void reset_sub_statement_state_slow_extended(Sub_statement_state *backup);
+  void restore_sub_statement_state_slow_extended(const Sub_statement_state *backup);
+  /*** The methods above used in slow_extended.patch ***/
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -2782,6 +2911,9 @@ public:
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
+private:
+  void do_set_query_id(query_id_t new_query_id);
+public:
   void set_open_tables(TABLE *open_tables_arg)
   {
     mysql_mutex_lock(&LOCK_thd_data);

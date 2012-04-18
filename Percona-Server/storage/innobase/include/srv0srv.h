@@ -234,6 +234,8 @@ extern ulint	srv_enable_unsafe_group_commit;
 extern ulint	srv_read_ahead;
 extern ulint	srv_adaptive_flushing_method;
 
+extern ulint	srv_expand_import;
+
 extern ulint	srv_dict_size_limit;
 /*-------------------------------------------*/
 

@@ -34,6 +34,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "ibuf0types.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "trx0types.h"
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -478,8 +479,11 @@ fil_open_single_table_tablespace(
 					accessing the first page of the file */
 	ulint		id,		/*!< in: space id */
 	ulint		flags,		/*!< in: tablespace flags */
-	const char*	name);		/*!< in: table name in the
+	const char*	name,		/*!< in: table name in the
 					databasename/tablename format */
+	trx_t*		trx);		/*!< in: transaction. This is only used
+					for IMPORT TABLESPACE, must be NULL
+					otherwise */
 /********************************************************************//**
 It is possible, though very improbable, that the lsn's in the tablespace to be
 imported have risen above the current system lsn, if a lengthy purge, ibuf

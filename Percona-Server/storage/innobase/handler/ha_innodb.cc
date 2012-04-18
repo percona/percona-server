@@ -7512,6 +7512,14 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
 	} else {
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
+
+		/* in expanded import mode re-initialize auto_increment again */
+		if ((err == DB_SUCCESS) && srv_expand_import &&
+		    (table->found_next_number_field != NULL)) {
+			dict_table_autoinc_lock(dict_table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(dict_table);
+		}
 	}
 
 	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
@@ -11904,6 +11912,11 @@ static MYSQL_SYSVAR_ENUM(adaptive_flushing_method, srv_adaptive_flushing_method,
   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
 
+static MYSQL_SYSVAR_ULONG(import_table_from_xtrabackup, srv_expand_import,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable converting automatically *.ibd files when import tablespace.",
+  NULL, NULL, 0, 0, 1, 0);
+
 static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
   PLUGIN_VAR_RQCMDARG,
   "Limit the allocated memory for dictionary cache. (0: unlimited)",
@@ -11978,6 +11991,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_neighbor_pages),
   MYSQL_SYSVAR(read_ahead),
   MYSQL_SYSVAR(adaptive_flushing_method),
+  MYSQL_SYSVAR(import_table_from_xtrabackup),
   MYSQL_SYSVAR(dict_size_limit),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),

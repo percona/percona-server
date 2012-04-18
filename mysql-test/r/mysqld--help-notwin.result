@@ -1285,6 +1285,9 @@ The following options may be given as the first argument:
  Enable or disable XTRADB_READ_VIEW plugin. Possible
  values are ON, OFF, FORCE (don't start if the plugin
  fails to load).
+ --xtradb-rseg[=name] 
+ Enable or disable XTRADB_RSEG plugin. Possible values are
+ ON, OFF, FORCE (don't start if the plugin fails to load).
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -1635,8 +1638,6 @@ updatable-views-with-limit YES
 validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
-xtradb-internal-hash-tables ON
-xtradb-read-view ON
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

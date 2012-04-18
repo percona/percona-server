@@ -40,7 +40,7 @@ typedef struct log_bitmap_iterator_struct log_bitmap_iterator_t;
 
 /*********************************************************************//**
 Initializes the online log following subsytem. */
-UNIV_INTERN
+
 void
 log_online_read_init(void);
 /*=======================*/
@@ -56,9 +56,9 @@ log_online_read_shutdown(void);
 Reads and parses the redo log up to last checkpoint LSN to build the changed
 page bitmap which is then written to disk.
 
-@return TRUE if log tracking succeeded, FALSE if bitmap write I/O error */
-UNIV_INTERN
-ibool
+@return true if log tracking succeeded, false if bitmap write I/O error */
+
+bool
 log_online_follow_redo_log(void);
 /*=============================*/
 
@@ -68,8 +68,8 @@ If called with lsn == 0 (i.e. set by RESET request) or LSN_MAX, restart the
 bitmap file sequence, otherwise continue it.
 
 @return false to indicate success, true for failure. */
-bool
 
+bool
 log_online_purge_changed_page_bitmaps(
 /*==================================*/
 	lsn_t lsn);	/*!<in: LSN to purge files up to */
@@ -90,9 +90,9 @@ Initializes log bitmap iterator.  The minimum LSN is used for finding the
 correct starting file with records and it there may be records returned by
 the iterator that have LSN less than start_lsn.
 
-@return TRUE if the iterator is initialized OK, FALSE otherwise. */
-UNIV_INTERN
-ibool
+@return true if the iterator is initialized OK, false otherwise. */
+
+bool
 log_online_bitmap_iterator_init(
 /*============================*/
 	log_bitmap_iterator_t	*i,		/*!<in/out:  iterator */
@@ -114,8 +114,7 @@ Iterates through bits of saved bitmap blocks.
 Sequentially reads blocks from bitmap file(s) and interates through
 their bits. Ignores blocks with wrong checksum.
 @return TRUE if iteration is successful, FALSE if all bits are iterated. */
-UNIV_INTERN
-ibool
+bool
 log_online_bitmap_iterator_next(
 /*============================*/
 	log_bitmap_iterator_t *i); /*!<in/out: iterator */

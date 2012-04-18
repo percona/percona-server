@@ -23,6 +23,8 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
+#include <item.h>
+
 #include "ha_prototypes.h"
 #include <field.h>
 #include <sql_acl.h>
@@ -48,6 +50,7 @@ Created July 18, 2007 Vasil Dimov
 #include "fts0types.h"
 #include "fts0opt.h"
 #include "fts0priv.h"
+#include "log0online.h"
 #include "btr0btr.h"
 #include "page0zip.h"
 #include "fsp0sysspace.h"
@@ -2106,7 +2109,8 @@ i_s_cmpmem_fill_low(
 			buddy_stat_local[x] = buf_pool->buddy_stat[x];
 
 			if (reset) {
-				/* This is protected by buf_pool->mutex. */
+				/* This is protected by
+				buf_pool->zip_free_mutex. */
 				buf_pool->buddy_stat[x].relocated = 0;
 				buf_pool->buddy_stat[x].relocated_usec = 0;
 			}
@@ -2120,6 +2124,7 @@ i_s_cmpmem_fill_low(
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
 			table->field[1]->store(i, true);
+			os_rmb;
 			table->field[2]->store(buddy_stat->used, true);
 			table->field[3]->store(zip_free_len_local[x], true);
 			table->field[4]->store(buddy_stat->relocated, true);
@@ -8894,6 +8899,161 @@ struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 
 	/* Plugin flags */
 	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
+static ST_FIELD_INFO	i_s_innodb_changed_pages_info[] =
+{
+	{STRUCT_FLD(field_name,		"space_id"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"page_id"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"start_lsn"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"end_lsn"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/***********************************************************************
+  This function implements ICP for I_S.INNODB_CHANGED_PAGES by parsing a
+  condition and getting lower and upper bounds for start and end LSNs if the
+  condition corresponds to a certain pattern.
+
+  In the most general form, we understand queries like
+
+  SELECT * FROM INNODB_CHANGED_PAGES
+      WHERE START_LSN > num1 AND START_LSN < num2
+            AND END_LSN > num3 AND END_LSN < num4;
+
+  That's why the pattern syntax is:
+
+  pattern:  comp | and_comp;
+  comp:     lsn <  int_num | lsn <= int_num | int_num > lsn  | int_num >= lsn;
+  lsn:	    start_lsn | end_lsn;
+  and_comp: expression AND expression | expression AND and_comp;
+  expression: comp | any_other_expression;
+
+  The two bounds are handled differently: the lower bound is used to find the
+  correct starting _file_, the upper bound the last _block_ that needs reading.
+
+  Lower bound conditions are handled in the following way: start_lsn >= X
+  specifies that the reading must start from the file that has the highest
+  starting LSN less than or equal to X. start_lsn > X is equivalent to
+  start_lsn >= X + 1.  For end_lsn, end_lsn >= X is treated as
+  start_lsn >= X - 1 and end_lsn > X as start_lsn >= X.
+
+  For the upper bound, suppose the condition is start_lsn < 100, this means we
+  have to read all blocks with start_lsn < 100. Which is equivalent to reading
+  all the blocks with end_lsn <= 99, or just end_lsn < 100. That's why it's
+  enough to find maximum lsn value, doesn't matter if this is start or end lsn
+  and compare it with "start_lsn" field. LSN <= 100 is treated as LSN < 101.
+
+  Example:
+
+  SELECT * FROM INNODB_CHANGED_PAGES
+    WHERE
+    start_lsn > 10  AND
+    end_lsn <= 1111 AND
+    555 > end_lsn   AND
+    page_id = 100;
+
+  end_lsn will be set to 555, start_lsn will be set 11.
+
+  Support for other functions (equal, NULL-safe equal, BETWEEN, IN, etc.) will
+  be added on demand.
+
+*/
+static
+void
+limit_lsn_range_from_condition(
+/*===========================*/
+	TABLE*		table,		/*!<in: table */
+	Item*		cond,		/*!<in: condition */
+	ib_uint64_t*	start_lsn,	/*!<in/out: minumum LSN */
+	ib_uint64_t*	end_lsn)	/*!<in/out: maximum LSN */
+{
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_changed_pages.
+@return 0 on success, 1 on failure */
+static
+int
+i_s_innodb_changed_pages_fill(
+/*==========================*/
+	THD*		thd,	/*!<in: thread */
+	TABLE_LIST*	tables,	/*!<in/out: tables to fill */
+	Item*		cond)	/*!<in: condition */
+{
+	TABLE*			table = (TABLE *) tables->table;
+
+	DBUG_ENTER("i_s_innodb_changed_pages_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	(void) table;
+	(void) cond;
+	DBUG_RETURN(0);
+}
+
+static
+int
+i_s_innodb_changed_pages_init(
+/*==========================*/
+	void*	p)
+{
+	DBUG_ENTER("i_s_innodb_changed_pages_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_changed_pages_info;
+	schema->fill_table = i_s_innodb_changed_pages_fill;
+
+	DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin   i_s_innodb_changed_pages =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "INNODB_CHANGED_PAGES"),
+	STRUCT_FLD(author, "Percona"),
+	STRUCT_FLD(descr, "InnoDB CHANGED_PAGES table"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_changed_pages_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+	STRUCT_FLD(__reserved1, NULL),
 	STRUCT_FLD(flags, 0UL),
 };
 

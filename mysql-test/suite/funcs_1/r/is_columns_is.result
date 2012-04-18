@@ -351,6 +351,14 @@ def	information_schema	XTRADB_INTERNAL_HASH_TABLES	VARIABLE_MEMORY	4	0	NO	bigint
 def	information_schema	XTRADB_READ_VIEW	READ_VIEW_LOW_LIMIT_TRX_ID	3		NO	varchar	18	54	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select		
 def	information_schema	XTRADB_READ_VIEW	READ_VIEW_LOW_LIMIT_TRX_NUMBER	1		NO	varchar	18	54	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select		
 def	information_schema	XTRADB_READ_VIEW	READ_VIEW_UPPER_LIMIT_TRX_ID	2		NO	varchar	18	54	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(18)			select		
+def	information_schema	XTRADB_RSEG	curr_size	8	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select		
+def	information_schema	XTRADB_RSEG	is_compressed	5	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1) unsigned			select		
+def	information_schema	XTRADB_RSEG	logical_page_size	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select		
+def	information_schema	XTRADB_RSEG	max_size	7	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select		
+def	information_schema	XTRADB_RSEG	page_no	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select		
+def	information_schema	XTRADB_RSEG	physical_page_size	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select		
+def	information_schema	XTRADB_RSEG	rseg_id	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select		
+def	information_schema	XTRADB_RSEG	space_id	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select		
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -755,4 +763,12 @@ NULL	information_schema	XTRADB_INTERNAL_HASH_TABLES	VARIABLE_MEMORY	bigint	NULL	
 3.0000	information_schema	XTRADB_READ_VIEW	READ_VIEW_LOW_LIMIT_TRX_NUMBER	varchar	18	54	utf8	utf8_general_ci	varchar(18)
 3.0000	information_schema	XTRADB_READ_VIEW	READ_VIEW_UPPER_LIMIT_TRX_ID	varchar	18	54	utf8	utf8_general_ci	varchar(18)
 3.0000	information_schema	XTRADB_READ_VIEW	READ_VIEW_LOW_LIMIT_TRX_ID	varchar	18	54	utf8	utf8_general_ci	varchar(18)
+NULL	information_schema	XTRADB_RSEG	rseg_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_RSEG	space_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_RSEG	physical_page_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_RSEG	logical_page_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_RSEG	is_compressed	tinyint	NULL	NULL	NULL	NULL	tinyint(1) unsigned
+NULL	information_schema	XTRADB_RSEG	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_RSEG	max_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_RSEG	curr_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 SET sql_mode = default;

@@ -2265,6 +2265,13 @@ static Sys_var_mybool Sys_optimizer_fix(
        GLOBAL_VAR(opt_optimizer_fix),
        NO_CMD_LINE, DEFAULT(TRUE));
 
+static Sys_var_mybool Sys_fast_index_creation(
+       "fast_index_creation",
+       "If disabled, suppresses online operations for indexes of ALTER TABLE "
+       "(e.g. fast index creation of InnoDB Plugin) for the session.",
+       SESSION_VAR(online_alter_index), NO_CMD_LINE,
+       DEFAULT(TRUE));
+
 /** propagates changes to the relevant flag of @@optimizer_switch */
 static bool fix_engine_condition_pushdown(sys_var *self, THD *thd,
                                           enum_var_type type)

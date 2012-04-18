@@ -129,6 +129,8 @@ extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*	srv_data_file_is_raw_partition;
 
+extern char*	srv_doublewrite_file;
+
 extern ibool	srv_recovery_stats;
 
 extern ibool	srv_auto_extend_last_data_file;

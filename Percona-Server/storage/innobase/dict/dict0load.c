@@ -41,6 +41,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "ha_prototypes.h" /* innobase_casedn_str() */
+#include "trx0sys.h"
 
 
 /** Following are six InnoDB system tables */
@@ -816,7 +817,7 @@ loop:
 
 		mtr_commit(&mtr);
 
-		if (space_id == 0) {
+		if (trx_sys_sys_space(space_id)) {
 			/* The system tablespace always exists. */
 		} else if (in_crash_recovery) {
 			/* Check that the tablespace (the .ibd file) really
@@ -1727,7 +1728,7 @@ err_len:
 	space = mach_read_from_4(field);
 
 	/* Check if the tablespace exists and has the right name */
-	if (space != 0) {
+	if (!trx_sys_sys_space(space)) {
 		flags = dict_sys_tables_get_flags(rec);
 
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
@@ -1880,7 +1881,7 @@ err_exit:
 		goto err_exit;
 	}
 
-	if (table->space == 0) {
+	if (trx_sys_sys_space(table->space)) {
 		/* The system tablespace is always available. */
 	} else if (!fil_space_for_table_exists_in_mem(
 			   table->space, name,

@@ -1459,7 +1459,7 @@ thd_trx_is_auto_commit(
 	       && thd_is_select(thd));
 }
 
-extern "C" time_t thd_start_time(const THD* thd);
+extern "C" long long thd_start_time(const THD* thd);
 
 /******************************************************************//**
 Get the thread start time.
@@ -18852,6 +18852,24 @@ innobase_fts_retrieve_ranking(
 }
 
 /***********************************************************************
+functions for kill session of idle transaction */
+bool
+innobase_thd_is_idle(
+/*=================*/
+	const void*	thd)	/*!< in: thread handle (THD*) */
+{
+	return(thd_command((const THD*) thd) == COM_SLEEP);
+}
+
+ib_uint64_t
+innobase_thd_get_start_time(
+/*========================*/
+	const void*	thd)	/*!< in: thread handle (THD*) */
+{
+	return((ib_uint64_t)thd_start_time((const THD*) thd));
+}
+
+/***********************************************************************
 Free the memory for the FTS handler */
 void
 innobase_fts_close_ranking(
@@ -18867,6 +18885,14 @@ innobase_fts_close_ranking(
 	my_free((uchar*) fts_hdl);
 
 	return;
+}
+
+void
+innobase_thd_kill(
+/*==============*/
+	ulong	thd_id)
+{
+	thd_kill(thd_id);
 }
 
 /***********************************************************************
@@ -19082,6 +19108,14 @@ innobase_fts_retrieve_docid(
 	}
 
 	return(ft_prebuilt->fts_doc_id);
+}
+
+ulong
+innobase_thd_get_thread_id(
+/*=======================*/
+	const void*	thd)
+{
+	return(thd_get_thread_id((const THD*) thd));
 }
 
 /***********************************************************************

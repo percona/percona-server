@@ -41,8 +41,8 @@
 */
 
 my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
-                            void *init_buffer, uint init_alloc, 
-                            uint alloc_increment)
+                            void *init_buffer, ulong init_alloc, 
+                            ulong alloc_increment)
 {
   DBUG_ENTER("init_dynamic_array");
   if (!alloc_increment)
@@ -73,7 +73,7 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
 } 
 
 my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-                           uint init_alloc, uint alloc_increment)
+                           ulong init_alloc, ulong alloc_increment)
 {
   /* placeholder to preserve ABI */
   return my_init_dynamic_array_ci(array, element_size, init_alloc, 
@@ -196,7 +196,7 @@ void *pop_dynamic(DYNAMIC_ARRAY *array)
     FALSE	Ok
 */
 
-my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element, uint idx)
+my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element, ulong idx)
 {
   if (idx >= array->elements)
   {
@@ -228,11 +228,11 @@ my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element, uint idx)
     TRUE	Allocation of new memory failed
 */
 
-my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
+my_bool allocate_dynamic(DYNAMIC_ARRAY *array, ulong max_elements)
 {
   if (max_elements >= array->max_element)
   {
-    uint size;
+    ulong size;
     uchar *new_ptr;
     size= (max_elements + array->alloc_increment)/array->alloc_increment;
     size*= array->alloc_increment;
@@ -273,11 +273,11 @@ my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
       idx	Index of element wanted. 
 */
 
-void get_dynamic(DYNAMIC_ARRAY *array, void *element, uint idx)
+void get_dynamic(DYNAMIC_ARRAY *array, void *element, ulong idx)
 {
   if (idx >= array->elements)
   {
-    DBUG_PRINT("warning",("To big array idx: %d, array size is %d",
+    DBUG_PRINT("warning",("To big array idx: %lu, array size is %lu",
                           idx,array->elements));
     memset(element, 0, array->size_of_element);
     return;
@@ -320,7 +320,7 @@ void delete_dynamic(DYNAMIC_ARRAY *array)
       idx        Index of element to be deleted
 */
 
-void delete_dynamic_element(DYNAMIC_ARRAY *array, uint idx)
+void delete_dynamic_element(DYNAMIC_ARRAY *array, ulong idx)
 {
   char *ptr= (char*) array->buffer+array->size_of_element*idx;
   array->elements--;
@@ -340,7 +340,7 @@ void delete_dynamic_element(DYNAMIC_ARRAY *array, uint idx)
 
 void freeze_size(DYNAMIC_ARRAY *array)
 {
-  uint elements=MY_MAX(array->elements,1);
+  ulong elements= MY_MAX(array->elements, 1);
 
   /*
     Do nothing if we are using a static buffer
@@ -355,4 +355,29 @@ void freeze_size(DYNAMIC_ARRAY *array)
                                      MYF(MY_WME));
     array->max_element=elements;
   }
+}
+
+
+/*
+  Get the index of a dynamic element
+
+  SYNOPSIS
+    get_index_dynamic()
+     array	Array
+     element Whose element index 
+
+*/
+
+long get_index_dynamic(DYNAMIC_ARRAY *array, const void *element)
+{
+  size_t ret;
+  if (array->buffer > (uchar *)element)
+    return -1;
+
+  ret= ((uchar *)element - array->buffer) /  array->size_of_element;
+  if (ret > array->elements)
+    return -1;
+
+  return ret;
+
 }

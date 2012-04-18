@@ -47,6 +47,10 @@
 #include "sql_data_change.h"
 #include "my_atomic.h"
 
+#ifdef HAVE_QUERY_CACHE
+#include "query_strip_comments.h"
+#endif // HAVE_QUERY_CACHE
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
@@ -807,6 +811,9 @@ public:
     statement lifetime. FIXME: must be const
   */
    ulong id;
+#ifdef HAVE_QUERY_CACHE
+  QueryStripComments query_strip_comments; // see sql_cache.cc
+#endif //HAVE_QUERY_CACHE
 
   /*
     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
@@ -2080,6 +2087,12 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   tm->tv_usec= (long) (micro_time % 1000000);
 }
 
+typedef struct
+{
+  struct timeval start_time;
+  ulonglong start_utime;
+} QUERY_START_TIME_INFO;
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -2253,6 +2266,8 @@ private:
 public:
   uint32     unmasked_server_id;
   uint32     server_id;
+  // Used to save the command, before it is set to COM_SLEEP.
+  enum enum_server_command old_command;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;
@@ -2931,6 +2946,8 @@ public:
   */
   bool              tx_read_only;
   enum_check_fields count_cuted_fields;
+  ha_rows    updated_row_count;
+  ha_rows    sent_row_count_2; /* for userstat */
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
@@ -3113,6 +3130,49 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
+
+  /*
+    Used to update global user stats.  The global user stats are updated
+    occasionally with the 'diff' variables.  After the update, the 'diff'
+    variables are reset to 0.
+  */
+  // Time when the current thread connected to MySQL.
+  time_t current_connect_time;
+  // Last time when THD stats were updated in global_user_stats.
+  time_t last_global_update_time;
+  // Busy (non-idle) time for just one command.
+  double busy_time;
+  // Busy time not updated in global_user_stats yet.
+  double diff_total_busy_time;
+  // Cpu (non-idle) time for just one thread.
+  double cpu_time;
+  // Cpu time not updated in global_user_stats yet.
+  double diff_total_cpu_time;
+  /* bytes counting */
+  ulonglong bytes_received;
+  ulonglong diff_total_bytes_received;
+  ulonglong bytes_sent;
+  ulonglong diff_total_bytes_sent;
+  ulonglong binlog_bytes_written;
+  ulonglong diff_total_binlog_bytes_written;
+
+  // Number of rows not reflected in global_user_stats yet.
+  ha_rows diff_total_sent_rows, diff_total_updated_rows, diff_total_read_rows;
+  // Number of commands not reflected in global_user_stats yet.
+  ulonglong diff_select_commands, diff_update_commands, diff_other_commands;
+  // Number of transactions not reflected in global_user_stats yet.
+  ulonglong diff_commit_trans, diff_rollback_trans;
+  // Number of connection errors not reflected in global_user_stats yet.
+  ulonglong diff_denied_connections, diff_lost_connections;
+  // Number of db access denied, not reflected in global_user_stats yet.
+  ulonglong diff_access_denied_errors;
+  // Number of queries that return 0 rows
+  ulonglong diff_empty_queries;
+
+  // Per account query delay in miliseconds. When not 0, sleep this number of
+  // milliseconds before every SQL command.
+  ulonglong query_delay_millis;
+
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -3219,6 +3279,11 @@ public:
     alloc_root. 
   */
   void init_for_queries(Relay_log_info *rli= NULL);
+  void reset_stats(void);
+  void reset_diff_stats(void);
+  // ran_command is true when this is called immediately after a
+  // command has been run.
+  void update_stats(bool ran_command);
   void change_user(void);
   void cleanup_after_query();
   bool store_globals();
@@ -3396,6 +3461,16 @@ public:
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
+  void get_time(QUERY_START_TIME_INFO *time_info)
+  {
+    time_info->start_time= start_time;
+    time_info->start_utime= start_utime;
+  }
+  void set_time(QUERY_START_TIME_INFO *time_info)
+  {
+    start_time= time_info->start_time;
+    start_utime= time_info->start_utime;
+  }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
@@ -3546,8 +3621,8 @@ public:
     return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
-  inline bool vio_ok() const { return TRUE; }
-  inline bool is_connected() { return TRUE; }
+  inline bool vio_ok() const { return true; }
+  inline bool is_connected() { return true; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
@@ -3888,6 +3963,15 @@ public:
   }
   thd_scheduler scheduler;
 
+  /* Returns string as 'IP:port' for the client-side
+     of the connnection represented
+     by 'client' as displayed by SHOW PROCESSLIST.
+     Allocates memory from the heap of
+     this THD and that is not reclaimed
+     immediately, so use sparingly. May return NULL.
+  */
+  char *get_client_host_port(THD *client);
+
 public:
   inline Internal_error_handler *get_internal_handler()
   { return m_internal_handler; }
@@ -4160,6 +4244,10 @@ public:
   bool duplicate_slave_uuid;
 };
 
+/* Returns string as 'IP' for the client-side of the connection represented by
+   'client'. Does not allocate memory. May return "".
+*/
+const char *get_client_host(THD *client);
 
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.
@@ -5215,6 +5303,7 @@ public:
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
+  Item_func_set_user_var **set_var_items;
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}

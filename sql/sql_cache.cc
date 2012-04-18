@@ -346,6 +346,198 @@ TODO list:
 #include "probes_mysql.h"
 #include "transaction.h"
 
+#include "query_strip_comments.h"
+
+/*
+  Number of bytes to be allocated in a query cache buffer in addition to the
+  query string length.
+
+  The query buffer layout is:
+
+  buffer :==
+    <statement>   The input statement(s)
+    '\0'          Terminating null char
+    <db_length>   Length of following current database name (size_t)
+    <db_name>     Name of current database
+    <flags>       Flags struct
+*/
+#define QUERY_BUFFER_ADDITIONAL_LENGTH(db_length)               \
+  (1 + sizeof(size_t) + db_length + QUERY_CACHE_FLAGS_SIZE)
+
+QueryStripComments::QueryStripComments()
+{
+  buffer = 0;
+  length = 0;
+  buffer_length = 0;
+}
+QueryStripComments::~QueryStripComments()
+{
+  cleanup();
+}
+
+inline bool query_strip_comments_is_white_space(char c)
+{
+  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
+}
+void QueryStripComments::set(const char* query, uint query_length, uint additional_length)
+{
+  uint new_buffer_length = query_length + additional_length;
+  if(new_buffer_length > buffer_length)
+  {
+    cleanup();
+    buffer = (char*)my_malloc(new_buffer_length,MYF(0));
+  }
+  uint query_position = 0;
+  uint position = 0;
+  // Skip whitespaces from begin
+  while((query_position < query_length) && query_strip_comments_is_white_space(query[query_position]))
+  {
+    ++query_position;
+  }
+  long int last_space = -1;
+  while(query_position < query_length)
+  {
+    char current = query[query_position];
+    bool insert_space = false; // insert space to buffer, (IMPORTANT) don't update query_position
+    switch(current)
+    {
+    case '\'':
+    case '"':
+      {
+        buffer[position++] = query[query_position++]; // copy current symbol
+        while(query_position < query_length)
+        {
+          if(current == query[query_position]) // found pair quote
+          {
+            break;
+          }
+          buffer[position++] = query[query_position++]; // copy current symbol
+        }
+        break;
+      }
+    case '/':
+      {
+        if(((query_position + 2) < query_length) && ('*' == query[query_position+1]) && ('!' != query[query_position+2]))
+        {
+          query_position += 2; // skip "/*"
+          do
+          {
+            if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/"
+            {
+              query_position += 2; // skip "*/"
+              insert_space = true;
+              break;
+            }
+            else
+            {
+              ++query_position;
+            }
+          }
+          while(query_position < query_length);
+          if(!insert_space)
+          {
+            continue;
+          }
+        }
+        break;
+      }
+    case '-':
+      {
+        if(query[query_position+1] == '-')
+        {
+          ++query_position; // skip "-", and go to search of "\n"
+        }
+        else
+        {
+          break;
+        }
+      }
+    case '#':
+      {
+        do
+        {
+          ++query_position; // skip current symbol (# or -)
+          if('\n' == query[query_position])  // check for '\n'
+          {
+            ++query_position; // skip '\n'
+            insert_space = true;
+            break;
+          }
+        }
+        while(query_position < query_length);
+        if(insert_space)
+        {
+          break;
+        }
+        else
+        {
+          continue;
+        }
+      }
+    default:
+      if(query_strip_comments_is_white_space(current))
+      {
+        insert_space = true;
+        ++query_position;
+      }
+      break; // make gcc happy
+    }
+    if(insert_space)
+    {
+      if((uint) (last_space + 1) != position)
+      {
+        last_space = position;
+        buffer[position++] = ' ';
+      }
+    }
+    else if (query_position < query_length)
+    {
+      buffer[position++] = query[query_position++];
+    }
+  }
+  while((0 < position) && query_strip_comments_is_white_space(buffer[position - 1]))
+  {
+    --position;
+  }
+  buffer[position] = 0;
+  length = position;
+}
+void QueryStripComments::cleanup()
+{
+  if(buffer)
+  {
+    my_free(buffer);
+  }
+  buffer        = 0;
+  length        = 0;
+  buffer_length = 0;
+}
+QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripComments* qsc)
+{
+  if(opt_query_cache_strip_comments)
+  {
+    thd = a_thd;
+    query = thd->query();
+    length = thd->query_length();
+    qsc->set(query, length, QUERY_BUFFER_ADDITIONAL_LENGTH(thd->db_length));
+    *(size_t *) (qsc->query() + qsc->query_length() + 1)= thd->db_length;
+    thd->set_query(qsc->query(),qsc->query_length());
+  }
+  else
+  {
+    thd = 0;
+    query = 0;
+    length = 0;
+  }
+}
+QueryStripComments_Backup::~QueryStripComments_Backup()
+{
+  if(thd)
+  {
+    thd->set_query(query,length);
+  }
+}
+
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
 #endif
@@ -4898,4 +5090,3 @@ err2:
 #endif /* DBUG_OFF */
 
 #endif /*HAVE_QUERY_CACHE*/
-

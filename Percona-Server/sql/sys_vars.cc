@@ -2259,6 +2259,12 @@ static Sys_var_ulong Sys_net_wait_timeout(
        VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
        DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
 
+static Sys_var_mybool Sys_optimizer_fix(
+       "optimizer_fix",
+       "Enable unofficial optimizer fixes.",
+       GLOBAL_VAR(opt_optimizer_fix),
+       NO_CMD_LINE, DEFAULT(TRUE));
+
 /** propagates changes to the relevant flag of @@optimizer_switch */
 static bool fix_engine_condition_pushdown(sys_var *self, THD *thd,
                                           enum_var_type type)

@@ -3103,7 +3103,7 @@ loop:
 								level += log_sys->max_checkpoint_age
 									 - (lsn - oldest_modification);
 							}
-							bpage = UT_LIST_GET_NEXT(list, bpage);
+							bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 							n_blocks++;
 						}
 
@@ -3189,7 +3189,7 @@ retry_flush_batch:
 							found = TRUE;
 							break;
 						}
-						bpage = UT_LIST_GET_NEXT(list, bpage);
+						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 						new_blocks_num++;
 					}
 					if (!found) {

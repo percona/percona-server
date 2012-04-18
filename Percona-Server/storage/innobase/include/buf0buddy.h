@@ -49,11 +49,12 @@ buf_buddy_alloc(
 	ulint		size,		/*!< in: compressed page size
 					(between PAGE_ZIP_MIN_SIZE and
 					UNIV_PAGE_SIZE) */
-	ibool*		lru)		/*!< in: pointer to a variable
+	ibool*		lru,		/*!< in: pointer to a variable
 					that will be assigned TRUE if
 				       	storage was allocated from the
 				       	LRU list and buf_pool->mutex was
 				       	temporarily released */
+	ibool		have_page_hash_mutex)
 	__attribute__((malloc, nonnull));
 
 /**********************************************************************//**
@@ -66,8 +67,9 @@ buf_buddy_free(
 					the block resides */
 	void*		buf,		/*!< in: block to be freed, must not
 					be pointed to by the buffer pool */
-	ulint		size)		/*!< in: block size,
+	ulint		size,		/*!< in: block size,
 					up to UNIV_PAGE_SIZE */
+	ibool		have_page_hash_mutex)
 	__attribute__((nonnull));
 
 #ifndef UNIV_NONINL

@@ -285,7 +285,7 @@ mutex_create_func(
 	mutex->lock_word = 0;
 #endif
 	mutex->event = os_event_create(NULL);
-	mutex_set_waiters(mutex, 0);
+	mutex->waiters = 0;
 #ifdef UNIV_DEBUG
 	mutex->magic_n = MUTEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
@@ -464,6 +464,15 @@ mutex_set_waiters(
 	mutex_t*	mutex,	/*!< in: mutex */
 	ulint		n)	/*!< in: value to set */
 {
+#ifdef INNODB_RW_LOCKS_USE_ATOMICS
+	ut_ad(mutex);
+
+	if (n) {
+		os_compare_and_swap_ulint(&mutex->waiters, 0, 1);
+	} else {
+		os_compare_and_swap_ulint(&mutex->waiters, 1, 0);
+	}
+#else
 	volatile ulint*	ptr;		/* declared volatile to ensure that
 					the value is stored to memory */
 	ut_ad(mutex);
@@ -472,6 +481,7 @@ mutex_set_waiters(
 
 	*ptr = n;		/* Here we assume that the write of a single
 				word in memory is atomic */
+#endif
 }
 
 /******************************************************************//**
@@ -1233,7 +1243,12 @@ sync_thread_add_level(
 			ut_error;
 		}
 		break;
+	case SYNC_BUF_LRU_LIST:
 	case SYNC_BUF_FLUSH_LIST:
+	case SYNC_BUF_PAGE_HASH:
+	case SYNC_BUF_FREE_LIST:
+	case SYNC_BUF_ZIP_FREE:
+	case SYNC_BUF_ZIP_HASH:
 	case SYNC_BUF_POOL:
 		/* We can have multiple mutexes of this type therefore we
 		can only check whether the greater than condition holds. */
@@ -1251,7 +1266,8 @@ sync_thread_add_level(
 		buffer block (block->mutex or buf_pool->zip_mutex). */
 		if (!sync_thread_levels_g(array, level, FALSE)) {
 			ut_a(sync_thread_levels_g(array, level - 1, TRUE));
-			ut_a(sync_thread_levels_contain(array, SYNC_BUF_POOL));
+			/* the exact rule is not fixed yet, for now */
+			//ut_a(sync_thread_levels_contain(array, SYNC_BUF_LRU_LIST));
 		}
 		break;
 	case SYNC_REC_LOCK:

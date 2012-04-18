@@ -75,6 +75,10 @@ extern mysql_pfs_key_t	btr_search_enabled_mutex_key;
 extern mysql_pfs_key_t	buffer_block_mutex_key;
 extern mysql_pfs_key_t	buf_pool_mutex_key;
 extern mysql_pfs_key_t	buf_pool_zip_mutex_key;
+extern mysql_pfs_key_t	buf_pool_LRU_list_mutex_key;
+extern mysql_pfs_key_t	buf_pool_free_list_mutex_key;
+extern mysql_pfs_key_t	buf_pool_zip_free_mutex_key;
+extern mysql_pfs_key_t	buf_pool_zip_hash_mutex_key;
 extern mysql_pfs_key_t	cache_last_read_mutex_key;
 extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
 extern mysql_pfs_key_t	dict_sys_mutex_key;
@@ -667,7 +671,7 @@ or row lock! */
 #define SYNC_TRX_SYS_HEADER	290
 #define	SYNC_PURGE_QUEUE	200
 #define SYNC_LOG		170
-#define SYNC_LOG_FLUSH_ORDER	147
+#define SYNC_LOG_FLUSH_ORDER	156
 #define SYNC_RECV		168
 #define	SYNC_WORK_QUEUE		162
 #define	SYNC_SEARCH_SYS		160	/* NOTE that if we have a memory
@@ -676,8 +680,13 @@ or row lock! */
 					SYNC_SEARCH_SYS, as memory allocation
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
+#define	SYNC_BUF_LRU_LIST	158
+#define	SYNC_BUF_PAGE_HASH	157
+#define	SYNC_BUF_BLOCK		155	/* Block mutex */
+#define	SYNC_BUF_FREE_LIST	153
+#define	SYNC_BUF_ZIP_FREE	152
+#define	SYNC_BUF_ZIP_HASH	151
 #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
-#define	SYNC_BUF_BLOCK		146	/* Block mutex */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140
 #define	SYNC_ANY_LATCH		135
@@ -708,7 +717,7 @@ struct mutex_struct {
 		os_fast_mutex;	/*!< We use this OS mutex in place of lock_word
 				when atomic operations are not enabled */
 #endif
-	ulint	waiters;	/*!< This ulint is set to 1 if there are (or
+	volatile ulint	waiters;	/*!< This ulint is set to 1 if there are (or
 				may be) threads waiting in the global wait
 				array for this mutex to be released.
 				Otherwise, this is 0. */

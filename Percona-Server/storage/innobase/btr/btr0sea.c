@@ -1972,7 +1972,7 @@ btr_search_validate(void)
 	rec_offs_init(offsets_);
 
 	rw_lock_x_lock(&btr_search_latch);
-	buf_pool_mutex_enter_all();
+	buf_pool_page_hash_x_lock_all();
 
 	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
 
@@ -1980,11 +1980,11 @@ btr_search_validate(void)
 		/* We release btr_search_latch every once in a while to
 		give other queries a chance to run. */
 		if ((i != 0) && ((i % chunk_size) == 0)) {
-			buf_pool_mutex_exit_all();
+			buf_pool_page_hash_x_unlock_all();
 			rw_lock_x_unlock(&btr_search_latch);
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
-			buf_pool_mutex_enter_all();
+			buf_pool_page_hash_x_lock_all();
 		}
 
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
@@ -2093,11 +2093,11 @@ btr_search_validate(void)
 		/* We release btr_search_latch every once in a while to
 		give other queries a chance to run. */
 		if (i != 0) {
-			buf_pool_mutex_exit_all();
+			buf_pool_page_hash_x_unlock_all();
 			rw_lock_x_unlock(&btr_search_latch);
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
-			buf_pool_mutex_enter_all();
+			buf_pool_page_hash_x_lock_all();
 		}
 
 		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
@@ -2105,7 +2105,7 @@ btr_search_validate(void)
 		}
 	}
 
-	buf_pool_mutex_exit_all();
+	buf_pool_page_hash_x_unlock_all();
 	rw_lock_x_unlock(&btr_search_latch);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);

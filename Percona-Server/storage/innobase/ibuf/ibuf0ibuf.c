@@ -3768,9 +3768,11 @@ check_watch:
 		ulint		fold = buf_page_address_fold(space, page_no);
 		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
 
-		buf_pool_mutex_enter(buf_pool);
+		//buf_pool_mutex_enter(buf_pool);
+		rw_lock_s_lock(&buf_pool->page_hash_latch);
 		bpage = buf_page_hash_get_low(buf_pool, space, page_no, fold);
-		buf_pool_mutex_exit(buf_pool);
+		//buf_pool_mutex_exit(buf_pool);
+		rw_lock_s_unlock(&buf_pool->page_hash_latch);
 
 		if (UNIV_LIKELY_NULL(bpage)) {
 			/* A buffer pool watch has been set or the

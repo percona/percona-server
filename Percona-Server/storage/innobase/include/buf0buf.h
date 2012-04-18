@@ -212,6 +212,20 @@ buf_pool_mutex_exit_all(void);
 /*==========================*/
 
 /********************************************************************//**
+*/
+UNIV_INLINE
+void
+buf_pool_page_hash_x_lock_all(void);
+/*================================*/
+
+/********************************************************************//**
+*/
+UNIV_INLINE
+void
+buf_pool_page_hash_x_unlock_all(void);
+/*==================================*/
+
+/********************************************************************//**
 Creates the buffer pool.
 @return	own: buf_pool object, NULL if not enough memory or error */
 UNIV_INTERN
@@ -851,6 +865,15 @@ buf_page_get_mutex(
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
 	__attribute__((pure));
 
+/*************************************************************************
+Gets the mutex of a block and enter the mutex with consistency. */
+UNIV_INLINE
+mutex_t*
+buf_page_get_mutex_enter(
+/*=========================*/
+	const buf_page_t*	bpage)	/*!< in: pointer to control block */
+	__attribute__((pure));
+
 /*********************************************************************//**
 Get the flush type of a page.
 @return	flush type */
@@ -1352,7 +1375,7 @@ struct buf_page_struct{
 	All these are protected by buf_pool->mutex. */
 	/* @{ */
 
-	UT_LIST_NODE_T(buf_page_t) list;
+	/* UT_LIST_NODE_T(buf_page_t) list; */
 					/*!< based on state, this is a
 					list node, protected either by
 					buf_pool->mutex or by
@@ -1380,6 +1403,10 @@ struct buf_page_struct{
 					BUF_BLOCK_REMOVE_HASH or
 					BUF_BLOCK_READY_IN_USE. */
 
+	/* resplit for optimistic use */
+	UT_LIST_NODE_T(buf_page_t) free;
+	UT_LIST_NODE_T(buf_page_t) flush_list;
+	UT_LIST_NODE_T(buf_page_t) zip_list; /* zip_clean or zip_free[] */
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
 					when buf_pool->flush_list_mutex is
@@ -1472,11 +1499,11 @@ struct buf_block_struct{
 					a block is in the unzip_LRU list
 					if page.state == BUF_BLOCK_FILE_PAGE
 					and page.zip.data != NULL */
-#ifdef UNIV_DEBUG
+//#ifdef UNIV_DEBUG
 	ibool		in_unzip_LRU_list;/*!< TRUE if the page is in the
 					decompressed LRU list;
 					used in debugging */
-#endif /* UNIV_DEBUG */
+//#endif /* UNIV_DEBUG */
 	mutex_t		mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
@@ -1656,6 +1683,11 @@ struct buf_pool_struct{
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
+	mutex_t		LRU_list_mutex;
+	rw_lock_t	page_hash_latch;
+	mutex_t		free_list_mutex;
+	mutex_t		zip_free_mutex;
+	mutex_t		zip_hash_mutex;
 	ulint		instance_no;	/*!< Array index of this buffer
 					pool instance */
 	ulint		old_pool_size;  /*!< Old pool size in bytes */
@@ -1809,8 +1841,8 @@ Use these instead of accessing buf_pool->mutex directly. */
 /** Test if a buffer pool mutex is owned. */
 #define buf_pool_mutex_own(b) mutex_own(&b->mutex)
 /** Acquire a buffer pool mutex. */
+/* the buf_pool_mutex is changed the latch order */
 #define buf_pool_mutex_enter(b) do {		\
-	ut_ad(!mutex_own(&b->zip_mutex));	\
 	mutex_enter(&b->mutex);		\
 } while (0)
 

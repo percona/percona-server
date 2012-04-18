@@ -265,6 +265,10 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
 	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
+	{&buf_pool_LRU_list_mutex_key, "buf_pool_LRU_list_mutex", 0},
+	{&buf_pool_free_list_mutex_key, "buf_pool_free_list_mutex", 0},
+	{&buf_pool_zip_free_mutex_key, "buf_pool_zip_free_mutex", 0},
+	{&buf_pool_zip_hash_mutex_key, "buf_pool_zip_hash_mutex", 0},
 	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
 	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
 	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
@@ -314,6 +318,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&archive_lock_key, "archive_lock", 0},
 #  endif /* UNIV_LOG_ARCHIVE */
 	{&btr_search_latch_key, "btr_search_latch", 0},
+	{&buf_pool_page_hash_key, "buf_pool_page_hash_latch", 0},
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	{&buf_block_lock_key, "buf_block_lock", 0},
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */

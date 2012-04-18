@@ -1583,7 +1583,8 @@ i_s_cmpmem_fill_low(
 
 		buf_pool = buf_pool_from_array(i);
 
-		buf_pool_mutex_enter(buf_pool);
+		//buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->zip_free_mutex);
 
 		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 			buf_buddy_stat_t*	buddy_stat;
@@ -1613,7 +1614,8 @@ i_s_cmpmem_fill_low(
 			}
 		}
 
-		buf_pool_mutex_exit(buf_pool);
+		//buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->zip_free_mutex);
 
 		if (status) {
 			break;

@@ -112,6 +112,7 @@ performance schema */
 extern	mysql_pfs_key_t	archive_lock_key;
 # endif /* UNIV_LOG_ARCHIVE */
 extern	mysql_pfs_key_t btr_search_latch_key;
+extern	mysql_pfs_key_t	buf_pool_page_hash_key;
 extern	mysql_pfs_key_t	buf_block_lock_key;
 # ifdef UNIV_SYNC_DEBUG
 extern	mysql_pfs_key_t	buf_block_debug_latch_key;

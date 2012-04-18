@@ -36,6 +36,7 @@ Created 10/21/1995 Heikki Tuuri
 #define os0file_h
 
 #include "univ.i"
+#include "trx0types.h"
 
 #ifndef __WIN__
 #include <dirent.h>
@@ -321,6 +322,10 @@ The wrapper functions have the prefix of "innodb_". */
 # define os_file_read(file, buf, offset, n)				\
 	pfs_os_file_read_func(file, buf, offset, n, __FILE__, __LINE__)
 
+# define os_file_read_trx(file, buf, offset, n, trx)			\
+	pfs_os_file_read_func(file, buf, offset, n, trx,		\
+			      __FILE__, __LINE__)
+
 # define os_file_read_no_error_handling(file, buf, offset, n)		\
 	pfs_os_file_read_no_error_handling_func(file, buf, offset, n,	\
 						__FILE__, __LINE__)
@@ -363,6 +368,9 @@ to original un-instrumented file I/O APIs */
 
 # define os_file_read(file, buf, offset, n)	\
 	os_file_read_func(file, buf, offset, n)
+
+# define os_file_read_trx(file, buf, offset, n, trx)			\
+	os_file_read_func(file, buf, offset, n, trx)
 
 # define os_file_read_no_error_handling(file, buf, offset, n)		\
 	os_file_read_no_error_handling_func(file, buf, offset, n)
@@ -880,6 +888,14 @@ ibool
 os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file,	/*!< in: handle to a file */
+	ib_uint64_t	new_len);/*!< in: new file length */
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.

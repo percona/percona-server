@@ -207,8 +207,10 @@ UNIV_INTERN ib_uint64_t	srv_log_file_size_requested;
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
 UNIV_INTERN uint	srv_flush_log_at_timeout = 1;
+UNIV_INTERN my_bool	srv_fake_changes_locks = TRUE;
 UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
+UNIV_INTERN char	srv_use_global_flush_log_at_trx_commit	= TRUE;
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */

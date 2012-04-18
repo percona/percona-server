@@ -1,0 +1,6 @@
+File=show_slave_status_nolock.patch
+Name= SHOW SLAVE STATUS NOLOCK
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment= Implement SHOW SLAVE STATUS without lock (STOP SLAVE lock the same mutex what lock SHOW SLAVE STATUS)

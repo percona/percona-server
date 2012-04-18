@@ -1,0 +1,9 @@
+File=response-time-distribution.patch
+Name=Response time distribution
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment=
+Changelog
+2010-07-02 first version avaliable
+2010-09-15 add column 'total'

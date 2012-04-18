@@ -52,7 +52,7 @@ SET (SQL_SOURCE
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
                ../sql-common/client_plugin.c
-               opt_range.cc opt_range.h opt_sum.cc 
+               opt_range.cc opt_range.h query_response_time.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
                slave.cc sp.cc sp_cache.cc sp_head.cc sp_pcontext.cc 
@@ -60,7 +60,7 @@ SET (SQL_SOURCE
                sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
-               sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
+               sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc query_response_time.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
                debug_sync.cc debug_sync.h
                sql_repl.cc sql_select.cc sql_show.cc sql_state.c sql_string.cc 

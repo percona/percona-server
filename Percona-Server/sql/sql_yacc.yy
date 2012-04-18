@@ -1194,6 +1194,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PURGE
 %token  QUARTER_SYM
 %token  QUERY_SYM
+%token  QUERY_RESPONSE_TIME_SYM
 %token  QUICK
 %token  RANGE_SYM                     /* SQL-2003-R */
 %token  READS_SYM                     /* SQL-2003-R */
@@ -11105,6 +11106,15 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
+        | QUERY_RESPONSE_TIME_SYM wild_and_where
+         {
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+           LEX *lex= Lex;
+           lex->sql_command= SQLCOM_SELECT;
+           if (prepare_schema_table(YYTHD, lex, 0, SCH_QUERY_RESPONSE_TIME))
+             MYSQL_YYABORT;
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
+         }
         | CREATE PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
@@ -11343,6 +11353,12 @@ flush_option:
           { 
             Lex->type|= REFRESH_SLAVE;
             Lex->reset_slave_info.all= false;
+          }
+        | QUERY_RESPONSE_TIME_SYM
+          { 
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+            Lex->type|= REFRESH_QUERY_RESPONSE_TIME;
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
           }
         | MASTER_SYM
           { Lex->type|= REFRESH_MASTER; }
@@ -12651,6 +12667,7 @@ keyword_sp:
         | PROXY_SYM                {}
         | QUARTER_SYM              {}
         | QUERY_SYM                {}
+        | QUERY_RESPONSE_TIME_SYM  {}
         | QUICK                    {}
         | READ_ONLY_SYM            {}
         | REBUILD_SYM              {}

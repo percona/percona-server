@@ -25,7 +25,7 @@
 #include "hostname.h"    // hostname_cache_refresh
 #include "sql_repl.h"    // reset_master, reset_slave
 #include "debug_sync.h"
-
+#include "query_response_time.h"
 
 /**
   Reload/resets privileges and the different caches.
@@ -322,6 +322,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+ if (options & REFRESH_QUERY_RESPONSE_TIME)
+ {
+   query_response_time_flush();
+ }
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
  if (*write_to_binlog != -1)
    *write_to_binlog= tmp_write_to_binlog;
  /*

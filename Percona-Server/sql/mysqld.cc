@@ -69,6 +69,8 @@
 #include "debug_sync.h"
 #include "sql_callback.h"
 
+#include "query_response_time.h"
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -621,7 +623,7 @@ CHARSET_INFO *error_message_charset_info;
 MY_LOCALE *my_default_lc_messages;
 MY_LOCALE *my_default_lc_time_names;
 
-SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
+SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache, have_response_time_distribution;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
@@ -923,6 +925,10 @@ char *shared_memory_base_name= default_shared_memory_base_name;
 my_bool opt_enable_shared_memory;
 HANDLE smem_event_connect_request= 0;
 #endif
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+ulong   opt_query_response_time_range_base  = QRT_DEFAULT_BASE;
+my_bool opt_query_response_time_stats= 0;
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
 
 my_bool opt_use_ssl  = 0;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
@@ -1494,6 +1500,9 @@ void clean_up(bool print_message)
   my_free(opt_bin_logname);
   bitmap_free(&temp_pool);
   free_max_user_conn();
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  query_response_time_free();
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
@@ -3866,6 +3875,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (!DEFAULT_ERRMSGS[0][0])
     unireg_abort(1);  
 
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  query_response_time_init();
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
   {
@@ -6779,6 +6791,11 @@ static int mysql_init_variables(void)
 #else
   have_query_cache=SHOW_OPTION_NO;
 #endif
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  have_response_time_distribution= SHOW_OPTION_YES;
+#else // HAVE_RESPONSE_TIME_DISTRIBUTION
+  have_response_time_distribution= SHOW_OPTION_NO;
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
 #ifdef HAVE_SPATIAL
   have_geometry=SHOW_OPTION_YES;
 #else

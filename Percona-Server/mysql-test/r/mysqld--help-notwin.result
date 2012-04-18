@@ -512,6 +512,12 @@ The following options may be given as the first argument:
  Invalidate queries in query cache on LOCK for write
  --query-prealloc-size=# 
  Persistent buffer for query parsing and execution
+ --query-response-time-range-base=# 
+ Select base of log for query_response_time ranges.
+ WARNING: variable change affect only after flush
+ --query-response-time-stats 
+ Enable or disable query response time statisics
+ collecting
  --range-alloc-block-size=# 
  Allocation block size for storing ranges during
  optimization
@@ -950,6 +956,8 @@ query-cache-strip-comments FALSE
 query-cache-type ON
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
+query-response-time-range-base 10
+query-response-time-stats FALSE
 range-alloc-block-size 4096
 read-buffer-size 131072
 read-only FALSE

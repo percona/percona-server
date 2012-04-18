@@ -294,6 +294,7 @@ extern SHOW_COMP_OPTION have_profiling;
 
 extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
+extern SHOW_COMP_OPTION have_response_time_distribution;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;

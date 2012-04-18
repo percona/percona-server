@@ -98,6 +98,10 @@ extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_ignore_builtin_innodb;
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+extern ulong   opt_query_response_time_range_base;
+extern my_bool opt_query_response_time_stats;
+#endif // HAVE_RESPONSE_TIME_DISTRIBUTION
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop;
 extern bool in_bootstrap;

@@ -419,6 +419,7 @@ UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
+UNIV_INTERN ibool	srv_fast_checksum = FALSE;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 

@@ -213,6 +213,7 @@ struct fil_space_t {
 	bool		is_in_unflushed_spaces;
 				/*!< true if this space is currently in
 				unflushed_spaces */
+	bool		is_corrupt;
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 
@@ -1678,5 +1679,12 @@ fil_system_hash_cells(void);
 ulint
 fil_system_hash_nodes(void);
 /*========================*/
+
+/*************************************************************************
+Set the is_corrupt flag of fil_space_t. */
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id);
 
 #endif /* fil0fil_h */

@@ -326,6 +326,9 @@ page_is_leaf(
 /*=========*/
 	const page_t*	page)	/*!< in: page */
 {
+	if (!page) {
+		return(false);
+	}
 	return(!*(const uint16*) (page + (PAGE_HEADER + PAGE_LEVEL)));
 }
 

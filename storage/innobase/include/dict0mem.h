@@ -1702,6 +1702,10 @@ public:
 	but just need a increased counter to track consistent view while
 	proceeding SELECT as part of UPDATE. */
 	ib_uint64_t				sess_trx_id;
+
+	/*----------------------*/
+
+	bool					is_corrupt;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

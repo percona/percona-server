@@ -1393,6 +1393,8 @@ fil_space_create(
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
 
+	space->is_corrupt = false;
+
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
 	if (id < SRV_LOG_SPACE_FIRST_ID && id > fil_system->max_assigned_id) {
@@ -5728,6 +5730,33 @@ fil_io(
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
+#ifndef UNIV_HOTBACKUP
+	if (UNIV_UNLIKELY(space->is_corrupt && srv_pass_corrupt_table)) {
+
+		/* should ignore i/o for the crashed space */
+		if (srv_pass_corrupt_table == 1 || req_type.is_write()) {
+
+			mutex_enter(&fil_system->mutex);
+			fil_node_complete_io(node, fil_system, type);
+			mutex_exit(&fil_system->mutex);
+			if (mode == OS_AIO_NORMAL) {
+				ut_a(space->purpose == FIL_TYPE_TABLESPACE);
+				buf_page_io_complete(static_cast<buf_page_t *>
+						     (message));
+			}
+		}
+
+		if (srv_pass_corrupt_table == 1 && req_type.is_read()) {
+
+			return(DB_TABLESPACE_DELETED);
+
+		} else if (req_type.is_write()) {
+
+			return(DB_SUCCESS);
+		}
+	}
+#endif
+
 	/* Don't compress the log, page 0 of all tablespaces, tables
 	compresssed with the old scheme and all pages from the system
 	tablespace. */
@@ -7557,6 +7586,27 @@ test_make_filepath()
 }
 #endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 /* @} */
+
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space) {
+		space->is_corrupt = true;
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
 
 /** Release the reserved free extents.
 @param[in]	n_reserved	number of reserved extents */

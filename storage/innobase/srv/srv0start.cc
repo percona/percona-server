@@ -2632,8 +2632,16 @@ files_checked:
 		}
 	}
 
+	if (!srv_file_per_table && srv_pass_corrupt_table) {
+		ib::warn()
+			<< "The option innodb_file_per_table is disabled,"
+			   " so using the option innodb_pass_corrupt_table "
+			   "doesn't make sense.";
+	}
+
 	if (srv_print_verbose_log) {
-		ib::info() << INNODB_VERSION_STR
+		ib::info()
+			<< "Percona XtraDB (http://www.percona.com) " INNODB_VERSION_STR
 			<< " started; log sequence number "
 			<< srv_start_lsn;
 	}

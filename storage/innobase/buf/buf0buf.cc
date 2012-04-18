@@ -1169,6 +1169,13 @@ buf_page_print(
 	dict_index_t*	index;
 #endif /* !UNIV_HOTBACKUP */
 
+	if (!read_buf) {
+		ib::info() <<
+			" InnoDB: Not dumping page as (in memory) pointer "
+			"is NULL\n";
+		return;
+	}
+
 	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
 
 		ib::info() << "Page dump in ascii and hex ("
@@ -5827,9 +5834,24 @@ corrupt:
 		    && fil_page_get_type(frame) == FIL_PAGE_INDEX
 		    && page_is_leaf(frame)) {
 
+			buf_block_t*	block;
+			ibool		update_ibuf_bitmap;
+
+			if (UNIV_UNLIKELY(bpage->is_corrupt &&
+					  srv_pass_corrupt_table)) {
+
+				block = NULL;
+				update_ibuf_bitmap = FALSE;
+
+			} else {
+
+				block = (buf_block_t *) bpage;
+				update_ibuf_bitmap = TRUE;
+			}
+
 			ibuf_merge_or_delete_for_page(
-				(buf_block_t*) bpage, bpage->id,
-				&bpage->size, TRUE);
+				block, bpage->id,
+				&bpage->size, update_ibuf_bitmap);
 		}
 	}
 

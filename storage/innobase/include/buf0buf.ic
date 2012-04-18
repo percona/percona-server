@@ -678,7 +678,7 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 {
-	ut_ad(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return(0););
 
 	switch (buf_block_get_state(block)) {
 	case BUF_BLOCK_POOL_WATCH:

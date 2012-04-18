@@ -23,6 +23,7 @@ File-based utilities
 Created 12/13/1995 Heikki Tuuri
 ***********************************************************************/
 
+#include "srv0srv.h"
 #include "sync0rw.h"
 #include "buf0buf.h"
 
@@ -55,6 +56,9 @@ fut_get_ptr(
 
 	block = buf_page_get(page_id_t(space, addr.page), page_size,
 			     rw_latch, mtr);
+
+	SRV_CORRUPT_TABLE_CHECK(block, return(0););
+
 	ptr = buf_block_get_frame(block) + addr.boffset;
 
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);

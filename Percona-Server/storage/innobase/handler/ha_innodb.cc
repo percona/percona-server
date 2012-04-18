@@ -12125,7 +12125,8 @@ i_s_innodb_sys_foreign,
 i_s_innodb_sys_foreign_cols,
 i_s_innodb_sys_stats,
 i_s_innodb_table_stats,
-i_s_innodb_index_stats
+i_s_innodb_index_stats,
+i_s_innodb_admin_command
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

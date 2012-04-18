@@ -736,6 +736,10 @@ The following options may be given as the first argument:
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
+ --xtradb-admin-command[=name] 
+ Enable or disable XTRADB_ADMIN_COMMAND plugin. Possible
+ values are ON, OFF, FORCE (don't start if the plugin
+ fails to load).
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -962,6 +966,7 @@ transaction-prealloc-size 4096
 updatable-views-with-limit YES
 verbose TRUE
 wait-timeout 28800
+xtradb-admin-command ON
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

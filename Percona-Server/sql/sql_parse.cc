@@ -889,6 +889,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
+  DBUG_EXECUTE_IF("crash_dispatch_command_before",
+                  { DBUG_PRINT("crash_dispatch_command_before", ("now"));
+                    DBUG_ABORT(); });
+
 #if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
 #endif

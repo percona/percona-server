@@ -44,9 +44,24 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log_xid(THD *thd, my_xid xid)=0;
+  virtual int log_and_order(THD *thd, my_xid xid, bool all,
+                            bool need_commit_ordered)=0;
   virtual int unlog(ulong cookie, my_xid xid)=0;
+
+  protected:
+  void run_commit_ordered(THD *thd, bool all);
 };
+
+/*
+  Locks used to ensure serialised execution of
+  TC_LOG::run_commit_ordered(), or any other code that calls handler
+  commit_ordered() methods.
+*/
+extern mysql_mutex_t LOCK_group_commit_queue;
+extern mysql_mutex_t LOCK_commit_ordered;
+
+extern void TC_init();
+extern void TC_destroy();
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
@@ -54,7 +69,17 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log_xid(THD *thd, my_xid xid)         { return 1; }
+  /*
+    TC_LOG_DUMMY is only used when there are <= 1 XA-capable engines, and we
+    only use internal XA during commit when >= 2 XA-capable engines
+    participate.
+  */
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_commit_ordered)
+  {
+    DBUG_ASSERT(0 /* Internal error - TC_LOG_DUMMY::log_and_order() called */);
+    return 1;
+  }
   int unlog(ulong cookie, my_xid xid)  { return 0; }
 };
 
@@ -80,6 +105,13 @@ class TC_LOG_MMAP: public TC_LOG
     mysql_cond_t  cond; // to wait for a sync
   } PAGE;
 
+  /* List of THDs for which to invoke commit_ordered(), in order. */
+  struct commit_entry
+  {
+    struct commit_entry *next;
+    THD *thd;
+  };
+
   char logname[FN_REFLEN];
   File fd;
   my_off_t file_length;
@@ -94,16 +126,38 @@ class TC_LOG_MMAP: public TC_LOG
   */
   mysql_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
   mysql_cond_t COND_pool, COND_active;
+  /*
+    Queue of threads that need to call commit_ordered().
+    Access to this queue must be protected by LOCK_group_commit_queue
+  */
+  commit_entry *commit_ordered_queue;
+  /*
+    This flag and condition is used to reserve the queue while threads in it
+    each run the commit_ordered() methods one after the other. Only once the
+    last commit_ordered() in the queue is done can we start on a new queue
+    run.
+
+    Since we start this process in the first thread in the queue and finish in
+    the last (and possibly different) thread, we need a condition variable for
+    this (we cannot unlock a mutex in a different thread than the one who
+    locked it).
+
+    The condition is used together with the LOCK_group_commit_queue mutex.
+  */
+  my_bool commit_ordered_queue_busy;
+  mysql_cond_t COND_queue_busy;
 
   public:
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_commit_ordered);
   int unlog(ulong cookie, my_xid xid);
   int recover();
 
   private:
+  int log_one_transaction(my_xid xid);
   void get_active_from_pool();
   int sync();
   int overflow();
@@ -271,9 +325,31 @@ private:
   time_t last_time;
 };
 
+class binlog_cache_data;
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
+  struct group_commit_entry
+  {
+    struct group_commit_entry *next;
+    THD *thd;
+    binlog_cache_data *cache_data;
+    /*
+      Extra events (BEGIN, COMMIT/ROLLBACK/XID, and possibly INCIDENT) to be
+      written during group commit. The incident_event is only valid if
+      trx_data->has_incident() is true.
+    */
+    Log_event *begin_event;
+    Log_event *end_event;
+    Log_event *incident_event;
+    /* Set during group commit to record any per-thread error. */
+    int error;
+    int commit_errno;
+    /* This is the `all' parameter for ha_commit_ordered(). */
+    bool all;
+    /* True if we come in through XA log_and_order(), false otherwise. */
+  };
+
 #ifdef HAVE_PSI_INTERFACE
   /** The instrumentation key to use for @ LOCK_index. */
   PSI_mutex_key m_key_LOCK_index;
@@ -325,6 +401,12 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     In 5.0 it's 0 for relay logs too!
   */
   bool no_auto_events;
+  /* Queue of transactions queued up to participate in group commit. */
+  group_commit_entry *group_commit_queue;
+  /* Total number of committed transactions. */
+  ulonglong num_commits;
+  /* Number of group commits done. */
+  ulonglong num_group_commits;
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -346,6 +428,11 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   int new_file_without_locking();
   int new_file_impl(bool need_lock);
+  int write_transaction(group_commit_entry *entry);
+  bool write_transaction_to_binlog_events(group_commit_entry *entry);
+  void trx_group_commit_leader(group_commit_entry *leader);
+  void mark_xid_done();
+  void mark_xids_active(uint xid_count);
 
 public:
   MYSQL_LOG::generate_name;
@@ -387,7 +474,8 @@ public:
 
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int log_and_order(THD *thd, my_xid xid, bool all,
+                    bool need_commit_ordered);
   int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
@@ -434,11 +522,11 @@ public:
   int new_file();
 
   bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
+  bool write_transaction_to_binlog(THD *thd, binlog_cache_data *cache_data,
+                                   Log_event *end_ev, bool all);
   bool write_incident(THD *thd, bool lock);
 
-  int  write_cache(THD *thd, IO_CACHE *cache,
-                   bool lock_log, bool flush_and_sync);
+  int  write_cache(THD *thd, IO_CACHE *cache);
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
 
@@ -509,6 +597,7 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+  void set_status_variables();
 };
 
 class Log_event_handler

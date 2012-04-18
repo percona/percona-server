@@ -1501,6 +1501,7 @@ void clean_up(bool print_message)
   ha_end();
   if (tc_log)
     tc_log->close();
+  TC_destroy();
   delegates_destroy();
   xid_cache_free();
   table_def_free();
@@ -3917,6 +3918,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   query_response_time_init();
 #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
   /* We have to initialize the storage engines before CSV logging */
+  TC_init();
+
   init_global_table_stats();
   init_global_index_stats();
 
@@ -7882,6 +7885,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_PARTITION_LOCK_auto_inc;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
+PSI_mutex_key key_LOCK_wakeup_ready, key_LOCK_group_commit_queue, key_LOCK_commit_ordered;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7902,6 +7906,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
+  { &key_LOCK_commit_ordered, "LOCK_commit_ordered", PSI_FLAG_GLOBAL},
   { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL},
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
   { &key_LOCK_delayed_create, "LOCK_delayed_create", PSI_FLAG_GLOBAL},
@@ -7917,6 +7922,7 @@ static PSI_mutex_info all_server_mutexes[]=
     "LOCK_global_index_stats", PSI_FLAG_GLOBAL},
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
+  { &key_LOCK_group_commit_queue, "LOCK_group_commit_queue", PSI_FLAG_GLOBAL},
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
   { &key_LOCK_rpl_status, "LOCK_rpl_status", PSI_FLAG_GLOBAL},
@@ -7928,6 +7934,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_temporary_tables, "THD::LOCK_temporary_tables", 0},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
+  { &key_LOCK_wakeup_ready, "THD::LOCK_wakeup_ready", 0},
   { &key_LOG_LOCK_log, "LOG::LOCK_log", 0},
   { &key_master_info_data_lock, "Master_info::data_lock", 0},
   { &key_master_info_run_lock, "Master_info::run_lock", 0},
@@ -7979,6 +7986,7 @@ PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 PSI_cond_key key_RELAYLOG_update_cond;
+PSI_cond_key key_COND_wakeup_ready, key_COND_queue_busy;
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -7995,8 +8003,10 @@ static PSI_cond_info all_server_conds[]=
   { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
+  { &key_COND_queue_busy, "COND_queue_busy", PSI_FLAG_GLOBAL},
   { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
+  { &key_COND_wakeup_ready, "THD::COND_wakeup_ready", 0},
   { &key_delayed_insert_cond, "Delayed_insert::cond", 0},
   { &key_delayed_insert_cond_client, "Delayed_insert::cond_client", 0},
   { &key_item_func_sleep_cond, "Item_func_sleep::cond", 0},

@@ -912,6 +912,8 @@ THD::THD()
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_temporary_tables, &LOCK_temporary_tables,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_wakeup_ready, &LOCK_wakeup_ready, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_wakeup_ready, &COND_wakeup_ready, NULL);
 
   /* Variables with default values */
   proc_info="login";
@@ -1516,6 +1518,8 @@ THD::~THD()
   my_free(db);
   db= NULL;
   free_root(&transaction.mem_root,MYF(0));
+  mysql_cond_destroy(&COND_wakeup_ready);
+  mysql_mutex_destroy(&LOCK_wakeup_ready);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_temporary_tables);
 #ifndef DBUG_OFF
@@ -5218,6 +5222,24 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     DBUG_ASSERT(0 <= qtype && qtype < QUERY_TYPE_COUNT);
   }
   DBUG_RETURN(0);
+}
+
+void
+THD::wait_for_wakeup_ready()
+{
+  mysql_mutex_lock(&LOCK_wakeup_ready);
+  while (!wakeup_ready)
+    mysql_cond_wait(&COND_wakeup_ready, &LOCK_wakeup_ready);
+  mysql_mutex_unlock(&LOCK_wakeup_ready);
+}
+
+void
+THD::signal_wakeup_ready()
+{
+  mysql_mutex_lock(&LOCK_wakeup_ready);
+  wakeup_ready= true;
+  mysql_mutex_unlock(&LOCK_wakeup_ready);
+  mysql_cond_signal(&COND_wakeup_ready);
 }
 
 bool Discrete_intervals_list::append(ulonglong start, ulonglong val,

@@ -3022,6 +3022,14 @@ public:
   LEX_STRING get_invoker_user() { return invoker_user; }
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
+  void clear_wakeup_ready() { wakeup_ready= false; }
+  /*
+    Sleep waiting for others to wake us up with signal_wakeup_ready().
+    Must call clear_wakeup_ready() before waiting.
+  */
+  void wait_for_wakeup_ready();
+  /* Wake this thread up from wait_for_wakeup_ready(). */
+  void signal_wakeup_ready();
 private:
 
   /** The current internal error handler for this thread, or NULL. */
@@ -3064,6 +3072,16 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+  /*
+    Flag, mutex and condition for a thread to wait for a signal from another
+    thread.
+
+    Currently used to wait for group commit to complete, can also be used for
+    other purposes.
+  */
+  bool wakeup_ready;
+  mysql_mutex_t LOCK_wakeup_ready;
+  mysql_cond_t COND_wakeup_ready;
 };
 
 /* Returns string as 'IP' for the client-side of the connection represented by

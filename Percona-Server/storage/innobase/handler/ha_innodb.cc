@@ -375,6 +375,9 @@ static PSI_file_info	all_innodb_files[] = {
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+static void innobase_commit_ordered(handlerton *hton, THD* thd, bool all);
+#endif
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
@@ -1699,7 +1702,10 @@ innobase_trx_init(
 	trx_t*	trx)	/*!< in/out: InnoDB transaction handle */
 {
 	DBUG_ENTER("innobase_trx_init");
+#ifndef EXTENDED_FOR_COMMIT_ORDERED
+	/* used by innobase_commit_ordered */
 	DBUG_ASSERT(EQ_CURRENT_THD(thd));
+#endif
 	DBUG_ASSERT(thd == trx->mysql_thd);
 
 	trx->check_foreigns = !thd_test_options(
@@ -1760,7 +1766,10 @@ check_trx_exists(
 {
 	trx_t*&	trx = thd_to_trx(thd);
 
+#ifndef EXTENDED_FOR_COMMIT_ORDERED
+	/* used by innobase_commit_ordered */
 	ut_ad(EQ_CURRENT_THD(thd));
+#endif
 
 	if (trx == NULL) {
 		trx = innobase_trx_allocate(thd);
@@ -1846,6 +1855,7 @@ trx_deregister_from_2pc(
 {
 	trx->is_registered = 0;
 	trx->owns_prepare_mutex = 0;
+	trx->called_commit_ordered = 0;
 }
 
 /*********************************************************************//**
@@ -1858,6 +1868,29 @@ trx_has_prepare_commit_mutex(
 	const trx_t*	trx)	/* in: transaction */
 {
 	return(trx->owns_prepare_mutex == 1);
+}
+
+/*********************************************************************//**
+*/
+static inline
+void
+trx_called_commit_ordered_set(
+/*==========================*/
+	trx_t*	trx)
+{
+	ut_a(trx_is_registered_for_2pc(trx));
+	trx->called_commit_ordered = 1;
+}
+
+/*********************************************************************//**
+*/
+static inline
+bool
+trx_called_commit_ordered(
+/*======================*/
+	const trx_t*	trx)
+{
+	return(trx->called_commit_ordered == 1);
 }
 
 /*********************************************************************//**
@@ -2435,6 +2468,9 @@ innobase_init(
         innobase_hton->savepoint_set=innobase_savepoint;
         innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
         innobase_hton->savepoint_release=innobase_release_savepoint;
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+	innobase_hton->commit_ordered=innobase_commit_ordered;
+#endif
         innobase_hton->commit=innobase_commit;
         innobase_hton->rollback=innobase_rollback;
         innobase_hton->prepare=innobase_xa_prepare;
@@ -3187,6 +3223,126 @@ innobase_start_trx_and_assign_read_view(
 	DBUG_RETURN(0);
 }
 
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+/* MEMO:
+  InnoDB is coded with intention that always trx is accessed by the owner thd.
+  (not protected by any mutex/lock)
+  So, the caller of innobase_commit_ordered() should be conscious of
+  cache coherency between multi CPU about the trx, if called from another thd.
+
+  MariaDB's first implementation about it seems the cherency is protected by
+  the pthread_mutex LOCK_wakeup_ready. So, no problem for now.
+
+  But we should be aware the importance of the coherency.
+ */
+/*****************************************************************//**
+low function function innobase_commit_ordered().*/
+static
+void
+innobase_commit_ordered_low(
+/*========================*/
+	trx_t*	trx, 	/*!< in: Innodb transaction */
+	THD*	thd)	/*!< in: MySQL thread handle */
+{
+	ulonglong tmp_pos;
+	DBUG_ENTER("innobase_commit_ordered");
+
+	/* This part was from innobase_commit() */
+
+	/* We need current binlog position for ibbackup to work.
+	Note, the position is current because commit_ordered is guaranteed
+	to be called in same sequenece as writing to binlog. */
+retry:
+	if (innobase_commit_concurrency > 0) {
+		mysql_mutex_lock(&commit_cond_m);
+		commit_threads++;
+
+		if (commit_threads > innobase_commit_concurrency) {
+			commit_threads--;
+			mysql_cond_wait(&commit_cond,
+					  &commit_cond_m);
+			mysql_mutex_unlock(&commit_cond_m);
+			goto retry;
+		}
+		else {
+			mysql_mutex_unlock(&commit_cond_m);
+		}
+	}
+
+	mysql_bin_log_commit_pos(thd, &tmp_pos, &(trx->mysql_log_file_name));
+	trx->mysql_log_offset = (ib_int64_t) tmp_pos;
+
+	/* Don't do write + flush right now. For group commit
+	   to work we want to do the flush in the innobase_commit()
+	   method, which runs without holding any locks. */
+	trx->flush_log_later = TRUE;
+	innobase_commit_low(trx);
+	trx->flush_log_later = FALSE;
+
+	if (innobase_commit_concurrency > 0) {
+		mysql_mutex_lock(&commit_cond_m);
+		commit_threads--;
+		mysql_cond_signal(&commit_cond);
+		mysql_mutex_unlock(&commit_cond_m);
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/*****************************************************************//**
+Perform the first, fast part of InnoDB commit.
+
+Doing it in this call ensures that we get the same commit order here
+as in binlog and any other participating transactional storage engines.
+
+Note that we want to do as little as really needed here, as we run
+under a global mutex. The expensive fsync() is done later, in
+innobase_commit(), without a lock so group commit can take place.
+
+Note also that this method can be called from a different thread than
+the one handling the rest of the transaction. */
+static
+void
+innobase_commit_ordered(
+/*====================*/
+	handlerton *hton, /*!< in: Innodb handlerton */
+	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+	bool	all)	/*!< in:	TRUE - commit transaction
+				FALSE - the current SQL statement ended */
+{
+	trx_t*		trx;
+	DBUG_ENTER("innobase_commit_ordered");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+
+	/* Since we will reserve the kernel mutex, we have to release
+	the search system latch first to obey the latching order. */
+
+	if (trx->has_search_latch) {
+		trx_search_latch_release_if_reserved(trx);
+	}
+
+	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
+		/* We cannot throw error here; instead we will catch this error
+		again in innobase_commit() and report it from there. */
+		DBUG_VOID_RETURN;
+	}
+
+	/* commit_ordered is only called when committing the whole transaction
+	(or an SQL statement when autocommit is on). */
+	DBUG_ASSERT(all ||
+		(!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)));
+
+	innobase_commit_ordered_low(trx, thd);
+
+	trx_called_commit_ordered_set(trx);
+
+	DBUG_VOID_RETURN;
+}
+#endif /* EXTENDED_FOR_COMMIT_ORDERED */
+
 /*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
@@ -3237,6 +3393,16 @@ innobase_commit(
 
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
+
+#ifdef EXTENDED_FOR_COMMIT_ORDERED
+		ut_ad(!trx_has_prepare_commit_mutex(trx));
+
+		/* Run the fast part of commit if we did not already. */
+		if (!trx_called_commit_ordered(trx)) {
+			innobase_commit_ordered_low(trx, thd);
+		}
+#else
+		ut_ad(!trx_called_commit_ordered(trx));
 
 		/* We need current binlog position for ibbackup to work.
 		Note, the position is current because of
@@ -3292,6 +3458,7 @@ retry:
   
 			mysql_mutex_unlock(&prepare_commit_mutex);
   		}
+#endif /* EXTENDED_FOR_COMMIT_ORDERED */
   
 		trx_deregister_from_2pc(trx);
 
@@ -11064,6 +11231,7 @@ innobase_xa_prepare(
 
 	srv_active_wake_master_thread();
 
+#ifndef EXTENDED_FOR_COMMIT_ORDERED
 	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
 	    && (all
 		|| !thd_test_options(
@@ -11090,6 +11258,7 @@ innobase_xa_prepare(
 		mysql_mutex_lock(&prepare_commit_mutex);
 		trx_owns_prepare_commit_mutex_set(trx);
 	}
+#endif /* ifndef EXTENDED_FOR_COMMIT_ORDERED */
 
 	return(error);
 }

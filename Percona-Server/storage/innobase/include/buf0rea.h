@@ -27,6 +27,7 @@ Created 11/5/1995 Heikki Tuuri
 #define buf0rea_h
 
 #include "univ.i"
+#include "trx0types.h"
 #include "buf0types.h"
 
 /********************************************************************//**
@@ -41,7 +42,8 @@ buf_read_page(
 /*==========*/
 	ulint	space,	/*!< in: space id */
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset);/*!< in: page number */
+	ulint	offset, /*!< in: page number */
+	trx_t*	trx);
 /********************************************************************//**
 Applies a random read-ahead in buf_pool if there are at least a threshold
 value of accessed pages from the random read-ahead area. Does not read any
@@ -65,8 +67,9 @@ buf_read_ahead_random(
 				or 0 */
 	ulint	offset,		/*!< in: page number of a page which
 				the current thread wants to access */
-	ibool	inside_ibuf);	/*!< in: TRUE if we are inside ibuf
+	ibool	inside_ibuf,	/*!< in: TRUE if we are inside ibuf
 				routine */
+	trx_t*	trx);
 /********************************************************************//**
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
@@ -98,7 +101,8 @@ buf_read_ahead_linear(
 	ulint	space,		/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes, or 0 */
 	ulint	offset,		/*!< in: page number; see NOTE 3 above */
-	ibool	inside_ibuf);	/*!< in: TRUE if we are inside ibuf routine */
+	ibool	inside_ibuf,	/*!< in: TRUE if we are inside ibuf routine */
+	trx_t*	trx);
 /********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like

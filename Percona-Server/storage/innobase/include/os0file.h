@@ -36,6 +36,7 @@ Created 10/21/1995 Heikki Tuuri
 #define os0file_h
 
 #include "univ.i"
+#include "trx0types.h"
 
 #ifndef __WIN__
 #include <dirent.h>
@@ -277,13 +278,17 @@ The wrapper functions have the prefix of "innodb_". */
 	pfs_os_file_close_func(file, __FILE__, __LINE__)
 
 # define os_aio(type, mode, name, file, buf, offset, offset_high,	\
-		n, message1, message2)					\
+		n, message1, message2, trx)				\
 	pfs_os_aio_func(type, mode, name, file, buf, offset,		\
-			offset_high, n, message1, message2,		\
+			offset_high, n, message1, message2, trx,	\
 			__FILE__, __LINE__)
 
 # define os_file_read(file, buf, offset, offset_high, n)		\
-	pfs_os_file_read_func(file, buf, offset, offset_high, n,	\
+	pfs_os_file_read_func(file, buf, offset, offset_high, n, NULL,	\
+			      __FILE__, __LINE__)
+
+# define os_file_read_trx(file, buf, offset, offset_high, n, trx)	\
+	pfs_os_file_read_func(file, buf, offset, offset_high, n, trx,	\
 			      __FILE__, __LINE__)
 
 # define os_file_read_no_error_handling(file, buf, offset,		\
@@ -319,12 +324,15 @@ to original un-instrumented file I/O APIs */
 # define os_file_close(file)	os_file_close_func(file)
 
 # define os_aio(type, mode, name, file, buf, offset, offset_high,	\
-	       n, message1, message2)					\
+	       n, message1, message2, trx)				\
 	os_aio_func(type, mode, name, file, buf, offset, offset_high, n,\
-		    message1, message2)
+		    message1, message2, trx)
 
 # define os_file_read(file, buf, offset, offset_high, n)		\
-	os_file_read_func(file, buf, offset, offset_high, n)
+	os_file_read_func(file, buf, offset, offset_high, n, NULL)
+
+# define os_file_read_trx(file, buf, offset, offset_high, n, trx)	\
+	os_file_read_func(file, buf, offset, offset_high, n, trx)
 
 # define os_file_read_no_error_handling(file, buf, offset,		\
 				       offset_high, n)			\
@@ -692,6 +700,7 @@ pfs_os_file_read_func(
 	ulint		offset_high,/*!< in: most significant 32 bits of
 				offset */
 	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 
@@ -746,6 +755,7 @@ pfs_os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
                                 OS_AIO_SYNC */
+	trx_t*		trx,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 /*******************************************************************//**
@@ -889,7 +899,8 @@ os_file_read_func(
 				offset where to read */
 	ulint		offset_high,/*!< in: most significant 32 bits of
 				offset */
-	ulint		n);	/*!< in: number of bytes to read */
+	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx);
 /*******************************************************************//**
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
@@ -1048,10 +1059,11 @@ os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	void*		message2);/*!< in: message for the aio handler
+	void*		message2,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	trx_t*		trx);
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */

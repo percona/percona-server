@@ -229,6 +229,7 @@ pfs_os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
                                 OS_AIO_SYNC */
+	trx_t*		trx,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -244,7 +245,7 @@ pfs_os_aio_func(
 				   src_file, src_line);
 
 	result = os_aio_func(type, mode, name, file, buf, offset, offset_high,
-			     n, message1, message2);
+			     n, message1, message2, trx);
 
 	register_pfs_file_io_end(locker, n);
 
@@ -268,6 +269,7 @@ pfs_os_file_read_func(
 	ulint		offset_high,/*!< in: most significant 32 bits of
 				offset */
 	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
 {
@@ -278,7 +280,7 @@ pfs_os_file_read_func(
 	register_pfs_file_io_begin(&state, locker, file, n, PSI_FILE_READ,
 				   src_file, src_line);
 
-	result = os_file_read_func(file, buf, offset, offset_high, n);
+	result = os_file_read_func(file, buf, offset, offset_high, n, trx);
 
 	register_pfs_file_io_end(locker, n);
 

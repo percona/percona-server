@@ -71,6 +71,9 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
+
 /* Mutex for locking srv_monitor_file */
 extern mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */

@@ -51,6 +51,40 @@ Created 11/5/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "page0zip.h"
+#include "trx0trx.h"
+
+/* prototypes for new functions added to ha_innodb.cc */
+trx_t* innobase_get_trx();
+
+inline void _increment_page_get_statistics(buf_block_t* block, trx_t* trx)
+{
+	ulint           block_hash;
+	ulint           block_hash_byte;
+	byte            block_hash_offset;
+
+	ut_ad(block);
+
+	if (!innobase_get_slow_log() || !trx || !trx->take_stats)
+		return;
+
+	if (!trx->distinct_page_access_hash) {
+		trx->distinct_page_access_hash = mem_alloc(DPAH_SIZE);
+		memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+	}
+
+	block_hash = ut_hash_ulint((block->page.space << 20) + block->page.space +
+					block->page.offset, DPAH_SIZE << 3);
+	block_hash_byte = block_hash >> 3;
+	block_hash_offset = (byte) block_hash & 0x07;
+	if (block_hash_byte >= DPAH_SIZE)
+		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
+	if (block_hash_offset > 7)
+		fprintf(stderr, "!!! block_hash_byte = %lu  block_hash_offset = %d !!!\n", block_hash_byte, block_hash_offset);
+	if ((trx->distinct_page_access_hash[block_hash_byte] & ((byte) 0x01 << block_hash_offset)) == 0)
+		trx->distinct_page_access++;
+	trx->distinct_page_access_hash[block_hash_byte] |= (byte) 0x01 << block_hash_offset;
+	return;
+}
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -1870,8 +1904,16 @@ buf_page_get_zip(
 	mutex_t*	block_mutex;
 	ibool		must_read;
 	unsigned	access_time;
+	trx_t*		trx = NULL;
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	start_time;
+	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
+	if (innobase_get_slow_log()) {
+		trx = innobase_get_trx();
+	}
 	buf_pool->stat.n_page_gets++;
 
 	for (;;) {
@@ -1889,7 +1931,7 @@ lookup:
 		//buf_pool_mutex_exit(buf_pool);
 		rw_lock_s_unlock(&buf_pool->page_hash_latch);
 
-		buf_read_page(space, zip_size, offset);
+		buf_read_page(space, zip_size, offset, trx);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(++buf_dbg_counter % 37 || buf_validate());
@@ -1985,6 +2027,13 @@ got_block:
 		/* Let us wait until the read operation
 		completes */
 
+		if (innobase_get_slow_log() && trx && trx->take_stats)
+		{
+			ut_usectime(&sec, &ms);
+			start_time = (ib_uint64_t)sec * 1000000 + ms;
+		} else {
+			start_time = 0;
+		}
 		for (;;) {
 			enum buf_io_fix	io_fix;
 
@@ -1998,6 +2047,12 @@ got_block:
 			} else {
 				break;
 			}
+		}
+		if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+		{
+			ut_usectime(&sec, &ms);
+			finish_time = (ib_uint64_t)sec * 1000000 + ms;
+			trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
 		}
 	}
 
@@ -2313,6 +2368,11 @@ buf_page_get_gen(
 	ibool		must_read;
 	ulint		retries = 0;
 	mutex_t*	block_mutex = NULL;
+	trx_t*		trx = NULL;
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	start_time;
+	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
 	ut_ad(mtr);
@@ -2342,6 +2402,9 @@ buf_page_get_gen(
 	      || ibuf_page_low(space, zip_size, offset,
 			       FALSE, file, line, NULL));
 #endif
+	if (innobase_get_slow_log()) {
+		trx = innobase_get_trx();
+	}
 	buf_pool->stat.n_page_gets++;
 	fold = buf_page_address_fold(space, offset);
 loop:
@@ -2412,9 +2475,9 @@ loop2:
 			return(NULL);
 		}
 
-		if (buf_read_page(space, zip_size, offset)) {
+		if (buf_read_page(space, zip_size, offset, trx)) {
 			buf_read_ahead_random(space, zip_size, offset,
-					      ibuf_inside(mtr));
+					      ibuf_inside(mtr), trx);
 
 			retries = 0;
 		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
@@ -2724,6 +2787,13 @@ wait_until_unfixed:
 			/* Let us wait until the read operation
 			completes */
 
+			if (innobase_get_slow_log() && trx && trx->take_stats)
+			{
+				ut_usectime(&sec, &ms);
+				start_time = (ib_uint64_t)sec * 1000000 + ms;
+			} else {
+				start_time = 0;
+			}
 			for (;;) {
 				enum buf_io_fix	io_fix;
 
@@ -2737,6 +2807,12 @@ wait_until_unfixed:
 				} else {
 					break;
 				}
+			}
+			if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+			{
+				ut_usectime(&sec, &ms);
+				finish_time = (ib_uint64_t)sec * 1000000 + ms;
+				trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
 			}
 		}
 
@@ -2764,13 +2840,17 @@ wait_until_unfixed:
 		read-ahead */
 
 		buf_read_ahead_linear(space, zip_size, offset,
-				      ibuf_inside(mtr));
+				      ibuf_inside(mtr), trx);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
 			    buf_block_get_page_no(block)) == 0);
 #endif
+	if (innobase_get_slow_log()) {
+		_increment_page_get_statistics(block, trx);
+	}
+
 	return(block);
 }
 
@@ -2794,6 +2874,7 @@ buf_page_optimistic_get(
 	unsigned	access_time;
 	ibool		success;
 	ulint		fix_type;
+	trx_t*		trx = NULL;
 
 	ut_ad(block);
 	ut_ad(mtr);
@@ -2871,6 +2952,10 @@ buf_page_optimistic_get(
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
+	if (innobase_get_slow_log()) {
+		trx = innobase_get_trx();
+	}
+
 	if (UNIV_UNLIKELY(!access_time)) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
@@ -2878,7 +2963,7 @@ buf_page_optimistic_get(
 		buf_read_ahead_linear(buf_block_get_space(block),
 				      buf_block_get_zip_size(block),
 				      buf_block_get_page_no(block),
-				      ibuf_inside(mtr));
+				      ibuf_inside(mtr), trx);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -2888,6 +2973,9 @@ buf_page_optimistic_get(
 	buf_pool = buf_pool_from_block(block);
 	buf_pool->stat.n_page_gets++;
 
+	if (innobase_get_slow_log()) {
+		_increment_page_get_statistics(block, trx);
+	}
 	return(TRUE);
 }
 
@@ -2910,6 +2998,7 @@ buf_page_get_known_nowait(
 	buf_pool_t*	buf_pool;
 	ibool		success;
 	ulint		fix_type;
+	trx_t*		trx = NULL;
 
 	ut_ad(mtr);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -2995,6 +3084,11 @@ buf_page_get_known_nowait(
 				buf_block_get_page_no(block)) == 0));
 #endif
 	buf_pool->stat.n_page_gets++;
+
+	if (innobase_get_slow_log()) {
+		trx = innobase_get_trx();
+		_increment_page_get_statistics(block, trx);
+	}
 
 	return(TRUE);
 }

@@ -43,6 +43,8 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "trx0sys.h"
+#include "trx0trx.h"
 #include "log0recv.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
@@ -2213,13 +2215,18 @@ os_file_pread(
 	ulint		n,	/*!< in: number of bytes to read */
 	ulint		offset,	/*!< in: least significant 32 bits of file
 				offset from where to read */
-	ulint		offset_high) /*!< in: most significant 32 bits of
+	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
+	trx_t*		trx)
 {
 	off_t	offs;
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
 	ssize_t	n_bytes;
 #endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	start_time;
+	ib_uint64_t	finish_time;
 
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
 
@@ -2240,6 +2247,15 @@ os_file_pread(
 
 	os_n_file_reads++;
 
+	if (innobase_get_slow_log() && trx && trx->take_stats)
+	{
+	        trx->io_reads++;
+		trx->io_read += n;
+		ut_usectime(&sec, &ms);
+		start_time = (ib_uint64_t)sec * 1000000 + ms;
+	} else {
+		start_time = 0;
+	}
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
@@ -2252,6 +2268,13 @@ os_file_pread(
 	os_file_n_pending_preads--;
 	os_n_pending_reads--;
 	os_mutex_exit(os_file_count_mutex);
+
+	if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+	{
+		ut_usectime(&sec, &ms);
+		finish_time = (ib_uint64_t)sec * 1000000 + ms;
+		trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
+	}
 
 	return(n_bytes);
 #else
@@ -2288,6 +2311,13 @@ os_file_pread(
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		os_mutex_exit(os_file_count_mutex);
+
+		if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+		{
+			ut_usectime(&sec, &ms);
+			finish_time = (ib_uint64_t)sec * 1000000 + ms;
+			trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
+		}
 
 		return(ret);
 	}
@@ -2429,7 +2459,8 @@ os_file_read_func(
 				offset where to read */
 	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
-	ulint		n)	/*!< in: number of bytes to read */
+	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx)
 {
 #ifdef __WIN__
 	BOOL		ret;
@@ -2504,7 +2535,7 @@ try_again:
 	os_bytes_read_since_printout += n;
 
 try_again:
-	ret = os_file_pread(file, buf, n, offset, offset_high);
+	ret = os_file_pread(file, buf, n, offset, offset_high, trx);
 
 	if ((ulint)ret == n) {
 
@@ -2633,7 +2664,7 @@ try_again:
 	os_bytes_read_since_printout += n;
 
 try_again:
-	ret = os_file_pread(file, buf, n, offset, offset_high);
+	ret = os_file_pread(file, buf, n, offset, offset_high, NULL);
 
 	if ((ulint)ret == n) {
 
@@ -4124,10 +4155,11 @@ os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	void*		message2)/*!< in: message for the aio handler
+	void*		message2,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	trx_t*		trx)
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
@@ -4175,7 +4207,7 @@ os_aio_func(
 
 		if (type == OS_FILE_READ) {
 			return(os_file_read_func(file, buf, offset,
-					    offset_high, n));
+					    offset_high, n, trx));
 		}
 
 		ut_a(type == OS_FILE_WRITE);
@@ -4216,6 +4248,11 @@ try_again:
 		array = NULL; /* Eliminate compiler warning */
 	}
 
+	if (trx && type == OS_FILE_READ)
+	{
+		trx->io_reads++;
+		trx->io_read += n;
+	}
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
 					 name, buf, offset, offset_high, n);
 	if (type == OS_FILE_READ) {

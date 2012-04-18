@@ -87,6 +87,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
+
 /* The following counter is incremented whenever there is some user activity
 in the server */
 UNIV_INTERN ulint	srv_activity_count	= 0;
@@ -1234,6 +1237,10 @@ srv_conc_enter_innodb(
 	ibool			has_slept = FALSE;
 	srv_conc_slot_t*	slot	  = NULL;
 	ulint			i;
+	ib_uint64_t             start_time = 0L;
+	ib_uint64_t             finish_time = 0L;
+	ulint                   sec;
+	ulint                   ms;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
@@ -1314,6 +1321,7 @@ retry:
 		switches. */
 		if (SRV_THREAD_SLEEP_DELAY > 0) {
 			os_thread_sleep(SRV_THREAD_SLEEP_DELAY);
+			trx->innodb_que_wait_timer += SRV_THREAD_SLEEP_DELAY;
 		}
 
 		trx->op_info = "";
@@ -1373,6 +1381,14 @@ retry:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
+
+	if (innobase_get_slow_log() && trx->take_stats) {
+		ut_usectime(&sec, &ms);
+		start_time = (ib_uint64_t)sec * 1000000 + ms;
+	} else {
+		start_time = 0;
+	}
+
 	trx->op_info = "waiting in InnoDB queue";
 
 	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
@@ -1380,6 +1396,12 @@ retry:
 	thd_wait_end(trx->mysql_thd);
 
 	trx->op_info = "";
+
+	if (innobase_get_slow_log() && trx->take_stats && start_time) {
+		ut_usectime(&sec, &ms);
+		finish_time = (ib_uint64_t)sec * 1000000 + ms;
+		trx->innodb_que_wait_timer += (ulint)(finish_time - start_time);
+	}
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 

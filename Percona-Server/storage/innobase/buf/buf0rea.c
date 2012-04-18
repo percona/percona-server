@@ -367,7 +367,7 @@ buf_read_page(
 	}
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
+	buf_flush_free_margin(buf_pool, TRUE);
 
 	/* Increment number of I/O operations used for LRU policy. */
 	buf_LRU_stat_inc_io();
@@ -641,7 +641,7 @@ buf_read_ahead_linear(
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of the LRU list if necessary */
-	buf_flush_free_margin(buf_pool);
+	buf_flush_free_margin(buf_pool, TRUE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
@@ -729,7 +729,7 @@ tablespace_deleted:
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of all the LRU lists if necessary */
-	buf_flush_free_margins();
+	buf_flush_free_margins(FALSE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
@@ -823,7 +823,7 @@ buf_read_recv_pages(
 	os_aio_simulated_wake_handler_threads();
 
 	/* Flush pages from the end of all the LRU lists if necessary */
-	buf_flush_free_margins();
+	buf_flush_free_margins(FALSE);
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {

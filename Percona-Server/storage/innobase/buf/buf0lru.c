@@ -934,7 +934,7 @@ loop:
 
 	/* No free block was found: try to flush the LRU list */
 
-	buf_flush_free_margin(buf_pool);
+	buf_flush_free_margin(buf_pool, TRUE);
 	++srv_buf_pool_wait_free;
 
 	os_aio_simulated_wake_handler_threads();
@@ -1131,7 +1131,7 @@ buf_LRU_remove_block(
 
 	/* Remove the block from the LRU list */
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
-	ut_d(bpage->in_LRU_list = FALSE);
+	bpage->in_LRU_list = FALSE;
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
 
@@ -1210,7 +1210,7 @@ buf_LRU_add_block_to_end_low(
 
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
-	ut_d(bpage->in_LRU_list = TRUE);
+	bpage->in_LRU_list = TRUE;
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
@@ -1280,7 +1280,7 @@ buf_LRU_add_block_low(
 		buf_pool->LRU_old_len++;
 	}
 
-	ut_d(bpage->in_LRU_list = TRUE);
+	bpage->in_LRU_list = TRUE;
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
@@ -1524,7 +1524,7 @@ alloc:
 				buf_page_set_old(b, buf_page_is_old(b));
 #endif /* UNIV_LRU_DEBUG */
 			} else {
-				ut_d(b->in_LRU_list = FALSE);
+				b->in_LRU_list = FALSE;
 				buf_LRU_add_block_low(b, buf_page_is_old(b));
 			}
 

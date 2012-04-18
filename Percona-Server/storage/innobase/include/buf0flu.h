@@ -65,13 +65,15 @@ UNIV_INTERN
 void
 buf_flush_free_margin(
 /*==================*/
-	 buf_pool_t*	buf_pool);
+	 buf_pool_t*	buf_pool,
+	ibool		wait);
 /*********************************************************************//**
 Flushes pages from the end of all the LRU lists. */
 UNIV_INTERN
 void
-buf_flush_free_margins(void);
+buf_flush_free_margins(
 /*=========================*/
+	ibool		wait);
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Initializes a page for writing to the tablespace. */

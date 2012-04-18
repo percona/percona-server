@@ -431,19 +431,21 @@ buf_flush_ready_for_replace(
 				buf_page_in_file(bpage) and in the LRU list */
 {
 #ifdef UNIV_DEBUG
-	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-	ut_ad(buf_pool_mutex_own(buf_pool));
+	//buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	//ut_ad(buf_pool_mutex_own(buf_pool));
 #endif
-	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-	ut_ad(bpage->in_LRU_list);
+	//ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+	//ut_ad(bpage->in_LRU_list);
 
-	if (UNIV_LIKELY(buf_page_in_file(bpage))) {
+	if (UNIV_LIKELY(bpage->in_LRU_list && buf_page_in_file(bpage))) {
 
 		return(bpage->oldest_modification == 0
 		       && buf_page_get_io_fix(bpage) == BUF_IO_NONE
 		       && bpage->buf_fix_count == 0);
 	}
 
+	/* permited not to own LRU_mutex..  */
+/*
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Error: buffer block state %lu"
@@ -451,6 +453,7 @@ buf_flush_ready_for_replace(
 		(ulong) buf_page_get_state(bpage));
 	ut_print_buf(stderr, bpage, sizeof(buf_page_t));
 	putc('\n', stderr);
+*/
 
 	return(FALSE);
 }
@@ -2033,8 +2036,14 @@ buf_flush_LRU_recommendation(
 	buf_page_t*	bpage;
 	ulint		n_replaceable;
 	ulint		distance	= 0;
+	ibool		have_LRU_mutex = FALSE;
 
-	buf_pool_mutex_enter(buf_pool);
+	if(UT_LIST_GET_LEN(buf_pool->unzip_LRU))
+		have_LRU_mutex = TRUE;
+retry:
+	//buf_pool_mutex_enter(buf_pool);
+	if (have_LRU_mutex)
+		buf_pool_mutex_enter(buf_pool);
 
 	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
 
@@ -2045,7 +2054,13 @@ buf_flush_LRU_recommendation(
 		   + BUF_FLUSH_EXTRA_MARGIN(buf_pool))
 	       && (distance < BUF_LRU_FREE_SEARCH_LEN(buf_pool))) {
 
-		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		mutex_t* block_mutex;
+		if (!bpage->in_LRU_list) {
+			/* reatart. but it is very optimistic */
+			bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+			continue;
+		}
+		block_mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(block_mutex);
 
@@ -2060,11 +2075,18 @@ buf_flush_LRU_recommendation(
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
 	}
 
-	buf_pool_mutex_exit(buf_pool);
+	//buf_pool_mutex_exit(buf_pool);
+	if (have_LRU_mutex)
+		buf_pool_mutex_exit(buf_pool);
 
 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN(buf_pool)) {
 
 		return(0);
+	} else if (!have_LRU_mutex) {
+		/* confirm it again with LRU_mutex for exactness */
+		have_LRU_mutex = TRUE;
+		distance = 0;
+		goto retry;
 	}
 
 	return(BUF_FLUSH_FREE_BLOCK_MARGIN(buf_pool)
@@ -2082,7 +2104,8 @@ UNIV_INTERN
 void
 buf_flush_free_margin(
 /*==================*/
-	buf_pool_t*	buf_pool)		/*!< in: Buffer pool instance */
+	buf_pool_t*	buf_pool,		/*!< in: Buffer pool instance */
+	ibool		wait)
 {
 	ulint	n_to_flush;
 
@@ -2093,7 +2116,7 @@ buf_flush_free_margin(
 
 		n_flushed = buf_flush_LRU(buf_pool, n_to_flush);
 
-		if (n_flushed == ULINT_UNDEFINED) {
+		if (wait && n_flushed == ULINT_UNDEFINED) {
 			/* There was an LRU type flush batch already running;
 			let us wait for it to end */
 
@@ -2106,8 +2129,9 @@ buf_flush_free_margin(
 Flushes pages from the end of all the LRU lists. */
 UNIV_INTERN
 void
-buf_flush_free_margins(void)
+buf_flush_free_margins(
 /*========================*/
+	ibool	wait)
 {
 	ulint	i;
 
@@ -2116,7 +2140,7 @@ buf_flush_free_margins(void)
 
 		buf_pool = buf_pool_from_array(i);
 
-		buf_flush_free_margin(buf_pool);
+		buf_flush_free_margin(buf_pool, wait);
 	}
 }
 

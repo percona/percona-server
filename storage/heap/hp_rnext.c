@@ -110,7 +110,10 @@ int heap_rnext(HP_INFO *info, uchar *record)
       my_errno=HA_ERR_END_OF_FILE;
     DBUG_RETURN(my_errno);
   }
-  memcpy(record,pos,(size_t) share->reclength);
+  if (hp_extract_record(info, record, pos))
+  {
+    DBUG_RETURN(my_errno);
+  }
   info->update=HA_STATE_AKTIV | HA_STATE_NEXT_FOUND;
   DBUG_RETURN(0);
 }

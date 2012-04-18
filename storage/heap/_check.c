@@ -44,7 +44,7 @@ int heap_check_heap(HP_INFO *info, my_bool print_status)
 {
   int error;
   uint key;
-  ulong records=0, deleted=0, pos, next_block;
+  ulong records= 0, deleted= 0, chunk_count= 0, pos, next_block;
   HP_SHARE *share=info->s;
   HP_INFO save_info= *info;			/* Needed because scan_init */
   DBUG_ENTER("heap_check_heap");
@@ -65,31 +65,55 @@ int heap_check_heap(HP_INFO *info, my_bool print_status)
   {
     if (pos < next_block)
     {
-      info->current_ptr+= share->block.recbuffer;
+      info->current_ptr+= share->recordspace.block.recbuffer;
     }
     else
     {
-      next_block+= share->block.records_in_block;
-      if (next_block >= share->records+share->deleted)
+      next_block+= share->recordspace.block.records_in_block;
+      if (next_block >= share->recordspace.chunk_count)
       {
-	next_block= share->records+share->deleted;
-	if (pos >= next_block)
-	  break;				/* End of file */
+        next_block= share->recordspace.chunk_count;
+        if (pos >= next_block)
+          break;				/* End of file */
       }
     }
     hp_find_record(info,pos);
 
-    if (!info->current_ptr[share->reclength])
+    switch (get_chunk_status(&share->recordspace, info->current_ptr)) {
+    case CHUNK_STATUS_DELETED:
       deleted++;
-    else
+      chunk_count++;
+      break;
+    case CHUNK_STATUS_ACTIVE:
       records++;
+        chunk_count++;
+        break;
+    case CHUNK_STATUS_LINKED:
+      chunk_count++;
+      break;
+    default:
+      DBUG_PRINT("error",
+                 ("Unknown record status: Record: 0x%lx  Status %lu",
+                  (long) info->current_ptr,
+                  (ulong) get_chunk_status(&share->recordspace,
+                                           info->current_ptr)));
+        error|= 1;
+        break;
+    }
   }
 
-  if (records != share->records || deleted != share->deleted)
+  /* TODO: verify linked chunks (no orphans, no cycles, no bad links) */
+
+  if (records != share->records ||
+      chunk_count != share->recordspace.chunk_count ||
+      deleted != share->recordspace.del_chunk_count)
   {
-    DBUG_PRINT("error",("Found rows: %lu (%lu)  deleted %lu (%lu)",
-			records, (ulong) share->records,
-                        deleted, (ulong) share->deleted));
+    DBUG_PRINT("error",
+               ("Found rows: %lu (%lu) total chunks %lu (%lu) deleted chunks "
+                "%lu (%lu)",
+                records, (ulong) share->records,
+                chunk_count, (ulong) share->recordspace.chunk_count,
+                deleted, (ulong) share->recordspace.del_chunk_count));
     error= 1;
   }
   *info= save_info;
@@ -178,7 +202,7 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
     do
     {
       memcpy(&recpos, key + (*keydef->get_key_length)(keydef,key), sizeof(uchar*));
-      key_length= hp_rb_make_key(keydef, info->recbuf, recpos, 0);
+      key_length= hp_rb_make_key(keydef, info->recbuf, recpos, 0, TRUE);
       if (ha_key_cmp(keydef->seg, (uchar*) info->recbuf, (uchar*) key,
 		     key_length, SEARCH_FIND | SEARCH_SAME, not_used))
       {

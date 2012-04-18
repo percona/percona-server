@@ -242,10 +242,10 @@ rw_lock_create_func(
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-	const char*	cmutex_name,	/*!< in: mutex name */
-#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline)		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
 {
 	/* If this is the very first time a synchronization object is
 	created, then the following call initializes the sync system. */
@@ -254,14 +254,15 @@ rw_lock_create_func(
 	mutex_create(rw_lock_mutex_key, rw_lock_get_mutex(lock),
 		     SYNC_NO_ORDER_CHECK);
 
-	lock->mutex.cfile_name = cfile_name;
-	lock->mutex.cline = cline;
+	ut_d(lock->mutex.cfile_name = cfile_name);
+	ut_d(lock->mutex.cline = cline);
 
-	ut_d(lock->mutex.cmutex_name = cmutex_name);
+	lock->mutex.cmutex_name = cmutex_name;
 	ut_d(lock->mutex.mutex_type = 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 # ifdef UNIV_DEBUG
-	UT_NOT_USED(cmutex_name);
+	UT_NOT_USED(cfile_name);
+	UT_NOT_USED(cline);
 # endif
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
@@ -284,8 +285,7 @@ rw_lock_create_func(
 
 	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
 
-	lock->cfile_name = cfile_name;
-	lock->cline = (unsigned int) cline;
+	lock->lock_name = cmutex_name;
 
 	lock->count_os_wait = 0;
 	lock->last_s_file_name = "not yet reserved";
@@ -405,11 +405,10 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
 			"Thread %lu spin wait rw-s-lock at %p"
-			" cfile %s cline %lu rnds %lu\n",
+			" '%s' rnds %lu\n",
 			(ulong) os_thread_pf(os_thread_get_curr_id()),
 			(void*) lock,
-			innobase_basename(lock->cfile_name),
-			(ulong) lock->cline, (ulong) i);
+			lock->lock_name, (ulong) i);
 	}
 
 	/* We try once again to obtain the lock */
@@ -442,11 +441,9 @@ lock_loop:
 		if (srv_print_latch_waits) {
 			fprintf(stderr,
 				"Thread %lu OS wait rw-s-lock at %p"
-				" cfile %s cline %lu\n",
+				" '%s'\n",
 				os_thread_pf(os_thread_get_curr_id()),
-				(void*) lock,
-				innobase_basename(lock->cfile_name),
-				(ulong) lock->cline);
+				(void*) lock, lock->lock_name);
 		}
 
 		/* these stats may not be accurate */
@@ -668,10 +665,9 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
 			"Thread %lu spin wait rw-x-lock at %p"
-			" cfile %s cline %lu rnds %lu\n",
+			" '%s' rnds %lu\n",
 			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
-			innobase_basename(lock->cfile_name),
-			(ulong) lock->cline, (ulong) i);
+			lock->lock_name, (ulong) i);
 	}
 
 	sync_array_reserve_cell(sync_primary_wait_array,
@@ -692,10 +688,9 @@ lock_loop:
 	if (srv_print_latch_waits) {
 		fprintf(stderr,
 			"Thread %lu OS wait for rw-x-lock at %p"
-			" cfile %s cline %lu\n",
+			" '%s'\n",
 			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
-			innobase_basename(lock->cfile_name),
-			(ulong) lock->cline);
+			lock->lock_name);
 	}
 
 	/* these stats may not be accurate */

@@ -1725,7 +1725,7 @@ struct buf_pool_struct{
 	time_t		last_printout_time;
 					/*!< when buf_print_io was last time
 					called */
-	buf_buddy_stat_t buddy_stat[BUF_BUDDY_SIZES + 1];
+	buf_buddy_stat_t buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
 					/*!< Statistics of buddy system,
 					indexed by block size */
 	buf_pool_stat_t	stat;		/*!< current statistics */
@@ -1823,7 +1823,7 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
+	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
 					/*!< buddy free lists */
 
 	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
@@ -1831,9 +1831,9 @@ struct buf_pool_struct{
 					pool watches. Protected by
 				       	buf_pool->mutex. */
 
-#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
-# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
-#endif
+//#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE
+//# error "BUF_BUDDY_HIGH != UNIV_PAGE_SIZE"
+//#endif
 #if BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE
 # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
 #endif

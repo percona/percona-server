@@ -2017,6 +2017,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
   case SCH_TABLE_NAMES:
   case SCH_TABLES:
+  case SCH_TEMPORARY_TABLES:
+  case SCH_GLOBAL_TEMPORARY_TABLES:
   case SCH_VIEWS:
   case SCH_TRIGGERS:
   case SCH_EVENTS:

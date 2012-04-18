@@ -395,6 +395,7 @@ extern PSI_mutex_key key_LOCK_tc;
 extern PSI_mutex_key key_LOCK_des_key_file;
 #endif
 
+extern PSI_mutex_key key_LOCK_temporary_tables;
 extern PSI_mutex_key key_BINLOG_LOCK_commit;
 extern PSI_mutex_key key_BINLOG_LOCK_commit_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_done;

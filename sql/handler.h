@@ -645,6 +645,7 @@ enum enum_schema_tables
   SCH_EVENTS,
   SCH_FILES,
   SCH_GLOBAL_STATUS,
+  SCH_GLOBAL_TEMPORARY_TABLES,
   SCH_GLOBAL_VARIABLES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
@@ -667,6 +668,7 @@ enum enum_schema_tables
   SCH_TABLE_CONSTRAINTS,
   SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
+  SCH_TEMPORARY_TABLES,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
   SCH_VARIABLES,
@@ -2350,7 +2352,8 @@ public:
     m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
-    m_lock_type(F_UNLCK), ha_share(NULL), m_update_generated_read_fields(false)
+    m_lock_type(F_UNLCK), ha_share(NULL),
+    m_update_generated_read_fields(false), cloned(false)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
@@ -3978,6 +3981,13 @@ protected:
   void set_ha_share_ptr(Handler_share *arg_ha_share);
   void lock_shared_ha_data();
   void unlock_shared_ha_data();
+
+private:
+  /**
+    If true, the current handler is a clone. In that case certain invariants
+    such as table->in_use == current_thd are relaxed to support cloning a
+    handler belonging to a different thread. */
+  bool cloned;
 };
 
 

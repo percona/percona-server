@@ -2159,7 +2159,8 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 
 /****************************************************************************
   Return info about all processes
-  returns for each thread: thread id, user, host, db, command, info
+  returns for each thread: thread id, user, host, db, command, info,
+  rows_sent, rows_examined
 ****************************************************************************/
 class thread_info : public Sql_alloc
 {
@@ -4175,6 +4176,257 @@ uint get_table_open_method(TABLE_LIST *tables,
   return (uint) OPEN_FULL_TABLE;
 }
 
+/**
+  @brief          Change I_S table item list for SHOW [GLOBAL] TEMPORARY TABLES [FROM/IN db]
+
+  @param[in]      thd                      thread handler
+  @param[in]      schema_table             I_S table
+
+  @return         Operation status
+    @retval       0                        success
+    @retval       1                        error
+*/
+int make_temporary_tables_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+{
+  char tmp[128];
+  String buffer(tmp,sizeof(tmp), thd->charset());
+  LEX *lex= thd->lex;
+  Name_resolution_context *context= &lex->select_lex->context;
+
+  if (thd->lex->option_type == OPT_GLOBAL) {
+    ST_FIELD_INFO *field_info= &schema_table->fields_info[0];
+    Item_field *field= new Item_field(context, NullS, NullS, field_info->field_name);
+    if (add_item_to_list(thd, field))
+      return 1;
+    field->item_name.copy(field_info->old_name, strlen(field_info->old_name), system_charset_info);
+  }
+
+  ST_FIELD_INFO *field_info= &schema_table->fields_info[2];
+  buffer.length(0);
+  buffer.append(field_info->old_name);
+  buffer.append(lex->select_lex->db);
+
+  if (lex->wild && lex->wild->ptr())
+  {
+    buffer.append(STRING_WITH_LEN(" ("));
+    buffer.append(lex->wild->ptr());
+    buffer.append(')');
+  }
+
+  Item_field *field= new Item_field(context, NullS, NullS, field_info->field_name);    
+  if (add_item_to_list(thd, field))
+    return 1;
+
+  field->item_name.copy(buffer.ptr(), buffer.length(), system_charset_info);
+  return 0;
+}
+
+/**
+  @brief          Fill records for temporary tables by reading info from table object
+
+  @param[in]      thd                      thread handler
+  @param[in]      table                    I_S table
+  @param[in]      tmp_table                temporary table
+  @param[in]      db                       database name
+
+  @return         Operation status
+    @retval       0                        success
+    @retval       1                        error
+*/
+
+static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table, const char *db)
+{
+  CHARSET_INFO *cs= system_charset_info;
+  DBUG_ENTER("store_temporary_table_record");
+
+  if (db && my_strcasecmp(cs, db, tmp_table->s->db.str))
+    DBUG_RETURN(0);
+
+  restore_record(table, s->default_values);
+
+  //session_id
+  table->field[0]->store((longlong) thd->thread_id(), TRUE);
+
+  //database
+  table->field[1]->store(tmp_table->s->db.str, tmp_table->s->db.length, cs);
+
+  //table
+  table->field[2]->store(tmp_table->s->table_name.str, tmp_table->s->table_name.length, cs);
+
+  //engine
+  handler *handle= tmp_table->file;
+  // Assume that invoking handler::table_type() on a shared handler is safe
+  const char *engineType = (char *)(handle ? handle->table_type() : "UNKNOWN");
+  table->field[3]->store(engineType, strlen(engineType), cs);
+
+  //name
+  if (tmp_table->s->path.str) {
+    char *p=strstr(tmp_table->s->path.str, "#sql");
+    int len=tmp_table->s->path.length-(p-tmp_table->s->path.str);
+    table->field[4]->store(p, min(FN_REFLEN, len), cs);
+  }
+
+  // file stats
+  handler *file= tmp_table->file;
+
+  /* We have only one handler object for a temp table globally and it might
+  be in use by other thread.  Do not trash it by invoking handler methods on
+  it but rather clone it. */
+  if (file) {
+    file= file->clone(tmp_table->s->normalized_path.str, thd->mem_root);
+  }
+
+  if (file) {
+
+    MYSQL_TIME time;
+
+    /**
+        TODO: InnoDB stat(file) checks file on short names within data dictionary
+        rather than using full path, because of that, temp files created in
+        TMPDIR will not have access/create time as it will not find the file
+
+        The fix is to patch InnoDB to use full path
+    */
+    file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_NO_LOCK);
+
+    table->field[5]->store((longlong) file->stats.records, TRUE);
+    table->field[5]->set_notnull();
+
+    table->field[6]->store((longlong) file->stats.mean_rec_length, TRUE);
+    table->field[7]->store((longlong) file->stats.data_file_length, TRUE);
+    table->field[8]->store((longlong) file->stats.index_file_length, TRUE);
+    if (file->stats.create_time)
+    {
+      thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                                (my_time_t) file->stats.create_time);
+      table->field[9]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[9]->set_notnull();
+    }
+    if (file->stats.update_time)
+    {
+      thd->variables.time_zone->gmt_sec_to_TIME(&time,
+                                                (my_time_t) file->stats.update_time);
+      table->field[10]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
+      table->field[10]->set_notnull();
+    }
+
+    file->ha_close();
+  }
+
+  DBUG_RETURN(schema_table_store_record(thd, table));
+}
+
+/**
+  @brief          Fill I_S tables with global temporary tables
+
+  @param[in]      thd                      thread handler
+  @param[in]      tables                   I_S table
+  @param[in]      cond                     'WHERE' condition
+
+  @return         Operation status
+    @retval       0                        success
+    @retval       1                        error
+*/
+
+class Fill_global_temporary_tables : public Do_THD_Impl
+{
+private:
+  THD* m_client_thd;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context* m_sctx;
+#endif
+  bool m_failed;
+  TABLE_LIST *m_tables;
+
+public:
+  Fill_global_temporary_tables(THD* client_thd, TABLE_LIST* tables)
+    : m_client_thd(client_thd),
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      m_sctx(client_thd->security_context()),
+#endif
+      m_failed(false),
+      m_tables(tables)
+  { }
+
+  virtual ~Fill_global_temporary_tables() {}
+
+  virtual void operator()(THD* thd)
+  {
+    mysql_mutex_lock(&thd->LOCK_temporary_tables);
+    for (TABLE* tmp= thd->temporary_tables; tmp; tmp= tmp->next)
+    {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      uint db_access;
+      if (test_all_bits(m_sctx->master_access(), DB_ACLS))
+        db_access=DB_ACLS;
+      else
+        db_access= (acl_get(m_sctx->host().str, m_sctx->ip().str,
+                            m_sctx->priv_user().str, tmp->s->db.str, 0)
+                    | m_sctx->master_access());
+
+      if (!(db_access & DB_ACLS) && check_grant_db(m_client_thd,
+                                                   tmp->s->db.str)) {
+        //no access for temp tables within this db for user
+        continue;
+      }
+#endif
+      DEBUG_SYNC(m_client_thd,
+                 "fill_global_temporary_tables_before_storing_rec");
+
+      if (store_temporary_table_record(thd, m_tables->table, tmp,
+                                       m_client_thd->lex->select_lex->db))
+        m_failed= true;
+
+    }
+    mysql_mutex_unlock(&thd->LOCK_temporary_tables);
+  }
+
+  bool failed() const { return m_failed; }
+};
+
+static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables,
+                                        Item *cond)
+{
+  DBUG_ENTER("fill_global_temporary_tables");
+
+  Fill_global_temporary_tables fill_global_temporary_tables(thd, tables);
+  Global_THD_manager::get_instance()->do_for_all_thd_copy(
+                                                &fill_global_temporary_tables);
+
+  if (fill_global_temporary_tables.failed())
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+/**
+  @brief          Fill I_S tables with session temporary tables
+
+  @param[in]      thd                      thread handler
+  @param[in]      tables                   I_S table
+  @param[in]      cond                     'WHERE' condition
+
+  @return         Operation status
+    @retval       0                        success
+    @retval       1                        error
+*/
+
+int fill_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond)
+{
+  DBUG_ENTER("fill_temporary_tables");
+
+  if (thd->lex->option_type == OPT_GLOBAL)
+    DBUG_RETURN(fill_global_temporary_tables(thd, tables, cond));
+
+  TABLE *tmp;
+
+  for (tmp=thd->temporary_tables; tmp; tmp=tmp->next) {
+    if (store_temporary_table_record(thd, tables->table, tmp,
+                                     thd->lex->select_lex->db)) {
+      DBUG_RETURN(1);
+    }
+  }
+  DBUG_RETURN(0);
+}
 
 /**
    Try acquire high priority share metadata lock on a table (with
@@ -8420,6 +8672,25 @@ ST_FIELD_INFO tables_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
+ST_FIELD_INFO temporary_table_fields_info[]=
+{
+  {"SESSION_ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Session", SKIP_OPEN_TABLE},
+  {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Db", SKIP_OPEN_TABLE},
+  {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Temp_tables_in_", SKIP_OPEN_TABLE},
+  {"ENGINE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, "Engine", OPEN_FRM_ONLY},
+  {"NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, "Name", SKIP_OPEN_TABLE},
+  {"TABLE_ROWS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   MY_I_S_UNSIGNED, "Rows", OPEN_FULL_TABLE},
+  {"AVG_ROW_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 
+   MY_I_S_UNSIGNED, "Avg Row", OPEN_FULL_TABLE},
+  {"DATA_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 
+   MY_I_S_UNSIGNED, "Data Length", OPEN_FULL_TABLE},
+  {"INDEX_LENGTH", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0, 
+   MY_I_S_UNSIGNED, "Index Size", OPEN_FULL_TABLE},
+  {"CREATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Create Time", OPEN_FULL_TABLE},
+  {"UPDATE_TIME", 0, MYSQL_TYPE_DATETIME, 0, 1, "Update Time", OPEN_FULL_TABLE},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+};
 
 ST_FIELD_INFO columns_fields_info[]=
 {
@@ -9031,7 +9302,7 @@ ST_SCHEMA_TABLE schema_tables[]=
 {
   {"CHARACTER_SETS", charsets_fields_info, create_schema_table, 
    fill_schema_charsets, make_character_sets_old_format, 0, -1, -1, 0, 0},
-  {"COLLATIONS", collation_fields_info, create_schema_table, 
+  {"COLLATIONS", collation_fields_info, create_schema_table,
    fill_schema_collation, make_old_format, 0, -1, -1, 0, 0},
   {"COLLATION_CHARACTER_SET_APPLICABILITY", coll_charset_app_fields_info,
    create_schema_table, fill_schema_coll_charset_app, 0, 0, -1, -1, 0, 0},
@@ -9053,6 +9324,9 @@ ST_SCHEMA_TABLE schema_tables[]=
    hton_fill_schema_table, 0, 0, -1, -1, 0, 0},
   {"GLOBAL_STATUS", variables_fields_info, create_schema_table,
    fill_status, make_old_format, 0, 0, -1, 0, 0},
+  {"GLOBAL_TEMPORARY_TABLES", temporary_table_fields_info, create_schema_table, 
+   fill_global_temporary_tables, make_temporary_tables_old_format, 0, 2, 3, 0,
+   OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
   {"GLOBAL_VARIABLES", variables_fields_info, create_schema_table,
    fill_variables, make_old_format, 0, 0, -1, 0, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
@@ -9109,6 +9383,9 @@ ST_SCHEMA_TABLE schema_tables[]=
    get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
    fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
+  {"TEMPORARY_TABLES", temporary_table_fields_info, create_schema_table,
+   fill_temporary_tables, make_temporary_tables_old_format, 0, 2, 3, 0,
+   OPEN_TABLE_ONLY|OPTIMIZE_I_S_TABLE},
   {"TRIGGERS", triggers_fields_info, create_schema_table,
    get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0,
    OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},

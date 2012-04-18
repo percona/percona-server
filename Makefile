@@ -73,14 +73,8 @@ prepare:
 	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
 	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER)
 	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
-	ln -s ../patches $(PERCONA_SERVER)/patches
-	ln -s ../quiltrc $(PERCONA_SERVER)/quiltrc
 
 main: prepare
-	(cd $(PERCONA_SERVER) && ../apply_patches)
-
-regenerate: clean prepare
-	(cd $(PERCONA_SERVER) && ../normalize_patches)
 
 misc:
 	@echo "Installing other files"

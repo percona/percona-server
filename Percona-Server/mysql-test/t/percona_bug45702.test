@@ -1,0 +1,34 @@
+###############################################################################
+# Bug #45702: Impossible to specify myisam_sort_buffer > 4GB on 64 bit machines
+###############################################################################
+
+--source include/have_64bit.inc
+
+# Check that having data larger than MIN_SORT_BUFFER bytes can be handled by
+# _create_index_by_sort() with myisam_sort_buffer_size = 4 GB without errors.
+# The full test with large data volumes can not be a part of the test suite.
+
+CREATE TABLE t1 (a BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (), (), (), (), (), (), (), ();
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+
+SET @old_myisam_sort_buffer_size = @@myisam_sort_buffer_size;
+SET @@myisam_sort_buffer_size = 4 * 1024 * 1024 * 1024;
+
+REPAIR TABLE t1;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--exec $MYISAMCHK -r --sort_buffer_size=4G $MYSQLD_DATADIR/test/t1
+
+SET @@myisam_sort_buffer_size = @old_myisam_sort_buffer_size;
+
+DROP TABLE t1;

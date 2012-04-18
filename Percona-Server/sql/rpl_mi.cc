@@ -495,7 +495,7 @@ int flush_master_info(Master_info* mi,
                          (1 + mi->ignore_server_ids.elements), MYF(MY_WME));
     if (!ignore_server_ids_buf)
       DBUG_RETURN(1);
-    ulong cur_len= sprintf(ignore_server_ids_buf, "%u",
+    ulong cur_len= sprintf(ignore_server_ids_buf, "%lu",
                            mi->ignore_server_ids.elements);
     for (ulong i= 0; i < mi->ignore_server_ids.elements; i++)
     {

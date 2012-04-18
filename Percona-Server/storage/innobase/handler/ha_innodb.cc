@@ -677,6 +677,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_pages_written,	  SHOW_LONG},
   {"dblwr_writes",
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
+  {"dict_tables",
+  (char*) &export_vars.innodb_dict_tables,		  SHOW_LONG},
   {"have_atomic_builtins",
   (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"log_waits",
@@ -11897,6 +11899,11 @@ static MYSQL_SYSVAR_ENUM(adaptive_flushing_method, srv_adaptive_flushing_method,
   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
 
+static MYSQL_SYSVAR_ULONG(dict_size_limit, srv_dict_size_limit,
+  PLUGIN_VAR_RQCMDARG,
+  "Limit the allocated memory for dictionary cache. (0: unlimited)",
+  NULL, NULL, 0, 0, LONG_MAX, 0);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11966,6 +11973,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_neighbor_pages),
   MYSQL_SYSVAR(read_ahead),
   MYSQL_SYSVAR(adaptive_flushing_method),
+  MYSQL_SYSVAR(dict_size_limit),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),

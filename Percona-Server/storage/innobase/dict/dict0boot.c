@@ -284,6 +284,7 @@ dict_boot(void)
 	system tables */
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0);
+	table->n_mysql_handles_opened = 1; /* for pin */
 
 	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
@@ -336,6 +337,7 @@ dict_boot(void)
 
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0);
+	table->n_mysql_handles_opened = 1; /* for pin */
 
 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
@@ -368,6 +370,7 @@ dict_boot(void)
 
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE, 7, 0);
+	table->n_mysql_handles_opened = 1; /* for pin */
 
 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
@@ -413,6 +416,7 @@ dict_boot(void)
 
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0);
+	table->n_mysql_handles_opened = 1; /* for pin */
 
 	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);

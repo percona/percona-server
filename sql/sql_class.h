@@ -515,6 +515,8 @@ typedef struct system_variables
   my_bool engine_condition_pushdown;
   my_bool keep_files_on_create;
 
+  my_bool online_alter_index;
+
   my_bool old_alter_table;
   uint old_passwords;
   my_bool big_tables;

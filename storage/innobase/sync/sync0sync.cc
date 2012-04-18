@@ -796,9 +796,8 @@ sync_print_warning(
 
 	if (mutex->magic_n == MUTEX_MAGIC_N) {
 		fprintf(stderr,
-			"Mutex created at %s %lu\n",
-			innobase_basename(mutex->cfile_name),
-			(ulong) mutex->cline);
+			"Mutex '%s'\n",
+			mutex->cmutex_name);
 
 		if (mutex_get_lock_word(mutex) != 0) {
 			ulint		line;

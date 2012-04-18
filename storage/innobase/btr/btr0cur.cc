@@ -242,6 +242,7 @@ btr_cur_latch_leaves(
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		mode;
+	ulint		sibling_mode;
 	ulint		left_page_no;
 	ulint		right_page_no;
 	buf_block_t*	get_block;
@@ -262,14 +263,21 @@ btr_cur_latch_leaves(
 #endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 		return;
+	case BTR_SEARCH_TREE:
 	case BTR_MODIFY_TREE:
-		/* x-latch also brothers from left to right */
+		if (UNIV_UNLIKELY(latch_mode == BTR_SEARCH_TREE)) {
+			mode = RW_S_LATCH;
+			sibling_mode = RW_NO_LATCH;
+		} else {
+			mode = sibling_mode = RW_X_LATCH;
+		}
+		/* Fetch and possibly latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(
 				space, zip_size, left_page_no,
-				RW_X_LATCH, cursor->index, mtr);
+				sibling_mode, cursor->index, mtr);
 
 			SRV_CORRUPT_TABLE_CHECK(get_block, return;);
 
@@ -279,12 +287,21 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
+			if (sibling_mode == RW_NO_LATCH) {
+				/* btr_block_get() called with RW_NO_LATCH will
+				fix the read block in the buffer.  This serves
+				no purpose for the fake changes prefetching,
+				thus we unfix the sibling blocks immediately.*/
+				mtr_memo_release(mtr, get_block,
+						 MTR_MEMO_BUF_FIX);
+			} else {
+				get_block->check_index_page_at_flush = TRUE;
+			}
 		}
 
 		get_block = btr_block_get(
 			space, zip_size, page_no,
-			RW_X_LATCH, cursor->index, mtr);
+			mode, cursor->index, mtr);
 
 		SRV_CORRUPT_TABLE_CHECK(get_block, return;);
 
@@ -298,7 +315,7 @@ btr_cur_latch_leaves(
 		if (right_page_no != FIL_NULL) {
 			get_block = btr_block_get(
 				space, zip_size, right_page_no,
-				RW_X_LATCH, cursor->index, mtr);
+				sibling_mode, cursor->index, mtr);
 
 			SRV_CORRUPT_TABLE_CHECK(get_block, return;);
 
@@ -308,7 +325,12 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_prev(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
+			if (sibling_mode == RW_NO_LATCH) {
+				mtr_memo_release(mtr, get_block,
+						 MTR_MEMO_BUF_FIX);
+			} else {
+				get_block->check_index_page_at_flush = TRUE;
+			}
 		}
 
 		return;
@@ -1220,6 +1242,11 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
+
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
 
@@ -1333,7 +1360,8 @@ btr_cur_optimistic_insert(
 	page = buf_block_get_frame(block);
 	index = cursor->index;
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes)
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || dict_index_is_clust(index)
 	      || (flags & BTR_CREATE_FLAG));
@@ -1353,6 +1381,9 @@ btr_cur_optimistic_insert(
 		dtuple_print(stderr, entry);
 	}
 #endif /* UNIV_DEBUG */
+
+	ut_ad((thr && thr_get_trx(thr)->fake_changes)
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
 	leaf = page_is_leaf(page);
 
@@ -1471,6 +1502,12 @@ fail_err:
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
 		goto fail_err;
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		*big_rec = big_rec_vec;
+		return(err); /* == DB_SUCCESS */
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1608,10 +1645,10 @@ btr_cur_pessimistic_insert(
 
 	*big_rec = NULL;
 
-	ut_ad(mtr_memo_contains(mtr,
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || dict_index_is_clust(index)
@@ -1630,6 +1667,9 @@ btr_cur_pessimistic_insert(
 	}
 
 	if (!(flags & BTR_NO_UNDO_LOG_FLAG)) {
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
+
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the insert will not fail because
 		of lack of space */
@@ -1667,6 +1707,16 @@ btr_cur_pessimistic_insert(
 			}
 			return(DB_TOO_BIG_RECORD);
 		}
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		if (n_reserved > 0) {
+			fil_space_release_free_extents(index->space,
+						       n_reserved);
+		}
+		*big_rec = big_rec_vec;
+		return(DB_SUCCESS);
 	}
 
 	if (dict_index_get_page(index)
@@ -1745,6 +1795,11 @@ btr_cur_upd_lock_and_undo(
 	dberr_t		err;
 
 	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, UNDO */
+		return(DB_SUCCESS);
+	}
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
@@ -1973,6 +2028,14 @@ btr_cur_update_alloc_zip_func(
 		return(false);
 	}
 
+	if (UNIV_UNLIKELY(trx && trx->fake_changes)) {
+		/* Don't call page_zip_compress_write_log_no_data as that has
+		assert which would fail. Assume there won't be a compression
+		failure. */
+
+		return(true);
+	}
+
 	if (!btr_page_reorganize(cursor, index, mtr)) {
 		goto out_of_space;
 	}
@@ -2088,6 +2151,11 @@ btr_cur_update_in_place(
 		bits after a reorganize that was done in
 		btr_cur_update_alloc_zip(). */
 		goto func_exit;
+	}
+
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+		/* skip CHANGE, LOG */
+		return(err); /* == DB_SUCCESS */
 	}
 
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
@@ -2206,7 +2274,7 @@ btr_cur_optimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -2349,6 +2417,12 @@ any_extern:
 		bits after a reorganize that was done in
 		btr_cur_update_alloc_zip(). */
 		goto func_exit;
+	}
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip CHANGE, LOG */
+		ut_ad(err == DB_SUCCESS);
+		return(DB_SUCCESS);
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2523,6 +2597,7 @@ btr_cur_pessimistic_update(
 	ibool		was_first;
 	ulint		n_reserved	= 0;
 	ulint		n_ext;
+	trx_t*		trx;
 
 	*offsets = NULL;
 	*big_rec = NULL;
@@ -2532,9 +2607,9 @@ btr_cur_pessimistic_update(
 	page_zip = buf_block_get_page_zip(block);
 	index = cursor->index;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2583,12 +2658,20 @@ btr_cur_pessimistic_update(
 
 	if (optim_err == DB_OVERFLOW) {
 		ulint	reserve_flag;
+		ulint	n_extents;
 
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the update will not fail because
 		of lack of space */
-
-		ulint	n_extents = cursor->tree_height / 16 + 3;
+		if (UNIV_UNLIKELY(cursor->tree_height == ULINT_UNDEFINED)) {
+			/* When the tree height is uninitialized due to fake
+			changes, reserve some hardcoded number of extents.  */
+			ut_a(thr && thr_get_trx(thr)->fake_changes);
+			n_extents = 3;
+		}
+		else {
+			n_extents = cursor->tree_height / 16 + 3;
+		}
 
 		if (flags & BTR_NO_UNDO_LOG_FLAG) {
 			reserve_flag = FSP_CLEANING;
@@ -2619,7 +2702,10 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, entry_heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+
+	trx = thr_get_trx(thr);
+
+	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -2635,6 +2721,9 @@ btr_cur_pessimistic_update(
 		update it back again. */
 
 		ut_ad(big_rec_vec == NULL);
+
+		/* fake_changes should not cause undo. so never reaches here */
+		ut_ad(!(trx->fake_changes));
 
 		btr_rec_free_updated_extern_fields(
 			index, rec, page_zip, *offsets, update,
@@ -3027,6 +3116,11 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
+	if (thr && thr_get_trx(thr)->fake_changes) {
+	    /* skip LOCK, UNDO, CHANGE, LOG */
+	    return(DB_SUCCESS);
+	}
+
 	err = lock_clust_rec_modify_check_and_lock(BTR_NO_LOCKING_FLAG, block,
 						   rec, index, offsets, thr);
 
@@ -3161,6 +3255,11 @@ btr_cur_del_mark_set_sec_rec(
 	buf_block_t*	block;
 	rec_t*		rec;
 	dberr_t		err;
+
+	if (thr && thr_get_trx(thr)->fake_changes) {
+		/* skip LOCK, CHANGE, LOG */
+		return(DB_SUCCESS);
+	}
 
 	block = btr_cur_get_block(cursor);
 	rec = btr_cur_get_rec(cursor);
@@ -3407,6 +3506,8 @@ btr_cur_pessimistic_delete(
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the node pointer updates will
 		not fail because of lack of space */
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
 
 		ulint	n_extents = cursor->tree_height / 32 + 1;
 

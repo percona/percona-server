@@ -313,6 +313,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  ifndef HAVE_ATOMIC_BUILTINS
 	{&server_mutex_key, "server_mutex", 0},
 #  endif /* !HAVE_ATOMIC_BUILTINS */
+	{&log_bmp_sys_mutex_key, "log_bmp_sys_mutex", 0},
 	{&log_sys_mutex_key, "log_sys_mutex", 0},
 #  ifdef UNIV_MEM_DEBUG
 	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
@@ -16031,6 +16032,29 @@ buf_flush_list_now_set(
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 }
+/****************************************************************//**
+Force log tracker to track the log synchronously.  */
+static
+void
+track_redo_log_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+	__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						  variable */
+	__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						  string goes */
+	__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						  check function */
+{
+	if (*(my_bool*) save && srv_track_changed_pages) {
+
+		log_online_follow_redo_log();
+	}
+}
+
 #endif /* UNIV_DEBUG */
 
 /***********************************************************************
@@ -16302,6 +16326,12 @@ static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
   PLUGIN_VAR_OPCMDARG,
   "Force dirty page flush now",
   NULL, buf_flush_list_now_set, FALSE);
+static MYSQL_SYSVAR_BOOL(track_redo_log_now,
+  innodb_track_redo_log_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force log tracker to catch up with checkpoint now",
+  NULL, track_redo_log_now_set, FALSE);
+
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,

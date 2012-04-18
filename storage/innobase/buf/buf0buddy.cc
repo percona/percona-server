@@ -322,7 +322,7 @@ buf_buddy_alloc_zip(
 
 	ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
 
-	buf = UT_LIST_GET_LAST(buf_pool->zip_free[i]);
+	buf = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
 	if (buf) {
 		buf_buddy_remove_from_free(buf_pool, buf, i);

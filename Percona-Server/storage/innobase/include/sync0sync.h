@@ -766,6 +766,10 @@ to 20 microseconds. */
 
 #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
 
+extern	ib_int64_t	mutex_spin_round_count;
+extern	ib_int64_t	mutex_spin_wait_count;
+extern	ib_int64_t	mutex_os_wait_count;
+
 /** The number of mutex_exit calls. Intended for performance monitoring. */
 extern	ib_int64_t	mutex_exit_count;
 

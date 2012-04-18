@@ -739,6 +739,11 @@ srv_is_any_background_thread_active(void);
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{
+	ulint innodb_adaptive_hash_cells;
+	ulint innodb_adaptive_hash_heap_buffers;
+	ulint innodb_adaptive_hash_hash_searches;
+	ulint innodb_adaptive_hash_non_hash_searches;
+	ulint innodb_background_log_sync;
 	ulint innodb_data_pending_reads;	/*!< Pending reads */
 	ulint innodb_data_pending_writes;	/*!< Pending writes */
 	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
@@ -756,6 +761,9 @@ struct export_var_struct{
 #ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
 #endif /* UNIV_DEBUG */
+	ulint innodb_buffer_pool_pages_made_not_young;
+	ulint innodb_buffer_pool_pages_made_young;
+	ulint innodb_buffer_pool_pages_old;
 	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
 	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
@@ -765,13 +773,43 @@ struct export_var_struct{
 	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
+	ulint innodb_checkpoint_age;
+	ulint innodb_checkpoint_max_age;
+	ulint innodb_checkpoint_target_age;
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ulint innodb_deadlocks;
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
+	ulint innodb_history_list_length;
+	ulint innodb_ibuf_size;
+	ulint innodb_ibuf_free_list;
+	ulint innodb_ibuf_segment_size;
+	ulint innodb_ibuf_merges;
+	ulint innodb_ibuf_merged_inserts;
+	ulint innodb_ibuf_merged_delete_marks;
+	ulint innodb_ibuf_merged_deletes;
+	ulint innodb_ibuf_discarded_inserts;
+	ulint innodb_ibuf_discarded_delete_marks;
+	ulint innodb_ibuf_discarded_deletes;
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */
+	ib_int64_t innodb_lsn_current;
+	ib_int64_t innodb_lsn_flushed;
+	ib_int64_t innodb_lsn_last_checkpoint;
+	ulint innodb_master_thread_1_second_loops;
+	ulint innodb_master_thread_10_second_loops;
+	ulint innodb_master_thread_background_loops;
+	ulint innodb_master_thread_main_flush_loops;
+	ulint innodb_master_thread_sleeps;
+	ib_int64_t innodb_max_trx_id;
+	ulint innodb_mem_adaptive_hash;
+	ulint innodb_mem_dictionary;
+	ulint innodb_mem_total;
+	ib_int64_t innodb_mutex_os_waits;
+	ib_int64_t innodb_mutex_spin_rounds;
+	ib_int64_t innodb_mutex_spin_waits;
+	ib_int64_t innodb_oldest_view_low_limit_trx_id;
 	ulint innodb_os_log_written;		/*!< srv_os_log_written */
 	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
 	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
@@ -780,6 +818,8 @@ struct export_var_struct{
 	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
 	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
+	ib_int64_t innodb_purge_trx_id;
+	ib_int64_t innodb_purge_undo_no;
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
 	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
@@ -789,11 +829,18 @@ struct export_var_struct{
 						/ srv_n_lock_wait_count */
 	ulint innodb_row_lock_time_max;		/*!< srv_n_lock_max_wait_time
 						/ 1000 */
+	ulint innodb_current_row_locks;
 	ulint innodb_rows_read;			/*!< srv_n_rows_read */
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
+	ib_int64_t innodb_s_lock_os_waits;
+	ib_int64_t innodb_s_lock_spin_rounds;
+	ib_int64_t innodb_s_lock_spin_waits;
+	ib_int64_t innodb_x_lock_os_waits;
+	ib_int64_t innodb_x_lock_spin_rounds;
+	ib_int64_t innodb_x_lock_spin_waits;
 };
 
 /** Thread slot in the thread table */

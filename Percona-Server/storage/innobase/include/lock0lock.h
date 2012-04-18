@@ -817,6 +817,7 @@ struct lock_op_struct{
 /** The lock system struct */
 struct lock_sys_struct{
 	hash_table_t*	rec_hash;	/*!< hash table of the record locks */
+	ulint		rec_num;
 };
 
 /** The lock system */

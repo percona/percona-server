@@ -570,6 +570,7 @@ lock_sys_create(
 	lock_sys = mem_alloc(sizeof(lock_sys_t));
 
 	lock_sys->rec_hash = hash_create(n_cells);
+	lock_sys->rec_num = 0;
 
 	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
 
@@ -1730,6 +1731,7 @@ lock_rec_create(
 
 	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), lock);
+	lock_sys->rec_num++;
 	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
@@ -2277,6 +2279,7 @@ lock_rec_dequeue_from_page(
 
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
+	lock_sys->rec_num--;
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
 
@@ -2320,6 +2323,7 @@ lock_rec_discard(
 
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
+	lock_sys->rec_num--;
 
 	UT_LIST_REMOVE(trx_locks, trx->trx_locks, in_lock);
 }

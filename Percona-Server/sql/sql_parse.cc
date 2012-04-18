@@ -1116,11 +1116,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #else
   {
-    char *fields, *packet_end= packet + packet_length, *arg_end;
+    char *fields;
+    char *packet_end= packet + packet_length;
+    char *wildcard;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
+    char table_name_buff[NAME_LEN+1];
     LEX_STRING table_name;
+    uint dummy_errors;
     LEX_STRING db;
+
+    table_name.str= table_name_buff;
+    table_name.length= 0;
     /*
       SHOW statements should not add the used tables to the list of tables
       used in a transaction.
@@ -1133,24 +1140,23 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /*
       We have name + wildcard in packet, separated by endzero
     */
-    arg_end= strend(packet);
-    uint arg_length= arg_end - packet;
-
-    /* Check given table name length. */
-    if (arg_length >= packet_length || arg_length > NAME_LEN)
+    wildcard= strend(packet);
+    table_name.length= wildcard - packet;
+    wildcard++;
+    uint query_length= (uint) (packet_end - wildcard); // Don't count end \0
+    if (table_name.length > NAME_LEN || query_length > NAME_LEN)
     {
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       break;
     }
-    thd->convert_string(&table_name, system_charset_info,
-			packet, arg_length, thd->charset());
-    if (check_table_name(table_name.str, table_name.length, FALSE))
-    {
-      /* this is OK due to convert_string() null-terminating the string */
-      my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
+    table_name.length= copy_and_convert(table_name.str,
+                                        sizeof(table_name_buff)-1,
+                                        system_charset_info,
+                                        packet, table_name.length,
+                                        thd->charset(), &dummy_errors);
+    table_name.str[table_name.length]= '\0';
+    if (!(fields= (char *) thd->memdup(wildcard, query_length + 1)))
       break;
-    }
-    packet= arg_end + 1;
     mysql_reset_thd_for_next_command(thd);
     lex_start(thd);
     /* Must be before we init the table list. */
@@ -1175,9 +1181,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    uint query_length= (uint) (packet_end - packet); // Don't count end \0
-    if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
-      break;
     thd->set_query(fields, query_length);
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
 

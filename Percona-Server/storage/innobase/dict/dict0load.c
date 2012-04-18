@@ -442,7 +442,7 @@ dict_process_sys_fields_rec(
 
 }
 
-#ifdef FOREIGN_NOT_USED
+//#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
@@ -518,9 +518,9 @@ err_len:
 
 	return(NULL);
 }
-#endif  /* FOREIGN_NOT_USED */
+//#endif  /* FOREIGN_NOT_USED */
 
-#ifdef FOREIGN_NOT_USED
+//#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
@@ -584,7 +584,7 @@ err_len:
 
 	return(NULL);
 }
-#endif  /* FOREIGN_NOT_USED */
+//#endif  /* FOREIGN_NOT_USED */
 
 /********************************************************************//**
 Determine the flags of a table described in SYS_TABLES.

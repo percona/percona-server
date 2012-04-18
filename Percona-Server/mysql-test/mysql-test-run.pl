@@ -99,6 +99,7 @@ use mtr_unique;
 use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
+use Subunit;
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
@@ -292,6 +293,7 @@ my @valgrind_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
 my $opt_callgrind;
+my $opt_helgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
 
@@ -631,6 +633,7 @@ sub run_test_server ($$$) {
 
 	  # Report test status
 	  mtr_report_test($result);
+	  mtr_report_test_subunit($result);
 
 	  if ( $result->is_failed() ) {
 
@@ -1144,6 +1147,7 @@ sub command_line_setup {
              'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
+             'helgrind'                 => \$opt_helgrind,
 	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
 
 	     # Directories
@@ -1705,11 +1709,18 @@ sub command_line_setup {
       unless @valgrind_args;
   }
 
+  if ( $opt_helgrind )
+  {
+    mtr_report("Turning on valgrind with helgrind for mysqld(s)");
+    $opt_valgrind= 1;
+    $opt_valgrind_mysqld= 1;
+  }
+
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
     push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args;
+      unless @valgrind_args || $opt_helgrind;
 
     # Don't add --quiet; you will loose the summary reports.
 
@@ -5830,6 +5841,10 @@ sub valgrind_arguments {
   {
     mtr_add_arg($args, "--tool=callgrind");
     mtr_add_arg($args, "--base=$opt_vardir/log");
+  }
+  elsif ( $opt_helgrind )
+  {
+    mtr_add_arg($args, "--tool=helgrind");
   }
   else
   {

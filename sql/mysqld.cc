@@ -9362,6 +9362,7 @@ PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;
 PSI_mutex_key key_LOCK_des_key_file;
 #endif /* HAVE_OPENSSL */
 
+PSI_mutex_key key_LOCK_temporary_tables;
 PSI_mutex_key key_BINLOG_LOCK_commit;
 PSI_mutex_key key_BINLOG_LOCK_commit_queue;
 PSI_mutex_key key_BINLOG_LOCK_done;
@@ -9459,6 +9460,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
   { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
+  { &key_LOCK_temporary_tables, "THD::LOCK_temporary_tables", 0},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_GLOBAL},

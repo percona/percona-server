@@ -34,7 +34,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
-
+#include "srv0srv.h"
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return size in bytes */
@@ -681,6 +681,12 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 {
+	ut_a(srv_pass_corrupt_table || block);
+
+	if (srv_pass_corrupt_table && !block) {
+		return(0);
+	}
+
 	ut_ad(block);
 
 	switch (buf_block_get_state(block)) {

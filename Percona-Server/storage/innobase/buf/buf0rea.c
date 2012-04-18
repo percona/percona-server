@@ -195,7 +195,14 @@ not_to_recover:
 			      ((buf_block_t*) bpage)->frame, bpage, trx);
 	}
 	thd_wait_end(NULL);
+
+	if (srv_pass_corrupt_table) {
+		if (*err != DB_SUCCESS) {
+			bpage->is_corrupt = TRUE;
+		}
+	} else {
 	ut_a(*err == DB_SUCCESS);
+	}
 
 	if (sync) {
 		/* The i/o is already completed when we arrive from

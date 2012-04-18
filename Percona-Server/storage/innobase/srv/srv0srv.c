@@ -435,6 +435,7 @@ UNIV_INTERN ulint	srv_read_ahead = 3; /* 1: random  2: linear  3: Both */
 UNIV_INTERN ulint	srv_adaptive_flushing_method = 0; /* 0: native  1: estimate  2: keep_average */
 
 UNIV_INTERN ulint	srv_expand_import = 0; /* 0:disable 1:enable */
+UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 
 UNIV_INTERN ulint	srv_dict_size_limit = 0;
 /*-------------------------------------------*/

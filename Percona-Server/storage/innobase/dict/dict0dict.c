@@ -55,6 +55,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str()*/
 #include "row0upd.h"
+#include "srv0start.h" /* SRV_LOG_SPACE_FIRST_ID */
 
 #include <ctype.h>
 
@@ -750,7 +751,7 @@ dict_table_get(
 
 	mutex_exit(&(dict_sys->mutex));
 
-	if (table != NULL) {
+	if (table != NULL && !table->is_corrupt) {
 		/* If table->ibd_file_missing == TRUE, this will
 		print an error message and return without doing
 		anything. */
@@ -1298,7 +1299,7 @@ retry:
 		    + dict_sys->size) > srv_dict_size_limit ) {
 		prev_table = UT_LIST_GET_PREV(table_LRU, table);
 
-		if (table == self || table->n_mysql_handles_opened)
+		if (table == self || table->n_mysql_handles_opened || table->is_corrupt)
 			goto next_loop;
 
 		cached_foreign_tables = 0;
@@ -4377,6 +4378,12 @@ dict_reload_statistics(
 	heap = mem_heap_create(1000);
 
 	while (index) {
+		if (table->is_corrupt) {
+			ut_a(srv_pass_corrupt_table);
+			mem_heap_free(heap);
+			return(FALSE);
+		}
+
 		size = btr_get_size(index, BTR_TOTAL_SIZE);
 
 		index->stat_index_size = size;
@@ -4524,6 +4531,12 @@ dict_store_statistics(
 	heap = mem_heap_create(1000);
 
 	while (index) {
+		if (table->is_corrupt) {
+			ut_a(srv_pass_corrupt_table);
+			mem_heap_free(heap);
+			return;
+		}
+
 /*===========================================*/
 {
 	dict_table_t*	sys_stats;
@@ -4716,6 +4729,13 @@ dict_update_statistics(
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
 			ulint	size;
+
+			if (table->is_corrupt) {
+				ut_a(srv_pass_corrupt_table);
+				dict_table_stats_unlock(table, RW_X_LATCH);
+				return;
+			}
+
 			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
 			index->stat_index_size = size;
@@ -5694,5 +5714,43 @@ dict_set_corrupted_index_cache_only(
 	}
 
 	index->type |= DICT_CORRUPT;
+}
+
+/*************************************************************************
+set is_corrupt flag by space_id*/
+
+void
+dict_table_set_corrupt_by_space(
+/*============================*/
+	ulint	space_id,
+	ibool	need_mutex)
+{
+	dict_table_t*	table;
+	ibool		found = FALSE;
+
+	ut_a(!trx_sys_sys_space(space_id) && space_id < SRV_LOG_SPACE_FIRST_ID);
+
+	if (need_mutex)
+		mutex_enter(&(dict_sys->mutex));
+
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+
+	while (table) {
+		if (table->space == space_id) {
+			table->is_corrupt = TRUE;
+			found = TRUE;
+		}
+
+		table = UT_LIST_GET_NEXT(table_LRU, table);
+	}
+
+	if (need_mutex)
+		mutex_exit(&(dict_sys->mutex));
+
+	if (!found) {
+		fprintf(stderr, "InnoDB: space to be marked as "
+			"crashed was not found for id %lu.\n",
+			(ulong) space_id);
+	}
 }
 #endif /* !UNIV_HOTBACKUP */

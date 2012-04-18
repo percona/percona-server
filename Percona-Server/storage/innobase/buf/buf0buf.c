@@ -52,6 +52,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "page0zip.h"
 #include "trx0trx.h"
+#include "srv0start.h"
 
 /* prototypes for new functions added to ha_innodb.cc */
 trx_t* innobase_get_trx();
@@ -1150,6 +1151,11 @@ buf_chunk_not_freed(
 			ready = buf_flush_ready_for_replace(&block->page);
 			mutex_exit(&block->mutex);
 
+			if (block->page.is_corrupt) {
+				/* corrupt page may remain, it can be skipped */
+				break;
+			}
+
 			if (!ready) {
 
 				return(block);
@@ -1946,6 +1952,13 @@ err_exit:
 		return(NULL);
 	}
 
+	if (srv_pass_corrupt_table <= 1) {
+		if (bpage->is_corrupt) {
+			rw_lock_s_unlock(&buf_pool->page_hash_latch);
+			return(NULL);
+		}
+	}
+
 	block_mutex = buf_page_get_mutex_enter(bpage);
 
 	rw_lock_s_unlock(&buf_pool->page_hash_latch);
@@ -2523,6 +2536,13 @@ got_block:
 		mutex_exit(block_mutex);
 
 		return(NULL);
+	}
+
+	if (srv_pass_corrupt_table <= 1) {
+		if (block->page.is_corrupt) {
+			mutex_exit(block_mutex);
+			return(NULL);
+		}
 	}
 
 	switch (buf_block_get_state(block)) {
@@ -3199,6 +3219,7 @@ buf_page_init_low(
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
 	HASH_INVALIDATE(bpage, hash);
+	bpage->is_corrupt = FALSE;
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	bpage->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
@@ -3837,6 +3858,7 @@ buf_page_io_complete(
 				(ulong) bpage->offset);
 		}
 
+		if (!srv_pass_corrupt_table || !bpage->is_corrupt) {
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
@@ -3878,6 +3900,23 @@ corrupt:
 			      REFMAN "forcing-innodb-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
+			if (srv_pass_corrupt_table && !trx_sys_sys_space(bpage->space)
+			    && bpage->space < SRV_LOG_SPACE_FIRST_ID) {
+				trx_t*	trx;
+
+				fprintf(stderr,
+					"InnoDB: space %u will be treated as corrupt.\n",
+					bpage->space);
+				fil_space_set_corrupt(bpage->space);
+
+				trx = innobase_get_trx();
+				if (trx && trx->dict_operation_lock_mode == RW_X_LATCH) {
+					dict_table_set_corrupt_by_space(bpage->space, FALSE);
+				} else {
+					dict_table_set_corrupt_by_space(bpage->space, TRUE);
+				}
+				bpage->is_corrupt = TRUE;
+			} else
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				/* If page space id is larger than TRX_SYS_SPACE
 				(0), we will attempt to mark the corresponding
@@ -3894,6 +3933,7 @@ corrupt:
 				}
 			}
 		}
+		} /**/
 
 		if (recv_recovery_is_on()) {
 			/* Pages must be uncompressed for crash recovery. */
@@ -3903,8 +3943,11 @@ corrupt:
 
 		if (uncompressed && !recv_no_ibuf_operations) {
 			ibuf_merge_or_delete_for_page(
+				/* Delete possible entries, if bpage is_corrupt */
+				(srv_pass_corrupt_table && bpage->is_corrupt) ? NULL :
 				(buf_block_t*) bpage, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),
+				(srv_pass_corrupt_table && bpage->is_corrupt) ? FALSE :
 				TRUE);
 		}
 	}

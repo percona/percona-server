@@ -558,6 +558,7 @@ typedef struct system_variables
 
   double long_query_time_double;
 
+  my_bool expand_fast_index_creation;
 } SV;
 
 

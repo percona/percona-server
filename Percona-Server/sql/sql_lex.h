@@ -1014,6 +1014,9 @@ public:
   List<Alter_column>            alter_list;
   List<Key>                     key_list;
   List<Create_field>            create_list;
+  List<Key>                     delayed_key_list;
+  KEY                           *delayed_key_info;
+  uint                          delayed_key_count;
   uint                          flags;
   enum enum_enable_or_disable   keys_onoff;
   enum tablespace_op_type       tablespace_op;
@@ -1025,6 +1028,8 @@ public:
 
 
   Alter_info() :
+    delayed_key_info(NULL),
+    delayed_key_count(0),
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     tablespace_op(NO_TABLESPACE_OP),
@@ -1040,6 +1045,9 @@ public:
     alter_list.empty();
     key_list.empty();
     create_list.empty();
+    delayed_key_list.empty();
+    delayed_key_info= NULL;
+    delayed_key_count= 0;
     flags= 0;
     keys_onoff= LEAVE_AS_IS;
     tablespace_op= NO_TABLESPACE_OP;

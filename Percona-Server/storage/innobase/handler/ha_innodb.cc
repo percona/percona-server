@@ -195,6 +195,8 @@ static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innobase_use_sys_stats_table		= FALSE;
+static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
+static uint	innobase_buffer_pool_shm_key		= 0;
 
 
 static char*	internal_innobase_data_file_path	= NULL;
@@ -2705,6 +2707,12 @@ innobase_change_buffering_inited_ok:
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
+
+	if (innobase_buffer_pool_shm_key) {
+		fprintf(stderr,
+			"InnoDB: Warning: innodb_buffer_pool_shm_key is deprecated function.\n"
+			"InnoDB:          innodb_buffer_pool_shm_key was ignored.\n");
+	}
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
@@ -11946,6 +11954,16 @@ static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
   NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
 
+static MYSQL_SYSVAR_UINT(buffer_pool_shm_key, innobase_buffer_pool_shm_key,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "[Deprecated option] no effect",
+  NULL, NULL, 0, 0, INT_MAX32, 0);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_shm_checksum, innobase_buffer_pool_shm_checksum,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "[Deprecated option] no effect",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
@@ -12291,6 +12309,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
+  MYSQL_SYSVAR(buffer_pool_shm_key),
+  MYSQL_SYSVAR(buffer_pool_shm_checksum),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksum),
   MYSQL_SYSVAR(commit_concurrency),

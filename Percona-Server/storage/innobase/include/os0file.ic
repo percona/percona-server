@@ -229,6 +229,7 @@ pfs_os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
                                 OS_AIO_SYNC */
+	ulint		space_id,
 	trx_t*		trx,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -245,7 +246,7 @@ pfs_os_aio_func(
 				   src_file, src_line);
 
 	result = os_aio_func(type, mode, name, file, buf, offset, offset_high,
-			     n, message1, message2, trx);
+			     n, message1, message2, space_id, trx);
 
 	register_pfs_file_io_end(locker, n);
 

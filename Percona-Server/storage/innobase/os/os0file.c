@@ -180,6 +180,7 @@ struct os_aio_slot_struct{
 					made and only the slot message
 					needs to be passed to the caller
 					of os_aio_simulated_handle */
+	ulint		space_id;
 	fil_node_t*	message1;	/*!< message which is given by the */
 	void*		message2;	/*!< the requester of an aio operation
 					and which can be used to identify
@@ -3783,7 +3784,8 @@ os_aio_array_reserve_slot(
 				offset */
 	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
-	ulint		len)	/*!< in: length of the block to read or write */
+	ulint		len,	/*!< in: length of the block to read or write */
+	ulint		space_id)
 {
 	os_aio_slot_t*	slot = NULL;
 #ifdef WIN_ASYNC_IO
@@ -3872,6 +3874,7 @@ found:
 	slot->offset   = offset;
 	slot->offset_high = offset_high;
 	slot->io_already_done = FALSE;
+	slot->space_id = space_id;
 
 #ifdef WIN_ASYNC_IO
 	control = &(slot->control);
@@ -4159,6 +4162,7 @@ os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	ulint		space_id,
 	trx_t*		trx)
 {
 	os_aio_array_t*	array;
@@ -4254,7 +4258,7 @@ try_again:
 		trx->io_read += n;
 	}
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
-					 name, buf, offset, offset_high, n);
+					 name, buf, offset, offset_high, n, space_id);
 	if (type == OS_FILE_READ) {
 		if (srv_use_native_aio) {
 			os_n_file_reads++;
@@ -4373,7 +4377,8 @@ os_aio_windows_handle(
 				parameters are valid and can be used to
 				restart the operation, for example */
 	void**	message2,
-	ulint*	type)		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id)
 {
 	ulint		orig_seg	= segment;
 	os_aio_array_t*	array;
@@ -4452,6 +4457,7 @@ os_aio_windows_handle(
 	*message2 = slot->message2;
 
 	*type = slot->type;
+	*space_id = slot->space_id;
 
 	if (ret && len == slot->len) {
 		ret_val = TRUE;
@@ -4680,7 +4686,8 @@ os_aio_linux_handle(
 				aio operation failed, these output
 				parameters are valid and can be used to
 				restart the operation. */
-	ulint*	type)		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id)
 {
 	ulint		segment;
 	os_aio_array_t*	array;
@@ -4753,6 +4760,7 @@ found:
 	*message2 = slot->message2;
 
 	*type = slot->type;
+	*space_id = slot->space_id;
 
 	if ((slot->ret == 0) && (slot->n_bytes == (long)slot->len)) {
 		ret = TRUE;
@@ -4806,7 +4814,8 @@ os_aio_simulated_handle(
 				parameters are valid and can be used to
 				restart the operation, for example */
 	void**	message2,
-	ulint*	type)		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id)
 {
 	os_aio_array_t*	array;
 	ulint		segment;
@@ -5102,6 +5111,7 @@ slot_io_done:
 	*message2 = slot->message2;
 
 	*type = slot->type;
+	*space_id = slot->space_id;
 
 	os_mutex_exit(array->mutex);
 

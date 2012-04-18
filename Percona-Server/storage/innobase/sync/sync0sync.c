@@ -1219,6 +1219,7 @@ sync_thread_add_level(
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_ANY_LATCH:
+	case SYNC_OUTER_ANY_LATCH:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:

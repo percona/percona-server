@@ -576,7 +576,7 @@ buf_LRU_mark_space_was_deleted(
 
 		mutex_exit(&buf_pool->LRU_list_mutex);
 
-		rw_lock_s_lock(&btr_search_latch);
+		btr_search_s_lock_all();
 		chunk = buf_pool->chunks;
 		for (j = buf_pool->n_chunks; j--; chunk++) {
 			buf_block_t*	block	= chunk->blocks;
@@ -588,16 +588,16 @@ buf_LRU_mark_space_was_deleted(
 					continue;
 				}
 
-				rw_lock_s_unlock(&btr_search_latch);
+				btr_search_s_unlock_all();
 
 				rw_lock_x_lock(&block->lock);
 				btr_search_drop_page_hash_index(block);
 				rw_lock_x_unlock(&block->lock);
 
-				rw_lock_s_lock(&btr_search_latch);
+				btr_search_s_lock_all();
 			}
 		}
-		rw_lock_s_unlock(&btr_search_latch);
+		btr_search_s_unlock_all();
 	}
 }
 

@@ -1851,7 +1851,7 @@ dict_index_remove_from_cache(
 	zero. */
 
 	for (;;) {
-		ulint ref_count = btr_search_info_get_ref_count(info);
+		ulint ref_count = btr_search_info_get_ref_count(info, index->id);
 		if (ref_count == 0) {
 			break;
 		}

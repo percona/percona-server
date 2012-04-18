@@ -85,7 +85,8 @@ UNIV_INTERN
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
-	btr_search_t*   info);	/*!< in: search info. */
+	btr_search_t*   info,	/*!< in: search info. */
+	index_id_t	key);
 /*********************************************************************//**
 Updates the search info. */
 UNIV_INLINE
@@ -199,6 +200,40 @@ btr_search_validate(void);
 # define btr_search_validate()	TRUE
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
+/********************************************************************//**
+New functions to control split btr_search_index */
+UNIV_INLINE
+hash_table_t*
+btr_search_get_hash_index(
+/*======================*/
+	index_id_t	key);
+
+UNIV_INLINE
+rw_lock_t*
+btr_search_get_latch(
+/*=================*/
+	index_id_t	key);
+
+UNIV_INLINE
+void
+btr_search_x_lock_all(void);
+/*========================*/
+
+UNIV_INLINE
+void
+btr_search_x_unlock_all(void);
+/*==========================*/
+
+UNIV_INLINE
+void
+btr_search_s_lock_all(void);
+/*========================*/
+
+UNIV_INLINE
+void
+btr_search_s_unlock_all(void);
+/*==========================*/
+
 /** The search info struct in an index */
 struct btr_search_struct{
 	ulint	ref_count;	/*!< Number of blocks in this index tree
@@ -259,7 +294,7 @@ typedef struct btr_search_sys_struct	btr_search_sys_t;
 
 /** The hash index system */
 struct btr_search_sys_struct{
-	hash_table_t*	hash_index;	/*!< the adaptive hash index,
+	hash_table_t**	hash_index;	/*!< the adaptive hash index,
 					mapping dtuple_fold values
 					to rec_t pointers on index pages */
 };

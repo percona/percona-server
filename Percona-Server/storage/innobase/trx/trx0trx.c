@@ -265,8 +265,14 @@ trx_search_latch_release_if_reserved(
 /*=================================*/
 	trx_t*	   trx) /*!< in: transaction */
 {
+	ulint	i;
+
 	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
+		for (i = 0; i < btr_search_index_num; i++) {
+			if (trx->has_search_latch & ((ulint)1 << i)) {
+				rw_lock_s_unlock(btr_search_latch_part[i]);
+			}
+		}
 
 		trx->has_search_latch = FALSE;
 	}

@@ -1222,7 +1222,6 @@ sync_thread_add_level(
 	case SYNC_OUTER_ANY_LATCH:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
-	case SYNC_SEARCH_SYS:
 	case SYNC_TRX_LOCK_HEAP:
 	case SYNC_KERNEL:
 	case SYNC_IBUF_BITMAP_MUTEX:
@@ -1243,6 +1242,7 @@ sync_thread_add_level(
 			ut_error;
 		}
 		break;
+	case SYNC_SEARCH_SYS:
 	case SYNC_BUF_LRU_LIST:
 	case SYNC_BUF_FLUSH_LIST:
 	case SYNC_BUF_PAGE_HASH:

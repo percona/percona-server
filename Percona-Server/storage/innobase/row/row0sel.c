@@ -1222,7 +1222,7 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
 	row_sel_open_pcur(plan, TRUE, mtr);
@@ -1393,10 +1393,10 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_lock(btr_search_get_latch(index->id));
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
+		} else if (rw_lock_get_writer(btr_search_get_latch(index->id)) == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1405,8 +1405,8 @@ table_loop:
 			from acquiring an s-latch for a long time, lowering
 			performance significantly in multiprocessors. */
 
-			rw_lock_s_unlock(&btr_search_latch);
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_unlock(btr_search_get_latch(index->id));
+			rw_lock_s_lock(btr_search_get_latch(index->id));
 		}
 
 		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
@@ -1429,7 +1429,7 @@ table_loop:
 	}
 
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_search_get_latch(index->id));
 
 		search_latch_locked = FALSE;
 	}
@@ -2005,7 +2005,7 @@ lock_wait_or_error:
 
 func_exit:
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_search_get_latch(index->id));
 	}
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -3415,6 +3415,8 @@ row_search_for_mysql(
 	/* if the returned record was locked and we did a semi-consistent
 	read (fetch the newest committed version), then this is set to
 	TRUE */
+	ulint		i;
+	ulint		should_release;
 #ifdef UNIV_SEARCH_DEBUG
 	ulint		cnt				= 0;
 #endif /* UNIV_SEARCH_DEBUG */
@@ -3512,18 +3514,33 @@ row_search_for_mysql(
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
 
-	if (UNIV_UNLIKELY(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED)
-	    && trx->has_search_latch) {
+	should_release = 0;
+	for (i = 0; i < btr_search_index_num; i++) {
+		/* we should check all latches (fix Bug#791030) */
+		if (rw_lock_get_writer(btr_search_latch_part[i])
+		    != RW_LOCK_NOT_LOCKED) {
+			should_release |= ((ulint)1 << i);
+		}
+	}
+
+	if (should_release) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
 		BTR_SEA_TIMEOUT rounds before trying to keep it again over
 		calls from MySQL */
 
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		for (i = 0; i < btr_search_index_num; i++) {
+			/* we should release all s-latches (fix Bug#791030) */
+			if (trx->has_search_latch & ((ulint)1 << i)) {
+				rw_lock_s_unlock(btr_search_latch_part[i]);
+				trx->has_search_latch &= (~((ulint)1 << i));
+			}
+		}
 
+		if (!trx->has_search_latch) {
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+		}
 	}
 
 	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
@@ -3674,9 +3691,28 @@ row_search_for_mysql(
 			hash index semaphore! */
 
 #ifndef UNIV_SEARCH_DEBUG
-			if (!trx->has_search_latch) {
-				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = TRUE;
+			if (!(trx->has_search_latch
+			      & ((ulint)1 << (index->id % btr_search_index_num)))) {
+				if (trx->has_search_latch
+				    < ((ulint)1 << (index->id % btr_search_index_num))) {
+					rw_lock_s_lock(btr_search_get_latch(index->id));
+					trx->has_search_latch |=
+						((ulint)1 << (index->id % btr_search_index_num));
+				} else {
+					/* should re-lock to obay latch-order */
+					for (i = 0; i < btr_search_index_num; i++) {
+						if (trx->has_search_latch & ((ulint)1 << i)) {
+							rw_lock_s_unlock(btr_search_latch_part[i]);
+						}
+					}
+					trx->has_search_latch |=
+						((ulint)1 << (index->id % btr_search_index_num));
+					for (i = 0; i < btr_search_index_num; i++) {
+						if (trx->has_search_latch & ((ulint)1 << i)) {
+							rw_lock_s_lock(btr_search_latch_part[i]);
+						}
+					}
+				}
 			}
 #endif
 			switch (row_sel_try_search_shortcut_for_mysql(
@@ -3737,7 +3773,11 @@ release_search_latch_if_needed:
 
 					trx->search_latch_timeout--;
 
-					rw_lock_s_unlock(&btr_search_latch);
+					for (i = 0; i < btr_search_index_num; i++) {
+						if (trx->has_search_latch & ((ulint)1 << i)) {
+							rw_lock_s_unlock(btr_search_latch_part[i]);
+						}
+					}
 					trx->has_search_latch = FALSE;
 				}
 
@@ -3761,7 +3801,12 @@ release_search_latch_if_needed:
 	/* PHASE 3: Open or restore index cursor position */
 
 	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
+
+		for (i = 0; i < btr_search_index_num; i++) {
+			if (trx->has_search_latch & ((ulint)1 << i)) {
+				rw_lock_s_unlock(btr_search_latch_part[i]);
+			}
+		}
 		trx->has_search_latch = FALSE;
 	}
 

@@ -2645,7 +2645,7 @@ row_discard_tablespace_for_mysql(
 			/* check adaptive hash entries */
 			index = dict_table_get_first_index(table);
 			while (index) {
-				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info, index->id);
 				if (ref_count) {
 					fprintf(stderr, "InnoDB: Warning:"
 						" hash index ref_count (%lu) is not zero"
@@ -3006,7 +3006,7 @@ row_truncate_table_for_mysql(
 			table->space = space;
 			index = dict_table_get_first_index(table);
 			do {
-				ulint ref_count = btr_search_info_get_ref_count(index->search_info);
+				ulint ref_count = btr_search_info_get_ref_count(index->search_info, index->id);
 				/* check adaptive hash entries */
 				if (ref_count) {
 					fprintf(stderr, "InnoDB: Warning:"

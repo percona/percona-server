@@ -120,7 +120,7 @@ ha_insert_for_fold_func(
 	ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	ut_ad(rw_lock_own(block->btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ASSERT_HASH_MUTEX_OWN(table, fold);
 	ut_ad(btr_search_enabled);
@@ -213,7 +213,7 @@ ha_delete_hash_node(
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	//	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(btr_search_enabled);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -253,7 +253,7 @@ ha_search_and_update_if_found_func(
 	ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	//	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (!btr_search_enabled) {
@@ -296,7 +296,7 @@ ha_remove_all_nodes_to_page(
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ASSERT_HASH_MUTEX_OWN(table, fold);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	//	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(btr_search_enabled);
 

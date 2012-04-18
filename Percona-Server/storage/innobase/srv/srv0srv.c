@@ -2051,7 +2051,9 @@ srv_printf_innodb_monitor(
 	      "-------------------------------------\n", file);
 	ibuf_print(file);
 
-	ha_print_info(file, btr_search_sys->hash_index);
+	for (i = 0; i < btr_search_index_num; i++) {
+		ha_print_info(file, btr_search_get_hash_index((index_id_t)i));
+	}
 
 	fprintf(file,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",
@@ -2076,14 +2078,15 @@ srv_printf_innodb_monitor(
 			ut_total_allocated_memory,
 			mem_pool_get_reserved(mem_comm_pool));
 	/* Calcurate reserved memories */
-	if (btr_search_sys && btr_search_sys->hash_index->heap) {
-		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index->heap);
+	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
+		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index[0]->heap);
 	} else {
 		btr_search_sys_subtotal = 0;
-		for (i=0; i < btr_search_sys->hash_index->n_mutexes; i++) {
-			btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index->heaps[i]);
+		for (i=0; i < btr_search_sys->hash_index[0]->n_mutexes; i++) {
+			btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index[0]->heaps[i]);
 		}
 	}
+	btr_search_sys_subtotal *= btr_search_index_num;
 
 	lock_sys_subtotal = 0;
 	if (trx_sys) {
@@ -2109,10 +2112,10 @@ srv_printf_innodb_monitor(
 			"    Recovery system     %lu \t(%lu + %lu)\n",
 
 			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0)
+				? (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t)) : 0)
 			+ btr_search_sys_subtotal,
 			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index->n_cells * sizeof(hash_cell_t)) : 0),
+				? (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t)) : 0),
 			(ulong) btr_search_sys_subtotal,
 
 			(ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t)),

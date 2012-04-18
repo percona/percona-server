@@ -1,0 +1,8 @@
+File=microsec_process.patch
+Name=Adds INFOMATION_SCHEMA.PROCESSLIST with TIME_MS column
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment=
+2010-01
+Ported to 5.1.42

@@ -1,0 +1,3 @@
+SELECT @@global.innodb_corrupt_table_action;
+@@global.innodb_corrupt_table_action
+assert

@@ -1,0 +1,3 @@
+SELECT @@global.innodb_buffer_pool_shm_checksum;
+@@global.innodb_buffer_pool_shm_checksum
+1

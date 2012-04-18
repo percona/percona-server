@@ -1,0 +1,3 @@
+SELECT @@global.innodb_ibuf_active_contract;
+@@global.innodb_ibuf_active_contract
+1

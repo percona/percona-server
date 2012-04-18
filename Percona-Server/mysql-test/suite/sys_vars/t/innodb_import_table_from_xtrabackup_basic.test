@@ -1,0 +1,1 @@
+SELECT @@global.innodb_import_table_from_xtrabackup;

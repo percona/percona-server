@@ -1,0 +1,1 @@
+SELECT @@global.innodb_read_ahead;

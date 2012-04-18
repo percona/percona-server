@@ -1,0 +1,3 @@
+SELECT @@global.innodb_read_ahead;
+@@global.innodb_read_ahead
+linear

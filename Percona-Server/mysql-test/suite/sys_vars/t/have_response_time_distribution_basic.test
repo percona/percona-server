@@ -1,0 +1,1 @@
+SELECT @@global.have_response_time_distribution;

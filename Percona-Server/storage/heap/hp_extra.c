@@ -56,7 +56,6 @@ int heap_reset(HP_INFO *info)
   info->current_record= (ulong) ~0L;
   info->current_hash_ptr=0;
   info->update=0;
-  info->next_block=0;
   return 0;
 }
 

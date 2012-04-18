@@ -1,0 +1,12 @@
+CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
+PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=124	
+DROP TABLE t1;
+CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
+PRIMARY KEY (f1)) KEY_BLOCK_SIZE=122 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MEMORY	10	Fixed	0	X	0	X	0	0	NULL	X	X	NULL	latin1_swedish_ci	NULL	row_format=DYNAMIC KEY_BLOCK_SIZE=122	
+DROP TABLE t1;

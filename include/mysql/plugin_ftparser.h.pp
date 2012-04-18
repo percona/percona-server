@@ -187,6 +187,16 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
+void increment_thd_innodb_stats(void* thd,
+                    unsigned long long trx_id,
+                    long io_reads,
+                    long long io_read,
+                    long io_reads_wait_timer,
+                    long lock_que_wait_timer,
+                    long que_wait_timer,
+                    long page_access);
+unsigned long thd_log_slow_verbosity(const void* thd);
+int thd_opt_slow_log();
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 void thd_binlog_pos(const void* thd,

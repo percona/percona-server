@@ -1,0 +1,101 @@
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+CREATE TABLE t1(a CHAR(255),
+b CHAR(255),
+c CHAR(255),
+d CHAR(255),
+id INT AUTO_INCREMENT,
+PRIMARY KEY(id)) ENGINE=InnoDB;
+create table t2 like t1;
+create procedure setcrash(IN i INT)
+begin
+CASE i
+WHEN 1 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 2 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 3 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 4 THEN SET SESSION debug="d,crash_commit_after_prepare";
+WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
+WHEN 3 THEN SET SESSION debug="d,crash_before_writing_xid";
+WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
+WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
+ELSE BEGIN END;
+END CASE;
+end //
+FLUSH TABLES;
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+RESET MASTER;
+START TRANSACTION;
+insert into t1 select * from t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+call setcrash(5);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET MASTER;
+START TRANSACTION;
+insert into t1 select * from t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+call setcrash(4);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET MASTER;
+START TRANSACTION;
+insert into t1 select * from t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+call setcrash(3);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET MASTER;
+START TRANSACTION;
+insert into t1 select * from t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+call setcrash(2);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+RESET MASTER;
+START TRANSACTION;
+insert into t1 select * from t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
+call setcrash(1);
+COMMIT;
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY id;
+a	b	c	d	id
+SHOW BINLOG EVENTS LIMIT 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE setcrash;

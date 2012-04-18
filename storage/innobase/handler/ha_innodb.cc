@@ -15855,6 +15855,47 @@ static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binl
   "Force InnoDB to not use next-key locking, to use only row-level locking.",
   NULL, NULL, FALSE);
 
+ibool
+innobase_thd_is_idle(
+	const void*	thd)
+{
+#ifdef EXTENDED_FOR_KILLIDLE
+	return(thd_command((const THD*) thd) == COM_SLEEP);
+#else
+	return(FALSE);
+#endif
+}
+
+ib_int64_t
+innobase_thd_get_start_time(
+	const void*	thd)
+{
+#ifdef EXTENDED_FOR_KILLIDLE
+	return((ib_int64_t) thd_start_time((const THD*) thd));
+#else
+	return(0);
+#endif
+}
+
+UNIV_INTERN
+void
+innobase_thd_kill(
+	ulong	thd_id)
+{
+#ifdef EXTENDED_FOR_KILLIDLE
+	thd_kill(thd_id);
+#else
+	ut_error;
+#endif
+}
+
+ulong
+innobase_thd_get_thread_id(
+	const void*	thd)
+{
+	return(thd_get_thread_id((const THD*) thd));
+}
+
 #ifdef UNIV_LOG_ARCHIVE
 static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

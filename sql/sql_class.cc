@@ -816,6 +816,46 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   return buffer;
 }
 
+/* extend for kill session of idle transaction from engine */
+extern "C"
+int thd_command(const THD* thd)
+{
+  return (int) thd->get_command();
+}
+
+extern "C"
+long long thd_start_time(const THD* thd)
+{
+  return (long long) thd->start_time.tv_sec;
+}
+
+extern "C"
+void thd_kill(ulong id)
+{
+  THD *tmp= NULL;
+  mysql_mutex_lock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator it_end= global_thread_list_end();
+  while (it != it_end)
+  {
+    tmp= *it;
+    if (tmp->get_command() == COM_DAEMON)
+      continue;
+    if (tmp->thread_id == id)
+    {
+      mysql_mutex_lock(&tmp->LOCK_thd_data);
+      mysql_mutex_unlock(&LOCK_thread_count);
+      tmp->awake(THD::KILL_CONNECTION);
+      mysql_mutex_unlock(&tmp->LOCK_thd_data);
+      break;
+    }
+    it++;
+  }
+  if (it == it_end)
+  {
+    mysql_mutex_unlock(&LOCK_thread_count);
+  }
+}
 
 /**
   Implementation of Drop_table_error_handler::handle_condition().

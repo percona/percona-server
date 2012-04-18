@@ -284,6 +284,13 @@ thd_set_lock_wait_time(
 /*===================*/
         void*   thd,	/*!< in: thread handle (THD*) */
         ulint   value);	/*!< in: time waited for the lock */
+/******************************************************************//**
+*/
+
+ulong
+thd_flush_log_at_trx_commit(
+/*================================*/
+	void*	thd);
 
 /**********************************************************************//**
 Get the current setting of the lower_case_table_names global parameter from

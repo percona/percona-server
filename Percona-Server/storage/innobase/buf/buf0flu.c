@@ -857,7 +857,7 @@ corrupted_page:
 flush:
 	/* Now flush the doublewrite buffer data to disk */
 
-	fil_flush(TRX_SYS_SPACE);
+	fil_flush(TRX_SYS_SPACE, FALSE);
 
 	/* We know that the writes have been flushed to disk now
 	and in recovery we will find them in the doublewrite buffer
@@ -1375,10 +1375,11 @@ buf_flush_try_neighbors(
 	ulint		high;
 	ulint		count = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	ibool		is_forward_scan;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
+	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN || !srv_flush_neighbor_pages) {
 		/* If there is little space, it is better not to flush
 		any block except from the end of the LRU list */
 
@@ -1405,7 +1406,32 @@ buf_flush_try_neighbors(
 		high = fil_space_get_size(space);
 	}
 
-	for (i = low; i < high; i++) {
+	if (srv_flush_neighbor_pages == 2) {
+
+		/* In the case of contiguous flush where the requested page
+		does not fall at the start of flush area, first scan backward
+		from the page and later forward from it. */
+		is_forward_scan = (offset == low);
+	}
+	else {
+		is_forward_scan = TRUE;
+	}
+
+scan:
+	if (srv_flush_neighbor_pages == 2) {
+		if (is_forward_scan) {
+			i = offset;
+		}
+		else {
+			i = offset - 1;
+		}
+	}
+	else {
+		i = low;
+	}
+
+	for (; is_forward_scan ? (i < high) : (i >= low);
+	     is_forward_scan ? i++ : i--) {
 
 		buf_page_t*	bpage;
 
@@ -1434,6 +1460,12 @@ buf_flush_try_neighbors(
 		if (!bpage) {
 
 			buf_pool_mutex_exit(buf_pool);
+			if (srv_flush_neighbor_pages == 2) {
+
+				/* This is contiguous neighbor page flush and
+				the pages here are not contiguous. */
+				break;
+			}
 			continue;
 		}
 
@@ -1470,6 +1502,22 @@ buf_flush_try_neighbors(
 			}
 		}
 		buf_pool_mutex_exit(buf_pool);
+
+		if (srv_flush_neighbor_pages == 2) {
+
+			/* We are trying to do the contiguous neighbor page
+			flush, but the last page we checked was unflushable,
+			making a "hole" in the flush, so stop this attempt. */
+			break;
+		}
+	}
+
+	if (!is_forward_scan) {
+
+		/* Backward scan done, now do the forward scan */
+		ut_a (srv_flush_neighbor_pages == 2);
+		is_forward_scan = TRUE;
+		goto scan;
 	}
 
 	return(count);

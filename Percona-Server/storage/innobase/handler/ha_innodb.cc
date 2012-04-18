@@ -445,6 +445,12 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
+static MYSQL_THDVAR_ULONG(flush_log_at_trx_commit, PLUGIN_VAR_OPCMDARG,
+  "Set to 0 (write and flush once per second),"
+  " 1 (write and flush at each commit)"
+  " or 2 (write at commit, flush once per second).",
+  NULL, NULL, 1, 0, 2, 0);
+
 
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
@@ -839,6 +845,17 @@ thd_set_lock_wait_time(
 	if (thd) {
 		thd_storage_lock_wait((THD*)thd, value);
 	}
+}
+
+/******************************************************************//**
+*/
+extern "C" UNIV_INTERN
+ulong
+thd_flush_log_at_trx_commit(
+/*================================*/
+	void*	thd)
+{
+	return(THDVAR((THD*) thd, flush_log_at_trx_commit));
 }
 
 /********************************************************************//**
@@ -2470,6 +2487,9 @@ innobase_change_buffering_inited_ok:
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
+
+	srv_read_ahead &= 3;
+	srv_adaptive_flushing_method %= 3;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -11226,7 +11246,7 @@ static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Purge threads can be either 0 or 1.",
   NULL, NULL,
-  0,			/* Default setting */
+  1,			/* Default setting */
   0,			/* Minimum value */
   1, 0);		/* Maximum value */
 
@@ -11268,12 +11288,18 @@ static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   innodb_file_format_max_validate,
   innodb_file_format_max_update, "Antelope");
 
-static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
-  PLUGIN_VAR_OPCMDARG,
-  "Set to 0 (write and flush once per second),"
-  " 1 (write and flush at each commit)"
-  " or 2 (write at commit, flush once per second).",
-  NULL, NULL, 1, 0, 2, 0);
+/* Changed to the THDVAR */
+//static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
+//  PLUGIN_VAR_OPCMDARG,
+//  "Set to 0 (write and flush once per second),"
+//  " 1 (write and flush at each commit)"
+//  " or 2 (write at commit, flush once per second).",
+//  NULL, NULL, 1, 0, 2, 0);
+
+static MYSQL_SYSVAR_BOOL(use_global_flush_log_at_trx_commit, srv_use_global_flush_log_at_trx_commit,
+  PLUGIN_VAR_NOCMDARG,
+  "Use global innodb_flush_log_at_trx_commit value. (default: ON).",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_STR(flush_method, innobase_file_flush_method,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -11378,7 +11404,7 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
-  NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -11542,6 +11568,127 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   NULL, NULL, 0, 0, 1024, 0);
 #endif /* UNIV_DEBUG */
 
+static MYSQL_SYSVAR_LONGLONG(ibuf_max_size, srv_ibuf_max_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "The maximum size of the insert buffer. (in bytes)",
+  NULL, NULL, LONGLONG_MAX, 0, LONGLONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
+  NULL, NULL, 1, 0, 1, 0);
+
+static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
+  PLUGIN_VAR_RQCMDARG,
+  "Tunes amount of insert buffer processing of background, in addition to innodb_io_capacity. (in percentage)",
+  NULL, NULL, 100, 100, 999999999, 0);
+
+static MYSQL_SYSVAR_ULONG(checkpoint_age_target, srv_checkpoint_age_target,
+  PLUGIN_VAR_RQCMDARG,
+  "Control soft limit of checkpoint age. (0 : not control)",
+  NULL, NULL, 0, 0, ~0UL, 0);
+
+static
+void
+innodb_flush_neighbor_pages_update(
+  THD* thd,
+  struct st_mysql_sys_var* var,
+  void* var_ptr,
+  const void* save)
+{
+  *(long *)var_ptr = (*(long *)save) % 3;
+}
+
+const char *flush_neighbor_pages_names[]=
+{
+  "none", /* 0 */
+  "area",
+  "cont", /* 2 */
+  /* For compatibility with the older patch */
+  "0", /* "none" + 3 */
+  "1", /* "area" + 3 */
+  "2", /* "cont" + 3 */
+  NullS
+};
+
+TYPELIB flush_neighbor_pages_typelib=
+{
+  array_elements(flush_neighbor_pages_names) - 1,
+  "flush_neighbor_pages_typelib",
+  flush_neighbor_pages_names,
+  NULL
+};
+
+static MYSQL_SYSVAR_ENUM(flush_neighbor_pages, srv_flush_neighbor_pages,
+  PLUGIN_VAR_RQCMDARG, "Neighbor page flushing behaviour: none: do not flush, "
+                       "[area]: flush selected pages one-by-one, "
+                       "cont: flush a contiguous block of pages", NULL,
+  innodb_flush_neighbor_pages_update, 1, &flush_neighbor_pages_typelib);
+
+static
+void
+innodb_read_ahead_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) & 3;
+}
+const char *read_ahead_names[]=
+{
+  "none", /* 0 */
+  "random",
+  "linear",
+  "both", /* 3 */
+  /* For compatibility of the older patch */
+  "0", /* 4 ("none" + 4) */
+  "1",
+  "2",
+  "3", /* 7 ("both" + 4) */
+  NullS
+};
+TYPELIB read_ahead_typelib=
+{
+  array_elements(read_ahead_names) - 1, "read_ahead_typelib",
+  read_ahead_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(read_ahead, srv_read_ahead,
+  PLUGIN_VAR_RQCMDARG,
+  "Control read ahead activity (none, random, [linear], both). [from 1.0.5: random read ahead is ignored]",
+  NULL, innodb_read_ahead_update, 2, &read_ahead_typelib);
+
+static
+void
+innodb_adaptive_flushing_method_update(
+  THD* thd,
+  struct st_mysql_sys_var*     var,
+  void*        var_ptr,
+  const void*  save)
+{
+  *(long *)var_ptr= (*(long *)save) % 4;
+}
+const char *adaptive_flushing_method_names[]=
+{
+  "native", /* 0 */
+  "estimate", /* 1 */
+  "keep_average", /* 2 */
+  /* For compatibility of the older patch */
+  "0", /* 3 ("none" + 3) */
+  "1", /* 4 ("estimate" + 3) */
+  "2", /* 5 ("keep_average" + 3) */
+  NullS
+};
+TYPELIB adaptive_flushing_method_typelib=
+{
+  array_elements(adaptive_flushing_method_names) - 1, "adaptive_flushing_method_typelib",
+  adaptive_flushing_method_names, NULL
+};
+static MYSQL_SYSVAR_ENUM(adaptive_flushing_method, srv_adaptive_flushing_method,
+  PLUGIN_VAR_RQCMDARG,
+  "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
+  NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -11562,6 +11709,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(file_format_check),
   MYSQL_SYSVAR(file_format_max),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
+  MYSQL_SYSVAR(use_global_flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
   MYSQL_SYSVAR(large_prefix),
@@ -11601,6 +11749,13 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(show_verbose_locks),
   MYSQL_SYSVAR(show_locks_held),
   MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(ibuf_max_size),
+  MYSQL_SYSVAR(ibuf_active_contract),
+  MYSQL_SYSVAR(ibuf_accel_rate),
+  MYSQL_SYSVAR(checkpoint_age_target),
+  MYSQL_SYSVAR(flush_neighbor_pages),
+  MYSQL_SYSVAR(read_ahead),
+  MYSQL_SYSVAR(adaptive_flushing_method),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),

@@ -392,10 +392,10 @@ trx_purge_add_update_undo_to_history(
 	trx_sys->rseg_history_len++;
 	mutex_exit(&kernel_mutex);
 
-	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) {
+//	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) { /*should wake up always*/
 		/* Inform the purge thread that there is work to do. */
 		srv_wake_purge_thread_if_not_active();
-	}
+//	}
 }
 
 /**********************************************************************//**

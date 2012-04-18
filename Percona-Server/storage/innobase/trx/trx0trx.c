@@ -984,12 +984,19 @@ trx_commit_off_kernel(
 	trx->read_view = NULL;
 
 	if (lsn) {
+		ulint	flush_log_at_trx_commit;
 
 		mutex_exit(&kernel_mutex);
 
 		if (trx->insert_undo != NULL) {
 
 			trx_undo_insert_cleanup(trx);
+		}
+
+		if (srv_use_global_flush_log_at_trx_commit) {
+			flush_log_at_trx_commit = thd_flush_log_at_trx_commit(NULL);
+		} else {
+			flush_log_at_trx_commit = thd_flush_log_at_trx_commit(trx->mysql_thd);
 		}
 
 		/* NOTE that we could possibly make a group commit more
@@ -1023,9 +1030,9 @@ trx_commit_off_kernel(
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = TRUE;
-		} else if (srv_flush_log_at_trx_commit == 0) {
+		} else if (flush_log_at_trx_commit == 0) {
 			/* Do nothing */
-		} else if (srv_flush_log_at_trx_commit == 1) {
+		} else if (flush_log_at_trx_commit == 1) {
 			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
 				/* Write the log but do not flush it to disk */
 
@@ -1037,7 +1044,7 @@ trx_commit_off_kernel(
 
 				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
 			}
-		} else if (srv_flush_log_at_trx_commit == 2) {
+		} else if (flush_log_at_trx_commit == 2) {
 
 			/* Write the log but do not flush it to disk */
 
@@ -1701,16 +1708,23 @@ trx_commit_complete_for_mysql(
 	trx_t*	trx)	/*!< in: trx handle */
 {
 	ib_uint64_t	lsn	= trx->commit_lsn;
+	ulint		flush_log_at_trx_commit;
 
 	ut_a(trx);
 
 	trx->op_info = "flushing log";
 
+	if (srv_use_global_flush_log_at_trx_commit) {
+		flush_log_at_trx_commit = thd_flush_log_at_trx_commit(NULL);
+	} else {
+		flush_log_at_trx_commit = thd_flush_log_at_trx_commit(trx->mysql_thd);
+	}
+
 	if (!trx->must_flush_log_later) {
 		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 0) {
+	} else if (flush_log_at_trx_commit == 0) {
 		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 1) {
+	} else if (flush_log_at_trx_commit == 1) {
 		if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
 			/* Write the log but do not flush it to disk */
 
@@ -1721,7 +1735,7 @@ trx_commit_complete_for_mysql(
 
 			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
 		}
-	} else if (srv_flush_log_at_trx_commit == 2) {
+	} else if (flush_log_at_trx_commit == 2) {
 
 		/* Write the log but do not flush it to disk */
 
@@ -1969,6 +1983,8 @@ trx_prepare_off_kernel(
 	/*--------------------------------------*/
 
 	if (lsn) {
+		ulint	flush_log_at_trx_commit;
+
 		/* Depending on the my.cnf options, we may now write the log
 		buffer to the log files, making the prepared state of the
 		transaction durable if the OS does not crash. We may also
@@ -1988,9 +2004,15 @@ trx_prepare_off_kernel(
 
 		mutex_exit(&kernel_mutex);
 
-		if (srv_flush_log_at_trx_commit == 0) {
+		if (srv_use_global_flush_log_at_trx_commit) {
+			flush_log_at_trx_commit = thd_flush_log_at_trx_commit(NULL);
+		} else {
+			flush_log_at_trx_commit = thd_flush_log_at_trx_commit(trx->mysql_thd);
+		}
+
+		if (flush_log_at_trx_commit == 0) {
 			/* Do nothing */
-		} else if (srv_flush_log_at_trx_commit == 1) {
+		} else if (flush_log_at_trx_commit == 1) {
 			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
 				/* Write the log but do not flush it to disk */
 
@@ -2002,7 +2024,7 @@ trx_prepare_off_kernel(
 
 				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
 			}
-		} else if (srv_flush_log_at_trx_commit == 2) {
+		} else if (flush_log_at_trx_commit == 2) {
 
 			/* Write the log but do not flush it to disk */
 

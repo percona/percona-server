@@ -523,8 +523,10 @@ ibuf_init_at_db_start(void)
 	grow in size, as the references on the upper levels of the tree can
 	change */
 
-	ibuf->max_size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE
-		/ IBUF_POOL_SIZE_PER_MAX_SIZE;
+	ibuf->max_size = ut_min( buf_pool_get_curr_size() / UNIV_PAGE_SIZE
+		/ IBUF_POOL_SIZE_PER_MAX_SIZE, (ulint) srv_ibuf_max_size / UNIV_PAGE_SIZE);
+
+	srv_ibuf_max_size = (long long) ibuf->max_size * UNIV_PAGE_SIZE;
 
 	mutex_create(ibuf_pessimistic_insert_mutex_key,
 		     &ibuf_pessimistic_insert_mutex,
@@ -2771,8 +2773,10 @@ ibuf_contract_after_insert(
 	size = ibuf->size;
 	max_size = ibuf->max_size;
 
+	if (!srv_ibuf_active_contract) {
 	if (size < max_size + IBUF_CONTRACT_ON_INSERT_NON_SYNC) {
 		return;
+	}
 	}
 
 	sync = (size >= max_size + IBUF_CONTRACT_ON_INSERT_SYNC);

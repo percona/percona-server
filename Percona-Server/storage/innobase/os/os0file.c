@@ -1424,7 +1424,7 @@ try_again:
 #endif
 #ifdef UNIV_NON_BUFFERED_IO
 # ifndef UNIV_HOTBACKUP
-		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+		if (type == OS_LOG_FILE && thd_flush_log_at_trx_commit(NULL) == 2) {
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
 			commit, but only once per second */
@@ -1440,7 +1440,7 @@ try_again:
 		attributes = 0;
 #ifdef UNIV_NON_BUFFERED_IO
 # ifndef UNIV_HOTBACKUP
-		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+		if (type == OS_LOG_FILE && thd_flush_log_at_trx_commit(NULL) == 2) {
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
 			commit, but only once per second */
@@ -1582,6 +1582,11 @@ try_again:
 	if (type != OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 		
+		os_file_set_nocache(file, name, mode_str);
+	}
+
+	/* ALL_O_DIRECT: O_DIRECT also for transaction log file */
+	if (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
 		os_file_set_nocache(file, name, mode_str);
 	}
 
@@ -2008,7 +2013,7 @@ os_file_set_size(
 
 	ut_free(buf2);
 
-	ret = os_file_flush(file);
+	ret = os_file_flush(file, TRUE);
 
 	if (ret) {
 		return(TRUE);
@@ -2046,7 +2051,8 @@ static
 int
 os_file_fsync(
 /*==========*/
-	os_file_t	file)	/*!< in: handle to a file */
+	os_file_t	file,	/*!< in: handle to a file */
+	ibool		metadata)
 {
 	int	ret;
 	int	failures;
@@ -2055,7 +2061,16 @@ os_file_fsync(
 	failures = 0;
 
 	do {
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
+		if (metadata) {
+			ret = fsync(file);
+		} else {
+			ret = fdatasync(file);
+		}
+#else
+		(void) metadata;
 		ret = fsync(file);
+#endif
 
 		os_n_fsyncs++;
 
@@ -2092,7 +2107,8 @@ UNIV_INTERN
 ibool
 os_file_flush_func(
 /*===============*/
-	os_file_t	file)	/*!< in, own: handle to a file */
+	os_file_t	file,	/*!< in, own: handle to a file */
+	ibool		metadata)
 {
 #ifdef __WIN__
 	BOOL	ret;
@@ -2142,18 +2158,18 @@ os_file_flush_func(
 		/* If we are not on an operating system that supports this,
 		then fall back to a plain fsync. */
 
-		ret = os_file_fsync(file);
+		ret = os_file_fsync(file, metadata);
 	} else {
 		ret = fcntl(file, F_FULLFSYNC, NULL);
 
 		if (ret) {
 			/* If we are not on a file system that supports this,
 			then fall back to a plain fsync. */
-			ret = os_file_fsync(file);
+			ret = os_file_fsync(file, metadata);
 		}
 	}
 #else
-	ret = os_file_fsync(file);
+	ret = os_file_fsync(file, metadata);
 #endif
 
 	if (ret == 0) {
@@ -2336,7 +2352,7 @@ os_file_pwrite(
 		the OS crashes, a database page is only partially
 		physically written to disk. */
 
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2378,7 +2394,7 @@ os_file_pwrite(
 			the OS crashes, a database page is only partially
 			physically written to disk. */
 
-			ut_a(TRUE == os_file_flush(file));
+			ut_a(TRUE == os_file_flush(file, TRUE));
 		}
 # endif /* UNIV_DO_FLUSH */
 
@@ -2750,7 +2766,7 @@ retry:
 
 # ifdef UNIV_DO_FLUSH
 	if (!os_do_not_call_flush_at_each_write) {
-		ut_a(TRUE == os_file_flush(file));
+		ut_a(TRUE == os_file_flush(file, TRUE));
 	}
 # endif /* UNIV_DO_FLUSH */
 
@@ -4393,7 +4409,7 @@ os_aio_windows_handle(
 #ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write) {
-			if (!os_file_flush(slot->file)) {
+			if (!os_file_flush(slot->file, TRUE)) {
 				ut_error;
 			}
 		}
@@ -4694,7 +4710,7 @@ found:
 #ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write)
-		    && !os_file_flush(slot->file) {
+		    && !os_file_flush(slot->file, TRUE) {
 			ut_error;
 		}
 #endif /* UNIV_DO_FLUSH */

@@ -138,7 +138,8 @@ extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
 extern ulint	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
-extern ulong	srv_flush_log_at_trx_commit;
+//extern ulong	srv_flush_log_at_trx_commit;
+extern char	srv_use_global_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -221,6 +222,16 @@ extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 
 extern ulong	srv_replication_delay;
+
+extern long long	srv_ibuf_max_size;
+extern ulint	srv_ibuf_active_contract;
+extern ulint	srv_ibuf_accel_rate;
+extern ulint	srv_checkpoint_age_target;
+extern ulint	srv_flush_neighbor_pages;
+extern ulint	srv_enable_unsafe_group_commit;
+extern ulint	srv_read_ahead;
+extern ulint	srv_adaptive_flushing_method;
+
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;
@@ -399,8 +410,9 @@ enum {
 				when writing data files, but do flush
 				after writing to log files */
 	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
-	SRV_UNIX_O_DIRECT	/*!< invoke os_file_set_nocache() on
+	SRV_UNIX_O_DIRECT,	/*!< invoke os_file_set_nocache() on
 				data files */
+	SRV_UNIX_ALL_O_DIRECT	/* new method for examination: logfile also open O_DIRECT */
 };
 
 /** Alternatives for file i/o in Windows */

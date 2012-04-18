@@ -194,6 +194,7 @@ enum enum_sql_command {
     When a command is added here, be sure it's also added in mysqld.cc
     in "struct show_var_st status_vars[]= {" ...
   */
+  SQLCOM_SHOW_TEMPORARY_TABLES,
   /* This should be the last !!! */
   SQLCOM_END
 };

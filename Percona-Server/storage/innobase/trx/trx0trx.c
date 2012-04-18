@@ -121,6 +121,8 @@ trx_create(
 
 	trx->support_xa = TRUE;
 
+	trx->fake_changes = FALSE;
+
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 

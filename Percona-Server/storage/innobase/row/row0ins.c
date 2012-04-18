@@ -1505,6 +1505,11 @@ exit_func:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
+
+	if (trx->fake_changes) {
+		err = DB_SUCCESS;
+	}
+
 	return(err);
 }
 
@@ -2010,7 +2015,7 @@ row_ins_index_entry_low(
 	}
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    search_mode,
+				    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : search_mode,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
@@ -2070,7 +2075,7 @@ row_ins_index_entry_low(
 
 			btr_cur_search_to_nth_level(index, 0, entry,
 						    PAGE_CUR_LE,
-						    mode | BTR_INSERT,
+						    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : (mode | BTR_INSERT),
 						    &cursor, 0,
 						    __FILE__, __LINE__, &mtr);
 		}
@@ -2124,6 +2129,22 @@ function_exit:
 	if (UNIV_LIKELY_NULL(big_rec)) {
 		rec_t*	rec;
 		ulint*	offsets;
+
+		if (thr_get_trx(thr)->fake_changes) {
+			/* skip store extern */
+			if (modify) {
+				dtuple_big_rec_free(big_rec);
+			} else {
+				dtuple_convert_back_big_rec(index, entry, big_rec);
+			}
+
+			if (UNIV_LIKELY_NULL(heap)) {
+				mem_heap_free(heap);
+			}
+
+			return(err);
+		}
+
 		mtr_start(&mtr);
 
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,

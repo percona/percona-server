@@ -2909,6 +2909,12 @@ ha_innobase::update_thd()
 	update_thd(thd);
 }
 
+bool
+innobase_get_slow_log()
+{
+	return(false);
+}
+
 /*********************************************************************//**
 Registers an InnoDB transaction with the MySQL 2PC coordinator, so that
 the MySQL XA code knows to call the InnoDB prepare and commit, or rollback

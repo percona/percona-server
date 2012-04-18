@@ -40,7 +40,8 @@ released by the i/o-handler thread.
 ibool
 buf_read_page(
 	const page_id_t&	page_id,
-	const page_size_t&	page_size);
+	const page_size_t&	page_size,
+	trx_t*	trx);
 
 /** High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
@@ -76,7 +77,8 @@ ulint
 buf_read_ahead_random(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			inside_ibuf);
+	ibool			inside_ibuf,
+	trx_t*			trx);
 
 /** Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
@@ -108,7 +110,8 @@ ulint
 buf_read_ahead_linear(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			inside_ibuf);
+	ibool			inside_ibuf,
+	trx_t*	trx);
 
 /********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in

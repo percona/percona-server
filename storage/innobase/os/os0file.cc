@@ -46,6 +46,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "fil0fil.h"
+#include "trx0trx.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"
 # include "os0thread.h"
@@ -243,6 +244,8 @@ struct Slot {
 	to the caller of os_aio_simulated_handle */
 	bool			io_already_done;
 
+	ulint			space_id;
+
 	/** The file node for which the IO is requested. */
 	fil_node_t*		m1;
 
@@ -335,7 +338,8 @@ public:
 		const char*	name,
 		void*		buf,
 		os_offset_t	offset,
-		ulint		len)
+		ulint		len,
+		ulint		space_id)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** @return number of reserved slots */
@@ -3027,9 +3031,7 @@ os_file_get_last_error_low(
 		}
 		break;
 	case EINTR:
-		if (srv_use_native_aio) {
-			return(OS_FILE_AIO_INTERRUPTED);
-		}
+		return(OS_FILE_AIO_INTERRUPTED);
 		break;
 	case EACCES:
 		return(OS_FILE_ACCESS_VIOLATION);
@@ -3272,10 +3274,12 @@ os_file_create_simple_func(
 		return(file);
 	}
 
+	int	create_o_sync = 0;
 	bool	retry;
 
 	do {
-		file.m_file = ::open(name, create_flag, os_innodb_umask);
+		file.m_file = ::open(name, create_flag | create_o_sync,
+			      os_innodb_umask);
 
 		if (file.m_file == -1) {
 			*success = false;
@@ -3306,13 +3310,16 @@ os_file_create_simple_func(
 	return(file);
 }
 
-/***********************************************************************//**
+/** NOTE! Use the corresponding macro os_file_flush(), not directly this
+function!
 Truncates a file at the specified position.
+@param[in]	file	file to truncate
+@param[in]	new_len	new file length
 @return true if success */
 bool
-os_file_set_eof_at(
-	os_file_t	file, /*!< in: handle to a file */
-	ib_uint64_t	new_len)/*!< in: new file length */
+os_file_set_eof_at_func(
+	os_file_t	file,
+	ib_uint64_t	new_len)
 {
 #ifdef __WIN__
 	LARGE_INTEGER li, li2;
@@ -3867,6 +3874,46 @@ os_file_close_func(
 	return(true);
 }
 
+/** Announces an intention to access file data in a specific pattern in the
+future.
+@param[in, own]	file	handle to a file
+@param[in]	offset	file region offset
+@param[in]	len	file region length
+@param[in]	advice	advice for access pattern
+@return true if success */
+bool
+os_file_advise(
+	pfs_os_file_t   file,   /*!< in, own: handle to a file */
+	os_offset_t     offset, /*!< in: file region offset  */
+	os_offset_t     len,    /*!< in: file region length  */
+	ulint		advice)	/*!< in: advice for access pattern */
+{
+#ifdef __WIN__
+	return(true);
+#else
+#ifdef UNIV_LINUX
+	int     native_advice = 0;
+	if ((advice & OS_FILE_ADVISE_NORMAL) != 0)
+		native_advice |= POSIX_FADV_NORMAL;
+	if ((advice & OS_FILE_ADVISE_RANDOM) != 0)
+		native_advice |= POSIX_FADV_RANDOM;
+	if ((advice & OS_FILE_ADVISE_SEQUENTIAL) != 0)
+		native_advice |= POSIX_FADV_SEQUENTIAL;
+	if ((advice & OS_FILE_ADVISE_WILLNEED) != 0)
+		native_advice |= POSIX_FADV_WILLNEED;
+	if ((advice & OS_FILE_ADVISE_DONTNEED) != 0)
+		native_advice |= POSIX_FADV_DONTNEED;
+	if ((advice & OS_FILE_ADVISE_NOREUSE) != 0)
+		native_advice |= POSIX_FADV_NOREUSE;
+
+	return(posix_fadvise(file.m_file, offset, len, native_advice) == 0);
+#else
+	return(true);
+#endif
+#endif /* __WIN__ */
+}
+
+
 /** Gets a file size.
 @param[in]	file		handle to an open file
 @return file size, or (os_offset_t) -1 on failure */
@@ -4026,7 +4073,7 @@ os_file_set_eof(
 @param[in]	file		Handle to a file
 @return true if success */
 bool
-os_file_close_no_error_handling(
+os_file_close_no_error_handling_func(
 	os_file_t	file)
 {
 	return(close(file) != -1);
@@ -5346,7 +5393,7 @@ os_file_set_eof(
 @param[in]	file		Handle to close
 @return true if success */
 bool
-os_file_close_no_error_handling(
+os_file_close_no_error_handling_func(
 	os_file_t	file)
 {
 	return(CloseHandle(file) ? true : false);
@@ -5620,14 +5667,38 @@ os_file_pread(
 	void*		buf,
 	ulint		n,
 	os_offset_t	offset,
+	trx_t*		trx,
 	dberr_t*	err)
 {
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	start_time;
+	ib_uint64_t	finish_time;
+
 	++os_n_file_reads;
+
+	if (UNIV_LIKELY_NULL(trx))
+	{
+		ut_ad(trx->take_stats);
+		trx->io_reads++;
+		trx->io_read += n;
+		ut_usectime(&sec, &ms);
+		start_time = (ib_uint64_t)sec * 1000000 + ms;
+	} else {
+		start_time = 0;
+	}
 
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 
 	ssize_t	n_bytes = os_file_io(type, file, buf, n, offset, err);
+
+	if (UNIV_UNLIKELY(start_time != 0))
+	{
+		ut_usectime(&sec, &ms);
+		finish_time = (ib_uint64_t)sec * 1000000 + ms;
+		trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
+	}
 
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
@@ -5654,9 +5725,11 @@ os_file_read_page(
 	os_offset_t	offset,
 	ulint		n,
 	ulint*		o,
-	bool		exit_on_err)
+	bool		exit_on_err,
+	trx_t*		trx)
 {
 	dberr_t		err;
+	ut_ad(!trx || trx->take_stats);
 
 	os_bytes_read_since_printout += n;
 
@@ -5666,7 +5739,7 @@ os_file_read_page(
 	for (;;) {
 		ssize_t	n_bytes;
 
-		n_bytes = os_file_pread(type, file, buf, n, offset, &err);
+		n_bytes = os_file_pread(type, file, buf, n, offset, trx, &err);
 
 		if (o != NULL) {
 			*o = n_bytes;
@@ -5980,7 +6053,7 @@ os_file_set_size(
 			request,
 			OS_AIO_SYNC, name,
 			file, buf, current_size, n_bytes,
-			read_only, NULL, NULL);
+			read_only, NULL, NULL, 0, NULL);
 #endif /* UNIV_HOTBACKUP */
 
 		if (err != DB_SUCCESS) {
@@ -6055,11 +6128,13 @@ os_file_read_func(
 	os_file_t	file,
 	void*		buf,
 	os_offset_t	offset,
-	ulint		n)
+	ulint		n,
+	trx_t*		trx)
 {
 	ut_ad(type.is_read());
+	ut_ad(!trx || trx->take_stats);
 
-	return(os_file_read_page(type, file, buf, offset, n, NULL, true));
+	return(os_file_read_page(type, file, buf, offset, n, NULL, true, trx));
 }
 
 /** NOTE! Use the corresponding macro os_file_read_no_error_handling(),
@@ -6084,7 +6159,7 @@ os_file_read_no_error_handling_func(
 {
 	ut_ad(type.is_read());
 
-	return(os_file_read_page(type, file, buf, offset, n, o, false));
+	return(os_file_read_page(type, file, buf, offset, n, o, false, NULL));
 }
 
 /** NOTE! Use the corresponding macro os_file_write(), not directly
@@ -6905,7 +6980,8 @@ AIO::reserve_slot(
 	const char*	name,
 	void*		buf,
 	os_offset_t	offset,
-	ulint		len)
+	ulint		len,
+	ulint		space_id)
 {
 #ifdef WIN_ASYNC_IO
 	ut_a((len & 0xFFFFFFFFUL) == len);
@@ -6997,6 +7073,7 @@ AIO::reserve_slot(
 	slot->err      = DB_SUCCESS;
 	slot->original_len = static_cast<uint32>(len);
 	slot->io_already_done = false;
+	slot->space_id = space_id;
 	slot->buf_block = NULL;
 
 	if (srv_use_native_aio
@@ -7429,12 +7506,15 @@ os_aio_func(
 	ulint		n,
 	bool		read_only,
 	fil_node_t*	m1,
-	void*		m2)
+	void*		m2,
+	ulint		space_id,
+	trx_t*		trx)
 {
 #ifdef WIN_ASYNC_IO
 	BOOL		ret = TRUE;
 #endif /* WIN_ASYNC_IO */
 
+	ut_ad(!trx || trx->take_stats);
 	ut_ad(n > 0);
 	ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
 	ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);
@@ -7463,7 +7543,8 @@ os_aio_func(
 		and os_file_write_func() */
 
 		if (type.is_read()) {
-			return(os_file_read_func(type, file.m_file, buf, offset, n));
+			return(os_file_read_func(type, file.m_file, buf,
+						 offset, n, trx));
 		}
 
 		ut_ad(type.is_write());
@@ -7478,9 +7559,16 @@ try_again:
 
 	Slot*	slot;
 
-	slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
+	slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n,
+				   space_id);
 
 	if (type.is_read()) {
+
+		if (trx)
+		{
+			trx->io_reads++;
+			trx->io_read += n;
+		}
 
 		if (srv_use_native_aio) {
 
@@ -7801,7 +7889,7 @@ private:
 			slot->file.m_file,
 			slot->ptr,
 			slot->offset,
-			slot->len);
+			slot->len, NULL);
 		ut_a(err == DB_SUCCESS);
 	}
 

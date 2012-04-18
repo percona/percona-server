@@ -44,54 +44,6 @@ Online database log parsing for changed page tracking
 
 enum { FOLLOW_SCAN_SIZE = 4 * (UNIV_PAGE_SIZE_MAX) };
 
-static
-bool
-log_online_file_is_closed(
-/*======================*/
-	const pfs_os_file_t&	file)
-{
-	return(file.m_file == OS_FILE_CLOSED);
-}
-
-static
-void
-log_online_file_set_closed(
-/*======================*/
-	pfs_os_file_t*	file)
-{
-	file->m_file = OS_FILE_CLOSED;
-#ifdef UNIV_PFS_IO
-	file->m_psi = NULL;
-#endif /* UNIV_PFS_IO */
-}
-
-static
-void
-log_online_file_advise_dontneed(
-/*============================*/
-	pfs_os_file_t	file,
-	os_offset_t	offset,
-	os_offset_t	len)
-{
-#ifdef POSIX_FADV_DONTNEED
-	posix_fadvise(file.m_file, offset, len, POSIX_FADV_DONTNEED);
-#endif /* POSIX_FADV_DONTNEED */
-}
-
-static
-void
-log_online_file_advise_sequential_noreuse(
-/*======================================*/
-	pfs_os_file_t	file)
-{
-#ifdef POSIX_FADV_SEQUENTIAL
-	posix_fadvise(file.m_file, 0, 0, POSIX_FADV_SEQUENTIAL);
-#endif /* POSIX_FADV_SEQUENTIAL */
-#ifdef POSIX_FADV_NOREUSE
-	posix_fadvise(file.m_file, 0, 0, POSIX_FADV_NOREUSE);
-#endif /* POSIX_FADV_NOREUSE */
-}
-
 #ifdef UNIV_PFS_MUTEX
 /* Key to register log_bmp_sys->mutex with PFS */
 mysql_pfs_key_t	log_bmp_sys_mutex_key;
@@ -417,7 +369,7 @@ log_online_read_last_tracked_lsn(void)
 
 	/* Truncate the output file to discard the corrupted bitmap data, if
 	any */
-	if (!os_file_set_eof_at(log_bmp_sys->out.file.m_file,
+	if (!os_file_set_eof_at(log_bmp_sys->out.file,
 				log_bmp_sys->out.offset)) {
 		ib::warn() << "Failed truncating changed page bitmap file \'"
 			   << log_bmp_sys->out.name << "\' to "
@@ -611,9 +563,9 @@ log_online_rotate_bitmap_file(
 	lsn_t	next_file_start_lsn)	/*!<in: the start LSN name
 					part */
 {
-	if (!log_online_file_is_closed(log_bmp_sys->out.file)) {
+	if (!log_bmp_sys->out.file.is_closed()) {
 		os_file_close(log_bmp_sys->out.file);
-		log_online_file_set_closed(&log_bmp_sys->out.file);
+		log_bmp_sys->out.file.set_closed();
 	}
 	log_bmp_sys->out_seq_num++;
 	log_online_make_bitmap_name(next_file_start_lsn);
@@ -825,9 +777,9 @@ log_online_read_shutdown(void)
 {
 	ib_rbt_node_t *free_list_node = log_bmp_sys->page_free_list;
 
-	if (!log_online_file_is_closed(log_bmp_sys->out.file)) {
+	if (!log_bmp_sys->out.file.is_closed()) {
 		os_file_close(log_bmp_sys->out.file);
-		log_online_file_set_closed(&log_bmp_sys->out.file);
+		log_bmp_sys->out.file.set_closed();
 	}
 
 	rbt_free(log_bmp_sys->modified_pages);
@@ -1190,9 +1142,8 @@ log_online_write_bitmap_page(
 		return false;
 	}
 
-	log_online_file_advise_dontneed(log_bmp_sys->out.file,
-					log_bmp_sys->out.offset,
-					MODIFIED_PAGE_BLOCK_SIZE);
+	os_file_advise(log_bmp_sys->out.file, log_bmp_sys->out.offset,
+		       MODIFIED_PAGE_BLOCK_SIZE, OS_FILE_ADVISE_DONTNEED);
 
 	log_bmp_sys->out.offset += MODIFIED_PAGE_BLOCK_SIZE;
 	return true;
@@ -1578,7 +1529,8 @@ log_online_open_bitmap_file_read_only(
 	bitmap_file->size = os_file_get_size(bitmap_file->file);
 	bitmap_file->offset = 0;
 
-	log_online_file_advise_sequential_noreuse(bitmap_file->file);
+	os_file_advise(bitmap_file->file, 0, 0, OS_FILE_ADVISE_SEQUENTIAL);
+	os_file_advise(bitmap_file->file, 0, 0, OS_FILE_ADVISE_NOREUSE);
 
 	return true;
 }
@@ -1659,7 +1611,7 @@ log_online_bitmap_iterator_init(
 		/* Empty range */
 		i->in_files.count = 0;
 		i->in_files.files = NULL;
-		log_online_file_set_closed(&i->in.file);
+		i->in.file.set_closed();
 		i->page = NULL;
 		i->failed = false;
 		return true;
@@ -1677,7 +1629,7 @@ log_online_bitmap_iterator_init(
 	if (i->in_files.count == 0) {
 
 		/* Empty range */
-		log_online_file_set_closed(&i->in.file);
+		i->in.file.set_closed();
 		i->page = NULL;
 		i->failed = false;
 		return true;
@@ -1718,10 +1670,10 @@ log_online_bitmap_iterator_release(
 {
 	ut_a(i);
 
-	if (!log_online_file_is_closed(i->in.file)) {
+	if (!i->in.file.is_closed()) {
 
 		os_file_close(i->in.file);
-		log_online_file_set_closed(&i->in.file);
+		i->in.file.set_closed();
 	}
 	if (i->in_files.files) {
 
@@ -1772,8 +1724,8 @@ log_online_bitmap_iterator_next(
 
 			/* Advance file */
 			i->in_i++;
-			success = os_file_close_no_error_handling(i->in.file.m_file);
-			log_online_file_set_closed(&i->in.file);
+			success = os_file_close_no_error_handling(i->in.file);
+			i->in.file.set_closed();
 			if (UNIV_UNLIKELY(!success)) {
 
 				os_file_get_last_error(true);
@@ -1876,7 +1828,7 @@ log_online_purge_changed_page_bitmaps(
 		/* If we have to delete the current output file, close it
 		first. */
 		os_file_close(log_bmp_sys->out.file);
-		log_online_file_set_closed(&log_bmp_sys->out.file);
+		log_bmp_sys->out.file.set_closed();
 	}
 
 	for (i = 0; i < bitmap_files.count; i++) {

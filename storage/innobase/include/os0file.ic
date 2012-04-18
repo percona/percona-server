@@ -208,6 +208,34 @@ pfs_os_file_close_func(
 	return(result);
 }
 
+/** NOTE! Use the corresponding macro os_file_close_no_error_handling(), not
+directly this function!
+Closes a file handle.
+@param[in] file		handle to a file
+@param[in]	src_file	file name where func invoked
+@param[in]	src_line	line where the func invoked
+@return true if success */
+bool
+pfs_os_file_close_no_error_handling_func(
+	pfs_os_file_t	file,
+	const char*	src_file,
+	ulint		src_line)
+{
+	struct PSI_file_locker* locker = NULL;
+	PSI_file_locker_state   state;
+
+	/* register the file close */
+	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CLOSE,
+				   src_file, src_line);
+
+	const bool result = os_file_close_no_error_handling_func(file.m_file);
+
+	register_pfs_file_io_end(locker, 0);
+
+	return(result);
+}
+
+
 /** NOTE! Please use the corresponding macro os_aio(), not directly this
 function!
 Performance schema wrapper function of os_aio() which requests
@@ -243,6 +271,8 @@ pfs_os_aio_func(
 	bool		read_only,
 	fil_node_t*	m1,
 	void*		m2,
+	ulint		space_id,
+	trx_t*		trx,
 	const char*	src_file,
 	ulint		src_line)
 {
@@ -257,8 +287,9 @@ pfs_os_aio_func(
 		type.is_write() ? PSI_FILE_WRITE : PSI_FILE_READ,
 		src_file, src_line);
 
-	dberr_t result = os_aio_func(
-		type, mode, name, file, buf, offset, n, read_only, m1, m2);
+	dberr_t	result = os_aio_func(
+		type, mode, name, file, buf, offset, n, read_only, m1, m2,
+		space_id, trx);
 
 	register_pfs_file_io_end(locker, n);
 
@@ -285,6 +316,7 @@ pfs_os_file_read_func(
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
+	trx_t*		trx,
 	const char*	src_file,
 	ulint		src_line)
 {
@@ -298,7 +330,7 @@ pfs_os_file_read_func(
 
 	dberr_t		result;
 
-	result = os_file_read_func(type, file.m_file, buf, offset, n);
+	result = os_file_read_func(type, file.m_file, buf, offset, n, trx);
 
 	register_pfs_file_io_end(locker, n);
 
@@ -605,5 +637,48 @@ pfs_os_file_delete_if_exists_func(
 
 	return(result);
 }
+
+/** NOTE! Use the corresponding macro os_file_flush(), not directly this
+function!
+Truncates a file at the specified position.
+@param[in]	file	file to truncate
+@param[in]	new_len	new file length
+@param[in]	src_file	file name where func invoked
+@param[in]	src_line	line where the func invoked
+@return true if success */
+UNIV_INLINE
+bool
+pfs_os_file_set_eof_at_func(
+	pfs_os_file_t	file,
+	ib_uint64_t	new_len,
+	const char*	src_file,
+	ulint		src_line)
+{
+	struct PSI_file_locker* locker = NULL;
+	PSI_file_locker_state   state;
+
+	register_pfs_file_io_begin(&state, locker, file, 0, PSI_FILE_CHSIZE,
+				   src_file, src_line);
+	const bool result = os_file_set_eof_at_func(file.m_file, new_len);
+
+	register_pfs_file_io_end(locker, 0);
+
+	return(result);
+}
+
 #endif /* UNIV_PFS_IO */
 
+/** Tries to disable OS caching on an opened file file.
+@param[in]	file		file to alter
+@param[in]	file_name	file name, used in the diagnostic message
+@param[in]	name		"open" or "create"; used in the diagnostic
+message */
+UNIV_INLINE
+void
+os_file_set_nocache(
+	pfs_os_file_t	file,
+	const char*	file_name,
+	const char*	operation_name)
+{
+	os_file_set_nocache(file.m_file, file_name, operation_name);
+}

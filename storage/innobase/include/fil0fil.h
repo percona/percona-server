@@ -1220,7 +1220,7 @@ fil_space_get_n_reserved_extents(
 @return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
 if we are trying to do i/o on a tablespace which does not exist */
 dberr_t
-fil_io(
+_fil_io(
 	const IORequest&	type,
 	bool			sync,
 	const page_id_t&	page_id,
@@ -1228,7 +1228,11 @@ fil_io(
 	ulint			byte_offset,
 	ulint			len,
 	void*			buf,
-	void*			message);
+	void*			message,
+	trx_t*			trx);
+
+#define fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message) \
+	_fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message, NULL)
 
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the

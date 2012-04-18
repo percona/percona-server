@@ -1722,6 +1722,31 @@ thd_to_trx(
 	return(innodb_session->m_trx);
 }
 
+/** Get the transaction of the current connection handle.
+@return transaction object, or NULL. */
+trx_t*
+innobase_get_trx(void)
+{
+	THD*	thd = current_thd;
+	if (UNIV_UNLIKELY(!thd))
+		return(NULL);
+
+	return(thd_to_trx(thd));
+}
+
+/** Get the transaction of the current connection handle if slow query log
+InnoDB extended statistics should be collected.
+@return transaction object if statistics should be collected, or NULL. */
+trx_t*
+innobase_get_trx_for_slow_log(void)
+{
+	THD*	thd = current_thd;
+	trx_t*	trx = thd ? thd_to_trx(thd) : NULL;
+	if (trx && trx->take_stats)
+		return(trx);
+	return(NULL);
+}
+
 /** Check if statement is of type INSERT .... SELECT that involves
 use of intrinsic tables.
 @param[in]	thd	thread handler
@@ -2895,7 +2920,7 @@ ha_innobase::update_thd(
 }
 
 /*********************************************************************//**
-Updates the user_thd field in a handle and also allocates a new InnoDB
+	update_thd(thd);
 transaction handle if needed, and updates the transaction fields in the
 m_prebuilt struct. */
 
@@ -2906,12 +2931,6 @@ ha_innobase::update_thd()
 	THD*	thd = ha_thd();
 
 	ut_ad(EQ_CURRENT_THD(thd));
-	update_thd(thd);
-}
-
-bool
-innobase_get_slow_log()
-{
 	return(false);
 }
 

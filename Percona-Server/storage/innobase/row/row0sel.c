@@ -4080,7 +4080,8 @@ wrong_offs:
 		if ((srv_force_recovery == 0 || moves_up == FALSE)
 		    && srv_pass_corrupt_table <= 1) {
 			ut_print_timestamp(stderr);
-			buf_page_print(page_align(rec), 0);
+			buf_page_print(page_align(rec), 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 			fprintf(stderr,
 				"\nInnoDB: rec address %p,"
 				" buf block fix count %lu\n",
@@ -4099,7 +4100,7 @@ wrong_offs:
 			      "InnoDB: restore from a backup, or"
 			      " dump + drop + reimport the table.\n",
 			      stderr);
-
+			ut_ad(0);
 			err = DB_CORRUPTION;
 
 			goto lock_wait_or_error;
@@ -4452,7 +4453,9 @@ no_gap_lock:
 		applicable to unique secondary indexes. Current behaviour is
 		to widen the scope of a lock on an already delete marked record
 		if the same record is deleted twice by the same transaction */
-		if (index == clust_index && unique_search) {
+		if (index == clust_index && unique_search
+		    && !prebuilt->used_in_HANDLER) {
+
 			err = DB_RECORD_NOT_FOUND;
 
 			goto normal_return;

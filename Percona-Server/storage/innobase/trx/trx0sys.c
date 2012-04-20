@@ -431,7 +431,10 @@ start_again:
 		/* The doublewrite buffer has already been created:
 		just read in some numbers */
 
+		trx_doublewrite_init(doublewrite);
+
 		mtr_commit(&mtr);
+		trx_doublewrite_buf_is_being_created = FALSE;
 	} else {
 		fprintf(stderr,
 			"InnoDB: Doublewrite buffer not found in the doublewrite file:"
@@ -478,13 +481,12 @@ start_again:
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 			     + FSP_EXTENT_SIZE / 2; i++) {
-			page_no = fseg_alloc_free_page(fseg_header,
-						       prev_page_no + 1,
-						       FSP_UP, &mtr);
-			if (page_no == FIL_NULL) {
+			new_block = fseg_alloc_free_page(
+				fseg_header, prev_page_no + 1, FSP_UP, &mtr);
+			if (new_block == NULL) {
 				fprintf(stderr,
-					"InnoDB: Cannot create the doublewrite"
-					" buffer: You must\n"
+					"InnoDB: Cannot create doublewrite"
+					" buffer: you must\n"
 					"InnoDB: increase your"
 					" tablespace size.\n"
 					"InnoDB: Cannot continue operation.\n"
@@ -502,13 +504,8 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-#ifdef UNIV_SYNC_DEBUG
-			new_block =
-#endif /* UNIV_SYNC_DEBUG */
-			buf_page_get(TRX_DOUBLEWRITE_SPACE, 0, page_no,
-				     RW_X_LATCH, &mtr);
-			buf_block_dbg_add_level(new_block,
-						SYNC_NO_ORDER_CHECK);
+			ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
+			page_no = buf_block_get_page_no(new_block);
 
 			if (i == FSP_EXTENT_SIZE / 2) {
 				ut_a(page_no == FSP_EXTENT_SIZE);

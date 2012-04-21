@@ -101,7 +101,8 @@ my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
 int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 			  ulonglong sortbuff_size)
 {
-  int error,maxbuffer,skr;
+  int error;
+  long maxbuffer,skr;
   ulong sort_length, keys;
   ulonglong memavl, old_memavl;
   DYNAMIC_ARRAY buffpek;
@@ -313,8 +314,8 @@ pthread_handler_t thr_find_all_keys(void *arg)
   MI_SORT_PARAM *sort_param= (MI_SORT_PARAM*) arg;
   int error;
   ulonglong memavl, old_memavl;
-  uint keys, sort_length;
-  uint idx, maxbuffer;
+  ulong keys, sort_length;
+  ulong idx, maxbuffer;
   uchar **sort_keys=0;
 
   LINT_INIT(keys);

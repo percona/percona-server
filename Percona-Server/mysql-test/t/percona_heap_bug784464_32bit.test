@@ -1,0 +1,15 @@
+# 32-bit platform specific parts of tests for LP bug #784464
+
+--source include/have_32bit.inc
+
+CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(32), f3 VARCHAR(32), f4 VARCHAR(32),
+              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=124 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
+--replace_column 6 X 8 X 12 X 13 X
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 VARCHAR(32), f2 VARCHAR(96),
+              	PRIMARY KEY (f1)) KEY_BLOCK_SIZE=122 ENGINE=HEAP ROW_FORMAT=DYNAMIC;
+--replace_column 6 X 8 X 12 X 13 X
+SHOW TABLE STATUS LIKE 't1';
+DROP TABLE t1;

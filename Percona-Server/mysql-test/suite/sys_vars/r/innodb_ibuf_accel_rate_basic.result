@@ -1,0 +1,3 @@
+SELECT @@global.innodb_ibuf_accel_rate;
+@@global.innodb_ibuf_accel_rate
+100

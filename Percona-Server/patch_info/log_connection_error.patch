@@ -1,0 +1,6 @@
+File=log_connection_error.patch
+Name=logging abandoned connections
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment=

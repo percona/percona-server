@@ -1,0 +1,3 @@
+SELECT @@global.innodb_use_sys_stats_table;
+@@global.innodb_use_sys_stats_table
+0

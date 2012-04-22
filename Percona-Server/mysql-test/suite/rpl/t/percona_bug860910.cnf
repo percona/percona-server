@@ -1,0 +1,8 @@
+!include ../my.cnf
+
+[mysqld.1]
+log-slave-updates
+
+[mysqld.2]
+log-slave-updates
+

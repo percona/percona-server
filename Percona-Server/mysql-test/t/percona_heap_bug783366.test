@@ -1,0 +1,19 @@
+#
+# Test for bug lp:783366
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+        f1 VARCHAR ( 128 ) ,
+        f2 VARCHAR ( 32 ),
+        PRIMARY KEY ( f2 ( 2 ) , f1 )
+)
+ENGINE=HEAP KEY_BLOCK_SIZE = 512;
+INSERT IGNORE INTO t1 VALUES ( 'te' , 'm') , ( NULL , 'think' );
+INSERT IGNORE INTO t1 VALUES ( 'te' , 'm') , ( NULL , 'think' );
+
+DROP TABLE t1;
+

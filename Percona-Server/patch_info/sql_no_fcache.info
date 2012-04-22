@@ -1,0 +1,6 @@
+File=sql_no_fcache.patch
+Name=Support for flashcache including the SQL_NO_FCACHE option that prevents blocks from being cached during a query.
+Version=1.0
+Author=Facebook
+License=GPL
+Comment=

@@ -1,0 +1,9 @@
+File=log_warnings_suppress.patch
+Name=Disable log warnings for enumerated warnings (old name:suppress_log_warning_1592.patch)
+Version=1.0
+Author=Percona <info@percona.com>
+License=GPL
+Comment=
+Changelog
+2011-01-05 rename patch suppress_log_warning_1592.patch to log_warnings_silence.patch. Also remove boolean system variable "suppress_log_warning_1592" and add set varbile "log_warnings_silence" (possible values: 1592)
+2011-02-21 rename patch log_warning_silence.patch to log_warnings_suppress.patch. Also rename variable "log_warning_silence" to "log_warning_suppress".

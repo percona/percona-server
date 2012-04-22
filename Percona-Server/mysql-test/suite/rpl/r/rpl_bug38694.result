@@ -1,0 +1,3 @@
+include/master-slave.inc
+[connection master]
+include/rpl_end.inc

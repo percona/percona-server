@@ -928,11 +928,6 @@ retry:
 		return;
 	}
 
-	if (fil_system->n_open < fil_system->max_n_open) {
-
-		return;
-	}
-
 	space = fil_space_get_by_id(space_id);
 
 	if (space != NULL && space->stop_ios) {
@@ -949,11 +944,35 @@ retry:
 
 		mutex_exit(&fil_system->mutex);
 
+#ifndef UNIV_HOTBACKUP
+
+		/* Wake the i/o-handler threads to make sure pending
+		i/o's are performed */
+		os_aio_simulated_wake_handler_threads();
+
+		/* The sleep here is just to give IO helper threads a
+		bit of time to do some work. It is not required that
+		all IO related to the tablespace being renamed must
+		be flushed here as we do fil_flush() in
+		fil_rename_tablespace() as well. */
+		os_thread_sleep(20000);
+
+#endif /* UNIV_HOTBACKUP */
+
+		/* Flush tablespaces so that we can close modified
+		files in the LRU list */
+		fil_flush_file_spaces(FIL_TABLESPACE);
+
 		os_thread_sleep(20000);
 
 		count2++;
 
 		goto retry;
+	}
+
+	if (fil_system->n_open < fil_system->max_n_open) {
+
+		return;
 	}
 
 	/* If the file is already open, no need to do anything; if the space
@@ -2523,7 +2542,7 @@ fil_rename_tablespace(
 retry:
 	count++;
 
-	if (count > 1000) {
+	if (!(count % 1000)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: problems renaming ", stderr);
 		ut_print_filename(stderr, old_name);
@@ -3846,7 +3865,7 @@ convert_err_exit:
 
 					level = btr_page_get_level(page, &mtr);
 
-					new_block = btr_page_alloc(index, 0, FSP_NO_DIR, level, &mtr);
+					new_block = btr_page_alloc(index, 0, FSP_NO_DIR, level, &mtr, &mtr);
 					new_page = buf_block_get_frame(new_block);
 					new_page_zip = buf_block_get_page_zip(new_block);
 					btr_page_create(new_block, new_page_zip, index, level, &mtr);
@@ -3894,7 +3913,7 @@ convert_err_exit:
 				split_rec = page_get_middle_rec(page);
 
 				new_block = btr_page_alloc(index, page_no + 1, FSP_UP,
-							   btr_page_get_level(page, &mtr), &mtr);
+							   btr_page_get_level(page, &mtr), &mtr, &mtr);
 				new_page = buf_block_get_frame(new_block);
 				new_page_zip = buf_block_get_page_zip(new_block);
 				btr_page_create(new_block, new_page_zip, index,

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,7 +135,14 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 #ifdef HAVE_CHARSET_ucs2
   add_compiled_collation(&my_charset_ucs2_general_ci);
   add_compiled_collation(&my_charset_ucs2_bin);
-  add_compiled_collation(&my_charset_ucs2_general50_ci);
+  /* The next two are the same, Percona fixed it first, then Oracle did.
+     add_compiled_collation(&my_charset_ucs2_general50_ci);
+
+     However, Oracle used the same number as the Percona one for UCS2 but a
+     different name. We have some backwards compat code in mysys/charset.c
+     to work around this.
+  */
+  add_compiled_collation(&my_charset_ucs2_general_mysql500_ci);
 #ifdef HAVE_UCA_COLLATIONS
   add_compiled_collation(&my_charset_ucs2_unicode_ci);
   add_compiled_collation(&my_charset_ucs2_icelandic_uca_ci);
@@ -167,7 +174,9 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 #ifdef HAVE_CHARSET_utf8
   add_compiled_collation(&my_charset_utf8_general_ci);
   add_compiled_collation(&my_charset_utf8_bin);
-  add_compiled_collation(&my_charset_utf8_general50_ci);
+  /* The next two are the same, Percona fixed it first, then Oracle did */
+  add_compiled_collation(&my_charset_utf8_general50_ci); /* Percona */
+  add_compiled_collation(&my_charset_utf8_general_mysql500_ci); /* Oracle */
 #ifdef HAVE_UTF8_GENERAL_CS
   add_compiled_collation(&my_charset_utf8_general_cs);
 #endif

@@ -135,7 +135,7 @@ export MAKE_JFLAG=-j4
     fi
 
     # Create tarball for build
-    tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"
+    tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"*
 
 )
 

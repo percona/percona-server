@@ -20,7 +20,7 @@ Varible :variable:`rewrite-db` of **mysqlbinlog** utility allows to setup rewrit
 Version Specific Information
 ============================
 
-  * 5.1.62-12.1
+  * 5.1.62-13.3
     Full functionality.
 
 Client Command Line Parameter

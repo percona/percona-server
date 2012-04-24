@@ -36,7 +36,7 @@ Description: Percona Server database development files
  This package includes development libraries and header files for the
  libmysqlclient16 version of the library.
 
-Package: percona-server-common-5.1
+Package: percona-server-common
 Section: database
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -54,7 +54,7 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
 
 Package: percona-server-client-5.1
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.1 (>= ${source:Version}), libmysqlclient16 (>= ${source:Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, percona-server-common (>= ${source:Version}), libmysqlclient16 (>= ${source:Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
 Provides: mysql-client
 Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
 Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
@@ -71,7 +71,7 @@ Package: percona-server-server-5.1
 Architecture: any                                                               
 Suggests: tinyca
 Recommends: mailx, libhtml-template-perl
-Pre-Depends: percona-server-common-5.1 (>= ${source:Version}), adduser (>= 3.40), debconf
+Pre-Depends: percona-server-common (>= ${source:Version}), adduser (>= 3.40), debconf
 Depends: percona-server-client-5.1 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10)
 Conflicts: mysql-server (<< ${source:Version}), mysql-server-4.1, percona-xtradb-server-5.0
 Provides: mysql-server

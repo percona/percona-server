@@ -1020,6 +1020,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam_compat.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
@@ -1031,6 +1034,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam_compat.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
 # HandlerSocket files
 %attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.a
 %attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.la

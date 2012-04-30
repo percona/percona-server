@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.21
+%define mysql_version   5.5.22
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 25
-%define minorversion 1
+%define minorversion 2
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -942,8 +942,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %if %{defined license_files_server}
 %doc %{license_files_server}
 %endif
-%doc %{src_dir}/Docs/ChangeLog
-%doc %{src_dir}/Docs/INFO_SRC
+%doc release/Docs/INFO_SRC
 %doc release/Docs/INFO_BIN
 %doc release/support-files/my-*.cnf
 

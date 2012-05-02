@@ -433,6 +433,9 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ulint	srv_stats_auto_update = 1;
 UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
+#ifdef UNIV_DEBUG
+UNIV_INTERN ulong	srv_sys_stats_root_page = 0;
+#endif
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;

@@ -1937,6 +1937,12 @@ innobase_start_or_create_for_mysql(void)
 
 			trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
 		}
+
+		if (UNIV_UNLIKELY(!dict_verify_xtradb_sys_stats())) {
+			fprintf(stderr, "InnoDB: Warning: "
+				"SYS_STATS table corrupted, recreating\n");
+			dict_recreate_xtradb_sys_stats();
+		}
 	}
 
 	if (!create_new_db && sum_of_new_sizes > 0) {

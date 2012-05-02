@@ -1201,7 +1201,7 @@ trx_purge(
 			(ulong) purge_sys->n_pages_handled);
 	}
 
-	return(purge_sys->n_pages_handled - old_pages_handled);
+	return((ulint) (purge_sys->n_pages_handled - old_pages_handled));
 }
 
 /******************************************************************//**

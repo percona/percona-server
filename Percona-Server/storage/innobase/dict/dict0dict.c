@@ -4383,19 +4383,25 @@ dict_reload_statistics(
 			mem_heap_free(heap);
 			return(FALSE);
 		}
+		mtr_t mtr;
 
-		size = btr_get_size(index, BTR_TOTAL_SIZE);
+		mtr_start(&mtr);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+		size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
 
 		index->stat_index_size = size;
 
 		*sum_of_index_sizes += size;
 
-		size = btr_get_size(index, BTR_N_LEAF_PAGES);
+		size = btr_get_size(index, BTR_N_LEAF_PAGES, &mtr);
 
 		if (size == 0) {
 			/* The root node of the tree is a leaf */
 			size = 1;
 		}
+
+		mtr_commit(&mtr);
 
 		index->stat_n_leaf_pages = size;
 
@@ -4728,6 +4734,7 @@ dict_update_statistics(
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
+			mtr_t	mtr;
 			ulint	size;
 
 			if (table->is_corrupt) {
@@ -4736,15 +4743,24 @@ dict_update_statistics(
 				return;
 			}
 
-			size = btr_get_size(index, BTR_TOTAL_SIZE);
+			mtr_start(&mtr);
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-			index->stat_index_size = size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
 
-			sum_of_index_sizes += size;
+			if (size != ULINT_UNDEFINED) {
+				sum_of_index_sizes += size;
+				index->stat_index_size = size;
+				size = btr_get_size(
+					index, BTR_N_LEAF_PAGES, &mtr);
+			}
 
-			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			mtr_commit(&mtr);
 
-			if (size == 0) {
+			switch (size) {
+			case ULINT_UNDEFINED:
+				goto fake_statistics;
+			case 0:
 				/* The root node of the tree is a leaf */
 				size = 1;
 			}
@@ -4761,6 +4777,7 @@ dict_update_statistics(
 			various means, also via secondary indexes. */
 			ulint	i;
 
+fake_statistics:
 			sum_of_index_sizes++;
 			index->stat_index_size = index->stat_n_leaf_pages = 1;
 

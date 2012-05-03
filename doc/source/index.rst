@@ -36,6 +36,7 @@ Introduction
 
    feature_comparison
    percona_xtradb
+   changed_in_56
 
 Installation
 ============

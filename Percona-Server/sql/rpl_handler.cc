@@ -10,14 +10,13 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
 
 #include "rpl_mi.h"
-#include "sql_repl.h"
 #include "log_event.h"
 #include "rpl_filter.h"
 #include <my_dir.h>
@@ -165,6 +164,8 @@ void delegates_destroy()
   if (binlog_relay_io_delegate)
     binlog_relay_io_delegate->~Binlog_relay_IO_delegate();
 #endif /* HAVE_REPLICATION */
+  if (RPL_TRANS_BINLOG_INFO)
+    pthread_key_delete(RPL_TRANS_BINLOG_INFO);
 }
 
 /*
@@ -203,7 +204,7 @@ void delegates_destroy()
       r= 0;                                                             \
       break;                                                            \
     }                                                                   \
-    insert_dynamic(plugins, (uchar *)&plugin);                          \
+    insert_dynamic(plugins, &plugin);                                   \
     if (((Observer *)info->observer)->f                                 \
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
@@ -430,11 +431,11 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
                                           Master_info *mi)
 {
   param->mysql= mi->mysql;
-  param->user= mi->user;
+  param->user= const_cast<char *>(mi->get_user());
   param->host= mi->host;
   param->port= mi->port;
-  param->master_log_name= mi->master_log_name;
-  param->master_log_pos= mi->master_log_pos;
+  param->master_log_name= const_cast<char *>(mi->get_master_log_name());
+  param->master_log_pos= mi->get_master_log_pos();
 }
 
 int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi)

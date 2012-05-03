@@ -155,8 +155,11 @@ insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
 
+--sorted_result
 select * from t1 natural left join v1;
+--sorted_result
 select * from v2 natural left join t1;
+--sorted_result
 select * from v2 natural left join v1;
 
 drop view v1, v2;
@@ -983,7 +986,9 @@ insert into t1 values (0), (1), (2), (3);
 create table t2 (a int);
 insert into t2 select a from t1 where a > 1;
 create view v1 as select a from t1 where a > 1;
+--sorted_result
 select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
+--sorted_result
 select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
 drop view v1;
 drop table t1, t2;
@@ -1512,11 +1517,13 @@ INSERT INTO t2 VALUES (8,1,'y');
 
 CREATE VIEW v1 AS SELECT * FROM t1;
 
+--sorted_result
 SELECT a.col1,a.col2,b.col2,b.col3
   FROM t1 a LEFT JOIN t2 b ON a.col1=b.col1
     WHERE b.col2 IS NULL OR
           b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
 
+--sorted_result
 SELECT a.col1,a.col2,b.col2,b.col3
   FROM v1 a LEFT JOIN t2 b ON a.col1=b.col1
     WHERE b.col2 IS NULL OR
@@ -1524,6 +1531,7 @@ SELECT a.col1,a.col2,b.col2,b.col3
 
 CREATE VIEW v2 AS SELECT * FROM t2;
 
+--sorted_result
 SELECT a.col1,a.col2,b.col2,b.col3
   FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
     WHERE b.col2 IS NULL OR
@@ -1950,7 +1958,9 @@ CREATE VIEW v1 AS SELECT id, f FROM t1 WHERE id <= 2;
 INSERT INTO t1 VALUES (2, 'foo2');
 INSERT INTO t1 VALUES (1, 'foo1');
 
+--sorted_result
 SELECT * FROM v1;
+--sorted_result
 SELECT * FROM v1;
 
 DROP VIEW v1;
@@ -4134,6 +4144,178 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 disconnect con2;
 disconnect con3;
+
+
+--echo #
+--echo # Bug#11757397 49437: CANNOT DO SHOW FIELDS FOR BIG VIEW 
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3, table_broken;
+DROP VIEW IF EXISTS view_broken;
+--enable_warnings
+
+let $colnum= 1500;
+let $str= a text;
+while ($colnum)
+{
+  let $str= a$colnum int, $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t1 ($str)
+
+let $colnum= 1500;
+let $str= b text;
+while ($colnum)
+{
+  let $str= b$colnum int, $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t2 ($str)
+
+let $colnum= 1500;
+let $str= c text;
+while ($colnum)
+{
+  let $str= c$colnum int, $str;
+  dec $colnum;
+}
+--eval CREATE TABLE t3 ($str)
+ 
+# New behavior
+--error ER_TOO_MANY_FIELDS
+CREATE VIEW view_broken AS SELECT * FROM t1, t2, t3;
+
+# Existing behavior
+--error ER_TOO_MANY_FIELDS
+CREATE TABLE table_broken AS SELECT * FROM t1, t2, t3;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#11766440 59546: Assertion m_sp == __null fails in
+--echo # Item_func_sp::init_result_field with functions
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1 () RETURNS INTEGER RETURN 1;
+CREATE FUNCTION f2 (i INTEGER) RETURNS INTEGER RETURN 1;
+CREATE VIEW v1 AS SELECT f1() AS a FROM t1;
+CREATE VIEW v2 AS SELECT f2(a) AS a FROM v1;
+DROP FUNCTION f1;
+--error ER_VIEW_INVALID
+SELECT f2(a) FROM v2;
+DROP VIEW v2;
+DROP VIEW v1;
+DROP FUNCTION f2;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#13418197: ASSERTION `(*TABLES)->REGINFO.LOCK_TYPE >=
+--echo #               TL_READ' FAILED | MYSQL_LOCK_TABLES
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (a INT) engine=InnoDB;
+CREATE VIEW t1 AS SELECT 1;
+
+DROP VIEW t1;
+DROP TEMPORARY TABLE t1;
+
+
+--echo #
+--echo # Bug#13601606: FAILED VIEW CREATION ERROR MESSAGE (FOR DB NOT PRESENT) 
+--echo #               NEEDS BIG IMPROVEMENT 
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS nodb;
+--enable_warnings
+--error ER_BAD_DB_ERROR
+CREATE VIEW nodb.a AS SELECT 1;
+
+--echo #
+--echo # Bug#13633549 HANDLE_FATAL_SIGNAL IN 
+--echo #              TEST_IF_SKIP_SORT_ORDER/CREATE_SORT_INDEX
+--echo #
+
+CREATE TABLE t1 (
+  pk        INT AUTO_INCREMENT,
+  c_int_key INT,
+  PRIMARY KEY (pk),
+  KEY (c_int_key)
+) 
+ENGINE=innodb;
+
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  pk              INT auto_increment,
+  c_varchar_600_x VARCHAR(600),
+  c_int_key       INT,
+  c_varchar_600_y VARCHAR(600),
+  c_varchar_600_z VARCHAR(600),
+  PRIMARY KEY (pk),
+  KEY (c_int_key)
+) 
+ENGINE=innodb;
+
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES
+(
+  NULL,
+  repeat('x', 600),
+  3,
+  repeat('y', 600),
+  repeat('z', 600)
+);
+
+SELECT a1.pk AS f1
+FROM v_t1 AS a1 LEFT JOIN v_t2 AS a2 ON a1.pk=a2.c_int_key
+WHERE 
+  a1.pk > 8
+  OR ((a1.pk BETWEEN 9 AND 13) AND a1.pk = 90)
+ORDER BY f1 ;
+
+DROP TABLE t1, t2;
+DROP VIEW v_t1, v_t2;
+
+--echo #
+--echo # Bug#13783777 CONSTANT PROPAGATION IS WRONG FOR
+--echo #              DISJUNCTIVE PREDICATES IN VIEWS
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+
+# Query directly against the table (correct result)
+SELECT pk
+FROM t1
+WHERE
+  pk > 8
+  OR ((pk BETWEEN 9 AND 13) AND pk = 90)
+;
+
+# Query against a view (wrong result)
+SELECT pk
+FROM v_t1
+WHERE
+  pk > 8
+  OR ((pk BETWEEN 9 AND 13) AND pk = 90)
+;
+
+DROP VIEW v_t1;
+DROP TABLE t1;
 
 
 # Check that all connections opened by test cases in this file are really

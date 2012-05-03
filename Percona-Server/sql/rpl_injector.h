@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,6 +117,27 @@ public:
       class table 
       {
       public:
+        class save_sets {
+        public:
+          save_sets(table const &tbl, MY_BITMAP const *new_rs, MY_BITMAP const *new_ws)
+            : m_table(tbl.get_table()),
+              save_read_set(m_table->read_set),
+              save_write_set(m_table->write_set)
+          {
+            m_table->column_bitmaps_set_no_signal(const_cast<MY_BITMAP*>(new_rs),
+                                                  const_cast<MY_BITMAP*>(new_ws));
+          }
+
+          ~save_sets() {
+            m_table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+          }
+
+        private:
+          TABLE *m_table;
+          MY_BITMAP *save_read_set;
+          MY_BITMAP *save_write_set;
+        };
+
         table(TABLE *table, bool is_transactional) 
             : m_table(table), m_is_transactional(is_transactional)
         { 
@@ -208,6 +229,14 @@ public:
         for example, releasing resource and unlocking files.
       */
       int commit();
+
+      /*
+        Rollback a transaction.
+
+        This member function will clean up after a sequence of *_row calls by,
+        for example, releasing resource and unlocking files.
+      */
+      int rollback();
 
       /*
         Get the position for the start of the transaction.
@@ -307,21 +336,16 @@ public:
       THD *m_thd;
     };
 
-    /* 
+    /*
        Create a new transaction.  This member function will prepare for a
        sequence of *_row calls by, for example, reserving resources and
-       locking files. There are two overloaded alternatives: one returning a
-       transaction by value and one using placement semantics. The following
-       two calls are equivalent, with the exception that the latter will
-       overwrite the transaction.
-
-         injector::transaction trans1= inj->new_trans(thd);
+       locking files. The call uses placement semantics and will overwrite
+       the transaction.
 
          injector::transaction trans2;
          inj->new_trans(thd, &trans);
      */
-    transaction new_trans(THD *);
-    void        new_trans(THD *, transaction *);
+    void new_trans(THD *, transaction *);
 
     int record_incident(THD*, Incident incident);
     int record_incident(THD*, Incident incident, LEX_STRING const message);

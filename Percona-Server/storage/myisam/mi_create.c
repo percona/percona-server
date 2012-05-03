@@ -62,7 +62,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (!ci)
   {
-    bzero((char*) &tmp_create_info,sizeof(tmp_create_info));
+    memset(&tmp_create_info, 0, sizeof(tmp_create_info));
     ci=&tmp_create_info;
   }
 
@@ -73,7 +73,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   errpos=0;
   options=0;
-  bzero((uchar*) &share,sizeof(share));
+  memset(&share, 0, sizeof(share));
 
   if (flags & HA_DONT_TOUCH_DATA)
   {
@@ -435,8 +435,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     block_length= (keydef->block_length ? 
                    my_round_up_to_next_power(keydef->block_length) :
                    myisam_block_size);
-    block_length= max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
-    block_length= min(block_length, MI_MAX_KEY_BLOCK_LENGTH);
+    block_length= MY_MAX(block_length, MI_MIN_KEY_BLOCK_LENGTH);
+    block_length= MY_MIN(block_length, MI_MAX_KEY_BLOCK_LENGTH);
 
     keydef->block_length= (uint16) MI_BLOCK_SIZE(length-real_length_diff,
                                                  pointer,MI_MAX_KEYPTR_SIZE,
@@ -462,7 +462,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     key_del[i]=HA_OFFSET_ERROR;
 
   unique_key_parts=0;
-  offset=reclength-uniques*MI_UNIQUE_HASH_LENGTH;
   for (i=0, uniquedef=uniquedefs ; i < uniques ; i++ , uniquedef++)
   {
     uniquedef->key=keys+i;
@@ -525,7 +524,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     got from MYI file header (see also myisampack.c:save_state)
   */
   share.base.key_reflength=
-    mi_get_pointer_length(max(ci->key_file_length,tmp),3);
+    mi_get_pointer_length(MY_MAX(ci->key_file_length, tmp), 3);
   share.base.keys= share.state.header.keys= keys;
   share.state.header.uniques= uniques;
   share.state.header.fulltext_keys= fulltext_keys;
@@ -558,7 +557,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   share.base.min_block_length=
     (share.base.pack_reclength+3 < MI_EXTEND_BLOCK_LENGTH &&
      ! share.base.blobs) ?
-    max(share.base.pack_reclength,MI_MIN_BLOCK_LENGTH) :
+    MY_MAX(share.base.pack_reclength, MI_MIN_BLOCK_LENGTH) :
     MI_EXTEND_BLOCK_LENGTH;
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
@@ -727,9 +726,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 #endif
   }
   /* Create extra keys for unique definitions */
-  offset=reclength-uniques*MI_UNIQUE_HASH_LENGTH;
-  bzero((char*) &tmp_keydef,sizeof(tmp_keydef));
-  bzero((char*) &tmp_keyseg,sizeof(tmp_keyseg));
+  offset= real_reclength - uniques * MI_UNIQUE_HASH_LENGTH;
+  memset(&tmp_keydef, 0, sizeof(tmp_keydef));
+  memset(&tmp_keyseg, 0, sizeof(tmp_keyseg));
   for (i=0; i < uniques ; i++)
   {
     tmp_keydef.keysegs=1;

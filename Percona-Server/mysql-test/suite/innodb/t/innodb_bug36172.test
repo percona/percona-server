@@ -4,8 +4,9 @@
 
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
+-- source include/have_innodb_16k.inc
 
-SET storage_engine=InnoDB;
+SET default_storage_engine=InnoDB;
 
 # we do not really care about what gets printed, we are only
 # interested in getting success or failure according to our

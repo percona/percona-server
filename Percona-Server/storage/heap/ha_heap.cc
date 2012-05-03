@@ -15,10 +15,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
 #include "probes_mysql.h"
@@ -230,8 +226,6 @@ int ha_heap::write_row(uchar * buf)
 {
   int res;
   ha_statistic_increment(&SSV::ha_write_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
   {
     if ((res= update_auto_increment()))
@@ -254,8 +248,6 @@ int ha_heap::update_row(const uchar * old_data, uchar * new_data)
 {
   int res;
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
   res= heap_update(file,old_data,new_data);
   if (!res && ++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
               file->s->records)
@@ -654,7 +646,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
   TABLE_SHARE *share= table_arg->s;
   bool found_real_auto_increment= 0;
 
-  bzero(hp_create_info, sizeof(*hp_create_info));
+  memset(hp_create_info, 0, sizeof(*hp_create_info));
 
   for (key= parts= 0; key < keys; key++)
     parts+= table_arg->key_info[key].key_parts;

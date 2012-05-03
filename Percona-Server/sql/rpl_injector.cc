@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "sql_parse.h"                          // begin_trans, end_trans, COMMIT
 #include "sql_base.h"                           // close_thread_tables
 #include "log_event.h"                          // Incident_log_event
+#include "binlog.h"                             // mysql_bin_log
 
 /*
   injector::transaction - member definitions
@@ -98,6 +99,20 @@ int injector::transaction::commit()
 }
 
 
+int injector::transaction::rollback()
+{
+   DBUG_ENTER("injector::transaction::rollback()");
+   trans_rollback_stmt(m_thd);
+   if (!trans_rollback(m_thd))
+   {
+     close_thread_tables(m_thd);
+     if (!m_thd->locked_tables_mode)
+       m_thd->mdl_context.release_transactional_locks();
+   }
+   DBUG_RETURN(0);
+}
+
+
 int injector::transaction::use_table(server_id_type sid, table tbl)
 {
   DBUG_ENTER("injector::transaction::use_table");
@@ -110,7 +125,7 @@ int injector::transaction::use_table(server_id_type sid, table tbl)
   server_id_type save_id= m_thd->server_id;
   m_thd->set_server_id(sid);
   error= m_thd->binlog_write_table_map(tbl.get_table(),
-                                       tbl.is_transactional());
+                                       tbl.is_transactional(), FALSE);
   m_thd->set_server_id(save_id);
   DBUG_RETURN(error);
 }
@@ -128,8 +143,10 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
+   table::save_sets saveset(tbl, cols, cols);
+
    error= m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
-                                  cols, colcnt, record);
+                                  record);
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
@@ -147,8 +164,9 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
+   table::save_sets saveset(tbl, cols, cols);
    error= m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
-                                   cols, colcnt, record);
+                                   record);
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
@@ -166,8 +184,11 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
-   error= m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
-                                   cols, colcnt, before, after);
+   // The read- and write sets with autorestore (in the destructor)
+   table::save_sets saveset(tbl, cols, cols);
+
+   error= m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(), 
+                                   before, after);
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
@@ -208,17 +229,6 @@ void injector::free_instance()
   }
 }
 
-
-injector::transaction injector::new_trans(THD *thd)
-{
-   DBUG_ENTER("injector::new_trans(THD*)");
-   /*
-     Currently, there is no alternative to using 'mysql_bin_log' since that
-     is hardcoded into the way the handler is using the binary log.
-   */
-   DBUG_RETURN(transaction(&mysql_bin_log, thd));
-}
-
 void injector::new_trans(THD *thd, injector::transaction *ptr)
 {
    DBUG_ENTER("injector::new_trans(THD *, transaction *)");
@@ -235,15 +245,11 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
 int injector::record_incident(THD *thd, Incident incident)
 {
   Incident_log_event ev(thd, incident);
-  if (int error= mysql_bin_log.write(&ev))
-    return error;
-  return mysql_bin_log.rotate_and_purge(true);
+  return mysql_bin_log.write_incident(&ev, TRUE);
 }
 
 int injector::record_incident(THD *thd, Incident incident, LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);
-  if (int error= mysql_bin_log.write(&ev))
-    return error;
-  return mysql_bin_log.rotate_and_purge(true);
+  return mysql_bin_log.write_incident(&ev, TRUE);
 }

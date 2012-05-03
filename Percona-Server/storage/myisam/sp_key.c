@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
 #ifdef HAVE_ISNAN
     if (isnan(val))
     {
-      bzero(key, length);
+      memset(key, 0, length);
       key+= length;
       len+= length;
       continue;

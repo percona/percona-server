@@ -1,7 +1,7 @@
 #ifndef SQL_ACL_INCLUDED
 #define SQL_ACL_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "violite.h"                            /* SSL_type */
@@ -95,6 +95,14 @@
  CREATE_ACL | DROP_ACL | ALTER_ACL | INDEX_ACL | \
  TRIGGER_ACL | REFERENCES_ACL | GRANT_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL)
 
+/**
+  Table-level privileges which are automatically "granted" to everyone on
+  existing temporary tables (CREATE_ACL is necessary for ALTER ... RENAME).
+*/
+#define TMP_TABLE_ACLS \
+(SELECT_ACL | INSERT_ACL | UPDATE_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | \
+ INDEX_ACL | ALTER_ACL)
+
 /*
   Defines to change the above bits to how things are stored in tables
   This is needed as the 'host' and 'db' table is missing a few privileges
@@ -172,16 +180,22 @@ enum mysql_db_table_field
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
+extern const char *command_array[];
+extern uint        command_lengths[];
+
 
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
+void append_user(THD *thd, String *str, LEX_USER *user, bool comma, bool passwd);
+void append_int(String *str, const char *txt, size_t len,
+                long val, int cond);
 my_bool  acl_init(bool dont_read_acl_tables);
 my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
-bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len);
+int acl_authenticate(THD *thd, uint com_change_user_pkt_len);
 bool acl_getroot(Security_context *sctx, char *user, char *host,
                  char *ip, char *db);
 bool acl_check_host(const char *host, const char *ip);
@@ -232,10 +246,10 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
 bool is_acl_user(const char *host, const char *user);
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS

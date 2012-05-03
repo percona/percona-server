@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
   log_filename=myisam_log_filename;
   get_options(&argc,&argv);
   /* Number of MyISAM files we can have open at one time */
-  max_files= (my_set_max_open_files(min(max_files,8))-6)/2;
+  max_files= (my_set_max_open_files(MY_MIN(max_files, 8)) - 6) / 2;
   if (update)
     printf("Trying to %s MyISAM files according to log '%s'\n",
 	   (recover ? "recover" : "update"),log_filename);
@@ -327,7 +327,7 @@ static int examine_log(char * file_name, char **table_names)
   }
 
   init_io_cache(&cache,file,0,READ_CACHE,start_offset,0,MYF(0));
-  bzero((uchar*) com_count,sizeof(com_count));
+  memset(com_count, 0, sizeof(com_count));
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
   (void) init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 /*
@@ -113,7 +113,7 @@ void Item_row::cleanup()
 }
 
 
-void Item_row::split_sum_func(THD *thd, Item **ref_pointer_array,
+void Item_row::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields)
 {
   Item **arg, **arg_end;
@@ -126,9 +126,25 @@ void Item_row::update_used_tables()
 {
   used_tables_cache= 0;
   const_item_cache= 1;
+  with_subselect= false;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->update_used_tables();
+    used_tables_cache|= items[i]->used_tables();
+    const_item_cache&= items[i]->const_item();
+    with_subselect|= items[i]->has_subquery();
+  }
+}
+
+void Item_row::fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select,
+                                 Item **ref)
+{
+  used_tables_cache= 0;
+  const_item_cache= 1;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    items[i]->fix_after_pullout(parent_select, removed_select, &items[i]);
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
   }

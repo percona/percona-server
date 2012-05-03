@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@ extern const char	*not_error_sqlstate;
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
+  char *ssl_crl;				/* PEM CRL file */
+  char *ssl_crlpath;				/* PEM directory of CRL-s? */
 };
 
 typedef struct st_mysql_methods

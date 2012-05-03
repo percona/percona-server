@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,7 +76,8 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
           break;
         }
         /* Skip rows that are inserted by other threads since we got a lock */
-        if (info->lastpos < info->state->data_file_length)
+        if (info->lastpos < info->state->data_file_length && 
+            (!info->index_cond_func || mi_check_index_cond(info, inx, buf)))
           break;
       }
   }

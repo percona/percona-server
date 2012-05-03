@@ -98,6 +98,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
   --eval SELECT "$err" as 'Last_SQL_Error (expected "duplicate key" error)'
   --enable_query_log
   call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
+  call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
   SELECT * FROM t1;
 
@@ -109,8 +110,7 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
 
 --echo ---- Sync slave and verify that there is no error ----
 sync_with_master;
-let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
---echo Last_SQL_Error = '$err' (expected no error)
+--source include/check_slave_no_error.inc
 SELECT * FROM t1;
 
 
@@ -165,8 +165,7 @@ if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRIC
 # The slave should sync ok, and SHOW SLAVE STATUS should give no
 # error.
 sync_with_master;
-let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
---echo Last_SQL_Error = $err (expected no error)
+--source include/check_slave_no_error.inc
 SELECT * FROM t1;
 
 

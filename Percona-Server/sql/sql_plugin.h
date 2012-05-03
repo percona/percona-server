@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,27 +10,30 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
 #include <my_global.h>
+#include <vector>
 
-/*
+/**
   the following #define adds server-only members to enum_mysql_show_type,
-  that is defined in plugin.h
+  that is defined in plugin.h.
 */
 #define SHOW_always_last SHOW_KEY_CACHE_LONG, \
             SHOW_KEY_CACHE_LONGLONG, SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, \
             SHOW_HAVE, SHOW_MY_BOOL, SHOW_HA_ROWS, SHOW_SYS, \
-            SHOW_LONG_NOFLUSH, SHOW_LONGLONG_STATUS, SHOW_LEX_STRING
+            SHOW_LONG_NOFLUSH, SHOW_LONGLONG_STATUS, SHOW_LEX_STRING, \
+            SHOW_SIGNED_LONG
 #include <mysql/plugin.h>
 #undef SHOW_always_last
 
 #include "m_string.h"                       /* LEX_STRING */
 #include "my_alloc.h"                       /* MEM_ROOT */
+#include "my_getopt.h"                      /* my_option */
 
 class sys_var;
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
@@ -39,6 +42,7 @@ enum enum_plugin_load_option { PLUGIN_OFF, PLUGIN_ON, PLUGIN_FORCE,
 extern const char *global_plugin_typelib_names[];
 
 #include <my_sys.h>
+#include "sql_list.h"
 
 #ifdef DBUG_OFF
 #define plugin_ref_to_int(A) A
@@ -130,14 +134,14 @@ typedef struct st_plugin_int **plugin_ref;
 
 typedef int (*plugin_type_init)(struct st_plugin_int *);
 
-extern char *opt_plugin_load;
+extern I_List<i_string> *opt_plugin_load_list_ptr;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
 
 extern int plugin_init(int *argc, char **argv, int init_flags);
 extern void plugin_shutdown(void);
-void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root);
+void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
 extern bool plugin_is_ready(const LEX_STRING *name, int type);
 #define my_plugin_lock_by_name(A,B,C) plugin_lock_by_name(A,B,C)
 #define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C)
@@ -152,7 +156,7 @@ extern bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
                                  const LEX_STRING *dl);
 extern bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name);
 extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
-extern void plugin_thdvar_init(THD *thd);
+extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd);
 extern SHOW_COMP_OPTION plugin_status(const char *name, int len, size_t type);
 extern bool check_valid_path(const char *path, size_t length);

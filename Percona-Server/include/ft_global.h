@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +64,8 @@ void ft_free_stopwords(void);
 #define FT_SORTED 2
 #define FT_EXPAND 4   /* query expansion */
 
-FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,CHARSET_INFO *, uchar *);
+FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
+                        const CHARSET_INFO *, uchar *);
 my_bool ft_boolean_check_syntax_string(const uchar *);
 
 #ifdef  __cplusplus

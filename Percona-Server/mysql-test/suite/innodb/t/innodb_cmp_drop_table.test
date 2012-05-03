@@ -1,4 +1,5 @@
 -- source include/have_innodb.inc
+-- source include/have_innodb_16k.inc
 
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
@@ -26,7 +27,7 @@ while ($i)
 
 drop table t1;
 
-# because of lazy eviction at drop table in 5.5 there should be some
+# because of lazy eviction at drop table there should still be some
 # used 8K pages
 -- eval $query_i_s
 
@@ -36,7 +37,7 @@ create table t2(a text) engine=innodb;
 
 -- disable_query_log
 
--- let $i = 400
+-- let $i = 200
 while ($i)
 {
   insert into t2 values(repeat('abcdefghijklmnopqrstuvwxyz',1000));

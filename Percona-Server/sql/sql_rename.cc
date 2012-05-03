@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   Atomic rename of table;  RENAME TABLE t1 to t2, tmp to t1 [,...]
@@ -35,8 +35,8 @@ static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
 /*
-  Every second entry in the table_list is the original name and every
-  second entry is the new name.
+  Every two entries in the table_list form a pair of original name and
+  the new name.
 */
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
@@ -139,8 +139,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout,
-                       MYSQL_OPEN_SKIP_TEMPORARY))
+  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0))
     goto err;
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
@@ -314,9 +313,17 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
     default:
       DBUG_ASSERT(0); // should never happen
     case FRMTYPE_ERROR:
-      my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+      { 
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(ER_FILE_NOT_FOUND, MYF(0), name,
+                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+      }
       break;
   }
+
+  thd->add_to_binlog_accessed_dbs(ren_table->db);
+  thd->add_to_binlog_accessed_dbs(new_db);
+
   if (rc && !skip_error)
     DBUG_RETURN(1);
 

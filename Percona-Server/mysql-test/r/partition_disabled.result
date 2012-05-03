@@ -56,7 +56,7 @@ ERROR HY000: The MySQL server is running with the --skip-partition option so it 
 ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 CREATE TABLE t1 (
 firstname VARCHAR(25) NOT NULL,
 lastname VARCHAR(25) NOT NULL,
@@ -73,7 +73,7 @@ PARTITION p4 VALUES LESS THAN MAXVALUE
 );
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 CREATE TABLE t1 (id INT, purchased DATE)
 PARTITION BY RANGE( YEAR(purchased) )
 SUBPARTITION BY HASH( TO_DAYS(purchased) )
@@ -84,10 +84,25 @@ PARTITION p2 VALUES LESS THAN MAXVALUE
 );
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 create table t1 (a varchar(10) charset latin1 collate latin1_bin);
 insert into t1 values (''),(' '),('a'),('a '),('a  ');
 explain partitions select * from t1 where a='a ' OR a='a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	Using where
 drop table t1;
+#
+# bug#11760213-52599: ALTER TABLE REMOVE PARTITIONING ON NON-PARTITIONED
+#                                 TABLE CORRUPTS MYISAM
+DROP TABLE if exists `t1`;
+CREATE TABLE  `t1`(`a` INT)ENGINE=myisam;
+ALTER TABLE `t1` ADD COLUMN `b` INT;
+CREATE UNIQUE INDEX `i1` ON `t1`(`b`);
+CREATE UNIQUE INDEX `i2` ON `t1`(`a`);
+ALTER TABLE `t1` ADD PRIMARY KEY  (`a`);
+ALTER TABLE `t1` REMOVE PARTITIONING;
+ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+CHECK TABLE `t1` EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

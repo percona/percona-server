@@ -489,13 +489,22 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;
 
 #
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqlbinlog --protocol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQL_BINLOG --short-form --read-from-remote-server --protocol=tcp --bind-address=127.0.0.1 master-bin.000001 > /dev/null
+
+#
 # WL#5625: Deprecate mysqlbinlog options --base64-output=always and --base64-output
 #
---echo # Expect deprecation warning.
+
+--echo # Expect error for unknown argument.
+--error 1
 --exec $MYSQL_BINLOG --base64-output=always std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 --cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 
---echo # Expect deprecation warning again.
+--echo # Expect error for unknown argument again.
+--error 1
 --exec $MYSQL_BINLOG --base64-output std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 --cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
 
@@ -547,3 +556,12 @@ SHOW TABLES IN test;
 --exec $MYSQL_BINLOG --server-id=2 $MYSQLD_DATADIR/$master_binlog | $MYSQL
 SHOW TABLES IN test;
 eval SET GLOBAL SERVER_ID = $old_server_id;
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--exec $MYSQL_BINLOG -uroot --password="" std_data/master-bin.000001 2>&1
+
+--echo
+--echo End of tests

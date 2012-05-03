@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,3 +23,4 @@
 #define VERSION_thd_alloc       0x0100
 #define VERSION_thd_wait        0x0100
 #define VERSION_my_thread_scheduler 0x0100
+#define VERSION_my_plugin_log 0x0100

@@ -1,4 +1,3 @@
-
 # Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -53,6 +52,10 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
+# As a consequence of ALARMs no longer being used, thread
+# notification for KILL must close the socket to wake up
+# other threads.
+SET(SIGNAL_WITH_VIO_CLOSE 1)
 
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -62,20 +65,61 @@ IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 ENDIF()
 
+# The default C++ library for SunPro is really old, and not standards compliant.
+# http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
+# Use stlport rather than Rogue Wave.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+    SET(CMAKE_CXX_FLAGS
+      "${CMAKE_CXX_FLAGS} -library=stlport4")
+  ENDIF()
+ENDIF()
 
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  # MySQL "canonical" GCC flags. At least -fno-rtti flag affects
-  # ABI and cannot be simply removed. 
-  SET(CMAKE_CXX_FLAGS 
-    "${CMAKE_CXX_FLAGS} -fno-implicit-templates -fno-exceptions -fno-rtti")
-  IF(CMAKE_CXX_FLAGS)
-    STRING(REGEX MATCH "fno-implicit-templates" NO_IMPLICIT_TEMPLATES
-      ${CMAKE_CXX_FLAGS})
-    IF (NO_IMPLICIT_TEMPLATES)
-      SET(HAVE_EXPLICIT_TEMPLATE_INSTANTIATION TRUE)
-    ENDIF()
+MACRO(DIRNAME IN OUT)
+  GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
+ENDMACRO()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
+  SET(STLPORT_SUFFIX "lib/stlport4")
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+    SET(STLPORT_SUFFIX "lib/stlport4/v9")
+  ENDIF()
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    SET(STLPORT_SUFFIX "lib/stlport4/amd64")
   ENDIF()
 
+  FIND_LIBRARY(STL_LIBRARY_NAME
+    NAMES "stlport"
+    PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
+  )
+  MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
+  IF(STL_LIBRARY_NAME)
+    DIRNAME(${STL_LIBRARY_NAME} STLPORT_PATH)
+    # We re-distribute libstlport.so which is a symlink to libstlport.so.1
+    # There is no 'readlink' on solaris, so we use perl to follow links:
+    SET(PERLSCRIPT
+      "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
+    EXECUTE_PROCESS(
+      COMMAND perl -e "${PERLSCRIPT}" ${STL_LIBRARY_NAME}
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE real_library
+    )
+    MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
+    INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
+            DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
+    # Using the $ORIGIN token with the -R option to locate the libraries
+    # on a path relative to the executable:
+    # We need an extra backslash to pass $ORIGIN to the mysql_config script...
+    SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${STLPORT_PATH}")
+    SET(CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${STLPORT_PATH}")
+    MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
+  ENDIF()
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCXX)
   IF (CMAKE_EXE_LINKER_FLAGS MATCHES " -static " 
      OR CMAKE_EXE_LINKER_FLAGS MATCHES " -static$")
      SET(HAVE_DLOPEN FALSE CACHE "Disable dlopen due to -static flag" FORCE)
@@ -323,11 +367,9 @@ CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
 CHECK_FUNCTION_EXISTS (backtrace_symbols HAVE_BACKTRACE_SYMBOLS)
 CHECK_FUNCTION_EXISTS (backtrace_symbols_fd HAVE_BACKTRACE_SYMBOLS_FD)
 CHECK_FUNCTION_EXISTS (printstack HAVE_PRINTSTACK)
-CHECK_FUNCTION_EXISTS (bfill HAVE_BFILL)
 CHECK_FUNCTION_EXISTS (bmove HAVE_BMOVE)
 CHECK_FUNCTION_EXISTS (bsearch HAVE_BSEARCH)
 CHECK_FUNCTION_EXISTS (index HAVE_INDEX)
-CHECK_FUNCTION_EXISTS (bzero HAVE_BZERO)
 CHECK_FUNCTION_EXISTS (clock_gettime HAVE_CLOCK_GETTIME)
 CHECK_FUNCTION_EXISTS (cuserid HAVE_CUSERID)
 CHECK_FUNCTION_EXISTS (directio HAVE_DIRECTIO)
@@ -483,7 +525,6 @@ CHECK_FUNCTION_EXISTS(rdtscll HAVE_RDTSCLL)
 # Tests for symbols
 #
 
-CHECK_SYMBOL_EXISTS(sys_errlist "stdio.h" HAVE_SYS_ERRLIST)
 CHECK_SYMBOL_EXISTS(madvise "sys/mman.h" HAVE_DECL_MADVISE)
 CHECK_SYMBOL_EXISTS(tzname "time.h" HAVE_TZNAME)
 CHECK_SYMBOL_EXISTS(lrand48 "stdlib.h" HAVE_LRAND48)
@@ -777,7 +818,9 @@ IF(NOT HAVE_FCNTL_NONBLOCK)
 ENDIF()
 
 #
-# Test for how the C compiler does inline, if at all
+# Test for how the C compiler does inline.
+# If both of these tests fail, then there is probably something wrong
+# in the environment (flags and/or compiling and/or linking).
 #
 CHECK_C_SOURCE_COMPILES("
 static inline int foo(){return 0;}
@@ -789,6 +832,12 @@ IF(NOT C_HAS_inline)
   int main(int argc, char *argv[]){return 0;}"
                             C_HAS___inline)
   SET(C_INLINE __inline)
+ENDIF()
+
+IF(NOT C_HAS_inline AND NOT C_HAS___inline)
+  MESSAGE(FATAL_ERROR "It seems like ${CMAKE_C_COMPILER} does not support "
+    "inline or __inline. Please verify compiler and flags. "
+    "See CMakeFiles/CMakeError.log for why the test failed to compile/link.")
 ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
@@ -894,16 +943,6 @@ CHECK_C_SOURCE_COMPILES("
 
 
 CHECK_CXX_SOURCE_COMPILES("
-    #include <new>
-    int main()
-    {
-      char *c = new char;
-      return 0;
-    }"
-    HAVE_CXX_NEW
-)
-
-CHECK_CXX_SOURCE_COMPILES("
     #undef inline
     #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
     #define _REENTRANT
@@ -924,52 +963,6 @@ CHECK_CXX_SOURCE_COMPILES("
     }
   "
   HAVE_SOLARIS_STYLE_GETHOST)
-
-# Use of ALARMs to wakeup on timeout on sockets
-#
-# This feature makes use of a mutex and is a scalability hog we
-# try to avoid using. However we need support for SO_SNDTIMEO and
-# SO_RCVTIMEO socket options for this to work. So we will check
-# if this feature is supported by a simple TRY_RUN macro. However
-# on some OS's there is support for setting those variables but
-# they are silently ignored. For those OS's we will not attempt
-# to use SO_SNDTIMEO and SO_RCVTIMEO even if it is said to work.
-# See Bug#29093 for the problem with SO_SND/RCVTIMEO on HP/UX.
-# To use alarm is simple, simply avoid setting anything.
-
-IF(WIN32)
-  SET(HAVE_SOCKET_TIMEOUT 1)
-ELSEIF(CMAKE_SYSTEM MATCHES "HP-UX")
-  SET(HAVE_SOCKET_TIMEOUT 0)
-ELSEIF(CMAKE_CROSSCOMPILING)
-  SET(HAVE_SOCKET_TIMEOUT 0)
-ELSE()
-SET(CMAKE_REQUIRED_LIBRARIES ${LIBNSL} ${LIBSOCKET}) 
-CHECK_C_SOURCE_RUNS(
-"
- #include <sys/types.h>
- #include <sys/socket.h>
- #include <sys/time.h>
- 
- int main()
- {    
-   int fd = socket(AF_INET, SOCK_STREAM, 0);
-   struct timeval tv;
-   int ret= 0;
-   tv.tv_sec= 2;
-   tv.tv_usec= 0;
-   ret|= setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-   ret|= setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-   return !!ret;
- }
-" HAVE_SOCKET_TIMEOUT)
-ENDIF()
-
-SET(NO_ALARM "${HAVE_SOCKET_TIMEOUT}" CACHE BOOL 
-   "No need to use alarm to implement socket timeout")
-SET(SIGNAL_WITH_VIO_CLOSE "${HAVE_SOCKET_TIMEOUT}")
-MARK_AS_ADVANCED(NO_ALARM)
-
 
 IF(CMAKE_COMPILER_IS_GNUCXX)
 IF(WITH_ATOMIC_OPS STREQUAL "up")
@@ -1015,10 +1008,12 @@ if available and 'smp' configuration otherwise.")
 MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
 
 IF(WITH_VALGRIND)
-  CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
-    HAVE_VALGRIND_HEADERS)
+  SET(VALGRIND_HEADERS "valgrind/memcheck.h;valgrind/valgrind.h")
+  CHECK_INCLUDE_FILES("${VALGRIND_HEADERS}" HAVE_VALGRIND_HEADERS)
   IF(HAVE_VALGRIND_HEADERS)
     SET(HAVE_VALGRIND 1)
+  ELSE()
+    MESSAGE(FATAL_ERROR "Unable to find Valgrind header files ${VALGRIND_HEADERS}. Make sure you have them in your include path.")
   ENDIF()
 ENDIF()
 

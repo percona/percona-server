@@ -57,6 +57,7 @@ static char	*opt_password=0, *current_user=0,
 		*escaped=0, *opt_columns=0, 
 		*default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
+static char *opt_bind_addr = NULL;
 static char * opt_mysql_unix_port=0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static longlong opt_ignore_lines= -1;
@@ -68,6 +69,9 @@ static char *shared_memory_base_name=0;
 
 static struct my_option my_long_options[] =
 {
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -137,7 +141,7 @@ static struct my_option my_long_options[] =
    &opt_low_priority, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -199,7 +203,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   printf("\
 Loads tables from text files in various formats.  The base name of the\n\
 text file must be the name of the table that should be used.\n\
@@ -424,13 +428,19 @@ static MYSQL *db_connect(char *host, char *database,
 		  (char*) &opt_local_file);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
+  {
     mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
   mysql_options(mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                 (char*)&opt_ssl_verify_server_cert);
 #endif
   if (opt_protocol)
     mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(mysql,MYSQL_OPT_BIND,opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -599,8 +609,11 @@ int main(int argc, char **argv)
   char **argv_to_free;
   MY_INIT(argv[0]);
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,&argc,&argv))
     return 1;
+  my_getopt_use_args_separator= FALSE;
+
   /* argv is changed in the program */
   argv_to_free= argv;
   if (get_options(&argc, &argv))

@@ -34,6 +34,7 @@ start slave io_thread;
 # 5.1 has two OFF,ON IO-thread state running state whereas later versions
 # have three: OFF,Connecting,ON.
 # Hence, 5.1 must display OFF NO NO where as 5.1+ OFF Connecting NO
+# (thank you, Andrei for leaving these comments. -- Andrei repl MC at the moment)
 #
 --echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF Connecting NO in three following queries
 
@@ -75,9 +76,17 @@ echo Slave_SQL_Running= $status;
 
 # cleanup
 
-connection slave;
+connection master;
+
+# Bug#11765758 - 58754
+# @@global.debug is read by the slave threads through dbug-interface. 
+# Hence, before a client thread set @@global.debug we have to ensure that:
+# (a) the slave threads are stopped, or (b) the slave threads are in
+# sync and waiting.
+sync_slave_with_master;
 
 eval set global debug= '$debug_saved';
+
 SET DEBUG_SYNC= 'RESET';
 --echo End of tests
 --source include/rpl_end.inc

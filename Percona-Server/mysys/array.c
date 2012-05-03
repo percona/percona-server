@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
   DBUG_ENTER("init_dynamic_array");
   if (!alloc_increment)
   {
-    alloc_increment=max((8192-MALLOC_OVERHEAD)/element_size,16);
+    alloc_increment=MY_MAX((8192-MALLOC_OVERHEAD)/element_size,16);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
       alloc_increment=init_alloc*2;
   }
@@ -92,7 +92,7 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
     FALSE	Ok
 */
 
-my_bool insert_dynamic(DYNAMIC_ARRAY *array, uchar* element)
+my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
 {
   uchar* buffer;
   if (array->elements == array->max_element)
@@ -127,7 +127,7 @@ my_bool insert_dynamic(DYNAMIC_ARRAY *array, uchar* element)
     0		Error
 */
 
-uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
+void *alloc_dynamic(DYNAMIC_ARRAY *array)
 {
   if (array->elements == array->max_element)
   {
@@ -171,7 +171,7 @@ uchar *alloc_dynamic(DYNAMIC_ARRAY *array)
     0		Array is empty
 */
 
-uchar *pop_dynamic(DYNAMIC_ARRAY *array)
+void *pop_dynamic(DYNAMIC_ARRAY *array)
 {
   if (array->elements)
     return array->buffer+(--array->elements * array->size_of_element);
@@ -196,13 +196,13 @@ uchar *pop_dynamic(DYNAMIC_ARRAY *array)
     FALSE	Ok
 */
 
-my_bool set_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
+my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element, uint idx)
 {
   if (idx >= array->elements)
   {
     if (idx >= array->max_element && allocate_dynamic(array, idx))
       return TRUE;
-    bzero((uchar*) (array->buffer+array->elements*array->size_of_element),
+    memset((array->buffer+array->elements*array->size_of_element), 0, 
 	  (idx - array->elements)*array->size_of_element);
     array->elements=idx+1;
   }
@@ -273,13 +273,13 @@ my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
       idx	Index of element wanted. 
 */
 
-void get_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
+void get_dynamic(DYNAMIC_ARRAY *array, void *element, uint idx)
 {
   if (idx >= array->elements)
   {
     DBUG_PRINT("warning",("To big array idx: %d, array size is %d",
                           idx,array->elements));
-    bzero(element,array->size_of_element);
+    memset(element, 0, array->size_of_element);
     return;
   }
   memcpy(element,array->buffer+idx*array->size_of_element,
@@ -340,7 +340,7 @@ void delete_dynamic_element(DYNAMIC_ARRAY *array, uint idx)
 
 void freeze_size(DYNAMIC_ARRAY *array)
 {
-  uint elements=max(array->elements,1);
+  uint elements=MY_MAX(array->elements,1);
 
   /*
     Do nothing if we are using a static buffer
@@ -355,29 +355,4 @@ void freeze_size(DYNAMIC_ARRAY *array)
                                      MYF(MY_WME));
     array->max_element=elements;
   }
-}
-
-
-/*
-  Get the index of a dynamic element
-
-  SYNOPSIS
-    get_index_dynamic()
-     array	Array
-     element Whose element index 
-
-*/
-
-int get_index_dynamic(DYNAMIC_ARRAY *array, uchar* element)
-{
-  size_t ret;
-  if (array->buffer > element)
-    return -1;
-
-  ret= (element - array->buffer) /  array->size_of_element;
-  if (ret > array->elements)
-    return -1;
-
-  return ret;
-
 }

@@ -126,13 +126,13 @@
     %if "%oelver" == "4"
       %define distro_description        Oracle Enterprise Linux 4
       %define distro_releasetag         oel4
-      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils net-tools
     %else
       %if "%oelver" == "5"
         %define distro_description      Oracle Enterprise Linux 5
         %define distro_releasetag       oel5
-        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Enterprise Linux %{oelver} is unsupported}
@@ -144,7 +144,7 @@
       %if "%elver" == "6"
         %define distro_description      Oracle Linux 6
         %define distro_releasetag       el6
-        %define distro_buildreq         gcc-c++ ncurses-devel perl readline-devel time zlib-devel
+        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Linux %{elver} is unsupported}
@@ -155,19 +155,19 @@
         %if "%rhelver" == "4"
           %define distro_description      Red Hat Enterprise Linux 4
           %define distro_releasetag       rhel4
-          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+          %define distro_buildreq         gcc-c++ gperf ncurses-devel perl time zlib-devel
           %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
         %else
           %if "%rhelver" == "5"
             %define distro_description    Red Hat Enterprise Linux 5
             %define distro_releasetag     rhel5
-            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+            %define distro_buildreq       gcc-c++ gperf ncurses-devel perl time zlib-devel
             %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
           %else
             %if "%rhelver" == "6"
               %define distro_description    Red Hat Enterprise Linux 6
               %define distro_releasetag     rhel6
-              %define distro_buildreq       gcc-c++ ncurses-devel perl readline-devel time zlib-devel
+              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel
               %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
             %else
               %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
@@ -180,13 +180,13 @@
           %if "%susever" == "10"
             %define distro_description    SUSE Linux Enterprise Server 10
             %define distro_releasetag     sles10
-            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+            %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client zlib-devel
             %define distro_requires       aaa_base coreutils grep procps pwdutils
           %else
             %if "%susever" == "11"
               %define distro_description  SUSE Linux Enterprise Server 11
               %define distro_releasetag   sles11
-              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel
               %define distro_requires     aaa_base coreutils grep procps pwdutils
             %else
               %{error:SuSE %{susever} is unsupported}
@@ -202,7 +202,7 @@
   %define generic_kernel %(uname -r | cut -d. -f1-2)
   %define distro_description            Generic Linux (kernel %{generic_kernel})
   %define distro_releasetag             linux%{generic_kernel}
-  %define distro_buildreq               gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+  %define distro_buildreq               gcc-c++ gperf ncurses-devel perl  time zlib-devel
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
@@ -285,8 +285,7 @@ Group:		Applications/Databases
 Requires:	%{distro_requires}
 Provides:	msqlormysql mysql MySQL mysql-server MySQL-server
 Obsoletes:	mysql MySQL mysql-server MySQL-server
-Obsoletes:	MySQL-server-classic MySQL-server-community MySQL-server-enterprise
-Obsoletes:	MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
+Obsoletes:	MySQL-server-community MySQL-server-advanced
 
 %description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -302,7 +301,7 @@ licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
 the GPL. See the chapter "Licensing and Support" in the manual for
 further info.
 
-The MySQL web site (http://www.mysql.com/) provides the latest news and 
+The MySQL web site (http://www.mysql.com/) provides the latest news and
 information about the MySQL software.  Also please see the documentation
 and the manual for more information.
 
@@ -318,8 +317,7 @@ Summary:	MySQL - Client
 Group:		Applications/Databases
 Provides:	mysql-client MySQL-client
 Obsoletes:	mysql-client MySQL-client
-Obsoletes:	MySQL-client-classic MySQL-client-community MySQL-client-enterprise
-Obsoletes:	MySQL-client-advanced MySQL-client-advanced-gpl MySQL-client-enterprise-gpl
+Obsoletes:	MySQL-client-community MySQL-client-advanced
 
 %description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
@@ -333,9 +331,7 @@ Group:		Applications/Databases
 Requires:	MySQL-client perl
 Provides:	mysql-test MySQL-test
 Obsoletes:	mysql-test MySQL-test
-Obsoletes:	mysql-bench MySQL-bench
-Obsoletes:	MySQL-test-classic MySQL-test-community MySQL-test-enterprise
-Obsoletes:	MySQL-test-advanced MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
+Obsoletes:	MySQL-test-community MySQL-test-advanced
 AutoReqProv:	no
 
 %description -n MySQL-test%{product_suffix}
@@ -349,8 +345,7 @@ Summary:	MySQL - Development header files and libraries
 Group:		Applications/Databases
 Provides:	mysql-devel MySQL-devel
 Obsoletes:	mysql-devel MySQL-devel
-Obsoletes:	MySQL-devel-classic MySQL-devel-community MySQL-devel-enterprise
-Obsoletes:	MySQL-devel-advanced MySQL-devel-advanced-gpl MySQL-devel-enterprise-gpl
+Obsoletes:	MySQL-devel-community MySQL-devel-advanced
 
 %description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -363,11 +358,8 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:	MySQL - Shared libraries
 Group:		Applications/Databases
 Provides:	mysql-shared MySQL-shared
-Obsoletes:	mysql-shared MySQL-shared-standard MySQL-shared-pro
-Obsoletes:	MySQL-shared-pro-cert MySQL-shared-pro-gpl
-Obsoletes:	MySQL-shared-pro-gpl-cert MySQL-shared
-Obsoletes:	MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
-Obsoletes:	MySQL-shared-advanced MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
+Obsoletes:	mysql-shared MySQL-shared
+Obsoletes:	MySQL-shared-community MySQL-shared-advanced
 
 %description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -380,9 +372,7 @@ Group:		Applications/Databases
 Requires:	MySQL-devel
 Provides:	mysql-embedded MySQL-embedded
 Obsoletes:	mysql-embedded MySQL-embedded
-Obsoletes:	MySQL-embedded-pro
-Obsoletes:	MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
-Obsoletes:	MySQL-embedded-advanced MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
+Obsoletes:	MySQL-embedded-community MySQL-embedded-advanced
 
 %description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -414,14 +404,9 @@ touch optional-files-devel
 # name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
 # default RPM build environment.
 #
-# We set CXX=gcc by default to support so-called 'generic' binaries, where we
-# do not have a dependancy on libgcc/libstdc++.  This only works while we do
-# not require C++ features such as exceptions, and may need to be removed at
-# a later date.
-#
 
 # This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
-# the compile in cmd-line-utils/readline - needs investigation, but for now
+# the compile in cmd-line-utils/libedit - needs investigation, but for now
 # we simply unset it and use those specified directly in cmake.
 %if "%{_arch}" == "ia64"
 RPM_OPT_FLAGS=
@@ -429,9 +414,9 @@ RPM_OPT_FLAGS=
 
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
@@ -500,23 +485,6 @@ install -d $RBR%{_sbindir}
 (
   cd $MBD/release
   make DESTDIR=$RBR install
-)
-
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  Do
-# this in a sub-shell to ensure we don't pollute the install environment
-# with compiler bits.
-(
-  PATH=${MYSQL_BUILD_PATH:-$PATH}
-  CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-  CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-  if "${CC}" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1; then
-    libgcc=`${CC} ${CFLAGS} --print-libgcc-file`
-    if [ -f ${libgcc} ]; then
-      mkdir -p $RBR%{_libdir}/mysql
-      install -m 644 ${libgcc} $RBR%{_libdir}/mysql/libmygcc.a
-      echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-    fi
-  fi
 )
 
 # FIXME: at some point we should stop doing this and just install everything
@@ -1146,6 +1114,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Feb 29 2012 Brajmohan Saxena <brajmohan.saxena@oracle.com>
+
+- Removal all traces of the readline library from mysql (BUG 13738013)
+
 * Wed Sep 28 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix duplicate mentioning of "mysql_plugin" and its manual page,
@@ -1175,6 +1147,12 @@ echo "====="                                     >> $STATUS_HISTORY
 * Thu Sep 08 2011 Daniel Fischer <daniel.fischer@oracle.com>
 
 - Add mysql_plugin man page.
+
+* Tue Aug 30 2011 Tor Didriksen <tor.didriksen@oracle.com>
+
+- Set CXX=g++ by default to add a dependency on libgcc/libstdc++.
+  Also, remove the use of the -fno-exceptions and -fno-rtti flags.
+  TODO: update distro_buildreq/distro_requires
 
 * Tue Aug 30 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 

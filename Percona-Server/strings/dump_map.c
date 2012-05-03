@@ -1,5 +1,4 @@
-/* Copyright (c) 2003, 2004, 2006 MySQL AB
-   Use is subject to license terms.
+/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,9 +40,9 @@ int main(void)
   unsigned short fromstat[256];
   int i;
   
-  bzero((void*)touni,sizeof(touni));
-  bzero((void*)fromuni,sizeof(fromuni));
-  bzero((void*)fromstat,sizeof(fromstat));
+  memset(touni, 0, sizeof(touni));
+  memset(fromuni, 0, sizeof(fromuni));
+  memset(fromstat, 0, sizeof(fromstat));
   
   while (fgets(str,sizeof(str),stdin))
   {

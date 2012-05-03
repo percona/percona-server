@@ -1,7 +1,7 @@
 #ifndef SSLOPT_LONGOPTS_INCLUDED
 #define SSLOPT_LONGOPTS_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,13 @@
    0, 0, 0, 0, 0, 0},
   {"ssl-key", OPT_SSL_KEY, "X509 key in PEM format (implies --ssl).",
    &opt_ssl_key, &opt_ssl_key, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-crl", OPT_SSL_KEY, "Certificate revocation list (implies --ssl).",
+   &opt_ssl_crl, &opt_ssl_crl, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"ssl-crlpath", OPT_SSL_KEY, 
+    "Certificate revocation list path (implies --ssl).",
+   &opt_ssl_crlpath, &opt_ssl_crlpath, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef MYSQL_CLIENT
   {"ssl-verify-server-cert", OPT_SSL_VERIFY_SERVER_CERT,

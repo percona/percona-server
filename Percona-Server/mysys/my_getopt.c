@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <my_global.h>
 #include <m_string.h>
@@ -38,6 +38,7 @@ static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
+static void print_cmdline_password_warning();
 
 /*
   The following three variables belong to same group and the number and
@@ -431,6 +432,9 @@ int handle_options(int *argc, char ***argv,
 	}
 	else
 	  argument= optend;
+
+        if (optp->var_type == GET_PASSWORD && is_cmdline_arg && argument)
+          print_cmdline_password_warning();
       }
       else  /* must be short option */
       {
@@ -468,6 +472,8 @@ int handle_options(int *argc, char ***argv,
 		  argument= optend + 1;
 		  /* This is in effect a jump out of the outer loop */
 		  optend= (char*) " ";
+                  if (optp->var_type == GET_PASSWORD && is_cmdline_arg)
+                    print_cmdline_password_warning();
 		}
 		else
 		{
@@ -560,6 +566,25 @@ int handle_options(int *argc, char ***argv,
 }
 
 
+/**
+ * This function should be called to print a warning message
+ * if password string is specified on the command line.
+ */
+
+static void print_cmdline_password_warning()
+{
+  static my_bool password_warning_announced= FALSE;
+
+  if (!password_warning_announced)
+  {
+    fprintf(stderr, "Warning: Using a password on the command line "
+            "interface can be insecure.\n");
+    (void) fflush(stderr);
+    password_warning_announced= TRUE;
+  }
+}
+
+
 /*
   function: check_struct_option
 
@@ -601,6 +626,7 @@ static char *check_struct_option(char *cur_arg, char *key_name)
     return cur_arg;
   }
 }
+
 
 /**
    Parse a boolean command line argument
@@ -679,6 +705,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       *((double*) value)= getopt_double(argument, opts, &err);
       break;
     case GET_STR:
+    case GET_PASSWORD:
       if (argument == enabled_my_option)
         break; /* string options don't use this default of "1" */
       *((char**) value)= argument;
@@ -898,6 +925,35 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
   return getopt_ll_limit_value(num, optp, NULL);
 }
 
+
+/**
+  Maximum possible value for an integer GET_* variable type
+  @param  var_type  type of integer variable (GET_*)
+  @returns  maximum possible value for this type
+ */
+ulonglong max_of_int_range(int var_type)
+{
+  switch (var_type)
+  {
+  case GET_INT:
+    return INT_MAX;
+  case GET_LONG:
+    return LONG_MAX;
+  case GET_LL:
+    return LONGLONG_MAX;
+  case GET_UINT:
+    return UINT_MAX;
+  case GET_ULONG:
+    return ULONG_MAX;
+  case GET_ULL:
+    return ULONGLONG_MAX;
+  default:
+    DBUG_ASSERT(0);
+    return 0;
+  }
+}
+
+
 /*
   function: getopt_ll_limit_value
 
@@ -912,6 +968,8 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   my_bool adjusted= FALSE;
   char buf1[255], buf2[255];
   ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
+  const longlong max_of_type=
+    (longlong)max_of_int_range(optp->var_type & GET_TYPE_MASK);
 
   if (num > 0 && ((ulonglong) num > (ulonglong) optp->max_value) &&
       optp->max_value) /* if max value is not set -> no upper limit */
@@ -920,26 +978,10 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
     adjusted= TRUE;
   }
 
-  switch ((optp->var_type & GET_TYPE_MASK)) {
-  case GET_INT:
-    if (num > (longlong) INT_MAX)
-    {
-      num= ((longlong) INT_MAX);
-      adjusted= TRUE;
-    }
-    break;
-  case GET_LONG:
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-    if (num > (longlong) LONG_MAX)
-    {
-      num= ((longlong) LONG_MAX);
-      adjusted= TRUE;
-    }
-#endif
-    break;
-  default:
-    DBUG_ASSERT((optp->var_type & GET_TYPE_MASK) == GET_LL);
-    break;
+  if (num > max_of_type)
+  {
+    num= max_of_type;
+    adjusted= TRUE;
   }
 
   num= (num / block_size);
@@ -981,6 +1023,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   my_bool adjusted= FALSE;
   ulonglong old= num;
   char buf1[255], buf2[255];
+  const ulonglong max_of_type=
+    max_of_int_range(optp->var_type & GET_TYPE_MASK);
 
   if ((ulonglong) num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
@@ -989,26 +1033,10 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
     adjusted= TRUE;
   }
 
-  switch ((optp->var_type & GET_TYPE_MASK)) {
-  case GET_UINT:
-    if (num > (ulonglong) UINT_MAX)
-    {
-      num= ((ulonglong) UINT_MAX);
-      adjusted= TRUE;
-    }
-    break;
-  case GET_ULONG:
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-    if (num > (ulonglong) ULONG_MAX)
-    {
-      num= ((ulonglong) ULONG_MAX);
-      adjusted= TRUE;
-    }
-#endif
-    break;
-  default:
-    DBUG_ASSERT((optp->var_type & GET_TYPE_MASK) == GET_ULL);
-    break;
+  if (num > max_of_type)
+  {
+    num= max_of_type;
+    adjusted= TRUE;
   }
 
   if (optp->block_size > 1)
@@ -1132,6 +1160,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((double*) variable)= ulonglong2double(value);
     break;
   case GET_STR:
+  case GET_PASSWORD:
     /*
       Do not clear variable value if it has no default value.
       The default value may already be set.
@@ -1273,6 +1302,7 @@ void my_print_help(const struct my_option *options)
 	col++;
       }
       else if ((optp->var_type & GET_TYPE_MASK) == GET_STR       ||
+               (optp->var_type & GET_TYPE_MASK) == GET_PASSWORD  ||
                (optp->var_type & GET_TYPE_MASK) == GET_STR_ALLOC ||
                (optp->var_type & GET_TYPE_MASK) == GET_ENUM      ||
                (optp->var_type & GET_TYPE_MASK) == GET_SET       ||
@@ -1386,6 +1416,7 @@ void my_print_variables(const struct my_option *options)
         printf("%s\n", get_type(optp->typelib, *(ulong*) value));
 	break;
       case GET_STR:
+      case GET_PASSWORD:
       case GET_STR_ALLOC:                    /* fall through */
 	printf("%s\n", *((char**) value) ? *((char**) value) :
 	       "(No default value)");

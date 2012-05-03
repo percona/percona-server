@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ FT_WORD *_mi_ft_parserecord(MI_INFO *info, uint keynr, const uchar *record,
   DBUG_ENTER("_mi_ft_parserecord");
   if (! (param= ftparser_call_initializer(info, keynr, 0)))
     DBUG_RETURN(NULL);
-  bzero((char*) &ptree, sizeof(ptree));
+  memset(&ptree, 0, sizeof(ptree));
   param->flags= 0;
   if (_mi_ft_parse(&ptree, info, keynr, record, param, mem_root))
     DBUG_RETURN(NULL);
@@ -170,7 +170,7 @@ static int _mi_ft_erase(MI_INFO *info, uint keynr, uchar *keybuf,
 int _mi_ft_cmp(MI_INFO *info, uint keynr, const uchar *rec1, const uchar *rec2)
 {
   FT_SEG_ITERATOR ftsi1, ftsi2;
-  CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
+  const CHARSET_INFO *cs= info->s->keyinfo[keynr].seg->charset;
   DBUG_ENTER("_mi_ft_cmp");
   _mi_ft_segiterator_init(info, keynr, rec1, &ftsi1);
   _mi_ft_segiterator_init(info, keynr, rec2, &ftsi2);
@@ -194,7 +194,7 @@ int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
 {
   int error= -1;
   FT_WORD *oldlist,*newlist, *old_word, *new_word;
-  CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
+  const CHARSET_INFO *cs= info->s->keyinfo[keynr].seg->charset;
   uint key_length;
   int cmp, cmp2;
   DBUG_ENTER("_mi_ft_update");

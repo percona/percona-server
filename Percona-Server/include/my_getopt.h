@@ -36,6 +36,7 @@ C_MODE_START
 #define GET_SET       13
 #define GET_DOUBLE    14
 #define GET_FLAGSET   15
+#define GET_PASSWORD  16
 
 #define GET_ASK_ADDR	 128
 #define GET_TYPE_MASK	 127
@@ -87,9 +88,6 @@ struct my_option
 
 
 typedef my_bool (*my_get_one_option)(int, const struct my_option *, char *);
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
-  ATTRIBUTE_FORMAT_FPTR(printf, 2, 3);
-
 /**
   Used to retrieve a reference to the object (variable) that holds the value
   for the given option. For example, if var_type is GET_UINT, the function
@@ -119,6 +117,7 @@ longlong getopt_ll_limit_value(longlong, const struct my_option *,
 double getopt_double_limit_value(double num, const struct my_option *optp,
                                  my_bool *fix);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
+ulonglong max_of_int_range(int var_type);
 
 C_MODE_END
 

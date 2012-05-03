@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* To avoid problems with alarms in debug code, we disable DBUG here */
 #define FORCE_DBUG_OFF
@@ -260,7 +260,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
   {
     if ((ALARM*) queue_element(&alarm_queue,i) == alarm_data)
     {
-      queue_remove(&alarm_queue,i),MYF(0);
+      queue_remove(&alarm_queue,i);
       if (alarm_data->malloced)
 	my_free(alarm_data);
       found++;
@@ -591,7 +591,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
     }
     process_alarm(0);
   }
-  bzero((char*) &alarm_thread,sizeof(alarm_thread)); /* For easy debugging */
+  memset(&alarm_thread, 0, sizeof(alarm_thread)); /* For easy debugging */
   alarm_thread_running= 0;
   mysql_cond_signal(&COND_alarm);
   mysql_mutex_unlock(&LOCK_alarm);
@@ -677,7 +677,7 @@ void init_thr_alarm(uint max_alarm)
 
 void thr_alarm_info(ALARM_INFO *info)
 {
-  bzero((char*) info, sizeof(*info));
+  memset(info, 0, sizeof(*info));
 }
 
 void resize_thr_alarm(uint max_alarms)

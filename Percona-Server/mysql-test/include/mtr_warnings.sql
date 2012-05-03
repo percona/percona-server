@@ -168,7 +168,11 @@ INSERT INTO global_suppressions VALUES
   */
  ("setrlimit could not change the size of core files to 'infinity'"),
 
- ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
+ ("The slave I.O thread stops because a fatal error is encountered when it tries to get the value of SERVER_UUID variable from master.*"),
+ ("The initialization command '.*' failed with the following error.*"),
+
+ /*It will print a warning if a new UUID of server is generated.*/
+ ("No existing UUID has been found, so we assume that this is the first time that this server has been started.*"),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
@@ -179,7 +183,7 @@ INSERT INTO global_suppressions VALUES
  ("The path specified for the variable .* is not a directory or cannot be written:"),
  ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
- ("Slave: Unknown table 't1' Error_code: 1051"),
+ ("Slave: Unknown table 'test.t1' Error_code: 1051"),
 
  /* Messages from valgrind */
  ("==[0-9]*== Memcheck,"),
@@ -197,12 +201,42 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
 
  /*
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
+ */
+ ("Slave I/O: Get master SERVER_UUID failed with error:.*"),
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+ ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
+ ("Slave I/O: Get master BINLOG_CHECKSUM failed with error.*"),
+ ("Slave I/O: Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error.*"),
+ /*
    BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
    table cause warnings in errlog
    Note: This is a temporary suppression until Bug#42147 can be 
    fixed properly. See bug page for more information.
   */
  ("Found lock of type 6 that is write and read locked"),
+
+ /*
+   Warning message is printed out whenever a slave is started with
+   a configuration that is not crash-safe.
+ */
+ (".*If a crash happens this configuration does not guarantee.*"),
+
+ /*
+   Warning messages introduced in the context of the WL#4143.
+ */
+ ("Storing MySQL user name or password information in the master.info repository is not secure.*"),
+ ("Sending passwords in plain text without SSL/TLS is extremely insecure."),
+
+ /*
+  In MTS if the user issues a stop slave sql while it is scheduling a group
+  of events, this warning is emitted.
+  */
+ ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
 
  ("THE_LAST_SUPPRESSION")||
 

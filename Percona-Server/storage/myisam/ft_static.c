@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +56,7 @@ const struct _ft_vft _ft_vft_boolean= {
 
 
 FT_INFO *ft_init_search(uint flags, void *info, uint keynr,
-                        uchar *query, uint query_len, CHARSET_INFO *cs,
+                        uchar *query, uint query_len, const CHARSET_INFO *cs,
                         uchar *record)
 {
   FT_INFO *res;

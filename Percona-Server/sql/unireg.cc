@@ -27,10 +27,14 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_partition.h"                      // struct partition_info
-#include "sql_table.h"                          // check_duplicate_warning
 #include "sql_class.h"                  // THD, Internal_error_handler
 #include <m_ctype.h>
 #include <assert.h>
+
+#include <algorithm>
+
+using std::min;
+using std::max;
 
 #define FCOMP			17		/* Bytes for a packed field */
 
@@ -45,7 +49,7 @@ static bool pack_header(uchar *forminfo,enum legacy_db_type table_type,
 static uint get_interval_id(uint *,List<Create_field> &, Create_field *);
 static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset);
-static bool make_empty_rec(THD *thd, int file, enum legacy_db_type table_type,
+static bool make_empty_rec(THD *thd, int file,
 			   uint table_options,
 			   List<Create_field> &create_fields,
 			   uint reclength, ulong data_offset,
@@ -63,9 +67,9 @@ struct Pack_header_error_handler: public Internal_error_handler
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* msg,
-                                MYSQL_ERROR ** cond_hdl);
+                                Sql_condition ** cond_hdl);
   bool is_handled;
   Pack_header_error_handler() :is_handled(FALSE) {}
 };
@@ -76,9 +80,9 @@ Pack_header_error_handler::
 handle_condition(THD *,
                  uint sql_errno,
                  const char*,
-                 MYSQL_ERROR::enum_warning_level,
+                 Sql_condition::enum_warning_level,
                  const char*,
-                 MYSQL_ERROR ** cond_hdl)
+                 Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   is_handled= (sql_errno == ER_TOO_MANY_FIELDS);
@@ -117,7 +121,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
-  uchar fileinfo[64],forminfo[288],*keybuff;
+  uchar fileinfo[64],forminfo[288],*keybuff, *forminfo_p= forminfo;
   uchar *screen_buff;
   char buff[128];
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -235,12 +239,13 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       my_free(screen_buff);
       DBUG_RETURN(1);
     }
+    THD *thd= current_thd;
     char warn_buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_TABLE_COMMENT),
                 real_table_name, static_cast<ulong>(TABLE_COMMENT_MAXLEN));
     /* do not push duplicate warnings */
-    if (!check_duplicate_warning(current_thd, warn_buff, strlen(warn_buff)))
-      push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                    ER_TOO_LONG_TABLE_COMMENT, warn_buff);
     create_info->comment.length= tmp_len;
   }
@@ -292,7 +297,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   if (!(filepos= make_new_entry(file, fileinfo, NULL, "")))
     goto err;
-  maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo)+1000));
+  maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo_p)+1000));
   int2store(forminfo+2,maxlength);
   int4store(fileinfo+10,(ulong) (filepos+maxlength));
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
@@ -315,7 +320,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   mysql_file_seek(file,
                   (ulong) uint2korr(fileinfo+6) + (ulong) key_buff_length,
                   MY_SEEK_SET, MYF(0));
-  if (make_empty_rec(thd,file,ha_legacy_type(create_info->db_type),
+  if (make_empty_rec(thd,file,
                      create_info->table_options,
 		     create_fields,reclength, data_offset, db_file))
     goto err;
@@ -346,7 +351,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   else
 #endif
   {
-    bzero((uchar*) buff, 6);
+    memset(buff, 0, 6);
     if (mysql_file_write(file, (uchar*) buff, 6, MYF_RW))
       goto err;
   }
@@ -603,7 +608,7 @@ static uchar *pack_screens(List<Create_field> &create_fields,
     }
     cfield->row=(uint8) row;
     cfield->col=(uint8) (length+1);
-    cfield->sc_length=(uint8) min(cfield->length,cols-(length+2));
+    cfield->sc_length= min<uint8>(cfield->length, cols - (length + 2));
   }
   length=(uint) (pos-start_screen);
   int2store(start_screen,length);
@@ -735,7 +740,9 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                                                      COLUMN_COMMENT_MAXLEN);
     if (tmp_len < field->comment.length)
     {
-      if ((current_thd->variables.sql_mode &
+      THD *thd= current_thd;
+
+      if ((thd->variables.sql_mode &
 	   (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_TOO_LONG_FIELD_COMMENT, MYF(0), field->field_name,
@@ -747,8 +754,8 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
                   field->field_name,
                   static_cast<ulong>(COLUMN_COMMENT_MAXLEN));
       /* do not push duplicate warnings */
-      if (!check_duplicate_warning(current_thd, warn_buff, strlen(warn_buff)))
-        push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
+        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_TOO_LONG_FIELD_COMMENT, warn_buff);
       field->comment.length= tmp_len;
     }
@@ -837,7 +844,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
     DBUG_RETURN(1);
   }
   /* Hack to avoid bugs with small static rows in MySQL */
-  reclength=max(file->min_record_length(table_options),reclength);
+  reclength= max<size_t>(file->min_record_length(table_options), reclength);
   if (info_length+(ulong) create_fields.elements*FCOMP+288+
       n_length+int_length+com_length > 65535L || int_count > 255)
   {
@@ -845,7 +852,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
     DBUG_RETURN(1);
   }
 
-  bzero((char*)forminfo,288);
+  memset(forminfo, 0, 288);
   length=(info_length+create_fields.elements*FCOMP+288+n_length+int_length+
 	  com_length);
   int2store(forminfo,length);
@@ -985,7 +992,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
         uint           i;
         unsigned char *val= NULL;
 
-        bzero(occ, sizeof(occ));
+        memset(occ, 0, sizeof(occ));
 
         for (i=0; (val= (unsigned char*) field->interval->type_names[i]); i++)
           for (uint j = 0; j < field->interval->type_lengths[i]; j++)
@@ -1043,9 +1050,32 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
 }
 
 
-	/* save an empty record on start of formfile */
+/**
+   Creates a record buffer consisting of default values for all columns and
+   stores it in the formfile (.frm file.)
 
-static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
+   The value stored for each column is
+
+   - The default value if the column has one.
+   - 1 if the column type is @c enum.
+   - Special messages if the unireg type is YES or NO.
+   - A buffer full of only zeroes in all other cases. This also happens if the
+     default is a function.
+
+   @param thd           The current session.
+   @param file          The .frm file.
+   @param table_options Describes how to pack the values in the buffer.
+   @param create_fields A list of column definition objects.
+   @param reclength     Length of the record buffer in bytes.
+   @param data_offset   Offset inside the buffer before the values.
+   @param handler       The storage engine.
+
+   @retval true An error occured.
+   @retval false Success.
+
+*/
+
+static bool make_empty_rec(THD *thd, File file,
 			   uint table_options,
 			   List<Create_field> &create_fields,
 			   uint reclength,
@@ -1063,8 +1093,8 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
-  bzero((char*) &table, sizeof(table));
-  bzero((char*) &share, sizeof(share));
+  memset(&table, 0, sizeof(table));
+  memset(&share, 0, sizeof(share));
   table.s= &share;
 
   if (!(buff=(uchar*) my_malloc((size_t) reclength,MYF(MY_WME | MY_ZEROFILL))))
@@ -1074,7 +1104,6 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
 
   table.in_use= thd;
   table.s->db_low_byte_first= handler->low_byte_first();
-  table.s->blob_ptr_size= portable_sizeof_char_ptr;
 
   null_count=0;
   if (!(table_options & HA_OPTION_PACK_RECORD))
@@ -1126,6 +1155,11 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
 
     if (field->def)
     {
+      /*
+        Storing the value of a function is pointless as this function may not
+        be constant.
+      */
+      DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
       int res= field->def->save_in_field(regfield, 1);
       /* If not ok or warning of level 'note' */
       if (res != 0 && res != 3)

@@ -147,7 +147,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
                                                sizeof(MY_STAT))))
         goto error;
       
-      bzero(finfo.mystat, sizeof(MY_STAT));
+      memset(finfo.mystat, 0, sizeof(MY_STAT));
       (void) strmov(tmp_file,dp->d_name);
       (void) my_stat(tmp_path, finfo.mystat, MyFlags);
       if (!(finfo.mystat->st_mode & MY_S_IREAD))
@@ -181,7 +181,11 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
     (void) closedir(dirp);
   my_dirend(result);
   if (MyFlags & (MY_FAE | MY_WME))
-    my_error(EE_DIR,MYF(ME_BELL+ME_WAITTANG),path,my_errno);
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(EE_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+  }
   DBUG_RETURN((MY_DIR *) NULL);
 } /* my_dir */
 
@@ -318,7 +322,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
                                                  sizeof(MY_STAT))))
           goto error;
 
-        bzero(finfo.mystat, sizeof(MY_STAT));
+        memset(finfo.mystat, 0, sizeof(MY_STAT));
 #ifdef __BORLANDC__
         finfo.mystat->st_size=find.ff_fsize;
 #else
@@ -367,7 +371,11 @@ error:
 #endif
   my_dirend(result);
   if (MyFlags & MY_FAE+MY_WME)
-    my_error(EE_DIR,MYF(ME_BELL+ME_WAITTANG),path,errno);
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(EE_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+             errno, my_strerror(errbuf, sizeof(errbuf), errno));
+  }
   DBUG_RETURN((MY_DIR *) NULL);
 } /* my_dir */
 
@@ -417,7 +425,9 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
 error:
   if (my_flags & (MY_FAE+MY_WME))
   {
-    my_error(EE_STAT, MYF(ME_BELL+ME_WAITTANG),path,my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(EE_STAT, MYF(ME_BELL+ME_WAITTANG), path,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN((MY_STAT *) NULL);
   }
   DBUG_RETURN((MY_STAT *) NULL);

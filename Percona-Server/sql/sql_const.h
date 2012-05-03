@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,8 +30,8 @@
 #define MAX_FIELD_NAME 34			/* Max colum name length +2 */
 #define MAX_SYS_VAR_LENGTH 32
 #define MAX_KEY MAX_INDEXES                     /* Max used keys */
-#define MAX_REF_PARTS 16			/* Max parts used as ref */
-#define MAX_KEY_LENGTH 3072			/* max possible key */
+#define MAX_REF_PARTS 16U			/* Max parts used as ref */
+#define MAX_KEY_LENGTH 3072U			/* max possible key */
 #if SIZEOF_OFF_T > 4
 #define MAX_REFLENGTH 8				/* Max length for record ref */
 #else
@@ -51,10 +51,15 @@
 #define MAX_BIT_FIELD_LENGTH    64      /* Max length in bits for bit fields */
 
 #define MAX_DATE_WIDTH		10	/* YYYY-MM-DD */
-#define MAX_TIME_WIDTH		23	/* -DDDDDD HH:MM:SS.###### */
+#define MAX_TIME_WIDTH          10      /* -838:59:59 */
+#define MAX_TIME_FULL_WIDTH     23      /* -DDDDDD HH:MM:SS.###### */
 #define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
 #define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 #define MAX_DATETIME_COMPRESSED_WIDTH 14  /* YYYYMMDDHHMMSS */
+
+#define DATE_INT_DIGITS       8         /* YYYYMMDD       */
+#define TIME_INT_DIGITS       7         /* hhhmmss        */
+#define DATETIME_INT_DIGITS  14         /* YYYYMMDDhhmmss */
 
 #define MAX_TABLES	(sizeof(table_map)*8-3)	/* Max tables in join */
 #define PARAM_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-3))
@@ -67,12 +72,11 @@
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
-#define MAX_SORT_MEMORY 2048*1024
-#define MIN_SORT_MEMORY 32*1024
+#define DEFAULT_SORT_MEMORY (256U* 1024U)
+#define MIN_SORT_MEMORY     (32U * 1024U)
 
 /* Some portable defines */
 
-#define portable_sizeof_char_ptr 8
 #define STRING_BUFFER_USUAL_SIZE 80
 
 /* Memory allocated when parsing a statement / saving a statement */
@@ -158,16 +162,15 @@
 
 /**
   The following is used to decide if MySQL should use table scanning
-  instead of reading with keys.  The number says how many evaluation of the
-  WHERE clause is comparable to reading one extra row from a table.
+  instead of reading with keys.  The number says how costly evaluation of the
+  filter condition for a row is compared to reading one extra row from a table.
 */
-#define TIME_FOR_COMPARE   5	// 5 compares == one read
+#define ROW_EVALUATE_COST  0.20
 
 /**
-  Number of comparisons of table rowids equivalent to reading one row from a 
-  table.
+  Cost of comparing a rowid compared to reading one row from a table.
 */
-#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*2)
+#define ROWID_COMPARE_COST 0.10  // Half the cost of a general row comparison
 
 /*
   For sequential disk seeks the cost formula is:
@@ -176,11 +179,11 @@
   The cost of average seek 
     DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
 */
-#define DISK_SEEK_BASE_COST ((double)0.5)
+#define DISK_SEEK_BASE_COST ((double)0.9)
 
 #define BLOCKS_IN_AVG_SEEK  128
 
-#define DISK_SEEK_PROP_COST ((double)0.5/BLOCKS_IN_AVG_SEEK)
+#define DISK_SEEK_PROP_COST ((double)0.1/BLOCKS_IN_AVG_SEEK)
 
 
 /**
@@ -189,6 +192,33 @@
   distribution.
 */
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
+
+/*
+  Constants related to the use of temporary tables in query execution.
+  Lookup and write operations are currently assumed to be equally costly
+  (concerns HEAP_TEMPTABLE_ROW_COST and DISK_TEMPTABLE_ROW_COST).
+*/
+/*
+  Creating a Heap temporary table is by benchmark found to be as costly as
+  writing 10 rows into the table.
+*/
+#define HEAP_TEMPTABLE_CREATE_COST    2.0
+/*
+  Writing a row to or reading a row from a Heap temporary table is equivalent
+  to evaluating a row in the join engine.
+*/
+#define HEAP_TEMPTABLE_ROW_COST       0.2
+/*
+  Creating a MyISAM table is 20 times slower than creating a Heap table.
+*/
+#define DISK_TEMPTABLE_CREATE_COST   40.0
+/*
+  Generating MyIsam rows sequentially is 2 times slower than generating
+  Heap rows, when number of rows is greater than 1000. However, we do not have
+  benchmarks for very large tables, so setting this factor conservatively to
+  be 5 times slower (ie the cost is 1.0).
+*/
+#define DISK_TEMPTABLE_ROW_COST       1.0
 
 #define MY_CHARSET_BIN_MB_MAXLEN 1
 

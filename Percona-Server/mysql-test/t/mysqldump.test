@@ -2168,6 +2168,18 @@ SELECT LENGTH(a) FROM t2;
 
 DROP TABLE t1, t2;
 
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqldump --protocol=tcp --bind-address=127.0.0.1
+# - running mysqlimport --protocol=tcp --bind-address=127.0.0.1
+#
+create table t1 (first char(28) , last varchar(37));
+insert into t1 values ("Magnus", "Blåudd");
+--exec $MYSQL_DUMP --protocol=tcp --bind-address=127.0.0.1 --tab=$MYSQLTEST_VARDIR/tmp/ test
+truncate table t1;
+--exec $MYSQL_IMPORT --protocol=tcp --bind-address=127.0.0.1 test $MYSQLTEST_VARDIR/tmp/t1.txt
+drop table t1;
+
 ###########################################################################
 
 --echo #
@@ -2310,12 +2322,25 @@ RETURN CONCAT(']]>, ', s, '!');
 --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 -R -X BUG52792
 
 DROP DATABASE BUG52792;
+SET NAMES default;
 
 USE test;
 
 --echo #
 --echo # End of 5.1 tests
 --echo #
+
+--echo #
+--echo # Test for --add-drop-trigger
+--echo #
+USE `test`;
+CREATE TABLE t1 (a int, b int);
+CREATE TRIGGER tt1_t1 BEFORE INSERT ON t1 FOR EACH ROW 
+  SET NEW.b=NEW.a + 10;
+
+INSERT INTO t1 (a) VALUES (1),(2),(3);
+--exec $MYSQL_DUMP --triggers --no-data --no-create-info --add-drop-trigger --skip-comments --databases test
+DROP TABLE t1;
 
 --echo #
 --echo # Verify that two modes can be given in --compatible;
@@ -2325,6 +2350,26 @@ USE test;
 CREATE TABLE t1 (a INT);
 # no_t = no_table_options; no_f = no_field_options
 --exec $MYSQL_DUMP --compatible=no_t,no_f --skip-comments test
+DROP TABLE t1;
+
+--echo #
+--echo # Test columns with function defaults.
+--echo #
+CREATE TABLE t1 (
+  a TIMESTAMP,
+  b TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  c TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  d TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  e TIMESTAMP NULL,
+  f TIMESTAMP DEFAULT '2010-05-26 12:34:56',
+  g DATETIME,
+  h DATETIME DEFAULT CURRENT_TIMESTAMP,
+  i DATETIME ON UPDATE CURRENT_TIMESTAMP,
+  j DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  k DATETIME NULL,
+  l DATETIME DEFAULT '2010-05-26 12:34:56'
+);
+--exec $MYSQL_DUMP --skip-comments test
 DROP TABLE t1;
 
 --echo #
@@ -2365,5 +2410,21 @@ DROP DATABASE b12809202_db;
 --echo #
 RESET MASTER;
 
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS b12688860_db;
+--enable_warnings
+
+CREATE DATABASE b12688860_db;
+--exec $MYSQL_DUMP -uroot --password="" --skip-comments b12688860_db 2>&1
+DROP DATABASE b12688860_db;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--echo
+--echo End of tests

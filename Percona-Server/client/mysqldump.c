@@ -109,7 +109,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_slave_apply= 0, 
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
-                opt_alltspcs=0, opt_notspcs= 0;
+                opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -134,6 +134,7 @@ static uint opt_mysql_port= 0, opt_master_data;
 static uint opt_slave_data;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
+static char *opt_bind_addr = NULL;
 static int   first_error=0;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
@@ -211,6 +212,9 @@ static struct my_option my_long_options[] =
   {"add-drop-table", OPT_DROP, "Add a DROP TABLE before each create.",
    &opt_drop, &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
+  {"add-drop-trigger", 0, "Add a DROP TRIGGER before each create.",
+   &opt_drop_trigger, &opt_drop_trigger, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
   {"add-locks", OPT_LOCKS, "Add locks around INSERT statements.",
    &opt_lock, &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
@@ -221,6 +225,9 @@ static struct my_option my_long_options[] =
    "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom of dump.",
    &opt_slave_apply, &opt_slave_apply, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -418,7 +425,7 @@ static struct my_option my_long_options[] =
    &opt_order_by_primary, &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -605,7 +612,7 @@ static void short_usage_sub(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
@@ -851,7 +858,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                                     &err_ptr, &err_len);
       if (err_len)
       {
-        strmake(buff, err_ptr, min(sizeof(buff) - 1, err_len));
+        strmake(buff, err_ptr, MY_MIN(sizeof(buff) - 1, err_len));
         fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
         exit(1);
       }
@@ -901,8 +908,11 @@ static int get_options(int *argc, char ***argv)
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,argc,argv))
     return 1;
+  my_getopt_use_args_separator= FALSE;
+
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
@@ -1467,13 +1477,19 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
                   opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
   mysql_options(&mysql_connection,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                 (char*)&opt_ssl_verify_server_cert);
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -2485,7 +2501,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
   len= my_snprintf(query_buff, sizeof(query_buff),
-                   "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+                   "SET SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
     strmov(query_buff+len,
@@ -2981,6 +2997,9 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
   if (opt_compact)
     fprintf(sql_file, "/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
 
+  if (opt_drop_trigger)
+    fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", (*show_trigger_row)[0]);
+
   fprintf(sql_file,
           "DELIMITER ;;\n"
           "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n"
@@ -3064,6 +3083,9 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                         row[4]);  /* collation_connection */
 
     switch_sql_mode(sql_file, ";", row[1]);
+
+    if (opt_drop_trigger)
+      fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", row[0]);
 
     fprintf(sql_file,
             "DELIMITER ;;\n"
@@ -4862,7 +4884,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
 
       for (; pos != end && *pos != ','; pos++) ;
       var_len= (uint) (pos - start);
-      strmake(buff, start, min(sizeof(buff) - 1, var_len));
+      strmake(buff, start, MY_MIN(sizeof(buff) - 1, var_len));
       find= find_type(buff, lib, FIND_TYPE_BASIC);
       if (!find)
       {
@@ -5150,7 +5172,7 @@ static my_bool get_view_structure(char *table, char* db)
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
 #ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+  sprintf(insert_pat,"SET SQL_QUOTE_SHOW_CREATE=%d",
           (opt_quoted || opt_keywords));
 #endif
 
@@ -5377,7 +5399,7 @@ int main(int argc, char **argv)
 
   compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
-  bzero((char*) &ignore_table, sizeof(ignore_table));
+  memset(&ignore_table, 0, sizeof(ignore_table));
 
   exit_code= get_options(&argc, &argv);
   if (exit_code)

@@ -11,9 +11,8 @@
    Library General Public License for more details.
    
    You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is for Japanese EUC charset, and created based on
 ctype-ujis.c file.
@@ -185,7 +184,7 @@ static uchar sort_order_eucjpms[]=
 #define iseucjpms_ss3(c) (((c)&0xff) == 0x8f)
 
 
-static uint ismbchar_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_eucjpms(const CHARSET_INFO *cs __attribute__((unused)),
 		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -195,7 +194,8 @@ static uint ismbchar_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
     0);
 }
 
-static uint mbcharlen_eucjpms(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_eucjpms(const CHARSET_INFO *cs __attribute__((unused)),
+                              uint c)
 {
   return (iseucjpms(c)? 2: iseucjpms_ss2(c)? 2: iseucjpms_ss3(c)? 3: 1);
 }
@@ -204,7 +204,7 @@ static uint mbcharlen_eucjpms(CHARSET_INFO *cs __attribute__((unused)),uint c)
 
 /* Case info pages for JIS-X-0208 range */
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -325,7 +325,7 @@ static MY_UNICASE_INFO cA2[256]=
 };
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -446,7 +446,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA6[256]=
+static MY_UNICASE_CHARACTER cA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -567,7 +567,7 @@ static MY_UNICASE_INFO cA6[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -688,7 +688,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
 
 
-static MY_UNICASE_INFO cAD[256]=
+static MY_UNICASE_CHARACTER cAD[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -811,7 +811,7 @@ static MY_UNICASE_INFO cAD[256]=
 
 /* Case info pages for JIS-X-0212 range */
 
-static MY_UNICASE_INFO c8FA6[256]=
+static MY_UNICASE_CHARACTER c8FA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -932,7 +932,7 @@ static MY_UNICASE_INFO c8FA6[256]=
 };
 
 
-static MY_UNICASE_INFO c8FA7[256]=
+static MY_UNICASE_CHARACTER c8FA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1053,7 +1053,7 @@ static MY_UNICASE_INFO c8FA7[256]=
 };
 
 
-static MY_UNICASE_INFO c8FA9[256]=
+static MY_UNICASE_CHARACTER c8FA9[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1174,7 +1174,7 @@ static MY_UNICASE_INFO c8FA9[256]=
 };
 
 
-static MY_UNICASE_INFO c8FAA[256]=
+static MY_UNICASE_CHARACTER c8FAA[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1295,7 +1295,7 @@ static MY_UNICASE_INFO c8FAA[256]=
 };
 
 
-static MY_UNICASE_INFO c8FAB[256]=
+static MY_UNICASE_CHARACTER c8FAB[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1416,7 +1416,7 @@ static MY_UNICASE_INFO c8FAB[256]=
 };
 
 
-static MY_UNICASE_INFO c8FF3[256]=
+static MY_UNICASE_CHARACTER c8FF3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1537,7 +1537,7 @@ static MY_UNICASE_INFO c8FF3[256]=
 };
 
 
-static MY_UNICASE_INFO c8FF4[256]=
+static MY_UNICASE_CHARACTER c8FF4[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1658,7 +1658,7 @@ static MY_UNICASE_INFO c8FF4[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_eucjpms[512]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_eucjpms[512]=
 {
   /* JIS-X-0208 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
@@ -1727,6 +1727,13 @@ static MY_UNICASE_INFO *my_caseinfo_eucjpms[512]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL,c8FF3,c8FF4, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_eucjpms=
+{
+  0x0FFFF,
+  my_caseinfo_pages_eucjpms
 };
 
 
@@ -67303,7 +67310,7 @@ static uint16 unicode_to_jisx0212_eucjpms[65536]=
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 static int
-my_mb_wc_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_eucjpms(const CHARSET_INFO *cs __attribute__((unused)),
                  my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int hi;
@@ -67363,7 +67370,7 @@ my_mb_wc_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in EUCJPMS
 */
 static int
-my_wc_mb_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_eucjpms(const CHARSET_INFO *cs __attribute__((unused)),
                  my_wc_t wc, uchar *s, uchar *e)
 {
   int jp;
@@ -67418,7 +67425,8 @@ my_wc_mb_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
 */
 
 static
-size_t my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_eucjpms(const CHARSET_INFO *cs
+                                  __attribute__((unused)),
                                   const char *beg, const char *end, size_t pos,
                                   int *error)
 {
@@ -67466,7 +67474,7 @@ size_t my_well_formed_len_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_numcells_eucjpms(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_eucjpms(const CHARSET_INFO *cs __attribute__((unused)),
                            const char *str, const char *str_end)
 {
   size_t clen;
@@ -67505,7 +67513,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
     NULL,		/* init */
     my_strnncoll_simple,/* strnncoll    */
     my_strnncollsp_simple,
-    my_strnxfrm_simple,	/* strnxfrm     */
+    my_strnxfrm_mb,	/* strnxfrm     */
     my_strnxfrmlen_simple,
     my_like_range_mb,   /* like_range   */
     my_wildcmp_mb,	/* wildcmp      */
@@ -67560,11 +67568,10 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci=
     to_lower_eucjpms,
     to_upper_eucjpms,
     sort_order_eucjpms,
-    NULL,		/* sort_order_big*/
-    NULL,		/* contractions */
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_eucjpms,/* caseinfo     */
+    &my_caseinfo_eucjpms,/* caseinfo    */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -67576,6 +67583,8 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci=
     0xFEFE,		/* max_sort_char */
     ' ',		/* pad_char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -67593,11 +67602,10 @@ CHARSET_INFO my_charset_eucjpms_bin=
     to_lower_eucjpms,
     to_upper_eucjpms,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_eucjpms,/* caseinfo     */
+    &my_caseinfo_eucjpms,/* caseinfo    */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -67609,6 +67617,8 @@ CHARSET_INFO my_charset_eucjpms_bin=
     0xFEFE,		/* max_sort_char */
     ' ',		/* pad_char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

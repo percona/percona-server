@@ -49,6 +49,7 @@ DYNAMIC_ARRAY tables4repair, tables4rebuild;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
+static char *opt_bind_addr = NULL;
 
 enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
@@ -68,6 +69,9 @@ static struct my_option my_long_options[] =
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
    &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -138,7 +142,7 @@ static struct my_option my_long_options[] =
    0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given, it's solicited on the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -224,7 +228,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
@@ -348,9 +352,11 @@ static int get_options(int *argc, char ***argv)
     exit(0);
   }
 
+  my_getopt_use_args_separator= TRUE;
   if ((ho_error= load_defaults("my", load_default_groups, argc, argv)) ||
       (ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
+  my_getopt_use_args_separator= FALSE;
 
   if (!what_to_do)
   {
@@ -783,9 +789,9 @@ static void print_result()
 	  strcmp(row[3],"OK"))
       {
         if (table_rebuild)
-          insert_dynamic(&tables4rebuild, (uchar*) prev);
+          insert_dynamic(&tables4rebuild, prev);
         else
-          insert_dynamic(&tables4repair, (uchar*) prev);
+          insert_dynamic(&tables4repair, prev);
       }
       found_error=0;
       table_rebuild=0;
@@ -813,9 +819,9 @@ static void print_result()
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
   {
     if (table_rebuild)
-      insert_dynamic(&tables4rebuild, (uchar*) prev);
+      insert_dynamic(&tables4rebuild, prev);
     else
-      insert_dynamic(&tables4repair, (uchar*) prev);
+      insert_dynamic(&tables4repair, prev);
   }
   mysql_free_result(res);
 }
@@ -833,11 +839,17 @@ static int dbConnect(char *host, char *user, char *passwd)
     mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&mysql_connection, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&mysql_connection, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);

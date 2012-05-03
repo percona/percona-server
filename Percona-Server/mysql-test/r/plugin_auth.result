@@ -1,8 +1,13 @@
+CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
 PLUGIN_STATUS	ACTIVE
 PLUGIN_TYPE	AUTHENTICATION
 PLUGIN_DESCRIPTION	plugin API test plugin
+SET @old_log_output=          @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET GLOBAL log_output =       'TABLE';
+SET GLOBAL general_log=       'ON';
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
@@ -226,9 +231,23 @@ SELECT @@LOCAL.external_user;
 @@LOCAL.external_user
 'plug'@'%'
 # in connection default
+WL#5706 -- show the above got logged/rewritten correctly
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('% IDENTIFIED ','WITH%');
+argument
+CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server'
+CREATE USER 'Ÿ'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug_dest'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER 'grant_plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'grant_plug_dest'
+CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
+SET GLOBAL log_output=  @old_log_output;
+SET GLOBAL general_log= @old_general_log;
 ## END @@external_user tests
 #
 #  Bug #56798 : Wrong credentials assigned when using a proxy user.
@@ -286,6 +305,8 @@ REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
 DROP USER u1@localhost,u2@localhost;
 # test if FLUSH PRIVILEGES works without the proxies_priv table
 FLUSH PRIVILEGES;
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
@@ -298,11 +319,16 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -414,6 +440,8 @@ YES	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
@@ -426,12 +454,17 @@ mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
 mysql.host                                         OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
@@ -448,20 +481,40 @@ IS_NULLABLE	COLUMN_NAME
 YES	authentication_string
 YES	plugin
 #
-# Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
-#  .-> USING PASSWORD: NO 
-#
-# shoud contain "using password=yes"
-ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: YES)
-# shoud contain "using password=no"
-ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: NO)
-#
 # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD
 #
 CREATE USER bug12610784@localhost;
 SET PASSWORD FOR bug12610784@localhost = PASSWORD('secret');
 ERROR 28000: Access denied for user 'bug12610784'@'localhost' (using password: NO)
 DROP USER bug12610784@localhost;
+#
+# Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
+#  .-> USING PASSWORD: NO 
+# shoud contain "using password=yes"
+Warning: Using a password on the command line interface can be insecure.
+ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: YES)
+# shoud contain "using password=no"
+ERROR 1045 (28000): Access denied for user 'unknown'@'localhost' (using password: NO)
+#
+# Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
+#   AUTHENTICATION SETTINGS
+#
+CREATE USER bug12818542@localhost 
+IDENTIFIED WITH 'test_plugin_server' AS 'bug12818542_dest';
+CREATE USER bug12818542_dest@localhost 
+IDENTIFIED BY 'bug12818542_dest_passwd';
+GRANT PROXY ON bug12818542_dest@localhost TO bug12818542@localhost;
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+bug12818542@localhost	bug12818542_dest@localhost
+SET PASSWORD = PASSWORD('bruhaha');
+Warnings:
+Note	1699	SET PASSWORD has no significance for users authenticating via plugins
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+bug12818542@localhost	bug12818542_dest@localhost
+DROP USER bug12818542@localhost;
+DROP USER bug12818542_dest@localhost;
 #
 # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
 #   AUTHENTICATION SETTINGS

@@ -20,15 +20,14 @@
   The actual communction is handled by the net_xxx functions in net_serv.cc
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "protocol.h"
 #include "sql_class.h"                          // THD
 #include <stdarg.h>
+
+using std::min;
+using std::max;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
 /* Declared non-static only because of the embedded library. */
@@ -78,7 +77,8 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const uchar *from, size_t length,
-                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+                              const CHARSET_INFO *from_cs,
+                              const CHARSET_INFO *to_cs)
 {
   uint dummy_errors;
   /* Calculate maxumum possible result length */
@@ -161,14 +161,14 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err,
     It's one case when we can push an error even though there
     is an OK or EOF already.
   */
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
 
   /* Abort multi-result sets */
   thd->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
   error= net_send_error_packet(thd, sql_errno, err, sqlstate);
 
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
 
   DBUG_RETURN(error);
 }
@@ -233,7 +233,7 @@ net_send_ok(THD *thd,
     pos+=2;
 
     /* We can only return up to 65535 warnings in two bytes */
-    uint tmp= min(statement_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535U);
     int2store(pos, tmp);
     pos+= 2;
   }
@@ -242,7 +242,7 @@ net_send_ok(THD *thd,
     int2store(pos, server_status);
     pos+=2;
   }
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
 
   if (message && message[0])
     pos= net_store_data(pos, (uchar*) message, strlen(message));
@@ -251,7 +251,7 @@ net_send_ok(THD *thd,
     error= net_flush(net);
 
 
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
   DBUG_RETURN(error);
@@ -291,11 +291,11 @@ net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
   /* Set to TRUE if no active vio, to work well in case of --init-file */
   if (net->vio != 0)
   {
-    thd->stmt_da->can_overwrite_status= TRUE;
+    thd->get_stmt_da()->set_overwrite_status(true);
     error= write_eof_packet(thd, net, server_status, statement_warn_count);
     if (!error)
       error= net_flush(net);
-    thd->stmt_da->can_overwrite_status= FALSE;
+    thd->get_stmt_da()->set_overwrite_status(false);
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
   DBUG_RETURN(error);
@@ -329,7 +329,7 @@ static bool write_eof_packet(THD *thd, NET *net,
       Don't send warn count during SP execution, as the warn_list
       is cleared between substatements, and mysqltest gets confused
     */
-    uint tmp= min(statement_warn_count, 65535);
+    uint tmp= min(statement_warn_count, 65535U);
     buff[0]= 254;
     int2store(buff+1, tmp);
     /*
@@ -486,30 +486,30 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
 void Protocol::end_statement()
 {
   DBUG_ENTER("Protocol::end_statement");
-  DBUG_ASSERT(! thd->stmt_da->is_sent);
+  DBUG_ASSERT(! thd->get_stmt_da()->is_sent());
   bool error= FALSE;
 
   /* Can not be true, but do not take chances in production. */
-  if (thd->stmt_da->is_sent)
+  if (thd->get_stmt_da()->is_sent())
     DBUG_VOID_RETURN;
 
-  switch (thd->stmt_da->status()) {
+  switch (thd->get_stmt_da()->status()) {
   case Diagnostics_area::DA_ERROR:
     /* The query failed, send error to log and abort bootstrap. */
-    error= send_error(thd->stmt_da->sql_errno(),
-                      thd->stmt_da->message(),
-                      thd->stmt_da->get_sqlstate());
+    error= send_error(thd->get_stmt_da()->sql_errno(),
+                      thd->get_stmt_da()->message(),
+                      thd->get_stmt_da()->get_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
     error= send_eof(thd->server_status,
-                    thd->stmt_da->statement_warn_count());
+                    thd->get_stmt_da()->statement_warn_count());
     break;
   case Diagnostics_area::DA_OK:
     error= send_ok(thd->server_status,
-                   thd->stmt_da->statement_warn_count(),
-                   thd->stmt_da->affected_rows(),
-                   thd->stmt_da->last_insert_id(),
-                   thd->stmt_da->message());
+                   thd->get_stmt_da()->statement_warn_count(),
+                   thd->get_stmt_da()->affected_rows(),
+                   thd->get_stmt_da()->last_insert_id(),
+                   thd->get_stmt_da()->message());
     break;
   case Diagnostics_area::DA_DISABLED:
     break;
@@ -520,7 +520,7 @@ void Protocol::end_statement()
     break;
   }
   if (!error)
-    thd->stmt_da->is_sent= TRUE;
+    thd->get_stmt_da()->set_is_sent(true);
   DBUG_VOID_RETURN;
 }
 
@@ -638,9 +638,9 @@ bool Protocol::flush()
 {
 #ifndef EMBEDDED_LIBRARY
   bool error;
-  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->get_stmt_da()->set_overwrite_status(true);
   error= net_flush(&thd->net);
-  thd->stmt_da->can_overwrite_status= FALSE;
+  thd->get_stmt_da()->set_overwrite_status(false);
   return error;
 #else
   return 0;
@@ -675,7 +675,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   String tmp((char*) buff,sizeof(buff),&my_charset_bin);
   Protocol_text prot(thd);
   String *local_packet= prot.storage_packet();
-  CHARSET_INFO *thd_charset= thd->variables.character_set_results;
+  const CHARSET_INFO *thd_charset= thd->variables.character_set_results;
   DBUG_ENTER("send_result_set_metadata");
 
   if (flags & SEND_NUM_ROWS)
@@ -694,7 +694,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   while ((item=it++))
   {
     char *pos;
-    CHARSET_INFO *cs= system_charset_info;
+    const CHARSET_INFO *cs= system_charset_info;
     Send_field field;
     item->make_field(&field);
 
@@ -801,7 +801,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       Send no warning information, as it will be sent at statement end.
     */
     if (write_eof_packet(thd, &thd->net, thd->server_status,
-                         thd->warning_info->statement_warn_count()))
+                         thd->get_stmt_da()->current_statement_warn_count()))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(prepare_for_send(list->elements));
@@ -877,7 +877,7 @@ bool Protocol::send_result_set_row(List<Item> *row_items)
     1		error
 */
 
-bool Protocol::store(const char *from, CHARSET_INFO *cs)
+bool Protocol::store(const char *from, const CHARSET_INFO *cs)
 {
   if (!from)
     return store_null();
@@ -944,7 +944,8 @@ bool Protocol_text::store_null()
 */
 
 bool Protocol::store_string_aux(const char *from, size_t length,
-                                CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                                const CHARSET_INFO *fromcs,
+                                const CHARSET_INFO *tocs)
 {
   /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
   if (tocs && !my_charset_same(fromcs, tocs) &&
@@ -960,7 +961,8 @@ bool Protocol::store_string_aux(const char *from, size_t length,
 
 
 bool Protocol_text::store(const char *from, size_t length,
-                          CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                          const CHARSET_INFO *fromcs,
+                          const CHARSET_INFO *tocs)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -976,9 +978,9 @@ bool Protocol_text::store(const char *from, size_t length,
 
 
 bool Protocol_text::store(const char *from, size_t length,
-                          CHARSET_INFO *fromcs)
+                          const CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %.*s", field_pos,
                       field_count, (int) length, (length == 0 ? "" : from)));
@@ -1060,7 +1062,7 @@ bool Protocol_text::store_decimal(const my_decimal *d)
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
 #endif
-  char buff[DECIMAL_MAX_STR_LENGTH];
+  char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
   (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
   return net_store_data((uchar*) str.ptr(), str.length());
@@ -1100,7 +1102,7 @@ bool Protocol_text::store(Field *field)
 #endif
   char buff[MAX_FIELD_WIDTH];
   String str(buff,sizeof(buff), &my_charset_bin);
-  CHARSET_INFO *tocs= this->thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
   TABLE *table= field->table;
   my_bitmap_map *old_map= 0;
@@ -1124,22 +1126,15 @@ bool Protocol_text::store(Field *field)
     we support 0-6 decimals for time.
 */
 
-bool Protocol_text::store(MYSQL_TIME *tm)
+bool Protocol_text::store(MYSQL_TIME *tm, uint decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_DATETIME ||
-	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
+              is_temporal_type_with_date_and_time(field_types[field_pos]));
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  length= sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                  (int) tm->year, (int) tm->month,
-                  (int) tm->day, (int) tm->hour,
-                  (int) tm->minute, (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_datetime_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1157,29 +1152,18 @@ bool Protocol_text::store_date(MYSQL_TIME *tm)
 }
 
 
-/**
-  @todo 
-    Second_part format ("%06") needs to change when 
-    we support 0-6 decimals for time.
-*/
-
-bool Protocol_text::store_time(MYSQL_TIME *tm)
+bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
-	      field_types[field_pos] == MYSQL_TYPE_TIME);
+              field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= sprintf(buff, "%s%02ld:%02d:%02d", tm->neg ? "-" : "",
-                  (long) day*24L+(long) tm->hour, (int) tm->minute,
-                  (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_time_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
+
 
 /**
   Assign OUT-parameters to user variables.
@@ -1261,21 +1245,22 @@ bool Protocol_binary::prepare_for_send(uint num_columns)
 void Protocol_binary::prepare_for_resend()
 {
   packet->length(bit_fields+1);
-  bzero((uchar*) packet->ptr(), 1+bit_fields);
+  memset(const_cast<char*>(packet->ptr()), 0, 1+bit_fields);
   field_pos=0;
 }
 
 
 bool Protocol_binary::store(const char *from, size_t length,
-                            CHARSET_INFO *fromcs)
+                            const CHARSET_INFO *fromcs)
 {
-  CHARSET_INFO *tocs= thd->variables.character_set_results;
+  const CHARSET_INFO *tocs= thd->variables.character_set_results;
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
 }
 
 bool Protocol_binary::store(const char *from, size_t length,
-                            CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+                            const CHARSET_INFO *fromcs,
+                            const CHARSET_INFO *tocs)
 {
   field_pos++;
   return store_string_aux(from, length, fromcs, tocs);
@@ -1340,7 +1325,7 @@ bool Protocol_binary::store_decimal(const my_decimal *d)
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
 #endif
-  char buff[DECIMAL_MAX_STR_LENGTH];
+  char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
   (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
   return store(str.ptr(), str.length(), str.charset());
@@ -1380,7 +1365,7 @@ bool Protocol_binary::store(Field *field)
 }
 
 
-bool Protocol_binary::store(MYSQL_TIME *tm)
+bool Protocol_binary::store(MYSQL_TIME *tm, uint precision)
 {
   char buff[12],*pos;
   uint length;
@@ -1410,11 +1395,11 @@ bool Protocol_binary::store_date(MYSQL_TIME *tm)
 {
   tm->hour= tm->minute= tm->second=0;
   tm->second_part= 0;
-  return Protocol_binary::store(tm);
+  return Protocol_binary::store(tm, 0);
 }
 
 
-bool Protocol_binary::store_time(MYSQL_TIME *tm)
+bool Protocol_binary::store_time(MYSQL_TIME *tm, uint precision)
 {
   char buff[13], *pos;
   uint length;

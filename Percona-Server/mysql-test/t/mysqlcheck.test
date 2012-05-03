@@ -147,7 +147,7 @@ SET NAMES DEFAULT;
 --echo mysqlcheck --default-character-set="latin1" --databases test
 # Error returned depends on platform, replace it with "Table doesn't exist"
 call mtr.add_suppression("Can't find file: '..test.@003f.frm'");
---replace_result "Can't find file: './test/@003f.frm' (errno: 22)" "Table doesn't exist" "Table 'test.?' doesn't exist" "Table doesn't exist"
+--replace_result "Can't find file: './test/@003f.frm' (errno: 22 - Invalid argument)" "Table doesn't exist" "Table 'test.?' doesn't exist" "Table doesn't exist"
 --exec $MYSQL_CHECK --default-character-set="latin1" --databases test
 --echo mysqlcheck --default-character-set="utf8" --databases test
 --exec $MYSQL_CHECK --default-character-set="utf8" --databases test
@@ -220,8 +220,13 @@ create table `#mysql50#t1-1` (a int) engine=myisam;
 show tables like 't1-1';
 drop table `t1-1`;
 
---echo End of 5.1 tests
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqlcheck --protcol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQL_CHECK --protocol=tcp --bind-address=127.0.0.1 --databases test
 
+--echo End of 5.1 tests
 
 --echo #
 --echo # Bug #35269: mysqlcheck behaves different depending on order of parameters
@@ -312,3 +317,19 @@ CHECK TABLE bug47205 FOR UPGRADE;
 CHECK TABLE bug47205 FOR UPGRADE;
 
 DROP TABLE bug47205;
+
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS b12688860_db;
+--enable_warnings
+
+CREATE DATABASE b12688860_db;
+--exec $MYSQL_CHECK -uroot --password="" --fix-db-names b12688860_db 2>&1
+DROP DATABASE b12688860_db;
+
+--echo
+--echo End of tests

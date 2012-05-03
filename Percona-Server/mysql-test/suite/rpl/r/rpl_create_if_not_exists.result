@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE IF NOT EXISTS mysqltest;
@@ -77,8 +80,7 @@ CREATE VIEW v1 AS SELECT id FROM t2;
 CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
 Warnings:
 Note	1050	Table 'v1' already exists
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 SHOW CREATE TABLE v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
@@ -95,8 +97,7 @@ CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
 CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
 Warnings:
 Note	1050	Table 'tt1' already exists
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 SELECT * FROM t2;
 id
 2
@@ -113,8 +114,21 @@ CREATE VIEW v1 AS SELECT 1 as a;
 CREATE TABLE IF NOT EXISTS v1 SELECT 2 as a;
 Warnings:
 Note	1050	Table 'v1' already exists
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 DROP VIEW v1;
+DROP TABLE t1, t2;
+#
+# Test case which has failed on assertion after refactoring which was
+# made as part of fix for bug #27480 "Extend CREATE TEMPORARY TABLES
+# privilege to allow temp table operations".
+#
+CREATE TEMPORARY TABLE t1 (id int);
+CREATE TABLE IF NOT EXISTS t2 LIKE t1;
+# The below statement should succeed with warning and
+# should not crash due to failing assertion.
+CREATE TABLE IF NOT EXISTS t2 LIKE t1;
+Warnings:
+Note	1050	Table 't2' already exists
+# Clean-up.
 DROP TABLE t1, t2;
 include/rpl_end.inc

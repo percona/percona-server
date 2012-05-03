@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -378,10 +378,6 @@
 #include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                          // gcc: Class implementation
-#endif
-
 #include "ha_federated.h"
 #include "probes_mysql.h"
 
@@ -389,6 +385,11 @@
 #include "key.h"                                // key_copy
 
 #include <mysql/plugin.h>
+
+#include <algorithm>
+
+using std::min;
+using std::max;
 
 /* Variables for federated share methods */
 static HASH federated_open_tables;              // To track open tables
@@ -445,11 +446,8 @@ static void init_federated_psi_keys(void)
   const char* category= "federated";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_federated_mutexes);
-  PSI_server->register_mutex(category, all_federated_mutexes, count);
+  mysql_mutex_register(category, all_federated_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -579,8 +577,8 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   size_t buf_len;
   DBUG_ENTER("ha_federated parse_url_error");
 
-  buf_len= min(table->s->connect_string.length,
-               FEDERATED_QUERY_BUFFER_SIZE-1);
+  buf_len= min<size_t>(table->s->connect_string.length,
+                       FEDERATED_QUERY_BUFFER_SIZE-1);
   strmake(buf, table->s->connect_string.str, buf_len);
   my_error(error_num, MYF(0), buf);
   DBUG_RETURN(error_num);
@@ -905,7 +903,7 @@ ha_federated::ha_federated(handlerton *hton,
   mysql(0), stored_result(0)
 {
   trx_next= 0;
-  bzero(&bulk_insert, sizeof(bulk_insert));
+  memset(&bulk_insert, 0, sizeof(bulk_insert));
 }
 
 
@@ -1848,8 +1846,6 @@ int ha_federated::write_row(uchar *buf)
   values_string.length(0);
   insert_field_value_string.length(0);
   ha_statistic_increment(&SSV::ha_write_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
 
   /*
     start both our field and field values strings
@@ -2122,12 +2118,12 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   Keep in mind that the server can do updates based on ordering if an ORDER BY
   clause was used. Consecutive ordering is not guaranteed.
-  Currently new_data will not have an updated auto_increament record, or
-  and updated timestamp field. You can do these for federated by doing these:
-  if (table->timestamp_on_update_now)
-    update_timestamp(new_row+table->timestamp_on_update_now-1);
-  if (table->next_number_field && record == table->record[0])
-    update_auto_increment();
+
+  Currently new_data will not have an updated AUTO_INCREMENT record. You can
+  do this for federated by doing the following:
+
+    if (table->next_number_field && record == table->record[0])
+      update_auto_increment();
 
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.
 */
@@ -3300,7 +3296,7 @@ MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
   DBUG_ENTER("ha_federated::store_result");
   if (result)
   {
-    (void) insert_dynamic(&results, (uchar*) &result);
+    (void) insert_dynamic(&results, &result);
   }
   position_called= FALSE;
   DBUG_RETURN(result);

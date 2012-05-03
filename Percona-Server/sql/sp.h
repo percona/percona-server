@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ sp_cache_routine(THD *thd, int type, sp_name *name,
                  bool lookup_only, sp_head **sp);
 
 bool
-sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
+sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
 bool
 sp_show_create_routine(THD *thd, int type, sp_name *name);
@@ -188,18 +188,18 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, sql_mode_t sql_mode, int type,
                                const char *returns, const char *params,
                                bool *free_sp_head);
 
 bool load_charset(MEM_ROOT *mem_root,
                   Field *field,
-                  CHARSET_INFO *dflt_cs,
-                  CHARSET_INFO **cs);
+                  const CHARSET_INFO *dflt_cs,
+                  const CHARSET_INFO **cs);
 
 bool load_collation(MEM_ROOT *mem_root,
                     Field *field,
-                    CHARSET_INFO *dflt_cl,
-                    CHARSET_INFO **cl);
+                    const CHARSET_INFO *dflt_cl,
+                    const CHARSET_INFO **cl);
 
 #endif /* _SP_H_ */

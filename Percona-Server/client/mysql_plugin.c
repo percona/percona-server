@@ -323,7 +323,7 @@ static int get_default_values()
   int ret= 0;
   FILE *file= 0;
 
-  bzero(tool_path, FN_REFLEN);
+  memset(tool_path, 0, FN_REFLEN);
   if ((error= find_tool("my_print_defaults" FN_EXEEXT, tool_path)))
     goto exit;
   else

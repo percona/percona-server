@@ -1,5 +1,5 @@
-set global storage_engine=myisam;
-set session storage_engine=myisam;
+set global default_storage_engine=myisam;
+set session default_storage_engine=myisam;
 drop table if exists t1,t2,t3,t4,t5,t6;
 drop database if exists mysqltest;
 create table t1 (a int not null primary key auto_increment, message char(20));
@@ -677,11 +677,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
 AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using where
+1	SIMPLE	t1	range	PRIMARY,files	PRIMARY	35	NULL	5	Using index condition
 EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
 AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	PRIMARY,files	PRIMARY	35	const,const	1	
+1	SIMPLE	t2	const	PRIMARY,files	PRIMARY	35	const,const	1	NULL
 DROP TABLE t2, t1;
 create table t1 (x int, y int, index xy(x, y));
 create table t2 (x int, y int, index xy(x, y));
@@ -2717,13 +2717,14 @@ DROP TABLE tm1, t1, t2, t3, t4, t5;
 # Bug#47633 - assert in ha_myisammrg::info during OPTIMIZE
 #
 CREATE TEMPORARY TABLE t1 (c1 INT);
-ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists,t1);
+CREATE TEMPORARY TABLE t2 (c1 INT);
+ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists, t2);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	Error	Table 'test.t_not_exists' doesn't exist
 test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.t1	optimize	error	Corrupt
-DROP TABLE t1;
+DROP TABLE t1, t2;
 #
 # Bug#36171 - CREATE TEMPORARY TABLE and MERGE engine
 # More tests with TEMPORARY MERGE table and permanent children.
@@ -3711,3 +3712,112 @@ test.m1	repair	error	Corrupt
 drop tables m1, t1, t4;
 drop view t3;
 End of 5.5 tests
+#
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+# 
+# Check that prelocking works correctly for various variants of
+# merge tables.
+drop table if exists t1, t2, m1;
+drop function if exists f1;
+create table t1 (j int);
+insert into t1 values (1);
+create function f1() returns int return (select count(*) from m1);
+create temporary table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop tables t2, m1;
+create table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop table m1;
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop tables t1, t2, m1;
+drop function f1;
+#
+# Check that REPAIR/CHECK and CHECKSUM statements work correctly
+# for various variants of merge tables.
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+create temporary table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS m1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TABLE IF EXISTS q1;
+DROP TABLE IF EXISTS q2;
+CREATE TABLE t1(a INT);
+CREATE TABLE m1(a INT) ENGINE = MERGE UNION (q1, q2);
+CREATE TRIGGER trg1 BEFORE DELETE ON t1
+FOR EACH ROW
+INSERT INTO m1 VALUES (1);
+DELETE FROM t1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TRIGGER trg1;
+DROP TABLE t1;
+DROP TABLE m1;
+#
+# Test for bug #11764786 - 57657: TEMPORARY MERGE TABLE WITH TEMPORARY
+#                                 UNDERLYING TABLE, IS BROKEN BY ALTER.
+#
+DROP TABLES IF EXISTS t1, t2, t3, t4;
+CREATE TEMPORARY TABLE t1(i INT) ENGINE= MyISAM;
+CREATE TEMPORARY TABLE t2(i INT) ENGINE= MERGE UNION= (t1) INSERT_METHOD= LAST;
+ALTER TABLE t2 INSERT_METHOD= FIRST;
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+CREATE TABLE t3(i INT) ENGINE= MyISAM;
+CREATE TABLE t4(i int) ENGINE= MERGE UNION= (t3) INSERT_METHOD= LAST;
+ALTER TABLE t4 INSERT_METHOD= FIRST;
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Clean-up
+DROP TABLES t1, t2, t3, t4;
+# End of bug #11764786 - 57657

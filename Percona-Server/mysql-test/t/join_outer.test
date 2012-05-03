@@ -22,6 +22,7 @@ select t1.*,t2.* from t1 as t0,{ oj t2 left outer join t1 on (t1.a=t2.a) } WHERE
 select t1.*,t2.* from t1 left join t2 using (a);
 select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
 select t1.*,t2.* from t1 left join t2 using (a,c);
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (c);
 select t1.*,t2.* from t1 natural left outer join t2;
 
@@ -31,6 +32,7 @@ select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id is null;
 explain select t1.*,t2.* from t1,t2 where t1.a=t2.a and isnull(t2.a)=1;
 explain select t1.*,t2.* from t1 left join t2 on t1.a=t2.a where isnull(t2.a)=1;
 
+--sorted_result
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 
 # The next query should rearange the left joins to get this to work
@@ -233,18 +235,21 @@ INSERT INTO t2 VALUES (1,1,'El Gato');
 INSERT INTO t2 VALUES (2,1,'Perrito');
 INSERT INTO t2 VALUES (3,3,'Happy');
 
+--sorted_result
 select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner);
 select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 
+--sorted_result
 select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner);
 select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 
+--sorted_result
 select t1.name, t2.name, t2.id,t3.id from t2 right join t1 on (t1.id = t2.owner) left join t1 as t3 on t3.id=t2.owner;
 select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
@@ -309,7 +314,7 @@ insert into t2 values (1, 2, 3),(2, 2, 8), (4,3,9),(3,2,10);
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
 t1.m = t2.m where t1.n = 1;
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
-t1.m = t2.m where t1.n = 1 order by t1.o;
+t1.m = t2.m where t1.n = 1 order by t1.o,t1.m;
 drop table t1,t2;
 
 # Test bug with NATURAL join:
@@ -420,6 +425,7 @@ insert into t1 (fooID) values (10),(20),(30);
 insert into t2 values (10,1),(20,2),(30,3);
 explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
+--sorted_result
 select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
 drop table t1,t2;
 
@@ -429,10 +435,13 @@ create table t3 (i int);
 insert into t1 values(1),(2);
 insert into t2 values(2),(3);
 insert into t3 values(2),(4);
+--sorted_result
 select * from t1 natural left join t2 natural left join t3;
 select * from t1 natural left join t2 where (t2.i is not null)=0;
+--sorted_result
 select * from t1 natural left join t2 where (t2.i is not null) is not null;
 select * from t1 natural left join t2 where (i is not null)=0;
+--sorted_result
 select * from t1 natural left join t2 where (i is not null) is not null;
 drop table t1,t2,t3;
 
@@ -800,11 +809,16 @@ CREATE TABLE t2 (b int);
 INSERT INTO t1 VALUES (1), (2), (3), (4);
 INSERT INTO t2 VALUES (2), (3);
 
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1);
 
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1 OR 1);
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (0 OR 1);
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
 
 DROP TABLE t1,t2;
@@ -1107,6 +1121,7 @@ INSERT INTO t3 VALUES (0),(1),(2),    (4);
 CREATE TABLE t4 (i INT NOT NULL);
 INSERT INTO t4 VALUES (0),(1),(2),(3)   ;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( t2 LEFT JOIN
@@ -1119,6 +1134,7 @@ SELECT * FROM
  ON t2.i = t1.i
  ;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( t2 LEFT JOIN
@@ -1134,6 +1150,7 @@ SELECT * FROM
 
 # Most simplified testcase to reproduce the bug.
 # (Has to be at least a two level nested outer join)
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1149,6 +1166,7 @@ SELECT * FROM
 # We then add some equi-join inside the query above:
 # (There Used to be some problems here with first
 #  proposed patch for this bug)
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1161,6 +1179,7 @@ SELECT * FROM
  ON t2.i = t1.i
  WHERE t3.i IS NULL;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1173,6 +1192,7 @@ SELECT * FROM
  ON t2.i = t1.i
  WHERE t3.i IS NULL;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1204,11 +1224,13 @@ CREATE TABLE k (pk INT NOT NULL, col_int_key INT);
 INSERT INTO k VALUES (1,9),(2,2),(3,5),(4,2),(5,7),(6,0),(7,5);
 
 # Baseline query wo/ 'WHERE ... IS NULL' - was correct
+--sorted_result
 SELECT TABLE1.pk FROM k TABLE1
 RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
 RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key;
 
 # Adding 'WHERE ... IS NULL' -> incorrect result
+--sorted_result
 SELECT TABLE1.pk FROM k TABLE1
 RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
 RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key
@@ -1217,3 +1239,269 @@ WHERE TABLE1.pk IS NULL;
 DROP TABLE h,m,k;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#54235 Extra rows with join_cache_level=4,6,8 and two LEFT JOIN
+--echo #
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE TABLE t4 (a int);
+
+INSERT INTO t1 VALUES (null),(null);
+
+let $query = SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
+ON 0 WHERE t1.a OR t3.a;
+
+eval explain $query;
+
+eval $query;
+
+let $query = SELECT t1.a FROM t1 LEFT JOIN
+(t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a)
+ON 0 WHERE t1.a OR t4.a;
+
+eval explain $query;
+
+eval $query;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug#56254 Assertion tab->ref.use_count fails in
+--echo # join_read_key_unlock_row() on 4-way JOIN
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_key INT,
+  col_int INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t1 VALUES (6, -448724992, NULL);
+
+CREATE TABLE t2 (
+  col_int INT,
+  col_varchar_10 VARCHAR(10)
+);
+
+INSERT INTO t2 VALUES (6,'afasdkiyum');
+
+CREATE TABLE t3 (
+  col_varchar_10 VARCHAR(10),
+  col_int INT
+);
+
+CREATE TABLE t4 (
+  pk INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t4 VALUES (1);
+INSERT INTO t4 VALUES (2);
+
+SELECT t1.col_int
+FROM t1
+  LEFT JOIN t2
+    LEFT JOIN t3
+      JOIN t4  
+      ON t3.col_int  = t4.pk
+    ON t2.col_varchar_10 = t3.col_varchar_10
+  ON t2.col_int = t1.pk
+WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo
+--echo # BUG#12567331 - INFINITE LOOP WHEN RESOLVING AN ALIASED COLUMN
+--echo # USED IN GROUP BY
+--echo 
+CREATE TABLE t1 (pk int(11));
+
+PREPARE prep_stmt_9846 FROM '
+SELECT alias1.pk AS field1 FROM
+t1 AS alias1
+LEFT JOIN
+( 
+  t1 AS alias2
+  RIGHT  JOIN
+  ( 
+    t1 AS alias3
+    JOIN t1 AS alias4
+    ON 1
+  )
+  ON 1
+)
+ON 1
+GROUP BY field1';
+execute prep_stmt_9846;
+execute prep_stmt_9846;
+deallocate prepare prep_stmt_9846;
+drop table t1;
+
+--echo #
+--echo # Bug#13040136 - ASSERT IN PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG()
+--echo #
+CREATE TABLE t1 (
+  col_varchar_10 VARCHAR(10),
+  col_int_key INTEGER,
+  col_varchar_10_key VARCHAR(10),
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_10_key)
+);
+INSERT INTO t1 VALUES ('q',NULL,'o',1);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL AUTO_INCREMENT,
+  col_varchar_10_key VARCHAR(10),
+  col_int_key INTEGER,
+  col_varchar_10 VARCHAR(10),
+  PRIMARY KEY (pk),
+  KEY (col_varchar_10_key),
+  KEY col_int_key (col_int_key)
+);
+INSERT INTO t2 VALUES
+(1,'r',NULL,'would'),(2,'tell',-655032320,'t'),
+(3,'d',9,'a'),(4,'gvafasdkiy',6,'ugvafasdki'),
+(5,'that\'s',NULL,'she'),(6,'bwftwugvaf',7,'cbwftwugva'),
+(7,'f',-700055552,'mkacbwftwu'),(8,'a',9,'be'),
+(9,'d',NULL,'u'),(10,'ckiixcsxmk',NULL,'o');
+
+SELECT DISTINCT t2.col_int_key 
+FROM
+t1
+LEFT JOIN t2
+ON t1.col_varchar_10 = t2.col_varchar_10_key 
+WHERE t2.pk
+ORDER BY t2.col_int_key;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#13068506 - QUERY WITH GROUP BY ON NON-AGGR COLUMN RETURNS WRONG RESULT
+--echo #
+CREATE TABLE t1 (i1 int);
+INSERT INTO t1 VALUES (100), (101);
+
+CREATE TABLE t2 (i2 int, i3 int);
+INSERT INTO t2 VALUES (20,1),(10,2);
+
+CREATE TABLE t3 (i4 int(11));
+INSERT INTO t3 VALUES (1),(2);
+
+let $query= SELECT (
+  SELECT MAX( t2.i2 )
+  FROM t3 RIGHT JOIN t2 ON ( t2.i3 = 2 )
+  WHERE t2.i3 <> t1.i1
+) AS field1
+FROM t1;
+
+--echo
+--eval $query;
+--echo
+--eval $query GROUP BY field1;
+
+--echo
+drop table t1,t2,t3;
+
+--echo # Bug#11766384 - 59487: WRONG RESULT WITH STRAIGHT_JOIN AND RIGHT JOIN
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,'1');
+CREATE TABLE t2 (
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 (
+  pk int(11) NOT NULL,
+  col_int int(11) DEFAULT NULL,
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t4 VALUES (1,1,1,'1');
+CREATE TABLE t5 (
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t5 VALUES (1,'1');
+CREATE TABLE t6 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_10_latin1_key varchar(10) DEFAULT NULL,
+  pk int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t6 VALUES (1,'1',1);
+
+# EXPLAIN of query above (t2 is before t5 in plan)
+
+let $rest_of_query=t6a.pk, t2.pk
+FROM
+  t6 AS t6a
+  LEFT JOIN
+  (
+    t2
+    RIGHT JOIN
+    (
+      (
+        t1
+        LEFT JOIN
+        (
+          t4
+          JOIN
+          t3
+          ON t4.col_int
+        )
+        ON t4.col_int_key = t1.pk
+      )
+      LEFT JOIN
+      (
+        t5
+        JOIN
+        t6 AS t6b
+        ON t5.col_varchar_10_utf8_key = t6b.col_varchar_10_latin1_key
+      )
+      ON t1.pk = t5.col_int
+    )
+    ON t4.col_varchar_10_latin1_key = t1.col_varchar_10_latin1_key
+       AND t5.col_varchar_10_utf8_key = 0
+  )
+  ON t6a.pk IS TRUE
+WHERE t6b.col_int_key IS TRUE
+;
+
+eval SELECT STRAIGHT_JOIN $rest_of_query;
+eval EXPLAIN SELECT STRAIGHT_JOIN $rest_of_query;
+
+# right result (same query, just remove STRAIGHT_JOIN):
+
+eval SELECT $rest_of_query;
+eval EXPLAIN SELECT $rest_of_query;
+
+drop table t1,t2,t3,t4,t5,t6;
+
+--echo #
+--echo # Bug#13464334 SAME QUERY PRODUCES DIFFERENT RESULTS WHEN USED WITH AND
+--echo # WITHOUT UNION ALL
+--echo #
+
+CREATE TABLE t1 (p1 INT PRIMARY KEY, a CHAR(1));
+CREATE TABLE t2 (p2 INT PRIMARY KEY, b CHAR(1));
+INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+INSERT INTO t2 VALUES (1,'h'),(2,'i'),(3,'j'),(4,'k');
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+(SELECT p1 FROM v2 LEFT JOIN v1 ON b = a WHERE p2 = 1 GROUP BY p1 ORDER BY p1)
+UNION (SELECT NULL LIMIT 0);
+DROP VIEW v1, v2;
+DROP TABLE t1, t2;

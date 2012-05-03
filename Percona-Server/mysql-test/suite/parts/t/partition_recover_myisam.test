@@ -23,6 +23,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result \\ /
 --replace_regex /Table '.*data/Table './
 SELECT * FROM t1_will_crash;
+--enable_warnings
 DROP TABLE t1_will_crash;
 CREATE TABLE t1_will_crash (a INT, KEY (a))
 ENGINE=MyISAM
@@ -38,4 +39,5 @@ FLUSH TABLES;
 --replace_result \\ /
 --replace_regex /Table '.*data/Table './
 SELECT * FROM t1_will_crash;
+--enable_warnings
 DROP TABLE t1_will_crash;

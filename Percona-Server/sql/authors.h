@@ -3,6 +3,7 @@
 
 /* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -119,6 +120,8 @@ struct show_table_authors_st show_table_authors[]= {
   { "Jan Pazdziora", "", "Czech sorting order" },
   { "Benjamin Pflugmann", "",
     "Extended MERGE storage engine to handle INSERT" },
+  { "Evgeny Potemkin", "Russia",
+    "Filesort and derived tables optimizations, various small optimizations"},
   { "Igor Romanenko", "",
     "mysqldump" },
   { "Mikael Ronström", "Stockholm, Sweden",

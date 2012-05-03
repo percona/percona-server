@@ -8,20 +8,20 @@ period_add("9602",-12)	period_diff(199505,"9404")
 199502	13
 select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_timestamp(now());
 now()-now()	weekday(curdate())-weekday(now())	unix_timestamp()-unix_timestamp(now())
-0.000000	0	0
+0	0	0
 select from_unixtime(unix_timestamp("1994-03-02 10:11:12")),from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s"),from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0;
 from_unixtime(unix_timestamp("1994-03-02 10:11:12"))	from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s")	from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0
-1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112.000000
+1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112
 select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 sec_to_time(time_to_sec("0:30:47")/6.21);
 sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")	sec_to_time(time_to_sec("0:30:47")/6.21)
-02:30:01	23001.000000	54742	00:04:57
+02:30:01	23001	54742	00:04:57.4235
 select sec_to_time(time_to_sec('-838:59:59'));
 sec_to_time(time_to_sec('-838:59:59'))
 -838:59:59
 select now()-curdate()*1000000-curtime();
 now()-curdate()*1000000-curtime()
-0.000000
+0
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 strcmp(current_timestamp(),concat(current_date()," ",current_time()))
 0
@@ -336,7 +336,7 @@ extract(DAY_HOUR FROM "1999-01-02 10:11:12")
 210
 select extract(DAY_MINUTE FROM "02 10:11:12");
 extract(DAY_MINUTE FROM "02 10:11:12")
-21011
+5811
 select extract(DAY_SECOND FROM "225 10:11:12");
 extract(DAY_SECOND FROM "225 10:11:12")
 8385959
@@ -549,6 +549,9 @@ unix_timestamp('1969-12-01 19:00:01')
 0
 select from_unixtime(-1);
 from_unixtime(-1)
+NULL
+SELECT FROM_UNIXTIME(-0.000001);
+FROM_UNIXTIME(-0.000001)
 NULL
 select from_unixtime(2147483647);
 from_unixtime(2147483647)
@@ -788,9 +791,7 @@ TIMESTAMPDIFF(year,'2006-01-10 14:30:28','2008-01-10 14:30:29')
 2
 select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
-NULL
-Warnings:
-Warning	1264	Out of range value for column 'time' at row 1
+06:07:09
 drop table t1;
 select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
 last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
@@ -848,7 +849,7 @@ explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_d
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select period_add('9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,'9404') AS `period_diff(199505,"9404")`,from_days(to_days('960101')) AS `from_days(to_days("960101"))`,dayofmonth('1997-01-02') AS `dayofmonth("1997-01-02")`,month('1997-01-02') AS `month("1997-01-02")`,monthname('1972-03-04') AS `monthname("1972-03-04")`,dayofyear('0000-00-00') AS `dayofyear("0000-00-00")`,hour('1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute('23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week('1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek('2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year('98-02-03') AS `year("98-02-03")`,(weekday(curdate()) - weekday(now())) AS `weekday(curdate())-weekday(now())`,dayname('1962-03-03') AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec('0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format('1997-01-02 03:04:05','%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp('1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,('1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,('1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,('1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from '1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,('1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`
+Note	1003	/* select#1 */ select period_add('9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,'9404') AS `period_diff(199505,"9404")`,from_days(to_days('960101')) AS `from_days(to_days("960101"))`,dayofmonth('1997-01-02') AS `dayofmonth("1997-01-02")`,month('1997-01-02') AS `month("1997-01-02")`,monthname('1972-03-04') AS `monthname("1972-03-04")`,dayofyear('0000-00-00') AS `dayofyear("0000-00-00")`,hour('1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute('23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week('1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek('2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year('98-02-03') AS `year("98-02-03")`,(weekday(curdate()) - weekday(now())) AS `weekday(curdate())-weekday(now())`,dayname('1962-03-03') AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec('0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format('1997-01-02 03:04:05','%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp('1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,('1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,('1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,('1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from '1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,('1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`
 SET @TMP='2007-08-01 12:22:49';
 CREATE TABLE t1 (d DATETIME);
 INSERT INTO t1 VALUES ('2007-08-01 12:22:59');
@@ -870,9 +871,7 @@ Warnings:
 Warning	1292	Incorrect datetime value: '2005-00-01'
 select last_day('2005-01-00');
 last_day('2005-01-00')
-NULL
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-01-00'
+2005-01-31
 select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
 monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 monthname(str_to_date(null, '%m'))	monthname(str_to_date(null, '%m'))	monthname(str_to_date(1, '%m'))	monthname(str_to_date(0, '%m'))
@@ -930,10 +929,10 @@ sec_to_time(1) + 0, from_unixtime(1) + 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `now() - now()` double(23,6) NOT NULL DEFAULT '0.000000',
-  `curtime() - curtime()` double(23,6) NOT NULL DEFAULT '0.000000',
-  `sec_to_time(1) + 0` double(23,6) DEFAULT NULL,
-  `from_unixtime(1) + 0` double(23,6) DEFAULT NULL
+  `now() - now()` bigint(16) NOT NULL DEFAULT '0',
+  `curtime() - curtime()` int(9) NOT NULL DEFAULT '0',
+  `sec_to_time(1) + 0` int(9) DEFAULT NULL,
+  `from_unixtime(1) + 0` bigint(16) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 SELECT SEC_TO_TIME(3300000);
@@ -943,7 +942,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '3300000'
 SELECT SEC_TO_TIME(3300000)+0;
 SEC_TO_TIME(3300000)+0
-8385959.000000
+8385959
 Warnings:
 Warning	1292	Truncated incorrect time value: '3300000'
 SELECT SEC_TO_TIME(3600 * 4294967296);
@@ -1067,10 +1066,14 @@ H
 select last_day('0000-00-00');
 last_day('0000-00-00')
 NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
 select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
 week(20061108), week(20061108.01), week(20061108085411.000002);
 isnull(week(now() + 0))	isnull(week(now() + 0.2))	week(20061108)	week(20061108.01)	week(20061108085411.000002)
 0	0	45	45	45
+Warnings:
+Warning	1292	Truncated incorrect date value: '20061108.01'
 End of 4.1 tests
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
@@ -1199,9 +1202,7 @@ DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
-NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
+22:10:00
 create table t1 (field DATE);
 insert into t1 values ('2006-11-06');
 select * from t1 where field < '2006-11-06 04:08:36.0';
@@ -1402,6 +1403,17 @@ NULL
 # Bug#12584302 AFTER FIX FOR #12403504: ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP > 0,
 #
 DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+#
+# Bug #13098726 MY_TIME.C:786: CALC_DAYNR: ASSERTION `DELSUM+(INT)
+# Y/4-TEMP > 0' FAILED
+SELECT SUBTIME('0000-01-00 00:00','00:00');
+SUBTIME('0000-01-00 00:00','00:00')
+NULL
+SELECT LEAST(TIMESTAMP('0000-01-00','0'),'2011-10-24') > 0;
+LEAST(TIMESTAMP('0000-01-00','0'),'2011-10-24') > 0
+NULL
 #
 # BUG#13458237 INCONSISTENT HANDLING OF INVALIDE DATES WITH ZERO DAY
 # SIMILAR TO '2009-10-00' 
@@ -1435,37 +1447,31 @@ TO_DAYs(DATE'2009-10-00'),
 TO_DAYs(STR_TO_DATE('200910','%Y%m'));
 DATE('20091000')	2009-10-00
 STR_TO_DATE('200910','%Y%m')	2009-10-00
-LAST_DAY('2009-10-00')	NULL
+LAST_DAY('2009-10-00')	2009-10-31
 LAST_DAY(DATE('2009-10-00'))	2009-10-31
-LAST_DAY(DATE'2009-10-00')	NULL
+LAST_DAY(DATE'2009-10-00')	2009-10-31
 LAST_DAY(STR_TO_DATE('200910','%Y%m'))	2009-10-31
 WEEK('2009-10-00')	NULL
-WEEK(DATE('2009-10-00'))	39
+WEEK(DATE('2009-10-00'))	NULL
 WEEK(DATE'2009-10-00')	NULL
 WEEK(STR_TO_DATE('200910','%Y%m'))	NULL
 WEEKOFYEAR('2009-10-00')	NULL
-WEEKOFYEAR(DATE('2009-10-00'))	40
+WEEKOFYEAR(DATE('2009-10-00'))	NULL
 WEEKOFYEAR(DATE'2009-10-00')	NULL
 WEEKOFYEAR(STR_TO_DATE('200910','%Y%m'))	NULL
 DAYOFYEAR('2009-10-00')	NULL
-DAYOFYEAR(DATE('2009-10-00'))	273
+DAYOFYEAR(DATE('2009-10-00'))	NULL
 DAYOFYEAR(DATE'2009-10-00')	NULL
 DAYOFYEAR(STR_TO_DATE('200910','%Y%m'))	NULL
 WEEKDAY('2009-10-00')	NULL
-WEEKDAY(DATE('2009-10-00'))	2
+WEEKDAY(DATE('2009-10-00'))	NULL
 WEEKDAY(DATE'2009-10-00')	NULL
 WEEKDAY(STR_TO_DATE('200910','%Y%m'))	NULL
 TO_DAYs('2009-10-00')	NULL
-TO_DAYs(DATE('2009-10-00'))	734045
+TO_DAYs(DATE('2009-10-00'))	NULL
 TO_DAYs(DATE'2009-10-00')	NULL
 TO_DAYs(STR_TO_DATE('200910','%Y%m'))	NULL
 Warnings:
-Level	Warning
-Code	1292
-Message	Incorrect datetime value: '2009-10-00'
-Level	Warning
-Code	1292
-Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '2009-10-00'
@@ -1540,37 +1546,31 @@ TO_DAYs(DATE'0000-01-00'),
 TO_DAYs(STR_TO_DATE('000001','%Y%m'));
 DATE('00000100')	0000-01-00
 STR_TO_DATE('000001','%Y%m')	0000-01-00
-LAST_DAY('0000-01-00')	NULL
+LAST_DAY('0000-01-00')	0000-01-31
 LAST_DAY(DATE('0000-01-00'))	0000-01-31
-LAST_DAY(DATE'0000-01-00')	NULL
+LAST_DAY(DATE'0000-01-00')	0000-01-31
 LAST_DAY(STR_TO_DATE('000001','%Y%m'))	0000-01-31
 WEEK('0000-01-00')	NULL
-WEEK(DATE('0000-01-00'))	52
+WEEK(DATE('0000-01-00'))	NULL
 WEEK(DATE'0000-01-00')	NULL
 WEEK(STR_TO_DATE('000001','%Y%m'))	NULL
 WEEKOFYEAR('0000-01-00')	NULL
-WEEKOFYEAR(DATE('0000-01-00'))	52
+WEEKOFYEAR(DATE('0000-01-00'))	NULL
 WEEKOFYEAR(DATE'0000-01-00')	NULL
 WEEKOFYEAR(STR_TO_DATE('000001','%Y%m'))	NULL
 DAYOFYEAR('0000-01-00')	NULL
-DAYOFYEAR(DATE('0000-01-00'))	0
+DAYOFYEAR(DATE('0000-01-00'))	NULL
 DAYOFYEAR(DATE'0000-01-00')	NULL
 DAYOFYEAR(STR_TO_DATE('000001','%Y%m'))	NULL
 WEEKDAY('0000-01-00')	NULL
-WEEKDAY(DATE('0000-01-00'))	5
+WEEKDAY(DATE('0000-01-00'))	NULL
 WEEKDAY(DATE'0000-01-00')	NULL
 WEEKDAY(STR_TO_DATE('000001','%Y%m'))	NULL
 TO_DAYs('0000-01-00')	NULL
-TO_DAYs(DATE('0000-01-00'))	0
+TO_DAYs(DATE('0000-01-00'))	NULL
 TO_DAYs(DATE'0000-01-00')	NULL
 TO_DAYs(STR_TO_DATE('000001','%Y%m'))	NULL
 Warnings:
-Level	Warning
-Code	1292
-Message	Incorrect datetime value: '0000-01-00'
-Level	Warning
-Code	1292
-Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '0000-01-00'
@@ -1617,6 +1617,38 @@ Level	Warning
 Code	1411
 Message	Incorrect datetime value: '000001' for function str_to_date
 End of 5.1 tests
+#
+# BUG#43578 "MyISAM&Maria gives wrong rows with range access
+# ORDER BY DESC on date index"
+#
+CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
+INDEX idx2(c2));
+SET TIMESTAMP=1235553613;
+INSERT INTO t1 VALUES(NOW(),NOW(),3),
+(ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
+(ADDTIME(NOW(),'2 01:01:01'),ADDTIME(NOW(),'2 01:01:01'),5),
+(ADDTIME(NOW(),'3 01:01:01'),ADDTIME(NOW(),'3 01:01:01'),6);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+Note	1265	Data truncated for column 'c2' at row 1
+Note	1265	Data truncated for column 'c1' at row 2
+Note	1265	Data truncated for column 'c2' at row 2
+Note	1265	Data truncated for column 'c1' at row 3
+Note	1265	Data truncated for column 'c2' at row 3
+Note	1265	Data truncated for column 'c1' at row 4
+Note	1265	Data truncated for column 'c2' at row 4
+SELECT * FROM t1;
+c1	c2	c3
+2009-02-25	2009-02-25	3
+2009-02-26	2009-02-26	4
+2009-02-27	2009-02-27	5
+2009-02-28	2009-02-28	6
+SELECT * FROM t1 WHERE c1 > ADDTIME(NOW(),'1 01:01:01') ORDER BY c1 DESC;
+c1	c2	c3
+2009-02-28	2009-02-28	6
+2009-02-27	2009-02-27	5
+drop table t1;
+End of 5.5 tests
 #
 # Bug#57039: constant subtime expression returns incorrect result.
 #
@@ -1671,4 +1703,68 @@ create table t1(a time);
 insert into t1 values ('00:00:00'),('00:01:00');
 select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
 1
+1
+1
 drop table t1;
+#
+# End of 5.5 tests
+#
+#
+# Start of 5.6 tests
+#
+#
+# BUG#13545236 - ASSERT IN SEC_SINCE_EPOCH
+#
+CREATE TABLE t1 (a TIME NOT NULL);
+INSERT INTO t1 VALUES ('04:39:24');
+INSERT INTO t1 VALUES ('00:20:09');
+SELECT a FROM t1
+WHERE CONVERT_TZ(TIMESTAMPADD(YEAR , a, TIMESTAMP('0000-00-00')),
+'+00:00','+00:00');
+a
+SELECT a FROM t1
+WHERE CONVERT_TZ(TIMESTAMPADD(YEAR, a, DATE('0000-00-00')),
+'+00:00','+00:00');
+a
+DROP TABLE t1;
+CREATE TABLE t1 (a TIME);
+INSERT INTO t1 VALUES ('00:00:00');
+SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP('0000-00-01')) IS NULL;
+a
+00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-01'
+SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP'0000-00-01 00:00:00') IS NULL;
+a
+00:00:00
+SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE('0000-00-01')) IS NULL;
+a
+00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-01'
+SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE'0000-00-01') IS NULL;
+a
+00:00:00
+DROP TABLE t1;
+#
+# BUG#13354387 - CRASH IN IN MY_DECIMAL::OPERATOR FOR VIEW AND FUNCTION UNIX_TIMESTAMP 
+# Part2 (5.6)
+CREATE TABLE t1 (a VARCHAR(32) NOT NULL);
+INSERT INTO t1 VALUES ('a');
+SELECT 1 FROM t1 GROUP BY @a:=UNIX_TIMESTAMP(a);
+1
+1
+Warnings:
+Warning	1292	Incorrect datetime value: 'a'
+SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('a') FROM t1;
+a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('a')
+a	0.000000	0.000000
+Warnings:
+Warning	1292	Incorrect datetime value: 'a'
+Warning	1292	Incorrect datetime value: 'a'
+DELETE FROM t1;
+INSERT INTO t1 VALUES ('5000-01-01 00:00:00');
+SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('5000-01-01 00:00:00') FROM t1;
+a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('5000-01-01 00:00:00')
+5000-01-01 00:00:00	0.000000	0
+DROP TABLE t1;

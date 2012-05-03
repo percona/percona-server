@@ -37,29 +37,33 @@ int my_rename(const char *from, const char *to, myf MyFlags)
       my_errno=EEXIST;
       error= -1;
       if (MyFlags & MY_FAE+MY_WME)
-	my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG), from, to,
+                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+      }
       DBUG_RETURN(error);
     }
     my_errno=save_errno;
   }
 #endif
-#if defined(HAVE_RENAME)
 #if defined(__WIN__)
-  /*
-    On windows we can't rename over an existing file:
-    Remove any conflicting files:
-  */
-  (void) my_delete(to, MYF(0));
-#endif
-  if (rename(from,to))
-#else
-  if (link(from, to) || unlink(from))
-#endif
+  if(!MoveFileEx(from, to, MOVEFILE_COPY_ALLOWED|
+                           MOVEFILE_REPLACE_EXISTING))
   {
+    my_osmaperr(GetLastError());
+#else
+  if (rename(from,to))
+  {
+#endif
     my_errno=errno;
     error = -1;
     if (MyFlags & (MY_FAE+MY_WME))
-      my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG), from, to,
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+    }
   }
   else if (MyFlags & MY_SYNC_DIR)
   {

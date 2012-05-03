@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2001, 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +51,33 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
     error=_mi_search(info,share->keyinfo+inx,info->lastkey,
 		     USE_WHOLE_KEY, flag, share->state.key_root[inx]);
 
+  if (!error)
+  {
+    int res= 0;
+    while ((share->concurrent_insert && 
+            info->lastpos >= info->state->data_file_length) ||
+           (info->index_cond_func &&
+            !(res= mi_check_index_cond(info, inx, buf))))
+    {
+      /* 
+         Skip rows that are either inserted by other threads since
+         we got a lock or do not match pushed index conditions
+      */
+      if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
+                                  info->lastkey_length,
+                                  SEARCH_SMALLER,
+                                  share->state.key_root[inx])))
+        break;
+    }
+    if (!error && res == 2) 
+    {
+      if (share->concurrent_insert)
+        mysql_rwlock_unlock(&share->key_root_lock[inx]);
+      info->lastpos= HA_OFFSET_ERROR;
+      DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+    }
+  }
+
   if (share->concurrent_insert)
   {
     if (!error)
@@ -68,6 +94,7 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
     }
     mysql_rwlock_unlock(&share->key_root_lock[inx]);
   }
+
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
   if (error)

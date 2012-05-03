@@ -11,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -46,7 +46,7 @@ for this structure, presented program generate next searching-structure:
        +----------+-+-+-+--+
        |    1 char|a|b|c|d |
        +----------+-+-+-+--+
-       |first_char|b|0|0|0 |
+       |first_char|d|0|0|0 |
        |last_char |n|0|0|-1|
        |link      |+|0|0|+ |
                    |     |
@@ -321,7 +321,6 @@ void print_find_structs()
   print_hash_map("symbols_map");
 }
 
-
 int check_dup_symbols(SYMBOL *s1, SYMBOL *s2)
 {
   if (s1->length!=s2->length || strncmp(s1->name,s2->name,s1->length))
@@ -378,7 +377,7 @@ int main(int argc,char **argv)
   printf("/*\n\n  Do " "not " "edit " "this " "file " "directly!\n\n*/\n");
 
   puts("/*");
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   puts("*/");
 
   /* Broken up to indicate that it's not advice to you, gentle reader. */

@@ -14,8 +14,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* Forward declarations */
 
@@ -144,9 +144,9 @@ public:
     :record1_field(0), trigger_table(table_arg),
     m_has_unparseable_trigger(false)
   {
-    bzero((char *)bodies, sizeof(bodies));
-    bzero((char *)trigger_fields, sizeof(trigger_fields));
-    bzero((char *)&subject_table_grants, sizeof(subject_table_grants));
+    memset(bodies, 0, sizeof(bodies));
+    memset(trigger_fields, 0, sizeof(trigger_fields));
+    memset(&subject_table_grants, 0, sizeof(subject_table_grants));
   }
   ~Table_triggers_list();
 
@@ -159,7 +159,7 @@ public:
   bool get_trigger_info(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         LEX_STRING *trigger_name, LEX_STRING *trigger_stmt,
-                        ulong *sql_mode,
+                        sql_mode_t *sql_mode,
                         LEX_STRING *definer,
                         LEX_STRING *client_cs_name,
                         LEX_STRING *connection_cl_name,
@@ -168,7 +168,7 @@ public:
   void get_trigger_info(THD *thd,
                         int trigger_idx,
                         LEX_STRING *trigger_name,
-                        ulonglong *sql_mode,
+                        sql_mode_t *sql_mode,
                         LEX_STRING *sql_original_stmt,
                         LEX_STRING *client_cs_name,
                         LEX_STRING *connection_cl_name,

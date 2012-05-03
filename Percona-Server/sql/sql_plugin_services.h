@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /* support for Services */
 #include <service_versions.h>
@@ -46,6 +46,11 @@ static struct my_thread_scheduler_service my_thread_scheduler_handler= {
   my_thread_scheduler_reset,
 };
 
+static struct my_plugin_log_service my_plugin_log_handler= {
+  my_plugin_log_message
+};
+
+
 
 static struct st_service_ref list_of_services[]=
 {
@@ -54,5 +59,6 @@ static struct st_service_ref list_of_services[]=
   { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
   { "my_thread_scheduler_service",
     VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
+  { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
 };
 

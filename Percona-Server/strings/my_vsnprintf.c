@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,7 +141,7 @@ static const char *check_longlong(const char *fmt, uint *have_longlong)
     position in buffer which points on the end of escaped string
 */
 
-static char *backtick_string(CHARSET_INFO *cs, char *to, char *end,
+static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
                              char *par, size_t par_len, char quote_char)
 {
   uint char_len;
@@ -184,7 +184,7 @@ err:
   Prints string argument
 */
 
-static char *process_str_arg(CHARSET_INFO *cs, char *to, char *end,
+static char *process_str_arg(const CHARSET_INFO *cs, char *to, char *end,
                              size_t width, char *par, uint print_type)
 {
   int well_formed_error;
@@ -231,7 +231,7 @@ static char *process_dbl_arg(char *to, char *end, size_t width,
     width= FLT_DIG; /* width not set, use default */
   else if (width >= NOT_FIXED_DEC)
     width= NOT_FIXED_DEC - 1; /* max.precision for my_fcvt() */
-  width= min(width, (size_t)(end-to) - 1);
+  width= MY_MIN(width, (size_t)(end-to) - 1);
   
   if (arg_type == 'f')
     to+= my_fcvt(par, (int)width , to, NULL);
@@ -280,11 +280,11 @@ static char *process_int_arg(char *to, char *end, size_t length,
   /* If %#d syntax was used, we have to pre-zero/pre-space the string */
   if (store_start == buff)
   {
-    length= min(length, to_length);
+    length= MY_MIN(length, to_length);
     if (res_length < length)
     {
       size_t diff= (length- res_length);
-      bfill(to, diff, (print_type & PREZERO_ARG) ? '0' : ' ');
+      memset(to, (print_type & PREZERO_ARG) ? '0' : ' ', diff);
       if (arg_type == 'p' && print_type & PREZERO_ARG)
       {
         if (diff > 1)
@@ -316,7 +316,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
     end of buffer where processed string is placed
 */
 
-static char *process_args(CHARSET_INFO *cs, char *to, char *end,
+static char *process_args(const CHARSET_INFO *cs, char *to, char *end,
                           const char* fmt, size_t arg_index, va_list ap)
 {
   ARGS_INFO args_arr[MAX_ARGS];
@@ -344,7 +344,7 @@ start:
     DBUG_ASSERT(*fmt == '$' && print_arr[idx].length < MAX_ARGS);
     args_arr[print_arr[idx].length].arg_type= 'd';
     print_arr[idx].flags|= LENGTH_ARG;
-    arg_count= max(arg_count, print_arr[idx].length + 1);
+    arg_count= MY_MAX(arg_count, print_arr[idx].length + 1);
     fmt++;
   }
   else
@@ -362,7 +362,7 @@ start:
       DBUG_ASSERT(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
       args_arr[print_arr[idx].width].arg_type= 'd';
       print_arr[idx].flags|= WIDTH_ARG;
-      arg_count= max(arg_count, print_arr[idx].width + 1);
+      arg_count= MY_MAX(arg_count, print_arr[idx].width + 1);
       fmt++;
     }
     else
@@ -490,7 +490,7 @@ start:
       if (to == end)
         break;
 
-      length= min(end - to , print_arr[i].end - print_arr[i].begin);
+      length= MY_MIN(end - to , print_arr[i].end - print_arr[i].begin);
       if (to + length < end)
         length++;
       to= strnmov(to, print_arr[i].begin, length);
@@ -510,7 +510,7 @@ start:
     fmt= get_width(fmt, &arg_index);
     DBUG_ASSERT(*fmt == '$');
     fmt++;
-    arg_count= max(arg_count, arg_index);
+    arg_count= MY_MAX(arg_count, arg_index);
     goto start;
   }
 
@@ -534,7 +534,7 @@ start:
     length of result string
 */
 
-size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
+size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
                        const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;

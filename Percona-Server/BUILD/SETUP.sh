@@ -146,12 +146,12 @@ valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 valgrind_configs="--with-valgrind"
 #
 # Used in -debug builds
-debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
 debug_cflags="$debug_cflags -DSAFE_MUTEX"
 error_inject="--with-error-inject "
 #
 # Base C++ flags for all builds
-base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
+base_cxxflags="-felide-constructors"
 #
 # Flags for optimizing builds.
 # Be as fast as we can be without losing our ability to backtrace.
@@ -172,10 +172,8 @@ base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables $maintainer_mode"
 
-if test -d "$path/../cmd-line-utils/readline"
-then
-    base_configs="$base_configs --with-readline"
-elif test -d "$path/../cmd-line-utils/libedit"
+
+if test -d "$path/../cmd-line-utils/libedit"
 then
     base_configs="$base_configs --with-libedit"
 fi
@@ -215,7 +213,7 @@ if test -z "$CC" ; then
 fi
 
 if test -z "$CXX" ; then
-  CXX=gcc
+  CXX=g++
 fi
 
 # If ccache (a compiler cache which reduces build time)

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   The beginnings of locale(7) support.
@@ -3247,6 +3247,75 @@ MY_LOCALE my_locale_el_GR
 );
 /***** LOCALE END el_GR *****/
 
+
+/***** LOCALE BEGIN rm_CH: Romansh - Switzerland *****/
+static const char *my_locale_month_names_rm_CH[13]=
+{
+  "schaner", "favrer", "mars",      "avrigl",  "matg",     "zercladur",
+  "fanadur", "avust",  "settember", "october", "november", "december", NullS
+};
+
+static const char *my_locale_ab_month_names_rm_CH[13]=
+{
+  "schan", "favr",  "mars", "avr", "matg", "zercl",
+  "fan",   "avust", "sett", "oct", "nov",  "dec", NullS
+};
+
+static const char *my_locale_day_names_rm_CH[8]=
+{
+  "glindesdi", "mardi", "mesemna", "gievgia",
+  "venderdi",  "sonda", "dumengia", NullS
+};
+
+static const char *my_locale_ab_day_names_rm_CH[8]=
+{
+  "gli", "ma", "me", "gie", "ve", "so", "du", NullS
+};
+
+static TYPELIB my_locale_typelib_month_names_rm_CH=
+{
+  array_elements(my_locale_month_names_rm_CH) - 1,
+  "", my_locale_month_names_rm_CH, NULL
+};
+
+static TYPELIB my_locale_typelib_ab_month_names_rm_CH=
+{
+  array_elements(my_locale_ab_month_names_rm_CH) - 1,
+  "", my_locale_ab_month_names_rm_CH, NULL
+};
+
+static TYPELIB my_locale_typelib_day_names_rm_CH=
+{
+  array_elements(my_locale_day_names_rm_CH) - 1,
+   "", my_locale_day_names_rm_CH, NULL
+};
+
+static TYPELIB my_locale_typelib_ab_day_names_rm_CH=
+{
+  array_elements(my_locale_ab_day_names_rm_CH) - 1,
+  "", my_locale_ab_day_names_rm_CH, NULL
+};
+
+MY_LOCALE my_locale_rm_CH
+(
+  110,
+  "rm_CH",
+  "Romansh - Switzerland",
+  FALSE,
+  &my_locale_typelib_month_names_rm_CH,
+  &my_locale_typelib_ab_month_names_rm_CH,
+  &my_locale_typelib_day_names_rm_CH,
+  &my_locale_typelib_ab_day_names_rm_CH,
+  9,          /* max mon name length */ 
+  9,          /* max day name length */
+  ',',        /* decimal point rm_CH */
+  '\'',       /* thousands_sep rm_CH */
+  "\x03\x03", /* grouping      rm_CH */
+  &global_errmsgs[en_US]
+);
+/***** LOCALE END rm_CH *****/
+
+
 /*
   The list of all locales.
   Note, locales must be ordered according to their
@@ -3365,6 +3434,7 @@ MY_LOCALE *my_locales[]=
     &my_locale_sv_FI,
     &my_locale_zh_HK,
     &my_locale_el_GR,
+    &my_locale_rm_CH,
     NULL 
   };
 
@@ -3422,7 +3492,7 @@ MY_LOCALE *my_locale_by_name(const char *name)
     if (thd)
     {
       // Send a warning to the client
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),
                           name, locale->name);
     }

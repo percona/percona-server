@@ -640,10 +640,6 @@ create trigger t1_ai after insert on t1 for each row flush logs;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush status;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush slave;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush master;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush des_key_file;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush user_resources;
@@ -691,14 +687,6 @@ insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() flush status;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush slave;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush master;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
@@ -967,7 +955,7 @@ trigger_schema	trigger_name	event_object_schema	event_object_table	action_statem
 test	t1_bi	test	t1	set @a:=new.id
 test	t1_ai	test	t1	set @b:=new.id
 rename table t1 to t2;
-ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13)
+ERROR HY000: Can't create/write to file './test/t1_ai.TRN~' (Errcode: 13 - Permission denied)
 insert into t1 values (102);
 select @a, @b;
 @a	@b
@@ -2118,7 +2106,7 @@ CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 INSERT INTO t2 VALUES (1);
-ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VALUES (1)' at line 1'
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 SELECT * FROM t1;
 b
 # Work around Bug#45235
@@ -2227,3 +2215,46 @@ aaa
 DROP TABLE t1;
 
 End of 5.5 tests.
+
+#
+# Bug#34432 Wrong lock type passed to the engine if pre-locking + 
+#           multi-update in a trigger
+#
+DROP TABLE IF EXISTS t1, t2, t3;
+DROP TRIGGER IF EXISTS t2_ai;
+CREATE TABLE t2 
+(
+value CHAR(30),
+domain_id INT,
+mailaccount_id INT, 
+program CHAR(30),
+keey CHAR(30),
+PRIMARY KEY(domain_id)
+);
+CREATE TABLE t3 
+(
+value CHAR(30),
+domain_id INT,
+mailaccount_id INT,
+program CHAR(30),
+keey CHAR(30),
+PRIMARY KEY(domain_id)
+);
+CREATE TABLE t1 (id INT,domain CHAR(30),PRIMARY KEY(id));
+CREATE TRIGGER t2_ai AFTER INSERT ON t2 FOR EACH ROW 
+UPDATE t3 ms, t1 d SET ms.value='No'
+  WHERE ms.domain_id = 
+(SELECT max(id) FROM t1 WHERE domain='example.com') 
+AND ms.mailaccount_id IS NULL 
+AND ms.program='spamfilter' 
+AND ms.keey='scan_incoming';
+|
+INSERT INTO t1 VALUES (1, 'example.com'),
+(2, 'mysql.com'),
+(3, 'earthmotherwear.com'),
+(4, 'yahoo.com'),
+(5, 'example.com');
+INSERT INTO t2 VALUES ('Yes', 1, NULL, 'spamfilter','scan_incoming');
+DROP TRIGGER t2_ai;
+DROP TABLE t1, t2, t3;
+End of 6.0 tests.

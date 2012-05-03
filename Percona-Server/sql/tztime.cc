@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
    Most of the following code and structures were derived from
@@ -24,11 +24,9 @@
   it creates unsolved link dependencies on some platforms.
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include <my_global.h>
+#include <algorithm>
+
 #if !defined(TZINFO2SQL) && !defined(TESTTIME)
 #include "sql_priv.h"
 #include "unireg.h"
@@ -46,8 +44,8 @@
 #include <m_string.h>
 #include <my_dir.h>
 #include <mysql/psi/mysql_file.h>
-#include "lock.h"                               // MYSQL_LOCK_IGNORE_FLUSH,
-                                                // MYSQL_LOCK_IGNORE_TIMEOUT
+
+using std::min;
 
 /*
   Now we don't use abbreviations in server but we will do this in future.
@@ -175,7 +173,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
       uchar buf[sizeof(struct tzhead) + sizeof(my_time_t) * TZ_MAX_TIMES +
                 TZ_MAX_TIMES + sizeof(TRAN_TYPE_INFO) * TZ_MAX_TYPES +
 #ifdef ABBR_ARE_USED
-               max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
+               MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
 #endif
                sizeof(LS_INFO) * TZ_MAX_LEAPS];
     } u;
@@ -1523,7 +1521,7 @@ my_offset_tzs_get_key(Time_zone_offset *entry,
 static void
 tz_init_table_list(TABLE_LIST *tz_tabs)
 {
-  bzero(tz_tabs, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
+  memset(tz_tabs, 0, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
 
   for (int i= 0; i < MY_TZ_TABLES_COUNT; i++)
   {
@@ -1553,11 +1551,8 @@ static void init_tz_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_tz_mutexes);
-  PSI_server->register_mutex(category, all_tz_mutexes, count);
+  mysql_mutex_register(category, all_tz_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1657,7 +1652,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   */
 
   thd->set_db(db, sizeof(db)-1);
-  bzero((char*) &tz_tables[0], sizeof(TABLE_LIST));
+  memset(&tz_tables[0], 0, sizeof(TABLE_LIST));
   tz_tables[0].alias= tz_tables[0].table_name=
     (char*)"time_zone_leap_second";
   tz_tables[0].table_name_length= 21;
@@ -1678,7 +1673,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
                            MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
-                      "trying to live without them", thd->stmt_da->message());
+                      "trying to live without them", thd->get_stmt_da()->message());
     /* We will try emulate that everything is ok */
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
@@ -1716,7 +1711,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
   tz_leapcnt= 0;
 
-  res= table->file->index_first(table->record[0]);
+  res= table->file->ha_index_first(table->record[0]);
 
   while (!res)
   {
@@ -1738,7 +1733,7 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
                 tz_leapcnt, (ulong) tz_lsis[tz_leapcnt-1].ls_trans,
                 tz_lsis[tz_leapcnt-1].ls_corr));
 
-    res= table->file->index_next(table->record[0]);
+    res= table->file->ha_index_next(table->record[0]);
   }
 
   (void)table->file->ha_index_end();
@@ -1864,7 +1859,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   uchar types[TZ_MAX_TIMES];
   TRAN_TYPE_INFO ttis[TZ_MAX_TYPES];
 #ifdef ABBR_ARE_USED
-  char chars[max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
+  char chars[MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
 #endif
   /* 
     Used as a temporary tz_info until we decide that we actually want to
@@ -1883,7 +1878,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     return 0;
   }
   tz_info= (TIME_ZONE_INFO *)alloc_buff;
-  bzero(tz_info, sizeof(TIME_ZONE_INFO));
+  memset(tz_info, 0, sizeof(TIME_ZONE_INFO));
   tz_name_buff= alloc_buff + sizeof(TIME_ZONE_INFO);
   /*
     By writing zero to the end we guarantee that we can call ptr()
@@ -1906,8 +1901,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   (void)table->file->ha_index_init(0, 1);
 
-  if (table->file->index_read_map(table->record[0], table->field[0]->ptr,
-                                  HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+                                     HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
 #ifdef EXTRA_DEBUG
     /*
@@ -1934,8 +1929,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  if (table->file->index_read_map(table->record[0], table->field[0]->ptr,
-                                  HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+                                     HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     sql_print_error("Can't find description of time zone '%u'", tzid);
     goto end;
@@ -1961,8 +1956,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->index_read_map(table->record[0], table->field[0]->ptr,
-                                   (key_part_map)1, HA_READ_KEY_EXACT);
+  res= table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+                                      (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
     ttid= (uint)table->field[1]->val_int();
@@ -2009,8 +2004,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 
     tmp_tz_info.typecnt= ttid + 1;
 
-    res= table->file->index_next_same(table->record[0],
-                                      table->field[0]->ptr, 4);
+    res= table->file->ha_index_next_same(table->record[0],
+                                         table->field[0]->ptr, 4);
   }
 
   if (res != HA_ERR_END_OF_FILE)
@@ -2032,8 +2027,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   table->field[0]->store((longlong) tzid, TRUE);
   (void)table->file->ha_index_init(0, 1);
 
-  res= table->file->index_read_map(table->record[0], table->field[0]->ptr,
-                                   (key_part_map)1, HA_READ_KEY_EXACT);
+  res= table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+                                      (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res)
   {
     ttime= (my_time_t)table->field[1]->val_int();
@@ -2062,8 +2057,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
       ("time_zone_transition table: tz_id: %u  tt_time: %lu  tt_id: %u",
        tzid, (ulong) ttime, ttid));
 
-    res= table->file->index_next_same(table->record[0],
-                                      table->field[0]->ptr, 4);
+    res= table->file->ha_index_next_same(table->record[0],
+                                         table->field[0]->ptr, 4);
   }
 
   /*

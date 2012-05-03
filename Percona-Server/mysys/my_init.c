@@ -19,6 +19,7 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <signal.h>
+#include <mysql/psi/mysql_stage.h>
 #ifdef __WIN__
 #ifdef _MSC_VER
 #include <locale.h>
@@ -166,7 +167,7 @@ void my_end(int infoflag)
     struct rusage rus;
 #ifdef HAVE_purify
     /* Purify assumes that rus is uninitialized after getrusage call */
-    bzero((char*) &rus, sizeof(rus));
+    memset(&rus, 0, sizeof(rus));
 #endif
     if (!getrusage(RUSAGE_SELF, &rus))
       fprintf(info_file,"\n\
@@ -453,6 +454,9 @@ static my_bool win32_init_tcp_ip()
 }
 #endif /* __WIN__ */
 
+PSI_stage_info stage_waiting_for_table_level_lock=
+{0, "Waiting for table level lock", 0};
+
 #ifdef HAVE_PSI_INTERFACE
 
 #if !defined(HAVE_PREAD) && !defined(_WIN32)
@@ -466,7 +470,7 @@ PSI_mutex_key key_LOCK_localtime_r;
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
-  key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
+  key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
   key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
@@ -487,7 +491,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_my_thread_var_mutex, "my_thread_var::mutex", 0},
   { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_isam, "THR_LOCK_isam", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0},
@@ -535,27 +538,32 @@ static PSI_file_info all_mysys_files[]=
   { &key_file_cnf, "cnf", 0}
 };
 
+PSI_stage_info *all_mysys_stages[]=
+{
+  & stage_waiting_for_table_level_lock
+};
+
 void my_init_mysys_psi_keys()
 {
   const char* category= "mysys";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
-  PSI_server->register_mutex(category, all_mysys_mutexes, count);
+  mysql_mutex_register(category, all_mysys_mutexes, count);
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
-  PSI_server->register_cond(category, all_mysys_conds, count);
+  mysql_cond_register(category, all_mysys_conds, count);
 
 #ifdef USE_ALARM_THREAD
   count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);
-  PSI_server->register_thread(category, all_mysys_threads, count);
+  mysql_thread_register(category, all_mysys_threads, count);
 #endif /* USE_ALARM_THREAD */
 
   count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
-  PSI_server->register_file(category, all_mysys_files, count);
+  mysql_file_register(category, all_mysys_files, count);
+
+  count= array_elements(all_mysys_stages);
+  mysql_stage_register(category, all_mysys_stages, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

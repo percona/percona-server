@@ -1,5 +1,4 @@
-/* Copyright (c) 2003, 2006, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -60,7 +59,7 @@ main(void)
 
     /* Decode */
     dst= (char *) malloc(base64_needed_decoded_length(strlen(str)));
-    dst_len= base64_decode(str, strlen(str), dst, NULL);
+    dst_len= base64_decode(str, strlen(str), dst, NULL, 0);
     ok(dst_len == src_len, "Comparing lengths");
 
     cmp= memcmp(src, dst, src_len);

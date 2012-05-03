@@ -73,6 +73,13 @@ inline static void set_args_separator(char** arg)
   DBUG_ASSERT(my_getopt_use_args_separator);
   *arg= (char*)args_separator;
 }
+
+/*
+  This flag indicates that the argument separator string
+  (args_separator) should be added to the list of arguments,
+  in order to separate arguments received from config file
+  and command line.
+*/
 my_bool my_getopt_use_args_separator= FALSE;
 my_bool my_getopt_is_args_separator(const char* arg)
 {
@@ -295,7 +302,14 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     group->type_names[group->count]= 0;
   }
   
-  if (my_defaults_file)
+  // If conf_file is an absolute path, we only read it
+  if (dirname_length(conf_file))
+  {
+    if ((error= search_default_file(func, func_ctx, NullS, conf_file)) < 0)
+      goto err;
+  }
+  // If my defaults file is set (from a previous run), we read it
+  else if (my_defaults_file)
   {
     if ((error= search_default_file_with_ext(func, func_ctx, "", "",
                                              my_defaults_file, 0)) < 0)
@@ -306,11 +320,6 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
               my_defaults_file);
       goto err;
     }
-  }
-  else if (dirname_length(conf_file))
-  {
-    if ((error= search_default_file(func, func_ctx, NullS, conf_file)) < 0)
-      goto err;
   }
   else
   {
@@ -380,7 +389,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   {
     if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
-    if (insert_dynamic(ctx->args, (uchar*) &tmp))
+    if (insert_dynamic(ctx->args, &tmp))
       return 1;
     strmov(tmp, option);
   }
@@ -899,7 +908,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
       end[0]=0;
 
-      strmake(curr_gr, ptr, min((size_t) (end-ptr)+1, sizeof(curr_gr)-1));
+      strmake(curr_gr, ptr, MY_MIN((size_t) (end-ptr)+1, sizeof(curr_gr)-1));
 
       /* signal that a new group is found */
       opt_handler(handler_ctx, curr_gr, NULL);
@@ -1066,7 +1075,11 @@ void my_print_default_files(const char *conf_file)
           end= convert_dirname(name, pos, NullS);
           if (name[0] == FN_HOMELIB)	/* Add . to filenames in home */
             *end++= '.';
-          strxmov(end, conf_file, *ext, " ", NullS);
+
+          if (my_defaults_extra_file == pos)
+            end[(strlen(end)-1)] = ' ';
+          else
+            strxmov(end, conf_file, *ext , " ",  NullS);
           fputs(name, stdout);
         }
       }
@@ -1202,7 +1215,7 @@ static const char **init_default_directories(MEM_ROOT *alloc)
   dirs= (const char **)alloc_root(alloc, DEFAULT_DIRS_SIZE * sizeof(char *));
   if (dirs == NULL)
     return NULL;
-  bzero((char *) dirs, DEFAULT_DIRS_SIZE * sizeof(char *));
+  memset(dirs, 0, DEFAULT_DIRS_SIZE * sizeof(char *));
 
 #ifdef __WIN__
 

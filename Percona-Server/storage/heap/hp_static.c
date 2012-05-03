@@ -18,7 +18,7 @@
   a shared library
 */
 
-#ifndef _global_h
+#ifndef MY_GLOBAL_INCLUDED
 #include "heapdef.h"
 #endif
 
@@ -41,11 +41,8 @@ void init_heap_psi_keys()
   const char* category= "memory";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_heap_mutexes);
-  PSI_server->register_mutex(category, all_heap_mutexes, count);
+  mysql_mutex_register(category, all_heap_mutexes, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

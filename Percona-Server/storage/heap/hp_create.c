@@ -59,8 +59,8 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
-      bzero((char*) &keyinfo->block,sizeof(keyinfo->block));
-      bzero((char*) &keyinfo->rb_tree ,sizeof(keyinfo->rb_tree));
+      memset(&keyinfo->block, 0, sizeof(keyinfo->block));
+      memset(&keyinfo->rb_tree, 0, sizeof(keyinfo->rb_tree));
       for (j= length= 0; j < keyinfo->keysegs; j++)
       {
 	length+= keyinfo->seg[j].length;
@@ -233,7 +233,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 {
   uint i,recbuffer,records_in_block;
 
-  max_records= max(min_records,max_records);
+  max_records= MY_MAX(min_records, max_records);
   if (!max_records)
     max_records= 1000;			/* As good as quess as anything */
   recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);

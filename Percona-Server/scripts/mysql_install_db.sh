@@ -1,6 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2000-2008 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -394,7 +393,7 @@ fi
 # Configure mysqld command line
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
-  --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
+  --basedir=$basedir --datadir=$ldata --log-warnings=0 \
   --loose-skip-ndbcluster $args --max_allowed_packet=8M \
   --default-storage-engine=myisam \
   --net_buffer_length=16K"
@@ -411,7 +410,7 @@ else
   echo
   echo "You can try to start the mysqld daemon with:"
   echo
-  echo "    shell> $mysqld --skip-grant &"
+  echo "    shell> $mysqld --skip-grant-tables &"
   echo
   echo "and use the command line tool $bindir/mysql"
   echo "to connect to the mysql database and look at the grant tables:"

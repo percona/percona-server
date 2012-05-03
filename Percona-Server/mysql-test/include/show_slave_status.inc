@@ -69,7 +69,7 @@
 #
 
 
---let $_show_slave_status_items=$status_items
+--let $_show_slave_status_items= $status_items
 if (!$status_items)
 {
   --die Bug in test case: The mysqltest variable $status_items is not set.
@@ -87,7 +87,7 @@ eval SET sql_mode= '$_slave_sql_mode';
 --enable_query_log
 
 
-while ($_show_slave_status_items) 
+while ($_show_slave_status_items)
 {
   --let $_show_slave_status_name= `SELECT SUBSTRING_INDEX('$_show_slave_status_items', ',', 1)`
   --let $_show_slave_status_items= `SELECT LTRIM(SUBSTRING('$_show_slave_status_items', LENGTH('$_show_slave_status_name') + 2))`

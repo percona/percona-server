@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "sys_vars.h"
 #include "my_stacktrace.h"
+#include "global_threads.h"
 
 #ifdef __WIN__
 #include <crtdbg.h>
@@ -185,7 +186,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "Some pointers may be invalid and cause the dump to abort.\n");
 
     my_safe_printf_stderr("Query (%p): ", thd->query());
-    my_safe_print_str(thd->query(), min(1024U, thd->query_length()));
+    my_safe_print_str(thd->query(), MY_MIN(1024U, thd->query_length()));
     my_safe_printf_stderr("Connection ID (thread ID): %lu\n",
                           (ulong) thd->thread_id);
     my_safe_printf_stderr("Status: %s\n\n", kreason);

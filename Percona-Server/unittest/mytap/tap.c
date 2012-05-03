@@ -20,6 +20,7 @@
 #include "tap.h"
 
 #include "my_global.h"
+#include "my_stacktrace.h"
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -126,7 +127,14 @@ emit_endl()
 static void
 handle_core_signal(int signo)
 {
-  BAIL_OUT("Signal %d thrown", signo);
+  /* BAIL_OUT("Signal %d thrown", signo); */
+#ifdef HAVE_STACKTRACE
+  fprintf(stderr, "Signal %d thrown, attempting backtrace.\n", signo);
+  my_print_stacktrace(NULL, 0);
+#endif
+  signal(signo, SIG_DFL);
+  raise(signo);
+  _exit(EXIT_FAILURE);
 }
 
 void
@@ -184,7 +192,7 @@ static signal_entry install_signal[]= {
 int skip_big_tests= 1;
 
 void
-plan(int count)
+plan(int const count)
 {
   char *config= getenv("MYTAP_CONFIG");
   size_t i;
@@ -192,7 +200,6 @@ plan(int count)
   if (config)
     skip_big_tests= strcmp(config, "big");
 
-  setvbuf(tapout, 0, _IONBF, 0);  /* provide output at once */
   /*
     Install signal handler
   */
@@ -229,7 +236,7 @@ skip_all(char const *reason, ...)
 }
 
 void
-ok(int pass, char const *fmt, ...)
+ok(int const pass, char const *fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);

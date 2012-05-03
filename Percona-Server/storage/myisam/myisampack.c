@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -637,7 +637,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   if (!error && !test_only)
   {
     uchar buff[MEMMAP_EXTRA_MARGIN];		/* End marginal for memmap */
-    bzero(buff,sizeof(buff));
+    memset(buff, 0, sizeof(buff));
     error=my_write(file_buffer.file,buff,sizeof(buff),
 		   MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)) != 0;
   }
@@ -1192,7 +1192,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
   my_off_t old_length,new_length,length;
   DBUG_ENTER("check_counts");
 
-  bzero((uchar*) field_count,sizeof(field_count));
+  memset(field_count, 0, sizeof(field_count));
   space_fields=fill_zero_fields=0;
 
   for (; trees-- ; huff_counts++)
@@ -1269,8 +1269,8 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
     {
       if (huff_counts->field_length > 2 &&
 	  huff_counts->empty_fields + (records - huff_counts->empty_fields)*
-	  (1+max_bit(max(huff_counts->max_pre_space,
-			 huff_counts->max_end_space))) <
+	  (1+max_bit(MY_MAX(huff_counts->max_pre_space,
+                            huff_counts->max_end_space))) <
 	  records * max_bit(huff_counts->field_length))
       {
 	huff_counts->pack_type |= PACK_TYPE_SPACE_FIELDS;
@@ -2039,7 +2039,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
 {
   uchar *buff= (uchar*) file_buffer.pos;
 
-  bzero(buff,HEAD_LENGTH);
+  memset(buff, 0, HEAD_LENGTH);
   memcpy(buff,myisam_pack_file_magic,4);
   int4store(buff+4,head_length);
   int4store(buff+8, mrg->min_pack_length);
@@ -3030,7 +3030,7 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   if (mrg->src_file_has_indexes_disabled)
   {
     isam_file->s->state.state.key_file_length=
-      max(isam_file->s->state.state.key_file_length, new_length);
+      MY_MAX(isam_file->s->state.state.key_file_length, new_length);
   }
   state.dellink= HA_OFFSET_ERROR;
   state.version=(ulong) time((time_t*) 0);

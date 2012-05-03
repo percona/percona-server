@@ -165,6 +165,7 @@ my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
   else
   {
     DBUG_ASSERT(thread_safe == 0);
+    map->mutex= NULL;
   }
 
 
@@ -295,7 +296,7 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
   if ((prefix_bits= prefix_size & 7))
     *(m++)= (1 << prefix_bits)-1;
   if ((d= no_bytes_in_map(map)-prefix_bytes))
-    bzero(m, d);
+    memset(m, 0, d);
 }
 
 
@@ -416,7 +417,7 @@ void bitmap_intersect(MY_BITMAP *map, const MY_BITMAP *map2)
 
   DBUG_ASSERT(map->bitmap && map2->bitmap);
 
-  end= to+min(len,len2);
+  end= to + MY_MIN(len, len2);
   for (; to < end; to++, from++)
     *to &= *from;
 

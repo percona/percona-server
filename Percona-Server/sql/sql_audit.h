@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,8 +75,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
-    CHARSET_INFO *clientcs= thd ? thd->variables.character_set_client
-                                : global_system_variables.character_set_client;
+    const CHARSET_INFO *clientcs= thd ? thd->variables.character_set_client
+      : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
                        0, time, user, userlen, cmd, cmdlen,
@@ -117,7 +117,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
       query= thd->query_string;
       user= user_buff;
       userlen= make_user_name(thd, user_buff);
-      rows= thd->warning_info->current_row_for_warning();
+      rows= thd->get_stmt_da()->current_row_for_warning();
     }
     else
     {
@@ -135,7 +135,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CONNECT,\
-  (thd)->stmt_da->is_error() ? (thd)->stmt_da->sql_errno() : 0,\
+  (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->sql_errno() : 0,\
   (thd)->thread_id, (thd)->security_ctx->user,\
   (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
   (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
@@ -156,7 +156,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
   (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\
-  (thd)->stmt_da->is_error() ? (thd)->stmt_da->sql_errno() : 0,\
+  (thd)->get_stmt_da()->is_error() ? (thd)->get_stmt_da()->sql_errno() : 0,\
   (thd)->thread_id, (thd)->security_ctx->user,\
   (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
   (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\

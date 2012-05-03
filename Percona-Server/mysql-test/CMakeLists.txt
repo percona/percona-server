@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,19 +15,19 @@
 
 IF(INSTALL_MYSQLTESTDIR)
 INSTALL(
- DIRECTORY .
- DESTINATION ${INSTALL_MYSQLTESTDIR}
- USE_SOURCE_PERMISSIONS
- COMPONENT Test
- PATTERN "var/" EXCLUDE
- PATTERN "lib/My/SafeProcess" EXCLUDE
- PATTERN "lib/t*" EXCLUDE
- PATTERN "CPack" EXCLUDE
- PATTERN "CMake*" EXCLUDE
- PATTERN "mtr.out*" EXCLUDE
- PATTERN ".cvsignore" EXCLUDE
- PATTERN "*.am" EXCLUDE
- PATTERN "*.in" EXCLUDE
+  DIRECTORY .
+  DESTINATION ${INSTALL_MYSQLTESTDIR}
+  USE_SOURCE_PERMISSIONS
+  COMPONENT Test
+  PATTERN "var/" EXCLUDE
+  PATTERN "lib/My/SafeProcess" EXCLUDE
+  PATTERN "lib/t*" EXCLUDE
+  PATTERN "CPack" EXCLUDE
+  PATTERN "CMake*" EXCLUDE
+  PATTERN "mtr.out*" EXCLUDE
+  PATTERN ".cvsignore" EXCLUDE
+  PATTERN "*.am" EXCLUDE
+  PATTERN "*.in" EXCLUDE
 )
 ENDIF()
 
@@ -43,12 +43,12 @@ IF(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 ENDIF()
 IF(UNIX)
   EXECUTE_PROCESS(
-  COMMAND chmod +x  mysql-test-run.pl
-  COMMAND ${CMAKE_COMMAND} -E create_symlink 
-   ./mysql-test-run.pl mtr
-  COMMAND ${CMAKE_COMMAND} -E create_symlink 
-   ./mysql-test-run.pl mysql-test-run
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND chmod +x  mysql-test-run.pl
+    COMMAND ${CMAKE_COMMAND} -E create_symlink 
+     ./mysql-test-run.pl mtr
+    COMMAND ${CMAKE_COMMAND} -E create_symlink 
+     ./mysql-test-run.pl mysql-test-run
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   ) 
   IF(INSTALL_MYSQLTESTDIR)
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mtr 
@@ -58,79 +58,42 @@ IF(UNIX)
   ENDIF()
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio")
-  SET(SETCONFIG_COMMAND set MTR_VS_CONFIG=${CMAKE_CFG_INTDIR})
-ELSEIF(CMAKE_GENERATOR MATCHES "Xcode")
-  SET(SETCONFIG_COMMAND export MTR_VS_CONFIG=${CMAKE_CFG_INTDIR})
-ELSE()
-  SET(SETCONFIG_COMMAND echo Running tests)
-ENDIF()
-IF(CYGWIN)
-  # On cygwin, pretend to be "Unix" system
-  SET(SETOS_COMMAND export MTR_CYGWIN_IS_UNIX=1)
-ELSE()
-  SET(SETOS_COMMAND echo OS=${CMAKE_SYSTEM_NAME})
-ENDIF()
-
-
 
 SET(EXP --experimental=collections/default.experimental)
-IF(WIN32)
- SET(SET_ENV set)
-ELSE()
- SET(SET_ENV export)
+
+SET(DEBUG_SERVER "")
+SET(VS_CONFIG "")
+
+IF(DEBUG_EXTNAME)
+  SET(DEBUG_SERVER "--debug-server")
 ENDIF()
 
-
-SET(MTR_FORCE perl ./mysql-test-run.pl --force)
-IF(EXISTS ${CMAKE_SOURCE_DIR}/mysql-test/suite/nist)
-  SET(TEST_NIST ${MTR_FORCE} --comment=nist suite=nist ${EXP} && 
-    ${MTR_FORCE} --comment=nist --force --suite=nist+ps ${EXP})
-ELSE()
-  SET(TEST_NIST echo "NIST tests not found")
+IF(CMAKE_BUILD_TYPE)
+  IF(CMAKE_BUILD_TYPE MATCHES "Debug")
+    SET(DEBUG_SERVER "--debug-server")
+  ELSE()
+    SET(DEBUG_SERVER "")
+    IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR
+       CMAKE_GENERATOR MATCHES "Xcode")
+      SET(VS_CONFIG "--vs-config=${CMAKE_CFG_INTDIR}")
+    ENDIF()
+  ENDIF()
 ENDIF()
 
-IF(WITH_EMBEDDED_SERVER)
- SET(TEST_EMBEDDED  ${MTR_FORCE} --comment=embedded  --timer  --embedded-server 
-   --skip-rpl --skip-ndbcluster $(EXP))
-ELSE()
- SET(TEST_EMBEDDED echo "Can not test embedded, not compiled in")
-ENDIF()
-
-SET(TEST_BT_START
-  COMMAND ${SETCONFIG_COMMAND}
-  COMMAND ${SETOS_COMMAND}
-  COMMAND ${SET_ENV} MTR_BUILD_THREAD=auto
+# On windows do: 'devenv mysql.sln /build Debug /project test-mtr'
+# On unix do: 'make test-mtr'
+ADD_CUSTOM_TARGET(test-mtr
+  COMMAND perl ./mysql-test-run.pl --force --parallel=4 --suite=main
+          ${VS_CONFIG} ${DEBUG_SERVER} ${EXP}
 )
 
-ADD_CUSTOM_TARGET(test-force
-  ${TEST_BT_START}
-  COMMAND ${MTR_FORCE}
-)
+## We could do something like this, but the 'test' target generated
+## by cmake is really for unit testing: all output is muted by default,
+## even in case of test failure.
+## ADD_EXECUTABLE(perl IMPORTED)
+## ADD_TEST(xxx perl ./mysql-test-run.pl --force
+##          ${VS_CONFIG} ${DEBUG_SERVER} ${EXP})
 
-ADD_CUSTOM_TARGET(test-bt
-  ${TEST_BT_START}
-  COMMAND ${MTR_FORCE} --comment=normal --timer  --skip-ndbcluster --report-features ${EXP}
-  COMMAND ${MTR_FORCE} --comment=ps --timer	 --skip-ndbcluster --ps-protocol ${EXP}
-  COMMAND ${MTR_FORCE} --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1 ${EXP}
-  COMMAND ${MTR_FORCE} --comment=funcs2 --suite=funcs_2 ${EXP}
-  COMMAND ${MTR_FORCE} --comment=partitions --suite=parts ${EXP}
-  COMMAND ${MTR_FORCE} --comment=stress --suite=stress ${EXP}
-  COMMAND ${MTR_FORCE} --force --comment=jp --suite=jp ${EXP}
-  COMMAND ${TEST_NIST}
-  COMMAND ${TEST_EMBEDDED}
-)
-
-ADD_CUSTOM_TARGET(test-bt-fast
-  ${TEST_BT_START}
-  COMMAND ${MTR_FORCE}  --comment=ps  --timer  --skip-ndbcluster --ps-protocol --report-features ${EXP}
-  COMMAND ${MTR_FORCE} --comment=stress --suite=stress ${EXP}
-)
-
-ADD_CUSTOM_TARGET(test-bt-debug
-  ${TEST_BT_START}
-  COMMAND ${MTR_FORCE} --comment=debug --timer  --skip-ndbcluster --skip-rpl --report-features ${EXP}
-)
 
 # Process .in files with includes in collections/
 

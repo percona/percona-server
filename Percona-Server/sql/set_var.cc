@@ -13,10 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
-
 /* variable declarations are in sys_vars.cc now !!! */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
@@ -38,7 +34,7 @@
 #include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 #include "sql_acl.h"    // SUPER_ACL
 #include "sql_select.h" // free_underlaid_joins
-#include "sql_show.h"   // make_default_log_name
+#include "sql_show.h"   // make_default_log_name, append_identifier
 #include "sql_view.h"   // updatable_views_with_limit_typelib
 #include "lock.h"                               // lock_global_read_lock,
                                                 // make_global_read_lock_block_commit,
@@ -81,10 +77,8 @@ error:
   DBUG_RETURN(1);
 }
 
-int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
+int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags)
 {
-  uint saved_elements= long_options->elements;
-
   DBUG_ENTER("sys_var_add_options");
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
@@ -97,7 +91,6 @@ int sys_var_add_options(DYNAMIC_ARRAY *long_options, int parse_flags)
 
 error:
   fprintf(stderr, "failed to initialize System variables");
-  long_options->elements= saved_elements;
   DBUG_RETURN(1);
 }
 
@@ -134,7 +127,6 @@ void sys_var_end()
                    put your additional checks here
   @param on_update_func a function to be called at the end of sys_var::update,
                    any post-update activity should happen here
-  @param deprecated_version if not 0 - when this variable will go away
   @param substitute if not 0 - what one should use instead when this
                    deprecated variable
   @param parse_flag either PARSE_EARLY or PARSE_NORMAL
@@ -146,8 +138,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  PolyLock *lock, enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func,
-                 uint deprecated_version, const char *substitute,
-                 int parse_flag) :
+                 const char *substitute, int parse_flag) :
   next(0),
   binlog_status(binlog_status_arg),
   flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
@@ -169,7 +160,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   name.length= strlen(name_arg);                // and so does this.
   DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
 
-  bzero(&option, sizeof(option));
+  memset(&option, 0, sizeof(option));
   option.name= name_arg;
   option.id= getopt_id;
   option.comment= comment;
@@ -177,11 +168,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   option.value= (uchar **)global_var_ptr();
   option.def_value= def_val;
 
-  deprecated.version= deprecated_version;
-  deprecated.substitute= substitute;
-  DBUG_ASSERT((deprecated_version != 0) || (substitute == 0));
-  DBUG_ASSERT(deprecated_version % 100 == 0);
-  DBUG_ASSERT(!deprecated_version || MYSQL_VERSION_ID < deprecated_version);
+  deprecation_substitute= substitute;
 
   if (chain->last)
     chain->last->next= this;
@@ -277,21 +264,25 @@ bool sys_var::set_default(THD *thd, enum_var_type type)
 
 void sys_var::do_deprecated_warning(THD *thd)
 {
-  if (deprecated.version)
+  if (deprecation_substitute)
   {
-    char buf1[NAME_CHAR_LEN + 3], buf2[10];
+    char buf1[NAME_CHAR_LEN + 3];
     strxnmov(buf1, sizeof(buf1)-1, "@@", name.str, 0);
-    my_snprintf(buf2, sizeof(buf2), "%d.%d", deprecated.version/100/100,
-                deprecated.version/100%100);
-    uint errmsg= deprecated.substitute
-                        ? ER_WARN_DEPRECATED_SYNTAX_WITH_VER
+
+    /* 
+       if deprecation_substitute is an empty string,
+       there is no replacement for the syntax
+    */
+    uint errmsg= deprecation_substitute[0]
+                        ? ER_WARN_DEPRECATED_SYNTAX
                         : ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT;
     if (thd)
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_DEPRECATED_SYNTAX, ER(errmsg),
-                          buf1, buf2, deprecated.substitute);
+                          buf1, deprecation_substitute);
     else
-      sql_print_warning(ER_DEFAULT(errmsg), buf1, buf2, deprecated.substitute);
+      sql_print_warning(ER_DEFAULT(errmsg), buf1, 
+                        deprecation_substitute);
   }
 }
 
@@ -310,7 +301,7 @@ void sys_var::do_deprecated_warning(THD *thd)
 bool throw_bounds_warning(THD *thd, const char *name,
                           bool fixed, bool is_unsigned, longlong v)
 {
-  if (fixed || (!is_unsigned && v < 0))
+  if (fixed)
   {
     char buf[22];
 
@@ -324,7 +315,7 @@ bool throw_bounds_warning(THD *thd, const char *name,
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buf);
       return true;
     }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
   }
@@ -344,14 +335,14 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buf);
       return true;
     }
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
   }
   return false;
 }
 
-CHARSET_INFO *sys_var::charset(THD *thd)
+const CHARSET_INFO *sys_var::charset(THD *thd)
 {
   return is_os_charset ? thd->variables.character_set_filesystem :
     system_charset_info;
@@ -378,7 +369,7 @@ static my_old_conv old_conv[]=
   {     NULL                    ,       NULL            }
 };
 
-CHARSET_INFO *get_old_charset_by_name(const char *name)
+const CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *conv;
 
@@ -495,6 +486,10 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
       if (type == OPT_GLOBAL && var->check_type(type))
         continue;
 
+      /* don't show non-visible variables */
+      if (var->not_visible())
+        continue;
+
       show->name= var->name.str;
       show->value= (char*) var;
       show->type= SHOW_SYS;
@@ -507,7 +502,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
                (qsort_cmp) show_cmp);
 
     /* make last element empty */
-    bzero(show, sizeof(SHOW_VAR));
+    memset(show, 0, sizeof(SHOW_VAR));
   }
   return result;
 }
@@ -535,6 +530,11 @@ sys_var *intern_find_sys_var(const char *str, uint length)
   */
   var= (sys_var*) my_hash_search(&system_variable_hash,
                               (uchar*) str, length ? length : strlen(str));
+
+  /* Don't show non-visible variables. */
+  if (var && var->not_visible())
+    return NULL;
+
   return var;
 }
 
@@ -674,6 +674,27 @@ int set_var::update(THD *thd)
   return value ? var->update(thd, this) : var->set_default(thd, type);
 }
 
+/**
+  Self-print assignment
+
+  @param   str    string buffer to append the partial assignment to
+*/
+void set_var::print(THD *thd, String *str)
+{
+  str->append(type == OPT_GLOBAL ? "GLOBAL " : "SESSION ");
+  if (base.length)
+  {
+    str->append(base.str, base.length);
+    str->append(STRING_WITH_LEN("."));
+  }
+  str->append(var->name.str,var->name.length);
+  str->append(STRING_WITH_LEN("="));
+  if (value)
+    value->print(str, QT_ORDINARY);
+  else
+    str->append(STRING_WITH_LEN("DEFAULT"));
+}
+
 
 /*****************************************************************************
   Functions to handle SET @user_variable=const_expr
@@ -724,6 +745,12 @@ int set_var_user::update(THD *thd)
 }
 
 
+void set_var_user::print(THD *thd, String *str)
+{
+  user_var_item->print(str, QT_ORDINARY);
+}
+
+
 /*****************************************************************************
   Functions to handle SET PASSWORD
 *****************************************************************************/
@@ -770,6 +797,24 @@ int set_var_password::update(THD *thd)
 #endif
 }
 
+void set_var_password::print(THD *thd, String *str)
+{
+  if (user->user.str != NULL && user->user.length > 0)
+  {
+    str->append(STRING_WITH_LEN("PASSWORD FOR "));
+    append_identifier(thd, str, user->user.str, user->user.length);
+    if (user->host.str != NULL && user->host.length > 0)
+    {
+      str->append(STRING_WITH_LEN("@"));
+      append_identifier(thd, str, user->host.str, user->host.length);
+    }
+    str->append(STRING_WITH_LEN("="));
+  }
+  else
+    str->append(STRING_WITH_LEN("PASSWORD FOR CURRENT_USER()="));
+  str->append(STRING_WITH_LEN("<secret>"));
+}
+
 /*****************************************************************************
   Functions to handle SET NAMES and SET CHARACTER SET
 *****************************************************************************/
@@ -797,3 +842,21 @@ int set_var_collation_client::update(THD *thd)
   return 0;
 }
 
+void set_var_collation_client::print(THD *thd, String *str)
+{
+  str->append((set_cs_flags & SET_CS_NAMES) ? "NAMES " : "CHARACTER SET ");
+  if (set_cs_flags & SET_CS_DEFAULT)
+    str->append("DEFAULT");
+  else
+  {
+    str->append("'");
+    str->append(character_set_client->csname);
+    str->append("'");
+    if (set_cs_flags & SET_CS_COLLATE)
+    {
+      str->append(" COLLATE '");
+      str->append(collation_connection->name);
+      str->append("'");
+    }
+  }
+}

@@ -11,9 +11,8 @@
    Library General Public License for more details.
    
    You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is for binary pseudo charset, created by bar@mysql.com */
 
@@ -69,24 +68,24 @@ static uchar bin_char_array[] =
 
 static my_bool 
 my_coll_init_8bit_bin(CHARSET_INFO *cs,
-                      void *(*alloc)(size_t) __attribute__((unused)))
+                      MY_CHARSET_LOADER *loader __attribute__((unused)))
 {
   cs->max_sort_char=255; 
   return FALSE;
 }
 
-static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
+static int my_strnncoll_binary(const CHARSET_INFO *cs __attribute__((unused)),
                                const uchar *s, size_t slen,
                                const uchar *t, size_t tlen,
                                my_bool t_is_prefix)
 {
-  size_t len=min(slen,tlen);
+  size_t len= MY_MIN(slen,tlen);
   int cmp= memcmp(s,t,len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
 
 
-size_t my_lengthsp_binary(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_lengthsp_binary(const CHARSET_INFO *cs __attribute__((unused)),
                           const char *ptr __attribute__((unused)),
                           size_t length)
 {
@@ -116,7 +115,8 @@ size_t my_lengthsp_binary(CHARSET_INFO *cs __attribute__((unused)),
   > 0	s > t
 */
 
-static int my_strnncollsp_binary(CHARSET_INFO * cs __attribute__((unused)),
+static int my_strnncollsp_binary(const CHARSET_INFO *cs
+                                 __attribute__((unused)),
                                  const uchar *s, size_t slen,
                                  const uchar *t, size_t tlen,
                                  my_bool diff_if_only_endspace_difference
@@ -126,12 +126,13 @@ static int my_strnncollsp_binary(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static int my_strnncoll_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
+static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs
+                                 __attribute__((unused)),
                                  const uchar *s, size_t slen,
                                  const uchar *t, size_t tlen,
                                  my_bool t_is_prefix)
 {
-  size_t len=min(slen,tlen);
+  size_t len=MY_MIN(slen,tlen);
   int cmp= memcmp(s,t,len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
@@ -162,7 +163,8 @@ static int my_strnncoll_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
   > 0	s > t
 */
 
-static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
+static int my_strnncollsp_8bit_bin(const CHARSET_INFO *cs
+                                   __attribute__((unused)),
                                    const uchar *a, size_t a_length, 
                                    const uchar *b, size_t b_length,
                                    my_bool diff_if_only_endspace_difference)
@@ -175,7 +177,7 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
   diff_if_only_endspace_difference= 0;
 #endif
 
-  end= a + (length= min(a_length, b_length));
+  end= a + (length= MY_MIN(a_length, b_length));
   while (a < end)
   {
     if (*a++ != *b++)
@@ -211,14 +213,14 @@ static int my_strnncollsp_8bit_bin(CHARSET_INFO * cs __attribute__((unused)),
 
 /* This function is used for all conversion functions */
 
-static size_t my_case_str_bin(CHARSET_INFO *cs __attribute__((unused)),
+static size_t my_case_str_bin(const CHARSET_INFO *cs __attribute__((unused)),
                               char *str __attribute__((unused)))
 {
   return 0;
 }
 
 
-static size_t my_case_bin(CHARSET_INFO *cs __attribute__((unused)),
+static size_t my_case_bin(const CHARSET_INFO *cs __attribute__((unused)),
                           char *src __attribute__((unused)),
                           size_t srclen,
                           char *dst __attribute__((unused)),
@@ -228,21 +230,21 @@ static size_t my_case_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strcasecmp_bin(CHARSET_INFO * cs __attribute__((unused)),
+static int my_strcasecmp_bin(const CHARSET_INFO *cs __attribute__((unused)),
 			     const char *s, const char *t)
 {
   return strcmp(s,t);
 }
 
 
-uint my_mbcharlen_8bit(CHARSET_INFO *cs __attribute__((unused)),
+uint my_mbcharlen_8bit(const CHARSET_INFO *cs __attribute__((unused)),
                       uint c __attribute__((unused)))
 {
   return 1;
 }
 
 
-static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
+static int my_mb_wc_bin(const CHARSET_INFO *cs __attribute__((unused)),
 			my_wc_t *wc,
 			const uchar *str,
 			const uchar *end __attribute__((unused)))
@@ -255,7 +257,7 @@ static int my_mb_wc_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
+static int my_wc_mb_bin(const CHARSET_INFO *cs __attribute__((unused)),
 			my_wc_t wc,
 			uchar *s,
 			uchar *e __attribute__((unused)))
@@ -272,7 +274,7 @@ static int my_wc_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-void my_hash_sort_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
+void my_hash_sort_8bit_bin(const CHARSET_INFO *cs __attribute__((unused)),
                            const uchar *key, size_t len,
                            ulong *nr1, ulong *nr2)
 {
@@ -293,7 +295,7 @@ void my_hash_sort_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-void my_hash_sort_bin(CHARSET_INFO *cs __attribute__((unused)),
+void my_hash_sort_bin(const CHARSET_INFO *cs __attribute__((unused)),
 		      const uchar *key, size_t len,ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
@@ -318,7 +320,7 @@ void my_hash_sort_bin(CHARSET_INFO *cs __attribute__((unused)),
 #define INC_PTR(cs,A,B) (A)++
 
 
-int my_wildcmp_bin(CHARSET_INFO *cs,
+int my_wildcmp_bin(const CHARSET_INFO *cs,
                    const char *str,const char *str_end,
                    const char *wildstr,const char *wildend,
                    int escape, int w_one, int w_many)
@@ -396,33 +398,22 @@ int my_wildcmp_bin(CHARSET_INFO *cs,
 }
 
 
-static size_t my_strnxfrm_bin(CHARSET_INFO *cs __attribute__((unused)),
-                              uchar *dest, size_t dstlen,
-                              const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_8bit_bin(const CHARSET_INFO *cs,
+                     uchar * dst, size_t dstlen, uint nweights,
+                     const uchar *src, size_t srclen, uint flags)
 {
-  if (dest != src)
-    memcpy(dest, src, min(dstlen,srclen));
-  if (dstlen > srclen)
-    bfill(dest + srclen, dstlen - srclen, 0);
-  return dstlen;
+  set_if_smaller(srclen, dstlen);
+  set_if_smaller(srclen, nweights);
+  if (dst != src)
+    memcpy(dst, src, srclen);
+  return my_strxfrm_pad_desc_and_reverse(cs, dst, dst + srclen, dst + dstlen,
+                                         nweights - srclen, flags, 0);
 }
 
 
 static
-size_t my_strnxfrm_8bit_bin(CHARSET_INFO *cs __attribute__((unused)),
-                            uchar *dest, size_t dstlen,
-                            const uchar *src, size_t srclen)
-{
-  if (dest != src)
-    memcpy(dest, src, min(dstlen,srclen));
-  if (dstlen > srclen)
-    bfill(dest + srclen, dstlen - srclen, ' ');
-  return dstlen;
-}
-
-
-static
-uint my_instr_bin(CHARSET_INFO *cs __attribute__((unused)),
+uint my_instr_bin(const CHARSET_INFO *cs __attribute__((unused)),
 		  const char *b, size_t b_length,
 		  const char *s, size_t s_length,
 		  my_match_t *match, uint nmatch)
@@ -503,7 +494,7 @@ static MY_COLLATION_HANDLER my_collation_binary_handler =
   NULL,			/* init */
   my_strnncoll_binary,
   my_strnncollsp_binary,
-  my_strnxfrm_bin,
+  my_strnxfrm_8bit_bin,
   my_strnxfrmlen_simple,
   my_like_range_simple,
   my_wildcmp_bin,
@@ -558,11 +549,10 @@ CHARSET_INFO my_charset_bin =
     bin_char_array,		/* to_lower      */
     bin_char_array,		/* to_upper      */
     NULL,			/* sort_order    */
-    NULL,			/* contractions */
-    NULL,			/* sort_order_big*/
+    NULL,			/* uca           */
     NULL,			/* tab_to_uni    */
     NULL,			/* tab_from_uni  */
-    my_unicase_default,         /* caseinfo     */
+    &my_unicase_default,        /* caseinfo     */
     NULL,			/* state_map    */
     NULL,			/* ident_map    */
     1,				/* strxfrm_multiply */
@@ -574,6 +564,8 @@ CHARSET_INFO my_charset_bin =
     255,			/* max_sort_char */
     0,                          /* pad char      */
     0,                          /* escape_with_backslash_is_dangerous */
+    1,                          /* levels_for_compare */
+    1,                          /* levels_for_order   */
     &my_charset_handler,
     &my_collation_binary_handler
 };

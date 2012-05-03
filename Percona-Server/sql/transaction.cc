@@ -10,18 +10,15 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                         // gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "transaction.h"
 #include "rpl_handler.h"
 #include "debug_sync.h"         // DEBUG_SYNC
+#include "sql_acl.h"            // SUPER_ACL
 
 /* Conditions under which the transaction state must not change. */
 static bool trans_check(THD *thd)
@@ -134,12 +131,14 @@ bool trans_begin(THD *thd, uint flags)
       (thd->variables.option_bits & OPTION_TABLE_LOCK))
   {
     thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    thd->server_status&=
+      ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+    DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res= test(ha_commit_trans(thd, TRUE));
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
 
   if (res)
     DBUG_RETURN(TRUE);
@@ -150,9 +149,36 @@ bool trans_begin(THD *thd, uint flags)
   */
   thd->mdl_context.release_transactional_locks();
 
+  // The RO/RW options are mutually exclusive.
+  DBUG_ASSERT(!((flags & MYSQL_START_TRANS_OPT_READ_ONLY) &&
+                (flags & MYSQL_START_TRANS_OPT_READ_WRITE)));
+  if (flags & MYSQL_START_TRANS_OPT_READ_ONLY)
+    thd->tx_read_only= true;
+  else if (flags & MYSQL_START_TRANS_OPT_READ_WRITE)
+  {
+    /*
+      Explicitly starting a RW transaction when the server is in
+      read-only mode, is not allowed unless the user has SUPER priv.
+      Implicitly starting a RW transaction is allowed for backward
+      compatibility.
+    */
+    const bool user_is_super=
+      test(thd->security_ctx->master_access & SUPER_ACL);
+    if (opt_readonly && !user_is_super)
+    {
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      DBUG_RETURN(true);
+    }
+    thd->tx_read_only= false;
+  }
+
   thd->variables.option_bits|= OPTION_BEGIN;
   thd->server_status|= SERVER_STATUS_IN_TRANS;
+  if (thd->tx_read_only)
+    thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
+  DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
 
+  /* ha_start_consistent_snapshot() relies on OPTION_BEGIN flag set. */
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
     res= ha_start_consistent_snapshot(thd);
 
@@ -177,18 +203,20 @@ bool trans_commit(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
+  /*
+    if res is non-zero, then ha_commit_trans has rolled back the
+    transaction, so the hooks for rollback will be called.
+  */
   if (res)
-    /*
-      if res is non-zero, then ha_commit_trans has rolled back the
-      transaction, so the hooks for rollback will be called.
-    */
-    RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
-    RUN_HOOK(transaction, after_commit, (thd, FALSE));
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
   DBUG_RETURN(test(res));
@@ -220,20 +248,23 @@ bool trans_commit_implicit(THD *thd)
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables_mode)
       thd->variables.option_bits&= ~OPTION_TABLE_LOCK;
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    thd->server_status&=
+      ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+    DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res= test(ha_commit_trans(thd, TRUE));
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
 
   /*
     Upon implicit commit, reset the current transaction
-    isolation level. We do not care about
+    isolation level and access mode. We do not care about
     @@session.completion_type since it's documented
     to not have any effect on implicit commit.
   */
   thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+  thd->tx_read_only= thd->variables.tx_read_only;
 
   DBUG_RETURN(res);
 }
@@ -256,11 +287,13 @@ bool trans_rollback(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_rollback_trans(thd, TRUE);
-  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
+  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
   DBUG_RETURN(test(res));
@@ -294,21 +327,26 @@ bool trans_commit_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  thd->transaction.merge_unsafe_rollback_flags();
+
   if (thd->transaction.stmt.ha_list)
   {
     res= ha_commit_trans(thd, FALSE);
     if (! thd->in_active_multi_stmt_transaction())
+    {
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+      thd->tx_read_only= thd->variables.tx_read_only;
+    }
   }
 
+  /*
+    if res is non-zero, then ha_commit_trans has rolled back the
+    transaction, so the hooks for rollback will be called.
+  */
   if (res)
-    /*
-      if res is non-zero, then ha_commit_trans has rolled back the
-      transaction, so the hooks for rollback will be called.
-    */
-    RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   else
-    RUN_HOOK(transaction, after_commit, (thd, FALSE));
+    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
 
   thd->transaction.stmt.reset();
 
@@ -336,16 +374,21 @@ bool trans_rollback_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  thd->transaction.merge_unsafe_rollback_flags();
+
   if (thd->transaction.stmt.ha_list)
   {
     ha_rollback_trans(thd, FALSE);
     if (thd->transaction_rollback_request && !thd->in_sub_stmt)
       ha_rollback_trans(thd, TRUE);
     if (! thd->in_active_multi_stmt_transaction())
+    {
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+      thd->tx_read_only= thd->variables.tx_read_only;
+    }
   }
 
-  RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   thd->transaction.stmt.reset();
 
@@ -478,12 +521,8 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
 
   if (ha_rollback_to_savepoint(thd, sv))
     res= TRUE;
-  else if (((thd->variables.option_bits & OPTION_KEEP_LOG) ||
-            thd->transaction.all.modified_non_trans_table) &&
-           !thd->slave_thread)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+  else if (thd->transaction.all.cannot_safely_rollback() && !thd->slave_thread)
+    thd->transaction.push_unsafe_rollback_warnings(thd);
 
   thd->transaction.savepoints= sv;
 
@@ -668,7 +707,7 @@ bool trans_xa_commit(THD *thd)
     else
     {
       res= xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, !res);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, !res);
       xid_cache_delete(xs);
     }
     DBUG_RETURN(res);
@@ -720,9 +759,11 @@ bool trans_xa_commit(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
 
@@ -753,10 +794,10 @@ bool trans_xa_rollback(THD *thd)
     else
     {
       xa_trans_rolled_back(xs);
-      ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
+      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, 0);
       xid_cache_delete(xs);
     }
-    DBUG_RETURN(thd->stmt_da->is_error());
+    DBUG_RETURN(thd->get_stmt_da()->is_error());
   }
 
   if (xa_state != XA_IDLE && xa_state != XA_PREPARED && xa_state != XA_ROLLBACK_ONLY)
@@ -767,9 +808,11 @@ bool trans_xa_rollback(THD *thd)
 
   res= xa_trans_force_rollback(thd);
 
-  thd->variables.option_bits&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
-  thd->transaction.all.modified_non_trans_table= FALSE;
-  thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  thd->variables.option_bits&= ~OPTION_BEGIN;
+  thd->transaction.all.reset_unsafe_rollback_flags();
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
 

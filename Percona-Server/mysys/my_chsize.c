@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,7 +88,7 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
   }
 
   /* Full file with 'filler' until it's as big as requested */
-  bfill(buff, IO_SIZE, filler);
+  memset(buff, filler, IO_SIZE);
   while (newlength-oldsize > IO_SIZE)
   {
     if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP)))
@@ -103,6 +102,10 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 err:
   DBUG_PRINT("error", ("errno: %d", errno));
   if (MyFlags & MY_WME)
-    my_error(EE_CANT_CHSIZE, MYF(ME_BELL+ME_WAITTANG), my_errno);
+  {
+    char  errbuf[MYSYS_STRERROR_SIZE];
+    my_error(EE_CANT_CHSIZE, MYF(ME_BELL+ME_WAITTANG),
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+  }
   DBUG_RETURN(1);
 } /* my_chsize */

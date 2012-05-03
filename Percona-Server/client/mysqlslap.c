@@ -141,7 +141,9 @@ static my_bool opt_compress= FALSE, tty_password= FALSE,
 const char *auto_generate_sql_type= "mixed";
 
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
-                                    CLIENT_MULTI_STATEMENTS;
+                                    CLIENT_MULTI_STATEMENTS |
+                                    CLIENT_REMEMBER_OPTIONS;
+
 
 static int verbose, delimiter_length;
 static uint commit_rate;
@@ -298,11 +300,13 @@ int main(int argc, char **argv)
 
   MY_INIT(argv[0]);
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,&argc,&argv))
   {
     my_end(0);
     exit(1);
   }
+  my_getopt_use_args_separator= FALSE;
   defaults_argv=argv;
   if (get_options(&argc,&argv))
   {
@@ -330,8 +334,12 @@ int main(int argc, char **argv)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
                   opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
 #endif
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
@@ -434,7 +442,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
 
-  bzero(&conclusion, sizeof(conclusions));
+  memset(&conclusion, 0, sizeof(conclusions));
 
   if (auto_actual_queries)
     client_limit= auto_actual_queries;
@@ -630,7 +638,7 @@ static struct my_option my_long_options[] =
     0, 0, 0, 0, 0, 0},
   {"password", 'p',
     "Password to use when connecting to server. If password is not given it's "
-      "asked from the tty.", 0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+      "asked from the tty.", 0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -700,7 +708,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005, 2010"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005, 2012"));
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);

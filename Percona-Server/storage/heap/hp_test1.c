@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
   filename= "test1";
   get_options(argc,argv);
 
-  bzero(&hp_create_info, sizeof(hp_create_info));
+  memset(&hp_create_info, 0, sizeof(hp_create_info));
   hp_create_info.max_table_size= 1024L*1024L;
   hp_create_info.keys= 1;
   hp_create_info.keydef= keyinfo;
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
   keyinfo[0].flag = HA_NOSAME;
 
   deleted=0;
-  bzero((uchar*) flags,sizeof(flags));
+  memset(flags, 0, sizeof(flags));
 
   printf("- Creating heap-file\n");
   if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||

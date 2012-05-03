@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 drop database if exists mysqltest1;
 create database mysqltest1;
@@ -402,7 +405,7 @@ return 0;
 end|
 use mysqltest;
 set @a:= mysqltest2.f1();
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	drop database if exists mysqltest1
 master-bin.000001	#	Query	#	#	create database mysqltest1
@@ -432,7 +435,7 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; create table t2 like t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
     DETERMINISTIC
 insert into t1 values (15)
-master-bin.000001	#	Query	#	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
+master-bin.000001	#	Query	#	#	use `mysqltest1`; GRANT EXECUTE, CREATE ROUTINE ON `mysqltest1`.* TO 'zedjzlcsjhd'@'127.0.0.1'
 master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` PROCEDURE `foo4`()
@@ -629,7 +632,7 @@ test	 mysqltestbug36570_p2	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_s
 test	mysqltestbug36570_p1	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 show create procedure ` mysqltestbug36570_p2`;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
- mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int)
+ mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int )
 `label`:
 begin
 select a;
@@ -640,7 +643,7 @@ test	 mysqltestbug36570_p2	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_s
 test	mysqltestbug36570_p1	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 show create procedure ` mysqltestbug36570_p2`;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
- mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int)
+ mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int )
 `label`:
 begin
 select a;
@@ -732,7 +735,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
 insert into t1 values (15)
 /*!*/;
 SET TIMESTAMP=t/*!*/;
-grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
+GRANT EXECUTE, CREATE ROUTINE ON `mysqltest1`.* TO 'zedjzlcsjhd'@'127.0.0.1'
 /*!*/;
 SET TIMESTAMP=t/*!*/;
 grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
@@ -1161,7 +1164,7 @@ end
 /*!*/;
 use mysql/*!*/;
 SET TIMESTAMP=t/*!*/;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `test`.` mysqltestbug36570_p2`( a int)
+CREATE DEFINER=`root`@`localhost` PROCEDURE `test`.` mysqltestbug36570_p2`( a int )
 `label`:
 begin
 select a;

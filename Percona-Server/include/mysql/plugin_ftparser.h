@@ -1,5 +1,4 @@
-/* Copyright (c) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -184,7 +183,7 @@ typedef struct st_mysql_ftparser_param
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  struct charset_info_st *cs;
+  const struct charset_info_st *cs;
   char *doc;
   int length;
   int flags;

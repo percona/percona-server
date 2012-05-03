@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* maintaince of mysql databases */
 
@@ -40,6 +42,7 @@ static my_bool option_force=0,interrupted=0,new_line=0,
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
+static char *opt_bind_addr = NULL;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char * unix_port=0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
@@ -116,6 +119,9 @@ static TYPELIB command_typelib=
 
 static struct my_option my_long_options[] =
 {
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 'c',
    "Number of iterations to make. This works with -i (--sleep) only.",
    &nr_iterations, &nr_iterations, 0, GET_UINT,
@@ -152,7 +158,7 @@ static struct my_option my_long_options[] =
    &opt_nobeep, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0}, 
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -300,8 +306,11 @@ int main(int argc,char *argv[])
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,&argc,&argv))
    exit(1); 
+  my_getopt_use_args_separator= FALSE;
+
   save_argv = argv;				/* Save for free_defaults */
   if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
   {
@@ -325,6 +334,8 @@ int main(int argc,char *argv[])
   (void) signal(SIGINT,endprog);			/* Here if abort */
   (void) signal(SIGTERM,endprog);		/* Here if abort */
 
+  if (opt_bind_addr)
+    mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_connect_timeout)
@@ -334,8 +345,12 @@ int main(int argc,char *argv[])
   }
 #ifdef HAVE_OPENSSL
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
   mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                 (char*)&opt_ssl_verify_server_cert);
 #endif
@@ -688,7 +703,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_VER:
       new_line=1;
       print_version();
-      puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+      puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
       printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
       printf("Protocol version\t%d\n", mysql_get_proto_info(mysql));
       printf("Connection\t\t%s\n",mysql_get_host_info(mysql));
@@ -1086,7 +1101,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
   my_print_help(my_long_options);

@@ -52,11 +52,11 @@
 #include "sql_select.h"
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref, Field* field,
-                                COND *cond, uint *range_fl,
+                                Item *cond, uint *range_fl,
                                 uint *key_prefix_length);
 static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
-                            COND *cond, uint range_fl, uint prefix_len);
-static int maxmin_in_range(bool max_fl, Field* field, COND *cond);
+                            Item *cond, uint range_fl, uint prefix_len);
+static int maxmin_in_range(bool max_fl, Field* field, Item *cond);
 
 
 /*
@@ -110,7 +110,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
   int error;
   
   if (!ref->key_length)
-    error= table->file->index_first(table->record[0]);
+    error= table->file->ha_index_first(table->record[0]);
   else 
   {
     /*
@@ -132,10 +132,10 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
          Closed interval: Either The MIN argument is non-nullable, or
          we have a >= predicate for the MIN argument.
       */
-      error= table->file->index_read_map(table->record[0],
-                                         ref->key_buff,
-                                         make_prev_keypart_map(ref->key_parts),
-                                         HA_READ_KEY_OR_NEXT);
+      error= table->file->ha_index_read_map(table->record[0],
+                                           ref->key_buff,
+                                           make_prev_keypart_map(ref->key_parts),
+                                           HA_READ_KEY_OR_NEXT);
     else
     {
       /*
@@ -147,10 +147,10 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
         and it would not work.
       */
       DBUG_ASSERT(prefix_len < ref->key_length);
-      error= table->file->index_read_map(table->record[0],
-                                         ref->key_buff,
-                                         make_prev_keypart_map(ref->key_parts),
-                                         HA_READ_AFTER_KEY);
+      error= table->file->ha_index_read_map(table->record[0],
+                                            ref->key_buff,
+                                            make_prev_keypart_map(ref->key_parts),
+                                            HA_READ_AFTER_KEY);
       /* 
          If the found record is outside the group formed by the search
          prefix, or there is no such record at all, check if all
@@ -173,10 +173,10 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len)))
       {
         DBUG_ASSERT(item_field->field->real_maybe_null());
-        error= table->file->index_read_map(table->record[0],
-                                           ref->key_buff,
-                                           make_prev_keypart_map(ref->key_parts),
-                                           HA_READ_KEY_EXACT);
+        error= table->file->ha_index_read_map(table->record[0],
+                                             ref->key_buff,
+                                             make_prev_keypart_map(ref->key_parts),
+                                             HA_READ_KEY_EXACT);
       }
     }
   }
@@ -199,12 +199,12 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
 static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
 {
   return (ref->key_length ?
-          table->file->index_read_map(table->record[0], ref->key_buff,
-                                      make_prev_keypart_map(ref->key_parts),
-                                      range_fl & NEAR_MAX ?
-                                      HA_READ_BEFORE_KEY : 
-                                      HA_READ_PREFIX_LAST_OR_PREV) :
-          table->file->index_last(table->record[0]));
+          table->file->ha_index_read_map(table->record[0], ref->key_buff,
+                                        make_prev_keypart_map(ref->key_parts),
+                                        range_fl & NEAR_MAX ?
+                                        HA_READ_BEFORE_KEY : 
+                                        HA_READ_PREFIX_LAST_OR_PREV) :
+          table->file->ha_index_last(table->record[0]));
 }
 
 
@@ -235,7 +235,7 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl)
 */
 
 int opt_sum_query(THD *thd,
-                  TABLE_LIST *tables, List<Item> &all_fields, COND *conds)
+                  TABLE_LIST *tables, List<Item> &all_fields, Item *conds)
 {
   List_iterator_fast<Item> it(all_fields);
   int const_result= 1;
@@ -243,14 +243,21 @@ int opt_sum_query(THD *thd,
   ulonglong count= 1;
   bool is_exact_count= TRUE, maybe_exact_count= TRUE;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
-  table_map where_tables= 0;
   Item *item;
   int error;
 
   DBUG_ENTER("opt_sum_query");
 
-  if (conds)
-    where_tables= conds->used_tables();
+  const table_map where_tables= conds ? conds->used_tables() : 0;
+  /*
+    opt_sum_query() happens at optimization. A subquery is optimized once but
+    executed possibly multiple times.
+    If the value of the set function depends on the join's emptiness (like
+    MIN() does), and the join's emptiness depends on the outer row, we cannot
+    mark the set function as constant:
+   */
+  if (where_tables & OUTER_REF_TABLE_BIT)
+    DBUG_RETURN(0);
 
   /*
     Analyze outer join dependencies, and, if possible, compute the number
@@ -261,7 +268,7 @@ int opt_sum_query(THD *thd,
     TABLE_LIST *embedded;
     for (embedded= tl ; embedded; embedded= embedded->embedding)
     {
-      if (embedded->on_expr)
+      if (embedded->join_cond())
         break;
     }
     if (embedded)
@@ -286,26 +293,28 @@ int opt_sum_query(THD *thd,
       statistics (cheap), compute the total number of rows. If there are
       no outer table dependencies, this count may be used as the real count.
       Schema tables are filled after this function is invoked, so we can't
-      get row count 
+      get row count.
+      Derived tables aren't filled yet, their number of rows are estimates.
     */
-    if (!(tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) ||
-        tl->schema_table)
+    bool table_filled= !(tl->schema_table || tl->uses_materialization());
+    if ((tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
+        table_filled)
     {
-      maybe_exact_count&= test(!tl->schema_table &&
-                               (tl->table->file->ha_table_flags() &
-                                HA_HAS_RECORDS));
-      is_exact_count= FALSE;
-      count= 1;                                 // ensure count != 0
-    }
-    else
-    {
-      error= tl->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+      error= tl->fetch_number_of_rows();
       if(error)
       {
         tl->table->file->print_error(error, MYF(ME_FATALERROR));
         DBUG_RETURN(error);
       }
       count*= tl->table->file->stats.records;
+    }
+    else
+    {
+      maybe_exact_count&= test(table_filled &&
+                               (tl->table->file->ha_table_flags() &
+                                HA_HAS_RECORDS));
+      is_exact_count= FALSE;
+      count= 1;                                 // ensure count != 0
     }
   }
 
@@ -450,7 +459,7 @@ int opt_sum_query(THD *thd,
   }
 
   if (thd->is_error())
-    DBUG_RETURN(thd->stmt_da->sql_errno());
+    DBUG_RETURN(thd->get_stmt_da()->sql_errno());
 
   /*
     If we have a where clause, we can only ignore searching in the
@@ -605,7 +614,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
 */
 
 static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo, 
-                          KEY_PART_INFO *field_part, COND *cond,
+                          KEY_PART_INFO *field_part, Item *cond,
                           key_part_map *key_part_used, uint *range_fl,
                           uint *prefix_len)
 {
@@ -665,6 +674,11 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     break;
   case Item_func::BETWEEN:
     between= 1;
+
+    // NOT BETWEEN is equivalent to OR and is therefore not a conjunction
+    if (((Item_func_between*)cond)->negated)
+      DBUG_RETURN(false);
+
     break;
   case Item_func::MULT_EQUAL_FUNC:
     eq_type= 1;
@@ -760,7 +774,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     {
       /* Update endpoints for MAX/MIN, see function comment. */
       Item *value= args[between && max_fl ? 2 : 1];
-      store_val_in_field(part->field, value, CHECK_FIELD_IGNORE);
+      value->save_in_field_no_warnings(part->field, true);
       if (part->null_bit) 
         *key_ptr++= (uchar) test(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);
@@ -836,7 +850,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
       
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
-                                Field* field, COND *cond,
+                                Field* field, Item *cond,
                                 uint *range_fl, uint *prefix_len)
 {
   if (!(field->flags & PART_KEY_FLAG))
@@ -942,7 +956,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
 */
 
 static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
-                            COND *cond, uint range_fl, uint prefix_len)
+                            Item *cond, uint range_fl, uint prefix_len)
 {
   if (key_cmp_if_same(field->table, ref->key_buff, ref->key, prefix_len))
     return 1;
@@ -965,7 +979,7 @@ static int reckey_in_range(bool max_fl, TABLE_REF *ref, Field* field,
     1        WHERE was not true for the found row
 */
 
-static int maxmin_in_range(bool max_fl, Field* field, COND *cond)
+static int maxmin_in_range(bool max_fl, Field* field, Item *cond)
 {
   /* If AND/OR condition */
   if (cond->type() == Item::COND_ITEM)

@@ -39,7 +39,9 @@
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
+    
     <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
+      <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
@@ -47,6 +49,7 @@
         Property="OLDERVERSIONBEINGUPGRADED"
         MigrateFeatures="yes"
         />
+      <?endif?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
         OnlyDetect="yes"

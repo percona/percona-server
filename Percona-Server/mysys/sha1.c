@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2004, 2006 MySQL AB
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -82,6 +82,41 @@
 #include "my_global.h"
 #include "m_string.h"
 #include "sha1.h"
+
+/*
+  Skip entire file if built with YaSSL.
+*/
+#ifndef HAVE_YASSL
+
+#ifdef HAVE_OPENSSL
+
+/*
+  Wrapper for OpenSSL SH1 methods.
+*/
+
+int mysql_sha1_reset(SHA1_CONTEXT *context)
+{
+  return SHA1_Init(context);
+}
+
+
+int mysql_sha1_input(SHA1_CONTEXT *context, const uint8 *message_array,
+                     unsigned length)
+{
+  return SHA1_Update(context, message_array, length);
+}
+
+
+int mysql_sha1_result(SHA1_CONTEXT *context,
+                      uint8 Message_Digest[SHA1_HASH_SIZE])
+{
+  return SHA1_Final(Message_Digest, context);
+}
+
+#else /* HAVE_OPENSSL */
+/*
+  Native MySQL SHA1 implementation.
+*/
 
 /*
   Define the SHA1 circular left shift macro
@@ -179,7 +214,7 @@ int mysql_sha1_result(SHA1_CONTEXT *context,
   {
     SHA1PadMessage(context);
      /* message may be sensitive, clear it out */
-    bzero((char*) context->Message_Block,64);
+    memset(context->Message_Block, 0, 64);
     context->Length   = 0;    /* and clear length  */
     context->Computed = 1;
   }
@@ -386,21 +421,21 @@ static void SHA1PadMessage(SHA1_CONTEXT *context)
   if (i > 55)
   {
     context->Message_Block[i++] = 0x80;
-    bzero((char*) &context->Message_Block[i],
+    memset(&context->Message_Block[i], 0, 
 	  sizeof(context->Message_Block[0])*(64-i));
     context->Message_Block_Index=64;
 
     /* This function sets context->Message_Block_Index to zero	*/
     SHA1ProcessMessageBlock(context);
 
-    bzero((char*) &context->Message_Block[0],
+    memset(&context->Message_Block[0], 0, 
 	  sizeof(context->Message_Block[0])*56);
     context->Message_Block_Index=56;
   }
   else
   {
     context->Message_Block[i++] = 0x80;
-    bzero((char*) &context->Message_Block[i],
+    memset(&context->Message_Block[i], 0,
 	  sizeof(context->Message_Block[0])*(56-i));
     context->Message_Block_Index=56;
   }
@@ -420,3 +455,6 @@ static void SHA1PadMessage(SHA1_CONTEXT *context)
 
   SHA1ProcessMessageBlock(context);
 }
+#endif /* HAVE_OPENSSL */
+
+#endif /* HAVE_YASSL */

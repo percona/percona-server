@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,7 +127,7 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
     *perror= "Failed to allocate memory for SECURITY_ATTRIBUTES";
     goto error;
   }
-  bzero(owner_token, owner_token_length);
+  memset(owner_token, 0, owner_token_length);
   if (! GetTokenInformation(htoken, TokenUser, owner_token,
                             owner_token_length, &owner_token_length))
   {

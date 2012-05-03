@@ -1,6 +1,7 @@
 /*
    Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -12,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
   Gives a approximated number of how many records there is between two keys.
@@ -140,8 +141,8 @@ static ha_rows _mi_record_pos(MI_INFO *info, const uchar *key,
     key_len=USE_WHOLE_KEY;
 
   /*
-    my_handler.c:ha_compare_text() has a flag 'skip_end_space'.
-    This is set in my_handler.c:ha_key_cmp() in dependence on the
+    my_compare.c:ha_compare_text() has a flag 'skip_end_space'.
+    This is set in my_compare.c:ha_key_cmp() in dependence on the
     compare flags 'nextflag' and the column type.
 
     TEXT columns are of type HA_KEYTYPE_VARTEXT. In this case the

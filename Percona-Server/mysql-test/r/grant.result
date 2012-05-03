@@ -611,7 +611,7 @@ create database mysqltest;
 create table mysqltest.t1 (a int,b int,c int);
 grant all on mysqltest.t1 to mysqltest_1@localhost;
 alter table t1 rename t2;
-ERROR 42000: INSERT,CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
+ERROR 42000: INSERT, CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
 revoke all privileges on mysqltest.t1 from mysqltest_1@localhost;
 delete from mysql.user where user=_binary'mysqltest_1';
 drop database mysqltest;
@@ -1105,9 +1105,9 @@ Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
 GRANT SELECT ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
 RENAME TABLE t1 TO t2;
-ERROR 42000: DROP,ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
+ERROR 42000: DROP, ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
 ALTER TABLE t1 RENAME TO t2;
-ERROR 42000: DROP,ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
+ERROR 42000: DROP, ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
 GRANT DROP ON mysqltest1.t1 TO mysqltest_1@localhost;
 RENAME TABLE t1 TO t2;
 ERROR 42000: ALTER command denied to user 'mysqltest_1'@'localhost' for table 't1'
@@ -1119,9 +1119,9 @@ Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost'
 GRANT SELECT, DROP, ALTER ON `mysqltest1`.`t1` TO 'mysqltest_1'@'localhost'
 RENAME TABLE t1 TO t2;
-ERROR 42000: INSERT,CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
+ERROR 42000: INSERT, CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
 ALTER TABLE t1 RENAME TO t2;
-ERROR 42000: INSERT,CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
+ERROR 42000: INSERT, CREATE command denied to user 'mysqltest_1'@'localhost' for table 't2'
 GRANT INSERT, CREATE ON mysqltest1.t1 TO mysqltest_1@localhost;
 SHOW GRANTS;
 Grants for mysqltest_1@localhost
@@ -1352,7 +1352,7 @@ FLUSH PRIVILEGES;
 DROP TABLE mysql.user;
 drop table if exists test;
 Warnings:
-Note	1051	Unknown table 'test'
+Note	1051	Unknown table 'test.test'
 drop function if exists test_function;
 Warnings:
 Note	1305	FUNCTION test.test_function does not exist
@@ -1700,6 +1700,7 @@ Assigning privileges without procs_priv table.
 CREATE DATABASE mysqltest1;
 CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
 SELECT 1;
+CREATE FUNCTION mysqltest1.test() RETURNS INT RETURN 1;
 GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
 ERROR 42S02: Table 'mysql.procs_priv' doesn't exist
 GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
@@ -2536,3 +2537,51 @@ DROP USER mysqltest_u1@localhost;
 
 # End of Bug#38347.
 
+#
+# BUG#11759114 - '51401: GRANT TREATS NONEXISTENT FUNCTIONS/PRIVILEGES
+#                 DIFFERENTLY'.
+#
+drop database if exists mysqltest_db1;
+create database mysqltest_db1;
+create user mysqltest_u1;
+# Both GRANT statements below should fail with the same error.
+grant execute on function mysqltest_db1.f1 to mysqltest_u1;
+ERROR 42000: FUNCTION or PROCEDURE f1 does not exist
+grant execute on procedure mysqltest_db1.p1 to mysqltest_u1;
+ERROR 42000: FUNCTION or PROCEDURE p1 does not exist
+# Let us show that GRANT behaviour for routines is consistent
+# with GRANT behaviour for tables. Attempt to grant privilege
+# on non-existent table also results in an error.
+grant select on mysqltest_db1.t1 to mysqltest_u1;
+ERROR 42S02: Table 'mysqltest_db1.t1' doesn't exist
+show grants for mysqltest_u1;
+Grants for mysqltest_u1@%
+GRANT USAGE ON *.* TO 'mysqltest_u1'@'%'
+drop database mysqltest_db1;
+drop user mysqltest_u1;
+#
+# Bug#11756966 - 48958: STORED PROCEDURES CAN BE LEVERAGED TO BYPASS
+#                DATABASE SECURITY
+#
+DROP DATABASE IF EXISTS secret;
+DROP DATABASE IF EXISTS no_such_db;
+CREATE DATABASE secret;
+GRANT USAGE ON *.* TO 'untrusted'@localhost;
+# Connection con1
+SHOW GRANTS;
+Grants for untrusted@localhost
+GRANT USAGE ON *.* TO 'untrusted'@'localhost'
+SHOW DATABASES;
+Database
+information_schema
+test
+# Both statements below should fail with the same error.
+# They used to give different errors, thereby
+# hinting that the secret database exists.
+CREATE PROCEDURE no_such_db.foo() BEGIN END;
+ERROR 42000: Access denied for user 'untrusted'@'localhost' to database 'no_such_db'
+CREATE PROCEDURE secret.peek_at_secret() BEGIN END;
+ERROR 42000: Access denied for user 'untrusted'@'localhost' to database 'secret'
+# Connection default
+DROP USER 'untrusted'@localhost;
+DROP DATABASE secret;

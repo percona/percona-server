@@ -11,25 +11,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef LOG_H
 #define LOG_H
 
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "handler.h"                            /* my_xid */
-
-class Relay_log_info;
-
-class Format_description_log_event;
-
-bool trans_has_updated_trans_table(const THD* thd);
-bool stmt_has_updated_trans_table(const THD *thd);
-bool use_trans_cache(const THD* thd, bool is_transactional);
-bool ending_trans(THD* thd, const bool all);
-bool ending_single_stmt_trans(THD* thd, const bool all);
-bool trans_has_updated_non_trans_table(const THD* thd);
-bool stmt_has_updated_non_trans_table(const THD* thd);
 
 /*
   Transaction Coordinator log - a base abstract class
@@ -145,8 +133,6 @@ extern TC_LOG_DUMMY tc_log_dummy;
 */
 #define LOG_WARN_UNIQUE_FN_EXT_LEFT 1000
 
-class Relay_log_info;
-
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_LOG_INFO_lock;
 #endif
@@ -178,9 +164,6 @@ typedef struct st_log_info
 #define LOG_NONE       1
 #define LOG_FILE       2
 #define LOG_TABLE      4
-
-class Log_event;
-class Rows_log_event;
 
 enum enum_log_type { LOG_UNKNOWN, LOG_NORMAL, LOG_BIN };
 enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
@@ -233,6 +216,37 @@ public:
 #endif
 };
 
+
+enum enum_general_log_table_field
+{
+  GLT_FIELD_EVENT_TIME = 0,
+  GLT_FIELD_USER_HOST,
+  GLT_FIELD_THREAD_ID,
+  GLT_FIELD_SERVER_ID,
+  GLT_FIELD_COMMAND_TYPE,
+  GLT_FIELD_ARGUMENT,
+  GLT_FIELD_COUNT
+};
+
+
+enum enum_slow_query_log_table_field
+{
+  SQLT_FIELD_START_TIME = 0,
+  SQLT_FIELD_USER_HOST,
+  SQLT_FIELD_QUERY_TIME,
+  SQLT_FIELD_LOCK_TIME,
+  SQLT_FIELD_ROWS_SENT,
+  SQLT_FIELD_ROWS_EXAMINED,
+  SQLT_FIELD_DATABASE,
+  SQLT_FIELD_LAST_INSERT_ID,
+  SQLT_FIELD_INSERT_ID,
+  SQLT_FIELD_SERVER_ID,
+  SQLT_FIELD_SQL_TEXT,
+  SQLT_FIELD_THREAD_ID,
+  SQLT_FIELD_COUNT
+};
+
+
 class MYSQL_QUERY_LOG: public MYSQL_LOG
 {
 public:
@@ -271,245 +285,6 @@ private:
   time_t last_time;
 };
 
-class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
-{
- private:
-#ifdef HAVE_PSI_INTERFACE
-  /** The instrumentation key to use for @ LOCK_index. */
-  PSI_mutex_key m_key_LOCK_index;
-  /** The instrumentation key to use for @ update_cond. */
-  PSI_cond_key m_key_update_cond;
-  /** The instrumentation key to use for opening the log file. */
-  PSI_file_key m_key_file_log;
-  /** The instrumentation key to use for opening the log index file. */
-  PSI_file_key m_key_file_log_index;
-#endif
-  /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
-  mysql_mutex_t LOCK_index;
-  mysql_mutex_t LOCK_prep_xids;
-  mysql_cond_t  COND_prep_xids;
-  mysql_cond_t update_cond;
-  ulonglong bytes_written;
-  IO_CACHE index_file;
-  char index_file_name[FN_REFLEN];
-  /*
-    purge_file is a temp file used in purge_logs so that the index file
-    can be updated before deleting files from disk, yielding better crash
-    recovery. It is created on demand the first time purge_logs is called
-    and then reused for subsequent calls. It is cleaned up in cleanup().
-  */
-  IO_CACHE purge_index_file;
-  char purge_index_file_name[FN_REFLEN];
-  /*
-     The max size before rotation (usable only if log_type == LOG_BIN: binary
-     logs and relay logs).
-     For a binlog, max_size should be max_binlog_size.
-     For a relay log, it should be max_relay_log_size if this is non-zero,
-     max_binlog_size otherwise.
-     max_size is set in init(), and dynamically changed (when one does SET
-     GLOBAL MAX_BINLOG_SIZE|MAX_RELAY_LOG_SIZE) by fix_max_binlog_size and
-     fix_max_relay_log_size).
-  */
-  ulong max_size;
-  long prepared_xids; /* for tc log - number of xids to remember */
-  // current file sequence number for load data infile binary logging
-  uint file_id;
-  uint open_count;				// For replication
-  int readers_count;
-  bool need_start_event;
-  /*
-    no_auto_events means we don't want any of these automatic events :
-    Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't
-    want a Rotate_log event to be written to the relay log. When we start a
-    relay log etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
-    In 5.0 it's 0 for relay logs too!
-  */
-  bool no_auto_events;
-
-  /* pointer to the sync period variable, for binlog this will be
-     sync_binlog_period, for relay log this will be
-     sync_relay_log_period
-  */
-  uint *sync_period_ptr;
-  uint sync_counter;
-
-  inline uint get_sync_period()
-  {
-    return *sync_period_ptr;
-  }
-
-  int write_to_file(IO_CACHE *cache);
-  /*
-    This is used to start writing to a new log file. The difference from
-    new_file() is locking. new_file_without_locking() does not acquire
-    LOCK_log.
-  */
-  int new_file_without_locking();
-  int new_file_impl(bool need_lock);
-
-public:
-  MYSQL_LOG::generate_name;
-  MYSQL_LOG::is_open;
-
-  /* This is relay log */
-  bool is_relay_log;
-  ulong signal_cnt;  // update of the counter is checked by heartbeat
-  /*
-    These describe the log's format. This is used only for relay logs.
-    _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
-    necessary to have 2 distinct objects, because the I/O thread may be reading
-    events in a different format from what the SQL thread is reading (consider
-    the case of a master which has been upgraded from 5.0 to 5.1 without doing
-    RESET MASTER, or from 4.x to 5.0).
-  */
-  Format_description_log_event *description_event_for_exec,
-    *description_event_for_queue;
-
-  MYSQL_BIN_LOG(uint *sync_period);
-  /*
-    note that there's no destructor ~MYSQL_BIN_LOG() !
-    The reason is that we don't want it to be automatically called
-    on exit() - but only during the correct shutdown process
-  */
-
-#ifdef HAVE_PSI_INTERFACE
-  void set_psi_keys(PSI_mutex_key key_LOCK_index,
-                    PSI_cond_key key_update_cond,
-                    PSI_file_key key_file_log,
-                    PSI_file_key key_file_log_index)
-  {
-    m_key_LOCK_index= key_LOCK_index;
-    m_key_update_cond= key_update_cond;
-    m_key_file_log= key_file_log;
-    m_key_file_log_index= key_file_log_index;
-  }
-#endif
-
-  int open(const char *opt_name);
-  void close();
-  int log_xid(THD *thd, my_xid xid);
-  int unlog(ulong cookie, my_xid xid);
-  int recover(IO_CACHE *log, Format_description_log_event *fdle);
-#if !defined(MYSQL_CLIENT)
-
-  int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
-                                       bool is_transactional);
-  int remove_pending_rows_event(THD *thd, bool is_transactional);
-
-#endif /* !defined(MYSQL_CLIENT) */
-  void reset_bytes_written()
-  {
-    bytes_written = 0;
-  }
-  void harvest_bytes_written(ulonglong* counter)
-  {
-#ifndef DBUG_OFF
-    char buf1[22],buf2[22];
-#endif
-    DBUG_ENTER("harvest_bytes_written");
-    (*counter)+=bytes_written;
-    DBUG_PRINT("info",("counter: %s  bytes_written: %s", llstr(*counter,buf1),
-		       llstr(bytes_written,buf2)));
-    bytes_written=0;
-    DBUG_VOID_RETURN;
-  }
-  void set_max_size(ulong max_size_arg);
-  void signal_update();
-  void wait_for_update_relay_log(THD* thd);
-  int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
-  void set_need_start_event() { need_start_event = 1; }
-  void init(bool no_auto_events_arg, ulong max_size);
-  void init_pthread_objects();
-  void cleanup();
-  bool open(const char *log_name,
-            enum_log_type log_type,
-            const char *new_name,
-	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg, ulong max_size,
-            bool null_created,
-            bool need_mutex);
-  bool open_index_file(const char *index_file_name_arg,
-                       const char *log_name, bool need_mutex);
-  /* Use this to start writing a new log file */
-  int new_file();
-
-  bool write(Log_event* event_info); // binary log write
-  bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-  bool write_incident(THD *thd, bool lock);
-
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
-  void set_write_error(THD *thd, bool is_transactional);
-  bool check_write_error(THD *thd);
-
-  void start_union_events(THD *thd, query_id_t query_id_param);
-  void stop_union_events(THD *thd);
-  bool is_query_in_union(THD *thd, query_id_t query_id_param);
-
-  /*
-    v stands for vector
-    invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
-  */
-  bool appendv(const char* buf,uint len,...);
-  bool append(Log_event* ev);
-
-  void make_log_name(char* buf, const char* log_ident);
-  bool is_active(const char* log_file_name);
-  int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  int rotate(bool force_rotate, bool* check_purge);
-  void purge();
-  int rotate_and_purge(bool force_rotate);
-  /**
-     Flush binlog cache and synchronize to disk.
-
-     This function flushes events in binlog cache to binary log file,
-     it will do synchronizing according to the setting of system
-     variable 'sync_binlog'. If file is synchronized, @c synced will
-     be set to 1, otherwise 0.
-
-     @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
-
-     @retval 0 Success
-     @retval other Failure
-  */
-  bool flush_and_sync(bool *synced);
-  int purge_logs(const char *to_log, bool included,
-                 bool need_mutex, bool need_update_threads,
-                 ulonglong *decrease_log_space);
-  int purge_logs_before_date(time_t purge_time);
-  int purge_first_log(Relay_log_info* rli, bool included);
-  int set_purge_index_file_name(const char *base_file_name);
-  int open_purge_index_file(bool destroy);
-  bool is_inited_purge_index_file();
-  int close_purge_index_file();
-  int clean_purge_index_file();
-  int sync_purge_index_file();
-  int register_purge_index_entry(const char* entry);
-  int register_create_index_entry(const char* entry);
-  int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
-                        bool need_mutex);
-  bool reset_logs(THD* thd);
-  void close(uint exiting);
-
-  // iterating through the log index file
-  int find_log_pos(LOG_INFO* linfo, const char* log_name,
-		   bool need_mutex);
-  int find_next_log(LOG_INFO* linfo, bool need_mutex);
-  int get_current_log(LOG_INFO* linfo);
-  int raw_get_current_log(LOG_INFO* linfo);
-  uint next_file_id();
-  inline char* get_index_fname() { return index_file_name;}
-  inline char* get_log_fname() { return log_file_name; }
-  inline char* get_name() { return name; }
-  inline mysql_mutex_t* get_log_lock() { return &LOCK_log; }
-  inline mysql_cond_t* get_log_cond() { return &update_cond; }
-  inline IO_CACHE* get_log_file() { return &log_file; }
-
-  inline void lock_index() { mysql_mutex_lock(&LOCK_index);}
-  inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
-  inline IO_CACHE *get_index_file() { return &index_file;}
-  inline uint32 get_open_count() { return open_count; }
-};
-
 class Log_event_handler
 {
 public:
@@ -528,7 +303,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs)= 0;
+                           const CHARSET_INFO *client_cs)= 0;
   virtual ~Log_event_handler() {}
 };
 
@@ -557,7 +332,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs);
+                           const CHARSET_INFO *client_cs);
 
   int activate_log(THD *thd, uint log_type);
 };
@@ -589,7 +364,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs);
+                           const CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
   MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
@@ -643,8 +418,7 @@ public:
   void cleanup_end();
   bool error_log_print(enum loglevel level, const char *format,
                       va_list args);
-  bool slow_log_print(THD *thd, const char *query, uint query_length,
-                      ulonglong current_utime);
+  bool slow_log_print(THD *thd, const char *query, uint query_length);
   bool general_log_print(THD *thd,enum enum_server_command command,
                          const char *format, va_list args);
   bool general_log_write(THD *thd, enum enum_server_command command,
@@ -673,6 +447,15 @@ public:
   }
 };
 
+enum enum_binlog_row_image {
+  /** PKE in the before image and changed columns in the after image */
+  BINLOG_ROW_IMAGE_MINIMAL= 0,
+  /** Whenever possible, before and after image contain all columns except blobs. */
+  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  /** All columns in both before and after image. */
+  BINLOG_ROW_IMAGE_FULL= 2
+};
+
 enum enum_binlog_format {
   BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
   BINLOG_FORMAT_STMT=  1, ///< statement-based
@@ -695,8 +478,7 @@ extern sql_print_message_func sql_print_message_handlers[];
 int error_log_print(enum loglevel level, const char *format,
                     va_list args);
 
-bool slow_log_print(THD *thd, const char *query, uint query_length,
-                    ulonglong current_utime);
+bool slow_log_print(THD *thd, const char *query, uint query_length);
 
 bool general_log_print(THD *thd, enum enum_server_command command,
                        const char *format,...);
@@ -707,74 +489,8 @@ bool general_log_write(THD *thd, enum enum_server_command command,
 void sql_perror(const char *message);
 bool flush_error_log();
 
-File open_binlog(IO_CACHE *log, const char *log_file_name,
-                 const char **errmsg);
-
 char *make_log_name(char *buff, const char *name, const char* log_ext);
 
-extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 extern LOGGER logger;
-
-
-/**
-  Turns a relative log binary log path into a full path, based on the
-  opt_bin_logname or opt_relay_logname.
-
-  @param from         The log name we want to make into an absolute path.
-  @param to           The buffer where to put the results of the 
-                      normalization.
-  @param is_relay_log Switch that makes is used inside to choose which
-                      option (opt_bin_logname or opt_relay_logname) to
-                      use when calculating the base path.
-
-  @returns true if a problem occurs, false otherwise.
- */
-
-inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
-{
-  DBUG_ENTER("normalize_binlog_name");
-  bool error= false;
-  char buff[FN_REFLEN];
-  char *ptr= (char*) from;
-  char *opt_name= is_relay_log ? opt_relay_logname : opt_bin_logname;
-
-  DBUG_ASSERT(from);
-
-  /* opt_name is not null and not empty and from is a relative path */
-  if (opt_name && opt_name[0] && from && !test_if_hard_path(from))
-  {
-    // take the path from opt_name
-    // take the filename from from 
-    char log_dirpart[FN_REFLEN], log_dirname[FN_REFLEN];
-    size_t log_dirpart_len, log_dirname_len;
-    dirname_part(log_dirpart, opt_name, &log_dirpart_len);
-    dirname_part(log_dirname, from, &log_dirname_len);
-
-    /* log may be empty => relay-log or log-bin did not 
-        hold paths, just filename pattern */
-    if (log_dirpart_len > 0)
-    {
-      /* create the new path name */
-      if(fn_format(buff, from+log_dirname_len, log_dirpart, "",
-                   MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
-      {
-        error= true;
-        goto end;
-      }
-
-      ptr= buff;
-    }
-  }
-
-  DBUG_ASSERT(ptr);
-
-  if (ptr)
-    strmake(to, ptr, strlen(ptr));
-
-end:
-  DBUG_RETURN(error);
-}
-
-
 
 #endif /* LOG_H */

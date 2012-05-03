@@ -362,6 +362,7 @@ if ($CRC_RET_stmt_sidef) {
   if (`SELECT $unsafe_type != 3 AND '$event_type' != 'Table_map'`) {
     --enable_query_log
     --echo ******** Failure! Event number 3 was a '$event_type', not a 'Table_map'. ********
+    SHOW WARNINGS;
     SHOW BINLOG EVENTS;
     --die Wrong events in binlog.
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,19 +36,9 @@
  * .configure. strxfrm_multiply_win1250ch=2
  */
 
-#define REAL_MYSQL
-#ifdef REAL_MYSQL
-
 #include "my_global.h"
 #include "m_string.h"
 #include "m_ctype.h"
-
-#else
-
-#include <stdio.h>
-#define uchar unsigned char
-
-#endif
 
 #ifdef HAVE_CHARSET_cp1250
 
@@ -445,7 +435,8 @@ static struct wordvalue doubles[] = {
 
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
-static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)), 
+static int my_strnncoll_win1250ch(const CHARSET_INFO *cs
+                                  __attribute__((unused)),
 				  const uchar *s1, size_t len1,
                                   const uchar *s2, size_t len2,
                                   my_bool s2_is_prefix)
@@ -476,7 +467,7 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 */
 
 static
-int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
+int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, 
 			     const uchar *s, size_t slen, 
 			     const uchar *t, size_t tlen,
                              my_bool diff_if_only_endspace_difference
@@ -488,9 +479,11 @@ int my_strnncollsp_win1250ch(CHARSET_INFO * cs,
 }
 
 
-static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
-                                    uchar *dest, size_t len, 
-                                    const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_win1250ch(const CHARSET_INFO *cs  __attribute__((unused)),
+                      uchar *dest, size_t len,
+                      uint nweights_arg __attribute__((unused)),
+                      const uchar *src, size_t srclen, uint flags)
 {
   int value;
   const uchar *p;
@@ -498,20 +491,27 @@ static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
   size_t totlen = 0;
   p = src;
 
-  do {
+  if (!(flags & 0x0F)) /* All levels by default */                              
+    flags|= 0x0F;
+
+  for (;;)
+  {
     NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
-    if (totlen <= len)
-      dest[totlen] = value;
-    totlen++;
-  } while (value) ;
-  if (len > totlen)
-    bfill(dest + totlen, len - totlen, ' ');
-  return len;
+    if (!value)
+      break;
+    if (totlen <= len && ((1 << pass) & flags))
+      dest[totlen++] = value;
+  }
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len > totlen)
+  {
+    memset(dest + totlen, 0x00, len - totlen);
+    totlen= len;
+  }
+  return totlen;
 }
 
 #undef IS_END
 
-#ifdef REAL_MYSQL
 
 static uchar like_range_prefix_min_win1250ch[]=
 {
@@ -614,7 +614,7 @@ static uchar like_range_prefix_max_win1250ch[]=
 */
 
 static my_bool
-my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
+my_like_range_win1250ch(const CHARSET_INFO *cs __attribute__((unused)),
 			const char *ptr, size_t ptr_length,
 			pbool escape, pbool w_one, pbool w_many,
 			size_t res_length,
@@ -689,11 +689,10 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   to_lower_win1250ch,
   to_upper_win1250ch,
   sort_order_win1250ch,
-  NULL,				/* contractions */
-  NULL,				/* sort_order_big*/
+  NULL,				/* uca          */
   tab_cp1250_uni,		/* tab_to_uni   */
   idx_uni_cp1250,		/* tab_from_uni */
-  my_unicase_default,           /* caseinfo     */
+  &my_unicase_default,          /* caseinfo     */
   NULL,				/* state_map    */
   NULL,				/* ident_map    */
   2,				/* strxfrm_multiply */
@@ -705,11 +704,11 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   0,				/* max_sort_char */
   ' ',                          /* pad char      */
   0,                            /* escape_with_backslash_is_dangerous */
+  2,                            /* levels_for_compare */
+  2,                            /* levels_for_order   */
   &my_charset_8bit_handler,
   &my_collation_czech_ci_handler
 };
 
-
-#endif /* REAL_MYSQL */
 
 #endif /* HAVE_CHARSET_cp1250 */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {
-  bzero(array, sizeof(*array));
+  memset(array, 0, sizeof(*array));
   array->size_of_element= element_size;
   my_atomic_rwlock_init(&array->lock);
 }
@@ -124,8 +124,8 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   {
     uchar *alloc, *data;
     alloc= my_malloc(LF_DYNARRAY_LEVEL_LENGTH * array->size_of_element +
-                    max(array->size_of_element, sizeof(void *)),
-                    MYF(MY_WME|MY_ZEROFILL));
+                     MY_MAX(array->size_of_element, sizeof(void *)),
+                     MYF(MY_WME|MY_ZEROFILL));
     if (unlikely(!alloc))
       return(NULL);
     /* reserve the space for free() address */

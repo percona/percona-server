@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /*
@@ -108,11 +108,8 @@ static void init_servers_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_servers_cache_rwlocks);
-  PSI_server->register_rwlock(category, all_servers_cache_rwlocks, count);
+  mysql_rwlock_register(category, all_servers_cache_rwlocks, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -211,8 +208,10 @@ static bool servers_load(THD *thd, TABLE_LIST *tables)
   free_root(&mem, MYF(0));
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  init_read_record(&read_record_info,thd,table=tables[0].table,NULL,1,0, 
-                   FALSE);
+  if (init_read_record(&read_record_info, thd, table=tables[0].table,
+                       NULL, 1, 1, FALSE))
+    DBUG_RETURN(TRUE);
+
   while (!(read_record_info.read_record(&read_record_info)))
   {
     /* return_val is already TRUE, so no need to set */
@@ -264,9 +263,9 @@ bool servers_reload(THD *thd)
       Execution might have been interrupted; only print the error message
       if an error condition has been raised.
     */
-    if (thd->stmt_da->is_error())
+    if (thd->get_stmt_da()->is_error())
       sql_print_error("Can't open and lock privilege tables: %s",
-                      thd->stmt_da->message());
+                      thd->get_stmt_da()->message());
     return_val= FALSE;
     goto end;
   }
@@ -544,10 +543,10 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
                          system_charset_info);
 
   /* read index until record is that specified in server_name */
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                              (uchar *)table->field[0]->ptr,
-                                              HA_WHOLE_KEY,
-                                              HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 HA_WHOLE_KEY,
+                                                 HA_READ_KEY_EXACT)))
   {
     /* if not found, err */
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -630,7 +629,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
@@ -888,10 +887,10 @@ update_server_record(TABLE *table, FOREIGN_SERVER *server)
                          server->server_name_length,
                          system_charset_info);
 
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                              (uchar *)table->field[0]->ptr,
-                                              ~(longlong)0,
-                                              HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 ~(longlong)0,
+                                                 HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       table->file->print_error(error, MYF(0));
@@ -947,10 +946,10 @@ delete_server_record(TABLE *table,
   /* set the field that's the PK to the value we're looking for */
   table->field[0]->store(server_name, server_name_length, system_charset_info);
 
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                          (uchar *)table->field[0]->ptr,
-                                          HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 HA_WHOLE_KEY,
+                                                 HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       table->file->print_error(error, MYF(0));
@@ -1059,7 +1058,7 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 

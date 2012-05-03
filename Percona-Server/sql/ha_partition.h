@@ -2,30 +2,26 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#ifdef __GNUC__
-#pragma interface				/* gcc class implementation */
-#endif
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_partition.h"      /* part_id_range, partition_element */
 #include "queues.h"             /* QUEUE */
 
 enum partition_keywords
-{ 
+{
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,
   PKW_COLUMNS
 };
@@ -177,9 +173,11 @@ private:
   ha_rows   m_bulk_inserted_rows;
   /** used for prediction of start_bulk_insert rows */
   enum_monotonicity_info m_part_func_monotonicity_info;
+  /** keep track of locked partitions */
+  MY_BITMAP m_locked_partitions;
 public:
   handler *clone(const char *name, MEM_ROOT *mem_root);
-  virtual void set_part_info(partition_info *part_info)
+  virtual void set_part_info(partition_info *part_info, bool early)
   {
      m_part_info= part_info;
      m_is_sub_partitioned= part_info->is_sub_partitioned();
@@ -260,11 +258,10 @@ private:
                             handler *file, const char *part_name,
                             partition_element *p_elem);
   /*
-    delete_table, rename_table and create uses very similar logic which
+    delete_table and rename_table uses very similar logic which
     is packed into this routine.
   */
-  uint del_ren_cre_table(const char *from, const char *to,
-                         TABLE *table_arg, HA_CREATE_INFO *create_info);
+  uint del_ren_table(const char *from, const char *to);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.
@@ -281,9 +278,11 @@ private:
   int set_up_table_before_create(TABLE *table_arg,
                                  const char *partition_name_with_path,
                                  HA_CREATE_INFO *info,
-                                 uint part_id,
                                  partition_element *p_elem);
   partition_element *find_partition_element(uint part_id);
+  bool insert_partition_name_in_hash(const char *name, uint part_id,
+                                     bool is_subpart);
+  bool populate_partition_name_hash();
 
 public:
 
@@ -301,6 +300,8 @@ public:
     If the object was opened it will also be closed before being deleted.
   */
   virtual int open(const char *name, int mode, uint test_if_locked);
+  virtual void unbind_psi();
+  virtual void rebind_psi();
   virtual int close(void);
 
   /*
@@ -387,10 +388,13 @@ public:
   virtual bool is_fatal_error(int error, uint flags)
   {
     if (!handler::is_fatal_error(error, flags) ||
-        error == HA_ERR_NO_PARTITION_FOUND)
+        error == HA_ERR_NO_PARTITION_FOUND ||
+        error == HA_ERR_NOT_IN_LOCK_PARTITIONS)
       return FALSE;
     return TRUE;
   }
+
+
   /*
     -------------------------------------------------------------------------
     MODULE full table scan
@@ -541,6 +545,20 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
+  /*
+    Do not allow caching of partitioned tables, since we cannot return
+    a callback or engine_data that would work for a generic engine.
+  */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+                                             uint key_length,
+                                             qc_engine_callback
+                                               *engine_callback,
+                                             ulonglong *engine_data)
+  {
+    *engine_callback= NULL;
+    *engine_data= 0;
+    return FALSE;
+  }
 
 private:
   static const uint NO_CURRENT_PART_ID;
@@ -618,6 +636,9 @@ public:
   */
   virtual uint8 table_cache_type();
   virtual ha_rows records();
+
+  /* Calculate hash value for PARTITION BY KEY tables. */
+  uint32 calculate_key_hash_value(Field **field_array);
 
   /*
     -------------------------------------------------------------------------
@@ -774,18 +795,6 @@ public:
     Is the storage engine capable of handling bit fields?
     (MyISAM, NDB)
 
-    HA_NEED_READ_RANGE_BUFFER:
-    Is Read Multi-Range supported => need multi read range buffer
-    This parameter specifies whether a buffer for read multi range
-    is needed by the handler. Whether the handler supports this
-    feature or not is dependent of whether the handler implements
-    read_multi_range* calls or not. The only handler currently
-    supporting this feature is NDB so the partition handler need
-    not handle this call. There are methods in handler.cc that will
-    transfer those calls into index_read and other calls in the
-    index scan module.
-    (NDB)
-
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION:
     Does the storage engine need a PK for position?
     (InnoDB)
@@ -868,7 +877,11 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return m_file[0]->index_flags(inx, part, all_parts);
+    /* 
+      TODO: sergefp: Support Index Condition Pushdown in this table handler.
+    */
+    return m_file[0]->index_flags(inx, part, all_parts) &
+           ~HA_DO_INDEX_COND_PUSHDOWN;
   }
 
   /**
@@ -1106,8 +1119,8 @@ public:
     virtual int restore(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int dump(THD* thd, int fd = -1);
     virtual int net_read_dump(NET* net);
-    virtual uint checksum() const;
   */
+    virtual uint checksum() const;
   /* Enabled keycache for performance reasons, WL#4571 */
     virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);

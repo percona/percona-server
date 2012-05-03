@@ -711,8 +711,6 @@ looping	i
 looping	1
 looping	i
 looping	0
-Warnings:
-Error	1062	Duplicate entry '1' for key 'a'
 call proc_26977_works(2);
 do something
 do something
@@ -732,8 +730,6 @@ looping	i
 looping	0
 optimizer: keep hreturn
 optimizer: keep hreturn
-Warnings:
-Error	1062	Duplicate entry '2' for key 'a'
 drop table t1;
 drop procedure proc_26977_broken;
 drop procedure proc_26977_works;
@@ -851,7 +847,7 @@ drop procedure if exists p_20906_b;
 create procedure p_20906_a() SET @a=@a+1, @b=@b+1;
 show procedure code p_20906_a;
 Pos	Instruction
-0	stmt 31 "SET @a=@a+1"
+0	stmt 31 "SET  @a=@a+1"
 1	stmt 31 "SET  @b=@b+1"
 set @a=1;
 set @b=1;
@@ -862,7 +858,7 @@ select @a, @b;
 create procedure p_20906_b() SET @a=@a+1, @b=@b+1, @c=@c+1;
 show procedure code p_20906_b;
 Pos	Instruction
-0	stmt 31 "SET @a=@a+1"
+0	stmt 31 "SET  @a=@a+1"
 1	stmt 31 "SET  @b=@b+1"
 2	stmt 31 "SET  @c=@c+1"
 set @a=1;

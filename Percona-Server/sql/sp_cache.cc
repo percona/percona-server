@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,14 +10,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
 #include "sp_cache.h"
 #include "sp_head.h"
 
@@ -92,11 +89,8 @@ static void init_sp_cache_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_sp_cache_mutexes);
-  PSI_server->register_mutex(category, all_sp_cache_mutexes, count);
+  mysql_mutex_register(category, all_sp_cache_mutexes, count);
 }
 #endif
 

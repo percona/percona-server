@@ -1578,9 +1578,10 @@ drop database mysqltest1;
 #
 # Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
 #
+--character_set utf8
 set names utf8;
 grant select on test.* to юзер_юзер@localhost;
---exec $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
+--execw $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
 revoke all on test.* from юзер_юзер@localhost;
 drop user юзер_юзер@localhost;
 --error ER_WRONG_STRING_LENGTH
@@ -1675,6 +1676,7 @@ FLUSH PRIVILEGES;
 CREATE DATABASE mysqltest1;
 CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
   SELECT 1;
+CREATE FUNCTION mysqltest1.test() RETURNS INT RETURN 1;
 --error ER_NO_SUCH_TABLE
 GRANT EXECUTE ON FUNCTION mysqltest1.test TO mysqltest_1@localhost;
 GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
@@ -1860,9 +1862,6 @@ select host,user from mysql.user where User='myuser';
 revoke select on Foo.* from myuser@localhost;
 delete from mysql.user where User='myuser';
 flush privileges;
-
-# Wait till we reached the initial number of concurrent sessions
---source include/wait_until_count_sessions.inc
 
 --echo #########################################################################
 --echo #
@@ -2186,3 +2185,64 @@ DROP USER mysqltest_u1@localhost;
 --echo
 --echo # End of Bug#38347.
 --echo
+
+
+--echo #
+--echo # BUG#11759114 - '51401: GRANT TREATS NONEXISTENT FUNCTIONS/PRIVILEGES
+--echo #                 DIFFERENTLY'.
+--echo #
+--disable_warnings
+drop database if exists mysqltest_db1;
+--enable_warnings
+create database mysqltest_db1;
+create user mysqltest_u1;
+--echo # Both GRANT statements below should fail with the same error.
+--error ER_SP_DOES_NOT_EXIST
+grant execute on function mysqltest_db1.f1 to mysqltest_u1;
+--error ER_SP_DOES_NOT_EXIST
+grant execute on procedure mysqltest_db1.p1 to mysqltest_u1;
+--echo # Let us show that GRANT behaviour for routines is consistent
+--echo # with GRANT behaviour for tables. Attempt to grant privilege
+--echo # on non-existent table also results in an error.
+--error ER_NO_SUCH_TABLE
+grant select on mysqltest_db1.t1 to mysqltest_u1;
+show grants for mysqltest_u1;
+drop database mysqltest_db1;
+drop user mysqltest_u1;
+
+
+--echo #
+--echo # Bug#11756966 - 48958: STORED PROCEDURES CAN BE LEVERAGED TO BYPASS
+--echo #                DATABASE SECURITY
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS secret;
+DROP DATABASE IF EXISTS no_such_db;
+--enable_warnings
+
+CREATE DATABASE secret;
+GRANT USAGE ON *.* TO 'untrusted'@localhost;
+
+--echo # Connection con1
+connect (con1, localhost, untrusted);
+SHOW GRANTS;
+SHOW DATABASES;
+
+--echo # Both statements below should fail with the same error.
+--echo # They used to give different errors, thereby
+--echo # hinting that the secret database exists.
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE no_such_db.foo() BEGIN END;
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE secret.peek_at_secret() BEGIN END;
+
+--echo # Connection default
+--connection default
+disconnect con1;
+DROP USER 'untrusted'@localhost;
+DROP DATABASE secret;
+
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

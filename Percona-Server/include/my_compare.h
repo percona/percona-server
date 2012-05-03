@@ -47,7 +47,7 @@ extern "C" {
 
 typedef struct st_HA_KEYSEG		/* Key-portion */
 {
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   uint32 start;				/* Start of key in record */
   uint32 null_pos;			/* position to NULL indicator */
   uint16 bit_pos;                       /* Position to bit part */
@@ -106,7 +106,7 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 #define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
-extern int ha_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
+extern int ha_compare_text(const CHARSET_INFO *, uchar *, uint, uchar *, uint ,
 			   my_bool, my_bool);
 extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		      register uchar *b, uint key_length, uint nextflag,
@@ -118,6 +118,28 @@ extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
   this amount of bytes.
 */
 #define portable_sizeof_char_ptr 8
+
+
+/**
+  Return values of index_cond_func_xxx functions.
+
+  0=ICP_NO_MATCH  - index tuple doesn't satisfy the pushed index condition (the
+                engine should discard the tuple and go to the next one)
+  1=ICP_MATCH     - index tuple satisfies the pushed index condition (the engine
+                should fetch and return the record)
+  2=ICP_OUT_OF_RANGE - index tuple is out range that we're scanning, e.g. this
+                   if we're scanning "t.key BETWEEN 10 AND 20" and got a
+                   "t.key=21" tuple (the engine should stop scanning and return
+                   HA_ERR_END_OF_FILE right away).
+*/
+
+typedef enum icp_result {
+  ICP_NO_MATCH,
+  ICP_MATCH,
+  ICP_OUT_OF_RANGE
+} ICP_RESULT;
+
+
 #ifdef	__cplusplus
 }
 #endif

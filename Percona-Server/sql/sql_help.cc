@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -19,6 +19,7 @@
 #include "sql_table.h"                          // primary_key_name
 #include "sql_base.h"               // REPORT_ALL_ERRORS, setup_tables
 #include "opt_range.h"              // SQL_SELECT
+#include "opt_trace.h"              // Opt_trace_object
 #include "records.h"          // init_read_record, end_read_record
 
 struct st_find_field
@@ -188,11 +189,13 @@ int search_topics(THD *thd, TABLE *topics, struct st_find_field *find_fields,
 		  SQL_SELECT *select, List<String> *names,
 		  String *name, String *description, String *example)
 {
-  DBUG_ENTER("search_topics");
   int count= 0;
-
   READ_RECORD read_record_info;
-  init_read_record(&read_record_info, thd, topics, select, 1, 0, FALSE);
+  DBUG_ENTER("search_topics");
+
+  if (init_read_record(&read_record_info, thd, topics, select, 1, 0, FALSE))
+    DBUG_RETURN(0);
+
   while (!read_record_info.read_record(&read_record_info))
   {
     if (!select->cond->val_int())		// Doesn't match like
@@ -228,11 +231,13 @@ int search_topics(THD *thd, TABLE *topics, struct st_find_field *find_fields,
 int search_keyword(THD *thd, TABLE *keywords, struct st_find_field *find_fields,
                    SQL_SELECT *select, int *key_id)
 {
-  DBUG_ENTER("search_keyword");
   int count= 0;
-
   READ_RECORD read_record_info;
-  init_read_record(&read_record_info, thd, keywords, select, 1, 0, FALSE);
+  DBUG_ENTER("search_keyword");
+
+  if (init_read_record(&read_record_info, thd, keywords, select, 1, 0, FALSE))
+    DBUG_RETURN(0);
+
   while (!read_record_info.read_record(&read_record_info) && count<2)
   {
     if (!select->cond->val_int())		// Dosn't match like
@@ -302,13 +307,13 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 
   rkey_id->store((longlong) key_id, TRUE);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
-  int key_res= relations->file->index_read_map(relations->record[0],
-                                               buff, (key_part_map) 1,
-                                               HA_READ_KEY_EXACT);
+  int key_res= relations->file->ha_index_read_map(relations->record[0],
+                                                  buff, (key_part_map) 1,
+                                                  HA_READ_KEY_EXACT);
 
   for ( ;
         !key_res && key_id == (int16) rkey_id->val_int() ;
-	key_res= relations->file->index_next(relations->record[0]))
+	key_res= relations->file->ha_index_next(relations->record[0]))
   {
     uchar topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
@@ -316,8 +321,8 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     field->store((longlong) topic_id, TRUE);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
-    if (!topics->file->index_read_map(topics->record[0], topic_id_buff,
-                                      (key_part_map)1, HA_READ_KEY_EXACT))
+    if (!topics->file->ha_index_read_map(topics->record[0], topic_id_buff,
+                                         (key_part_map)1, HA_READ_KEY_EXACT))
     {
       memorize_variant_topic(thd,topics,count,find_fields,
 			     names,name,description,example);
@@ -358,7 +363,10 @@ int search_categories(THD *thd, TABLE *categories,
 
   DBUG_ENTER("search_categories");
 
-  init_read_record(&read_record_info, thd, categories, select,1,0,FALSE);
+  if (init_read_record(&read_record_info, thd, categories, select,
+                       1, 0, FALSE))
+    DBUG_RETURN(0);
+    
   while (!read_record_info.read_record(&read_record_info))
   {
     if (select && !select->cond->val_int())
@@ -389,10 +397,12 @@ int search_categories(THD *thd, TABLE *categories,
 void get_all_items_for_category(THD *thd, TABLE *items, Field *pfname,
 				SQL_SELECT *select, List<String> *res)
 {
+  READ_RECORD read_record_info;
   DBUG_ENTER("get_all_items_for_category");
 
-  READ_RECORD read_record_info;
-  init_read_record(&read_record_info, thd, items, select,1,0,FALSE);
+  if (init_read_record(&read_record_info, thd, items, select,
+                       1, 0, FALSE))
+    DBUG_VOID_RETURN;
   while (!read_record_info.read_record(&read_record_info))
   {
     if (!select->cond->val_int())
@@ -577,6 +587,9 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
   table->covering_keys.clear_all();
 
   SQL_SELECT *res= make_select(table, 0, 0, cond, 0, error);
+
+  // Wrapper for correct JSON in optimizer trace
+  Opt_trace_object wrapper(&thd->opt_trace);
   if (*error || (res && res->check_quick(thd, 0, HA_POS_ERROR)) ||
       (res && res->quick && res->quick->reset()))
   {

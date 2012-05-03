@@ -11,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* Analyse database */
@@ -23,16 +23,15 @@
 **	 - type set is out of optimization yet
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_LEX 1
 
 #include "sql_priv.h"
 #include "procedure.h"
 #include "sql_analyse.h"
 #include <m_ctype.h>
+
+using std::min;
+using std::max;
 
 #define MAX_TREEMEM	  8192
 #define MAX_TREE_ELEMENTS 256
@@ -281,16 +280,16 @@ bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
   {
     if (((longlong) info->ullval) < 0)
       return 0; // Impossible to store as a negative number
-    ev_info->llval =  -(longlong) max((ulonglong) -ev_info->llval, 
-				      info->ullval);
-    ev_info->min_dval = (double) -max(-ev_info->min_dval, info->dval);
+    ev_info->llval =  - max<longlong>((ulonglong) -ev_info->llval, 
+                                           info->ullval);
+    ev_info->min_dval = - max<double>(-ev_info->min_dval, info->dval);
   }
   else		// ulonglong is as big as bigint in MySQL
   {
     if ((check_ulonglong(num, info->integers) == DECIMAL_NUM))
       return 0;
-    ev_info->ullval = (ulonglong) max(ev_info->ullval, info->ullval);
-    ev_info->max_dval =  (double) max(ev_info->max_dval, info->dval);
+    ev_info->ullval = max<ulonglong>(ev_info->ullval, info->ullval);
+    ev_info->max_dval = max<double>(ev_info->max_dval, info->dval);
   }
   return 1;
 } // get_ev_num_info
@@ -325,12 +324,12 @@ void field_str::add()
 
   if (can_be_still_num)
   {
-    bzero((char*) &num_info, sizeof(num_info));
+    memset(&num_info, 0, sizeof(num_info));
     if (!test_if_number(&num_info, res->ptr(), (uint) length))
       can_be_still_num = 0;
     if (!found)
     {
-      bzero((char*) &ev_num_info, sizeof(ev_num_info));
+      memset(&ev_num_info, 0, sizeof(ev_num_info));
       was_zero_fill = num_info.zerofill;
     }
     else if (num_info.zerofill != was_zero_fill && !was_maybe_zerofill)
@@ -376,7 +375,7 @@ void field_str::add()
       }
       else
       {
-	bzero((char*) &s, sizeof(s));  // Let tree handle free of this
+	memset(&s, 0, sizeof(s));  // Let tree handle free of this
 	if ((treemem += length) > pc->max_treemem)
 	{
 	  room_in_tree = 0;	 // Remove tree, too big tree
@@ -1107,7 +1106,7 @@ int collect_real(double *element, element_count count __attribute__((unused)),
 int collect_decimal(uchar *element, element_count count,
                     TREE_INFO *info)
 {
-  char buff[DECIMAL_MAX_STR_LENGTH];
+  char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String s(buff, sizeof(buff),&my_charset_bin);
 
   if (info->found)
@@ -1181,7 +1180,7 @@ bool analyse::change_columns(List<Item> &field_list)
   func_items[8] = new Item_proc_string("Std", 255);
   func_items[8]->maybe_null = 1;
   func_items[9] = new Item_proc_string("Optimal_fieldtype",
-				       max(64, output_str_length));
+				       max(64U, output_str_length));
 
   for (uint i = 0; i < array_elements(func_items); i++)
     field_list.push_back(func_items[i]);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,12 +191,12 @@ uint Querycache_stream::load_int()
     cur_data+= 4;
     return result;
   }
-  char buf[4];
+  char buf[4], *buf_p= buf;
   memcpy(buf, cur_data, rest_len);
   use_next_block(FALSE);
   memcpy(buf+rest_len, cur_data, 4-rest_len);
   cur_data+= 4-rest_len;
-  result= uint4korr(buf);
+  result= uint4korr(buf_p);
   return result;
 }
 
@@ -487,7 +487,7 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
   data->embedded_info->prev_ptr= prev_row;
 return_ok:
   net_send_eof(thd, thd->server_status,
-               thd->warning_info->statement_warn_count());
+               thd->get_stmt_da()->current_statement_warn_count());
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);

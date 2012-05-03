@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
-
-#ifdef __GNUC__
-#pragma implementation
-#endif
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
 /*
@@ -110,7 +106,7 @@ typedef struct my_xpath_st
   Item *rootelement;     /* The root element                          */
   String *context_cache; /* last context provider                     */
   String *pxml;          /* Parsed XML, an array of MY_XML_NODE       */
-  CHARSET_INFO *cs;      /* character set/collation string comparison */
+  const CHARSET_INFO *cs;/* character set/collation string comparison */
   int error;
 } MY_XPATH;
 
@@ -195,7 +191,7 @@ public:
     fltend= (MY_XPATH_FLT*) (res->ptr() + res->length());
     String active;
     active.alloc(numnodes);
-    bzero((char*) active.ptr(), numnodes);
+    memset(const_cast<char*>(active.ptr()), 0, numnodes);
     for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
     {
       MY_XML_NODE *node;
@@ -584,7 +580,7 @@ String * Item_nodeset_func_union::val_nodeset(String *nodeset)
   String both_str;
   both_str.alloc(num_nodes);
   char *both= (char*) both_str.ptr();
-  bzero((void*)both, num_nodes);
+  memset(both, 0, num_nodes);
   MY_XPATH_FLT *flt;
 
   fltbeg= (MY_XPATH_FLT*) s0->ptr();
@@ -671,7 +667,7 @@ String *Item_nodeset_func_ancestorbyname::val_nodeset(String *nodeset)
   prepare(nodeset);
   active_str.alloc(numnodes);
   active= (char*) active_str.ptr();
-  bzero((void*)active, numnodes);
+  memset(active, 0, numnodes);
   uint pos= 0;
 
   for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
@@ -713,7 +709,7 @@ String *Item_nodeset_func_parentbyname::val_nodeset(String *nodeset)
   prepare(nodeset);
   active_str.alloc(numnodes);
   active= (char*) active_str.ptr();
-  bzero((void*)active, numnodes);
+  memset(active, 0, numnodes);
   for (MY_XPATH_FLT *flt= fltbeg; flt < fltend; flt++)
   {
     uint j= nodebeg[flt->num].parent;
@@ -1337,7 +1333,7 @@ my_xpath_lex_init(MY_XPATH_LEX *lex,
 static void
 my_xpath_init(MY_XPATH *xpath)
 {
-  bzero((void*)xpath, sizeof(xpath[0]));
+  memset(xpath, 0, sizeof(xpath[0]));
 }
 
 
@@ -2492,12 +2488,12 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     xpath->item= new Item_func_get_user_var(name);
   else
   {
-    sp_variable_t *spv;
+    sp_variable *spv;
     sp_pcontext *spc;
     LEX *lex;
     if ((lex= current_thd->lex) &&
         (spc= lex->spcont) &&
-        (spv= spc->find_variable(&name)))
+        (spv= spc->find_variable(name, false)))
     {
       Item_splocal *splocal= new Item_splocal(name, spv->offset, spv->type, 0);
 #ifndef DBUG_OFF
@@ -2799,7 +2795,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
                 my_xml_error_lineno(&p) + 1,
                 (ulong) my_xml_error_pos(&p) + 1,
                 my_xml_error_string(&p));
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_WRONG_VALUE,
                         ER(ER_WRONG_VALUE), "XML", buf);
   }

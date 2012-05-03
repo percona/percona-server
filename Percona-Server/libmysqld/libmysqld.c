@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,10 +33,6 @@
 #include <pwd.h>
 #endif
 #if !defined(__WIN__)
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #ifdef HAVE_SELECT_H
 #  include <select.h>
 #endif
@@ -85,7 +81,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,ulong client_flag)
 {
-  char name_buff[USERNAME_LENGTH];
+  char name_buff[USERNAME_LENGTH + 1];
 
   DBUG_ENTER("mysql_real_connect");
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s (libmysqld)",

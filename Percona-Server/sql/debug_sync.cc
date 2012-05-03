@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   == Debug Sync Facility ==
@@ -329,6 +329,9 @@
 #include "sql_priv.h"
 #include "sql_parse.h"
 
+using std::max;
+using std::min;
+
 /*
   Action to perform at a synchronization point.
   NOTE: This structure is moved around in memory by realloc(), qsort(),
@@ -453,14 +456,11 @@ static void init_debug_sync_psi_keys(void)
   const char* category= "sql";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_debug_sync_mutexes);
-  PSI_server->register_mutex(category, all_debug_sync_mutexes, count);
+  mysql_mutex_register(category, all_debug_sync_mutexes, count);
 
   count= array_elements(all_debug_sync_conds);
-  PSI_server->register_cond(category, all_debug_sync_conds, count);
+  mysql_cond_register(category, all_debug_sync_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1011,7 +1011,7 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
       ds_control->ds_action= (st_debug_sync_action*) new_action;
       ds_control->ds_allocated= new_alloc;
       /* Clear memory as we do not run string constructors here. */
-      bzero((uchar*) (ds_control->ds_action + dsp_idx),
+      memset((ds_control->ds_action + dsp_idx), 0,
             (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
     }
     DBUG_PRINT("debug_sync", ("added action idx: %u", dsp_idx));
@@ -1398,7 +1398,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str)
 
   /*
     Now check for actions that define a new action.
-    Initialize action. Do not use bzero(). Strings may have malloced.
+    Initialize action. Do not use memset(). Strings may have malloced.
   */
   action->activation_count= 0;
   action->hit_limit= 0;
@@ -1737,7 +1737,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
     if (action->wait_for.length())
     {
       mysql_mutex_t *old_mutex;
-      mysql_cond_t  *old_cond;
+      mysql_cond_t  *old_cond= 0;
       int             error= 0;
       struct timespec abstime;
 
@@ -1788,8 +1788,12 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
                         sig_wait, sig_glob, error));});
         if (error == ETIMEDOUT || error == ETIME)
         {
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          // We should not make the statement fail, even if in strict mode.
+          const bool save_abort_on_warning= thd->abort_on_warning;
+          thd->abort_on_warning= false;
+          push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                        ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
+          thd->abort_on_warning= save_abort_on_warning;
           break;
         }
         error= 0;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,6 +27,6 @@ MACRO (MY_ADD_TEST name)
 ENDMACRO()
 
 
-FOREACH(testname bitmap base64 my_vsnprintf my_atomic my_rdtsc lf my_malloc)
+FOREACH(testname base64 my_vsnprintf my_atomic my_rdtsc lf waiting_threads my_malloc)
   MY_ADD_TEST(${testname})
 ENDFOREACH()

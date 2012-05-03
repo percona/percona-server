@@ -48,7 +48,6 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#59297: Can't find record in 'tablename' on update inner join
 --echo #
-
 CREATE TABLE t1 (
 a char(2) NOT NULL,
 b char(2) NOT NULL,
@@ -86,6 +85,16 @@ WHERE A.a = '03'
 AND A.b = '06' 
 AND A.c = 343;
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#59503: explain extended crash in get_mm_leaf
+--echo #
+CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
+ENGINE=MyISAM
+PARTITION BY KEY (a) PARTITIONS 1;
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
 DROP TABLE t1;
 
 --echo #
@@ -990,13 +999,13 @@ drop table t1;
 #
 # Bug #16775: Wrong engine type stored for subpartition
 #
-set session storage_engine= 'memory';
+set session default_storage_engine= 'memory';
 create table t1 (f_int1 int(11) default null) engine = memory
   partition by range (f_int1) subpartition by hash (f_int1)
   (partition part1 values less than (1000)
    (subpartition subpart11 engine = memory));
 drop table t1;
-set session storage_engine='myisam';
+set session default_storage_engine='myisam';
 
 #
 # Bug #16782: Crash using REPLACE on table with primary key
@@ -1840,8 +1849,7 @@ WHERE t1.id IN (
     SELECT distinct id
     FROM t4
     WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 
 drop table t1, t2, t4;
 
@@ -2347,6 +2355,7 @@ DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
 
 --echo End of 5.1 tests
+--echo # Start of 5.5 tests
 
 --echo #
 --echo # BUG#55385: UPDATE statement throws an error, but still updates
@@ -2397,3 +2406,73 @@ SELECT * FROM t1_part;
 # Cleanup
 DROP VIEW v1;
 DROP TABLE t1_part;
+
+--echo # Moved from lock.test
+--echo # Separate case for partitioned tables is important
+--echo # because each partition has an own thr_lock object.
+
+create table t1 (i int) partition by list (i)
+  (partition p0 values in (1),
+   partition p1 values in (2,3),
+   partition p2 values in (4,5));
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+
+--echo # End of 5.5 tests
+
+#
+# Bug #12330344 Crash and/or valgrind errors in free_io_cache with join, view,
+# partitioned table
+#
+
+CREATE TABLE t1(a INT PRIMARY KEY) PARTITION BY LINEAR KEY (a);
+CREATE ALGORITHM=TEMPTABLE VIEW vtmp AS
+SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
+SELECT * FROM vtmp;
+DROP VIEW vtmp;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#13580775 ASSERTION FAILED: RECORD_LENGTH == M_RECORD_LENGTH,
+--echo # FILE FILESORT_UTILS.CC
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c CHAR(1),
+  d INT,
+  KEY (c,d)
+) PARTITION BY KEY () PARTITIONS 1;
+
+INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
+
+SELECT 1 FROM t1 WHERE 1 IN
+(SELECT  group_concat(b)
+ FROM t1
+ WHERE c > geomfromtext('point(1 1)')
+ GROUP BY b
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#5855 (EXPLAIN FORMAT=JSON) partition test
+--echo #
+
+CREATE TABLE t1 (c1 int(11) DEFAULT NULL, KEY c1 (c1))
+  PARTITION BY RANGE (c1)
+    (PARTITION a VALUES LESS THAN (10),
+     PARTITION b VALUES LESS THAN (100),
+     PARTITION c VALUES LESS THAN MAXVALUE);
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+let $query=SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+--eval EXPLAIN PARTITIONS $query
+--eval EXPLAIN EXTENDED $query
+--eval EXPLAIN FORMAT=JSON $query
+
+DROP TABLE t1;

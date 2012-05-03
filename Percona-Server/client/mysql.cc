@@ -41,6 +41,11 @@
 #include <signal.h>
 #include <violite.h>
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 #if defined(USE_LIBEDIT_INTERFACE) && defined(HAVE_LOCALE_H)
 #include <locale.h>
 #endif
@@ -150,7 +155,9 @@ static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
+static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
+static my_bool opt_binary_mode= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -190,12 +197,49 @@ unsigned short terminal_width= 80;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
-static CHARSET_INFO *charset_info= &my_charset_latin1;
+static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
 #include "sslopt-vars.h"
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 
+#ifdef __WIN__
+/*
+  A flag that indicates if --execute buffer has already been converted,
+  to avoid double conversion on reconnect.
+*/
+static my_bool execute_buffer_conversion_done= 0;
+
+/*
+  my_win_is_console(...) is quite slow.
+  We cache my_win_is_console() results for stdout and stderr.
+  Any other output files, except stdout and stderr,
+  cannot be Windows console.
+  Note, if mysql.exe is executed from a service, its _fileno(stdout) is -1,
+  so shift (1 << -1) can return implementation defined result.
+  This corner case is taken into account, as the shift result
+  will be multiplied to 0 and we'll get 0 as a result.
+  The same is true for stderr.
+*/
+static uint win_is_console_cache= 
+  (test(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
+  (test(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
+
+static inline my_bool
+my_win_is_console_cached(FILE *file)
+{
+  return win_is_console_cache & (1 << _fileno(file));
+}
+#endif /* __WIN__ */
+
+/* Various printing flags */
+#define MY_PRINT_ESC_0 1  /* Replace 0x00 bytes to "\0"              */
+#define MY_PRINT_SPS_0 2  /* Replace 0x00 bytes to space             */
+#define MY_PRINT_XML   4  /* Encode XML entities                     */
+#define MY_PRINT_MB    8  /* Recognize multi-byte characters         */
+#define MY_PRINT_CTRL 16  /* Replace TAB, NL, CR to "\t", "\n", "\r" */
+
+void tee_write(FILE *file, const char *s, size_t slen, int flags);
 void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
@@ -1045,9 +1089,10 @@ static void initialize_readline (char *name);
 static void fix_history(String *final_command);
 #endif
 
-static COMMANDS *find_command(char *name,char cmd_name);
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated);
+static COMMANDS *find_command(char *name);
+static COMMANDS *find_command(char cmd_name);
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated);
 static void remove_cntrl(String &buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
@@ -1060,9 +1105,68 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
-extern "C" sig_handler handle_sigint(int sig);
+extern "C" sig_handler handle_kill_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
 static sig_handler window_resize(int sig);
+#endif
+
+const char DELIMITER_NAME[]= "delimiter";
+const uint DELIMITER_NAME_LEN= sizeof(DELIMITER_NAME) - 1;
+inline bool is_delimiter_command(char *name, ulong len)
+{
+  /*
+    Delimiter command has a parameter, so the length of the whole command
+    is larger than DELIMITER_NAME_LEN.  We don't care the parameter, so
+    only name(first DELIMITER_NAME_LEN bytes) is checked.
+  */
+  return (len >= DELIMITER_NAME_LEN &&
+          !my_strnncoll(charset_info, (uchar*) name, DELIMITER_NAME_LEN,
+                        (uchar *) DELIMITER_NAME, DELIMITER_NAME_LEN));
+}
+
+/**
+   Get the index of a command in the commands array.
+
+   @param cmd_char    Short form command.
+
+   @return int
+     The index of the command is returned if it is found, else -1 is returned.
+*/
+inline int get_command_index(char cmd_char)
+{
+  /*
+    All client-specific commands are in the first part of commands array
+    and have a function to implement it.
+  */
+  for (uint i= 0; *commands[i].func; i++)
+    if (commands[i].cmd_char == cmd_char)
+      return i;
+  return -1;
+}
+
+static int delimiter_index= -1;
+static int charset_index= -1;
+static bool real_binary_mode= FALSE;
+
+#ifdef _WIN32
+BOOL windows_ctrl_handler(DWORD fdwCtrlType)
+{
+  switch (fdwCtrlType)
+  {
+  case CTRL_C_EVENT:
+  case CTRL_BREAK_EVENT:
+    if (!opt_sigint_ignore)
+      handle_kill_signal(SIGINT);
+    /* Indicate that signal has beed handled. */  
+    return TRUE;
+  case CTRL_CLOSE_EVENT:
+  case CTRL_LOGOFF_EVENT:
+  case CTRL_SHUTDOWN_EVENT:
+    handle_kill_signal(SIGINT + 1);
+  }
+  /* Pass signal to the next control handler function. */
+  return FALSE;
+}
 #endif
 
 
@@ -1073,7 +1177,9 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
   DBUG_PROCESS(argv[0]);
-  
+
+  charset_index= get_command_index('C');
+  delimiter_index= get_command_index('d');
   delimiter_str= delimiter;
   default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
@@ -1114,11 +1220,19 @@ int main(int argc,char *argv[])
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
 
+#ifdef __WIN__
+  /* Convert command line parameters from UTF16LE to UTF8MB4. */
+  my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
+#endif
+
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my",load_default_groups,&argc,&argv))
   {
     my_end(0);
     exit(1);
   }
+  my_getopt_use_args_separator= FALSE;
+
   defaults_argv=argv;
   if (get_options(argc, (char **) argv))
   {
@@ -1146,7 +1260,7 @@ int main(int argc,char *argv[])
   glob_buffer.realloc(512);
   completion_hash_init(&ht, 128);
   init_alloc_root(&hash_mem_root, 16384, 0);
-  bzero((char*) &mysql, sizeof(mysql));
+  memset(&mysql, 0, sizeof(mysql));
   if (sql_connect(current_host,current_db,current_user,opt_password,
 		  opt_silent))
   {
@@ -1157,11 +1271,17 @@ int main(int argc,char *argv[])
   if (!status.batch)
     ignore_errors=1;				// Don't abort monitor
 
+#ifndef _WIN32
   if (opt_sigint_ignore)
     signal(SIGINT, SIG_IGN);
   else
-    signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
+    signal(SIGINT, handle_kill_signal);         // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
+  signal(SIGHUP, handle_kill_signal);         // Catch SIGHUP to clean up
+#else
+  SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, TRUE);
+#endif
+
 
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
   /* Readline will call this if it installs a handler */
@@ -1177,7 +1297,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"), INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1288,16 +1408,17 @@ sig_handler mysql_end(int sig)
   If query is in process, kill query
   no query in process, terminate like previous behavior
  */
-sig_handler handle_sigint(int sig)
+sig_handler handle_kill_signal(int sig)
 {
   char kill_buffer[40];
   MYSQL *kill_mysql= NULL;
+  const char *reason = sig == SIGINT ? "Ctrl-C" : "Terminal close";
 
   /* terminate if no query being executed, or we already tried interrupting */
   /* terminate if no query being executed, or we already tried interrupting */
   if (!executing_query || (interrupted_query == 2))
   {
-    tee_fprintf(stdout, "Ctrl-C -- exit!\n");
+    tee_fprintf(stdout, "%s -- exit!\n", reason);
     goto err;
   }
 
@@ -1305,7 +1426,7 @@ sig_handler handle_sigint(int sig)
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
   {
-    tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
+    tee_fprintf(stdout, "%s -- sorry, cannot connect to server to kill query, giving up ...\n", reason);
     goto err;
   }
 
@@ -1319,10 +1440,11 @@ sig_handler handle_sigint(int sig)
   sprintf(kill_buffer, "KILL %s%lu",
           (interrupted_query == 1) ? "QUERY " : "",
           mysql_thread_id(&mysql));
-  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", 
+              reason, kill_buffer);
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
+  tee_fprintf(stdout, "%s -- query aborted.\n", reason);
 
   return;
 
@@ -1377,6 +1499,9 @@ static struct my_option my_long_options[] =
   {"batch", 'B',
    "Don't use history file. Disable interactive behavior. (Enables --silent.)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1474,7 +1599,7 @@ static struct my_option my_long_options[] =
 #endif
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1572,6 +1697,13 @@ static struct my_option my_long_options[] =
     "Default authentication client-side plugin to use.",
     &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binary-mode", OPT_BINARY_MODE,
+   "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to '\\n'. "
+   "This switch turns off both features, and also turns off parsing of all client"
+   "commands except \\C and DELIMITER, in non-interactive mode (for input "
+   "piped to mysql or loaded using the 'source' command). This is necessary "
+   "when processing output from mysqlbinlog that may contain blobs.",
+   &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1595,7 +1727,7 @@ static void usage(int version)
 
   if (version)
     return;
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -1843,24 +1975,59 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
+  ulong line_length= 0;
   status.exit_status=1;
 
+  real_binary_mode= !interactive && opt_binary_mode;
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff);
       /*
-        Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
-        Editors like "notepad" put this marker in
-        the very beginning of a text file when
-        you save the file using "Unicode UTF-8" format.
-      */
-      if (line && !line_number &&
-           (uchar) line[0] == 0xEF &&
-           (uchar) line[1] == 0xBB &&
-           (uchar) line[2] == 0xBF)
-        line+= 3;
+        batch_readline can return 0 on EOF or error.
+        In that case, we need to double check that we have a valid
+        line before actually setting line_length to read_length.
+        */
+      line= batch_readline(status.line_buff, real_binary_mode);
+      if (line) 
+      {
+        line_length= status.line_buff->read_length;
+
+        /*
+          ASCII 0x00 is not allowed appearing in queries if it is not in binary
+          mode.
+        */
+        if (!real_binary_mode && strlen(line) != line_length)
+        {
+          status.exit_status= 1;
+          String msg;
+          msg.append("ASCII '\\0' appeared in the statement, but this is not "
+                     "allowed unless option --binary-mode is enabled and mysql is "
+                     "run in non-interactive mode. Set --binary-mode to 1 if ASCII "
+                     "'\\0' is expected. Query: '");
+          msg.append(glob_buffer);
+          msg.append(line);
+          msg.append("'.");
+          put_info(msg.c_ptr(), INFO_ERROR);
+          break;
+        }
+
+        /*
+          Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
+          Editors like "notepad" put this marker in
+          the very beginning of a text file when
+          you save the file using "Unicode UTF-8" format.
+        */
+        if (!line_number &&
+             (uchar) line[0] == 0xEF &&
+             (uchar) line[1] == 0xBB &&
+             (uchar) line[2] == 0xBF)
+        {
+          line+= 3;
+          // decrease the line length accordingly to the 3 bytes chopped
+          line_length -=3;
+        }
+      }
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
@@ -1883,22 +2050,9 @@ static int read_and_execute(bool interactive)
         tmpbuf.alloc(65535);
       tmpbuf.length(0);
       buffer.length(0);
-      size_t clen;
-      do
-      {
-	line= my_cgets((char*)tmpbuf.ptr(), tmpbuf.alloced_length()-1, &clen);
-        buffer.append(line, clen);
-        /* 
-           if we got buffer fully filled than there is a chance that
-           something else is still in console input buffer
-        */
-      } while (tmpbuf.alloced_length() <= clen);
-      /* 
-        An empty line is returned from my_cgets when there's error reading :
-        Ctrl-c for example
-      */
-      if (line)
-        line= buffer.c_ptr();
+      line= my_win_console_readline(charset_info,
+                                    (char *) tmpbuf.ptr(),
+                                    tmpbuf.alloced_length());
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
@@ -1911,6 +2065,8 @@ static int read_and_execute(bool interactive)
       */
       if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
+
+      line_length= line ? strlen(line) : 0;
     }
     // End of file or system error
     if (!line)
@@ -1927,7 +2083,7 @@ static int read_and_execute(bool interactive)
       (We want to allow help, print and clear anywhere at line start
     */
     if ((named_cmds || glob_buffer.is_empty())
-	&& !ml_comment && !in_string && (com=find_command(line,0)))
+	&& !ml_comment && !in_string && (com= find_command(line)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
 	break;
@@ -1939,7 +2095,7 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer, line, &in_string, &ml_comment,
+    if (add_line(glob_buffer, line, line_length, &in_string, &ml_comment,
                  status.line_buff ? status.line_buff->truncated : 0))
       break;
   }
@@ -1961,70 +2117,130 @@ static int read_and_execute(bool interactive)
   tmpbuf.free();
 #endif
 
+  /*
+    If the function is called by 'source' command, it will return to interactive
+    mode, so real_binary_mode should be FALSE. Otherwise, it will exit the
+    program, it is safe to set real_binary_mode to FALSE.
+  */
+  real_binary_mode= FALSE;
   return status.exit_status;
 }
 
+/**
+   It checks if the input is a short form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode
+   is set, then only \C is searched for.
 
-static COMMANDS *find_command(char *name,char cmd_char)
+   @param cmd_char    A character of one byte.
+
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char cmd_char)
+{
+  DBUG_ENTER("find_command");
+  DBUG_PRINT("enter", ("cmd_char: %d", cmd_char));
+
+  int index= -1;
+
+  /*
+    In binary-mode, we disallow all mysql commands except '\C'
+    and DELIMITER.
+  */
+  if (real_binary_mode)
+  {
+    if (cmd_char == 'C')
+      index= charset_index;
+  }
+  else
+    index= get_command_index(cmd_char);
+
+  if (index >= 0)
+  {
+    DBUG_PRINT("exit",("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
+  }
+  else
+    DBUG_RETURN((COMMANDS *) 0);
+}
+
+/**
+   It checks if the input is a long form command. It returns the command's
+   pointer if a command is found, else return NULL. Note that if binary-mode 
+   is set, then only DELIMITER is searched for.
+
+   @param name    A string.
+   @return
+     the command's pointer or NULL.
+*/
+static COMMANDS *find_command(char *name)
 {
   uint len;
   char *end;
   DBUG_ENTER("find_command");
-  DBUG_PRINT("enter",("name: '%s'  char: %d", name ? name : "NULL", cmd_char));
 
-  if (!name)
+  DBUG_ASSERT(name != NULL);
+  DBUG_PRINT("enter", ("name: '%s'", name));
+
+  while (my_isspace(charset_info, *name))
+    name++;
+  /*
+    If there is an \\g in the row or if the row has a delimiter but
+    this is not a delimiter command, let add_line() take care of
+    parsing the row and calling find_command().
+  */
+  if ((!real_binary_mode && strstr(name, "\\g")) ||
+      (strstr(name, delimiter) &&
+       !is_delimiter_command(name, DELIMITER_NAME_LEN)))
+      DBUG_RETURN((COMMANDS *) 0);
+
+  if ((end=strcont(name, " \t")))
   {
-    len=0;
-    end=0;
+    len=(uint) (end - name);
+    while (my_isspace(charset_info, *end))
+      end++;
+    if (!*end)
+      end= 0;					// no arguments to function
+  }
+  else
+    len= (uint) strlen(name);
+
+  int index= -1;
+  if (real_binary_mode)
+  {
+    if (is_delimiter_command(name, len))
+      index= delimiter_index;
   }
   else
   {
-    while (my_isspace(charset_info,*name))
-      name++;
     /*
-      If there is an \\g in the row or if the row has a delimiter but
-      this is not a delimiter command, let add_line() take care of
-      parsing the row and calling find_command()
+      All commands are in the first part of commands array and have a function
+      to implement it.
     */
-    if (strstr(name, "\\g") || (strstr(name, delimiter) &&
-                                !(strlen(name) >= 9 &&
-                                  !my_strnncoll(&my_charset_latin1,
-                                                (uchar*) name, 9,
-                                                (const uchar*) "delimiter",
-                                                9))))
-      DBUG_RETURN((COMMANDS *) 0);
-    if ((end=strcont(name," \t")))
+    for (uint i= 0; commands[i].func; i++)
     {
-      len=(uint) (end - name);
-      while (my_isspace(charset_info,*end))
-	end++;
-      if (!*end)
-	end=0;					// no arguments to function
+      if (!my_strnncoll(&my_charset_latin1, (uchar*) name, len,
+                        (uchar*) commands[i].name, len) &&
+          (commands[i].name[len] == '\0') &&
+          (!end || commands[i].takes_params))
+      {
+        index= i;
+        break;
+      }
     }
-    else
-      len=(uint) strlen(name);
   }
 
-  for (uint i= 0; commands[i].name; i++)
+  if (index >= 0)
   {
-    if (commands[i].func &&
-	((name &&
-	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
-				     (uchar*)commands[i].name,len) &&
-	  !commands[i].name[len] &&
-	  (!end || (end && commands[i].takes_params))) ||
-	 (!name && commands[i].cmd_char == cmd_char)))
-    {
-      DBUG_PRINT("exit",("found command: %s", commands[i].name));
-      DBUG_RETURN(&commands[i]);
-    }
+    DBUG_PRINT("exit", ("found command: %s", commands[index].name));
+    DBUG_RETURN(&commands[index]);
   }
   DBUG_RETURN((COMMANDS *) 0);
 }
 
 
-static bool add_line(String &buffer,char *line,char *in_string,
-                     bool *ml_comment, bool truncated)
+static bool add_line(String &buffer, char *line, ulong line_length,
+                     char *in_string, bool *ml_comment, bool truncated)
 {
   uchar inchar;
   char buff[80], *pos, *out;
@@ -2039,10 +2255,11 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
-  char *end_of_line=line+(uint) strlen(line);
+  char *end_of_line= line + line_length;
 
-  for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
+  for (pos= out= line; pos < end_of_line; pos++)
   {
+    inchar= (uchar) *pos;
     if (!preserve_comments)
     {
       // Skip spaces at the beginning of a statement
@@ -2082,7 +2299,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 	*out++= (char) inchar;
 	continue;
       }
-      if ((com=find_command(NullS,(char) inchar)))
+      if ((com= find_command((char) inchar)))
       {
         // Flush previously accepted characters
         if (out != line)
@@ -2158,7 +2375,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
 
       pos--;
 
-      if ((com= find_command(buffer.c_ptr(), 0)))
+      if ((com= find_command(buffer.c_ptr())))
       {
           
         if ((*com->func)(&buffer, buffer.c_ptr()) > 0)
@@ -2272,10 +2489,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   {
     uint length=(uint) (out-line);
 
-    if (!truncated &&
-        (length < 9 || 
-         my_strnncoll (charset_info, 
-                       (uchar *)line, 9, (const uchar *) "delimiter", 9)))
+    if (!truncated && !is_delimiter_command(line, length))
     {
       /* 
         Don't add a new line in case there's a DELIMITER command to be 
@@ -2913,7 +3127,7 @@ static int
 com_charset(String *buffer __attribute__((unused)), char *line)
 {
   char buff[256], *param;
-  CHARSET_INFO * new_cs;
+  const CHARSET_INFO *new_cs;
   strmake(buff, line, sizeof(buff) - 1);
   param= get_arg(buff, 0);
   if (!param || !*param)
@@ -3293,9 +3507,9 @@ print_table_data(MYSQL_RES *result)
   {
     uint length= column_names ? field->name_length : 0;
     if (quick)
-      length=max(length,field->length);
+      length= max<size_t>(length, field->length);
     else
-      length=max(length,field->max_length);
+      length= max<size_t>(length, field->max_length);
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
     field->max_length=length;
@@ -3315,8 +3529,8 @@ print_table_data(MYSQL_RES *result)
                                                   field->name,
                                                   field->name + name_length);
       uint display_length= field->max_length + name_length - numcells;
-      tee_fprintf(PAGER, " %-*s |",(int) min(display_length,
-                                            MAX_COLUMN_LENGTH),
+      tee_fprintf(PAGER, " %-*s |",
+                  min<int>(display_length, MAX_COLUMN_LENGTH),
                   field->name);
       num_flag[off]= IS_NUM(field->type);
     }
@@ -3405,9 +3619,9 @@ static int get_field_disp_length(MYSQL_FIELD *field)
   uint length= column_names ? field->name_length : 0;
 
   if (quick)
-    length= max(length, field->length);
+    length= max<uint>(length, field->length);
   else
-    length= max(length, field->max_length);
+    length= max<uint>(length, field->max_length);
 
   if (length < 4 && !IS_NOT_NULL(field->flags))
     length= 4;				/* Room for "NULL" */
@@ -3453,19 +3667,12 @@ tee_print_sized_data(const char *data, unsigned int data_length, unsigned int to
     grid.  (The \0 is also the reason we can't use fprintf() .) 
   */
   unsigned int i;
-  const char *p;
 
   if (right_justified) 
     for (i= data_length; i < total_bytes_to_send; i++)
       tee_putc((int)' ', PAGER);
 
-  for (i= 0, p= data; i < data_length; i+= 1, p+= 1)
-  {
-    if (*p == '\0')
-      tee_putc((int)' ', PAGER);
-    else
-      tee_putc((int)*p, PAGER);
-  }
+  tee_write(PAGER, data, data_length, MY_PRINT_SPS_0 | MY_PRINT_MB);
 
   if (! right_justified) 
     for (i= data_length; i < total_bytes_to_send; i++)
@@ -3585,16 +3792,7 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        unsigned int i;
-        const char *p;
-
-        for (i= 0, p= cur[off]; i < lengths[off]; i+= 1, p+= 1)
-        {
-          if (*p == '\0')
-            tee_putc((int)' ', PAGER);
-          else
-            tee_putc((int)*p, PAGER);
-        }
+        tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
         tee_putc('\n', PAGER);
       }
       else
@@ -3664,16 +3862,7 @@ xmlencode_print(const char *src, uint length)
   if (!src)
     tee_fputs("NULL", PAGER);
   else
-  {
-    for (const char *p = src; length; p++, length--)
-    {
-      const char *t;
-      if ((t = array_value(xmlmeta, *p)))
-	tee_fputs(t, PAGER);
-      else
-	tee_putc(*p, PAGER);
-    }
-  }
+    tee_write(PAGER, src, length, MY_PRINT_XML | MY_PRINT_MB);
 }
 
 
@@ -3684,37 +3873,9 @@ safe_put_field(const char *pos,ulong length)
     tee_fputs("NULL", PAGER);
   else
   {
-    if (opt_raw_data)
-    {
-      unsigned long i;
-      /* Can't use tee_fputs(), it stops with NUL characters. */
-      for (i= 0; i < length; i++, pos++)
-        tee_putc(*pos, PAGER);
-    }
-    else for (const char *end=pos+length ; pos != end ; pos++)
-    {
-#ifdef USE_MB
-      int l;
-      if (use_mb(charset_info) &&
-          (l = my_ismbchar(charset_info, pos, end)))
-      {
-	  while (l--)
-	    tee_putc(*pos++, PAGER);
-	  pos--;
-	  continue;
-      }
-#endif
-      if (!*pos)
-	tee_fputs("\\0", PAGER); // This makes everything hard
-      else if (*pos == '\t')
-	tee_fputs("\\t", PAGER); // This would destroy tab format
-      else if (*pos == '\n')
-	tee_fputs("\\n", PAGER); // This too
-      else if (*pos == '\\')
-	tee_fputs("\\\\", PAGER);
-	else
-	tee_putc(*pos, PAGER);
-    }
+    int flags= MY_PRINT_MB | (opt_raw_data ? 0 : (MY_PRINT_ESC_0 | MY_PRINT_CTRL));
+    /* Can't use tee_fputs(), it stops with NUL characters. */
+    tee_write(PAGER, pos, length, flags);
   }
 }
 
@@ -3756,8 +3917,6 @@ com_tee(String *buffer __attribute__((unused)),
 {
   char file_name[FN_REFLEN], *end, *param;
 
-  if (status.batch)
-    return 0;
   while (my_isspace(charset_info,*line))
     line++;
   if (!(param = strchr(line, ' '))) // if outfile wasn't given, use the default
@@ -3983,7 +4142,7 @@ com_connect(String *buffer, char *line)
   bool save_rehash= opt_rehash;
   int error;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   if (buffer)
   {
     /*
@@ -4069,7 +4228,7 @@ static int com_source(String *buffer __attribute__((unused)),
 
   /* Save old status */
   old_status=status;
-  bfill((char*) &status,sizeof(status),(char) 0);
+  memset(&status, 0, sizeof(status));
 
   status.batch=old_status.batch;		// Run in batch mode
   status.line_buff=line_buff;
@@ -4119,7 +4278,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
 
-  bzero(buff, sizeof(buff));
+  memset(buff, 0, sizeof(buff));
   strmake(buff, line, sizeof(buff) - 1);
   tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)
@@ -4285,6 +4444,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT,
 		  (char*) &timeout);
   }
+  if (opt_bind_addr)
+    mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_secure_auth)
@@ -4293,8 +4454,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
+  {
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
   mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                 (char*)&opt_ssl_verify_server_cert);
 #endif
@@ -4313,7 +4478,29 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
 
-  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_set_character_set(&mysql, default_charset);
+#ifdef __WIN__
+  uint cnv_errors;
+  String converted_database, converted_user;
+  if (!my_charset_same(&my_charset_utf8mb4_bin, mysql.charset))
+  {
+    /* Convert user and database from UTF8MB4 to connection character set */
+    if (user)
+    {
+      converted_user.copy(user, strlen(user) + 1,
+                          &my_charset_utf8mb4_bin, mysql.charset,
+                          &cnv_errors);
+      user= (char *) converted_user.ptr();
+    }
+    if (database)
+    {
+      converted_database.copy(database, strlen(database) + 1,
+                              &my_charset_utf8mb4_bin, mysql.charset,
+                              &cnv_errors);
+      database= (char *) converted_database.ptr();
+    }
+  }
+#endif
   
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -4335,7 +4522,38 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     }
     return -1;					// Retryable
   }
-  
+
+#ifdef __WIN__
+  /* Convert --execute buffer from UTF8MB4 to connection character set */
+  if (!execute_buffer_conversion_done++ &&
+      status.line_buff &&
+      !status.line_buff->file && /* Convert only -e buffer, not real file */
+      status.line_buff->buffer < status.line_buff->end && /* Non-empty */
+      !my_charset_same(&my_charset_utf8mb4_bin, mysql.charset))
+  {
+    String tmp;
+    size_t len= status.line_buff->end - status.line_buff->buffer;
+    uint dummy_errors;
+    /*
+      Don't convert trailing '\n' character - it was appended during
+      last batch_readline_command() call. 
+      Oherwise we'll get an extra line, which makes some tests fail.
+    */
+    if (status.line_buff->buffer[len - 1] == '\n')
+      len--;
+    if (tmp.copy(status.line_buff->buffer, len,
+                 &my_charset_utf8mb4_bin, mysql.charset, &dummy_errors))
+      return 1;
+
+    /* Free the old line buffer */
+    batch_readline_end(status.line_buff);
+
+    /* Re-initialize line buffer from the converted string */
+    if (!(status.line_buff= batch_readline_command(NULL, (char *) tmp.c_ptr_safe())))
+      return 1;
+  }
+#endif /* __WIN__ */
+
   charset_info= mysql.charset;
   
   connected=1;
@@ -4641,11 +4859,82 @@ static void remove_cntrl(String &buffer)
 }
 
 
+/**
+  Write data to a stream.
+  Various modes, corresponding to --tab, --xml, --raw parameters,
+  are supported.
+
+  @param file   Stream to write to
+  @param s      String to write
+  @param slen   String length
+  @flags        Flags for --tab, --xml, --raw.
+*/
+void tee_write(FILE *file, const char *s, size_t slen, int flags)
+{
+#ifdef __WIN__
+  my_bool is_console= my_win_is_console_cached(file);
+#endif
+  const char *se;
+  for (se= s + slen; s < se; s++)
+  {
+    const char *t;
+
+    if (flags & MY_PRINT_MB)
+    {
+      int mblen;
+      if (use_mb(charset_info) &&
+          (mblen= my_ismbchar(charset_info, s, se)))
+      {
+#ifdef __WIN__
+        if (is_console)
+          my_win_console_write(charset_info, s, mblen);
+        else
+#endif
+        fwrite(s, 1, mblen, file);
+        if (opt_outfile)
+          fwrite(s, 1, mblen, OUTFILE);
+        s+= mblen - 1;
+        continue;
+      }
+    }
+
+    if ((flags & MY_PRINT_XML) && (t= array_value(xmlmeta, *s)))
+      tee_fputs(t, file);
+    else if ((flags & MY_PRINT_SPS_0) && *s == '\0')
+      tee_putc((int) ' ', file);   // This makes everything hard
+    else if ((flags & MY_PRINT_ESC_0) && *s == '\0')
+      tee_fputs("\\0", file);      // This makes everything hard
+    else if ((flags & MY_PRINT_CTRL) && *s == '\t')
+      tee_fputs("\\t", file);      // This would destroy tab format
+    else if ((flags & MY_PRINT_CTRL) && *s == '\n')
+      tee_fputs("\\n", file);      // This too
+    else if ((flags & MY_PRINT_CTRL) && *s == '\\')
+      tee_fputs("\\\\", file);
+    else
+    {
+#ifdef __WIN__
+      if (is_console)
+        my_win_console_putc(charset_info, (int) *s);
+      else
+#endif
+      putc((int) *s, file);
+      if (opt_outfile)
+        putc((int) *s, OUTFILE);
+    }
+  }
+}
+
+
 void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
   va_start(args, fmt);
+#ifdef __WIN__
+  if (my_win_is_console_cached(file))
+    my_win_console_vfprintf(charset_info, fmt, args);
+  else
+#endif
   (void) vfprintf(file, fmt, args);
   va_end(args);
 
@@ -4658,8 +4947,20 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 }
 
 
+/*
+  Write a 0-terminated string to file and OUTFILE.
+  TODO: possibly it's nice to have a version with length some day,
+  e.g. tee_fnputs(s, slen, file),
+  to print numerous ASCII constant strings among mysql.cc
+  code, to avoid strlen(s) in my_win_console_fputs().
+*/
 void tee_fputs(const char *s, FILE *file)
 {
+#ifdef __WIN__
+  if (my_win_is_console_cached(file))
+    my_win_console_fputs(charset_info, s);
+  else
+#endif
   fputs(s, file);
   if (opt_outfile)
     fputs(s, OUTFILE);
@@ -4668,17 +4969,17 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
-  fputs(s, file);
-  fputc('\n', file);
-  if (opt_outfile)
-  {
-    fputs(s, OUTFILE);
-    fputc('\n', OUTFILE);
-  }
+  tee_fputs(s, file);
+  tee_putc('\n', file);
 }
 
 void tee_putc(int c, FILE *file)
 {
+#ifdef __WIN__
+  if (my_win_is_console_cached(file))
+    my_win_console_putc(charset_info, c);
+  else
+#endif
   putc(c, file);
   if (opt_outfile)
     putc(c, OUTFILE);

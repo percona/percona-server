@@ -40,13 +40,44 @@ let $dbug_sync_point= 'debug_lock.before_get_SERVER_ID';
 let $debug_sync_action= 'now SIGNAL signal.get_server_id';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
+#Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
+connection slave;
+
+let $dbug_sync_point= 'dbug.before_get_MASTER_UUID';
+let $debug_sync_action= 'now SIGNAL signal.get_master_uuid';
+source extra/rpl_tests/rpl_get_master_version_and_clock.test;
+
+#
+# Note, due to # Bug#11765758 - 58754
+# make sure the slave threads stand still (SQL thread in this context)
+# while @@global.debug is being updated.
+#
 eval set global debug= '$debug_saved';
 
+#Test case 4: This test checks that the slave I/O thread refuses to start
+#if slave and master have the same server id.
+connection slave;
+reset master;
+# replicate ourselves
+source include/stop_slave.inc;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval change master to master_port=$SLAVE_MYPORT;
+start slave;
+
+--echo *** must be having the replicate-same-server-id IO thread error ***
+let $slave_io_errno= 1593;
+let $show_slave_io_error= 1;
+source include/wait_for_slave_io_error.inc;
 
 # cleanup
 
 # is not really necessary but avoids mtr post-run env check warnings
 SET DEBUG_SYNC= 'RESET';
 
+# clear slave_io_error
+--source include/stop_slave_sql.inc
+RESET SLAVE;
+
 # End of tests
+--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

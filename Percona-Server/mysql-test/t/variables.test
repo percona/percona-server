@@ -8,7 +8,6 @@ drop table if exists t1,t2;
 #
 # Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
 #
-set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
@@ -16,6 +15,7 @@ set @my_flush                     =@@global.flush;
 set @my_flush_time                =@@global.flush_time;
 set @my_key_buffer_size           =@@global.key_buffer_size;
 set @my_max_binlog_cache_size     =@@global.max_binlog_cache_size;
+set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_max_binlog_size           =@@global.max_binlog_size;
 set @my_max_connect_errors        =@@global.max_connect_errors;
 set @my_max_connections           =@@global.max_connections;
@@ -30,7 +30,6 @@ set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
 set @my_query_cache_limit         =@@global.query_cache_limit;
 set @my_query_cache_type          =@@global.query_cache_type;
-set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -329,7 +328,6 @@ set global query_cache_size=100;
 set global query_cache_type=demand;
 set read_buffer_size=100;
 set read_rnd_buffer_size=100;
-set global rpl_recovery_rank=100;
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
@@ -342,11 +340,9 @@ select @@sql_auto_is_null;
 set @@sql_auto_is_null=0;
 select @@sql_auto_is_null;
 set sql_big_selects=1;
-set sql_big_tables=1;
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_low_priority_updates=1;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
@@ -360,7 +356,6 @@ set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
-set log_warnings=1;
 set global log_warnings=1;
 
 #
@@ -522,14 +517,6 @@ set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 set names latin1;
 
-
-#
-# Bug #9613: @@have_innodb
-#
-
---replace_column 1 #
-select @@have_innodb;
-
 #
 # Tests for lc_time_names
 # Note, when adding new locales, please fix ID accordingly:
@@ -564,11 +551,11 @@ set lc_time_names=NULL;
 set lc_time_names=-1;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing locale with the last ID:
-set lc_time_names=109;
+set lc_time_names=110;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing a number beyond the valid ID range:
 --error ER_UNKNOWN_LOCALE
-set lc_time_names=110;
+set lc_time_names=111;
 select @@lc_time_names;
 --echo LC_TIME_NAMES: testing that 0 is en_US:
 set lc_time_names=0;
@@ -808,7 +795,6 @@ set join_buffer_size=@save_join_buffer_size;
 # Bug #19263: variables.test doesn't clean up after itself (II/II --
 # restore)
 #
-set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
 set global delayed_queue_size        =@my_delayed_queue_size;
@@ -816,6 +802,7 @@ set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
 set global max_binlog_cache_size     =@my_max_binlog_cache_size;
+set global binlog_cache_size         =@my_binlog_cache_size;
 set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;
@@ -832,7 +819,6 @@ set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;
 set global query_cache_type          =@my_query_cache_type;
-set global rpl_recovery_rank         =@my_rpl_recovery_rank;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
@@ -1281,11 +1267,6 @@ SET @@global.max_join_size=0;
 SET @@global.key_buffer_size=0;
 SET @@global.key_cache_block_size=0;
 
-#
-# Bug#56976: added new start-up parameter
-#
-select @@max_long_data_size;
-
 --echo #
 --echo # Bug#11766424  59527: DECIMAL_BIN_SIZE: ASSERTION `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
 --echo #
@@ -1301,6 +1282,7 @@ DROP TABLE t1;
 
 # cleanup
 SET @@global.max_binlog_cache_size=DEFAULT;
+SET @@global.binlog_cache_size=DEFAULT;
 SET @@global.max_join_size=DEFAULT;
 SET @@global.key_buffer_size=@kbs;
 SET @@global.key_cache_block_size=@kcbs;
@@ -1521,3 +1503,23 @@ set session collation_connection=2048;
 set session collation_database=2048;
 
 --echo End of 5.5 tests
+
+
+--echo #
+--echo # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
+--echo #           compiler warning
+--echo #
+
+# Several tests currently use "@@sql_mode= cast(pow(2,32)-1"
+# to activate all SQL modes. This will stop working once
+# someone adds a new flag. The test below is designed to break
+# once this happens to indicate that other tests will have to
+# be updated.
+#
+# The test does this by trying to set sql_mode to the next 
+# currently unused flag value and check that this currently fails.
+# Once a new flag is added, this value will become valid and
+# the statement below will succeed.
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_mode= 4294967296;

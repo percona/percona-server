@@ -223,10 +223,10 @@ max(t2.a1)	max(t1.a1)
 NULL	NULL
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
 a1	a2	a1	a2
-10	aaa	AAA	10
-10	aaa	BBB	20
 10	NULL	AAA	10
 10	NULL	BBB	20
+10	aaa	AAA	10
+10	aaa	BBB	20
 10	bbb	AAA	10
 10	bbb	BBB	20
 20	zzz	NULL	NULL
@@ -290,7 +290,7 @@ explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
 Warnings:
-Note	1003	select sql_big_result `test`.`t1`.`a` AS `a`,count(`test`.`t1`.`b`) AS `count(b)`,sum(`test`.`t1`.`b`) AS `sum(b)`,avg(`test`.`t1`.`b`) AS `avg(b)`,std(`test`.`t1`.`b`) AS `std(b)`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)`,bit_and(`test`.`t1`.`b`) AS `bit_and(b)`,bit_or(`test`.`t1`.`b`) AS `bit_or(b)`,bit_xor(`test`.`t1`.`b`) AS `bit_xor(b)` from `test`.`t1` group by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`a` AS `a`,count(`test`.`t1`.`b`) AS `count(b)`,sum(`test`.`t1`.`b`) AS `sum(b)`,avg(`test`.`t1`.`b`) AS `avg(b)`,std(`test`.`t1`.`b`) AS `std(b)`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)`,bit_and(`test`.`t1`.`b`) AS `bit_and(b)`,bit_or(`test`.`t1`.`b`) AS `bit_or(b)`,bit_xor(`test`.`t1`.`b`) AS `bit_xor(b)` from `test`.`t1` group by `test`.`t1`.`a`
 drop table t1;
 create table t1 (col int);
 insert into t1 values (-1), (-2), (-3);
@@ -614,7 +614,7 @@ explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
-1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer
+1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer (Block Nested Loop)
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -651,7 +651,7 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	k2	k2	4	NULL	6	Using where; Using index
-1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer (Block Nested Loop)
 drop table t1, t2;
 create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');
@@ -834,7 +834,7 @@ MAX(b)
 xxxxbbbb
 EXPLAIN SELECT MAX(b) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (id int , b varchar(512), INDEX(b(250))) COLLATE latin1_bin;
 INSERT INTO t1 VALUES
@@ -845,7 +845,7 @@ MAX(b)
 __________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________zz
 EXPLAIN SELECT MAX(b) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1),(1,2),(2,3);
@@ -1325,7 +1325,7 @@ CREATE TABLE t1 ( a INT, b INT, KEY(a) );
 INSERT INTO t1 VALUES (NULL, 1), (NULL, 2);
 EXPLAIN SELECT MIN(a), MIN(b) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
 SELECT MIN(a), MIN(b) FROM t1;
 MIN(a)	MIN(b)
 NULL	1
@@ -1333,7 +1333,7 @@ CREATE TABLE t2( a INT, b INT, c INT, KEY(a, b) );
 INSERT INTO t2 ( a, b, c ) VALUES ( 1, NULL, 2 ), ( 1, 3, 4 ), ( 1, 4, 4 );
 EXPLAIN SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	5	const	2	Using where
+1	SIMPLE	t2	ref	a	a	5	const	2	NULL
 SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 MIN(b)	MIN(c)
 3	2
@@ -1406,7 +1406,7 @@ EXPLAIN EXTENDED SELECT y FROM v1 GROUP BY v1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select (`test`.`t1`.`a` + 1) AS `y` from `test`.`t1` group by (`test`.`t1`.`a` + 1)
+Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 1) AS `y` from `test`.`t1` group by (`test`.`t1`.`a` + 1)
 DROP VIEW v1;
 DROP TABLE t1;
 SET SQL_MODE=DEFAULT;
@@ -1507,7 +1507,7 @@ SELECT MAX(pk) as max, i
 FROM t1
 ORDER BY max;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 
 # Only 11 is correct for collumn i in this result
 SELECT MAX(pk) as max, i
@@ -1804,3 +1804,28 @@ AVG(DISTINCT outr.col_int_nokey)
 7.5000
 DROP TABLE t1;
 # End of the bug#57932
+#
+# BUG#12773464 - 61925: WRONG RESULT WITH AGGREGATE + NOT BETWEEN + KEY
+#
+CREATE TABLE t1 (a int, KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+SELECT MAX(a) FROM t1 WHERE a NOT BETWEEN 3 AND 9;
+MAX(a)
+10
+DROP TABLE t1;
+#
+# Bug#13724099 1032 BYTE MEMORY LEAK NEW_CACHED_ITEM IN
+#              SUBQUERY WITH GROUPING OF OUTER COLUMN
+#
+CREATE TABLE t1 (
+a BLOB,
+b INT)
+engine=innodb;
+INSERT INTO t1 VALUES ('a', 0);
+SELECT 0 FROM t1
+WHERE 0 = (SELECT group_concat(b)
+FROM t1 t GROUP BY t1.a)
+;
+0
+0
+DROP TABLE t1;

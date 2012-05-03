@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "event_db_repository.h"
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "sql_acl.h"             // SUPER_ACL
+#include "global_threads.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -38,8 +39,8 @@
 
 #define LOCK_DATA()       lock_data(SCHED_FUNC, __LINE__)
 #define UNLOCK_DATA()     unlock_data(SCHED_FUNC, __LINE__)
-#define COND_STATE_WAIT(mythd, abstime, msg) \
-        cond_wait(mythd, abstime, msg, SCHED_FUNC, __LINE__)
+#define COND_STATE_WAIT(mythd, abstime, stage) \
+        cond_wait(mythd, abstime, stage, SCHED_FUNC, __FILE__, __LINE__)
 
 extern pthread_attr_t connection_attrib;
 
@@ -75,9 +76,9 @@ struct scheduler_param {
 void
 Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 {
-  MYSQL_ERROR *err;
+  const Sql_condition *err;
   DBUG_ENTER("evex_print_warnings");
-  if (thd->warning_info->is_empty())
+  if (thd->get_stmt_da()->is_warning_info_empty())
     DBUG_VOID_RETURN;
 
   char msg_buf[10 * STRING_BUFFER_USUAL_SIZE];
@@ -93,7 +94,8 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
   prefix.append(et->name.str, et->name.length, system_charset_info);
   prefix.append("] ", 2);
 
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+  Diagnostics_area::Sql_condition_iterator it=
+    thd->get_stmt_da()->sql_conditions();
   while ((err= it++))
   {
     String err_msg(msg_buf, sizeof(msg_buf), system_charset_info);
@@ -133,7 +135,7 @@ post_init_event_thread(THD *thd)
   }
 
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.append(thd);
+  threads.push_front(thd);
   thread_count++;
   inc_thread_running();
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -397,14 +399,18 @@ Event_scheduler::start()
   }
   pre_init_event_thread(new_thd);
   new_thd->system_thread= SYSTEM_THREAD_EVENT_SCHEDULER;
-  new_thd->command= COM_DAEMON;
+  new_thd->set_command(COM_DAEMON);
 
   /*
     We should run the event scheduler thread under the super-user privileges.
     In particular, this is needed to be able to lock the mysql.event table
     for writing when the server is running in the read-only mode.
+
+    Same goes for transaction access mode. Set it to read-write for this thd.
   */
   new_thd->security_ctx->master_access |= SUPER_ACL;
+  new_thd->variables.tx_read_only= false;
+  new_thd->tx_read_only= false;
 
   scheduler_param_value=
     (struct scheduler_param *)my_malloc(sizeof(struct scheduler_param), MYF(0));
@@ -622,7 +628,7 @@ Event_scheduler::stop()
   {
     /* Synchronously wait until the scheduler stops. */
     while (state != INITIALIZED)
-      COND_STATE_WAIT(thd, NULL, "Waiting for the scheduler to stop");
+      COND_STATE_WAIT(thd, NULL, &stage_waiting_for_scheduler_to_stop);
     goto end;
   }
 
@@ -657,7 +663,7 @@ Event_scheduler::stop()
     /* thd could be 0x0, when shutting down */
     sql_print_information("Event Scheduler: "
                           "Waiting for the scheduler thread to reply");
-    COND_STATE_WAIT(thd, NULL, "Waiting scheduler to stop");
+    COND_STATE_WAIT(thd, NULL, &stage_waiting_for_scheduler_to_stop);
   } while (state == STOPPING);
   DBUG_PRINT("info", ("Scheduler thread has cleaned up. Set state to INIT"));
   sql_print_information("Event Scheduler: Stopped");
@@ -751,16 +757,17 @@ Event_scheduler::unlock_data(const char *func, uint line)
 */
 
 void
-Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
-                           const char *func, uint line)
+Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info *stage,
+                           const char *src_func, const char *src_file, uint src_line)
 {
   DBUG_ENTER("Event_scheduler::cond_wait");
   waiting_on_cond= TRUE;
-  mutex_last_unlocked_at_line= line;
+  mutex_last_unlocked_at_line= src_line;
   mutex_scheduler_data_locked= FALSE;
-  mutex_last_unlocked_in_func= func;
+  mutex_last_unlocked_in_func= src_func;
   if (thd)
-    thd->enter_cond(&COND_state, &LOCK_scheduler_state, msg);
+    thd->enter_cond(&COND_state, &LOCK_scheduler_state, stage,
+                    NULL, src_func, src_file, src_line);
 
   DBUG_PRINT("info", ("mysql_cond_%swait", abstime? "timed":""));
   if (!abstime)
@@ -773,11 +780,11 @@ Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
       This will free the lock so we need to relock. Not the best thing to
       do but we need to obey cond_wait()
     */
-    thd->exit_cond("");
+    thd->exit_cond(NULL, src_func, src_file, src_line);
     LOCK_DATA();
   }
-  mutex_last_locked_in_func= func;
-  mutex_last_locked_at_line= line;
+  mutex_last_locked_in_func= src_func;
+  mutex_last_locked_at_line= src_line;
   mutex_scheduler_data_locked= TRUE;
   waiting_on_cond= FALSE;
   DBUG_VOID_RETURN;

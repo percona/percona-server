@@ -1,7 +1,7 @@
 #ifndef PROCEDURE_INCLUDED
 #define PROCEDURE_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,6 @@
 
 
 /* When using sql procedures */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface				/* gcc class implementation */
-#endif
 
 /*
   It is necessary to include set_var.h instead of item.h because there
@@ -45,7 +41,7 @@ public:
   }
   enum Type type() const { return Item::PROC_ITEM; }
   virtual void set(double nr)=0;
-  virtual void set(const char *str,uint length,CHARSET_INFO *cs)=0;
+  virtual void set(const char *str,uint length, const CHARSET_INFO *cs)=0;
   virtual void set(longlong nr)=0;
   virtual enum_field_types field_type() const=0;
   void set(const char *str) { set(str,(uint) strlen(str), default_charset()); }
@@ -68,7 +64,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   void set(double nr) { value=nr; }
   void set(longlong nr) { value=(double) nr; }
-  void set(const char *str,uint length,CHARSET_INFO *cs)
+  void set(const char *str,uint length,const CHARSET_INFO *cs)
   {
     int err_not_used;
     char *end_not_used;
@@ -82,6 +78,14 @@ public:
     return s;
   }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_real(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_real(ltime);
+  }
   unsigned int size_of() { return sizeof(*this);}
 };
 
@@ -95,12 +99,20 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
   void set(double nr) { value=(longlong) nr; }
   void set(longlong nr) { value=nr; }
-  void set(const char *str,uint length, CHARSET_INFO *cs)
+  void set(const char *str,uint length, const CHARSET_INFO *cs)
   { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
   double val_real() { return (double) value; }
   longlong val_int() { return value; }
   String *val_str(String *s) { s->set(value, default_charset()); return s; }
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_int(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_int(ltime);
+  }
   unsigned int size_of() { return sizeof(*this);}
 };
 
@@ -114,21 +126,29 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   void set(double nr) { str_value.set_real(nr, 2, default_charset()); }
   void set(longlong nr) { str_value.set(nr, default_charset()); }
-  void set(const char *str, uint length, CHARSET_INFO *cs)
+  void set(const char *str, uint length, const CHARSET_INFO *cs)
   { str_value.copy(str,length,cs); }
   double val_real()
   {
     int err_not_used;
     char *end_not_used;
-    CHARSET_INFO *cs= str_value.charset();
+    const CHARSET_INFO *cs= str_value.charset();
     return my_strntod(cs, (char*) str_value.ptr(), str_value.length(),
 		      &end_not_used, &err_not_used);
   }
   longlong val_int()
   { 
     int err;
-    CHARSET_INFO *cs=str_value.charset();
+    const CHARSET_INFO *cs=str_value.charset();
     return my_strntoll(cs,str_value.ptr(),str_value.length(),10,NULL,&err);
+  }
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
   }
   String *val_str(String*)
   {

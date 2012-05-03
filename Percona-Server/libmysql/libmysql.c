@@ -2,10 +2,7 @@
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation.
-
-   There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software.
+   the Free Software Foundation; version 2 of the License.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -34,10 +31,6 @@
 #include <pwd.h>
 #endif
 #if !defined(__WIN__)
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #ifdef HAVE_SELECT_H
 #include <select.h>
 #endif
@@ -575,9 +568,11 @@ static int default_local_infile_init(void **ptr, const char *filename,
   fn_format(tmp_name, filename, "", "", MY_UNPACK_FILENAME);
   if ((data->fd = my_open(tmp_name, O_RDONLY, MYF(0))) < 0)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= my_errno;
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
-                EE(EE_FILENOTFOUND), tmp_name, data->error_num);
+                EE(EE_FILENOTFOUND), tmp_name, data->error_num,
+                my_strerror(errbuf, sizeof(errbuf), data->error_num));
     return 1;
   }
   return 0; /* ok */
@@ -606,10 +601,11 @@ static int default_local_infile_read(void *ptr, char *buf, uint buf_len)
 
   if ((count= (int) my_read(data->fd, (uchar *) buf, buf_len, MYF(0))) < 0)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= EE_READ; /* the errmsg for not entire file read */
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
-		EE(EE_READ),
-		data->filename, my_errno);
+                EE(EE_READ), data->filename,
+                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   return count;
 }
@@ -1116,7 +1112,7 @@ void my_net_local_init(NET *net)
   my_net_set_read_timeout(net, CLIENT_NET_READ_TIMEOUT);
   my_net_set_write_timeout(net, CLIENT_NET_WRITE_TIMEOUT);
   net->retry_count=  1;
-  net->max_packet_size= max(net_buffer_length, max_allowed_packet);
+  net->max_packet_size= MY_MAX(net_buffer_length, max_allowed_packet);
 }
 
 /*
@@ -1507,7 +1503,7 @@ mysql_stmt_init(MYSQL *mysql)
   stmt->read_row_func= stmt_read_row_no_result_set;
   stmt->prefetch_rows= DEFAULT_PREFETCH_ROWS;
   strmov(stmt->sqlstate, not_error_sqlstate);
-  /* The rest of statement members was bzeroed inside malloc */
+  /* The rest of statement members was zeroed inside malloc */
 
   init_alloc_root(&stmt->extension->fields_mem_root, 2048, 0);
 
@@ -1806,7 +1802,7 @@ mysql_stmt_result_metadata(MYSQL_STMT *stmt)
   result->eof=		1;                      /* Marker for buffered */
   result->fields=	stmt->fields;
   result->field_count=	stmt->field_count;
-  /* The rest of members of 'result' was bzeroed inside malloc */
+  /* The rest of members of 'result' was zeroed inside malloc */
   DBUG_RETURN(result);
 }
 
@@ -2115,7 +2111,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
       set_stmt_errmsg(stmt, net);
       DBUG_RETURN(1);
     }
-    bzero((char*) net->write_pos, null_count);
+    memset(net->write_pos, 0, null_count);
     net->write_pos+= null_count;
     param_end= stmt->params + stmt->param_count;
 
@@ -3110,7 +3106,6 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
                                          uint length)
 {
   char *buffer= (char *)param->buffer;
-  int err= 0;
   char *endptr= value + length;
 
   /*
@@ -3122,6 +3117,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     break;
   case MYSQL_TYPE_TINY:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
                                  INT_MIN8, INT_MAX8, UINT_MAX8) || err > 0);
@@ -3130,6 +3126,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_SHORT:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
                                  INT_MIN16, INT_MAX16, UINT_MAX16) || err > 0);
@@ -3138,6 +3135,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_LONG:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= (IS_TRUNCATED(data, param->is_unsigned,
                                  INT_MIN32, INT_MAX32, UINT_MAX32) || err > 0);
@@ -3146,6 +3144,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_LONGLONG:
   {
+    int err;
     longlong data= my_strtoll10(value, &endptr, &err);
     *param->error= param->is_unsigned ? err != 0 :
                                        (err > 0 || (err == 0 && data < 0));
@@ -3154,6 +3153,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_FLOAT:
   {
+    int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
     float fdata= (float) data;
     *param->error= (fdata != data) | test(err);
@@ -3162,6 +3162,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_DOUBLE:
   {
+    int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
     *param->error= test(err);
     doublestore(buffer, data);
@@ -3169,19 +3170,22 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
   case MYSQL_TYPE_TIME:
   {
+    MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    str_to_time(value, length, tm, &err);
-    *param->error= test(err);
+    str_to_time(value, length, tm, &status);
+    *param->error= test(status.warnings);
     break;
   }
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
   {
+    MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
-    (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &err);
-    *param->error= test(err) && (param->buffer_type == MYSQL_TYPE_DATE &&
-                                 tm->time_type != MYSQL_TIMESTAMP_DATE);
+    (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &status);
+    *param->error= test(status.warnings) &&
+                   (param->buffer_type == MYSQL_TYPE_DATE &&
+                    tm->time_type != MYSQL_TIMESTAMP_DATE);
     break;
   }
   case MYSQL_TYPE_TINY_BLOB:
@@ -3204,7 +3208,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       copy_length= end - start;
       /* We've got some data beyond offset: copy up to buffer_length bytes */
       if (param->buffer_length)
-        memcpy(buffer, start, min(copy_length, param->buffer_length));
+        memcpy(buffer, start, MY_MIN(copy_length, param->buffer_length));
     }
     else
       copy_length= 0;
@@ -3319,7 +3323,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
         field->length < 21)
     {
       bmove_upp(buff+field->length,buff+length, length);
-      bfill(buff, field->length - length,'0');
+      memset(buff, '0', field->length - length);
       length= field->length;
     }
     fetch_string_with_conversion(param, (char*) buff, length);
@@ -3430,7 +3434,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     size_t len;
     if (field->decimals >= NOT_FIXED_DEC)
       len= my_gcvt(value, type,
-                   (int) min(sizeof(buff)-1, param->buffer_length),
+                   (int) MY_MIN(sizeof(buff)-1, param->buffer_length),
                    buff, NULL);
     else
       len= my_fcvt(value, (int) field->decimals, buff, NULL);
@@ -3440,7 +3444,7 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     {
       bmove_upp((uchar*) buff + field->length, (uchar*) buff + len,
                 len);
-      bfill((char*) buff, field->length - len, '0');
+      memset(buff, '0', field->length - len);
       len= field->length;
     }
     fetch_string_with_conversion(param, buff, len);
@@ -3508,7 +3512,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       fetch_string_with_conversion:
     */
     char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(my_time, buff);
+    uint length= my_TIME_to_str(my_time, buff, field->decimals);
     /* Resort to string conversion */
     fetch_string_with_conversion(param, (char *)buff, length);
     break;
@@ -3740,7 +3744,7 @@ static void fetch_result_bin(MYSQL_BIND *param,
                              uchar **row)
 {
   ulong length= net_field_length(row);
-  ulong copy_length= min(length, param->buffer_length);
+  ulong copy_length= MY_MIN(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
   *param->length= length;
   *param->error= copy_length < length;
@@ -3752,7 +3756,7 @@ static void fetch_result_str(MYSQL_BIND *param,
                              uchar **row)
 {
   ulong length= net_field_length(row);
-  ulong copy_length= min(length, param->buffer_length);
+  ulong copy_length= MY_MIN(length, param->buffer_length);
   memcpy(param->buffer, (char *)*row, copy_length);
   /* Add an end null if there is room in the buffer */
   if (copy_length != param->buffer_length)
@@ -3985,7 +3989,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     field->max_length= MAX_DOUBLE_STRING_REP_LENGTH;
     break;
   case MYSQL_TYPE_TIME:
-    field->max_length= 15;                    /* 19:23:48.123456 */
+    field->max_length= 17;                    /* -819:23:48.123456 */
     param->skip_result= skip_result_with_length;
     break;
   case MYSQL_TYPE_DATE:
@@ -4424,7 +4428,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     */
     MYSQL_BIND  *my_bind, *end;
     MYSQL_FIELD *field;
-    bzero((char*) stmt->bind, sizeof(*stmt->bind)* stmt->field_count);
+    memset(stmt->bind, 0, sizeof(*stmt->bind) * stmt->field_count);
 
     for (my_bind= stmt->bind, end= my_bind + stmt->field_count,
            field= stmt->fields;

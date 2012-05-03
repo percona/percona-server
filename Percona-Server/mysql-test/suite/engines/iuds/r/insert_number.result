@@ -3760,20 +3760,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 256 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -9402,20 +9394,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 65536 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -15149,20 +15133,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 16777216 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -21001,20 +20977,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -26915,20 +26883,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL

@@ -1,4 +1,5 @@
 #include "plugin.h"
+typedef void * MYSQL_PLUGIN;
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
@@ -59,6 +60,19 @@ extern struct my_thread_scheduler_service {
 } *my_thread_scheduler_service;
 int my_thread_scheduler_set(struct scheduler_functions *scheduler);
 int my_thread_scheduler_reset();
+#include <mysql/service_my_plugin_log.h>
+enum plugin_log_level
+{
+  MY_ERROR_LEVEL,
+  MY_WARNING_LEVEL,
+  MY_INFORMATION_LEVEL
+};
+extern struct my_plugin_log_service
+{
+  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...);
+} *my_plugin_log_service;
+int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
+                          const char *format, ...);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -68,8 +82,11 @@ struct st_mysql_xid {
 typedef struct st_mysql_xid MYSQL_XID;
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
-  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_UNDEF, SHOW_BOOL,
+  SHOW_INT,
+  SHOW_LONG,
+  SHOW_LONGLONG,
+  SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
   SHOW_always_last
 };
@@ -95,8 +112,8 @@ struct st_mysql_plugin
   const char *author;
   const char *descr;
   int license;
-  int (*init)(void *);
-  int (*deinit)(void *);
+  int (*init)(MYSQL_PLUGIN);
+  int (*deinit)(MYSQL_PLUGIN);
   unsigned int version;
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
@@ -136,6 +153,7 @@ const char *thd_proc_info(void* thd, const char *info);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
 void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);
+int thd_tx_is_read_only(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
@@ -182,7 +200,7 @@ typedef struct st_mysql_ftparser_param
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  struct charset_info_st *cs;
+  const struct charset_info_st *cs;
   char *doc;
   int length;
   int flags;

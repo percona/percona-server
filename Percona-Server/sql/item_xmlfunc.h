@@ -1,8 +1,7 @@
 #ifndef ITEM_XMLFUNC_INCLUDED
 #define ITEM_XMLFUNC_INCLUDED
 
-/* Copyright (c) 2000-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,17 +13,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 /* This file defines all XML functions */
-
-
-#ifdef __GNUC__
-#pragma interface			/* gcc class implementation */
-#endif
-
 
 class Item_xml_str_func: public Item_str_func
 {

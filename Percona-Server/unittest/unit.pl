@@ -1,6 +1,5 @@
 #!/usr/bin/perl
-# Copyright (c) 2006 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -80,6 +79,7 @@ sub _find_test_files (@) {
     my @files;
     find sub { 
         $File::Find::prune = 1 if /^SCCS$/;
+        $File::Find::prune = 1 if /^.libs$/;
         push(@files, $File::Find::name) if -x _ && (/-t\z/ || /-t\.exe\z/);
     }, @dirs;
     return @files;

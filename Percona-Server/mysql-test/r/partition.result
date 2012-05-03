@@ -67,6 +67,19 @@ AND A.b = '06'
 AND A.c = 343;
 DROP TABLE t1;
 #
+# Bug#59503: explain extended crash in get_mm_leaf
+#
+CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
+ENGINE=MyISAM
+PARTITION BY KEY (a) PARTITIONS 1;
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 1)
+DROP TABLE t1;
+#
 # Bug#57778: failed primary key add to partitioned innodb table
 #            inconsistent and crashes
 #
@@ -223,10 +236,10 @@ a	b
 2007-07-30 17:35:48	p1
 EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
 PARTITION p3 VALUES LESS THAN (1247688000),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
@@ -240,10 +253,10 @@ a	b
 2007-07-30 17:35:48	p1
 EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	NULL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1050,13 +1063,13 @@ select * from t1 where f1 = 10;
 f1	f2
 10	1
 drop table t1;
-set session storage_engine= 'memory';
+set session default_storage_engine= 'memory';
 create table t1 (f_int1 int(11) default null) engine = memory
 partition by range (f_int1) subpartition by hash (f_int1)
 (partition part1 values less than (1000)
 (subpartition subpart11 engine = memory));
 drop table t1;
-set session storage_engine='myisam';
+set session default_storage_engine='myisam';
 create table t1 (f_int1 integer, f_int2 integer, primary key (f_int1))
 partition by hash(f_int1) partitions 2;
 insert into t1 values (1,1),(2,2);
@@ -1527,7 +1540,7 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p1	system	NULL	NULL	NULL	NULL	1	NULL
 drop table t1;
 create table t1 (f1 integer) partition by list(f1)
 (partition p1 values in (1), partition p2 values in (null));
@@ -1585,7 +1598,7 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	NULL
 drop table t1;
 create table t1 (f1 int) partition by list(f1 div 2)
 (
@@ -1607,7 +1620,7 @@ f1
 NULL
 explain partitions select * from t1 where f1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p2	system	NULL	NULL	NULL	NULL	1	NULL
 drop table t1;
 create table t1 (a int) partition by LIST(a) (
 partition pn values in (NULL),
@@ -1810,9 +1823,9 @@ insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
 (18446744073709551613), (18446744073709551612);
 select * from t1;
 a
+18446744073709551614
 18446744073709551612
 18446744073709551613
-18446744073709551614
 18446744073709551615
 select * from t1 where a = 18446744073709551615;
 a
@@ -1820,9 +1833,9 @@ a
 delete from t1 where a = 18446744073709551615;
 select * from t1;
 a
+18446744073709551614
 18446744073709551612
 18446744073709551613
-18446744073709551614
 drop table t1;
 CREATE TABLE t1 (
 num int(11) NOT NULL, cs int(11) NOT NULL)
@@ -1879,8 +1892,7 @@ WHERE t1.id IN (
 SELECT distinct id
 FROM t4
 WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 MyISAM_part
 16421
 19092
@@ -1901,7 +1913,7 @@ INSERT INTO t1 VALUES
 ('2006-09-29 21:50:01',22589,'Verified');
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (
 id int(8) NOT NULL,
 severity tinyint(4) NOT NULL DEFAULT '0',
@@ -2349,6 +2361,7 @@ INSERT INTO t1 VALUES(0);
 DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
 End of 5.1 tests
+# Start of 5.5 tests
 #
 # BUG#55385: UPDATE statement throws an error, but still updates
 #            the table entries
@@ -2397,3 +2410,88 @@ partkey	nokey
 
 DROP VIEW v1;
 DROP TABLE t1_part;
+# Moved from lock.test
+# Separate case for partitioned tables is important
+# because each partition has an own thr_lock object.
+create table t1 (i int) partition by list (i)
+(partition p0 values in (1),
+partition p1 values in (2,3),
+partition p2 values in (4,5));
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+# End of 5.5 tests
+CREATE TABLE t1(a INT PRIMARY KEY) PARTITION BY LINEAR KEY (a);
+CREATE ALGORITHM=TEMPTABLE VIEW vtmp AS
+SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
+SELECT * FROM vtmp;
+1
+DROP VIEW vtmp;
+DROP TABLE t1;
+#
+# Bug#13580775 ASSERTION FAILED: RECORD_LENGTH == M_RECORD_LENGTH,
+# FILE FILESORT_UTILS.CC
+#
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT,
+c CHAR(1),
+d INT,
+KEY (c,d)
+) PARTITION BY KEY () PARTITIONS 1;
+INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
+SELECT 1 FROM t1 WHERE 1 IN
+(SELECT  group_concat(b)
+FROM t1
+WHERE c > geomfromtext('point(1 1)')
+GROUP BY b
+);
+1
+1
+1
+DROP TABLE t1;
+#
+# WL#5855 (EXPLAIN FORMAT=JSON) partition test
+#
+CREATE TABLE t1 (c1 int(11) DEFAULT NULL, KEY c1 (c1))
+PARTITION BY RANGE (c1)
+(PARTITION a VALUES LESS THAN (10),
+PARTITION b VALUES LESS THAN (100),
+PARTITION c VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+EXPLAIN PARTITIONS SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	a,b	range	c1	c1	5	NULL	11	Using where; Using index
+EXPLAIN EXTENDED SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	c1	c1	5	NULL	11	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
+EXPLAIN FORMAT=JSON SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "t1",
+      "partitions": [
+        "a",
+        "b"
+      ],
+      "access_type": "range",
+      "possible_keys": [
+        "c1"
+      ],
+      "key": "c1",
+      "key_length": "5",
+      "rows": 11,
+      "filtered": 100,
+      "using_index": true,
+      "attached_condition": "((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where ((`test`.`t1`.`c1` > 2) and (`test`.`t1`.`c1` < 15))
+DROP TABLE t1;

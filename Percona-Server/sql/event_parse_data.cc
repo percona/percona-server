@@ -11,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -126,7 +126,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   {
     switch (thd->lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                    ER_EVENT_CANNOT_CREATE_IN_THE_PAST,
                    ER(ER_EVENT_CANNOT_CREATE_IN_THE_PAST));
       break;
@@ -143,7 +143,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
   {
     status= Event_parse_data::DISABLED;
     status_changed= true;
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                  ER_EVENT_EXEC_TIME_IN_THE_PAST,
                  ER(ER_EVENT_EXEC_TIME_IN_THE_PAST));
   }
@@ -567,6 +567,7 @@ void Event_parse_data::check_originator_id(THD *thd)
 {
   /* Disable replicated events on slave. */
   if ((thd->system_thread == SYSTEM_THREAD_SLAVE_SQL) ||
+      (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER) ||
       (thd->system_thread == SYSTEM_THREAD_SLAVE_IO))
   {
     DBUG_PRINT("info", ("Invoked object status set to SLAVESIDE_DISABLED."));

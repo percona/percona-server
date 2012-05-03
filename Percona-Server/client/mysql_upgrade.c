@@ -11,8 +11,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
 #include "client_priv.h"
@@ -105,7 +105,7 @@ static struct my_option my_long_options[]=
   {"password", 'p',
    "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", &opt_password,&opt_password,
-   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -220,6 +220,7 @@ static void add_one_option(DYNAMIC_STRING* ds,
     eq= "=";
     switch (opt->var_type & GET_TYPE_MASK) {
     case GET_STR:
+    case GET_PASSWORD:
       arg= argument;
       break;
     case GET_BOOL:
@@ -245,7 +246,7 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
     puts("MySQL utility for upgrading databases to new MySQL versions.\n");
     my_print_help(my_long_options);
     exit(0);
@@ -550,7 +551,7 @@ static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
   if ((value_end= strchr(value_start, '\n')) == NULL)
     return 1; /* Unexpected result */
 
-  strncpy(value, value_start, min(FN_REFLEN, value_end-value_start));
+  strncpy(value, value_start, MY_MIN(FN_REFLEN, value_end - value_start));
   return 0;
 }
 
@@ -612,7 +613,7 @@ static int upgrade_already_done(void)
     Read from file, don't care if it fails since it
     will be detected by the strncmp
   */
-  bzero(buf, sizeof(buf));
+  memset(buf, 0, sizeof(buf));
   res= fgets(buf, sizeof(buf), in);
 
   my_fclose(in, MYF(0));
@@ -777,17 +778,35 @@ static void print_line(char* line)
 static int run_sql_fix_privilege_tables(void)
 {
   int found_real_errors= 0;
+  const char **query_ptr;
+  DYNAMIC_STRING ds_script;
   DYNAMIC_STRING ds_result;
   DBUG_ENTER("run_sql_fix_privilege_tables");
+
+  if (init_dynamic_string(&ds_script, "", 65536, 1024))
+    die("Out of memory");
 
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
   verbose("Running 'mysql_fix_privilege_tables'...");
-  run_query(mysql_fix_privilege_tables,
+
+  /*
+    Individual queries can not be executed independently by invoking
+    a forked mysql client, because the script uses session variables
+    and prepared statements.
+  */
+  for ( query_ptr= &mysql_fix_privilege_tables[0];
+        *query_ptr != NULL;
+        query_ptr++
+      )
+  {
+    dynstr_append(&ds_script, *query_ptr);
+  }
+
+  run_query(ds_script.str,
             &ds_result, /* Collect result */
             TRUE);
-
   {
     /*
       Scan each line of the result for real errors
@@ -812,6 +831,7 @@ static int run_sql_fix_privilege_tables(void)
   }
 
   dynstr_free(&ds_result);
+  dynstr_free(&ds_script);
   return found_real_errors;
 }
 
@@ -841,8 +861,10 @@ int main(int argc, char **argv)
       init_dynamic_string(&conn_args, "", 512, 256))
     die("Out of memory");
 
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
     die(NULL);
+  my_getopt_use_args_separator= FALSE;
   defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   if (handle_options(&argc, &argv, my_long_options, get_one_option))

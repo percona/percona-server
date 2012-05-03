@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -192,7 +192,7 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 
 bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
                      uint fixed_dec, char filler, String *str,
-                     CHARSET_INFO *cs);
+                     const CHARSET_INFO *cs);
 
 extern my_decimal decimal_zero;
 
@@ -358,7 +358,7 @@ int my_decimal_ceiling(uint mask, const my_decimal *from, my_decimal *to)
 
 
 inline bool str_set_decimal(const my_decimal *val, String *str,
-                            CHARSET_INFO *cs)
+                            const CHARSET_INFO *cs)
 {
   return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
 }
@@ -390,15 +390,21 @@ int my_decimal2double(uint, const my_decimal *d, double *result)
 }
 
 
-inline
-int str2my_decimal(uint mask, const char *str, my_decimal *d, char **end)
+inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to)
+{
+  return check_result(mask, decimal2lldiv_t(d, to));
+}
+
+
+inline int str2my_decimal(uint mask, const char *str,
+                          my_decimal *d, char **end)
 {
   return check_result_and_overflow(mask, string2decimal(str, d, end), d);
 }
 
 
 int str2my_decimal(uint mask, const char *from, uint length,
-                   CHARSET_INFO *charset, my_decimal *decimal_value);
+                   const CHARSET_INFO *charset, my_decimal *decimal_value);
 
 #if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
 inline
@@ -408,8 +414,9 @@ int string2my_decimal(uint mask, const String *str, my_decimal *d)
 }
 
 
-my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec);
-
+my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
+my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec);
+my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec);
 
 #endif /*defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY) */
 

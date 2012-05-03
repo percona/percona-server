@@ -11,6 +11,7 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
   COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
+  COM_BINLOG_DUMP_GTID,
   COM_END
 };
 struct st_vio;
@@ -49,6 +50,9 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
    MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
    MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
    MYSQL_TYPE_BIT,
+   MYSQL_TYPE_TIMESTAMP2,
+   MYSQL_TYPE_DATETIME2,
+   MYSQL_TYPE_TIME2,
                         MYSQL_TYPE_NEWDECIMAL=246,
    MYSQL_TYPE_ENUM=247,
    MYSQL_TYPE_SET=248,
@@ -85,18 +89,15 @@ enum enum_mysql_set_option
 my_bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
-  void net_clear(NET *net, my_bool clear_buffer);
+void net_clear(NET *net, my_bool check_buffer);
 my_bool net_realloc(NET *net, size_t length);
 my_bool net_flush(NET *net);
 my_bool my_net_write(NET *net,const unsigned char *packet, size_t len);
 my_bool net_write_command(NET *net,unsigned char command,
      const unsigned char *header, size_t head_len,
      const unsigned char *packet, size_t len);
-int net_real_write(NET *net,const unsigned char *packet, size_t len);
+my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
-struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
-        unsigned int timeout);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
@@ -262,7 +263,11 @@ enum mysql_option
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+  MYSQL_OPT_BIND,
+  MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
+  MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
+  MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -286,7 +291,10 @@ struct st_mysql_options {
   my_bool unused3;
   my_bool unused4;
   enum mysql_option methods_to_use;
-  char *client_ip;
+  union {
+    char *client_ip;
+    char *bind_address;
+  } ci;
   my_bool secure_auth;
   my_bool report_data_truncation;
   int (*local_infile_init)(void **, const char *, void *);

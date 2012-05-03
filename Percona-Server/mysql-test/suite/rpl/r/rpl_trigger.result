@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
@@ -899,6 +902,7 @@ SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 RESET MASTER;
 START SLAVE;
+include/rpl_reset.inc
 
 ---> Test for BUG#20438
 

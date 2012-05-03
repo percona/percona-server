@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,8 @@ class Item;
 #else
 #define MYSQL_THD void*
 #endif
+
+typedef void * MYSQL_PLUGIN;
 
 #include <mysql/services.h>
 
@@ -122,13 +124,16 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
 
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
-/*
+/**
   declarations for SHOW STATUS support in plugins
 */
 enum enum_mysql_show_type
 {
-  SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
-  SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
+  SHOW_UNDEF, SHOW_BOOL,
+  SHOW_INT,        ///< shown as _unsigned_ int
+  SHOW_LONG,       ///< shown as _unsigned_ long
+  SHOW_LONGLONG,   ///< shown as _unsigned_ longlong
+  SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
   SHOW_always_last
 };
@@ -417,8 +422,8 @@ struct st_mysql_plugin
   const char *author;   /* plugin author (for I_S.PLUGINS)              */
   const char *descr;    /* general descriptive text (for I_S.PLUGINS)   */
   int license;          /* the plugin license (PLUGIN_LICENSE_XXX)      */
-  int (*init)(void *);  /* the function to invoke when plugin is loaded */
-  int (*deinit)(void *);/* the function to invoke when plugin is unloaded */
+  int (*init)(MYSQL_PLUGIN);  /* the function to invoke when plugin is loaded */
+  int (*deinit)(MYSQL_PLUGIN);/* the function to invoke when plugin is unloaded */
   unsigned int version; /* plugin version (for I_S.PLUGINS)             */
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
@@ -540,6 +545,7 @@ const char *thd_proc_info(MYSQL_THD thd, const char *info);
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 void thd_storage_lock_wait(MYSQL_THD thd, long long value);
 int thd_tx_isolation(const MYSQL_THD thd);
+int thd_tx_is_read_only(const MYSQL_THD thd);
 char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 /* Increments the row counter, see THD::row_count */

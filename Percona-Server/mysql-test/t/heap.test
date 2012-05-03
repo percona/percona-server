@@ -201,8 +201,8 @@ drop table t1;
 # We can't use varchar.inc becasue heap doesn't support blob's
 #
 
-let $default=`select @@storage_engine`;
-set storage_engine=HEAP;
+let $default=`select @@default_storage_engine`;
+set default_storage_engine=HEAP;
 
 #
 # Simple basic test that endspace is saved
@@ -405,7 +405,7 @@ drop table t1;
 #
 # Reset varchar test
 #
-eval set storage_engine=$default;
+eval set default_storage_engine=$default;
 
 #
 # Bug #8489: Strange auto_increment behaviour
@@ -436,9 +436,9 @@ insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcd
 insert into t1 values ("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
 drop table t1;
 
-#
-# Bug 12796: Record doesn't show when selecting through index
-#
+--echo #
+--echo # Bug 12796: Record doesn't show when selecting through index
+--echo #
 CREATE TABLE t1 (a int, key(a)) engine=heap;
 insert into t1 values (0);
 delete from t1;
@@ -479,4 +479,56 @@ CREATE TABLE t1(c1 VARCHAR(100), c2 INT) ENGINE=MEMORY;
 INSERT INTO t1 VALUES('', 0);
 ALTER TABLE t1 MODIFY c1 VARCHAR(101);
 SELECT c2 FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#11825482: Broken key length calculation for btree index
+--echo #
+CREATE TABLE h1 (f1 VARCHAR(1), f2 INT NOT NULL,
+                 UNIQUE KEY h1i (f1,f2) USING BTREE ) ENGINE=HEAP;
+INSERT INTO h1 VALUES(NULL,0),(NULL,1);
+SELECT 'wrong' as 'result' FROM dual WHERE ('h', 0) NOT IN (SELECT * FROM h1);
+
+CREATE TABLE t1 (  
+  pk int NOT NULL,  
+  col_int_nokey INT,  
+  col_varchar_nokey VARCHAR(1),  
+  PRIMARY KEY (pk)  
+);
+
+INSERT INTO t1 VALUES (19,5,'h'),(20,5,'h');
+  
+CREATE TABLE t2 (col_int_nokey INT);
+
+INSERT INTO t2 VALUES (1),(2);
+
+CREATE VIEW v1 AS
+  SELECT col_varchar_nokey, COUNT( col_varchar_nokey )
+  FROM t1
+  WHERE col_int_nokey <= 141 AND pk <= 4
+;
+
+SELECT col_int_nokey FROM t2
+WHERE ('h', 0) NOT IN ( SELECT * FROM v1);
+--echo # shouldn't crash
+EXPLAIN SELECT col_int_nokey FROM t2
+WHERE ('h', 0) NOT IN ( SELECT * FROM v1);
+
+DROP TABLE t1,t2,h1;
+DROP VIEW v1;
+
+#
+# BUG 11755870 - 47704: HASH INDEX ON VARCHAR PREFIX NOT WORKING CORRECTLY.
+#
+CREATE TABLE t1 (
+    c1 VARCHAR(10) NOT NULL,
+    KEY i1 (c1(3))
+) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('foo1'), ('bar2'), ('baz3');
+
+SELECT * FROM t1 WHERE c1='bar2';
+--echo #should show one tuple!
+
+SELECT * FROM t1 IGNORE INDEX (i1) WHERE c1='bar2';
+--echo #should show one tuple!
 DROP TABLE t1;

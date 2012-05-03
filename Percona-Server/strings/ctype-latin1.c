@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -357,7 +356,7 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 
 static
-int my_mb_wc_latin1(CHARSET_INFO *cs  __attribute__((unused)),
+int my_mb_wc_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t *wc,
 		    const uchar *str,
 		    const uchar *end __attribute__((unused)))
@@ -370,7 +369,7 @@ int my_mb_wc_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static
-int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
+int my_wc_mb_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t wc,
 		    uchar *str,
 		    uchar *end __attribute__((unused)))
@@ -380,7 +379,10 @@ int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
   if (str >= end)
     return MY_CS_TOOSMALL;
   
-  pl= uni_to_cs[(wc>>8) & 0xFF];
+  if (wc > 0xFFFF)
+    return MY_CS_ILUNI;
+  
+  pl= uni_to_cs[wc >> 8];
   str[0]= pl ? pl[wc & 0xFF] : '\0';
   return (!str[0] && wc) ? MY_CS_ILUNI : 1;
 }
@@ -429,11 +431,10 @@ CHARSET_INFO my_charset_latin1=
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     cs_to_uni,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_unicase_default, /* caseinfo     */
+    &my_unicase_default,/* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -445,6 +446,8 @@ CHARSET_INFO my_charset_latin1=
     255,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler
 };
@@ -543,7 +546,8 @@ uchar combo2map[]={
 */
 
 
-static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
+                                  __attribute__((unused)),
 				  const uchar *a, size_t a_length,
 				  const uchar *b, size_t b_length,
                                   my_bool b_is_prefix)
@@ -584,7 +588,8 @@ static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs
+                                    __attribute__((unused)),
 				    const uchar *a, size_t a_length,
 				    const uchar *b, size_t b_length,
                                     my_bool diff_if_only_endspace_difference)
@@ -656,26 +661,29 @@ static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
-                                    uchar *dest, size_t len,
-                                    const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_latin1_de(const CHARSET_INFO *cs,
+                      uchar *dst, size_t dstlen, uint nweights,
+                      const uchar* src, size_t srclen, uint flags)
 {
-  const uchar *de = dest + len;
-  const uchar *se = src + srclen;
-  for ( ; src < se && dest < de ; src++)
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  uchar *d0= dst;
+  for ( ; src < se && dst < de && nweights; src++, nweights--)
   {
-    uchar chr=combo1map[*src];
-    *dest++=chr;
-    if ((chr=combo2map[*src]) && dest < de)
-      *dest++=chr;
+    uchar chr= combo1map[*src];
+    *dst++= chr;
+    if ((chr= combo2map[*src]) && dst < de && nweights > 1)
+    {
+      *dst++= chr;
+      nweights--;
+    }
   }
-  if (dest < de)
-    bfill(dest, de - dest, ' ');
-  return (int) len;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
 
 
-void my_hash_sort_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+void my_hash_sort_latin1_de(const CHARSET_INFO *cs __attribute__((unused)),
 			    const uchar *key, size_t len,
 			    ulong *nr1, ulong *nr2)
 {
@@ -728,11 +736,10 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   to_lower_latin1,
   to_upper_latin1,
   sort_order_latin1_de,
-  NULL,					/* contractions */
-  NULL,					/* sort_order_big*/
+  NULL,					/* uca          */
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
-  my_unicase_default,                   /* caseinfo     */
+  &my_unicase_default,                  /* caseinfo     */
   NULL,					/* state_map    */
   NULL,					/* ident_map    */
   2,					/* strxfrm_multiply */
@@ -744,6 +751,8 @@ CHARSET_INFO my_charset_latin1_german2_ci=
   247,					/* max_sort_char */
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
+  1,                                    /* levels_for_compare */
+  1,                                    /* levels_for_order   */
   &my_charset_handler,
   &my_collation_german2_ci_handler
 };
@@ -761,11 +770,10 @@ CHARSET_INFO my_charset_latin1_bin=
   to_lower_latin1,
   to_upper_latin1,
   NULL,					/* sort_order   */
-  NULL,					/* contractions */
-  NULL,					/* sort_order_big*/
+  NULL,					/* uca          */
   cs_to_uni,				/* tab_to_uni   */
   NULL,					/* tab_from_uni */
-  my_unicase_default,                   /* caseinfo     */
+  &my_unicase_default,                  /* caseinfo     */
   NULL,					/* state_map    */
   NULL,					/* ident_map    */
   1,					/* strxfrm_multiply */
@@ -777,6 +785,8 @@ CHARSET_INFO my_charset_latin1_bin=
   255,					/* max_sort_char */
   ' ',                                  /* pad char      */
   0,                                    /* escape_with_backslash_is_dangerous */
+  1,                                    /* levels_for_compare */
+  1,                                    /* levels_for_order   */
   &my_charset_handler,
   &my_collation_8bit_bin_handler
 };

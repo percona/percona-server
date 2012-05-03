@@ -34,6 +34,11 @@ EOF
 
 remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
 
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqladmin --protcol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQLADMIN --no-defaults --protocol=tcp --bind-address=127.0.0.1 --host=127.0.0.1 -P $MASTER_MYPORT -u root ping 2>&1
 --echo #
 --echo # Bug#58221 : mysqladmin --sleep=x --count=x keeps looping
 --echo #
@@ -59,3 +64,12 @@ EOF
 --exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 
 --remove_file $MYSQLTEST_VARDIR/tmp/cnf_file
+
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--exec $MYSQLADMIN -uroot --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+
+--echo
+--echo End of tests

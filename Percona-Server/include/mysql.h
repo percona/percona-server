@@ -42,7 +42,7 @@
 extern "C" {
 #endif
 
-#ifndef _global_h				/* If not standard header */
+#ifndef MY_GLOBAL_INCLUDED                /* If not standard header */
 #ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
 #endif
@@ -66,7 +66,7 @@ typedef char my_bool;
 typedef int my_socket;
 #endif /* __WIN__ */
 #endif /* my_socket_defined */
-#endif /* _global_h */
+#endif /* MY_GLOBAL_INCLUDED */
 
 #include "mysql_version.h"
 #include "mysql_com.h"
@@ -118,7 +118,7 @@ typedef struct st_mysql_field {
 typedef char **MYSQL_ROW;		/* return data as array of strings */
 typedef unsigned int MYSQL_FIELD_OFFSET; /* offset to current field */
 
-#ifndef _global_h
+#ifndef MY_GLOBAL_INCLUDED
 #if defined(NO_CLIENT_LONG_LONG)
 typedef unsigned long my_ulonglong;
 #elif defined (__WIN__)
@@ -166,7 +166,11 @@ enum mysql_option
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
-  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH
+  MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+  MYSQL_OPT_BIND,
+  MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, 
+  MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
+  MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH
 };
 
 /**
@@ -196,7 +200,20 @@ struct st_mysql_options {
   my_bool unused3;
   my_bool unused4;
   enum mysql_option methods_to_use;
-  char *client_ip;
+  union {
+    /*
+      The ip/hostname to use when authenticating
+      client against embedded server built with
+      grant tables - only used in embedded server
+    */
+    char *client_ip;
+
+    /*
+      The local address to bind when connecting to
+      remote server - not used in embedded server
+    */
+    char *bind_address;
+  } ci;
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
   /* 0 - never report, 1 - always report (default) */

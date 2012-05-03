@@ -85,10 +85,6 @@
   They stay with the open table until its final close.
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
 #include "unireg.h"
@@ -104,6 +100,11 @@
 #include "thr_malloc.h"                         // int_sql_alloc
 #include "sql_class.h"                          // THD
 #include "debug_sync.h"
+
+#include <algorithm>
+
+using std::min;
+using std::max;
 
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
@@ -484,6 +485,11 @@ int ha_myisammrg::add_children_list(void)
     child_l->set_table_ref_id(mrg_child_def->get_child_table_ref_type(),
                               mrg_child_def->get_child_def_version());
     /*
+      Copy parent's prelocking attribute to allow opening of child
+      temporary residing in the prelocking list.
+    */
+    child_l->prelocking_placeholder= parent_l->prelocking_placeholder;
+    /*
       For statements which acquire a SNW metadata lock on a parent table and
       then later try to upgrade it to an X lock (e.g. ALTER TABLE), SNW
       locks should be also taken on the children tables.
@@ -625,22 +631,14 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   DBUG_ASSERT(child_l);
 
   child= child_l->table;
+
   /* Prepare for next child. */
   param->next();
 
-  /*
-    When MERGE table is opened for CHECK or REPAIR TABLE statements,
-    failure to open any of underlying tables is ignored until this moment
-    (this is needed to provide complete list of the problematic underlying
-    tables in CHECK/REPAIR TABLE output).
-    Here we detect such a situation and report an appropriate error.
-  */
-  if (! child)
+  if (!child)
   {
     DBUG_PRINT("error", ("failed to open underlying table '%s'.'%s'",
                          child_l->db, child_l->table_name));
-    /* This should only happen inside of CHECK/REPAIR TABLE. */
-    DBUG_ASSERT(current_thd->open_options & HA_OPEN_FOR_REPAIR);
     goto end;
   }
 
@@ -1078,8 +1076,6 @@ int ha_myisammrg::write_row(uchar * buf)
   if (file->merge_insert_method == MERGE_INSERT_DISABLED || !file->tables)
     DBUG_RETURN(HA_ERR_TABLE_READONLY);
 
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
   {
     int error;
@@ -1093,8 +1089,6 @@ int ha_myisammrg::update_row(const uchar * old_data, uchar * new_data)
 {
   DBUG_ASSERT(this->file->children_attached);
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->timestamp_field->set_time();
   return myrg_update(file,old_data,new_data);
 }
 
@@ -1337,8 +1331,8 @@ int ha_myisammrg::info(uint flag)
         It's safe though, because even if opimizer will decide to use a key
         with such a number, it'll be an error later anyway.
       */
-      bzero((char*) table->key_info[0].rec_per_key,
-            sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
+      memset(table->key_info[0].rec_per_key, 0,
+             sizeof(table->key_info[0].rec_per_key[0]) * table->s->key_parts);
 #endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) mrg_info.rec_per_key,
@@ -1471,31 +1465,36 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 
   if (!(create_info->used_fields & HA_CREATE_USED_UNION))
   {
-    MYRG_TABLE *open_table;
+    TABLE_LIST *child_table;
     THD *thd=current_thd;
 
     create_info->merge_list.next= &create_info->merge_list.first;
     create_info->merge_list.elements=0;
 
-    for (open_table=file->open_tables ;
-	 open_table != file->end_table ;
-	 open_table++)
+    if (children_l != NULL)
     {
-      TABLE_LIST *ptr;
-      LEX_STRING db, name;
-      LINT_INIT(db.str);
+      for (child_table= children_l;;
+           child_table= child_table->next_global)
+      {
+        TABLE_LIST *ptr;
 
-      if (!(ptr = (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
-	goto err;
-      split_file_name(open_table->table->filename, &db, &name);
-      if (!(ptr->table_name= thd->strmake(name.str, name.length)))
-	goto err;
-      if (db.length && !(ptr->db= thd->strmake(db.str, db.length)))
-	goto err;
+        if (!(ptr= (TABLE_LIST *) thd->calloc(sizeof(TABLE_LIST))))
+          goto err;
 
-      create_info->merge_list.elements++;
-      (*create_info->merge_list.next) = ptr;
-      create_info->merge_list.next= &ptr->next_local;
+        if (!(ptr->table_name= thd->strmake(child_table->table_name,
+                                            child_table->table_name_length)))
+          goto err;
+        if (child_table->db && !(ptr->db= thd->strmake(child_table->db,
+                                   child_table->db_length)))
+          goto err;
+
+        create_info->merge_list.elements++;
+        (*create_info->merge_list.next)= ptr;
+        create_info->merge_list.next= &ptr->next_local;
+
+        if (&child_table->next_global == children_last_l)
+          break;
+      }
     }
     *create_info->merge_list.next=0;
   }

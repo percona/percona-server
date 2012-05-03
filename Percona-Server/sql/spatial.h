@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef _spatial_h
 #define _spatial_h
@@ -21,7 +21,9 @@
 
 #ifdef HAVE_SPATIAL
 
-class Gis_read_stream;
+#include "gcalc_tools.h"
+
+#include <algorithm>
 
 const uint SRID_SIZE= 4;
 const uint SIZEOF_STORED_DOUBLE= 8;
@@ -185,6 +187,8 @@ struct MBR
     if (d != mbr->dimension() || d <= 0 || contains(mbr) || within(mbr))
       return 0;
 
+    using std::min;
+    using std::max;
     MBR intersection(max(xmin, mbr->xmin), max(ymin, mbr->ymin),
                      min(xmax, mbr->xmax), min(ymax, mbr->ymax));
 
@@ -247,10 +251,13 @@ public:
   virtual const Class_info *get_class_info() const=0;
   virtual uint32 get_data_size() const=0;
   virtual bool init_from_wkt(Gis_read_stream *trs, String *wkb)=0;
-
   /* returns the length of the wkb that was read */
   virtual uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
                              String *res)=0;
+  virtual uint init_from_opresult(String *bin,
+                                  const char *opres, uint32 n_shapes=1)
+  { return init_from_wkb(opres + 4, UINT_MAX32, wkb_ndr, bin) + 4; }
+
   virtual bool get_data_as_wkt(String *txt, const char **end) const=0;
   virtual bool get_mbr(MBR *mbr, const char **end) const=0;
   virtual bool dimension(uint32 *dim, const char **end) const=0;
@@ -269,6 +276,7 @@ public:
   virtual int point_n(uint32 num, String *result) const { return -1; }
   virtual int interior_ring_n(uint32 num, String *result) const { return -1; }
   virtual int geometry_n(uint32 num, String *result) const { return -1; }
+  virtual int store_shapes(Gcalc_shape_transporter *trn) const=0;
 
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
@@ -278,8 +286,10 @@ public:
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,
 				   bool init_stream=1);
-  static Geometry *create_from_wkb(Geometry_buffer *buffer, const char *wkb, 
-                                   uint32 len, String *res);
+  static Geometry *create_from_wkb(Geometry_buffer *buffer,
+                                   const char *wkb, uint32 len, String *res);
+  static int create_from_opresult(Geometry_buffer *g_buf,
+                                  String *res, Gcalc_result_receiver &rr);
   int as_wkt(String *wkt, const char **end)
   {
     uint32 len= (uint) get_class_info()->m_name.length;
@@ -375,6 +385,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -403,6 +414,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -417,6 +429,13 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
+  uint priv_init_from_opresult(String *bin, const char *opres,
+                               uint32 n_shapes, uint32 *poly_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes)
+  {
+    uint32 foo;
+    return priv_init_from_opresult(bin, opres, n_shapes, &foo);
+  }
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int area(double *ar, const char **end) const;
@@ -431,6 +450,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -445,6 +465,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
+  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
@@ -455,6 +476,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -469,6 +491,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
+  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
@@ -481,6 +504,7 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 
@@ -507,7 +531,9 @@ public:
     *end= 0;					/* No default end */
     return 0;
   }
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
+  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
 };
 
 
@@ -521,11 +547,13 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
+  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
   int geometry_n(uint32 num, String *result) const;
   bool dimension(uint32 *dim, const char **end) const;
+  int store_shapes(Gcalc_shape_transporter *trn) const;
   const Class_info *get_class_info() const;
 };
 

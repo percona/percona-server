@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 class Item_row: public Item
 {
@@ -62,9 +62,23 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    illegal_method_call((const char *) "get_date");
+    return true;
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    illegal_method_call((const char *) "get_time");
+    return true;
+  }
+
   bool fix_fields(THD *thd, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   void cleanup();
-  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+                      List<Item> &fields);
   table_map used_tables() const { return used_tables_cache; };
   bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }

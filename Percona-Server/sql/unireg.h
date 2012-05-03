@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
 #include "my_global.h"                          /* ulonglong */
@@ -80,7 +80,7 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
 #define empty_record(A) { \
                           restore_record((A),s->default_values); \
-                          bfill((A)->null_flags,(A)->s->null_bytes,255);\
+                          memset((A)->null_flags, 255, (A)->s->null_bytes);\
                         }
 
 	/* Defines for use with openfrm, openprt and openfrd */
@@ -134,11 +134,14 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
   The flag means that I_S table uses optimization algorithm.
 */
 #define OPTIMIZE_I_S_TABLE     OPEN_VIEW_FULL*2
-
-/*
+/**
   The flag means that we need to process trigger files only.
 */
 #define OPEN_TRIGGER_ONLY      OPTIMIZE_I_S_TABLE*2
+/**
+  This flag is used to instruct tdc_open_view() to check metadata version.
+*/
+#define CHECK_METADATA_VERSION OPEN_TRIGGER_ONLY*2
 
 #define SC_INFO_LENGTH 4		/* Form format constant */
 #define TE_INFO_LENGTH 3

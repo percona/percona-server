@@ -40,7 +40,6 @@
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_FPU_CONTROL_H 1
 #cmakedefine HAVE_GRP_H 1
-#cmakedefine HAVE_EXPLICIT_TEMPLATE_INSTANTIATION 1
 #cmakedefine HAVE_IA64INTRIN_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
@@ -131,15 +130,12 @@
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
-#cmakedefine HAVE_BFILL 1
 #cmakedefine HAVE_BMOVE 1
-#cmakedefine HAVE_BZERO 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
 #cmakedefine HAVE_CUSERID 1
-#cmakedefine HAVE_CXX_NEW 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_DLERROR 1
 #cmakedefine HAVE_DLOPEN 1
@@ -289,7 +285,6 @@
 #cmakedefine HAVE_TZNAME 1
 #cmakedefine HAVE_AIO_READ 1
 /* Symbols we may use */
-#cmakedefine HAVE_SYS_ERRLIST 1
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1
 #cmakedefine HAVE_BACKTRACE 1
@@ -381,7 +376,7 @@
 
 #cmakedefine HAVE_MBSTATE_T
 
-#define MAX_INDEXES 64
+#define MAX_INDEXES 64U
 
 #cmakedefine QSORT_TYPE_IS_VOID 1
 #cmakedefine RETQSORTTYPE @RETQSORTTYPE@
@@ -399,8 +394,9 @@
 #cmakedefine WORDS_BIGENDIAN 1 
 #endif
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler calls
-   it, or to nothing if 'inline' is not supported under any name.  */
+/*
+  Define to `__inline__' or `__inline' if that's what the C compiler calls it.
+*/
 #cmakedefine C_HAS_inline 1
 #if !(C_HAS_inline)
 #ifndef __cplusplus
@@ -502,8 +498,10 @@
 # define HAVE_SETENV
 #define setenv(a,b,c) _putenv_s(a,b)
 #endif
-
-
+/* We don't want the min/max macros */
+#ifdef __WIN__
+#define NOMINMAX
+#endif
 
 
 /*
@@ -514,7 +512,13 @@
 #cmakedefine EXTRA_DEBUG 1
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
+#cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine USE_SYMDIR 1
+
+/*
+   InnoDB config options
+*/
+#cmakedefine INNODB_COMPILER_HINTS
 
 /* Character sets and collations */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
@@ -568,7 +572,7 @@
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
-
+#cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
   Stuff that always need to be defined (compile breaks without it)
@@ -603,8 +607,10 @@
 
 #cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
-#define MYSQL_MAJOR_VERSION @MAJOR_VERSION@
-#define MYSQL_MINOR_VERSION @MINOR_VERSION@
+#define MYSQL_VERSION_MAJOR @MAJOR_VERSION@
+#define MYSQL_VERSION_MINOR @MINOR_VERSION@
+#define MYSQL_VERSION_PATCH @PATCH_VERSION@
+#define MYSQL_VERSION_EXTRA "@EXTRA_VERSION@"
 
 #define PACKAGE "mysql"
 #define PACKAGE_BUGREPORT ""

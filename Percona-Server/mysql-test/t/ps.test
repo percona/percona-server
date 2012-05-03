@@ -1,5 +1,7 @@
 -- source include/not_embedded.inc
 -- source include/have_log_bin.inc
+
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.'); 
 #
 # SQL Syntax for Prepared Statements test
 #
@@ -238,8 +240,10 @@ prepare stmt1 from "select 1 into @var";
 execute stmt1;
 execute stmt1;
 prepare stmt1 from "create table t1 select 1 as i";
+--disable_warnings ONCE
 execute stmt1;
 drop table t1;
+--disable_warnings ONCE
 execute stmt1;
 prepare stmt1 from "insert into t1 select i from t1";
 execute stmt1;
@@ -310,9 +314,8 @@ drop table t1;
 create table t1 (a timestamp not null);
 prepare stmt from "insert into t1 (a) values (?)";
 execute stmt using @var;
---disable_result_log
+--disable_result_log ONCE
 select * from t1;
---enable_result_log
 deallocate prepare stmt;
 drop table t1;
 
@@ -432,6 +435,7 @@ deallocate prepare stmt;
 create table t1 (a int); 
 insert into t1 values (1),(2),(3);
 create table t2 select * from t1;
+--disable_warnings
 prepare stmt FROM 'create table t2 select * from t1';
 drop table t2;
 execute stmt;
@@ -441,6 +445,7 @@ execute stmt;
 execute stmt;
 drop table t2;
 execute stmt;
+--enable_warnings
 drop table t1,t2;
 deallocate prepare stmt;
 
@@ -822,15 +827,13 @@ drop table t1;
 
 prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
 execute stmt;
---disable_warnings
+--disable_warnings ONCE
 insert into t1 (a) values (repeat('a', 20));
---enable_warnings
 select length(a) from t1;
 drop table t1;
 execute stmt;
---disable_warnings
+--disable_warnings ONCE
 insert into t1 (a) values (repeat('a', 20));
---enable_warnings
 # Check that the data is truncated to the same length
 select length(a) from t1;
 drop table t1;
@@ -1137,9 +1140,8 @@ DROP TABLE t1;
 # The cause of a bug was that cached LEX::create_list was modified,
 # and then together with LEX::key_list was reset.
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2;
---enable_warnings
 
 CREATE TABLE t1 (i INT);
 
@@ -1176,6 +1178,7 @@ create database mysqltest character set utf8;
 prepare stmt1 from "create table mysqltest.t1 (c char(10))";
 prepare stmt2 from "create table mysqltest.t2 select 'test'";
 execute stmt1;
+--disable_warnings ONCE
 execute stmt2;
 show create table mysqltest.t1;
 show create table mysqltest.t2;
@@ -1183,6 +1186,7 @@ drop table mysqltest.t1;
 drop table mysqltest.t2;
 alter database mysqltest character set latin1;
 execute stmt1;
+--disable_warnings ONCE
 execute stmt2;
 show create table mysqltest.t1;
 show create table mysqltest.t2;
@@ -1193,9 +1197,8 @@ deallocate prepare stmt2;
 # CREATE TABLE with DATA DIRECTORY option
 #
 --disable_warnings
---disable_query_log
+--disable_query_log ONCE
 eval prepare stmt from "create table t1 (c char(10)) data directory='$MYSQLTEST_VARDIR/tmp'";
---enable_query_log
 execute stmt;
 #
 # DATA DIRECTORY option does not always work: if the operating
@@ -1204,15 +1207,12 @@ execute stmt;
 # In this case DATA DIRECTORY is silently ignored when
 # creating a table, and is not output by SHOW CREATE TABLE.
 #
---disable_result_log
+--disable_result_log ONCE
 show create table t1;
---enable_result_log
 drop table t1;
 execute stmt;
---disable_result_log
+--disable_result_log ONCE
 show create table t1;
---enable_result_log
---enable_warnings
 drop table t1;
 deallocate prepare stmt;
 #
@@ -1596,9 +1596,8 @@ use test;
 # registered and went unnoticed, which resulted in preliminary freeing
 # of used memory.
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2, t3;
---enable_warnings
 
 CREATE TABLE t1 (i BIGINT, j BIGINT);
 CREATE TABLE t2 (i BIGINT);
@@ -1619,9 +1618,8 @@ DROP TABLE IF EXISTS t1, t2, t3;
 #
 # BUG#21081: SELECT inside stored procedure returns wrong results
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2;
---enable_warnings
 
 CREATE TABLE t1 (i INT KEY);
 CREATE TABLE t2 (i INT);
@@ -1669,9 +1667,8 @@ DROP TABLE t1;
 #
 # BUG#21856: Prepared Statments: crash if bad create
 #
---disable_warnings
+--disable_warnings ONCE
 DROP PROCEDURE IF EXISTS p1;
---enable_warnings
 
 let $iterations= 100;
 --disable_query_log
@@ -1729,9 +1726,8 @@ DROP TABLE t1,t2;
 # fails with weird error", however ALTER TABLE is not re-execution friendly
 # and that caused a valgrind warning. Check that the warning is gone.
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (s1 char(20));
 prepare stmt from "alter table t1 modify s1 int";
 execute stmt;
@@ -1742,9 +1738,8 @@ deallocate prepare stmt;
 #
 # Bug#6895 "Prepared Statements: ALTER TABLE DROP COLUMN does nothing"
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a int, b int);
 prepare s_6895 from "alter table t1 drop column b";
 execute s_6895;
@@ -1798,9 +1793,8 @@ set @@character_set_server= @old_character_set_server;
 #
 # BUG#24491 "using alias from source table in insert ... on duplicate key"
 #
---disable_warnings
+--disable_warnings ONCE
 drop tables if exists t1;
---enable_warnings
 create table t1 (id int primary key auto_increment, value varchar(10));
 insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
 # Let us prepare INSERT ... SELECT ... ON DUPLICATE KEY UPDATE statement
@@ -1835,9 +1829,8 @@ drop table t1;
 #
 # Bug#33798: prepared statements improperly handle large unsigned ints
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
 prepare stmt from "insert into t1 values (?,?)";
 set @a= 9999999999999999;
@@ -2305,40 +2298,6 @@ execute abc;
 deallocate prepare abc;
 
 
-create procedure proc_1() flush slave;
-call proc_1();
-call proc_1();
-call proc_1();
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin flush slave; return 1; end|
-create function func_1() returns int begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush slave";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-
-
-create procedure proc_1() flush master;
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin flush master; return 1; end|
-create function func_1() returns int begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush master";
-deallocate prepare abc;
-
-
 create procedure proc_1() flush des_key_file;
 call proc_1();
 call proc_1();
@@ -2475,9 +2434,8 @@ execute abc;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop procedure if exists a;
---enable_warnings
 create procedure a() select 42;
 create procedure proc_1(a char(2)) show create procedure a;
 call proc_1("bb");
@@ -2500,9 +2458,8 @@ deallocate prepare abc;
 drop procedure a;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop function if exists a;
---enable_warnings
 create function a() returns int return 42+13;
 create procedure proc_1(a char(2)) show create function a;
 call proc_1("bb");
@@ -2525,9 +2482,8 @@ deallocate prepare abc;
 drop function a;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists tab1;
---enable_warnings
 create table tab1(a int, b char(1), primary key(a,b));
 create procedure proc_1() show create table tab1;
 call proc_1();
@@ -2631,9 +2587,8 @@ execute abc;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop database if exists mysqltest_xyz;
---enable_warnings
 create procedure proc_1() create database mysqltest_xyz;
 call proc_1();
 drop database if exists mysqltest_xyz;
@@ -2664,9 +2619,8 @@ drop database if exists mysqltest_xyz;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a int, b char(5));
 insert into t1 values (1, "one"), (2, "two"), (3, "three");
 create procedure proc_1() checksum table xyz;
@@ -2719,9 +2673,8 @@ drop user pstest_xyz@localhost;
 deallocate prepare abc;
 
 
---disable_warnings
+--disable_warnings ONCE
 drop event if exists xyz;
---enable_warnings
 #create procedure proc_1() create event xyz on schedule every 5 minute disable do select 123;
 #call proc_1();
 #drop event xyz;
@@ -2929,9 +2882,8 @@ deallocate prepare stmt2;
 #
 # BUG#18326: Do not lock table for writing during prepare of statement
 #
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1, t2;
---enable_warnings
 
 CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (1);
@@ -3004,9 +2956,8 @@ drop table t1;
 # Test that there is an error for prepared delete just like for the normal
 # one.
 #
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1, t2;
---enable_warnings
 create table t1 (a int, b int);
 create table t2 like t1;
 
@@ -3036,9 +2987,8 @@ drop table t1, t2;
 --echo # This part of the test doesn't work in embedded server, this is
 --echo # why it's here. For the main test see ps_ddl*.test
 --echo
---disable_warnings
+--disable_warnings ONCE
 drop table if exists t1;
---enable_warnings
 create table t1 (a int);
 prepare stmt from "show events where (1) in (select * from t1)";
 execute stmt;
@@ -3312,9 +3262,8 @@ DROP PROCEDURE p2;
 --echo # WL#4284: Transactional DDL locking
 --echo #
 
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 CREATE TABLE t1 (a INT);
 BEGIN;
 SELECT * FROM t1;
@@ -3333,9 +3282,8 @@ DROP TABLE t1;
 
 connect(con1,localhost,root,,);
 connection default;
---disable_warnings
+--disable_warnings ONCE
 DROP TABLE IF EXISTS t1;
---enable_warnings
 CREATE TABLE t1 (a INT);
 connection con1;
 BEGIN;
@@ -3361,4 +3309,126 @@ FROM (SELECT 1 UNION SELECT 2) t;
 --echo #
 --echo # End of 5.5 tests.
 
+--echo #
+--echo # Bug#12603141: JOIN::flatten_subqueries asrt/simplify_joins sig11/...
+--echo # Bug#12603457: SEGFAULT IN REINIT_STMT_BEFORE_USE
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+
+PREPARE stmt FROM '
+SELECT (SELECT 1 FROM t2 WHERE ot.a) AS d
+FROM t1 AS ot
+GROUP BY d';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+INSERT INTO t1 VALUES (0),(1),(2);
+INSERT INTO t2 VALUES (1);
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#12582849
+--echo # ASSERTION FAILURE IN __CXA_PURE_VIRTUAL/ITEM_COND::FIX_FIELDS
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t1 (
+  col_int_key, col_int_nokey,
+  col_varchar_key, col_varchar_nokey
+) VALUES 
+(4,    2, 'v', 'v'),
+(62, 150, 'v', 'v');
+
+CREATE TABLE t2 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t2 (
+  col_int_key, col_int_nokey,
+  col_varchar_key, col_varchar_nokey
+) VALUES 
+(8, NULL, 'x', 'x'),
+(7, 8,    'd', 'd');
+
+PREPARE stmt FROM ' 
+SELECT
+  ( SELECT MAX( SQ1_alias2 .col_int_nokey ) AS SQ1_field1
+    FROM ( t2 AS SQ1_alias1 RIGHT JOIN t1 AS SQ1_alias2
+           ON ( SQ1_alias2.col_varchar_key = SQ1_alias1.col_varchar_nokey )
+         )
+    WHERE SQ1_alias2.pk < alias1.col_int_nokey OR alias1.pk
+  ) AS field1
+FROM ( t1 AS alias1 JOIN t2 AS alias2 ON alias2.pk )
+GROUP BY field1
+';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1, t2;
+
 ###########################################################################
+
+
+--echo #
+--echo # Bug#12661349 assert in protocol::end_statement
+--echo #
+
+--echo # Note: This test case should be run with --ps-protocol
+
+--disable_warnings ONCE
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1 (col1 INT);
+
+--echo # Connection con1
+connect(con1, localhost, root);
+let $con1_id= `SELECT CONNECTION_ID()`;
+
+--echo # Connection default
+connection default;
+--replace_result $con1_id <con1_id>
+eval KILL QUERY $con1_id;
+
+--echo # Connection con1
+connection con1;
+# Here the server asserts when running with "--ps-protocol"
+--error ER_QUERY_INTERRUPTED
+SELECT * FROM t1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;

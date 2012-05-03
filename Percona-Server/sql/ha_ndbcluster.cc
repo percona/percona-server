@@ -10,8 +10,8 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -20,10 +20,6 @@
   This file defines the NDB Cluster handler: the interface between
   MySQL and NDB Cluster
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "unireg.h"         // REQUIRED: for other includes
@@ -207,12 +203,12 @@ static int ndbcluster_alter_tablespace(handlerton *hton,
 static int ndbcluster_fill_is_table(handlerton *hton,
                                     THD *thd, 
                                     TABLE_LIST *tables, 
-                                    COND *cond,
+                                    Item *cond,
                                     enum enum_schema_tables);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
-                                       COND *cond);
+                                       Item *cond);
 
 handlerton *ndbcluster_hton;
 
@@ -379,11 +375,11 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
     - Used by replication to see if the error was temporary
   */
   if (ndberr->status == NdbError::TemporaryError)
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
 			ndberr->code, ndberr->message, "NDB");
   else
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
 			ndberr->code, ndberr->message, "NDB");
   return error;
@@ -650,7 +646,7 @@ static void set_ndb_err(THD *thd, const NdbError &err)
   {
     char buf[FN_REFLEN];
     ndb_error_string(thd_ndb->m_error_code, buf, sizeof(buf));
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
 			thd_ndb->m_error_code, buf, "NDB");
   }
@@ -676,7 +672,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     m_table->setStatusInvalid();
     /* Close other open handlers not used by any thread */
     TABLE_LIST table_list;
-    bzero((char*) &table_list,sizeof(table_list));
+    memset(&table_list, 0, sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
     close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -2906,9 +2902,6 @@ int ha_ndbcluster::write_row(uchar *record)
   }
 
   ha_statistic_increment(&SSV::ha_write_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->timestamp_field->set_time();
-
   if (!(op= trans->getNdbOperation(m_table)))
     ERR_RETURN(trans->getNdbError());
 
@@ -3146,11 +3139,6 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   }
 
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-  {
-    table->timestamp_field->set_time();
-    bitmap_set_bit(table->write_set, table->timestamp_field->field_index);
-  }
 
   if (m_use_partition_function &&
       (error= get_parts_for_update(old_data, new_data, table->record[0],
@@ -3213,7 +3201,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
         undo_res= write_row((uchar *)old_data);
         if (undo_res)
           push_warning(current_thd, 
-                       MYSQL_ERROR::WARN_LEVEL_WARN, 
+                       Sql_condition::WARN_LEVEL_WARN, 
                        undo_res, 
                        "NDB failed undoing delete at primary key update");
         m_primary_key_update= FALSE;
@@ -4257,7 +4245,7 @@ void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
      implement ndb function which retrives the statistics
      about ndb partitions.
   */
-  bzero((char*) stat_info, sizeof(PARTITION_STATS));
+  memset(stat_info, 0, sizeof(PARTITION_STATS));
   return;
 }
 
@@ -4587,17 +4575,17 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
   // log_name
   char tmp_buf[FN_REFLEN];
   ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,
-                   active_mi->rli.group_master_log_name,
-                   strlen(active_mi->rli.group_master_log_name));
+                   active_mi->rli->get_group_master_log_name(),
+                   strlen(active_mi->rli->get_group_master_log_name()));
   r|= op->setValue(2u, tmp_buf);
   DBUG_ASSERT(r == 0);
   // start_pos
-  r|= op->setValue(3u, (Uint64)active_mi->rli.group_master_log_pos);
+  r|= op->setValue(3u, (Uint64)active_mi->rli->get_group_master_log_pos());
   DBUG_ASSERT(r == 0);
   // end_pos
-  r|= op->setValue(4u, (Uint64)active_mi->rli.group_master_log_pos + 
-                   ((Uint64)active_mi->rli.future_event_relay_log_pos -
-                    (Uint64)active_mi->rli.group_relay_log_pos));
+  r|= op->setValue(4u, (Uint64)active_mi->rli->get_group_master_log_pos() +
+                   ((Uint64)active_mi->rli->get_future_event_relay_log_pos() -
+                    (Uint64)active_mi->rli->get_group_relay_log_pos()));
   DBUG_ASSERT(r == 0);
   return 0;
 }
@@ -4607,10 +4595,19 @@ void ha_ndbcluster::transaction_checks(THD *thd)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
   {
-    m_transaction_on= FALSE;
     /* Would be simpler if has_transactions() didn't always say "yes" */
-    thd->transaction.all.modified_non_trans_table=
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
+    m_transaction_on= FALSE;
+    /*
+      In the future, after integrating the ndb code-base into trunk,
+      make sure that it is necessary to mark that the transaction
+      has updated a non-transactional table and one cannot simply
+      rely on the fact that the statement's flag is propagated to
+      the transaction upon committing the statement.
+
+      \Alfranio
+    */
+    thd->transaction.stmt.mark_modified_non_trans_table();
+    thd->transaction.merge_unsafe_rollback_flags();
   }
   else if (!thd->transaction.on)
     m_transaction_on= FALSE;
@@ -5423,7 +5420,7 @@ int ha_ndbcluster::create(const char *name,
   {
     if (create_info->storage_media == HA_SM_MEMORY)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
 			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
@@ -5478,7 +5475,7 @@ int ha_ndbcluster::create(const char *name,
     case ROW_TYPE_FIXED:
       if (field_type_forces_var_part(field->type()))
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA_CREATE_OPTION,
                             ER(ER_ILLEGAL_HA_CREATE_OPTION),
                             ndbcluster_hton_name,
@@ -5809,7 +5806,7 @@ int ha_ndbcluster::create_index(const char *name, KEY *key_info,
   case UNIQUE_INDEX:
     if (check_index_fields_not_null(key_info))
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_NULL_COLUMN_IN_INDEX,
 			  "Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan");
     }
@@ -5818,7 +5815,7 @@ int ha_ndbcluster::create_index(const char *name, KEY *key_info,
   case ORDERED_INDEX:
     if (key_info->algorithm == HA_KEY_ALG_HASH)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			  ER_ILLEGAL_HA_CREATE_OPTION,
 			  ER(ER_ILLEGAL_HA_CREATE_OPTION),
 			  ndbcluster_hton_name,
@@ -6473,7 +6470,6 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                 HA_NULL_IN_KEY | \
                 HA_AUTO_PART_KEY | \
                 HA_NO_PREFIX_CHAR_KEYS | \
-                HA_NEED_READ_RANGE_BUFFER | \
                 HA_CAN_GEOMETRY | \
                 HA_CAN_BIT_FIELD | \
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | \
@@ -7291,7 +7287,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
         {
-          push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_TABLE_EXISTS_ERROR,
                               "Discover of table %s.%s failed",
                               db, file_name->str);
@@ -7317,7 +7313,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                                       file_name->length);
 	DBUG_ASSERT(record);
 	my_hash_delete(&ndb_tables, record);
-	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+	push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			    ER_TABLE_EXISTS_ERROR,
 			    "Local table %s.%s shadows ndb table",
 			    db, file_name->str);
@@ -7537,20 +7533,17 @@ void init_ndbcluster_psi_keys()
   const char* category= "ndbcluster";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_ndbcluster_mutexes);
-  PSI_server->register_mutex(category, all_ndbcluster_mutexes, count);
+  mysql_mutex_register(category, all_ndbcluster_mutexes, count);
 
   count= array_elements(all_ndbcluster_conds);
-  PSI_server->register_cond(category, all_ndbcluster_conds, count);
+  mysql_cond_register(category, all_ndbcluster_conds, count);
 
   count= array_elements(all_ndbcluster_threads);
-  PSI_server->register_thread(category, all_ndbcluster_threads, count);
+  mysql_thread_register(category, all_ndbcluster_threads, count);
 
   count= array_elements(all_ndbcluster_files);
-  PSI_server->register_file(category, all_ndbcluster_files, count);
+  mysql_file_register(category, all_ndbcluster_files, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -7751,7 +7744,7 @@ ndbcluster_init_error:
 static int ndbcluster_fill_is_table(handlerton *hton,
                                       THD *thd,
                                       TABLE_LIST *tables,
-                                      COND *cond,
+                                      Item *cond,
                                       enum enum_schema_tables schema_table_idx)
 {
   int ret= 0;
@@ -8433,7 +8426,7 @@ int handle_trailing_share(NDB_SHARE *share)
   mysql_mutex_unlock(&ndbcluster_mutex);
 
   TABLE_LIST table_list;
-  bzero((char*) &table_list,sizeof(table_list));
+  memset(&table_list, 0, sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   close_cached_tables(thd, &table_list, FALSE, LONG_TIMEOUT);
@@ -8729,8 +8722,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
     // (*share)->table_share->mem_root is freed by free_table_share
     free_table_share((*share)->table_share);
 #ifndef DBUG_OFF
-    bzero((uchar*)(*share)->table_share, sizeof(*(*share)->table_share));
-    bzero((uchar*)(*share)->table, sizeof(*(*share)->table));
+    memset((*share)->table_share, 0, sizeof(*(*share)->table_share));
+    memset((*share)->table, 0, sizeof(*(*share)->table));
     (*share)->table_share= 0;
     (*share)->table= 0;
 #endif
@@ -8955,74 +8948,199 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
   trans->releaseCompletedOperations();
 }
 
-bool 
-ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
-				       KEY_MULTI_RANGE *end_range,
-				       HANDLER_BUFFER *buffer)
+/****************************************************************************
+ * MRR interface implementation
+ ***************************************************************************/
+
+
+/*
+  Get cost and other information about MRR scan over a known list of ranges
+
+  SYNOPSIS
+    See handler::multi_range_read_info_const.
+
+  DESCRIPTION
+    The implementation is copied from handler::multi_range_read_info_const.
+    The only difference is that NDB-MRR cannot handle blob columns or keys
+    with NULLs for unique indexes. We disable MRR for those cases.
+
+  NOTES
+    See NOTES for handler::multi_range_read_info_const().
+*/
+
+ha_rows 
+ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                           void *seq_init_param, 
+                                           uint n_ranges_arg, uint *bufsz,
+                                           uint *flags, COST_VECT *cost)
 {
-  DBUG_ENTER("null_value_index_search");
-  KEY* key_info= table->key_info + active_index;
-  KEY_MULTI_RANGE *range= ranges;
-  ulong reclength= table->s->reclength;
-  uchar *curr= (uchar*)buffer->buffer;
-  uchar *end_of_buffer= (uchar*)buffer->buffer_end;
-  
-  for (; range<end_range && curr+reclength <= end_of_buffer; 
-       range++)
+  KEY_MULTI_RANGE range;
+  range_seq_t seq_it;
+  ha_rows rows, total_rows= 0;
+  uint n_ranges=0;
+  bool null_ranges= FALSE;
+  m_write_op= FALSE;
+  THD *thd= current_thd;
+
+  seq_it= seq->init(seq_init_param, n_ranges, *flags);
+  while (!seq->next(seq_it, &range))
   {
-    const uchar *key= range->start_key.key;
-    uint key_len= range->start_key.length;
-    if (check_null_in_key(key_info, key, key_len))
-      DBUG_RETURN(TRUE);
-    curr += reclength;
+    if (unlikely(thd->killed != 0))
+      return HA_POS_ERROR;
+    
+    n_ranges++;
+    key_range *min_endp= range.start_key.length? &range.start_key : NULL;
+    key_range *max_endp= range.end_key.length? &range.end_key : NULL;
+    null_ranges |= (range.range_flag & NULL_RANGE);
+    if ((range.range_flag & UNIQUE_RANGE) && !(range.range_flag & NULL_RANGE))
+      rows= 1; /* there can be at most one row */
+    else
+    {
+      if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
+                                                        max_endp)))
+      {
+        /* Can't scan one range => can't do MRR scan at all */
+        total_rows= HA_POS_ERROR;
+        break;
+      }
+    }
+    total_rows += rows;
   }
-  DBUG_RETURN(FALSE);
+
+  if (total_rows != HA_POS_ERROR)
+  {
+    if (*flags & HA_MRR_USE_DEFAULT_IMPL ||
+        uses_blob_value() ||
+        ((get_index_type(keyno) ==  UNIQUE_INDEX &&
+         has_null_in_unique_index(keyno)) && null_ranges) ||
+        TRUE) // Disable MRR implementation for NDB.
+    {
+      /* Use default MRR implementation */
+      *flags |= HA_MRR_USE_DEFAULT_IMPL;
+      *bufsz= 0;
+    }
+    else
+    {
+      /* 
+        We'll be most efficient when we have buffer big enough to accomodate
+        all rows we expect.
+      */
+      *bufsz= min(*bufsz, total_rows * table_share->reclength);
+    }
+
+    cost->zero();
+    cost->avg_io_cost= 1; /* assume random seeks */
+    if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
+      cost->io_count= index_only_read_time(keyno, total_rows);
+    else
+      cost->io_count= read_time(keyno, n_ranges, total_rows);
+    cost->cpu_cost= total_rows * ROW_EVALUATE_COST + 0.01;
+  }
+  return total_rows;
 }
 
-int
-ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                                      KEY_MULTI_RANGE *ranges, 
-                                      uint range_count,
-                                      bool sorted, 
-                                      HANDLER_BUFFER *buffer)
+
+/*
+  Get cost and other information about MRR scan over some sequence of ranges
+
+  SYNOPSIS
+    See handler::multi_range_read_info.
+*/
+
+ha_rows 
+ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                     uint *bufsz, uint *flags, COST_VECT *cost)
+{
+  ha_rows res;
+  uint save_bufsize= *bufsz;
+  res= handler::multi_range_read_info(keyno, n_ranges, keys, bufsz, flags,
+                                      cost);
+  if (uses_blob_value() || !(*flags & HA_MRR_NO_NULL_ENDPOINTS))
+  {
+    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    *bufsz= 0;
+  }
+  else
+  {
+    *flags &= ~HA_MRR_USE_DEFAULT_IMPL;
+    *bufsz= min(save_bufsize, keys * table_share->reclength);
+  }
+  // Disable MRR imeplementation for NDB.
+  *flags |= HA_MRR_USE_DEFAULT_IMPL;
+  return res;
+}
+
+#if 0
+#define DBUG_MULTI_RANGE(x) DBUG_PRINT("info", ("multi_range_read_next: case %d\n", x));
+#else
+#define DBUG_MULTI_RANGE(x)
+#endif
+
+
+
+/*
+*/
+
+int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, 
+                                         void *seq_init_param,
+                                         uint n_ranges, uint mode,
+                                         HANDLER_BUFFER *buffer)
 {
   m_write_op= FALSE;
   int res;
-  KEY* key_info= table->key_info + active_index;
-  NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
-  ulong reclength= table_share->reclength;
-  NdbOperation* op;
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
-  DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
+  DBUG_ENTER("ha_ndbcluster::multi_range_read_init");
 
-  /**
-   * blobs and unique hash index with NULL can't be batched currently
-   */
-  if (uses_blob_value() ||
-      (cur_index_type ==  UNIQUE_INDEX &&
-       has_null_in_unique_index(active_index) &&
-       null_value_index_search(ranges, ranges+range_count, buffer))
-      || m_delete_cannot_batch || m_update_cannot_batch)
+  /*
+    Disable MRR implementation for NDB.
+  if (mode & HA_MRR_USE_DEFAULT_IMPL)
+  */
   {
     m_disable_multi_read= TRUE;
-    DBUG_RETURN(handler::read_multi_range_first(found_range_p, 
-                                                ranges, 
-                                                range_count,
-                                                sorted, 
-                                                buffer));
+    DBUG_RETURN(handler::multi_range_read_init(seq_funcs, seq_init_param,
+                                               n_ranges, mode, buffer));
   }
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
   m_disable_multi_read= FALSE;
 
-  /*
+  mrr_is_output_sorted= test(mode & HA_MRR_SORTED);
+  /**
    * Copy arguments into member variables
    */
-  m_multi_ranges= ranges;
-  multi_range_curr= ranges;
-  multi_range_end= ranges+range_count;
-  multi_range_sorted= sorted;
   multi_range_buffer= buffer;
+  mrr_funcs= *seq_funcs;
+  mrr_iter= mrr_funcs.init(seq_init_param, n_ranges, mode);
+  ranges_in_seq= n_ranges;
+
+  res= multi_range_start_retrievals(-1);
+  if (first_unstarted_range == n_ranges)
+  {
+    /**
+     * Mark that we're using entire buffer (even if might not) as
+     *   we haven't read all ranges for some reason
+     * This as we don't want mysqld to reuse the buffer when we read
+     *   the remaining ranges
+     */
+    buffer->end_of_used_area= multi_range_buffer->buffer_end;
+  }
+  else
+  {
+    /* Using all buffer */
+  }
+  
+  DBUG_RETURN(res);
+}
+
+
+int ha_ndbcluster::multi_range_start_retrievals(int starting_range)
+{
+  int res, range_res;
+  KEY* key_info= table->key_info + active_index;
+  ulong reclength= table_share->reclength;
+  NdbOperation* op;
+  NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
+  DBUG_ENTER("multi_range_start_retrievals");
 
   /*
    * read multi range will read ranges as follows (if not ordered)
@@ -9040,8 +9158,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   /*
    * Variables for loop
    */
-  uchar *curr= (uchar*)buffer->buffer;
-  uchar *end_of_buffer= (uchar*)buffer->buffer_end;
+  uchar *curr= multi_range_buffer->buffer;
+  uchar *end_of_buffer= multi_range_buffer->buffer_end;
   NdbOperation::LockMode lm= 
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   bool need_pk = (lm == NdbOperation::LM_Read);
@@ -9050,14 +9168,19 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   const NDBINDEX *idx= m_index[active_index].index; 
   const NdbOperation* lastOp= m_active_trans->getLastDefinedOperation();
   NdbIndexScanOperation* scanOp= 0;
-  for (; multi_range_curr<multi_range_end && curr+reclength <= end_of_buffer; 
-       multi_range_curr++)
+  int range_no= -1;
+  int mrr_range_no= starting_range;
+
+  while (!(range_res= mrr_funcs.next(mrr_iter, &mrr_cur_range)) &&
+         curr+reclength <= end_of_buffer)
   {
+    range_no++;
+    mrr_range_no++;
     part_id_range part_spec;
     if (m_use_partition_function)
     {
       get_partition_set(table, curr, active_index,
-                        &multi_range_curr->start_key,
+                        &mrr_cur_range.start_key,
                         &part_spec);
       DBUG_PRINT("info", ("part_spec.start_part: %u  part_spec.end_part: %u",
                           part_spec.start_part, part_spec.end_part));
@@ -9072,22 +9195,22 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           partition
         */
         curr += reclength;
-        multi_range_curr->range_flag |= SKIP_RANGE;
+        mrr_persistent_flag_storage(mrr_iter, mrr_range_no) |= SKIP_RANGE;
         continue;
       }
     }
     switch (cur_index_type) {
     case PRIMARY_KEY_ORDERED_INDEX:
-      if (!(multi_range_curr->start_key.length == key_info->key_length &&
-          multi_range_curr->start_key.flag == HA_READ_KEY_EXACT))
+      if (!(mrr_cur_range.start_key.length == key_info->key_length &&
+            mrr_cur_range.start_key.flag == HA_READ_KEY_EXACT))
         goto range;
       // else fall through
     case PRIMARY_KEY_INDEX:
     {
-      multi_range_curr->range_flag |= UNIQUE_RANGE;
+      mrr_persistent_flag_storage(mrr_iter, mrr_range_no) |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbOperation(tab)) && 
           !op->readTuple(lm) && 
-          !set_primary_key(op, multi_range_curr->start_key.key) &&
+          !set_primary_key(op, mrr_cur_range.start_key.key) &&
           !define_read_attrs(curr, op) &&
           (!m_use_partition_function ||
            (op->setPartitionId(part_spec.start_part), TRUE)))
@@ -9104,18 +9227,18 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
     break;
     case UNIQUE_ORDERED_INDEX:
-      if (!(multi_range_curr->start_key.length == key_info->key_length &&
-          multi_range_curr->start_key.flag == HA_READ_KEY_EXACT &&
-          !check_null_in_key(key_info, multi_range_curr->start_key.key,
-                             multi_range_curr->start_key.length)))
+      if (!(mrr_cur_range.start_key.length == key_info->key_length &&
+            mrr_cur_range.start_key.flag == HA_READ_KEY_EXACT &&
+          !check_null_in_key(key_info, mrr_cur_range.start_key.key,
+                             mrr_cur_range.start_key.length)))
         goto range;
       // else fall through
     case UNIQUE_INDEX:
     {
-      multi_range_curr->range_flag |= UNIQUE_RANGE;
+      mrr_persistent_flag_storage(mrr_iter, mrr_range_no) |= UNIQUE_RANGE;
       if ((op= m_active_trans->getNdbIndexOperation(unique_idx, tab)) && 
           !op->readTuple(lm) && 
-          !set_index_key(op, key_info, multi_range_curr->start_key.key) &&
+          !set_index_key(op, key_info, mrr_cur_range.start_key.key) &&
           !define_read_attrs(curr, op))
         curr += reclength;
       else
@@ -9128,15 +9251,16 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
       break;
     }
-    case ORDERED_INDEX: {
+    case ORDERED_INDEX:
+    {
   range:
-      multi_range_curr->range_flag &= ~(uint)UNIQUE_RANGE;
+      mrr_persistent_flag_storage(mrr_iter, mrr_range_no) &= ~(uint16)UNIQUE_RANGE;
       if (scanOp == 0)
       {
         if (m_multi_cursor)
         {
           scanOp= m_multi_cursor;
-          DBUG_ASSERT(scanOp->getSorted() == sorted);
+          DBUG_ASSERT(scanOp->getSorted() == mrr_is_output_sorted);
           DBUG_ASSERT(scanOp->getLockMode() == 
                       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type));
           if (scanOp->reset_bounds(m_force_send))
@@ -9149,7 +9273,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           end_of_buffer -= reclength;
         }
         else if ((scanOp= m_active_trans->getNdbIndexScanOperation(idx, tab)) 
-                 &&!scanOp->readTuples(lm, 0, parallelism, sorted, 
+                 &&!scanOp->readTuples(lm, 0, parallelism, mrr_is_output_sorted, 
 				       FALSE, TRUE, need_pk, TRUE)
                  &&!(m_cond && m_cond->generate_scan_filter(scanOp))
                  &&!define_read_attrs(end_of_buffer-reclength, scanOp))
@@ -9167,10 +9291,9 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         }
       }
 
-      const key_range *keys[2]= { &multi_range_curr->start_key, 
-                                  &multi_range_curr->end_key };
-      if ((res= set_bounds(scanOp, active_index, FALSE, keys,
-                           multi_range_curr-ranges)))
+      const key_range *keys[2]= { &mrr_cur_range.start_key, 
+                                  &mrr_cur_range.end_key };
+      if ((res= set_bounds(scanOp, active_index, FALSE, keys, range_no)))
       {
         MYSQL_INDEX_READ_ROW_DONE(res);
         DBUG_RETURN(res);
@@ -9185,64 +9308,43 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
     }
   }
   
-  if (multi_range_curr != multi_range_end)
-  {
-    /*
-     * Mark that we're using entire buffer (even if might not) as
-     *   we haven't read all ranges for some reason
-     * This as we don't want mysqld to reuse the buffer when we read
-     *   the remaining ranges
-     */
-    buffer->end_of_used_area= (uchar*)buffer->buffer_end;
-  }
-  else
-  {
-    buffer->end_of_used_area= curr;
-  }
-  
-  /*
+  /**
    * Set first operation in multi range
    */
   m_current_multi_operation= 
     lastOp ? lastOp->next() : m_active_trans->getFirstDefinedOperation();
   if (!(res= execute_no_commit_ie(this, m_active_trans,true)))
   {
-    m_multi_range_defined= multi_range_curr;
-    multi_range_curr= ranges;
-    m_multi_range_result_ptr= (uchar*)buffer->buffer;
-    res= loc_read_multi_range_next(found_range_p);
-    MYSQL_INDEX_READ_ROW_DONE(res);
-    DBUG_RETURN(res);
+    m_multi_range_result_ptr= multi_range_buffer->buffer;
+    first_running_range= first_range_in_batch= starting_range + 1;
+    first_unstarted_range= mrr_range_no + 1;
+//    res= loc_read_multi_range_next(found_range_p);
+    MYSQL_INDEX_READ_ROW_DONE(0);
+    DBUG_RETURN(0);
   }
   ERR_RETURN_PREPARE(res, m_active_trans->getNdbError());
   MYSQL_INDEX_READ_ROW_DONE(res);
   DBUG_RETURN(res);
 }
 
-#if 0
-#define DBUG_MULTI_RANGE(x) DBUG_PRINT("info", ("read_multi_range_next: case %d\n", x));
-#else
-#define DBUG_MULTI_RANGE(x)
-#endif
 
-int
-ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
+int ha_ndbcluster::multi_range_read_next(char **range_info)
 {
   int rc;
   DBUG_ENTER("ha_ndbcluster::read_multi_range_next");
   if (m_disable_multi_read)
   {
     DBUG_MULTI_RANGE(11);
-    DBUG_RETURN(handler::read_multi_range_next(multi_range_found_p));
+    DBUG_RETURN(handler::multi_range_read_next(range_info));
   }
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  rc= loc_read_multi_range_next(multi_range_found_p);
+  rc= loc_read_multi_range_next(range_info);
   MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
- 
-int ha_ndbcluster::loc_read_multi_range_next(
-         KEY_MULTI_RANGE **multi_range_found_p)
+
+
+int ha_ndbcluster::loc_read_multi_range_next(char **range_info)
 {
   int res;
   int range_no;
@@ -9250,12 +9352,13 @@ int ha_ndbcluster::loc_read_multi_range_next(
   const NdbOperation* op= m_current_multi_operation;
   DBUG_ENTER("ha_ndbcluster::loc_read_multi_range_next");
 
-  for (;multi_range_curr < m_multi_range_defined; multi_range_curr++)
+  //for each range (we should have remembered the number)
+  for (;first_running_range < first_unstarted_range; first_running_range++)
   {
     DBUG_MULTI_RANGE(12);
-    if (multi_range_curr->range_flag & SKIP_RANGE)
+    if (mrr_persistent_flag_storage(mrr_iter, first_running_range) & SKIP_RANGE)
       continue;
-    if (multi_range_curr->range_flag & UNIQUE_RANGE)
+    if (mrr_persistent_flag_storage(mrr_iter, first_running_range) & UNIQUE_RANGE)
     {
       if (op->getNdbError().code == 0)
       {
@@ -9267,7 +9370,7 @@ int ha_ndbcluster::loc_read_multi_range_next(
       m_multi_range_result_ptr += reclength;
       continue;
     } 
-    else if (m_multi_cursor && !multi_range_sorted)
+    else if (m_multi_cursor && !mrr_is_output_sorted)
     {
       DBUG_MULTI_RANGE(1);
       if ((res= fetch_next(m_multi_cursor)) == 0)
@@ -9282,7 +9385,7 @@ int ha_ndbcluster::loc_read_multi_range_next(
         goto close_scan;
       }
     }
-    else if (m_multi_cursor && multi_range_sorted)
+    else if (m_multi_cursor && mrr_is_output_sorted)
     {
       if (m_active_cursor && (res= fetch_next(m_multi_cursor)))
       {
@@ -9291,7 +9394,7 @@ int ha_ndbcluster::loc_read_multi_range_next(
       }
       
       range_no= m_multi_cursor->get_range_no();
-      uint current_range_no= multi_range_curr - m_multi_ranges;
+      uint current_range_no= first_running_range - first_range_in_batch;
       if ((uint) range_no == current_range_no)
       {
         DBUG_MULTI_RANGE(4);
@@ -9315,15 +9418,15 @@ int ha_ndbcluster::loc_read_multi_range_next(
           DBUG_MULTI_RANGE(15);
           goto close_scan;
         }
-        multi_range_curr--; // Will be increased in for-loop
+        first_running_range--; // Will be increased in for-loop
         continue;
       }
     }
     else /* m_multi_cursor == 0 */
     {
       DBUG_MULTI_RANGE(7);
-      /*
-       * Corresponds to range 5 in example in read_multi_range_first
+      /**
+       * Corresponds to range 5 in example in multi_range_start_retrievals
        */
       (void)1;
       continue;
@@ -9345,7 +9448,7 @@ close_scan:
     }
   }
   
-  if (multi_range_curr == multi_range_end)
+  if (first_running_range == ranges_in_seq)
   {
     DBUG_MULTI_RANGE(16);
     Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
@@ -9357,18 +9460,16 @@ close_scan:
    * Read remaining ranges
    */
   MYSQL_INDEX_READ_ROW_DONE(1);
-  DBUG_RETURN(read_multi_range_first(multi_range_found_p, 
-                                     multi_range_curr,
-                                     multi_range_end - multi_range_curr, 
-                                     multi_range_sorted,
-                                     multi_range_buffer));
-  
+  if ((res= multi_range_start_retrievals(first_running_range-1)))
+    DBUG_RETURN(res);
+  DBUG_RETURN(multi_range_read_next(range_info));
 found:
   /*
    * Found a record belonging to a scan
    */
   m_active_cursor= m_multi_cursor;
-  * multi_range_found_p= m_multi_ranges + range_no;
+  //* multi_range_found_p= m_multi_ranges + range_no;
+  *range_info= mrr_get_ptr_by_idx(mrr_iter, first_running_range);
   memcpy(table->record[0], m_multi_range_cursor_result_ptr, reclength);
   setup_recattr(m_active_cursor->getFirstRecAttr());
   unpack_record(table->record[0]);
@@ -9380,17 +9481,21 @@ found_next:
    * Found a record belonging to a pk/index op,
    *   copy result and move to next to prepare for next call
    */
-  * multi_range_found_p= multi_range_curr;
+  *range_info= mrr_get_ptr_by_idx(mrr_iter, first_running_range++);
   memcpy(table->record[0], m_multi_range_result_ptr, reclength);
   setup_recattr(op->getFirstRecAttr());
   unpack_record(table->record[0]);
   table->status= 0;
   
-  multi_range_curr++;
   m_current_multi_operation= m_active_trans->getNextCompletedOperation(op);
   m_multi_range_result_ptr += reclength;
   DBUG_RETURN(0);
 }
+
+
+/*****************************************************************************
+ * MRR implementation ends
+ ****************************************************************************/
 
 int
 ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
@@ -9775,8 +9880,8 @@ ndb_util_thread_fail:
          the scan for evaluation (and thus not saved on stack)
 */
 const 
-COND* 
-ha_ndbcluster::cond_push(const COND *cond) 
+Item* 
+ha_ndbcluster::cond_push(const Item *cond) 
 { 
   DBUG_ENTER("cond_push");
   if (!m_cond) 
@@ -9786,7 +9891,7 @@ ha_ndbcluster::cond_push(const COND *cond)
     my_errno= HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(NULL);
   }
-  DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname, QT_ORDINARY););
+  DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
 
@@ -9833,11 +9938,11 @@ char* ha_ndbcluster::get_tablespace_name(THD *thd, char* name, uint name_len)
   }
 err:
   if (ndberr.status == NdbError::TemporaryError)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_TEMPORARY_ERRMSG, ER(ER_GET_TEMPORARY_ERRMSG),
 			ndberr.code, ndberr.message, "NDB");
   else
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
 			ndberr.code, ndberr.message, "NDB");
   return 0;
@@ -9963,7 +10068,7 @@ int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
   if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
   {
     push_warning(current_thd,
-                 MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                 Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
     "Ndb might have problems storing the max amount of rows specified");
   }
   return (int)reported_frags;
@@ -10152,7 +10257,7 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   {
     if (!current_thd->variables.new_mode)
     {
-      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_ILLEGAL_HA_CREATE_OPTION,
                           ER(ER_ILLEGAL_HA_CREATE_OPTION),
                           ndbcluster_hton_name,
@@ -10649,7 +10754,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *num_parts)
 static int ndbcluster_fill_files_table(handlerton *hton, 
                                        THD *thd, 
                                        TABLE_LIST *tables,
-                                       COND *cond)
+                                       Item *cond)
 {
   TABLE* table= tables->table;
   Ndb *ndb= check_ndb_in_thd(thd);

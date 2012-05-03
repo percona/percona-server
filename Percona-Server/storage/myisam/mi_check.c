@@ -85,7 +85,7 @@ static HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
 
 void myisamchk_init(MI_CHECK *param)
 {
-  bzero((uchar*) param,sizeof(*param));
+  memset(param, 0, sizeof(*param));
   param->opt_follow_links=1;
   param->keys_in_use= ~(ulonglong) 0;
   param->search_after_block=HA_OFFSET_ERROR;
@@ -447,8 +447,8 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 
     param->record_checksum=init_checksum;
     
-    bzero((char*) &param->unique_count,sizeof(param->unique_count));
-    bzero((char*) &param->notnull_count,sizeof(param->notnull_count));
+    memset(&param->unique_count, 0, sizeof(param->unique_count));
+    memset(&param->notnull_count, 0, sizeof(param->notnull_count));
 
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
@@ -528,7 +528,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 
       /* Check that there isn't a row with auto_increment = 0 in the table */
       mi_extra(info,HA_EXTRA_KEYREAD,0);
-      bzero(info->lastkey,keyinfo->seg->length);
+      memset(info->lastkey, 0, keyinfo->seg->length);
       if (!mi_rkey(info, info->rec_buff, key, (const uchar*) info->lastkey,
 		   (key_part_map)1, HA_READ_KEY_EXACT))
       {
@@ -982,7 +982,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   }
 
   pos=my_b_tell(&param->read_cache);
-  bzero((char*) key_checksum, info->s->base.keys * sizeof(key_checksum[0]));
+  memset(key_checksum, 0, info->s->base.keys * sizeof(key_checksum[0]));
   while (pos < info->state->data_file_length)
   {
     if (*killed_ptr(param))
@@ -1524,8 +1524,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
   MI_SORT_PARAM sort_param;
   DBUG_ENTER("mi_repair");
 
-  bzero((char *)&sort_info, sizeof(sort_info));
-  bzero((char *)&sort_param, sizeof(sort_param));
+  memset(&sort_info, 0, sizeof(sort_info));
+  memset(&sort_param, 0, sizeof(sort_param));
   start_records=info->state->records;
   new_header_length=(param->testflag & T_UNPACK) ? 0L :
     share->pack.header_length;
@@ -1553,7 +1553,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 		    (uint) param->read_buffer_length,
 		    READ_CACHE,share->pack.header_length,1,MYF(MY_WME)))
   {
-    bzero(&info->rec_cache,sizeof(info->rec_cache));
+    memset(&info->rec_cache, 0, sizeof(info->rec_cache));
     goto err;
   }
   if (!rep_quick)
@@ -2108,7 +2108,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 
   /* Fill block with zero and write it to the new index file */
   length=mi_getint(buff);
-  bzero((uchar*) buff+length,keyinfo->block_length-length);
+  memset(buff+length, 0, keyinfo->block_length-length);
   if (mysql_file_pwrite(new_file, (uchar*) buff, (uint) keyinfo->block_length,
                         new_page_pos, MYF(MY_NABP | MY_WAIT_IF_FULL)))
   {
@@ -2171,7 +2171,7 @@ int filecopy(MI_CHECK *param, File to,File from,my_off_t start,
   ulong buff_length;
   DBUG_ENTER("filecopy");
 
-  buff_length=(ulong) min(param->write_buffer_length,length);
+  buff_length=(ulong) MY_MIN(param->write_buffer_length,length);
   if (!(buff=my_malloc(buff_length,MYF(0))))
   {
     buff=tmp_buff; buff_length=IO_SIZE;
@@ -2248,8 +2248,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
 
-  bzero((char*)&sort_info,sizeof(sort_info));
-  bzero((char *)&sort_param, sizeof(sort_param));
+  memset(&sort_info, 0, sizeof(sort_info));
+  memset(&sort_param, 0, sizeof(sort_param));
   if (!(sort_info.key_block=
 	alloc_key_blocks(param,
 			 (uint) param->sort_key_blocks,
@@ -2325,7 +2325,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   init_alloc_root(&sort_param.wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
   if (share->data_file_type == DYNAMIC_RECORD)
-    length=max(share->base.min_pack_length+1,share->base.min_block_length);
+    length= MY_MAX(share->base.min_pack_length + 1, share->base.min_block_length);
   else if (share->data_file_type == COMPRESSED_RECORD)
     length=share->base.min_block_length;
   else
@@ -2372,7 +2372,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       printf ("- Fixing index %d\n",sort_param.key+1);
     sort_param.max_pos=sort_param.pos=share->pack.header_length;
     keyseg=sort_param.seg;
-    bzero((char*) sort_param.unique,sizeof(sort_param.unique));
+    memset(sort_param.unique, 0, sizeof(sort_param.unique));
     sort_param.key_length=share->rec_reflength;
     for (i=0 ; keyseg[i].type != HA_KEYTYPE_END; i++)
     {
@@ -2414,7 +2414,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
           (see _create_index_by_sort)
         */
         sort_info.max_records= 10 *
-                               max(param->sort_buffer_length, MIN_SORT_BUFFER) /
+                               MY_MAX(param->sort_buffer_length, MIN_SORT_BUFFER) /
                                sort_param.key_length;
       }
 
@@ -2429,7 +2429,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 
     if (_create_index_by_sort(&sort_param,
 			      (my_bool) (!(param->testflag & T_VERBOSE)),
-			      (uint) param->sort_buffer_length))
+                              param->sort_buffer_length))
     {
       param->retry_repair=1;
       goto err;
@@ -2694,7 +2694,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     }
   */
   DBUG_PRINT("info", ("is quick repair: %d", rep_quick));
-  bzero((char*)&sort_info,sizeof(sort_info));
+  memset(&sort_info, 0, sizeof(sort_info));
   /* Initialize pthread structures before goto err. */
   mysql_mutex_init(mi_key_mutex_MI_SORT_INFO_mutex,
                    &sort_info.mutex, MY_MUTEX_INIT_FAST);
@@ -2771,7 +2771,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     mysql_file_seek(param->read_cache.file, 0L, MY_SEEK_END, MYF(0));
 
   if (share->data_file_type == DYNAMIC_RECORD)
-    rec_length=max(share->base.min_pack_length+1,share->base.min_block_length);
+    rec_length= MY_MAX(share->base.min_pack_length + 1, share->base.min_block_length);
   else if (share->data_file_type == COMPRESSED_RECORD)
     rec_length=share->base.min_block_length;
   else
@@ -3144,8 +3144,8 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
      _mi_make_key(info, sort_param->key, (uchar*) key,
 		  sort_param->record, sort_param->filepos));
 #ifdef HAVE_purify
-  bzero(key+sort_param->real_key_length,
-	(sort_param->key_length-sort_param->real_key_length));
+  memset(key+sort_param->real_key_length, 0,
+         (sort_param->key_length-sort_param->real_key_length));
 #endif
   DBUG_RETURN(sort_write_record(sort_param));
 } /* sort_key_read */
@@ -3185,8 +3185,8 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
 					    key, wptr++, sort_param->filepos));
 #ifdef HAVE_purify
   if (sort_param->key_length > sort_param->real_key_length)
-    bzero(key+sort_param->real_key_length,
-	  (sort_param->key_length-sort_param->real_key_length));
+    memset(key+sort_param->real_key_length, 0,
+           (sort_param->key_length-sort_param->real_key_length));
 #endif
   if (!wptr->pos)
   {
@@ -4045,8 +4045,8 @@ static int sort_insert_key(MI_SORT_PARAM *sort_param,
 
 	/* Fill block with end-zero and write filled block */
   mi_putint(anc_buff,key_block->last_length,nod_flag);
-  bzero((uchar*) anc_buff+key_block->last_length,
-	keyinfo->block_length- key_block->last_length);
+  memset(anc_buff+key_block->last_length, 0,
+         keyinfo->block_length - key_block->last_length);
   key_file_length=info->state->key_file_length;
   if ((filepos=_mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
     DBUG_RETURN(1);
@@ -4152,7 +4152,7 @@ int flush_pending_blocks(MI_SORT_PARAM *sort_param)
     if (nod_flag)
       _mi_kpointer(info,key_block->end_pos,filepos);
     key_file_length=info->state->key_file_length;
-    bzero((uchar*) key_block->buff+length, keyinfo->block_length-length);
+    memset(key_block->buff+length, 0, keyinfo->block_length-length);
     if ((filepos=_mi_new(info,keyinfo,DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       DBUG_RETURN(1);
 
@@ -4303,14 +4303,6 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
     u_ptr->seg=keyseg;
     keyseg+=u_ptr->keysegs+1;
   }
-  if (share.options & HA_OPTION_COMPRESS_RECORD)
-    share.base.records=max_records=info.state->records;
-  else if (share.base.min_pack_length)
-    max_records=(ha_rows) (mysql_file_seek(info.dfile, 0L, MY_SEEK_END,
-                                           MYF(0)) /
-			   (ulong) share.base.min_pack_length);
-  else
-    max_records=0;
   unpack= (share.options & HA_OPTION_COMPRESS_RECORD) &&
     (param->testflag & T_UNPACK);
   share.options&= ~HA_OPTION_TEMP_COMPRESS_RECORD;
@@ -4320,10 +4312,17 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
   set_if_bigger(file_length,param->max_data_file_length);
   set_if_bigger(file_length,tmp_length);
   set_if_bigger(file_length,(ulonglong) share.base.max_data_file_length);
+ 
+  if (share.options & HA_OPTION_COMPRESS_RECORD)
+    share.base.records= max_records= info.state->records;
+  else if (!(share.options & HA_OPTION_PACK_RECORD))
+    max_records= (ha_rows) (file_length / share.base.pack_reclength);
+  else
+    max_records= 0;
 
   (void) mi_close(*org_info);
-  bzero((char*) &create_info,sizeof(create_info));
-  create_info.max_rows=max(max_records,share.base.records);
+  memset(&create_info, 0, sizeof(create_info));
+  create_info.max_rows= max_records;
   create_info.reloc_rows=share.base.reloc;
   create_info.old_options=(share.options |
 			   (unpack ? HA_OPTION_TEMP_COMPRESS_RECORD : 0));
@@ -4395,7 +4394,7 @@ int write_data_suffix(SORT_INFO *sort_info, my_bool fix_datafile)
   if (info->s->options & HA_OPTION_COMPRESS_RECORD && fix_datafile)
   {
     uchar buff[MEMMAP_EXTRA_MARGIN];
-    bzero(buff,sizeof(buff));
+    memset(buff, 0, sizeof(buff));
     if (my_b_write(&info->rec_cache,buff,sizeof(buff)))
     {
       mi_check_print_error(sort_info->param,

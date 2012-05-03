@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE SCHEMA IF NOT EXISTS mysqlslap;
 USE mysqlslap;
@@ -53,7 +56,7 @@ select * from t1;
 a
 1
 On slave
-show binlog events in 'slave-bin.000002' from <binlog_start> limit 1,6;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000002	#	Query	#	#	BEGIN
 slave-bin.000002	#	Query	#	#	use `test`; INSERT  IGNORE INTO t1 VALUES(1)

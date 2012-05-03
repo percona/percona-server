@@ -10,17 +10,15 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                         /* gcc class implementation */
-#endif
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_cursor.h"
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command
+#include "sql_tmp_table.h"                   // tmp tables
 
 /****************************************************************************
   Declarations.
@@ -96,6 +94,7 @@ public:
 int mysql_open_cursor(THD *thd, select_result *result,
                       Server_side_cursor **pcursor)
 {
+  PSI_statement_locker *parent_locker;
   select_result *save_result;
   Select_materialize *result_materialize;
   LEX *lex= thd->lex;
@@ -114,7 +113,10 @@ int mysql_open_cursor(THD *thd, select_result *result,
                          &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip,
                          2);
+  parent_locker= thd->m_statement_psi;
+  thd->m_statement_psi= NULL;
   rc= mysql_execute_command(thd);
+  thd->m_statement_psi= parent_locker;
   MYSQL_QUERY_EXEC_DONE(rc);
 
   lex->result= save_result;
@@ -322,7 +324,7 @@ void Materialized_cursor::fetch(ulong num_rows)
   result->begin_dataset();
   for (fetch_limit+= num_rows; fetch_count < fetch_limit; fetch_count++)
   {
-    if ((res= table->file->rnd_next(table->record[0])))
+    if ((res= table->file->ha_rnd_next(table->record[0])))
       break;
     /* Send data only if the read was successful. */
     /*
@@ -384,7 +386,9 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
 {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
-                          FALSE, thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS, ""))
+                          FALSE,
+                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
+                          "", FALSE, TRUE))
     return TRUE;
 
   materialized_cursor= new (&table->mem_root)

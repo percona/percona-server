@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 drop table if exists t1, t2;
 drop view if exists v1, v2, v3, not_exist_view;
@@ -9,9 +12,9 @@ create view v1 as select * from t1;
 create view v2 as select * from t2;
 create view v3 as select * from t3;
 drop view not_exist_view;
-ERROR 42S02: Unknown table 'not_exist_view'
+ERROR 42S02: Unknown table 'test.not_exist_view'
 drop view v1, not_exist_view;
-ERROR 42S02: Unknown table 'not_exist_view'
+ERROR 42S02: Unknown table 'test.not_exist_view'
 select * from v1;
 ERROR 42S02: Table 'test.v1' doesn't exist
 drop view v2, v3;

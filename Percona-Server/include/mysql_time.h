@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ enum enum_mysql_timestamp_type
 typedef struct st_mysql_time
 {
   unsigned int  year, month, day, hour, minute, second;
-  unsigned long second_part;
+  unsigned long second_part;  /**< microseconds */
   my_bool       neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;

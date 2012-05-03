@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 ==========MASTER==========
 show global variables like 'binlog_format%';
@@ -826,7 +829,7 @@ DELETE FROM t2;
 
 
 ******************** SHOW BINLOG EVENTS ********************
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE DATABASE test_rpl
 master-bin.000001	#	Query	#	#	use `test_rpl`; CREATE TABLE t1 (a int auto_increment not null, b char(254), PRIMARY KEY(a)) ENGINE=innodb
@@ -861,7 +864,8 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test_rpl.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t2 SELECT * FROM t1
+master-bin.000001	#	Table_map	#	#	table_id: # (test_rpl.t2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t2 VALUES (1, 't1, text 1') ON DUPLICATE KEY UPDATE b = 't2, text 1'
@@ -988,6 +992,7 @@ master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t1 VALUES (1, 'start')
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t1 VALUES (3, 'before savepoint s1')
+master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_rpl`; INSERT INTO t1 VALUES (5, 'before savepoint s2')

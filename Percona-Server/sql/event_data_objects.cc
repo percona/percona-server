@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,9 +74,9 @@ protected:
   }
 
 private:
-  Event_creation_ctx(CHARSET_INFO *client_cs,
-                     CHARSET_INFO *connection_cl,
-                     CHARSET_INFO *db_cl)
+  Event_creation_ctx(const CHARSET_INFO *client_cs,
+                     const CHARSET_INFO *connection_cl,
+                     const CHARSET_INFO *db_cl)
     : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
   { }
 };
@@ -95,9 +95,9 @@ Event_creation_ctx::load_from_db(THD *thd,
 {
   /* Load character set/collation attributes. */
 
-  CHARSET_INFO *client_cs;
-  CHARSET_INFO *connection_cl;
-  CHARSET_INFO *db_cl;
+  const CHARSET_INFO *client_cs;
+  const CHARSET_INFO *connection_cl;
+  const CHARSET_INFO *db_cl;
 
   bool invalid_creation_ctx= FALSE;
 
@@ -430,7 +430,7 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
   definer_host.str= strmake_root(&mem_root, ptr + 1, len);
   definer_host.length= len;
 
-  sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(FALSE);
 }
@@ -607,7 +607,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
                                        table, &creation_ctx))
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        Sql_condition::WARN_LEVEL_WARN,
                         ER_EVENT_INVALID_CREATION_CTX,
                         ER(ER_EVENT_INVALID_CREATION_CTX),
                         (const char *) dbname.str,
@@ -636,7 +636,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
   else
     comment.length= 0;
 
-  sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(FALSE);
 }
@@ -753,7 +753,7 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   }
 
   INTERVAL interval;
-  bzero(&interval, sizeof(interval));
+  memset(&interval, 0, sizeof(interval));
   my_time_t next_time= 0;
 
   if (seconds)
@@ -1158,7 +1158,7 @@ append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
   */
   MYSQL_TIME time;
   time_zone->gmt_sec_to_TIME(&time, secs);
-  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff));
+  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff, 0));
   buf->append(STRING_WITH_LEN("'"));
 }
 
@@ -1463,13 +1463,19 @@ end:
         NOTE: even if we run in read-only mode, we should be able to lock
         the mysql.event table for writing. In order to achieve this, we
         should call mysql_lock_tables() under the super-user.
+
+        Same goes for transaction access mode.
+        Temporarily reset it to read-write.
       */
 
       saved_master_access= thd->security_ctx->master_access;
       thd->security_ctx->master_access |= SUPER_ACL;
+      bool save_tx_read_only= thd->tx_read_only;
+      thd->tx_read_only= false;
 
       ret= Events::drop_event(thd, dbname, name, FALSE);
 
+      thd->tx_read_only= save_tx_read_only;
       thd->security_ctx->master_access= saved_master_access;
     }
   }

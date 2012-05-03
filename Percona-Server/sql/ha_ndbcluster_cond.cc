@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -10,17 +10,12 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+  along with this program; if not, write to the Free Software Foundation,
+  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This file defines the NDB Cluster handler engine_condition_pushdown
 */
-
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
 
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
@@ -940,8 +935,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
   Push a condition
  */
 const 
-COND* 
-ha_ndbcluster_cond::cond_push(const COND *cond, 
+Item* 
+ha_ndbcluster_cond::cond_push(const Item *cond, 
                               TABLE *table, const NDBTAB *ndb_table)
 { 
   DBUG_ENTER("cond_push");
@@ -997,7 +992,7 @@ ha_ndbcluster_cond::cond_clear()
 }
 
 bool
-ha_ndbcluster_cond::serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
+ha_ndbcluster_cond::serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
                                    TABLE *table, const NDBTAB *ndb_table)
 {
   DBUG_ENTER("serialize_cond");
@@ -1375,7 +1370,7 @@ ha_ndbcluster_cond::generate_scan_filter(NdbScanOperation *op)
       {
         // err.message has static storage
         DBUG_PRINT("info", ("%s", err.message));
-        push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
                      err.code, err.message);
         ret=0;
       }

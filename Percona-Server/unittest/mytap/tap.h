@@ -168,7 +168,7 @@ void ok1(int const pass);
    @param reason     A reason for skipping the tests
  */
 
-void skip(int how_many, char const *const reason, ...)
+void skip(int how_many, char const *reason, ...)
     __attribute__((format(printf,2,3)));
 
 

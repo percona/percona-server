@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -202,7 +202,7 @@ static uchar sort_order_euc_kr[]=
                               iseuc_kr_tail3(c))
 
 
-static uint ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_euc_kr(const CHARSET_INFO *cs __attribute__((unused)),
                             const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -210,13 +210,14 @@ static uint ismbchar_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
           0);
 }
 
-static uint mbcharlen_euc_kr(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_euc_kr(const CHARSET_INFO *cs __attribute__((unused)),
+                             uint c)
 {
   return (iseuc_kr_head(c) ? 2 : 1);
 }
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -421,7 +422,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA5[256]=
+static MY_UNICASE_CHARACTER cA5[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -626,7 +627,7 @@ static MY_UNICASE_INFO cA5[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -831,7 +832,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
 
 
-static MY_UNICASE_INFO cA8[256]=
+static MY_UNICASE_CHARACTER cA8[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1036,7 +1037,7 @@ static MY_UNICASE_INFO cA8[256]=
 };
 
 
-static MY_UNICASE_INFO cA9[256]=
+static MY_UNICASE_CHARACTER cA9[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1241,7 +1242,7 @@ static MY_UNICASE_INFO cA9[256]=
 };  
 
 
-static MY_UNICASE_INFO cAC[256]=
+static MY_UNICASE_CHARACTER cAC[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1446,7 +1447,7 @@ static MY_UNICASE_INFO cAC[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_euckr[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_euckr[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1480,6 +1481,13 @@ static MY_UNICASE_INFO *my_caseinfo_euckr[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_euckr=
+{
+  0xFFFF,
+  my_caseinfo_pages_euckr
 };
 
 
@@ -9869,7 +9877,7 @@ static int func_uni_ksc5601_onechar(int code){
 
 
 static int
-my_wc_mb_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_euc_kr(const CHARSET_INFO *cs __attribute__((unused)),
 		 my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -9897,7 +9905,7 @@ my_wc_mb_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int 
-my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_euc_kr(const CHARSET_INFO *cs __attribute__((unused)),
 		 my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   
@@ -9926,7 +9934,7 @@ my_mb_wc_euc_kr(CHARSET_INFO *cs __attribute__((unused)),
   Returns well formed length of a EUC-KR string.
 */
 static size_t
-my_well_formed_len_euckr(CHARSET_INFO *cs __attribute__((unused)),
+my_well_formed_len_euckr(const CHARSET_INFO *cs __attribute__((unused)),
                          const char *b, const char *e,
                          size_t pos, int *error)
 {
@@ -9962,7 +9970,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   NULL,			/* init */
   my_strnncoll_simple,  /* strnncoll  */
   my_strnncollsp_simple,
-  my_strnxfrm_simple,	/* strnxfrm   */
+  my_strnxfrm_mb,	/* strnxfrm   */
   my_strnxfrmlen_simple,
   my_like_range_mb,     /* like_range */
   my_wildcmp_mb,	/* wildcmp    */
@@ -10016,11 +10024,10 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     to_lower_euc_kr,
     to_upper_euc_kr,
     sort_order_euc_kr,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_euckr,  /* caseinfo     */
+    &my_caseinfo_euckr, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10032,6 +10039,8 @@ CHARSET_INFO my_charset_euckr_korean_ci=
     0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -10049,11 +10058,10 @@ CHARSET_INFO my_charset_euckr_bin=
     to_lower_euc_kr,
     to_upper_euc_kr,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_euckr,  /* caseinfo     */
+    &my_caseinfo_euckr, /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10065,6 +10073,8 @@ CHARSET_INFO my_charset_euckr_bin=
     0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     0,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

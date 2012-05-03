@@ -17,7 +17,7 @@
 
 --echo #---------------- ROR-index_merge tests -----------------------
 
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists  t0,t1,t2;
@@ -121,6 +121,7 @@ select count(*) from t1;
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+explain format=json select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 # Several-rows results

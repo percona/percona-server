@@ -71,6 +71,7 @@ enum enum_server_command
   COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
   COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
   COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
+  COM_BINLOG_DUMP_GTID,
   /* don't forget to update const char *command_name[] in sql_parse.cc */
 
   /* Must be last */
@@ -249,6 +250,16 @@ enum enum_server_command
 #define SERVER_PS_OUT_PARAMS            4096
 
 /**
+  Set at the same time as SERVER_STATUS_IN_TRANS if the started
+  multi-statement transaction is a read-only transaction. Cleared
+  when the transaction commits or aborts. Since this flag is sent
+  to clients in OK and EOF packets, the flag indicates the
+  transaction status at the end of command execution.
+*/
+#define SERVER_STATUS_IN_TRANS_READONLY 8192
+
+
+/**
   Server status flags that must be cleared when starting
   execution of a new SQL statement.
   Flags from this set are only added to the
@@ -302,7 +313,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1; /* Please remove with the next incompatible ABI change. */
+  my_bool unused1; /* Please remove with the next incompatible ABI change */
   my_bool unused2; /* Please remove with the next incompatible ABI change */
   my_bool compress;
   my_bool unused3; /* Please remove with the next incompatible ABI change. */
@@ -323,17 +334,15 @@ typedef struct st_net {
   char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
   char sqlstate[SQLSTATE_LENGTH+1];
-  void *extension;
-#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  /*
-    Controls whether a big packet should be skipped.
-
-    Initially set to FALSE by default. Unauthenticated sessions must have
-    this set to FALSE so that the server can't be tricked to read packets
-    indefinitely.
+  /**
+    Extension pointer, for the caller private use.
+    Any program linking with the networking library can use this pointer,
+    which is handy when private connection specific data needs to be
+    maintained.
+    The mysqld server process uses this pointer internally,
+    to maintain the server internal instrumentation for the connection.
   */
-  my_bool skip_big_packet;
-#endif
+  void *extension;
 } NET;
 
 
@@ -348,6 +357,9 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
 			MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
 			MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
 			MYSQL_TYPE_BIT,
+			MYSQL_TYPE_TIMESTAMP2,
+			MYSQL_TYPE_DATETIME2,
+			MYSQL_TYPE_TIME2,
                         MYSQL_TYPE_NEWDECIMAL=246,
 			MYSQL_TYPE_ENUM=247,
 			MYSQL_TYPE_SET=248,
@@ -449,26 +461,22 @@ extern "C" {
 #endif
 
 my_bool	my_net_init(NET *net, Vio* vio);
-void	my_net_local_init(NET *net);
-void	net_end(NET *net);
-  void	net_clear(NET *net, my_bool clear_buffer);
+void my_net_local_init(NET *net);
+void net_end(NET *net);
+void net_clear(NET *net, my_bool check_buffer);
 my_bool net_realloc(NET *net, size_t length);
 my_bool	net_flush(NET *net);
 my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
 my_bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *header, size_t head_len,
 			  const unsigned char *packet, size_t len);
-int	net_real_write(NET *net,const unsigned char *packet, size_t len);
+my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
 
-#ifdef _global_h
+#ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
 #endif
-
-struct sockaddr;
-int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
-	       unsigned int timeout);
 
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
@@ -558,7 +566,7 @@ const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 my_bool my_thread_init(void);
 void my_thread_end(void);
 
-#ifdef _global_h
+#ifdef MY_GLOBAL_INCLUDED
 ulong STDCALL net_field_length(uchar **packet);
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);

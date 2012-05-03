@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,7 +177,7 @@ static uchar sort_order_big5[]=
 };
 
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   /* A200-A20F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -370,7 +370,7 @@ static MY_UNICASE_INFO cA2[256]=
 };
 
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   /* A300-A30F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -563,7 +563,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cC7[256]=
+static MY_UNICASE_CHARACTER cC7[256]=
 {
   /* C700-C70F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -756,7 +756,7 @@ static MY_UNICASE_INFO cC7[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_big5[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_big5[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -790,6 +790,13 @@ static MY_UNICASE_INFO *my_caseinfo_big5[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+};
+
+
+static MY_UNICASE_INFO my_caseinfo_big5=
+{
+  0xFFFF,
+  my_caseinfo_pages_big5
 };
 
 
@@ -865,12 +872,12 @@ static int my_strnncoll_big5_internal(const uchar **a_res,
 
 /* Compare strings */
 
-static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)), 
+static int my_strnncoll_big5(const CHARSET_INFO *cs __attribute__((unused)), 
 			     const uchar *a, size_t a_length,
                              const uchar *b, size_t b_length,
                              my_bool b_is_prefix)
 {
-  size_t length= min(a_length, b_length);
+  size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
   return res ? res : (int)((b_is_prefix ? length : a_length) - b_length);
 }
@@ -878,12 +885,12 @@ static int my_strnncoll_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 /* compare strings, ignore end space */
 
-static int my_strnncollsp_big5(CHARSET_INFO * cs __attribute__((unused)), 
+static int my_strnncollsp_big5(const CHARSET_INFO* cs __attribute__((unused)),
 			       const uchar *a, size_t a_length, 
 			       const uchar *b, size_t b_length,
                                my_bool diff_if_only_endspace_difference)
 {
-  size_t length= min(a_length, b_length);
+  size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
@@ -918,90 +925,47 @@ static int my_strnncollsp_big5(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
-                               uchar *dest, size_t len, 
-                               const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_big5(const CHARSET_INFO *cs,
+                 uchar *dst, size_t dstlen, uint nweights,
+                 const uchar *src, size_t srclen, uint flags)
 {
-  uint16 e;
-  size_t dstlen= len;
-  uchar *dest_end= dest + dstlen;
-
-  len = srclen;
-  while (len-- && dest < dest_end)
+  uchar *d0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  const uchar *sort_order= cs->sort_order;
+  
+  for (; dst < de && src < se && nweights; nweights--)
   {
-    if ((len > 0) && isbig5code(*src, *(src+1)))
+    if (cs->cset->ismbchar(cs, (const char*) src, (const char*) se))
     {
-      e = big5strokexfrm((uint16) big5code(*src, *(src+1)));
-      *dest++ = big5head(e);
-      if (dest < dest_end)
-        *dest++ = big5tail(e);
-      src +=2;
-      len--;
-    } else
-      *dest++ = sort_order_big5[(uchar) *src++];
+      /*
+        Note, it is safe not to check (src < se)
+        in the code below, because ismbchar() would
+        not return TRUE if src was too short
+      */
+      uint16 e= big5strokexfrm((uint16) big5code(*src, *(src + 1)));
+      *dst++= big5head(e);
+      if (dst < de)
+        *dst++= big5tail(e);
+      src+= 2;
+    }
+    else
+      *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-  if (dstlen > srclen)
-    bfill(dest, dstlen - srclen, ' ');
-  return dstlen;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
 
-#if 0
-static int my_strcoll_big5(const uchar *s1, const uchar *s2)
-{
 
-  while (*s1 && *s2)
-  {
-    if (*(s1+1) && *(s2+1) && isbig5code(*s1,*(s1+1)) && isbig5code(*s2, *(s2+1)))
-    {
-      if (*s1 != *s2 || *(s1+1) != *(s2+1))
-	return ((int) big5code(*s1,*(s1+1)) -
-		(int) big5code(*s2,*(s2+1)));
-      s1 +=2;
-      s2 +=2;
-    } else if (sort_order_big5[(uchar) *s1++] != sort_order_big5[(uchar) *s2++])
-      return ((int) sort_order_big5[(uchar) s1[-1]] -
-	      (int) sort_order_big5[(uchar) s2[-1]]);
-  }
-  return 0;
-}
-
-static int my_strxfrm_big5(uchar *dest, const uchar *src, int len)
-{
-  uint16 e;
-  uchar *d = dest;
-
-  if (len < 1) return 0;
-  if (!*src)
-  {
-    *d = '\0';
-    return 0;
-  }
-  while (*src && (len > 1))
-  {
-    if (*(src+1) && isbig5code(*src, *(src+1)))
-    {
-      e = big5strokexfrm((uint16) big5code(*src, *(src+1)));
-      *d++ = big5head(e);
-      *d++ = big5tail(e);
-      src +=2;
-      len--;
-    } else
-      *d++ = sort_order_big5[(uchar) *src++];
-  }
-  *d = '\0';
-  return (int) (d-dest);
-}
-#endif
-
-
-static uint ismbchar_big5(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_big5(const CHARSET_INFO *cs __attribute__((unused)),
                          const char* p, const char *e)
 {
   return (isbig5head(*(p)) && (e)-(p)>1 && isbig5tail(*((p)+1))? 2: 0);
 }
 
 
-static uint mbcharlen_big5(CHARSET_INFO *cs __attribute__((unused)), uint c)
+static uint mbcharlen_big5(const CHARSET_INFO *cs __attribute__((unused)),
+                           uint c)
 {
   return (isbig5head(c)? 2 : 1);
 }
@@ -6778,7 +6742,7 @@ static int func_uni_big5_onechar(int code){
 
 
 static int
-my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_big5(const CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t wc, uchar *s, uchar *e)
 {
 
@@ -6807,7 +6771,7 @@ my_wc_mb_big5(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int 
-my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_big5(const CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t *pwc,const uchar *s,const uchar *e)
 {
 
@@ -6837,7 +6801,7 @@ my_mb_wc_big5(CHARSET_INFO *cs __attribute__((unused)),
   CP950 and HKSCS additional characters are also accepted.
 */
 static
-size_t my_well_formed_len_big5(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_big5(const CHARSET_INFO *cs __attribute__((unused)),
                                const char *b, const char *e,
                                size_t pos, int *error)
 {
@@ -6926,11 +6890,10 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     to_lower_big5,
     to_upper_big5,
     sort_order_big5,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_big5,   /* caseinfo     */
+    &my_caseinfo_big5,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -6942,6 +6905,8 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     0xF9D5,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
     &my_collation_big5_chinese_ci_handler
 };
@@ -6959,11 +6924,10 @@ CHARSET_INFO my_charset_big5_bin=
     to_lower_big5,
     to_upper_big5,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_big5,   /* caseinfo     */
+    &my_caseinfo_big5,  /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -6975,6 +6939,8 @@ CHARSET_INFO my_charset_big5_bin=
     0xF9FE,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_big5_handler,
     &my_collation_mb_bin_handler
 };

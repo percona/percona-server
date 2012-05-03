@@ -56,10 +56,6 @@ create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # Some wrong defaults, so these creates should fail too (Bug #5902)
 #
 --error 1067
-create table t1 (a datetime default now());
---error 1294
-create table t1 (a datetime on update now());
---error 1067
 create table t1 (a int default 100 auto_increment);
 --error 1067
 create table t1 (a tinyint default 1000);
@@ -193,17 +189,17 @@ drop table if exists t1;
 #
 # Test default table type
 #
-SET SESSION storage_engine="heap";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
 --error 1286
-SET SESSION storage_engine="gemini";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="gemini";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION storage_engine=default;
+SET SESSION default_storage_engine=default;
 drop table t1;
 
 
@@ -351,17 +347,17 @@ drop tables t1, t2;
 #
 # Test default table type
 #
-SET SESSION storage_engine="heap";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
 --error 1286
-SET SESSION storage_engine="gemini";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="gemini";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION storage_engine=default;
+SET SESSION default_storage_engine=default;
 drop table t1;
 
 #
@@ -2017,3 +2013,77 @@ create table if not exists t1 (a int unique, b int)
 select * from t1;
 drop table t1;
 --echo #
+
+--echo #
+--echo # WL#5576 Prohibit CREATE TABLE ... SELECT to modify other tables
+--echo #
+
+delimiter |;
+create function f()
+returns int
+begin
+insert into t2 values(1);
+return 1;
+end|
+delimiter ;|
+
+--echo #
+--echo # 1. The function updates a base table
+--echo #
+create table t2(c1 int);
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+
+drop table t2;
+
+--echo #
+--echo # 2. The function updates a view which derives from a base table
+--echo #
+create table t3(c1 int);
+create view t2 as select c1 from t3;
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+drop view t2;
+
+--echo #
+--echo # 3. The function updates a view which derives from two base tables
+--echo #
+create table t4(c1 int);
+create view t2 as select t3.c1 as c1 from t3, t4;
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+drop view t2;
+drop tables t3, t4;
+
+--echo #
+--echo # 4. The function updates a view which selects a constant number
+--echo #
+create view t2 as select 1;
+
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create table t1 select f();
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+create temporary table t1 select f();
+
+drop view t2;
+drop function f;
+
+--echo #
+--echo # BUG#11762377 - 54963: ENHANCE THE ERROR MESSAGE TO 
+--echo #                       REDUCE USER CONFUSION 
+--echo #
+
+--error ER_TOO_BIG_ROWSIZE
+CREATE TABLE t1 (v varchar(65535));

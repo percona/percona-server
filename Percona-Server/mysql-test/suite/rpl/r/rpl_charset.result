@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 set timestamp=1000000000;
 create database mysqltest2 character set latin2;
@@ -95,22 +98,6 @@ set global character_set_server=latin2;
 set global character_set_server=latin1;
 set global character_set_server=latin2;
 set global character_set_server=latin1;
-set one_shot @@character_set_server=latin5;
-set @@max_join_size=1000;
-select @@character_set_server;
-@@character_set_server
-latin5
-select @@character_set_server;
-@@character_set_server
-latin1
-set @@character_set_server=latin5;
-select @@character_set_server;
-@@character_set_server
-latin5
-select @@character_set_server;
-@@character_set_server
-latin5
-set one_shot max_join_size=1000000;
 set character_set_client=9999999;
 ERROR 42000: Unknown character set: '9999999'
 set collation_server=9999998;

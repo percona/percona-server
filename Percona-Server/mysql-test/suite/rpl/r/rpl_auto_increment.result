@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 create table t1 (a int not null auto_increment,b int, primary key (a)) engine=myisam auto_increment=3;
 insert into t1 values (NULL,1),(NULL,2),(NULL,3);
@@ -298,6 +301,12 @@ include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+RESET MASTER;
+FLUSH LOGS;
+include/start_slave.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
@@ -320,4 +329,14 @@ SELECT * FROM t1;
 id	data
 0	2
 DROP TABLE t1;
+create table t1(a int auto_increment primary key) engine=innodb;
+insert into t1 values (null),(null),(1025),(null);
+select * from t1;
+a
+1
+2
+1025
+1026
+include/diff_tables.inc [master:t1, slave:t1]
+drop table t1;
 include/rpl_end.inc

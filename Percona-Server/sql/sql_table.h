@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +11,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
 #include "my_global.h"                          /* my_bool */
-#include "my_sys.h"                             // pthread_mutex_t
+#include "my_pthread.h"
+#include "m_ctype.h"                            /* CHARSET_INFO */
 
 class Alter_info;
 class Create_field;
@@ -64,10 +65,19 @@ enum ddl_log_action_code
     DDL_LOG_REPLACE_ACTION:
       Rename an entity after removing the previous entry with the
       new name, that is replace this entry.
+    DDL_LOG_EXCHANGE_ACTION:
+      Exchange two entities by renaming them a -> tmp, b -> a, tmp -> b.
   */
   DDL_LOG_DELETE_ACTION = 'd',
   DDL_LOG_RENAME_ACTION = 'r',
-  DDL_LOG_REPLACE_ACTION = 's'
+  DDL_LOG_REPLACE_ACTION = 's',
+  DDL_LOG_EXCHANGE_ACTION = 'e'
+};
+
+enum enum_ddl_log_exchange_phase {
+  EXCH_PHASE_NAME_TO_TEMP= 0,
+  EXCH_PHASE_FROM_TO_NAME= 1,
+  EXCH_PHASE_TEMP_TO_FROM= 2
 };
 
 
@@ -76,6 +86,7 @@ typedef struct st_ddl_log_entry
   const char *name;
   const char *from_name;
   const char *handler_name;
+  const char *tmp_name;
   uint next_entry;
   uint entry_pos;
   enum ddl_log_entry_code entry_type;
@@ -84,7 +95,7 @@ typedef struct st_ddl_log_entry
     Most actions have only one phase. REPLACE does however have two
     phases. The first phase removes the file with the new name if
     there was one there before and the second phase renames the
-    old name to the new name.
+    old name to the new name. EXCHANGE have three phases.
   */
   char phase;
 } DDL_LOG_ENTRY;
@@ -162,7 +173,7 @@ bool mysql_compare_tables(TABLE *table,
                           KEY **key_info_buffer,
                           uint **index_drop_buffer, uint *index_drop_count,
                           uint **index_add_buffer, uint *index_add_count,
-                          uint *candidate_key_count);
+                          uint *candidate_key_count, bool exact_match);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
@@ -187,10 +198,9 @@ void close_cached_table(THD *thd, TABLE *table);
 void sp_prepare_create_field(THD *thd, Create_field *sql_field);
 int prepare_create_field(Create_field *sql_field,
 			 uint *blob_columns,
-			 int *timestamps, int *timestamps_with_niladic,
 			 longlong table_flags);
-CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
-                                    HA_CREATE_INFO *create_info);
+const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
+                                          HA_CREATE_INFO *create_info);
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int write_bin_log(THD *thd, bool clear_error,
                   char const *query, ulong query_length,
@@ -206,7 +216,9 @@ bool sync_ddl_log();
 void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
-bool check_duplicate_warning(THD *thd, char *msg, ulong length);
+
+template<typename T> class List;
+void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
 /*
   These prototypes where under INNODB_COMPATIBILITY_HOOKS.

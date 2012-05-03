@@ -14,14 +14,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* This file defines all string functions */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 class MY_LOCALE;
 
@@ -48,6 +44,14 @@ public:
   longlong val_int();
   double val_real();
   my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  {
+    return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    return get_time_from_string(ltime);
+  }
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
@@ -103,6 +107,27 @@ public:
   void fix_length_and_dec();
   const char *func_name() const { return "sha2"; }
 };
+
+class Item_func_to_base64 :public Item_str_ascii_func
+{
+  String tmp_value;
+public:
+  Item_func_to_base64(Item *a) :Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "to_base64"; }
+};
+
+class Item_func_from_base64 :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_from_base64(Item *a) :Item_str_func(a) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "from_base64"; }
+};
+
 
 class Item_func_aes_encrypt :public Item_str_func
 {
@@ -433,7 +458,7 @@ class Item_func_sysconst :public Item_str_func
 public:
   Item_func_sysconst()
   { collation.set(system_charset_info,DERIVATION_SYSCONST); }
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
   /*
     Used to create correct Item name in new converted item in
     safe_charset_converter, return string representation of this function
@@ -535,11 +560,14 @@ public:
   bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
-    return ((!item->fixed && item->fix_fields(thd, &item)) ||
-	    item->check_cols(1) ||
-	    Item_func::fix_fields(thd, ref));
+    bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
+               item->check_cols(1) ||
+               Item_func::fix_fields(thd, ref));
+    maybe_null|= item->maybe_null;
+    return res;
   }
-  void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
+  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+                      List<Item> &fields);
   void fix_length_and_dec();
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
@@ -576,7 +604,8 @@ class Item_func_char :public Item_str_func
 public:
   Item_func_char(List<Item> &list) :Item_str_func(list)
   { collation.set(&my_charset_bin); }
-  Item_func_char(List<Item> &list, CHARSET_INFO *cs) :Item_str_func(list)
+  Item_func_char(List<Item> &list, const CHARSET_INFO *cs) :
+  Item_str_func(list)
   { collation.set(cs); }  
   String *val_str(String *);
   void fix_length_and_dec() 
@@ -595,6 +624,16 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "repeat"; }
+};
+
+
+class Item_func_space :public Item_str_func
+{
+public:
+  Item_func_space(Item *arg1):Item_str_func(arg1) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "space"; }
 };
 
 
@@ -712,6 +751,24 @@ public:
 #endif
 
 
+class Item_char_typecast :public Item_str_func
+{
+  int cast_length;
+  const CHARSET_INFO *cast_cs, *from_cs;
+  bool charset_conversion;
+  String tmp_value;
+public:
+  Item_char_typecast(Item *a, int length_arg, const CHARSET_INFO *cs_arg)
+    :Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
+  bool eq(const Item *item, bool binary_cmp) const;
+  const char *func_name() const { return "cast_as_char"; }
+  String *val_str(String *a);
+  void fix_length_and_dec();
+  virtual void print(String *str, enum_query_type query_type);
+};
+
+
 class Item_func_binary :public Item_str_func
 {
 public:
@@ -762,22 +819,6 @@ class Item_func_export_set: public Item_str_func
   const char *func_name() const { return "export_set"; }
 };
 
-class Item_func_inet_ntoa : public Item_str_func
-{
-public:
-  Item_func_inet_ntoa(Item *a) :Item_str_func(a)
-    {
-    }
-  String* val_str(String* str);
-  const char *func_name() const { return "inet_ntoa"; }
-  void fix_length_and_dec() 
-  { 
-    decimals= 0; 
-    fix_length_and_charset(3 * 8 + 7, default_charset()); 
-    maybe_null= 1;
-  }
-};
-
 class Item_func_quote :public Item_str_func
 {
   String tmp_value;
@@ -788,9 +829,9 @@ public:
   void fix_length_and_dec()
   {
     collation.set(args[0]->collation);
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * 2 +
+    ulong max_result_length= (ulong) args[0]->max_length * 2 +
                                   2 * collation.collation->mbmaxlen;
-    max_length= (uint32) min(max_result_length, MAX_BLOB_WIDTH);
+    max_length= std::min<ulong>(max_result_length, MAX_BLOB_WIDTH);
   }
 };
 
@@ -800,11 +841,11 @@ class Item_func_conv_charset :public Item_str_func
   String tmp_value;
 public:
   bool safe;
-  CHARSET_INFO *conv_charset; // keep it public
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs) :Item_str_func(a) 
+  const CHARSET_INFO *conv_charset; // keep it public
+  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs) :Item_str_func(a) 
   { conv_charset= cs; use_cached_value= 0; safe= 0; }
-  Item_func_conv_charset(Item *a, CHARSET_INFO *cs, bool cache_if_const) 
-    :Item_str_func(a) 
+  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
+                         bool cache_if_const) :Item_str_func(a)
   {
     DBUG_ASSERT(args[0]->fixed);
     conv_charset= cs;
@@ -885,6 +926,27 @@ public:
   table_map not_null_tables() const { return 0; }
 };
 
+class Item_func_weight_string :public Item_str_func
+{
+  String tmp_value;
+  uint flags;
+  uint nweights;
+  uint result_length;
+  Field *field;
+public:
+  Item_func_weight_string(Item *a, uint result_length_arg,
+                          uint nweights_arg, uint flags_arg)
+  :Item_str_func(a), field(NULL)
+  {
+    nweights= nweights_arg;
+    flags= flags_arg;
+    result_length= result_length_arg;
+  }
+  const char *func_name() const { return "weight_string"; }
+  String *val_str(String *);
+  void fix_length_and_dec();
+};
+
 class Item_func_crc32 :public Item_int_func
 {
   String value;
@@ -931,7 +993,6 @@ public:
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
 };
 
-#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
 class Item_func_uuid: public Item_str_func
 {
 public:
@@ -946,6 +1007,16 @@ public:
   String *val_str(String *);
 };
 
-extern String my_empty_string;
+#ifdef HAVE_REPLICATION
+class Item_func_gtid_subtract: public Item_str_ascii_func
+{
+  String buf1, buf2;
+public:
+  Item_func_gtid_subtract(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  void fix_length_and_dec();
+  const char *func_name() const{ return "gtid_subtract"; }
+  String *val_str_ascii(String *);
+};
+#endif // if HAVE_REPLICATION
 
 #endif /* ITEM_STRFUNC_INCLUDED */

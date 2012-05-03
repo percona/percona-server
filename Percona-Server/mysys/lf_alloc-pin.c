@@ -284,7 +284,7 @@ struct st_harvester {
 static int harvest_pins(LF_PINS *el, struct st_harvester *hv)
 {
   int i;
-  LF_PINS *el_end= el+min(hv->npins, LF_DYNARRAY_LEVEL_LENGTH);
+  LF_PINS *el_end= el + MY_MIN(hv->npins, LF_DYNARRAY_LEVEL_LENGTH);
   for (; el < el_end; el++)
   {
     for (i= 0; i < LF_PINBOX_PINS; i++)
@@ -456,6 +456,8 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
   allocator->top= 0;
   allocator->mallocs= 0;
   allocator->element_size= size;
+  allocator->constructor= 0;
+  allocator->destructor= 0;
   DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
 }
 
@@ -476,6 +478,8 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
   while (node)
   {
     uchar *tmp= anext_node(node);
+    if (allocator->destructor)
+      allocator->destructor(node);
     my_free(node);
     node= tmp;
   }
@@ -504,6 +508,8 @@ void *_lf_alloc_new(LF_PINS *pins)
     if (!node)
     {
       node= (void *)my_malloc(allocator->element_size, MYF(MY_WME));
+      if (allocator->constructor)
+        allocator->constructor(node);
 #ifdef MY_LF_EXTRA_DEBUG
       if (likely(node != 0))
         my_atomic_add32(&allocator->mallocs, 1);

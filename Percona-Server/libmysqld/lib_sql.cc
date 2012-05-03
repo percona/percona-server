@@ -37,6 +37,11 @@ C_MODE_START
 #include "errmsg.h"
 #include "embedded_priv.h"
 
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 extern unsigned int mysql_server_last_errno;
 extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
@@ -67,6 +72,7 @@ static void embedded_error_handler(uint error, const char *str, myf MyFlags)
   DBUG_RETURN(current_thd ? my_message_sql(error, str, MyFlags):
               my_message_stderr(error, str, MyFlags));
 }
+
 
 /*
   Reads error information from the MYSQL_DATA and puts
@@ -129,7 +135,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   /* Clear result variables */
   thd->clear_error();
-  thd->stmt_da->reset_diagnostics_area();
+  thd->get_stmt_da()->reset_diagnostics_area();
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net_clear_error(net);
@@ -240,7 +246,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
-  mysql->warning_count= thd->warning_info->statement_warn_count();
+  mysql->warning_count= thd->get_stmt_da()->current_statement_warn_count();
 
   if (thd->first_data)
   {
@@ -425,7 +431,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  return thd->is_error() ? thd->stmt_da->message() : "";
+  return thd->is_error() ? thd->get_stmt_da()->message() : "";
 }
 
 
@@ -494,11 +500,14 @@ int init_embedded_server(int argc, char **argv, char **groups)
     This mess is to allow people to call the init function without
     having to mess with a fake argv
    */
-  int *argcp;
-  char ***argvp;
-  int fake_argc = 1;
-  char *fake_argv[] = { (char *)"", 0 };
-  const char *fake_groups[] = { "server", "embedded", 0 };
+  int *argcp= NULL;
+  char ***argvp= NULL;
+  int fake_argc= 1;
+  char *fake_argv[2];
+  char fake_server[]= "server";
+  char fake_embedded[]= "embedded";
+  char *fake_groups[]= { fake_server, fake_embedded, NULL };
+  char fake_name[]= "fake_name";
   my_bool acl_error;
 
   if (my_thread_init())
@@ -507,17 +516,21 @@ int init_embedded_server(int argc, char **argv, char **groups)
   if (argc)
   {
     argcp= &argc;
-    argvp= (char***) &argv;
+    argvp= &argv;
   }
   else
   {
+    fake_argv[0]= fake_name;
+    fake_argv[1]= NULL;
+
+    char **foo= &fake_argv[0];
     argcp= &fake_argc;
-    argvp= (char ***) &fake_argv;
+    argvp= &foo;
   }
   if (!groups)
-    groups= (char**) fake_groups;
+    groups= fake_groups;
 
-  my_progname= (char *)"mysql_embedded";
+  my_progname= "mysql_embedded";
 
   /*
     Perform basic logger initialization logger. Should be called after
@@ -561,6 +574,16 @@ int init_embedded_server(int argc, char **argv, char **groups)
   init_ssl();
   umask(((~my_umask) & 0666));
   if (init_server_components())
+  {
+    mysql_server_end();
+    return 1;
+  }
+
+  /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist.
+   */
+  if (!opt_bootstrap && init_server_auto_options())
   {
     mysql_server_end();
     return 1;
@@ -661,7 +684,7 @@ void *create_embedded_thd(int client_flag)
   if (thd->variables.max_join_size == HA_POS_ERROR)
     thd->variables.option_bits |= OPTION_BIG_SELECTS;
   thd->proc_info=0;				// Remove 'login'
-  thd->command=COM_SLEEP;
+  thd->set_command(COM_SLEEP);
   thd->set_time();
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
@@ -676,10 +699,10 @@ void *create_embedded_thd(int client_flag)
   thd->cur_data= 0;
   thd->first_data= 0;
   thd->data_tail= &thd->first_data;
-  bzero((char*) &thd->net, sizeof(thd->net));
+  memset(&thd->net, 0, sizeof(thd->net));
 
   thread_count++;
-  threads.append(thd);
+  threads.push_front(thd);
   thd->mysys_var= 0;
   return thd;
 err:
@@ -790,7 +813,7 @@ void THD::clear_data_list()
 
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
-			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+			 const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs)
 {
   uint32 dummy32;
   uint dummy_err;
@@ -877,7 +900,7 @@ write_eof_packet(THD *thd, uint server_status, uint statement_warn_count)
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(statement_warn_count, 65535));
+    (thd->spcont ? 0 : min(statement_warn_count, 65535U));
   return FALSE;
 }
 
@@ -940,8 +963,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   Item                     *item;
   MYSQL_FIELD              *client_field;
   MEM_ROOT                 *field_alloc;
-  CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
-  CHARSET_INFO             *cs= system_charset_info;
+  const CHARSET_INFO       *thd_cs= thd->variables.character_set_results;
+  const CHARSET_INFO       *cs= system_charset_info;
   MYSQL_DATA               *data;
   DBUG_ENTER("send_result_set_metadata");
 
@@ -1036,7 +1059,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 
   if (flags & SEND_EOF)
     write_eof_packet(thd, thd->server_status,
-                     thd->warning_info->statement_warn_count());
+                     thd->get_stmt_da()->current_statement_warn_count());
 
   DBUG_RETURN(prepare_for_send(list->elements));
  err:
@@ -1233,15 +1256,16 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
                        const char *format, va_list argsi)
 {
-  vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
-           format, argsi);
+  my_vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
+               format, argsi);
   mysql_server_last_errno= CR_UNKNOWN_ERROR;
   return 0;
 }
 
 
 bool Protocol::net_store_data(const uchar *from, size_t length,
-                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+                              const CHARSET_INFO *from_cs,
+                              const CHARSET_INFO *to_cs)
 {
   uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
   uint dummy_error;

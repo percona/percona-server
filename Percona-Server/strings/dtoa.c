@@ -133,7 +133,7 @@ size_t my_fcvt(double x, int precision, char *to, my_bool *error)
     if (len <= decpt)
       *dst++= '.';
     
-    for (i= precision - max(0, (len - decpt)); i > 0; i--)
+    for (i= precision - MY_MAX(0, (len - decpt)); i > 0; i--)
       *dst++= '0';
   }
   
@@ -222,7 +222,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
   if (x < 0.)
     width--;
 
-  res= dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : min(width, FLT_DIG),
+  res= dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : MY_MIN(width, FLT_DIG),
             &decpt, &sign, &end, buf, sizeof(buf));
   if (decpt == DTOA_OVERFLOW)
   {
@@ -1411,7 +1411,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
     else if (nd < 16)
       z= 10*z + c - '0';
   nd0= nd;
-  if (s < end - 1 && c == '.')
+  if (s < end && c == '.')
   {
     c= *++s;
     if (!nd)

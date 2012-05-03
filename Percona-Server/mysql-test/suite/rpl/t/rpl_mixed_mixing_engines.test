@@ -5,7 +5,9 @@
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc
+--source include/not_gtid_enabled.inc
 
 let $engine_type=Innodb;
+let $database_name=test;
 --source extra/rpl_tests/rpl_mixing_engines.test
 --source include/rpl_end.inc

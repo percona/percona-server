@@ -10,9 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
@@ -33,6 +32,7 @@
 #include "sp_head.h"
 #include "sp_cache.h"
 #include "datadict.h"   // dd_frm_type()
+#include "opt_trace.h"  // opt_trace_disable_etc
 
 #define MD5_BUFF_LENGTH 33
 
@@ -210,13 +210,14 @@ static void make_valid_column_names(List<Item> &item_list)
 static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
-  char key[MAX_DBKEY_LENGTH];
+  const char *key;
   uint key_length;
   LEX *lex= thd->lex;
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  key_length= create_table_def_key(thd, key, view, 0);
+
+  key_length= get_table_def_key(view, &key);
 
   if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
                     thd->mem_root, OPEN_VIEW_NO_PARSE))
@@ -435,9 +436,31 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   lex->link_first_table_back(view, link_to_local);
   view->open_type= OT_BASE_ONLY;
 
+  /*
+    No pre-opening of temporary tables is possible since must
+    wait until TABLE_LIST::open_type is set. So we have to open
+    them here instead.
+  */
+  if (open_temporary_tables(thd, lex->query_tables))
+  {
+    view= lex->unlink_first_table(&link_to_local);
+    res= true;
+    goto err;
+  }
+
   if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
   {
     view= lex->unlink_first_table(&link_to_local);
+    res= TRUE;
+    goto err;
+  }
+
+  /*
+    Checking the existence of the database in which the view is to be created
+  */
+  if (check_db_dir_existence(view->db))
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
     res= TRUE;
     goto err;
   }
@@ -496,7 +519,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       if (!is_acl_user(lex->definer->host.str,
                        lex->definer->user.str))
       {
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
                             ER_NO_SUCH_USER,
                             ER(ER_NO_SUCH_USER),
                             lex->definer->user.str,
@@ -591,6 +614,17 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  /*
+    Make sure the view doesn't have so many columns that we hit the
+    64k header limit if the view is materialized as a MyISAM table.
+  */
+  if (select_lex->item_list.elements > MAX_FIELDS)
+  {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    res= TRUE;
+    goto err;
+  }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /*
     Compare/check grants on view with grants of underlying tables
@@ -651,6 +685,15 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   res= mysql_register_view(thd, view, mode);
 
+  /*
+    View TABLE_SHARE must be removed from the table definition cache in order to
+    make ALTER VIEW work properly. Otherwise, we would not be able to detect
+    meta-data changes after ALTER VIEW.
+  */
+
+  if (!res)
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
+
   if (mysql_bin_log.is_open())
   {
     String buff;
@@ -690,6 +733,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(views->source.str, views->source.length);
 
     int errcode= query_error_code(thd, TRUE);
+    thd->add_to_binlog_accessed_dbs(views->db);
     if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                           buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
       res= TRUE;
@@ -705,7 +749,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   DBUG_RETURN(0);
 
 err:
-  thd_proc_info(thd, "end");
+  THD_STAGE_INFO(thd, stage_end);
   lex->link_first_table_back(view, link_to_local);
   unit->cleanup();
   DBUG_RETURN(res || thd->is_error());
@@ -837,7 +881,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view_query.length(0);
   is_query.length(0);
   {
-    ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
+    sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
     lex->unit.print(&view_query, QT_ORDINARY);
@@ -873,7 +917,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
       !lex->can_be_merged())
   {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_VIEW_MERGE,
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_WARN_VIEW_MERGE,
                  ER(ER_WARN_VIEW_MERGE));
     lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
   }
@@ -1077,6 +1121,12 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       not changed since PREPARE or the previous execution: the only case
       when this information is changed is execution of UPDATE on a view, but
       the original want_access is restored in its end.
+
+      Optimizer trace: because tables have been unfolded already, they are
+      in lex->query_tables of the statement using the view. So privileges on
+      them are checked as done for explicitely listed tables, in constructor
+      of Opt_trace_start. Security context change is checked in
+      prepare_security() below.
     */
     if (!table->prelocking_placeholder && table->prepare_security(thd))
     {
@@ -1132,6 +1182,13 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->definer.user.str= table->definer.host.str= 0;
   table->definer.user.length= table->definer.host.length= 0;
 
+  Opt_trace_object trace_wrapper(&thd->opt_trace);
+  Opt_trace_object trace_view(&thd->opt_trace, "view");
+  // When reading I_S.VIEWS, table->alias may be NULL
+  trace_view.add_utf8("database", table->db, table->db_length).
+    add_utf8("view", table->alias ? table->alias : table->table_name).
+    add("in_select#", old_lex->select_lex.select_number);
+
   /*
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
@@ -1148,7 +1205,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     DBUG_ASSERT(!table->definer.host.str &&
                 !table->definer.user.length &&
                 !table->definer.host.length);
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
     get_default_definer(thd, &table->definer);
@@ -1223,7 +1280,9 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
 
-    ulong saved_mode= thd->variables.sql_mode;
+    trace_view.add("select#", view_select->select_number);
+
+    sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
       + MODE_PIPES_AS_CONCAT          affect expression parsing
@@ -1278,55 +1337,62 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       underlying tables.
       Skip this step if we are opening view for prelocking only.
     */
-    if (!table->prelocking_placeholder &&
-        (old_lex->sql_command == SQLCOM_SELECT && old_lex->describe))
+    if (!table->prelocking_placeholder)
     {
-      /*
-        The user we run EXPLAIN as (either the connected user who issued
-        the EXPLAIN statement, or the definer of a SUID stored routine
-        which contains the EXPLAIN) should have both SHOW_VIEW_ACL and
-        SELECT_ACL on the view being opened as well as on all underlying
-        views since EXPLAIN will disclose their structure. This user also
-        should have SELECT_ACL on all underlying tables of the view since
-        this EXPLAIN will disclose information about the number of rows in it.
+      // If executing prepared statement: see "Optimizer trace" note above.
+      opt_trace_disable_if_no_view_access(thd, table, view_tables);
 
-        To perform this privilege check we create auxiliary TABLE_LIST object
-        for the view in order a) to avoid trashing "table->grant" member for
-        original table list element, which contents can be important at later
-        stage for column-level privilege checking b) get TABLE_LIST object
-        with "security_ctx" member set to 0, i.e. forcing check_table_access()
-        to use active user's security context.
-
-        There is no need for creating similar copies of TABLE_LIST elements
-        for underlying tables since they just have been constructed and thus
-        have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant member.
-
-        Finally at this point making sure we have SHOW_VIEW_ACL on the views
-        will suffice as we implicitly require SELECT_ACL anyway.
-      */
-        
-      TABLE_LIST view_no_suid;
-      bzero(static_cast<void *>(&view_no_suid), sizeof(TABLE_LIST));
-      view_no_suid.db= table->db;
-      view_no_suid.table_name= table->table_name;
-
-      DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
-
-      if (check_table_access(thd, SELECT_ACL, view_tables,
-                             FALSE, UINT_MAX, TRUE) ||
-          check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
-                             FALSE, UINT_MAX, TRUE))
+      if (old_lex->describe && is_explainable_query(old_lex->sql_command))
       {
-        my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
-        goto err;
+        /*
+          The user we run EXPLAIN as (either the connected user who issued
+          the EXPLAIN statement, or the definer of a SUID stored routine
+          which contains the EXPLAIN) should have both SHOW_VIEW_ACL and
+          SELECT_ACL on the view being opened as well as on all underlying
+          views since EXPLAIN will disclose their structure. This user also
+          should have SELECT_ACL on all underlying tables of the view since
+          this EXPLAIN will disclose information about the number of rows in
+          it.
+
+          To perform this privilege check we create auxiliary TABLE_LIST
+          object for the view in order a) to avoid trashing "table->grant"
+          member for original table list element, which contents can be
+          important at later stage for column-level privilege checking
+          b) get TABLE_LIST object with "security_ctx" member set to 0,
+          i.e. forcing check_table_access() to use active user's security
+          context.
+
+          There is no need for creating similar copies of table list elements
+          for underlying tables since they are just have been constructed and
+          thus have TABLE_LIST::security_ctx == 0 and fresh TABLE_LIST::grant
+          member.
+
+          Finally at this point making sure we have SHOW_VIEW_ACL on the views
+          will suffice as we implicitly require SELECT_ACL anyway.
+        */
+        
+        TABLE_LIST view_no_suid;
+        memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
+        view_no_suid.db= table->db;
+        view_no_suid.table_name= table->table_name;
+
+        DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
+
+        if (check_table_access(thd, SELECT_ACL, view_tables,
+                               FALSE, UINT_MAX, TRUE) ||
+            check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
+                               FALSE, UINT_MAX, TRUE))
+        {
+          my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+          goto err;
+        }
       }
-    }
-    else if (!table->prelocking_placeholder &&
-             (old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
-             !table->belong_to_view)
-    {
-      if (check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, FALSE))
-        goto err;
+      else if ((old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
+               !table->belong_to_view)
+      {
+        if (check_table_access(thd, SHOW_VIEW_ACL, table, FALSE, UINT_MAX, FALSE))
+          goto err;
+      }
     }
 
     if (!(table->view_tables=
@@ -1513,6 +1579,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
+      trace_view.add("merged", true);
       table->updatable= (table->updatable_view != 0);
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
@@ -1604,6 +1671,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
     table->effective_algorithm= VIEW_ALGORITHM_TMPTABLE;
     DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
+    trace_view.add("materialized", true);
     view_select->linkage= DERIVED_TABLE_TYPE;
     table->updatable= 0;
     table->effective_with_check= VIEW_CHECK_NONE;
@@ -1626,6 +1694,7 @@ ok:
   old_lex->all_selects_list= lex->all_selects_list;
   lex->all_selects_list->link_prev=
     (st_select_lex_node**)&old_lex->all_selects_list;
+  table->derived_key_list.empty();
 
 ok2:
   DBUG_ASSERT(lex == thd->lex);
@@ -1687,8 +1756,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     DBUG_RETURN(TRUE);
   }
 
-  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout,
-                       MYSQL_OPEN_SKIP_TEMPORARY))
+  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout, 0))
     DBUG_RETURN(TRUE);
 
   for (view= views; view; view= view->next_local)
@@ -1700,13 +1768,15 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if (access(path, F_OK) || 
         FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
     {
-      char name[FN_REFLEN];
-      my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
       if (thd->lex->drop_if_exists)
       {
-	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+        String tbl_name;
+        tbl_name.append(String(view->db,system_charset_info));
+        tbl_name.append('.');
+        tbl_name.append(String(view->table_name,system_charset_info));
+	push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    name);
+			    tbl_name.c_ptr());
 	continue;
       }
       if (type == FRMTYPE_TABLE)
@@ -1721,10 +1791,14 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       {
         if (non_existant_views.length())
           non_existant_views.append(',');
+
+        non_existant_views.append(String(view->db,system_charset_info));
+        non_existant_views.append('.');
         non_existant_views.append(String(view->table_name,system_charset_info));
       }
       continue;
     }
+    thd->add_to_binlog_accessed_dbs(view->db);
     if (mysql_file_delete(key_file_frm, path, MYF(MY_WME)))
       error= TRUE;
 
@@ -1885,7 +1959,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
         if (thd->variables.updatable_views_with_limit)
         {
           /* update allowed, but issue warning */
-          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+          push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
                        ER_WARN_VIEW_WITHOUT_KEY, ER(ER_WARN_VIEW_WITHOUT_KEY));
           DBUG_RETURN(FALSE);
         }
@@ -2007,7 +2081,7 @@ mysql_rename_view(THD *thd,
       view definition parsing or use temporary 'view_def'
       object for it.
     */
-    bzero(&view_def, sizeof(view_def));
+    memset(&view_def, 0, sizeof(view_def));
     view_def.timestamp.str= view_def.timestamp_buffer;
     view_def.view_suid= TRUE;
 

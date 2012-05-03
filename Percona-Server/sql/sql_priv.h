@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @file
@@ -29,27 +29,23 @@
 #ifndef MYSQL_CLIENT
 
 /*
-  Generates a warning that a feature is deprecated. After a specified
-  version asserts that the feature is removed.
+  Generates a warning that a feature is deprecated. 
 
   Using it as
 
-  WARN_DEPRECATED(thd, 6,2, "BAD", "'GOOD'");
+  WARN_DEPRECATED(thd, "BAD", "'GOOD'");
 
   Will result in a warning
  
-  "The syntax 'BAD' is deprecated and will be removed in MySQL 6.2. Please
-   use 'GOOD' instead"
+  "The syntax 'BAD' is deprecated and will be removed in a
+   future release. Please use 'GOOD' instead"
 
    Note that in macro arguments BAD is not quoted, while 'GOOD' is.
-   Note that the version is TWO numbers, separated with a comma
-   (two macro arguments, that is)
 */
-#define WARN_DEPRECATED(Thd,VerHi,VerLo,Old,New)                            \
+#define WARN_DEPRECATED(Thd,Old,New)                            \
   do {                                                                      \
-    compile_time_assert(MYSQL_VERSION_ID < VerHi * 10000 + VerLo * 100);    \
     if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
+      push_warning_printf(((THD *) Thd), Sql_condition::WARN_LEVEL_WARN,    \
                         ER_WARN_DEPRECATED_SYNTAX,                          \
                         ER(ER_WARN_DEPRECATED_SYNTAX),                      \
                         (Old), (New));                                      \
@@ -105,7 +101,7 @@
 #define OPTION_BEGIN            (1ULL << 20)    // THD, intern
 #define OPTION_TABLE_LOCK       (1ULL << 21)    // THD, intern
 #define OPTION_QUICK            (1ULL << 22)    // SELECT (for DELETE)
-#define OPTION_KEEP_LOG         (1ULL << 23)    // THD, user
+/* 23rd bit is unused. It was occupied by OPTION_KEEP_LOG. */
 
 /* The following is used to detect a conflict with DISTINCT */
 #define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser
@@ -160,16 +156,60 @@
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION    (1ULL << 2)
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
 #define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 5)
+#define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 5)
+/** If this is off, MRR is never used. */
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 6)
+/**
+   If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
+   cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
+   off, MRR is "forced" (i.e. used as long as the storage engine is capable of
+   doing it).
+*/
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 7)
+#define OPTIMIZER_SWITCH_BNL                       (1ULL << 8)
+#define OPTIMIZER_SWITCH_BKA                       (1ULL << 9)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 10)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 11)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 14)
 
-/* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+/**
+   If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
+   optimizer features (semijoin) will be available.
+ */
+#define OPTIMIZER_SWITCH_ALL 1
+
+/* 
+  The following must be kept in sync with optimizer_switch string in 
+  sys_vars.cc.
+*/
+#ifdef OPTIMIZER_SWITCH_ALL
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
+                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
+                                  OPTIMIZER_SWITCH_MRR | \
+                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
+                                  OPTIMIZER_SWITCH_BNL | \
+                                  OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                  OPTIMIZER_SWITCH_SEMIJOIN | \
+                                  OPTIMIZER_SWITCH_LOOSE_SCAN | \
+                                  OPTIMIZER_SWITCH_FIRSTMATCH)
 
-
+#else
+#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
+                                  OPTIMIZER_SWITCH_MRR | \
+                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
+                                  OPTIMIZER_SWITCH_BNL)
+#endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should
@@ -218,13 +258,6 @@
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
 #define UNCACHEABLE_UNITED     16
 #define UNCACHEABLE_CHECKOPTION 32
-
-/* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
-#define UNDEF_POS (-1)
-
-/* BINLOG_DUMP options */
-
-#define BINLOG_DUMP_NON_BLOCK   1
 
 /*
   Some defines for exit codes for ::is_equal class functions.

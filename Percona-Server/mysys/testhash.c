@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ static int do_test()
 
   write_count=update=delete=0;
   key_check=0;
-  bzero((char*) key1,sizeof(key1[0])*1000);
+  memset(key1, 0, sizeof(key1[0])*1000);
 
   printf("- Creating hash\n");
   if (hash_init(&hash, default_charset_info, recant/2, 0, 6, 0, free_record, 0))

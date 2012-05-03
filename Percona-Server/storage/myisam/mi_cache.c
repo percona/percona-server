@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2003, 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +26,7 @@
   expected to hit the cache again.
 
   Allows "partial read" errors in the record header (when READING_HEADER flag
-  is set) - unread part is bzero'ed
+  is set) - unread part is zerofilled.
 
   Note: out-of-cache reads are enabled for shared IO_CACHE's too,
   as these reads will be cached by OS cache (and mysql_file_pread is always atomic)
@@ -62,7 +61,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
       (my_off_t) (info->read_end - info->request_pos))
   {
     in_buff_pos=info->request_pos+(uint) offset;
-    in_buff_length= min(length, (size_t) (info->read_end-in_buff_pos));
+    in_buff_length= MY_MIN(length, (size_t) (info->read_end-in_buff_pos));
     memcpy(buff,info->request_pos+(uint) offset,(size_t) in_buff_length);
     if (!(length-=in_buff_length))
       DBUG_RETURN(0);
@@ -103,7 +102,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
       my_errno=HA_ERR_WRONG_IN_RECORD;
     DBUG_RETURN(1);
   }
-  bzero(buff+read_length,MI_BLOCK_INFO_HEADER_LENGTH - in_buff_length -
-        read_length);
+  memset(buff+read_length, 0,
+         MI_BLOCK_INFO_HEADER_LENGTH - in_buff_length - read_length);
   DBUG_RETURN(0);
 } /* _mi_read_cache */

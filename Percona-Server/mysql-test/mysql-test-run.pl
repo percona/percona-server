@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,perfschema,funcs_1,opt_trace";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -192,6 +192,9 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_trace_protocol;
+my $opt_explain_protocol;
+my $opt_json_explain_protocol;
 
 our $opt_debug;
 my $debug_d= "d";
@@ -1052,6 +1055,9 @@ sub command_line_setup {
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
+             'opt-trace-protocol'       => \$opt_trace_protocol,
+             'explain-protocol'         => \$opt_explain_protocol,
+             'json-explain-protocol'    => \$opt_json_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
@@ -1381,6 +1387,12 @@ sub command_line_setup {
       collect_option('default-storage-engine', $1);
       mtr_report("Using default engine '$1'")
     }
+    if ( $arg =~ /default-tmp-storage-engine=(\S+)/ )
+    {
+      # Save this for collect phase
+      collect_option('default-tmp-storage-engine', $1);
+      mtr_report("Using default tmp engine '$1'")
+    }
   }
 
   if (IS_WINDOWS and defined $opt_mem) {
@@ -1705,6 +1717,13 @@ sub command_line_setup {
       unless @valgrind_args;
   }
 
+  if ( $opt_trace_protocol )
+  {
+    push(@opt_extra_mysqld_opt, "--optimizer_trace=enabled=on,one_line=off");
+    # some queries yield big traces:
+    push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
+  }
+
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
@@ -1996,7 +2015,10 @@ sub executable_setup () {
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
   $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
 
-  $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
+  $exe_mysql_embedded=
+    mtr_exe_maybe_exists(vs_config_dirs('libmysqld/examples','mysql_embedded'),
+                         "$bindir/libmysqld/examples/mysql_embedded",
+                         "$bindir/bin/mysql_embedded");
 
   if ( ! $opt_skip_ndbcluster )
   {
@@ -2222,18 +2244,22 @@ sub read_plugin_defs($)
       if ($plug_names) {
 	my $lib_name= basename($plugin);
 	my $load_var= "--plugin_load=";
+	my $load_add_var= "--plugin_load_add=";
 	my $semi= '';
 	foreach my $plug_name (split (',', $plug_names)) {
 	  $load_var .= $semi . "$plug_name=$lib_name";
+	  $load_add_var .= $semi . "$plug_name=$lib_name";
 	  $semi= ';';
 	}
 	$ENV{$plug_var.'_LOAD'}= $load_var;
+	$ENV{$plug_var.'_LOAD_ADD'}= $load_add_var;
       }
     } else {
       $ENV{$plug_var}= "";
       $ENV{$plug_var.'_DIR'}= "";
       $ENV{$plug_var.'_OPT'}= "";
       $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_ADD'}= "" if $plug_names;
     }
   }
   close PLUGDEF;
@@ -2400,6 +2426,7 @@ sub environment_setup {
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
   $ENV{'MYSQL_PLUGIN'}=             $exe_mysql_plugin;
   $ENV{'MYSQL_EMBEDDED'}=           $exe_mysql_embedded;
+  $ENV{'PATH_CONFIG_FILE'}=         $path_config_file;
 
   my $exe_mysqld= find_mysqld($basedir);
   $ENV{'MYSQLD'}= $exe_mysqld;
@@ -3305,7 +3332,7 @@ sub mysql_install_db {
   {
     my $sql_dir= dirname($path_sql);
     # Use the mysql database for system tables
-    mtr_tofile($bootstrap_sql_file, "use mysql\n");
+    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
 
     # Add the offical mysql system tables
     # for a production system
@@ -4426,6 +4453,16 @@ sub check_warnings ($) {
 	if ( $res == 0 ) {
 	  # Check completed with problem
 	  my $report= mtr_grab_file($err_file);
+	  # In rare cases on Windows, exit code 62 is lost, so check output
+	  if (IS_WINDOWS and
+	      $report =~ /^The test .* is not supported by this installation/) {
+	    # Extra sanity check
+	    if ($report =~ /^reason: OK$/m) {
+	      $res= 62;
+	      mtr_print("Seems to have lost exit code 62, assume no warn\n");
+	      goto LOST62;
+	    }
+	  }
 	  # Log to var/log/warnings file
 	  mtr_tofile("$opt_vardir/log/warnings",
 		     $tname."\n".$report);
@@ -4433,7 +4470,7 @@ sub check_warnings ($) {
 	  $tinfo->{'warnings'}.= $report;
 	  $result= 1;
 	}
-
+      LOST62:
 	if ( $res == 62 ) {
 	  # Test case was ok and called "skip"
 	  # Remove the .err file the check generated
@@ -4830,6 +4867,14 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--gdb");
   }
 
+  # Enable the debug sync facility, set default wait timeout.
+  # Facility stays disabled if timeout value is zero.
+  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
+              $opt_debug_sync_timeout) unless $opt_user_args;
+
+  # Options specified in .opt files should be added last so they can
+  # override defaults above.
+
   my $found_skip_core= 0;
   foreach my $arg ( @$extra_opts )
   {
@@ -4865,11 +4910,6 @@ sub mysqld_arguments ($$$) {
   {
     mtr_add_arg($args, "%s", "--core-file");
   }
-
-  # Enable the debug sync facility, set default wait timeout.
-  # Facility stays disabled if timeout value is zero.
-  mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
-              $opt_debug_sync_timeout) unless $opt_user_args;
 
   return $args;
 }
@@ -5027,6 +5067,10 @@ sub stop_all_servers () {
 sub server_need_restart {
   my ($tinfo, $server)= @_;
 
+  # Mark the tinfo so slaves will restart if server restarts
+  # This assumes master will be considered first.
+  my $is_master= $server->option("#!run-master-sh");
+
   if ( using_extern() )
   {
     mtr_verbose_restart($server, "no restart for --extern server");
@@ -5035,29 +5079,34 @@ sub server_need_restart {
 
   if ( $tinfo->{'force_restart'} ) {
     mtr_verbose_restart($server, "forced in .opt file");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $opt_force_restart ) {
     mtr_verbose_restart($server, "forced restart turned on");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{template_path} ne $current_config_name)
   {
     mtr_verbose_restart($server, "using different config file");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{'master_sh'}  || $tinfo->{'slave_sh'} )
   {
     mtr_verbose_restart($server, "sh script to run");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( ! started($server) )
   {
     mtr_verbose_restart($server, "not started");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
@@ -5070,6 +5119,7 @@ sub server_need_restart {
     if ( timezone($started_tinfo) ne timezone($tinfo) )
     {
       mtr_verbose_restart($server, "different timezone");
+      $tinfo->{master_restart}= 1 if $is_master;
       return 1;
     }
   }
@@ -5094,6 +5144,7 @@ sub server_need_restart {
 	mtr_verbose_restart($server, "running with different options '" .
 			    join(" ", @{$extra_opts}) . "' != '" .
 			    join(" ", @{$started_opts}) . "'" );
+	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
@@ -5110,12 +5161,18 @@ sub server_need_restart {
 	mtr_verbose("Restart: running with different options '" .
 		    join(" ", @{$extra_opts}) . "' != '" .
 		    join(" ", @{$started_opts}) . "'" );
+	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
       # Remember the dynamically set options
       $server->{'started_opts'}= $extra_opts;
     }
+  }
+
+  if ($server->option("#!use-slave-opt") && $tinfo->{master_restart}) {
+    mtr_verbose_restart($server, "master will be restarted");
+    return 1;
   }
 
   # Default, no restart
@@ -5355,6 +5412,12 @@ sub start_servers($) {
 
       # Save this test case information, so next can examine it
       $mysqld->{'started_tinfo'}= $tinfo;
+
+      # Wait until server's uuid is generated. This avoids that master and
+      # slave generate the same UUID sporadically.
+      sleep_until_file_created("$datadir/auto.cnf", $opt_start_timeout,
+                               $mysqld->{'proc'});
+
     }
 
   }
@@ -5495,9 +5558,24 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--sp-protocol");
   }
 
+  if ( $opt_explain_protocol )
+  {
+    mtr_add_arg($args, "--explain-protocol");
+  }
+
+  if ( $opt_json_explain_protocol )
+  {
+    mtr_add_arg($args, "--json-explain-protocol");
+  }
+
   if ( $opt_view_protocol )
   {
     mtr_add_arg($args, "--view-protocol");
+  }
+
+  if ( $opt_trace_protocol )
+  {
+    mtr_add_arg($args, "--opt-trace-protocol");
   }
 
   if ( $opt_cursor_protocol )
@@ -6017,6 +6095,11 @@ Options to control what engine/variation to run
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
+  opt-trace-protocol    Print optimizer trace
+  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
+  json-explain-protocol Run 'EXPLAIN FORMAT=JSON' on all SELECT, INSERT,
+                        REPLACE, UPDATE and DELETE queries.
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
@@ -6121,7 +6204,9 @@ Options for debugging the product
   ddd                   Start the mysqld(s) in ddd
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
-                        "query,info,error,enter,exit"
+                        "query,info,error,enter,exit"; you need this if you
+                        want both to see debug printouts and to use
+                        DBUG_EXECUTE_IF.
   debug-server          Use debug version of server, but without turning on
                         tracing
   debugger=NAME         Start mysqld in the selected debugger

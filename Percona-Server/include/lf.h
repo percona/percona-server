@@ -187,6 +187,8 @@ typedef struct st_lf_allocator {
   uchar * volatile top;
   uint element_size;
   uint32 volatile mallocs;
+  void (*constructor)(uchar *); /* called, when an object is malloc()'ed */
+  void (*destructor)(uchar *);  /* called, when an object is free()'d    */
 } LF_ALLOCATOR;
 
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset);
@@ -220,7 +222,8 @@ C_MODE_START
 
 #define LF_HASH_UNIQUE 1
 
-/* lf_hash overhead per element is sizeof(LF_SLIST). */
+/* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
+extern const int LF_HASH_OVERHEAD;
 
 typedef struct {
   LF_DYNARRAY array;                    /* hash itself */

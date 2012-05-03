@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -194,16 +194,17 @@ trx_undo_get_first_rec(
 	mtr_t*	mtr);	/*!< in: mtr */
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
-@return	page number if success, else FIL_NULL */
+@return	X-latched block if success, else NULL */
 UNIV_INTERN
-ulint
+buf_block_t*
 trx_undo_add_page(
 /*==============*/
 	trx_t*		trx,	/*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory object */
-	mtr_t*		mtr);	/*!< in: mtr which does not have a latch to any
+	mtr_t*		mtr)	/*!< in: mtr which does not have a latch to any
 				undo log page; the caller must have reserved
 				the rollback segment mutex */
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Frees the last undo log page.
 The caller must hold the rollback segment mutex. */
@@ -281,7 +282,7 @@ trx_undo_lists_init(
 Assigns an undo log for a transaction. A new undo log is created or a cached
 undo log reused.
 @return DB_SUCCESS if undo log assign successful, possible error codes
-are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE
+are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_READ_ONLY
 DB_OUT_OF_MEMORY */
 UNIV_INTERN
 ulint
@@ -411,8 +412,8 @@ struct trx_undo_struct{
 					TRX_UNDO_UPDATE */
 	ulint		state;		/*!< state of the corresponding undo log
 					segment */
-	ibool		del_marks;	/*!< relevant only in an update undo log:
-					this is TRUE if the transaction may
+	ibool		del_marks;	/*!< relevant only in an update undo
+					log: this is TRUE if the transaction may
 					have delete marked records, because of
 					a delete of a row or an update of an
 					indexed field; purge is then
@@ -434,8 +435,8 @@ struct trx_undo_struct{
 					in bytes, or 0 for uncompressed */
 	ulint		hdr_page_no;	/*!< page number of the header page in
 					the undo log */
-	ulint		hdr_offset;	/*!< header offset of the undo log on the
-					page */
+	ulint		hdr_offset;	/*!< header offset of the undo log on
+				       	the page */
 	ulint		last_page_no;	/*!< page number of the last page in the
 					undo log; this may differ from
 					top_page_no during a rollback */
@@ -581,8 +582,8 @@ quite a large overhead. */
 #define	TRX_UNDO_XA_XID		(TRX_UNDO_XA_BQUAL_LEN + 4)
 /*--------------------------------------------------------------*/
 #define TRX_UNDO_LOG_XA_HDR_SIZE (TRX_UNDO_XA_XID + XIDDATASIZE)
-				/*!< Total size of the undo log header
-				with the XA XID */
+					/*!< Total size of the undo log header
+					with the XA XID */
 /* @} */
 
 #ifndef UNIV_NONINL

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,12 +12,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#ifndef MY_GLOBAL_INCLUDED
+#define MY_GLOBAL_INCLUDED
 
 /* This is the include file that should be included 'first' in every C file. */
-
-#ifndef _global_h
-#define _global_h
 
 /* Client library users on Windows need this macro defined here. */
 #if !defined(__WIN__) && defined(_WIN32)
@@ -46,11 +46,6 @@
 #undef __WIN32__
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
-
-/* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#define USE_PRAGMA_INTERFACE
-#endif
 
 #if defined(__OpenBSD__) && (OpenBSD >= 200411)
 #define HAVE_ERRNO_AS_DEFINE
@@ -132,6 +127,7 @@
 /* Define missing access() modes. */
 #define F_OK 0
 #define W_OK 2
+#define R_OK 4                        /* Test for read permission.  */
 
 /* Define missing file locking constants. */
 #define F_RDLCK 1
@@ -306,12 +302,6 @@ C_MODE_END
 #undef HAVE_INITGROUPS
 #endif
 
-/* gcc/egcs issues */
-
-#if defined(__GNUC) && defined(__EXCEPTIONS)
-#error "Please add -fno-exceptions to CXXFLAGS and reconfigure/recompile"
-#endif
-
 #if defined(_lint) && !defined(lint)
 #define lint
 #endif
@@ -385,7 +375,7 @@ C_MODE_END
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#ifndef __GNUC__
+#ifdef _some_old_compiler_that_does_not_understand_the_construct_below_
 #define compile_time_assert(X)  do { } while(0)
 #else
 #define compile_time_assert(X)                                  \
@@ -489,17 +479,6 @@ typedef unsigned short ushort;
 
 #include <my_compiler.h>
 
-/*
-  Wen using the embedded library, users might run into link problems,
-  duplicate declaration of __cxa_pure_virtual, solved by declaring it a
-  weak symbol.
-*/
-#if defined(USE_MYSYS_NEW) && ! defined(DONT_DECLARE_CXA_PURE_VIRTUAL)
-C_MODE_START
-int __cxa_pure_virtual () __attribute__ ((weak));
-C_MODE_END
-#endif
-
 /* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
 #undef DBUG_OFF
@@ -542,7 +521,7 @@ typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
 C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
-typedef int	(*qsort_cmp2)(void*, const void *,const void *);
+typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
 C_MODE_END
 #define qsort_t RETQSORTTYPE	/* Broken GCC cant handle typedef !!!! */
 #ifdef HAVE_SYS_SOCKET_H
@@ -796,9 +775,13 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif /* HAVE_FINITE */
 #endif /* isfinite */
 
+#include <math.h>
 #ifndef HAVE_ISNAN
 #define isnan(x) ((x) != (x))
 #endif
+C_MODE_START
+extern double my_double_isnan(double x);
+C_MODE_END
 
 #ifdef HAVE_ISINF
 /* Check if C compiler is affected by GCC bug #39228 */
@@ -974,9 +957,10 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
 #define SOCKET_EAGAIN	WSAEINPROGRESS
-#define SOCKET_ETIMEDOUT WSAETIMEDOUT
 #define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCKET_EADDRINUSE WSAEADDRINUSE
+#define SOCKET_ETIMEDOUT WSAETIMEDOUT
+#define SOCKET_ECONNRESET WSAECONNRESET
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #else /* Unix */
@@ -984,9 +968,10 @@ typedef ulong nesting_map;  /* Used for flags of nesting constructs */
 #define closesocket(A)	close(A)
 #define SOCKET_EINTR	EINTR
 #define SOCKET_EAGAIN	EAGAIN
-#define SOCKET_ETIMEDOUT SOCKET_EINTR
 #define SOCKET_EWOULDBLOCK EWOULDBLOCK
 #define SOCKET_EADDRINUSE EADDRINUSE
+#define SOCKET_ETIMEDOUT ETIMEDOUT
+#define SOCKET_ECONNRESET ECONNRESET
 #define SOCKET_ENFILE	ENFILE
 #define SOCKET_EMFILE	EMFILE
 #endif
@@ -1044,298 +1029,7 @@ typedef char		my_bool; /* Small bool */
 #define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
 #define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
 
-
-
-/*
-  Define-funktions for reading and storing in machine independent format
-  (low byte first)
-*/
-
-/* Optimized store functions for Intel x86 */
-#if defined(__i386__) || defined(_WIN32)
-#define sint2korr(A)	(*((int16 *) (A)))
-#define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
-				  (((uint32) 255L << 24) | \
-				   (((uint32) (uchar) (A)[2]) << 16) |\
-				   (((uint32) (uchar) (A)[1]) << 8) | \
-				   ((uint32) (uchar) (A)[0])) : \
-				  (((uint32) (uchar) (A)[2]) << 16) |\
-				  (((uint32) (uchar) (A)[1]) << 8) | \
-				  ((uint32) (uchar) (A)[0])))
-#define sint4korr(A)	(*((long *) (A)))
-#define uint2korr(A)	(*((uint16 *) (A)))
-#if defined(HAVE_purify) && !defined(_WIN32)
-#define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
-				  (((uint32) ((uchar) (A)[1])) << 8) +\
-				  (((uint32) ((uchar) (A)[2])) << 16))
-#else
-/*
-   ATTENTION !
-   
-    Please, note, uint3korr reads 4 bytes (not 3) !
-    It means, that you have to provide enough allocated space !
-*/
-#define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
-#endif /* HAVE_purify && !_WIN32 */
-#define uint4korr(A)	(*((uint32 *) (A)))
-#define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
-				    (((uint32) ((uchar) (A)[1])) << 8) +\
-				    (((uint32) ((uchar) (A)[2])) << 16) +\
-				    (((uint32) ((uchar) (A)[3])) << 24)) +\
-				    (((ulonglong) ((uchar) (A)[4])) << 32))
-#define uint6korr(A)	((ulonglong)(((uint32)    ((uchar) (A)[0]))          + \
-                                     (((uint32)    ((uchar) (A)[1])) << 8)   + \
-                                     (((uint32)    ((uchar) (A)[2])) << 16)  + \
-                                     (((uint32)    ((uchar) (A)[3])) << 24)) + \
-                         (((ulonglong) ((uchar) (A)[4])) << 32) +       \
-                         (((ulonglong) ((uchar) (A)[5])) << 40))
-#define uint8korr(A)	(*((ulonglong *) (A)))
-#define sint8korr(A)	(*((longlong *) (A)))
-#define int2store(T,A)	*((uint16*) (T))= (uint16) (A)
-#define int3store(T,A)  do { *(T)=  (uchar) ((A));\
-                            *(T+1)=(uchar) (((uint) (A) >> 8));\
-                            *(T+2)=(uchar) (((A) >> 16)); } while (0)
-#define int4store(T,A)	*((long *) (T))= (long) (A)
-#define int5store(T,A)  do { *(T)= (uchar)((A));\
-                             *((T)+1)=(uchar) (((A) >> 8));\
-                             *((T)+2)=(uchar) (((A) >> 16));\
-                             *((T)+3)=(uchar) (((A) >> 24)); \
-                             *((T)+4)=(uchar) (((A) >> 32)); } while(0)
-#define int6store(T,A)  do { *(T)=    (uchar)((A));          \
-                             *((T)+1)=(uchar) (((A) >> 8));  \
-                             *((T)+2)=(uchar) (((A) >> 16)); \
-                             *((T)+3)=(uchar) (((A) >> 24)); \
-                             *((T)+4)=(uchar) (((A) >> 32)); \
-                             *((T)+5)=(uchar) (((A) >> 40)); } while(0)
-#define int8store(T,A)	*((ulonglong *) (T))= (ulonglong) (A)
-
-typedef union {
-  double v;
-  long m[2];
-} doubleget_union;
-#define doubleget(V,M)	\
-do { doubleget_union _tmp; \
-     _tmp.m[0] = *((long*)(M)); \
-     _tmp.m[1] = *(((long*) (M))+1); \
-     (V) = _tmp.v; } while(0)
-#define doublestore(T,V) do { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
-			     *(((long *) T)+1) = ((doubleget_union *)&V)->m[1]; \
-                         } while (0)
-#define float4get(V,M)   do { *((float *) &(V)) = *((float*) (M)); } while(0)
-#define float8get(V,M)   doubleget((V),(M))
-#define float4store(V,M) memcpy((uchar*) V,(uchar*) (&M),sizeof(float))
-#define floatstore(T,V)  memcpy((uchar*)(T), (uchar*)(&V),sizeof(float))
-#define floatget(V,M)    memcpy((uchar*) &V,(uchar*) (M),sizeof(float))
-#define float8store(V,M) doublestore((V),(M))
-#else
-
-/*
-  We're here if it's not a IA-32 architecture (Win32 and UNIX IA-32 defines
-  were done before)
-*/
-#define sint2korr(A)	(int16) (((int16) ((uchar) (A)[0])) +\
-				 ((int16) ((int16) (A)[1]) << 8))
-#define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
-				  (((uint32) 255L << 24) | \
-				   (((uint32) (uchar) (A)[2]) << 16) |\
-				   (((uint32) (uchar) (A)[1]) << 8) | \
-				   ((uint32) (uchar) (A)[0])) : \
-				  (((uint32) (uchar) (A)[2]) << 16) |\
-				  (((uint32) (uchar) (A)[1]) << 8) | \
-				  ((uint32) (uchar) (A)[0])))
-#define sint4korr(A)	(int32) (((int32) ((uchar) (A)[0])) +\
-				(((int32) ((uchar) (A)[1]) << 8)) +\
-				(((int32) ((uchar) (A)[2]) << 16)) +\
-				(((int32) ((int16) (A)[3]) << 24)))
-#define sint8korr(A)	(longlong) uint8korr(A)
-#define uint2korr(A)	(uint16) (((uint16) ((uchar) (A)[0])) +\
-				  ((uint16) ((uchar) (A)[1]) << 8))
-#define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
-				  (((uint32) ((uchar) (A)[1])) << 8) +\
-				  (((uint32) ((uchar) (A)[2])) << 16))
-#define uint4korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
-				  (((uint32) ((uchar) (A)[1])) << 8) +\
-				  (((uint32) ((uchar) (A)[2])) << 16) +\
-				  (((uint32) ((uchar) (A)[3])) << 24))
-#define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
-				    (((uint32) ((uchar) (A)[1])) << 8) +\
-				    (((uint32) ((uchar) (A)[2])) << 16) +\
-				    (((uint32) ((uchar) (A)[3])) << 24)) +\
-				    (((ulonglong) ((uchar) (A)[4])) << 32))
-#define uint6korr(A)	((ulonglong)(((uint32)    ((uchar) (A)[0]))          + \
-                                     (((uint32)    ((uchar) (A)[1])) << 8)   + \
-                                     (((uint32)    ((uchar) (A)[2])) << 16)  + \
-                                     (((uint32)    ((uchar) (A)[3])) << 24)) + \
-                         (((ulonglong) ((uchar) (A)[4])) << 32) +       \
-                         (((ulonglong) ((uchar) (A)[5])) << 40))
-#define uint8korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
-				    (((uint32) ((uchar) (A)[1])) << 8) +\
-				    (((uint32) ((uchar) (A)[2])) << 16) +\
-				    (((uint32) ((uchar) (A)[3])) << 24)) +\
-			(((ulonglong) (((uint32) ((uchar) (A)[4])) +\
-				    (((uint32) ((uchar) (A)[5])) << 8) +\
-				    (((uint32) ((uchar) (A)[6])) << 16) +\
-				    (((uint32) ((uchar) (A)[7])) << 24))) <<\
-				    32))
-#define int2store(T,A)       do { uint def_temp= (uint) (A) ;\
-                                  *((uchar*) (T))=  (uchar)(def_temp); \
-                                   *((uchar*) (T)+1)=(uchar)((def_temp >> 8)); \
-                             } while(0)
-#define int3store(T,A)       do { /*lint -save -e734 */\
-                                  *((uchar*)(T))=(uchar) ((A));\
-                                  *((uchar*) (T)+1)=(uchar) (((A) >> 8));\
-                                  *((uchar*)(T)+2)=(uchar) (((A) >> 16)); \
-                                  /*lint -restore */} while(0)
-#define int4store(T,A)       do { *((char *)(T))=(char) ((A));\
-                                  *(((char *)(T))+1)=(char) (((A) >> 8));\
-                                  *(((char *)(T))+2)=(char) (((A) >> 16));\
-                                  *(((char *)(T))+3)=(char) (((A) >> 24)); } while(0)
-#define int5store(T,A)       do { *((char *)(T))=     (char)((A));  \
-                                  *(((char *)(T))+1)= (char)(((A) >> 8)); \
-                                  *(((char *)(T))+2)= (char)(((A) >> 16)); \
-                                  *(((char *)(T))+3)= (char)(((A) >> 24)); \
-                                  *(((char *)(T))+4)= (char)(((A) >> 32)); \
-		                } while(0)
-#define int6store(T,A)       do { *((char *)(T))=     (char)((A)); \
-                                  *(((char *)(T))+1)= (char)(((A) >> 8)); \
-                                  *(((char *)(T))+2)= (char)(((A) >> 16)); \
-                                  *(((char *)(T))+3)= (char)(((A) >> 24)); \
-                                  *(((char *)(T))+4)= (char)(((A) >> 32)); \
-                                  *(((char *)(T))+5)= (char)(((A) >> 40)); \
-                                } while(0)
-#define int8store(T,A)       do { uint def_temp= (uint) (A), def_temp2= (uint) ((A) >> 32); \
-                                  int4store((T),def_temp); \
-                                  int4store((T+4),def_temp2); } while(0)
-#ifdef WORDS_BIGENDIAN
-#define float4store(T,A) do { *(T)= ((uchar *) &A)[3];\
-                              *((T)+1)=(char) ((uchar *) &A)[2];\
-                              *((T)+2)=(char) ((uchar *) &A)[1];\
-                              *((T)+3)=(char) ((uchar *) &A)[0]; } while(0)
-
-#define float4get(V,M)   do { float def_temp;\
-                              ((uchar*) &def_temp)[0]=(M)[3];\
-                              ((uchar*) &def_temp)[1]=(M)[2];\
-                              ((uchar*) &def_temp)[2]=(M)[1];\
-                              ((uchar*) &def_temp)[3]=(M)[0];\
-                              (V)=def_temp; } while(0)
-#define float8store(T,V) do { *(T)= ((uchar *) &V)[7];\
-                              *((T)+1)=(char) ((uchar *) &V)[6];\
-                              *((T)+2)=(char) ((uchar *) &V)[5];\
-                              *((T)+3)=(char) ((uchar *) &V)[4];\
-                              *((T)+4)=(char) ((uchar *) &V)[3];\
-                              *((T)+5)=(char) ((uchar *) &V)[2];\
-                              *((T)+6)=(char) ((uchar *) &V)[1];\
-                              *((T)+7)=(char) ((uchar *) &V)[0]; } while(0)
-
-#define float8get(V,M)   do { double def_temp;\
-                              ((uchar*) &def_temp)[0]=(M)[7];\
-                              ((uchar*) &def_temp)[1]=(M)[6];\
-                              ((uchar*) &def_temp)[2]=(M)[5];\
-                              ((uchar*) &def_temp)[3]=(M)[4];\
-                              ((uchar*) &def_temp)[4]=(M)[3];\
-                              ((uchar*) &def_temp)[5]=(M)[2];\
-                              ((uchar*) &def_temp)[6]=(M)[1];\
-                              ((uchar*) &def_temp)[7]=(M)[0];\
-                              (V) = def_temp; } while(0)
-#else
-#define float4get(V,M)   memcpy(&V, (M), sizeof(float))
-#define float4store(V,M) memcpy(V, (&M), sizeof(float))
-
-#if defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN)
-#define doublestore(T,V) do { *(((char*)T)+0)=(char) ((uchar *) &V)[4];\
-                              *(((char*)T)+1)=(char) ((uchar *) &V)[5];\
-                              *(((char*)T)+2)=(char) ((uchar *) &V)[6];\
-                              *(((char*)T)+3)=(char) ((uchar *) &V)[7];\
-                              *(((char*)T)+4)=(char) ((uchar *) &V)[0];\
-                              *(((char*)T)+5)=(char) ((uchar *) &V)[1];\
-                              *(((char*)T)+6)=(char) ((uchar *) &V)[2];\
-                              *(((char*)T)+7)=(char) ((uchar *) &V)[3]; }\
-                         while(0)
-#define doubleget(V,M)   do { double def_temp;\
-                              ((uchar*) &def_temp)[0]=(M)[4];\
-                              ((uchar*) &def_temp)[1]=(M)[5];\
-                              ((uchar*) &def_temp)[2]=(M)[6];\
-                              ((uchar*) &def_temp)[3]=(M)[7];\
-                              ((uchar*) &def_temp)[4]=(M)[0];\
-                              ((uchar*) &def_temp)[5]=(M)[1];\
-                              ((uchar*) &def_temp)[6]=(M)[2];\
-                              ((uchar*) &def_temp)[7]=(M)[3];\
-                              (V) = def_temp; } while(0)
-#endif /* __FLOAT_WORD_ORDER */
-
-#define float8get(V,M)   doubleget((V),(M))
-#define float8store(V,M) doublestore((V),(M))
-#endif /* WORDS_BIGENDIAN */
-
-#endif /* __i386__ OR _WIN32 */
-
-/*
-  Macro for reading 32-bit integer from network byte order (big-endian)
-  from unaligned memory location.
-*/
-#define int4net(A)        (int32) (((uint32) ((uchar) (A)[3]))        |\
-				  (((uint32) ((uchar) (A)[2])) << 8)  |\
-				  (((uint32) ((uchar) (A)[1])) << 16) |\
-				  (((uint32) ((uchar) (A)[0])) << 24))
-/*
-  Define-funktions for reading and storing in machine format from/to
-  short/long to/from some place in memory V should be a (not
-  register) variable, M is a pointer to byte
-*/
-
-#ifdef WORDS_BIGENDIAN
-
-#define ushortget(V,M)  do { V = (uint16) (((uint16) ((uchar) (M)[1]))+\
-                                 ((uint16) ((uint16) (M)[0]) << 8)); } while(0)
-#define shortget(V,M)   do { V = (short) (((short) ((uchar) (M)[1]))+\
-                                 ((short) ((short) (M)[0]) << 8)); } while(0)
-#define longget(V,M)    do { int32 def_temp;\
-                             ((uchar*) &def_temp)[0]=(M)[0];\
-                             ((uchar*) &def_temp)[1]=(M)[1];\
-                             ((uchar*) &def_temp)[2]=(M)[2];\
-                             ((uchar*) &def_temp)[3]=(M)[3];\
-                             (V)=def_temp; } while(0)
-#define ulongget(V,M)   do { uint32 def_temp;\
-                            ((uchar*) &def_temp)[0]=(M)[0];\
-                            ((uchar*) &def_temp)[1]=(M)[1];\
-                            ((uchar*) &def_temp)[2]=(M)[2];\
-                            ((uchar*) &def_temp)[3]=(M)[3];\
-                            (V)=def_temp; } while(0)
-#define shortstore(T,A) do { uint def_temp=(uint) (A) ;\
-                             *(((char*)T)+1)=(char)(def_temp); \
-                             *(((char*)T)+0)=(char)(def_temp >> 8); } while(0)
-#define longstore(T,A)  do { *(((char*)T)+3)=((A));\
-                             *(((char*)T)+2)=(((A) >> 8));\
-                             *(((char*)T)+1)=(((A) >> 16));\
-                             *(((char*)T)+0)=(((A) >> 24)); } while(0)
-
-#define floatget(V,M)    memcpy(&V, (M), sizeof(float))
-#define floatstore(T,V)  memcpy((T), (void*) (&V), sizeof(float))
-#define doubleget(V,M)	 memcpy(&V, (M), sizeof(double))
-#define doublestore(T,V) memcpy((T), (void *) &V, sizeof(double))
-#define longlongget(V,M) memcpy(&V, (M), sizeof(ulonglong))
-#define longlongstore(T,V) memcpy((T), &V, sizeof(ulonglong))
-
-#else
-
-#define ushortget(V,M)	do { V = uint2korr(M); } while(0)
-#define shortget(V,M)	do { V = sint2korr(M); } while(0)
-#define longget(V,M)	do { V = sint4korr(M); } while(0)
-#define ulongget(V,M)   do { V = uint4korr(M); } while(0)
-#define shortstore(T,V) int2store(T,V)
-#define longstore(T,V)	int4store(T,V)
-#ifndef floatstore
-#define floatstore(T,V)  memcpy((T), (void *) (&V), sizeof(float))
-#define floatget(V,M)    memcpy(&V, (M), sizeof(float))
-#endif
-#ifndef doubleget
-#define doubleget(V,M)	 memcpy(&V, (M), sizeof(double))
-#define doublestore(T,V) memcpy((T), (void *) &V, sizeof(double))
-#endif /* doubleget */
-#define longlongget(V,M) memcpy(&V, (M), sizeof(ulonglong))
-#define longlongstore(T,V) memcpy((T), &V, sizeof(ulonglong))
-
-#endif /* WORDS_BIGENDIAN */
+#include <my_byteorder.h>
 
 #ifdef HAVE_CHARSET_utf8
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
@@ -1399,16 +1093,14 @@ do { doubleget_union _tmp; \
 #endif
 
 /* Length of decimal number represented by INT32. */
-#define MY_INT32_NUM_DECIMAL_DIGITS 11
+#define MY_INT32_NUM_DECIMAL_DIGITS 11U
 
 /* Length of decimal number represented by INT64. */
-#define MY_INT64_NUM_DECIMAL_DIGITS 21
+#define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
 /* Define some useful general macros (should be done after all headers). */
-#if !defined(max)
-#define max(a, b)	((a) > (b) ? (a) : (b))
-#define min(a, b)	((a) < (b) ? (a) : (b))
-#endif  
+#define MY_MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MY_MIN(a, b)	((a) < (b) ? (a) : (b))
 
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a
@@ -1416,6 +1108,15 @@ do { doubleget_union _tmp; \
 */
 #ifdef TARGET_OS_LINUX
 #define NEED_EXPLICIT_SYNC_DIR 1
+#else
+/*
+  On linux default rwlock scheduling policy is good enough for
+  waiting_threads.c, on other systems use our special implementation
+  (which is slower).
+
+  QQ perhaps this should be tested in configure ? how ?
+*/
+#define WT_RWLOCKS_USE_MUTEXES 1
 #endif
 
 #if !defined(__cplusplus) && !defined(bool)
@@ -1501,4 +1202,24 @@ static inline double rint(double x)
 
 #endif /* EMBEDDED_LIBRARY */
 
-#endif /* my_global_h */
+
+enum loglevel {
+   ERROR_LEVEL=       0,
+   WARNING_LEVEL=     1,
+   INFORMATION_LEVEL= 2
+};
+
+
+/*
+  Visual Studio before the version 2010 did not have lldiv_t.
+  In Visual Studio 2010, _MSC_VER is defined as 1600.
+*/
+#if defined(_MSC_VER) && (_MSC_VER < 1600)
+typedef struct
+{
+  long long int quot;   /* Quotient.  */
+  long long int rem;    /* Remainder.  */
+} lldiv_t;
+#endif
+
+#endif  // MY_GLOBAL_INCLUDED

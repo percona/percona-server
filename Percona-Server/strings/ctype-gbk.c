@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,7 +138,7 @@ static uchar to_upper_gbk[]=
 };
 
 
-static MY_UNICASE_INFO cA2[256]=
+static MY_UNICASE_CHARACTER cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -342,7 +342,7 @@ static MY_UNICASE_INFO cA2[256]=
   {0xA2FF,0xA2FF,0xA2FF}
 };
 
-static MY_UNICASE_INFO cA3[256]=
+static MY_UNICASE_CHARACTER cA3[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -547,7 +547,7 @@ static MY_UNICASE_INFO cA3[256]=
 };
 
 
-static MY_UNICASE_INFO cA6[256]=
+static MY_UNICASE_CHARACTER cA6[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -752,7 +752,7 @@ static MY_UNICASE_INFO cA6[256]=
 };
 
 
-static MY_UNICASE_INFO cA7[256]=
+static MY_UNICASE_CHARACTER cA7[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -957,7 +957,7 @@ static MY_UNICASE_INFO cA7[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
+static MY_UNICASE_CHARACTER *my_caseinfo_pages_gbk[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -993,6 +993,12 @@ static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
+
+static MY_UNICASE_INFO my_caseinfo_gbk=
+{
+  0xFFFF,
+  my_caseinfo_pages_gbk
+};
 
 
 static uchar sort_order_gbk[]=
@@ -3469,23 +3475,23 @@ int my_strnncoll_gbk_internal(const uchar **a_res, const uchar **b_res,
 
 
 
-int my_strnncoll_gbk(CHARSET_INFO *cs __attribute__((unused)),
+int my_strnncoll_gbk(const CHARSET_INFO *cs __attribute__((unused)),
 		     const uchar *a, size_t a_length,
                      const uchar *b, size_t b_length,
                      my_bool b_is_prefix)
 {
-  size_t length= min(a_length, b_length);
+  size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
   return res ? res : (int) ((b_is_prefix ? length : a_length) - b_length);
 }
 
 
-static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
+static int my_strnncollsp_gbk(const CHARSET_INFO * cs __attribute__((unused)),
 			      const uchar *a, size_t a_length, 
 			      const uchar *b, size_t b_length,
                               my_bool diff_if_only_endspace_difference)
 {
-  size_t length= min(a_length, b_length);
+  size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_gbk_internal(&a, &b, length);
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
@@ -3520,41 +3526,46 @@ static int my_strnncollsp_gbk(CHARSET_INFO * cs __attribute__((unused)),
 }
 
 
-static size_t my_strnxfrm_gbk(CHARSET_INFO *cs __attribute__((unused)),
-                              uchar *dest, size_t len,
-                              const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_gbk(const CHARSET_INFO *cs,
+                uchar *dst, size_t dstlen, uint nweights,
+                const uchar *src, size_t srclen, uint flags)
 {
-  uint16 e;
-  size_t dstlen= len;
-  uchar *dest_end= dest + dstlen;
+  uchar *d0= dst;
+  uchar *de= dst + dstlen;
+  const uchar *se= src + srclen;
+  const uchar *sort_order= cs->sort_order;
 
-  len = srclen;
-  while (len-- && dest < dest_end)
+  for (; dst < de && src < se && nweights; nweights--)
   {
-    if ((len > 0) && isgbkcode(*src, *(src+1)))
+    if (cs->cset->ismbchar(cs, (const char*) src, (const char*) se))
     {
-      e = gbksortorder((uint16) gbkcode(*src, *(src+1)));
-      *dest++ = gbkhead(e);
-      if (dest < dest_end)
-        *dest++ = gbktail(e);
-      src+=2;
-      len--;
-    } else 
-      *dest++ = sort_order_gbk[(uchar) *src++];
+      /*
+        Note, it is safe not to check (src < se)
+        in the code below, because ismbchar() would
+        not return TRUE if src was too short
+      */
+      uint16 e= gbksortorder((uint16) gbkcode(*src, *(src + 1)));
+      *dst++= gbkhead(e);
+      if (dst < de)
+        *dst++= gbktail(e);
+      src+= 2;
+    }
+    else
+      *dst++= sort_order ? sort_order[*src++] : *src++;
   }
-  if (dstlen > srclen)
-    bfill(dest, dstlen - srclen, ' ');
-  return dstlen;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, de, nweights, flags, 0);
 }
 
 
-static uint ismbchar_gbk(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_gbk(const CHARSET_INFO *cs __attribute__((unused)),
 		 const char* p, const char *e)
 {
   return (isgbkhead(*(p)) && (e)-(p)>1 && isgbktail(*((p)+1))? 2: 0);
 }
 
-static uint mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_gbk(const CHARSET_INFO *cs __attribute__((unused)),
+                          uint c)
 {
   return (isgbkhead(c)? 2 : 1);
 }
@@ -10664,7 +10675,7 @@ static int func_uni_gbk_onechar(int code){
 }
 
 static int
-my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
+my_wc_mb_gbk(const CHARSET_INFO *cs  __attribute__((unused)),
 	      my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -10690,7 +10701,7 @@ my_wc_mb_gbk(CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static int
-my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_gbk(const CHARSET_INFO *cs __attribute__((unused)),
 	      my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int hi;
@@ -10721,7 +10732,7 @@ my_mb_wc_gbk(CHARSET_INFO *cs __attribute__((unused)),
   Returns well formed length of a GBK string.
 */
 static
-size_t my_well_formed_len_gbk(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_gbk(const CHARSET_INFO *cs __attribute__((unused)),
                               const char *b, const char *e,
                               size_t pos, int *error)
 {
@@ -10813,11 +10824,10 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     to_lower_gbk,
     to_upper_gbk,
     sort_order_gbk,
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gbk,    /* caseinfo     */
+    &my_caseinfo_gbk,   /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10829,6 +10839,8 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     0xA967,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_ci_handler
 };
@@ -10845,11 +10857,10 @@ CHARSET_INFO my_charset_gbk_bin=
     to_lower_gbk,
     to_upper_gbk,
     NULL,		/* sort_order   */
-    NULL,		/* contractions */
-    NULL,		/* sort_order_big*/
+    NULL,		/* uca          */
     NULL,		/* tab_to_uni   */
     NULL,		/* tab_from_uni */
-    my_caseinfo_gbk,    /* caseinfo     */
+    &my_caseinfo_gbk,   /* caseinfo     */
     NULL,		/* state_map    */
     NULL,		/* ident_map    */
     1,			/* strxfrm_multiply */
@@ -10861,6 +10872,8 @@ CHARSET_INFO my_charset_gbk_bin=
     0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
+    1,                  /* levels_for_compare */
+    1,                  /* levels_for_order   */
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };

@@ -72,19 +72,21 @@ IF(MSVC)
   ENDFOREACH()
   
   # Force static runtime libraries
+  # Choose C++ exception handling:
+  #   If /EH is not specified, the compiler will catch structured and
+  #   C++ exceptions, but will not destroy C++ objects that will go out of
+  #   scope as a result of the exception.
+  #   /EHsc catches C++ exceptions only and tells the compiler to assume that
+  #   extern C functions never throw a C++ exception.
   FOREACH(flag 
    CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO 
    CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT 
    CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
    CMAKE_CXX_FLAGS_DEBUG  CMAKE_CXX_FLAGS_DEBUG_INIT)
    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+   SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()
   
-  # Remove support for exceptions
-  FOREACH(flag CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_INIT)
-   STRING(REPLACE "/EHsc" ""   "${flag}" "${${flag}}") 
-  ENDFOREACH()
- 
   # Fix CMake's predefined huge stack size
   FOREACH(type EXE SHARED MODULE)
    STRING(REGEX REPLACE "/STACK:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS "${CMAKE_${type}_LINKER_FLAGS}")
@@ -107,7 +109,6 @@ IF(MSVC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")
 
-
   IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
     # _WIN64 is defined by the compiler itself. 
     # Yet, we define it here again   to work around a bug with  Intellisense 
@@ -121,9 +122,6 @@ ENDIF()
 LINK_LIBRARIES(ws2_32)
 # ..also for tests
 SET(CMAKE_REQUIRED_LIBRARIES ws2_32)
-
-# System checks
-SET(SIGNAL_WITH_VIO_CLOSE 1) # Something that runtime team needs
 
 # IPv6 constants appeared in Vista SDK first. We need to define them in any case if they are 
 # not in headers, to handle dual mode sockets correctly.

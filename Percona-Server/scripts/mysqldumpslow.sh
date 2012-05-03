@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2000-2002, 2005-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -100,7 +99,7 @@ while ( defined($_ = shift @pending) or defined($_ = <>) ) {
     }
 
     s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
-    my ($user,$host) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+).*\n// ? ($1,$2) : ('','');
+    my ($user,$host,$dummy,$thread_id) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+)\s+\S+(\s+Id:\s+(\d+))?.*\n// ? ($1,$2,$3,$4) : ('','','','','');
 
     s/^# Query_time: ([0-9.]+)\s+Lock_time: ([0-9.]+)\s+Rows_sent: ([0-9.]+).*\n//;
     my ($t, $l, $r) = ($1, $2, $3);

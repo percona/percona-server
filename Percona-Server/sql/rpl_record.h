@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #ifndef RPL_RECORD_H
 #define RPL_RECORD_H
@@ -35,7 +35,7 @@ int unpack_row(Relay_log_info const *rli,
                uchar const **const row_end, ulong *const master_reclength);
 
 // Fill table's record[0] with default values.
-int prepare_record(TABLE *const table, const uint skip, const bool check);
+int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check);
 #endif
 
 #endif

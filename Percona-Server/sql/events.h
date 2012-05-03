@@ -31,6 +31,11 @@ extern PSI_cond_key key_event_scheduler_COND_state;
 extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
 #endif /* HAVE_PSI_INTERFACE */
 
+/* Always defined, for SHOW PROCESSLIST. */
+extern PSI_stage_info stage_waiting_on_empty_queue;
+extern PSI_stage_info stage_waiting_for_next_activation;
+extern PSI_stage_info stage_waiting_for_scheduler_to_stop;
+
 #include "sql_string.h"                         /* LEX_STRING */
 #include "my_time.h"                            /* interval_type */
 
@@ -40,7 +45,6 @@ class Event_queue;
 class Event_scheduler;
 struct TABLE_LIST;
 class THD;
-typedef class Item COND;
 typedef struct charset_info_st CHARSET_INFO;
 
 int
@@ -121,7 +125,7 @@ public:
                                   longlong expression);
 
   static int
-  fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
+  fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */);
 
   static void
   dump_internal_status();

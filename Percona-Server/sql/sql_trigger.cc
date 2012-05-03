@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #define MYSQL_LEX 1
@@ -92,9 +92,9 @@ private:
     :Stored_program_creation_ctx(thd)
   { }
 
-  Trigger_creation_ctx(CHARSET_INFO *client_cs,
-                       CHARSET_INFO *connection_cl,
-                       CHARSET_INFO *db_cl)
+  Trigger_creation_ctx(const CHARSET_INFO *client_cs,
+                       const CHARSET_INFO *connection_cl,
+                       const CHARSET_INFO *db_cl)
     :Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
   { }
 };
@@ -111,9 +111,9 @@ Trigger_creation_ctx::create(THD *thd,
                              const LEX_STRING *connection_cl_name,
                              const LEX_STRING *db_cl_name)
 {
-  CHARSET_INFO *client_cs;
-  CHARSET_INFO *connection_cl;
-  CHARSET_INFO *db_cl;
+  const CHARSET_INFO *client_cs;
+  const CHARSET_INFO *connection_cl;
+  const CHARSET_INFO *db_cl;
 
   bool invalid_creation_ctx= FALSE;
 
@@ -157,7 +157,7 @@ Trigger_creation_ctx::create(THD *thd,
   if (invalid_creation_ctx)
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_WARN,
+                        Sql_condition::WARN_LEVEL_WARN,
                         ER_TRG_INVALID_CREATION_CTX,
                         ER(ER_TRG_INVALID_CREATION_CTX),
                         (const char *) db_name,
@@ -329,9 +329,9 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                MYSQL_ERROR::enum_warning_level level,
+                                Sql_condition::enum_warning_level level,
                                 const char* message,
-                                MYSQL_ERROR ** cond_hdl)
+                                Sql_condition ** cond_hdl)
   {
     if (sql_errno != EE_OUTOFMEMORY &&
         sql_errno != ER_OUT_OF_RESOURCES)
@@ -578,6 +578,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 end:
   if (!result)
   {
+    if (tables)
+      thd->add_to_binlog_accessed_dbs(tables->db);
     result= write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
@@ -633,7 +635,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING *trg_def;
   LEX_STRING definer_user;
   LEX_STRING definer_host;
-  ulonglong *trg_sql_mode;
+  sql_mode_t *trg_sql_mode;
   char trg_definer_holder[USER_HOST_BUFF_SIZE];
   LEX_STRING *trg_definer;
   Item_trigger_field *trg_field;
@@ -776,7 +778,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   if (!(trg_def= alloc_lex_string(&table->mem_root)) ||
       definitions_list.push_back(trg_def, &table->mem_root) ||
 
-      !(trg_sql_mode= alloc_type<ulonglong>(&table->mem_root)) ||
+      !(trg_sql_mode= alloc_type<sql_mode_t>(&table->mem_root)) ||
       definition_modes_list.push_back(trg_sql_mode, &table->mem_root) ||
 
       !(trg_definer= alloc_lex_string(&table->mem_root)) ||
@@ -801,7 +803,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                    lex->definer->user.str))
   {
     push_warning_printf(thd,
-                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        Sql_condition::WARN_LEVEL_NOTE,
                         ER_NO_SUCH_USER,
                         ER(ER_NO_SUCH_USER),
                         lex->definer->user.str,
@@ -991,7 +993,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables,
 
   List_iterator_fast<LEX_STRING> it_name(names_list);
 
-  List_iterator<ulonglong> it_mod(definition_modes_list);
+  List_iterator<sql_mode_t> it_mod(definition_modes_list);
   List_iterator<LEX_STRING> it_def(definitions_list);
   List_iterator<LEX_STRING> it_definer(definers_list);
   List_iterator<LEX_STRING> it_client_cs_name(client_cs_names);
@@ -1197,7 +1199,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
       LEX_STRING *trg_create_str;
-      ulonglong *trg_sql_mode;
+      sql_mode_t *trg_sql_mode;
 
       if (triggers->definition_modes_list.is_empty() &&
           !triggers->definitions_list.is_empty())
@@ -1208,7 +1210,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           We use one mode (current) for all triggers, because we have not
           information about mode in old format.
         */
-        if (!(trg_sql_mode= alloc_type<ulonglong>(&table->mem_root)))
+        if (!(trg_sql_mode= alloc_type<sql_mode_t>(&table->mem_root)))
         {
           DBUG_RETURN(1); // EOM
         }
@@ -1279,7 +1281,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           DBUG_RETURN(1); // EOM
         }
 
-        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_TRG_NO_CREATION_CTX,
                             ER(ER_TRG_NO_CREATION_CTX),
                             (const char*) db,
@@ -1344,14 +1346,14 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       if (!names_only && triggers->prepare_record1_accessors(table))
         DBUG_RETURN(1);
 
-      List_iterator_fast<ulonglong> itm(triggers->definition_modes_list);
+      List_iterator_fast<sql_mode_t> itm(triggers->definition_modes_list);
       List_iterator_fast<LEX_STRING> it_definer(triggers->definers_list);
       List_iterator_fast<LEX_STRING> it_client_cs_name(triggers->client_cs_names);
       List_iterator_fast<LEX_STRING> it_connection_cl_name(triggers->connection_cl_names);
       List_iterator_fast<LEX_STRING> it_db_cl_name(triggers->db_cl_names);
       LEX *old_lex= thd->lex, lex;
       sp_rcontext *save_spcont= thd->spcont;
-      ulong save_sql_mode= thd->variables.sql_mode;
+      sql_mode_t save_sql_mode= thd->variables.sql_mode;
       LEX_STRING *on_table_name;
 
       thd->lex= &lex;
@@ -1365,7 +1367,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         trg_sql_mode= itm++;
         LEX_STRING *trg_definer= it_definer++;
 
-        thd->variables.sql_mode= (ulong)*trg_sql_mode;
+        thd->variables.sql_mode= *trg_sql_mode;
 
         Parser_state parser_state;
         if (parser_state.init(thd, trg_create_str->str, trg_create_str->length))
@@ -1451,7 +1453,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         sp= triggers->bodies[event][action_time]= lex.sphead;
         lex.sphead= NULL; /* Prevent double cleanup. */
 
-        sp->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
+        sp->set_info(0, 0, &lex.sp_chistics, *trg_sql_mode);
         sp->set_creation_ctx(creation_ctx);
 
         if (!trg_definer->length)
@@ -1462,7 +1464,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             warning here.
           */
 
-          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                               ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
                               (const char*) db,
                               (const char*) sp->m_name.str);
@@ -1603,7 +1605,7 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
                                            trg_action_time_type time_type,
                                            LEX_STRING *trigger_name,
                                            LEX_STRING *trigger_stmt,
-                                           ulong *sql_mode,
+                                           sql_mode_t *sql_mode,
                                            LEX_STRING *definer,
                                            LEX_STRING *client_cs_name,
                                            LEX_STRING *connection_cl_name,
@@ -1649,14 +1651,14 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
 void Table_triggers_list::get_trigger_info(THD *thd,
                                            int trigger_idx,
                                            LEX_STRING *trigger_name,
-                                           ulonglong *sql_mode,
+                                           sql_mode_t *sql_mode,
                                            LEX_STRING *sql_original_stmt,
                                            LEX_STRING *client_cs_name,
                                            LEX_STRING *connection_cl_name,
                                            LEX_STRING *db_cl_name)
 {
   List_iterator_fast<LEX_STRING> it_trigger_name(names_list);
-  List_iterator_fast<ulonglong> it_sql_mode(definition_modes_list);
+  List_iterator_fast<sql_mode_t> it_sql_mode(definition_modes_list);
   List_iterator_fast<LEX_STRING> it_sql_orig_stmt(definitions_list);
   List_iterator_fast<LEX_STRING> it_client_cs_name(client_cs_names);
   List_iterator_fast<LEX_STRING> it_connection_cl_name(connection_cl_names);
@@ -1735,7 +1737,7 @@ bool add_table_for_trigger(THD *thd,
     if (if_exists)
     {
       push_warning_printf(thd,
-                          MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          Sql_condition::WARN_LEVEL_NOTE,
                           ER_TRG_DOES_NOT_EXIST,
                           ER(ER_TRG_DOES_NOT_EXIST));
 
@@ -1779,7 +1781,7 @@ bool Table_triggers_list::drop_all_triggers(THD *thd, char *db, char *name)
   bool result= 0;
   DBUG_ENTER("drop_all_triggers");
 
-  bzero(&table, sizeof(table));
+  memset(&table, 0, sizeof(table));
   init_sql_alloc(&table.mem_root, 8192, 0);
 
   if (Table_triggers_list::check_n_load(thd, db, name, &table, 1))
@@ -1851,7 +1853,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 {
   char path_buff[FN_REFLEN];
   LEX_STRING *def, *on_table_name, new_def;
-  ulong save_sql_mode= thd->variables.sql_mode;
+  sql_mode_t save_sql_mode= thd->variables.sql_mode;
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
   List_iterator_fast<ulonglong> it_mode(definition_modes_list);
@@ -1864,7 +1866,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
   while ((def= it_def++))
   {
     on_table_name= it_on_table_name++;
-    thd->variables.sql_mode= (ulong) *(it_mode++);
+    thd->variables.sql_mode= *(it_mode++);
 
     /* Construct CREATE TRIGGER statement with new table name. */
     buff.length(0);
@@ -1999,7 +2001,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   LEX_STRING *err_trigname;
   DBUG_ENTER("change_table_name");
 
-  bzero(&table, sizeof(table));
+  memset(&table, 0, sizeof(table));
   init_sql_alloc(&table.mem_root, 8192, 0);
 
   /*
@@ -2303,7 +2305,7 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
     push_warning_printf(current_thd,
-                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        Sql_condition::WARN_LEVEL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
@@ -2344,7 +2346,7 @@ process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
 
     DBUG_PRINT("info", ("trigger_table affected by BUG#15921 detected"));
     push_warning_printf(current_thd,
-                        MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        Sql_condition::WARN_LEVEL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");

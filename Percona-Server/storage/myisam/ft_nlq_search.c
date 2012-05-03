@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ typedef struct st_all_in_one
 {
   MI_INFO    *info;
   uint	      keynr;
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   uchar      *keybuff;
   TREE	      dtree;
 } ALL_IN_ONE;
@@ -229,7 +229,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   if (! (ftparser_param= ftparser_call_initializer(info, keynr, 0)))
     goto err;
 
-  bzero(&wtree,sizeof(wtree));
+  memset(&wtree, 0, sizeof(wtree));
 
   init_tree(&aio.dtree,0,0,sizeof(FT_SUPERDOC),(qsort_cmp2)&FT_SUPERDOC_cmp,0,
             NULL, NULL);

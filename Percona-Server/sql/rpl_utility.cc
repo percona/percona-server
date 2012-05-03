@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,20 +11,28 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_utility.h"
 
 #ifndef MYSQL_CLIENT
 #include "unireg.h"                      // REQUIRED by later includes
 #include "rpl_rli.h"
-#include "sql_select.h"
+#include "sql_tmp_table.h"               // tmp tables
+#include "rpl_rli.h"
+#include "log_event.h"
+
+#include <algorithm>
+
+using std::min;
+using std::max;
+
 
 /**
    Function to compare two size_t integers for their relative
    order. Used below.
  */
-int compare(size_t a, size_t b)
+static int compare(size_t a, size_t b)
 {
   if (a < b)
     return -1;
@@ -39,7 +47,7 @@ int compare(size_t a, size_t b)
 
    The somewhat contorted expression is to avoid overflow.
  */
-uint32 uint_max(int bits) {
+static uint32 uint_max(int bits) {
   return (((1UL << (bits - 1)) - 1) << 1) | 1;
 }
 
@@ -107,12 +115,15 @@ max_display_length_for_field(enum_field_types sql_type, unsigned int metadata)
 
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
     return 3;
 
   case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
     return 4;
 
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
     return 8;
 
   case MYSQL_TYPE_BIT:
@@ -186,6 +197,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
   DBUG_RETURN(result);
 }
 
+
 /*********************************************************************
  *                   table_def member definitions                    *
  *********************************************************************/
@@ -225,10 +237,12 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
       /*
         We are reading the actual size from the master_data record
         because this field has the actual lengh stored in the first
-        byte.
+        one or two bytes.
       */
-      length= (uint) *master_data + 1;
-      DBUG_ASSERT(length != 0);
+      length= max_display_length_for_field(MYSQL_TYPE_STRING, m_field_metadata[col]) > 255 ? 2 : 1;
+
+      /* As in Field_string::unpack */
+      length+= ((length == 1) ? *master_data : uint2korr(master_data));
     }
     break;
   }
@@ -260,11 +274,20 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_TIME:
     length= 3;
     break;
+  case MYSQL_TYPE_TIME2:
+    length= my_time_binary_length(m_field_metadata[col]);
+    break;
   case MYSQL_TYPE_TIMESTAMP:
     length= 4;
     break;
+  case MYSQL_TYPE_TIMESTAMP2:
+    length= my_timestamp_binary_length(m_field_metadata[col]);
+    break;
   case MYSQL_TYPE_DATETIME:
     length= 8;
+    break;
+  case MYSQL_TYPE_DATETIME2:
+    length= my_datetime_binary_length(m_field_metadata[col]);
     break;
   case MYSQL_TYPE_BIT:
   {
@@ -284,7 +307,6 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_VARCHAR:
   {
     length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
-    DBUG_ASSERT(uint2korr(master_data) > 0);
     length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
     break;
   }
@@ -342,7 +364,8 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 
 /**
  */
-void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_INFO *field_cs)
+static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                          const CHARSET_INFO *field_cs)
 {
   DBUG_ENTER("show_sql_type");
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
@@ -374,6 +397,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
     break;
 
   case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
     str->set_ascii(STRING_WITH_LEN("timestamp"));
     break;
 
@@ -391,10 +415,12 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
     break;
 
   case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
     str->set_ascii(STRING_WITH_LEN("time"));
     break;
 
   case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
     str->set_ascii(STRING_WITH_LEN("datetime"));
     break;
 
@@ -405,7 +431,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_VARCHAR:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "varchar(%u)", metadata);
@@ -415,7 +441,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
 
   case MYSQL_TYPE_BIT:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
@@ -426,7 +452,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
 
   case MYSQL_TYPE_DECIMAL:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "decimal(%d,?)", metadata);
@@ -436,7 +462,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
 
   case MYSQL_TYPE_NEWDECIMAL:
     {
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
                            "decimal(%d,%d)", metadata >> 8, metadata & 0xff);
@@ -487,7 +513,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
       /*
         This is taken from Field_string::unpack.
       */
-      CHARSET_INFO *cs= str->charset();
+      const CHARSET_INFO *cs= str->charset();
       uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
@@ -613,6 +639,23 @@ can_convert_field_to(Field *field,
     else
       DBUG_RETURN(false);
   }
+  else if (metadata == 0 &&
+           ((field->real_type() == MYSQL_TYPE_TIMESTAMP2 &&
+             source_type == MYSQL_TYPE_TIMESTAMP) ||
+            (field->real_type() == MYSQL_TYPE_TIME2 &&
+             source_type == MYSQL_TYPE_TIME) ||
+            (field->real_type() == MYSQL_TYPE_DATETIME2 &&
+             source_type == MYSQL_TYPE_DATETIME)))
+  {
+    /*
+      TS-TODO: conversion from FSP1>FSP2.
+      Can do non-lossy conversion
+      from old TIME, TIMESTAMP, DATETIME
+      to new TIME(0), TIMESTAMP(0), DATETIME(0).
+    */
+    *order_var= -1;
+    DBUG_RETURN(true);
+  }
   else if (!slave_type_conversions_options)
     DBUG_RETURN(false);
 
@@ -737,6 +780,9 @@ can_convert_field_to(Field *field,
   case MYSQL_TYPE_NULL:
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_TIMESTAMP2:
+  case MYSQL_TYPE_DATETIME2:
+  case MYSQL_TYPE_TIME2:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(false);                                 // To keep GCC happy
@@ -778,7 +824,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
   /*
     We only check the initial columns for the tables.
   */
-  uint const cols_to_check= min(table->s->fields, size());
+  uint const cols_to_check= min<ulong>(table->s->fields, size());
   TABLE *tmp_table= NULL;
 
   for (uint col= 0 ; col < cols_to_check ; ++col)
@@ -932,7 +978,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
                          " maybe_null: %d, unsigned_flag: %d, pack_length: %u",
-                         type(col), target_table->field[col]->field_name,
+                         binlog_type(col), target_table->field[col]->field_name,
                          max_length, decimals, TRUE, FALSE, pack_length));
     field_def->init_for_tmp_table(type(col),
                                   max_length,
@@ -969,7 +1015,7 @@ table_def::table_def(unsigned char *types, ulong size,
                                      &m_null_bits, (size + 7) / 8,
                                      NULL);
 
-  bzero(m_field_metadata, size * sizeof(uint16));
+  memset(m_field_metadata, 0, size * sizeof(uint16));
 
   if (m_type)
     memcpy(m_type, types, size);
@@ -987,7 +1033,7 @@ table_def::table_def(unsigned char *types, ulong size,
     int index= 0;
     for (unsigned int i= 0; i < m_size; i++)
     {
-      switch (m_type[i]) {
+      switch (binlog_type(i)) {
       case MYSQL_TYPE_TINY_BLOB:
       case MYSQL_TYPE_BLOB:
       case MYSQL_TYPE_MEDIUM_BLOB:
@@ -1036,6 +1082,11 @@ table_def::table_def(unsigned char *types, ulong size,
         m_field_metadata[i]= x;
         break;
       }
+      case MYSQL_TYPE_TIME2:
+      case MYSQL_TYPE_DATETIME2:
+      case MYSQL_TYPE_TIMESTAMP2:
+        m_field_metadata[i]= field_metadata[index++];
+        break;
       default:
         m_field_metadata[i]= 0;
         break;
@@ -1054,5 +1105,61 @@ table_def::~table_def()
   m_type= 0;
   m_size= 0;
 #endif
+}
+
+/**
+   @param   even_buf    point to the buffer containing serialized event
+   @param   event_len   length of the event accounting possible checksum alg
+
+   @return  TRUE        if test fails
+            FALSE       as success
+*/
+bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
+{
+  bool res= FALSE;
+  uint16 flags= 0; // to store in FD's buffer flags orig value
+
+  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF)
+  {
+    ha_checksum incoming;
+    ha_checksum computed;
+
+    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+    {
+#ifndef DBUG_OFF
+      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN - 
+                             BINLOG_CHECKSUM_ALG_DESC_LEN];
+#endif
+      /*
+        FD event is checksummed and therefore verified w/o the binlog-in-use flag
+      */
+      flags= uint2korr(event_buf + FLAGS_OFFSET);
+      if (flags & LOG_EVENT_BINLOG_IN_USE_F)
+        event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+      /* 
+         The only algorithm currently is CRC32. Zero indicates 
+         the binlog file is checksum-free *except* the FD-event.
+      */
+      DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
+      DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
+      /*
+        Complile time guard to watch over  the max number of alg
+      */
+      compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
+    }
+    incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
+    computed= my_checksum(0L, NULL, 0);
+    /* checksum the event content but the checksum part itself */
+    computed= my_checksum(computed, (const uchar*) event_buf, 
+                          event_len - BINLOG_CHECKSUM_LEN);
+    if (flags != 0)
+    {
+      /* restoring the orig value of flags of FD */
+      DBUG_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
+      event_buf[FLAGS_OFFSET]= flags;
+    }
+    res= !(computed == incoming);
+  }
+  return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
 }
 

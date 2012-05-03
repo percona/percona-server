@@ -1,8 +1,7 @@
 #ifndef HA_NDBCLUSTER_INCLUDED
 #define HA_NDBCLUSTER_INCLUDED
 
-/* Copyright (c) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /*
   This file defines the NDB Cluster handler: the interface between MySQL and
@@ -23,10 +22,6 @@
 */
 
 /* The class defining a handle to an NDB Cluster table */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                       /* gcc class implementation */
-#endif
 
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
@@ -261,16 +256,23 @@ class ha_ndbcluster: public handler
   int alter_tablespace(st_alter_tablespace *info);
 
   /**
-   * Multi range stuff
+   * Multi Range Read interface
    */
-  int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                             KEY_MULTI_RANGE*ranges, uint range_count,
-                             bool sorted, HANDLER_BUFFER *buffer);
-  int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
-  bool null_value_index_search(KEY_MULTI_RANGE *ranges,
-			       KEY_MULTI_RANGE *end_range,
-			       HANDLER_BUFFER *buffer);
-
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
+  ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                      void *seq_init_param, 
+                                      uint n_ranges, uint *bufsz,
+                                      uint *flags, COST_VECT *cost);
+  ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                uint *bufsz, uint *flags, COST_VECT *cost);
+private:
+  uint first_running_range;
+  uint first_range_in_batch;
+  uint first_unstarted_range;
+  int multi_range_start_retrievals(int first_range);
+public:
   bool get_error_message(int error, String *buf);
   ha_rows records();
   ha_rows estimate_rows_upper_bound()
@@ -364,7 +366,7 @@ static void set_tabname(const char *pathname, char *tabname);
    =, !=, >, >=, <, <=, like, "not like", "is null", and "is not null". 
    Negated conditions are supported by NOT which generate NAND/NOR groups.
  */ 
-  const COND *cond_push(const COND *cond);
+  const Item *cond_push(const Item *cond);
  /*
    Pop the top condition from the condition stack of the handler instance.
    SYNOPSIS
@@ -389,7 +391,7 @@ static void set_tabname(const char *pathname, char *tabname);
 				  uint table_changes);
 
 private:
-  int loc_read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
+  int loc_read_multi_range_next(char **range_info);
   friend int ndbcluster_drop_database_impl(const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
                                       Ndb *ndb, NdbEventOperation *pOp,
@@ -562,8 +564,6 @@ private:
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
   uchar *m_multi_range_result_ptr;
-  KEY_MULTI_RANGE *m_multi_ranges;
-  KEY_MULTI_RANGE *m_multi_range_defined;
   const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
   uchar *m_multi_range_cursor_result_ptr;

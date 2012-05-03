@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ void* my_once_alloc(size_t Size, myf MyFlags)
   next->left-= Size;
 
   if (MyFlags & MY_ZEROFILL)
-    bzero(point, Size);
+    memset(point, 0, Size);
   return((void*) point);
 } /* my_once_alloc */
 

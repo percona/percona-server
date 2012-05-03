@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
   file=file2=0;
   get_options(argc,argv);
 
-  bzero(&hp_create_info, sizeof(hp_create_info));
+  memset(&hp_create_info, 0, sizeof(hp_create_info));
   hp_create_info.max_table_size= 1024L*1024L;
   hp_create_info.keys= keys;
   hp_create_info.keydef= keyinfo;
@@ -118,8 +118,8 @@ int main(int argc, char *argv[])
   keyinfo[3].seg[0].null_pos=38;
   keyinfo[3].seg[0].charset=cs;
 
-  bzero((char*) key1,sizeof(key1));
-  bzero((char*) key3,sizeof(key3));
+  memset(key1, 0, sizeof(key1));
+  memset(key3, 0, sizeof(key3));
 
   printf("- Creating heap-file\n");
   if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||
@@ -132,7 +132,9 @@ int main(int argc, char *argv[])
 
   for (i=0 ; i < recant ; i++)
   {
-    n1=rnd(1000); n2=rnd(100); n3=rnd(min(recant*5,MAX_RECORDS));
+    n1= rnd(1000);
+    n2= rnd(100);
+    n3= rnd(MY_MIN(recant * 5, MAX_RECORDS));
     make_record(record,n1,n2,n3,"Pos",write_count);
 
     if (heap_write(file,record))
@@ -208,7 +210,9 @@ int main(int argc, char *argv[])
   printf("- Update\n");
   for (i=0 ; i < write_count/10 ; i++)
   {
-    n1=rnd(1000); n2=rnd(100); n3=rnd(min(recant*2,MAX_RECORDS));
+    n1= rnd(1000);
+    n2= rnd(100);
+    n3= rnd(MY_MIN(recant * 2, MAX_RECORDS));
     make_record(record2, n1, n2, n3, "XXX", update);
     if (rnd(2) == 1)
     {
@@ -386,7 +390,7 @@ int main(int argc, char *argv[])
   {
     if (!error)
       pos--;
-    if (i-- == 0)
+    if (!error && (i-- == 0))
     {
       bmove(record3,record,reclength);
       position=heap_position(file);
@@ -594,6 +598,7 @@ end:
   printf("\nFollowing test have been made:\n");
   printf("Write records: %d\nUpdate records: %d\nDelete records: %d\n", write_count,update,opt_delete);
   heap_clear(file);
+  heap_clear(file2);
   if (heap_close(file) || (file2 && heap_close(file2)))
     goto err;
   heap_delete_table(filename2);
@@ -675,7 +680,7 @@ static int calc_check(uchar *buf, uint length)
 static void make_record(uchar *record, uint n1, uint n2, uint n3,
 			const char *mark, uint count)
 {
-  bfill(record,reclength,' ');
+  memset(record, ' ', reclength);
   sprintf((char*) record,"%6d:%4d:%8d:%3.3s: %4d",
 	  n1,n2,n3,mark,count);
   record[37]='A';				/* Store A in null key */

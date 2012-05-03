@@ -12,8 +12,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
   @addtogroup Event_Scheduler
@@ -132,7 +132,7 @@ public:
   ulonglong created;
   ulonglong modified;
 
-  ulong sql_mode;
+  sql_mode_t sql_mode;
 
   class Stored_program_creation_ctx *creation_ctx;
   LEX_STRING body_utf8;
@@ -158,7 +158,7 @@ public:
   LEX_STRING definer_user;
   LEX_STRING definer_host;
 
-  ulong sql_mode;
+  sql_mode_t sql_mode;
 
   class Stored_program_creation_ctx *creation_ctx;
 

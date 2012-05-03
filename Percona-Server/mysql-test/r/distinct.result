@@ -173,9 +173,9 @@ INSERT INTO t2 values (1),(2),(3);
 INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
 explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	4	Using temporary
-1	SIMPLE	t3	ref	a	a	5	test.t1.b	2	Using where; Using index
-1	SIMPLE	t2	index	a	a	4	NULL	5	Using where; Using index; Distinct; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	4	Using where; Using temporary
+1	SIMPLE	t3	ref	a	a	5	test.t1.b	2	Using index
+1	SIMPLE	t2	index	a	a	4	NULL	5	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
 SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 a
 1
@@ -190,7 +190,7 @@ insert into t3 select * from t4;
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index; Using temporary
-1	SIMPLE	t3	ref	a	a	5	test.t1.a	11	Using where; Using index; Distinct
+1	SIMPLE	t3	ref	a	a	5	test.t1.a	11	Using index; Distinct
 select distinct t1.a from t1,t3 where t1.a=t3.a;
 a
 1
@@ -300,12 +300,12 @@ WHERE
 AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	id	id	4	NULL	2	Using index; Using temporary
-1	SIMPLE	t2	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer
-1	SIMPLE	t3	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer
-1	SIMPLE	j_lj_t2	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer
-1	SIMPLE	t2_lj	ref	id	id	4	test.j_lj_t2.id	1	Using where; Using index; Distinct
-1	SIMPLE	j_lj_t3	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer
-1	SIMPLE	t3_lj	ref	id	id	4	test.j_lj_t3.id	1	Using where; Using index; Distinct
+1	SIMPLE	t2	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	index	id	id	8	NULL	1	Using index; Distinct; Using join buffer (Block Nested Loop)
+1	SIMPLE	j_lj_t2	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2_lj	index	id	id	8	NULL	1	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
+1	SIMPLE	j_lj_t3	index	id	id	4	NULL	2	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3_lj	index	id	id	8	NULL	1	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
 SELECT DISTINCT
 t1.id
 from
@@ -511,11 +511,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	3	Using index
 EXPLAIN SELECT DISTINCT a,b FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 EXPLAIN SELECT DISTINCT t1_1.a, t1_1.b FROM t1 t1_1, t1 t1_2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1_1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
-1	SIMPLE	t1_2	index	NULL	PRIMARY	4	NULL	3	Using index; Distinct; Using join buffer
+1	SIMPLE	t1_2	index	NULL	PRIMARY	4	NULL	3	Using index; Distinct; Using join buffer (Block Nested Loop)
 EXPLAIN SELECT DISTINCT t1_1.a, t1_1.b FROM t1 t1_1, t1 t1_2
 WHERE t1_1.a = t1_2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -547,7 +547,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using temporary
 EXPLAIN SELECT DISTINCT c,a,b FROM t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 EXPLAIN SELECT DISTINCT a,b,d FROM t2 GROUP BY c,b,d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
@@ -805,3 +805,83 @@ c
 33334444
 DROP TABLE t1;
 End of 5.5 tests
+#
+# Bug#13335170 - ASSERT IN
+# PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG() ON SELECT DISTINCT 
+#
+CREATE TABLE t1 (
+col_int_key int(11) NOT NULL,
+col_time_key time NOT NULL,
+col_datetime_key datetime NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (7,'06:17:39','2003-08-21 00:00:00');
+SELECT DISTINCT col_int_key
+FROM t1
+WHERE col_int_key IN  ( 18, 6, 84, 4, 0, 2, 8, 3, 7, 9, 1 )  
+AND col_datetime_key BETWEEN '2001-08-04' AND '2003-06-13'  
+ORDER BY col_time_key
+LIMIT 3;
+col_int_key
+DROP TABLE t1;
+#
+# BUG#13540692: WRONG NULL HANDLING WITH RIGHT JOIN + 
+#               DISTINCT OR ORDER BY
+#
+CREATE TABLE t1 (
+a INT,
+b INT NOT NULL
+);
+INSERT INTO t1 VALUES (1,2), (3,3);
+
+EXPLAIN SELECT DISTINCT subselect.b
+FROM t1 LEFT JOIN 
+(SELECT it_b.* FROM t1 as it_a LEFT JOIN t1 as it_b ON true) AS subselect 
+ON t1.a = subselect.b
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+2	DERIVED	it_a	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DERIVED	it_b	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+SELECT DISTINCT subselect.b
+FROM t1 LEFT JOIN 
+(SELECT it_b.* FROM t1 as it_a LEFT JOIN t1 as it_b ON true) AS subselect 
+ON t1.a = subselect.b
+;
+b
+3
+NULL
+DROP TABLE t1;
+#
+# BUG#13538387: WRONG RESULT ON SELECT DISTINCT + LEFT JOIN + 
+#               LIMIT + MIX OF MYISAM AND INNODB
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (2),(3);
+CREATE TABLE t2 (b INT);
+CREATE TABLE t3 (
+a INT,
+b INT,
+PRIMARY KEY (b)
+);
+INSERT INTO t3 VALUES (2001,1), (2007,2);
+EXPLAIN SELECT DISTINCT t3.a AS t3_date
+FROM t1
+LEFT JOIN t2 ON false
+LEFT JOIN t3 ON t2.b = t3.b
+LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	SIMPLE	t3	const	PRIMARY	NULL	NULL	NULL	1	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Distinct
+SELECT DISTINCT t3.a AS t3_date
+FROM t1
+LEFT JOIN t2 ON false
+LEFT JOIN t3 ON t2.b = t3.b
+LIMIT 1;
+t3_date
+NULL
+DROP TABLE t1,t2,t3;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,10 +30,6 @@
    @see
   /sql/handler.h and /storage/example/ha_example.cc
 */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include "my_global.h"                   /* ulonglong */
 #include "thr_lock.h"                    /* THR_LOCK, THR_LOCK_DATA */

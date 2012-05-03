@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,22 +40,22 @@ int decimal_operation_results(int result)
   case E_DEC_OK:
     break;
   case E_DEC_TRUNCATED:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
 			"", (long)-1);
     break;
   case E_DEC_OVERFLOW:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE),
 			"DECIMAL", "");
     break;
   case E_DEC_DIV_ZERO:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
     break;
   case E_DEC_BAD_NUM:
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
 			ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
 			"decimal", "", "", (long)-1);
@@ -106,7 +106,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
     required size of the buffer.
   */
   int length= (fixed_prec
-               ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1)
+               ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1 + 1)
                : my_decimal_string_length(d));
   int result;
   if (str->alloc(length))
@@ -146,7 +146,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
 bool
 str_set_decimal(uint mask, const my_decimal *val,
                 uint fixed_prec, uint fixed_dec, char filler,
-                String *str, CHARSET_INFO *cs)
+                String *str, const CHARSET_INFO *cs)
 {
   if (!(cs->state & MY_CS_NONASCII))
   {
@@ -233,7 +233,7 @@ int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
 */
 
 int str2my_decimal(uint mask, const char *from, uint length,
-                   CHARSET_INFO *charset, my_decimal *decimal_value)
+                   const CHARSET_INFO *charset, my_decimal *decimal_value)
 {
   char *end, *from_end;
   int err;
@@ -266,20 +266,70 @@ int str2my_decimal(uint mask, const char *from, uint length,
 }
 
 
-my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec)
+/**
+  Convert lldiv_t value to my_decimal value.
+  Integer part of the result is set to lld->quot.
+  Fractional part of the result is set to lld->rem divided to 1000000000.
+
+  @param       lld  The lldiv_t variable to convert from.
+  @param       neg  Sign flag (negative, 0 positive).
+  @param  OUT  dec  Decimal numbert to convert to.
+*/
+static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
+                                      my_decimal *dec)
 {
-  longlong date;
-  date = (ltime->year*100L + ltime->month)*100L + ltime->day;
-  if (ltime->time_type > MYSQL_TIMESTAMP_DATE)
-    date= ((date*100L + ltime->hour)*100L+ ltime->minute)*100L + ltime->second;
-  if (int2my_decimal(E_DEC_FATAL_ERROR, ltime->neg ? -date : date, FALSE, dec))
+  if (int2my_decimal(E_DEC_FATAL_ERROR, lld->quot, FALSE, dec))
     return dec;
-  if (ltime->second_part)
+  if (neg)
+    decimal_neg((decimal_t *) dec);
+  if (lld->rem)
   {
-    dec->buf[(dec->intg-1) / 9 + 1]= ltime->second_part * 1000;
+    dec->buf[(dec->intg-1) / 9 + 1]= lld->rem;
     dec->frac= 6;
   }
   return dec;
+}
+
+
+/**
+  Convert datetime value to my_decimal in format YYYYMMDDhhmmss.ffffff
+  @param ltime  Date value to convert from.
+  @param dec    Decimal value to convert to.
+*/
+my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec)
+{
+  lldiv_t lld;
+  lld.quot= ltime->time_type > MYSQL_TIMESTAMP_DATE ?
+            TIME_to_ulonglong_datetime(ltime) :
+            TIME_to_ulonglong_date(ltime);
+  lld.rem= (longlong) ltime->second_part * 1000;
+  return lldiv_t2my_decimal(&lld, ltime->neg, dec);
+}
+
+
+/**
+  Convert time value to my_decimal in format hhmmss.ffffff
+  @param ltime  Date value to convert from.
+  @param dec    Decimal value to convert to.
+*/
+my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec)
+{
+  lldiv_t lld;
+  lld.quot= TIME_to_ulonglong_time(ltime);
+  lld.rem= (longlong) ltime->second_part * 1000;
+  return lldiv_t2my_decimal(&lld, ltime->neg, dec);
+}
+
+
+/**
+  Convert timeval value to my_decimal.
+*/
+my_decimal *timeval2my_decimal(const struct timeval *tm, my_decimal *dec)
+{
+  lldiv_t lld;
+  lld.quot= tm->tv_sec;
+  lld.rem= (longlong) tm->tv_usec * 1000;
+  return lldiv_t2my_decimal(&lld, 0, dec);
 }
 
 

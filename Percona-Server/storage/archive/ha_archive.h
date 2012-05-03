@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -12,10 +12,6 @@
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
 
 #include <zlib.h>
 #include "azlib.h"
@@ -39,6 +35,7 @@ typedef struct st_archive_share {
   mysql_mutex_t mutex;
   THR_LOCK lock;
   azio_stream archive_write;     /* Archive file we are working with */
+  bool in_optimize;
   bool archive_write_open;
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
@@ -76,6 +73,10 @@ class ha_archive: public handler
   archive_record_buffer *create_record_buffer(unsigned int length);
   void destroy_record_buffer(archive_record_buffer *r);
   int frm_copy(azio_stream *src, azio_stream *dst);
+  void frm_load(const char *name, azio_stream *dst);
+  int read_v1_metafile();
+  int write_v1_metafile();
+  unsigned int pack_row_v1(uchar *record);
 
 public:
   ha_archive(handlerton *hton, TABLE_SHARE *table_arg);
@@ -143,11 +144,13 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
   bool is_crashed() const;
+  int check_for_upgrade(HA_CHECK_OPT *check_opt);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_and_repair(THD *thd);
   uint32 max_row_length(const uchar *buf);
   bool fix_rec_buff(unsigned int length);
   int unpack_row(azio_stream *file_to_read, uchar *record);
   unsigned int pack_row(uchar *record);
+  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 };
 

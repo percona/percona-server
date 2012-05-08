@@ -1,3 +1,4 @@
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 CREATE TABLE t1(a CHAR(255),
 b CHAR(255),
 c CHAR(255),

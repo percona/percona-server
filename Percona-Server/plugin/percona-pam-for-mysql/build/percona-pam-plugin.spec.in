@@ -1,0 +1,66 @@
+# (C) 2011 Percona Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+#
+
+Name:		Percona-PAM-plugin
+Version:	@VERSION@
+Release:	@REVISION@%{?dist}
+Summary:	PAM authentication plugin for MySQL
+
+Group:		Applications/Databases
+License:	GPLv2
+URL:		http://www.percona.com/
+BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+Source:		percona-pam-plugin-%{version}.tar.gz
+BuildRequires:	/usr/bin/mysql_config, mysql-devel >= 5.5, pam-devel
+Requires:	mysql-server >= 5.5
+
+%description
+The Percona PAM plugin enables users to authenticate to the MySQL server via
+PAM. This package contains the plugin library, you need to enable this
+behaviour in your server by issuing the following command:
+
+INSTALL PLUGIN auth_pam_server SONAME 'auth_pam.so';
+
+%prep
+%setup -q -n percona-pam-plugin-%{version}
+
+
+%build
+%configure --disable-static
+make %{?_smp_mflags}
+
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%files
+%defattr(-,root,root,-)
+/usr/lib64/mysql/plugin/auth_pam.so
+%exclude /usr/lib64/mysql/plugin/auth_pam.la
+%exclude /usr/lib64/mysql/plugin/test_auth_pam_client.la
+%exclude /usr/lib64/mysql/plugin/test_auth_pam_client.so
+
+%changelog
+
+* Wed Oct 20 2011 Ignacio Nin <ignacio.nin@percona.com>
+
+- Creation of the original .spec file

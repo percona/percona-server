@@ -4378,12 +4378,13 @@ dict_reload_statistics(
 	heap = mem_heap_create(1000);
 
 	while (index) {
+		mtr_t mtr;
+
 		if (table->is_corrupt) {
 			ut_a(srv_pass_corrupt_table);
 			mem_heap_free(heap);
 			return(FALSE);
 		}
-		mtr_t mtr;
 
 		mtr_start(&mtr);
 		mtr_s_lock(dict_index_get_lock(index), &mtr);

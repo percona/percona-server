@@ -1045,7 +1045,7 @@ btr_get_size(
 	root = btr_root_get(index, mtr);
 
 	if (srv_pass_corrupt_table && !root) {
-		mtr_commit(&mtr);
+		mtr_commit(mtr);
 		return(0);
 	}
 	ut_a(root);

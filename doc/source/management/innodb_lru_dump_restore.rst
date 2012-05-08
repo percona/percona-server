@@ -102,20 +102,12 @@ The pages are sorted by tablespace, and then by ID within the tablespace.
 The dump file is not deleted after loading, so you should delete it if you wish to disable the feature. For example, suppose you dump the LRU, and then some time later you decide to enable automatic dumping and reloading. You set the configuration variable and restart |MySQL|. Upon restart, the server will load the LRU to its state in the previously saved file, which might be very stale and not what you want to happen.
 
 
-Version Specific Information
-============================
-
-  * 5.1.50-12.1:
-    Automatic dump/restore implemented.
-  * 5.5.10-20.1:
-    Renamed variable :variable:`innodb_auto_lru_dump` to :variable:`innodb_buffer_pool_restore_at_startup`.
-
 System Variables
 ================
 
 .. variable:: innodb_auto_lru_dump
 
-     :version 5.5.10-20.1: Renamed.
+     :version 1.0.6-9: Added.
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -127,24 +119,18 @@ System Variables
 
 This variable specifies the time in seconds between automatic buffer pool dumps. When set to zero, automatic dumps are disabled and must be done manually. When set to a non-zero value, an automatic restore of the buffer pool is also performed at startup, as described above.
 
- This variable was renamed to :variable:`innodb_buffer_pool_restore_at_startup`, beginning in release 5.5.10-20.1. It still exists as :variable:`innodb_auto_lru_dump` in versions prior to that.
+.. variable:: innodb-blocking-lru-restore
 
-.. variable:: innodb_buffer_pool_restore_at_startup
-
-     :version 5.5.10-20.1: Added.
+     :version 5.1.59-13.0: Added.
      :cli: Yes
      :conf: Yes
      :scope: Global
-     :dyn: Yes
-     :vartype: Numeric
-     :default: 0
-     :range: 0-UINT_MAX32
-     :unit:  Seconds
+     :dyn: No
+     :vartype: Boolean
+     :default: OFF
+     :range: ON/OFF
 
-This variable specifies the time in seconds between automatic buffer pool dumps. When set to zero, automatic dumps are disabled and must be done manually. When set to a non-zero value, an automatic restore of the buffer pool is also performed at startup, as described above.
-
- This variable was added in release 5.5.10-20.1. Prior to that, it was named :variable:`innodb_auto_lru_dump`, which still exists in earlier versions.
-
+When this variable is set to ON XtraDB waits until the restore of the dump is completed before reporting successful startup to the server.
 
 Other reading
 =============

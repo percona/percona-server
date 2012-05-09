@@ -1168,7 +1168,7 @@ int ha_commit_trans(THD *thd, bool all)
     bool rw_trans;
     MDL_request mdl_request;
 
-    DBUG_EXECUTE_IF("crash_commit_before", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
     /* Close all cursors that can not survive COMMIT */
     if (is_real_trans)                          /* not a statement commit */
@@ -1213,7 +1213,7 @@ int ha_commit_trans(THD *thd, bool all)
     if (trans->no_2pc || (rw_ha_count <= 1))
     {
       error= ha_commit_one_phase(thd, all);
-      DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
       goto end;
     }
 
@@ -1245,12 +1245,12 @@ int ha_commit_trans(THD *thd, bool all)
 
         need_commit_ordered|= (ht->commit_ordered != NULL);
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
 
       if (!is_real_trans)
       {
         error= commit_one_phase_low(thd, all, trans, is_real_trans);
-        DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+        DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
         goto end;
       }
 
@@ -1258,22 +1258,22 @@ int ha_commit_trans(THD *thd, bool all)
     if (!cookie)
       goto err;
 
-    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
 
     error= commit_one_phase_low(thd, all, trans, is_real_trans) ? 2 : 0;
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
     if (is_real_trans)          /* userstat.patch */
       thd->diff_commit_trans++; /* userstat.patch */
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
 
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
       if(tc_log->unlog(cookie, xid))
       {
         error= 2;
         goto end;
       }
 
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
     goto end;
 
     /* Come here if error and we need to rollback. */

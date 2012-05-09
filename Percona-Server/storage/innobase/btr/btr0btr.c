@@ -686,6 +686,12 @@ btr_root_fseg_validate(
 {
 	ulint	offset = mach_read_from_2(seg_header + FSEG_HDR_OFFSET);
 
+	if (UNIV_UNLIKELY(srv_pass_corrupt_table)) {
+		return (mach_read_from_4(seg_header + FSEG_HDR_SPACE) == space)
+			&& (offset >= FIL_PAGE_DATA)
+			&& (offset <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
+	}
+
 	ut_a(mach_read_from_4(seg_header + FSEG_HDR_SPACE) == space);
 	ut_a(offset >= FIL_PAGE_DATA);
 	ut_a(offset <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
@@ -725,6 +731,17 @@ btr_root_block_get(
 	if (!dict_index_is_ibuf(index)) {
 		const page_t*	root = buf_block_get_frame(block);
 
+		if (UNIV_UNLIKELY(srv_pass_corrupt_table)) {
+			if (!btr_root_fseg_validate(FIL_PAGE_DATA
+						    + PAGE_BTR_SEG_LEAF
+						    + root, space))
+				return(NULL);
+			if (!btr_root_fseg_validate(FIL_PAGE_DATA
+						    + PAGE_BTR_SEG_TOP
+						    + root, space))
+				return(NULL);
+			return(block);
+		}
 		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 					    + root, space));
 		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
@@ -4478,6 +4495,12 @@ btr_validate_index(
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
 	root = btr_root_get(index, &mtr);
+
+	if (UNIV_UNLIKELY(srv_pass_corrupt_table && !root)) {
+		mtr_commit(&mtr);
+		return(FALSE);
+	}
+
 	n = btr_page_get_level(root, &mtr);
 
 	for (i = 0; i <= n && !trx_is_interrupted(trx); i++) {

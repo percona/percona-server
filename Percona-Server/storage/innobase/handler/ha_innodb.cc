@@ -195,6 +195,9 @@ static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innobase_use_sys_stats_table		= FALSE;
+#ifdef UNIV_DEBUG
+static ulong    innobase_sys_stats_root_page		= 0;
+#endif
 static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 static uint	innobase_buffer_pool_shm_key		= 0;
 
@@ -2747,6 +2750,10 @@ mem_free_and_error:
 	srv_doublewrite_file = innobase_doublewrite_file;
 
 	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
+
+#ifdef UNIV_DEBUG
+	srv_sys_stats_root_page = innobase_sys_stats_root_page;
+#endif
 
 	/* -------------- Log files ---------------------------*/
 
@@ -12392,6 +12399,13 @@ static MYSQL_SYSVAR_BOOL(use_sys_stats_table, innobase_use_sys_stats_table,
   "So you should use ANALYZE TABLE command intentionally.",
   NULL, NULL, FALSE);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_ULONG(sys_stats_root_page, innobase_sys_stats_root_page,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Override the SYS_STATS root page id, 0 = no override (for testing only)",
+  NULL, NULL, 0, 0, ULONG_MAX, 0);
+#endif
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -12842,6 +12856,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_auto_update),
   MYSQL_SYSVAR(stats_update_need_lock),
   MYSQL_SYSVAR(use_sys_stats_table),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(sys_stats_root_page),
+#endif
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(adaptive_hash_index_partitions),

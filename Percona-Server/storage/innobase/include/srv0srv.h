@@ -226,6 +226,9 @@ extern unsigned long long	srv_stats_sample_pages;
 extern ulint	srv_stats_auto_update;
 extern ulint	srv_stats_update_need_lock;
 extern ibool	srv_use_sys_stats_table;
+#ifdef UNIV_DEBUG
+extern ulong	srv_sys_stats_root_page;
+#endif
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;

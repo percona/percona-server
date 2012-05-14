@@ -5373,6 +5373,12 @@ static Sys_var_plugin Sys_default_tmp_storage_engine(
     MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
 
+static Sys_var_charptr Sys_enforce_storage_engine(
+    "enforce_storage_engine",
+    "Force the use of a storage engine for new tables",
+    READ_ONLY GLOBAL_VAR(enforce_storage_engine), CMD_LINE(REQUIRED_ARG),
+    IN_SYSTEM_CHARSET, DEFAULT(nullptr));
+
 #if defined(ENABLED_DEBUG_SYNC)
 /*
   Variable can be set for the session only.

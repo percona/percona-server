@@ -1,0 +1,31 @@
+#
+# Bug 1540338 (CREATE TABLE ... LIKE ... may create a system table with an unsupported enforced engine)
+#
+call mtr.add_suppression("is not the same as enforced storage engine");
+# restart:--enforce-storage-engine=MyISAM
+SELECT ENGINE INTO @mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="procs_priv";
+include/assert.inc [Enforced SE and existing mysql.procs_priv SE must differ]
+RENAME TABLE mysql.procs_priv TO procs_priv_backup;
+SELECT ENGINE INTO @proc_backup_engine FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA="test" AND TABLE_NAME="procs_priv_backup";
+include/assert.inc [RENAME TABLE must not change SE]
+CREATE TABLE mysql.procs_priv LIKE procs_priv_backup;
+ERROR 42000: Unknown storage engine 'InnoDB'
+SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+CREATE TABLE mysql.procs_priv LIKE procs_priv_backup;
+ERROR 42000: Unknown storage engine 'InnoDB'
+SET SESSION sql_mode=default;
+RENAME TABLE procs_priv_backup TO mysql.procs_priv;
+SELECT ENGINE INTO @new_mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="procs_priv";
+include/assert.inc [RENAME TABLE must not change SE]
+# Verify that mysql.procs_priv is working
+CREATE PROCEDURE proc_test() SQL SECURITY DEFINER
+SELECT 1;
+GRANT EXECUTE ON PROCEDURE proc_test TO root@localhost;
+SELECT User, Routine_name, Routine_type, Grantor, Proc_priv from mysql.procs_priv;
+User	Routine_name	Routine_type	Grantor	Proc_priv
+root	proc_test	PROCEDURE	root@localhost	Execute
+DROP PROCEDURE proc_test;
+# restart

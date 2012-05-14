@@ -12801,6 +12801,7 @@ keyword_sp:
         | TEMPTABLE_SYM            {}
         | TEXT_SYM                 {}
         | THAN_SYM                 {}
+        | THREAD_STATS_SYM         {} 
         | TRANSACTION_SYM          {}
         | TRIGGERS_SYM             {}
         | TIMESTAMP                {}

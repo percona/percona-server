@@ -13,8 +13,11 @@
 --disable_query_log
 --disable_result_log
 
-SET GLOBAL `userstat`= ON;
-SET GLOBAL `thread_statistics`=ON;
+
+SET @old_userstat= @@global.userstat;
+SET @old_thread_statistics= @@global.thread_statistics;
+SET GLOBAL userstat= ON;
+SET GLOBAL thread_statistics= ON;
 
 --let $sessions_count=3
 
@@ -71,6 +74,6 @@ while ($i) {
 --eval DROP USER 'user_$i'@'localhost';
 }
 
-SET GLOBAL `userstat`= default;
-SET GLOBAL `thread_statistics`= default;
+SET GLOBAL userstat= @old_userstat;
+SET GLOBAL thread_statistics= @old_thread_statistics;
 

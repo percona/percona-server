@@ -131,6 +131,8 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --enforce-storage-engine=name
+ Force the use of a storage engine for new tables
  --engine-condition-pushdown 
  Push supported query conditions to the storage engine.
  Deprecated, use --optimizer-switch instead.
@@ -787,6 +789,7 @@ delayed-insert-timeout 300
 delayed-queue-size 1000
 disconnect-slave-event-count 0
 div-precision-increment 4
+enforce-storage-engine (No default value)
 engine-condition-pushdown TRUE
 event-scheduler OFF
 expand-fast-index-creation FALSE

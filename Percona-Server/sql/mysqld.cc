@@ -642,6 +642,8 @@ SHOW_COMP_OPTION have_profiling;
 
 ulonglong opt_log_warnings_suppress= 0;
 
+char* enforce_storage_engine= NULL;
+
 /* Thread specific variables */
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
@@ -4005,6 +4007,41 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     */
     plugin_unlock(0, global_system_variables.table_plugin);
     global_system_variables.table_plugin= plugin;
+  }
+
+  /*
+    Validate any enforced storage engine
+  */
+  if (enforce_storage_engine)
+  {
+    LEX_STRING name= { enforce_storage_engine,
+      strlen(enforce_storage_engine) };
+    plugin_ref plugin;
+    if ((plugin= ha_resolve_by_name(0, &name)))
+    {
+      handlerton *hton = plugin_data(plugin, handlerton*);
+      LEX_STRING defname= { default_storage_engine,
+        strlen(default_storage_engine) };
+      plugin_ref defplugin;
+      handlerton* defhton;
+      if ((defplugin= ha_resolve_by_name(0, &defname)))
+      {
+        defhton = plugin_data(defplugin, handlerton*);
+        if (defhton != hton)
+        {
+          sql_print_warning("Default storage engine (%s)"
+            " is not the same as enforced storage engine (%s)",
+            default_storage_engine,
+            enforce_storage_engine);
+        }
+      }
+    }
+    else
+    {
+      sql_print_error("Unknown/unsupported storage engine: %s",
+                    enforce_storage_engine);
+      unireg_abort(1);
+    }
   }
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?

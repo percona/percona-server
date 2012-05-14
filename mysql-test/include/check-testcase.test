@@ -201,7 +201,7 @@ if ($proceed_with_check_of_files) {
   --let $mysql_errno = 0
 
   # It is not possible to create a temporary table if Innodb engine is disabled.
-  --error 0, ER_DISABLED_STORAGE_ENGINE
+  --error 0, ER_DISABLED_STORAGE_ENGINE, ER_UNKNOWN_STORAGE_ENGINE
   CREATE TEMPORARY TABLE file_tbl (filename varchar(1024));
 
   if ($mysql_errno == 0) {

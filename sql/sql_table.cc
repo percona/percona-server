@@ -459,7 +459,7 @@ static int copy_data_between_tables(
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field,
                                bool convert_character_set);
-static bool check_engine(const char *db_name, const char *table_name,
+static bool check_engine(THD *thd, const char *db_name, const char *table_name,
                          HA_CREATE_INFO *create_info);
 
 static bool prepare_set_field(THD *thd, Create_field *sql_field);
@@ -9012,7 +9012,7 @@ static bool create_table_impl(
     return true;
   }
 
-  if (check_engine(db, table_name, create_info)) return true;
+  if (check_engine(thd, db, table_name, create_info)) return true;
 
   // Secondary engine cannot be defined for temporary tables.
   if (create_info->secondary_engine.str != nullptr &&
@@ -17083,7 +17083,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       create_info->db_type = table->s->db_type();
   }
 
-  if (check_engine(alter_ctx.new_db, alter_ctx.new_name, create_info))
+  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
     return true;
 
   /*
@@ -19402,10 +19402,41 @@ err:
   @retval true  Engine not available/supported, error has been reported.
   @retval false Engine available/supported.
 */
-static bool check_engine(const char *db_name, const char *table_name,
+static bool check_engine(THD *thd, const char *db_name, const char *table_name,
                          HA_CREATE_INFO *create_info) {
   DBUG_TRACE;
   handlerton **new_engine = &create_info->db_type;
+  handlerton *req_engine = *new_engine;
+
+  if (enforce_storage_engine && !opt_initialize && !opt_noacl) {
+    /*
+      Storage engine enforcement must be forbidden:
+      1. for "OPTIMIZE TABLE" statements.
+      2. for "ALTER TABLE" statements without explicit "... ENGINE=xxx" part
+      3. Transactional data dictionary (DD) tables
+    */
+    bool no_substitution = (!is_engine_substitution_allowed(thd));
+
+    bool enforcement_forbidden =
+        ((thd->lex->sql_command == SQLCOM_ALTER_TABLE) &&
+         (create_info->used_fields & HA_CREATE_USED_ENGINE) == 0) ||
+        (thd->lex->sql_command == SQLCOM_OPTIMIZE) ||
+        dd::get_dictionary()->is_dd_table_name(db_name, table_name)
+        // Allow creation of the new redo log table
+        || (strcmp(db_name, "performance_schema") == 0);
+
+    if (!enforcement_forbidden) {
+      handlerton *enf_engine = ha_enforce_handlerton(thd);
+      if (enf_engine) {
+        if (enf_engine != *new_engine && no_substitution) {
+          const char *engine_name = ha_resolve_storage_engine_name(req_engine);
+          my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name, engine_name);
+          return true;
+        }
+        *new_engine = enf_engine;
+      }
+    }
+  }
 
   /*
     Check, if the given table name is system table, and if the storage engine

@@ -1,0 +1,15 @@
+--source include/have_myisam.inc
+
+--source include/shutdown_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $args=--loose-console > $SEARCH_FILE 2>&1;
+
+--echo --enforce_storage_engine=myisam --disabled_storage_engines=myisam should fail to start
+--error 1
+--exec $MYSQLD_CMD --enforce_storage_engine=myisam --disabled_storage_engines=myisam $args
+let SEARCH_PATTERN=enforced storage engine myisam is among disabled storage engines;
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE
+
+--source include/start_mysqld.inc

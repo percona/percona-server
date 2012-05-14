@@ -1,0 +1,250 @@
+SELECT @@global.enforce_storage_engine IS NULL AS enforce_storage_engine_is_disabled;
+enforce_storage_engine_is_disabled
+1
+CREATE TABLE t1 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES('1');
+CREATE TABLE t2 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES('1');
+CREATE TABLE t3 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t3 VALUES('1');
+CREATE TABLE t4 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t4 VALUES('1');
+CREATE TABLE t5 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t5 VALUES('1');
+CREATE TABLE t6 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t6 VALUES('1');
+CREATE TABLE t7 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t7 VALUES('1');
+CREATE TABLE t8 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t8 VALUES('1');
+CREATE TABLE t9 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t9 VALUES('1');
+CREATE TABLE t10 (a VARCHAR(1)) ENGINE=InnoDB;
+INSERT INTO t10 VALUES('1');
+After CREATE TABLE
+SELECT COUNT(*) = 10 AS engines_match FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name LIKE 't%';
+engines_match
+1
+# restart:--enforce_storage_engine=MyISAM
+After the first restart
+SELECT @@global.enforce_storage_engine = 'MyISAM' AS enforce_storage_engine_is_myisam;
+enforce_storage_engine_is_myisam
+1
+SELECT COUNT(*) = 10 AS engines_match FROM INFORMATION_SCHEMA.TABLES
+WHERE table_schema = DATABASE() AND table_name LIKE 't%';
+engines_match
+1
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+After OPTIMIZE TABLE statement
+Checking 't1': Engine = 'InnoDB'
+engine_match
+1
+Checking 't1': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t1 ADD COLUMN b ENUM('a', 'b'), ALGORITHM=INSTANT;
+After ALTER TABLE with ALGORITHM=INSTANT
+Checking 't1': Engine = 'InnoDB'
+engine_match
+1
+Checking 't1': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t1 DROP COLUMN b, ALGORITHM=INPLACE;
+After ALTER TABLE with ALGORITHM=INPLACE
+Checking 't1': Engine = 'InnoDB'
+engine_match
+1
+Checking 't1': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t1 MODIFY a INT, ALGORITHM=COPY;
+After ALTER TABLE with ALGORITHM=COPY
+Checking 't1': Engine = 'InnoDB'
+engine_match
+1
+Checking 't1': Column = 'int'
+column_match
+1
+ALTER TABLE t1 ENGINE=Memory;
+ERROR 42000: Unknown storage engine 'MEMORY'
+ALTER TABLE t1 MODIFY a INT, ENGINE=Memory;
+ERROR 42000: Unknown storage engine 'MEMORY'
+ALTER TABLE t1 ALTER a SET DEFAULT '0', ENGINE=Memory;
+ERROR 42000: Unknown storage engine 'MEMORY'
+ALTER TABLE t1 ENGINE=InnoDB;
+ERROR 42000: Unknown storage engine 'InnoDB'
+ALTER TABLE t1 MODIFY a INT, ENGINE=InnoDB;
+ERROR 42000: Unknown storage engine 'InnoDB'
+ALTER TABLE t1 ALTER a SET DEFAULT '0', ENGINE=InnoDB;
+ERROR 42000: Unknown storage engine 'InnoDB'
+After unsuccessful ALTER TABLE statements (NO_ENGINE_SUBSTITUTION enabled)
+Checking 't1': Engine = 'InnoDB'
+engine_match
+1
+Checking 't1': Column = 'int'
+column_match
+1
+ALTER TABLE t2 ENGINE=MyISAM;
+Checking 't2': Engine = 'MyISAM'
+engine_match
+1
+Checking 't2': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t3 MODIFY a INT, ENGINE=MyISAM;
+Checking 't3': Engine = 'MyISAM'
+engine_match
+1
+Checking 't3': Column = 'int'
+column_match
+1
+SET sql_mode = '';
+OPTIMIZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t4	optimize	status	OK
+After OPTIMIZE TABLE statement
+Checking 't4': Engine = 'InnoDB'
+engine_match
+1
+Checking 't4': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t4 ADD COLUMN b ENUM('a', 'b'), ALGORITHM=INSTANT;
+After ALTER TABLE with ALGORITHM=INSTANT
+Checking 't4': Engine = 'InnoDB'
+engine_match
+1
+Checking 't4': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t4 DROP COLUMN b, ALGORITHM=INPLACE;
+After ALTER TABLE with ALGORITHM=INPLACE
+Checking 't4': Engine = 'InnoDB'
+engine_match
+1
+Checking 't4': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t4 MODIFY a INT, ALGORITHM=COPY;
+After ALTER TABLE with ALGORITHM=COPY
+Checking 't4': Engine = 'InnoDB'
+engine_match
+1
+Checking 't4': Column = 'int'
+column_match
+1
+ALTER TABLE t5 ENGINE=MyISAM;
+Checking 't5': Engine = 'MyISAM'
+engine_match
+1
+Checking 't5': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t6 MODIFY a INT, ENGINE=MyISAM;
+Checking 't6': Engine = 'MyISAM'
+engine_match
+1
+Checking 't6': Column = 'int'
+column_match
+1
+ALTER TABLE t7 ENGINE=Memory;
+Checking 't7': Engine = 'MyISAM'
+engine_match
+1
+Checking 't7': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t8 MODIFY a INT, ENGINE=Memory;
+Checking 't8': Engine = 'MyISAM'
+engine_match
+1
+Checking 't8': Column = 'int'
+column_match
+1
+ALTER TABLE t9 ENGINE=InnoDB;
+Checking 't9': Engine = 'MyISAM'
+engine_match
+1
+Checking 't9': Column = 'varchar(1)'
+column_match
+1
+ALTER TABLE t10 MODIFY a INT, ENGINE=InnoDB;
+Checking 't10': Engine = 'MyISAM'
+engine_match
+1
+Checking 't10': Column = 'int'
+column_match
+1
+# restart
+After the second restart
+SELECT @@global.enforce_storage_engine IS NULL AS enforce_storage_engine_is_disabled;
+enforce_storage_engine_is_disabled
+1
+Checking 't1': Engine = 'InnoDB'
+engine_match
+1
+Checking 't1': Column = 'int'
+column_match
+1
+Checking 't2': Engine = 'MyISAM'
+engine_match
+1
+Checking 't2': Column = 'varchar(1)'
+column_match
+1
+Checking 't3': Engine = 'MyISAM'
+engine_match
+1
+Checking 't3': Column = 'int'
+column_match
+1
+Checking 't4': Engine = 'InnoDB'
+engine_match
+1
+Checking 't4': Column = 'int'
+column_match
+1
+Checking 't5': Engine = 'MyISAM'
+engine_match
+1
+Checking 't5': Column = 'varchar(1)'
+column_match
+1
+Checking 't6': Engine = 'MyISAM'
+engine_match
+1
+Checking 't6': Column = 'int'
+column_match
+1
+Checking 't7': Engine = 'MyISAM'
+engine_match
+1
+Checking 't7': Column = 'varchar(1)'
+column_match
+1
+Checking 't8': Engine = 'MyISAM'
+engine_match
+1
+Checking 't8': Column = 'int'
+column_match
+1
+Checking 't9': Engine = 'MyISAM'
+engine_match
+1
+Checking 't9': Column = 'varchar(1)'
+column_match
+1
+Checking 't10': Engine = 'MyISAM'
+engine_match
+1
+Checking 't10': Column = 'int'
+column_match
+1
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;

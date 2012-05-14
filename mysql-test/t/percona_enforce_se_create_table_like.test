@@ -1,0 +1,55 @@
+--source include/have_myisam.inc
+
+--echo #
+--echo # Bug 1540338 (CREATE TABLE ... LIKE ... may create a system table with an unsupported enforced engine)
+--echo #
+
+call mtr.add_suppression("is not the same as enforced storage engine");
+
+# We cannot put --enforce-storage-engine=MyISAM into an MTR option file as that
+# will break the testcase check afterwards
+--let $restart_parameters=restart:--enforce-storage-engine=MyISAM
+--source include/restart_mysqld.inc
+
+SELECT ENGINE INTO @mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="procs_priv";
+
+--let $assert_text= Enforced SE and existing mysql.procs_priv SE must differ
+--let $assert_cond= @@enforce_storage_engine != @mysql_proc_engine
+--source include/assert.inc
+
+RENAME TABLE mysql.procs_priv TO procs_priv_backup;
+
+SELECT ENGINE INTO @proc_backup_engine FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA="test" AND TABLE_NAME="procs_priv_backup";
+
+--let $assert_text= RENAME TABLE must not change SE
+--let $assert_cond= @mysql_proc_engine = @proc_backup_engine
+--source include/assert.inc
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE mysql.procs_priv LIKE procs_priv_backup;
+
+SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE mysql.procs_priv LIKE procs_priv_backup;
+SET SESSION sql_mode=default;
+
+RENAME TABLE procs_priv_backup TO mysql.procs_priv;
+
+SELECT ENGINE INTO @new_mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="procs_priv";
+
+--let $assert_text= RENAME TABLE must not change SE
+--let $assert_cond= @mysql_proc_engine = @new_mysql_proc_engine
+--source include/assert.inc
+
+--echo # Verify that mysql.procs_priv is working
+CREATE PROCEDURE proc_test() SQL SECURITY DEFINER
+  SELECT 1;
+GRANT EXECUTE ON PROCEDURE proc_test TO root@localhost;
+SELECT User, Routine_name, Routine_type, Grantor, Proc_priv from mysql.procs_priv;
+DROP PROCEDURE proc_test;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

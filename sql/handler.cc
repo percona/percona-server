@@ -354,6 +354,33 @@ handlerton *ha_default_handlerton(THD *thd) {
   return hton;
 }
 
+/** @brief
+  Return the enforced storage engine handlerton for thread
+
+  SYNOPSIS
+    ha_enforce_handlerton(thd)
+    thd         current thread
+
+  RETURN
+    pointer to handlerton
+*/
+handlerton *ha_enforce_handlerton(THD *thd) {
+  if (enforce_storage_engine) {
+    const LEX_CSTRING name{enforce_storage_engine,
+                           strlen(enforce_storage_engine)};
+    plugin_ref plugin = ha_resolve_by_name(thd, &name, false);
+    if (plugin) {
+      handlerton *hton = plugin_data<handlerton *>(plugin);
+      assert(hton);
+      return hton;
+    } else {
+      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), enforce_storage_engine,
+               enforce_storage_engine);
+    }
+  }
+  return nullptr;
+}
+
 static plugin_ref ha_default_temp_plugin(THD *thd) {
   if (thd->variables.temp_table_plugin) return thd->variables.temp_table_plugin;
   return my_plugin_lock(thd, &global_system_variables.temp_table_plugin);

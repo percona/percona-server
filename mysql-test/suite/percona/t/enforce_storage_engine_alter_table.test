@@ -1,0 +1,187 @@
+#
+# Bug lp:1488055 "ALTER TABLE w/o ENGINE= clause changes table engine if enforce_storage_engine active"
+#
+
+--disable_query_log
+call mtr.add_suppression('Default storage engine \\(InnoDB\\) is not the same as enforced storage engine \\(MyISAM\\)');
+--enable_query_log
+
+# Make sure "enforce_storage_engine" is disabled
+SELECT @@global.enforce_storage_engine IS NULL AS enforce_storage_engine_is_disabled;
+
+# Create 10 dummy tables of the same structure with "InnoDB" engine
+--let $i=1
+while($i <=10)
+{
+  --eval CREATE TABLE t$i (a VARCHAR(1)) ENGINE=InnoDB
+  --eval INSERT INTO t$i VALUES('1')
+  --inc $i
+}
+
+# Make sure the tables were indeed created with "InnoDB" engine and have identical
+# structure
+--let $enforce_engine= InnoDB
+--let $enforce_column= varchar(1)
+
+--echo After CREATE TABLE
+# Make sure all 10 tables have been created with "InnoDB" engine
+SELECT COUNT(*) = 10 AS engines_match FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_schema = DATABASE() AND table_name LIKE 't%';
+
+#
+# Restart "mysqld" with "enforce_storage_engine" set to "MyISAM"
+#
+--let $restart_parameters= restart:--enforce_storage_engine=MyISAM
+--source include/restart_mysqld.inc
+
+--echo After the first restart
+
+# Make sure "enforce_storage_engine" is set to "MyISAM"
+SELECT @@global.enforce_storage_engine = 'MyISAM' AS enforce_storage_engine_is_myisam;
+
+# Make sure table engines have not changed
+SELECT COUNT(*) = 10 AS engines_match FROM INFORMATION_SCHEMA.TABLES
+  WHERE table_schema = DATABASE() AND table_name LIKE 't%';
+
+#
+# Tests with 'NO_ENGINE_SUBSTITUTION' in sql_mode
+#
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+--let $enforce_table= t1
+--source ../include/percona_enforce_storage_engine_alter_table.inc
+
+# Under Enforced SE, when sql_mode includes NO_ENGINE_SUBSTITUTION changing table
+# engine to something other than "@@global.enforce_storage_engine" must generate
+# an error
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 ENGINE=Memory;
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 MODIFY a INT, ENGINE=Memory;
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 ALTER a SET DEFAULT '0', ENGINE=Memory;
+
+# The same error must be generated when we specify the same engine which is
+# currently set to the table if it is not "@@global.enforce_storage_engine"
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 ENGINE=InnoDB;
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 MODIFY a INT, ENGINE=InnoDB;
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 ALTER a SET DEFAULT '0', ENGINE=InnoDB;
+
+# Make sure table engine hasn't been changed
+# Make sure column definition hasn't been changed
+--echo After unsuccessful ALTER TABLE statements (NO_ENGINE_SUBSTITUTION enabled)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Successful alteration with allowed (enforced) engine
+ALTER TABLE t2 ENGINE=MyISAM;
+--let $enforce_table= t2
+--let $enforce_engine= MyISAM
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Successful alteration with allowed (enforced) engine and new column definition
+ALTER TABLE t3 MODIFY a INT, ENGINE=MyISAM;
+--let $enforce_table= t3
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+#
+# Tests without 'NO_ENGINE_SUBSTITUTION' in sql_mode
+#
+SET sql_mode = '';
+--let $enforce_table= t4
+--let $enforce_engine= InnoDB
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table.inc
+
+# Successful alteration with allowed (enforced) engine with SUBSTITUTION
+ALTER TABLE t5 ENGINE=MyISAM;
+--let $enforce_table= t5
+--let $enforce_engine= MyISAM
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Successful alteration with allowed (enforced) engine and new column definition
+# with SUBSTITUTION
+ALTER TABLE t6 MODIFY a INT, ENGINE=MyISAM;
+--let $enforce_table= t6
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Successful alteration with "Memory" engine with SUBSTITUTION
+ALTER TABLE t7 ENGINE=Memory;
+--let $enforce_table= t7
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Successful alteration with "Memory" engine and new column definition
+# with SUBSTITUTION
+ALTER TABLE t8 MODIFY a INT, ENGINE=Memory;
+--let $enforce_table= t8
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Successful alteration with current ("InnoDB") engine with SUBSTITUTION
+ALTER TABLE t9 ENGINE=InnoDB;
+--let $enforce_table= t9
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Successful alteration with current ("InnoDB") engine and new column
+# definition with SUBSTITUTION
+ALTER TABLE t10 MODIFY a INT, ENGINE=InnoDB;
+--let $enforce_table= t10
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+#
+# Restarting "mysqld" with initial options
+#
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--echo After the second restart
+
+# Make sure after the second restart "enforce_storage_engine" is disabled again
+SELECT @@global.enforce_storage_engine IS NULL AS enforce_storage_engine_is_disabled;
+
+# Make sure the table engine is still "InnoDB"
+--let $enforce_table= t1
+--let $enforce_engine= InnoDB
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t2
+--let $enforce_engine= MyISAM
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t3
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t4
+--let $enforce_engine= InnoDB
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t5
+--let $enforce_engine= MyISAM
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t6
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t7
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t8
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t9
+--let $enforce_column= varchar(1)
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+--let $enforce_table= t10
+--let $enforce_column= int
+--source ../include/percona_enforce_storage_engine_alter_table_assert.inc
+
+# Cleaning up
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;

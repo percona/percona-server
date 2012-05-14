@@ -7900,6 +7900,7 @@ class DsMrr_impl {
 handlerton *ha_default_handlerton(THD *thd);
 plugin_ref ha_default_temp_plugin(THD *thd);
 handlerton *ha_default_temp_handlerton(THD *thd);
+handlerton *ha_enforce_handlerton(THD *thd);
 /**
   Resolve handlerton plugin by name, without checking for "DEFAULT" or
   HTON_NOT_USER_SELECTABLE.

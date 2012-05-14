@@ -710,6 +710,8 @@ SHOW_COMP_OPTION have_profiling;
 
 ulonglong opt_log_warnings_suppress= 0;
 
+char* enforce_storage_engine= NULL;
+
 /* Thread specific variables */
 
 pthread_key(MEM_ROOT**,THR_MALLOC);

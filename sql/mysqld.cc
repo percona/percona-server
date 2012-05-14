@@ -1168,6 +1168,8 @@ SHOW_COMP_OPTION have_backup_locks;
 SHOW_COMP_OPTION have_backup_safe_binlog_info;
 SHOW_COMP_OPTION have_snapshot_cloning;
 
+char *enforce_storage_engine = nullptr;
+
 /* Thread specific variables */
 
 thread_local MEM_ROOT **THR_MALLOC = nullptr;
@@ -5464,6 +5466,43 @@ static int init_server_components() {
     if (ha_is_storage_engine_disabled(default_tmp_se_handle))
       LogErr(WARNING_LEVEL, ER_DISABLED_STORAGE_ENGINE_AS_DEFAULT,
              "default_tmp_storage_engine", default_tmp_storage_engine);
+  }
+
+  /*
+    Validate any enforced storage engine
+  */
+  if (enforce_storage_engine && !opt_initialize && !opt_noacl) {
+    LEX_STRING name = {enforce_storage_engine, strlen(enforce_storage_engine)};
+    plugin_ref plugin;
+    if ((plugin = ha_resolve_by_name(nullptr, &name, false))) {
+      handlerton *hton = plugin_data<handlerton *>(plugin);
+      LEX_STRING defname = {default_storage_engine,
+                            strlen(default_storage_engine)};
+      plugin_ref defplugin;
+      handlerton *defhton;
+      if ((defplugin = ha_resolve_by_name(nullptr, &defname, false))) {
+        defhton = plugin_data<handlerton *>(defplugin);
+        if (defhton != hton) {
+          sql_print_warning(
+              "Default storage engine (%s)"
+              " is not the same as enforced storage engine (%s)",
+              default_storage_engine, enforce_storage_engine);
+        }
+      }
+      if (ha_is_storage_engine_disabled(hton)) {
+        sql_print_error(
+            "enforced storage engine %s is among disabled storage "
+            "engines",
+            enforce_storage_engine);
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
+      plugin_unlock(nullptr, defplugin);
+      plugin_unlock(nullptr, plugin);
+    } else {
+      sql_print_error("Unknown/unsupported storage engine: %s",
+                      enforce_storage_engine);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
   }
 
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log)) {

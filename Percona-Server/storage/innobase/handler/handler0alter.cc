@@ -877,6 +877,8 @@ ha_innobase::add_index(
 					prebuilt->table, indexed_table,
 					index, num_of_idx, table);
 
+	DBUG_EXECUTE_IF("crash_innodb_add_index_after", DBUG_SUICIDE(););
+
 error_handling:
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */

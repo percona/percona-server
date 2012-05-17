@@ -3288,7 +3288,7 @@ ibuf_merge_or_delete_for_page(
 		function. When the counter is > 0, that prevents tablespace
 		from being dropped. */
 
-		tablespace_being_deleted = fil_inc_pending_ibuf_merges(space);
+		tablespace_being_deleted = fil_inc_pending_ops(space);
 
 		if (UNIV_UNLIKELY(tablespace_being_deleted)) {
 			/* Do not try to read the bitmap page from space;
@@ -3312,7 +3312,7 @@ ibuf_merge_or_delete_for_page(
 				mtr_commit(&mtr);
 
 				if (!tablespace_being_deleted) {
-					fil_decr_pending_ibuf_merges(space);
+					fil_decr_pending_ops(space);
 				}
 
 				return;
@@ -3544,7 +3544,7 @@ reset_bit:
 
 	if (update_ibuf_bitmap && !tablespace_being_deleted) {
 
-		fil_decr_pending_ibuf_merges(space);
+		fil_decr_pending_ops(space);
 	}
 
 	ibuf_exit();

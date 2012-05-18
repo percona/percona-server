@@ -7526,12 +7526,26 @@ static bool check_engine(THD *thd, const char *table_name,
 {
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
+  handlerton *enf_engine= ha_enforce_handlerton(thd);
+
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     return TRUE;
 
+  if (enf_engine)
+  {
+    if (enf_engine != *new_engine && no_substitution)
+    {
+      const char *engine_name= ha_resolve_storage_engine_name(req_engine);
+      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name, engine_name);
+      return TRUE;
+    }  
+    *new_engine= enf_engine;
+  }
+  
   if (req_engine && req_engine != *new_engine)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,

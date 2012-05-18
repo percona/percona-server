@@ -7560,11 +7560,11 @@ static bool check_engine(THD *thd, const char *db_name,
     {
       const char *engine_name= ha_resolve_storage_engine_name(req_engine);
       my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name, engine_name);
-      return TRUE;
-    }  
+      DBUG_RETURN(TRUE);
+    }
     *new_engine= enf_engine;
   }
-  
+
   if (req_engine && req_engine != *new_engine)
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,

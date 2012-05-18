@@ -159,6 +159,7 @@ void init_user_stats(USER_STATS *user_stats,
                      const char *user,
                      const char *priv_user,
                      uint total_connections,
+                     uint total_ssl_connections,
                      uint concurrent_connections,
                      time_t connected_time,
                      double busy_time,
@@ -187,6 +188,7 @@ void init_user_stats(USER_STATS *user_stats,
   strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
 
   user_stats->total_connections=      total_connections;
+  user_stats->total_ssl_connections=  total_ssl_connections;
   user_stats->concurrent_connections= concurrent_connections;
   user_stats->connected_time=         connected_time;
   user_stats->busy_time=              busy_time;
@@ -212,6 +214,7 @@ void init_user_stats(USER_STATS *user_stats,
 void init_thread_stats(THREAD_STATS *thread_stats,
                      my_thread_id id,
                      uint total_connections,
+                     uint total_ssl_connections,
                      uint concurrent_connections,
                      time_t connected_time,
                      double busy_time,
@@ -239,6 +242,7 @@ void init_thread_stats(THREAD_STATS *thread_stats,
   thread_stats->id= id;
 
   thread_stats->total_connections=      total_connections;
+  thread_stats->total_ssl_connections=  total_ssl_connections;
   thread_stats->concurrent_connections= concurrent_connections;
   thread_stats->connected_time=         connected_time;
   thread_stats->busy_time=              busy_time;
@@ -477,7 +481,7 @@ static int increment_count_by_name(const char *name, const char *role_name,
     }
 
     init_user_stats(user_stats, name, role_name,
-                    0, 0,      // connections
+                    0, 0, 0,   // connections
                     0, 0, 0,   // time
                     0, 0, 0,   // bytes sent, received and written
                     0, 0, 0,   // rows fetched, updated and read
@@ -495,6 +499,8 @@ static int increment_count_by_name(const char *name, const char *role_name,
     }
   }
   user_stats->total_connections++;
+  if (thd->net.vio->type == VIO_TYPE_SSL)
+    user_stats->total_ssl_connections++;
   return 0;
 }
 
@@ -515,7 +521,7 @@ static int increment_count_by_id(my_thread_id id,
     }
 
     init_thread_stats(thread_stats, id,
-                    0, 0,      // connections
+                    0, 0, 0,      // connections
                     0, 0, 0,   // time
                     0, 0, 0,   // bytes sent, received and written
                     0, 0, 0,   // rows fetched, updated and read
@@ -533,6 +539,8 @@ static int increment_count_by_id(my_thread_id id,
     }
   }
   thread_stats->total_connections++;
+  if (thd->net.vio->type == VIO_TYPE_SSL)
+    thread_stats->total_ssl_connections++;
   return 0;
 }
 

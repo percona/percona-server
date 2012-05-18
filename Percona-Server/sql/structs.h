@@ -225,6 +225,7 @@ typedef struct st_user_stats {
   // Otherwise, the same value as user.
   char priv_user[max(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
   uint total_connections;
+  uint total_ssl_connections;
   uint concurrent_connections;
   time_t connected_time;  // in seconds
   double busy_time;       // in seconds
@@ -253,6 +254,7 @@ init_user_stats(USER_STATS *user_stats,
                 const char *user,
                 const char *priv_user,
                 uint total_connections,
+                uint total_ssl_connections,
                 uint concurrent_connections,
                 time_t connected_time,
                 double busy_time,
@@ -300,6 +302,7 @@ add_user_stats(USER_STATS *user_stats,
 typedef struct st_thread_stats {
   my_thread_id id;
   uint total_connections;
+  uint total_ssl_connections;
   uint concurrent_connections;
   time_t connected_time;  // in seconds
   double busy_time;       // in seconds
@@ -327,6 +330,7 @@ extern void
 init_thread_stats(THREAD_STATS *thread_stats,
                 my_thread_id id,
                 uint total_connections,
+                uint total_ssl_connections,
                 uint concurrent_connections,
                 time_t connected_time,
                 double busy_time,

@@ -122,6 +122,7 @@ Management Improvements
    management/udf_maatkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
+   management/enforce_engine
 
 Diagnostics Improvements
 ========================

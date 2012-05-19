@@ -48,6 +48,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "log0recv.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 
 /** The number of blocks from the LRU_old pointer onward, including
 the block pointed to, must be buf_pool->LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
@@ -2506,6 +2507,7 @@ func_exit:
 /********************************************************************//**
 Dump the LRU page list to the specific file. */
 #define LRU_DUMP_FILE "ib_lru_dump"
+#define LRU_DUMP_TEMP_FILE "ib_lru_dump.tmp"
 
 UNIV_INTERN
 ibool
@@ -2540,8 +2542,10 @@ buf_LRU_file_dump(void)
 		goto end;
 	}
 
-	dump_file = os_file_create(innodb_file_temp_key, LRU_DUMP_FILE, OS_FILE_OVERWRITE,
-				OS_FILE_NORMAL, OS_DATA_FILE, &success);
+	dump_file = os_file_create(innodb_file_temp_key, LRU_DUMP_TEMP_FILE,
+			OS_FILE_OVERWRITE, OS_FILE_NORMAL, OS_DATA_FILE,
+			&success);
+
 	if (!success) {
 		os_file_get_last_error(TRUE);
 		fprintf(stderr,
@@ -2570,6 +2574,13 @@ buf_LRU_file_dump(void)
 			offset++;
 
 			if (offset == UNIV_PAGE_SIZE/4) {
+				if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+					success = 0;
+					fprintf(stderr,
+						" InnoDB: stopped dumping lru"
+						" pages because of server"
+						" shutdown.\n");
+				}
 				success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
 						(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
 						(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
@@ -2609,8 +2620,16 @@ buf_LRU_file_dump(void)
 
 	ret = TRUE;
 end:
-	if (dump_file != -1)
+	if (dump_file != -1) {
+		if (success) {
+			success = os_file_flush(dump_file, TRUE);
+		}
 		os_file_close(dump_file);
+	}
+	if (success) {
+		success = os_file_rename(innodb_file_temp_key,
+			LRU_DUMP_TEMP_FILE, LRU_DUMP_FILE);
+	}
 	if (buffer_base)
 		ut_free(buffer_base);
 
@@ -2656,6 +2675,7 @@ buf_LRU_file_restore(void)
 	dump_record_t*	records = NULL;
 	ulint		size;
 	ulint		size_high;
+	ulint		recsize = sizeof(dump_record_t);
 	ulint		length;
 
 	dump_file = os_file_create_simple_no_error_handling(innodb_file_temp_key,
@@ -2663,7 +2683,14 @@ buf_LRU_file_restore(void)
 	if (!success || !os_file_get_size(dump_file, &size, &size_high)) {
 		os_file_get_last_error(TRUE);
 		fprintf(stderr,
-			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
+			" InnoDB: cannot open %s, "
+			" buffer pool preload not done.\n", LRU_DUMP_FILE);
+		goto end;
+	}
+
+	if (size == 0 || size_high > 0 || size % recsize) {
+		fprintf(stderr, " InnoDB: broken LRU dump file,"
+			" buffer pool preload not done\n");
 		goto end;
 	}
 
@@ -2747,6 +2774,14 @@ buf_LRU_file_restore(void)
 		if (offset % 16 == 15) {
 			os_aio_simulated_wake_handler_threads();
 			buf_flush_free_margins(FALSE);
+			/* skip loading of the rest of the file if we are
+ 			   terminating anyway */
+			if(srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+				fprintf(stderr,
+					" InnoDB: stopped loading lru pages"
+					" because of server shutdown\n");
+				break;
+			}
 		}
 
 		zip_size = fil_space_get_zip_size(space_id);

@@ -99,7 +99,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +=======================================+======================+==============+
 |Support for Multiple I/O Threads       | Yes                  | Yes          |
 +---------------------------------------+----------------------+--------------+
-|Dedicated Purge Threads                | Yes                  | Yes          |
+|Dedicated Purge Thread                 | Yes                  | Yes          |
 +---------------------------------------+----------------------+--------------+
 |Self-Tuning Checkpoint Algorithm       | Yes                  |              |
 +---------------------------------------+----------------------+--------------+

@@ -9,7 +9,7 @@ Percona has implemented several changes related to MySQL's InnoDB Insert Buffer.
 System variables:
 =================
 
-.. variable:: innodb_ibuf_active_merge
+.. variable:: innodb_ibuf_active_contract
 
    :version 5.5.8-20.0: Introduced
    :cli: Yes
@@ -17,7 +17,7 @@ System variables:
    :scope: Global
    :dyn: Yes
    :vartype: Numeric
-   :default:  0 (~1.0.5), 1 (1.0.6~)
+   :default:  1
    :range: 0 - 1
 
 This variable specifies whether the insert buffer can be processed before it reaches its maximum size. The following values are allowed:
@@ -28,7 +28,7 @@ This variable specifies whether the insert buffer can be processed before it rea
   * 1:
     the insert buffer can be processed even it is not full.
 
-.. variable:: innodb_ibuf_merge_rate
+.. variable:: innodb_ibuf_accel_rate
 
    :version 5.5.8-20.0: Introduced
    :cli: Yes

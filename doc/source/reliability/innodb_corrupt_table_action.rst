@@ -41,7 +41,7 @@ Pass corruptions of user tables as ``corrupt table`` instead of crashing itself,
      :conf: Yes
      :scope: Global
      :dyn: Yes
-     :vartype: ULONG
+     :vartype: ENUM
      :default: ``assert``
      :range: ``assert``, ``warn``
 

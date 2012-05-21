@@ -14,6 +14,8 @@ Version Specific Information
 
   * :rn:`5.5.10-20.1`:
      Renamed variable :variable:`userstat_running` to :variable:`userstat`.
+  * :rn:`5.5.24-26.0`:
+     TOTAL_CONNECTIONS_SSL column has been added to CLIENT_STATISTICS, THREAD_STATISTICS and USER_STATISTICS tables 
 
 Other Information
 =================
@@ -64,6 +66,8 @@ INFORMATION_SCHEMA Tables
   :column LOST_CONNECTIONS: The number of this client's connections that were terminated uncleanly.
   :column ACCESS_DENIED: The number of times this client's connections issued commands that were denied.
   :column EMPTY_QUERIES: The number of times this client's connections sent empty queries to the server.
+  :column TOTAL_CONNECTIONS_SSL: The number of times this client's connections connected using SSL to the server.
+
 
 This table holds statistics about client connections. The Percona version of the feature restricts this table's visibility to users who have the ``SUPER`` or ``PROCESS`` privilege.
 
@@ -92,6 +96,7 @@ Example: ::
         LOST_CONNECTIONS: 0
            ACCESS_DENIED: 0
            EMPTY_QUERIES: 0
+   TOTAL_CONNECTIONS_SSL: 0
 
 
 .. table:: INFORMATION_SCHEMA.INDEX_STATISTICS
@@ -161,6 +166,7 @@ Example: ::
   :column LOST_CONNECTIONS: int(21)
   :column ACCESS_DENIED: int(21)
   :column EMPTY_QUERIES: int(21)
+  :column TOTAL_CONNECTIONS_SSL: int(21)
 
 .. table:: INFORMATION_SCHEMA.USER_STATISTICS
 
@@ -185,6 +191,7 @@ Example: ::
   :column LOST_CONNECTIONS: The number of this user's connections that were terminated uncleanly.
   :column ACCESS_DENIED: The number of times this user's connections issued commands that were denied.
   :column EMPTY_QUERIES: The number of times this user's connections sent empty queries to the server.
+  :column TOTAL_CONNECTIONS_SSL: The number of times this user's connections connected using SSL to the server.
 
 This table contains information about user activity. The |Percona| version of the patch restricts this table's visibility to users who have the ``SUPER`` or ``PROCESS`` privilege.
 
@@ -215,6 +222,8 @@ Example: ::
         LOST_CONNECTIONS: 0
            ACCESS_DENIED: 0
            EMPTY_QUERIES: 0
+   TOTAL_CONNECTIONS_SSL: 0
+
 
 Commands Provided
 =================

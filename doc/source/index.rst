@@ -150,6 +150,7 @@ Obsolete and Removed Features
    :glob:
 
    management/innodb_buffer_pool_shm
+   performance/innodb_purge_thread
 
 Reference
 =========

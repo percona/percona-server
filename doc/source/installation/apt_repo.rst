@@ -19,7 +19,12 @@ Add this to :file:`/etc/apt/sources.list`, replacing ``VERSION`` with the name o
 
 Remember to update the local cache: ::
 
-  $ apt-get update
+  # apt-get update
+
+After that you can install the server and client packages ::  
+
+  # apt-get install percona-server-server-5.5 percona-server-client-5.5
+
 
 Supported Platforms
 ===================

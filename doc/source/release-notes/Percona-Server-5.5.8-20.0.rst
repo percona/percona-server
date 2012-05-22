@@ -32,8 +32,6 @@ Variable Changes
 
   * Old variable ``innodb_ibuf_accel_rate`` was renamed to ``innodb_ibuf_merge_rate``. Bug fixed: :bug:`695906` (*Yasufumi Kinoshita*)
 
-  * Old variable ``innodb_ibuf_active_contract`` was renamed to ``innodb_ibuf_active_merge``. Bug fixed: :bug:`695906` (*Yasufumi Kinoshita*)
-
   * Old variable enable_query_response_time_stats was renamed to :variable:`query_response_time_stats`. (Oleg Tsarev)
 
   * Existing variable :variable:`log_slow_verbosity` had two new values added: ``profiling`` and ``profiling_use_getrusage``. (Oleg Tsarev)

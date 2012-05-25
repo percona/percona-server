@@ -1,0 +1,13 @@
+CREATE TABLE t1 (c1 VARCHAR(50));
+INSERT INTO t1 VALUES ("one"),("two"),("three"),("four"),("five");
+SHOW VARIABLES LIKE 'secure_file_priv';
+Variable_name	Value
+secure_file_priv	ON
+SELECT * FROM t1 INTO OUTFILE '/tmp/file1.txt';
+ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+CREATE TABLE t3 (a TEXT, b TEXT, c TEXT, d TEXT);
+ERROR HY000: The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+c
+NULL
+DROP TABLE t1;
+DROP TABLE t3;

@@ -13,7 +13,7 @@ In case user tries to enable enforce_storage_engine with engine that isn't avail
 Version Specific Information
 ============================
 
-  * 5.5.24-26.0
+  * :rn:`5.5.24-26.0`
     Variable :variable:`enforce_storage_engine` implemented.
 
 System Variables

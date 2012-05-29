@@ -32,6 +32,8 @@ This option specifies the number of extra user rollback segments.
 
 When you modify this variable, you must restart the |MySQL| server for the change to take effect. Please note that you must perform a slow shutdown (ie with ``innodb_fast_shutdown = 0``). If you just perform a fast shutdown, the |MySQL| server will then restart without error but the additional segments will not be created.
 
+If there is already any existing data stored in |XtraDB| or |InnoDB| it will need to be dumped and re-imported once this option has been enabled. This is needed so |XtraDB| can re-create the new data files with additional rollback segments.
+
 To check that the extra segments have been created, you can run the following query: ::
 
   SELECT COUNT(*) FROM information_schema.INNODB_RSEG;

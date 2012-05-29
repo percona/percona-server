@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS t1;
+SET SESSION expand_fast_index_creation=ON;
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX(a)) ENGINE=InnoDB;
+SET debug="+d,crash_innodb_add_index_after";
+ALTER TABLE t1 ADD INDEX (b);
+ERROR HY000: Lost connection to MySQL server during query
+SELECT NAME FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+NAME
+SYS_FOREIGN
+SYS_FOREIGN_COLS

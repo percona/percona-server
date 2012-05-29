@@ -4,7 +4,7 @@
  Log All Client Commands (``syslog``)
 ======================================
 
-When enabled, this feature causes all commands run on the client to be logged to ``syslog``.
+When enabled, this feature causes all commands run by the command line client to be logged to ``syslog``. If you want to enable this option permanently, add it to the [mysql] group in my.cnf.
 
 
 Version Specific Information

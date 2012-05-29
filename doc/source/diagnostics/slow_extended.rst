@@ -179,9 +179,9 @@ For example, to enable microsecond query timing and |InnoDB| statistics, set thi
 Specifies the time threshold for filtering queries out of the slow query log. The unit of time is seconds. This option has the same meaning as in a standard |MySQL| server, with the following changes:
 
 The option accepts fractional values. If set to 0.5, for example, queries longer than 1/2 second will be logged.
-
-If the value is set to 0, then all queries are logged. This is different from the standard |MySQL| build, where a value of 0 disables logging.
 Before version 1.01 of this feature, the value was an integer, and the unit of time was microseconds, not seconds.
+
+If the value is set to 0, then all queries are logged. This is different from the standard |MySQL| build, prior to version 5.1.21, where a value of 0 disables logging. After |MySQL| 5.1.21 this has been changed to minimum value and you can disable/enable slow query log with ``slow_query_log`` variable.
 
 .. variable:: profiling_server
 

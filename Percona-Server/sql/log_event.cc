@@ -3162,9 +3162,33 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
   LEX_STRING new_db;
+  char* query_buf;
+  int query_buf_len;
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
   bool process_log_slow_statement= false;
+
+  /*
+    We must allocate some extra memory for query cache
+    The query buffer layout is:
+       buffer :==
+         <statement>   The input statement(s)
+         '\0'          Terminating null char  (1 byte)
+         <length>      Length of following current database name (size_t)
+         <db_name>     Name of current database
+         <flags>       Flags struct
+  */
+  query_buf_len = q_len_arg + 1 + sizeof(size_t) + thd->db_length
+                  + QUERY_CACHE_FLAGS_SIZE + 1;
+  if ((query_buf= (char *) thd->alloc(query_buf_len)))
+  {
+    memcpy(query_buf, query_arg, q_len_arg);
+    query_buf[q_len_arg]= 0;
+    memcpy(query_buf+q_len_arg+1, (char *) &thd->db_length, sizeof(size_t));
+  }
+  else
+    goto end;
+
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -3246,7 +3270,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    thd->set_query((char*)query_arg, q_len_arg);
+    thd->set_query((char*) query_buf, q_len_arg);
     VOID(pthread_mutex_lock(&LOCK_thread_count));
     thd->query_id = next_query_id();
     VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -4821,12 +4845,26 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       enum enum_duplicates handle_dup;
       bool ignore= 0;
       char *load_data_query;
-
+      int query_buf_len;
+ 
+      /*
+       We must allocate some extra memory for query cache
+       The query buffer layout is:
+         buffer :==
+         <statement>   The input statement(s)
+         '\0'          Terminating null char  (1 byte)
+         <length>      Length of following current database name (size_t)
+         <db_name>     Name of current database
+         <flags>       Flags struct
+      */
+      query_buf_len = get_query_buffer_length() + 1 + sizeof(size_t)
+                      + thd->db_length + QUERY_CACHE_FLAGS_SIZE + 1;
+ 
       /*
         Forge LOAD DATA INFILE query which will be used in SHOW PROCESS LIST
         and written to slave's binlog if binlogging is on.
       */
-      if (!(load_data_query= (char *)thd->alloc(get_query_buffer_length() + 1)))
+      if (!(load_data_query= (char *) thd->alloc(query_buf_len)))
       {
         /*
           This will set thd->fatal_error in case of OOM. So we surely will notice
@@ -4837,6 +4875,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
 
       print_query(FALSE, NULL, load_data_query, &end, NULL, NULL);
       *end= 0;
+      memcpy(end+1, (char *) &thd->db_length, sizeof(size_t));
       thd->set_query(load_data_query, (uint) (end - load_data_query));
 
       if (sql_ex.opt_flags & REPLACE_FLAG)

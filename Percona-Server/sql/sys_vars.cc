@@ -798,6 +798,14 @@ static Sys_var_ulong Sys_expire_logs_days(
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_max_binlog_files(
+       "max_binlog_files",
+       "Maximum number of binlog files. Used with --max-binlog-size this can "
+       "be used to limit the total amount of disk space used for the binlog. "
+       "Default is 0, don't limit.",
+       GLOBAL_VAR(max_binlog_files),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+
 static Sys_var_mybool Sys_flush(
        "flush", "Flush MyISAM tables to disk between SQL commands",
        GLOBAL_VAR(myisam_flush),

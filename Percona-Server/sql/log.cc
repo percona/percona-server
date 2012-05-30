@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (C) 2012 Percona Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,6 +59,8 @@
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 LOGGER logger;
+
+ulong max_binlog_files;
 
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
@@ -4136,6 +4139,78 @@ err:
 }
 
 /**
+  Purge old logs so that we have a maximum of max_nr_files logs.
+
+  @param max_nr_files	Maximum number of logfiles to have
+
+  @note
+    If any of the logs before the deleted one is in use,
+    only purge logs up to this one.
+
+  @retval
+    0				ok
+  @retval
+    LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
+    LOG_INFO_FATAL              if any other than ENOENT error from
+                                mysql_file_stat() or mysql_file_delete()
+*/
+
+int MYSQL_BIN_LOG::purge_logs_maximum_number(ulong max_nr_files)
+{
+  int error;
+  char to_log[FN_REFLEN];
+  LOG_INFO log_info;
+  ulong current_number_of_logs= 1;
+
+  DBUG_ENTER("purge_logs_maximum_number");
+
+  mysql_mutex_lock(&LOCK_index);
+  to_log[0]= 0;
+
+  if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
+    goto err;
+
+  do
+  {
+    while(find_next_log(&log_info, 0) == false)
+      current_number_of_logs++;
+
+    if (current_number_of_logs <= max_nr_files)
+      {
+	error= 0;
+	goto err; /* No logs to expire */
+      }
+
+    if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
+      goto err;
+
+    while (strcmp(log_file_name, log_info.log_file_name) &&
+	   !is_active(log_info.log_file_name) &&
+	   !log_in_use(log_info.log_file_name) &&
+	   current_number_of_logs > max_nr_files)
+      {
+	current_number_of_logs--;
+        strmake(to_log,
+                log_info.log_file_name,
+                sizeof(log_info.log_file_name) - 1);
+
+	if (find_next_log(&log_info, 0))
+	{
+	  break;
+	}
+      }
+
+    error= (to_log[0] ? purge_logs(to_log, 1, 0, 1, (ulonglong *) 0) : 0);
+
+  } while(error == 0);
+
+err:
+  mysql_mutex_unlock(&LOCK_index);
+  DBUG_RETURN(error);
+}
+
+
+/**
   Remove all logs before the given file date from disk and from the
   index file.
 
@@ -5311,6 +5386,10 @@ void MYSQL_BIN_LOG::purge()
     {
       purge_logs_before_date(purge_time);
     }
+  }
+  if (max_binlog_files)
+  {
+    purge_logs_maximum_number(max_binlog_files);
   }
 #endif
 }

@@ -321,6 +321,11 @@ The following options may be given as the first argument:
  --max-binlog-dump-events=# 
  Option used by mysql-test for debugging and testing of
  replication.
+ --max-binlog-files=# 
+ Maximum number of binlog files. Used with
+ --max-binlog-size this can be used to limit the total
+ amount of disk space used for the binlog. Default is 0,
+ don't limit.
  --max-binlog-size=# Binary log will be rotated automatically when the size
  exceeds this value. Will also apply to relay logs if
  max_relay_log_size is 0
@@ -902,6 +907,7 @@ master-retry-count 86400
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
+max-binlog-files 0
 max-binlog-size 1073741824
 max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 10

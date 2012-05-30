@@ -5909,7 +5909,7 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
 
     mysql_mutex_unlock(&LOCK_log);
 
-    if (xid_count > 0 && check_purge)
+    if (xid_count == 0 && check_purge)
     {
       purge();
     }

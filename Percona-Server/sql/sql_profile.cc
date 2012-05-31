@@ -244,7 +244,13 @@ void PROF_MEASUREMENT::collect()
   time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
 #ifdef HAVE_GETRUSAGE
   if ((profile->get_profiling())->enabled_getrusage())
+  {
+#ifdef RUSAGE_THREAD
+    getrusage(RUSAGE_THREAD, &rusage);
+#else
     getrusage(RUSAGE_SELF, &rusage);
+#endif
+  }
 #elif defined(_WIN32)
   FILETIME ftDummy;
   // NOTE: Get{Process|Thread}Times has a granularity of the clock interval,

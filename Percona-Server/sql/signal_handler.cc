@@ -101,7 +101,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
     "diagnose the problem, but since we have already crashed, \n"
     "something is definitely wrong and this may fail.\n"
     "Please help us make Percona Server better by reporting any\n"
-    "bugs at https://bugs.launchpad.net/percona-server\n\n");
+    "bugs at http://bugs.percona.com/\n\n");
 
   my_safe_printf_stderr("key_buffer_size=%lu\n",
                         (ulong) dflt_key_cache->key_cache_mem_size);

@@ -606,9 +606,10 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
  (pre-4.1) passwords
- --secure-file-priv=name 
+ --secure-file-priv[=name] 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
- files within specified directory
+ files within specified directory. If no argument is
+ specified disable loading files.
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --shared-memory     Enable the shared memory

@@ -20,6 +20,8 @@ Features
 Bug Fixes
 =========
 
+  * A Server acting as a replication slave with the query cache enabled could crash with glibc detected memory corruption. This bug was introduced in MySQL 5.5.18 and Percona Server inherited it from MySQL. Bug fixed :bug:`915814` (*George Ormond Lorch III*).
+
   * Loading LRU dump was preventing shutdown. Bug fixed :bug:`712055` (*George Ormond Lorch III*).
 
   * A crash could leave behind an InnoDB temporary table with temporary indexes resulting in an unbootable server. Bug fixed :bug:`999147` (*Laurynas Biveinis*).

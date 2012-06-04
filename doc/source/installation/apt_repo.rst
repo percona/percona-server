@@ -45,8 +45,8 @@ Ubuntu
 ------
 
  * 10.04LTS (lucid)
- * 11.04 (natty)
  * 11.10 (oneiric)
+ * 12.04LTS (precise)
 
 
 Release Candidate Repository
@@ -56,3 +56,15 @@ To subscribe to the release candidate repository, add two lines to the :file:`/e
 
   deb http://repo.percona.com/apt-rc VERSION main
   deb-src http://repo.percona.com/apt-rc VERSION main
+
+
+Apt-Pinning the packages
+========================
+
+In some cases you might need to "pin" the selected packages to avoid the upgrades from the distribution repositories. You'll need to make a new file :file:`/etc/apt/preferences.d/00percona.pref` and add the following lines in it: :: 
+
+  Package: *
+  Pin: release o=Percona Development Team
+  Pin-Priority: 1001
+
+For more information about the pinning you can check the official `debian wiki <http://wiki.debian.org/AptPreferences>`_.

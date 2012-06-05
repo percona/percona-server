@@ -1726,6 +1726,11 @@ public:
     XXX Why are internal temporary tables added to this list?
   */
   TABLE *temporary_tables;
+  /**
+     Protects temporary_tables.
+  */
+  mysql_mutex_t LOCK_temporary_tables;
+
   TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic

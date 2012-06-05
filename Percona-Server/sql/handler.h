@@ -213,6 +213,8 @@
 #define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
 #define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
 #define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
+
+#define HA_INPLACE_ALTER_INDEX_MASK                ((1L << 12) - 1)
 /*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.

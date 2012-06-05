@@ -6537,6 +6537,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     uint  *idx_end_p;
 
     alter_flags= table->file->alter_table_flags(alter_info->flags);
+    if (!thd->variables.online_alter_index)
+    {
+      alter_flags&= ~((ulong)HA_INPLACE_ALTER_INDEX_MASK);
+    }
     DBUG_PRINT("info", ("alter_flags: %lu", alter_flags));
     /* Check dropped indexes. */
     for (idx_p= index_drop_buffer, idx_end_p= idx_p + index_drop_count;

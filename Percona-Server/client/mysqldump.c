@@ -106,7 +106,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_complete_insert= 0, opt_drop_database= 0,
                 opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
-                opt_slave_apply= 0, 
+                opt_slave_apply= 0, opt_ignore_show_create_table_error=0,
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0;
@@ -364,6 +364,9 @@ static struct my_option my_long_options[] =
   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
    &opt_ignore, &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"ignore-create-error", OPT_IGNORE_CREATE_ERROR, "Don't exit on show create table errors.",
+   (uchar**) &opt_ignore_show_create_table_error, (uchar**) &opt_ignore_show_create_table_error, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"lines-terminated-by", OPT_LTB,
    "Lines in the output file are terminated by the given string.",
    &lines_terminated, &lines_terminated, 0, GET_STR,
@@ -2521,13 +2524,21 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       MYSQL_FIELD *field;
+   
+      my_bool old_ignore_errors=ignore_errors;
+      //fprintf(stderr, "ignore create table %d\n", opt_ignore_show_create_table_error);
+      if (opt_ignore_show_create_table_error)
+         ignore_errors=1;
 
       my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
 
       if (switch_character_set_results(mysql, "binary") ||
           mysql_query_with_error_report(mysql, &result, buff) ||
           switch_character_set_results(mysql, default_charset))
+      {
+        ignore_errors=old_ignore_errors;
         DBUG_RETURN(0);
+      }
 
       if (path)
       {

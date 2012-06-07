@@ -3694,8 +3694,9 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
     DBUG_RETURN(schema_table_store_record(thd, table));
 
   //engine
-  handler *handle= tmp_table->file;
-  char *engineType = (char *)(handle ? handle->table_type() : "UNKNOWN");
+  handler *file= tmp_table->file;
+  // Assume that invoking handler::table_type() on a shared handler is safe
+  const char *engineType = (file) ? file->table_type() : "UNKNOWN";
   table->field[3]->store(engineType, strlen(engineType), cs);
 
   //name
@@ -3706,11 +3707,14 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
   }
 
   // file stats
-  handler *file= tmp_table->file;
-
   if (file) {
 
     MYSQL_TIME time;
+
+    /* We have only one handler object for a temp table globally and it might
+    be in use by other thread.  Do not trash it by invoking handler methods on
+    it but rather clone it. */
+    file = file->clone(tmp_table->s->normalized_path.str, thd->mem_root);
 
     /**
         TODO: InnoDB stat(file) checks file on short names within data dictionary
@@ -3741,6 +3745,8 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
       table->field[10]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[10]->set_notnull();
     }
+
+    file->close();
   }
 
   DBUG_RETURN(schema_table_store_record(thd, table));

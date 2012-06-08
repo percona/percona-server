@@ -34,6 +34,10 @@ Version Specific Information
     * Added variable :variable:`innodb_ibuf_merge_rate`.
 
     * Added variable :variable:`innodb_use_global_flush_log_at_trx_commit`.
+  
+  * 5.5.20-beta
+   
+    * The 'reflex' value was removed from :variable:`innodb_adaptive_flushing_method` in 5.5.20-beta as a fix for bug :bug:`689450`.
 
 System Variables
 ================
@@ -65,7 +69,7 @@ Adaptive checkpointing forces a constant flushing activity at a rate of approxim
 The following values are allowed:
 
   * ``reflex``:
-    This behavior is similar to innodb_max_dirty_pages_pct flushing. The difference is that this method starts flushing blocks constantly and contiguously based on the oldest modified age. If the age exceeds 1/2 of the maximum age capacity, |InnoDB| starts weak contiguous flushing. If the age exceeds 3/4, |InnoDB| starts strong flushing. The strength can be adjusted by the |MySQL| variable :variable:`innodb_io_capacity`. In other words, we must tune ``innodb_io_capacity`` for the ``reflex`` method to work the best.
+    This behavior is similar to innodb_max_dirty_pages_pct flushing. The difference is that this method starts flushing blocks constantly and contiguously based on the oldest modified age. If the age exceeds 1/2 of the maximum age capacity, |InnoDB| starts weak contiguous flushing. If the age exceeds 3/4, |InnoDB| starts strong flushing. The strength can be adjusted by the |MySQL| variable :variable:`innodb_io_capacity`. In other words, we must tune ``innodb_io_capacity`` for the ``reflex`` method to work the best. This method was removed in 5.5.20-beta as a fix for bug :bug:`689450`.
 
   * ``estimate``: 
     If the oldest modified age exceeds 1/2 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by [number of modified blocks], [LSN progress speed] and [average age of all modified blocks]. So, this behavior is independent of the ``innodb_io_capacity`` variable.

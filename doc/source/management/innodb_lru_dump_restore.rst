@@ -135,4 +135,4 @@ When this variable is set to ON XtraDB waits until the restore of the dump is co
 Other reading
 =============
 
-  * `Save / restore buffer pool <http://www.|MySQL|performanceblog.com/2010/01/20/|XtraDB|-feature-save-restore-buffer-pool/>`_
+  * `Save / restore buffer pool <http://www.mysqlperformanceblog.com/2010/01/20/XtraDB-feature-save-restore-buffer-pool/>`_

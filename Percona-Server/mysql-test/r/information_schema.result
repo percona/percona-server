@@ -83,7 +83,7 @@ INNODB_BUFFER_POOL_PAGES_INDEX
 INNODB_RSEG
 INNODB_LOCKS
 INNODB_BUFFER_POOL_PAGES
-XTRADB_ENHANCEMENTS
+INNODB_TABLE_STATS
 INNODB_TRX
 XTRADB_ADMIN_COMMAND
 INNODB_LOCK_WAITS
@@ -96,7 +96,6 @@ INNODB_INDEX_STATS
 INNODB_SYS_INDEXES
 INNODB_BUFFER_POOL_PAGES_BLOB
 INNODB_CMPMEM_RESET
-INNODB_TABLE_STATS
 columns_priv
 db
 event
@@ -901,14 +900,14 @@ TABLE_PRIVILEGES	TABLE_NAME	select
 TEMPORARY_TABLES	TABLE_NAME	select
 TABLE_STATISTICS	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
-INNODB_INDEX_STATS	table_name	select
 INNODB_TABLE_STATS	table_name	select
+INNODB_INDEX_STATS	table_name	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	54
+information_schema	53
 mysql	22
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1335,7 +1334,7 @@ INNODB_BUFFER_POOL_PAGES_INDEX	index_id
 INNODB_RSEG	rseg_id
 INNODB_LOCKS	lock_id
 INNODB_BUFFER_POOL_PAGES	page_type
-XTRADB_ENHANCEMENTS	name
+INNODB_TABLE_STATS	table_schema
 INNODB_TRX	trx_id
 XTRADB_ADMIN_COMMAND	result_message
 INNODB_LOCK_WAITS	requesting_trx_id
@@ -1348,7 +1347,6 @@ INNODB_INDEX_STATS	table_schema
 INNODB_SYS_INDEXES	TABLE_ID
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
 INNODB_CMPMEM_RESET	page_size
-INNODB_TABLE_STATS	table_schema
 SELECT t.table_name, c1.column_name
 FROM information_schema.tables t
 INNER JOIN
@@ -1404,7 +1402,7 @@ INNODB_BUFFER_POOL_PAGES_INDEX	index_id
 INNODB_RSEG	rseg_id
 INNODB_LOCKS	lock_id
 INNODB_BUFFER_POOL_PAGES	page_type
-XTRADB_ENHANCEMENTS	name
+INNODB_TABLE_STATS	table_schema
 INNODB_TRX	trx_id
 XTRADB_ADMIN_COMMAND	result_message
 INNODB_LOCK_WAITS	requesting_trx_id
@@ -1417,15 +1415,14 @@ INNODB_INDEX_STATS	table_schema
 INNODB_SYS_INDEXES	TABLE_ID
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
 INNODB_CMPMEM_RESET	page_size
-INNODB_TABLE_STATS	table_schema
 SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
 MAX(table_name)
-XTRADB_ENHANCEMENTS
+XTRADB_ADMIN_COMMAND
 SELECT table_name from information_schema.tables
 WHERE table_name=(SELECT MAX(table_name)
 FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
 table_name
-XTRADB_ENHANCEMENTS
+XTRADB_ADMIN_COMMAND
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
 SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
@@ -1536,7 +1533,6 @@ TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 USER_STATISTICS	information_schema.USER_STATISTICS	1
 VIEWS	information_schema.VIEWS	1
-XTRADB_ENHANCEMENTS	information_schema.XTRADB_ENHANCEMENTS	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);

@@ -98,7 +98,7 @@ This table was introduced by the |InnoDB| plugin and you can find the full docum
 Temporary tables
 ================
 
- Only temporary tables that were explicitly created with `CREATE TEMPORARY TABLE` or `ALTER TABLE` are shown, and not the ones created during query execution.
+ Only temporary tables that were explicitly created with `CREATE TEMPORARY TABLE` are shown, and not the ones created during query execution. The temporary tables that are created for `ALTER TABLE` execution are not listed in `INFORMATION_SCHEMA.TEMPORARY_TABLES` or `GLOBAL_TEMPORARY_TABLES` tables.
 
 .. table:: INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES
 

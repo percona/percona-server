@@ -143,6 +143,7 @@ Diagnostics Improvements
    diagnostics/innodb_show_lock_names
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
+   diagnostics/thread_based_profiling
 
 Obsolete and Removed Features
 =============================

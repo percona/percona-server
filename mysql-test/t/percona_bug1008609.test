@@ -1,0 +1,23 @@
+# The bug #1008609 test cause. 
+# The bug consist in crashing the server when it is launched with both
+# "--userstat=1" and "--bootstrap" parameters.
+#
+# Just start with --userstat=1 --bootstrap. If the server doesn't crash the
+# test is passed.
+
+let $MYSQLD_BOOTSTRAP_CMD= $MYSQLD_BOOTSTRAP_CMD
+  --default-storage-engine=MyISAM
+  --userstat=on;
+
+--write_file $MYSQLTEST_VARDIR/tmp/percona_bug1008609.sql
+SELECT 1;
+EOF
+
+exec
+  $MYSQLD_BOOTSTRAP_CMD < $MYSQLTEST_VARDIR/tmp/percona_bug1008609.sql >> 
+    $MYSQLTEST_VARDIR/tmp/percona_bug1008609.log 2>&1;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_bug1008609.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_bug1008609.log
+
+--echo OK

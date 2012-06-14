@@ -165,6 +165,8 @@ UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
 UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
+UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the
@@ -2877,4 +2879,3 @@ srv_purge_wakeup(void)
 		}
 	}
 }
-

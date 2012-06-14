@@ -239,6 +239,12 @@ extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*	srv_data_file_is_raw_partition;
 
+extern my_bool		srv_track_changed_pages;
+extern ulonglong	srv_max_bitmap_file_size;
+
+extern
+ulonglong       srv_max_changed_pages;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char*	srv_log_group_home_dir;

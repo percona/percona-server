@@ -3087,7 +3087,7 @@ static Sys_var_ulong sys_log_slow_rate_limit(
        VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
 const char* log_slow_verbosity_name[] = { 
   "microtime", "query_plan", "innodb", 
-  "profiling", "profling_use_getrusage", 
+  "profiling", "profiling_use_getrusage", 
   "minimal", "standard", "full", 0
 };
 static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong what, ulonglong by)

@@ -953,6 +953,11 @@ struct log_struct{
 					become signaled */
 	/* @} */
 #endif /* UNIV_LOG_ARCHIVE */
+	ib_uint64_t	tracked_lsn;	/*!< log tracking has advanced to this
+					lsn.  Field accessed atomically where
+					64-bit atomic ops are supported,
+					protected by the log sys mutex
+					otherwise. */
 };
 
 #ifdef UNIV_LOG_ARCHIVE

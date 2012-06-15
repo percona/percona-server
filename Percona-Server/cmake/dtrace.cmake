@@ -158,7 +158,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
   FOREACH(lib ${libs})
     GET_TARGET_PROPERTY(libtype ${lib} TYPE)
     IF(libtype MATCHES STATIC_LIBRARY)
-      SET(static_libs ${static_lics} ${lib})
+      SET(static_libs ${static_libs} ${lib})
     ENDIF()
   ENDFOREACH()
 

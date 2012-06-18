@@ -81,4 +81,4 @@ misc:
 	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
 clean:
-	rm -rf mysql-$(MYSQL_VERSION) $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1) $(RELEASE_DIR) $(DEBUG_DIR)
+	rm -rf $(RELEASE_DIR) $(DEBUG_DIR)

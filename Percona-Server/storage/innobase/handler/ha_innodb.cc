@@ -4821,10 +4821,6 @@ ha_innobase::clone(
 	new_handler = static_cast<ha_innobase*>(handler::clone(name,
 							       mem_root));
 	if (new_handler) {
-		DBUG_ASSERT(new_handler->prebuilt != NULL);
-		DBUG_ASSERT(new_handler->user_thd == user_thd);
-		DBUG_ASSERT(new_handler->prebuilt->trx == prebuilt->trx);
-
 		new_handler->prebuilt->select_lock_type
 			= prebuilt->select_lock_type;
 	}

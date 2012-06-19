@@ -8,7 +8,7 @@ This feature adds microsecond time resolution and additional statistics to the s
 
 The ability to log queries with microsecond precision is essential for measuring the work the |MySQL| server performs. The standard slow query log in |MySQL| 5.0 has only 1-second granularity, which is too coarse for all but the slowest queries. |MySQL| 5.1 has microsecond resolution, but does not have the extra information about query execution that is included in the |Percona Server|.
 
-You can use Maatkit``s mk-query-digest tool to aggregate similar queries together and report on those that consume the most execution time.
+You can use Percona-Toolkit's pt-query-digest tool to aggregate similar queries together and report on those that consume the most execution time.
 
 
 Version Specific Information
@@ -175,7 +175,6 @@ Specifies the time threshold for filtering queries out of the slow query log. Th
 
 The option accepts fractional values. If set to 0.5, for example, queries longer than 1/2 second will be logged.
 
-If the value is set to 0, then all queries are logged. This is different from the standard |MySQL| build, where a value of 0 disables logging.
 Before version 1.01 of this feature, the value was an integer, and the unit of time was microseconds, not seconds.
 
 .. variable:: slow_query_log_timestamp_always
@@ -370,7 +369,7 @@ If the query did not use |InnoDB| tables, that information is written into the l
 Related Reading
 ===============
 
-  * http://www.mysqlperformanceblog.com/2009/02/10/impact-of-logging-on-mysql%E2%80%99s-performance/
+  * `Impact of logging on MySQL's performance <http://www.mysqlperformanceblog.com/2009/02/10/impact-of-logging-on-mysql%E2%80%99s-performance/>`_
 
   * `log_slow_filter Usage <http://www.mysqlperformanceblog.com/2008/09/22/finding-what-created_tmp_disk_tables-with-log_slow_filter/>`_
 

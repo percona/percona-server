@@ -131,7 +131,7 @@ If set to 1, ``.ibd`` file is converted (``space id``, ``index id``, etc.) with 
 .. lock all tables in the database ``example``
 .. "ALTER TABLE ... DISCARD TABLESPACE" for all tables in ``exmple``
 .. unlock all tables in the database ``example``
-..  (and we need to get all create table clause (e.g. "|MySQL|dump --no-data"))
+..  (and we need to get all create table clause (e.g. "mysqldump --no-data"))
 .. obtain *.ibd *.exp as exported files
 .. Target: (innodb_expand_import should be 1)
 

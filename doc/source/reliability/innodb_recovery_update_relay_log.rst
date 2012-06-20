@@ -99,6 +99,6 @@ Other Reading
 
   * Another solution for |MySQL| 5.0 is `Google's transactional replication feature <http://code.google.com/p/google-mysql-tools/wiki/TransactionalReplication>`_, but it had some problems and bugs.
 
-  * `Related bug (fixed and re-implemented in this feature) <http://bugs.|MySQL|.com/bug.php?id=34058>`_
+  * `Related bug (fixed and re-implemented in this feature) <http://bugs.mysql.com/bug.php?id=34058>`_
 
-  * `A blog post explaining how this feature makes replication more reliable <http://www.|MySQL|performanceblog.com/2009/03/04/making-replication-a-bit-more-reliable/>`_
+  * `A blog post explaining how this feature makes replication more reliable <http://www.mysqlperformanceblog.com/2009/03/04/making-replication-a-bit-more-reliable/>`_

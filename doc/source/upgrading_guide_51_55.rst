@@ -64,6 +64,9 @@ The configuration options and table columns for the following features have been
    * - Multiple Rollback Segments
      - innodb_extra_rsegments
      - **(removed)**
+   * - Dedicated Purge Thread
+     - innodb_use_purge_thread
+     - using upstream version
 
 Shared Memory Buffer Pool
 ~~~~~~~~~~~~~~~~~~~~~~~~~

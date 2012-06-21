@@ -17,9 +17,9 @@ You can then check whether the expanded slots (1025-4072) are used by starting :
   * If the expanded slots are used: :command:`mysqld` refuses to start and prints an error in the error log: ::
 
       InnoDB: Error: innodb_extra_undoslots option is disabled, but it was enabled before.
-      InnoDB: The datafile is not normal for |MySQL|d and disabled innodb_extra_undoslots.
+      InnoDB: The datafile is not normal for mysqld and disabled innodb_extra_undoslots.
       InnoDB: Enable innodb_extra_undoslots if it was enabled before, and
-      InnoDB: ### don't use this datafile with other |MySQL|d or ibbackup! ###
+      InnoDB: ### don't use this datafile with other mysqld or ibbackup! ###
       InnoDB: Cannot continue operation for the safety. Calling exit(1).
 
   * If the expanded slots are not used: :command:`mysqld` starts and prints only a warning in the error log: ::

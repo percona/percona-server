@@ -123,6 +123,7 @@ Management Improvements
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
    management/enforce_engine
+   management/secure_file_priv_extended
 
 Diagnostics Improvements
 ========================

@@ -4651,12 +4651,6 @@ next_rec:
 	}
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
-
-	if (rests) {
-		fprintf(stderr, "InnoDB: Warning: failed to store %lu stats entries"
-				" of %s/%s to SYS_STATS system table.\n",
-				rests, index->table_name, index->name);
-	}
 }
 /*===========================================*/
 

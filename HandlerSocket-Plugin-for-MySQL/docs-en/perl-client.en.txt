@@ -117,6 +117,15 @@ executing them separatedly.
   }
 
 -----------------------------------------------------------------
+If handlersocket is configured to authenticate client connections
+(ie., handlersocket_plain_secret or handlersocket_plain_secret_wr
+is set), a client must call 'auth' method before any other
+methods.
+
+  my $res = $hs->auth('password');
+  die $hs->get_error() if $res->[0] != 0;
+
+-----------------------------------------------------------------
 When an error is occured, the first element of the returned
 arrayref becomes a non-zero value. A negative value indicates
 that an I/O error is occured and the Net::HandlerSocket object

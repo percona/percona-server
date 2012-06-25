@@ -146,7 +146,7 @@ sv_get_string_ref(SV *sv)
 static IV
 sv_get_iv(SV *sv)
 {
-  if (sv == 0 || !SvIOK(sv)) {
+  if (sv == 0 || ( !SvIOK(sv) && !SvPOK(sv) ) ) {
     return 0;
   }
   return SvIV(sv);
@@ -430,6 +430,34 @@ CODE:
   RETVAL = newSVpvn(s.data(), s.size());
 OUTPUT:
   RETVAL
+
+int
+auth(obj, key, typ = 0)
+  SV *obj
+  const char *key
+  const char *typ
+CODE:
+  RETVAL = 0;
+  dena::hstcpcli_i *const ptr =
+    reinterpret_cast<dena::hstcpcli_i *>(SvIV(SvRV(obj)));
+  do {
+    ptr->request_buf_auth(key, typ);
+    if (ptr->request_send() != 0) {
+      break;
+    }
+    size_t nflds = 0;
+    ptr->response_recv(nflds);
+    const int e = ptr->get_error_code();
+    DBG(fprintf(stderr, "errcode=%d\n", ptr->get_error_code()));
+    if (e >= 0) {
+      ptr->response_buf_remove();
+    }
+    DBG(fprintf(stderr, "errcode=%d\n", ptr->get_error_code()));
+  } while (0);
+  RETVAL = ptr->get_error_code();
+OUTPUT:
+  RETVAL
+
 
 int
 open_index(obj, id, db, table, index, fields, ffields = 0)

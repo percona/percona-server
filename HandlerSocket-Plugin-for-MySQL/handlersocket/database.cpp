@@ -796,18 +796,23 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   size_t modified_count = 0;
   int r = 0;
   bool is_first = true;
+  bool in_loop = false;
   for (uint32_t cnt = 0; cnt < limit + skip;) {
     if (is_first) {
       is_first = false;
       const key_part_map kpm = (1U << args.kvalslen) - 1;
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
-    } else if (args.invalues_keypart >= 0) {
+      if (args.invalues_keypart >= 0) {
+          in_loop = true;
+      }
+    } else if (!in_loop && args.invalues_keypart >= 0) {
       if (++invalues_idx >= args.invalueslen) {
 	break;
       }
       kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
       const key_part_map kpm = (1U << args.kvalslen) - 1;
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
+      in_loop = true;
     } else {
       switch (find_flag) {
       case HA_READ_BEFORE_KEY:
@@ -852,7 +857,8 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       }
       ++cnt;
     }
-    if (args.invalues_keypart >= 0 && r == HA_ERR_KEY_NOT_FOUND) {
+    if (args.invalues_keypart >= 0 && r != 0 ) {
+      in_loop = false;
       continue;
     }
     if (r != 0 && r != HA_ERR_RECORD_DELETED) {
@@ -1024,7 +1030,7 @@ dbcontext::cmd_open(dbcallback_i& cb, const cmd_open_args& arg)
       OPEN_VIEW_NO_PARSE);
     #endif
     if (table == 0) {
-      DENA_VERBOSE(10, fprintf(stderr,
+      DENA_VERBOSE(20, fprintf(stderr,
 	"HNDSOCK failed to open %p [%s] [%s] [%d]\n",
 	thd, arg.dbn, arg.tbl, static_cast<int>(refresh)));
       return cb.dbcb_resp_short(1, "open_table");
@@ -1180,4 +1186,5 @@ dbcontext::set_statistics(size_t num_conns, size_t num_active)
 }
 
 };
+
 

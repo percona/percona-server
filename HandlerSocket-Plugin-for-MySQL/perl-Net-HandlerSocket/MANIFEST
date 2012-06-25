@@ -4,5 +4,5 @@ Makefile.PL
 MANIFEST
 ppport.h
 README
-t/HandlerSocket.t
-lib/HandlerSocket.pm
+t/Net-HandlerSocket.t
+lib/Net/HandlerSocket.pm

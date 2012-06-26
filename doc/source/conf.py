@@ -224,7 +224,7 @@ htmlhelp_basename = 'PerconaServer51doc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'PerconaServer.tex', u'Percona Server Documentation',
+  ('index', 'PerconaServer-5.1.tex', u'Percona Server Documentation',
    u'Percona Inc', 'manual'),
 ]
 

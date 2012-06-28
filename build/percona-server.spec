@@ -117,7 +117,7 @@
   %endif
 %endif
 
-%define server_suffix %{product_suffix}
+%define server_suffix -%{majorversion}.%{minorversion}
 %if %{undefined server_suffix}
 %define server_suffix   %{nil}
 %endif

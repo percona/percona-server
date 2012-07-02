@@ -27,6 +27,7 @@
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
+#include "debug_sync.h"         // DEBUG_SYNC
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -4795,6 +4796,7 @@ int handler::ha_write_row(uchar *buf)
   int error;
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
+  DEBUG_SYNC(ha_thd(), "start_ha_write_row");
 
   mark_trx_read_write();
 

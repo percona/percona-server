@@ -6,7 +6,7 @@ PERCONA_SERVER_SHORT_2 ?=Percona-Server
 KEWPIE ?=kewpie
 BASEDIR = $(CURDIR)
 
-all:  main install-lic misc handlersocket maatkit-udf autorun
+all:  main install-lic handlersocket maatkit-udf autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -40,10 +40,6 @@ prepare:
 	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
 
 main: prepare
-
-misc:
-	@echo "Installing other files"
-	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
 clean:
 	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)

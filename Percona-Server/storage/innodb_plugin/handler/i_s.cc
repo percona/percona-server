@@ -1798,6 +1798,8 @@ i_s_cmp_fill_low(
 
 	DBUG_ENTER("i_s_cmp_fill_low");
 
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
 
@@ -2065,6 +2067,8 @@ i_s_cmpmem_fill_low(
 	int	status	= 0;
 
 	DBUG_ENTER("i_s_cmpmem_fill_low");
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -2354,6 +2358,8 @@ i_s_innodb_rseg_fill(
 
 	DBUG_ENTER("i_s_innodb_rseg_fill");
 
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
 
@@ -2486,6 +2492,8 @@ i_s_innodb_admin_command_fill(
 	const char*	command_head = "XTRA_";
 
 	DBUG_ENTER("i_s_innodb_admin_command_fill");
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -2744,6 +2752,8 @@ i_s_innodb_table_stats_fill(
 
 	DBUG_ENTER("i_s_innodb_table_stats_fill");
 
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
 		DBUG_RETURN(0);
@@ -2806,6 +2816,8 @@ i_s_innodb_index_stats_fill(
 	dict_index_t*	index;
 
 	DBUG_ENTER("i_s_innodb_index_stats_fill");
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -3453,6 +3465,8 @@ i_s_innodb_schema_table_fill(
 	int		id;
 
 	DBUG_ENTER("i_s_innodb_schema_table_fill");
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {

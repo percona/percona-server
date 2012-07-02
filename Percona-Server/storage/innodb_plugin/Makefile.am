@@ -101,6 +101,7 @@ noinst_HEADERS=		\
 			include/lock0types.h	\
 			include/log0log.h	\
 			include/log0log.ic	\
+			include/log0online.h	\
 			include/log0recv.h	\
 			include/log0recv.ic	\
 			include/mach0data.h	\
@@ -265,6 +266,7 @@ libinnobase_a_SOURCES=	\
 			lock/lock0iter.c		\
 			lock/lock0lock.c		\
 			log/log0log.c			\
+			log/log0online.c		\
 			log/log0recv.c			\
 			mach/mach0data.c		\
 			mem/mem0mem.c			\

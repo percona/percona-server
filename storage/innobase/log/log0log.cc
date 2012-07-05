@@ -832,6 +832,7 @@ log_init(void)
 	/*----------------------------*/
 
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
+	log_sys->next_checkpoint_lsn = log_sys->lsn;
 
 	rw_lock_create(
 		checkpoint_lock_key, &log_sys->checkpoint_lock,
@@ -1548,6 +1549,7 @@ log_complete_checkpoint(void)
 
 	log_sys->next_checkpoint_no++;
 
+	ut_ad(log_sys->next_checkpoint_lsn >= log_sys->last_checkpoint_lsn);
 	log_sys->last_checkpoint_lsn = log_sys->next_checkpoint_lsn;
 	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
@@ -1593,6 +1595,7 @@ log_group_checkpoint(
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(log_mutex_own());
+	ut_ad(srv_shutdown_state != SRV_SHUTDOWN_LAST_PHASE);
 #if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
 # error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
 #endif
@@ -1606,6 +1609,11 @@ log_group_checkpoint(
 	buf = group->checkpoint_buf;
 	memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
 
+#ifdef UNIV_DEBUG
+	lsn_t		old_next_checkpoint_lsn
+		= mach_read_from_8(buf + LOG_CHECKPOINT_LSN);
+	ut_ad(old_next_checkpoint_lsn <= log_sys->next_checkpoint_lsn);
+#endif /* UNIV_DEBUG */
 	mach_write_to_8(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
 	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
 
@@ -1880,6 +1888,7 @@ log_checkpoint(
 		return(false);
 	}
 
+	ut_ad(oldest_lsn >= log_sys->next_checkpoint_lsn);
 	log_sys->next_checkpoint_lsn = oldest_lsn;
 	log_write_checkpoint_info(sync);
 	ut_ad(!log_mutex_own());
@@ -1996,14 +2005,17 @@ loop:
 }
 
 /******************************************************//**
-Reads a specified log segment to a buffer. */
+Reads a specified log segment to a buffer. Optionally releases the log mutex
+before the I/O.*/
 void
 log_group_read_log_seg(
 /*===================*/
 	byte*		buf,		/*!< in: buffer where to read */
 	log_group_t*	group,		/*!< in: log group */
 	lsn_t		start_lsn,	/*!< in: read area start */
-	lsn_t		end_lsn)	/*!< in: read area end */
+	lsn_t		end_lsn,	/*!< in: read area end */
+	bool		release_mutex)	/*!< in: whether the log_sys->mutex
+					should be released before the read */
 {
 	ulint	len;
 	lsn_t	source_offset;
@@ -2032,6 +2044,10 @@ loop:
 
 	ut_a(source_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
+	if (release_mutex) {
+		log_mutex_exit();
+	}
+
 	const ulint	page_no
 		= (ulint) (source_offset / univ_page_size.physical());
 
@@ -2046,6 +2062,9 @@ loop:
 
 	if (start_lsn != end_lsn) {
 
+		if (release_mutex) {
+			log_mutex_enter();
+		}
 		goto loop;
 	}
 }
@@ -2194,9 +2213,7 @@ loop:
 	while (buf_page_cleaner_is_active) {
 		++count;
 		os_thread_sleep(100000);
-		if (srv_print_verbose_log && count > 600) {
-			ib::info() << "Waiting for page_cleaner to"
-				" finish flushing of buffer pool";
+		if (count > 600) {
 			count = 0;
 		}
 	}
@@ -2332,6 +2349,7 @@ loop:
 	ut_a(freed);
 
 	ut_a(lsn == log_sys->lsn);
+	ut_ad(lsn == log_sys->last_checkpoint_lsn);
 
 	if (lsn < srv_start_lsn) {
 		ib::error() << "Log sequence number at shutdown " << lsn

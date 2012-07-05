@@ -43,6 +43,14 @@ const char *command_array[]=
   "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
 };
 
+TYPELIB utility_user_privileges_typelib=
+{
+  array_elements(command_array) - 1,
+  "utility_user_privileges_typelib",
+  command_array,
+  NULL
+};
+
 uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
@@ -1313,6 +1321,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   {
     int error;
     GRANT_TABLE *grant_table;
+    DBUG_ASSERT(!acl_is_utility_user(tmp_Str->user.str,
+                                     tmp_Str->host.str, NULL));
 
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
@@ -1882,6 +1892,14 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool rollback_whole_statement= false;
   while ((tmp_Str = str_list++))
   {
+    if (acl_is_utility_user(tmp_Str->user.str, tmp_Str->host.str, NULL))
+    {
+      my_error(ER_NONEXISTING_GRANT, MYF(0),
+               tmp_Str->user.str, tmp_Str->host.str);
+      result= TRUE;
+      continue;
+    }
+
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
       result= TRUE;
@@ -2901,7 +2919,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   mysql_mutex_lock(&acl_cache->lock);
 
   acl_user= find_acl_user(lex_user->host.str, lex_user->user.str, TRUE);
-  if (!acl_user)
+  if (!acl_user ||
+      (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), NULL)))
   {
     mysql_mutex_unlock(&acl_cache->lock);
     lock.unlock();
@@ -3917,7 +3936,10 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
         (strcmp(thd->security_context()->priv_user().str, user) ||
          my_strcasecmp(system_charset_info, curr_host, host)))
       continue;
-      
+
+    if (acl_is_utility_user(user, host, NULL))
+      continue;
+
     want_access= acl_user->access;
     if (!(want_access & GRANT_ACL))
       is_grantable= "NO";

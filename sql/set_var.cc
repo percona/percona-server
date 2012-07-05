@@ -753,7 +753,10 @@ int set_var::check(THD *thd)
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
+  if (!acl_is_utility_user(thd->security_context()->priv_user().str,
+                           thd->security_context()->host().str,
+                           thd->security_context()->ip().str)
+      && (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     DBUG_RETURN(1);
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)

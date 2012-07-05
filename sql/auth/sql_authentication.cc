@@ -2380,6 +2380,16 @@ acl_authenticate(THD *thd, enum_server_command command)
         mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
+
+      if (acl_is_utility_user(acl_proxy_user->user,
+                              acl_proxy_user->host.get_host(), NULL))
+      {
+        if (!thd->is_error())
+          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        mysql_mutex_unlock(&acl_cache->lock);
+        DBUG_RETURN(1);
+      }
+
       acl_user= acl_proxy_user->copy(thd->mem_root);
       DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
                           " identity %s", auth_user, acl_user->user));
@@ -4185,4 +4195,3 @@ mysql_declare_plugin(mysql_password)
 }
 #endif /* HAVE_OPENSSL */
 mysql_declare_plugin_end;
-

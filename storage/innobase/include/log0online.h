@@ -113,7 +113,8 @@ log_online_bitmap_iterator_release(
 Iterates through bits of saved bitmap blocks.
 Sequentially reads blocks from bitmap file(s) and interates through
 their bits. Ignores blocks with wrong checksum.
-@return TRUE if iteration is successful, FALSE if all bits are iterated. */
+@return true if iteration is successful, false if all bits are iterated. */
+
 bool
 log_online_bitmap_iterator_next(
 /*============================*/
@@ -122,7 +123,7 @@ log_online_bitmap_iterator_next(
 /** Struct for single bitmap file information */
 struct log_online_bitmap_file_struct {
 	char		name[FN_REFLEN];	/*!< Name with full path */
-	os_file_t	file;			/*!< Handle to opened file */
+	pfs_os_file_t	file;			/*!< Handle to opened file */
 	ib_uint64_t	size;			/*!< Size of the file */
 	os_offset_t	offset;			/*!< Offset of the next read,
 						or count of already-read bytes
@@ -145,6 +146,8 @@ struct log_online_bitmap_file_range_struct {
 /** Struct for an iterator through all bits of changed pages bitmap blocks */
 struct log_bitmap_iterator_struct
 {
+	bool				failed;		/*!< Has the iteration
+							stopped prematurely */
 	log_online_bitmap_file_range_t	in_files;	/*!< The bitmap files
 							for this iterator */
 	size_t				in_i;		/*!< Currently read
@@ -164,10 +167,10 @@ struct log_bitmap_iterator_struct
 	ib_uint32_t			first_page_id;	/*!< Id of the first
 							page in the current
 							block */
-	ibool				last_page_in_run;/*!< "Last page in
+	bool				last_page_in_run;/*!< "Last page in
 							run" flag value for the
 							current block */
-	ibool				changed;	/*!< true if current
+	bool				changed;	/*!< true if current
 							page was changed */
 	byte*				page;		/*!< Bitmap block */
 };

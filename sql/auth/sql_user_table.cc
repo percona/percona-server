@@ -896,6 +896,12 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
   mysql_mutex_assert_owner(&acl_cache->lock);
 
+  if (acl_is_utility_user(combo->user.str, combo->host.str, NULL))
+  {
+      my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
+      goto end;
+  }
+
   if (table_intact.check(table, &mysql_user_table_def))
     goto end;
   

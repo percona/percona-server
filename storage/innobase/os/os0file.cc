@@ -205,6 +205,7 @@ the completed IO request and calls completion routine on it.
 mysql_pfs_key_t  innodb_data_file_key;
 mysql_pfs_key_t  innodb_log_file_key;
 mysql_pfs_key_t  innodb_temp_file_key;
+mysql_pfs_key_t	 innodb_bmp_file_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous I/O context */
@@ -3305,6 +3306,25 @@ os_file_create_simple_func(
 	return(file);
 }
 
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return true if success */
+bool
+os_file_set_eof_at(
+	os_file_t	file, /*!< in: handle to a file */
+	ib_uint64_t	new_len)/*!< in: new file length */
+{
+#ifdef __WIN__
+	LARGE_INTEGER li, li2;
+	li.QuadPart = new_len;
+	return(SetFilePointerEx(file, li, &li2,FILE_BEGIN)
+	       && SetEndOfFile(file));
+#else
+	/* TODO: works only with -D_FILE_OFFSET_BITS=64 ? */
+	return(!ftruncate(file, new_len));
+#endif
+}
+
 /** This function attempts to create a directory named pathname. The new
 directory gets default permissions. On Unix the permissions are
 (0770 & ~umask). If the directory exists already, nothing is done and
@@ -4002,7 +4022,6 @@ os_file_set_eof(
 	return(!ftruncate(fileno(file), ftell(file)));
 }
 
-#ifdef UNIV_HOTBACKUP
 /** Closes a file handle.
 @param[in]	file		Handle to a file
 @return true if success */
@@ -4012,7 +4031,6 @@ os_file_close_no_error_handling(
 {
 	return(close(file) != -1);
 }
-#endif /* UNIV_HOTBACKUP */
 
 /** This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
@@ -5324,7 +5342,6 @@ os_file_set_eof(
 	return(SetEndOfFile(h));
 }
 
-#ifdef UNIV_HOTBACKUP
 /** Closes a file handle.
 @param[in]	file		Handle to close
 @return true if success */
@@ -5334,7 +5351,6 @@ os_file_close_no_error_handling(
 {
 	return(CloseHandle(file) ? true : false);
 }
-#endif /* UNIV_HOTBACKUP */
 
 /** This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must

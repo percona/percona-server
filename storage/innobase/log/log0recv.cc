@@ -1112,7 +1112,7 @@ recv_synchronize_groups(void)
 
 	log_group_read_log_seg(recv_sys->last_block,
 			       UT_LIST_GET_FIRST(log_sys->log_groups),
-			       start_lsn, end_lsn);
+			       start_lsn, end_lsn, false);
 
 	for (log_group_t* group = UT_LIST_GET_FIRST(log_sys->log_groups);
 	     group;
@@ -3846,7 +3846,7 @@ recv_group_scan_log_recs(
 		end_lsn += RECV_SCAN_SIZE;
 
 		log_group_read_log_seg(
-			log_sys->buf, group, start_lsn, end_lsn);
+			log_sys->buf, group, start_lsn, end_lsn, false);
 	} while (!recv_scan_log_recs(
 			 available_mem, &store_to_hash, log_sys->buf,
 			 RECV_SCAN_SIZE,

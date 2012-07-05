@@ -396,6 +396,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(ibuf_bitmap_mutex),
 	PSI_KEY(ibuf_mutex),
 	PSI_KEY(ibuf_pessimistic_insert_mutex),
+	PSI_KEY(log_bmp_sys_mutex),
 	PSI_KEY(log_sys_mutex),
 	PSI_KEY(log_sys_write_mutex),
 	PSI_KEY(log_cmdq_mutex),
@@ -499,6 +500,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 /* all_innodb_files array contains the type of files that are
 performance schema instrumented if "UNIV_PFS_IO" is defined */
 static PSI_file_info	all_innodb_files[] = {
+	PSI_KEY(innodb_bmp_file),
 	PSI_KEY(innodb_data_file),
 	PSI_KEY(innodb_log_file),
 	PSI_KEY(innodb_temp_file)

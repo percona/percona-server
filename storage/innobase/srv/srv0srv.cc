@@ -2302,6 +2302,20 @@ srv_master_do_idle_tasks(void)
 				       counter_time);
 }
 
+/******************************************************************//**
+Temporary buildable stub for the changed page redo-log follower.
+@return a dummy value */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(srv_redo_log_follow_thread)(
+/*=======================================*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						     required by
+						     os_thread_create */
+{
+	OS_THREAD_DUMMY_RETURN;
+}
+
 /*********************************************************************//**
 Perform the tasks during shutdown. The tasks that we do at shutdown
 depend on srv_fast_shutdown:

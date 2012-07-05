@@ -294,7 +294,10 @@ log_group_read_log_seg(
 	byte*		buf,		/*!< in: buffer where to read */
 	log_group_t*	group,		/*!< in: log group */
 	lsn_t		start_lsn,	/*!< in: read area start */
-	lsn_t		end_lsn);	/*!< in: read area end */
+	lsn_t		end_lsn,	/*!< in: read area end */
+	bool		release_mutex);	/*!< in: whether the log_sys->mutex
+				        should be released before the read */
+
 /********************************************************//**
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to

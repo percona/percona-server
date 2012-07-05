@@ -1,0 +1,159 @@
+--source include/have_plugin_auth.inc
+--source include/not_embedded.inc
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+
+call mtr.add_suppression("Did not write failed .* ");
+
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+
+--error ER_CANNOT_USER 
+CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';
+FLUSH PRIVILEGES;
+
+connect (frank,localhost,frank,password,mysql);
+disconnect frank;
+connection default;
+
+--error ER_CANNOT_USER 
+CREATE USER 'frank'@'%' IDENTIFIED BY 'password';
+
+connect (frank,localhost,frank,password,mysql);
+disconnect frank;
+connection default;
+
+--error ER_PASSWORD_NO_MATCH
+SET PASSWORD FOR 'frank'@'localhost' = PASSWORD('');
+
+--error ER_PASSWORD_NO_MATCH
+SET PASSWORD FOR 'frank'@'%' = PASSWORD('');
+
+--error ER_NONEXISTING_GRANT
+GRANT ALL ON mysql.* TO 'frank'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT ALL ON mysql.* TO 'frank'@'%';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT USAGE ON mysql.* TO 'frank'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT USAGE ON mysql.* TO 'frank'@'%';
+ 
+GRANT PROXY ON 'frank'@'%' TO 'root'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'localhost';
+ 
+--error ER_NONEXISTING_GRANT
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'%';
+ 
+--error ER_NONEXISTING_GRANT 
+SHOW GRANTS FOR 'frank'@'localhost';
+
+--error ER_NONEXISTING_GRANT 
+SHOW GRANTS FOR 'frank'@'%';
+
+--error ER_REVOKE_GRANTS
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'localhost';
+
+--error ER_NONEXISTING_GRANT 
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'%';
+
+--error ER_CANNOT_USER 
+DROP USER 'frank'@'localhost';
+
+--error ER_CANNOT_USER 
+DROP USER 'frank'@'%';
+
+CREATE USER 'mysqltest_1'@'localhost';
+
+connect (frank,localhost,frank,password,mysql);
+connection frank;
+
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+
+SELECT USER();
+
+SELECT CURRENT_USER();
+
+SHOW DATABASES;
+
+CREATE USER 'frankjr'@'localhost' IDENTIFIED BY 'password';
+
+GRANT ALL ON mysql.* TO 'frankjr'@'localhost';
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frankjr'@'localhost';
+
+SET PASSWORD FOR 'frankjr'@'localhost' = PASSWORD('');
+
+DROP USER 'frankjr'@'localhost';
+
+# Allowed because --utility-user-priviliges has CREATE
+CREATE DATABASE mysqltest;
+
+# Allowed because --utility-user-priviliges has CREATE
+CREATE TABLE mysqltest.t1 (a INT, b INT);
+
+# Allowed because --utility-user-priviliges has SHOW DATABASES
+SHOW TABLES IN mysqltest;
+
+# NOT allowed because --utility-user-priviliges does not have INSERT
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqltest.t1(a, b) VALUES (1, 1);
+
+# NOT allowed because --utility-user-priviliges does not have SELECT
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqltest.t1;
+
+# NOT allowed because --utility-user-priviliges does not have ALTER
+--error ER_TABLEACCESS_DENIED_ERROR
+ALTER TABLE mysqltest.t1 DROP COLUMN b;
+
+# Allowed because --utility-user-priviliges has DROP
+DROP DATABASE mysqltest;
+
+SET PASSWORD FOR 'mysqltest_1'@'localhost' = PASSWORD('newpass');
+
+SET @testtemp= @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown= 2;
+SELECT @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown= 0;
+SELECT @@global.innodb_fast_shutdown;
+SET @@global.innodb_fast_shutdown= @testtemp;
+
+connection default;
+disconnect frank;
+
+#
+# cleanup from above tests
+#
+DROP USER 'mysqltest_1'@'localhost';
+
+#
+# Try to impersonate a proxied utility_user
+#
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'frank';
+
+SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(plug_con,localhost,plug,frank);
+--enable_query_log
+
+GRANT PROXY ON frank TO plug;
+
+--replace_column 1 xx 7 xx
+SELECT * FROM mysql.proxies_priv;
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(plug_con,localhost,plug,frank);
+--enable_query_log
+
+connection default;
+
+DROP USER plug;

@@ -612,7 +612,10 @@ int set_var::check(THD *thd)
     my_error(err, MYF(0), var->name.str);
     return -1;
   }
-  if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
+  if (!acl_is_utility_user(thd->security_ctx->priv_user,
+                           thd->security_ctx->get_host()->ptr(),
+                           thd->security_ctx->get_ip()->ptr())
+      && (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     return 1;
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)

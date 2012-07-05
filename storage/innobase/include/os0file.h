@@ -76,6 +76,7 @@ typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
 /** File handle */
 # define os_file_t	HANDLE
+# define os_file_invalid	INVALID_HANDLE_VALUE
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -83,6 +84,7 @@ typedef ib_uint64_t os_offset_t;
 #else
 /** File handle */
 typedef int	os_file_t;
+# define os_file_invalid	(-1)
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -211,6 +213,7 @@ extern ulint	os_n_fsyncs;
 extern mysql_pfs_key_t	innodb_file_data_key;
 extern mysql_pfs_key_t	innodb_file_log_key;
 extern mysql_pfs_key_t	innodb_file_temp_key;
+extern mysql_pfs_key_t	innodb_file_bmp_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.
@@ -886,6 +889,14 @@ ibool
 os_file_flush_func(
 /*===============*/
 	os_file_t	file);	/*!< in, own: handle to a file */
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file,	/*!< in: handle to a file */
+	ib_uint64_t	new_len);/*!< in: new file length */
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may

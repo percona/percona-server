@@ -180,6 +180,8 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
 UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
+UNIV_INTERN ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the
@@ -2262,6 +2264,20 @@ srv_master_do_idle_tasks(void)
 	log_checkpoint(TRUE, FALSE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
 				       counter_time);
+}
+
+/******************************************************************//**
+Temporary buildable stub for the changed page redo-log follower.
+@return a dummy value */
+extern "C" UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_redo_log_follow_thread)(
+/*=======================================*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						     required by
+						     os_thread_create */
+{
+	OS_THREAD_DUMMY_RETURN;
 }
 
 /*********************************************************************//**

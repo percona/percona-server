@@ -724,6 +724,16 @@ srv_get_active_thread_type(void);
 
 extern "C" {
 
+/******************************************************************//**
+Thread that follows redo log changes for changed page tracking.
+@return a dummy value */
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_redo_log_follow_thread)(
+/*=======================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */

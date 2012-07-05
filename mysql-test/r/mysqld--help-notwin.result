@@ -1025,6 +1025,17 @@ The following options may be given as the first argument:
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
  -u, --user=name     Run mysqld daemon as user.
+ --utility-user=name Specifies a MySQL user that will be added to the internal
+ list of users and recognized as the utility user.
+ --utility-user-password=name 
+ Specifies the password required for the utility user.
+ --utility-user-privileges=name 
+ Specifies the privileges that the utility user will have
+ in a comma delimited list. See the manual for a complete
+ list of privileges.
+ --utility-user-schema-access=name 
+ Specifies the schemas that the utility user has access to
+ in a comma delimited list.
  --validate-user-plugins 
  Turns on additional validation of authentication plugins
  assigned to user accounts. 
@@ -1335,6 +1346,10 @@ transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
 updatable-views-with-limit YES
+utility-user (No default value)
+utility-user-password (No default value)
+utility-user-privileges 
+utility-user-schema-access (No default value)
 validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800

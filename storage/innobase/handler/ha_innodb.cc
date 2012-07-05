@@ -409,7 +409,8 @@ performance schema instrumented if "UNIV_PFS_IO" is defined */
 static PSI_file_info	all_innodb_files[] = {
 	{&innodb_file_data_key, "innodb_data_file", 0},
 	{&innodb_file_log_key, "innodb_log_file", 0},
-	{&innodb_file_temp_key, "innodb_temp_file", 0}
+	{&innodb_file_temp_key, "innodb_temp_file", 0},
+	{&innodb_file_bmp_key, "innodb_bmp_file", 0}
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */

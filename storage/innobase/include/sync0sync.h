@@ -710,6 +710,7 @@ or row lock! */
 #define SYNC_REC_LOCK		294
 #define SYNC_TRX_SYS_HEADER	290
 #define	SYNC_PURGE_QUEUE	200
+#define SYNC_LOG_ONLINE		175
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168

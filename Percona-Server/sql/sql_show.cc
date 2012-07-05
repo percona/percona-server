@@ -1865,7 +1865,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
+          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user)))
+          && !acl_is_utility_user(tmp_sctx->user, tmp_sctx->host, tmp_sctx->ip))
       {
         thread_info *thd_info= new thread_info;
 
@@ -1971,7 +1972,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       const char *val;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
-          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
+          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user)))
+          || acl_is_utility_user(tmp_sctx->user, tmp_sctx->host, tmp_sctx->ip))
         continue;
 
       restore_record(table, s->default_values);

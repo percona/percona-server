@@ -243,6 +243,10 @@ extern ulonglong opt_log_warnings_suppress;
 
 extern char* enforce_storage_engine;
 
+extern char* utility_user;
+extern char* utility_user_password;
+extern char* utility_user_schema_access;
+
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
   using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().

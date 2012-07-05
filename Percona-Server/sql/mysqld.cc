@@ -645,6 +645,10 @@ ulonglong opt_log_warnings_suppress= 0;
 
 char* enforce_storage_engine= NULL;
 
+char* utility_user= NULL;
+char* utility_user_password= NULL;
+char* utility_user_schema_access= NULL;
+
 /* Thread specific variables */
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
@@ -6257,6 +6261,18 @@ struct my_option my_long_options[]=
    &global_system_variables.tx_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"utility_user", 0, "Specifies a MySQL user that will be added to the "
+    "internal list of users and recognized as the utility user.",
+    &utility_user, 0, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},    
+  {"utility_user_password", 0, "Specifies the password required for the "
+   "utility user.",
+   &utility_user_password, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"utility_user_schema_access", 0, "Specifies the schemas that the utility "
+   "user has access to in a comma delimited list.",
+   &utility_user_schema_access, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},

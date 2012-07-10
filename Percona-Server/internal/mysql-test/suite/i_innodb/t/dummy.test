@@ -1,0 +1,3 @@
+# This is a dummy test for innodb, feel free to rename and reuse for real test
+--source include/have_innodb.inc
+--echo Dummy innodb test

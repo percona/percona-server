@@ -25,6 +25,7 @@ test_SCRIPTS =	mtr \
 		mysql-stress-test.pl
 
 nobase_test_DATA = \
+	lib/Subunit.pm \
 	valgrind.supp \
 	lib/v1/mysql-test-run.pl \
 	lib/v1/mtr_cases.pl \

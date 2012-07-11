@@ -99,6 +99,7 @@ use mtr_unique;
 use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
+use Subunit;
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
@@ -297,6 +298,7 @@ my @valgrind_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
 my $opt_callgrind;
+my $opt_helgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
 
@@ -610,6 +612,7 @@ sub run_test_server ($$$) {
 
 	  # Report test status
 	  mtr_report_test($result);
+	  mtr_report_test_subunit($result);
 
 	  if ( $result->is_failed() ) {
 
@@ -1133,6 +1136,7 @@ sub command_line_setup {
              'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
+             'helgrind'                 => \$opt_helgrind,
 	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
 
 	     # Directories
@@ -1717,11 +1721,18 @@ sub command_line_setup {
     push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
   }
 
+  if ( $opt_helgrind )
+  {
+    mtr_report("Turning on valgrind with helgrind for mysqld(s)");
+    $opt_valgrind= 1;
+    $opt_valgrind_mysqld= 1;
+  }
+
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
     push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args;
+      unless @valgrind_args || $opt_helgrind;
 
     # Don't add --quiet; you will loose the summary reports.
 
@@ -1855,6 +1866,12 @@ sub collect_mysqld_features {
   if (!IS_WINDOWS and $> == 0)
   {
     mtr_add_arg($args, "--user=root");
+  }
+
+  foreach my $extra_opt (@opt_extra_mysqld_opt) {
+    if ($extra_opt =~ /--plugin-load/) {
+      mtr_add_arg($args, $extra_opt);
+    }
   }
 
   my $exe_mysqld= find_mysqld($basedir);
@@ -6295,11 +6312,18 @@ sub valgrind_arguments {
     mtr_add_arg($args, "--tool=callgrind");
     mtr_add_arg($args, "--base=$opt_vardir/log");
   }
+  elsif ( $opt_helgrind )
+  {
+    mtr_add_arg($args, "--tool=helgrind");
+  }
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
     mtr_add_arg($args, "--leak-check=yes");
     mtr_add_arg($args, "--num-callers=16");
+    # Support statically-linked malloc libraries and
+    # dynamically-linked jemalloc
+    mtr_add_arg($args, "--soname-synonyms=somalloc=NONE,somalloc=*jemalloc*");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
       if -f "$glob_mysql_test_dir/valgrind.supp";
   }

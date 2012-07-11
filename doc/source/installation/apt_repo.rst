@@ -12,10 +12,10 @@
   
   $ gpg -a --export CD2EFD2A | sudo apt-key add -
 
-Add this to :file:`/etc/apt/sources.list`, replacing ``lenny`` with the name of your distribution: ::
+Add this to :file:`/etc/apt/sources.list`, replacing ``VERSION`` with the name of your distribution: ::
 
-  deb http://repo.percona.com/apt lenny main
-  deb-src http://repo.percona.com/apt lenny main
+  deb http://repo.percona.com/apt VERSION main
+  deb-src http://repo.percona.com/apt VERSION main
 
 Remember to update the local cache: ::
 
@@ -47,7 +47,7 @@ Ubuntu
 Release Candidate Repository
 ============================
 
-To subscribe to the release candidate repository, add two lines to the :file:`/etc/apt/sources.list` file, again replacing ``lenny`` with your server's release version: ::
+To subscribe to the release candidate repository, add two lines to the :file:`/etc/apt/sources.list` file, again replacing ``VERSION`` with your server's release version: ::
 
-  deb http://repo.percona.com/apt-rc lenny main
-  deb-src http://repo.percona.com/apt-rc lenny main
+  deb http://repo.percona.com/apt-rc VERSION main
+  deb-src http://repo.percona.com/apt-rc VERSION main

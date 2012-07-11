@@ -88,6 +88,7 @@ Database: information_schema
 | EVENTS                                |
 | FILES                                 |
 | GLOBAL_STATUS                         |
+| GLOBAL_TEMPORARY_TABLES               |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
 | OPTIMIZER_TRACE                       |
@@ -107,6 +108,7 @@ Database: information_schema
 | TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TEMPORARY_TABLES                      |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
@@ -149,6 +151,7 @@ Database: INFORMATION_SCHEMA
 | EVENTS                                |
 | FILES                                 |
 | GLOBAL_STATUS                         |
+| GLOBAL_TEMPORARY_TABLES               |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
 | OPTIMIZER_TRACE                       |
@@ -168,6 +171,7 @@ Database: INFORMATION_SCHEMA
 | TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TEMPORARY_TABLES                      |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |

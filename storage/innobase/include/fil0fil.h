@@ -1016,4 +1016,16 @@ fil_user_tablespace_restore_page(
 					write buffer */
 
 #endif /* !UNIV_INNOCHECKSUM */
+
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+fil_system_hash_cells(void);
+/*========================*/
+
+ulint
+fil_system_hash_nodes(void);
+/*========================*/
+
 #endif /* fil0fil_h */

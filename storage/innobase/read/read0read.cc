@@ -24,6 +24,7 @@ Created 2/16/1997 Heikki Tuuri
 *******************************************************/
 
 #include "read0read.h"
+#include "read0i_s.h"
 
 #ifdef UNIV_NONINL
 #include "read0read.ic"
@@ -531,6 +532,36 @@ read_view_print(
 		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
 			view->trx_ids[i]);
 	}
+}
+
+UNIV_INTERN
+i_s_xtradb_read_view_t*
+read_fill_i_s_xtradb_read_view(i_s_xtradb_read_view_t* rv)
+{
+	read_view_t*    view;
+
+	mutex_enter(&trx_sys->mutex);
+
+	if (UT_LIST_GET_LEN(trx_sys->view_list)) {
+		view = UT_LIST_GET_LAST(trx_sys->view_list);
+	} else {
+		mutex_exit(&trx_sys->mutex);
+		return NULL;
+	}
+
+	if (view->type == VIEW_HIGH_GRANULARITY) {
+		rv->undo_no = view->undo_no;
+	} else {
+		rv->undo_no = ULINT_UNDEFINED;
+	}
+
+	rv->low_limit_no = view->low_limit_no;
+	rv->up_limit_id = view->up_limit_id;
+	rv->low_limit_id = view->low_limit_id;
+
+	mutex_exit(&trx_sys->mutex);
+
+	return rv;
 }
 
 /*********************************************************************//**

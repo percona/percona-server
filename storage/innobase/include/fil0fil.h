@@ -1668,4 +1668,15 @@ void test_make_filepath();
 
 #endif /* !UNIV_INNOCHECKSUM */
 
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+fil_system_hash_cells(void);
+/*========================*/
+
+ulint
+fil_system_hash_nodes(void);
+/*========================*/
+
 #endif /* fil0fil_h */

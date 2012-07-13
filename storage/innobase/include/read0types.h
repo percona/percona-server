@@ -249,12 +249,12 @@ public:
 	{
 		return(m_low_limit_no <= rhs->m_low_limit_no);
 	}
+#endif /* UNIV_DEBUG */
 
 	trx_id_t up_limit_id() const
 	{
 		return(m_up_limit_id);
 	}
-#endif /* UNIV_DEBUG */
 private:
 	/**
 	Copy the transaction ids from the source vector */

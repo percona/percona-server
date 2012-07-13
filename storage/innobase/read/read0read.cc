@@ -24,6 +24,7 @@ Created 2/16/1997 Heikki Tuuri
 *******************************************************/
 
 #include "read0read.h"
+#include "read0i_s.h"
 
 #include "srv0srv.h"
 #include "trx0sys.h"
@@ -765,11 +766,27 @@ MVCC::view_close(ReadView*& view, bool own_mutex)
 	}
 }
 
-/**
-Set the view creator transaction id. Note: This shouldbe set only
-for views created by RW transactions.
-@param view		Set the creator trx id for this view
-@param id		Transaction id to set */
+i_s_xtradb_read_view_t*
+read_fill_i_s_xtradb_read_view(i_s_xtradb_read_view_t* rv)
+{
+	ReadView*    view;
+
+	mutex_enter(&trx_sys->mutex);
+
+	view = trx_sys->mvcc->get_oldest_view();
+	if (!view) {
+		mutex_exit(&trx_sys->mutex);
+		return NULL;
+	}
+
+	rv->low_limit_no = view->low_limit_no();
+	rv->up_limit_id = view->up_limit_id();
+	rv->low_limit_id = view->low_limit_id();
+
+	mutex_exit(&trx_sys->mutex);
+
+	return rv;
+}
 
 void
 MVCC::set_view_creator_trx_id(ReadView* view, trx_id_t id)

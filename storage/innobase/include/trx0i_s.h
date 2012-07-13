@@ -291,4 +291,7 @@ trx_i_s_create_lock_id(
 	ulint			lock_id_size);/*!< in: size of the lock id
 					buffer */
 
+void
+trx_i_s_get_lock_sys_memory_usage(ulint *constant, ulint *variable);
+
 #endif /* trx0i_s_h */

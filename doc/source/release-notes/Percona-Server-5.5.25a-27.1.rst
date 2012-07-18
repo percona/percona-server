@@ -1,12 +1,12 @@
-.. rn:: 5.5.25-27.0
+.. rn:: 5.5.25a-27.1
 
-==============================
- |Percona Server| 5.5.25-27.0
-==============================
+===============================
+ |Percona Server| 5.5.25a-27.1
+===============================
 
-Percona is glad to announce the release of |Percona Server| 5.5.25-27.0 on June 27th, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.25-27.0/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
+Percona is glad to announce the release of |Percona Server| 5.5.25a-27.1 on July 20th, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.25a-27.1/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
 
-Based on `MySQL 5.5.25 <http://dev.mysql.com/doc/refman/5.5/en/news-5-5-25.html>`_, including all the bug fixes in it, |Percona Server| 5.5.25-27.0 is now the current stable release in the 5.5 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.5.25-27.0 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.5.25-27.0>`_. 
+Based on `MySQL 5.5.25a <http://dev.mysql.com/doc/refman/5.5/en/news-5-5-25a.html>`_, including all the bug fixes in it, |Percona Server| 5.5.25a-27.1 is now the current stable release in the 5.5 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.5.25a-27.1 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.5.25a-27.1>`_. 
 
 Features
 ========
@@ -18,7 +18,7 @@ Features
 Bug Fixes
 =========
 
-  * |Percona Server| 5.5.24 would crash if userstats were enabled with any replication configured. This was a regression introduced with ssl connections count in statistics tables. Bug fixed :bug:`1008278` (*Vladislav Lesin*).
+  * |Percona Server| 5.5.24 would crash if userstats were enabled with any replication configured. This was a regression introduced with ssl connections count in statistics tables in Percona Server :rn:`5.5.24-26.0`. Bug fixed :bug:`1008278` (*Vladislav Lesin*).
 
   * PAM authentication plugin was in different directories in 32bit and 64bit binary tarballs. Bug fixed :bug:`1007271` (*Ignacio Nin*).
 
@@ -35,3 +35,5 @@ Bug Fixes
   * Removed some patch-based source code management leftovers from the bzr branch migration. Bug fixed :bug:`988383` (*Stewart Smith*).
 
   * Fixed upstream mysql bug `#60743 <http://bugs.mysql.com/bug.php?id=60743>`_, typo in cmake/dtrace.cmake that was making dtrace unusable. Bug fixed :bug:`1013455` (*Stewart Smith*).
+
+Other bugfixes: bug :bug:`1022481` (*Ignacio Nin*) and bug :bug:`987348` (*Ignacio Nin*).

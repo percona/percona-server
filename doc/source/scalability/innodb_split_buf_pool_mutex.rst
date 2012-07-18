@@ -37,7 +37,7 @@ Other Information
 Detecting Mutex Contention
 --------------------------
 
-You can detect when you suffer from mutex contention in the buffer pool by reading the information provided in the SEMAPHORES section of the output of SHOW INNODB STATUS:
+You can detect when you suffer from mutex contention in the buffer pool by reading the information provided in the SEMAPHORES section of the output of SHOW ENGINE INNODB STATUS:
 
 Under normal circumstances this section should look like this:
 

@@ -4,13 +4,13 @@
  Show |InnoDB| Status
 ======================
 
-This feature reorganizes the output of ``SHOW INNODB STATUS`` for a better readability and prints the amount of memory used by the internal hash tables. In addition, new variables are available to control the output.
+This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for a better readability and prints the amount of memory used by the internal hash tables. In addition, new variables are available to control the output.
 
-This feature modified the ``SHOW INNODB STATUS`` command as follows:
+This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 
   * ``TRANSACTION`` section was moved to the end of the output, so that important information is not overlooked when the there is a large amount of it.
 
-  * Added two variables to control ``SHOW INNODB STATUS`` information presented (bugfix for `#29123 <http://bugs.mysql.com/bug.php?id=29126>`_):
+  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information presented (bugfix for `#29123 <http://bugs.mysql.com/bug.php?id=29126>`_):
 
     * :variable:`innodb_show_verbose_locks` - Whether to show records locked
 
@@ -24,7 +24,7 @@ Version Specific Information
 ============================
 
   * 5.5.8-20.0
-    Added status variables showing information from ``SHOW INNODB STATUS``.
+    Added status variables showing information from ``SHOW ENGINE INNODB STATUS``.
 
   * 5.5.8-20.0
     Added additional information in the LOG section.
@@ -52,7 +52,7 @@ System Variables
      :default: 0
      :range: 0 - 1
 
-Specifies to show records locked in ``SHOW INNODB STATUS``. The default is 0, which means only the higher-level information about the lock (which table and index is locked, etc.) is printed. If set to 1, then traditional |InnoDB| behavior is enabled: the records that are locked are dumped to the output.
+Specifies to show records locked in ``SHOW ENGINE INNODB STATUS``. The default is 0, which means only the higher-level information about the lock (which table and index is locked, etc.) is printed. If set to 1, then traditional |InnoDB| behavior is enabled: the records that are locked are dumped to the output.
 
 .. variable:: innodb_show_locks_held
 
@@ -64,19 +64,19 @@ Specifies to show records locked in ``SHOW INNODB STATUS``. The default is 0, wh
      :default: 10
      :range: 0 - 1000
 
-Specifies the number of locks held to print for each |InnoDB| transaction in SHOW INNODB STATUS.
+Specifies the number of locks held to print for each |InnoDB| transaction in ``SHOW ENGINE INNODB STATUS``.
 
 
 Status Variables
 ================
 
-The status variables here contain information available in the output of ``SHOW INNODB STATUS``, organized by the sections ``SHOW INNODB STATUS`` displays. If you are familiar with the output of ``SHOW INNODB STATUS``, you will probably already recognize the information these variables contain.
+The status variables here contain information available in the output of ``SHOW ENGINE INNODB STATUS``, organized by the sections ``SHOW ENGINE INNODB STATUS`` displays. If you are familiar with the output of ``SHOW ENGINE INNODB STATUS``, you will probably already recognize the information these variables contain.
 
 
 BACKGROUND THREAD
 -----------------
 
-The following variables contain information in the BACKGROUND THREAD section of the output from ``SHOW INNODB STATUS``. An example of that output is:
+The following variables contain information in the BACKGROUND THREAD section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is:
 
  Insert an example of BACKGROUND THREAD section output here.
 
@@ -119,7 +119,7 @@ The following variables contain information in the BACKGROUND THREAD section of 
 SEMAPHORES
 ----------
 
-The following variables contain information in the SEMAPHORES section of the output from ``SHOW INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the SEMAPHORES section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
 
   ----------
   SEMAPHORES
@@ -186,7 +186,7 @@ The following variables contain information in the SEMAPHORES section of the out
 INSERT BUFFER AND ADAPTIVE HASH INDEX
 -------------------------------------
 
-The following variables contain information in the INSERT BUFFER AND ADAPTIVE HASH INDEX section of the output from SHOW |InnoDB| STATUS. An example of that output is: ::
+The following variables contain information in the INSERT BUFFER AND ADAPTIVE HASH INDEX section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
 
   -------------------------------------
   INSERT BUFFER AND ADAPTIVE HASH INDEX
@@ -283,7 +283,7 @@ The following variables contain information in the INSERT BUFFER AND ADAPTIVE HA
 LOG
 ---
 
-The following variables contain information in the LOG section of the output from ``SHOW INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the LOG section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
 
   ---
   LOG
@@ -337,7 +337,7 @@ The following variables contain information in the LOG section of the output fro
 BUFFER POOL AND MEMORY
 ----------------------
 
-The following variables contain information in the BUFFER POOL AND MEMORY section of the output from ``SHOW INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the BUFFER POOL AND MEMORY section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
 
   ----------------------
   BUFFER POOL AND MEMORY
@@ -412,7 +412,7 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
 TRANSACTIONS
 ------------
 
-The following variables contain information in the TRANSACTIONS section of the output from ``SHOW INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the TRANSACTIONS section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
 
   ------------
   TRANSACTIONS
@@ -423,7 +423,7 @@ The following variables contain information in the TRANSACTIONS section of the o
   LIST OF TRANSACTIONS FOR EACH SESSION:
   ---TRANSACTION 0, not started, process no 993, OS thread id 140213152634640
   mysql thread id 15933, query id 32109 localhost root
-  show innodb status
+  show engine innodb status
   ---TRANSACTION F561FC, ACTIVE 29 sec, process no 993, OS thread id 140213152769808 updating or deleting
   mysql tables in use 1, locked 1
 

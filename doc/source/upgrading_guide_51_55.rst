@@ -10,7 +10,7 @@ Having this in mind, the changes in the in the 5.5 series can be grouped into 3 
 
   * Server configuration
 
-  * Server behaviour and functioning
+  * Server behavior and functioning
 
   * SQL changes
 
@@ -129,7 +129,7 @@ You may also want to check the new features available in |Percona Server| 5.5:
 
   * Crash-Resistant Replication
 
-  * Show InnoDB Status
+  * Show Engine InnoDB Status
 
   * Plugins
 
@@ -265,9 +265,9 @@ You should backup your entire configuration file - :file:`my.cnf` - also. The fi
 
   $ cp /etc/mysql/my.cnf /path/where/to/store/backup/
 
-While this is not an “in-place” upgrade technically, where possible, doing a full dump of the server's data for restoring it later is recommended. By this way, the indexes from all tables will be rebuilt explicitly, and any binary compatibility issue will be avoided: ::
+While this is not an "in-place" upgrade technically, where possible, doing a full dump of the server's data for restoring it later is recommended. By this way, the indexes from all tables will be rebuilt explicitly, and any binary compatibility issue will be avoided: ::
 
-  $ mysql_dump --user=root -p --all-databases --triggers > mydata.sql
+  $ mysqldump --user=root -p --all-databases --routines > mydata.sql
 
 This is not possible in some cases because of available space or downtime requirements, but if it is feasible, it is highly recommended.
 
@@ -364,7 +364,7 @@ Having done the full backup (and dump if possible), stop the server: ::
 
   $ sudo /etc/init.d/mysqld stop
 
-and remove the the installed packages with their dependencies: ::
+and remove the installed packages with their dependencies: ::
 
   $ sudo apt-get autoremove percona-server-server-51 percona-server-client-51
 
@@ -464,3 +464,10 @@ If it can't find the pid file, kill the server and start it normally: ::
 
   $ killall /usr/sbin/mysqld
   $ /sbin/service mysql start
+
+Other Reading
+=============
+
+ * `Upgrading MySQL: Best Practices <http://www.percona.tv/percona-webinars/upgrading-mysql-best-practices>`_ webinar,
+
+ * `Upgrading MySQL webinar questiones <http://www.mysqlperformanceblog.com/2012/06/28/upgrading-mysql-webinar-question/>`_

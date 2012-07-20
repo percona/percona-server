@@ -13,5 +13,5 @@ This feature is enabled by default if your system supports it, in other cases it
 Version Specific Information
 ============================
 
-  * :rn:`5.5.25-27.0`:
+  * :rn:`5.5.25a-27.1`:
     Thread based profiling introduced

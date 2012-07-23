@@ -1,6 +1,3 @@
-#
-# testing of purging of binary log files bug#18199/Bug#18453
-#
 source include/have_log_bin.inc;
 source include/not_embedded.inc;
 

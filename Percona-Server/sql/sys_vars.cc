@@ -804,7 +804,7 @@ static Sys_var_ulong Sys_max_binlog_files(
        "be used to limit the total amount of disk space used for the binlog. "
        "Default is 0, don't limit.",
        GLOBAL_VAR(max_binlog_files),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_flush(
        "flush", "Flush MyISAM tables to disk between SQL commands",

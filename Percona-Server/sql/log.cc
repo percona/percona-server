@@ -4176,10 +4176,10 @@ int MYSQL_BIN_LOG::purge_logs_maximum_number(ulong max_nr_files)
       current_number_of_logs++;
 
     if (current_number_of_logs <= max_nr_files)
-      {
-	error= 0;
-	goto err; /* No logs to expire */
-      }
+    {
+      error= 0;
+      goto err; /* No logs to expire */
+    }
 
     if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
       goto err;
@@ -4188,17 +4188,17 @@ int MYSQL_BIN_LOG::purge_logs_maximum_number(ulong max_nr_files)
 	   !is_active(log_info.log_file_name) &&
 	   !log_in_use(log_info.log_file_name) &&
 	   current_number_of_logs > max_nr_files)
-      {
-	current_number_of_logs--;
-        strmake(to_log,
-                log_info.log_file_name,
-                sizeof(log_info.log_file_name) - 1);
+    {
+      current_number_of_logs--;
+      strmake(to_log,
+	      log_info.log_file_name,
+	      sizeof(log_info.log_file_name) - 1);
 
-	if (find_next_log(&log_info, 0))
-	{
-	  break;
-	}
+      if (find_next_log(&log_info, 0))
+      {
+	break;
       }
+    }
 
     error= (to_log[0] ? purge_logs(to_log, 1, 0, 1, (ulonglong *) 0) : 0);
 

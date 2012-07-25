@@ -20,6 +20,10 @@ The following is a summary of the more relevant changes in the 5.5 series. For m
 
   * http://dev.mysql.com/doc/refman/5.5/en/upgrading-from-previous-series.html
 
+
+.. warning:: 
+ Upgrade 5.1 to 5.5 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade.
+
 Changes in Server Configuration
 ===============================
 
@@ -165,7 +169,7 @@ otherwise, the server won't start. Strictly speaking, the ignore-builtin-innodb 
 Also, the variable innodb_file_io_threads has been replaced by innodb_read_io_threads and innodb_write_io_threads (these variables were already introduced in Percona Server 5.1). All of them defaults to 4, you should replace the old variable with the two new ones with the proper value (or delete it if the default - 4 - is acceptable).
 
 
-Changes in Server Behaviour and Functioning
+Changes in Server Behavior and Functioning
 ===========================================
 
 Privileges
@@ -290,6 +294,9 @@ Having done the full backup (or dump if possible), stop the server: ::
   $ sudo /etc/init.d/mysqld stop
 
 and proceed to do the modifications needed in your configuration file, as explained at the beginning of this guide.
+
+.. note:: 
+ For extra safety doing the slow InnoDB shutdown before the upgrade is recommended.
 
 Then install the new server with: ::
 

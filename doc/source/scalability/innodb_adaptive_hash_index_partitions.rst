@@ -26,7 +26,7 @@ System Variables
    :dyn: No
    :vartype: Numeric
    :def: 1
-   :range: 0-MAXINT
+   :range: 0-64, (on 32-bit platform 0-32)
 
 Specifies the number of partitions to use in the adaptive hash search process.
 

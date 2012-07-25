@@ -8,9 +8,9 @@ The ``STOP SLAVE`` and ``SHOW SLAVE STATUS`` commands can conflict due to a glob
 
 If a ``STOP SLAVE`` command is given in this situation, it will wait and not complete execution until the long-executing thread has completed its task. If another thread now executes a ``SHOW SLAVE STATUS`` command while the STOP SLAVE command is waiting to complete, the ``SHOW SLAVE STATUS`` command will not be able to execute while the ``STOP SLAVE`` command is waiting.
 
-This features modifies the ``SLOW SLAVE STATUS`` syntax to allow: ::
+This features modifies the ``SHOW SLAVE STATUS`` syntax to allow: ::
 
-  SLOW SLAVE STATUS NOLOCK
+  SHOW SLAVE STATUS NOLOCK
 
 This will display the slave's status as if there were no lock, allowing the user to detect and understand the situation that is occurring.
 

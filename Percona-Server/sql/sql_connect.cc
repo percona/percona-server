@@ -473,6 +473,10 @@ static int increment_count_by_name(const char *name, const char *role_name,
                                                    (uchar*) name,
                                                    strlen(name))))
   {
+    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
+                            thd->security_ctx->ip))
+      return 0;
+
     // First connection for this user or client
     if (!(user_stats = ((USER_STATS *)
                         my_malloc(sizeof(USER_STATS), MYF(MY_WME | MY_ZEROFILL)))))
@@ -513,6 +517,10 @@ static int increment_count_by_id(my_thread_id id,
                                                        (uchar*) &id,
                                                        sizeof(my_thread_id))))
   {
+    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
+        thd->security_ctx->ip))
+      return 0;
+
     // First connection for this user or client
     if (!(thread_stats = ((THREAD_STATS *)
                         my_malloc(sizeof(THREAD_STATS), MYF(MY_WME | MY_ZEROFILL)))))
@@ -555,6 +563,10 @@ static int increment_connection_count(THD* thd, bool use_lock)
   int return_value=          0;
 
   if (!opt_userstat)
+    return return_value;
+
+  if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
+      thd->security_ctx->ip))
     return return_value;
 
   if (use_lock)
@@ -649,6 +661,11 @@ void update_global_user_stats(THD* thd, bool create_user, time_t now)
 
     USER_STATS* user_stats;
     THREAD_STATS* thread_stats;
+
+    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
+        thd->security_ctx->ip))
+      return;
+
     mysql_mutex_lock(&LOCK_global_user_client_stats);
 
     // Update by user name

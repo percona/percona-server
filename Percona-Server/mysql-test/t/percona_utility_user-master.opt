@@ -1,0 +1,3 @@
+$PLUGIN_AUTH_OPT
+$PLUGIN_AUTH_LOAD
+--utility_user=frank@% --utility_user_password=password --utility_user_schema_access=mysql,performance_schema

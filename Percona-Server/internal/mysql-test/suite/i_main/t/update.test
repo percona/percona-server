@@ -1,0 +1,21 @@
+--echo #
+--echo # 65745: UPDATE ON INNODB TABLE ENTERS RECURSION
+--echo #
+CREATE TABLE t1 (
+ id1 int NOT NULL,
+ id2 int NOT NULL,
+ a int,
+ b int,
+ PRIMARY KEY (id1,id2),
+ KEY (id1, a)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `t1` VALUES (1,1,NULL,1);
+INSERT INTO `t1` VALUES (2,2,1,NULL);
+INSERT INTO `t1` VALUES (2,6,NULL,2);
+# should not hang
+UPDATE t1 SET id2 = id2 + 1, b = null WHERE a is null and id1 = 2;
+
+DROP TABLE t1;
+--echo #
+

@@ -500,6 +500,9 @@ static MYSQL_THDVAR_BOOL(fake_changes, PLUGIN_VAR_OPCMDARG,
   "This is to cause replication prefetch IO. ATTENTION: the transaction started after enabled is affected.",
   NULL, NULL, FALSE);
 
+static MYSQL_THDVAR_ULONG(merge_sort_block_size, PLUGIN_VAR_RQCMDARG,
+  "The block size used doing external merge-sort for secondary index creation.",
+  NULL, NULL, 1UL << 20, 1UL << 20, 1UL << 30, 0);
 
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
@@ -1016,6 +1019,20 @@ thd_expand_fast_index_creation(
 	void*	thd)
 {
 	return((ibool) (((THD*) thd)->variables.expand_fast_index_creation));
+}
+
+/******************************************************************//**
+Returns the merge-sort block size used for the secondary index creation
+for the current connection.
+@return	the merge-sort block size, in bytes */
+extern "C" UNIV_INTERN
+ulong
+thd_merge_sort_block_size(
+/*================================*/
+	void*	thd)	/*!< in: thread handle (THD*), or NULL to query
++			the global merge_sort_block_size */
+{
+	return(THDVAR((THD*) thd, merge_sort_block_size));
 }
 
 /********************************************************************//**
@@ -12933,6 +12950,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(corrupt_table_action),
   MYSQL_SYSVAR(lazy_drop_table),
   MYSQL_SYSVAR(fake_changes),
+  MYSQL_SYSVAR(merge_sort_block_size),
   NULL
 };
 

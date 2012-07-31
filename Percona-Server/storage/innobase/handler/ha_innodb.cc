@@ -12971,6 +12971,7 @@ mysql_declare_plugin(innobase)
   0,    /* flags */
 },
 i_s_innodb_rseg,
+i_s_innodb_undo_logs,
 i_s_innodb_trx,
 i_s_innodb_locks,
 i_s_innodb_lock_waits,

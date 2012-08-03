@@ -93,9 +93,9 @@ Specifies that only a fraction of ``session/query`` should be logged. Logging is
 Logging all queries might consume I/O bandwidth and cause the log file to grow large.
  * When :variable:`log_slow_rate_type` is ``session``, this option lets you log full sessions, so you have complete records of sessions for later analysis; but you can rate-limit the number of sessions that are logged. Note that this feature will not work well if your application uses any type of connection pooling or persistent connections. Note that you change :variable:`log_slow_rate_limit` in ``session`` mode, you should reconnect for get effect.
 
- * When :variable:`log_slow_rate_type` is ``query``, this option lets you log just some queries for later analysis. For example, if you set the value to 100, then one percona of queryies will logged.
+ * When :variable:`log_slow_rate_type` is ``query``, this option lets you log just some queries for later analysis. For example, if you set the value to 100, then one percent of queries will be logged.
 
-Note that every query has global unique ``query_id`` and every connection can has it own (session) :variable:``log_slow_rate_limit``.
+Note that every query has global unique ``query_id`` and every connection can has it own (session) :variable:`log_slow_rate_limit`.
 Decision "log or no" calculated in following manner:
 
  * if ``log_slow_rate_limit`` is 0 - log every query
@@ -113,7 +113,7 @@ For example, if you set the value to 100, then one percent of ``sessions/queries
      :scope: Global, session
      :dyn: Yes (in 5.1 releases only)
 
-Specifies that queries replayed by the slave SQL thread on a |MySQL| slave will be logged. The standard |MySQL| server will not log any queries executed by the slave``s SQL thread.
+Specifies that queries replayed by the slave SQL thread on a |MySQL| slave will be logged. The standard |MySQL| server will not log any queries executed by the slave's SQL thread.
 
 To start the logging from the slave thread, you should change the global value: set global :variable:`log_slow_slave_statements` ``=ON``; and then execute: ``STOP SLAVE; START SLAVE;``. This will destroy and recreate the slave SQL thread, so it will see the newly set global value.
 
@@ -223,7 +223,7 @@ If :variable:`slow_query_log_timestamp_precision` ``=microsecond``, entries to t
      :default: None
      :version 5.5.10-20.1: Introduced (renamed from :variable:`log_slow_timestamp_every`)
 
-Specifies which variables have global scope instead of local. Value is a “flag” variable - you can specify multiple values separated by commas
+Specifies which variables have global scope instead of local. Value is a "flag" variable - you can specify multiple values separated by commas
 
   * ``none``:
     All variables use local scope

@@ -113,9 +113,12 @@ enum {
 					/* The checksum of the current block */
 };
 
-/** Length of the bitmap data in a block */
+/** Length of the bitmap data in a block in bytes */
 enum { MODIFIED_PAGE_BLOCK_BITMAP_LEN
        = MODIFIED_PAGE_BLOCK_UNUSED_2 - MODIFIED_PAGE_BLOCK_BITMAP };
+
+/** Length of the bitmap data in a block in page ids */
+enum { MODIFIED_PAGE_BLOCK_ID_COUNT = MODIFIED_PAGE_BLOCK_BITMAP_LEN * 8 };
 
 /****************************************************************//**
 Provide a comparisson function for the RB-tree tree (space,
@@ -166,8 +169,8 @@ log_online_set_page_bit(
 	ut_a(space != ULINT_UNDEFINED);
 	ut_a(page_no != ULINT_UNDEFINED);
 
-	block_start_page = page_no / (8 * MODIFIED_PAGE_BLOCK_BITMAP_LEN)
-		* MODIFIED_PAGE_BLOCK_BITMAP_LEN;
+	block_start_page = page_no / MODIFIED_PAGE_BLOCK_ID_COUNT
+		* MODIFIED_PAGE_BLOCK_ID_COUNT;
 	block_pos = block_start_page ? (page_no % block_start_page / 8)
 		: (page_no / 8);
 	bit_pos = page_no % 8;

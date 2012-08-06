@@ -38,11 +38,11 @@ This variable specifies whether the insert buffer can be processed before it rea
    :default: 100
    :range: 100 - 999999999
 
-This variable allows better control of the background thread processing the insert buffer. Each time the thread is called, its activity is altered by the value of both ``innodb_io_capacity`` and ``innodb_ibuf_merge_rate`` this way: ::
+This variable allows better control of the background thread processing the insert buffer. Each time the thread is called, its activity is altered by the value of both ``innodb_io_capacity`` and ``innodb_ibuf_accel_rate`` this way: ::
 
-  [real activity] = [default activity] * (innodb_io_capacity/100) * (innodb_ibuf_merge_rate/100)
+  [real activity] = [default activity] * (innodb_io_capacity/100) * (innodb_ibuf_accel_rate/100)
 
-By increasing the value of ``innodb_ibuf_merge_rate``, you will increase the insert buffer activity.
+By increasing the value of :variable:`innodb_ibuf_accel_rate`, you will increase the insert buffer activity.
 
 .. variable:: innodb_ibuf_max_size
 

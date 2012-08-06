@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.22
+%define mysql_version   5.6.5
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 25
-%define minorversion 2
+%define majorversion 60
+%define minorversion 0
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -406,6 +406,7 @@ mkdir debug
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -422,6 +423,7 @@ mkdir release
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -431,7 +433,7 @@ mkdir release
   make ${MAKE_JFLAG}
   cd ../%{src_dir}
   d="`pwd`"
-  BuildHandlerSocket
+#  BuildHandlerSocket
   BuildUDF
   cd "$d"
 )
@@ -439,12 +441,17 @@ mkdir release
 # For the debuginfo extraction stage, some source files are not located in the release
 # and debug dirs, but in the source dir. Make a link there to avoid errors in the
 # strip phase.
-for f in lexyy.c pars0grm.c pars0grm.y pars0lex.l
+for d in debug release
 do
-    for d in debug release
+    for f in pars/lexyy.cc pars/pars0grm.cc pars/pars0grm.y pars/pars0lex.l \
+        fts/fts0pars.cc fts/fts0pars.y fts/fts0blex.l fts/fts0blex.cc \
+        include/fts0pars.h fts/fts0tlex.cc fts/fts0tlex.l
     do
-        ln -s "../../../%{src_dir}/storage/innobase/pars/$f" "$d/storage/innobase/"
+        ln -s "../../../%{src_dir}/storage/innobase/$f" "$d/storage/innobase/"
     done
+    mkdir -p "$d/storage/include/"
+    ln -s "../../../%{src_dir}/storage/innobase/include/fts0blex.h" \
+            "$d/storage/include/"
 done
 
 # Use the build root for temporary storage of the shared libraries.
@@ -496,9 +503,9 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   d="`pwd`"
-  cd $MBD/%{src_dir}/storage/HandlerSocket-Plugin-for-MySQL
-  make DESTDIR=$RBR benchdir_root=%{_datadir} install
-  cd "$d"
+#  cd $MBD/%{src_dir}/storage/HandlerSocket-Plugin-for-MySQL
+#  make DESTDIR=$RBR benchdir_root=%{_datadir} install
+#  cd "$d"
   cd $MBD/%{src_dir}/UDF
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
@@ -1032,11 +1039,11 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 # HandlerSocket files
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.a
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.la
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0.0.0
+#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.a
+#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.la
+#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0
+#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0.0.0
 # UDF files
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0
@@ -1078,7 +1085,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%attr(755, root, root) %{_bindir}/hsclient
+#%attr(755, root, root) %{_bindir}/hsclient
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
@@ -1102,13 +1109,13 @@ echo "====="                                     >> $STATUS_HISTORY
 %dir %attr(755, root, root) %{_includedir}/mysql
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
-%{_includedir}/handlersocket
+#%{_includedir}/handlersocket
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
-%{_libdir}/mysql/libhsclient.a
-%{_libdir}/libhsclient.la
+#%{_libdir}/mysql/libhsclient.a
+#%{_libdir}/libhsclient.la
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}

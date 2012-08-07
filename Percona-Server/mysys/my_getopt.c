@@ -21,6 +21,7 @@
 #include <my_getopt.h>
 #include <errno.h>
 #include <m_string.h>
+#include <hash.h>
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
@@ -36,7 +37,7 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err);
 static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
-static int setval(const struct my_option *, void *, char *, my_bool);
+static int setval(const struct my_option *, void *, char *, int);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
 /*
@@ -44,11 +45,195 @@ static char *check_struct_option(char *cur_arg, char *key_name);
   order of their arguments must correspond to each other.
 */
 static const char *special_opt_prefix[]=
-{"skip", "disable", "enable", "maximum", "loose", 0};
+{"skip", "disable", "enable", "maximum", "loose", "minimum", "hidden",
+"readonly", 0};
 static const uint special_opt_prefix_lengths[]=
-{ 4,      7,         6,        7,         5,      0};
+{ 4,      7,         6,        7,         5,       7,         6,
+8,          0};
 enum enum_special_opt
-{ OPT_SKIP, OPT_DISABLE, OPT_ENABLE, OPT_MAXIMUM, OPT_LOOSE};
+{
+  OPT_NONE= 0x0000,
+  OPT_SKIP= 0x0001,
+  OPT_DISABLE= 0x0002,
+  OPT_ENABLE= 0x0004,
+  OPT_MAXIMUM= 0x0008,
+  OPT_LOOSE= 0x0010,
+  OPT_MINIMUM= 0x0020,
+  OPT_HIDDEN= 0x0040,
+  OPT_READONLY= 0x0080,
+};
+static const uint special_opt_flag[]=
+{ OPT_SKIP, OPT_DISABLE, OPT_ENABLE, OPT_MAXIMUM, OPT_LOOSE, OPT_MINIMUM,
+  OPT_HIDDEN, OPT_READONLY };
+
+/*
+  The following is for the user constraints which will replace the
+  old u_max_value.
+	
+  Defines constraints applied to a users ability to access and modify the
+  specific option instance as set through the options modifiers.
+*/
+struct my_option_constraint
+{
+  char       *name;                      /**< The name of the option this
+                                            constraint applies to. */ 
+  size_t     length;                     /**< The length of the name. */
+  void       *min_value;                 /**< The user defined minimum value.
+                                            NULL if no minimum is set.
+                                            Default = NULL */
+  void       *max_value;                 /**< The user defined  maximum value.
+                                            NULL if no maximum is set.
+                                            Default = NULL */
+  my_bool    hidden;                     /**< The value should be hidden from
+                                            all users.
+                                            Default = FALSE */
+  my_bool    readonly;                   /**< The value should be visible but
+                                            immutable to all users.
+                                            Default = FALSE */
+};
+
+static uchar *getopt_constraint_get_name(
+                const struct my_option_constraint *moc,
+                size_t *length, my_bool first __attribute__((unused)))
+{
+  *length= moc->length;
+  return (uchar *) moc->name;
+}
+
+static void getopt_constraint_free(struct my_option_constraint *moc)
+{
+  if(!moc)
+    return;
+
+  if (moc->name)
+    my_free(moc->name);
+
+  if (moc->min_value)
+    my_free(moc->min_value);
+
+  if (moc->max_value)
+    my_free(moc->max_value);
+
+  my_free(moc);
+}
+
+static HASH *getopt_constraint_init(my_bool create)
+{
+  static HASH my_option_constraints;
+  static int my_option_constraints_inited= 0;
+  
+  if (!my_option_constraints_inited && create)
+  {
+    my_hash_init(&my_option_constraints, &my_charset_utf8_general_ci,
+                 20, 0, 0,
+                 (my_hash_get_key) getopt_constraint_get_name,
+                 (void (*)(void *))getopt_constraint_free, HASH_UNIQUE);
+    my_option_constraints_inited= 1;
+    return &my_option_constraints;
+  }
+  else if (my_option_constraints_inited)
+  {
+    return &my_option_constraints;
+  }
+  return NULL;
+}
+
+static struct my_option_constraint *getopt_constraint_find(const char *name,
+                                                           size_t length,
+                                                           my_bool create)
+{
+  HASH *opts;
+  struct my_option_constraint *moc;
+
+  opts= getopt_constraint_init(create);
+  if (!opts)
+    return NULL;
+  
+  if (length == 0)
+    length= strlen(name);
+ 
+  moc= (struct my_option_constraint *) my_hash_search(opts,
+                                                      (const uchar*) name,
+                                                      length);
+
+  if (!moc && create)
+  {
+    char* pos;
+    moc= (struct my_option_constraint *) my_malloc(
+                                   sizeof(struct my_option_constraint),
+                                   MYF(MY_WME | MY_ZEROFILL));
+
+    moc->name= my_strdup(name, MYF(MY_WME));
+    for (pos= moc->name; *pos; pos++)
+    {
+       if (*pos == '-')
+         *pos= '_';
+    } 
+    moc->length= length;
+    
+    my_hash_insert(opts, (uchar*) moc);
+  }
+  return moc;
+}
+
+void *getopt_constraint_get_min_value(const char *name, size_t length,
+                                      size_t create)
+{
+  struct my_option_constraint *moc;
+
+  moc= getopt_constraint_find(name, length, create > 0 ? TRUE : FALSE);
+
+  if (moc && !moc->min_value && create)
+    moc->min_value= my_malloc(create, MYF(MY_WME | MY_ZEROFILL));
+
+  if (moc && moc->min_value)
+    return &moc->min_value;
+
+  return NULL;
+}
+
+void *getopt_constraint_get_max_value(const char *name, size_t length,
+                                      size_t create)
+{
+  struct my_option_constraint *moc;
+
+  moc= getopt_constraint_find(name, length, create > 0 ? TRUE : FALSE);
+
+  if (moc && !moc->max_value && create)
+    moc->max_value= my_malloc(create, MYF(MY_WME | MY_ZEROFILL));
+
+  if (moc && moc->max_value)
+    return &moc->max_value;
+
+  return NULL;
+}
+
+my_bool* getopt_constraint_get_hidden_value(const char *name, size_t length,
+                                            my_bool create)
+{
+  struct my_option_constraint *moc;
+
+  moc= getopt_constraint_find(name, length, create);
+
+  if (moc)
+    return &moc->hidden;
+
+  return NULL;
+}
+
+my_bool* getopt_constraint_get_readonly_value(const char *name, size_t length,
+                                              my_bool create)
+{
+  struct my_option_constraint *moc;
+
+  moc= getopt_constraint_find(name, length, create);
+
+  if (moc)
+    return &moc->readonly;
+
+  return NULL;
+}
+
 
 char *disabled_my_option= (char*) "0";
 char *enabled_my_option= (char*) "1";
@@ -154,13 +339,12 @@ int handle_options(int *argc, char ***argv,
                    my_get_one_option get_one_option)
 {
   uint UNINIT_VAR(opt_found), argvpos= 0, length;
-  my_bool end_of_options= 0, must_be_var, set_maximum_value,
-          option_is_loose;
+  my_bool end_of_options= 0, must_be_var;  
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
   const char *UNINIT_VAR(prev_found);
   const struct my_option *optp;
   void *value;
-  int error, i;
+  int error, i, option_modifier_flags;
   my_bool is_cmdline_arg= 1;
 
   /* handle_options() assumes arg0 (program name) always exists */
@@ -203,8 +387,7 @@ int handle_options(int *argc, char ***argv,
     {
       char *argument=    0;
       must_be_var=       0;
-      set_maximum_value= 0;
-      option_is_loose=   0;
+      option_modifier_flags=   OPT_NONE;
 
       cur_arg++;		/* skip '-' */
       if (*cur_arg == '-')      /* check for long option, */
@@ -251,8 +434,7 @@ int handle_options(int *argc, char ***argv,
 		*/
 		opt_str+= special_opt_prefix_lengths[i] + 1;
                 length-= special_opt_prefix_lengths[i] + 1;
-		if (i == OPT_LOOSE)
-		  option_is_loose= 1;
+		option_modifier_flags|= special_opt_flag[i];
 		if ((opt_found= findopt(opt_str, length, &optp, &prev_found)))
 		{
 		  if (opt_found > 1)
@@ -265,7 +447,7 @@ int handle_options(int *argc, char ***argv,
                                                prev_found);
 		    return EXIT_AMBIGUOUS_OPTION;
 		  }
-		  switch (i) {
+		  switch (special_opt_flag[i]) {
 		  case OPT_SKIP:
 		  case OPT_DISABLE: /* fall through */
 		    /*
@@ -280,10 +462,21 @@ int handle_options(int *argc, char ***argv,
                       disabled_my_option : enabled_my_option;
 		    break;
 		  case OPT_MAXIMUM:
-		    set_maximum_value= 1;
+		  case OPT_MINIMUM:
+		  case OPT_READONLY:
+     	          case OPT_HIDDEN:
+                    if ((option_modifier_flags & (OPT_MINIMUM | OPT_MAXIMUM |
+                        OPT_READONLY | OPT_HIDDEN)) != special_opt_flag[i])
+                    {
+                      my_getopt_error_reporter(ERROR_LEVEL,
+                                               "%s: mutually exclusive multiple"
+                                               " option modifier specified in"
+                                               " '%s'", my_progname, cur_arg);
+		      return EXIT_AMBIGUOUS_OPTION;
+                    }
 		    must_be_var= 1;
 		    break;
-		  }
+                  }
 		  break; /* break from the inner loop, main loop continues */
 		}
                 i= -1; /* restart the loop */
@@ -303,24 +496,24 @@ int handle_options(int *argc, char ***argv,
 	    if (must_be_var)
 	    {
 	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(option_is_loose ? 
+                my_getopt_error_reporter((option_modifier_flags & OPT_LOOSE) ? 
                                            WARNING_LEVEL : ERROR_LEVEL,
                                          "%s: unknown variable '%s'",
                                          my_progname, cur_arg);
-	      if (!option_is_loose)
+	      if (!(option_modifier_flags  & OPT_LOOSE))
 		return EXIT_UNKNOWN_VARIABLE;
 	    }
 	    else
 	    {
 	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(option_is_loose ? 
+                my_getopt_error_reporter((option_modifier_flags  & OPT_LOOSE) ? 
                                            WARNING_LEVEL : ERROR_LEVEL,
                                          "%s: unknown option '--%s'", 
                                          my_progname, cur_arg);
-	      if (!option_is_loose)
+	      if (!(option_modifier_flags  & OPT_LOOSE))
 		return EXIT_UNKNOWN_OPTION;
 	    }
-	    if (option_is_loose)
+	    if (option_modifier_flags  & OPT_LOOSE)
 	    {
 	      (*argc)--;
 	      continue;
@@ -352,8 +545,9 @@ int handle_options(int *argc, char ***argv,
 	  if (my_getopt_print_errors)
 	    fprintf(stderr,
 		    "%s: %s: Option '%s' used, but is disabled\n", my_progname,
-		    option_is_loose ? "WARNING" : "ERROR", opt_str);
-	  if (option_is_loose)
+		    (option_modifier_flags  & OPT_LOOSE) ?
+                    "WARNING" : "ERROR", opt_str);
+	  if (option_modifier_flags  & OPT_LOOSE)
 	  {
 	    (*argc)--;
 	    continue;
@@ -494,7 +688,7 @@ int handle_options(int *argc, char ***argv,
 		}
 	      }
 	      if ((error= setval(optp, optp->value, argument,
-				 set_maximum_value)))
+				 option_modifier_flags)))
 		return error;
               if (get_one_option && get_one_option(optp->id, optp, argument))
                 return EXIT_UNSPECIFIED_ERROR;
@@ -539,7 +733,7 @@ int handle_options(int *argc, char ***argv,
           (*argc)--; /* option handled (short), decrease argument count */
 	continue;
       }
-      if ((error= setval(optp, value, argument, set_maximum_value)))
+      if ((error= setval(optp, value, argument, option_modifier_flags)))
 	return error;
       if (get_one_option && get_one_option(optp->id, optp, argument))
         return EXIT_UNSPECIFIED_ERROR;
@@ -634,26 +828,102 @@ static my_bool get_bool_argument(const struct my_option *opts,
   Arguments: opts, argument
   Will set the option value to given value
 */
-
-static int setval(const struct my_option *opts, void *value, char *argument,
-		  my_bool set_maximum_value)
+static size_t setval_get_size_for_value_type(int value_type)
 {
-  int err= 0, res= 0;
+  switch (value_type)
+  {
+  case GET_BOOL:
+    return sizeof(my_bool);
+  case GET_INT:
+    return sizeof(int);
+  case GET_UINT:
+    return sizeof(uint);
+  case GET_LONG:
+    return sizeof(long);
+  case GET_ULONG:
+    return sizeof(ulong);
+  case GET_LL:
+    return sizeof(longlong);
+  case GET_ULL:
+    return sizeof(ulonglong);
+  case GET_DOUBLE:
+    return sizeof(double);
+  case GET_ENUM:
+    return sizeof(ulong);
+  case GET_SET:
+    return sizeof(ulonglong);
+  case GET_FLAGSET:
+    return sizeof(ulonglong);
+  }
+  return 0;
+}
+static int setval(const struct my_option *opts, void *value, char *argument,
+		  int option_modifier_flags)
+{
+  int err= 0, res= 0, value_type;
 
   if (!argument)
     argument= enabled_my_option;
 
-  if (value)
+  if (option_modifier_flags & OPT_MINIMUM)
   {
-    if (set_maximum_value && !(value= opts->u_max_value))
-    {
-      my_getopt_error_reporter(ERROR_LEVEL,
+      value_type= (opts->var_type & GET_TYPE_MASK);
+      value= getopt_constraint_get_min_value(opts->name, 0,
+                                 setval_get_size_for_value_type(value_type));
+      if (!value)
+      {
+        my_getopt_error_reporter(ERROR_LEVEL,
+                               "%s: Minimum value of '%s' cannot be set",
+                               my_progname, opts->name);
+        return EXIT_NO_PTR_TO_VARIABLE;
+      }
+  }
+  else if (option_modifier_flags & OPT_MAXIMUM)
+  {
+      value_type= (opts->var_type & GET_TYPE_MASK);
+      value= getopt_constraint_get_max_value(opts->name, 0,
+                                 setval_get_size_for_value_type(value_type));
+      if (!value)
+      {
+        my_getopt_error_reporter(ERROR_LEVEL,
                                "%s: Maximum value of '%s' cannot be set",
                                my_progname, opts->name);
-      return EXIT_NO_PTR_TO_VARIABLE;
-    }
-
-    switch ((opts->var_type & GET_TYPE_MASK)) {
+        return EXIT_NO_PTR_TO_VARIABLE;
+      }
+  }
+  else if (option_modifier_flags & OPT_READONLY)
+  {
+      value_type= GET_BOOL;
+      value= getopt_constraint_get_readonly_value(opts->name, 0, TRUE);
+      if (!value)
+      {
+        my_getopt_error_reporter(ERROR_LEVEL,
+                               "%s: Readonly value of '%s' cannot be set",
+                               my_progname, opts->name);
+        return EXIT_NO_PTR_TO_VARIABLE;
+      }
+  } 
+  else if (option_modifier_flags & OPT_HIDDEN)
+  {
+      value_type= GET_BOOL;
+      value= getopt_constraint_get_hidden_value(opts->name, 0, TRUE);
+      if (!value)
+      {
+        my_getopt_error_reporter(ERROR_LEVEL,
+                               "%s: Hidden value of '%s' cannot be set",
+                               my_progname, opts->name);
+        return EXIT_NO_PTR_TO_VARIABLE;
+      }
+  }
+  else
+  { 
+    value_type= (opts->var_type & GET_TYPE_MASK);
+  }
+  
+  if (value)
+  {
+    switch (value_type)
+    {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
       *((my_bool*) value)= get_bool_argument(opts, argument);
       break;

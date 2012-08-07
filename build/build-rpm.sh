@@ -20,11 +20,12 @@ TARGET=''
 TARGET_CFLAGS=''
 SIGN='--sign' # We sign by default
 QUIET=''
+NOHS='no'
 
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iKq" --longoptions=i686,nosign,quiet \
+    go_out="$(getopt --options="iKqH" --longoptions=i686,nosign,quiet,nohs \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -42,6 +43,10 @@ do
     -K | --nosign )
         shift
         SIGN=''
+        ;;
+    -H | --nohs )
+        shift
+        NOHS=yes
         ;;
     -q | --quiet )
         shift
@@ -112,7 +117,7 @@ REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 
 # Compilation flags
 export CC="${CC:-gcc}"
-export CXX="${CXX:-gcc}"
+export CXX="${CXX:-g++}"
 export HS_CXX="${HS_CXX:-g++}"
 export UDF_CXX="${UDF_CXX:-g++}"
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
@@ -146,6 +151,7 @@ export MAKE_JFLAG=-j4
     # Issue RPM command
     rpmbuild -ba --clean --with yassl $TARGET $SIGN $QUIET \
         "$SOURCEDIR/build/percona-server.spec" \
+        --define "disable_handlersocket $NOHS" \
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \
         --define "gotrevision $REVISION"

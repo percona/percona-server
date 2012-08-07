@@ -105,6 +105,16 @@
 %define compilation_comment_release     Percona Server (GPL), Release rel%{majorversion}.%{minorversion}, Revision %{gotrevision}
 %endif
 
+%if %{undefined disable_handlersocket}
+%define enable_handlersocket 1
+%else
+  %if %{disable_handlersocket} == "yes"
+    %define enable_handlersocket 0
+  %else
+    %define enable_handlersocket 1
+  %endif
+%endif
+
 # ----------------------------------------------------------------------------
 # Product and server suffixes
 # ----------------------------------------------------------------------------
@@ -433,7 +443,9 @@ mkdir release
   make ${MAKE_JFLAG}
   cd ../%{src_dir}
   d="`pwd`"
-#  BuildHandlerSocket
+%if %{enable_handlersocket}
+  BuildHandlerSocket
+%endif
   BuildUDF
   cd "$d"
 )
@@ -450,6 +462,8 @@ do
         ln -s "../../../%{src_dir}/storage/innobase/$f" "$d/storage/innobase/"
     done
     mkdir -p "$d/storage/include/"
+    ln -s "../../../%{src_dir}/storage/innobase/include/fts0tlex.h" \
+            "$d/storage/include/"
     ln -s "../../../%{src_dir}/storage/innobase/include/fts0blex.h" \
             "$d/storage/include/"
 done
@@ -1038,12 +1052,14 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
+%if %{enable_handlersocket}
 # HandlerSocket files
-#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.a
-#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.la
-#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so
-#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0
-#%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0.0.0
+%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.a
+%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.la
+%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0
+%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0.0.0
+%endif
 # UDF files
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0
@@ -1085,7 +1101,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-#%attr(755, root, root) %{_bindir}/hsclient
+%if %{enable_handlersocket}
+%attr(755, root, root) %{_bindir}/hsclient
+%endif
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
@@ -1109,13 +1127,15 @@ echo "====="                                     >> $STATUS_HISTORY
 %dir %attr(755, root, root) %{_includedir}/mysql
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
-#%{_includedir}/handlersocket
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
-#%{_libdir}/mysql/libhsclient.a
-#%{_libdir}/libhsclient.la
+%if %{enable_handlersocket}
+%{_includedir}/handlersocket
+%{_libdir}/mysql/libhsclient.a
+%{_libdir}/libhsclient.la
+%endif
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}

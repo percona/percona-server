@@ -15,6 +15,8 @@ set -ue
 # Examine parameters
 TARGET="$(uname -m)"
 TARGET_CFLAGS=''
+QUIET='VERBOSE=1'
+NOHS='no'
 
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -22,7 +24,7 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="i" --longoptions=i686 \
+    go_out="$(getopt --options="iqH" --longoptions=i686,quiet,nohs \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -36,6 +38,14 @@ do
         shift
         TARGET="i686"
         TARGET_CFLAGS="-m32 -march=i686"
+        ;;
+    -q | --quiet )
+        shift
+        QUIET=''
+        ;;
+    -H | --nohs )
+        shift
+        NOHS='yes'
         ;;
     esac
 done
@@ -83,7 +93,7 @@ PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
-REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
+REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
@@ -91,7 +101,7 @@ COMMENT="$COMMENT, Revision $REVISION"
 
 # Compilation flags
 export CC=${CC:-gcc}
-export CXX=${CXX:-gcc}
+export CXX=${CXX:-g++}
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
 export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
@@ -112,14 +122,17 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \
+        -DENABLE_DTRACE=OFF \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DMYSQL_SERVER_SUFFIX="-$PERCONA_SERVER_VERSION" \
         -DCOMPILATION_COMMENT="$COMMENT"
 
-    make $MAKE_JFLAG VERBOSE=1
+    make $MAKE_JFLAG $QUIET
     make DESTDIR="$INSTALLDIR" install
 
+    if test "x$NOHS" == "xno"
+    then
     # Build HandlerSocket
     (
         cd "storage/HandlerSocket-Plugin-for-MySQL"
@@ -133,6 +146,7 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
         make DESTDIR="$INSTALLDIR" install
 
     )
+    fi
 
     # Build UDF
     (

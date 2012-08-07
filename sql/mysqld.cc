@@ -543,11 +543,14 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+ulong extra_max_connections;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
+
+ulonglong denied_connections= 0;
 
 Error_log_throttle err_log_throttle(Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
                                     sql_print_error,
@@ -1955,6 +1958,8 @@ void clean_up(bool print_message)
 
   if (THR_MALLOC)
     (void) pthread_key_delete(THR_MALLOC);
+
+  my_handle_options_end();
 
   /*
     The following lines may never be executed as the main thread may have

@@ -1,11 +1,9 @@
 ==================================
-|Percona Server| 5.5 Release notes
+|Percona Server| 5.6 Release notes
 ==================================
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
-   Percona-Server-5.5.8-20.0
-   Percona-Server-5.5.1*
-   Percona-Server-5.5.2*
+   Percona-Server-5.6.*

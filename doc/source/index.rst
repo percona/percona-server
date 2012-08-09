@@ -5,9 +5,16 @@
 
 .. _dochome:
 
-================================
- Percona Server - Documentation
-================================
+===================================
+ Percona Server 5.6 - Documentation
+===================================
+
+WARNING: Alpha quality software ahead
+=====================================
+Please note: |Percona Server| 5.6 is ALPHA quality software. It should *NOT* be used in production environments. This documentation may be out of date for Percona Server 5.6 before the final release, please check the release notes closely.
+
+Introduction
+============
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 

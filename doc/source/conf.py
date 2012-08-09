@@ -147,10 +147,10 @@ html_theme_path = ['.', './percona-theme']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = 'Percona Server 5.5 Documentation'
+html_title = 'Percona Server 5.6 Documentation'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = 'Percona Server 5.5'
+html_short_title = 'Percona Server 5.6'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -222,7 +222,7 @@ htmlhelp_basename = 'PerconaServer55doc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'PerconaServer-5.5.tex', u'Percona Server Documentation',
+  ('index', 'PerconaServer-5.6.tex', u'Percona Server Documentation',
    u'Percona Inc', 'manual'),
 ]
 
@@ -255,7 +255,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'perconaserver55', u'Percona Server 5.5 Documentation',
+    ('index', 'perconaserver55', u'Percona Server 5.6 Documentation',
      [u'Percona Inc'], 1)
 ]
 

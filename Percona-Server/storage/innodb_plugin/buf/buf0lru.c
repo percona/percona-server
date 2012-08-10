@@ -2100,6 +2100,11 @@ func_exit:
 Dump the LRU page list to the specific file. */
 #define LRU_DUMP_FILE "ib_lru_dump"
 #define LRU_DUMP_TEMP_FILE "ib_lru_dump.tmp"
+#define LRU_OS_FILE_WRITE() \
+	os_file_write(LRU_DUMP_FILE, dump_file, buffer, \
+		(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL, \
+		(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)), \
+		UNIV_PAGE_SIZE)
 
 UNIV_INTERN
 ibool
@@ -2111,17 +2116,19 @@ buf_LRU_file_dump(void)
 	byte*		buffer_base = NULL;
 	byte*		buffer = NULL;
 	buf_page_t*	bpage;
+	buf_page_t*	first_bpage;
 	ulint		buffers;
 	ulint		offset;
-	ibool		ret = FALSE;
+	ulint		pages_written;
 	ulint		i;
+	ulint		total_pages;
 
 	for (i = 0; i < srv_n_data_files; i++) {
 		if (strstr(srv_data_file_names[i], LRU_DUMP_FILE) != NULL) {
 			fprintf(stderr,
 				" InnoDB: The name '%s' seems to be used for"
-				" innodb_data_file_path. Dumping LRU list is not"
-				" done for safeness.\n", LRU_DUMP_FILE);
+				" innodb_data_file_path. Dumping LRU list is"
+				"  not done for safeness.\n", LRU_DUMP_FILE);
 			goto end;
 		}
 	}
@@ -2144,12 +2151,27 @@ buf_LRU_file_dump(void)
 	}
 
 	mutex_enter(&LRU_list_mutex);
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	bpage = first_bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+	total_pages = UT_LIST_GET_LEN(buf_pool->LRU);
 
-	buffers = offset = 0;
-	while (bpage != NULL) {
+	buffers = offset = pages_written = 0;
+	while (bpage != NULL && (pages_written++ < total_pages)) {
+
+		buf_page_t*	next_bpage = UT_LIST_GET_NEXT(LRU, bpage);
+
+		if (next_bpage == first_bpage) {
+			mutex_exit(&LRU_list_mutex);
+			success = FALSE;
+			fprintf(stderr,
+				"InnoDB: detected cycle in LRU, skipping "
+				"dump\n");
+			goto end;
+		}
+
+		/* prefill with 0xFF so any unused page entries will
+		   stop the reloading process */
 		if (offset == 0) {
-			memset(buffer, 0, UNIV_PAGE_SIZE);
+			memset(buffer, 0xFF, UNIV_PAGE_SIZE);
 		}
 
 		mach_write_to_4(buffer + offset * 4, bpage->space);
@@ -2158,34 +2180,61 @@ buf_LRU_file_dump(void)
 		offset++;
 
 		if (offset == UNIV_PAGE_SIZE/4) {
+			mutex_t		*next_block_mutex = NULL;
+
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-				success = 0;
+				mutex_exit(&LRU_list_mutex);
+				success = FALSE;
 				fprintf(stderr,
 					" InnoDB: stopped dumping lru pages"
 					" because of server shutdown.\n");
 				goto end;
 			}
-			success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
-					(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
-					(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
-					UNIV_PAGE_SIZE);
+
+			/* while writing file, release buffer pool mutex but
+			   keep the next page fixed so we don't worry about
+			   our list iterator becoming invalid */
+			if (next_bpage) {
+				next_block_mutex = buf_page_get_mutex(
+							next_bpage);
+
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count++;
+				mutex_exit(next_block_mutex);
+			}
+			mutex_exit(&LRU_list_mutex);
+
+			success = LRU_OS_FILE_WRITE();
+
+			/* grab this again here so that next_bpage
+			   can't be purged when we drop the fix_count */
+			mutex_enter(&LRU_list_mutex);
+
+			if (next_bpage) {
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count--;
+				mutex_exit(next_block_mutex);
+			}
 			if (!success) {
-				mutex_exit(&LRU_list_mutex);
+				mutex_enter(&LRU_list_mutex);
 				fprintf(stderr,
-					" InnoDB: cannot write page %lu of %s\n",
+					" InnoDB: cannot write page"
+					" %lu of %s\n",
 					buffers, LRU_DUMP_FILE);
 				goto end;
 			}
 			buffers++;
 			offset = 0;
+			bpage = next_bpage;
+		} else {
+			bpage = UT_LIST_GET_NEXT(LRU, bpage);
 		}
-
-		bpage = UT_LIST_GET_PREV(LRU, bpage);
-	}
+	} /* while(bpage ...) */
 	mutex_exit(&LRU_list_mutex);
 
+	/* if offset > 0 means that there are some unwritten leftovers */
 	if (offset == 0) {
-		memset(buffer, 0, UNIV_PAGE_SIZE);
+		memset(buffer, 0xFF, UNIV_PAGE_SIZE);
 	}
 
 	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
@@ -2193,15 +2242,7 @@ buf_LRU_file_dump(void)
 	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
 	offset++;
 
-	success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
-			(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
-			(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
-			UNIV_PAGE_SIZE);
-	if (!success) {
-		goto end;
-	}
-
-	ret = TRUE;
+	success = LRU_OS_FILE_WRITE();
 end:
 	if (dump_file != -1) {
 		if (success) {
@@ -2216,7 +2257,7 @@ end:
 	if (buffer_base)
 		ut_free(buffer_base);
 
-	return(ret);
+	return(success);
 }
 
 typedef struct {

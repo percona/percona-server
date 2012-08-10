@@ -659,8 +659,16 @@ scan_again:
 			goto next_page;
 		} else {
 
-			block_mutex = buf_page_get_mutex(bpage);
-			mutex_enter(block_mutex);
+			block_mutex = buf_page_get_mutex_enter(bpage);
+
+			if (!block_mutex) {
+				/* It may be impossible case...
+				   Something wrong, so will be scan_again */
+
+				all_freed = FALSE;
+				goto next_page;
+			}
+
 
 			if (bpage->buf_fix_count > 0) {
 
@@ -694,7 +702,8 @@ scan_again:
 			ulint	page_no;
 			ulint	zip_size;
 
-			buf_pool_mutex_exit(buf_pool);
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			rw_lock_x_unlock(&buf_pool->page_hash_latch);
 
 			zip_size = buf_page_get_zip_size(bpage);
 			page_no = buf_page_get_page_no(bpage);

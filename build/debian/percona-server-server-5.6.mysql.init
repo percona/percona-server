@@ -149,7 +149,7 @@ case "${1:-''}" in
 
         if ! mysqld_status check_dead warn; then
 	  log_end_msg 1
-	  log_failure_msg "Please stop MySQL (Percona Server) manually and read /usr/share/doc/percona-server-server-5.5/README.Debian.gz!"
+	  log_failure_msg "Please stop MySQL (Percona Server) manually and read /usr/share/doc/percona-server-server-5.6/README.Debian.gz!"
 	  exit -1
 	else
 	  log_end_msg 0

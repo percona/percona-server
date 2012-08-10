@@ -7,7 +7,7 @@
 # Even minor modifications require translation updates and such
 # changes should be coordinated with translators and reviewers.
 
-Template: percona-server-server-5.5/really_downgrade
+Template: percona-server-server-5.6/really_downgrade
 Type: boolean
 Default: false
 _Description: Really proceed with downgrade?
@@ -19,7 +19,7 @@ _Description: Really proceed with downgrade?
  There is no guarantee that the version you're currently installing
  will be able to use the current databases.
 
-Template: percona-server-server-5.5/nis_warning
+Template: percona-server-server-5.6/nis_warning
 Type: note
 #flag:translate!:3,5
 _Description: Important note for NIS/YP users
@@ -34,7 +34,7 @@ _Description: Important note for NIS/YP users
  .
   /var/lib/mysql: drwxr-xr-x   mysql    mysql
 
-Template: percona-server-server-5.5/postrm_remove_databases
+Template: percona-server-server-5.6/postrm_remove_databases
 Type: boolean
 Default: false
 _Description: Remove all Percona Server databases?
@@ -46,7 +46,7 @@ _Description: Remove all Percona Server databases?
  recent version or if a different percona-server-server package is already
  using it, the data should be kept.
 
-Template: percona-server-server-5.5/start_on_boot
+Template: percona-server-server-5.6/start_on_boot
 Type: boolean
 Default: true
 _Description: Start the Percona Server daemon on boot?
@@ -75,7 +75,7 @@ _Description: Unable to set password for the Percona Server "root" user
  .
  You should check the account's password after the package installation.
  .
- Please read the /usr/share/doc/percona-server-server-5.5/README.Debian file
+ Please read the /usr/share/doc/percona-server-server-5.6/README.Debian file
  for more information.
 
 Template: percona-server-server/password_mismatch
@@ -86,6 +86,6 @@ _Description: Password input error
 Template: percona-server-server/no_upgrade_when_using_ndb
 Type: error
 _Description: NDB Cluster seems to be in use
- Percona-Server-5.5 has orphaned NDB Cluster support. Please migrate to the
+ Percona-Server-5.6 has orphaned NDB Cluster support. Please migrate to the
  new mysql-cluster package and remove all lines starting with "ndb" from
  all config files below /etc/mysql/.

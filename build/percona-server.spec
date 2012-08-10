@@ -118,7 +118,7 @@
 # ----------------------------------------------------------------------------
 # Product and server suffixes
 # ----------------------------------------------------------------------------
-%define product_suffix -55
+%define product_suffix -56
 %if %{undefined product_suffix}
   %if %{defined short_product_tag}
     %define product_suffix      -%{short_product_tag}

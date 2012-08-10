@@ -1,3 +1,9 @@
+percona-server-5.6 (5.6.5-alpha60.0) unstable; urgency=low
+
+  * Update versions to 5.6
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Fri, 10 Aug 2012 17:36:32 -0300
+
 percona-server-5.5 (5.5.13-rel20.4) unstable; urgency=low
 
   * Update versions to 5.5.13

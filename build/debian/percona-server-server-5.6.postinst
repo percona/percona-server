@@ -133,7 +133,7 @@ EOF
     db_set percona-server-server/postrm_remove_database false || true
 
     # To avoid downgrades.
-    touch $mysql_statedir/debian-5.5.flag
+    touch $mysql_statedir/debian-5.6.flag
 
     # initiate databases. Output is not allowed by debconf :-(
     # Debian: beware of the bashisms... 

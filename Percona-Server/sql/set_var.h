@@ -113,8 +113,16 @@ public:
   SHOW_TYPE show_type() { return show_val_type; }
   int scope() const { return flags & SCOPE_MASK; }
   CHARSET_INFO *charset(THD *thd);
-  bool is_readonly() const { return flags & READONLY; }
-  /**
+  bool is_readonly() const 
+  {
+    my_bool *readonly= getopt_constraint_get_readonly_value(option.name,
+                                                            0, FALSE);
+    if (readonly && *readonly)
+      return TRUE;  
+    
+    return flags & READONLY;
+ }
+ /**
     the following is only true for keycache variables,
     that support the syntax @@keycache_name.variable_name
   */

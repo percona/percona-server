@@ -1,0 +1,23 @@
+# Bug 1008278: The server crashes when replication is started
+# with "--userstat=1" parameter.
+# Just start replcation with "--userstat=1" parameter and execute any
+# query on master to be ensure slave doesn't crash. 
+
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+connection master;
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+
+CREATE TABLE t(id INT,data CHAR(30));
+INSERT INTO t VALUES
+(1,"aaaaabbbbbcccccdddddeeeeefffff");
+sync_slave_with_master;
+
+connection master;
+DROP TABLE t;
+sync_slave_with_master;
+
+--source include/rpl_end.inc

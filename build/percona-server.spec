@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.22
+%define mysql_version   5.5.25a
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 25
-%define minorversion 2
+%define majorversion 27
+%define minorversion 1
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -117,7 +117,7 @@
   %endif
 %endif
 
-%define server_suffix %{product_suffix}
+%define server_suffix -%{majorversion}.%{minorversion}
 %if %{undefined server_suffix}
 %define server_suffix   %{nil}
 %endif
@@ -1020,6 +1020,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam_compat.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
@@ -1031,6 +1034,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam_compat.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
 # HandlerSocket files
 %attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.a
 %attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.la

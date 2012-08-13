@@ -1865,7 +1865,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
+          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user)))
+          && !acl_is_utility_user(tmp_sctx->user, tmp_sctx->host, tmp_sctx->ip))
       {
         thread_info *thd_info= new thread_info;
 
@@ -1971,7 +1972,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       const char *val;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
-          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
+          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user)))
+          || acl_is_utility_user(tmp_sctx->user, tmp_sctx->host, tmp_sctx->ip))
         continue;
 
       restore_record(table, s->default_values);
@@ -3144,9 +3146,12 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
 
   /*
     If we have db lookup vaule we just add it to list and
-    exit from the function
+    exit from the function.
+    We don't do this for database names longer than the maximum
+    path length.
   */
-  if (lookup_field_vals->db_value.str)
+  if (lookup_field_vals->db_value.str && 
+      lookup_field_vals->db_value.length < FN_REFLEN)
   {
     if (is_infoschema_db(lookup_field_vals->db_value.str,
                          lookup_field_vals->db_value.length))
@@ -3552,39 +3557,44 @@ end:
 
 static int fill_schema_table_names(THD *thd, TABLE *table,
                                    LEX_STRING *db_name, LEX_STRING *table_name,
-                                   bool with_i_schema)
+                                   bool with_i_schema,
+                                   bool need_table_type)
 {
-  if (with_i_schema)
+  /* Avoid opening FRM files if table type is not needed. */
+  if (need_table_type)
   {
-    table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"),
-                           system_charset_info);
-  }
-  else
-  {
-    enum legacy_db_type not_used;
-    char path[FN_REFLEN + 1];
-    (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
-                                table_name->str, reg_ext, 0);
-    switch (dd_frm_type(thd, path, &not_used)) {
-    case FRMTYPE_ERROR:
-      table->field[3]->store(STRING_WITH_LEN("ERROR"),
-                             system_charset_info);
-      break;
-    case FRMTYPE_TABLE:
-      table->field[3]->store(STRING_WITH_LEN("BASE TABLE"),
-                             system_charset_info);
-      break;
-    case FRMTYPE_VIEW:
-      table->field[3]->store(STRING_WITH_LEN("VIEW"),
-                             system_charset_info);
-      break;
-    default:
-      DBUG_ASSERT(0);
-    }
-    if (thd->is_error() && thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
+    if (with_i_schema)
     {
-      thd->clear_error();
-      return 0;
+      table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"),
+                             system_charset_info);
+    }
+    else
+    {
+      enum legacy_db_type not_used;
+      char path[FN_REFLEN + 1];
+      (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
+                                  table_name->str, reg_ext, 0);
+      switch (dd_frm_type(thd, path, &not_used)) {
+      case FRMTYPE_ERROR:
+        table->field[3]->store(STRING_WITH_LEN("ERROR"),
+                               system_charset_info);
+        break;
+      case FRMTYPE_TABLE:
+        table->field[3]->store(STRING_WITH_LEN("BASE TABLE"),
+                               system_charset_info);
+        break;
+      case FRMTYPE_VIEW:
+        table->field[3]->store(STRING_WITH_LEN("VIEW"),
+                               system_charset_info);
+        break;
+      default:
+        DBUG_ASSERT(0);
+      }
+      if (thd->is_error() && thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE)
+      {
+        thd->clear_error();
+        return 0;
+      }
     }
   }
   if (schema_table_store_record(thd, table))
@@ -3723,8 +3733,9 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
     DBUG_RETURN(schema_table_store_record(thd, table));
 
   //engine
-  handler *handle= tmp_table->file;
-  char *engineType = (char *)(handle ? handle->table_type() : "UNKNOWN");
+  handler *file= tmp_table->file;
+  // Assume that invoking handler::table_type() on a shared handler is safe
+  const char *engineType = (file) ? file->table_type() : "UNKNOWN";
   table->field[3]->store(engineType, strlen(engineType), cs);
 
   //name
@@ -3735,11 +3746,14 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
   }
 
   // file stats
-  handler *file= tmp_table->file;
-
   if (file) {
 
     MYSQL_TIME time;
+
+    /* We have only one handler object for a temp table globally and it might
+    be in use by other thread.  Do not trash it by invoking handler methods on
+    it but rather clone it. */
+    file = file->clone(tmp_table->s->normalized_path.str, thd->mem_root);
 
     /**
         TODO: InnoDB stat(file) checks file on short names within data dictionary
@@ -3770,6 +3784,8 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
       table->field[10]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
       table->field[10]->set_notnull();
     }
+
+    file->close();
   }
 
   DBUG_RETURN(schema_table_store_record(thd, table));
@@ -4348,7 +4364,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
           if (schema_table_idx == SCH_TABLE_NAMES)
           {
             if (fill_schema_table_names(thd, tables->table, db_name,
-                                        table_name, with_i_schema))
+                                        table_name, with_i_schema,
+                                        lex->verbose))
               continue;
           }
           else

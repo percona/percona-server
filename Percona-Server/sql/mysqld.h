@@ -194,6 +194,7 @@ extern ulong open_files_limit;
 extern ulong binlog_cache_size, binlog_stmt_cache_size;
 extern ulonglong max_binlog_cache_size, max_binlog_stmt_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
+extern ulong slave_max_allowed_packet;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong stored_program_cache_size;
@@ -243,6 +244,10 @@ extern my_decimal decimal_zero;
 extern ulonglong opt_log_warnings_suppress;
 
 extern char* enforce_storage_engine;
+
+extern char* utility_user;
+extern char* utility_user_password;
+extern char* utility_user_schema_access;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
@@ -443,7 +448,8 @@ enum options_mysqld
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,
   OPT_LOG_ERROR,
-  OPT_MAX_LONG_DATA_SIZE
+  OPT_MAX_LONG_DATA_SIZE,
+  OPT_SECURE_FILE_PRIV
 };
 
 

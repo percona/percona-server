@@ -34,6 +34,10 @@ Version Specific Information
     * Added variable :variable:`innodb_ibuf_merge_rate`.
 
     * Added variable :variable:`innodb_use_global_flush_log_at_trx_commit`.
+  
+  * 5.5.20-beta
+   
+    * The 'reflex' value was removed from :variable:`innodb_adaptive_flushing_method` in 5.5.20-beta as a fix for bug :bug:`689450`.
 
 System Variables
 ================
@@ -56,7 +60,7 @@ This is an existing |InnoDB| variable used to attempt flushing dirty pages in a 
    :dyn: YES
    :type: STRING
    :default: ``estimate``
-   :allowed: ``native``, ``reflex``, ``estimate``, ``keep_average``, ``native`` (or 0/1/2/3, respectively, for compatibility)
+   :allowed: ``native``, ``estimate``, ``keep_average`` (or 0/1/2, respectively, for compatibility)
 
 This variable controls the way adaptive checkpointing is performed. |InnoDB| constantly flushes dirty blocks from the buffer pool. Normally, the checkpoint is done passively at the current oldest page modification (this is called “fuzzy checkpointing”). When the checkpoint age nears the maximum checkpoint age (determined by the total length of all transaction log files), |InnoDB| tries to keep the checkpoint age away from the maximum by flushing many dirty blocks. But, if there are many updates per second and many blocks have almost the same modification age, the huge number of flushes can cause stalls.
 
@@ -65,16 +69,16 @@ Adaptive checkpointing forces a constant flushing activity at a rate of approxim
 The following values are allowed:
 
   * ``reflex``:
-    This behavior is similar to innodb_max_dirty_pages_pct flushing. The difference is that this method starts flushing blocks constantly and contiguously based on the oldest modified age. If the age exceeds 1/2 of the maximum age capacity, |InnoDB| starts weak contiguous flushing. If the age exceeds 3/4, |InnoDB| starts strong flushing. The strength can be adjusted by the |MySQL| variable :variable:`innodb_io_capacity`. In other words, we must tune ``innodb_io_capacity`` for the ``reflex`` method to work the best.
+    This behavior is similar to innodb_max_dirty_pages_pct flushing. The difference is that this method starts flushing blocks constantly and contiguously based on the oldest modified age. If the age exceeds 1/2 of the maximum age capacity, |InnoDB| starts weak contiguous flushing. If the age exceeds 3/4, |InnoDB| starts strong flushing. The strength can be adjusted by the |MySQL| variable :variable:`innodb_io_capacity`. In other words, we must tune ``innodb_io_capacity`` for the ``reflex`` method to work the best. This method was removed in 5.5.20-beta as a fix for bug :bug:`689450`.
 
-  * ``estimate``: 
-    If the oldest modified age exceeds 1/2 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by [number of modified blocks], [LSN progress speed] and [average age of all modified blocks]. So, this behavior is independent of the ``innodb_io_capacity`` variable.
-
-  * ``keep_average``:
-    This method attempts to keep the I/O rate constant by using a much shorter loop cycle (0.1 second) than that of the other methods (1.0 second). It is designed for use with SSD cards.
-
-  * ``native``:
+  * ``native`` [0]:
     This setting causes checkpointing to operate exactly as it does in native |InnoDB|.
+
+  * ``estimate`` [1]: 
+    If the oldest modified age exceeds 1/4 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by [number of modified blocks], [LSN progress speed] and [average age of all modified blocks]. So, this behavior is independent of the ``innodb_io_capacity`` variable.
+
+  * ``keep_average`` [2]:
+    This method attempts to keep the I/O rate constant by using a much shorter loop cycle (0.1 second) than that of the other methods (1.0 second). It is designed for use with SSD cards.
 
 .. variable:: innodb_checkpoint_age_target
 
@@ -219,6 +223,19 @@ If ``innodb_use_global_flush_log_at_trx_commit=0`` (False), the client can set t
 
 If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will use the current value of ``innodb_flush_log_at_trx_commit``, and the user cannot reset the value of the global variable using a ``SET`` command.
 
+.. variable:: innodb_log_block_size
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: Numeric
+     :default: 512
+     :units: Bytes
+
+This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use.
+
+
 .. variable:: innodb_log_file_size
 
    :version 5.5.8-20.0: Introduced
@@ -238,7 +255,7 @@ In upstream |MySQL| the limit for the combined size of log files must be less th
 Status Variables
 ----------------
 
-The following information has been added to ``SHOW INNODB STATUS`` to confirm the checkpointing activity: ::
+The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity: ::
 
   The max checkpoint age
   The current checkpoint age target

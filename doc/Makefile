@@ -17,6 +17,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) sou
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  html       to make standalone HTML files"
+	@echo "  offhtml    to make standalone HTML files without fetching fresh percona-them files"
 	@echo "  dirhtml    to make HTML files named index.html in directories"
 	@echo "  singlehtml to make a single large HTML file"
 	@echo "  pickle     to make pickle files"
@@ -37,6 +38,15 @@ clean:
 	-rm -rf $(BUILDDIR)/*
 
 html:
+	@echo "Downloading percona-theme ..."
+	@wget -O percona-theme.tar.gz http://percona.com/docs/theme/percona-server/5.5
+	@echo "Extracting theme."
+	@tar -zxf percona-theme.tar.gz
+	@rm -rf source/percona-theme
+	@mv percona-theme source/percona-theme
+	@rm percona-theme.tar.gz
+	@echo "Building html doc"
+
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
@@ -45,6 +55,11 @@ dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/dirhtml."
+
+offhtml:
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	@echo
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
 singlehtml:
 	$(SPHINXBUILD) -b singlehtml $(ALLSPHINXOPTS) $(BUILDDIR)/singlehtml

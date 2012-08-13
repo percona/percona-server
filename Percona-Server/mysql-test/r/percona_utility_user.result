@@ -1,0 +1,101 @@
+DROP DATABASE IF EXISTS mysqltest;
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+user
+CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';
+ERROR HY000: Operation CREATE USER failed for 'frank'@'localhost'
+FLUSH PRIVILEGES;
+CREATE USER 'frank'@'%' IDENTIFIED BY 'password';
+ERROR HY000: Operation CREATE USER failed for 'frank'@'%'
+SET PASSWORD FOR 'frank'@'localhost' = PASSWORD('');
+ERROR 42000: Can't find any matching row in the user table
+SET PASSWORD FOR 'frank'@'%' = PASSWORD('');
+ERROR 42000: Can't find any matching row in the user table
+GRANT ALL ON mysql.* TO 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+GRANT ALL ON mysql.* TO 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+GRANT USAGE ON mysql.* TO 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+GRANT USAGE ON mysql.* TO 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+GRANT PROXY ON 'frank'@'%' TO 'root'@'localhost';
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+GRANT PROXY ON 'root'@'localhost' TO 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+SHOW GRANTS FOR 'frank'@'localhost';
+ERROR 42000: There is no such grant defined for user 'frank' on host 'localhost'
+SHOW GRANTS FOR 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'localhost';
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frank'@'%';
+ERROR 42000: There is no such grant defined for user 'frank' on host '%'
+DROP USER 'frank'@'localhost';
+ERROR HY000: Operation DROP USER failed for 'frank'@'localhost'
+DROP USER 'frank'@'%';
+ERROR HY000: Operation DROP USER failed for 'frank'@'%'
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t1 (a INT, b INT);
+CREATE USER 'mysqltest_1'@'localhost';
+SELECT user FROM mysql.user WHERE user LIKE 'frank';
+user
+SELECT USER();
+USER()
+frank@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+frank@%
+SHOW DATABASES;
+Database
+information_schema
+mysql
+performance_schema
+CREATE USER 'frankjr'@'localhost' IDENTIFIED BY 'password';
+GRANT ALL ON mysql.* TO 'frankjr'@'localhost';
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frankjr'@'localhost';
+SET PASSWORD FOR 'frankjr'@'localhost' = PASSWORD('');
+DROP USER 'frankjr'@'localhost';
+SHOW TABLES IN mysqltest;
+ERROR 42000: Access denied for user 'frank'@'%' to database 'mysqltest'
+CREATE DATABASE foobar;
+ERROR 42000: Access denied for user 'frank'@'%' to database 'foobar'
+DROP DATABASE mysqltest;
+ERROR 42000: Access denied for user 'frank'@'%' to database 'mysqltest'
+SET PASSWORD FOR 'mysqltest_1'@'localhost' = PASSWORD('newpass');
+SET @testtemp= @@global.profiling;
+SET @@global.profiling=1;
+SELECT @@global.profiling;
+@@global.profiling
+1
+SET @@global.profiling=0;
+SELECT @@global.profiling;
+@@global.profiling
+0
+SET @@global.profiling= @testtemp;
+SET @testtemp= @@global.innodb_lazy_drop_table;
+SET @@global.innodb_lazy_drop_table= 1;
+SELECT @@global.innodb_lazy_drop_table;
+@@global.innodb_lazy_drop_table
+1
+SET @@global.innodb_lazy_drop_table= 0;
+SELECT @@global.innodb_lazy_drop_table;
+@@global.innodb_lazy_drop_table
+0
+SET @@global.innodb_lazy_drop_table= @testtemp;
+DROP USER 'mysqltest_1'@'localhost';
+DROP DATABASE mysqltest;
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'frank';
+SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
+plugin	authentication_string
+test_plugin_server	frank
+ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
+GRANT PROXY ON frank TO plug;
+SELECT * FROM mysql.proxies_priv;
+Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
+xx	root			1		xx
+xx	root			1		xx
+xx	root	%	frank	0	root@localhost	xx
+xx	plug	%	frank	0	root@localhost	xx
+ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
+DROP USER plug;

@@ -58,7 +58,6 @@ Scalability Improvements
    scalability/innodb_split_buf_pool_mutex
    scalability/innodb_insert_buffer
    scalability/innodb_io_55
-   scalability/innodb_expand_undo_slots
    scalability/innodb_adaptive_hash_index_partitions
    scalability/innodb_extra_rseg
 
@@ -122,6 +121,8 @@ Management Improvements
    management/udf_maatkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
+   management/enforce_engine
+   management/secure_file_priv_extended
 
 Diagnostics Improvements
 ========================
@@ -142,6 +143,7 @@ Diagnostics Improvements
    diagnostics/innodb_show_lock_names
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
+   diagnostics/thread_based_profiling
 
 Obsolete and Removed Features
 =============================

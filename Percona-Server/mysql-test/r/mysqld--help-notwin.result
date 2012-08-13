@@ -642,14 +642,15 @@ The following options may be given as the first argument:
  master during slave registration
  --rpl-recovery-rank=# 
  Unused, will be removed
- --safe-mode         Skip some optimize stages (for testing).
+ --safe-mode         Skip some optimize stages (for testing). Deprecated.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
  (pre-4.1) passwords
- --secure-file-priv=name 
+ --secure-file-priv[=name] 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
- files within specified directory
+ files within specified directory. If no argument is
+ specified disable loading files.
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --show-slave-auth-info 
@@ -682,6 +683,9 @@ The following options may be given as the first argument:
  --slave-load-tmpdir=name 
  The location where the slave should put its temporary
  files when replicating a LOAD DATA INFILE command
+ --slave-max-allowed-packet=# 
+ The maximum packet length to sent successfully from the
+ master to slave.
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
@@ -797,6 +801,13 @@ The following options may be given as the first argument:
  --userstat          Control USER_STATISTICS, CLIENT_STATISTICS,
  THREAD_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS
  running
+ --utility-user=name Specifies a MySQL user that will be added to the internal
+ list of users and recognized as the utility user.
+ --utility-user-password=name 
+ Specifies the password required for the utility user.
+ --utility-user-schema-access=name 
+ Specifies the schemas that the utility user has access to
+ in a comma delimited list.
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
@@ -1010,6 +1021,7 @@ skip-show-database FALSE
 skip-slave-start FALSE
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
+slave-max-allowed-packet 1073741824
 slave-net-timeout 3600
 slave-skip-errors (No default value)
 slave-transaction-retries 10
@@ -1046,6 +1058,9 @@ transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 updatable-views-with-limit YES
 userstat FALSE
+utility-user (No default value)
+utility-user-password (No default value)
+utility-user-schema-access (No default value)
 verbose TRUE
 wait-timeout 28800
 xtradb-admin-command ON

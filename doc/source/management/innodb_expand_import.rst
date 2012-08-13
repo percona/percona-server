@@ -10,6 +10,9 @@ This feature implements the abililty to import arbitrary .ibd files exported usi
 
 The normal version can import only the backed-up .ibd file at the same place.
 
+.. note::
+
+  This feature is unsupported with InnoDB data files created with MySQL 5.0 and MySQL 5.1 prior to version 5.1.7 due to InnoDB file format limitation. It may work in some cases, but may result in crashes on import as well, see bug :bug:`1000221` and bug :bug:`727704` for examples and details.  
 
 Example
 =======
@@ -128,7 +131,7 @@ If set to 1, ``.ibd`` file is converted (``space id``, ``index id``, etc.) with 
 .. lock all tables in the database ``example``
 .. "ALTER TABLE ... DISCARD TABLESPACE" for all tables in ``exmple``
 .. unlock all tables in the database ``example``
-..  (and we need to get all create table clause (e.g. "|MySQL|dump --no-data"))
+..  (and we need to get all create table clause (e.g. "mysqldump --no-data"))
 .. obtain *.ibd *.exp as exported files
 .. Target: (innodb_expand_import should be 1)
 

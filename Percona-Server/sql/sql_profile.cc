@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,8 +83,8 @@ ST_FIELD_INFO query_profile_statistics_info[]=
 
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  int profile_options = thd->lex->profile_options;
-  int fields_include_condition_truth_values[]= {
+  uint profile_options = thd->lex->profile_options;
+  uint fields_include_condition_truth_values[]= {
     FALSE, /* Query_id */
     FALSE, /* Seq */
     TRUE, /* Status */
@@ -244,7 +244,13 @@ void PROF_MEASUREMENT::collect()
   time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
 #ifdef HAVE_GETRUSAGE
   if ((profile->get_profiling())->enabled_getrusage())
+  {
+#ifdef RUSAGE_THREAD
+    getrusage(RUSAGE_THREAD, &rusage);
+#else
     getrusage(RUSAGE_SELF, &rusage);
+#endif
+  }
 #elif defined(_WIN32)
   FILETIME ftDummy;
   // NOTE: Get{Process|Thread}Times has a granularity of the clock interval,

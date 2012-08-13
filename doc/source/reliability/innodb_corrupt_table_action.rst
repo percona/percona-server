@@ -45,6 +45,6 @@ Pass corruptions of user tables as ``corrupt table`` instead of crashing itself,
      :default: ``assert``
      :range: ``assert``, ``warn``
 
-Pass corruptions of user tables as ``corrupt table`` instead of not crashing itself, when used with file_per_table. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion.
+When the default value is used InnoDB will stop the server if it finds a checksum mismatch on the tables. If ``warn`` values is used it will pass corruption of the table as ``corrupt table`` instead of crashing itself. For this to work :option:`innodb_file_per_table` should be enabled. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion.
 
  This variable was added in release 5.5.10-20.1. Prior to that, it was named :variable:`innodb_pass_corrupt_table`, which still exists in earlier versions.

@@ -430,6 +430,7 @@ my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
+my_bool opt_secure_file_priv_noarg= FALSE;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
 my_bool opt_log_slow_sp_statements= 0;
@@ -483,6 +484,7 @@ ulonglong slave_type_conversions_options;
 ulong thread_cache_size=0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
+ulong slave_max_allowed_packet= 0;
 ulong binlog_stmt_cache_size=0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
@@ -643,6 +645,10 @@ SHOW_COMP_OPTION have_profiling;
 ulonglong opt_log_warnings_suppress= 0;
 
 char* enforce_storage_engine= NULL;
+
+char* utility_user= NULL;
+char* utility_user_password= NULL;
+char* utility_user_schema_access= NULL;
 
 /* Thread specific variables */
 
@@ -1884,9 +1890,13 @@ static void network_init(void)
   {
     struct addrinfo *ai, *a;
     struct addrinfo hints;
+    const char *bind_address= my_bind_addr_str;
+
+    if (!bind_address)
+      bind_address= "0.0.0.0";
 
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
-                          my_bind_addr_str, mysqld_port);
+                          bind_address, mysqld_port);
 
     // Get list of IP-addresses associated with the server hostname.
     bzero(&hints, sizeof (hints));
@@ -1895,7 +1905,7 @@ static void network_init(void)
     hints.ai_family= AF_UNSPEC;
 
     my_snprintf(port_buf, NI_MAXSERV, "%d", mysqld_port);
-    if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
+    if (getaddrinfo(bind_address, port_buf, &hints, &ai))
     {
       sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
       sql_print_error("Can't start server: cannot resolve hostname!");
@@ -1915,7 +1925,7 @@ static void network_init(void)
       }
 
       sql_print_information("  - '%s' resolves to '%s';",
-                            my_bind_addr_str, ip_addr);
+                            bind_address, ip_addr);
     }
 
     /*
@@ -6160,7 +6170,7 @@ struct my_option my_long_options[]=
    "will not do updates to tables in databases that start with foo and whose "
    "table names start with bar.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
+  {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing). Deprecated.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-user-create", 0,
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table.",
@@ -6256,6 +6266,18 @@ struct my_option my_long_options[]=
    &global_system_variables.tx_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"utility_user", 0, "Specifies a MySQL user that will be added to the "
+    "internal list of users and recognized as the utility user.",
+    &utility_user, 0, 0, GET_STR, REQUIRED_ARG,
+    0, 0, 0, 0, 0, 0},    
+  {"utility_user_password", 0, "Specifies the password required for the "
+   "utility user.",
+   &utility_user_password, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"utility_user_schema_access", 0, "Specifies the schemas that the utility "
+   "user has access to in a comma delimited list.",
+   &utility_user_schema_access, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7299,6 +7321,8 @@ mysqld_get_one_option(int optid,
     delay_key_write_options= DELAY_KEY_WRITE_NONE;
     myisam_recover_options= HA_RECOVER_DEFAULT;
     ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
+    sql_print_warning("The syntax '--safe-mode' is deprecated and will be "
+                      "removed in a future release.");
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
@@ -7375,6 +7399,16 @@ mysqld_get_one_option(int optid,
     max_long_data_size_used= true;
     WARN_DEPRECATED(NULL, 5, 6, "--max_long_data_size", "'--max_allowed_packet'");
     break;
+  case OPT_SECURE_FILE_PRIV:
+    if (argument == NULL)
+    {
+      opt_secure_file_priv_noarg= TRUE;
+      opt_secure_file_priv= my_strdup("ON", MYF(0));
+    }
+    else
+    {
+      opt_secure_file_priv_noarg= FALSE;
+    }
   }
   return 0;
 }
@@ -7701,6 +7735,14 @@ bool is_secure_file_path(char *path)
 {
   char buff1[FN_REFLEN], buff2[FN_REFLEN];
   size_t opt_secure_file_priv_len;
+
+  /*
+    --secure-file-priv without argument means
+    disable SELECT INTO OUTFILE/LOAD DATA INFILE
+  */
+  if (opt_secure_file_priv_noarg)
+    return FALSE;
+
   /*
     All paths are secure if opt_secure_file_path is 0
   */
@@ -7804,7 +7846,7 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
    */
-  if (opt_secure_file_priv)
+  if (opt_secure_file_priv && !opt_secure_file_priv_noarg)
   {
     if (*opt_secure_file_priv == 0)
     {

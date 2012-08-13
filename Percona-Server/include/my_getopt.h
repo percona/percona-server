@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@ struct my_option
   enum get_opt_arg_type arg_type;       /**< e.g. REQUIRED_ARG or OPT_ARG */
   longlong   def_value;                 /**< Default value */
   longlong   min_value;                 /**< Min allowed value (for numbers) */
-  longlong   max_value;                 /**< Max allowed value (for numbers) */
+  ulonglong  max_value;                 /**< Max allowed value (for numbers) */
   longlong   sub_size;                  /**< Unused                          */
   long       block_size;                /**< Value should be a mult. of this (for numbers) */
   void       *app_type;                 /**< To be used by an application */
@@ -119,6 +119,20 @@ longlong getopt_ll_limit_value(longlong, const struct my_option *,
 double getopt_double_limit_value(double num, const struct my_option *optp,
                                  my_bool *fix);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
+
+/* Get the specific range constraint for the value named. If you do not
+   have the name length availa ble, specify 0. Specify 0 for 'create' to
+   simply obtain the existong value or specify a size value to have the
+   storage allocated if it does not yet exist. */
+extern void* getopt_constraint_get_max_value(const char *name,
+                                             size_t length, size_t create);
+extern void* getopt_constraint_get_min_value(const char *name,
+                                             size_t length, size_t create);
+extern my_bool* getopt_constraint_get_hidden_value(const char *name,
+                                             size_t length, my_bool create);
+extern my_bool* getopt_constraint_get_readonly_value(const char *name,
+                                             size_t length, my_bool create);
+
 
 C_MODE_END
 

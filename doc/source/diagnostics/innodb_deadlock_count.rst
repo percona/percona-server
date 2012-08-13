@@ -4,7 +4,7 @@
  Count |InnoDB| Deadlocks
 ==========================
 
-When running a transactional application you have to live with deadlocks. They are not problematic as long as they do not occur too frequently. The standard ``SHOW INNODB STATUS`` gives information on the latest deadlocks but it is not very useful when you want to know the total number of deadlocks or the number of deadlocks per unit of time. 
+When running a transactional application you have to live with deadlocks. They are not problematic as long as they do not occur too frequently. The standard ``SHOW ENGINE INNODB STATUS`` gives information on the latest deadlocks but it is not very useful when you want to know the total number of deadlocks or the number of deadlocks per unit of time. 
 
 This change adds a status variable that keeps track of the number of deadlocks since the server startup, opening the way to a better knowledge of your deadlocks.
 

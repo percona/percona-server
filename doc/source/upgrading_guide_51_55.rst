@@ -10,7 +10,7 @@ Having this in mind, the changes in the in the 5.5 series can be grouped into 3 
 
   * Server configuration
 
-  * Server behaviour and functioning
+  * Server behavior and functioning
 
   * SQL changes
 
@@ -19,6 +19,10 @@ The following is a summary of the more relevant changes in the 5.5 series. For m
   * :ref:`Percona Server documentation <dochome>`
 
   * http://dev.mysql.com/doc/refman/5.5/en/upgrading-from-previous-series.html
+
+
+.. warning:: 
+ Upgrade 5.1 to 5.5 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade.
 
 Changes in Server Configuration
 ===============================
@@ -64,6 +68,9 @@ The configuration options and table columns for the following features have been
    * - Multiple Rollback Segments
      - innodb_extra_rsegments
      - **(removed)**
+   * - Dedicated Purge Thread
+     - innodb_use_purge_thread
+     - using upstream version
 
 Shared Memory Buffer Pool
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -126,7 +133,7 @@ You may also want to check the new features available in |Percona Server| 5.5:
 
   * Crash-Resistant Replication
 
-  * Show InnoDB Status
+  * Show Engine InnoDB Status
 
   * Plugins
 
@@ -162,7 +169,7 @@ otherwise, the server won't start. Strictly speaking, the ignore-builtin-innodb 
 Also, the variable innodb_file_io_threads has been replaced by innodb_read_io_threads and innodb_write_io_threads (these variables were already introduced in Percona Server 5.1). All of them defaults to 4, you should replace the old variable with the two new ones with the proper value (or delete it if the default - 4 - is acceptable).
 
 
-Changes in Server Behaviour and Functioning
+Changes in Server Behavior and Functioning
 ===========================================
 
 Privileges
@@ -262,9 +269,9 @@ You should backup your entire configuration file - :file:`my.cnf` - also. The fi
 
   $ cp /etc/mysql/my.cnf /path/where/to/store/backup/
 
-While this is not an “in-place” upgrade technically, where possible, doing a full dump of the server's data for restoring it later is recommended. By this way, the indexes from all tables will be rebuilt explicitly, and any binary compatibility issue will be avoided: ::
+While this is not an "in-place" upgrade technically, where possible, doing a full dump of the server's data for restoring it later is recommended. By this way, the indexes from all tables will be rebuilt explicitly, and any binary compatibility issue will be avoided: ::
 
-  $ mysql_dump --user=root -p --all-databases --triggers > mydata.sql
+  $ mysqldump --user=root -p --all-databases --routines > mydata.sql
 
 This is not possible in some cases because of available space or downtime requirements, but if it is feasible, it is highly recommended.
 
@@ -287,6 +294,9 @@ Having done the full backup (or dump if possible), stop the server: ::
   $ sudo /etc/init.d/mysqld stop
 
 and proceed to do the modifications needed in your configuration file, as explained at the beginning of this guide.
+
+.. note:: 
+ For extra safety doing the slow InnoDB shutdown before the upgrade is recommended.
 
 Then install the new server with: ::
 
@@ -361,7 +371,7 @@ Having done the full backup (and dump if possible), stop the server: ::
 
   $ sudo /etc/init.d/mysqld stop
 
-and remove the the installed packages with their dependencies: ::
+and remove the installed packages with their dependencies: ::
 
   $ sudo apt-get autoremove percona-server-server-51 percona-server-client-51
 
@@ -461,3 +471,10 @@ If it can't find the pid file, kill the server and start it normally: ::
 
   $ killall /usr/sbin/mysqld
   $ /sbin/service mysql start
+
+Other Reading
+=============
+
+ * `Upgrading MySQL: Best Practices <http://www.percona.tv/percona-webinars/upgrading-mysql-best-practices>`_ webinar,
+
+ * `Upgrading MySQL webinar questiones <http://www.mysqlperformanceblog.com/2012/06/28/upgrading-mysql-webinar-question/>`_

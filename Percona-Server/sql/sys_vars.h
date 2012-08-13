@@ -135,7 +135,8 @@ public:
     my_bool fixed= FALSE;
     ulonglong uv;
     longlong v;
-
+    T *vmin, *vmax;
+    
     v= var->value->val_int();
     if (var->value->unsigned_flag)
       uv= (ulonglong) v;
@@ -145,8 +146,12 @@ public:
     var->save_result.ulonglong_value=
       getopt_ull_limit_value(uv, &option, &fixed);
 
-    if (max_var_ptr() && var->save_result.ulonglong_value > *max_var_ptr())
-      var->save_result.ulonglong_value= *max_var_ptr();
+    vmin= (T *) getopt_constraint_get_min_value(option.name, 0, FALSE);
+    vmax= (T *) getopt_constraint_get_max_value(option.name, 0, FALSE);
+    if (vmin && var->save_result.ulonglong_value < *vmin)
+      var->save_result.ulonglong_value= *vmin;
+    if (vmax && var->save_result.ulonglong_value > *vmax)
+      var->save_result.ulonglong_value= *vmax;
 
     return throw_bounds_warning(thd, name.str,
                                 var->save_result.ulonglong_value != uv,
@@ -745,10 +750,20 @@ public:
   bool do_check(THD *thd, set_var *var)
   {
     my_bool fixed;
+    double *vmin, *vmax;
     double v= var->value->val_real();
-    var->save_result.double_value= getopt_double_limit_value(v, &option, &fixed);
+    var->save_result.double_value= getopt_double_limit_value(v, &option,
+                                                             &fixed);
 
-    return throw_bounds_warning(thd, name.str, fixed, v);
+    vmin= (double *) getopt_constraint_get_min_value(option.name, 0, FALSE);
+    vmax= (double *) getopt_constraint_get_max_value(option.name, 0, FALSE);
+    if (vmin && var->save_result.double_value < *vmin)
+      var->save_result.double_value= *vmin;
+    if (vmax && var->save_result.double_value > *vmax)
+      var->save_result.double_value= *vmax;
+
+    return throw_bounds_warning(thd, name.str,
+                                var->save_result.double_value != v, v);
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -799,8 +814,9 @@ public:
   { }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    if (thd->user_connect && thd->user_connect->user_resources.user_conn)
-      return (uchar*) &(thd->user_connect->user_resources.user_conn);
+    const USER_CONN *uc= thd->get_user_connect();
+    if (uc && uc->user_resources.user_conn)
+      return (uchar*) &(uc->user_resources.user_conn);
     return global_value_ptr(thd, base);
   }
 };

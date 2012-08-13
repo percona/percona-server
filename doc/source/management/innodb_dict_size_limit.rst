@@ -72,7 +72,7 @@ Estimating the Data Dictionary Size
 
 |Percona Server| provides instrumentation to show the data dictionary size directly, but if you``re not using |Percona Server|, you can estimate the size of the data dictionary. By calculating how much memory |InnoDB| has allocated that is not attributable to the buffer pool, etc., you will have an idea of how much allocated memory is not accounted for. This will not be the exact size of the data dictionary, but it will be a reasonable estimate.
 
-To make this estimate, first locate the following lines in the output of ``SHOW INNODB STATUS``: ::
+To make this estimate, first locate the following lines in the output of ``SHOW ENGINE INNODB STATUS``: ::
 
   ----------------------
   BUFFER POOL AND MEMORY

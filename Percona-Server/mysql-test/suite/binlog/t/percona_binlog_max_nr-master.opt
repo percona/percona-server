@@ -1,1 +1,2 @@
---force-restart --max-binlog-size=4096 --max-binlog-files=2
+--max-binlog-size=4096 --max-binlog-files=2
+

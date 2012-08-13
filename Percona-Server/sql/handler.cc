@@ -4802,6 +4802,8 @@ int handler::ha_write_row(uchar *buf)
     DBUG_RETURN(error);
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
+
+  DEBUG_SYNC_C("ha_write_row_end");
   DBUG_RETURN(0);
 }
 

@@ -4173,7 +4173,7 @@ int MYSQL_BIN_LOG::purge_logs_maximum_number(ulong max_nr_files)
   if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
     goto err;
 
-  while(find_next_log(&log_info, 0) == false)
+  while (!find_next_log(&log_info, 0))
     current_number_of_logs++;
 
   if (current_number_of_logs <= max_nr_files)

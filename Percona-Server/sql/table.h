@@ -947,6 +947,11 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  /*
+    Set if next_number_field is in the UPDATE fields of INSERT ... ON DUPLICATE
+    KEY UPDATE.
+  */
+  my_bool next_number_field_updated;
   Field_timestamp *timestamp_field;
 
   /* Table's triggers, 0 if there are no of them */

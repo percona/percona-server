@@ -164,6 +164,8 @@ UNIV_INTERN ulint	srv_use_purge_thread = 0;
 
 UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
 
+UNIV_INTERN ulonglong	srv_changed_pages_limit = 0;
+
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
 /* if != 0, this tells the max size auto-extending may increase the

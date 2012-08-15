@@ -117,7 +117,7 @@ Database: information_schema
 | VIEWS                                 |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | INNODB_RSEG                           |
-| INNODB_LOCKS                          |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_BUFFER_POOL_PAGES              |
 | INNODB_TABLE_STATS                    |
 | INNODB_TRX                            |
@@ -132,6 +132,7 @@ Database: information_schema
 | INNODB_SYS_INDEXES                    |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_CMPMEM_RESET                   |
+| INNODB_LOCKS                          |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -175,7 +176,7 @@ Database: INFORMATION_SCHEMA
 | VIEWS                                 |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | INNODB_RSEG                           |
-| INNODB_LOCKS                          |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_BUFFER_POOL_PAGES              |
 | INNODB_TABLE_STATS                    |
 | INNODB_TRX                            |
@@ -190,6 +191,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_SYS_INDEXES                    |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_CMPMEM_RESET                   |
+| INNODB_LOCKS                          |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

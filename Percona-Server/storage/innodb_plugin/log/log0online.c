@@ -29,7 +29,6 @@ Online database log parsing for changed page tracking
 #include "log0recv.h"
 #include "mach0data.h"
 #include "mtr0log.h"
-#include "os0file.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0sys.h"
@@ -84,6 +83,10 @@ static const char* modified_page_stem = "ib_modified_log.";
 which case the first LSN of actual log records will be this. */
 #define MIN_TRACKED_LSN ((LOG_START_LSN) + (LOG_BLOCK_HDR_SIZE))
 
+/* Tests if num bit of bitmap is set */
+#define IS_BIT_SET(bitmap, num) \
+        (*((bitmap) + ((num) >> 3)) & (1UL << ((num) & 7UL)))
+
 /** The bitmap file block size in bytes.  All writes will be multiples of this.
  */
 enum {
@@ -116,6 +119,7 @@ enum {
 /** Length of the bitmap data in a block */
 enum { MODIFIED_PAGE_BLOCK_BITMAP_LEN
        = MODIFIED_PAGE_BLOCK_UNUSED_2 - MODIFIED_PAGE_BLOCK_BITMAP };
+
 
 /****************************************************************//**
 Provide a comparisson function for the RB-tree tree (space,
@@ -922,3 +926,158 @@ log_online_follow_redo_log()
 	log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;
 	log_set_tracked_lsn(log_bmp_sys->start_lsn);
 }
+
+/*********************************************************************//**
+Initializes log bitmap iterator.
+@return TRUE if the iterator is initialized OK, FALSE otherwise. */
+UNIV_INTERN
+ibool
+log_online_bitmap_iterator_init(
+/*============================*/
+	log_bitmap_iterator_t *i) /*!<in/out:  iterator */
+{
+	ibool	success;
+
+	ut_a(i);
+	ut_snprintf(i->in_name, FN_REFLEN, "%s%s%d", srv_data_home,
+		    modified_page_stem, 1);
+	i->in_offset = 0;
+	/*
+	  Set up bit offset out of the reasonable limit
+	  to intiate reading block from file in
+	  log_online_bitmap_iterator_next()
+	*/
+	i->bit_offset = MODIFIED_PAGE_BLOCK_BITMAP_LEN;
+	i->in =
+		os_file_create_simple_no_error_handling(
+							i->in_name,
+							OS_FILE_OPEN,
+							OS_FILE_READ_ONLY,
+							&success);
+
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+		fprintf(stderr,
+			"InnoDB: Error: Cannot open \'%s\'\n",
+			i->in_name);
+		return FALSE;
+	}
+
+	i->page = ut_malloc(MODIFIED_PAGE_BLOCK_SIZE);
+
+	i->start_lsn = i->end_lsn = 0;
+	i->space_id = 0;
+	i->first_page_id = 0;
+	i->changed = FALSE;
+
+	return TRUE;
+}
+
+/*********************************************************************//**
+Releases log bitmap iterator. */
+UNIV_INTERN
+void
+log_online_bitmap_iterator_release(
+/*===============================*/
+	log_bitmap_iterator_t *i) /*!<in/out:  iterator */
+{
+	ut_a(i);
+	os_file_close(i->in);
+	ut_free(i->page);
+}
+
+/*********************************************************************//**
+Iterates through bits of saved bitmap blocks.
+Sequentially reads blocks from bitmap file(s) and interates through
+their bits. Ignores blocks with wrong checksum.
+@return TRUE if iteration is successful, FALSE if all bits are iterated. */
+UNIV_INTERN
+ibool
+log_online_bitmap_iterator_next(
+/*============================*/
+	log_bitmap_iterator_t *i) /*!<in/out: iterator */
+{
+	ulint	offset_low;
+	ulint	offset_high;
+	ulint	size_low;
+	ulint	size_high;
+	ulint	checksum	= 0;
+	ulint	actual_checksum	= !checksum;
+
+	ibool	success;
+
+	ut_a(i);
+
+	if (i->bit_offset < MODIFIED_PAGE_BLOCK_BITMAP_LEN)
+	{
+		++i->bit_offset;
+		i->changed =
+			IS_BIT_SET(i->page + MODIFIED_PAGE_BLOCK_BITMAP,
+				   i->bit_offset);
+		return TRUE;
+	}
+
+	while (checksum != actual_checksum)
+	{
+		success = os_file_get_size(i->in,
+					   &size_low,
+					   &size_high);
+		if (!success) {
+			os_file_get_last_error(TRUE);
+			fprintf(stderr,
+				"InnoDB: Warning: can't get size of "
+				"page bitmap file \'%s\'\n",
+				i->in_name);
+			return FALSE;
+		}
+
+		if (i->in_offset >=
+		    (ib_uint64_t)(size_low) +
+		    ((ib_uint64_t)(size_high) << 32))
+			return FALSE;
+
+		offset_high = (ulint)(i->in_offset >> 32);
+		offset_low = (ulint)(i->in_offset & 0xFFFFFFFF);
+
+		success = os_file_read(
+				       i->in,
+				       i->page,
+				       offset_low,
+				       offset_high,
+				       MODIFIED_PAGE_BLOCK_SIZE);
+
+		if (!success) {
+			os_file_get_last_error(TRUE);
+			fprintf(stderr,
+				"InnoDB: Warning: failed reading "
+				"changed page bitmap file \'%s\'\n",
+				i->in_name);
+			return FALSE;
+		}
+
+		checksum = mach_read_from_4(
+			i->page + MODIFIED_PAGE_BLOCK_CHECKSUM);
+
+		actual_checksum = log_online_calc_checksum(i->page);
+
+		i->in_offset += MODIFIED_PAGE_BLOCK_SIZE;
+	}
+
+	i->start_lsn =
+		mach_read_ull(i->page + MODIFIED_PAGE_START_LSN);
+	i->end_lsn =
+		mach_read_ull(i->page + MODIFIED_PAGE_END_LSN);
+	i->space_id =
+		mach_read_from_4(i->page + MODIFIED_PAGE_SPACE_ID);
+	i->first_page_id =
+		mach_read_from_4(i->page + MODIFIED_PAGE_1ST_PAGE_ID);
+	i->bit_offset =
+		0;
+	i->changed  =
+		IS_BIT_SET(i->page + MODIFIED_PAGE_BLOCK_BITMAP,
+			   i->bit_offset);
+
+	return TRUE;
+}
+

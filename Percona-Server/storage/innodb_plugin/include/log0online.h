@@ -25,6 +25,7 @@ Online database log parsing for changed page tracking
 #define log0online_h
 
 #include "univ.i"
+#include "os0file.h"
 
 /*********************************************************************//**
 Initializes the online log following subsytem. */
@@ -47,5 +48,64 @@ UNIV_INTERN
 void
 log_online_follow_redo_log();
 /*=========================*/
+
+/** The iterator through all bits of changed pages bitmap blocks */
+struct log_bitmap_iterator_struct
+{
+	char		in_name[FN_REFLEN]; /*!< the file name for bitmap
+					    input */
+	os_file_t	in;                 /*!< the bitmap input file */
+	ib_uint64_t	in_offset;          /*!< the next write position in the
+					    bitmap output file */
+	ib_uint32_t	bit_offset;         /*!< bit offset inside of bitmap
+					    block*/
+	ib_uint64_t	start_lsn;          /*!< Start lsn of the block */
+	ib_uint64_t	end_lsn;            /*!< End lsn of the block */
+	ib_uint32_t	space_id;           /*!< Block space id */
+	ib_uint32_t	first_page_id;      /*!< First block page id */
+	ibool		changed;            /*!< true if current page was changed */
+	byte*		page;               /*!< Bitmap block */
+};
+
+typedef struct log_bitmap_iterator_struct log_bitmap_iterator_t;
+
+#define LOG_BITMAP_ITERATOR_START_LSN(i) \
+        ((i).start_lsn)
+#define LOG_BITMAP_ITERATOR_END_LSN(i) \
+        ((i).end_lsn)
+#define LOG_BITMAP_ITERATOR_SPACE_ID(i) \
+        ((i).space_id)
+#define LOG_BITMAP_ITERATOR_PAGE_NUM(i) \
+        ((i).first_page_id + (i).bit_offset)
+#define LOG_BITMAP_ITERATOR_PAGE_CHANGED(i) \
+        ((i).changed)
+
+/*********************************************************************//**
+Initializes log bitmap iterator.
+@return TRUE if the iterator is initialized OK, FALSE otherwise. */
+UNIV_INTERN
+ibool
+log_online_bitmap_iterator_init(
+/*============================*/
+	log_bitmap_iterator_t *i); /*!<in/out:  iterator */
+
+/*********************************************************************//**
+Releases log bitmap iterator. */
+UNIV_INTERN
+void
+log_online_bitmap_iterator_release(
+/*===============================*/
+	log_bitmap_iterator_t *i); /*!<in/out:  iterator */
+
+/*********************************************************************//**
+Iterates through bits of saved bitmap blocks.
+Sequentially reads blocks from bitmap file(s) and interates through
+their bits. Ignores blocks with wrong checksum.
+@return TRUE if iteration is successful, FALSE if all bits are iterated. */
+UNIV_INTERN
+ibool
+log_online_bitmap_iterator_next(
+/*============================*/
+	log_bitmap_iterator_t *i); /*!<in/out: iterator */
 
 #endif

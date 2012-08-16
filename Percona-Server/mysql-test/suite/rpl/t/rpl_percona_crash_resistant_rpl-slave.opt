@@ -1,0 +1,1 @@
+--innodb-overwrite-relay-log-info=TRUE --skip-core-file --skip-stack-trace

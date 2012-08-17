@@ -11934,6 +11934,13 @@ static MYSQL_SYSVAR_BOOL(track_changed_pages, srv_track_changed_pages,
     "Track the redo log for changed pages and output a changed page bitmap",
     NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONGLONG(changed_pages_limit, srv_changed_pages_limit,
+  PLUGIN_VAR_RQCMDARG,
+  "The maximum number of rows for "
+  "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES table, "
+  "0 - unlimited",
+  NULL, NULL, 1000000, 0, ~0ULL, 0);
+
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -12181,6 +12188,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(track_changed_pages),
+  MYSQL_SYSVAR(changed_pages_limit),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -12230,7 +12238,8 @@ i_s_innodb_index_stats,
 i_s_innodb_admin_command,
 i_s_innodb_sys_tables,
 i_s_innodb_sys_indexes,
-i_s_innodb_sys_stats
+i_s_innodb_sys_stats,
+i_s_innodb_changed_pages
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

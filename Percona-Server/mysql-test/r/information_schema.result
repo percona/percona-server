@@ -81,7 +81,7 @@ USER_STATISTICS
 VIEWS
 INNODB_BUFFER_POOL_PAGES_INDEX
 INNODB_RSEG
-INNODB_LOCKS
+INNODB_CHANGED_PAGES
 INNODB_BUFFER_POOL_PAGES
 INNODB_TABLE_STATS
 INNODB_TRX
@@ -96,6 +96,7 @@ INNODB_INDEX_STATS
 INNODB_SYS_INDEXES
 INNODB_BUFFER_POOL_PAGES_BLOB
 INNODB_CMPMEM_RESET
+INNODB_LOCKS
 columns_priv
 db
 event
@@ -907,7 +908,7 @@ delete from mysql.db where user='mysqltest_4';
 flush privileges;
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	53
+information_schema	54
 mysql	22
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1332,7 +1333,7 @@ USER_STATISTICS	USER
 VIEWS	TABLE_SCHEMA
 INNODB_BUFFER_POOL_PAGES_INDEX	index_id
 INNODB_RSEG	rseg_id
-INNODB_LOCKS	lock_id
+INNODB_CHANGED_PAGES	space_id
 INNODB_BUFFER_POOL_PAGES	page_type
 INNODB_TABLE_STATS	table_schema
 INNODB_TRX	trx_id
@@ -1347,6 +1348,7 @@ INNODB_INDEX_STATS	table_schema
 INNODB_SYS_INDEXES	TABLE_ID
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
 INNODB_CMPMEM_RESET	page_size
+INNODB_LOCKS	lock_id
 SELECT t.table_name, c1.column_name
 FROM information_schema.tables t
 INNER JOIN
@@ -1400,7 +1402,7 @@ USER_STATISTICS	USER
 VIEWS	TABLE_SCHEMA
 INNODB_BUFFER_POOL_PAGES_INDEX	index_id
 INNODB_RSEG	rseg_id
-INNODB_LOCKS	lock_id
+INNODB_CHANGED_PAGES	space_id
 INNODB_BUFFER_POOL_PAGES	page_type
 INNODB_TABLE_STATS	table_schema
 INNODB_TRX	trx_id
@@ -1415,6 +1417,7 @@ INNODB_INDEX_STATS	table_schema
 INNODB_SYS_INDEXES	TABLE_ID
 INNODB_BUFFER_POOL_PAGES_BLOB	space_id
 INNODB_CMPMEM_RESET	page_size
+INNODB_LOCKS	lock_id
 SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
 MAX(table_name)
 XTRADB_ADMIN_COMMAND
@@ -1497,6 +1500,7 @@ INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
 INNODB_BUFFER_POOL_PAGES	information_schema.INNODB_BUFFER_POOL_PAGES	1
 INNODB_BUFFER_POOL_PAGES_BLOB	information_schema.INNODB_BUFFER_POOL_PAGES_BLOB	1
 INNODB_BUFFER_POOL_PAGES_INDEX	information_schema.INNODB_BUFFER_POOL_PAGES_INDEX	1
+INNODB_CHANGED_PAGES	information_schema.INNODB_CHANGED_PAGES	1
 INNODB_CMP	information_schema.INNODB_CMP	1
 INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
 INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1

@@ -469,7 +469,7 @@ impossible position";
     this larger than the corresponding packet (query) sent 
     from client to master.
   */
-  thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
+  thd->variables.max_allowed_packet= MAX_MAX_ALLOWED_PACKET;
 
   /*
     We can set log_lock now, it does not move (it's a member of
@@ -1133,7 +1133,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
     if (tmp->command == COM_BINLOG_DUMP &&
        tmp->server_id == slave_server_id)
     {
-      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
+      pthread_mutex_lock(&tmp->LOCK_thd_kill);	// Lock from delete
       break;
     }
   }
@@ -1146,7 +1146,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       again. We just to do kill the thread ourselves.
     */
     tmp->awake(THD::KILL_QUERY);
-    pthread_mutex_unlock(&tmp->LOCK_thd_data);
+    pthread_mutex_unlock(&tmp->LOCK_thd_kill);
   }
 }
 

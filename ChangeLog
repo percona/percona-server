@@ -1,0 +1,819 @@
+------------------------------------------------------------
+revno: 3770 [merge]
+committer: Bjorn Munch <bjorn.munch@oracle.com>
+branch nick: mysql-5.1.65-release
+timestamp: Thu 2012-07-12 10:00:14 +0200
+message:
+  Merge unpushed changes from 5.1.64-release
+    ------------------------------------------------------------
+    revno: 3756.1.4
+    committer: Kent Boortz <kent.boortz@oracle.com>
+    branch nick: mysql-5.1.64-release
+    timestamp: Tue 2012-06-26 16:30:15 +0200
+    message:
+      Solve a linkage problem with "libmysqld" on several Solaris platforms:
+      a multiple definition of 'THD::clear_error()' in (at least)
+      libmysqld.a(lib_sql.o) and libmysqld.a(libfederated_a-ha_federated.o).
+      
+      Patch provided by Ramil Kalimullin.
+    ------------------------------------------------------------
+    revno: 3756.1.3
+    committer: Joerg Bruehe <joerg.bruehe@oracle.com>
+    branch nick: mysql-5.1.64-release
+    timestamp: Thu 2012-06-21 16:26:50 +0200
+    message:
+      Fixing wrong comment syntax (discovered by Kent)
+    ------------------------------------------------------------
+    revno: 3756.1.2
+    committer: Kent Boortz <kent.boortz@oracle.com>
+    branch nick: mysql-5.1.64-release
+    timestamp: Wed 2012-06-20 13:10:13 +0200
+    message:
+      Version for this release build is 5.1.64
+    ------------------------------------------------------------
+    revno: 3756.1.1 [merge]
+    committer: Kent Boortz <kent.boortz@oracle.com>
+    branch nick: mysql-5.1.64-release
+    timestamp: Wed 2012-06-20 13:06:32 +0200
+    message:
+      Merge
+------------------------------------------------------------
+revno: 3769
+tags: clone-5.1.65-build
+committer: Sujatha Sivakumar <sujatha.sivakumar@oracle.com>
+branch nick: Bug11762670_5.1
+timestamp: Tue 2012-07-10 18:55:07 +0530
+message:
+  follow up patch for test script failure for BUG#11762670
+------------------------------------------------------------
+revno: 3768 [merge]
+committer: Andrei Elkin <andrei.elkin@oracle.com>
+branch nick: mysql-5.1
+timestamp: Tue 2012-07-10 13:51:50 +0300
+message:
+  merge from  5.1 repo.
+    ------------------------------------------------------------
+    revno: 3764.1.6
+    committer: Bjorn Munch <bjorn.munch@oracle.com>
+    branch nick: break-51
+    timestamp: Tue 2012-07-10 11:57:24 +0200
+    message:
+      mysql_client_fw.c was not included in make dist
+------------------------------------------------------------
+revno: 3767 [merge]
+committer: Andrei Elkin <andrei.elkin@oracle.com>
+branch nick: mysql-5.1
+timestamp: Tue 2012-07-10 13:00:03 +0300
+message:
+  merge from  5.1 repo.
+    ------------------------------------------------------------
+    revno: 3764.1.5
+    committer: Sujatha Sivakumar <sujatha.sivakumar@oracle.com>
+    branch nick: Bug11762670_5.1
+    timestamp: Tue 2012-07-10 14:23:17 +0530
+    message:
+      BUG#11762670:MY_B_WRITE RETURN VALUE IGNORED
+      
+      Problem:
+      =======
+      The return value from my_b_write is ignored by: `my_b_write_quoted',
+      `my_b_write_bit',`Query_log_event::print_query_header'
+      
+      Most callers of `my_b_printf' ignore the return value. `log_event.cc' 
+      has many calls to it. 
+      
+      Analysis:
+      ========
+      `my_b_write' is used to write data into a file. If the write fails it
+      sets appropriate error number and error message through my_error()
+      function call and sets the IO_CACHE::error == -1.
+      `my_b_printf' function is also used to write data into a file, it
+      internally invokes my_b_write to do the write operation. Upon
+      success it returns number of characters written to file and on error
+      it returns -1 and sets the error through my_error() and also sets
+      IO_CACHE::error == -1.  Most of the event specific print functions
+      for example `Create_file_log_event::print', `Execute_load_log_event::print'
+      etc are the ones which make several calls to the above two functions and
+      they do not check for the return value after the 'print' call. All the above 
+      mentioned abuse cases deal with the client side.
+      
+      Fix:
+      ===
+      As part of bug fix a check for IO_CACHE::error == -1 has been added at 
+      a very high level after the call to the 'print' function.  There are 
+      few more places where the return value of "my_b_write" is ignored
+      those are mentioned below.
+      
+      +++ mysys/mf_iocache2.c    2012-06-04 07:03:15 +0000
+      @@ -430,7 +430,8 @@
+                 memset(buffz, '0', minimum_width - length2);
+               else
+                 memset(buffz, ' ', minimum_width - length2);
+      -        my_b_write(info, buffz, minimum_width - length2);
+      
+      +++ sql/log.cc	2012-06-08 09:04:46 +0000
+      @@ -2388,7 +2388,12 @@
+           {
+             end= strxmov(buff, "# administrator command: ", NullS);
+             buff_len= (ulong) (end - buff);
+      -      my_b_write(&log_file, (uchar*) buff, buff_len);
+      
+      At these places appropriate return value handlers have been added.
+------------------------------------------------------------
+revno: 3766 [merge]
+committer: Andrei Elkin <andrei.elkin@oracle.com>
+branch nick: mysql-5.1
+timestamp: Tue 2012-07-10 12:48:23 +0300
+message:
+  merge from  5.1 repo.
+    ------------------------------------------------------------
+    revno: 3764.1.4
+    committer: Bjorn Munch <bjorn.munch@oracle.com>
+    branch nick: break-51
+    timestamp: Tue 2012-07-10 10:04:57 +0200
+    message:
+      mysql_client_test did not build within limbysqld/examples
+    ------------------------------------------------------------
+    revno: 3764.1.3
+    committer: Bjorn Munch <bjorn.munch@oracle.com>
+    branch nick: grr-51
+    timestamp: Mon 2012-07-09 16:36:50 +0200
+    message:
+      Fixed compile error in mysql_client_test using gcc
+    ------------------------------------------------------------
+    revno: 3764.1.2
+    committer: Bjorn Munch <bjorn.munch@oracle.com>
+    branch nick: rfmct-51
+    timestamp: Mon 2012-07-09 15:10:07 +0200
+    message:
+      Refactor mysql_client_test.c into a framework part and a test part
+    ------------------------------------------------------------
+    revno: 3764.1.1
+    committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
+    branch nick: B13889741-5.1
+    timestamp: Thu 2012-07-05 13:41:16 +0300
+    message:
+      Bug #13889741: HANDLE_FATAL_SIGNAL IN _DB_ENTER_ |
+      HANDLE_FATAL_SIGNAL IN STRNLEN
+      
+      Fixed the following bounds checking problems :
+      1. in check_if_legal_filename() make sure the null terminated
+      string is long enough before accessing the bytes in it.
+      Prevents pottential read-past-buffer-end
+      2. in my_wc_mb_filename() of the filename charset check
+      for the end of the destination buffer before sending single
+      byte characters into it.
+      Prevents write-past-end-of-buffer (and garbaling stack in
+      the cases reported here) errors.
+      
+      Added test cases.
+------------------------------------------------------------
+revno: 3765
+committer: Andrei Elkin <andrei.elkin@oracle.com>
+branch nick: mysql-5.1
+timestamp: Thu 2012-07-05 14:37:48 +0300
+message:
+  Bug#14275000
+  
+  Fixes for BUG11761686 left a flaw that managed to slip away from testing.
+  Only effective filtering branch was actually tested with a regression test
+  added to rpl_filter_tables_not_exist.
+  The reason of the failure is destuction of too early mem-root-allocated memory 
+  at the end of the deferred User-var's do_apply_event().
+  
+  Fixed with bypassing free_root() in the deferred execution branch.
+  Deallocation of created in do_apply_event() items is done by the base code
+  through THD::cleanup_after_query() -> free_items() that the parent Query
+  can't miss.
+------------------------------------------------------------
+revno: 3764
+committer: Rohit Kalhans <rohit.kalhans@oracle.com>
+branch nick: mysql-5.1_b11762667
+timestamp: Tue 2012-07-03 18:00:21 +0530
+message:
+  BUG#11762667:MYSQLBINLOG IGNORES ERRORS WHILE WRITING OUTPUT
+  
+  This is a followup patch for the bug enabling the test
+  i_binlog.binlog_mysqlbinlog_file_write.test
+  this was disabled in mysql trunk and mysql 5.5 as in the release
+  build mysqlbinlog was not debug compiled whereas the mysqld was.
+  Since have_debug.inc script checks only for mysqld to be debug
+  compiled, the test was not being skipped on release builds.
+  
+  We resolve this problem by creating a new inc file 
+  mysqlbinlog_have_debug.inc which checks exclusively for mysqlbinlog
+  to be debug compiled. if not it skips the test.
+   
+------------------------------------------------------------
+revno: 3763
+committer: Gleb Shchepa <gleb.shchepa@oracle.com>
+branch nick: 5.1
+timestamp: Fri 2012-06-29 18:24:43 +0400
+message:
+  minor update to make MSVS happy
+------------------------------------------------------------
+revno: 3762
+committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
+branch nick: B13708485-5.1
+timestamp: Thu 2012-06-28 18:38:55 +0300
+message:
+  Bug #13708485:  malformed resultset packet crashes client
+  
+  Several fixes :
+  
+  * sql-common/client.c
+  Added a validity check of the fields metadata packet sent 
+  by the server.
+  Now libmysql will check if the length of the data sent by
+  the server matches what's expected by the protocol before
+  using the data.
+  
+  * client/mysqltest.cc
+  Fixed the error handling code in mysqltest to avoid sending
+  new commands when the reading the result set failed (and 
+  there are unread data in the pipe).
+  
+  * sql_common.h + libmysql/libmysql.c + sql-common/client.c
+  unpack_fields() now generates a proper error when it fails.
+  Added a new argument to this function to support the error 
+  generation.
+  
+  * sql/protocol.cc
+  Added a debug trigger to cause the server to send a NULL
+  insted of the packet expected by the client for testing 
+  purposes.
+------------------------------------------------------------
+revno: 3761
+committer: Jon Olav Hauglid <jon.hauglid@oracle.com>
+branch nick: mysql-5.1-test
+timestamp: Fri 2012-06-29 13:25:57 +0200
+message:
+  Bug#14238406 NEW COMPILATION WARNINGS WITH GCC 4.7 (-WERROR=NARROWING)
+  
+  This patch fixes various compilation warnings of the type
+  "error: narrowing conversion of 'x' from 'datatype1' to
+  'datatype2'
+------------------------------------------------------------
+revno: 3760
+committer: Gleb Shchepa <gleb.shchepa@oracle.com>
+branch nick: 5.1
+timestamp: Fri 2012-06-29 12:55:45 +0400
+message:
+  Backport of the deprecation warning from WL#6219: "Deprecate and remove YEAR(2) type"
+  
+  Print the warning(note):
+  
+   YEAR(x) is deprecated and will be removed in a future release. Please use YEAR(4) instead
+  
+  on "CREATE TABLE ... YEAR(x)" or "ALTER TABLE MODIFY ... YEAR(x)", where x != 4
+------------------------------------------------------------
+revno: 3759 [merge]
+committer: Norvald H. Ryeng <norvald.ryeng@oracle.com>
+branch nick: mysql-5.1-merge
+timestamp: Thu 2012-06-28 14:34:49 +0200
+message:
+  Merge.
+    ------------------------------------------------------------
+    revno: 3757.1.1
+    committer: Norvald H. Ryeng <norvald.ryeng@oracle.com>
+    branch nick: mysql-5.1-13003736
+    timestamp: Mon 2012-06-18 09:20:12 +0200
+    message:
+      Bug#13003736 CRASH IN ITEM_REF::WALK WITH SUBQUERIES
+      
+      Problem: Some queries with subqueries and a HAVING clause that
+      consists only of a column not in the select or grouping lists causes
+      the server to crash.
+      
+      During parsing, an Item_ref is constructed for the HAVING column. The
+      name of the column is resolved when JOIN::prepare calls fix_fields()
+      on its having clause. Since the column is not mentioned in the select
+      or grouping lists, a ref pointer is not found and a new Item_field is
+      created instead. The Item_ref is replaced by the Item_field in the
+      tree of HAVING clauses. Since the tree consists only of this item, the
+      pointer that is updated is JOIN::having. However,
+      st_select_lex::having still points to the Item_ref as the root of the
+      tree of HAVING clauses.
+      
+      The bug is triggered when doing filesort for create_sort_index(). When
+      find_all_keys() calls select->cond->walk() it eventually reaches
+      Item_subselect::walk() where it continues to walk the having clauses
+      from lex->having. This means that it finds the Item_ref instead of the
+      new Item_field, and Item_ref::walk() tries to dereference the ref
+      pointer, which is still null.
+      
+      The crash is reproducible only in 5.5, but the problem lies latent in
+      5.1 and trunk as well.
+      
+      Fix: After calling fix_fields on the having clause in JOIN::prepare(),
+      set select_lex::having to point to the same item as JOIN::having.
+      
+      This patch also fixes a bug in 5.1 and 5.5 that is triggered if the
+      query is executed as a prepared statement. The Item_field is created
+      in the runtime arena when the query is prepared, and the pointer to
+      the item is saved by st_select_lex::fix_prepare_information() and
+      brought back as a dangling pointer when the query is executed, after
+      the runtime arena has been reclaimed.
+      
+      Fix: Backport fix from trunk that switches to the permanent arena
+      before calling Item_ref::fix_fields() in JOIN::prepare().
+------------------------------------------------------------
+revno: 3758
+committer: Harin Vadodaria<harin.vadodaria@oracle.com>
+branch nick: 51_bug11753779
+timestamp: Tue 2012-06-19 12:56:40 +0530
+message:
+  Bug#11753779: MAX_CONNECT_ERRORS WORKS ONLY WHEN 1ST
+                INC_HOST_ERRORS() IS CALLED.
+  
+  Description: Reverting patch 3755 for bug#11753779
+------------------------------------------------------------
+revno: 3757
+author: kent.boortz@oracle.com
+committer: Kent Boortz <kent.boortz@oracle.com>
+branch nick: mysql-5.1
+timestamp: Fri 2012-06-15 13:31:27 +0200
+message:
+  Raise version number after cloning 5.1.64
+------------------------------------------------------------
+revno: 3756
+tags: clone-5.1.64-build
+committer: sayantan.dutta@oracle.com
+branch nick: mysql-5.1
+timestamp: Thu 2012-06-14 17:07:49 +0530
+message:
+  BUG #13946716: FEDERATED_PLUGIN TEST CASE FAIL ON 64BIT ARCHITECTURES
+------------------------------------------------------------
+revno: 3755
+committer: Harin Vadodaria<harin.vadodaria@oracle.com>
+branch nick: 51_bug11753779
+timestamp: Wed 2012-06-13 16:03:58 +0530
+message:
+  Bug#11753779: MAX_CONNECT_ERRORS WORKS ONLY WHEN 1ST
+                INC_HOST_ERRORS() IS CALLED.
+  
+  Issue       : Sequence of calling inc_host_errors()
+                and reset_host_errors() required some
+                changes in order to maintain correct
+                connection error count.
+  
+  Solution    : Call to reset_host_errors() is shifted
+                to a location after which no calls to
+                inc_host_errors() are made.
+------------------------------------------------------------
+revno: 3754 [merge]
+committer: Manish Kumar<manish.4.kumar@oracle.com>
+branch nick: mysql-5.1
+timestamp: Tue 2012-06-12 12:59:13 +0530
+message:
+  BUG#12400221 - 60926: BINARY LOG EVENTS LARGER THAN MAX_ALLOWED_PACKET
+  
+  Problem
+  ========
+              
+  Replication breaks in the cases if the event length exceeds 
+  the size of master Dump thread's max_allowed_packet.
+                
+  The reason why this failure is occuring is because the event length is
+  more than the total size of the max_allowed_packet, on addition of the  
+  max_event_header length exceeds the max_allowed_packet of the DUMP thread.
+  This causes the Dump thread to break replication and throw an error.
+                        
+  That can happen e.g with row-based replication in Update_rows event.
+              
+  Fix
+  ====
+            
+  The problem is fixed in 2 steps:
+  
+  1.) The Dump thread limit to read event is increased to the upper limit
+      i.e. Dump thread reads whatever gets logged in the binary log.
+  
+  2.) On the slave side we increase the the max_allowed_packet for the
+      slave's threads (IO/SQL) by increasing it to 1GB.
+  
+      This is done using the new server option (slave_max_allowed_packet)
+      included, is used to regulate the max_allowed_packet of the  
+      slave thread (IO/SQL) by the DBA, and facilitates the sending of
+      large packets from the master to the slave.
+  
+      This causes the large packets to be received by the slave and apply
+      it successfully.
+    ------------------------------------------------------------
+    revno: 3744.1.1
+    committer: Manish Kumar<manish.4.kumar@oracle.com>
+    branch nick: mysql-5.1
+    timestamp: Mon 2012-05-21 12:57:39 +0530
+    message:
+      BUG#12400221 - 60926: BINARY LOG EVENTS LARGER THAN MAX_ALLOWED_PACKET
+      
+      Problem
+      ========
+                  
+      SQL statements close to the size of max_allowed_packet produce binary
+      log events larger than max_allowed_packet.
+                    
+      The reason why this failure is occuring is because the event length is
+      more than the total size of the max_allowed_packet + max_event_header
+      length. Now since the event length exceeds this size master Dump
+      thread is unable to send the packet on to the slave.
+                            
+      That can happen e.g with row-based replication in Update_rows event.
+                  
+      Fix
+      ====
+                
+      The problem was fixed by increasing the max_allowed_packet for the
+      slave's threads (IO/SQL) by increasing it to 1GB.
+      This is done using the new server option included which is used to
+      regulate the max_allowed_packet of the slave thread (IO/SQL).
+      This causes the large packets to be received by the slave and apply
+      it successfully.
+------------------------------------------------------------
+revno: 3753
+committer: Tor Didriksen <tor.didriksen@oracle.com>
+branch nick: 5.1
+timestamp: Tue 2012-06-05 15:53:39 +0200
+message:
+  Bug#14051002 VALGRIND: CONDITIONAL JUMP OR MOVE IN RR_CMP / MY_QSORT
+  
+  Patch for 5.1 and 5.5: fix typo in byte comparison in rr_cmp()
+------------------------------------------------------------
+revno: 3752
+committer: Annamalai Gurusami <annamalai.gurusami@oracle.com>
+branch nick: mysql-5.1
+timestamp: Fri 2012-06-01 14:12:57 +0530
+message:
+  Bug #13933132: [ERROR] GOT ERROR -1 WHEN READING TABLE APPEARED
+  WHEN KILLING
+  
+  Suppose there is a query waiting for a lock.  If the user kills
+  this query, then "Got error -1 when reading table" error message
+  must not be logged in the server log file.  Since this is a user
+  requested interruption, no spurious error message must be logged
+  in the server log.  This patch will remove the error message from
+  the log.
+  
+  approved by joh and tatjana
+------------------------------------------------------------
+revno: 3751
+committer: Rohit Kalhans <rohit.kalhans@oracle.com>
+branch nick: mysql-5.1
+timestamp: Thu 2012-05-31 22:28:18 +0530
+message:
+  Fixing the accidental incusion of i_binlog.binlog_suppress_info test. 
+  Fix for i_binlog.binlog_mysqlbinlog_file_write failure on pb2 
+------------------------------------------------------------
+revno: 3750
+committer: Rohit Kalhans <rohit.kalhans@oracle.com>
+branch nick: mysql-5.1
+timestamp: Thu 2012-05-31 14:32:29 +0530
+message:
+  Fixed the problem in bzr file-id between 5.1 and 5.5 in i_binlog folder.
+------------------------------------------------------------
+revno: 3749
+committer: Rohit Kalhans <rohit.kalhans@oracle.com>
+branch nick: mysql-5.1_b11762667
+timestamp: Wed 2012-05-30 14:00:29 +0530
+message:
+  Fixing i_binlog.binlog_mysqlbinlog_file_write failure. 
+------------------------------------------------------------
+revno: 3748
+committer: Rohit Kalhans <rohit.kalhans@oracle.com>
+branch nick: mysql-5.1_b11762667
+timestamp: Wed 2012-05-30 13:54:15 +0530
+message:
+  Fixing the build failure on Windows debug build.
+------------------------------------------------------------
+revno: 3747
+committer: Rohit Kalhans <rohit.kalhans@oracle.com>
+branch nick: mysql-5.1_b11762667
+timestamp: Tue 2012-05-29 12:11:30 +0530
+message:
+  Bug#11762667: MYSQLBINLOG IGNORES ERRORS WHILE WRITING OUTPUT
+  
+  Problem: mysqlbinlog exits without any error code in case of
+  file write error. It is because of the fact that the calls
+  to Log_event::print() method does not return a value and the
+  thus any error were being ignored.
+  
+  Resolution: We resolve this problem by checking for the 
+  IO_CACHE::error == -1 after every call to Log_event:: print()
+  and terminating the further execution.
+------------------------------------------------------------
+revno: 3746
+committer: Inaam Rana <inaam.rana@oracle.com>
+branch nick: mysql-5.1
+timestamp: Thu 2012-05-24 12:37:03 -0400
+message:
+  Bug #14100254 65389: MVCC IS BROKEN WITH IMPLICIT LOCK
+  
+  rb://1088
+  approved by: Marko Makela
+  
+  This bug was introduced in early stages of plugin. We were not
+  checking for an implicit lock on sec index rec for trx_id that is
+  stamped on current version of the clust_index in case where the
+  clust_index has a previous delete marked version.
+------------------------------------------------------------
+revno: 3745
+committer: Annamalai Gurusami <annamalai.gurusami@oracle.com>
+branch nick: mysql-5.1
+timestamp: Mon 2012-05-21 17:25:40 +0530
+message:
+  Bug #12752572 61579: REPLICATION FAILURE WHILE
+  INNODB_AUTOINC_LOCK_MODE=1 AND USING TRIGGER
+  
+  When an insert stmt like "insert into t values (1),(2),(3)" is
+  executed, the autoincrement values assigned to these three rows are
+  expected to be contiguous.  In the given lock mode
+  (innodb_autoinc_lock_mode=1), the auto inc lock will be released
+  before the end of the statement.  So to make the autoincrement
+  contiguous for a given statement, we need to reserve the auto inc
+  values at the beginning of the statement.  
+  
+  Modified the fix based on review comment by Svoj.  
+------------------------------------------------------------
+revno: 3744
+committer: Rohit Kalhans <rohit.kalhans@oracle.com>
+branch nick: mysql-5.1
+timestamp: Fri 2012-05-18 14:44:40 +0530
+message:
+  BUG#14005409 - 64624
+        
+  Problem: After the fix for Bug#12589870, a new field that
+  stores the length of db name was added in the buffer that
+  stores the query to be executed. Unlike for the plain user
+  session, the replication execution did not allocate the
+  necessary chunk in Query-event constructor. This caused an
+  invalid read while accessing this field.
+        
+  Solution: We fix this problem by allocating a necessary chunk
+  in the buffer created in the Query_log_event::Query_log_event()
+  and store the length of database name.
+------------------------------------------------------------
+revno: 3743
+committer: Gopal Shankar <gopal.shankar@oracle.com>
+branch nick: thdctxdeadlock-51
+timestamp: Thu 2012-05-17 18:07:59 +0530
+message:
+  Bug#12636001 : deadlock from thd_security_context
+  
+  PROBLEM:
+  Threads end-up in deadlock due to locks acquired as described
+  below,
+  
+  con1: Run Query on a table. 
+    It is important that this SELECT must back-off while
+    trying to open the t1 and enter into wait_for_condition().
+    The SELECT then is blocked trying to lock mysys_var->mutex
+    which is held by con3. The very significant fact here is
+    that mysys_var->current_mutex will still point to LOCK_open,
+    even if LOCK_open is no longer held by con1 at this point.
+  
+  con2: Try dropping table used in con1 or query some table.
+    It will hold LOCK_open and be blocked trying to lock
+    kernel_mutex held by con4.
+  
+  con3: Try killing the query run by con1.
+    It will hold THD::LOCK_thd_data belonging to con1 while
+    trying to lock mysys_var->current_mutex belonging to con1.
+    But current_mutex will point to LOCK_open which is held
+    by con2.
+  
+  con4: Get innodb engine status
+    It will hold kernel_mutex, trying to lock THD::LOCK_thd_data
+    belonging to con1 which is held by con3.
+  
+  So while technically only con2, con3 and con4 participate in the
+  deadlock, con1's mysys_var->current_mutex pointing to LOCK_open
+  is a vital component of the deadlock.
+  
+  CYCLE = (THD::LOCK_thd_data -> LOCK_open ->
+           kernel_mutex -> THD::LOCK_thd_data)
+  
+  FIX:
+  LOCK_thd_data has responsibility of protecting,
+  1) thd->query, thd->query_length
+  2) VIO
+  3) thd->mysys_var (used by KILL statement and shutdown)
+  4) THD during thread delete.
+  
+  Among above responsibilities, 1), 2)and (3,4) seems to be three
+  independent group of responsibility. If there is different LOCK
+  owning responsibility of (3,4), the above mentioned deadlock cycle
+  can be avoid. This fix introduces LOCK_thd_kill to handle
+  responsibility (3,4), which eliminates the deadlock issue.
+  
+  Note: The problem is not found in 5.5. Introduction MDL subsystem 
+  caused metadata locking responsibility to be moved from TDC/TC to
+  MDL subsystem. Due to this, responsibility of LOCK_open is reduced. 
+  As the use of LOCK_open is removed in open_table() and 
+  mysql_rm_table() the above mentioned CYCLE does not form.
+  Revision ID for changes,
+  open_table() = dlenev@mysql.com-20100727133458-m3ua9oslnx8fbbvz
+  mysql_rm_table() = jon.hauglid@oracle.com-20101116100012-kxep9txz2fxy3nmw
+------------------------------------------------------------
+revno: 3742
+committer: Nuno Carvalho <nuno.carvalho@oracle.com>
+branch nick: mysql-5.1
+timestamp: Thu 2012-05-17 11:41:46 +0100
+message:
+  Added combinations file to i_rpl suite.
+------------------------------------------------------------
+revno: 3741
+committer: Annamalai Gurusami <annamalai.gurusami@oracle.com>
+branch nick: mysql-5.1
+timestamp: Thu 2012-05-17 10:15:54 +0530
+message:
+  Fixing a pb2 test case.  All debug_sync test cases
+  must include have_debug_sync.inc.  
+------------------------------------------------------------
+revno: 3740
+committer: Annamalai Gurusami <annamalai.gurusami@oracle.com>
+branch nick: mysql-5.1
+timestamp: Wed 2012-05-16 16:36:49 +0530
+message:
+  Bug #13943231: ALTER TABLE AFTER DISCARD MAY CRASH THE SERVER
+  
+  The following scenario crashes our mysql server:
+  
+  1.  set global innodb_file_per_table=1;
+  2.  create table t1(c1 int) engine=innodb;
+  3.  alter table t1 discard tablespace;
+  4.  alter table t1 add unique index(c1);
+  
+  Step 4 crashes the server.  This patch introduces a check on discarded
+  tablespace to avoid the crash.
+  
+  rb://1041 approved by Marko Makela
+------------------------------------------------------------
+revno: 3739
+committer: Venkata Sidagam <venkata.sidagam@oracle.com>
+branch nick: mysql-5.1-13955256
+timestamp: Wed 2012-05-16 16:14:27 +0530
+message:
+  Bug #13955256: KEYCACHE CRASHES, CORRUPTIONS/HANGS WITH, 
+                 FULLTEXT INDEX AND CONCURRENT DML.
+  
+  Problem Statement:
+  ------------------
+  1) Create a table with FT index.
+  2) Enable concurrent inserts.
+  3) In multiple threads do below operations repeatedly
+     a) truncate table
+     b) insert into table ....
+     c) select ... match .. against .. non-boolean/boolean mode
+  
+  After some time we could observe two different assert core dumps
+  
+  Analysis:
+  --------
+  1)assert core dump at key_read_cache():
+  Two select threads operating in-parallel on same key 
+  root block.
+  1st select thread block->status is set to BLOCK_ERROR 
+  because the my_pread() in read_block() is returning '0'. 
+  Truncate table made the index file size as 1024 and pread 
+  was asked to get the block of count bytes(1024 bytes) 
+  from offset of 1024 which it cannot read since its 
+  "end of file" and retuning '0' setting 
+  "my_errno= HA_ERR_FILE_TOO_SHORT" and the key_file_length, 
+  key_root[0] is same i.e. 1024. Since block status has BLOCK_ERROR 
+  the 1st select thread enter into the free_block() and will 
+  be under wait on conditional mutex by making status as 
+  BLOCK_REASSIGNED and goes for wait_on_readers(). Other select 
+  thread will also work on the same block and sees the status as 
+  BLOCK_ERROR and enters into free_block(), checks for BLOCK_REASSIGNED 
+  and asserting the server.
+  
+  2)assert core dump at key_write_cache():
+  One select thread and One insert thread.
+  Select thread gets the unlocks the 'keycache->cache_lock', 
+  which allows other threads to continue and gets the pread() 
+  return value as'0'(please see the explanation above) and 
+  tries to get the lock on 'keycache->cache_lock' and waits 
+  there for the lock.
+  Insert thread requests for the block, block will be assigned 
+  from the hash list and makes the page_status as 
+  'PAGE_WAIT_TO_BE_READ' and goes for the read_block(), waits 
+  in the queue since there are some other threads performing 
+  reads on the same block.
+  Select thread which was waiting for the 'keycache->cache_lock' 
+  mutex in the read_block() will continue after getting the my_pread() 
+  value as '0' and sets the block status as BLOCK_ERROR and goes to 
+  the free_block() and go to the wait_for_readers().
+  Now the insert thread will awake and continues. and checks 
+  block->status as not BLOCK_READ and it asserts.  
+  
+  Fix:
+  ---
+  In the full text code, multiple readers of index file is not guarded. 
+  Hence added below below code in _ft2_search() and walk_and_match().
+  
+  to lock the key_root I have used below code in _ft2_search()
+   if (info->s->concurrent_insert)
+      mysql_rwlock_rdlock(&share->key_root_lock[0]);
+  
+  and to unlock 
+   if (info->s->concurrent_insert)
+     mysql_rwlock_unlock(&share->key_root_lock[0]);
+------------------------------------------------------------
+revno: 3738
+committer: Annamalai Gurusami <annamalai.gurusami@oracle.com>
+branch nick: mysql-5.1
+timestamp: Wed 2012-05-16 11:17:48 +0530
+message:
+  Bug #12752572 61579: REPLICATION FAILURE WHILE
+  INNODB_AUTOINC_LOCK_MODE=1 AND USING TRIGGER
+  
+  When an insert stmt like "insert into t values (1),(2),(3)" is
+  executed, the autoincrement values assigned to these three rows are
+  expected to be contiguous.  In the given lock mode
+  (innodb_autoinc_lock_mode=1), the auto inc lock will be released
+  before the end of the statement.  So to make the autoincrement
+  contiguous for a given statement, we need to reserve the auto inc
+  values at the beginning of the statement.  
+  
+  rb://1074 approved by Alexander Nozdrin
+------------------------------------------------------------
+revno: 3737
+committer: Nuno Carvalho <nuno.carvalho@oracle.com>
+branch nick: mysql-5.1
+timestamp: Tue 2012-05-15 22:06:48 +0100
+message:
+  BUG#11754117 - 45670: INTVAR_EVENTS FOR FILTERED-OUT QUERY_LOG_EVENTS ARE EXECUTED
+  
+  Improved random number filtering verification on
+  rpl_filter_tables_not_exist test.
+------------------------------------------------------------
+revno: 3736
+committer: Marko M?kel? <marko.makela@oracle.com>
+branch nick: mysql-5.1
+timestamp: Tue 2012-05-15 15:04:39 +0300
+message:
+  Bug#14025221 FOREIGN KEY REFERENCES FREED MEMORY AFTER DROP INDEX
+  
+  dict_table_replace_index_in_foreign_list(): Replace the dropped index
+  also in the foreign key constraints of child tables that are
+  referencing this table.
+  
+  row_ins_check_foreign_constraint(): If the underlying index is
+  missing, refuse the operation.
+  
+  rb:1051 approved by Jimmy Yang
+------------------------------------------------------------
+revno: 3735
+committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
+branch nick: B11761822-5.1
+timestamp: Tue 2012-05-15 13:12:22 +0300
+message:
+  Bug #11761822: yassl rejects valid certificate which openssl accepts
+      
+  Applied the fix that updates yaSSL to 2.2.1 and fixes parsing this 
+  particular certificate.
+  Added a test case with the certificate itself.
+------------------------------------------------------------
+revno: 3734
+committer: Bjorn Munch <bjorn.munch@oracle.com>
+branch nick: int-51
+timestamp: Tue 2012-05-15 09:14:44 +0200
+message:
+  Added some extra optional path to test suites
+------------------------------------------------------------
+revno: 3733
+committer: Annamalai Gurusami <annamalai.gurusami@oracle.com>
+branch nick: mysql-5.1
+timestamp: Thu 2012-05-10 10:18:31 +0530
+message:
+  Bug #14007649 65111: INNODB SOMETIMES FAILS TO UPDATE ROWS INSERTED 
+  BY A CONCURRENT TRANSACTIO
+  
+  The member function QUICK_RANGE_SELECT::init_ror_merged_scan() performs
+  a table handler clone. Innodb does not provide a clone operation.  
+  The ha_innobase::clone() is not there. The handler::clone() does not 
+  take care of the ha_innobase->prebuilt->select_lock_type.  Because of 
+  this what happens is that for one index we do a locking read, and 
+  for the other index we were doing a non-locking (consistent) read. 
+  The patch introduces ha_innobase::clone() member function.  
+  It is implemented similar to ha_myisam::clone().  It calls the 
+  base class handler::clone() and then does any additional operation 
+  required.  I am setting the ha_innobase->prebuilt->select_lock_type 
+  correctly. 
+  
+  rb://1060 approved by Marko
+------------------------------------------------------------
+revno: 3732 [merge]
+committer: Sunanda Menon <sunanda.menon@oracle.com>
+branch nick: mysql-5.1
+timestamp: Tue 2012-05-08 07:19:14 +0200
+message:
+  Merge from mysql-5.1.63-release
+    ------------------------------------------------------------
+    revno: 3560.10.18 [merge]
+    tags: mysql-5.1.63, clone-5.1.63-build
+    committer: Georgi Kodinov <Georgi.Kodinov@Oracle.com>
+    branch nick: merge-5.1-security
+    timestamp: Tue 2012-04-10 14:21:57 +0300
+    message:
+      merge mysql-5.1->mysql-5.1-security

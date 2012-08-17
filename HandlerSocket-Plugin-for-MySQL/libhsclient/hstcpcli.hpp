@@ -37,6 +37,7 @@ struct hstcpcli_i {
   virtual void close() = 0;
   virtual int reconnect() = 0;
   virtual bool stable_point() = 0;
+  virtual void request_buf_auth(const char *secret, const char *typ) = 0;
   virtual void request_buf_open_index(size_t pst_id, const char *dbn,
     const char *tbl, const char *idx, const char *retflds,
     const char *filflds = 0) = 0;

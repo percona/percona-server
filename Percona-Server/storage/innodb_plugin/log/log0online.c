@@ -335,8 +335,8 @@ log_set_tracked_lsn(
 	/* Single writer, no data race here */
 	ib_uint64_t old_value
 		= os_atomic_increment_uint64(&log_sys->tracked_lsn, 0);
-	os_atomic_increment_uint64(&log_sys->tracked_lsn,
-				   tracked_lsn - old_value);
+	(void) os_atomic_increment_uint64(&log_sys->tracked_lsn,
+					  tracked_lsn - old_value);
 #else
 	mutex_enter(&log_sys->mutex);
 	log_sys->tracked_lsn = tracked_lsn;

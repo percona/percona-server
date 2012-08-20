@@ -487,9 +487,9 @@ long long thd_start_time(const THD* thd)
 extern "C"
 void thd_kill(THD* thd)
 {
-  pthread_mutex_lock(&thd->LOCK_thd_data);
+  pthread_mutex_lock(&thd->LOCK_thd_kill);
   thd->awake(THD::KILL_CONNECTION);
-  pthread_mutex_unlock(&thd->LOCK_thd_data);
+  pthread_mutex_unlock(&thd->LOCK_thd_kill);
 }
 
 /**

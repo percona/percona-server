@@ -2131,6 +2131,19 @@ wait_until_unfixed:
 				"innodb_change_buffering_debug evict %u %u\n",
 				(unsigned) space, (unsigned) offset);
 			return(NULL);
+		} else if (UNIV_UNLIKELY(buf_block_get_page_no(block)
+					 != page_no
+				|| buf_block_get_space(block) != space
+				|| (buf_block_get_state(block)
+				    != BUF_BLOCK_FILE_PAGE))) {
+
+				/* buf_LRU_free_block temporarily releases the
+				block mutex, and now block points to something
+				else. */
+				mutex_exit(block_mutex);
+				block = NULL;
+				goto loop2;
+
 		} else if (buf_flush_page_try(block)) {
 			fprintf(stderr,
 				"innodb_change_buffering_debug flush %u %u\n",

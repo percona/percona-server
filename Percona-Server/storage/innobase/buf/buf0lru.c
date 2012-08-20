@@ -374,7 +374,7 @@ next_page:
 
 /******************************************************************//**
 While flushing (or removing dirty) pages from a tablespace we don't
-want to hog the CPU and resources. Release the buffer pool and block
+want to hog the CPU and resources. Release the LRU list and block
 mutex and try to force a context switch. Then reacquire the same mutexes.
 The current page is "fixed" before the release of the mutexes and then
 "unfixed" again once we have reacquired the mutexes. */
@@ -387,7 +387,7 @@ buf_flush_yield(
 {
 	mutex_t*	block_mutex;
 
-	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(buf_page_in_file(bpage));
 
 	block_mutex = buf_page_get_mutex(bpage);
@@ -399,13 +399,13 @@ buf_flush_yield(
 	buf_page_set_sticky(bpage);
 
 	/* Now it is safe to release the buf_pool->mutex. */
-	buf_pool_mutex_exit(buf_pool);
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	mutex_exit(block_mutex);
 	/* Try and force a context switch. */
 	os_thread_yield();
 
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	mutex_enter(block_mutex);
 	/* "Unfix" the block now that we have both the
@@ -415,9 +415,9 @@ buf_flush_yield(
 }
 
 /******************************************************************//**
-If we have hogged the resources for too long then release the buffer
-pool and flush list mutex and do a thread yield. Set the current page
-to "sticky" so that it is not relocated during the yield.
+If we have hogged the resources for too long then release the LRU list
+and flush list mutex and do a thread yield. Set the current page to
+"sticky" so that it is not relocated during the yield.
 @return TRUE if yielded */
 static
 ibool
@@ -439,7 +439,7 @@ buf_flush_try_yield(
 
 		buf_flush_list_mutex_exit(buf_pool);
 
-		/* Release the buffer pool and block mutex
+		/* Release the LRU list and block mutex
 		to give the other threads a go. */
 
 		buf_flush_yield(buf_pool, bpage);

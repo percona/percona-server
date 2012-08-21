@@ -1,0 +1,75 @@
+# Tests for innodb_adaptive_checkpoint variable
+
+--source include/have_innodb_plugin.inc
+
+SET @saved_val = @@global.innodb_adaptive_checkpoint;
+
+# Valid values
+SELECT @@global.innodb_adaptive_checkpoint IN ('none', 'reflex', 'estimate', 'keep_average', '0', '1', '2', '3');
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_adaptive_checkpoint;
+
+# Test its writability
+SET GLOBAL innodb_adaptive_checkpoint='none';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+SET GLOBAL innodb_adaptive_checkpoint='reflex';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+SET GLOBAL innodb_adaptive_checkpoint='estimate';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+SET GLOBAL innodb_adaptive_checkpoint='keep_average';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+SET GLOBAL innodb_adaptive_checkpoint='0';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+SET GLOBAL innodb_adaptive_checkpoint='1';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+SET GLOBAL innodb_adaptive_checkpoint='2';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+SET GLOBAL innodb_adaptive_checkpoint='3';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+
+# Cannot set it for session
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION innodb_adaptive_checkpoint='estimate';
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_adaptive_checkpoint='keep_average';
+
+# Incorrect types and values
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_adaptive_checkpoint=1.1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_adaptive_checkpoint=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_adaptive_checkpoint='foo';
+
+# The following is commented out because it is actually accepted by 5.1.  The fix is trivial
+# and present in 5.5, but for now we preserve bug-for-bug compatibility.
+# #--error ER_WRONG_TYPE_FOR_VAR
+# #SET global innodb_adaptive_checkpoint=-2;
+
+# Cleanup
+SET @@global.innodb_adaptive_checkpoint = @saved_val;

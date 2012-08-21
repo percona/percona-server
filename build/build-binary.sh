@@ -16,7 +16,6 @@ set -ue
 TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
-NOHS='no'
 
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -24,7 +23,7 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iqH" --longoptions=i686,quiet,nohs \
+    go_out="$(getopt --options="iqH" --longoptions=i686,quiet \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -42,10 +41,6 @@ do
     -q | --quiet )
         shift
         QUIET=''
-        ;;
-    -H | --nohs )
-        shift
-        NOHS='yes'
         ;;
     esac
 done
@@ -130,23 +125,6 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
 
     make $MAKE_JFLAG $QUIET
     make DESTDIR="$INSTALLDIR" install
-
-    if test "x$NOHS" == "xno"
-    then
-    # Build HandlerSocket
-    (
-        cd "storage/HandlerSocket-Plugin-for-MySQL"
-        ./autogen.sh
-        CXX=${HS_CXX:-g++} ./configure --with-mysql-source="$SOURCEDIR/$PRODUCT" \
-            --with-mysql-bindir="$SOURCEDIR/$PRODUCT/scripts" \
-            --with-mysql-plugindir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
-            --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
-            --prefix="/usr/local/$PRODUCT_FULL"
-        make
-        make DESTDIR="$INSTALLDIR" install
-
-    )
-    fi
 
     # Build UDF
     (

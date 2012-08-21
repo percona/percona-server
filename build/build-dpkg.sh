@@ -12,14 +12,13 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "kK:bH" --longoptions key:,nosign,binary,nohs \
+go_out="$(getopt --options "kK:bH" --longoptions key:,nosign,binary \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
 
 BUILDPKG_KEY=''
 BINARY=''
-NOHS=no
 
 for arg
 do
@@ -28,7 +27,6 @@ do
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
     -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
     -b | --binary ) shift; BINARY='-b';;
-    -H | --nohs ) shift; NOHS=yes;;
     esac
 done
 
@@ -83,11 +81,6 @@ export CXX=${CXX:-g++}
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION ${CFLAGS:-}"
 export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
-
-if test "x$NOHS" = "xyes"
-then
-    export DISABLE_HANDLERSOCKET=yes
-fi
 
 # Prepare sources
 (

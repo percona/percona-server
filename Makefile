@@ -1,5 +1,5 @@
-MYSQL_VERSION=5.6.5
-PERCONA_SERVER_VERSION=alpha60.0
+MYSQL_VERSION=5.6.6
+PERCONA_SERVER_VERSION=alpha60.1
 PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
 PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)
 PERCONA_SERVER_SHORT_2 ?=Percona-Server
@@ -20,7 +20,7 @@ CONFIGURE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -
 REVS = $(shell bzr log | grep rev | head -1   )
 REV  = $(word 2, $(REVS) )
 
-all: main handlersocket maatkit-udf install-lic misc
+all: main maatkit-udf install-lic misc
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -31,10 +31,6 @@ all: main handlersocket maatkit-udf install-lic misc
 	@echo ""
 	@echo "and run cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF && make all install"
 	@echo ""
-
-handlersocket:
-	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
-	patch -p1 -d $(PERCONA_SERVER)/storage < handlersocket.patch
 
 maatkit-udf:
 	cp -R UDF "$(PERCONA_SERVER)"

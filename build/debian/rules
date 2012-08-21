@@ -30,20 +30,6 @@ build: patch
            -DMYSQL_SERVER_SUFFIX=$(server_suffix)
 	make $(MAKE_JFLAG)
 	
-ifndef DISABLE_HANDLERSOCKET
-	# Build HandlerSocket
-	echo "Configuring HandlerSocket"
-	cd storage/HandlerSocket-Plugin-for-MySQL && \
-	bash -x autogen.sh && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
-		./configure --with-mysql-source=$(CURDIR) \
-		--with-mysql-bindir=$(CURDIR)/scripts \
-		--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
-		--libdir=$(prefix)/lib \
-		--prefix=$(prefix) && \
-	make $(MAKE_JFLAG)
-endif
-	
 	# Build UDF
 	cd UDF && \
 	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
@@ -57,9 +43,6 @@ binary:
 	echo "Making binary"
 	dh --before dh_auto_install binary
 	dh_auto_install
-ifndef DISABLE_HANDLERSOCKET
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-endif
 	cd UDF && make DESTDIR=$(TMP) install
 	dh --after dh_auto_install --before dh_installinit binary
 	dh_installinit --name=mysql
@@ -70,9 +53,6 @@ binary-arch:
 	echo "Making binary"
 	dh --before dh_auto_install binary-arch
 	dh_auto_install
-ifndef DISABLE_HANDLERSOCKET
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-endif
 	cd UDF && make DESTDIR=$(TMP) install
 	dh --after dh_auto_install --before dh_installinit binary-arch
 	dh_installinit --name=mysql
@@ -82,9 +62,6 @@ binary-indep:
 	echo "Making binary"
 	dh --before dh_auto_install binary-indep
 	dh_auto_install
-ifndef DISABLE_HANDLERSOCKET
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-endif
 	cd UDF && make DESTDIR=$(TMP) install
 	dh --after dh_auto_install --before dh_installinit binary-indep
 	dh_installinit --name=mysql
@@ -94,9 +71,6 @@ install:
 	echo "Making binary"
 	dh --before dh_auto_install install
 	dh_auto_install
-ifndef DISABLE_HANDLERSOCKET
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-endif
 	cd UDF && make DESTDIR=$(TMP) install
 	dh --after dh_auto_install --before dh_installinit install
 	dh_installinit --name=mysql

@@ -84,7 +84,6 @@ Performance Improvements
    performance/remove_fcntl_excessive_calls
    performance/innodb_opt_lru_count
    performance/innodb_thread_concurrency_timer_based
-   performance/handlersocket
 
 Flexibility Improvements
 ========================

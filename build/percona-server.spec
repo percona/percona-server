@@ -105,15 +105,6 @@
 %define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}, Revision %{gotrevision}
 %endif
 
-%if %{undefined disable_handlersocket}
-%define enable_handlersocket 1
-%else
-  %if %{disable_handlersocket} == "yes"
-    %define enable_handlersocket 0
-  %else
-    %define enable_handlersocket 1
-  %endif
-%endif
 
 # ----------------------------------------------------------------------------
 # Product and server suffixes
@@ -340,21 +331,6 @@ and applications need to dynamically load and use Percona Server.
 # Be strict about variables, bail at earliest opportunity, etc.
 set -uex
 
-BuildHandlerSocket() {
-    cd storage/HandlerSocket-Plugin-for-MySQL
-    bash -x ./autogen.sh
-    echo "Configuring HandlerSocket"
-    CXX="${HS_CXX:-g++}" \
-        MYSQL_CFLAGS="-I $RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir}/%{src_dir} \
-        --with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/release/scripts \
-        --with-mysql-plugindir=%{_libdir}/mysql/plugin \
-        --libdir=%{_libdir} \
-        --prefix=%{_prefix}
-    make
-    cd -
-}
-
 BuildUDF() {
     cd UDF
     CXX="${UDF_CXX:-g++}"\
@@ -443,9 +419,6 @@ mkdir release
   make ${MAKE_JFLAG}
   cd ../%{src_dir}
   d="`pwd`"
-%if %{enable_handlersocket}
-  BuildHandlerSocket
-%endif
   BuildUDF
   cd "$d"
 )
@@ -517,9 +490,6 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   d="`pwd`"
-#  cd $MBD/%{src_dir}/storage/HandlerSocket-Plugin-for-MySQL
-#  make DESTDIR=$RBR benchdir_root=%{_datadir} install
-#  cd "$d"
   cd $MBD/%{src_dir}/UDF
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
@@ -1052,14 +1022,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
-%if %{enable_handlersocket}
-# HandlerSocket files
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.a
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.la
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0.0.0
-%endif
 # UDF files
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0
@@ -1101,9 +1063,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
-%if %{enable_handlersocket}
-%attr(755, root, root) %{_bindir}/hsclient
-%endif
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
@@ -1131,11 +1090,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
-%if %{enable_handlersocket}
-%{_includedir}/handlersocket
-%{_libdir}/mysql/libhsclient.a
-%{_libdir}/libhsclient.la
-%endif
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}

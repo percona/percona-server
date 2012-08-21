@@ -3015,13 +3015,6 @@ static Sys_var_ulong Sys_net_wait_timeout(
        VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
        DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
 
-static Sys_var_mybool Sys_fast_index_creation(
-       "fast_index_creation",
-       "If disabled, suppresses online operations for indexes of ALTER TABLE "
-       "(e.g. fast index creation of InnoDB Plugin) for the session.",
-       SESSION_VAR(online_alter_index), NO_CMD_LINE,
-       DEFAULT(TRUE));
-
 static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
        SESSION_VAR(table_plugin), NO_CMD_LINE,

@@ -27,11 +27,9 @@ create temporary table showtemp.t3(id int);
 insert into t1 values(10),(20),(30),(40);
 insert into showtemp.t3 values(999);
 
-show temporary tables;
+SELECT * FROM INFORMATION_SCHEMA.TEMPORARY_TABLES;
 # "Session" is not same value always. mysql-test cannot test it always.
 #show global temporary tables;
-show temporary tables from test;
-show temporary tables in showtemp;
 select table_schema, table_name, engine, table_rows from Information_schema.temporary_tables;
 select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
 select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables where table_schema='showtemp';
@@ -44,7 +42,6 @@ drop table if exists showtemp.t2;
 --enable_warnings
 create temporary table t1(id int);
 create temporary table showtemp.t2(id int);
-show temporary tables;
 select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
 drop table showtemp.t2;
 drop table t1;

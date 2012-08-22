@@ -7,17 +7,11 @@ create temporary table t2(id int);
 create temporary table showtemp.t3(id int);
 insert into t1 values(10),(20),(30),(40);
 insert into showtemp.t3 values(999);
-show temporary tables;
-Temp_tables_in_test
-t2
-t1
-show temporary tables from test;
-Temp_tables_in_test
-t2
-t1
-show temporary tables in showtemp;
-Temp_tables_in_showtemp
-t3
+SELECT * FROM INFORMATION_SCHEMA.TEMPORARY_TABLES;
+SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
+3	showtemp	t3	MyISAM	#sql6cbd_3_2	1	7	7	1024	2012-08-22 05:31:35	2012-08-22 05:31:35
+3	test	t2	MyISAM	#sql6cbd_3_1	0	0	0	1024	2012-08-22 05:31:35	2012-08-22 05:31:35
+3	test	t1	MyISAM	#sql6cbd_3_0	4	7	28	1024	2012-08-22 05:31:35	2012-08-22 05:31:35
 select table_schema, table_name, engine, table_rows from Information_schema.temporary_tables;
 table_schema	table_name	engine	table_rows
 showtemp	t3	MyISAM	1
@@ -36,16 +30,13 @@ table_schema	table_name	engine	table_rows
 drop table if exists showtemp.t2;
 create temporary table t1(id int);
 create temporary table showtemp.t2(id int);
-show temporary tables;
-Temp_tables_in_test
-t1
 select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;
 table_schema	table_name	engine	table_rows
-showtemp	t2	MyISAM	0
-test	t1	MyISAM	0
 showtemp	t3	MyISAM	1
 test	t2	MyISAM	0
 test	t1	MyISAM	4
+showtemp	t2	MyISAM	0
+test	t1	MyISAM	0
 drop table showtemp.t2;
 drop table t1;
 select table_schema, table_name, engine, table_rows from Information_schema.global_temporary_tables;

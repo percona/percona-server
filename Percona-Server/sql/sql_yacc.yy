@@ -12321,15 +12321,6 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_NAMES))
                MYSQL_YYABORT;
            }
-         | opt_var_type TEMPORARY TABLES opt_db
-           {
-             LEX *lex= Lex;
-             lex->sql_command= SQLCOM_SHOW_TEMPORARY_TABLES;
-             lex->option_type= $1;
-             lex->select_lex.db= $4;
-             if (prepare_schema_table(YYTHD, lex, 0, SCH_TEMPORARY_TABLES))
-               MYSQL_YYABORT;
-           }
          | opt_full TRIGGERS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;

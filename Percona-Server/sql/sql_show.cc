@@ -3002,7 +3002,6 @@ bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
     break;
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TABLE_STATUS:
-  case SQLCOM_SHOW_TEMPORARY_TABLES:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_EVENTS:
     thd->make_lex_string(&lookup_field_values->db_value, 
@@ -3628,7 +3627,7 @@ int make_temporary_tables_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
     Item_field *field= new Item_field(context, NullS, NullS, field_info->field_name);
     if (add_item_to_list(thd, field))
       return 1;
-    field->set_name(field_info->old_name, strlen(field_info->old_name), system_charset_info);
+    field->item_name.copy(field_info->old_name, strlen(field_info->old_name), system_charset_info);
   }
 
   ST_FIELD_INFO *field_info= &schema_table->fields_info[2];
@@ -3647,7 +3646,7 @@ int make_temporary_tables_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   if (add_item_to_list(thd, field))
     return 1;
 
-  field->set_name(buffer.ptr(), buffer.length(), system_charset_info);
+  field->item_name.copy(buffer.ptr(), buffer.length(), system_charset_info);
   return 0;
 }
 
@@ -3757,8 +3756,9 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond
 
   mysql_mutex_lock(&LOCK_thread_count);
 
-  bool table_names_only= (thd->lex->sql_command == SQLCOM_SHOW_TEMPORARY_TABLES) ? 1 : 0;
-  I_List_iterator<THD> it(threads);
+  bool table_names_only= 0; // (thd->lex->sql_command == SQLCOM_SHOW_TEMPORARY_TABLES) ? 1 : 0;
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
   THD *thd_item;
   TABLE *tmp;
 
@@ -3767,7 +3767,7 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond
   uint db_access;
 #endif
  
-  while ((thd_item=it++)) {
+  while (it != end && (thd_item=*(it++))) {
     mysql_mutex_lock(&thd_item->LOCK_temporary_tables);
     for (tmp=thd_item->temporary_tables; tmp; tmp=tmp->next) {
 
@@ -3821,7 +3821,7 @@ int fill_temporary_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   if (thd->lex->option_type == OPT_GLOBAL)
     DBUG_RETURN(fill_global_temporary_tables(thd, tables, cond));
 
-  bool table_names_only= (thd->lex->sql_command == SQLCOM_SHOW_TEMPORARY_TABLES) ? 1 : 0;
+  bool table_names_only= 0; // (thd->lex->sql_command == SQLCOM_SHOW_TEMPORARY_TABLES) ? 1 : 0;
   TABLE *tmp;
 
   for (tmp=thd->temporary_tables; tmp; tmp=tmp->next) {

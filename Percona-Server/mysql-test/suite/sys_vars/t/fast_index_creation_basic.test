@@ -1,1 +1,0 @@
-SELECT @@global.fast_index_creation;

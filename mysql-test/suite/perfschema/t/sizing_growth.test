@@ -404,10 +404,11 @@ select @cond_per_share;
 select @file_per_share <= 3;
 
 #
-# Expecting 3:
+# Expecting 4:
 # - wait/synch/mutex/mysys/my_thread_var::mutex
 # - wait/synch/mutex/mysys/THR_LOCK::mutex
 # - wait/synch/mutex/sql/THD::LOCK_thd_data
+# - wait/synch/mutex/sql/THD::LOCK_temporary_tables
 #
 select @mutex_per_con;
 
@@ -465,7 +466,7 @@ select if(
       (@rwlock_per_share <= 3)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 3)
-  AND (@mutex_per_con = 3)
+  AND (@mutex_per_con = 4)
   AND (@rwlock_per_con = 1)
   AND (@cond_per_con = 2)
   AND (@file_per_con = 0)

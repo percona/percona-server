@@ -356,18 +356,18 @@ ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
 ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	init	SHOW processlist
 ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
 SELECT * FROM information_schema.processlist;
-ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-ID		HOST_NAME	information_schema	Sleep	TIME		NULL
-ID		HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL
-ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
-ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL
+ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO	TIME_MS
+ID		HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID		HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser1	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
+ID	ddicttestuser2	HOST_NAME	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist	TIME_MS
+ID	root	HOST_NAME	information_schema	Sleep	TIME		NULL	TIME_MS
 ####################################################################################
 11 User ddicttestuser1 revokes PROCESS privilege from user ddicttestuser2
 connection ddicttestuser1;

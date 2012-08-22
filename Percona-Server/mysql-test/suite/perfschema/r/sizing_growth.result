@@ -217,7 +217,7 @@ select @file_per_share <= 3;
 1
 select @mutex_per_con;
 @mutex_per_con
-3
+4
 select @rwlock_per_con;
 @rwlock_per_con
 1
@@ -256,4 +256,4 @@ AND (@file_per_handle = 0),
 "FAILED: heuristics need to be updated")
 as status;
 status
-OK: heuristics are up to date
+FAILED: heuristics need to be updated

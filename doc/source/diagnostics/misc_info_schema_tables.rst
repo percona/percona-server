@@ -133,3 +133,19 @@ This table holds information on the temporary tables existing for all connection
    :column UPDATE_TIME: Date and time of the latest update of the temporary table
 
 This table holds information on the temporary tables existing for the running connection.
+
+InnoDB Undo Logs
+================
+
+This table holds the undo segment information. 
+
+.. table:: INFORMATION_SCHEMA.INNODB_UNDO_LOGS
+
+   :column trx_id: Transaction ID
+   :column rseg_id: Rollback segment ID
+   :column useg_id: Undo segment ID
+   :column type: Segment type
+   :column state: Segment state
+   :column size: Segment size
+   
+Each row represents an individual undo segment and contains information about which rollback segment the undo segment is currently owned by, which transaction is currently using the undo segment, and other size and type information for the undo segment. This information is 'live' and calculated for each query of the table.

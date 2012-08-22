@@ -7,11 +7,6 @@ create temporary table t2(id int);
 create temporary table showtemp.t3(id int);
 insert into t1 values(10),(20),(30),(40);
 insert into showtemp.t3 values(999);
-SELECT * FROM INFORMATION_SCHEMA.TEMPORARY_TABLES;
-SESSION_ID	TABLE_SCHEMA	TABLE_NAME	ENGINE	NAME	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	INDEX_LENGTH	CREATE_TIME	UPDATE_TIME
-3	showtemp	t3	MyISAM	#sql6cbd_3_2	1	7	7	1024	2012-08-22 05:31:35	2012-08-22 05:31:35
-3	test	t2	MyISAM	#sql6cbd_3_1	0	0	0	1024	2012-08-22 05:31:35	2012-08-22 05:31:35
-3	test	t1	MyISAM	#sql6cbd_3_0	4	7	28	1024	2012-08-22 05:31:35	2012-08-22 05:31:35
 select table_schema, table_name, engine, table_rows from Information_schema.temporary_tables;
 table_schema	table_name	engine	table_rows
 showtemp	t3	MyISAM	1

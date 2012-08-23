@@ -49,6 +49,7 @@ struct daemon_handlersocket_data {
 static int
 daemon_handlersocket_init(void *p)
 {
+  DENA_VERBOSE(10, fprintf(stderr, "handlersocket: initialized\n"));
   config conf;
   conf["use_epoll"] = handlersocket_epoll ? "1" : "0";
   if (handlersocket_address) {
@@ -82,9 +83,6 @@ daemon_handlersocket_init(void *p)
     }
     ap->hssvr_rd = hstcpsvr_i::create(conf);
     ap->hssvr_rd->start_listen();
-  } else {
-    DENA_VERBOSE(10, fprintf(stderr, "handlersocket: not listening "
-			     "for reads\n"));
   }
   if (handlersocket_port_wr != 0) {
     if (handlersocket_threads_wr > 0) {
@@ -98,13 +96,9 @@ daemon_handlersocket_init(void *p)
     }
     ap->hssvr_wr = hstcpsvr_i::create(conf);
     ap->hssvr_wr->start_listen();
-  } else {
-    DENA_VERBOSE(10, fprintf(stderr, "handlersocket: not listening "
-			     "for writes\n"));
   }
   st_plugin_int *const plugin = static_cast<st_plugin_int *>(p);
   plugin->data = ap.release();
-  DENA_VERBOSE(10, fprintf(stderr, "handlersocket: initialized\n"));
   return 0;
 }
 

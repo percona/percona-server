@@ -116,13 +116,15 @@ Management Improvements
    management/innodb_expand_import
    management/innodb_lru_dump_restore
    management/innodb_fast_index_creation
-   management/innodb_extended_fast_index_creation
+   management/innodb_expanded_fast_index_creation
    management/sql_no_fcache
    management/udf_maatkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
    management/enforce_engine
+   management/utility_user
    management/secure_file_priv_extended
+   management/expanded_program_option_modifiers
 
 Diagnostics Improvements
 ========================

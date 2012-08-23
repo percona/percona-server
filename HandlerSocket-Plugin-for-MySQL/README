@@ -68,6 +68,8 @@ Here is a list of client libraries for other languages:
     https://github.com/koichik/node-handlersocket
   - Scala
     https://github.com/fujohnwang/hs2client
+  - Haskell
+    https://github.com/wuxb45/HandlerSocket-Haskell-Client
 
 The home of HandlerSocket is here:
     https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL

@@ -33,6 +33,9 @@ EOF
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
 # Create more log data, larger amount than the log group capacity. At the same time test second space id.
 INSERT INTO t1 SELECT x FROM t1;
 INSERT INTO t1 SELECT x FROM t1;
@@ -67,6 +70,9 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 
 --source include/restart_mysqld.inc
 
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
 file_exists $BITMAP_FILE;
 
 # Test that an empty existing bitmap file is handled properly when it's impossible to re-read the full missing range.
@@ -82,6 +88,8 @@ EOF
 --source include/wait_until_connected_again.inc
 
 file_exists $BITMAP_FILE;
+# Create at least one more bitmap page on shutdown
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 
 # Test that the bitmap file is read in block size multiples with junk at the end discarded
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -96,5 +104,21 @@ EOF
 call mtr.add_suppression("InnoDB: Warning: truncated block detected.*");
 
 file_exists $BITMAP_FILE;
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+# Test crashing before writing of new bitmap data
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+INSERT INTO t1 SELECT x FROM t1;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+file_exists $BITMAP_FILE;
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
 
 DROP TABLE t1, t2;

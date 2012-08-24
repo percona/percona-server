@@ -34,4 +34,5 @@ This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Serve
 
   * :table:`TEMPORARY_TABLES`
 
+  * :table:`INNODB_UNDO_LOGS`
 

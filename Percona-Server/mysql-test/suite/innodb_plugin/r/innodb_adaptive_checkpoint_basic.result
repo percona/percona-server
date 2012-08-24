@@ -1,0 +1,97 @@
+SET @saved_val = @@global.innodb_adaptive_checkpoint;
+SELECT @@global.innodb_adaptive_checkpoint IN ('none', 'reflex', 'estimate', 'keep_average', '0', '1', '2', '3');
+@@global.innodb_adaptive_checkpoint IN ('none', 'reflex', 'estimate', 'keep_average', '0', '1', '2', '3')
+1
+SELECT @@session.innodb_adaptive_checkpoint;
+ERROR HY000: Variable 'innodb_adaptive_checkpoint' is a GLOBAL variable
+SET GLOBAL innodb_adaptive_checkpoint='none';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+none
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	none
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	none
+SET GLOBAL innodb_adaptive_checkpoint='reflex';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+reflex
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	reflex
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	reflex
+SET GLOBAL innodb_adaptive_checkpoint='estimate';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+estimate
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	estimate
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	estimate
+SET GLOBAL innodb_adaptive_checkpoint='keep_average';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+keep_average
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	keep_average
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	keep_average
+SET GLOBAL innodb_adaptive_checkpoint='0';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+none
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	none
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	none
+SET GLOBAL innodb_adaptive_checkpoint='1';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+reflex
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	reflex
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	reflex
+SET GLOBAL innodb_adaptive_checkpoint='2';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+estimate
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	estimate
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	estimate
+SET GLOBAL innodb_adaptive_checkpoint='3';
+SELECT @@GLOBAL.innodb_adaptive_checkpoint;
+@@GLOBAL.innodb_adaptive_checkpoint
+keep_average
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	keep_average
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_checkpoint';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_ADAPTIVE_CHECKPOINT	keep_average
+SET SESSION innodb_adaptive_checkpoint='estimate';
+ERROR HY000: Variable 'innodb_adaptive_checkpoint' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.innodb_adaptive_checkpoint='keep_average';
+ERROR HY000: Variable 'innodb_adaptive_checkpoint' is a GLOBAL variable and should be set with SET GLOBAL
+SET global innodb_adaptive_checkpoint=1.1;
+ERROR 42000: Variable 'adaptive_checkpoint' can't be set to the value of '1.1'
+SET global innodb_adaptive_checkpoint=1e1;
+ERROR 42000: Variable 'adaptive_checkpoint' can't be set to the value of '10'
+SET global innodb_adaptive_checkpoint='foo';
+ERROR 42000: Variable 'adaptive_checkpoint' can't be set to the value of 'foo'
+SET @@global.innodb_adaptive_checkpoint = @saved_val;

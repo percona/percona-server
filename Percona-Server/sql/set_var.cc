@@ -985,6 +985,7 @@ static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
 static sys_var_have_variable sys_have_community_features(&vars, "have_community_features", &have_community_features);
 static sys_var_have_variable sys_have_rtree_keys(&vars, "have_rtree_keys", &have_rtree_keys);
 static sys_var_have_variable sys_have_symlink(&vars, "have_symlink", &have_symlink);
+static sys_var_have_variable sys_have_flashcache(&vars, "have_flashcache", &have_flashcache);
 /* Global read-only variable describing server license */
 static sys_var_const_str	sys_license(&vars, "license", STRINGIFY_ARG(LICENSE));
 /* Global variables which enable|disable logging */

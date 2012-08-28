@@ -1,0 +1,21 @@
+select @@global.have_flashcache="1";
+@@global.have_flashcache="1"
+0
+select @@session.have_flashcache;
+ERROR HY000: Variable 'have_flashcache' is a GLOBAL variable
+show global variables like 'have_flashcache';
+Variable_name	Value
+have_flashcache	#
+show session variables like 'have_flashcache';
+Variable_name	Value
+have_flashcache	#
+select * from information_schema.global_variables where variable_name='have_flashcache';
+VARIABLE_NAME	VARIABLE_VALUE
+HAVE_FLASHCACHE	#
+select * from information_schema.session_variables where variable_name='have_flashcache';
+VARIABLE_NAME	VARIABLE_VALUE
+HAVE_FLASHCACHE	#
+set global have_flashcache=1;
+ERROR HY000: Variable 'have_flashcache' is a read only variable
+set session have_flashcache=1;
+ERROR HY000: Variable 'have_flashcache' is a read only variable

@@ -100,7 +100,7 @@ MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
 PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= "$SOURCEDIR/Makefile" | cut -d = -f 2)"
 PERCONA_INNODB_VERSION="$(echo "$PERCONA_SERVER_VERSION" |
     sed s/rel//)"
-PRODUCT="Percona-Server-$MYSQL_VERSION"
+PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
 REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \

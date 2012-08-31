@@ -115,7 +115,7 @@
 
 %define lic_type GNU GPL v2
 %define lic_files COPYING README
-%define src_dir Percona-Server-%{mysqlversion}
+%define src_dir Percona-Server-%{mysqlversion}%{server_suffix}
 
 ##############################################################################
 # Main spec file section
@@ -128,7 +128,7 @@ Version:	%{mysqlversion}
 Release:	%{release}
 Distribution:	Red Hat Enterprise Linux %{redhatversion}
 License:    GPL	version 2 http://www.gnu.org/licenses/gpl-2.0.html
-Source:		Percona-Server-%{mysqlversion}.tar.gz
+Source:		Percona-Server-%{mysqlversion}%{server_suffix}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}

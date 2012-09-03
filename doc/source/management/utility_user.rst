@@ -52,7 +52,7 @@ System Variables
 .. variable:: utility_user
 
      :version 5.5.27-28.0: Implemented
-     :cli: No
+     :cli: Yes
      :conf: utility_user=<user@host>
      :scope: Global
      :dyn: No
@@ -64,7 +64,7 @@ Specifies a MySQL user that will be added to the internal list of users and reco
 .. variable:: utility_user_password
 
      :version 5.5.27-28.0: Implemented
-     :cli: No
+     :cli: Yes
      :conf: utility_user_password=<password>
      :scope: Global
      :dyn: No
@@ -76,7 +76,7 @@ Specifies the password required for the utility user.
 .. variable:: utility_user_schema_access
 
      :version 5.5.27-28.0: Implemented
-     :cli: No
+     :cli: Yes
      :conf: utility_user_schema_access=<schema>,<schema>,<schema>
      :scope: Global
      :dyn: No

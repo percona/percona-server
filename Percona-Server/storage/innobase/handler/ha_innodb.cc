@@ -2918,6 +2918,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_read_ahead &= 3;
 	srv_adaptive_flushing_method %= 3;
+	srv_flush_neighbor_pages %= 3;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -12781,7 +12782,7 @@ innodb_adaptive_flushing_method_update(
   void*        var_ptr,
   const void*  save)
 {
-  *(long *)var_ptr= (*(long *)save) % 4;
+  *(long *)var_ptr= (*(long *)save) % 3;
 }
 const char *adaptive_flushing_method_names[]=
 {

@@ -1,0 +1,18 @@
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+@@GLOBAL.innodb_flush_neighbor_pages
+none
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+@@GLOBAL.innodb_flush_neighbor_pages
+area
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+@@GLOBAL.innodb_flush_neighbor_pages
+cont
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+@@GLOBAL.innodb_flush_neighbor_pages
+none
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+@@GLOBAL.innodb_flush_neighbor_pages
+area
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+@@GLOBAL.innodb_flush_neighbor_pages
+cont

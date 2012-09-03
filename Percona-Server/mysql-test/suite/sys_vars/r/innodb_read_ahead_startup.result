@@ -1,0 +1,24 @@
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+none
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+random
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+linear
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+both
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+none
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+random
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+linear
+SELECT @@GLOBAL.innodb_read_ahead;
+@@GLOBAL.innodb_read_ahead
+both

@@ -1,1 +1,62 @@
-SELECT @@global.innodb_adaptive_flushing_method;
+# Tests for innodb_adaptive_flushing_method variable
+
+--source include/have_innodb.inc
+
+SET @saved_val = @@global.innodb_adaptive_flushing_method;
+
+# Valid values
+SELECT @@global.innodb_adaptive_flushing_method IN ('native', 'estimate', 'keep_average', '0', '1', '2');
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_adaptive_flushing_method;
+
+# Test its writability
+SET GLOBAL innodb_adaptive_flushing_method='native';
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+
+SET GLOBAL innodb_adaptive_flushing_method='estimate';
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+
+SET GLOBAL innodb_adaptive_flushing_method='keep_average';
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+
+SET GLOBAL innodb_adaptive_flushing_method='0';
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+
+SET GLOBAL innodb_adaptive_flushing_method='1';
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+
+SET GLOBAL innodb_adaptive_flushing_method='2';
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_adaptive_flushing_method';
+
+# Cannot set it for session
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION innodb_adaptive_flushing_method='estimate';
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_adaptive_flushing_method='keep_average';
+
+# Incorrect types and values
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_adaptive_flushing_method=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_adaptive_flushing_method=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_adaptive_flushing_method='foo';
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_adaptive_flushing_method=-2;
+
+# Cleanup
+SET @@global.innodb_adaptive_flushing_method = @saved_val;

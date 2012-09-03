@@ -1,1 +1,62 @@
-SELECT @@global.innodb_flush_neighbor_pages;
+# Tests for innodb_flush_neighbor_pages variable
+
+--source include/have_innodb.inc
+
+SET @saved_val = @@global.innodb_flush_neighbor_pages;
+
+# Valid values
+SELECT @@global.innodb_flush_neighbor_pages IN ('none', 'area', 'cont', '0', '1', '2');
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_flush_neighbor_pages;
+
+# Test its writability
+SET GLOBAL innodb_flush_neighbor_pages='none';
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+
+SET GLOBAL innodb_flush_neighbor_pages='area';
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+
+SET GLOBAL innodb_flush_neighbor_pages='cont';
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+
+SET GLOBAL innodb_flush_neighbor_pages='0';
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+
+SET GLOBAL innodb_flush_neighbor_pages='1';
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+
+SET GLOBAL innodb_flush_neighbor_pages='2';
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_flush_neighbor_pages';
+
+# Cannot set it for session
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION innodb_flush_neighbor_pages='area';
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_flush_neighbor_pages='cont';
+
+# Incorrect types and values
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_flush_neighbor_pages=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_flush_neighbor_pages=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_flush_neighbor_pages='foo';
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_flush_neighbor_pages=-2;
+
+# Cleanup
+SET @@global.innodb_flush_neighbor_pages = @saved_val;

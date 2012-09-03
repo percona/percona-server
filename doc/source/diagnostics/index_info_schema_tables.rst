@@ -28,6 +28,8 @@ This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Serve
 
   * :table:`INNODB_TRX`
 
+  * :table:`INNODB_CHANGED_PAGES`
+
   * :table:`PROCESSLIST`
 
   * :table:`QUERY_RESPONSE_TIME`

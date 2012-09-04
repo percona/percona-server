@@ -299,6 +299,7 @@ SET(INNOBASE_SOURCES
 	handler/ha_innodb.cc
 	handler/handler0alter.cc
 	handler/i_s.cc
+	handler/xtradb_i_s.cc
 	ibuf/ibuf0ibuf.cc
 	lock/lock0iter.cc
 	lock/lock0lock.cc

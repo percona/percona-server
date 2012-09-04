@@ -94,6 +94,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ha_innodb.h"
 #include "i_s.h"
+#include "xtradb_i_s.h"
 
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
@@ -15900,6 +15901,7 @@ mysql_declare_plugin(innobase)
   NULL, /* reserved */
   0,    /* flags */
 },
+i_s_xtradb_read_view,
 i_s_innodb_trx,
 i_s_innodb_locks,
 i_s_innodb_lock_waits,

@@ -1,0 +1,18 @@
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+@@GLOBAL.innodb_adaptive_flushing_method
+native
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+@@GLOBAL.innodb_adaptive_flushing_method
+estimate
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+@@GLOBAL.innodb_adaptive_flushing_method
+keep_average
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+@@GLOBAL.innodb_adaptive_flushing_method
+native
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+@@GLOBAL.innodb_adaptive_flushing_method
+estimate
+SELECT @@GLOBAL.innodb_adaptive_flushing_method;
+@@GLOBAL.innodb_adaptive_flushing_method
+keep_average

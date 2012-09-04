@@ -68,9 +68,6 @@ Adaptive checkpointing forces a constant flushing activity at a rate of approxim
 
 The following values are allowed:
 
-  * ``reflex``:
-    This behavior is similar to innodb_max_dirty_pages_pct flushing. The difference is that this method starts flushing blocks constantly and contiguously based on the oldest modified age. If the age exceeds 1/2 of the maximum age capacity, |InnoDB| starts weak contiguous flushing. If the age exceeds 3/4, |InnoDB| starts strong flushing. The strength can be adjusted by the |MySQL| variable :variable:`innodb_io_capacity`. In other words, we must tune ``innodb_io_capacity`` for the ``reflex`` method to work the best. This method was removed in 5.5.20-beta as a fix for bug :bug:`689450`.
-
   * ``native`` [0]:
     This setting causes checkpointing to operate exactly as it does in native |InnoDB|.
 
@@ -79,6 +76,10 @@ The following values are allowed:
 
   * ``keep_average`` [2]:
     This method attempts to keep the I/O rate constant by using a much shorter loop cycle (0.1 second) than that of the other methods (1.0 second). It is designed for use with SSD cards.
+
+  * ``reflex``:
+    This behavior is similar to innodb_max_dirty_pages_pct flushing. The difference is that this method starts flushing blocks constantly and contiguously based on the oldest modified age. If the age exceeds 1/2 of the maximum age capacity, |InnoDB| starts weak contiguous flushing. If the age exceeds 3/4, |InnoDB| starts strong flushing. The strength can be adjusted by the |MySQL| variable :variable:`innodb_io_capacity`. In other words, we must tune ``innodb_io_capacity`` for the ``reflex`` method to work the best. This method was removed in :rn:`5.5.20-beta` as a fix for bug :bug:`689450`.
+
 
 .. variable:: innodb_checkpoint_age_target
 

@@ -1,0 +1,57 @@
+# Test setting innodb_flush_neighbor_pages at startup time (bug 1039384)
+
+--source include/have_innodb.inc
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb_flush_neighbor_pages=none" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb_flush_neighbor_pages=area" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb_flush_neighbor_pages=cont" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb_flush_neighbor_pages=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb_flush_neighbor_pages=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb_flush_neighbor_pages=2" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.innodb_flush_neighbor_pages;

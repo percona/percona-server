@@ -1,1 +1,72 @@
-SELECT @@global.innodb_read_ahead;
+# Tests for innodb_read_ahead variable
+
+--source include/have_innodb.inc
+
+SET @saved_val = @@global.innodb_read_ahead;
+
+# Valid values
+SELECT @@global.innodb_read_ahead IN ('none', 'random', 'linear', 'both', '0', '1', '2', '3');
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_read_ahead;
+
+# Test its writability
+SET GLOBAL innodb_read_ahead='none';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+SET GLOBAL innodb_read_ahead='random';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+SET GLOBAL innodb_read_ahead='linear';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+SET GLOBAL innodb_read_ahead='both';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+SET GLOBAL innodb_read_ahead='0';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+SET GLOBAL innodb_read_ahead='1';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+SET GLOBAL innodb_read_ahead='2';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+SET GLOBAL innodb_read_ahead='3';
+SELECT @@GLOBAL.innodb_read_ahead;
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_read_ahead';
+
+# Cannot set it for session
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION innodb_read_ahead='linear';
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_read_ahead='both';
+
+# Incorrect types and values
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_read_ahead=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_read_ahead=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_read_ahead='foo';
+--error ER_WRONG_VALUE_FOR_VAR
+SET global innodb_read_ahead=-2;
+
+# Cleanup
+SET @@global.innodb_read_ahead = @saved_val;

@@ -38,6 +38,7 @@ TEMPORARY_TABLES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
+XTRADB_READ_VIEW
 show tables from INFORMATION_SCHEMA like 'T%';
 Tables_in_information_schema (T%)
 TABLES

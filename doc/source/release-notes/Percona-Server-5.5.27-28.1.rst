@@ -11,7 +11,7 @@ Based on `MySQL 5.5.27 <http://dev.mysql.com/doc/refman/5.5/en/news-5-5-27.html>
 Bug Fixes
 =========
 
- |Percona Server| :rn:`5.5.27-28.0` would crash or deadlock in |XtraDB| buffer pool code. This was caused by incorrect mutex handling in recently introduced |InnoDB| code. Bug fixed :bug:`1038225` (*Laurynas Biveinis*).
+ |Percona Server| :rn:`5.5.27-28.0` would crash or deadlock in |XtraDB| buffer pool code. This was caused by incorrect mutex handling in porting of the recently introduced InnoDB code to |XtraDB|. Bug fixed :bug:`1038225` (*Laurynas Biveinis*).
 
  Variables :variable:`innodb_adaptive_flushing_method` and :variable:`innodb_flush_neighbor_pages` would not correctly translate some values internally. Bug fixed :bug:`1039384` (*Laurynas Biveinis*).
 

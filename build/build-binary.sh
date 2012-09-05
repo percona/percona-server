@@ -87,7 +87,7 @@ PERCONA_INNODB_VERSION="$(echo "$PERCONA_SERVER_VERSION" |
 PRODUCT="Percona-Server-$MYSQL_VERSION"
 
 # Build information
-REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
+REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"

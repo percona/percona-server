@@ -714,6 +714,7 @@ SHOW_COMP_OPTION have_response_time_distribution;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_community_features;
+SHOW_COMP_OPTION have_flashcache;
 
 /* Thread specific variables */
 
@@ -4288,24 +4289,23 @@ static void init_cachedev(void)
 
   // disabled by default
   cachedev_fd = -1;
-  cachedev_enabled= FALSE;
 
   if (!mysql_data_home)
   {
-    error_message= "mysql_data_home not set";
+    error_message= "Flashcache setup error (mysql_data_home not set)";
     goto epilogue;
   }
 
   if (statfs(mysql_data_home, &stfs_data_home_dir) < 0)
   {
-    error_message= "statfs failed";
+    error_message= "Flashcache setup error (statfs)";
     goto epilogue;
   }
 
   mounts = setmntent("/etc/mtab", "r");
   if (mounts == NULL)
   {
-    error_message= "setmntent failed";
+    error_message= "Flashcache setup error (setmntent)";
     goto epilogue;
   }
 
@@ -4320,14 +4320,14 @@ static void init_cachedev(void)
 
   if (ent == NULL)
   {
-    error_message= "getmntent loop failed";
+    error_message= "Flashcache setup error (getmntent loop)";
     goto epilogue;
   }
 
   cachedev_fd = open(ent->mnt_fsname, O_RDONLY);
   if (cachedev_fd < 0)
   {
-    error_message= "open flash device failed";
+    error_message= "Flashcache setup error (open flash device)";
     goto epilogue;
   }
 
@@ -4336,18 +4336,17 @@ static void init_cachedev(void)
   {
     close(cachedev_fd);
     cachedev_fd = -1;
-    error_message= "ioctl failed";
+    error_message= "Flashcache setup error (ioctl)";
   } else {
     ioctl(cachedev_fd, FLASHCACHEADDWHITELIST, &pid);
   }
 
 epilogue:
-  sql_print_information("Flashcache bypass: %s",
-      (cachedev_fd > 0) ? "enabled" : "disabled");
-  if (error_message)
-    sql_print_information("Flashcache setup error is : %s\n", error_message);
-  else
-    cachedev_enabled= TRUE;
+  if (error_message) {
+    sql_perror(error_message);
+    unireg_abort(1);
+  }
+  sql_print_information("Flashcache bypass support initialized successfully");
 
 }
 
@@ -4471,7 +4470,11 @@ int main(int argc, char **argv)
 #endif
 
 #if defined(__linux__)
-  init_cachedev();
+  have_flashcache= SHOW_OPTION_YES;
+  if (cachedev_enabled)
+    init_cachedev();
+#else
+  have_flashcache= SHOW_OPTION_NO;
 #endif//__linux__
 
   /*
@@ -5925,7 +5928,8 @@ enum options_mysqld
   OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
   OPT_DEFAULT_CHARACTER_SET_OLD,
   OPT_MAX_LONG_DATA_SIZE,
-  OPT_EXPAND_FAST_INDEX_CREATION
+  OPT_EXPAND_FAST_INDEX_CREATION,
+  OPT_FLASHCACHE
 };
 
 
@@ -7504,6 +7508,12 @@ thread is in the relay logs.",
    &global_system_variables.binlog_direct_non_trans_update,
    &max_system_variables.binlog_direct_non_trans_update,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"flashcache",
+   OPT_FLASHCACHE,
+   "Enable flashcache detection.",
+   &cachedev_enabled,
+   &cachedev_enabled,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

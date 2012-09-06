@@ -2123,6 +2123,7 @@ wait_until_unfixed:
 	if (mode == BUF_GET_IF_IN_POOL && ibuf_debug) {
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer as much as possible. */
+		ulint	page_no	= buf_block_get_page_no(block);
 
 		if (buf_LRU_free_block(&block->page, TRUE, FALSE)) {
 			//buf_pool_mutex_exit();

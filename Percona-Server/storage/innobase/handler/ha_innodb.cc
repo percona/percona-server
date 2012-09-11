@@ -15903,6 +15903,7 @@ mysql_declare_plugin(innobase)
 },
 i_s_xtradb_read_view,
 i_s_xtradb_internal_hash_tables,
+i_s_xtradb_rseg,
 i_s_innodb_trx,
 i_s_innodb_locks,
 i_s_innodb_lock_waits,

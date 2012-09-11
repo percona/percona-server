@@ -21,5 +21,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 extern struct st_mysql_plugin	i_s_xtradb_read_view;
 extern struct st_mysql_plugin	i_s_xtradb_internal_hash_tables;
+extern struct st_mysql_plugin	i_s_xtradb_rseg;
 
 #endif /* XTRADB_I_S_H */

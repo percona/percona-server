@@ -955,6 +955,14 @@ The following options may be given as the first argument:
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
+ --xtradb-internal-hash-tables[=name] 
+ Enable or disable XTRADB_INTERNAL_HASH_TABLES plugin.
+ Possible values are ON, OFF, FORCE (don't start if the
+ plugin fails to load).
+ --xtradb-read-view[=name] 
+ Enable or disable XTRADB_READ_VIEW plugin. Possible
+ values are ON, OFF, FORCE (don't start if the plugin
+ fails to load).
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -1237,6 +1245,8 @@ transaction-read-only FALSE
 updatable-views-with-limit YES
 verbose TRUE
 wait-timeout 28800
+xtradb-internal-hash-tables ON
+xtradb-read-view ON
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

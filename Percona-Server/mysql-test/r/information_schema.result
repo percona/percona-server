@@ -87,6 +87,7 @@ TRIGGERS
 USER_PRIVILEGES
 VIEWS
 XTRADB_READ_VIEW
+XTRADB_INTERNAL_HASH_TABLES
 columns_priv
 db
 event
@@ -905,7 +906,7 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	34
+information_schema	35
 mysql	26
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1378,6 +1379,7 @@ TEMPORARY_TABLES	information_schema.TEMPORARY_TABLES	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
+XTRADB_INTERNAL_HASH_TABLES	information_schema.XTRADB_INTERNAL_HASH_TABLES	1
 XTRADB_READ_VIEW	information_schema.XTRADB_READ_VIEW	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;

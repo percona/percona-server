@@ -30,7 +30,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysql/innodb_priv.h>
 
 #include <read0i_s.h>
+#include <trx0i_s.h>
 #include "srv0start.h"	/* for srv_was_started */
+#include <btr0sea.h> /* btr_search_sys */
+#include <log0recv.h> /* recv_sys */
+#include <fil0fil.h>
 
 #define PLUGIN_AUTHOR "Percona Inc."
 
@@ -249,6 +253,209 @@ UNIV_INTERN struct st_mysql_plugin i_s_xtradb_read_view =
 	STRUCT_FLD(descr, "InnoDB Read View information"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, xtradb_read_view_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+	STRUCT_FLD(__reserved1, NULL),
+	STRUCT_FLD(flags, 0UL),
+};
+
+static ST_FIELD_INFO xtradb_internal_hash_tables_fields_info[] =
+{
+#define INT_HASH_TABLES_NAME		0
+	{STRUCT_FLD(field_name,		"INTERNAL_HASH_TABLE_NAME"),
+	 STRUCT_FLD(field_length,	100),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define INT_HASH_TABLES_TOTAL		1
+	{STRUCT_FLD(field_name,		"TOTAL_MEMORY"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define INT_HASH_TABLES_CONSTANT		2
+	{STRUCT_FLD(field_name,		"CONSTANT_MEMORY"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define INT_HASH_TABLES_VARIABLE		3
+	{STRUCT_FLD(field_name,		"VARIABLE_MEMORY"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, Item*)
+{
+	const char*		table_name;
+	Field**	fields;
+	TABLE* table;
+
+	DBUG_ENTER("xtradb_internal_hash_tables_fill_table");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	table_name = tables->schema_table_name;
+	table = tables->table;
+	fields = table->field;
+
+	RETURN_IF_INNODB_NOT_STARTED(table_name);
+
+	if (btr_search_sys)
+	{
+	  ulint btr_search_sys_subtotal= 0;
+
+	  rw_lock_s_lock(&btr_search_latch);
+	  if (btr_search_sys->hash_index->heap) {
+	    btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index->heap);
+	  } else {
+	    btr_search_sys_subtotal = 0;
+	    for (unsigned int i=0;
+		 i < btr_search_sys->hash_index->n_sync_obj;
+		 i++) {
+	      btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index->heaps[i]);
+	    }
+	  }
+	  rw_lock_s_unlock(&btr_search_latch);
+
+	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],
+				"Adaptive hash index"));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			       btr_search_sys_subtotal
+			       + (btr_search_sys->hash_index->n_cells
+				  * sizeof(hash_cell_t))));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			       (btr_search_sys->hash_index->n_cells
+				* sizeof(hash_cell_t))));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+			       btr_search_sys_subtotal));
+	  OK(schema_table_store_record(thd, table));
+
+	}
+
+	{
+	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],
+				"Page hash (buffer pool 0 only)"));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			       (ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t))));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			       (ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t))));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE], 0));
+	  OK(schema_table_store_record(thd, table));
+
+	}
+
+	if (dict_sys)
+	{
+	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],
+				"Dictionary Cache"));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			       ((dict_sys->table_hash->n_cells
+				 + dict_sys->table_id_hash->n_cells
+				 ) * sizeof(hash_cell_t)
+				+ dict_sys->size)));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			       ((dict_sys->table_hash->n_cells
+				 + dict_sys->table_id_hash->n_cells
+				 ) * sizeof(hash_cell_t))));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+			       dict_sys->size));
+	  OK(schema_table_store_record(thd, table));
+	}
+
+	{
+	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],
+				"File system"));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			       (ulong) (fil_system_hash_cells()
+					* sizeof(hash_cell_t)
+					+ fil_system_hash_nodes())));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			       (ulong) (fil_system_hash_cells() * sizeof(hash_cell_t))));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+			       (ulong) fil_system_hash_nodes()));
+	  OK(schema_table_store_record(thd, table));
+
+	}
+
+	{
+	  ulint lock_sys_constant, lock_sys_variable;
+
+	  trx_i_s_get_lock_sys_memory_usage(&lock_sys_constant,
+					    &lock_sys_variable);
+
+	  OK(field_store_string(fields[INT_HASH_TABLES_NAME], "Lock System"));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			       lock_sys_constant + lock_sys_variable));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			       lock_sys_constant));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+			       lock_sys_variable));
+	  OK(schema_table_store_record(thd, table));
+	}
+
+	if (recv_sys)
+	{
+	  ulint recv_sys_subtotal = ((recv_sys && recv_sys->addr_hash)
+				     ? mem_heap_get_size(recv_sys->heap) : 0);
+
+	  OK(field_store_string(fields[INT_HASH_TABLES_NAME], "Recovery System"));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			       ((recv_sys->addr_hash) ? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0) + recv_sys_subtotal));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			       ((recv_sys->addr_hash) ? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0)));
+	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+			       recv_sys_subtotal));
+	  OK(schema_table_store_record(thd, table));
+	}
+
+	DBUG_RETURN(0);
+}
+
+static int xtradb_internal_hash_tables_init(void* p)
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("xtradb_internal_hash_tables_init");
+
+	schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = xtradb_internal_hash_tables_fields_info;
+	schema->fill_table = xtradb_internal_hash_tables_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin i_s_xtradb_internal_hash_tables =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "XTRADB_INTERNAL_HASH_TABLES"),
+	STRUCT_FLD(author, PLUGIN_AUTHOR),
+	STRUCT_FLD(descr, "InnoDB internal hash tables information"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, xtradb_internal_hash_tables_init),
 	STRUCT_FLD(deinit, i_s_common_deinit),
 	STRUCT_FLD(version, INNODB_VERSION_SHORT),
 	STRUCT_FLD(status_vars, NULL),

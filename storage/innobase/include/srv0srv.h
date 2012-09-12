@@ -265,6 +265,11 @@ extern my_bool	srv_undo_log_truncate;
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
 
+extern my_bool		srv_track_changed_pages;
+extern ulonglong	srv_max_bitmap_file_size;
+
+extern ulonglong	srv_max_changed_pages;
+
 /** Default size of UNDO tablespace while it is created new. */
 extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 

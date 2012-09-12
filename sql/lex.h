@@ -114,6 +114,7 @@ static const SYMBOL symbols[] = {
   { SYM("CHAIN",                    CHAIN_SYM)},
   { SYM("CHANGE",                   CHANGE)},
   { SYM("CHANGED",                  CHANGED)},
+  { SYM("CHANGED_PAGE_BITMAPS",     CHANGED_PAGE_BITMAPS_SYM)},
   { SYM("CHANNEL",                  CHANNEL_SYM)},
   { SYM("CHAR",                     CHAR_SYM)},
   { SYM("CHARACTER",                CHAR_SYM)},

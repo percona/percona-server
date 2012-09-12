@@ -760,6 +760,11 @@ struct log_t{
 	byte*		checkpoint_buf;	/*!< checkpoint header is read to this
 					buffer */
 	/* @} */
+	lsn_t		tracked_lsn;	/*!< log tracking has advanced to this
+					lsn.  Field accessed atomically where
+					64-bit atomic ops are supported,
+					protected by the log sys mutex
+					otherwise. */
 };
 
 /** Test if flush order mutex is owned. */

@@ -223,6 +223,12 @@ ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
 ulong		srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
 ulong		srv_log_write_ahead_size = 0;
 
+my_bool		srv_track_changed_pages = FALSE;
+
+ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
+
+ulonglong	srv_max_changed_pages = 0;
+
 page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at

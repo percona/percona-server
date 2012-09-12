@@ -387,6 +387,7 @@ fil_name_process(
 @param[in]	first_page_no	first page number in the file
 @param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE
 or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
+@param[in]	apply		whether to apply the record
 @return pointer to next redo log record
 @retval NULL if this log record was truncated */
 static
@@ -396,7 +397,8 @@ fil_name_parse(
 	const byte*	end,
 	ulint		space_id,
 	ulint		first_page_no,
-	mlog_id_t	type)
+	mlog_id_t	type,
+	bool		apply)
 {
 	if (type == MLOG_FILE_CREATE2) {
 		if (end < ptr + 4) {
@@ -486,6 +488,9 @@ fil_name_parse(
 			reinterpret_cast<char*>(new_name), new_len,
 			space_id, false);
 
+		if (!apply) {
+			break;
+		}
 		if (!fil_op_replay_rename(
 			    space_id, first_page_no,
 			    reinterpret_cast<const char*>(ptr),
@@ -578,6 +583,7 @@ fil_name_process(
 @param[in]	first_page_no	first page number in the file
 @param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE
 or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
+@param[in]	apply		whether to apply the record
 @retval	pointer to next redo log record
 @retval	NULL if this log record was truncated */
 static
@@ -587,7 +593,8 @@ fil_name_parse(
 	const byte*	end,
 	ulint		space_id,
 	ulint		first_page_no,
-	mlog_id_t	type)
+	mlog_id_t	type,
+	bool		apply)
 {
 
 	ulint flags = mach_read_from_4(ptr);
@@ -667,7 +674,7 @@ fil_name_parse(
 		fil_name_process(
 			name, len, space_id, true);
 
-		if (recv_replay_file_ops
+		if (apply && recv_replay_file_ops
 			&& fil_space_get(space_id)) {
 			dberr_t	err = fil_delete_tablespace(
 				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
@@ -1447,7 +1454,6 @@ recv_read_checkpoint_info_for_backup(
 block.
 @param[in]	log block
 @return whether the checksum matches */
-static
 bool
 log_block_checksum_is_ok(
 	const byte*	block)	/*!< in: pointer to a log block */
@@ -1661,6 +1667,7 @@ specified.
 @param[in]	end_ptr		end of buffer
 @param[in]	space_id	tablespace identifier
 @param[in]	page_no		page number
+@param[in]	apply		whether to apply the record
 @param[in,out]	block		buffer block, or NULL if
 a page log record should not be applied
 or if it is a MLOG_FILE_ operation
@@ -1675,6 +1682,7 @@ recv_parse_or_apply_log_rec_body(
 	byte*		end_ptr,
 	ulint		space_id,
 	ulint		page_no,
+	bool		apply,
 	buf_block_t*	block,
 	mtr_t*		mtr)
 {
@@ -1688,7 +1696,8 @@ recv_parse_or_apply_log_rec_body(
 		ut_ad(block == NULL);
 		/* Collect the file names when parsing the log,
 		before applying any log records. */
-		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type));
+		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
+				      apply));
 	case MLOG_INDEX_LOAD:
 #ifdef UNIV_HOTBACKUP
 		/* While scaning redo logs during  backup phase a
@@ -1761,7 +1770,8 @@ recv_parse_or_apply_log_rec_body(
 		encryption key information before the page 0 is recovered.
 	        Otherwise, redo will not find the key to decrypt
 		the data pages. */
-		if (page_no == 0 && !is_system_tablespace(space_id)) {
+		if (page_no == 0 && !is_system_tablespace(space_id)
+		    && !apply) {
 			return(fil_write_encryption_parse(ptr,
 							  end_ptr,
 							  space_id));
@@ -2162,7 +2172,7 @@ recv_hash(
 /*********************************************************************//**
 Gets the hashed file address struct for a page.
 @return file address struct, NULL if not found from the hash table */
-static
+
 recv_addr_t*
 recv_get_fil_addr_struct(
 /*=====================*/
@@ -2353,6 +2363,8 @@ recv_recover_page_func(
 					     block->page.id.page_no());
 
 	if ((recv_addr == NULL)
+		/* bugfix: http://bugs.mysql.com/bug.php?id=44140 */
+	    || (recv_addr->state == RECV_BEING_READ && !just_read_in)
 	    || (recv_addr->state == RECV_BEING_PROCESSED)
 	    || (recv_addr->state == RECV_PROCESSED)) {
 		ut_ad(recv_addr == NULL || recv_needed_recovery);
@@ -2497,7 +2509,7 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(
 				recv->type, buf, buf + recv->len,
 				recv_addr->space, recv_addr->page_no,
-				block, &mtr);
+				true, block, &mtr);
 
 			end_lsn = recv->start_lsn + recv->len;
 			mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
@@ -2962,7 +2974,6 @@ skip_this_recv_addr:
 @param[in]	apply		whether to apply MLOG_FILE_* records
 @param[out]	body		start of log record body
 @return length of the record, or 0 if the record was not complete */
-static
 ulint
 recv_parse_log_rec(
 	mlog_id_t*	type,
@@ -3029,7 +3040,7 @@ recv_parse_log_rec(
 	}
 
 	new_ptr = recv_parse_or_apply_log_rec_body(
-		*type, new_ptr, end_ptr, *space, *page_no, NULL, NULL);
+		*type, new_ptr, end_ptr, *space, *page_no, apply, NULL, NULL);
 
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
@@ -3041,7 +3052,6 @@ recv_parse_log_rec(
 
 /*******************************************************//**
 Calculates the new value for lsn when more data is added to the log. */
-static
 lsn_t
 recv_calc_lsn_on_data_add(
 /*======================*/
@@ -3970,7 +3980,7 @@ recv_init_crash_recovery_spaces(void)
 
 				recv_spaces_t::iterator i
 					= recv_spaces.find(space);
-				
+
 				if (i == recv_spaces.end()) {
 					recv_init_missing_mlog(recv_addr);
 					recv_addr->state = RECV_DISCARDED;

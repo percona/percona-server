@@ -33,7 +33,6 @@
 #include "log.h"         // query_logger
 #include "des_key_file.h"
 
-
 /**
   Reload/resets privileges and the different caches.
 

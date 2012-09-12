@@ -26,3 +26,4 @@ Some |Percona Server 5.5| features have been replaced by similar or equivalent M
  * split innodb buffer pool mutex. This has been replaced by improvements in upstream InnoDB
  * expanded IMPORT TABLESPACE has been replaced by MySQL "InnoDB transportable tablespaces"
  * The InnoDB data dictionary INFORMATION_SCHEMA tables have been superceeded by the MySQL implementations 
+ * XtraDB SYS_STATS persistent table and index statistics has been replaced by the MySQL 5.6 implementation

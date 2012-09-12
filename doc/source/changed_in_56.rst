@@ -22,3 +22,4 @@ Some |Percona Server 5.5| features have been replaced by similar or equivalent M
 
  * innodb_recovery_update_relay_log (replaced by MySQL crash safe replication)
  * innodb_io_patches (replaced by improvements and changes in MySQL 5.6, although Percona may make improvements in the future)
+ * innodb_dict_size_limit has been replaced by MySQL 5.6 using the existing table-definition-cache variable to limit the size of the InnoDB data dictionary.

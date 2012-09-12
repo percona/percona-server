@@ -1606,6 +1606,8 @@ recv_recover_page_func(
 					     buf_block_get_page_no(block));
 
 	if ((recv_addr == NULL)
+		/* bugfix: http://bugs.mysql.com/bug.php?id=44140 */
+	    || (recv_addr->state == RECV_BEING_READ && !just_read_in)
 	    || (recv_addr->state == RECV_BEING_PROCESSED)
 	    || (recv_addr->state == RECV_PROCESSED)) {
 

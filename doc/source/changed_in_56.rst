@@ -24,3 +24,4 @@ Some |Percona Server 5.5| features have been replaced by similar or equivalent M
  * innodb_io_patches (replaced by improvements and changes in MySQL 5.6, although Percona may make improvements in the future)
  * innodb_dict_size_limit has been replaced by MySQL 5.6 using the existing table-definition-cache variable to limit the size of the InnoDB data dictionary.
  * split innodb buffer pool mutex. This has been replaced by improvements in upstream InnoDB
+ * expanded IMPORT TABLESPACE has been replaced by MySQL "InnoDB transportable tablespaces"

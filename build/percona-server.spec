@@ -156,7 +156,7 @@ be eligible for hot fixes, and boost your team's productivity.
 %package -n Percona-Server-server%{package_suffix}
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
-Requires:	 chkconfig coreutils shadow-utils grep procps
+Requires:	Percona-Server-shared%{package_suffix} chkconfig coreutils shadow-utils grep procps
 Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
 
 %description -n Percona-Server-server%{package_suffix}

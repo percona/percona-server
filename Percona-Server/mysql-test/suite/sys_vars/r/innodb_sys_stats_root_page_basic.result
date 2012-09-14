@@ -1,3 +1,0 @@
-SELECT @@global.innodb_sys_stats_root_page;
-@@global.innodb_sys_stats_root_page
-0

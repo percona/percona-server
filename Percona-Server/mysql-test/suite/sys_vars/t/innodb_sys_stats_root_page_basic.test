@@ -1,4 +1,0 @@
---source include/have_debug.inc
---source include/have_innodb.inc
-
-SELECT @@global.innodb_sys_stats_root_page;

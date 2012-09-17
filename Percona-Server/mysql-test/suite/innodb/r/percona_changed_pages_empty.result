@@ -1,0 +1,2 @@
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+space_id	page_id	start_lsn	end_lsn

@@ -143,6 +143,9 @@ extern ibool	srv_recovery_stats;
 
 extern my_bool	srv_track_changed_pages;
 
+extern
+ulonglong       srv_changed_pages_limit;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char**	srv_log_group_home_dirs;

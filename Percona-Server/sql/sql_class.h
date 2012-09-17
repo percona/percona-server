@@ -2638,8 +2638,8 @@ public:
     return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
-  inline bool vio_ok() const { return TRUE; }
-  inline bool is_connected() { return TRUE; }
+  inline bool vio_ok() const { return true; }
+  inline bool is_connected() { return true; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not

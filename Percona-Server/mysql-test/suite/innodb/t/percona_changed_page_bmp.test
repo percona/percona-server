@@ -72,6 +72,9 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 
 --source include/restart_mysqld.inc
 
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
 file_exists $BITMAP_FILE;
 
 # TODO: check the tracked LSN range continuity once this info is exposed through
@@ -112,6 +115,7 @@ file_exists $BITMAP_FILE;
 # INFORMATION_SCHEMA.
 
 # Test crashing before writing of new bitmap data
+
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 INSERT INTO t1 SELECT x FROM t1;

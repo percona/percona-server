@@ -1,0 +1,32 @@
+###################### percona_bug747032.test ########################
+# Bug #747032: Flashcache throws an error on startup when flashcache #
+#              is not used                                           #
+#                                                                    #
+# Test is designed to verify that --flashcache option work properly  #
+# to disable flashcache checks at startup                            #
+######################################################################
+
+--source include/not_embedded.inc
+--source include/have_flashcache.inc
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if(!`select LENGTH('$log_error_')`)
+{
+  # MySQL Server on windows is started with --console and thus
+  # does not know the location of its .err log, use default location
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+# Assign env variable LOG_ERROR
+let LOG_ERROR=$log_error_;
+
+perl;
+  use strict;
+  my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
+  open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
+  my $count = grep(/Flashcache bypass support initialized successfully/g,<FILE>);
+  print "Occurrences: $count\n";
+  close(FILE);
+  # Clean error log file
+  open(FILE, '>', "$log_error");
+  close(FILE);
+EOF

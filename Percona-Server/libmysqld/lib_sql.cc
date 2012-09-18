@@ -790,7 +790,6 @@ void THD::clear_data_list()
   cur_data= 0;
 }
 
-
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
 			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
 {

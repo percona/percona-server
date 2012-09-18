@@ -1,0 +1,8 @@
+###############################################################################
+# Test for empty I_S.INNODB_CHANGED_PAGES table. The table should be empty if#
+# innodb_track_changed_pages is false.                                        #
+###############################################################################
+
+--source include/have_innodb.inc
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES; 

@@ -960,7 +960,7 @@ hstest_thread::test_10(int test_num)
 	      ++op_success_count;
 	      arg.sh.increment_count();
 	      if (arg.sh.dump && arg.sh.pipe == 1) {
-		fwrite(wbuf, wbuflen, 1, stderr);
+		fwrite(wbuf.begin(), wbuf.size(), 1, stderr);
 	      }
 	    }
 	  }

@@ -12,6 +12,7 @@ Some features that were present in |Percona Server 5.5| have been removed in |Pe
  * SHOW [GLOBAL] TEMPORARY TABLES functionality is now only available via the INFORMATION_SCHEMA tables TEMPORARY_TABLES and GLOBAL_TEMPORARY_TABLES.
  * thread concurrency timer based
  * innodb_recovery_stats
+ * innodb_show_lock_name.patch - replaced by PERFORMANCE_SCHEMA
 
 Some features that were present in |Percona Server 5.5| have been replaced by a different implementation of the same/similar functionality in |Percona Server 5.6|. These are:
 

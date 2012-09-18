@@ -52,6 +52,7 @@ extern "C" {
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h" /* for innobase_convert_name() */
+#include "srv0srv.h" /* for srv_track_changed_pages */
 #include "srv0start.h" /* for srv_was_started */
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */

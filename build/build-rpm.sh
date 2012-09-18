@@ -147,7 +147,7 @@ fi
     cd "$WORKDIR"
 
     # Issue RPM command
-    eval rpmbuild -ba --clean --with yassl $TARGET $TARGET_LIBDIR $TARGET_ARCH \
+    eval rpmbuild -ba --clean $TARGET $TARGET_LIBDIR $TARGET_ARCH \
         $QUIET $SIGN "$SOURCEDIR/build/percona-server.spec" \
         --define "_topdir\ $WORKDIR_ABS" \
         --define "gotrevision\ $REVISION"

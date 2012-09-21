@@ -12837,7 +12837,7 @@ static MYSQL_SYSVAR_UINT(buffer_pool_restore_at_startup, srv_auto_lru_dump,
 
 static MYSQL_SYSVAR_BOOL(blocking_buffer_pool_restore,
   innobase_blocking_lru_restore,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Block XtraDB startup process until buffer pool is full restored from a "
   "dump file (if present). Disabled by default.",
   NULL, NULL, FALSE);

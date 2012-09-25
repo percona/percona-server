@@ -284,20 +284,42 @@ The feature adds more information to the slow log output. Here is a sample log e
 
   # User@Host: mailboxer[mailboxer] @  [192.168.10.165]
   # Thread_id: 11167745  Schema: board
-  # QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: Yes  Disk_tmp_table: No
-  # Filesort: Yes  Disk_filesort: No  Merge_passes: 0
-  # Query_time: 0.000659  Lock_time: 0.000070  Rows_sent: 0  Rows_examined: 30  Rows_affected: 0  Rows_read: 30
-  #   innodb_IO_r_ops: 1  innodb_IO_r_bytes: 16384  innodb_IO_r_wait: 0.028487
-  #   innodb_rec_lock_wait: 0.000000  innodb_queue_wait: 0.000000
-  #   innodb_pages_distinct: 5
-  select count(distinct author_id) from art87.article87 force index (forum_id) where forum_id = 240215 and thread_id = ``710575`` 
+  # Query_time: 1.009400  Lock_time: 0.000190  Rows_sent: 4  Rows_examined: 1543719  Rows_affected: 0  Rows_read: 4
+  # Bytes_sent: 278  Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0
+  # InnoDB_trx_id: 1500
+  # QC_Hit: No  Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
+  # Filesort: No  Filesort_on_disk: No  Merge_passes: 0
+  #   InnoDB_IO_r_ops: 6415  InnoDB_IO_r_bytes: 105103360  InnoDB_IO_r_wait: 0.001279
+  #   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000
+  #   InnoDB_pages_distinct: 6430
+  SET timestamp=1346844943;
+  SELECT id,title,production_year FROM title WHERE title = 'Bambi';
 
 Another example (:variable:`log_slow_verbosity` ``=profiling``): ::
 
-  # Query_time: 4.555235  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 1
-  # Profile_starting: 4.554799 Profile_starting_cpu: 0.000000 Profile_checking_permissions: 0.000095 Profile_checking_permissions_cpu: 0.000000 Profile_Opening_tables: 0.000088 Profile_Opening_tables_cpu: 0.000000 Profile_init: 0.000056 Profile_init_cpu: 0.000000 Profile_optimizing: 0.000046 Profile_optimizing_cpu: 0.000000 Profile_executing: 0.000098 Profile_executing_cpu: 0.000000 Profile_end: 0.000049 Profile_end_cpu: 0.000000 Profile_query_end: 0.000045 Profile_query_end_cpu: 0.000000 Profile_freeing_items: 0.000084 Profile_freeing_items_cpu: 0.000000 Profile_logging_slow_query: 0.000045 Profile_logging_slow_query_cpu: 0.000000 
-  # Profile_total: 4.555405 Profile_total_cpu: 0.000000 
-  insert into teee4 select * from teee4 limit 10000000;
+  # Query_time: 0.962742  Lock_time: 0.000202  Rows_sent: 4  Rows_examined: 1543719  Rows_affected: 0  Rows_read: 4
+  # Bytes_sent: 278  Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0
+  # Profile_starting: 0.000030 Profile_starting_cpu: 0.000028 Profile_Waiting_for_query_cache_lock: 0.000003 
+    Profile_Waiting_for_query_cache_lock_cpu: 0.000003 Profile_Waiting_on_query_cache_mutex: 0.000003 
+    Profile_Waiting_on_query_cache_mutex_cpu: 0.000003 Profile_checking_query_cache_for_query: 0.000076 
+    Profile_checking_query_cache_for_query_cpu: 0.000076 Profile_checking_permissions: 0.000011 
+    Profile_checking_permissions_cpu: 0.000011 Profile_Opening_tables: 0.000078 Profile_Opening_tables_cpu: 0.000078 
+    Profile_System_lock: 0.000022 Profile_System_lock_cpu: 0.000022 Profile_Waiting_for_query_cache_lock: 0.000003 
+    Profile_Waiting_for_query_cache_lock_cpu: 0.000002 Profile_Waiting_on_query_cache_mutex: 0.000054 
+    Profile_Waiting_on_query_cache_mutex_cpu: 0.000054 Profile_init: 0.000039 Profile_init_cpu: 0.000040 
+    Profile_optimizing: 0.000015 Profile_optimizing_cpu: 0.000014 Profile_statistics: 0.000021 Profile_statistics_cpu: 0.000021 
+    Profile_preparing: 0.000020 Profile_preparing_cpu: 0.000020 Profile_executing: 0.000003 Profile_executing_cpu: 0.000003 
+    Profile_Sending_data: 0.962324 Profile_Sending_data_cpu: 0.961526 Profile_end: 0.000006 Profile_end_cpu: 0.000005 
+    Profile_query_end: 0.000004 Profile_query_end_cpu: 0.000004 Profile_closing_tables: 0.000008 Profile_closing_tables_cpu: 0.000008 
+    Profile_freeing_items: 0.000007 Profile_freeing_items_cpu: 0.000007 Profile_Waiting_for_query_cache_lock: 0.000000 
+    Profile_Waiting_for_query_cache_lock_cpu: 0.000001 Profile_Waiting_on_query_cache_mutex: 0.000001 
+    Profile_Waiting_on_query_cache_mutex_cpu: 0.000001 Profile_freeing_items: 0.000017 Profile_freeing_items_cpu: 0.000016 
+    Profile_Waiting_for_query_cache_lock: 0.000001 Profile_Waiting_for_query_cache_lock_cpu: 0.000001 
+    Profile_Waiting_on_query_cache_mutex: 0.000000 Profile_Waiting_on_query_cache_mutex_cpu: 0.000001 
+    Profile_freeing_items: 0.000001 Profile_freeing_items_cpu: 0.000001 Profile_storing_result_in_query_cache: 0.000002 
+    Profile_storing_result_in_query_cache_cpu: 0.000002 Profile_logging_slow_query: 0.000001 Profile_logging_slow_query_cpu: 0.000001 
+  # Profile_total: 0.962751 Profile_total_cpu: 0.961950 
+  # InnoDB_trx_id: 1700
 
 Connection and Schema Identifier
 --------------------------------

@@ -29,3 +29,4 @@ Some |Percona Server 5.5| features have been replaced by similar or equivalent M
  * expanded IMPORT TABLESPACE has been replaced by MySQL "InnoDB transportable tablespaces"
  * The InnoDB data dictionary INFORMATION_SCHEMA tables have been superceeded by the MySQL implementations 
  * XtraDB SYS_STATS persistent table and index statistics has been replaced by the MySQL 5.6 implementation
+ * lru dump/restore is now available in MySQL 5.6, so we have replaced the Percona Server implementation with the MySQL one.

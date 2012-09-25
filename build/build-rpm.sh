@@ -144,7 +144,7 @@ export MAKE_JFLAG=-j4
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild -ba --clean --with yassl $TARGET $SIGN $QUIET \
+    rpmbuild -ba --clean $TARGET $SIGN $QUIET \
         "$SOURCEDIR/build/percona-server.spec" \
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \

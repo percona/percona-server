@@ -4,6 +4,11 @@
 #                                             #
 ###############################################
 
+# This test checks some limits which are related to MAX_INDEXES constant
+# which could be set to non-default value at build time.
+# We just skip the test in this case.
+--source include/have_64_keys.inc
+
 #    
 # NOTE: PLEASE SEE ps_1general.test (bottom) 
 #       BEFORE ADDING NEW TEST CASES HERE !!!

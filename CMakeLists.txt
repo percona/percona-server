@@ -330,6 +330,11 @@ OPTION(INNODB_PAGE_ATOMIC_REF_COUNT "Use atomics for the page reference count"
        ON)
 MARK_AS_ADVANCED(INNODB_PAGE_ATOMIC_REF_COUNT)
 
+IF (NOT MAX_INDEXES)
+  SET(MAX_INDEXES 64)
+ENDIF()
+SET(MAX_INDEXES ${MAX_INDEXES} CACHE STRING "Sets the maximum number of indexes per table, default 64")
+
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)

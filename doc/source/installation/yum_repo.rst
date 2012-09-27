@@ -58,7 +58,7 @@ You should see output similar to the following: ::
 
 Supported Platforms
 ===================
-  
+
   *  ``x86_64``
   *  ``i386``
 
@@ -78,7 +78,7 @@ Percona `yum` Experimental repository
 
 Percona offers fresh beta builds from the experimental repository. To subscribe to the experimental repository, install the experimental *RPM*: ::
 
-  rpm -Uhv http://repo.percona.com/testing/centos/6/os/noarch/percona-testing-0.0-1.noarch.rpm
+ rpm -Uhv http://repo.percona.com/testing/centos/6/os/noarch/percona-testing-0.0-1.noarch.rpm
 
 .. note:: 
  This repository works for both RHEL/CentOS 5 and RHEL/CentOS 6

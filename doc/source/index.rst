@@ -125,6 +125,7 @@ Management Improvements
    management/utility_user
    management/secure_file_priv_extended
    management/expanded_program_option_modifiers
+   management/changed_page_tracking
 
 Diagnostics Improvements
 ========================

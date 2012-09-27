@@ -1,8 +1,10 @@
 .. _innodb_thread_concurrency_timer_based_page:
 
-=============================================
- |InnoDB| timer-based Concurrency Throttling
-=============================================
+===========================================
+InnoDB timer-based Concurrency Throttling
+===========================================
+
+If the variable :variable:`innodb_thread_concurrency_timer_based` has been set to ``TRUE``, lock-free timer-based |InnoDB| method of handling thread concurrency will be used instead of original mutex-based method.
 
 System Variables
 ================
@@ -11,10 +13,12 @@ System Variables
 
    :cli: Yes
    :conf: Yes
-   :scope:  	 
-   :dyn:	
+   :scope: Global  	 
+   :dyn: No	
    :vartype: BOOL
    :default: FALSE
    :range: TRUE/FALSE
 
-Use |InnoDB| timer based concurrency throttling.
+.. note:: 
+ This feature depends on atomic op builtins being available. 
+

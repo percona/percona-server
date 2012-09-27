@@ -19,7 +19,7 @@ Add this to :file:`/etc/apt/sources.list`, replacing ``VERSION`` with the name o
 
 Remember to update the local cache: ::
 
-  # apt-get update
+  $ apt-get update
 
 After that you can install the server and client packages ::  
 
@@ -38,7 +38,6 @@ Supported Releases
 Debian
 ------
 
- * 5.0 (lenny)
  * 6.0 (squeeze)
 
 Ubuntu
@@ -48,11 +47,10 @@ Ubuntu
  * 11.10 (oneiric)
  * 12.04LTS (precise)
 
-
 Percona `apt` Experimental repository
 =====================================
 
-Percona offers fresh beta builds from the experimental repository. To enable it add the following lines to your  :file:`/etc/apt/sources.list` , replacing ``VERSION`` with the name of your distribution: ::
+Percona offers fresh beta builds from the experimental repository. To enable it add the following lines to your  :file:`/etc/apt/sources.list` , replacing ``VERSION`` with the name of your distribution: :: 
 
   deb http://repo.percona.com/apt VERSION main experimental
   deb-src http://repo.percona.com/apt VERSION main experimental

@@ -12,16 +12,17 @@ Reported as http://bugs.mysql.com/bug.php?id=31361
 
 --- a/scripts/mysqld_safe.sh
 +++ b/scripts/mysqld_safe.sh
-@@ -29,8 +29,6 @@
+@@ -29,9 +29,6 @@
  syslog_tag_mysqld=mysqld
  syslog_tag_mysqld_safe=mysqld_safe
  
 -trap '' 1 2 3 15			# we shouldn't let anyone kill us
+-trap '' 13                              # not even SIGPIPE
 -
  umask 007
  
  defaults=
-@@ -707,6 +705,12 @@
+@@ -712,6 +709,12 @@
    fi
  fi
  
@@ -29,7 +30,7 @@ Reported as http://bugs.mysql.com/bug.php?id=31361
 +# when signalled to do so.
 +#
 +trap '@bindir@/mysqladmin --defaults-extra-file=/etc/mysql/debian.cnf refresh' 1 # HUP
-+trap '@bindir@/mysqladmin --defaults-extra-file=/etc/mysql/debian.cnf shutdown' 2 3 15 # INT QUIT and TERM
++trap '@bindir@/mysqladmin --defaults-extra-file=/etc/mysql/debian.cnf shutdown' 2 3 13 15 # INT QUIT PIPE and TERM
 +
  #
  # Uncomment the following lines if you want all tables to be automatically

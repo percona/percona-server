@@ -12456,8 +12456,8 @@ static MYSQL_SYSVAR_BOOL(use_sys_stats_table, innobase_use_sys_stats_table,
   NULL, NULL, FALSE);
 
 #ifdef UNIV_DEBUG
-static MYSQL_SYSVAR_ULONG(sys_stats_root_page, innobase_sys_stats_root_page,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+static MYSQL_SYSVAR_ULONG(persistent_stats_root_page,
+  innobase_sys_stats_root_page, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Override the SYS_STATS root page id, 0 = no override (for testing only)",
   NULL, NULL, 0, 0, ULONG_MAX, 0);
 #endif
@@ -12925,7 +12925,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_update_need_lock),
   MYSQL_SYSVAR(use_sys_stats_table),
 #ifdef UNIV_DEBUG
-  MYSQL_SYSVAR(sys_stats_root_page),
+  MYSQL_SYSVAR(persistent_stats_root_page),
 #endif
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),

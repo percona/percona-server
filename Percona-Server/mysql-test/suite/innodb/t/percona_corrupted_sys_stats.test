@@ -20,7 +20,7 @@ SELECT a FROM t1;
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 --enable_reconnect
---exec echo "restart:--innodb-sys-stats-root-page=7" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--innodb-persistent-stats-root-page=7" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 INSERT INTO t1 VALUES (20);

@@ -51,7 +51,11 @@ public:
   void intersect(ulonglong map2buff)
   {
     MY_BITMAP map2;
-    bitmap_init(&map2, (uint32 *)&map2buff, sizeof(ulonglong)*8, 0);
+    ulonglong buf;
+
+    /* bitmap_init() zeroes the supplied buffer */
+    bitmap_init(&map2, (uint32 *)&buf, sizeof(ulonglong)*8, 0);
+    buf= map2buff;
     bitmap_intersect(&map, &map2);
   }
   /* Use highest bit for all bits above sizeof(ulonglong)*8. */
@@ -91,9 +95,9 @@ public:
   ulonglong to_ulonglong() const
   {
     if (sizeof(buffer) >= 8)
-      return uint8korr(buffer);
+      return uint8korr((uchar *) buffer);
     DBUG_ASSERT(sizeof(buffer) >= 4);
-    return (ulonglong) uint4korr(buffer);
+    return (ulonglong) uint4korr((uchar *) buffer);
   }
 };
 

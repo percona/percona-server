@@ -74,7 +74,7 @@ DEBIAN_VERSION="$(lsb_release -sc)"
 
 # Build information
 export BB_PERCONA_REVISION="$(cd "$SOURCEDIR"; bzr revno)"
-export DEB_BUILD_OPTIONS='nostrip debug nocheck'
+export DEB_BUILD_OPTIONS='debug nocheck'
 export MYSQL_BUILD_CC='gcc'
 export MYSQL_BUILD_CXX='gcc'
 export HS_CXX=${HS_CXX:-g++}

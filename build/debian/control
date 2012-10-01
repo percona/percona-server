@@ -3,8 +3,8 @@ Section: misc
 Priority: optional
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
 Uploaders: Ignacio Nin <ignacio.nin@percona.com>
-Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper (>= 4.1.16), file (>= 3.28-1), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), psmisc, po-debconf, chrpath, automake (>= 1.9), doxygen, dpatch, gawk, bison, lsb-release, fakeroot
-Standards-Version: 3.8.0
+Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper (>= 7.0.50), file (>= 3.28-1), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), psmisc, po-debconf, chrpath, automake (>= 1.9), doxygen, dpatch, gawk, bison, lsb-release, fakeroot
+Standards-Version: 7.0.0
 Homepage: http://www.percona.com/software/
 Vcs-Bzr: lp:percona-server/5.1
 
@@ -84,3 +84,15 @@ Description: Percona Server database server binaries
  ease of use.
  .
  This package includes the server binaries.
+
+Package: percona-server-5.1-dbg
+Architecture: any
+Section: debug
+Depends: percona-server-server-5.1 (= ${binary:Version}), ${misc:Depends}
+Description: Debugging package for Percona Server
+ Percona Server is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona Server are speed, robustness and
+ ease of use.
+ .
+ This package contains the debugging symbols for the Percona Server binaries.

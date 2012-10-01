@@ -20,9 +20,9 @@ clean-patched:
 	dh clean
 	rm -rf CMakeFiles
 
-build: patch
-	dh_testdir
-	$(CMAKE) . -DBUILD_CONFIG=mysql_release \
+override_dh_auto_configure: patch
+	mkdir release
+	cd release && $(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
 	   -DINSTALL_LAYOUT=DEB \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DWITH_EMBEDDED_SERVER=OFF \
@@ -30,15 +30,17 @@ build: patch
            -DFEATURE_SET=$(feature_set) \
            -DCOMPILATION_COMMENT=$(compilation_comment_release) \
            -DMYSQL_SERVER_SUFFIX=$(server_suffix)
-	make $(MAKE_JFLAG)
+
+override_dh_auto_build:
+	cd release && make $(MAKE_JFLAG)
 	
 	# Build HandlerSocket
 	echo "Configuring HandlerSocket"
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
 	bash -x autogen.sh && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
+	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --with-mysql-source=$(CURDIR) \
-			--with-mysql-bindir=$(CURDIR)/scripts \
+			--with-mysql-bindir=$(CURDIR)/release/scripts \
 			--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
 			--libdir=$(prefix)/lib \
 			--prefix=$(prefix) && \
@@ -46,21 +48,22 @@ build: patch
 	
 	# Build UDF
 	cd UDF && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
+	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --includedir=$(CURDIR)/include \
 			--libdir=$(prefix)/lib/mysql/plugin && \
 	make $(MAKE_JFLAG)
 	
-	dh_auto_test
+build:
+	dh build
 
 binary:
-	dh binary
+	dh -Brelease binary
 
 binary-arch:
-	dh binary-arch
+	dh -Brelease binary-arch
 
 binary-indep:
-	dh binary-indep
+	dh -Brelease binary-indep
 
 install:
 	dh install

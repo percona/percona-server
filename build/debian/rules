@@ -73,3 +73,6 @@ override_dh_auto_install:
 override_dh_installinit:
 	dh_installinit --name=mysql
 
+override_dh_strip:
+	dh_strip --dbg-package=percona-server-5.5-dbg
+

@@ -54,42 +54,22 @@ build: patch
 	dh_auto_test
 
 binary:
-	echo "Making binary"
-	dh --before dh_auto_install binary
-	dh_auto_install
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit binary
-	dh_installinit --name=mysql
-	dh --after dh_installinit binary
-
+	dh binary
 
 binary-arch:
-	echo "Making binary"
-	dh --before dh_auto_install binary-arch
-	dh_auto_install
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit binary-arch
-	dh_installinit --name=mysql
-	dh --after dh_installinit binary-arch
+	dh binary-arch
 
 binary-indep:
-	echo "Making binary"
-	dh --before dh_auto_install binary-indep
-	dh_auto_install
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit binary-indep
-	dh_installinit --name=mysql
-	dh --after dh_installinit binary-indep
+	dh binary-indep
 
 install:
-	echo "Making binary"
-	dh --before dh_auto_install install
+	dh install
+
+override_dh_auto_install:
 	dh_auto_install
 	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
 	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit install
+
+override_dh_installinit:
 	dh_installinit --name=mysql
-	dh --after dh_installinit install
+

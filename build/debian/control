@@ -63,7 +63,6 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
 Package: percona-server-test-5.5
 Architecture: any
 Depends: percona-server-client-5.5 (>= ${source:Version}), percona-server-server-5.5 (>= ${source:Version})
-Provides: mysql-client
 Description: Percona Server database test suite
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database

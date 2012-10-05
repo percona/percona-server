@@ -181,12 +181,12 @@ If you use a storage which has no “head seek delay” (e.g. SSD or enough memo
      :cli: Yes
      :conf: Yes
      :scope: Global
-     :dyn: Yes
+     :dyn: No
      :vartype: Numeric
      :default: 512
      :units: Bytes
 
-This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use.
+This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use. Clean restart and removal of the old logs is needed for the variable :variable:`innodb_log_block_size` to be changed.
 
 .. variable:: innodb_log_file_size
 

@@ -632,11 +632,12 @@ net_real_write(NET *net,const uchar *packet, size_t len)
     if ((long) (length= vio_write(net->vio,pos,(size_t) (end-pos))) <= 0)
     {
       my_bool interrupted = vio_should_retry(net->vio);
-#if !defined(NO_ALARM) && !defined(__WIN__)
+#if !defined(__WIN__)
       if ((interrupted || length == 0) && !thr_alarm_in_use(&alarmed))
       {
         if (!thr_alarm(&alarmed, net->write_timeout, &alarm_buff))
         {                                       /* Always true for client */
+#if !defined(NO_ALARM)
 	  my_bool old_mode;
 	  while (vio_blocking(net->vio, TRUE, &old_mode) < 0)
 	  {
@@ -654,6 +655,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
 #endif
 	    goto end;
 	  }
+#endif /* !defined(NO_ALARM) */
 	  retry_count=0;
 	  continue;
 	}
@@ -835,7 +837,7 @@ my_real_read(NET *net, size_t *complen)
 
 	  DBUG_PRINT("info",("vio_read returned %ld  errno: %d",
 			     (long) length, vio_errno(net->vio)));
-#if !defined(NO_ALARM) && (!defined(__WIN__) || defined(MYSQL_SERVER))
+#if !defined(__WIN__) || defined(MYSQL_SERVER)
 	  /*
 	    We got an error that there was no data on the socket. We now set up
 	    an alarm to not 'read forever', change the socket to non blocking
@@ -845,6 +847,7 @@ my_real_read(NET *net, size_t *complen)
 	  {
 	    if (!thr_alarm(&alarmed,net->read_timeout,&alarm_buff)) /* Don't wait too long */
 	    {
+#if !defined(NO_ALARM)
 	      my_bool old_mode;
 	      while (vio_blocking(net->vio, TRUE, &old_mode) < 0)
 	      {
@@ -867,6 +870,7 @@ my_real_read(NET *net, size_t *complen)
 #endif
 		goto end;
 	      }
+#endif /* !defined(NO_ALARM) */
 	      retry_count=0;
 	      continue;
 	    }

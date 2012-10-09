@@ -90,6 +90,7 @@ Flexibility Improvements
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
    flexibility/improved_memory_engine
+   flexibility/max_binlog_files
 
 Reliability Improvements
 ========================

@@ -42,8 +42,8 @@ System Variables
 
 Filters the slow log by the query's execution plan. The value is a comma-delimited string, and can contain any combination of the following values:
 
-  * ``qc_hit``:
-    The query was found in the query cache.
+  * ``qc_miss``:
+    The query was not found in the query cache.
 
   * ``full_scan``:
     The query performed a full table scan.
@@ -55,7 +55,7 @@ Filters the slow log by the query's execution plan. The value is a comma-delimit
     The query created an implicit internal temporary table.
 
   * ``tmp_table_on_disk``:
-    The query``s temporary table was stored on disk.
+    The query's temporary table was stored on disk.
 
   * ``filesort``:
     The query used a filesort.

@@ -2334,7 +2334,7 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,

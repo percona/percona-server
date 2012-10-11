@@ -21,7 +21,7 @@
 We provide these benefits by significantly enhancing |Percona Server| as compared to the standard |MySQL| database server:
 
 +---------------------------------------+----------------------+--------------+
-|Features                               |Percona Server 5.1.60 |MySQL 5.1.60  |
+|Features                               |Percona Server 5.1.65 |MySQL 5.1.65  |
 +=======================================+======================+==============+
 |Open source                            | Yes                  | Yes          |      
 +---------------------------------------+----------------------+--------------+
@@ -47,7 +47,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Extra Features for Developers          |Percona Server 5.1.60 |MySQL 5.1.60  |
+|Extra Features for Developers          |Percona Server 5.1.65 |MySQL 5.1.65  |
 +=======================================+======================+==============+
 |NoSQL Socket-Level Interface           | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
@@ -55,7 +55,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Extra Diagnostic Features              |Percona Server 5.1.60 |MySQL 5.1.60  |
+|Extra Diagnostic Features              |Percona Server 5.1.65 |MySQL 5.1.65  |
 +=======================================+======================+==============+
 |INFORMATION_SCHEMA Tables              | 54                   | 28           |
 +---------------------------------------+----------------------+--------------+
@@ -87,7 +87,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Durability and Reliability Enhancements|Percona Server 5.1.60 |MySQL 5.1.60  |
+|Durability and Reliability Enhancements|Percona Server 5.1.65 |MySQL 5.1.65  |
 +=======================================+======================+==============+
 |Transactional Replication State        | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
@@ -95,7 +95,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Performance & Scalability Enhancements |Percona Server 5.1.60 |MySQL 5.1.60  |
+|Performance & Scalability Enhancements |Percona Server 5.1.65 |MySQL 5.1.65  |
 +=======================================+======================+==============+
 |Support for Multiple I/O Threads       | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
@@ -123,7 +123,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Extra Features for DBA/Operations Staff|Percona Server 5.1.60 |MySQL 5.1.60  |
+|Extra Features for DBA/Operations Staff|Percona Server 5.1.65 |MySQL 5.1.65  |
 +=======================================+======================+==============+
 |Configurable Page Sizes                | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
@@ -139,6 +139,8 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 |Configurable Fast Index Creation       | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
-|Fast Index Renaming                    | Yes                  |              |
+|Extended ``mysqlbinlog`` Utility       | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Changed Page Tracking                  | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
 

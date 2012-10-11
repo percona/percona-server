@@ -444,6 +444,10 @@ extern my_bool srv_print_all_deadlocks;
 
 extern my_bool	srv_cmp_per_index_enabled;
 
+/** When TRUE, fake change transcations take S rather than X row locks.
+When FALSE, row locks are not taken at all. */
+extern my_bool srv_fake_changes_locks;
+
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
 

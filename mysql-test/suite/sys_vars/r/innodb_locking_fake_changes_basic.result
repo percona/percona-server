@@ -1,0 +1,52 @@
+SET @start_global_value = @@global.innodb_locking_fake_changes;
+SELECT @start_global_values;
+@start_global_values
+NULL
+SELECT COUNT(@@GLOBAL.innodb_locking_fake_changes) AS should_be_1;
+should_be_1
+1
+SET @@global.innodb_locking_fake_changes = 0;
+SELECT @@global.innodb_locking_fake_changes;
+@@global.innodb_locking_fake_changes
+0
+SET @@global.innodb_locking_fake_changes ='On' ;
+SELECT @@global.innodb_locking_fake_changes;
+@@global.innodb_locking_fake_changes
+1
+SET @@global.innodb_locking_fake_changes ='Off' ;
+SELECT @@global.innodb_locking_fake_changes;
+@@global.innodb_locking_fake_changes
+0
+SET @@global.innodb_locking_fake_changes = 1;
+SELECT @@global.innodb_locking_fake_changes;
+@@global.innodb_locking_fake_changes
+1
+SELECT IF(@@GLOBAL.innodb_locking_fake_changes,'ON','OFF') = VARIABLE_VALUE AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_locking_fake_changes';
+should_be_1
+1
+SELECT COUNT(VARIABLE_VALUE) AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_locking_fake_changes';
+should_be_1
+1
+SELECT @@innodb_locking_fake_changes = @@GLOBAL.innodb_locking_fake_changes;
+@@innodb_locking_fake_changes = @@GLOBAL.innodb_locking_fake_changes
+1
+SELECT COUNT(@@innodb_locking_fake_changes) AS should_be_1;
+should_be_1
+1
+SELECT COUNT(@@local.innodb_locking_fake_changes);
+ERROR HY000: Variable 'innodb_locking_fake_changes' is a GLOBAL variable
+SELECT COUNT(@@SESSION.innodb_locking_fake_changes);
+ERROR HY000: Variable 'innodb_locking_fake_changes' is a GLOBAL variable
+SELECT COUNT(@@GLOBAL.innodb_locking_fake_changes) AS should_be_1;
+should_be_1
+1
+SELECT innodb_locking_fake_changes = @@SESSION.innodb_locking_fake_changes;
+ERROR 42S22: Unknown column 'innodb_locking_fake_changes' in 'field list'
+SET @@global.innodb_locking_fake_changes = @start_global_value;
+SELECT @@global.innodb_locking_fake_changes;
+@@global.innodb_locking_fake_changes
+1

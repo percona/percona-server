@@ -1,0 +1,44 @@
+# sys_vars suite test for innodb_locking_fake_changes
+
+SET @start_global_value = @@global.innodb_locking_fake_changes;
+SELECT @start_global_values;
+
+SELECT COUNT(@@GLOBAL.innodb_locking_fake_changes) AS should_be_1;
+
+SET @@global.innodb_locking_fake_changes = 0;
+SELECT @@global.innodb_locking_fake_changes;
+
+SET @@global.innodb_locking_fake_changes ='On' ;
+SELECT @@global.innodb_locking_fake_changes;
+
+SET @@global.innodb_locking_fake_changes ='Off' ;
+SELECT @@global.innodb_locking_fake_changes;
+
+SET @@global.innodb_locking_fake_changes = 1;
+SELECT @@global.innodb_locking_fake_changes;
+
+SELECT IF(@@GLOBAL.innodb_locking_fake_changes,'ON','OFF') = VARIABLE_VALUE AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_locking_fake_changes';
+
+SELECT COUNT(VARIABLE_VALUE) AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_locking_fake_changes';
+
+SELECT @@innodb_locking_fake_changes = @@GLOBAL.innodb_locking_fake_changes;
+
+SELECT COUNT(@@innodb_locking_fake_changes) AS should_be_1;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_locking_fake_changes);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_locking_fake_changes);
+
+SELECT COUNT(@@GLOBAL.innodb_locking_fake_changes) AS should_be_1;
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_locking_fake_changes = @@SESSION.innodb_locking_fake_changes;
+
+SET @@global.innodb_locking_fake_changes = @start_global_value;
+SELECT @@global.innodb_locking_fake_changes;

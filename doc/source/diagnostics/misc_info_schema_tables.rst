@@ -6,55 +6,6 @@
 
 This page lists the ``INFORMATION_SCHEMA`` tables added to standard |MySQL| by |Percona Server| that don't exist elsewhere in the documentation.
 
-Compressed pages in |InnoDB| tables
-===================================
-
-These tables hold information on compression and uncompression operations. Their contents is identical, but any read from :table:`INNODB_CMP_RESET` will reset all statistics on compression/uncompression.
-
-These tables were introduced by the |InnoDB| plugin and you can find the full documentation here.
-
-.. table:: INFORMATION_SCHEMA.INNODB_CMP
-
-   :column PAGE_SIZE: Page size for compressed pages (Bytes)
-   :column COMPRESS_OPS: Number of compression operations
-   :column COMPRESS_OPS_OK: Number of successful compression operations
-   :column COMPRESS_TIME: Time spent to compress pages (seconds)
-   :column UNCOMPRESS_OPS: Number of uncompression operations
-   :column UNCOMPRESS_TIME: Time spent to uncompress pages (seconds)
-
-.. table:: INFORMATION_SCHEMA.INNODB_CMP_RESET
-
-   :column PAGE_SIZE: Page size for compressed pages (Bytes)
-   :column COMPRESS_OPS: Number of compression operations
-   :column COMPRESS_OPS_OK: Number of successful compression operations
-   :column COMPRESS_TIME: Time spent to compress pages (seconds)
-   :column UNCOMPRESS_OPS: Number of uncompression operations
-   :column UNCOMPRESS_TIME: Time spent to uncompress pages (seconds)
-
-Compressed pages in |InnoDB| buffer pool
-========================================
-
-These tables hold information on compressed pages stored in memory in the buffer pool. Their contents is identical, but any read from INNODB_CMPMEM_RESET will reset all statistics on relocation operations.
-
-These tables were introduced by the |InnoDB| plugin and you can find the full documentation here.
-
-
-.. table:: INFORMATION_SCHEMA.INNODB_CMPMEM
-
-   :column PAGE_SIZE: Page size for compressed pages (Bytes)
-   :column PAGES_USED: Number of pages in use
-   :column PAGES_FREE: Number of free pages
-   :column RELOCATION_OPS: Number of relocation operations
-   :column RELOCATION_TIME: Time spent to relocate pages (Microseconds)
-
-.. table:: INFORMATION_SCHEMA.INNODB_CMPMEM_RESET
-
-   :column PAGE_SIZE: Page size for compressed pages (Bytes)
-   :column PAGES_USED: Number of pages in use
-   :column PAGES_FREE: Number of free pages
-   :column RELOCATION_OPS: Number of relocation operations
-   :column RELOCATION_TIME: Time spent to relocate pages (Microseconds)
-
 |InnoDB| transactions
 =====================
 

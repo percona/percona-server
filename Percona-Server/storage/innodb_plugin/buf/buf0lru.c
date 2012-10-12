@@ -2167,12 +2167,6 @@ buf_LRU_file_dump(void)
 			goto end;
 		}
 
-		/* prefill with 0xFF so any unused page entries will
-		   stop the reloading process */
-		if (offset == 0) {
-			memset(buffer, 0xFF, UNIV_PAGE_SIZE);
-		}
-
 		mach_write_to_4(buffer + offset * 4, bpage->space);
 		offset++;
 		mach_write_to_4(buffer + offset * 4, bpage->offset);
@@ -2215,7 +2209,7 @@ buf_LRU_file_dump(void)
 				mutex_exit(next_block_mutex);
 			}
 			if (!success) {
-				mutex_enter(&LRU_list_mutex);
+				mutex_exit(&LRU_list_mutex);
 				fprintf(stderr,
 					" InnoDB: cannot write page"
 					" %lu of %s\n",
@@ -2230,11 +2224,6 @@ buf_LRU_file_dump(void)
 		}
 	} /* while(bpage ...) */
 	mutex_exit(&LRU_list_mutex);
-
-	/* if offset > 0 means that there are some unwritten leftovers */
-	if (offset == 0) {
-		memset(buffer, 0xFF, UNIV_PAGE_SIZE);
-	}
 
 	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
 	offset++;

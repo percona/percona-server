@@ -20,7 +20,7 @@ Bug Fixes
 
   * Fixed server assertion error related to buffer pool, only visible in debug builds. Bug fixed :bug:`905334` (*Stewart Smith*).
 
-  * Fix for bug :bug:`978036` introduced the :variable:`innodb_sys_stats_root_page` option, rendering the previously-existing innodb_sys_stats option its prefix. As such, it became unsettable from command line. Fixed by renaming :variable:`innodb_sys_stats_root_page` to :variable:`innodb_persistent_stats_root_page`. Bug fixed :bug:`1013644` (*Laurynas Biveinis*).
+  * Fix for bug :bug:`978036` introduced the :variable:`innodb_sys_stats_root_page` debugging option (only present in debug builds), rendering the previously-existing innodb_sys_stats option its prefix. As such, it became unsettable from command line. Fixed by renaming :variable:`innodb_sys_stats_root_page` to :variable:`innodb_persistent_stats_root_page`. Bug fixed :bug:`1013644` (*Laurynas Biveinis*).
 
   * Multiple adaptive hash index partitions would cause overly large hash index. Fixed by changing the way partition sizes are calculated initially. Bug fixed :bug:`1018264` (*George Ormond Lorch III*).
 
@@ -34,7 +34,7 @@ Bug Fixes
 
   * The binlog shouldn't be rotated while it contains XA transactions in the PREPARED state. Bug fixed :bug:`1036040` (*Stewart Smith*).
 
-  * Flashcache support resulted in confusing messages in the error log on |Percona Server| startup even when flashcache was not used. This was fixed by adding new variable :variable:`have_flashcache`. When set to 0 (default), flashcache checks are disabled and when set to 0 checks are enabled. Bug fixed :bug:`747032` (*Sergei Glushchenko*).
+  * Flashcache support resulted in confusing messages in the error log on |Percona Server| startup even when flashcache was not used. This was fixed by adding new boolean option :variable:`flashcache`. When set to 0 (default), flashcache checks are disabled and when set to 1 checks are enabled. Error message has been made more verbose including error number and system error message as well. Bug fixed :bug:`747032` (*Sergei Glushchenko*).
 
   * Custom server builds would crash when compiled with a non-default maximum number of indexes per table. Upstream MySQL bugs: `#54127 <http://bugs.mysql.com/bug.php?id=54127>`_, `#61178 <http://bugs.mysql.com/bug.php?id=61178>`_, `#61179 <http://bugs.mysql.com/bug.php?id=61179>`_ and `#61180 <http://bugs.mysql.com/bug.php?id=61180>`_. Bug fixed :bug:`1042517` (*Sergei Glushchenko*).
 

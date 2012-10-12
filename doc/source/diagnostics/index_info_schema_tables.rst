@@ -8,14 +8,6 @@ This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Serve
 
   * :table:`GLOBAL_TEMPORARY_TABLES`
 
-  * :table:`INNODB_CMP`
-
-  * :table:`INNODB_CMP_RESET`
-
-  * :table:`INNODB_CMPMEM`
-
-  * :table:`INNODB_CMPMEM_RESET`
-
   * :table:`INNODB_INDEX_STATS`
 
   * :table:`INNODB_LOCK_WAITS`

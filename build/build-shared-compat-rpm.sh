@@ -140,7 +140,7 @@ fi
     cd "$WORKDIR"
 
     # Issue RPM command
-    eval rpmbuild $SIGN -ba --clean --with yassl $TARGET_LIBDIR $TARGET_ARCH \
+    eval rpmbuild $SIGN -ba --clean $TARGET_LIBDIR $TARGET_ARCH \
         "$SOURCEDIR/build/percona-shared-compat.spec" \
         --define "_topdir\ $WORKDIR_ABS" \
         --define "redhat_version\ $REDHAT_RELEASE" \

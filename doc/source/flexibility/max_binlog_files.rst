@@ -4,9 +4,7 @@
  Restricting the number of binlog files
 ========================================
 
-Maximum number of binlog files can now be restricted in |Percona Server| with :variable:`max_binlog_files`. This means maximum disk usage of binlogs can be set rather than time. 
-This option can be combined with already existing :variable:`expire_logs_days` as they are both taken into the account when rotating the binlog. For example if :variable:`expire_logs_days` is set to 10 days and :variable:`max_binlog_files` to 1GB, if binlog reaches 1GB it will be rotated, or if it hasn't been rotated for 10 days it will be rotated.
-
+Maximum number of binlog files can now be restricted in |Percona Server| with :variable:`max_binlog_files`. When variable :variable:`max_binlog_files` is set to non-zero value, sever will remove the oldest binlog file(s) whenever their number exceeds the value of the variable. This variable can be used with the existing :variable:`max-binlog-size` variable to limit the disk usage of the binlog files.
 
 Version Specific Information
 ============================
@@ -25,6 +23,22 @@ System Variables
      :scope: Global
      :dyn: No
      :vartype: ULONG
-     :default: 0
+     :default: 0 (unlimited)
      :range: 0-102400
+
+Example
+=======
+Number of the binlog files before setting this variable :: 
+
+  $ ls -l mysql-bin.0* | wc -l
+  26
+
+Variable :variable:`max_binlog_files` is set to 20: ::
+
+  max_binlog_files = 20
+
+After server restart the number of binlog files is now 20 :: 
+
+  $ls -l mysql-bin.0* | wc -l
+  20
 

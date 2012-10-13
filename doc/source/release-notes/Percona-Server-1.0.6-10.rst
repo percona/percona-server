@@ -4,7 +4,7 @@
 |Percona Server| 1.0.6-10
 =========================
 
-Released on April 13, 2010
+Percona is glad to announce the release of |Percona Server| on April 13th, 2010.
 
     * |MySQL| 5.1.45 as a basis for the release
 

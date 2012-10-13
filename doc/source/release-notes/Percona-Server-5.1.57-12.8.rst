@@ -4,7 +4,7 @@
  |Percona Server| 5.1.57-12.8
 ==============================
 
-Released on June 8, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.57-12.8/>`_ and from the Percona Software Repositories]]. 
+Percona is glad to announce the release of |Percona Server| 5.1.57-12.8 on June 8th, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.57-12.8/>`_ and from the `Percona Software Repositories <http://www.percona.com/doc/percona-server/5.1/installation.html>`_). 
 
 |Percona Server| 5.1.57-12.8 is now the current stable release in the 5.1 series. It is is based on |MySQL| 5.1.57. 
 

@@ -4,6 +4,8 @@
 |Percona Server| 5.1.47-rel11.1
 ===============================
 
+Percona is glad to announce the release of |Percona Server| 5.1.47-rel11.1 on June 25th, 2010 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.47-11.1/>`_ and from the `Percona Software Repositories <http://www.percona.com/doc/percona-server/5.1/installation.html>`_).
+
 New features
 =============
 

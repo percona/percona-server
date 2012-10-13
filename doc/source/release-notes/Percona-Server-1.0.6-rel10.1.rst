@@ -1,8 +1,13 @@
-.. rn:: 1.0.6-rel10.2
+.. rn:: 1.0.6-rel10.1
 
 ==============================
-|Percona Server| 1.0.6-rel10.2
+|Percona Server| 1.0.6-rel10.1
 ==============================
+
+Percona is glad to announce the release of |Percona Server| 1.0.6-rel10.1 on May 25th, 2010.
+
+New Features:
+=============
 
   * Variable ``innodb_trx_id`` is added to slow log statistics
 

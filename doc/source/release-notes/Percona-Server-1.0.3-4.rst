@@ -6,7 +6,7 @@
 
 **UPDATE April 27, 2009:** Unfortunately we found significant issues in this release, please use or upgrade to 1.0.3-5
 
-Released on April 8, 2009.
+Percona is glad to announce the release of |Percona Server| 1.0.3-4 on April 8th, 2009.
 
   * move to `MySQL 5.1.33 <http://dev.mysql.com/doc/refman/5.1/en/news-5-1-33.html>`_.
 

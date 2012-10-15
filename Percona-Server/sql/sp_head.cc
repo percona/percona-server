@@ -3099,6 +3099,8 @@ int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   int res;
+  QUERY_START_TIME_INFO time_info;
+
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
@@ -3107,6 +3109,19 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
 #endif
+
+  memset(&time_info, 0, sizeof(time_info));
+
+  if (thd->enable_slow_log)
+  {
+    /*
+      Save start time info for the CALL statement and overwrite it with the
+      current time for log_slow_statement() to log the individual query timing.
+    */
+    thd->get_time(&time_info);
+    thd->set_time();
+  }
+
   if (!(res= alloc_query(thd, m_query.str, m_query.length)) &&
       !(res=subst_spvars(thd, this, &m_query)))
   {
@@ -3143,6 +3158,11 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     if (!thd->is_error())
       thd->stmt_da->reset_diagnostics_area();
   }
+
+  /* Restore the original query start time */
+  if (thd->enable_slow_log)
+    thd->set_time(&time_info);
+
   DBUG_RETURN(res || thd->is_error());
 }
 

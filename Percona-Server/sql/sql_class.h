@@ -1497,6 +1497,12 @@ private:
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
+typedef struct
+{
+  time_t start_time;
+  ulonglong start_utime;
+} QUERY_START_TIME_INFO;
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -2492,6 +2498,16 @@ public:
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
+  }
+  void get_time(QUERY_START_TIME_INFO *time_info)
+  {
+    time_info->start_time= start_time;
+    time_info->start_utime= start_utime;
+  }
+  void set_time(QUERY_START_TIME_INFO *time_info)
+  {
+    start_time= time_info->start_time;
+    start_utime= time_info->start_utime;
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 

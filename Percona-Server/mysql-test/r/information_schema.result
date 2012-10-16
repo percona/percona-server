@@ -86,9 +86,9 @@ TEMPORARY_TABLES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
+XTRADB_INTERNAL_HASH_TABLES
 XTRADB_RSEG
 XTRADB_READ_VIEW
-XTRADB_INTERNAL_HASH_TABLES
 columns_priv
 db
 event
@@ -98,7 +98,6 @@ help_category
 help_keyword
 help_relation
 help_topic
-host
 plugin
 proc
 procs_priv
@@ -477,7 +476,11 @@ drop table t1;
 create table t1 (a int null, primary key(a));
 alter table t1 add constraint constraint_1 unique (a);
 alter table t1 add constraint unique key_1(a);
+Warnings:
+Note	1831	Duplicate index 'key_1' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 alter table t1 add constraint constraint_2 unique key_2(a);
+Warnings:
+Note	1831	Duplicate index 'key_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -897,8 +900,10 @@ TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 TEMPORARY_TABLES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
-INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
+INNODB_CMP_PER_INDEX	table_name	select
 INNODB_BUFFER_PAGE	TABLE_NAME	select
+INNODB_CMP_PER_INDEX_RESET	table_name	select
+INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -908,7 +913,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	36
-mysql	26
+mysql	25
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin

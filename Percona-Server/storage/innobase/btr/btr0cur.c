@@ -1572,6 +1572,9 @@ btr_cur_pessimistic_insert(
 	}
 
 	if (!(flags & BTR_NO_UNDO_LOG_FLAG)) {
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
+
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the insert will not fail because
 		of lack of space */
@@ -1866,7 +1869,8 @@ btr_cur_update_alloc_zip(
 	ulint		length,	/*!< in: size needed */
 	ibool		create,	/*!< in: TRUE=delete-and-insert,
 				FALSE=update-in-place */
-	mtr_t*		mtr)	/*!< in: mini-transaction */
+	mtr_t*		mtr,	/*!< in: mini-transaction */
+	trx_t*		trx)	/*!< in: NULL or transaction */
 {
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
@@ -1881,6 +1885,14 @@ btr_cur_update_alloc_zip(
 		/* The page has been freshly compressed, so
 		recompressing it will not help. */
 		return(FALSE);
+	}
+
+	if (trx && trx->fake_changes) {
+	    /* Don't call page_zip_compress_write_log_no_data as that has
+	    assert which would fail. Assume there won't be a compression
+	    failure. */
+
+	    return TRUE;
 	}
 
 	if (!page_zip_compress(page_zip, buf_block_get_frame(block),
@@ -1966,7 +1978,8 @@ btr_cur_update_in_place(
 	/* Check that enough space is available on the compressed page. */
 	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 rec_offs_size(offsets), FALSE, mtr)) {
+					 rec_offs_size(offsets), FALSE, mtr,
+					 trx)) {
 		return(DB_ZIP_OVERFLOW);
 	}
 
@@ -2165,7 +2178,8 @@ any_extern:
 
 	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 new_rec_size, TRUE, mtr)) {
+					 new_rec_size, TRUE, mtr,
+					 thr_get_trx(thr))) {
 		err = DB_ZIP_OVERFLOW;
 		goto err_exit;
 	}
@@ -2404,7 +2418,15 @@ btr_cur_pessimistic_update(
 		of the index tree, so that the update will not fail because
 		of lack of space */
 
-		n_extents = cursor->tree_height / 16 + 3;
+		if (UNIV_UNLIKELY(cursor->tree_height == ULINT_UNDEFINED)) {
+			/* When the tree height is uninitialized due to fake
+			changes, reserve some hardcoded number of extents.  */
+			ut_a(thr && thr_get_trx(thr)->fake_changes);
+			n_extents = 3;
+		}
+		else {
+			n_extents = cursor->tree_height / 16 + 3;
+		}
 
 		if (flags & BTR_NO_UNDO_LOG_FLAG) {
 			reserve_flag = FSP_CLEANING;
@@ -2441,7 +2463,7 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -3204,6 +3226,8 @@ btr_cur_pessimistic_delete(
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the node pointer updates will
 		not fail because of lack of space */
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
 
 		n_extents = cursor->tree_height / 32 + 1;
 

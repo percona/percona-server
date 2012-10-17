@@ -5921,7 +5921,9 @@ no_commit:
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
 #ifdef EXTENDED_FOR_USERSTAT
-	if (error == DB_SUCCESS) rows_changed++;
+	if (UNIV_LIKELY(error == DB_SUCCESS && !trx->fake_changes)) {
+		rows_changed++;
+	}
 #endif
 
 	/* Handle duplicate key errors */
@@ -6285,7 +6287,9 @@ ha_innobase::update_row(
 	}
 
 #ifdef EXTENDED_FOR_USERSTAT
-	if (error == DB_SUCCESS) rows_changed++;
+	if (UNIV_LIKELY(error == DB_SUCCESS && !trx->fake_changes)) {
+		rows_changed++;
+	}
 #endif
 
 	innodb_srv_conc_exit_innodb(trx);
@@ -6350,7 +6354,9 @@ ha_innobase::delete_row(
 	error = row_update_for_mysql((byte*) record, prebuilt);
 
 #ifdef EXTENDED_FOR_USERSTAT
-	if (error == DB_SUCCESS) rows_changed++;
+	if (UNIV_LIKELY(error == DB_SUCCESS && !trx->fake_changes)) {
+		rows_changed++;
+	}
 #endif
 
 	innodb_srv_conc_exit_innodb(trx);

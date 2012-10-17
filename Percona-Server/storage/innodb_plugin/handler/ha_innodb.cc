@@ -5367,7 +5367,9 @@ no_commit:
 	error = row_insert_for_mysql((byte*) record, prebuilt);
 
 #ifdef EXTENDED_FOR_USERSTAT
-	if (error == DB_SUCCESS) rows_changed++;
+	if (UNIV_LIKELY(error == DB_SUCCESS && !trx->fake_changes)) {
+		rows_changed++;
+	}
 #endif
 
 	/* Handle duplicate key errors */
@@ -5714,7 +5716,9 @@ ha_innobase::update_row(
 	}
 
 #ifdef EXTENDED_FOR_USERSTAT
-	if (error == DB_SUCCESS) rows_changed++;
+	if (UNIV_LIKELY(error == DB_SUCCESS && !trx->fake_changes)) {
+		rows_changed++;
+	}
 #endif
 
 	innodb_srv_conc_exit_innodb(trx);
@@ -5779,7 +5783,9 @@ ha_innobase::delete_row(
 	error = row_update_for_mysql((byte*) record, prebuilt);
 
 #ifdef EXTENDED_FOR_USERSTAT
-	if (error == DB_SUCCESS) rows_changed++;
+	if (UNIV_LIKELY(error == DB_SUCCESS && !trx->fake_changes)) {
+		rows_changed++;
+	}
 #endif
 
 	innodb_srv_conc_exit_innodb(trx);
@@ -12138,6 +12144,13 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   NULL, NULL, 0, 0, 1024, 0);
 #endif /* UNIV_DEBUG */
 
+static MYSQL_SYSVAR_BOOL(locking_fake_changes, srv_fake_changes_locks,
+  PLUGIN_VAR_NOCMDARG,
+  "###EXPERIMENTAL### if enabled, transactions will get S row locks instead "
+  "of X locks for fake changes.  If disabled, fake change transactions will "
+  "not take any locks at all.",
+  NULL, NULL, TRUE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_block_size),
@@ -12239,6 +12252,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(pass_corrupt_table),
   MYSQL_SYSVAR(lazy_drop_table),
   MYSQL_SYSVAR(fake_changes),
+  MYSQL_SYSVAR(locking_fake_changes),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
 #endif /* UNIV_DEBUG */

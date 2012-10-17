@@ -1,0 +1,30 @@
+--source include/have_innodb.inc
+
+SET @@GLOBAL.userstat=ON;
+SET @@GLOBAL.innodb_stats_transient_sample_pages=30000;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data TEXT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(1, '');
+INSERT INTO t1 VALUES(2, '');
+INSERT INTO t1 VALUES(3, '');
+INSERT INTO t1 VALUES(4, '');
+
+DELETE FROM t1 WHERE id = 4;
+
+--let $fake_changes_table=t1
+--source include/start_fake_changes.inc
+
+--error ER_ERROR_DURING_COMMIT
+INSERT INTO t1 VALUES (4, LPAD('a', 12000, 'b'));
+
+--source include/stop_fake_changes.inc
+
+DROP TABLE t1;
+
+SET @@GLOBAL.userstat=default;
+SET @@GLOBAL.innodb_stats_transient_sample_pages=default;

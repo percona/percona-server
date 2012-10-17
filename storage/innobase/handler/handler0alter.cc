@@ -2601,6 +2601,12 @@ prepare_inplace_alter_table_dict(
 	the data dictionary tables. */
 	ctx->trx = innobase_trx_allocate(ctx->prebuilt->trx->mysql_thd);
 
+	if (UNIV_UNLIKELY(ctx->trx->fake_changes)) {
+		trx_rollback_to_savepoint(ctx->trx, NULL);
+		trx_free_for_mysql(ctx->trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
 	/* Create table containing all indexes to be built in this
@@ -3316,6 +3322,10 @@ ha_innobase::prepare_inplace_alter_table(
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 	DBUG_ASSERT(ha_alter_info->create_info);
 	DBUG_ASSERT(!srv_read_only_mode);
+
+	if (UNIV_UNLIKELY(prebuilt->trx->fake_changes)) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
 
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
@@ -5018,6 +5028,8 @@ commit_cache_rebuild(
 	error = dict_table_rename_in_cache(
 		ctx->old_table, ctx->tmp_name, FALSE);
 	ut_a(error == DB_SUCCESS);
+
+	DEBUG_SYNC_C("commit_cache_rebuild_middle");
 
 	error = dict_table_rename_in_cache(
 		ctx->new_table, old_name, FALSE);

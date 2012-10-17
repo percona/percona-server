@@ -22,6 +22,7 @@ VARIABLE_VALUE
 OFF
 # Explicit COMMIT should fail when innodb_fake_changes is enabled
 # DML should be fine
+SET @@GLOBAL.userstat_running= TRUE;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 SET autocommit=0;
@@ -42,9 +43,21 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 should_be_1
 1
+should_be_0
+0
+should_be_0
+0
+should_be_0
+0
+should_be_0
+0
+should_be_0
+0
+should_be_0
+0
 DROP TABLE t1;
 # DDL must result in error
-CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 SET autocommit=0;
 SET innodb_fake_changes=1;
 BEGIN;
@@ -58,6 +71,32 @@ ALTER TABLE t1 ENGINE=MyISAM;
 ERROR HY000: Got error 131 during COMMIT
 ROLLBACK;
 SET innodb_fake_changes=0;
+INSERT INTO t1 VALUES (1), (2);
+COMMIT;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT, INDEX b_ind (b),
+FOREIGN KEY (b) REFERENCES t1(a) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+COMMIT;
+SET innodb_fake_changes=1;
+DELETE FROM t1 WHERE a=1;
+UPDATE t1 SET a=3 WHERE a=2;
+COMMIT;
+ERROR HY000: Got error 131 during COMMIT
+should_be_1
+1
+should_be_0
+0
+should_be_0
+0
+should_be_0
+0
+should_be_0
+0
+should_be_0
+0
+SET innodb_fake_changes=0;
+DROP TABLE t2;
 CREATE TABLE t3 (a INT primary key, b text) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (1,'');
 COMMIT;
@@ -73,3 +112,4 @@ test.t3	check	status	OK
 should_be_1
 1
 DROP TABLE t1, t3;
+SET @@GLOBAL.userstat_running= default;

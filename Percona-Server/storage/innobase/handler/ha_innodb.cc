@@ -1050,6 +1050,13 @@ thd_to_trx(
 	return(*(trx_t**) thd_ha_data(thd, innodb_hton_ptr));
 }
 
+my_bool
+ha_innobase::is_fake_change_enabled(THD* thd)
+{
+	trx_t*	trx	= thd_to_trx(thd);
+	return(trx && trx->fake_changes);
+}
+
 /********************************************************************//**
 Call this function when mysqld passes control to the client. That is to
 avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
@@ -12868,6 +12875,13 @@ static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
   "e.g. for http://bugs.mysql.com/51325",
   NULL, NULL, 0, 0, 1, 0);
 
+static MYSQL_SYSVAR_BOOL(locking_fake_changes, srv_fake_changes_locks,
+  PLUGIN_VAR_NOCMDARG,
+  "###EXPERIMENTAL### if enabled, transactions will get S row locks instead "
+  "of X locks for fake changes.  If disabled, fake change transactions will "
+  "not take any locks at all.",
+  NULL, NULL, TRUE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_block_size),
@@ -12976,6 +12990,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(corrupt_table_action),
   MYSQL_SYSVAR(lazy_drop_table),
   MYSQL_SYSVAR(fake_changes),
+  MYSQL_SYSVAR(locking_fake_changes),
   MYSQL_SYSVAR(merge_sort_block_size),
   NULL
 };

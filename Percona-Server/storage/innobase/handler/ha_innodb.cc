@@ -13019,7 +13019,10 @@ i_s_innodb_buffer_pool_pages,
 i_s_innodb_buffer_pool_pages_index,
 i_s_innodb_buffer_pool_pages_blob,
 i_s_innodb_admin_command,
-i_s_innodb_changed_pages
+i_s_innodb_changed_pages,
+i_s_innodb_buffer_page,
+i_s_innodb_buffer_page_lru,
+i_s_innodb_buffer_stats
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

@@ -1105,7 +1105,7 @@ buf_chunk_init(
 				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
 
 	chunk->mem_size = mem_size;
-	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
+	chunk->mem = os_mem_alloc_large(&chunk->mem_size, FALSE);
 
 	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 

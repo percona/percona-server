@@ -21,7 +21,7 @@
 We provide these benefits by significantly enhancing |Percona Server| as compared to the standard |MySQL| database server:
 
 +---------------------------------------+----------------------+--------------+
-|Features                               |Percona Server 5.5.20 |MySQL 5.5.20  |
+|Features                               |Percona Server 5.5.27 |MySQL 5.5.27  |
 +=======================================+======================+==============+
 |Open source                            | Yes                  | Yes          |      
 +---------------------------------------+----------------------+--------------+
@@ -47,7 +47,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Extra Features for Developers          |Percona Server 5.5.20 |MySQL 5.5.20  |
+|Extra Features for Developers          |Percona Server 5.5.27 |MySQL 5.5.27  |
 +=======================================+======================+==============+
 |NoSQL Socket-Level Interface           | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
@@ -55,7 +55,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Extra Diagnostic Features              |Percona Server 5.5.20 |MySQL 5.5.20  |
+|Extra Diagnostic Features              |Percona Server 5.5.27 |MySQL 5.5.27  |
 +=======================================+======================+==============+
 |INFORMATION_SCHEMA Tables              | 60                   | 37           |
 +---------------------------------------+----------------------+--------------+
@@ -81,13 +81,15 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 |Access to InnoDB Data Statistics       | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
-|Enhanced SHOW INNODB STATUS            | Yes                  |              |
+|Enhanced SHOW ENGINE INNODB STATUS     | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
 |Enhanced Mutex Diagnostics             | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
+|Undo Segment Information               | Yes                  |              |
++---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Durability and Reliability Enhancements|Percona Server 5.5.20 |MySQL 5.5.20  |
+|Durability and Reliability Enhancements|Percona Server 5.5.27 |MySQL 5.5.27  |
 +=======================================+======================+==============+
 |Transactional Replication State        | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
@@ -95,7 +97,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Performance & Scalability Enhancements |Percona Server 5.5.20 |MySQL 5.5.20  |
+|Performance & Scalability Enhancements |Percona Server 5.5.27 |MySQL 5.5.27  |
 +=======================================+======================+==============+
 |Support for Multiple I/O Threads       | Yes                  | Yes          |
 +---------------------------------------+----------------------+--------------+
@@ -127,7 +129,7 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 
 +---------------------------------------+----------------------+--------------+
-|Extra Features for DBA/Operations Staff|Percona Server 5.5.20 |MySQL 5.5.20  |
+|Extra Features for DBA/Operations Staff|Percona Server 5.5.27 |MySQL 5.5.27  |
 +=======================================+======================+==============+
 |Configurable Page Sizes                | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
@@ -143,9 +145,20 @@ We provide these benefits by significantly enhancing |Percona Server| as compare
 +---------------------------------------+----------------------+--------------+
 |Configurable Fast Index Creation       | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
-|Fast Index Renaming                    | Yes                  |              |
-+---------------------------------------+----------------------+--------------+
 |Support for Fake Changes               | Yes                  |              |
 +---------------------------------------+----------------------+--------------+
+|Changed Page Tracking                  | Yes                  |              |
++---------------------------------------+----------------------+--------------+
 
++---------------------------------------+----------------------+--------------+
+|Running Database as a Service          |Percona Server 5.5.27 |MySQL 5.5.27  |
++=======================================+======================+==============+
+|Special Utility User                   | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Expanded Program Option Modifiers      | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Extended ``secure-file-priv`` option   | Yes                  |              |
++---------------------------------------+----------------------+--------------+
+|Enforcing the Specific Storage Engine  | Yes                  |              |
++---------------------------------------+----------------------+--------------+
 

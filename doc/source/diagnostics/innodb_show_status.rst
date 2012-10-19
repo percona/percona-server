@@ -1,8 +1,8 @@
 .. _innodb_show_status:
 
-======================
- Show |InnoDB| Status
-======================
+======================================
+ Extended Show Engine |InnoDB| Status
+======================================
 
 This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for a better readability and prints the amount of memory used by the internal hash tables. In addition, new variables are available to control the output.
 
@@ -408,6 +408,23 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
+
+OLDEST VIEW
+-----------
+
+This part contains the information about the oldest active transaction in the system. An example of that output is: ::
+
+  ---OLDEST VIEW---
+  Normal read view
+  Read view low limit trx n:o 3300
+  Read view up limit trx id 3300
+  Read view low limit trx id 3300
+  Read view individually stored trx ids:
+
+
+* ``Read view low limit trx n:o`` and ``Read view up limit trx id`` are the highest transactions IDs at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.
+* ``Read view low limit trx id`` is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.
+* ``Read view individually stored trx ids`` contains the list of active transactions at the time the view was created.
 
 TRANSACTIONS
 ------------

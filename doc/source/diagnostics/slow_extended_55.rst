@@ -111,7 +111,7 @@ For example, if you set the value to 100, then one percent of ``sessions/queries
      :cli: Yes
      :conf: Yes
      :scope: Global, session
-     :dyn: Yes (in 5.1 releases only)
+     :dyn: Yes
 
 Specifies that queries replayed by the slave SQL thread on a |MySQL| slave will be logged. The standard |MySQL| server will not log any queries executed by the slave's SQL thread.
 

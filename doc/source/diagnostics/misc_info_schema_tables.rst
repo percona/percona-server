@@ -88,15 +88,20 @@ This table holds information on the temporary tables existing for the running co
 InnoDB Undo Logs
 ================
 
-This table holds the undo segment information. 
+The purpose of this table is to report on the existence and usage of the internal undo log records. These undo records are stored in standard |InnoDB| pages and are used in a few ways but their main purpose is that currently executing but uncommitted user transactions can be rolled back after either a crash, fast shutdown or other recovery purpose. Each record within the table identifies an |InnoDB| undo segment and will refer to other INFORMATION_SCHEMA tables such as INNODB_TRX and INODB_RSEG. This table can be used to help troubleshoot large system tablespaces and identify run-away or long running transactions.
 
 .. table:: INFORMATION_SCHEMA.INNODB_UNDO_LOGS
 
-   :column trx_id: Transaction ID
-   :column rseg_id: Rollback segment ID
+   :column trx_id: Transaction ID - this is the id of the transaction that has currently allocated the undo segment and will potentially place undo records within it. More information on this transaction can be found by matching the trx_id with that in the INFORMATION_SCHEMA.INNODB_TRX table.
+   :column rseg_id: Rollback segment ID associated with this particular undo segment. More info on this rollback segment can be found by matching the rseg_id with that in the INFORMATION_SCHEMA.INNODB_RSEG.
    :column useg_id: Undo segment ID
-   :column type: Segment type
-   :column state: Segment state
-   :column size: Segment size
+   :column type: Segment type - identifies what type of operation the segments is allocated for.
+   :column state: Segment state 
+   :column size: Segment size in pages
    
-Each row represents an individual undo segment and contains information about which rollback segment the undo segment is currently owned by, which transaction is currently using the undo segment, and other size and type information for the undo segment. This information is 'live' and calculated for each query of the table.
+States of an undo log segment:
+ * ACTIVE - contains an undo log of an active transaction
+ * CACHED - cached for quick reuse
+ * TO_FREE - insert undo segment can be freed
+ * TO_PURGE - update undo segment will not be reused; it can be freed in purge when all undo data in it is removed
+ * PREPARED - contains an undo log of a prepared transaction

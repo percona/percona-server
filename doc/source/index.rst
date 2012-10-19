@@ -74,7 +74,6 @@ Performance Improvements
    performance/innodb_doublewrite_path
    performance/query_cache_enhance
    performance/innodb_fast_checksum
-   performance/remove_fcntl_excessive_calls
    performance/innodb_opt_lru_count
    performance/innodb_thread_concurrency_timer_based
    performance/handlersocket
@@ -154,6 +153,7 @@ Obsolete and Removed Features
    :glob:
 
    scalability/innodb_extra_rseg
+   performance/remove_fcntl_excessive_calls
 
 Reference
 =========

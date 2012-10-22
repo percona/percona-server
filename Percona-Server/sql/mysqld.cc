@@ -622,6 +622,21 @@ I_List<THD> threads;
 Rpl_filter* rpl_filter;
 Rpl_filter* binlog_filter;
 
+THD *first_global_thread()
+{
+  if (threads.is_empty())
+    return NULL;
+  return threads.head();
+}
+
+THD *next_global_thread(THD *thd)
+{
+  if (threads.is_last(thd))
+    return NULL;
+  struct ilink *next= thd->next;
+  return static_cast<THD*>(next);
+}
+
 struct system_variables global_system_variables;
 struct system_variables max_system_variables;
 struct system_status_var global_status_var;
@@ -6904,7 +6919,7 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)

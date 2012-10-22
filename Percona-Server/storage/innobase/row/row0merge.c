@@ -2734,7 +2734,7 @@ row_merge_build_indexes(
 
 	merge_files = mem_alloc(n_indexes * sizeof *merge_files);
 	block_size = 3 * merge_sort_block_size;
-	block_mem = os_mem_alloc_large(&block_size);
+	block_mem = os_mem_alloc_large(&block_size, FALSE);
 
 	for (i = 0; i < UT_ARR_SIZE(block); i++) {
 		block[i] = (row_merge_block_t ) ((byte *) block_mem +

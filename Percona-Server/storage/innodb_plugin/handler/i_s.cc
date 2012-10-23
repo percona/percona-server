@@ -5012,6 +5012,7 @@ i_s_innodb_fill_buffer_pool(
 		ulint			chunk_size;
 		ulint			num_to_process = 0;
 		ulint			block_id = 0;
+		mutex_t*		block_mutex;
 
 		/* Get buffer block of the nth chunk */
 		block = buf_get_nth_chunk_block(buf_pool, n, &chunk_size);
@@ -5039,9 +5040,11 @@ i_s_innodb_fill_buffer_pool(
 
 			/* GO through each block in the chunk */
 			for (n_blocks = num_to_process; n_blocks--; block++) {
+				block_mutex = buf_page_get_mutex_enter(&block->page);
 				i_s_innodb_buffer_page_get_info(
 					&block->page, block_id,
 					info_buffer + num_page);
+				mutex_exit(block_mutex);
 				block_id++;
 				num_page++;
 			}
@@ -5536,12 +5539,13 @@ i_s_innodb_fill_buffer_lru(
 	ulint			lru_pos = 0;
 	const buf_page_t*	bpage;
 	ulint			lru_len;
+	mutex_t*		block_mutex;
 
 	DBUG_ENTER("i_s_innodb_fill_buffer_lru");
 
 	/* Obtain buf_pool mutex before allocate info_buffer, since
 	UT_LIST_GET_LEN(buf_pool->LRU) could change */
-	buf_pool_mutex_enter();
+	mutex_enter(&LRU_list_mutex);
 
 	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
@@ -5561,12 +5565,14 @@ i_s_innodb_fill_buffer_lru(
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (bpage != NULL) {
+		block_mutex = buf_page_get_mutex_enter(bpage);
 		/* Use the same function that collect buffer info for
 		INNODB_BUFFER_PAGE to get buffer page info */
 		i_s_innodb_buffer_page_get_info(bpage, lru_pos,
 						(info_buffer + lru_pos));
 
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
+		mutex_exit(block_mutex);
 
 		lru_pos++;
 	}
@@ -5575,7 +5581,7 @@ i_s_innodb_fill_buffer_lru(
 	ut_ad(lru_pos == UT_LIST_GET_LEN(buf_pool->LRU));
 
 exit:
-	buf_pool_mutex_exit();
+	mutex_exit(&LRU_list_mutex);
 
 	if (info_buffer) {
 		status = i_s_innodb_buf_page_lru_fill(

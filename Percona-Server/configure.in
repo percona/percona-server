@@ -2934,6 +2934,9 @@ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > st
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
 
+# Automake 1.12 generates sql_yacc.hh instead of sql_yacc.h
+AM_CONDITIONAL(HAVE_AM_YACC_C2H, grep -q am__yacc_c2h $srcdir/sql/Makefile.in)
+
 AC_OUTPUT
 
 # Add warning if user configures with --with-ndbcluster

@@ -4,7 +4,7 @@
 |Percona Server| 1.0.3-6
 ========================
 
-Released on July 20, 2009.
+Percona is glad to announce the release of |Percona Server| 1.0.3-6 on July 20th, 2009.
 
 The release includes following new features:
 

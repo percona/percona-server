@@ -4,7 +4,7 @@
 |Percona Server| 5.1.54-12.5
 ============================
 
-Released on January 11, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.54-12.5/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_.)
+Percona is glad to announce the release of |Percona Server| 5.1.54-12.5 on January 11, 2011 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.54-12.5/>`_ and from the `Percona Software Repositories <http://percona.com/doc/percona-server/5.1/installation.html>`_).
 
 |Percona Server| 5.1.54-12.5 is now the current stable release version.
 

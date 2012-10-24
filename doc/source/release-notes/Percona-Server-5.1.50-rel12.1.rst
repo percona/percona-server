@@ -4,6 +4,7 @@
  |Percona Server| 5.1.50-rel12.1
 =================================
 
+Percona is glad to announce the release of |Percona Server| 5.1.50-rel12.1 on September 23rd, 2010 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.50-12.1/>`_ and from the `Percona Software Repositories <http://www.percona.com/doc/percona-server/5.1/installation.html>`_).
 
 Functionality Added or Changed
 ==============================

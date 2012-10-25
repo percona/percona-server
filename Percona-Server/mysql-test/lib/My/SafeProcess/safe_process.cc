@@ -152,11 +152,14 @@ int main(int argc, char* const argv[] )
   pid_t own_pid= getpid();
   pid_t parent_pid= getppid();
   bool nocore = false;
+  struct sigaction sigchld_action;
 
+  sigchld_action.sa_handler= handle_signal;
+  sigchld_action.sa_flags= SA_NOCLDSTOP;
   /* Install signal handlers */
   signal(SIGTERM, handle_signal);
   signal(SIGINT,  handle_signal);
-  signal(SIGCHLD, handle_signal);
+  sigaction(SIGCHLD, &sigchld_action, NULL);
   signal(SIGABRT, handle_abort);
 
   sprintf(safe_process_name, "safe_process[%ld]", (long) own_pid);

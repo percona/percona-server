@@ -125,8 +125,8 @@ Database: information_schema
 | INNODB_LOCK_WAITS                     |
 | INNODB_INDEX_STATS                    |
 | INNODB_CMP                            |
-| INNODB_SYS_FOREIGN_COLS               |
 | INNODB_CMP_RESET                      |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_BUFFER_POOL_PAGES              |
 | INNODB_TRX                            |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
@@ -135,12 +135,15 @@ Database: information_schema
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
 | INNODB_SYS_COLUMNS                    |
-| INNODB_CHANGED_PAGES                  |
+| INNODB_BUFFER_PAGE                    |
 | INNODB_SYS_STATS                      |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_INDEXES                    |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_TABLE_STATS                    |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_BUFFER_POOL_STATS              |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -192,8 +195,8 @@ Database: INFORMATION_SCHEMA
 | INNODB_LOCK_WAITS                     |
 | INNODB_INDEX_STATS                    |
 | INNODB_CMP                            |
-| INNODB_SYS_FOREIGN_COLS               |
 | INNODB_CMP_RESET                      |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_BUFFER_POOL_PAGES              |
 | INNODB_TRX                            |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
@@ -202,12 +205,15 @@ Database: INFORMATION_SCHEMA
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
 | INNODB_SYS_COLUMNS                    |
-| INNODB_CHANGED_PAGES                  |
+| INNODB_BUFFER_PAGE                    |
 | INNODB_SYS_STATS                      |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_INDEXES                    |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_TABLE_STATS                    |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_BUFFER_POOL_STATS              |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

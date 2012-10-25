@@ -210,6 +210,7 @@ protected:
 /** In case of an error, a message is printed to the error log. */
 static Query_log_table_intact log_table_intact;
 
+ulong max_binlog_files;
 
 /**
   Silence all errors and warnings reported when performing a write

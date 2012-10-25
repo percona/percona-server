@@ -4625,6 +4625,57 @@ err:
   DBUG_RETURN(error);
 }
 
+int MYSQL_BIN_LOG::purge_logs_maximum_number(ulong max_nr_files)
+{
+  int error;
+  char to_log[FN_REFLEN];
+  LOG_INFO log_info;
+  ulong current_number_of_logs= 1;
+
+  DBUG_ENTER("purge_logs_maximum_number");
+
+  mysql_mutex_lock(&LOCK_index);
+  to_log[0]= 0;
+
+  if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
+    goto err;
+
+  while (!find_next_log(&log_info, 0))
+    current_number_of_logs++;
+
+  if (current_number_of_logs <= max_nr_files)
+  {
+    error= 0;
+    goto err; /* No logs to expire */
+  }
+
+  if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
+    goto err;
+
+  while (strcmp(log_file_name, log_info.log_file_name) &&
+         !is_active(log_info.log_file_name) &&
+         !log_in_use(log_info.log_file_name) &&
+         current_number_of_logs > max_nr_files)
+  {
+    current_number_of_logs--;
+    strmake(to_log,
+            log_info.log_file_name,
+            sizeof(log_info.log_file_name) - 1);
+
+    if (find_next_log(&log_info, 0))
+    {
+      break;
+    }
+  }
+
+  error= (to_log[0] ? purge_logs(to_log, true, false, true,
+                                 (ulonglong *) 0, true) : 0);
+
+err:
+  mysql_mutex_unlock(&LOCK_index);
+  DBUG_RETURN(error);
+}
+
 /**
   Remove all logs before the given file date from disk and from the
   index file.

@@ -2479,6 +2479,7 @@ static void network_init(void)
     }
   }
 
+
 #ifdef _WIN32
   /* create named pipe */
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
@@ -5026,6 +5027,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     time_t purge_time= server_start_time - expire_logs_days*24*60*60;
     if (purge_time >= 0)
       mysql_bin_log.purge_logs_before_date(purge_time, true);
+  }
+  if (opt_bin_log && max_binlog_files)
+  {
+    mysql_bin_log.purge_logs_maximum_number(max_binlog_files);
   }
 #endif
 
@@ -9974,3 +9979,4 @@ void init_server_psi_keys(void)
 }
 
 #endif /* HAVE_PSI_INTERFACE */
+

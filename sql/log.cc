@@ -189,6 +189,8 @@ static General_log_table_intact glt_intact;
 
 LOGGER logger;
 
+ulong max_binlog_files;
+
 static bool test_if_number(const char *str,
 			   ulong *res, bool allow_wildcards);
 

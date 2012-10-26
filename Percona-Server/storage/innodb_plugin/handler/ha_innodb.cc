@@ -2534,11 +2534,11 @@ innobase_change_buffering_inited_ok:
 	srv_fast_checksum = (ibool) innobase_fast_checksum;
 
 	if (innobase_fast_checksum) {
-	  fprintf(stderr,
-		  "InnoDB: WARNING: innodb_fast_checksum is DEPRECATED and "
-		  "*WILL* be removed in Percona Server 5.6. Please consult "
-		  "the Percona Server 5.6 documentation for help in "
-		  "upgrading.\n");
+		fprintf(stderr,
+			"InnoDB: WARNING: innodb_fast_checksum is DEPRECATED "
+			"and *WILL* be removed in Percona Server 5.6. Please "
+			"consult the Percona Server 5.6 documentation for "
+			"help in upgrading.\n");
 	}
 
 	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;

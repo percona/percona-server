@@ -130,7 +130,7 @@ rst_prolog = '''
 #modindex_common_prefix = []
 
 extlinks = {'bug': ('https://bugs.launchpad.net/percona-server/+bug/%s',
-                      '#'), 'upbug': ('http://bugs.mysql.com/bug.php?id=%s',
+                      '#'), 'mysqlbug': ('http://bugs.mysql.com/bug.php?id=%s',
                       '#') }
 
 # -- Options for HTML output ---------------------------------------------------

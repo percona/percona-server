@@ -3406,7 +3406,6 @@ void THD::clear_slow_extended()
 {
   DBUG_ENTER("THD::clear_slow_extended");
   sent_row_count=               0;
-  orig_row_count=               row_count;
   examined_row_count=           0;
   bytes_sent_old=               status_var.bytes_sent;
   tmp_tables_used=              0;

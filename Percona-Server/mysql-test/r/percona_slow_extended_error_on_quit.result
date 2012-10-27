@@ -33,9 +33,9 @@ CREATE TABLE t(a INT) engine=InnoDB;
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: 0
 [log_grep.inc] lines:   3
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: [^0]+
-[log_grep.inc] lines:   3
-[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: 0
 [log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: 0
+[log_grep.inc] lines:   3
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: [^0]+
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: 0
@@ -89,9 +89,9 @@ INSERT INTO t SELECT * FROM t ORDER BY RAND();
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: 0
 [log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: [^0]+
-[log_grep.inc] lines:   3
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: 0
-[log_grep.inc] lines:   0
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: [^0]+
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: 0
@@ -145,9 +145,9 @@ SELECT * FROM t;
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_affected: 0
 [log_grep.inc] lines:   3
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: [^0]+
-[log_grep.inc] lines:   3
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Rows_read: 0
-[log_grep.inc] lines:   0
+[log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: [^0]+
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.error_on_quit pattern: Bytes_sent: 0

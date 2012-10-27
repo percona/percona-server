@@ -1,0 +1,87 @@
+################################################################################
+# Current test check following attributes:                                     #
+# 1) "Last_errno"                                                              #
+# 2) "Rows_{sent,examined|affected|read}                                       #
+# 3) Bytes_sent                                                                #
+# 4) Tmp_{tables|dist_tables|table_size}                                       #
+# 5) InnoDB statistic counters                                                 #
+# in Slow Query Log                                                            #
+# for administrative command "Quit"                                            #
+#                                                                              #
+# See Launchpad Bug #716210                                                    #
+################################################################################
+
+--source include/have_innodb.inc
+
+################################################################################
+--let log_file=percona.slow_extended.error_on_quit
+--let wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST;
+################################################################################
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+CREATE TABLE t(a INT) engine=InnoDB;
+INSERT INTO t VALUES(0),(1),(2),(3),(4);
+
+################################################################################
+--source include/log_start.inc
+
+--connect(additional,localhost,root,,)
+--connection additional
+
+  SET log_slow_verbosity=innodb;
+  SET long_query_time= 0;
+
+--disable_result_log
+--error ER_TABLE_EXISTS_ERROR
+  CREATE TABLE t(a INT) engine=InnoDB;
+--enable_result_log
+
+--connection default
+--echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+--disconnect additional
+--source include/wait_condition.inc
+--source include/log_stop.inc
+--source include/percona_slow_extended_error_on_quit.inc
+################################################################################
+--source include/log_start.inc
+
+--connect(additional,localhost,root,,)
+--connection additional
+
+  SET log_slow_verbosity=innodb;
+  SET long_query_time= 0;
+
+--disable_result_log
+  INSERT INTO t SELECT * FROM t ORDER BY RAND();
+--enable_result_log
+
+--connection default
+--echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+--disconnect additional
+--source include/wait_condition.inc
+--source include/log_stop.inc
+--source include/percona_slow_extended_error_on_quit.inc
+################################################################################
+--source include/log_start.inc
+
+--connect(additional,localhost,root,,)
+--connection additional
+
+  SET log_slow_verbosity=innodb;
+  SET long_query_time= 0;
+
+--disable_result_log
+  SELECT * FROM t;
+--enable_result_log
+
+--connection default
+--echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+--disconnect additional
+--source include/wait_condition.inc
+--source include/log_stop.inc
+--source include/percona_slow_extended_error_on_quit.inc
+################################################################################
+
+DROP TABLE t;

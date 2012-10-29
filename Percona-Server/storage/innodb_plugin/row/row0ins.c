@@ -2016,6 +2016,7 @@ row_ins_index_entry_low(
 	big_rec_t*	big_rec			= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	heap			= NULL;
+	ulint		search_mode;
 
 	log_free_check();
 
@@ -2031,8 +2032,15 @@ row_ins_index_entry_low(
 		ignore_sec_unique = BTR_IGNORE_SEC_UNIQUE;
 	}
 
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		search_mode = (mode & BTR_MODIFY_TREE)
+			? BTR_SEARCH_TREE : BTR_SEARCH_LEAF;
+	} else {
+		search_mode = mode | BTR_INSERT | ignore_sec_unique;
+	}
+
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : (mode | BTR_INSERT | ignore_sec_unique),
+				    search_mode,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {

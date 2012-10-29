@@ -255,7 +255,7 @@ be eligible for hot fixes, and boost your team's productivity.
 %package -n Percona-Server-server%{product_suffix}
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
-Requires:       %{distro_requires} Percona-Server-shared%{product_suffix}
+Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
 Provides:       mysql-server MySQL-server
 
 %description -n Percona-Server-server%{product_suffix}
@@ -314,7 +314,8 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-shared%{product_suffix}
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
-Provides:       mysql-shared
+Provides:       mysql-shared mysql-libs
+Obsoletes:      mysql-libs
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -949,7 +950,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
-%doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
@@ -980,7 +980,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
 %attr(755, root, root) %{_bindir}/innochecksum
-%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
@@ -1072,6 +1071,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
+%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
@@ -1088,6 +1088,7 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
+%doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_waitpid.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*

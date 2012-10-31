@@ -164,6 +164,7 @@ Reference
 
    development
    trademark-policy
+   upstream-bug-fixes
    faq
    compatibility
    release-notes/release-notes_index

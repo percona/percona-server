@@ -246,12 +246,12 @@ wait_server_to_start(THD *thd, volatile int& shutdown_flag)
       &abstime);
     pthread_mutex_unlock(&LOCK_server_started);
     pthread_mutex_lock(&thd->mysys_var->mutex);
-    THD::killed_state st = thd->killed;
+    int killed = thd_killed(thd);
     pthread_mutex_unlock(&thd->mysys_var->mutex);
-    DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d\n", (int)st));
+    DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d\n", killed));
     pthread_mutex_lock(&LOCK_server_started);
-    if (st != THD::NOT_KILLED) {
-      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d break\n", (int)st));
+    if (killed) {
+      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d break\n", killed));
       r = -1;
       break;
     }
@@ -358,12 +358,12 @@ bool
 dbcontext::check_alive()
 {
   pthread_mutex_lock(&thd->mysys_var->mutex);
-  THD::killed_state st = thd->killed;
+  int killed = thd_killed(thd);
   pthread_mutex_unlock(&thd->mysys_var->mutex);
-  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %p %p %d %zu\n", thd, &thd->killed,
+  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %p %p %d %u\n", thd, killed,
     (int)st, sizeof(*thd)));
-  if (st != THD::NOT_KILLED) {
-    DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d break\n", (int)st));
+  if (killed) {
+    DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d break\n", killed));
     return false;
   }
   return true;
@@ -659,7 +659,7 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   empty_record(table);
   memset(buf, 0, table->s->null_bytes); /* clear null flags */
   const prep_stmt::fields_type& rf = pst.get_ret_fields();
-  const size_t n = rf.size();
+  const size_t n = std::min(rf.size(), fvalslen);
   for (size_t i = 0; i < n; ++i) {
     uint32_t fn = rf[i];
     Field *const fld = table->field[fn];
@@ -796,23 +796,18 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
   size_t modified_count = 0;
   int r = 0;
   bool is_first = true;
-  bool in_loop = false;
   for (uint32_t cnt = 0; cnt < limit + skip;) {
     if (is_first) {
       is_first = false;
       const key_part_map kpm = (1U << args.kvalslen) - 1;
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
-      if (args.invalues_keypart >= 0) {
-          in_loop = true;
-      }
-    } else if (!in_loop && args.invalues_keypart >= 0) {
+    } else if (args.invalues_keypart >= 0) {
       if (++invalues_idx >= args.invalueslen) {
 	break;
       }
       kplen_sum = prepare_keybuf(args, key_buf, table, kinfo, invalues_idx);
       const key_part_map kpm = (1U << args.kvalslen) - 1;
       r = hnd->index_read_map(table->record[0], key_buf, kpm, find_flag);
-      in_loop = true;
     } else {
       switch (find_flag) {
       case HA_READ_BEFORE_KEY:
@@ -857,8 +852,7 @@ dbcontext::cmd_find_internal(dbcallback_i& cb, const prep_stmt& pst,
       }
       ++cnt;
     }
-    if (args.invalues_keypart >= 0 && r != 0 ) {
-      in_loop = false;
+    if (args.invalues_keypart >= 0 && r == HA_ERR_KEY_NOT_FOUND) {
       continue;
     }
     if (r != 0 && r != HA_ERR_RECORD_DELETED) {
@@ -1186,5 +1180,4 @@ dbcontext::set_statistics(size_t num_conns, size_t num_active)
 }
 
 };
-
 

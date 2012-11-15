@@ -6241,7 +6241,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        List<String> *interval_list, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
-  register Create_field *new_field;
+  Create_field *new_field;
   LEX  *lex= thd->lex;
   DBUG_ENTER("add_field_to_list");
 
@@ -6397,7 +6397,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     List<Index_hint> *index_hints_arg,
                                              LEX_STRING *option)
 {
-  register TABLE_LIST *ptr;
+  TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;

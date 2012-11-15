@@ -391,7 +391,7 @@ my_bool mi_check_status(void *param)
  ** functions to read / write the state
 ****************************************************************************/
 
-int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
+int _mi_readinfo(MI_INFO *info, int lock_type, int check_keybuffer)
 {
   DBUG_ENTER("_mi_readinfo");
 
@@ -430,7 +430,7 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
   request
 */
 
-int _mi_writeinfo(register MI_INFO *info, uint operation)
+int _mi_writeinfo(MI_INFO *info, uint operation)
 {
   int error,olderror;
   MYISAM_SHARE *share=info->s;
@@ -474,7 +474,7 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
 	/* Test if someone has changed the database */
 	/* (Should be called after readinfo) */
 
-int _mi_test_if_changed(register MI_INFO *info)
+int _mi_test_if_changed(MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
   if (share->state.process != share->last_process ||
@@ -519,7 +519,7 @@ int _mi_test_if_changed(register MI_INFO *info)
 int _mi_mark_file_changed(MI_INFO *info)
 {
   uchar buff[3];
-  register MYISAM_SHARE *share=info->s;
+  MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_mark_file_changed");
 
   if (!(share->state.changed & STATE_CHANGED) || ! share->global_changed)
@@ -552,7 +552,7 @@ int _mi_mark_file_changed(MI_INFO *info)
 int _mi_decrement_open_count(MI_INFO *info)
 {
   uchar buff[2];
-  register MYISAM_SHARE *share=info->s;
+  MYISAM_SHARE *share=info->s;
   int lock_error=0,write_error=0;
   if (share->global_changed)
   {

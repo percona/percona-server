@@ -2404,7 +2404,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 */
 int handler::read_first_row(uchar * buf, uint primary_key)
 {
-  register int error;
+  int error;
   DBUG_ENTER("handler::read_first_row");
 
   ha_statistic_increment(&SSV::ha_read_first_count);

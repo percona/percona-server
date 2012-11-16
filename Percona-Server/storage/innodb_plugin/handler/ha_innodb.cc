@@ -12260,6 +12260,13 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   NULL, NULL, 0, 0, 1024, 0);
 #endif /* UNIV_DEBUG */
 
+static MYSQL_SYSVAR_BOOL(locking_fake_changes, srv_fake_changes_locks,
+  PLUGIN_VAR_NOCMDARG,
+  "###EXPERIMENTAL### if enabled, transactions will get S row locks instead "
+  "of X locks for fake changes.  If disabled, fake change transactions will "
+  "not take any locks at all.",
+  NULL, NULL, TRUE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_block_size),
@@ -12361,6 +12368,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(pass_corrupt_table),
   MYSQL_SYSVAR(lazy_drop_table),
   MYSQL_SYSVAR(fake_changes),
+  MYSQL_SYSVAR(locking_fake_changes),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
 #endif /* UNIV_DEBUG */

@@ -2667,6 +2667,14 @@ innobase_change_buffering_inited_ok:
 	srv_use_checksums = (ibool) innobase_use_checksums;
 	srv_fast_checksum = (ibool) innobase_fast_checksum;
 
+	if (innobase_fast_checksum) {
+		fprintf(stderr,
+			"InnoDB: Warning: innodb_fast_checksum is DEPRECATED "
+			"and *WILL* be removed in Percona Server 5.6. Please "
+			"consult the Percona Server 5.6 documentation for "
+			"help in upgrading.\n");
+	}
+
 	srv_blocking_lru_restore = (ibool) innobase_blocking_lru_restore;
 
 #ifdef HAVE_LARGE_PAGES
@@ -11696,6 +11704,8 @@ static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
 
 static MYSQL_SYSVAR_BOOL(fast_checksum, innobase_fast_checksum,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "DEPRECATED. #### WARNING #### : This feature is DEPRECATED and WILL "
+  "be removed in Percona Server 5.6. "
   "Change the algorithm of checksum for the whole of datapage to 4-bytes word based. "
   "The original checksum is checked after the new one. It may be slow for reading page"
   " which has orginal checksum. Overwrite the page or recreate the InnoDB database, "

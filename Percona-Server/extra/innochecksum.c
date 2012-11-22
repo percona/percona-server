@@ -44,6 +44,27 @@
 #define FIL_PAGE_SPACE_OR_CHKSUM 0
 #define UNIV_PAGE_SIZE          (2 * 8192)
 
+#define FIL_PAGE_TYPE           24
+#define FIL_PAGE_TYPE_FSP_HDR   8       /*!< File space header */
+/** Offset of the space header within a file page */
+#define FSP_HEADER_OFFSET       38
+#define FSP_SPACE_FLAGS         16      /* fsp_space_t.flags, similar to
+                                        dict_table_t::flags */
+/** Smallest compressed page size */
+#define PAGE_ZIP_MIN_SIZE       (1 << 10)
+
+#define DICT_TF_BITS                    6       /*!< number of flag bits */
+#define DICT_TF_FORMAT_SHIFT            5       /* file format */
+#define DICT_TF_FORMAT_MASK             \
+((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
+#define DICT_TF_FORMAT_51               0       /*!< InnoDB/MySQL up to 5.1 */
+#define DICT_TF_FORMAT_ZIP              1       /*!< InnoDB plugin for 5.1:
+                                                compressed tables,
+                                                new BLOB treatment */
+#define DICT_TF_ZSSIZE_SHIFT            1
+#define DICT_TF_ZSSIZE_MASK             (15 << DICT_TF_ZSSIZE_SHIFT)
+#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 1)
+
 /* command line argument to do page checks (that's it) */
 /* another argument to specify page ranges... seek to right spot and go from there */
 
@@ -57,6 +78,11 @@ ulint mach_read_from_4(uchar *b)
           + ((ulint)(b[2]) << 8)
           + (ulint)(b[3])
           );
+}
+
+ulint mach_read_from_2(uchar *b)
+{
+  return(((ulint)(b[0]) << 8) | (ulint)(b[1]));
 }
 
 ulint
@@ -130,6 +156,56 @@ buf_calc_page_old_checksum(
     return(checksum);
 }
 
+static
+void
+display_format_info(uchar *page)
+{
+  ulint page_type;
+  ulint flags;
+
+  /* Read page type. Pre-5.1.7 InnoDB always have zero in FIL_PAGE_TYPE for the
+  first page, later versions initialize it to FIL_PAGE_TYPE_FSP_HDR. */
+  page_type= mach_read_from_2(page + FIL_PAGE_TYPE);
+
+  /* Read FSP flags from the page header. */
+  flags = mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
+
+  if (!page_type)
+  {
+    printf("Detected file format: Antelope (pre-5.1.7).\n");
+    if (flags != 0) {
+      printf("But FSP_SPACE_FLAGS is non-zero: %lu. Corrupted tablespace?\n",
+              flags);
+    }
+  }
+  else if (page_type == FIL_PAGE_TYPE_FSP_HDR)
+  {
+    ulint format = flags & DICT_TF_FORMAT_MASK >> DICT_TF_FORMAT_SHIFT;
+    ulint zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+                      << ((flags & DICT_TF_ZSSIZE_MASK)
+                          >> DICT_TF_ZSSIZE_SHIFT));
+
+    if (!flags)
+    {
+      printf("Detected file format: Antelope (5.1.7 or newer).\n");
+    }
+    else if (format == DICT_TF_FORMAT_ZIP)
+    {
+      printf("Detected file format: Barracuda ");
+      if (!zip_size)
+        printf("(not compressed).\n");
+      else
+        printf("(compressed with KEY_BLOCK_SIZE=%lu).\n", zip_size);
+    }
+    else
+      printf("Unknown file format: %lu\n", format);
+  }
+  else
+  {
+    printf("Bogus FIL_PAGE_TYPE value: %lu. Cannot detect the file format.\n",
+           page_type);
+  }
+}
 
 int main(int argc, char **argv)
 {
@@ -146,13 +222,14 @@ int main(int argc, char **argv)
   ulint start_page= 0, end_page= 0, use_end_page= 0; /* for starting and ending at certain pages */
   off_t offset= 0;
   int just_count= 0;          /* if true, just print page count */
+  int display_format= 0;      /* if true, just print format information */
   int verbose= 0;
   int debug= 0;
   int c;
   int fd;
 
   /* remove arguments */
-  while ((c= getopt(argc, argv, "cvds:e:p:")) != -1)
+  while ((c= getopt(argc, argv, "fcvds:e:p:")) != -1)
   {
     switch (c)
     {
@@ -181,6 +258,9 @@ int main(int argc, char **argv)
       fprintf(stderr, "option -%c requires an argument\n", optopt);
       return 1;
       break;
+    case 'f':
+      display_format= 1;
+      break;
     case '?':
       fprintf(stderr, "unrecognized option: -%c\n", optopt);
       return 1;
@@ -196,6 +276,7 @@ int main(int argc, char **argv)
   {
     printf("InnoDB offline file checksum utility.\n");
     printf("usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v] [-d] <filename>\n", argv[0]);
+    printf("\t-f\tdisplay information about the file format and exit\n");
     printf("\t-c\tprint the count of pages in the file\n");
     printf("\t-s n\tstart on this page number (0 based)\n");
     printf("\t-e n\tend at this page number (0 based)\n");
@@ -232,8 +313,9 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  /* seek to the necessary position */
-  if (start_page)
+  /* seek to the necessary position, ignore with -f as we only need to read the
+  first page */
+  if (start_page && !display_format)
   {
     fd= fileno(f);
     if (!fd)
@@ -265,6 +347,13 @@ int main(int argc, char **argv)
     {
       fprintf(stderr, "bytes read (%d) doesn't match universal page size (%d)\n", bytes, UNIV_PAGE_SIZE);
       return 1;
+    }
+
+    if (display_format)
+    {
+      /* for -f, analyze only the first page and exit */
+      display_format_info(p);
+      return 0;
     }
 
     /* check the "stored log sequence numbers" */

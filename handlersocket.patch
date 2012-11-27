@@ -1,6 +1,6 @@
 diff -Naur a/HandlerSocket-Plugin-for-MySQL/configure.ac b/HandlerSocket-Plugin-for-MySQL/configure.ac
---- a/HandlerSocket-Plugin-for-MySQL/configure.ac	2012-07-04 14:37:07.826857000 -0300
-+++ b/HandlerSocket-Plugin-for-MySQL/configure.ac	2012-07-09 19:16:28.383682011 -0300
+--- a/HandlerSocket-Plugin-for-MySQL/configure.ac
++++ b/HandlerSocket-Plugin-for-MySQL/configure.ac
 @@ -4,6 +4,7 @@
  #AC_PREREQ([2.63b])
  AC_INIT([handlersocket-plugin], [1.0.6], [https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL/issues])
@@ -9,7 +9,7 @@ diff -Naur a/HandlerSocket-Plugin-for-MySQL/configure.ac b/HandlerSocket-Plugin-
  AM_INIT_AUTOMAKE([-Wall -Werror foreign])
  AC_CONFIG_SRCDIR([libhsclient/fatal.cpp])
  AC_CONFIG_MACRO_DIR([m4])
-@@ -101,14 +102,10 @@
+@@ -104,14 +105,10 @@
    AC_ARG_WITH([mysql-plugindir],
      [AS_HELP_STRING([--with-mysql-plugindir=PATH], [MySQL plugin directory where handlersocket.so to be copied])],
      [

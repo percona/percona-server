@@ -1,0 +1,62 @@
+# Tests for innodb_max_bitmap_file_size variable
+--source include/have_innodb.inc
+
+SET @start_value = @@global.innodb_max_bitmap_file_size;
+SELECT @start_value;
+
+SET @@global.innodb_max_bitmap_file_size = 5000;
+SET @@global.innodb_max_bitmap_file_size = DEFAULT;
+SELECT @@global.innodb_max_bitmap_file_size;
+
+# Valid boundary values
+SET @@global.innodb_max_bitmap_file_size = 4096;
+SELECT @@global.innodb_max_bitmap_file_size;
+SET @@global.innodb_max_bitmap_file_size = 4097;
+SELECT @@global.innodb_max_bitmap_file_size;
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551614;
+SELECT @@global.innodb_max_bitmap_file_size;
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551615;
+SELECT @@global.innodb_max_bitmap_file_size;
+
+# Invalid values
+SET @@global.innodb_max_bitmap_file_size = 4095;
+SELECT @@global.innodb_max_bitmap_file_size;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551616;
+SELECT @@global.innodb_max_bitmap_file_size;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551617;
+SELECT @@global.innodb_max_bitmap_file_size;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_bitmap_file_size = 105.54;
+SELECT @@global.innodb_max_bitmap_file_size;
+SET @@global.innodb_max_bitmap_file_size = -200;
+SELECT @@global.innodb_max_bitmap_file_size;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_bitmap_file_size = ON;
+SELECT @@global.innodb_max_bitmap_file_size;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_bitmap_file_size = 'foo';
+SELECT @@global.innodb_max_bitmap_file_size;
+
+# Accessing as session variable forbidden
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_max_bitmap_file_size = 4096;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_max_bitmap_file_size;
+
+# Verify INFORMATION_SCHEMA access
+SELECT @@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_bitmap_file_size';
+
+SELECT @@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_bitmap_file_size';
+
+# Check default scope
+SET @@global.innodb_max_bitmap_file_size=6789;
+SELECT @@global.innodb_max_bitmap_file_size=@@innodb_max_bitmap_file_size;
+
+SET @@global.innodb_max_bitmap_file_size=@start_value;
+SELECT @@global.innodb_max_bitmap_file_size;

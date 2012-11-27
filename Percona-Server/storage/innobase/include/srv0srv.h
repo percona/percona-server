@@ -141,7 +141,8 @@ extern char*	srv_doublewrite_file;
 
 extern ibool	srv_recovery_stats;
 
-extern my_bool	srv_track_changed_pages;
+extern my_bool		srv_track_changed_pages;
+extern ib_uint64_t	srv_max_bitmap_file_size;
 
 extern
 ulonglong       srv_changed_pages_limit;

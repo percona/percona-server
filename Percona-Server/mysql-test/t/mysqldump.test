@@ -2351,7 +2351,8 @@ INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 --echo
 --echo #### Dump starts here ####
 --replace_regex /-- Server version.*// /-- MySQL dump .*// /-- Dump completed on .*/-- Dump completed/
---exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2>&1
+--exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db --result-file $MYSQLTEST_VARDIR/tmp/stfl.sql 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/stfl.sql
 --echo
 --echo #### Dump ends here ####
 

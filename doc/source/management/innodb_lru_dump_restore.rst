@@ -132,6 +132,15 @@ This variable specifies the time in seconds between automatic buffer pool dumps.
 
 When this variable is set to ON XtraDB waits until the restore of the dump is completed before reporting successful startup to the server.
 
+``INFORMATION_SCHEMA`` Tables
+=============================
+
+This feature provides the following table:
+
+.. table:: INFORMATION_SCHEMA.XTRADB_ADMIN_COMMAND
+
+  :column result_message: result message of the ``XTRADB_ADMIN_COMMAND`` 
+
 Other reading
 =============
 

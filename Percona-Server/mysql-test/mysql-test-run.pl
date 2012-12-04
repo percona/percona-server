@@ -3478,6 +3478,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
+  mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
 
   if ( $opt_debug )
@@ -5454,10 +5455,20 @@ sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 sub envsubst {
   my $string= shift;
-
-  if ( ! defined $ENV{$string} )
+# Check for the ? symbol in the var name and remove it.
+  if ( $string =~ s/^\?// )
   {
-    mtr_error(".opt file references '$string' which is not set");
+    if ( ! defined $ENV{$string} )
+    {
+      return "";
+    }
+  }
+  else
+  {
+    if ( ! defined $ENV{$string} )
+    {
+      mtr_error(".opt file references '$string' which is not set");
+    }
   }
 
   return $ENV{$string};
@@ -5477,8 +5488,8 @@ sub get_extra_opts {
   # Expand environment variables
   foreach my $opt ( @$opts )
   {
-    $opt =~ s/\$\{(\w+)\}/envsubst($1)/ge;
-    $opt =~ s/\$(\w+)/envsubst($1)/ge;
+    $opt =~ s/\$\{(\??\w+)\}/envsubst($1)/ge;
+    $opt =~ s/\$(\??\w+)/envsubst($1)/ge;
   }
   return $opts;
 }

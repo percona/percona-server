@@ -6,7 +6,7 @@
 
 The |InnoDB| adaptive hash index can have contention issues on multi-core systems when you run a mix of read and write queries that need to scan secondary indexes. This feature splits the adaptive hash index across several partitions to avoid such problems.
 
-The number of adaptive hash partitions specified by the variable ``innodb_adaptive_hash_index_partitions`` are created, and hash indexes are assigned to each one based on ``index_id``. This should help to solve contention problems in the adaptive hash search process when they occur.
+The number of adaptive hash partitions specified by the variable :variable:`innodb_adaptive_hash_index_partitions` are created, and hash indexes are assigned to each one based on ``index_id``. This should help to solve contention problems in the adaptive hash search process when they occur.
 
 
 Version Specific Information
@@ -26,11 +26,11 @@ System Variables
    :dyn: No
    :vartype: Numeric
    :def: 1
-   :range: 0-64, (on 32-bit platform 0-32)
+   :range: 1-64, (on 32-bit platform 1-32)
 
 Specifies the number of partitions to use in the adaptive hash search process.
 
-When set to zero, no extra partitions are created and the normal process is in effect. When greater than zero, the specified number of partitions are created across which to perform the adaptive search.
+When set to one, no extra partitions are created and the normal process is in effect. When greater than one, the specified number of partitions are created across which to perform the adaptive search.
 
 Other reading
 -------------

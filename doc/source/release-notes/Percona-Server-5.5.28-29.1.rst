@@ -18,7 +18,7 @@ Bug Fixes
 
   |Percona Server| would disconnect clients if ``gdb`` was attached and detached. This was caused by wrong signal handling. Bugs fixed: :bug:`805805` and :bug:`1060136` (upstream |MySQL| bug :mysqlbug:`67052`) (*Laurynas Biveinis*).
 
-  Fixed the upstream |MySQL| bug :mysqlbug:`62856`, where slave server would crash after update statement. Bug fixed :bug:`1053342` (*George Ormond Lorch III*).
+  Fixed the upstream |MySQL| bug :mysqlbug:`66890`, where slave server would crash after update statement. Bug fixed :bug:`1053342` (*George Ormond Lorch III*).
 
   Reads from tablespaces being deleted would result in buffer pool locking error. This regression was introduced by porting the recently introduced InnoDB code to XtraDB in |Percona Server| :rn:`5.5.27-28.0`. Bug fixed :bug:`1042640` (*Stewart Smith*).
 

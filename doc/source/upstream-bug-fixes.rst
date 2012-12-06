@@ -5,57 +5,63 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`67737` - mysqldump test sometimes fails due to mixing stdout and stderr            |
+|:Launchpad bug: :bug:`959198`                                                                                |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
+|:Fix Released: :rn:`5.5.28-29.2`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62856` - Check for "stack overrun" doesn't work with gcc-4.6, server crashes       |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.28-29.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61180` - korr/store macros in my_global.h assume the argument to be a char pointer |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.27-29.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61179` - Unoptimized versions of korr/store macros in my_global.h are used on ...  |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.27-29.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61178` - Incorrect implementation of intersect(ulonglong) in non-optimized Bitmap..|
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.27-29.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`54127` - mysqld segfaults when built using --with-max-indexes=128                  |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.27-29.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64800` - mysqldump with --include-master-host-port putting quotes around port no.  | 
 |:Launchpad bug: :bug:`1013432`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.27-28.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`66301` - INSERT ... ON DUPLICATE KEY UPDATE + innodb_autoinc_lock_mode=1 is broken |
 |:Launchpad bug: :bug:`1035225`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.27-28.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`60743` - typo in cmake/dtrace.cmake                                                |
 |:Launchpad bug: :bug:`1013455`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.25a-27.1`                                                                            |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64663` - Segfault when adding indexes to InnoDB temporary tables                   |
 |:Launchpad bug: :bug:`999147`                                                                                |
-|:Upstream state: Open (checked on 2012-10-31)                                                                |
+|:Upstream state: Open (checked on 2012-12-06)                                                                |
 |:Fix Released: :rn:`5.5.24-26.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -73,7 +79,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64432` - Bug :mysqlbug:`54330` (Broken fast index creation) was never fixed in 5.5 |
 |:Launchpad bug: :bug:`939485`                                                                                |
-|:Upstream state: Patch Queued (checked on 2012-10-31)                                                        |
+|:Upstream state: Patch Queued (checked on 2012-12-06)                                                        |
 |:Fix Released: :rn:`5.5.21-25.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -97,7 +103,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62516` - Fast index creation does not update index statistics                      |
 |:Launchpad bug: :bug:`857590`                                                                                |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.16-22.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -109,13 +115,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61595` - mysql-test/include/wait_for_slave_param.inc timeout logic is incorrect    |
 |:Launchpad bug: :bug:`800035`                                                                                |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.13-20.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`60788` - InnoDB crashes with an assertion failure when receiving a signal on pwrite|
 |:Launchpad bug: :bug:`764395`                                                                                |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2012-12-06)                                                            |
 |:Fix Released: :rn:`5.5.11-20.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

@@ -372,7 +372,7 @@ log_online_track_missing_on_startup(
 
 	/* last_tracked_lsn might be < MIN_TRACKED_LSN in the case of empty
 	   bitmap file, handle this too. */
-	last_tracked_lsn = ut_max(last_tracked_lsn, MIN_TRACKED_LSN);
+	last_tracked_lsn = ut_max_uint64(last_tracked_lsn, MIN_TRACKED_LSN);
 
 	/* See if we can fully recover the missing interval */
 	if (log_sys->lsn - last_tracked_lsn < log_sys->log_group_capacity) {
@@ -415,7 +415,7 @@ log_online_read_init()
 	char		buf[FN_REFLEN];
 	ibool		success;
 	ib_uint64_t	tracking_start_lsn
-		= ut_max(log_sys->last_checkpoint_lsn, MIN_TRACKED_LSN);
+		= ut_max_uint64(log_sys->last_checkpoint_lsn, MIN_TRACKED_LSN);
 
 	/* Assert (could be compile-time assert) that bitmap data start and end
 	in a bitmap block is 8-byte aligned */
@@ -746,8 +746,8 @@ log_online_follow_log_seg(
 			/* The next parse LSN is inside the current block, skip
 			data preceding it. */
 			skip_already_parsed_len
-				= log_bmp_sys->next_parse_lsn
-				- block_start_lsn;
+				= (ulint)(log_bmp_sys->next_parse_lsn
+					  - block_start_lsn);
 		}
 		else {
 

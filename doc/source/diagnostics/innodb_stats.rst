@@ -6,14 +6,6 @@
 
 This feature provides new startup options (control method and collection of index statistics estimation) and information schema views to confirm the statistics.
 
-This implements the fix for `MySQL Bug #30423 <http://bugs.mysql.com/bug.php?id=30423>`_.
-
-Version Specific Information
-============================
-
-  * 5.5.8-20.0:
-    Renamed three fields in table ``INNODB_INDEX_STATS``.
-
 
 System Variables
 ================
@@ -30,7 +22,7 @@ Four new system variables were introduced by this feature.
    :default: ``nulls_equal``
    :allowed: ``nulls_equal``, ``nulls_unequal``, ``nulls_ignored``
 
-The values and meanings are almost same to ``myisam_stats_method`` option of native |MySQL| (``nulls_equal``, ``nulls_unequal``, ``nulls_ignored``). But |InnoDB| doesn't have several patterns of statistics currently. So, though this option able to be changed dynamically, we need re-calculate statistics to change the method for the table.
+The values and meanings are almost same to ``myisam_stats_method`` option of native |MySQL| (``nulls_equal``, ``nulls_unequal``, ``nulls_ignored``). But |InnoDB| doesn't have several patterns of statistics currently. Even though this option can be changed dynamically, statistics needs to be re-calculated to change the method for the table.
 
 (reference: `MyISAM Index Statistics Collection <http://dev.mysql.com/doc/refman/5.1/en/myisam-index-statistics.html>`_)
 
@@ -41,7 +33,7 @@ The values and meanings are almost same to ``myisam_stats_method`` option of nat
    :type: BOOLEAN
    :default: 1
 
-|InnoDB| updates the each index statistics automatically (many updates were done, some information_schema is accessed, table monitor, etc.). Setting this option 0 can stop these automatic recalculation of the statistics except for “first open” and “ANALYZE TABLE command”.
+|InnoDB| updates the each index statistics automatically (many updates were done, some information_schema is accessed, table monitor, etc.). Setting this option 0 can stop these automatic recalculation of the statistics except for "first open" and "ANALYZE TABLE command".
 
 
 .. variable:: innodb_stats_update_need_lock
@@ -65,7 +57,41 @@ If this option is enabled, |XtraDB| uses the ``SYS_STATS`` system table to store
 INFORMATION_SCHEMA Tables
 =========================
 
-Two new tables were introduced by this feature.
+.. table:: INFORMATION_SCHEMA.INNODB_SYS_STATS
+
+  :column INDEX_ID: Index ID
+  :column KEY_COLS: Number of Key Columns
+  :column DIFF_VALS: Number of Different Values.
+  :column NON_NULL_VALS: Number of Non NULL Values.
+
+
+.. table:: INFORMATION_SCHEMA.INNODB_SYS_TABLES
+ 
+  Shows the information about InnoDB tables
+
+  :column SCHEMA: Schema (database) name
+  :column NAME: Table name
+  :column ID: Table ID
+  :column N_COLS:  Number of Columns
+  :column TYPE: 
+  :column MIX_ID: This value is obsolete, value is always 0
+  :column MIX_LEN: Contains 0 for regular tables and 1 for temporary tables
+  :column CLUSTER_NAME: This value isn't supported anymore, value is always NULL
+  :column SPACE: Tablespace ID
+
+
+.. table:: INFORMATION_SCHEMA.INNODB_SYS_INDEXES
+
+  Shows the information about InnoDB indexes
+
+  :column TABLE_ID: Table ID
+  :column ID: Index ID
+  :column NAME: Index Name
+  :column N_FIELDS: Number of fields 
+  :column TYPE:
+  :column SPACE: Tablespace ID
+  :column PAGE_NO: The page offset within its tablespace
+
 
 .. table:: INFORMATION_SCHEMA.INNODB_TABLE_STATS
 
@@ -78,7 +104,7 @@ Two new tables were introduced by this feature.
    :column other_size: Other index (non primary key) size in number of pages.
    :column modified: Internal counter to judge whether statistics recalculation should be done.
 
-If the value of modified column exceeds “rows / 16” or 2000000000, the statistics recalculation is done when ``innodb_stats_auto_update == 1``. We can estimate the oldness of the statistics by this value.
+If the value of modified column exceeds "rows / 16" or 2000000000, the statistics recalculation is done when ``innodb_stats_auto_update == 1``. We can estimate the oldness of the statistics by this value.
 
 .. table:: INFORMATION_SCHEMA.INNODB_INDEX_STATS
 
@@ -88,24 +114,15 @@ If the value of modified column exceeds “rows / 16” or 2000000000, the stati
    :column table_name: Table name.
    :column index_name: Index name.
    :column fields: How many fields the index key has. (it is internal structure of |InnoDB|, it may be larger than the ``CREATE TABLE``).
-   :column rows_per_key: Estimate rows per 1 key value. ([1 column value], [2 columns value], [3 columns value], ...).
-   :column index_total_pages: Number of index pages.
-   :column index_leaf_pages: Number of leaf pages.
+   :column rows_per_keys: Estimate rows per 1 key value. ([1 column value], [2 columns value], [3 columns value], ...).
+   :column index_size: Number of index pages.
+   :column index_pages: Number of leaf pages.
 
-In releases before 5.5.8-20.0, these fields had different names:
-
-  * ``rows_per_key`` was ``row_per_keys``
-
-  * ``index_total_pages`` was ``index_size``
-
-  * ``index_leaf_pages`` was ``leaf_pages``
 
 Example
 =======
 
-This example uses the same data to Bug #30423 of |MySQL|.
-
-``[innodb_stats_method = nulls_equal (default behavior of |InnoDB|)]`` ::
+``[innodb_stats_method = nulls_equal (default behavior of InnoDB)]`` ::
 
   mysql> explain SELECT COUNT(*), 0 FROM orgs2 orgs LEFT JOIN sa_opportunities2 sa_opportunities ON orgs.org_id=sa_opportunities.org_id LEFT JOIN contacts2 contacts ON orgs.org_id=contacts.org_id;
   +----+-------------+------------------+-------+-----------------+-----------------+---------+-------------------+-------+-------------+
@@ -145,15 +162,15 @@ This example uses the same data to Bug #30423 of |MySQL|.
   | table_name             | index_name      | fields | row_per_keys | index_size | leaf_pages |
   +------------------------+-----------------+--------+--------------+------------+------------+
   | test/sa_opportunities2 | GEN_CLUST_INDEX |      1 | 1            |         21 |         20 |
-  | test/sa_opportunities2 | sa_opp$org_id   |      2 | 338, 1       |         11|         10 |
+  | test/sa_opportunities2 | sa_opp$org_id   |      2 | 338, 1       |          11|         10 |
   | test/orgs2             | orgs$org_id     |      1 | 1            |          1 |          1 |
   | test/contacts2         | GEN_CLUST_INDEX |      1 | 1            |       97   |         80 |
-  | test/contacts2         | contacts$org_id |      2 | 516, 0       |         97   |         37 |
+  | test/contacts2         | contacts$org_id |      2 | 516, 0       |       97   |         37 |
   +------------------------+-----------------+--------+--------------+------------+------------+
   5 rows in set (0.00 sec)
 
 Other reading
 =============
 
-  * `InnoDB Table/Index stats <http://www.mysqlperformanceblog.com/2010/03/20/|InnoDB|-tableindex-stats/>`_
+  * `InnoDB Table/Index stats <http://www.mysqlperformanceblog.com/2010/03/20/InnoDB-tableindex-stats/>`_
 

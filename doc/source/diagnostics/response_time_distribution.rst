@@ -6,7 +6,7 @@
 
 The slow query log provides exact information about queries that take a long time to execute. However, sometimes there are a large number of queries that each take a very short amount of time to execute. This feature provides a tool for analyzing that information by counting and displaying the number of queries according to the the length of time they took to execute. The user can define time intervals that divide the range 0 to positive infinity into smaller intervals and then collect the number of commands whose execution times fall into each of those intervals.
 
-Note that in a replication environment, the server will not take into account *any* queries executed by the slave's SQL thread (whether they are slow or not) for the time distribution unless the log_slow_slave_statements variable is set.
+Note that in a replication environment, the server will not take into account *any* queries executed by the slave's SQL thread (whether they are slow or not) for the time distribution unless the :variable:`log_slow_slave_statements` variable is set.
 
 The feature isn't implemented in all versions of the server. The variable :variable:`have_response_time_distribution` indicates whether or not it is implemented in the server you are running.
 
@@ -197,10 +197,7 @@ Version Specific Information
     Full functionality available.
 
   * 5.1.53-12.4:
-    Introduced have_response_time_distribution.
-
-  * 5.5.8-20.0:
-    Renamed variable :variable:`enable_query_response_time_stats` to :variable:`query_response_time_stats`.
+    Introduced :variable:`have_response_time_distribution`.
 
 System Variables
 ================
@@ -233,9 +230,9 @@ Sets up the logarithm base for the scale.
 
   FLUSH QUERY_RESPONSE_TIME;
 
-.. variable:: query_response_time_stats
+.. variable:: enable_query_response_time_stats
 
-     :version 5.5.8-20.0: Introduced.
+     :version 5.1.49-12.0: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -246,24 +243,11 @@ Sets up the logarithm base for the scale.
 
 This variable enables and disables collection of query times if the feature is available in the server that's running. If the value of variable :variable:`have_response_time_distribution` is YES, then you can enable collection of query times by setting this variable to ON using ``SET GLOBAL``.
 
- Prior to release 5.5.8-20.0, this variable was named :variable:`enable_query_response_time_stats`.
-
-
 INFORMATION_SCHEMA Tables
 =========================
 
 .. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME
 
-   :column VARCHAR TIME: 
-   :column INT(11) COUNT: 
-   :column VARCHAR TOTAL:  
-
-Implementation Details
-======================
-
-Implementation details on this feature are provided here.
-
-Related Reading
-===============
-
-  * `Blueprint about Response Time Distribution <https://blueprints.launchpad.net/percona-server/+spec/response-time-distribution>`_
+   :column VARCHAR TIME: Interval range in which the query occurred
+   :column INT(11) COUNT: Number of queries with execution times that fell into that interval
+   :column VARCHAR TOTAL: Total execution time of the queries

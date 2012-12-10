@@ -369,6 +369,10 @@ extern uint srv_auto_lru_dump;
 /** Whether startup should be blocked until buffer pool is fully restored */
 extern ibool srv_blocking_lru_restore;
 
+/** When TRUE, fake change transcations take S rather than X row locks.
+When FALSE, row locks are not taken at all. */
+extern my_bool srv_fake_changes_locks;
+
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 

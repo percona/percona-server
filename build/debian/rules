@@ -305,7 +305,7 @@ binary-arch: build install
 	dh_installinfo -a
 	dh_installlogcheck -a
 	dh_installchangelogs -a
-	dh_strip -a
+	dh_strip -a --dbg-package=percona-server-5.1-dbg
 	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
 	dh_compress -a
 	dh_fixperms -a

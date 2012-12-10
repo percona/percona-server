@@ -9,12 +9,6 @@ This feature adds several ``INFORMATION_SCHEMA`` tables, several commands, and t
 The functionality is disabled by default, and must be enabled by setting ``userstat`` to ``ON``. It works by keeping several hash tables in memory. To avoid contention over global mutexes, each connection has its own local statistics, which are occasionally merged into the global statistics, and the local statistics are then reset to 0.
 
 
-Version Specific Information
-============================
-
-  * :rn:`5.5.10-20.1`:
-     Renamed variable :variable:`userstat_running` to :variable:`userstat`.
-
 Other Information
 =================
 
@@ -26,7 +20,7 @@ System Variables
 
 .. variable:: userstat_running
 
-     :version 5.5.10-20.1: Renamed to :variable:`userstat`
+     :version 5.1.49-rel11.3: variable introduced
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -103,7 +97,7 @@ Example: ::
 
 This table shows statistics on index usage. An older version of the feature contained a single column that had the ``TABLE_SCHEMA``, ``TABLE_NAME`` and ``INDEX_NAME`` columns concatenated together. The |Percona| version of the feature separates these into three columns. Users can see entries only for tables to which they have ``SELECT`` access.
 
-This table makes it possible to do many things that were difficult or impossible previously. For example, you can use it to find unused indexes and generate DROP commands to remove them.
+This table makes it possible to do many things that were difficult or impossible previously. For example, you can use it to find unused indexes and generate DROP commands to remove them. If the index has not been used it won't be in this table.
 
 Example: ::
 
@@ -140,27 +134,29 @@ Example: ::
 
 .. table:: INFORMATION_SCHEMA.THREAD_STATISTICS
 
-  :column THREAD_ID: int(21)
-  :column TOTAL_CONNECTIONS: int(21)
-  :column CONCURRENT_CONNECTIONS: int(21)
-  :column CONNECTED_TIME: int(21)
-  :column BUSY_TIME: int(21)
-  :column CPU_TIME: int(21)
-  :column BYTES_RECEIVED: int(21)
-  :column BYTES_SENT: int(21)
-  :column BINLOG_BYTES_WRITTEN: int(21)
-  :column ROWS_FETCHED: int(21)
-  :column ROWS_UPDATED: int(21)
-  :column TABLE_ROWS_READ: int(21)
-  :column SELECT_COMMANDS: int(21)
-  :column UPDATE_COMMANDS: int(21)
-  :column OTHER_COMMANDS: int(21)
-  :column COMMIT_TRANSACTIONS: int(21)
-  :column ROLLBACK_TRANSACTIONS: int(21)
-  :column DENIED_CONNECTIONS: int(21)
-  :column LOST_CONNECTIONS: int(21)
-  :column ACCESS_DENIED: int(21)
-  :column EMPTY_QUERIES: int(21)
+  :column THREAD_ID: ID of the thread.
+  :column TOTAL_CONNECTIONS: The number of connections created from this thread.
+  :column CONCURRENT_CONNECTIONS: The number of concurrent connections from this thread.
+  :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this thread.
+  :column BUSY_TIME: The cumulative number of seconds there was activity from this thread.
+  :column CPU_TIME: The cumulative CPU time elapsed while servicing this thread.
+  :column BYTES_RECEIVED: The number of bytes received from this thread.
+  :column BYTES_SENT: The number of bytes sent to this thread.
+  :column BINLOG_BYTES_WRITTEN: The number of bytes written to the binary log from this thread.
+  :column ROWS_FETCHED: The number of rows fetched by this thread.
+  :column ROWS_UPDATED: The number of rows updated by this thread.
+  :column TABLE_ROWS_READ: The number of rows read from tables by this tread.
+  :column SELECT_COMMANDS: The number of ``SELECT`` commands executed from this thread.
+  :column UPDATE_COMMANDS: The number of ``UPDATE`` commands executed from this thread.
+  :column OTHER_COMMANDS: The number of other commands executed from this thread.
+  :column COMMIT_TRANSACTIONS: The number of ``COMMIT`` commands issued by this thread.
+  :column ROLLBACK_TRANSACTIONS: The number of ``ROLLBACK`` commands issued by this thread.
+  :column DENIED_CONNECTIONS: The number of connections denied to this thread.
+  :column LOST_CONNECTIONS: The number of thread connections that were terminated uncleanly.
+  :column ACCESS_DENIED: The number of times this thread issued commands that were denied.
+  :column EMPTY_QUERIES: The number of times this thread sent empty queries to the server.
+
+In order for this table to be populated with statistics, additional variable :variable:`thread_statistics` should be set to ``ON``.
 
 .. table:: INFORMATION_SCHEMA.USER_STATISTICS
 

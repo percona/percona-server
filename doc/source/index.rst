@@ -134,7 +134,6 @@ Diagnostics Improvements
    :maxdepth: 1
    :glob:
 
-   diagnostics/index_info_schema_tables
    diagnostics/innodb_stats
    diagnostics/user_stats
    diagnostics/slow_extended
@@ -165,6 +164,7 @@ Reference
    development
    trademark-policy
    upstream-bug-fixes
+   index_info_schema_tables
    faq
    compatibility
    release-notes/release-notes_index

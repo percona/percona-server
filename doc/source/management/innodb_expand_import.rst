@@ -14,6 +14,11 @@ The normal version can import only the backed-up .ibd file at the same place.
 
   This feature is unsupported with InnoDB data files created with MySQL 5.0 and MySQL 5.1 prior to version 5.1.7 due to InnoDB file format limitation. It may work in some cases, but may result in crashes on import as well, see bug :bug:`1000221` and bug :bug:`727704` for examples and details.  
 
+|Percona Server| :rn:`5.5.28-29.2` extended the ``innochecksum``  with an option :option:`-f` to read the file format information from a given |InnoDB| data file. As only the first page needs to be read to detect the format/version information, it can also be used on a running server. Example of the output should look like this: :: 
+
+  $ innochecksum -f ibdata1 
+  Detected file format: Antelope (5.1.7 or newer).
+
 Example
 =======
 

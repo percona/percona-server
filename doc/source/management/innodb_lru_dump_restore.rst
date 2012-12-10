@@ -80,7 +80,7 @@ This command executes quickly, because it doesn't ``use direct_io``. Afterwards,
 Status Information
 ==================
 
-Status information about the dump and restore is written to the server``s error file: ::
+Status information about the dump and restore is written to the server's error file: ::
 
   ....
   091217 11:49:16 InnoDB: administration command ``XTRA_LRU_DUMP`` was detected.
@@ -145,7 +145,7 @@ This variable specifies the time in seconds between automatic buffer pool dumps.
      :default: OFF
      :range: ON/OFF
 
-When this variable is set to ON XtraDB waits until the restore of the dump is completed before reporting successful startup to the server.
+When this variable is set to ON |XtraDB| waits until the restore of the dump is completed before reporting successful startup to the server.
 
 
 .. variable:: innodb_buffer_pool_restore_at_startup
@@ -164,6 +164,14 @@ This variable specifies the time in seconds between automatic buffer pool dumps.
 
  This variable was added in release 5.5.10-20.1. Prior to that, it was named :variable:`innodb_auto_lru_dump`, which still exists in earlier versions.
 
+``INFORMATION_SCHEMA`` Tables
+=============================
+
+This feature provides the following table:
+
+.. table:: INFORMATION_SCHEMA.XTRADB_ADMIN_COMMAND
+
+  :column result_message: result message of the ``XTRADB_ADMIN_COMMAND`` 
 
 Other reading
 =============

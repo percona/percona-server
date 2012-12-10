@@ -6,7 +6,7 @@
 
 The slow query log provides exact information about queries that take a long time to execute. However, sometimes there are a large number of queries that each take a very short amount of time to execute. This feature provides a tool for analyzing that information by counting and displaying the number of queries according to the the length of time they took to execute. The user can define time intervals that divide the range 0 to positive infinity into smaller intervals and then collect the number of commands whose execution times fall into each of those intervals.
 
-Note that in a replication environment, the server will not take into account *any* queries executed by the slave's SQL thread (whether they are slow or not) for the time distribution unless the log_slow_slave_statements variable is set.
+Note that in a replication environment, the server will not take into account *any* queries executed by the slave's SQL thread (whether they are slow or not) for the time distribution unless the :variable:`log_slow_slave_statements` variable is set.
 
 The feature isn't implemented in all versions of the server. The variable :variable:`have_response_time_distribution` indicates whether or not it is implemented in the server you are running.
 
@@ -251,16 +251,7 @@ INFORMATION_SCHEMA Tables
 
 .. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME
 
-   :column VARCHAR TIME: 
-   :column INT(11) COUNT: 
-   :column VARCHAR TOTAL:  
+   :column VARCHAR TIME: Interval range in which the query occurred
+   :column INT(11) COUNT: Number of queries with execution times that fell into that interval
+   :column VARCHAR TOTAL: Total execution time of the queries 
 
-Implementation Details
-======================
-
-Implementation details on this feature are provided here.
-
-Related Reading
-===============
-
-  * `Blueprint about Response Time Distribution <https://blueprints.launchpad.net/percona-server/+spec/response-time-distribution>`_

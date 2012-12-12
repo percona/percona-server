@@ -1,0 +1,151 @@
+DROP TABLE IF EXISTS t1;
+Test compressed
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
+INSERT INTO t1 VALUES(NULL, LPAD("v", 2, "b"), LPAD("a", 100, "b"));
+SET innodb_fake_changes=1;
+INSERT INTO t1 VALUES(1, "foo", LPAD("a", 4600, "b")) ON DUPLICATE KEY UPDATE T = VALUES(T);
+ERROR HY000: Got error 131 during COMMIT
+UPDATE t1 SET T = LPAD("A", 4600, "b");
+ERROR HY000: Got error 131 during COMMIT
+SET innodb_fake_changes=0;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+should_be_1
+1
+DROP TABLE t1;
+Test for uncompressed
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(NULL, LPAD("v", 2, "b"), LPAD("a", 100, "b"));
+SET innodb_fake_changes=1;
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+ERROR HY000: Got error 131 during COMMIT
+SET innodb_fake_changes=0;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+should_be_1
+1
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
+INSERT INTO t1 VALUES(2, LPAD("v", 2, "b"), LPAD("a", 200, "b"));
+SET innodb_fake_changes=1;
+INSERT INTO t1 VALUES (3, "foo", LPAD("a", 4600, "b"));
+ERROR HY000: Got error 131 during COMMIT
+SET innodb_fake_changes=0;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+should_be_1
+1
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(2, LPAD("v", 3, "b"), LPAD("a", 100, "b"));
+SET innodb_fake_changes=1;
+INSERT INTO t1 VALUES (3, "foo", LPAD("a", 4600, "b"));
+ERROR HY000: Got error 131 during COMMIT
+SET innodb_fake_changes=0;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+should_be_1
+1
+DROP TABLE t1;

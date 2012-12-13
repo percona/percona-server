@@ -1907,7 +1907,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         }
         thd_info->rows_sent= tmp->sent_row_count;
         thd_info->rows_examined= tmp->examined_row_count;
-        thd_info->rows_read= tmp->warning_info->current_row_for_warning();
+        thd_info->rows_read= tmp->examined_row_count;
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thd_info->start_time= tmp->start_time;
         thread_infos.append(thd_info);

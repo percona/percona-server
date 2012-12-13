@@ -29,7 +29,7 @@ After the Change: ::
 Version-Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * :rn:`5.1.49-rel12.0`:
     Full functionality available.
 
 Other Information

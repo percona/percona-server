@@ -17,12 +17,12 @@ Instructions on setting up ``LRU`` dump/restore can be found :ref:`here <innodb_
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * :rn:`5.1.49-rel12.0`
     Feature introduced.
 
-  * 5.1.50-12.1:
+  * :rn:`5.1.50-rel12.1`
     System variable :variable:`innodb_buffer_pool_shm_checksum` added.
 
-  * 5.1.58-12.9:
+  * :rn:`5.1.58-12.9`
     Feature removed, as LRU Dump/Restore is less invasive, more
     reliable and a better solution.

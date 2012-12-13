@@ -21,5 +21,4 @@ This will display the slave's status as if there were no lock, allowing the user
 Version Specific Information
 ============================
 
-  * 5.1.52-12.3:
-    Currently only the source code is distributed; the feature is not included in binaries.
+  * :rn:`5.1.52-12.3` - Introduced

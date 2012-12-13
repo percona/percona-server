@@ -15,7 +15,7 @@ This feature can be used both manually and automatically. It is safe to enable a
 Automatic Operation
 ===================
 
-To perform dump/restore of the buffer pool automatically, set the :variable:`innodb_lru_dump_restore` configuration variable. A non-zero value for this variable causes the server to create a new thread at startup. This thread's first task is to read and sort the saved file, and then restore the LRU accordingly.
+To perform dump/restore of the buffer pool automatically, set the :variable:`innodb_auto_lru_dump` configuration variable. A non-zero value for this variable causes the server to create a new thread at startup. This thread's first task is to read and sort the saved file, and then restore the LRU accordingly.
 
 After finishing the restore operation, the thread switches into dump mode, to periodically dump the LRU. The period is specified by the configuration variable's value in seconds. For example, if you set the variable to 60, then the thread saves the LRU list once per minute.
 

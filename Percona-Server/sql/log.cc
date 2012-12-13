@@ -187,7 +187,14 @@ public:
       delete pending();
     }
     set_pending(0);
+
+    /*
+      Truncate the temporary file to reclaim disk space occupied by cached
+      transactions on COMMIT/ROLLBACK.
+    */
+    truncate_cached_file(&trans_log, pos);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
+
     trans_log.end_of_file= max_binlog_cache_size;
     if (pos < before_stmt_pos)
       before_stmt_pos= MY_OFF_T_UNDEF;

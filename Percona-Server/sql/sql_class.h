@@ -1519,11 +1519,6 @@ public:
   */
   ulonglong  bytes_sent_old;
   /*
-    Original row_count value at the start of query execution
-    (used by the slow_extended patch).
-  */
-  ulong      orig_row_count;
-  /*
     Variables tmp_tables_*** collect statistics about usage of temporary tables
   */
   ulong      tmp_tables_used;

@@ -9,8 +9,8 @@ This feature provides new startup options (control method and collection of inde
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0:
-    Renamed three fields in table ``INNODB_INDEX_STATS``.
+  * :rn:`5.5.8-20.0`:
+    Renamed three fields in :table:`INNODB_INDEX_STATS` table.
 
 
 System Variables

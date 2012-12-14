@@ -23,13 +23,13 @@ Tunable buffer size for fast index creation
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0: 
+  * :rn:`5.5.8-20.0`: 
     Variable :variable:`fast_index_creation` implemented.
 
-  * 5.5.11-21.2:
+  * :rn:`5.5.11-20.2`:
     Expanded the applicability of fast index creation to :command:`mysqldump`, ``ALTER TABLE``, and ``OPTIMIZE TABLE``.
 
-  * 5.5.27-28.0
+  * :rn:`5.5.27-28.0`
     Variable :variable:`innodb_merge_sort_block_size` implemented.
 
 System Variables

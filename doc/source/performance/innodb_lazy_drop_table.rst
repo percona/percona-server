@@ -11,7 +11,7 @@ This feature allows you to do "background table drop".
 Version Specific Information
 ============================
 
-  * 5.5.10-20.1 Feature added.
+  * :rn:`5.5.10-20.1` Feature added.
 
 System Variables
 ================

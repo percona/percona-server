@@ -30,7 +30,7 @@ Variable Changes
 
   * Old system variable :variable:`userstat_running` was renamed to :variable:`userstat`. (*Oleg Tsarev*)
 
-  * Old system variable :variable:`innodb_expand_import_page` was renamed to :variable:`innodb_import_table_from_xtrabackup`. (*Yasufumi Kinoshita*)
+  * Old system variable :variable:`innodb_expand_import` was renamed to :variable:`innodb_import_table_from_xtrabackup`. (*Yasufumi Kinoshita*)
 
   * Old system variable :variable:`innodb_auto_lru_dump` was renamed to :variable:`innodb_buffer_pool_restore_at_startup`. (*Yasufumi Kinoshita*)
 

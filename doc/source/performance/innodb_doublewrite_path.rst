@@ -53,7 +53,7 @@ Basically if you want to improve the I/O activity, you will put the doublewrite 
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0	 
+  * :rn:`5.5.8-20.0`
     Full functionality available.
 
 

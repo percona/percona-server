@@ -20,4 +20,4 @@ This will display the slave's status as if there were no lock, allowing the user
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0:
+  * :rn:`5.5.8-20.0`: Introduced

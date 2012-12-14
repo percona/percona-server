@@ -100,7 +100,7 @@ Reliability Improvements
    :maxdepth: 1
    :glob:
 
-   reliability/innodb_recovery_update_relay_log
+   reliability/crash_resistant_replication
    reliability/log_connection_error
    reliability/error_pad
    reliability/innodb_corrupt_table_action

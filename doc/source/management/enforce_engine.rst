@@ -8,7 +8,7 @@ Enforcing Storage Engine
 
 When this variable is specified and a user tries to create a table using an explicit storage engine that is not the specified enforced engine, he will get either an error if the ``NO_ENGINE_SUBSTITUTION`` SQL mode is enabled or a warning if ``NO_ENGINE_SUBSTITUTION`` is disabled and the table will be created anyway using the enforced engine (this is consistent with the default |MySQL| way of creating the default storage engine if other engines aren't available unless ``NO_ENGINE_SUBSTITUTION`` is set).
 
-In case user tries to enable enforce_storage_engine with engine that isn't available, system will not start.
+In case user tries to enable :variable:`enforce_storage_engine` with engine that isn't available, system will not start.
 
 Version Specific Information
 ============================

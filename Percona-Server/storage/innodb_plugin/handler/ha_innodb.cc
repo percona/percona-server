@@ -12097,6 +12097,11 @@ static MYSQL_SYSVAR_BOOL(track_changed_pages, srv_track_changed_pages,
     "Track the redo log for changed pages and output a changed page bitmap",
     NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
+    PLUGIN_VAR_RQCMDARG,
+    "The maximum size of changed page bitmap files",
+    NULL, NULL, 100*1024*1024ULL, 4096ULL, ULONGLONG_MAX, 0);
+
 static MYSQL_SYSVAR_ULONGLONG(changed_pages_limit, srv_changed_pages_limit,
   PLUGIN_VAR_RQCMDARG,
   "The maximum number of rows for "
@@ -12361,6 +12366,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(track_changed_pages),
+  MYSQL_SYSVAR(max_bitmap_file_size),
   MYSQL_SYSVAR(changed_pages_limit),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),

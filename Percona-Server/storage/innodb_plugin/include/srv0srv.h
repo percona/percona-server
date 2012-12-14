@@ -134,7 +134,8 @@ extern ibool	srv_recovery_stats;
 
 extern ulint	srv_use_purge_thread;
 
-extern my_bool	srv_track_changed_pages;
+extern my_bool		srv_track_changed_pages;
+extern ib_uint64_t	srv_max_bitmap_file_size;
 
 extern
 ulonglong       srv_changed_pages_limit;

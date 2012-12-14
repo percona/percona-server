@@ -164,6 +164,8 @@ UNIV_INTERN ulint	srv_use_purge_thread = 0;
 
 UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
 
+UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
+
 UNIV_INTERN ulonglong	srv_changed_pages_limit = 0;
 
 /** When TRUE, fake change transcations take S rather than X row locks.

@@ -1,0 +1,29 @@
+Valid values are 'ON' and 'OFF' 
+select @@global.innodb_corrupt_table_action in ('assert', 'warn', 'salvage');
+@@global.innodb_corrupt_table_action in ('assert', 'warn', 'salvage')
+1
+select @@global.innodb_corrupt_table_action;
+@@global.innodb_corrupt_table_action
+assert
+select @@session.innodb_corrupt_table_action;
+ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable
+show global variables like 'innodb_corrupt_table_action';
+Variable_name	Value
+innodb_corrupt_table_action	assert
+show session variables like 'innodb_corrupt_table_action';
+Variable_name	Value
+innodb_corrupt_table_action	assert
+select * from information_schema.global_variables where variable_name='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	assert
+select * from information_schema.session_variables where variable_name='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	assert
+set global innodb_corrupt_table_action='assert';
+set global innodb_corrupt_table_action='warn';
+set global innodb_corrupt_table_action='salvage';
+set global innodb_corrupt_table_action='cry';
+ERROR 42000: Variable 'innodb_corrupt_table_action' can't be set to the value of 'cry'
+set session innodb_corrupt_table_action='warn';
+ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_corrupt_table_action='assert';

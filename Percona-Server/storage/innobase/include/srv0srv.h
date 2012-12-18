@@ -353,6 +353,9 @@ extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
 
 extern ulong	srv_replication_delay;
+
+extern ulint	srv_pass_corrupt_table;
+
 /*-------------------------------------------*/
 
 extern ibool	srv_print_innodb_monitor;

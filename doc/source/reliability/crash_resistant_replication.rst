@@ -59,7 +59,7 @@ One new system variable was introduced by this feature.
 
 .. variable:: innodb_overwrite_relay_log_info
 
-     :version 5.5.10-20.1: Renamed.
+     :version 1.0.3-4: Introduced
      :cli: Yes
      :conf: Yes
      :scope: Global

@@ -10,7 +10,9 @@ To provide consistent reads, |InnoDB| writes data modified by active transaction
 
 Some write-intensive workloads on boxes with many CPUs have scalability problems. The contention is caused by the rollback segment, which is single: all transactions are serialized when needing to access the segment. With this feature you can now create and use multiple segments (up to 256).
 
-**NOTE**: This feature is incompatible with |InnoDB|. As long as a single rollback segment is used, there is no problem; the database can still be used by both |XtraDB| and |InnoDB|. However, creating multiple rollback segments will cause an internal format change to the system tablespace. Once multiple segments have been created, the database will no longer be compatible with |InnoDB|.
+.. note:: 
+
+  This feature is incompatible with |InnoDB|. As long as a single rollback segment is used, there is no problem; the database can still be used by both |XtraDB| and |InnoDB|. However, creating multiple rollback segments will cause an internal format change to the system tablespace. Once multiple segments have been created, the database will no longer be compatible with |InnoDB|.
 
 
 System Variables
@@ -39,8 +41,6 @@ To check that the extra segments have been created, you can run the following qu
   SELECT COUNT(*) FROM information_schema.INNODB_RSEG;
 
 The result should be the number of extra segments + 1 (as a default single segment always exists).
-
- This variable has been removed from |Percona Server| 5.5.11-20.2 because an equivalent variable, ``innodb_rollback_segment``, has been implemented in |MySQL| 5.5.
 
 
 ``INFORMATION_SCHEMA`` Tables

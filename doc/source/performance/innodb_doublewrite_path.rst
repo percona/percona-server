@@ -50,16 +50,16 @@ How to Choose a Good Location for the Doublewrite Buffer
 
 Basically if you want to improve the I/O activity, you will put the doublewrite buffer on a different disk. But is it better on an SSD or a more traditional HDD? First you should note that pages are written in a circular fashion in the doublewrite buffer and only read on recovery. So the doublewrite buffer performs mostly sequential writes and a few sequential reads. Second HDDs are very good at sequential write if a write cache is enabled, which is not the case of SSDs. Therefore you should choose a fast HDD if you want to see performance benefits from this option. For instance, you could place the redo logs (also written in a sequential way) and the doublewrite buffer on the same disk.
 
-Prior to release 5.1.53-12.4, it was necessary to recreate your database and |InnoDB| system files when a dedicated file to contain the doublewrite buffer was specified. Beginning with release 5.1.53-12.4, you no longer need to do this.
+Prior to release :rn:`5.1.53-12.4`, it was necessary to recreate your database and |InnoDB| system files when a dedicated file to contain the doublewrite buffer was specified. Beginning with release 5.1.53-12.4, you no longer need to do this.
 
 
 Version Specific Information
 ============================
 
-  * 5.1.47-11.0	 
+  * :rn:`5.1.47-rel11.1`
     Full functionality available.
 
-  * 5.1.53-12.4
+  * :rn:`5.1.53-12.4`
     Rebuild of database and system files no longer necessary.
 
 System Variables

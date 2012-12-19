@@ -193,10 +193,10 @@ Limitations
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * :rn:`5.1.49-rel12.0`:
     Full functionality available.
 
-  * 5.1.53-12.4:
+  * :rn:`5.1.53-12.4`:
     Introduced :variable:`have_response_time_distribution`.
 
 System Variables
@@ -232,7 +232,7 @@ Sets up the logarithm base for the scale.
 
 .. variable:: enable_query_response_time_stats
 
-     :version 5.1.49-12.0: Introduced.
+     :version 5.1.49-rel12.0: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global

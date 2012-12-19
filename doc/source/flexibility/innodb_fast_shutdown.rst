@@ -15,7 +15,7 @@ The change was contributed by Kristian Nielsen.
 Version Specific Information
 ============================
 
-  * 5.1.52-12.3:
+  * :rn:`5.1.52-12.3`
     Full functionality available.
 
 Other Information

@@ -103,7 +103,7 @@ Reliability Improvements
    reliability/log_connection_error
    reliability/error_pad
    reliability/innodb_corrupt_table_action
-   reliability/innodb_recovery_update_relay_log
+   reliability/crash_resistant_replication
    reliability/show_slave_status_nolock
 
 Management Improvements
@@ -120,7 +120,6 @@ Management Improvements
    management/innodb_lru_dump_restore
    management/innodb_fast_index_creation
    management/innodb_extended_fast_index_creation
-   management/innodb_fast_index_renaming
    management/sql_no_fcache
    management/udf_maatkit
    management/innodb_fake_changes

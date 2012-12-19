@@ -20,7 +20,7 @@ The solution is to use socket timeouts, with the ``SO_RCVTIMEO`` and ``SO_SNDTIM
 Version Specific Information
 ============================
 
-  * :rn:`5.1.49-12.0`: 
+  * :rn:`5.1.49-rel12.0`: 
     Feature implemented 
   * :rn:`5.1.55-12.6`: 
     Feature updated

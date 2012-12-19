@@ -29,7 +29,7 @@ After the Change: ::
 Version-Specific Information
 ============================
 
-  * 5.5.8-20.0:
+  * :rn:`5.5.8-20.0`:
     Full functionality available.
 
 Other Information

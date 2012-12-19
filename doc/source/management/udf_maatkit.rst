@@ -17,7 +17,7 @@ Tools that do checksumming of data (pt-table-checksum, pt-table-sync) will use t
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0:
+  * :rn:`5.5.8-20.0`:
     Began distributing ``libfnv_udf``, ``libfnv1a_udf``, and ``libmurmur_udf``.
 
 Other Information

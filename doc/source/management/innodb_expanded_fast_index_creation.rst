@@ -57,7 +57,7 @@ There’s also a number of cases when this optimization is not applicable:
 Version Specific Information
 ============================
 
-  * 5.5.16-22.0
+  * :rn:`5.5.16-22.0`
     Variable :variable:`expand_fast_index_creation` implemented.
     This variable is controling whether fast index creation optimizations made by Perocna are used.
 

@@ -55,7 +55,7 @@ In this case, the master log position was overwritten to 468 from 280, so replic
 Version Specific Information
 ============================
 
-  * 5.5.10-20.1:
+  * :rn:`5.5.10-20.1`:
     Renamed variable :variable:`innodb_overwrite_relay_log_info` to :variable:`innodb_recovery_update_relay_log`.
 
 System Variables

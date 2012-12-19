@@ -14,10 +14,10 @@ You can use Percona-Toolkit's pt-query-digest tool to aggregate similar queries 
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0:
+  * :rn:`5.5.8-20.0`:
     Added values ``profiling`` and ``profiling_use_getrusage`` to variable log_slow_verbosity.
 
-  * 5.5.10-20.1:
+  * :rn:`5.5.10-20.1`:
      * Renamed variable :variable:`slow_query_log_timestamp_always` to :variable:`slow_query_log_timestamp_always`.
 
      * Renamed variable :variable:`slow_query_log_microseconds_timestamp` to :variable:`slow_query_log_timestamp_precision`.

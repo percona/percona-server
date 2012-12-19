@@ -19,7 +19,7 @@ You should also be familiar with our |Jenkins| setup.
 
 Overview
 ~~~~~~~~
-At Percona we use `Bazaar <http://www.bazaar-vcs.org>`_ for source
+At Percona we use `Bazaar <http://bazaar.canonical.com/en/>`_ for source
 control and `launchpad <http://www.launchpad.net>`_ for both
 code hosting and release management.
 
@@ -205,9 +205,9 @@ for the commands to build and run the test suite.
 Percona Xtrabackup
 ~~~~~~~~~~~~~~~~~~
 
-`<http://jenkins.percona.com/view/Percona%20Xtrabackup/>`_
+`<http://jenkins.percona.com/view/XtraBackup/>`_
 
-We currently build both xtrabackup 1.6 and xtrabackup trunk (will become 1.7).
+We currently build Xtrabackup 1.6, 2.0 and xtrabackup trunk (will become 2.1).
 
 There are param-builds for 1.6 and trunk too. These should be run for each merge request (and before any collection of merged branches is pushed to trunk)
 
@@ -221,14 +221,14 @@ The ``mysql-test-run.pl`` test suite is integrated with Jenkins through `subunit
 Percona Server 5.1
 ------------------
 
-`<http://jenkins.percona.com/view/Percona%20Server%205.1/>`_
+`<http://jenkins.percona.com/view/PS%205.1/>`_
 
 We have trunk and param jobs. We also have a valgrind job that will run after a successful trunk build.
 
 Percona Server 5.5
 ------------------
 
-`<http://jenkins.percona.com/view/Percona%20Server%205.5/>`_
+`<http://jenkins.percona.com/view/PS%205.5/>`_
 
 Similar to 5.1, but for PS5.5 instead.
 

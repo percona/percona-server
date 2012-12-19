@@ -17,16 +17,10 @@ Instructions on setting up ``LRU`` dump/restore can be found :ref:`here <innodb_
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0:
-    Feature introduced.
-
-  * 5.1.50-12.1:
-    System variable :variable:`innodb_buffer_pool_shm_checksum` added.
-
-  * 5.5.8-20.0:
+  * :rn:`5.5.8-20.0`:
     First Percona Server 5.5 release, also included Shared Memory
     Buffer Pool.
 
-  * 5.5.13-20.4:
+  * :rn:`5.5.13-20.4`:
     Feature removed, as LRU Dump/Restore is less invasive, more
     reliable and a better solution.

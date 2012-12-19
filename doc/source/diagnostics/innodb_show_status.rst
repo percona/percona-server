@@ -23,13 +23,13 @@ This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0
+  * :rn:`5.5.8-20.0`
     Added status variables showing information from ``SHOW ENGINE INNODB STATUS``.
 
-  * 5.5.8-20.0
+  * :rn:`5.5.8-20.0`
     Added additional information in the LOG section.
 
-  * 5.5.10-20.1:
+  * :rn:`5.5.10-20.1`:
     Renamed status variable :variable:`innodb_row_lock_numbers` to :variable:`innodb_current_row_locks`.
 
 Other Information

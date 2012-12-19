@@ -15,7 +15,7 @@ The change was contributed by Kristian Nielsen.
 Version Specific Information
 ============================
 
-  * 5.5.8-20
+  * :rn:`5.5.8-20.0`
     Full functionality available.
 
 Other Information

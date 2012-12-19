@@ -193,11 +193,11 @@ Limitations
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0:
-    Introduced variable variable:`have_response_time_distribution`.
+  * :rn:`5.5.8-20.0`:
+    Introduced variable :variable:`have_response_time_distribution`.
 
-  * 5.5.8-20.0:
-    Introduced  variable variable:`query_response_time_stats`.
+  * :rn:`5.5.8-20.0`:
+    Introduced  variable :variable:`query_response_time_stats`.
 
 System Variables
 ================

@@ -3855,22 +3855,22 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
     entry->file->implicit_emptied= 0;
     if (mysql_bin_log.is_open())
     {
-      char *query, *end;
-      uint query_buf_size= 20 + share->db.length + share->table_name.length +1;
-      if ((query= (char*) my_malloc(query_buf_size,MYF(MY_WME))))
+      char query_buf[2*FN_REFLEN + 21];
+      String query(query_buf, sizeof(query_buf), system_charset_info);
+      query.length(0);
+      if (query.ptr())
       {
         /* this DELETE FROM is needed even with row-based binlogging */
-        end = strxmov(strmov(query, "DELETE FROM `"),
-                      share->db.str,"`.`",share->table_name.str,"`", NullS);
+        query.append("DELETE FROM ");
+        append_identifier(thd, &query, share->db.str, share->db.length);
+        query.append(".");
+        append_identifier(thd, &query, share->table_name.str,
+                          share->table_name.length);
         int errcode= query_error_code(thd, TRUE);
         if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                              query, (ulong)(end-query),
+                              query.ptr(), query.length(),
                               FALSE, FALSE, FALSE, errcode))
-        {
-          my_free(query);
-          return TRUE;
-        }
-        my_free(query);
+          return FALSE;
       }
       else
       {
@@ -3879,9 +3879,20 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
           DBA on top of warning the client (which will automatically be done
           because of MYF(MY_WME) in my_malloc() above).
         */
+	char q_db_c[512];
+	char q_table_name_c[512];
+	String q_db(q_db_c, sizeof(q_db_c), system_charset_info);
+	String q_table_name(q_table_name_c, sizeof(q_table_name), system_charset_info);
+	q_db.length(0);
+	q_table_name.length(0);
+	append_identifier(thd, &q_db, share->db.str, share->db.length);
+	append_identifier(thd,
+			  &q_table_name,
+			  share->table_name.str,
+			  share->table_name.length);
         sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM `%s`.`%s`' to the binary log",
-                        share->db.str, share->table_name.str);
+                        "to write 'DELETE FROM %s.%s' to the binary log",
+                        q_db.c_ptr(), q_table_name.c_ptr());
         delete entry->triggers;
         return TRUE;
       }

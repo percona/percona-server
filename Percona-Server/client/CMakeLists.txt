@@ -57,7 +57,7 @@ TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
 TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
+MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc sql_string.cc)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)

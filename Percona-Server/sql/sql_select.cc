@@ -48,6 +48,7 @@
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
 #include "debug_sync.h"          // DEBUG_SYNC
+#include "sql_string.h"
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
@@ -12142,8 +12143,16 @@ int report_error(TABLE *table, int error)
   */
   if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
       && !table->in_use->killed)
-    sql_print_error("Got error %d when reading table '%s'",
-		    error, table->s->path.str);
+  {
+    QUOTED_IDENTIFIER(tbl_nam,
+		      512,
+		      '`',
+		      &my_charset_bin,
+		      table->s->path.str,
+		      table->s->path.length);
+    sql_print_error("Got error %d when reading table %s",
+		    error, tbl_nam.c_ptr());
+  }
   table->file->print_error(error,MYF(0));
   return 1;
 }

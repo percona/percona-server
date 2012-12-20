@@ -22,6 +22,12 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#define QUOTED_IDENTIFIER(str_name, buf_size, q, cs, id_name, id_size) \
+	char buf_##str_name[(buf_size)]; \
+	String str_name((buf_##str_name), (buf_size), (cs)); \
+	str_name.length(0); \
+	str_name.append_identifier((id_name), (id_size), (cs), (q));
+
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
@@ -248,6 +254,10 @@ public:
   bool append(IO_CACHE* file, uint32 arg_length);
   bool append_with_prefill(const char *s, uint32 arg_length, 
 			   uint32 full_length, char fill_char);
+  bool append_identifier(const char *name,
+			 uint length,
+			 CHARSET_INFO *ci,
+			 int quote_char);
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   int strrstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   bool replace(uint32 offset,uint32 arg_length,const char *to,uint32 length);

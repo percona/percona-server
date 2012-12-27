@@ -4,6 +4,11 @@
  Fast |InnoDB| Checksum
 ========================
 
+.. warning::
+
+ This feature has been deprecated after |Percona Server| :rn:`5.1.66-14.2`.
+
+
 |InnoDB| writes a checksum at the end of each data page in order to detect data files corruption. However computing this checksum requires CPU cycles and in some circumstances this extra overhead can become significant.
 
 |XtraDB| can use a more CPU-efficient algorithm, based on 4-byte words, which can be beneficial for some workloads (for instance write-heavy workloads on servers that can perform lots of IO).

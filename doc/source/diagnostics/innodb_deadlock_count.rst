@@ -36,7 +36,7 @@ A deadlock will occur when at least two transactions are mutually waiting for th
 Version Specific Information
 ============================
 
-  * 5.1.47-11.0:
+  * :rn:`5.1.47-rel11.1`:
     Full functionality available.
 
 Status Variables

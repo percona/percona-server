@@ -183,5 +183,45 @@ INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
 
 DROP TABLE t1, t2;
 
+########################################################################
+# Bug #1039536: mysqldump --innodb-optimize-keys can generate invalid table
+#               definitions
+########################################################################
+
+CREATE TABLE t1 (
+       id INT NOT NULL AUTO_INCREMENT,
+       uid INT NOT NULL,
+       `id``` INT NOT NULL,
+       ```id` INT NOT NULL,
+       # The following ones may be skipped and used in ALTER TABLE later
+       KEY k1 (```id`, id),
+       KEY k2 (```id`, `id```),
+       # The following one should be kept in CREATE TABLE
+       KEY k3 (id, uid),
+       # The following one may be skipped again
+       KEY k4 (id, `id```)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+       id INT NOT NULL AUTO_INCREMENT,
+       PRIMARY KEY (id),
+       KEY k1 (id),
+       KEY k2 (id)
+) ENGINE=InnoDB;
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 t2 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1, t2;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

@@ -8,19 +8,11 @@ This feature adds microsecond time resolution and additional statistics to the s
 
 The ability to log queries with microsecond precision is essential for measuring the work the |MySQL| server performs. The standard slow query log in |MySQL| 5.0 has only 1-second granularity, which is too coarse for all but the slowest queries. |MySQL| 5.1 has microsecond resolution, but does not have the extra information about query execution that is included in the |Percona Server|.
 
-You can use *Percona Toolkit* 's ''mk-query-digest'' tool to aggregate similar queries together and report on those that consume the most execution time.
+You can use *Percona Toolkit*'s ''pt-query-digest'' tool to aggregate similar queries together and report on those that consume the most execution time.
 
 
 Version Specific Information
 ============================
-
-  * ``4.1.x``:
-
-    * Limited functionality available: only microsecond resolution, no added statistics.
-
-  * ``5.0.x``:
-
-    * Full functionality available.
 
   * ``5.1.x``:
 
@@ -34,7 +26,7 @@ Version Specific Information
 
     * Full functionality of :variable:`use_global_log_slow_control` available.
 
-    * Fixed :bug:`600684` - :variable:`log_slow_verbosity` ``=iInnodb`` doesn't work on slave (statement-based replication)
+    * Fixed :bug:`600684` - :variable:`log_slow_verbosity` ``=Innodb`` doesn't work on slave (statement-based replication)
 
   * :rn:`5.1.53-11.7`:
 
@@ -134,16 +126,12 @@ If ``TRUE``, statements executed by stored procedures are logged to the slow if 
 
 If ``TRUE``, a timestamp is printed on every slow log record. Multiple records may have the same time.
 
-**NOTE:** This variable has been renamed to :variable:`slow_query_log_timestamp_always` since :rn:`5.5.10-20.1`.
-
-
 .. variable:: log_slow_verbosity
 
      :cli: Yes
      :conf: Yes
      :scope: Global, session
      :dyn: Yes
-     :version 5.5.8-20.0: Added ``profiling`` and ``profiling_use_getrusage``
 
 Specifies how much information to include in your slow log. The value is a comma-delimited string, and can contain any combination of the following values:
 

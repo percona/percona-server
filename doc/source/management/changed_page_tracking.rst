@@ -35,7 +35,7 @@ System Variables
 .. variable:: innodb_track_changed_pages
 
    :version 5.1.65-14.0: Variable introduced
-   :cli: No
+   :cli: Yes
    :conf: Yes
    :scope: Global
    :dyn: No

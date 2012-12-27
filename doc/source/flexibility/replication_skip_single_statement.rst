@@ -25,7 +25,7 @@ When used, this feature modifies the standard |MySQL| behavior described above. 
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * :rn:`5.1.49-rel12.0`
     Full functionality released.
 
 System Variables

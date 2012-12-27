@@ -236,9 +236,11 @@ buf_LRU_drop_page_hash_batch(
 When doing a DROP TABLE/DISCARD TABLESPACE we have to drop all page
 hash index entries belonging to that table. This function tries to
 do that in batch. Note that this is a 'best effort' attempt and does
-not guarantee that ALL hash entries will be removed. */
+not guarantee that ALL hash entries will be removed.
+
+@return number of hashed pages found*/
 static
-void
+ulint
 buf_LRU_drop_page_hash_for_tablespace(
 /*==================================*/
 	ulint	id)	/*!< in: space id */
@@ -247,13 +249,14 @@ buf_LRU_drop_page_hash_for_tablespace(
 	ulint*		page_arr;
 	ulint		num_entries;
 	ulint		zip_size;
+	ulint		num_found = 0;
 
 	zip_size = fil_space_get_zip_size(id);
 
 	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
 		/* Somehow, the tablespace does not exist.  Nothing to drop. */
 		ut_ad(0);
-		return;
+		return num_found;
 	}
 
 	page_arr = ut_malloc(sizeof(ulint)
@@ -308,6 +311,7 @@ next_page:
 
 		ut_a(num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE);
 		++num_entries;
+		++num_found;
 
 		if (num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE) {
 			goto next_page;
@@ -360,6 +364,8 @@ next_page:
 	/* Drop any remaining batch of search hashed pages. */
 	buf_LRU_drop_page_hash_batch(id, zip_size, page_arr, num_entries);
 	ut_free(page_arr);
+
+	return num_found;
 }
 
 /******************************************************************//**
@@ -515,8 +521,6 @@ buf_LRU_mark_space_was_deleted(
 	ulint	id)	/*!< in: space id */
 {
 	buf_page_t*	bpage;
-	buf_chunk_t*	chunk;
-	ulint		i, j;
 
 	mutex_enter(&LRU_list_mutex);
 
@@ -531,28 +535,9 @@ buf_LRU_mark_space_was_deleted(
 
 	mutex_exit(&LRU_list_mutex);
 
-	rw_lock_s_lock(&btr_search_latch);
-	chunk = buf_pool->chunks;
-	for (i = buf_pool->n_chunks; i--; chunk++) {
-		buf_block_t*	block	= chunk->blocks;
-		for (j = chunk->size; j--; block++) {
-			if (buf_block_get_state(block)
-			    != BUF_BLOCK_FILE_PAGE
-			    || !(block->index != NULL)
-			    || buf_page_get_space(&block->page) != id) {
-				continue;
-			}
-
-			rw_lock_s_unlock(&btr_search_latch);
-
-			rw_lock_x_lock(&block->lock);
-			btr_search_drop_page_hash_index(block);
-			rw_lock_x_unlock(&block->lock);
-
-			rw_lock_s_lock(&btr_search_latch);
-		}
-	}
-	rw_lock_s_unlock(&btr_search_latch);
+	/* The AHI entries for the tablespace being deleted should be removed
+	by now.  */
+	ut_ad(buf_LRU_drop_page_hash_for_tablespace(id) == 0);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

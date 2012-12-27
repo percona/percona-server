@@ -85,6 +85,13 @@
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
 #define IGNORE_INSERT_DELAYED 0x02 /* table doesn't support INSERT DELAYED */
 
+typedef enum {
+  KEY_TYPE_NONE,
+  KEY_TYPE_PRIMARY,
+  KEY_TYPE_UNIQUE,
+  KEY_TYPE_NON_UNIQUE
+} key_type_t;
+
 /* general_log or slow_log tables under mysql database */
 static inline my_bool general_log_or_slow_log_tables(const char *db, 
                                                      const char *table)
@@ -2460,20 +2467,62 @@ static uint dump_routines_for_db(char *db)
 }
 
 /*
-  Parse the specified key definition string and check if the key indexes
-  any of the columns from ignored_columns.
+  Parse the specified key definition string and check if the key contains an
+  AUTO_INCREMENT column as the first key part. We only check for the first key
+  part, because unlike MyISAM, InnoDB does not allow the AUTO_INCREMENT column
+  as a secondary key column, i.e. the AUTO_INCREMENT column would not be
+  considered indexed for such key specification.
 */
-static my_bool contains_ignored_column(HASH *ignored_columns, char *keydef)
+static my_bool contains_autoinc_column(const char *autoinc_column,
+                                       const char *keydef,
+                                       key_type_t type)
 {
-  char *leftp, *rightp;
+  char *from, *to;
+  uint idnum;
 
-  if ((leftp = strchr(keydef, '(')) &&
-      (rightp = strchr(leftp, ')')) &&
-      rightp > leftp + 3 &&                      /* (`...`) */
-      leftp[1] == '`' &&
-      rightp[-1] == '`' &&
-      hash_search(ignored_columns, (uchar *) leftp + 2, rightp - leftp - 3))
-    return TRUE;
+  DBUG_ASSERT(type != KEY_TYPE_NONE);
+
+  if (autoinc_column == NULL || !(from= strchr(keydef, '`')))
+    return FALSE;
+
+  to= from;
+  idnum= 0;
+
+  while ((to= strchr(to + 1, '`')))
+  {
+    /*
+      Double backticks represent a backtick in identifier, rather than a quote
+      character.
+    */
+    if (to[1] == '`')
+    {
+      to++;
+      continue;
+    }
+
+    if (to <= from + 1)
+      break;                                    /* Broken key definition */
+
+    idnum++;
+
+    /*
+      Skip the check if it's the first identifier and we are processing a
+      secondary key.
+    */
+    if ((type == KEY_TYPE_PRIMARY || idnum != 1) &&
+        !strncmp(autoinc_column, from + 1, to - from - 1))
+      return TRUE;
+
+    /*
+      Check only the first (for PRIMARY KEY) or the second (for secondary keys)
+      quoted identifier.
+    */
+    if ((idnum == 1 + test(type != KEY_TYPE_PRIMARY)) ||
+        !(from= strchr(to + 1, '`')))
+      break;
+
+    to= from;
+  }
 
   return FALSE;
 }
@@ -2500,14 +2549,11 @@ static my_bool contains_ignored_column(HASH *ignored_columns, char *keydef)
 static void skip_secondary_keys(char *create_str, my_bool has_pk)
 {
   char *ptr, *strend;
-  char *last_comma = NULL;
-  HASH ignored_columns;
+  char *last_comma= NULL;
   my_bool pk_processed= FALSE;
-
-  if (hash_init(&ignored_columns, charset_info, 16, 0, 0,
-                (hash_get_key) get_table_key,
-                (hash_free_key) free_table_ent, 0))
-    exit(EX_EOM);
+  char *autoinc_column= NULL;
+  my_bool has_autoinc= FALSE;
+  key_type_t type;
 
   strend= create_str + strlen(create_str);
 
@@ -2515,7 +2561,6 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
   while (*ptr)
   {
     char *tmp, *orig_ptr, c;
-    my_bool UNINIT_VAR(is_unique);
 
     orig_ptr= ptr;
     /* Skip leading whitespace */
@@ -2528,12 +2573,22 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
     c= *tmp;
     *tmp= '\0'; /* so strstr() only processes the current line */
 
+    if (!strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ") - 1))
+      type= KEY_TYPE_UNIQUE;
+    else if (!strncmp(ptr, "KEY ", sizeof("KEY ") - 1))
+      type= KEY_TYPE_NON_UNIQUE;
+    else if (!strncmp(ptr, "PRIMARY KEY ", sizeof("PRIMARY KEY ") - 1))
+      type= KEY_TYPE_PRIMARY;
+    else
+      type= KEY_TYPE_NONE;
+
+    has_autoinc= (type != KEY_TYPE_NONE) ?
+      contains_autoinc_column(autoinc_column, ptr, type) : FALSE;
+
     /* Is it a secondary index definition? */
     if (c == '\n' &&
-        (((is_unique= !strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ")-1)) &&
-          (pk_processed || !has_pk)) ||
-         !strncmp(ptr, "KEY ", sizeof("KEY ") - 1)) &&
-        !contains_ignored_column(&ignored_columns, ptr))
+        ((type == KEY_TYPE_UNIQUE && (pk_processed || !has_pk)) ||
+         type == KEY_TYPE_NON_UNIQUE) && !has_autoinc)
     {
       char *data, *end= tmp - 1;
 
@@ -2566,23 +2621,41 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
         *last_comma= ',';
       }
 
-      if ((has_pk && is_unique && !pk_processed) ||
-          !strncmp(ptr, "PRIMARY KEY ", sizeof("PRIMARY KEY ") - 1))
+      /*
+        If we are skipping a key which indexes an AUTO_INCREMENT column, it is
+        safe to optimize all subsequent keys, i.e. we should not be checking for
+        that column anymore.
+      */
+      if (type != KEY_TYPE_NONE && has_autoinc)
+      {
+          DBUG_ASSERT(autoinc_column != NULL);
+
+          my_free(autoinc_column, MYF(0));
+          autoinc_column= NULL;
+      }
+
+      if ((has_pk && type == KEY_TYPE_UNIQUE && !pk_processed) ||
+          type == KEY_TYPE_PRIMARY)
         pk_processed= TRUE;
 
       if (strstr(ptr, "AUTO_INCREMENT") && *ptr == '`')
       {
         /*
-          If a secondary key is defined on this column later,
-          it cannot be skipped, as CREATE TABLE would fail on import.
+          The first secondary key defined on this column later cannot be
+          skipped, as CREATE TABLE would fail on import. Unless there is a
+          PRIMARY KEY and it indexes that column.
         */
-        for (end= ptr + 1; *end != '`' && *end != '\0'; end++);
-        if (*end == '`' && end > ptr + 1 &&
-            my_hash_insert(&ignored_columns,
-                           (uchar *) my_strndup(ptr + 1,
-                                                end - ptr - 1, MYF(0))))
+        for (end= ptr + 1;
+             /* Skip double backticks as they are a part of identifier */
+             *end != '\0' && (*end != '`' || end[1] == '`');
+             end++)
+          /* empty */;
+
+        if (*end == '`' && end > ptr + 1)
         {
-          exit(EX_EOM);
+          DBUG_ASSERT(autoinc_column == NULL);
+
+          autoinc_column= my_strndup(ptr + 1, end - ptr - 1, MYF(MY_FAE));
         }
       }
 
@@ -2594,7 +2667,7 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
     }
   }
 
-  hash_free(&ignored_columns);
+  my_free(autoinc_column, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 /*

@@ -187,7 +187,14 @@ public:
       delete pending();
     }
     set_pending(0);
+
+    /*
+      Truncate the temporary file to reclaim disk space occupied by cached
+      transactions on COMMIT/ROLLBACK.
+    */
+    truncate_cached_file(&trans_log, pos);
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
+
     trans_log.end_of_file= max_binlog_cache_size;
     if (pos < before_stmt_pos)
       before_stmt_pos= MY_OFF_T_UNDEF;
@@ -2418,7 +2425,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
                     (ulong) thd->sent_row_count,
                     (ulong) thd->examined_row_count,
                     ((long) thd->row_count_func > 0 ) ? (ulong) thd->row_count_func : 0,
-                    thd->row_count - thd->orig_row_count + 1,
+                    (ulong) thd->examined_row_count,
                     (ulong) (thd->status_var.bytes_sent - thd->bytes_sent_old),
                     (ulong) thd->tmp_tables_used,
                     (ulong) thd->tmp_tables_disk_used,

@@ -1,8 +1,9 @@
 The version of HandlerSocket included was git-cloned from
-git://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL.
+git://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL, and subsecuently
+git-pulled from git://github.com/DeNADev/HandlerSocket-Plugin-for-MySQL
 
-The lattest commit is 635b93097cf8c08594b8248d5da13237778e98b0, commited on
-April the 11th, 2011.
+The lattest commit is 83d8f3af176e1698acd9eb3ac5174700ace40fe0, commited on
+2012-07-09.
 
 The copy in the HandlerSocket-Plugin-for-MySQL has no mofications (except for
 the removal of the .git/ directory and the .gitignore file). All modifications

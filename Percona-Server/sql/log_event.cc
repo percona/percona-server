@@ -5673,7 +5673,7 @@ void User_var_log_event::pack_info(THD *thd, Protocol* protocol)
       String buf(buf_mem, sizeof(buf_mem), system_charset_info);
       float8get(real_val, val);
       buf.length(0);
-      my_snprintf(buf2, sizeof(buf2), "%.14g", real_val);
+      snprintf(buf2, sizeof(buf2), "%.14g", real_val);
       if (user_var_append_name_part(thd, &buf, name, name_len) ||
           buf.append(buf2))
          return;

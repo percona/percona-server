@@ -1036,48 +1036,17 @@ static const char *require_quotes(const char *name, uint name_length)
   packet                target string
   name                  the identifier to be appended
   name_length           length of the appending identifier
+
+  RETURN VALUES
+    true                Error
+    false               Ok
 */
 
-void
+bool
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
-  const char *name_end;
-  char quote_char;
   int q= get_quote_char_for_identifier(thd, name, length);
-
-  if (q == EOF)
-  {
-    packet->append(name, length, packet->charset());
-    return;
-  }
-
-  /*
-    The identifier must be quoted as it includes a quote character or
-   it's a keyword
-  */
-
-  VOID(packet->reserve(length*2 + 2));
-  quote_char= (char) q;
-  packet->append(&quote_char, 1, system_charset_info);
-
-  for (name_end= name+length ; name < name_end ; name+= length)
-  {
-    uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
-    /*
-      my_mbcharlen can return 0 on a wrong multibyte
-      sequence. It is possible when upgrading from 4.0,
-      and identifier contains some accented characters.
-      The manual says it does not work. So we'll just
-      change length to 1 not to hang in the endless loop.
-    */
-    if (!length)
-      length= 1;
-    if (length == 1 && chr == (uchar) quote_char)
-      packet->append(&quote_char, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
-  }
-  packet->append(&quote_char, 1, system_charset_info);
+  return packet->append_identifier(name, length, system_charset_info, q);
 }
 
 

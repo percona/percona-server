@@ -11,9 +11,9 @@ Based on `MySQL 5.5.28 <http://dev.mysql.com/doc/refman/5.5/en/news-5.5.28.html>
 Bug Fixes
 =========
 
-  Fixed the upstream bug :mysqlbug:`66550` and the security vulnerability `CVE-2012-4414 <http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-4414>`_. This was caused because user-supplied identifiers (table names, field names, etc.) are not always properly quoted, so authorized users that have privileges to modify a table (any non-temporary table) can inject arbitrary SQL into the binary log and that could cause multiple SQL injection like vulnerabilities. Bug fixed :bug:`1049871` (*Vlad Lesin*).
+  Fixed the upstream bug :mysqlbug:`66550` and the security vulnerability `CVE-2012-4414 <http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-4414>`_. This was caused because user-supplied identifiers (table names, field names, etc.) are not always properly quoted, so authorized users that have privileges to modify a table (any non-temporary table) can inject arbitrary SQL into the binary log and that could cause multiple SQL injection like vulnerabilities. This bug fix comes originally from MariaDB (see `MDEV-382 <https://mariadb.atlassian.net/browse/MDEV-382>`). Bug fixed :bug:`1049871` (*Vlad Lesin*).
 
-  Fixed the upstream bug :mysqlbug:`67685` and the security vulnerability `CVE-2012-5611 <http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-5611>`_. This vulnerability allowed remote authenticated users to execute arbitrary code via a long argument to the ``GRANT FILE`` command. Bug fixed :bug:`1083377` (*Vlad Lesin*).
+  Fixed the upstream bug :mysqlbug:`67685` and the security vulnerability `CVE-2012-5611 <http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-5611>`_. This vulnerability allowed remote authenticated users to execute arbitrary code via a long argument to the ``GRANT FILE`` command. This bug fix comes originally from MariaDB (see `MDEV-3884 <https://mariadb.atlassian.net/browse/MDEV-3884`). Bug fixed :bug:`1083377` (*Vlad Lesin*).
 
   ``Rows_read`` was calculated in a way which lead to a negative value being printed in the slow query log. Fixed by making ``Rows_read`` to be a synonym for ``Rows_examined`` in the slow query log. Bug fixed :bug:`830286` (*Alexey Kopytov*).
 

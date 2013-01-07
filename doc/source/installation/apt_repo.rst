@@ -44,8 +44,8 @@ Ubuntu
 ------
 
  * 10.04LTS (lucid)
- * 11.10 (oneiric)
  * 12.04LTS (precise)
+ * 12.10 (quantal)
 
 Percona `apt` Experimental repository
 =====================================

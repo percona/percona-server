@@ -45,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Percona Server'
-copyright = u'2011-2013, Percona Inc'
+copyright = u'Percona Ireland Ltd. 2009-2013'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

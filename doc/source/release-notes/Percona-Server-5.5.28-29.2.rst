@@ -44,4 +44,6 @@ Bug Fixes
 
   There is no need to scan buffer pool for AHI entries after the B-trees for the tablespace have been dropped, as that will already clean them. Bug fixed :bug:`1076215` (*Laurynas Biveinis*).
 
-Other bug fixes: bug fixed :bug:`890404` (*Laurynas Biveinis*), bug fixed :bug:`1071877` (*Laurynas Biveinis*), bug fixed :bug:`1050466` (*Laurynas Biveinis*), bug fixed :bug:`719386` (*Alexey Kopytov*).
+  :ref:`slow_extended` code did not handle the case of individual statements in stored procedures correctly. This caused ``Query_time`` to increase for every query stored procedure logged to the slow query log. Bug fixed :bug:`719386` (*Alexey Kopytov*).
+
+Other bug fixes: bug fixed :bug:`890404` (*Laurynas Biveinis*), bug fixed :bug:`1071877` (*Laurynas Biveinis*), bug fixed :bug:`1050466` (*Laurynas Biveinis*).

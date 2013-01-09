@@ -5781,7 +5781,6 @@ void User_var_log_event::pack_info(THD *thd, Protocol* protocol)
       my_gcvt(real_val, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
 	      buf2, NULL);
       buf.length(0);
-      snprintf(buf2, sizeof(buf2), "%.14g", real_val);
       if (user_var_append_name_part(thd, &buf, name, name_len) ||
           buf.append(buf2))
          return;

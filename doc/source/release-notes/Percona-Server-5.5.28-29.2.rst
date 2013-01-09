@@ -15,7 +15,7 @@ New Features
 
   |Percona Server| now has an option to build the binary tarball with enabled debugging. New flag :option:`--dubug` has been added to the build script, that will create a build with the debug-enabled binaries. New binaries will have ``-debug`` appended in case it is a debug build, ie. ``mysqld-debug``.
 
-  :ref:`handlersocket_page` has been updated to version 1.1.0
+  :ref:`handlersocket_page` has been updated to version 1.1.0 (rev. 83d8f3af176e1698acd9eb3ac5174700ace40fe0).
 
   ``innochecksum`` has been extended with an option to read file format information from a given InnoDB data file. As only the first page needs to be read to detect the format/version information, it can also be used on a running server. This information can be useful when doing the :ref:`innodb_expand_import_page`.
  
@@ -44,4 +44,6 @@ Bug Fixes
 
   There is no need to scan buffer pool for AHI entries after the B-trees for the tablespace have been dropped, as that will already clean them. Bug fixed :bug:`1076215` (*Laurynas Biveinis*).
 
-Other bug fixes: bug fixed :bug:`890404` (*Laurynas Biveinis*), bug fixed :bug:`1071877` (*Laurynas Biveinis*), bug fixed :bug:`1050466` (*Laurynas Biveinis*), bug fixed :bug:`719386` (*Alexey Kopytov*).
+  :ref:`slow_extended` code did not handle the case of individual statements in stored procedures correctly. This caused ``Query_time`` to increase for every query stored procedure logged to the slow query log. Bug fixed :bug:`719386` (*Alexey Kopytov*).
+
+Other bug fixes: bug fixed :bug:`890404` (*Laurynas Biveinis*), bug fixed :bug:`1071877` (*Laurynas Biveinis*), bug fixed :bug:`1050466` (*Laurynas Biveinis*).

@@ -431,10 +431,10 @@ log_online_track_missing_on_startup(
 {
 	ut_ad(last_tracked_lsn != tracking_start_lsn);
 
-	fprintf(stderr, "InnoDB: last tracked LSN is %llu, but the last "
-		"checkpoint LSN is %llu.  This might be due to a server "
-		"crash or a very fast shutdown.  ", last_tracked_lsn,
-		tracking_start_lsn);
+	fprintf(stderr, "InnoDB: last tracked LSN in \'%s\' is %llu, but the "
+		"last checkpoint LSN is %llu.  This might be due to a server "
+		"crash or a very fast shutdown.  ", log_bmp_sys->out.name,
+		last_tracked_lsn, tracking_start_lsn);
 
 	/* See if we can fully recover the missing interval */
 	if (log_online_can_track_missing(last_tracked_lsn,

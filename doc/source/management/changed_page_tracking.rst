@@ -36,8 +36,21 @@ This table contains a list of modified pages from the bitmap file data.  As thes
 
 The ``start_lsn`` and the ``end_lsn`` columns denote between which two checkpoints this page was changed at least once. They are also equal to checkpoint LSNs.
 
+Number of records in this table can be limited by using the variable :variable:`innodb_changed_pages_limit`.
+
 System Variables
 ================
+
+.. variable:: innodb_changed_pages_limit
+
+   :version 5.5.27-29.0: Variable introduced
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: Yes
+   :vartype: Numeric
+   :default: 1000000
+   :range: 1 - 0 (unlimited)
 
 .. variable:: innodb_track_changed_pages
 

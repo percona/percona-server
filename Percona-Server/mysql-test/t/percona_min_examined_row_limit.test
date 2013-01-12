@@ -33,3 +33,4 @@ SET GLOBAL long_query_time=default;
 --source include/log_grep.inc
 
 DROP TABLE t;
+--source include/log_cleanup.inc

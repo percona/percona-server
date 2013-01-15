@@ -8,7 +8,7 @@ This feature adds microsecond time resolution and additional statistics to the s
 
 The ability to log queries with microsecond precision is essential for measuring the work the |MySQL| server performs. The standard slow query log in |MySQL| 5.0 has only 1-second granularity, which is too coarse for all but the slowest queries. |MySQL| 5.1 has microsecond resolution, but does not have the extra information about query execution that is included in the |Percona Server|.
 
-You can use *Percona Toolkit*'s ''pt-query-digest'' tool to aggregate similar queries together and report on those that consume the most execution time.
+You can use *Percona Toolkit*'s `pt-query-digest <http://www.percona.com/doc/percona-toolkit/2.1/pt-query-digest.html>`_ tool to aggregate similar queries together and report on those that consume the most execution time.
 
 
 Version Specific Information
@@ -42,6 +42,15 @@ Other Information
 System Variables
 ================
 
+.. variable:: log_slow_admin_statements
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: yes
+
+When this variable is enabled, administrative statements will be logged to the slow query log. This feature has been implemented in the upstream |MySQL| as a command line option and requires server restart in order to be enabled/disabled. |Percona Server| has implemented this as global variable, which can be enabled/disabled without restarting the server. 
+
 .. variable:: log_slow_filter
 
      :cli: Yes
@@ -64,7 +73,7 @@ Filters the slow log by the query's execution plan. The value is a comma-delimit
     The query created an implicit internal temporary table.
 
   * ``tmp_table_on_disk``:
-    The query``s temporary table was stored on disk.
+    The query's temporary table was stored on disk.
 
   * ``filesort``:
     The query used a filesort.
@@ -72,7 +81,7 @@ Filters the slow log by the query's execution plan. The value is a comma-delimit
   * ``filesort_on_disk``:
     The filesort was performed on disk.
 
-Values are OR``ed together. If the string is empty, then the filter is disabled. If it is not empty, then queries will only be logged to the slow log if their execution plan matches one of the types of plans present in the filter.
+Values are OR'ed together. If the string is empty, then the filter is disabled. If it is not empty, then queries will only be logged to the slow log if their execution plan matches one of the types of plans present in the filter.
 
 For example, to log only queries that perform a full table scan, set the value to ``full_scan``. To log only queries that use on-disk temporary storage for intermediate results, set the value to ``tmp_table_on_disk,filesort_on_disk``.
 
@@ -93,9 +102,9 @@ Logging all queries might consume I/O bandwidth and cause the log file to grow l
      :cli: Yes
      :conf: Yes
      :scope: Global, session
-     :dyn: Yes (in 5.1 releases only)
+     :dyn: Yes
 
-Specifies that queries replayed by the slave SQL thread on a |MySQL| slave will be logged. The standard |MySQL| server will not log any queries executed by the slave``s SQL thread.
+Specifies that slow queries replayed by the slave SQL thread on a |MySQL| slave will be logged. Upstream version of the |MySQL| server has implemented command line option with same name. Significant difference is that this feature is implemented as variable in |Percona Server|, that means it can be enabled/disabled dynamically without restarting the server.
 
 To start the logging from the slave thread, you should change the global value: set global :variable:`log_slow_slave_statements` ``=ON``; and then execute: ``STOP SLAVE; START SLAVE;``. This will destroy and recreate the slave SQL thread, so it will see the newly set global value.
 
@@ -113,6 +122,10 @@ To stop the logging from the slave thread, you should just change the global val
      :range: TRUE/FALSE
 
 If ``TRUE``, statements executed by stored procedures are logged to the slow if it is open.
+
+.. note::
+ 
+ Support for logging stored proceders doesn't involve triggers, so they won't be logged even if this is feature is enabled.
 
 .. variable:: log_slow_timestamp_every
 
@@ -132,6 +145,7 @@ If ``TRUE``, a timestamp is printed on every slow log record. Multiple records m
      :conf: Yes
      :scope: Global, session
      :dyn: Yes
+     :default: microtime
 
 Specifies how much information to include in your slow log. The value is a comma-delimited string, and can contain any combination of the following values:
 
@@ -139,37 +153,23 @@ Specifies how much information to include in your slow log. The value is a comma
     Log queries with microsecond precision (mandatory).
 
   * ``query_plan``:
-    Log information about the query``s execution plan (optional).
+    Log information about the query's execution plan (optional).
 
   * ``innodb``:
     Log |InnoDB| statistics (optional).
 
+  * ``minimal``:
+    Equivalent to enabling just ``microtime``.
+
+  * ``standard``:
+    Equivalent to enabling ``microtime,innodb``.
+
   * ``full``:
-    Equivalent to all other values OR``ed together.
+    Equivalent to all other values OR'ed together.
 
-  * ``profiling``:
-    Enables profiling of all queries in all connections.
+Values are OR'ed together.
 
-  * ``profiling_use_getrusage``:
-    Enables usage of the getrusage function.
-
-Values are OR``ed together.
-
-For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb``. To turn all options on, set the option to ``full``.
-
-.. variable:: long_query_time
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global, session
-     :dyn: Yes
-
-Specifies the time threshold for filtering queries out of the slow query log. The unit of time is seconds. This option has the same meaning as in a standard |MySQL| server, with the following changes:
-
-The option accepts fractional values. If set to 0.5, for example, queries longer than 1/2 second will be logged.
-Before version 1.01 of this feature, the value was an integer, and the unit of time was microseconds, not seconds.
-
-If the value is set to 0, then all queries are logged. This is different from the standard |MySQL| build, prior to version 5.1.21, where a value of 0 disables logging. After |MySQL| 5.1.21 this has been changed to minimum value and you can disable/enable slow query log with ``slow_query_log`` variable.
+For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.
 
 .. variable:: profiling_server
 
@@ -216,19 +216,16 @@ If ``TRUE``, this variable causes the format to be like this: ::
 
   # Time: 090402 9:23:36.123456 # User@Host: XXX @ XXX [10.X.X.X]
 
-**NOTE**: This variable has been renamed to :variable:`slow_query_log_timestamp_precision` since :rn:`5.5.10-20.1`.
 
-
-.. variable:: use_global_slow_control
+.. variable:: use_global_log_slow_control
 
      :cli: Yes
      :conf: Yes
      :scope: Global
      :dyn: Yes
      :default: None
-     :version 5.5.10-20.1: Renamed to :variable:`slow_query_log_use_global_control`
 
-Specifies which variables have global scope instead of local. Value is a “flag” variable - you can specify multiple values separated by commas
+Specifies which variables have global scope instead of local. Value is a "flag" variable - you can specify multiple values separated by commas
 
   * ``none``:
     All variables use local scope
@@ -250,8 +247,6 @@ Specifies which variables have global scope instead of local. Value is a “flag
 
   * ``all``
     Global variables has effect (instead of local)
-
-**NOTE:** This variable has been renamed to  :variable:`slow_query_log_use_global_control` since :rn:`5.5.10-20.1`.
 
 .. variable:: use_global_long_query_time
 
@@ -404,7 +399,7 @@ If the query did not use |InnoDB| tables, that information is written into the l
 Related Reading
 ===============
 
-  * http://www.mysqlperformanceblog.com/2009/02/10/impact-of-logging-on-mysql%E2%80%99s-performance/
+  * `Impact of logging on MySQL's performance <http://www.mysqlperformanceblog.com/2009/02/10/impact-of-logging-on-mysql%E2%80%99s-performance/>`_
 
   * `log_slow_filter Usage <http://www.mysqlperformanceblog.com/2008/09/22/finding-what-created_tmp_disk_tables-with-log_slow_filter/>`_
 

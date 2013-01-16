@@ -20,23 +20,23 @@
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
+%define debug_package %{nil}
 %define mysql_old_vendor        MySQL AB
 %define mysql_vendor_2          Sun Microsystems, Inc.
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
 %define mysql_version   5.5.28
-%define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 29
 %define minorversion 3
-%define distribution  rhel%{redhatversion}
+%define distribution  %{dist}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}%{dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -232,8 +232,10 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
+%if 0%{?rhel}  == 6
+BuildRequires: pam-devel redhat-rpm-config
+%endif
 BuildRequires:  %{distro_buildreq}
-
 # Think about what you use here since the first step is to
 # run a rm -rf
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
@@ -411,7 +413,8 @@ mkdir debug
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
+	   -DWITH_PAM=ON
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make ${MAKE_JFLAG}
 )
@@ -427,7 +430,9 @@ mkdir release
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
+           -DWITH_PAM=ON
+
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make ${MAKE_JFLAG}
   cd ../%{src_dir}

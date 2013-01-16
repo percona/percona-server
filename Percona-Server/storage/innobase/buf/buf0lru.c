@@ -1853,7 +1853,7 @@ alloc:
 	    || !buf_page_can_relocate(bpage)) {
 not_freed:
 		if (b) {
-			buf_buddy_free(buf_pool, b, sizeof *b, TRUE);
+			buf_page_free_descriptor(b);
 		}
 		if (!have_LRU_mutex)
 			mutex_exit(&buf_pool->LRU_list_mutex);

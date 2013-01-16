@@ -1181,10 +1181,10 @@ buf_flush_write_block_low(
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**
 Writes a flushable page asynchronously from the buffer pool to a file.
-NOTE: buf_pool->mutex and block->mutex must be held upon entering this
-function, and they will be released by this function after flushing.
+NOTE: block->mutex must be held upon entering this function, and it will be
+released by this function after flushing.
 This is loosely based on buf_flush_batch() and buf_flush_page().
-@return TRUE if the page was flushed and the mutexes released */
+@return TRUE if the page was flushed and the mutex released */
 UNIV_INTERN
 ibool
 buf_flush_page_try(
@@ -1553,16 +1553,14 @@ scan:
 Check if the block is modified and ready for flushing. If the the block
 is ready to flush then flush the page and try o flush its neighbors.
 
-@return	TRUE if buf_pool mutex was not released during this function.
+@return	TRUE if LRU list mutex was not released during this function.
 This does not guarantee that some pages were written as well.
 Number of pages written are incremented to the count. */
 static
 ibool
 buf_flush_page_and_try_neighbors(
 /*=============================*/
-	buf_page_t*	bpage,		/*!< in: buffer control block,
-					must be
-					buf_page_in_file(bpage) */
+	buf_page_t*	bpage,		/*!< in: buffer control block */
 	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 	ulint		n_to_flush,	/*!< in: number of pages to

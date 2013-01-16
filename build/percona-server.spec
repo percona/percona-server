@@ -232,8 +232,8 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-%if 0%{?rhel}  == 6
-BuildRequires: pam-devel redhat-rpm-config
+%if %{?rhel} || %{?centos} 
+BuildRequires: pam-devel
 %endif
 BuildRequires:  %{distro_buildreq}
 # Think about what you use here since the first step is to

@@ -125,7 +125,7 @@ Database: information_schema
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLES                     |
 | INNODB_CMP                            |
-| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_POOL_STATS              |
 | INNODB_CMP_RESET                      |
 | INNODB_CMPMEM                         |
 | INNODB_INDEX_STATS                    |
@@ -133,6 +133,9 @@ Database: information_schema
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCKS                          |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_PAGE_LRU                |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -184,7 +187,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLES                     |
 | INNODB_CMP                            |
-| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_POOL_STATS              |
 | INNODB_CMP_RESET                      |
 | INNODB_CMPMEM                         |
 | INNODB_INDEX_STATS                    |
@@ -192,6 +195,9 @@ Database: INFORMATION_SCHEMA
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCKS                          |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_PAGE_LRU                |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.65
+%define mysqlversion 5.1.66
 %define majorversion 14
-%define minorversion 0
+%define minorversion 1
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -288,11 +288,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	    --with-pic \
             -prefix=/usr \
 	    --with-extra-charsets=complex \
-%if %{YASSL_BUILD}
 	    --with-ssl \
-%else
-	    --without-ssl \
-%endif
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \

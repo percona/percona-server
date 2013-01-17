@@ -232,7 +232,7 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-%if %{?rhel} || %{?centos} 
+%if %{?rhel}
 BuildRequires: pam-devel
 %endif
 BuildRequires:  %{distro_buildreq}
@@ -269,7 +269,7 @@ Percona recommends that all production deployments be protected with a support
 contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,
 be eligible for hot fixes, and boost your team's productivity.
 
-This package includes the Percona Server with XtraDB binary 
+This package includes the Percona Server with XtraDB binary
 as well as related utilities to run and administer Percona Server.
 
 If you want to access and work with the database, you have to install
@@ -862,7 +862,7 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 #   Remove last version of package   0 "
 #
 #  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
- 
+
 if [ $1 = 0 ] ; then
         # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then

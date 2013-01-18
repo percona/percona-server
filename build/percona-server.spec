@@ -16,7 +16,7 @@
 %define community 1
 %define mysqlversion 5.1.66
 %define majorversion 14
-%define minorversion 1
+%define minorversion 2
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 

@@ -1795,6 +1795,7 @@ buf_page_get_gen(
 	case BUF_GET:
 	case BUF_GET_IF_IN_POOL:
 	case BUF_PEEK_IF_IN_POOL:
+	case BUF_GET_POSSIBLY_FREED:
 		break;
 	default:
 		ut_error;
@@ -2172,7 +2173,8 @@ wait_until_unfixed:
 	}
 
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	ut_a(!block->page.file_page_was_freed);
+	ut_a(mode == BUF_GET_POSSIBLY_FREED
+	     || !block->page.file_page_was_freed);
 #endif
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

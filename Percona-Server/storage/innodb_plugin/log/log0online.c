@@ -401,7 +401,7 @@ log_online_can_track_missing(
 {
 	/* last_tracked_lsn might be < MIN_TRACKED_LSN in the case of empty
 	bitmap file, handle this too. */
-	last_tracked_lsn = ut_max(last_tracked_lsn, MIN_TRACKED_LSN);
+	last_tracked_lsn = ut_max_uint64(last_tracked_lsn, MIN_TRACKED_LSN);
 
 	if (last_tracked_lsn > tracking_start_lsn) {
 		fprintf(stderr,
@@ -431,10 +431,10 @@ log_online_track_missing_on_startup(
 {
 	ut_ad(last_tracked_lsn != tracking_start_lsn);
 
-	fprintf(stderr, "InnoDB: last tracked LSN is %llu, but the last "
-		"checkpoint LSN is %llu.  This might be due to a server "
-		"crash or a very fast shutdown.  ", last_tracked_lsn,
-		tracking_start_lsn);
+	fprintf(stderr, "InnoDB: last tracked LSN in \'%s\' is %llu, but the "
+		"last checkpoint LSN is %llu.  This might be due to a server "
+		"crash or a very fast shutdown.  ", log_bmp_sys->out.name,
+		last_tracked_lsn, tracking_start_lsn);
 
 	/* See if we can fully recover the missing interval */
 	if (log_online_can_track_missing(last_tracked_lsn,
@@ -443,8 +443,8 @@ log_online_track_missing_on_startup(
 		fprintf(stderr,
 			"Reading the log to advance the last tracked LSN.\n");
 
-		log_bmp_sys->start_lsn = ut_max(last_tracked_lsn,
-						MIN_TRACKED_LSN);
+		log_bmp_sys->start_lsn = ut_max_uint64(last_tracked_lsn,
+						       MIN_TRACKED_LSN);
 		log_set_tracked_lsn(log_bmp_sys->start_lsn);
 		log_online_follow_redo_log();
 		ut_ad(log_bmp_sys->end_lsn >= tracking_start_lsn);
@@ -560,7 +560,7 @@ log_online_read_init()
 {
 	ibool		success;
 	ib_uint64_t	tracking_start_lsn
-		= ut_max(log_sys->last_checkpoint_lsn, MIN_TRACKED_LSN);
+		= ut_max_uint64(log_sys->last_checkpoint_lsn, MIN_TRACKED_LSN);
 	os_file_dir_t	bitmap_dir;
 	os_file_stat_t	bitmap_dir_file_info;
 	ib_uint64_t	last_file_start_lsn	= MIN_TRACKED_LSN;
@@ -931,8 +931,8 @@ log_online_follow_log_seg(
 			/* The next parse LSN is inside the current block, skip
 			data preceding it. */
 			skip_already_parsed_len
-				= log_bmp_sys->next_parse_lsn
-				- block_start_lsn;
+				= (ulint)(log_bmp_sys->next_parse_lsn
+					  - block_start_lsn);
 		}
 		else {
 

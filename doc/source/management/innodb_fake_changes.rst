@@ -43,6 +43,16 @@ System Variables
 
    This variable enables the *Fake Changes* feature.
 
+.. variable:: innodb_locking_fake_changes
+
+   :version 5.1.66-14.2: Introduced
+   :scope: ``GLOBAL``
+   :type: ``BOOLEAN``
+   :dyn: ``YES``
+   :default: ``TRUE``
+ 
+   When this variable is set to ``FALSE``, it makes fake transactions not to take any row locks. This feature was implemented because, although fake change transactions downgrade the requested exclusive (X) row locks to shared (S) locks, these S locks prevent X locks from being taken and block the real changes. However, this option is not safe to set to FALSE by default, because the fake changes implementation is not ready for lock-less operation for all workloads. Namely, if a real transaction will remove a row that a fake transaction is doing a secondary index maintenance for, the latter will fail. This option is considered experimental and might be removed in the future if lockless operation mode fixes are implemented.
+
 Implementation Details
 ======================
 

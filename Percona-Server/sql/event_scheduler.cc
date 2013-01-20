@@ -195,7 +195,6 @@ pre_init_event_thread(THD* thd)
   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
   mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  thd->write_to_slow_log= true;
   mysql_mutex_unlock(&LOCK_thread_count);
 
   /*

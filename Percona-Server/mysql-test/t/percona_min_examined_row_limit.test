@@ -19,7 +19,7 @@ SELECT 1;
 
 SET GLOBAL min_examined_row_limit=5;
 
-select * from t as t1, t as t2;
+SELECT * FROM t AS t1, t AS t2;
 SELECT 1;
 
 SET SESSION query_exec_time=default;
@@ -33,3 +33,4 @@ SET GLOBAL long_query_time=default;
 --source include/log_grep.inc
 
 DROP TABLE t;
+--source include/log_cleanup.inc

@@ -1,0 +1,46 @@
+FLUSH STATUS;
+SET SESSION min_examined_row_limit=0;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUE(5);
+SET SESSION query_cache_type=1;
+SET GLOBAL query_cache_size=1355776;
+SET SESSION long_query_time=0;
+SET SESSION log_slow_verbosity='microtime,query_plan';
+[log_start.inc] percona_slow_query_log.query_plan_qc_1
+SELECT * FROM t1;
+a
+5
+[log_stop.inc] percona_slow_query_log.query_plan_qc_1
+[log_grep.inc] file: percona_slow_query_log.query_plan_qc_1 pattern: ^# QC_Hit: No.*$
+[log_grep.inc] lines:   2
+SHOW STATUS LIKE 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	0
+[log_start.inc] percona_slow_query_log.query_plan_qc_2
+SELECT * FROM t1;
+a
+5
+[log_stop.inc] percona_slow_query_log.query_plan_qc_2
+[log_grep.inc] file: percona_slow_query_log.query_plan_qc_2 pattern: ^# QC_Hit: Yes.*$
+[log_grep.inc] lines:   1
+SHOW STATUS LIKE 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	1
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort,filesort_on_disk';
+[log_start.inc] percona_slow_query_log.query_plan_qc_3
+SELECT * FROM t1 WHERE a > 5;
+a
+[log_stop.inc] percona_slow_query_log.query_plan_qc_3
+[log_grep.inc] file: percona_slow_query_log.query_plan_qc_3 pattern: ^# QC_Hit: No.*$
+[log_grep.inc] lines:   0
+SHOW STATUS LIKE 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	1
+SET SESSION log_slow_filter=default;
+SET SESSION long_query_time=default;
+SET SESSION log_slow_verbosity=default;
+SET SESSION query_cache_type=default;
+SET GLOBAL query_cache_size=default;
+SET SESSION min_examined_row_limit=default;
+DROP TABLE t1;

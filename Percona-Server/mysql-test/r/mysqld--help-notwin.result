@@ -719,8 +719,8 @@ The following options may be given as the first argument:
  Timestamp is printed for all records of the slow log even
  if they are same time.
  --slow-query-log-timestamp-precision=name 
- Log slow statements executed by stored procedure to the
- slow log if it is open. [second, microsecond]
+ Select the timestamp precision for use in the slow query
+ log.  [second, microsecond]
  --slow-query-log-use-global-control=name 
  Choose flags, wich always use the global variables.
  Multiple flags allowed in a comma-separated string.

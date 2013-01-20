@@ -118,7 +118,7 @@ while (defined($_= shift @pending)) {
     s/^# Query_time: (\d+(\.\d+)?)  Lock_time: (\d+(\.\d+)?)  Rows_sent: (\d+)  Rows_examined: \d+  Rows_affected: \d+  Rows_read: \d+\n//;
     my ($t, $l, $r)= ($1, $3, $5);
     $t -= $l unless $opt{l};
-    s/^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+\n//;
+    s/^# Bytes_sent: \d+(  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+)?\n//;
 
     s/^# InnoDB_trx_id: [\w\d]+\n//;
 
@@ -126,9 +126,9 @@ while (defined($_= shift @pending)) {
 
     s/^# Filesort: \S+  Filesort_on_disk: \S+  Merge_passes: \S+\n//;
 
-    s/^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d+\.\d+\n//;
+    s/^#   InnoDB_IO_r_ops: \d+  InnoDB_IO_r_bytes: \d+  InnoDB_IO_r_wait: \d+(\.\d+)?\n//;
 
-    s/^#   InnoDB_rec_lock_wait: \d+\.\d+  InnoDB_queue_wait: \d+\.\d+\n//;
+    s/^#   InnoDB_rec_lock_wait: \d+(\.\d+)?  InnoDB_queue_wait: \d+(\.\d+)?\n//;
 
     s/^#   InnoDB_pages_distinct: \d+\n//;
 

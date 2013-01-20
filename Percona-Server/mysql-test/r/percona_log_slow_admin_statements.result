@@ -1,6 +1,15 @@
-SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
-Variable_name	Value
-log_slow_admin_statements	OFF
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
-VARIABLE_NAME	VARIABLE_VALUE
-LOG_SLOW_ADMIN_STATEMENTS	OFF
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+SET GLOBAL log_slow_admin_statements=ON;
+[log_start.inc] percona_log_slow_admin_stmt_1
+ALTER TABLE t1 ADD INDEX a(a);
+[log_stop.inc] percona_log_slow_admin_stmt_1
+[log_grep.inc] file: percona_log_slow_admin_stmt_1 pattern: ALTER TABLE t1 ADD INDEX a\(a\);
+[log_grep.inc] lines:   1
+[log_start.inc] percona_log_slow_admin_stmt_2
+ALTER TABLE t1 DROP INDEX a;
+[log_stop.inc] percona_log_slow_admin_stmt_2
+[log_grep.inc] file: percona_log_slow_admin_stmt_2 pattern: ALTER TABLE t1 DROP INDEX a;
+[log_grep.inc] lines:   0

@@ -1,0 +1,10 @@
+SET DEBUG_SYNC='reset';
+CREATE TABLE IF NOT EXISTS t1 (`a` INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+SET DEBUG_SYNC='after_copy_data_between_tables SIGNAL run_show_innodb_status
+                   WAIT_FOR show_innodb_status_done';
+ALTER TABLE t1 PARTITION BY HASH (`a`) PARTITIONS 4 ;
+SET DEBUG_SYNC='now WAIT_FOR run_show_innodb_status';
+SHOW ENGINE INNODB STATUS;
+SET DEBUG_SYNC='now SIGNAL show_innodb_status_done';
+DROP TABLE t1;

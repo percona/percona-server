@@ -217,7 +217,10 @@ not_to_recover:
 
 	ut_ad(buf_page_in_file(bpage));
 
-	thd_wait_begin(NULL, THD_WAIT_DISKIO);
+	if(sync) {
+		thd_wait_begin(NULL, THD_WAIT_DISKIO);
+	}
+
 	if (zip_size) {
 		*err = fil_io(OS_FILE_READ | wake_later
 			      | ignore_nonexistent_pages,
@@ -231,7 +234,6 @@ not_to_recover:
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage);
 	}
-	thd_wait_end(NULL);
 
 	if (*err != DB_SUCCESS) {
 		if (ignore_nonexistent_pages || *err == DB_TABLESPACE_DELETED) {
@@ -243,6 +245,7 @@ not_to_recover:
 	}
 
 	if (sync) {
+		thd_wait_end(NULL);
 		/* The i/o is already completed when we arrive from
 		fil_read */
 		if (!buf_page_io_complete(bpage)) {

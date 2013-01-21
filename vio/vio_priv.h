@@ -29,14 +29,14 @@
 size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_pipe(Vio *vio);
-int vio_shutdown_pipe(Vio * vio);
+int vio_shutdown_pipe(Vio * vio, int how);
 #endif
 
 #ifdef HAVE_SMEM
 size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_shared_memory(Vio *vio);
-int vio_shutdown_shared_memory(Vio * vio);
+int vio_shutdown_shared_memory(Vio * vio, int how);
 void vio_delete_shared_memory(Vio *vio);
 #endif
 
@@ -51,7 +51,7 @@ size_t	vio_ssl_read(Vio *vio,uchar* buf,	size_t size);
 size_t	vio_ssl_write(Vio *vio,const uchar* buf, size_t size);
 
 /* When the workday is over... */
-int vio_ssl_shutdown(Vio *vio);
+int vio_ssl_shutdown(Vio *vio, int how);
 void vio_ssl_delete(Vio *vio);
 my_bool vio_ssl_has_data(Vio *vio);
 

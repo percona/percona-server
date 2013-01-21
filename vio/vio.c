@@ -51,6 +51,13 @@ static my_bool has_no_data(Vio *vio __attribute__((unused)))
   return FALSE;
 }
 
+#ifdef _WIN32
+my_bool vio_shared_memory_has_data(Vio *vio)
+{
+  return (vio->shared_memory_remain > 0);
+}
+#endif
+
 /*
  * Helper to fill most of the Vio* with defaults.
  */
@@ -107,7 +114,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->peer_addr	=vio_peer_addr;
     vio->io_wait        =no_io_wait;
     vio->is_connected   =vio_is_connected_shared_memory;
-    vio->has_data       =has_no_data;
+    vio->has_data       =vio_shared_memory_has_data;
     DBUG_VOID_RETURN;
   }
 #endif
@@ -226,7 +233,7 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
     */
     if (sd != mysql_socket_getfd(vio->mysql_socket))
       if (vio->inactive == FALSE)
-        vio->vioshutdown(vio);
+        vio->vioshutdown(vio, SHUT_RDWR);
 
     my_free(vio->read_buffer);
 
@@ -367,7 +374,7 @@ void vio_delete(Vio* vio)
     return; /* It must be safe to delete null pointers. */
 
   if (vio->inactive == FALSE)
-    vio->vioshutdown(vio);
+    vio->vioshutdown(vio, SHUT_RDWR);
   my_free(vio->read_buffer);
   my_free(vio);
 }

@@ -615,8 +615,6 @@ typedef struct system_variables
     'COLUMN_TYPE' field.
   */
   my_bool show_old_temporals;
-
-  my_bool expand_fast_index_creation;
 } SV;
 
 
@@ -2223,6 +2221,7 @@ public:
   NET	  net;				// client connection descriptor
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
+  scheduler_functions *scheduler;       // Scheduler for this connection
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
   Protocol_binary protocol_binary;	// Binary protocol
@@ -3029,6 +3028,7 @@ public:
   ulong	     rand_saved_seed1, rand_saved_seed2;
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
+  bool skip_wait_timeout;
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
@@ -3176,6 +3176,8 @@ public:
 
   /// @todo: slave_thread is completely redundant, we should use 'system_thread' instead /sven
   bool       slave_thread, one_shot_set;
+  bool       extra_port;                        /* If extra connection */
+
   bool	     no_errors;
   uchar      password;
   /**
@@ -3411,6 +3413,7 @@ public:
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
+    vio_set_thread_id(vio, pthread_self());
     mysql_mutex_unlock(&LOCK_thd_data);
   }
   inline void clear_active_vio()
@@ -4079,7 +4082,7 @@ public:
     *p_db_length= db_length;
     return FALSE;
   }
-  thd_scheduler scheduler;
+  thd_scheduler event_scheduler;
 
   /* Returns string as 'IP:port' for the client-side
      of the connnection represented
@@ -5577,6 +5580,8 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
+
+extern pthread_attr_t *get_connection_attrib(void);
 
 #endif /* MYSQL_SERVER */
 

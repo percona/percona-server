@@ -32,7 +32,8 @@ ifneq ($(BUILD_DEBUG_BINARY),)
 	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
 	   -DFEATURE_SET=$(feature_set) \
 	   -DCOMPILATION_COMMENT=$(compilation_comment_debug) \
-	   -DMYSQL_SERVER_SUFFIX=$(server_suffix)
+	   -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
+	   -DWITH_PAM=ON
 endif
 
 	mkdir release
@@ -43,7 +44,8 @@ endif
            -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
            -DFEATURE_SET=$(feature_set) \
            -DCOMPILATION_COMMENT=$(compilation_comment_release) \
-           -DMYSQL_SERVER_SUFFIX=$(server_suffix)
+           -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
+	   -DWITH_PAM=ON
 
 override_dh_auto_build:
 ifneq ($(BUILD_DEBUG_BINARY),)

@@ -122,7 +122,8 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 #endif /* _WIN32 */
 
 void    vio_delete(Vio* vio);
-int vio_shutdown(Vio* vio);
+int vio_shutdown(Vio* vio, int how);
+int vio_cancel(Vio* vio, int how);
 my_bool vio_reset(Vio* vio, enum enum_vio_type type,
                   my_socket sd, void *ssl, uint flags);
 size_t  vio_read(Vio *vio, uchar *	buf, size_t size);
@@ -246,11 +247,23 @@ void vio_end(void);
 #define vio_keepalive(vio, set_keep_alive)  (vio)->viokeepalive(vio, set_keep_alive)
 #define vio_should_retry(vio)                   (vio)->should_retry(vio)
 #define vio_was_timeout(vio)                    (vio)->was_timeout(vio)
-#define vio_shutdown(vio)                       ((vio)->vioshutdown)(vio)
+#define vio_shutdown(vio,how)                   ((vio)->vioshutdown)(vio,how)
+#define vio_cancel(vio,how)                     ((vio)->viocancel)(vio,how)
 #define vio_peer_addr(vio, buf, prt, buflen)    (vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_io_wait(vio, event, timeout)        (vio)->io_wait(vio, event, timeout)
 #define vio_is_connected(vio)                   (vio)->is_connected(vio)
 #endif /* !defined(DONT_MAP_VIO) */
+
+#ifdef _WIN32
+/*
+  Set thread id for io cancellation (required on Windows XP only,
+  and should to be removed if XP is no more supported)
+*/
+
+#define vio_set_thread_id(vio, tid) if(vio) vio->thread_id= tid
+#else
+#define vio_set_thread_id(vio, tid)
+#endif
 
 /* This enumerator is used in parser - should be always visible */
 enum SSL_type
@@ -311,12 +324,18 @@ struct st_vio
      further communications can take place, however any related buffers,
      descriptors, handles can remain valid after a shutdown.
   */
-  int     (*vioshutdown)(Vio*);
+  int     (*vioshutdown)(Vio*, int);
+  /*
+     Partial shutdown. All the actions performed which shutdown performs,
+     but descriptor remains open and valid.
+  */
+  int     (*viocancel)(Vio*, int);
   my_bool (*is_connected)(Vio*);
   my_bool (*has_data) (Vio*);
   int (*io_wait)(Vio*, enum enum_vio_io_event, int);
   my_bool (*connect)(Vio*, struct sockaddr *, socklen_t, int);
 #ifdef _WIN32
+  DWORD thread_id; /* Used on XP only by vio_shutdown() */
   OVERLAPPED overlapped;
   HANDLE hPipe;
 #endif

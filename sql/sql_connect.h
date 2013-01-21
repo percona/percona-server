@@ -88,7 +88,7 @@ bool check_mqh(THD *thd, uint check_command);
 void decrease_user_connections(USER_CONN *uc);
 void release_user_connection(THD *thd);
 bool thd_init_client_charset(THD *thd, uint cs_number);
-bool thd_prepare_connection(THD *thd);
+bool thd_prepare_connection(THD *thd, bool extra_port_connection);
 void close_connection(THD *thd, uint sql_errno= 0,
                       bool server_shutdown= false, bool generate_event= true);
 bool thd_connection_alive(THD *thd);

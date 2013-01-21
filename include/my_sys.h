@@ -862,6 +862,8 @@ extern ulonglong my_getsystime(void);
 extern ulonglong my_micro_time();
 extern my_bool my_gethwaddr(uchar *to);
 
+#define my_microsecond_getsystime()    (my_getsystime()/10)
+
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 

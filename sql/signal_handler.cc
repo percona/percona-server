@@ -115,7 +115,8 @@ extern "C" void handle_fatal_signal(int sig)
 #ifndef EMBEDDED_LIBRARY
   max_threads= Connection_handler_manager::max_threads;
 #endif
-  my_safe_printf_stderr("max_threads=%u\n", max_threads);
+  my_safe_printf_stderr("max_threads=%u\n", max_threads +
+                        (uint) extra_max_connections);
 
   my_safe_printf_stderr("thread_count=%u\n", Global_THD_manager::global_thd_count);
 
@@ -126,11 +127,11 @@ extern "C" void handle_fatal_signal(int sig)
                         "key_buffer_size + "
                         "(read_buffer_size + sort_buffer_size)*max_threads = "
                         "%lu K  bytes of memory\n",
-                        ((ulong) dflt_key_cache->key_cache_mem_size +
+                        (ulong)(dflt_key_cache->key_cache_mem_size +
                          (global_system_variables.read_buff_size +
                          global_system_variables.sortbuff_size) *
-                         max_threads +
-                         max_connections * sizeof(THD)) / 1024);
+                          max_threads +
+                         (max_connections + extra_max_connections) * sizeof(THD)) / 1024);
 
   my_safe_printf_stderr("%s",
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");

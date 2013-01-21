@@ -151,7 +151,7 @@ ssize_t Connection_vio::read(char *buffer, const std::size_t buffer_size)
 int Connection_vio::shutdown(Shutdown_type how_to_shutdown)
 {
   Mutex_lock lock(m_shutdown_mutex);
-  return vio_shutdown(m_vio);
+  return vio_shutdown(m_vio, SHUT_RDWR);
 }
 
 

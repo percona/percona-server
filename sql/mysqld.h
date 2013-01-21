@@ -245,6 +245,7 @@ extern uint  slave_net_timeout;
 extern ulong opt_mts_slave_parallel_workers;
 extern ulonglong opt_mts_pending_jobs_size_max;
 extern uint max_user_connections;
+extern ulong extra_max_connections;
 extern ulong rpl_stop_slave_timeout;
 extern my_bool log_bin_use_v1_row_events;
 extern ulong what_to_log,flush_time;
@@ -353,6 +354,8 @@ extern ulong net_buffer_length;
 #endif
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
+
+extern uint mysqld_extra_port;
 
 extern char* enforce_storage_engine;
 
@@ -558,6 +561,7 @@ extern PSI_memory_key key_memory_test_quick_select_exec;
 extern PSI_memory_key key_memory_prune_partitions_exec;
 extern PSI_memory_key key_memory_binlog_recover_exec;
 extern PSI_memory_key key_memory_blob_mem_storage;
+extern PSI_memory_key key_memory_thread_pool_connection;
 
 extern PSI_memory_key key_memory_Sys_var_charptr_value;
 extern PSI_memory_key key_memory_THD_db;

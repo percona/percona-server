@@ -2154,12 +2154,14 @@ assign_priv_user_host(Security_context *sctx, ACL_USER *user)
   @param command                 the command to be executed, it can be either a
                                  COM_CHANGE_USER or COM_CONNECT (if
                                  it's a new connection)
+  @param extra_port_connection   true if the client is connecting on extra_port
 
   @retval 0  success, thd is updated.
   @retval 1  error
 */
 int
-acl_authenticate(THD *thd, enum_server_command command)
+acl_authenticate(THD *thd, enum_server_command command,
+                 bool extra_port_connection)
 {
   int res= CR_OK;
   MPVIO_EXT mpvio;
@@ -2400,7 +2402,9 @@ acl_authenticate(THD *thd, enum_server_command command)
     sctx->set_master_access(acl_user->access);
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
-    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
+    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error()
+        && !acl_is_utility_user(sctx->user().str, sctx->host().str,
+                                sctx->ip().str))
     {
       mysql_mutex_lock(&LOCK_offline_mode);
       bool tmp_offline_mode= MY_TEST(offline_mode);
@@ -2525,7 +2529,8 @@ acl_authenticate(THD *thd, enum_server_command command)
       !(thd->m_main_security_ctx.check_access(SUPER_ACL)))
   {
 #ifndef EMBEDDED_LIBRARY
-    if (!Connection_handler_manager::get_instance()->valid_connection_count())
+    if (!Connection_handler_manager::get_instance()
+        ->valid_connection_count(extra_port_connection))
     {                                         // too many connections
       release_user_connection(thd);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
@@ -4195,3 +4200,4 @@ mysql_declare_plugin(mysql_password)
 }
 #endif /* HAVE_OPENSSL */
 mysql_declare_plugin_end;
+

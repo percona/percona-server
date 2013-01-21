@@ -214,6 +214,50 @@ size_t vio_write(Vio *vio, const uchar* buf, size_t size)
   DBUG_RETURN(ret);
 }
 
+#ifdef _WIN32
+static void CALLBACK cancel_io_apc(ULONG_PTR data)
+{
+  CancelIo((HANDLE)data);
+}
+
+/*
+  Cancel IO on Windows.
+
+  On XP, issue CancelIo as asynchronous procedure call to the thread that started
+  IO. On Vista+, simpler cancelation is done with CancelIoEx. 
+*/
+
+int cancel_io(HANDLE handle, DWORD thread_id)
+{
+  static BOOL (WINAPI  *fp_CancelIoEx) (HANDLE, OVERLAPPED *);
+  static volatile int first_time= 1;
+  int rc;
+  HANDLE thread_handle;
+
+  if (first_time)
+  {
+    /* Try to load CancelIoEx using GetProcAddress */
+    InterlockedCompareExchangePointer((volatile void *)&fp_CancelIoEx,
+      GetProcAddress(GetModuleHandle("kernel32"), "CancelIoEx"), NULL);
+    first_time =0;
+  }
+
+  if (fp_CancelIoEx)
+  {
+    return fp_CancelIoEx(handle, NULL)? 0 :-1;
+  }
+
+  thread_handle= OpenThread(THREAD_SET_CONTEXT, FALSE, thread_id);
+  if (thread_handle)
+  {
+    rc= QueueUserAPC(cancel_io_apc, thread_handle, (ULONG_PTR)handle);
+    CloseHandle(thread_handle);
+  }
+  return rc;
+
+}
+#endif
+
 //WL#4896: Not covered
 static int vio_set_blocking(Vio *vio, my_bool status)
 {
@@ -409,30 +453,57 @@ vio_was_timeout(Vio *vio)
 }
 
 
-int vio_shutdown(Vio * vio)
+int vio_shutdown(Vio * vio, int how)
 {
   int r=0;
   DBUG_ENTER("vio_shutdown");
 
- if (vio->inactive == FALSE)
+  r= vio_cancel(vio, how);
+
+  if (vio->inactive == FALSE)
+  {
+    if (mysql_socket_close(vio->mysql_socket))
+      r= -1;
+  }
+
+  if (r)
+  {
+    DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
+    /* FIXME: error handling (not critical for MySQL) */
+  }
+
+  vio->inactive= TRUE;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
+
+  DBUG_RETURN(r);
+}
+
+
+int vio_cancel(Vio * vio, int how)
+{
+  int r= 0;
+  DBUG_ENTER("vio_cancel");
+
+  if (vio->inactive == FALSE)
   {
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
 
     DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
-    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
+    if (mysql_socket_shutdown(vio->mysql_socket, how))
       r= -1;
-    if (mysql_socket_close(vio->mysql_socket))
-      r= -1;
+#ifdef  _WIN32
+    /* Cancel possible IO in progress (shutdown does not do that on
+    Windows). */
+    (void) cancel_io((HANDLE)vio->mysql_socket, vio->thread_id);
+#endif
   }
   if (r)
   {
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio->inactive= TRUE;
-  vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
 

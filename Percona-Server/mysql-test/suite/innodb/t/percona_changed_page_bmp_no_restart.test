@@ -2,7 +2,9 @@
 # percona_changed_page_bmp test, which contains the full functional tests.
 --source include/have_innodb.inc
 
---source include/delete_innodb_bitmaps.inc
+# Delete any existing bitmaps
+--source include/restart_mysqld.inc
+RESET CHANGED_PAGE_BITMAPS;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;

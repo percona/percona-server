@@ -85,6 +85,7 @@ extern "C" {
 #include "row0sel.h"
 #include "row0upd.h"
 #include "log0log.h"
+#include "log0online.h"
 #include "lock0lock.h"
 #include "dict0crea.h"
 #include "btr0cur.h"
@@ -297,6 +298,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&ibuf_pessimistic_insert_mutex_key,
 		 "ibuf_pessimistic_insert_mutex", 0},
 	{&kernel_mutex_key, "kernel_mutex", 0},
+	{&log_bmp_sys_mutex_key, "log_bmp_sys_mutex", 0},
 	{&log_sys_mutex_key, "log_sys_mutex", 0},
 #  ifdef UNIV_MEM_DEBUG
 	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
@@ -438,6 +440,25 @@ uint
 innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
+/************************************************************//**
+Synchronously read and parse the redo log up to the last
+checkpoint to write the changed page bitmap.
+@return 0 to indicate success.  Current implementation cannot fail. */
+static
+my_bool
+innobase_flush_changed_page_bitmaps();
+/*==================================*/
+/************************************************************//**
+Delete all the bitmap files for data less than the specified LSN.
+If called with lsn == 0 (i.e. set by RESET request) or
+IB_ULONGLONG_MAX, restart the bitmap file sequence, otherwise
+continue it.
+@return 0 to indicate success, 1 for failure. */
+static
+my_bool
+innobase_purge_changed_page_bitmaps(
+/*================================*/
+	ulonglong lsn);	/*!< in: LSN to purge files up to */
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -2663,6 +2684,10 @@ innobase_init(
         innobase_hton->flags=HTON_NO_FLAGS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
+	innobase_hton->flush_changed_page_bitmaps
+		= innobase_flush_changed_page_bitmaps;
+	innobase_hton->purge_changed_page_bitmaps
+		= innobase_purge_changed_page_bitmaps;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -3280,6 +3305,36 @@ innobase_alter_table_flags(
 		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
+}
+
+/************************************************************//**
+Synchronously read and parse the redo log up to the last
+checkpoint to write the changed page bitmap.
+@return 0 to indicate success.  Current implementation cannot fail. */
+static
+my_bool
+innobase_flush_changed_page_bitmaps()
+/*=================================*/
+{
+	if (srv_track_changed_pages) {
+		os_event_reset(srv_checkpoint_completed_event);
+		log_online_follow_redo_log();
+	}
+	return FALSE;
+}
+
+/************************************************************//**
+Delete all the bitmap files for data less than the specified LSN.
+If called with lsn == IB_ULONGLONG_MAX (i.e. set by RESET request),
+restart the bitmap file sequence, otherwise continue it.
+@return 0 to indicate success, 1 for failure. */
+static
+my_bool
+innobase_purge_changed_page_bitmaps(
+/*================================*/
+	ulonglong lsn)	/*!< in: LSN to purge files up to */
+{
+	return (my_bool)log_online_purge_changed_page_bitmaps(lsn);
 }
 
 /****************************************************************//**

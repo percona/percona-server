@@ -4,25 +4,20 @@
 ## DP: 30_scripts__mysqld_safe.sh__signals.patch by  <ch@debian.org>
 
 @DPATCH@
-
-30_scripts__mysqld_safe.sh__signals.patch by  <ch@debian.org>
-
-Executes /etc/init.d/mysql on signals
-Reported as http://bugs.mysql.com/bug.php?id=31361
-
---- a/scripts/mysqld_safe.sh
-+++ b/scripts/mysqld_safe.sh
-@@ -29,8 +29,6 @@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server~/scripts/mysqld_safe.sh Percona-Server/scripts/mysqld_safe.sh
+--- Percona-Server~/scripts/mysqld_safe.sh	2013-01-22 11:14:28.000000000 -0500
++++ Percona-Server/scripts/mysqld_safe.sh	2013-01-22 11:14:39.000000000 -0500
+@@ -31,8 +31,6 @@
  syslog_tag_mysqld=mysqld
  syslog_tag_mysqld_safe=mysqld_safe
  
 -trap '' 1 2 3 15			# we shouldn't let anyone kill us
 -
- umask 007
- 
- defaults=
-@@ -707,6 +705,12 @@
-   fi
+ # MySQL-specific environment variable. First off, it's not really a umask,
+ # it's the desired mode. Second, it follows umask(2), not umask(3) in that
+ # octal needs to be explicit. Our shell might be a proper sh without printf,
+@@ -782,6 +780,12 @@
+   exit 1
  fi
  
 +# From now on, we catch signals to do a proper shutdown of mysqld

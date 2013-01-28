@@ -36,6 +36,11 @@ Online database log parsing for changed page tracking
 
 enum { FOLLOW_SCAN_SIZE = 4 * (UNIV_PAGE_SIZE_MAX) };
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register log_bmp_sys->mutex with PFS */
+UNIV_INTERN mysql_pfs_key_t	log_bmp_sys_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /** Log parsing and bitmap output data structure */
 struct log_bitmap_struct {
 	byte		read_buf[FOLLOW_SCAN_SIZE];
@@ -69,6 +74,7 @@ struct log_bitmap_struct {
 					both the correct type and the tree does
 					not mind its overwrite during
 					rbt_next() tree traversal. */
+	mutex_t		mutex;		/*!< mutex protecting all the fields.*/
 };
 
 /* The log parsing and bitmap output struct instance */
@@ -171,6 +177,8 @@ log_online_set_page_bit(
 	ib_rbt_bound_t	tree_search_pos;
 	byte		search_page[MODIFIED_PAGE_BLOCK_SIZE];
 	byte		*page_ptr;
+
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
 	ut_a(space != ULINT_UNDEFINED);
 	ut_a(page_no != ULINT_UNDEFINED);
@@ -312,8 +320,8 @@ its name is correct and use it for (re-)tracking start.
 @return the last fully tracked LSN */
 static
 ib_uint64_t
-log_online_read_last_tracked_lsn()
-/*==============================*/
+log_online_read_last_tracked_lsn(void)
+/*==================================*/
 {
 	byte		page[MODIFIED_PAGE_BLOCK_SIZE];
 	ibool		is_last_page	= FALSE;
@@ -487,8 +495,8 @@ log_online_make_bitmap_name(
 Create a new empty bitmap output file.  */
 static
 void
-log_online_start_bitmap_file()
-/*==========================*/
+log_online_start_bitmap_file(void)
+/*==============================*/
 {
 	ibool	success;
 
@@ -518,7 +526,10 @@ log_online_rotate_bitmap_file(
 	ib_uint64_t	next_file_start_lsn)	/*!<in: the start LSN name
 						part */
 {
-	os_file_close(log_bmp_sys->out.file);
+	if (log_bmp_sys->out.file != -1) {
+		os_file_close(log_bmp_sys->out.file);
+		log_bmp_sys->out.file = -1;
+	}
 	log_bmp_sys->out_seq_num++;
 	log_online_make_bitmap_name(next_file_start_lsn);
 	log_online_start_bitmap_file();
@@ -556,8 +567,8 @@ log_online_is_bitmap_file(
 Initialize the online log following subsytem. */
 UNIV_INTERN
 void
-log_online_read_init()
-/*==================*/
+log_online_read_init(void)
+/*======================*/
 {
 	ibool		success;
 	ib_uint64_t	tracking_start_lsn
@@ -566,12 +577,15 @@ log_online_read_init()
 	os_file_stat_t	bitmap_dir_file_info;
 	ib_uint64_t	last_file_start_lsn	= MIN_TRACKED_LSN;
 
-	/* Assert (could be compile-time assert) that bitmap data start and end
-	in a bitmap block is 8-byte aligned */
-	ut_a(MODIFIED_PAGE_BLOCK_BITMAP % 8 == 0);
-	ut_a(MODIFIED_PAGE_BLOCK_BITMAP_LEN % 8 == 0);
+	/* Bitmap data start and end in a bitmap block must be 8-byte
+	aligned. */
+	compile_time_assert(MODIFIED_PAGE_BLOCK_BITMAP % 8 == 0);
+	compile_time_assert(MODIFIED_PAGE_BLOCK_BITMAP_LEN % 8 == 0);
 
 	log_bmp_sys = ut_malloc(sizeof(*log_bmp_sys));
+
+	mutex_create(log_bmp_sys_mutex_key, &log_bmp_sys->mutex,
+		     SYNC_LOG_ONLINE);
 
 	/* Enumerate existing bitmap files to either open the last one to get
 	the last tracked LSN either to find that there are none and start
@@ -701,12 +715,15 @@ log_online_read_init()
 Shut down the online log following subsystem. */
 UNIV_INTERN
 void
-log_online_read_shutdown()
-/*======================*/
+log_online_read_shutdown(void)
+/*==========================*/
 {
 	ib_rbt_node_t *free_list_node = log_bmp_sys->page_free_list;
 
-	os_file_close(log_bmp_sys->out.file);
+	if (log_bmp_sys->out.file != -1) {
+		os_file_close(log_bmp_sys->out.file);
+		log_bmp_sys->out.file = -1;
+	}
 
 	rbt_free(log_bmp_sys->modified_pages);
 
@@ -715,6 +732,8 @@ log_online_read_shutdown()
 		ut_free(free_list_node);
 		free_list_node = next;
 	}
+
+	mutex_free(&log_bmp_sys->mutex);
 
 	ut_free(log_bmp_sys);
 }
@@ -759,13 +778,15 @@ from the buffer.  If an incomplete record is found, moves it to the end of the
 buffer. */
 static
 void
-log_online_parse_redo_log()
-/*=======================*/
+log_online_parse_redo_log(void)
+/*===========================*/
 {
 	byte *ptr = log_bmp_sys->parse_buf;
 	byte *end = log_bmp_sys->parse_buf_end;
 
 	ulint len = 0;
+
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
 	while (ptr != end
 	       && log_bmp_sys->next_parse_lsn < log_bmp_sys->end_lsn) {
@@ -857,6 +878,8 @@ log_online_add_to_parse_buf(
 	ulint actual_data_len = (end_offset >= start_offset)
 		? end_offset - start_offset : 0;
 
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
+
 	ut_memcpy(log_bmp_sys->parse_buf_end, log_block + start_offset,
 		  actual_data_len);
 
@@ -880,6 +903,8 @@ log_online_parse_redo_log_block(
 						  they were parsed before */
 {
 	ulint block_data_len;
+
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
 	block_data_len = log_block_get_data_len(log_block);
 
@@ -906,6 +931,8 @@ log_online_follow_log_seg(
 	byte* log_block = log_bmp_sys->read_buf;
 	byte* log_block_end = log_bmp_sys->read_buf
 		+ (block_end_lsn - block_start_lsn);
+
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
 	mutex_enter(&log_sys->mutex);
 	log_group_read_log_seg(LOG_RECOVER, log_bmp_sys->read_buf,
@@ -969,6 +996,8 @@ log_online_follow_log_group(
 	ib_uint64_t block_start_lsn = contiguous_lsn;
 	ib_uint64_t block_end_lsn;
 
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
+
 	log_bmp_sys->next_parse_lsn = log_bmp_sys->start_lsn;
 	log_bmp_sys->parse_buf_end = log_bmp_sys->parse_buf;
 
@@ -1005,6 +1034,8 @@ log_online_write_bitmap_page(
 {
 	ibool	success;
 
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
+
 	success = os_file_write(log_bmp_sys->out.name, log_bmp_sys->out.file,
 				block,
 				(ulint)(log_bmp_sys->out.offset & 0xFFFFFFFF),
@@ -1038,11 +1069,13 @@ Append the current changed page bitmap to the bitmap file.  Clears the
 bitmap tree and recycles its nodes to the free list. */
 static
 void
-log_online_write_bitmap()
-/*=====================*/
+log_online_write_bitmap(void)
+/*=========================*/
 {
 	ib_rbt_node_t		*bmp_tree_node;
 	const ib_rbt_node_t	*last_bmp_tree_node;
+
+	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
 	if (log_bmp_sys->out.offset >= srv_max_bitmap_file_size) {
 		log_online_rotate_bitmap_file(log_bmp_sys->start_lsn);
@@ -1084,11 +1117,13 @@ Read and parse the redo log up to last checkpoint LSN to build the changed
 page bitmap which is then written to disk.  */
 UNIV_INTERN
 void
-log_online_follow_redo_log()
-/*========================*/
+log_online_follow_redo_log(void)
+/*============================*/
 {
 	ib_uint64_t	contiguous_start_lsn;
 	log_group_t*	group;
+
+	mutex_enter(&log_bmp_sys->mutex);
 
 	/* Grab the LSN of the last checkpoint, we will parse up to it */
 	mutex_enter(&(log_sys->mutex));
@@ -1096,6 +1131,7 @@ log_online_follow_redo_log()
 	mutex_exit(&(log_sys->mutex));
 
 	if (log_bmp_sys->end_lsn == log_bmp_sys->start_lsn) {
+		mutex_exit(&log_bmp_sys->mutex);
 		return;
 	}
 
@@ -1117,6 +1153,8 @@ log_online_follow_redo_log()
 	log_online_write_bitmap();
 	log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;
 	log_set_tracked_lsn(log_bmp_sys->start_lsn);
+
+	mutex_exit(&log_bmp_sys->mutex);
 }
 
 /*********************************************************************//**
@@ -1513,4 +1551,77 @@ log_online_bitmap_iterator_next(
 				i->bit_offset);
 
 	return TRUE;
+}
+
+/************************************************************//**
+Delete all the bitmap files for data less than the specified LSN.
+If called with lsn == 0 (i.e. set by RESET request) or
+IB_ULONGLONG_MAX, restart the bitmap file sequence, otherwise
+continue it.
+
+@return FALSE to indicate success, TRUE for failure. */
+UNIV_INTERN
+ibool
+log_online_purge_changed_page_bitmaps(
+/*==================================*/
+	ib_uint64_t lsn)	/*!< in: LSN to purge files up to */
+{
+	log_online_bitmap_file_range_t	bitmap_files;
+	size_t				i;
+	ibool				result = FALSE;
+
+	if (lsn == 0) {
+		lsn = IB_ULONGLONG_MAX;
+	}
+
+	if (srv_track_changed_pages) {
+		/* User requests might happen with both enabled and disabled
+		tracking */
+		mutex_enter(&log_bmp_sys->mutex);
+	}
+
+	if (!log_online_setup_bitmap_file_range(&bitmap_files, 0, lsn)) {
+		if (srv_track_changed_pages) {
+			mutex_exit(&log_bmp_sys->mutex);
+		}
+		return TRUE;
+	}
+
+	if (srv_track_changed_pages && lsn >= log_bmp_sys->end_lsn) {
+		/* If we have to delete the current output file, close it
+		first. */
+		os_file_close(log_bmp_sys->out.file);
+		log_bmp_sys->out.file = -1;
+	}
+
+	for (i = 0; i < bitmap_files.count; i++) {
+		if (bitmap_files.files[i].seq_num == 0
+		    || bitmap_files.files[i].start_lsn >= lsn) {
+			break;
+		}
+		if (!os_file_delete_if_exists(bitmap_files.files[i].name)) {
+			os_file_get_last_error(TRUE);
+			result = TRUE;
+			break;
+		}
+	}
+
+	if (srv_track_changed_pages) {
+		if (lsn > log_bmp_sys->end_lsn) {
+			if (lsn == IB_ULONGLONG_MAX) {
+				/* RESET restarts the sequence */
+				log_bmp_sys->out_seq_num = 0;
+				log_online_rotate_bitmap_file(0);
+			} else {
+				/* PURGE continues the sequence */
+				log_online_rotate_bitmap_file
+					(log_bmp_sys->end_lsn);
+			}
+		}
+
+		mutex_exit(&log_bmp_sys->mutex);
+	}
+
+	free(bitmap_files.files);
+	return result;
 }

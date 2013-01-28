@@ -196,7 +196,7 @@ int threadpool_process_request(THD *thd)
 
   thread_attach(thd);
 
-  if (thd->killed >= THD::KILL_CONNECTION)
+  if (thd->killed == THD::KILL_CONNECTION)
   {
     /* 
       killed flag was set by timeout handler 

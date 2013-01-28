@@ -2,7 +2,8 @@ connection master;
 
 CREATE TABLE t(id INT);
 
-connection slave;
+sync_slave_with_master;
+
 SET GLOBAL query_exec_time = 0.1;
 --source include/restart_slave_sql.inc
 

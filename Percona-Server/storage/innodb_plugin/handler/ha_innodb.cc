@@ -12166,7 +12166,7 @@ static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
     "The maximum size of changed page bitmap files",
     NULL, NULL, 100*1024*1024ULL, 4096ULL, ULONGLONG_MAX, 0);
 
-static MYSQL_SYSVAR_ULONGLONG(changed_pages_limit, srv_changed_pages_limit,
+static MYSQL_SYSVAR_ULONGLONG(max_changed_pages, srv_max_changed_pages,
   PLUGIN_VAR_RQCMDARG,
   "The maximum number of rows for "
   "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES table, "
@@ -12431,7 +12431,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(track_changed_pages),
   MYSQL_SYSVAR(max_bitmap_file_size),
-  MYSQL_SYSVAR(changed_pages_limit),
+  MYSQL_SYSVAR(max_changed_pages),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */

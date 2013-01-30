@@ -19,7 +19,7 @@ The following discussion will clarify the improvements made possible by this fea
 Goal of the Doublewrite Buffer
 ------------------------------
 
-|InnoDB| and |XtraDB| use many structures, some on disk and others in memory, to manage data as efficiently as possible. To have an overview of the different components see this post. Let``s now focus on the doublewrite buffer.
+|InnoDB| and |XtraDB| use many structures, some on disk and others in memory, to manage data as efficiently as possible. To have an overview of the different components see this `post <http://www.mysqlperformanceblog.com/2010/04/26/xtradb-innodb-internals-in-drawing/>`_. Let's now focus on the doublewrite buffer.
 
 |InnoDB| / |XtraDB| uses a reserved area in its main tablespace, called the doublewrite buffer, to prevent data corruption that could occur with partial page writes. When the data in the buffer pool is flushed to disk, |InnoDB| / |XtraDB| will flush whole pages at a time (by default 16KB pages) and not just the records that have changed within a page. It means that, if anything unexpected happens during the write, the page can be partially written leading to corrupt data.
 
@@ -27,7 +27,7 @@ With the doublewrite buffer feature, |InnoDB| / |XtraDB| first writes the page i
 
 If a partial page write occurs in the data files, |InnoDB| / |XtraDB| will check on recovery if the checksum of the page in the data file is different from the checksum of the page in the doublewrite buffer and thus will know if the page is corrupt or not. If it is corrupt, the recovery process will use the page stored in the doublewrite buffer to restore the correct data.
 
-If a partial write occurs in the doublewrite buffer, the original page is untouched and can be used with the redo logs to recover the data. For further information on the doublewrite buffer, you can see this post.
+If a partial write occurs in the doublewrite buffer, the original page is untouched and can be used with the redo logs to recover the data.
 
 Performance Impact of the Doublewrite Buffer
 --------------------------------------------

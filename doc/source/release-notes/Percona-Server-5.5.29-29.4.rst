@@ -4,7 +4,7 @@
  |Percona Server| 5.5.29-29.4
 ===============================
 
-Percona is glad to announce the release of |Percona Server| 5.5.29-29.4 on January 21th, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.29-29.4/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
+Percona is glad to announce the release of |Percona Server| 5.5.29-29.4 on January 23rd, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.29-29.4/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
 
 Based on `MySQL 5.5.29 <http://dev.mysql.com/doc/refman/5.5/en/news-5.5.29.html>`_, including all the bug fixes in it, |Percona Server| 5.5.29-29.4 is now the current stable release in the 5.5 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.5.29-29.4 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.5.29-29.4>`_. 
 

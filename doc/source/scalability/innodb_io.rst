@@ -131,6 +131,7 @@ The following values are available:
 
 .. variable:: innodb_flush_method
 
+     :version 5.1.54-12.5: ``ALL_O_DIRECT`` option added
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -152,7 +153,7 @@ The following values are allowed:
   * ``O_DIRECT``: 
     Use ``O_DIRECT`` (or ``directio()`` on Solaris) to open the data files; use ``fsync()`` to flush both the data and log files.
 
-  * ``ALL_O_DIRECT``: use ``O_DIRECT`` open and flush both the data and the log files. This value was added in |Percona Server| release :rn:`5.1.54-12.5`.
+  * ``ALL_O_DIRECT``: use ``O_DIRECT`` open and flush both the data and the log files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
 
 
 .. variable:: innodb_flush_neighbor_pages

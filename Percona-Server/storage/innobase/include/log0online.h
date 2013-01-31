@@ -53,9 +53,11 @@ log_online_read_shutdown(void);
 
 /*********************************************************************//**
 Reads and parses the redo log up to last checkpoint LSN to build the changed
-page bitmap which is then written to disk.  */
+page bitmap which is then written to disk.
+
+@return TRUE if log tracking succeeded, FALSE if bitmap write I/O error */
 UNIV_INTERN
-void
+ibool
 log_online_follow_redo_log(void);
 /*=============================*/
 

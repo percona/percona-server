@@ -1479,6 +1479,11 @@ static void *worker_main(void *param)
   this_thread.thread_group= thread_group;
   this_thread.event_count=0;
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread_user_host)
+      (NULL, 0, NULL, 0);
+#endif
+
   /* Run event loop */
   for(;;)
   {

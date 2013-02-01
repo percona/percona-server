@@ -98,9 +98,78 @@ static bool thread_attach(THD* thd)
   thd->store_globals();
   if (PSI_server)
     PSI_server->set_thread(thd->event_scheduler.m_psi);
+  mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
   return 0;
 }
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+extern PSI_statement_info stmt_info_new_packet;
+#endif
+
+void threadpool_net_before_header_psi_noop(struct st_net * /* net */,
+                                           void * /* user_data */,
+                                           size_t /* count */)
+{ }
+
+void threadpool_net_after_header_psi(struct st_net *net, void *user_data,
+                                     size_t /* count */, my_bool rc)
+{
+  THD *thd;
+  thd= static_cast<THD*> (user_data);
+  DBUG_ASSERT(thd != NULL);
+
+  if (thd->m_server_idle)
+  {
+    /*
+      The server just got data for a network packet header,
+      from the network layer.
+      The IDLE event is now complete, since we now have a message to process.
+      We need to:
+      - start a new STATEMENT event
+      - start a new STAGE event, within this statement,
+      - start recording SOCKET WAITS events, within this stage.
+      The proper order is critical to get events numbered correctly,
+      and nested in the proper parent.
+    */
+    MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
+
+    if (! rc)
+    {
+      thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
+                                                  stmt_info_new_packet.m_key,
+                                                  thd->db, thd->db_length,
+                                                  thd->charset());
+
+      THD_STAGE_INFO(thd, stage_init);
+    }
+
+    /*
+      TODO: consider recording a SOCKET event for the bytes just read,
+      by also passing count here.
+    */
+    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+
+    thd->m_server_idle = false;
+  }
+}
+
+void threadpool_init_net_server_extension(THD *thd)
+{
+#ifdef HAVE_PSI_INTERFACE
+  /* Start with a clean state for connection events. */
+  thd->m_idle_psi= NULL;
+  thd->m_statement_psi= NULL;
+  thd->m_server_idle= false;
+  /* Hook up the NET_SERVER callback in the net layer. */
+  thd->m_net_server_extension.m_user_data= thd;
+  thd->m_net_server_extension.m_before_header= threadpool_net_before_header_psi_noop;
+  thd->m_net_server_extension.m_after_header= threadpool_net_after_header_psi;
+  /* Activate this private extension for the mysqld server. */
+  thd->net.extension= & thd->m_net_server_extension;
+#else
+  thd->net.extension= NULL;
+#endif
+}
 
 int threadpool_add_connection(THD *thd)
 {
@@ -153,6 +222,8 @@ int threadpool_add_connection(THD *thd)
         retval= 0;
         thd->net.reading_or_writing= 1;
         thd->skip_wait_timeout= true;
+        MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+        threadpool_init_net_server_extension(thd);
       }
     }
   }
@@ -255,6 +326,12 @@ int threadpool_process_request(THD *thd)
   }
 
 end:
+  if (!thd->m_server_idle) {
+    MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+    MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
+    thd->m_server_idle = true;
+  }
+
   worker_context.restore();
   return retval;
 }

@@ -3,7 +3,7 @@ Section: database
 Priority: extra
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
 Uploaders: Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
-Build-Depends: debhelper (>= 7.0.50), cmake, libtool, autoconf, libncurses5-dev, perl, bison, fakeroot, devscripts, libaio-dev, libpam-dev
+Build-Depends: debhelper (>= 7.0.50), cmake, libtool, autoconf, libncurses5-dev, perl, bison, fakeroot, devscripts, libaio-dev, libpam-dev, dpatch, automake
 Standards-Version: 7.0.0
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Bzr: bzr+ssh://bazaar.launchpad.net/~percona-dev/percona-server/release-5.5.8-20/

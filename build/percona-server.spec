@@ -209,10 +209,10 @@
 ##############################################################################
 
 %if %{commercial}
-%define license_files_server    %{src_dir}/LICENSE.mysql
+%define license_files_server    LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_server    %{src_dir}/COPYING %{src_dir}/README
+%define license_files_server    COPYING README
 %define license_type            GPL
 %endif
 
@@ -228,6 +228,7 @@ Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
 Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{majorversion}.%{minorversion}/source/%{src_dir}.tar.gz
+Patch1:         mysql-dubious-exports.patch
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
@@ -323,8 +324,10 @@ and applications need to dynamically load and use Percona Server.
 
 ##############################################################################
 %prep
-%setup -T -a 0 -c -n %{src_dir}
-
+%setup -n %{src_dir}
+#
+%patch1 -p1 
+#
 ##############################################################################
 %build
 
@@ -337,7 +340,7 @@ BuildHandlerSocket() {
     echo "Configuring HandlerSocket"
     CXX="${HS_CXX:-g++}" \
         MYSQL_CFLAGS="-I $RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir}/%{src_dir} \
+        ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
         --with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/release/scripts \
         --with-mysql-plugindir=%{_libdir}/mysql/plugin \
         --libdir=%{_libdir} \
@@ -350,7 +353,7 @@ BuildUDF() {
     cd UDF
     CXX="${UDF_CXX:-g++}"\
         CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/%{src_dir}/include \
+        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
         --libdir=%{_libdir}/mysql/plugin
     make all
     cd -
@@ -405,7 +408,7 @@ mkdir debug
                   -e 's/ $//'`
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
-  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+  ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
@@ -421,7 +424,7 @@ mkdir release
   cd release
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
-  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+  ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
@@ -430,7 +433,7 @@ mkdir release
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make ${MAKE_JFLAG}
-  cd ../%{src_dir}
+  cd ../
   d="`pwd`"
   BuildHandlerSocket
   BuildUDF
@@ -497,10 +500,10 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   d="`pwd`"
-  cd $MBD/%{src_dir}/storage/HandlerSocket-Plugin-for-MySQL
+  cd $MBD/storage/HandlerSocket-Plugin-for-MySQL
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
-  cd $MBD/%{src_dir}/UDF
+  cd $MBD/UDF
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
 )
@@ -529,7 +532,7 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
-install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
+install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
   $RBR%{_datadir}/mysql/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}

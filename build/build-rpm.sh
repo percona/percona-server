@@ -121,7 +121,7 @@ export MAKE_JFLAG=-j4
 
 # Create directories for rpmbuild if these don't exist
 (cd "$WORKDIR" && mkdir -p BUILD RPMS SOURCES SPECS SRPMS)
-
+cp -f $(readlink -f $(dirname $0))/rpm/*.patch ${WORKDIR}/SOURCES/
 (
     cd "$SOURCEDIR"
  
@@ -133,7 +133,6 @@ export MAKE_JFLAG=-j4
     then
         sed -i 's/lib64/lib/' "$PRODUCT/cmake/install_layout.cmake"
     fi
-
     # Create tarball for build
     tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"*
 

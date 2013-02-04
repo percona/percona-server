@@ -208,8 +208,11 @@ IF(NOT DISABLE_SHARED)
       IF(NOT libmysql_link_flag)
         SET(libmysql_link_flags)
       ENDIF()
-      SET_TARGET_PROPERTIES(libmysql PROPERTIES LINK_FLAGS 
-        "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+    IF(INSTALL_LAYOUT STREQUAL "RPM")
+      SET_TARGET_PROPERTIES(libmysql PROPERTIES LINK_FLAGS "${libmysql_link_flags} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libmysql.map ${LINK_FLAG_NO_UNDEFINED}")
+    ELSE()
+      SET_TARGET_PROPERTIES(libmysql PROPERTIES LINK_FLAGS "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+    ENDIF(INSTALL_LAYOUT STREQUAL "RPM")
     ENDIF() 
     # clean direct output needs to be set several targets have the same name
     #(mysqlclient in this case)

@@ -413,8 +413,10 @@ log_online_can_track_missing(
 
 	if (last_tracked_lsn > tracking_start_lsn) {
 		fprintf(stderr,
-			"InnoDB: Error: last tracked LSN is in future.  This "
-			"can be caused by mismatched bitmap files.\n");
+			"InnoDB: Error: last tracked LSN %llu is ahead of "
+			"tracking start LSN %llu.  This can be caused by "
+			"mismatched bitmap files.\n", last_tracked_lsn,
+			tracking_start_lsn);
 		exit(1);
 	}
 

@@ -479,9 +479,12 @@ log_close(void)
 
 		if (tracked_lsn_age >= log->log_group_capacity) {
 
-			fprintf(stderr, " InnoDB: Error: the age of the "
+			fprintf(stderr, "InnoDB: Error: the age of the "
 				"oldest untracked record exceeds the log "
 				"group capacity!\n");
+			fprintf(stderr, "InnoDB: Error: stopping the log "
+				"tracking thread at LSN %llu\n", tracked_lsn);
+			srv_track_changed_pages = FALSE;
 		}
 	}
 

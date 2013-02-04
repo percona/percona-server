@@ -1,1 +1,1 @@
---innodb_track_changed_pages=TRUE --innodb_log_file_size=1M --innodb_file_per_table
+--innodb_track_changed_pages=TRUE --innodb_log_file_size=1M --innodb_file_per_table --max_allowed_packet=13631488

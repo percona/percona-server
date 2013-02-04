@@ -456,7 +456,9 @@ log_online_track_missing_on_startup(
 		log_bmp_sys->start_lsn = ut_max_uint64(last_tracked_lsn,
 						       MIN_TRACKED_LSN);
 		log_set_tracked_lsn(log_bmp_sys->start_lsn);
-		log_online_follow_redo_log();
+		if (!log_online_follow_redo_log()) {
+			exit(1);
+		}
 		ut_ad(log_bmp_sys->end_lsn >= tracking_start_lsn);
 
 		fprintf(stderr,
@@ -494,9 +496,11 @@ log_online_make_bitmap_name(
 }
 
 /*********************************************************************//**
-Create a new empty bitmap output file.  */
+Create a new empty bitmap output file.
+
+@return TRUE if operation succeeded, FALSE if I/O error */
 static
-void
+ibool
 log_online_start_bitmap_file(void)
 /*==============================*/
 {
@@ -513,16 +517,20 @@ log_online_start_bitmap_file(void)
 		fprintf(stderr,
 			"InnoDB: Error: Cannot create \'%s\'\n",
 			log_bmp_sys->out.name);
-		exit(1);
+		log_bmp_sys->out.file = -1;
+		return FALSE;
 	}
 
 	log_bmp_sys->out.offset = 0;
+	return TRUE;
 }
 
 /*********************************************************************//**
-Close the current bitmap output file and create the next one.  */
+Close the current bitmap output file and create the next one.
+
+@return TRUE if operation succeeded, FALSE if I/O error */
 static
-void
+ibool
 log_online_rotate_bitmap_file(
 /*===========================*/
 	ib_uint64_t	next_file_start_lsn)	/*!<in: the start LSN name
@@ -534,7 +542,7 @@ log_online_rotate_bitmap_file(
 	}
 	log_bmp_sys->out_seq_num++;
 	log_online_make_bitmap_name(next_file_start_lsn);
-	log_online_start_bitmap_file();
+	return log_online_start_bitmap_file();
 }
 
 /*********************************************************************//**
@@ -645,7 +653,9 @@ log_online_read_init(void)
 	if (!success) {
 
 		/* New file, tracking from scratch */
-		log_online_start_bitmap_file();
+		if (!log_online_start_bitmap_file()) {
+			exit(1);
+		}
 	}
 	else {
 
@@ -653,6 +663,7 @@ log_online_read_init(void)
 		ulint		size_low;
 		ulint		size_high;
 		ib_uint64_t	last_tracked_lsn;
+		ib_uint64_t	file_start_lsn;
 
 		success = os_file_get_size(log_bmp_sys->out.file, &size_low,
 					   &size_high);
@@ -683,10 +694,12 @@ log_online_read_init(void)
 		if we can retrack any missing data. */
 		if (log_online_can_track_missing(last_tracked_lsn,
 						 tracking_start_lsn)) {
-			log_online_rotate_bitmap_file(last_tracked_lsn);
+			file_start_lsn = last_tracked_lsn;
+		} else {
+			file_start_lsn = tracking_start_lsn;
 		}
-		else {
-			log_online_rotate_bitmap_file(tracking_start_lsn);
+		if (!log_online_rotate_bitmap_file(file_start_lsn)) {
+			exit(1);
 		}
 
 		if (last_tracked_lsn < tracking_start_lsn) {
@@ -1027,9 +1040,11 @@ log_online_follow_log_group(
 
 /*********************************************************************//**
 Write, flush one bitmap block to disk and advance the output position if
-successful. */
+successful.
+
+@return TRUE if page written OK, FALSE if I/O error */
 static
-void
+ibool
 log_online_write_bitmap_page(
 /*=========================*/
 	const byte *block)	/*!< in: block to write */
@@ -1049,7 +1064,7 @@ log_online_write_bitmap_page(
 		os_file_get_last_error(TRUE);
 		fprintf(stderr, "InnoDB: Error: failed writing changed page "
 			"bitmap file \'%s\'\n", log_bmp_sys->out.name);
-		return;
+		return FALSE;
 	}
 
 	success = os_file_flush(log_bmp_sys->out.file, FALSE);
@@ -1060,17 +1075,20 @@ log_online_write_bitmap_page(
 		fprintf(stderr, "InnoDB: Error: failed flushing "
 			"changed page bitmap file \'%s\'\n",
 			log_bmp_sys->out.name);
-		return;
+		return FALSE;
 	}
 
 	log_bmp_sys->out.offset += MODIFIED_PAGE_BLOCK_SIZE;
+	return TRUE;
 }
 
 /*********************************************************************//**
 Append the current changed page bitmap to the bitmap file.  Clears the
-bitmap tree and recycles its nodes to the free list. */
+bitmap tree and recycles its nodes to the free list.
+
+@return TRUE if bitmap written OK, FALSE if I/O error*/
 static
-void
+ibool
 log_online_write_bitmap(void)
 /*=========================*/
 {
@@ -1080,7 +1098,9 @@ log_online_write_bitmap(void)
 	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
 	if (log_bmp_sys->out.offset >= srv_max_bitmap_file_size) {
-		log_online_rotate_bitmap_file(log_bmp_sys->start_lsn);
+		if (!log_online_rotate_bitmap_file(log_bmp_sys->start_lsn)) {
+			return FALSE;
+		}
 	}
 
 	bmp_tree_node = (ib_rbt_node_t *)
@@ -1102,7 +1122,9 @@ log_online_write_bitmap(void)
 		mach_write_to_4(page + MODIFIED_PAGE_BLOCK_CHECKSUM,
 				log_online_calc_checksum(page));
 
-		log_online_write_bitmap_page(page);
+		if (!log_online_write_bitmap_page(page)) {
+			return FALSE;
+		}
 
 		bmp_tree_node->left = log_bmp_sys->page_free_list;
 		log_bmp_sys->page_free_list = bmp_tree_node;
@@ -1112,20 +1134,29 @@ log_online_write_bitmap(void)
 	}
 
 	rbt_reset(log_bmp_sys->modified_pages);
+	return TRUE;
 }
 
 /*********************************************************************//**
 Read and parse the redo log up to last checkpoint LSN to build the changed
-page bitmap which is then written to disk.  */
+page bitmap which is then written to disk.
+
+@return TRUE if log tracking succeeded, FALSE if bitmap write I/O error */
 UNIV_INTERN
-void
+ibool
 log_online_follow_redo_log(void)
 /*============================*/
 {
 	ib_uint64_t	contiguous_start_lsn;
 	log_group_t*	group;
+	ibool		result;
 
 	mutex_enter(&log_bmp_sys->mutex);
+
+	if (!srv_track_changed_pages) {
+		mutex_exit(&log_bmp_sys->mutex);
+		return FALSE;
+	}
 
 	/* Grab the LSN of the last checkpoint, we will parse up to it */
 	mutex_enter(&(log_sys->mutex));
@@ -1134,7 +1165,7 @@ log_online_follow_redo_log(void)
 
 	if (log_bmp_sys->end_lsn == log_bmp_sys->start_lsn) {
 		mutex_exit(&log_bmp_sys->mutex);
-		return;
+		return TRUE;
 	}
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
@@ -1152,11 +1183,12 @@ log_online_follow_redo_log(void)
 	tracked LSN, so that LSN tracking for this interval is tested. */
 	DBUG_EXECUTE_IF("crash_before_bitmap_write", DBUG_SUICIDE(););
 
-	log_online_write_bitmap();
+	result = log_online_write_bitmap();
 	log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;
 	log_set_tracked_lsn(log_bmp_sys->start_lsn);
 
 	mutex_exit(&log_bmp_sys->mutex);
+	return result;
 }
 
 /*********************************************************************//**
@@ -1610,14 +1642,19 @@ log_online_purge_changed_page_bitmaps(
 
 	if (srv_track_changed_pages) {
 		if (lsn > log_bmp_sys->end_lsn) {
+			ib_uint64_t	new_file_lsn;
 			if (lsn == IB_ULONGLONG_MAX) {
 				/* RESET restarts the sequence */
 				log_bmp_sys->out_seq_num = 0;
-				log_online_rotate_bitmap_file(0);
+				new_file_lsn = 0;
 			} else {
-				/* PURGE continues the sequence */
-				log_online_rotate_bitmap_file
-					(log_bmp_sys->end_lsn);
+				new_file_lsn = log_bmp_sys->end_lsn;
+			}
+			if (!log_online_rotate_bitmap_file(new_file_lsn)) {
+				/* If file create failed, signal the log
+				tracking thread to quit next time it wakes
+				up.  */
+				srv_track_changed_pages = FALSE;
 			}
 		}
 

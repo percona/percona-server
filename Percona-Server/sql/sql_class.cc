@@ -217,7 +217,7 @@ bool foreign_key_prefix(Key *a, Key *b)
 */
 void *thd_get_scheduler_data(THD *thd)
 {
-  return thd->scheduler.data;
+  return thd->event_scheduler.data;
 }
 
 /**
@@ -228,7 +228,7 @@ void *thd_get_scheduler_data(THD *thd)
 */
 void thd_set_scheduler_data(THD *thd, void *data)
 {
-  thd->scheduler.data= data;
+  thd->event_scheduler.data= data;
 }
 
 /**
@@ -240,7 +240,7 @@ void thd_set_scheduler_data(THD *thd, void *data)
 */
 PSI_thread *thd_get_psi(THD *thd)
 {
-  return thd->scheduler.m_psi;
+  return thd->event_scheduler.m_psi;
 }
 
 /**
@@ -263,7 +263,7 @@ ulong thd_get_net_wait_timeout(THD* thd)
 */
 void thd_set_psi(THD *thd, PSI_thread *psi)
 {
-  thd->scheduler.m_psi= psi;
+  thd->event_scheduler.m_psi= psi;
 }
 
 /**
@@ -921,6 +921,11 @@ THD::THD(bool enable_plugins)
   init_sql_alloc(&main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
   stmt_arena= this;
   thread_stack= 0;
+  scheduler= thread_scheduler;                 // Will be fixed later
+  event_scheduler.data= 0;
+  event_scheduler.m_psi= 0;
+  skip_wait_timeout= false;
+  extra_port= 0;
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
@@ -966,8 +971,8 @@ THD::THD(bool enable_plugins)
 #endif
 #ifndef EMBEDDED_LIBRARY
   mysql_audit_init_thd(this);
-  net.vio=0;
 #endif
+  net.vio=0;
   client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
@@ -1699,33 +1704,8 @@ void THD::awake(THD::killed_state state_to_set)
 #ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
     {
-      /*
-        Before sending a signal, let's close the socket of the thread
-        that is being killed ("this", which is not the current thread).
-        This is to make sure it does not block if the signal is lost.
-        This needs to be done only on platforms where signals are not
-        a reliable interruption mechanism.
-
-        Note that the downside of this mechanism is that we could close
-        the connection while "this" target thread is in the middle of
-        sending a result to the application, thus violating the client-
-        server protocol.
-
-        On the other hand, without closing the socket we have a race
-        condition. If "this" target thread passes the check of
-        thd->killed, and then the current thread runs through
-        THD::awake(), sets the 'killed' flag and completes the
-        signaling, and then the target thread runs into read(), it will
-        block on the socket. As a result of the discussions around
-        Bug#37780, it has been decided that we accept the race
-        condition. A second KILL awakes the target from read().
-
-        If we are killing ourselves, we know that we are not blocked.
-        We also know that we will check thd->killed before we go for
-        reading the next statement.
-      */
-
-      close_active_vio();
+      if(active_vio)
+        vio_shutdown(active_vio, SHUT_RDWR);
     }
 #endif
 
@@ -1734,7 +1714,7 @@ void THD::awake(THD::killed_state state_to_set)
 
     /* Send an event to the scheduler that a thread should be killed. */
     if (!slave_thread)
-      MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (this));
+      MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
   }
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
@@ -1886,7 +1866,7 @@ bool THD::store_globals()
   */
   mysys_var->id= thread_id;
   real_id= pthread_self();                      // For debugging
-
+  vio_set_thread_id(net.vio, real_id);
   /*
     We have to call thr_lock_info_init() again here as THD may have been
     created in another thread
@@ -4097,6 +4077,7 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
   SYNOPSIS
   thd_wait_begin()
   thd                     Thread object
+                          Can be NULL, in this case current THD is used.
   wait_type               Type of wait
                           1 -- short wait (e.g. for mutex)
                           2 -- medium wait (e.g. for disk io)
@@ -4113,7 +4094,13 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 */
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
+  if (!thd)
+  {
+    thd= current_thd;
+    if (unlikely(!thd))
+      return;
+  }
+  MYSQL_CALLBACK(thd->scheduler, thd_wait_begin, (thd, wait_type));
 }
 
 /**
@@ -4121,10 +4108,17 @@ extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
   when they waking up from a sleep/stall.
 
   @param  thd   Thread handle
+  Can be NULL, in this case current THD is used.
 */
 extern "C" void thd_wait_end(MYSQL_THD thd)
 {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
+  if (!thd)
+  {
+    thd= current_thd;
+    if (unlikely(!thd))
+      return;
+  }
+  MYSQL_CALLBACK(thd->scheduler, thd_wait_end, (thd));
 }
 #else
 extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)

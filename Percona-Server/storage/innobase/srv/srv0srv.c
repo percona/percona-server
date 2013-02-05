@@ -3077,11 +3077,19 @@ srv_redo_log_follow_thread(
 		os_event_reset(srv_checkpoint_completed_event);
 
 		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
-			log_online_follow_redo_log();
+			if (!log_online_follow_redo_log()) {
+				/* TODO: sync with I_S log tracking status? */
+				fprintf(stderr,
+					"InnoDB: Error: log tracking bitmap "
+					"write failed, stopping log tracking "
+					"thread!\n");
+				break;
+			}
 		}
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
 
+	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_thread_finished_event);
 

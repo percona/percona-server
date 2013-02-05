@@ -31,6 +31,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
+ 
+#define MYSQL_SERVER
 
 #include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
 			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
@@ -1243,6 +1245,18 @@ thd_set_lock_wait_time(
 	if (thd) {
 		thd_storage_lock_wait(thd, value);
 	}
+}
+
+/******************************************************************//**
+Returns true if expand_fast_index_creation is enabled for the current
+session.
+@return	the value of the server's expand_fast_index_creation variable */
+ibool
+thd_expand_fast_index_creation(
+/*================================*/
+	void*	thd)
+{
+	return((ibool) (((THD*) thd)->variables.expand_fast_index_creation));
 }
 
 /********************************************************************//**

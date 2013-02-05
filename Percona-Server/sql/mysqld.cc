@@ -9440,6 +9440,7 @@ PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting fo
 PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
+PSI_stage_info stage_restoring_secondary_keys= { 0, "restoring secondary keys", 0};
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -9537,7 +9538,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
-  & stage_waiting_to_get_readlock
+  & stage_waiting_to_get_readlock,
+  & stage_restoring_secondary_keys
 };
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;

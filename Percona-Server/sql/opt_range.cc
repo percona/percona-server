@@ -728,7 +728,7 @@ QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
 static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        bool index_read_must_be_used,
                                        bool update_tbl_stats,
-                                       double read_time, ha_rows *estimated_records);
+                                       double read_time);
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                                           double read_time,
@@ -2154,7 +2154,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 				  ha_rows limit, bool force_quick_range)
 {
   uint idx;
-  ha_rows estimated_records=0;
   double scan_time;
   DBUG_ENTER("SQL_SELECT::test_quick_select");
   DBUG_PRINT("enter",("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
@@ -2323,15 +2322,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 
         /* Get best 'range' plan and prepare data for making other plans */
         if ((range_trp= get_key_scans_params(&param, tree, FALSE, TRUE,
-                                             best_read_time, &estimated_records)))
+                                             best_read_time)))
         {
           best_trp= range_trp;
           best_read_time= best_trp->read_cost;
-        }
-
-        if (opt_optimizer_fix && estimated_records)
-        {
-          records = estimated_records;
         }
 
         /*
@@ -3837,7 +3831,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   {
     DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
                                         "tree in SEL_IMERGE"););
-    if (!(*cur_child= get_key_scans_params(param, *ptree, TRUE, FALSE, read_time, NULL)))
+    if (!(*cur_child= get_key_scans_params(param, *ptree, TRUE, FALSE, read_time)))
     {
       /*
         One of index scans in this index_merge is more expensive than entire
@@ -4940,12 +4934,11 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
 static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        bool index_read_must_be_used, 
                                        bool update_tbl_stats,
-                                       double read_time, ha_rows *estimated_records)
+                                       double read_time)
 {
   int idx;
   SEL_ARG **key,**end, **key_to_read= NULL;
   ha_rows UNINIT_VAR(best_records);              /* protected by key_to_read */
-  ha_rows min_records= HA_POS_ERROR;
   TRP_RANGE* read_plan= NULL;
   bool pk_is_clustered= param->table->file->primary_key_is_clustered();
   DBUG_ENTER("get_key_scans_params");
@@ -5016,11 +5009,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         key_to_read=  key;
       }
 
-      if (estimated_records && found_records
-          && min_records > found_records)
-      {
-        min_records = found_records;
-      }
     }
   }
 
@@ -5042,12 +5030,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
   }
   else
     DBUG_PRINT("info", ("No 'range' table read plan found"));
-
-  /* minimum number of records (not 0) as estimated number of records */
-  if (estimated_records && min_records != HA_POS_ERROR)
-  {
-    *estimated_records = min_records;
-  }
 
   DBUG_RETURN(read_plan);
 }

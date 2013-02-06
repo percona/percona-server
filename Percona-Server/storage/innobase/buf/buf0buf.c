@@ -3938,7 +3938,7 @@ buf_page_io_complete(
 	ensures that this is the only thread that handles the i/o for this
 	block. */
 
-	io_type = buf_page_get_io_fix(bpage);
+	io_type = buf_page_get_io_fix_unlocked(bpage);
 	ut_ad(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
 
 	if (io_type == BUF_IO_READ) {

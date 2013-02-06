@@ -5575,7 +5575,7 @@ fil_aio_wait(
 	    && ((buf_page_t*)message)->space_was_being_deleted) {
 
 		/* intended not to be uncompress read page */
-		ut_a(buf_page_get_io_fix(message) == BUF_IO_WRITE
+		ut_a(buf_page_get_io_fix_unlocked(message) == BUF_IO_WRITE
 		     || !buf_page_get_zip_size(message)
 		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
 

@@ -494,6 +494,23 @@ log_online_make_bitmap_name(
 }
 
 /*********************************************************************//**
+Check if an old file that has the name of a new bitmap file we are about to
+create should be overwritten.  */
+static
+ibool
+log_online_should_overwrite(
+/*========================*/
+	const char	*path)	/*!< in: path to file */
+{
+	ibool		success;
+	os_file_stat_t	file_info;
+
+	/* Currently, it's OK to overwrite 0-sized files only */
+	success = os_file_get_status(path, &file_info);
+	return success && file_info.size == 0LL;
+}
+
+/*********************************************************************//**
 Create a new empty bitmap output file.
 
 @return TRUE if operation succeeded, FALSE if I/O error */
@@ -502,12 +519,22 @@ ibool
 log_online_start_bitmap_file(void)
 /*==============================*/
 {
-	ibool	success;
+	ibool	success	= TRUE;
 
-	log_bmp_sys->out.file
-		= os_file_create(innodb_file_bmp_key, log_bmp_sys->out.name,
-				 OS_FILE_OVERWRITE, OS_FILE_NORMAL,
-				 OS_DATA_FILE, &success);
+	/* Check for an old file that should be deleted first */
+	if (log_online_should_overwrite(log_bmp_sys->out.name)) {
+		success = os_file_delete(log_bmp_sys->out.name);
+	}
+
+	if (UNIV_LIKELY(success)) {
+		log_bmp_sys->out.file
+			= os_file_create_simple_no_error_handling(
+							innodb_file_bmp_key,
+							log_bmp_sys->out.name,
+							OS_FILE_CREATE,
+							OS_FILE_READ_WRITE,
+							&success);
+	}
 	if (UNIV_UNLIKELY(!success)) {
 
 		/* The following call prints an error message */
@@ -1075,6 +1102,11 @@ log_online_write_bitmap_page(
 			log_bmp_sys->out.name);
 		return FALSE;
 	}
+
+#ifdef UNIV_LINUX
+	posix_fadvise(log_bmp_sys->out.file, log_bmp_sys->out.offset,
+		      MODIFIED_PAGE_BLOCK_SIZE, POSIX_FADV_DONTNEED);
+#endif
 
 	log_bmp_sys->out.offset += MODIFIED_PAGE_BLOCK_SIZE;
 	return TRUE;

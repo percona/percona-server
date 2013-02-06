@@ -92,6 +92,7 @@ Flexibility Improvements
    flexibility/innodb_fast_shutdown
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
+   flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
 ========================

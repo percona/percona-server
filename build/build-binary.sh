@@ -25,7 +25,7 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iqd" --longoptions=i686,quiet,debug \
+    go_out="$(getopt --options="iqdv" --longoptions=i686,quiet,debug,valgrind \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -43,7 +43,12 @@ do
     -d | --debug )
         shift
         CMAKE_BUILD_TYPE='Debug'
-        DEBUG_COMMENT='-debug'
+        BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
+        ;;
+    -v | --valgrind )
+        shift
+        CMAKE_OPTS="${CMAKE_OPTS:-} -DWITH_VALGRIND=ON"
+        BUILD_COMMENT="${BUILD_COMMENT:-}-valgrind"
         ;;
     -q | --quiet )
         shift
@@ -97,9 +102,9 @@ PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 # Build information
 REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL-$REVISION$DEBUG_COMMENT.$(uname -s).$TARGET"
+PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
-COMMENT="$COMMENT, Revision $REVISION$DEBUG_COMMENT"
+COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
 # Compilation flags
 export CC=${CC:-gcc}
@@ -120,7 +125,7 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     make clean all
 
     cd "$PRODUCT"
-    cmake . -DBUILD_CONFIG=mysql_release \
+    cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \

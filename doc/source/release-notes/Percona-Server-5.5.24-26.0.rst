@@ -11,7 +11,7 @@ Based on `MySQL 5.5.24 <http://dev.mysql.com/doc/refman/5.5/en/news-5-5-24.html>
 Features
 ========
 
-  * Percona PAM authentication plugin has now been integrated into the |Percona Server|. 
+  * Percona :ref:`pam_plugin` has now been integrated into the |Percona Server|. 
 
   * |Percona Server| has implemented variable :variable:`enforce_storage_engine` which can be used for enforcing the use of a specific storage engine. 
  

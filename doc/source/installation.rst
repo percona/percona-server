@@ -134,8 +134,8 @@ The ``percona-server-dfsg`` package contains....
 The ``libmysqlclient-dev`` package contains header files needed to
 compile software to use the client library.
 
-The ``libmysqlclient16`` package contains the client shared
-library. The ``16`` is a reference to the version of the shared
+The ``libmysqlclient18`` package contains the client shared
+library. The ``18`` is a reference to the version of the shared
 library. The version is incremented when there is a ABI change that
 requires software using the client library to be recompiled or their
 source code modified.
@@ -201,3 +201,7 @@ build. ::
   $ cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF
   $ make
   $ make install
+
+.. note::
+
+  :ref:`pam_plugin` has been merged into |Percona Server| in :rn:`5.5.24-26.0` but it is not built with the server by default. In order to build the Percona Server with PAM plugin, additional option :option:`-DWITH_PAM=ON` should be used.

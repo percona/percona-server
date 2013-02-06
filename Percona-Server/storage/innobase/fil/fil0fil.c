@@ -5386,8 +5386,8 @@ _fil_io(
 
 	/* Do aio */
 
-	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+	ut_a(byte_offset % OS_MIN_LOG_BLOCK_SIZE == 0);
+	ut_a((len % OS_MIN_LOG_BLOCK_SIZE) == 0);
 
 	if (srv_pass_corrupt_table == 1 && space->is_corrupt) {
 		/* should ignore i/o for the crashed space */

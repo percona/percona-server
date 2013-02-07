@@ -92,6 +92,7 @@ Flexibility Improvements
    flexibility/replication_skip_single_statement
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
+   flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
 ========================
@@ -116,10 +117,9 @@ Management Improvements
    management/innodb_recovery_patches
    management/innodb_dict_size_limit
    management/innodb_expand_import
-   management/innodb_buffer_pool_shm
    management/innodb_lru_dump_restore
    management/innodb_fast_index_creation
-   management/innodb_extended_fast_index_creation
+   management/innodb_expanded_fast_index_creation
    management/sql_no_fcache
    management/udf_maatkit
    management/innodb_fake_changes
@@ -152,6 +152,7 @@ Obsolete and Removed Features
 
    scalability/innodb_extra_rseg
    performance/remove_fcntl_excessive_calls
+   management/innodb_buffer_pool_shm
 
 Reference
 =========

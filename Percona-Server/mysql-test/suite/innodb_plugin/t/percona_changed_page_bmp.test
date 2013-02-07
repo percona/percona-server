@@ -195,4 +195,30 @@ remove_file $MYSQLD_DATADIR/corrupt_bmp_2.inc;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Test for log tracking compatibility with innodb_force_recovery (bug 1083596).
+#
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--echo 8th restart
+--exec echo "restart:--innodb-force-recovery=6" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# innodb_force_recovery desyncs bitmap data and logs
+RESET CHANGED_PAGE_BITMAPS;
+
+call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
+--echo 9th restart
+--source include/restart_mysqld.inc
+
 DROP TABLE t1, t2;

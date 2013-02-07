@@ -2190,6 +2190,8 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_n_threads,
 		(ulong) srv_conc_n_waiting_threads);
 
+	mutex_enter(&kernel_mutex);
+
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -2202,6 +2204,8 @@ srv_printf_innodb_monitor(
 			fprintf(file, "-----------------\n");
 		}
 	}
+
+	mutex_exit(&kernel_mutex);
 
 	n_reserved = fil_space_get_n_reserved_extents(0);
 	if (n_reserved > 0) {

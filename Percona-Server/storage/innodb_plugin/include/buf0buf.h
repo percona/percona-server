@@ -49,6 +49,10 @@ Created 11/5/1995 Heikki Tuuri
 					it is error-prone programming
 					not to set a latch, and it
 					should be used with care */
+#define BUF_GET_POSSIBLY_FREED		16
+					/*!< Like BUF_GET, but do not mind
+					if the file page has been freed. */
+
 /* @} */
 /** @name Modes for buf_page_get_known_nowait */
 /* @{ */

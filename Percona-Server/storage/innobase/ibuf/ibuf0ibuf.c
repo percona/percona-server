@@ -4478,7 +4478,7 @@ ibuf_merge_or_delete_for_page(
 	ut_ad(!block || buf_block_get_space(block) == space);
 	ut_ad(!block || buf_block_get_page_no(block) == page_no);
 	ut_ad(!block || buf_block_get_zip_size(block) == zip_size);
-	ut_ad(!block || buf_block_get_io_fix(block) == BUF_IO_READ);
+	ut_ad(!block || buf_block_get_io_fix_unlocked(block) == BUF_IO_READ);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
 	    || trx_sys_hdr_page(space, page_no)) {

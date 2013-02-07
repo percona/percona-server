@@ -915,7 +915,7 @@ flush:
 				"InnoDB: Page buf fix count %lu,"
 				" io fix %lu, state %lu\n",
 				(ulong)block->page.buf_fix_count,
-				(ulong)buf_block_get_io_fix(block),
+				(ulong)buf_block_get_io_fix_unlocked(block),
 				(ulong)buf_block_get_state(block));
 		}
 
@@ -1115,7 +1115,7 @@ buf_flush_write_block_low(
 	ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(!buf_flush_list_mutex_own(buf_pool));
 	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
-	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_WRITE);
+	ut_ad(buf_page_get_io_fix_unlocked(bpage) == BUF_IO_WRITE);
 	ut_ad(bpage->oldest_modification != 0);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

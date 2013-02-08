@@ -1073,10 +1073,13 @@ log_online_write_bitmap_page(
 
 	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
+	/* Simulate a write error */
+	DBUG_EXECUTE_IF("bitmap_page_write_error", return FALSE;);
+
 	success = os_file_write(log_bmp_sys->out.name, log_bmp_sys->out.file,
 				block,
 				(ulint)(log_bmp_sys->out.offset & 0xFFFFFFFF),
-				(ulint)(log_bmp_sys->out.offset << 32),
+				(ulint)(log_bmp_sys->out.offset >> 32),
 				MODIFIED_PAGE_BLOCK_SIZE);
 	if (UNIV_UNLIKELY(!success)) {
 
@@ -1119,6 +1122,7 @@ log_online_write_bitmap(void)
 {
 	ib_rbt_node_t		*bmp_tree_node;
 	const ib_rbt_node_t	*last_bmp_tree_node;
+	ibool			success = TRUE;
 
 	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
@@ -1136,19 +1140,24 @@ log_online_write_bitmap(void)
 
 		byte *page = rbt_value(byte, bmp_tree_node);
 
-		if (bmp_tree_node == last_bmp_tree_node) {
-			mach_write_to_4(page + MODIFIED_PAGE_IS_LAST_BLOCK, 1);
-		}
+		/* In case of a bitmap page write error keep on looping over
+		the tree to reclaim its memory through the free list instead of
+		returning immediatelly. */
+		if (UNIV_LIKELY(success)) {
+			if (bmp_tree_node == last_bmp_tree_node) {
+				mach_write_to_4(page
+						+ MODIFIED_PAGE_IS_LAST_BLOCK,
+						1);
+			}
 
-		mach_write_ull(page + MODIFIED_PAGE_START_LSN,
-			       log_bmp_sys->start_lsn);
-		mach_write_ull(page + MODIFIED_PAGE_END_LSN,
-			       log_bmp_sys->end_lsn);
-		mach_write_to_4(page + MODIFIED_PAGE_BLOCK_CHECKSUM,
-				log_online_calc_checksum(page));
+			mach_write_ull(page + MODIFIED_PAGE_START_LSN,
+				       log_bmp_sys->start_lsn);
+			mach_write_ull(page + MODIFIED_PAGE_END_LSN,
+				       log_bmp_sys->end_lsn);
+			mach_write_to_4(page + MODIFIED_PAGE_BLOCK_CHECKSUM,
+					log_online_calc_checksum(page));
 
-		if (!log_online_write_bitmap_page(page)) {
-			return FALSE;
+			success = log_online_write_bitmap_page(page);
 		}
 
 		bmp_tree_node->left = log_bmp_sys->page_free_list;
@@ -1159,7 +1168,7 @@ log_online_write_bitmap(void)
 	}
 
 	rbt_reset(log_bmp_sys->modified_pages);
-	return TRUE;
+	return success;
 }
 
 /*********************************************************************//**

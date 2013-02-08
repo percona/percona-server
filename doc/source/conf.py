@@ -45,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Percona Server'
-copyright = u'2011-2012, Percona Inc'
+copyright = u'Percona Ireland Ltd. 2009-2013'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -128,6 +128,7 @@ rst_prolog = '''
 #modindex_common_prefix = []
 
 extlinks = {'bug': ('https://bugs.launchpad.net/percona-server/+bug/%s',
+                      '#'), 'mysqlbug': ('http://bugs.mysql.com/bug.php?id=%s',
                       '#')}
 
 
@@ -208,7 +209,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'PerconaServer55doc'
+htmlhelp_basename = 'PerconaServer56doc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -223,7 +224,7 @@ htmlhelp_basename = 'PerconaServer55doc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'PerconaServer-5.6.tex', u'Percona Server Documentation',
-   u'Percona Inc', 'manual'),
+   u'Percona Ireland Ltd. 2009-2013', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -256,13 +257,14 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'perconaserver55', u'Percona Server 5.6 Documentation',
-     [u'Percona Inc'], 1)
+     [u'Percona Ireland Ltd. 2009-2013'], 1)
 ]
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     'ps51' : ('http://www.percona.com/doc/percona-server/5.1/', None),
+    'ps55' : ('http://www.percona.com/doc/percona-server/5.5/', None),
     'xtrabackup' : ('http://www.percona.com/doc/percona-xtrabackup', None),
-    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit/2.0/', None)
+    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit/2.1/', None)
  }

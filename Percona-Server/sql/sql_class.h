@@ -80,14 +80,14 @@ enum enum_slow_query_log_rate_type {
   SLOG_RT_SESSION, SLOG_RT_QUERY
 };
 #define QPLAN_NONE            0
-#define QPLAN_QC              1 << 0
-#define QPLAN_QC_NO           1 << 1
-#define QPLAN_FULL_SCAN       1 << 2
-#define QPLAN_FULL_JOIN       1 << 3
-#define QPLAN_TMP_TABLE       1 << 4
-#define QPLAN_TMP_DISK        1 << 5
-#define QPLAN_FILESORT        1 << 6
-#define QPLAN_FILESORT_DISK   1 << 7
+#define QPLAN_QC_NO           (1 << 0)
+#define QPLAN_FULL_SCAN       (1 << 1)
+#define QPLAN_FULL_JOIN       (1 << 2)
+#define QPLAN_TMP_TABLE       (1 << 3)
+#define QPLAN_TMP_DISK        (1 << 4)
+#define QPLAN_FILESORT        (1 << 5)
+#define QPLAN_FILESORT_DISK   (1 << 6)
+#define QPLAN_QC              (1 << 7)
 enum enum_log_slow_filter {
   SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN,
   SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
@@ -1669,18 +1669,6 @@ public:
   Delayed_insert *di;
 
   /*** Following variables used in slow_extended.patch ***/
-  /*
-    Variable write_to_slow_log:
-     1) initialized in
-       * sql_connect.cc (log_slow_rate_limit support)
-       * slave.cc       (log_slow_slave_statements support)
-     2) The variable is initialized on the thread startup and remains
-        constant afterwards.  This will change when 
-        LP #712396 ("log_slow_slave_statements not work on replication 
-        threads without RESTART") is implemented.
-     3) An implementation of LP #688646 ("Make query sampling possible by query") should use it.
-  */
-  bool       write_to_slow_log;
   /*
     Variable bytes_send_old saves value of thd->status_var.bytes_sent
     before query execution.

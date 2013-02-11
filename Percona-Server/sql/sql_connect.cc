@@ -1417,14 +1417,6 @@ bool thd_prepare_connection(THD *thd)
   MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip);
 
-  /*
-    If rate limiting of slow log writes is enabled, decide whether to log this 
-    new thread's queries or not. Uses extremely simple algorithm. :)
-  */
-  const ulong& limit= thd->variables.log_slow_rate_limit;
-  thd->write_to_slow_log= opt_slow_query_log_rate_type == SLOG_RT_SESSION &&
-                          (limit == 0 || (thd->thread_id % limit) == 0);
-
   prepare_new_connection_state(thd);
   return FALSE;
 }

@@ -3511,7 +3511,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->enable_slow_log is set to the value of
         opt_log_slow_admin_statements).
       */
-      thd->enable_slow_log= opt_log_slow_slave_statements;
+      thd->enable_slow_log= TRUE;
     }
     else
     {

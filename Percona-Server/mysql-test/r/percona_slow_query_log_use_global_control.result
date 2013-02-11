@@ -1,3 +1,4 @@
+SET SESSION min_examined_row_limit=0;
 SET GLOBAL long_query_time=1;
 [log_start.inc] percona.slow_extended.slow_query_log_use_global_control
 SET SESSION query_exec_time=1.1;
@@ -11,8 +12,9 @@ SELECT 1;
 1
 SET SESSION query_exec_time=default;
 [log_stop.inc] percona.slow_extended.slow_query_log_use_global_control
-SET GLOBAL slow_query_log_use_global_control=default;
-SET GLOBAL log_slow_verbosity=default;
+SET GLOBAL slow_query_log_use_global_control='';
+SET GLOBAL log_slow_verbosity='';
 SET GLOBAL long_query_time=default;
+SET SESSION min_examined_row_limit=default;
 [log_grep.inc] file: percona.slow_extended.slow_query_log_use_global_control pattern: No InnoDB statistics available for this query
 [log_grep.inc] lines:   1

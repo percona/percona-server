@@ -1800,7 +1800,7 @@ innobase_trx_init(
 	trx->fake_changes = THDVAR(thd, fake_changes);
 
 #ifdef EXTENDED_SLOWLOG
-	if (thd_log_slow_verbosity(thd) & SLOG_V_INNODB) {
+	if (thd_log_slow_verbosity(thd) & (1ULL << SLOG_V_INNODB)) {
 		trx->take_stats = TRUE;
 	} else {
 		trx->take_stats = FALSE;

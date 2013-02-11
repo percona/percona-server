@@ -1535,7 +1535,7 @@ void log_slow_statement(THD *thd)
   /* Follow the slow log filter configuration. */
   if (thd->variables.log_slow_filter != 0 &&
       (!(thd->variables.log_slow_filter & thd->query_plan_flags) ||
-       ((thd->variables.log_slow_filter & SLOG_F_QC_NO) &&
+       ((thd->variables.log_slow_filter & (1UL << SLOG_F_QC_NO)) &&
         (thd->query_plan_flags & QPLAN_QC))))
     DBUG_VOID_RETURN;
 
@@ -1567,10 +1567,20 @@ void log_slow_statement(THD *thd)
   copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
                          &g.min_examined_row_limit);
 
-  /* Do not log this thread's queries due to rate limiting. */
-  if (!thd->write_to_slow_log && (thd->variables.long_query_time >= 1000000
-                                  || (ulong) query_exec_time < 1000000))
+  if (opt_slow_query_log_rate_type == SLOG_RT_QUERY
+      && thd->variables.log_slow_rate_limit
+      && thd->query_id % thd->variables.log_slow_rate_limit
+      && (thd->variables.long_query_time >= 1000000
+          || (ulong) query_exec_time < 1000000)) {
     DBUG_VOID_RETURN;
+  }
+  if (opt_slow_query_log_rate_type == SLOG_RT_SESSION
+      && thd->variables.log_slow_rate_limit
+      && thd->thread_id % thd->variables.log_slow_rate_limit
+      && (thd->variables.long_query_time >= 1000000
+          || (ulong) query_exec_time < 1000000)) {
+    DBUG_VOID_RETURN;
+  }
 
 
   /*

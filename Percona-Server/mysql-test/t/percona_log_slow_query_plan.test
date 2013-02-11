@@ -1,0 +1,302 @@
+#
+# Test that various query plans are logged correctly in the slow query log.
+#
+--source include/have_innodb.inc
+
+FLUSH STATUS;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(
+       a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+       b INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(NULL, 10), (NULL, 5);
+
+SET SESSION long_query_time=0;
+SET SESSION min_examined_row_limit=0;
+SET SESSION log_slow_verbosity='microtime,query_plan';
+
+#
+# filesort, disk filesort, and filesort merge passes negative test
+#
+EXPLAIN SELECT * FROM t1;
+--let log_file=percona_slow_query_log.query_plan_0
+--source include/log_start.inc
+SELECT * FROM t1;
+--source include/log_stop.inc
+--let grep_pattern = ^# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\$
+--source include/log_grep.inc
+
+#
+# filesort positive test, memory, zero merge passes
+#
+EXPLAIN SELECT * FROM t1 ORDER BY b;
+--let log_file=percona_slow_query_log.query_plan_1
+--source include/log_start.inc
+SELECT * FROM t1 ORDER BY b;
+--source include/log_stop.inc
+--let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0\$
+--source include/log_grep.inc
+
+#
+# Same as above but filtered away
+#
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort_on_disk';
+--let log_file=percona_slow_query_log.query_plan_1a
+--source include/log_start.inc
+SELECT * FROM t1 ORDER BY b;
+--source include/log_stop.inc
+--let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0\$
+--source include/log_grep.inc
+SET SESSION log_slow_filter=default;
+
+#
+# filesort positive test, disk, one merge pass
+#
+SET SESSION sort_buffer_size=32804;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (5), (16), (2), (17), (1);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+--replace_column 9 ROWS
+EXPLAIN SELECT * FROM t2 ORDER BY a;
+
+--let log_file=percona_slow_query_log.query_plan_2
+--source include/log_start.inc
+--disable_result_log
+SELECT * FROM t2 ORDER BY a;
+--enable_result_log
+--source include/log_stop.inc
+--let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+
+#
+# Same as above but filtered away
+#
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk';
+--let log_file=percona_slow_query_log.query_plan_2a
+--source include/log_start.inc
+--disable_result_log
+SELECT * FROM t2 ORDER BY a;
+--enable_result_log
+--source include/log_stop.inc
+--let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+
+SET SESSION log_slow_filter=default;
+
+#
+# Same as the above, with more than one merge pass
+#
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+--let log_file=percona_slow_query_log.query_plan_3
+--source include/log_start.inc
+--disable_result_log
+SELECT * FROM t2 ORDER BY a;
+--enable_result_log
+--source include/log_stop.inc
+--let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 4\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+
+SET SESSION sort_buffer_size=default;
+
+#
+# Full_scan, negative test
+#
+SHOW SESSION STATUS LIKE 'Select_scan';
+--let log_file=percona_slow_query_log.query_plan_4
+--source include/log_start.inc
+SELECT * FROM t1 WHERE a=1;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Full_scan: No.*\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Select_scan';
+
+#
+# Full_scan, positive test
+#
+--let log_file=percona_slow_query_log.query_plan_5
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Full_scan: Yes.*\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Select_scan';
+
+#
+# Same as above, but filtered away
+#
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort,filesort_on_disk';
+--let log_file=percona_slow_query_log.query_plan_5a
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Full_scan: Yes.*\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Select_scan';
+
+SET SESSION log_slow_filter=default;
+
+#
+# Full_join, negative test
+#
+CREATE TABLE t3(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (1), (2), (3);
+
+SHOW SESSION STATUS LIKE 'Select_full_join';
+--let log_file=percona_slow_query_log.query_plan_6
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Full_join: No.*\$
+--source include/log_grep.inc
+SHOW SESSION STATUS LIKE 'Select_full_join';
+
+#
+# Full_join, positive test
+#
+--let log_file=percona_slow_query_log.query_plan_7
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1, t2 WHERE t1.b = t2.a;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Full_join: Yes.*\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Select_full_join';
+
+#
+# Same as above, but filtered away
+#
+SET SESSION log_slow_filter='tmp_table,tmp_table_on_disk,filesort,filesort_on_disk';
+--let log_file=percona_slow_query_log.query_plan_7a
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1, t2 WHERE t1.b = t2.a;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Full_join: Yes.*\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Select_full_join';
+
+SET SESSION log_slow_filter=default;
+
+#
+# Tmp_table and Tmp_table_on_disk negative test
+#
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+EXPLAIN SELECT COUNT(*) FROM t1;
+--let log_file=percona_slow_query_log.query_plan_8
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0\$
+--source include/log_grep.inc
+--let grep_pattern = ^#.*Tmp_table: No  Tmp_table_on_disk: No\$
+--source include/log_grep.inc
+
+#
+# Tmp_table positive, Tmp_table_on_disk negative test
+#
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+
+EXPLAIN SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
+--let log_file=percona_slow_query_log.query_plan_9
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*\$
+--source include/log_grep.inc
+--let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: No\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+
+#
+# Same as above but filtered away
+#
+SET SESSION log_slow_filter='full_join,tmp_table_on_disk,filesort_on_disk';
+
+--let log_file=percona_slow_query_log.query_plan_9a
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*\$
+--source include/log_grep.inc
+--let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: No\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+
+SET SESSION log_slow_filter=default;
+
+#
+# Tmp_table and Tmp_table_on_disk positive test
+#
+CREATE TABLE t4(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (1, "aaa"), (2, "bbb"), (3, "ccc");
+
+EXPLAIN SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.a;
+--let log_file=percona_slow_query_log.query_plan_10
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*\$
+--source include/log_grep.inc
+--let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+
+#
+# Same as above but filtered away
+#
+SET SESSION log_slow_filter='full_join,filesort_on_disk';
+
+--let log_file=percona_slow_query_log.query_plan_10a
+--source include/log_start.inc
+SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*\$
+--source include/log_grep.inc
+--let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes\$
+--source include/log_grep.inc
+
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+
+SET SESSION log_slow_filter=default;
+
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;
+SET SESSION log_slow_verbosity=default;
+
+DROP TABLE t1, t2, t3, t4;
+--source include/log_cleanup.inc

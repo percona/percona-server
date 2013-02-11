@@ -1,0 +1,71 @@
+#
+# Tests the query cache logging for the extended slow query log
+#
+--source include/have_innodb.inc
+--source include/have_query_cache.inc
+
+FLUSH STATUS;
+SET SESSION min_examined_row_limit=0;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUE(5);
+
+SET SESSION query_cache_type=1;
+SET GLOBAL query_cache_size=1355776;
+
+SET SESSION long_query_time=0;
+SET SESSION log_slow_verbosity='microtime,query_plan';
+
+#
+# Test uncached query
+#
+--let log_file = percona_slow_query_log.query_plan_qc_1
+--source include/log_start.inc
+SELECT * FROM t1;
+--source include/log_stop.inc
+--let grep_pattern = ^# QC_Hit: No.*\$
+--source include/log_grep.inc
+
+SHOW STATUS LIKE 'Qcache_hits';
+
+#
+# Test cached query
+#
+
+--let log_file = percona_slow_query_log.query_plan_qc_2
+--source include/log_start.inc
+SELECT * FROM t1;
+--source include/log_stop.inc
+--let grep_pattern = ^# QC_Hit: Yes.*\$
+--source include/log_grep.inc
+
+SHOW STATUS LIKE 'Qcache_hits';
+
+#
+# Test uncached query that is filtered away
+#
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort,filesort_on_disk';
+--let log_file = percona_slow_query_log.query_plan_qc_3
+--source include/log_start.inc
+SELECT * FROM t1 WHERE a > 5;
+--source include/log_stop.inc
+--let grep_pattern = ^# QC_Hit: No.*\$
+--source include/log_grep.inc
+
+SHOW STATUS LIKE 'Qcache_hits';
+
+SET SESSION log_slow_filter=default;
+
+SET SESSION long_query_time=default;
+SET SESSION log_slow_verbosity=default;
+SET SESSION query_cache_type=default;
+SET GLOBAL query_cache_size=default;
+SET SESSION min_examined_row_limit=default;
+
+DROP TABLE t1;
+--source include/log_cleanup.inc

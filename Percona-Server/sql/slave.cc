@@ -2086,8 +2086,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 */
   thd->variables.max_allowed_packet= slave_max_allowed_packet;
   thd->slave_thread = 1;
-  thd->enable_slow_log= opt_log_slow_slave_statements;
-  thd->write_to_slow_log= opt_log_slow_slave_statements;
+  thd->enable_slow_log= TRUE;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   mysql_mutex_lock(&LOCK_thread_count);

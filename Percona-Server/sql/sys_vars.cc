@@ -3206,7 +3206,8 @@ static Sys_var_set Sys_slow_query_log_use_global_control(
 const char *slow_query_log_timestamp_precision_name[]= { "second", "microsecond", 0 };
 static Sys_var_enum Sys_slow_query_log_timestamp_precision(
        "slow_query_log_timestamp_precision",
-       "Log slow statements executed by stored procedure to the slow log if it is open. [second, microsecond]",
+       "Select the timestamp precision for use in the slow query log.  "
+       "[second, microsecond]",
        GLOBAL_VAR(opt_slow_query_log_timestamp_precision), CMD_LINE(REQUIRED_ARG),
        slow_query_log_timestamp_precision_name, DEFAULT(SLOG_SECOND));
 

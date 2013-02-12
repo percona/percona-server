@@ -112,7 +112,8 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         (ulong) max_used_connections);
 
   my_safe_printf_stderr("max_threads=%u\n",
-                        (uint) thread_scheduler->max_threads);
+                        (uint) thread_scheduler->max_threads +
+                        (uint) extra_max_connections);
 
   my_safe_printf_stderr("thread_count=%u\n", get_thread_count());
 
@@ -122,11 +123,11 @@ extern "C" sig_handler handle_fatal_signal(int sig)
                         "key_buffer_size + "
                         "(read_buffer_size + sort_buffer_size)*max_threads = "
                         "%lu K  bytes of memory\n",
-                        ((ulong) dflt_key_cache->key_cache_mem_size +
+                        (ulong)(dflt_key_cache->key_cache_mem_size +
                          (global_system_variables.read_buff_size +
                           global_system_variables.sortbuff_size) *
-                         thread_scheduler->max_threads +
-                         max_connections * sizeof(THD)) / 1024);
+                         (thread_scheduler->max_threads + extra_max_connections) +
+                         (max_connections + extra_max_connections)* sizeof(THD)) / 1024);
 
   my_safe_printf_stderr("%s",
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");

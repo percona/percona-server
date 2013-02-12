@@ -868,6 +868,8 @@ time_t my_time_possible_from_micro(ulonglong microtime);
 extern my_bool my_gethwaddr(uchar *to);
 extern int my_getncpus();
 
+#define my_microsecond_getsystime()    (my_getsystime()/10)
+
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 

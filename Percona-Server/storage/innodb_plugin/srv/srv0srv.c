@@ -2716,10 +2716,17 @@ srv_redo_log_follow_thread(
 		os_event_wait(srv_checkpoint_completed_event);
 		os_event_reset(srv_checkpoint_completed_event);
 
-		log_online_follow_redo_log();
+		if (!log_online_follow_redo_log()) {
+			/* TODO: sync with I_S log tracking status? */
+			fprintf(stderr,
+				"InnoDB: Error: log tracking bitmap write "
+				"failed, stopping log tracking thread!\n");
+			break;
+		}
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
 
+	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_thread_finished_event);
 
@@ -3154,28 +3161,24 @@ retry_flush_batch:
 
 				/* prev_flush_info should be the previous loop's */
 				{
-					lint	blocks_num, new_blocks_num, flushed_blocks_num;
-					ibool	found;
+					lint	blocks_num, new_blocks_num = 0;
+					lint	flushed_blocks_num;
 
+					mutex_enter(&flush_list_mutex);
 					blocks_num = UT_LIST_GET_LEN(buf_pool->flush_list);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-					new_blocks_num = 0;
 
-					found = FALSE;
 					while (bpage != NULL) {
 						if (prev_flush_info.space == bpage->space
 						    && prev_flush_info.offset == bpage->offset
 						    && prev_flush_info.oldest_modification
 								== bpage->oldest_modification) {
-							found = TRUE;
 							break;
 						}
 						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 						new_blocks_num++;
 					}
-					if (!found) {
-						new_blocks_num = blocks_num;
-					}
+					mutex_exit(&flush_list_mutex);
 
 					flushed_blocks_num = new_blocks_num + prev_flush_info.count
 								- blocks_num;
@@ -3183,6 +3186,7 @@ retry_flush_batch:
 						flushed_blocks_num = 0;
 					}
 
+					mutex_enter(&flush_list_mutex);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 					prev_flush_info.count = UT_LIST_GET_LEN(buf_pool->flush_list);
@@ -3190,7 +3194,9 @@ retry_flush_batch:
 						prev_flush_info.space = bpage->space;
 						prev_flush_info.offset = bpage->offset;
 						prev_flush_info.oldest_modification = bpage->oldest_modification;
+						mutex_exit(&flush_list_mutex);
 					} else {
+						mutex_exit(&flush_list_mutex);
 						prev_flush_info.space = 0;
 						prev_flush_info.offset = 0;
 						prev_flush_info.oldest_modification = 0;
@@ -3216,6 +3222,7 @@ retry_flush_batch:
 			} else {
 				/* store previous first pages of the flush_list */
 				{
+					mutex_enter(&flush_list_mutex);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 					prev_flush_info.count = UT_LIST_GET_LEN(buf_pool->flush_list);
@@ -3223,7 +3230,9 @@ retry_flush_batch:
 						prev_flush_info.space = bpage->space;
 						prev_flush_info.offset = bpage->offset;
 						prev_flush_info.oldest_modification = bpage->oldest_modification;
+						mutex_exit(&flush_list_mutex);
 					} else {
+						mutex_exit(&flush_list_mutex);
 						prev_flush_info.space = 0;
 						prev_flush_info.offset = 0;
 						prev_flush_info.oldest_modification = 0;

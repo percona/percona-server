@@ -5,57 +5,75 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`68045` - security vulnerability CVE-2012-5611                                      |
+|:Launchpad bug: :bug:`1083377`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.1.67-14.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`67685` - security vulnerability CVE-2012-5611                                      |
+|:Launchpad bug: :bug:`1083377`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.1.66-14.2`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`66550` - security vulnerability CVE-2012-4414                                      |
+|:Launchpad bug: :bug:`1042517`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.1.66-14.2`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61180` - korr/store macros in my_global.h assume the argument to be a char ...     |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61179` - Unoptimized versions of korr/store macros in my_global.h are used on...   |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61178` - Incorrect implementation of intersect(ulonglong) in non-optimized Bitmap..|
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`54127` - mysqld segfaults when built using --with-max-indexes=128                  |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`67177` - MySQL 5.1 is incompatibile with automake 1.12                             |
 |:Launchpad bug: :bug:`1064953`                                                                               |
-|:Upstream state: Open (checked on 2012-10-31)                                                                |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62856` - Check for "stack overrun" doesn't work with gcc-4.6, server crashes       |
 |:Launchpad bug: :bug:`902472`                                                                                |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61509` - mysqld (5.1.57) segfaults with gcc 4.6                                    |
 |:Launchpad bug: :bug:`902471`                                                                                |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`66301` - INSERT ... ON DUPLICATE KEY UPDATE + innodb_autoinc_lock_mode=1 is broken |
 |:Launchpad bug: :bug:`1035225`                                                                               |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.65-14.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64469` - Deadlock or crash on concurrent TRUNCATE TABLE and SELECT * FROM I_S      |
 |:Launchpad bug: :bug:`903617`                                                                                |
-|:Upstream state: Analyzing (checked on 2012-10-31)                                                           |
+|:Upstream state: Analyzing (checked on 2013-01-18)                                                           |
 |:Fix Released: :rn:`5.1.62-13.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -73,7 +91,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64127` - MTR --warnings option misses some of InnoDB errors and warnings           |
 |:Launchpad bug: :bug:`937859`                                                                                |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.62-13.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -97,7 +115,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62516` - Fast index creation does not update index statistics                      |
 |:Launchpad bug: :bug:`857590`                                                                                |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.59-13.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -139,7 +157,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`55032` - Query cache sometime insert queries to cache, but doesn't find ...        |
 |:Launchpad bug: none                                                                                         |
-|:Upstream state: Verified (checked on 2012-10-31)                                                            |
+|:Upstream state: Verified (checked on 2013-01-18)                                                            |
 |:Fix Released: :rn:`5.1.47-rel11.2`                                                                          |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

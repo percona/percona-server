@@ -2487,9 +2487,35 @@ mysql_execute_command(THD *thd)
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    /* PURGE MASTER LOGS TO 'file' */
-    res = purge_master_logs(thd, lex->to_log);
-    break;
+    if (lex->type == 0)
+    {
+      /* PURGE MASTER LOGS TO 'file' */
+      res = purge_master_logs(thd, lex->to_log);
+      break;
+    }
+    if (lex->type == PURGE_BITMAPS_TO_LSN)
+    {
+      /* PURGE CHANGED_PAGE_BITMAPS BEFORE lsn */
+      ulonglong lsn= 0;
+      Item *it= (Item *)lex->value_list.head();
+      if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1)
+          || it->null_value)
+      {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0),
+                 "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+        goto error;
+      }
+      lsn= it->val_uint();
+      res= ha_purge_changed_page_bitmaps(lsn);
+      if (res)
+      {
+        my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0),
+                 "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+        goto error;
+      }
+      my_ok(thd);
+      break;
+    }
   }
   case SQLCOM_PURGE_BEFORE:
   {
@@ -7409,6 +7435,32 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       init_global_thread_stats();
     }
     pthread_mutex_unlock(&LOCK_global_user_client_stats);
+  }
+  if (options & REFRESH_FLUSH_PAGE_BITMAPS)
+  {
+    if (check_global_access(thd, SUPER_ACL))
+      result= 1;
+    else
+    {
+      result= ha_flush_changed_page_bitmaps();
+      if (result)
+      {
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH CHANGED_PAGE_BITMAPS");
+      }
+    }
+  }
+  if (options & REFRESH_RESET_PAGE_BITMAPS)
+  {
+    if (check_global_access(thd, SUPER_ACL))
+      result= 1;
+    else
+    {
+      result= ha_purge_changed_page_bitmaps(0);
+      if (result)
+      {
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "RESET CHANGED_PAGE_BITMAPS");
+      }
+    }
   }
  if (*write_to_binlog != -1)
    *write_to_binlog= tmp_write_to_binlog;

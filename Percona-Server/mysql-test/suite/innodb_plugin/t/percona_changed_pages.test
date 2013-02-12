@@ -4,7 +4,9 @@
 
 --source include/have_innodb_plugin.inc
 
---source include/delete_innodb_bitmaps.inc
+# Delete any existing bitmaps
+--source include/restart_mysqld.inc
+RESET CHANGED_PAGE_BITMAPS;
 
 --disable_warnings
 DROP TABLE IF EXISTS T1;

@@ -92,6 +92,7 @@ Flexibility Improvements
    flexibility/replication_skip_single_statement
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
+   flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
 ========================

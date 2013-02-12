@@ -4012,10 +4012,10 @@ i_s_innodb_changed_pages_fill(
 				       LOG_BITMAP_ITERATOR_PAGE_NUM(i));
 		/* START_LSN */
 		table->field[2]->store(
-				       LOG_BITMAP_ITERATOR_START_LSN(i));
+				       LOG_BITMAP_ITERATOR_START_LSN(i), true);
 		/* END_LSN */
 		table->field[3]->store(
-				       LOG_BITMAP_ITERATOR_END_LSN(i));
+				       LOG_BITMAP_ITERATOR_END_LSN(i), true);
 
 		/*
 		  I_S tables are in-memory tables. If bitmap file is big enough

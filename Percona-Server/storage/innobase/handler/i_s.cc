@@ -7496,8 +7496,8 @@ i_s_innodb_changed_pages_fill(
 	}
 
 	while(log_online_bitmap_iterator_next(&i) &&
-	      (!srv_changed_pages_limit ||
-	       output_rows_num < srv_changed_pages_limit) &&
+	      (!srv_max_changed_pages ||
+	       output_rows_num < srv_max_changed_pages) &&
 	      /*
 		There is no need to compare both start LSN and end LSN fields
 		with maximum value. It's enough to compare only start LSN.

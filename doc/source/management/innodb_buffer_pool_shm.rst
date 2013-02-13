@@ -26,3 +26,26 @@ Version Specific Information
   * :rn:`5.1.58-12.9`
     Feature removed, as LRU Dump/Restore is less invasive, more
     reliable and a better solution.
+
+System Variables
+================
+
+.. variable:: innodb_buffer_pool_shm_key
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: No
+     :vartype: Boolean
+     :default: OFF
+     :range: ON/OFF
+
+.. variable:: innodb_buffer_pool_shm_checksum
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: No
+     :vartype: Boolean
+     :default: ON
+     :range: ON/OFF

@@ -878,7 +878,7 @@ void PFS_connection_stat_visitor::visit_thread(PFS_thread *pfs)
     users and hosts. It should take into account only
     FOREGROUND threads.
   */
-  if (pfs->m_thread_id != 0)
+  if (pfs->m_processlist_id != 0)
     m_stat.aggregate_active(1);
 }
 

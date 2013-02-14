@@ -154,6 +154,11 @@ The following options may be given as the first argument:
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
  Disable with --skip-external-locking.
+ --extra-max-connections=# 
+ The number of connections on extra-port
+ --extra-port=#      Extra port number to use for tcp connections in a
+ one-thread-per-connection manner. 0 means don't use
+ another port
  --flashcache        Enable flashcache detection.
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
@@ -770,7 +775,7 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
  Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads, loaded-dynamically
+ one-thread-per-connection, no-threads, pool-of-threads
  --thread-stack=#    The stack size for each thread
  --thread-statistics Control TABLE_STATISTICS running, when userstat is
  enabled
@@ -861,6 +866,8 @@ event-scheduler OFF
 expand-fast-index-creation FALSE
 expire-logs-days 0
 external-locking FALSE
+extra-max-connections 1
+extra-port 0
 flashcache FALSE
 flush FALSE
 flush-time 0

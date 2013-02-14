@@ -22,7 +22,7 @@ perl;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
-              thread-concurrency super-large-pages mutex-deadlock-detector null-audit/;
+              thread-concurrency super-large-pages mutex-deadlock-detector null-audit thread-pool/;
 
   # And substitute the content some environment variables with their
   # names:

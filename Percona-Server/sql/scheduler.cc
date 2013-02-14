@@ -39,40 +39,9 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
   return 1;                                     // Abort handle_one_connection
 }
 
-static scheduler_functions one_thread_scheduler_functions=
-{
-  1,                                     // max_threads
-  NULL,                                  // init
-  init_new_connection_handler_thread,    // init_new_connection_thread
-#ifndef EMBEDDED_LIBRARY
-  handle_connection_in_main_thread,      // add_connection
-#else
-  NULL,                                  // add_connection
-#endif // EMBEDDED_LIBRARY
-  NULL,                                  // thd_wait_begin
-  NULL,                                  // thd_wait_end
-  NULL,                                  // post_kill_notification
-  no_threads_end,                        // end_thread
-  NULL,                                  // end
-};
-
-#ifndef EMBEDDED_LIBRARY
-static scheduler_functions one_thread_per_connection_scheduler_functions=
-{
-  0,                                     // max_threads
-  NULL,                                  // init
-  init_new_connection_handler_thread,    // init_new_connection_thread
-  create_thread_to_handle_connection,    // add_connection
-  NULL,                                  // thd_wait_begin
-  NULL,                                  // thd_wait_end
-  NULL,                                  // post_kill_notification
-  one_thread_per_connection_end,         // end_thread
-  NULL,                                  // end
-};
-#endif  // EMBEDDED_LIBRARY
-
-
-scheduler_functions *thread_scheduler= NULL;
+static scheduler_functions thread_scheduler_struct, extra_thread_scheduler_struct;
+scheduler_functions *thread_scheduler= &thread_scheduler_struct,
+                    *extra_thread_scheduler= &extra_thread_scheduler_struct;
 
 /** @internal
   Helper functions to allow mysys to call the thread scheduler when
@@ -83,21 +52,19 @@ scheduler_functions *thread_scheduler= NULL;
 extern "C"
 {
 static void scheduler_wait_lock_begin(void) {
-  MYSQL_CALLBACK(thread_scheduler,
-                 thd_wait_begin, (current_thd, THD_WAIT_TABLE_LOCK));
+  thd_wait_begin(NULL, THD_WAIT_TABLE_LOCK);
 }
 
 static void scheduler_wait_lock_end(void) {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
+  thd_wait_end(NULL);
 }
 
 static void scheduler_wait_sync_begin(void) {
-  MYSQL_CALLBACK(thread_scheduler,
-                 thd_wait_begin, (current_thd, THD_WAIT_TABLE_LOCK));
+  thd_wait_begin(NULL, THD_WAIT_SYNC);
 }
 
 static void scheduler_wait_sync_end(void) {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
+  thd_wait_end(NULL);
 }
 };
 /**@}*/
@@ -109,7 +76,7 @@ static void scheduler_wait_sync_end(void) {
   one_thread_scheduler() or one_thread_per_connection_scheduler() in
   mysqld.cc, so this init function will always be called.
  */
-static void scheduler_init() {
+void scheduler_init() {
   thr_set_lock_wait_callback(scheduler_wait_lock_begin,
                              scheduler_wait_lock_end);
   thr_set_sync_wait_callback(scheduler_wait_sync_begin,
@@ -121,11 +88,17 @@ static void scheduler_init() {
 */
 
 #ifndef EMBEDDED_LIBRARY
-void one_thread_per_connection_scheduler()
+void one_thread_per_connection_scheduler(scheduler_functions *func,
+    ulong *arg_max_connections,
+    uint *arg_connection_count)
 {
   scheduler_init();
-  one_thread_per_connection_scheduler_functions.max_threads= max_connections;
-  thread_scheduler= &one_thread_per_connection_scheduler_functions;
+  func->max_threads= *arg_max_connections + 1;
+  func->max_connections= arg_max_connections;
+  func->connection_count= arg_connection_count;
+  func->init_new_connection_thread= init_new_connection_handler_thread;
+  func->add_connection= create_thread_to_handle_connection;
+  func->end_thread= one_thread_per_connection_end;
 }
 #endif
 
@@ -133,10 +106,17 @@ void one_thread_per_connection_scheduler()
   Initailize scheduler for --thread-handling=no-threads
 */
 
-void one_thread_scheduler()
+void one_thread_scheduler(scheduler_functions *func)
 {
   scheduler_init();
-  thread_scheduler= &one_thread_scheduler_functions;
+  func->max_threads= 1;
+  func->max_connections= &max_connections;
+  func->connection_count= &connection_count;
+#ifndef EMBEDDED_LIBRARY
+  func->init_new_connection_thread= init_new_connection_handler_thread;
+  func->add_connection= handle_connection_in_main_thread;
+#endif
+  func->end_thread= no_threads_end;
 }
 
 
@@ -158,6 +138,14 @@ thd_scheduler::thd_scheduler()
 thd_scheduler::~thd_scheduler()
 {
 }
+
+
+
+/*
+  no pluggable schedulers in Percona Server.
+  when we'll want it, we'll do it properly
+*/
+#if 0
 
 static scheduler_functions *saved_thread_scheduler;
 static uint saved_thread_handling;
@@ -192,6 +180,11 @@ int my_thread_scheduler_reset()
   saved_thread_scheduler= 0;
   return 0;
 }
+#else
+extern "C" int my_thread_scheduler_set(scheduler_functions *scheduler)
+{ return 1; }
 
-
+extern "C" int my_thread_scheduler_reset()
+{ return 1; }
+#endif
 

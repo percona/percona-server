@@ -1210,7 +1210,7 @@ bool setup_connection_thread_globals(THD *thd)
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);
-    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
+    MYSQL_CALLBACK(thd->scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
   }
   return 0;
@@ -1437,11 +1437,11 @@ void do_handle_one_connection(THD *thd_arg)
 
   thd->thr_create_utime= my_micro_time();
 
-  if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
+  if (MYSQL_CALLBACK_ELSE(thd->scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);
-    MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
+    MYSQL_CALLBACK(thd->scheduler, end_thread, (thd, 0));
     return;
   }
 
@@ -1495,7 +1495,7 @@ end_thread:
     close_connection(thd);
     thd->update_stats(false);
     update_global_user_stats(thd, create_user, time(NULL));
-    if (MYSQL_CALLBACK_ELSE(thread_scheduler, end_thread, (thd, 1), 0))
+    if (MYSQL_CALLBACK_ELSE(thd->scheduler, end_thread, (thd, 1), 0))
       return;                                 // Probably no-threads
 
     /*

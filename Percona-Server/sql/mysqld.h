@@ -187,7 +187,10 @@ extern LEX_CSTRING reason_slave_blocked;
 extern ulong slave_trans_retries;
 extern uint  slave_net_timeout;
 extern uint max_user_connections;
+extern ulong extra_max_connections;
 extern ulonglong denied_connections;
+extern ulong thread_created;
+extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
@@ -248,6 +251,8 @@ extern char* enforce_storage_engine;
 extern char* utility_user;
 extern char* utility_user_password;
 extern char* utility_user_schema_access;
+
+extern uint mysqld_extra_port;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,

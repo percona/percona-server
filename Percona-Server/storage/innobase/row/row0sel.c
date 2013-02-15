@@ -3997,11 +3997,11 @@ rec_loop:
 
 	rec = btr_pcur_get_rec(pcur);
 
-	if (srv_pass_corrupt_table && !rec) {
+	SRV_CORRUPT_TABLE_CHECK(rec,
+	{
 		err = DB_CORRUPTION;
 		goto lock_wait_or_error;
-	}
-	ut_a(rec);
+	});
 
 	ut_ad(!!page_rec_is_comp(rec) == comp);
 #ifdef UNIV_SEARCH_DEBUG
@@ -4138,8 +4138,9 @@ wrong_offs:
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	if (UNIV_UNLIKELY(srv_force_recovery > 0)
-	    || (srv_pass_corrupt_table == 2 && index->table->is_corrupt)) {
+	if (UNIV_UNLIKELY(srv_force_recovery > 0
+			  || (index->table->is_corrupt &&
+			      srv_pass_corrupt_table == 2))) {
 		if (!rec_validate(rec, offsets)
 		    || !btr_index_rec_validate(rec, index, FALSE)) {
 			fprintf(stderr,

@@ -312,57 +312,10 @@ UNIV_INTERN ulong srv_purge_batch_size = 20;
 /* the number of rollback segments to use */
 UNIV_INTERN ulong srv_rollback_segments = TRX_SYS_N_RSEGS;
 
-/* variable counts amount of data read in total (in bytes) */
-UNIV_INTERN ulint srv_data_read = 0;
-
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
 NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
 ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
-
-/* here we count the amount of data written in total (in bytes) */
-UNIV_INTERN ulint srv_data_written = 0;
-
-/* the number of the log write requests done */
-UNIV_INTERN ulint srv_log_write_requests = 0;
-
-/* the number of physical writes to the log performed */
-UNIV_INTERN ulint srv_log_writes = 0;
-
-/* amount of data written to the log files in bytes */
-UNIV_INTERN ulint srv_os_log_written = 0;
-
-/* amount of writes being done to the log files */
-UNIV_INTERN ulint srv_os_log_pending_writes = 0;
-
-/* we increase this counter, when there we don't have enough space in the
-log buffer and have to flush it */
-UNIV_INTERN ulint srv_log_waits = 0;
-
-/* this variable counts the amount of times, when the doublewrite buffer
-was flushed */
-UNIV_INTERN ulint srv_dblwr_writes = 0;
-
-/* here we store the number of pages that have been flushed to the
-doublewrite buffer */
-UNIV_INTERN ulint srv_dblwr_pages_written = 0;
-
-/* in this variable we store the number of write requests issued */
-UNIV_INTERN ulint srv_buf_pool_write_requests = 0;
-
-/* here we store the number of times when we had to wait for a free page
-in the buffer pool. It happens when the buffer pool is full and we need
-to make a flush, in order to be able to read or create a page. */
-UNIV_INTERN ulint srv_buf_pool_wait_free = 0;
-
-/* variable to count the number of pages that were written from buffer
-pool to the disk */
-UNIV_INTERN ulint srv_buf_pool_flushed = 0;
-UNIV_INTERN ulint buf_lru_flush_page_count = 0;
-
-/** Number of buffer pool reads that led to the
-reading of a disk page */
-UNIV_INTERN ulint srv_buf_pool_reads = 0;
 
 /** Time in seconds between automatic buffer pool dumps */
 UNIV_INTERN uint srv_auto_lru_dump = 0;
@@ -489,23 +442,83 @@ UNIV_INTERN ibool	srv_print_log_io		= FALSE;
 UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
 #endif /* UNIV_DEBUG */
 
-UNIV_INTERN ulint		srv_n_rows_inserted		= 0;
-UNIV_INTERN ulint		srv_n_rows_updated		= 0;
-UNIV_INTERN ulint		srv_n_rows_deleted		= 0;
-UNIV_INTERN ulint		srv_n_rows_read			= 0;
-
 static ulint	srv_n_rows_inserted_old		= 0;
 static ulint	srv_n_rows_updated_old		= 0;
 static ulint	srv_n_rows_deleted_old		= 0;
 static ulint	srv_n_rows_read_old		= 0;
 
-UNIV_INTERN ulint		srv_n_lock_deadlock_count	= 0;
-UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
-UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
-UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-UNIV_INTERN ulint		srv_n_lock_max_wait_time	= 0;
+/* Ensure counters are on separate cache lines */
 
-UNIV_INTERN ulint		srv_truncated_status_writes	= 0;
+#define CACHE_LINE_SIZE 64
+#define CACHE_ALIGNED __attribute__ ((aligned (CACHE_LINE_SIZE)))
+
+UNIV_INTERN byte
+counters_pad_start[CACHE_LINE_SIZE] __attribute__((unused)) = {0};
+
+UNIV_INTERN ulint		srv_n_rows_inserted CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_n_rows_updated CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_n_rows_deleted CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_n_rows_read CACHE_ALIGNED		= 0;
+
+UNIV_INTERN ulint		srv_n_lock_deadlock_count CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_n_lock_wait_count CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_n_lock_wait_current_count CACHE_ALIGNED = 0;
+UNIV_INTERN ib_int64_t	srv_n_lock_wait_time CACHE_ALIGNED		= 0;
+UNIV_INTERN ulint		srv_n_lock_max_wait_time CACHE_ALIGNED	= 0;
+
+UNIV_INTERN ulint		srv_truncated_status_writes CACHE_ALIGNED = 0;
+
+/* variable counts amount of data read in total (in bytes) */
+UNIV_INTERN ulint srv_data_read CACHE_ALIGNED			= 0;
+
+/* here we count the amount of data written in total (in bytes) */
+UNIV_INTERN ulint srv_data_written CACHE_ALIGNED		= 0;
+
+/* the number of the log write requests done */
+UNIV_INTERN ulint srv_log_write_requests CACHE_ALIGNED		= 0;
+
+/* the number of physical writes to the log performed */
+UNIV_INTERN ulint srv_log_writes CACHE_ALIGNED			= 0;
+
+/* amount of data written to the log files in bytes */
+UNIV_INTERN ulint srv_os_log_written CACHE_ALIGNED		= 0;
+
+/* amount of writes being done to the log files */
+UNIV_INTERN ulint srv_os_log_pending_writes CACHE_ALIGNED	= 0;
+
+/* we increase this counter, when there we don't have enough space in the
+log buffer and have to flush it */
+UNIV_INTERN ulint srv_log_waits CACHE_ALIGNED			= 0;
+
+/* this variable counts the amount of times, when the doublewrite buffer
+was flushed */
+UNIV_INTERN ulint srv_dblwr_writes CACHE_ALIGNED		= 0;
+
+/* here we store the number of pages that have been flushed to the
+doublewrite buffer */
+UNIV_INTERN ulint srv_dblwr_pages_written CACHE_ALIGNED		= 0;
+
+/* in this variable we store the number of write requests issued */
+UNIV_INTERN ulint srv_buf_pool_write_requests CACHE_ALIGNED	= 0;
+
+/* here we store the number of times when we had to wait for a free page
+in the buffer pool. It happens when the buffer pool is full and we need
+to make a flush, in order to be able to read or create a page. */
+UNIV_INTERN ulint srv_buf_pool_wait_free CACHE_ALIGNED		= 0;
+
+/** Number of buffer pool reads that led to the
+reading of a disk page */
+UNIV_INTERN ulint srv_buf_pool_reads CACHE_ALIGNED		= 0;
+
+/* variable to count the number of pages that were written from buffer
+pool to the disk */
+UNIV_INTERN ulint srv_buf_pool_flushed CACHE_ALIGNED		= 0;
+
+/* variable to count the number of LRU flushed pages */
+UNIV_INTERN ulint buf_lru_flush_page_count CACHE_ALIGNED	= 0;
+
+UNIV_INTERN byte
+counters_pad_end[CACHE_LINE_SIZE] __attribute__((unused)) = {0};
 
 /*
   Set the following to 0 if you want InnoDB to write messages on

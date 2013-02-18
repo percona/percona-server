@@ -2171,9 +2171,14 @@ mysql_execute_command(THD *thd)
     }
     /* 
        Execute deferred events first
+       Bug lp1068210 or upstream 67504: Test first to see if we are executing
+       within a sub statement. If so, DO NOT execute any deferred events, they
+       have already been executed by the parent statement and have no bearing
+       on the sub statement and can cause faulty behavior.
     */
-    if (slave_execute_deferred_events(thd))
-      DBUG_RETURN(-1);
+    if (thd->in_sub_stmt == 0)
+      if (slave_execute_deferred_events(thd))
+          DBUG_RETURN(-1);
   }
   else
   {

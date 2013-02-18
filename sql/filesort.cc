@@ -1597,7 +1597,8 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   QUEUE queue;
   qsort2_cmp cmp;
   void *first_cmp_arg;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  THD * const thd = current_thd;
+  volatile THD::killed_state *killed= &thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 

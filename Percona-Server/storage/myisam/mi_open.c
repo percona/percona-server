@@ -249,7 +249,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
 
     /* sanity check */
-    if (share->base.keystart > 65535 || share->base.rec_reflength > 8)
+    if (share->base.keystart > 65535 || 
+        share->base.rec_reflength > 8 || share->base.key_reflength > 7) 
     {
       my_errno=HA_ERR_CRASHED;
       goto err;
@@ -359,6 +360,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  }
 	  else if (pos->type == HA_KEYTYPE_BINARY)
 	    pos->charset= &my_charset_bin;
+          if (!(share->keyinfo[i].flag & HA_SPATIAL) &&
+              pos->start > share->base.reclength)
+          {
+            my_errno= HA_ERR_CRASHED;
+            goto err;
+          }
 	}
 	if (share->keyinfo[i].flag & HA_SPATIAL)
 	{

@@ -871,6 +871,14 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "GROUP BY",
+              "index_order_summary": {
+                "table": "`t2`",
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "i2_1",
+                "plan_changed": false
+              } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
@@ -1093,6 +1101,14 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "GROUP BY",
+              "index_order_summary": {
+                "table": "`t2`",
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "i2_1",
+                "plan_changed": false
+              } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
@@ -1402,6 +1418,14 @@ GROUP BY key2	{
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "GROUP BY",
+              "index_order_summary": {
+                "table": "`t2`",
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "i2_1",
+                "plan_changed": false
+              } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           }
         ] /* steps */
@@ -3861,6 +3885,7 @@ EXPLAIN SELECT 1 FROM
                       {
                         "table": "`t2`",
                         "rechecking_index_usage": {
+                          "recheck_reason": "not_first_table",
                           "range_analysis": {
                             "table_scan": {
                               "rows": 3,
@@ -4195,6 +4220,7 @@ EXPLAIN SELECT 1 FROM
                       {
                         "table": "`t2`",
                         "rechecking_index_usage": {
+                          "recheck_reason": "not_first_table",
                           "range_analysis": {
                             "table_scan": {
                               "rows": 3,
@@ -4602,6 +4628,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "ORDER BY",
               "rows_estimation": {
                 "table": "`t1`",
                 "index": "k2",
@@ -4669,9 +4696,10 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
               } /* rows_estimation */,
               "index_order_summary": {
                 "table": "`t1`",
+                "index_provides_order": true,
+                "order_direction": "asc",
                 "disabled_pushed_condition_on_old_index": true,
                 "index": "k2",
-                "order_direction": "asc",
                 "plan_changed": true,
                 "access_type": "range"
               } /* index_order_summary */
@@ -4916,6 +4944,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "ORDER BY",
               "rows_estimation": {
                 "table": "`t1`",
                 "index": "k1",
@@ -4971,18 +5000,21 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
               } /* rows_estimation */,
               "index_order_summary": {
                 "table": "`t1`",
-                "index": "k1",
+                "index_provides_order": true,
                 "order_direction": "desc",
+                "index": "k1",
                 "plan_changed": false
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "GROUP BY",
               "index_order_summary": {
                 "table": "`t1`",
-                "index": "k1",
+                "index_provides_order": true,
                 "order_direction": "desc",
+                "index": "k1",
                 "plan_changed": false
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
@@ -5010,10 +5042,12 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "GROUP BY",
               "index_order_summary": {
                 "table": "`t1`",
-                "index": "k1",
+                "index_provides_order": true,
                 "order_direction": "desc",
+                "index": "k1",
                 "plan_changed": true,
                 "access_type": "index_scan"
               } /* index_order_summary */
@@ -5141,7 +5175,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       "index": "i1_idx",
                       "usable": true,
                       "key_parts": [
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     },
                     {
@@ -5149,7 +5184,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       "usable": true,
                       "key_parts": [
                         "v",
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     }
                   ] /* potential_range_indices */,
@@ -5183,7 +5219,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       {
                         "index": "i1_idx",
                         "ranges": [
-                          "1 <= i1 <= 1"
+                          "1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5197,7 +5233,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       {
                         "index": "v_idx",
                         "ranges": [
-                          "a <= v <= a AND 1 <= i1 <= 1"
+                          "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5416,7 +5452,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "usable": true,
                       "key_parts": [
                         "v",
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     },
                     {
@@ -5424,7 +5461,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "usable": true,
                       "key_parts": [
                         "i2",
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     }
                   ] /* potential_range_indices */,
@@ -5452,7 +5490,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       {
                         "index": "v_idx",
                         "ranges": [
-                          "a <= v <= a AND 1 <= i1 <= 1"
+                          "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5465,7 +5503,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       {
                         "index": "i1_i2_idx",
                         "ranges": [
-                          "1 <= i2 <= 1 AND 1 <= i1 <= 1"
+                          "1 <= i2 <= 1 AND 1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5529,7 +5567,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                           "index": "v_idx",
                           "rows": 1,
                           "ranges": [
-                            "a <= v <= a AND 1 <= i1 <= 1"
+                            "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
                           ] /* ranges */
                         }
                       ] /* intersect_of */
@@ -5703,7 +5741,8 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       "index": "b",
                       "usable": true,
                       "key_parts": [
-                        "b"
+                        "b",
+                        "a"
                       ] /* key_parts */
                     }
                   ] /* potential_range_indices */,
@@ -5728,8 +5767,9 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       },
                       {
                         "index": "b",
+                        "covering": true,
                         "usable": false,
-                        "cause": "not_covering"
+                        "cause": "group_attribute_not_prefix_in_index"
                       }
                     ] /* potential_group_range_indices */
                   } /* group_index_range */,
@@ -5768,7 +5808,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       {
                         "index": "b",
                         "ranges": [
-                          "b < 2"
+                          "b < 2 AND 1 <= a <= 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,
@@ -6129,11 +6169,13 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
+              "clause": "ORDER BY",
               "index_order_summary": {
                 "table": "`t1`",
+                "index_provides_order": true,
+                "order_direction": "asc",
                 "disabled_pushed_condition_on_old_index": true,
                 "index": "k2",
-                "order_direction": "asc",
                 "plan_changed": true,
                 "access_type": "ref"
               } /* index_order_summary */

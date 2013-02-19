@@ -543,6 +543,8 @@ typedef struct system_variables
 
   double long_query_time_double;
 
+  my_bool pseudo_slave_mode;
+
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
 
@@ -2217,7 +2219,45 @@ public:
     return (variables.optimizer_switch & flag);
   }
 
+  enum binlog_filter_state
+  {
+    BINLOG_FILTER_UNKNOWN,
+    BINLOG_FILTER_CLEAR,
+    BINLOG_FILTER_SET
+  };
+
+  inline void reset_binlog_local_stmt_filter()
+  {
+    m_binlog_filter_state= BINLOG_FILTER_UNKNOWN;
+  }
+
+  inline void clear_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_CLEAR;
+  }
+
+  inline void set_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_SET;
+  }
+
+  inline binlog_filter_state get_binlog_local_stmt_filter()
+  {
+    return m_binlog_filter_state;
+  }
+
 private:
+  /**
+    Indicate if the current statement should be discarded
+    instead of written to the binlog.
+    This is used to discard special statements, such as
+    DML or DDL that affects only 'local' (non replicated)
+    tables, such as performance_schema.*
+  */
+  binlog_filter_state m_binlog_filter_state;
+
   /**
     Indicates the format in which the current statement will be
     logged.  This can only be set from @c decide_logging_format().
@@ -2322,6 +2362,9 @@ public:
       bool xid_written:1;               // The session wrote an XID
       bool real_commit:1;               // Is this a "real" commit?
       bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+#ifndef DBUG_OFF
+      bool ready_preempt:1;             // internal in MYSQL_BIN_LOG::ordered_commit
+#endif
     } flags;
 
     void cleanup()
@@ -3375,20 +3418,6 @@ public:
   { return variables.character_set_client; }
   void update_charset();
 
-  inline Query_arena *activate_stmt_arena_if_needed(Query_arena *backup)
-  {
-    /*
-      Use the persistent arena if we are in a prepared statement or a stored
-      procedure statement and we have not already changed to use this arena.
-    */
-    if (!stmt_arena->is_conventional() && mem_root != stmt_arena->mem_root)
-    {
-      set_n_backup_active_arena(stmt_arena, backup);
-      return stmt_arena;
-    }
-    return 0;
-  }
-
   void change_item_tree(Item **place, Item *new_value)
   {
     /* TODO: check for OOM condition here */
@@ -3846,6 +3875,9 @@ public:
 
     Moreover, we can drop the second condition if we fix BUG#11756034.
 
+    @param transactional_table true if the statement updates some
+    transactional table; false otherwise.
+
     @param non_transactional_table true if the statement updates some
     non-transactional table; false otherwise.
 
@@ -3856,7 +3888,8 @@ public:
     @retval false if the statement is not compatible.
   */
   bool
-  is_dml_gtid_compatible(bool non_transactional,
+  is_dml_gtid_compatible(bool transactional_table,
+                         bool non_transactional_table,
                          bool non_transactional_tmp_tables) const;
   bool is_ddl_gtid_compatible() const;
   void binlog_invoker() { m_binlog_invoker= TRUE; }
@@ -3921,6 +3954,59 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+};
+
+
+/**
+  A simple holder for the Prepared Statement Query_arena instance in THD.
+  The class utilizes RAII technique to not forget to restore the THD arena.
+*/
+class Prepared_stmt_arena_holder
+{
+public:
+  /**
+    Constructs a new object, activates the persistent arena if requested and if
+    a prepared statement or a stored procedure statement is being executed.
+
+    @param thd                    Thread context.
+    @param activate_now_if_needed Attempt to activate the persistent arena in
+                                  the constructor or not.
+  */
+  Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed= true)
+   :m_thd(thd),
+    m_arena(NULL)
+  {
+    if (activate_now_if_needed &&
+        !m_thd->stmt_arena->is_conventional() &&
+        m_thd->mem_root != m_thd->stmt_arena->mem_root)
+    {
+      m_thd->set_n_backup_active_arena(m_thd->stmt_arena, &m_backup);
+      m_arena= m_thd->stmt_arena;
+    }
+  }
+
+  /**
+    Deactivate the persistent arena (restore the previous arena) if it has
+    been activated.
+  */
+  ~Prepared_stmt_arena_holder()
+  {
+    if (is_activated())
+      m_thd->restore_active_arena(m_arena, &m_backup);
+  }
+
+  bool is_activated() const
+  { return m_arena != NULL; }
+
+private:
+  /// The thread context to work with.
+  THD *const m_thd;
+
+  /// The arena set by this holder (by activate()).
+  Query_arena *m_arena;
+
+  /// The arena state to be restored.
+  Query_arena m_backup;
 };
 
 

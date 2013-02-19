@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -336,6 +336,7 @@ TODO list:
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "opt_trace.h"
+#include "sql_table.h"
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -1136,7 +1137,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
     {
       BLOCK_LOCK_WR(block);
       Query_cache_query *query= block->query();
-      if (query && query->writer())
+      if (query->writer())
       {
         /*
            Drop the writer; this will cancel any attempts to store 
@@ -1146,7 +1147,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
         query->writer(0);
         refused++;
       }
-      BLOCK_UNLOCK_WR(block);
+      query->unlock_n_destroy();
       block= block->next;
     } while (block != queries_blocks);
   }
@@ -1731,30 +1732,39 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
     engine_data= table->engine_data();
-    if (table->callback() &&
-        !(*table->callback())(thd, table->db(),
-                              table->key_length(),
-                              &engine_data))
+    if (table->callback()) 
     {
-      DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
-			    table_list.db, table_list.alias));
-      BLOCK_UNLOCK_RD(query_block);
-      if (engine_data != table->engine_data())
+      char qcache_se_key_name[FN_REFLEN + 1];
+      uint qcache_se_key_len;
+      engine_data= table->engine_data();
+
+      qcache_se_key_len= build_table_filename(qcache_se_key_name,
+                                              sizeof(qcache_se_key_name),
+                                              table->db(), table->table(),
+                                              "", SKIP_SYMDIR_ACCESS);
+   
+      if (!(*table->callback())(thd, qcache_se_key_name,
+                                qcache_se_key_len, &engine_data))
       {
-        DBUG_PRINT("qcache",
-                   ("Handler require invalidation queries of %s.%s %lu-%lu",
-                    table_list.db, table_list.alias,
-                    (ulong) engine_data, (ulong) table->engine_data()));
-        invalidate_table_internal(thd,
-                                  (uchar *) table->db(),
-                                  table->key_length());
-      }
-      else
-        thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
-      /* End the statement transaction potentially started by engine. */
-      trans_rollback_stmt(thd);
-      goto err_unlock;				// Parse query
-    }
+        DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
+                               table_list.db, table_list.alias));
+        BLOCK_UNLOCK_RD(query_block);
+        if (engine_data != table->engine_data())
+        {
+          DBUG_PRINT("qcache",
+                     ("Handler require invalidation queries of %s.%s %lu-%lu",
+                      table_list.db, table_list.alias,
+                      (ulong) engine_data, (ulong) table->engine_data()));
+          invalidate_table_internal(thd, (uchar *) table->db(),
+                                    table->key_length());
+        }
+        else
+          thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
+        /* End the statement transaction potentially started by engine. */
+        trans_rollback_stmt(thd);
+        goto err_unlock;				// Parse query
+     }
+   }
     else
       DBUG_PRINT("qcache", ("handler allow caching %s,%s",
 			    table_list.db, table_list.alias));
@@ -2814,11 +2824,9 @@ void Query_cache::invalidate_table(THD *thd, TABLE_LIST *table_list)
     invalidate_table(thd, table_list->table);	// Table is open
   else
   {
-    char key[MAX_DBKEY_LENGTH];
+    const char *key;
     uint key_length;
-
-    key_length=(uint) (strmov(strmov(key,table_list->db)+1,
-			      table_list->table_name) -key)+ 1;
+    key_length= get_table_def_key(table_list, &key);
 
     // We don't store temporary tables => no key_length+=4 ...
     invalidate_table(thd, (uchar *)key, key_length);
@@ -2930,13 +2938,12 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     block_table->n= n;
     if (tables_used->view)
     {
-      char key[MAX_DBKEY_LENGTH];
+      const char *key;
       uint key_length;
       DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
-      key_length= (uint) (strmov(strmov(key, tables_used->view_db.str) + 1,
-                                 tables_used->view_name.str) - key) + 1;
+      key_length= get_table_def_key(tables_used, &key);
       /*
         There are not callback function for for VIEWs
       */
@@ -3046,7 +3053,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 */
 
 my_bool
-Query_cache::insert_table(uint key_len, char *key,
+Query_cache::insert_table(uint key_len, const char *key,
 			  Query_cache_block_table *node,
 			  uint32 db_length, uint8 cache_type,
                           qc_engine_callback callback,
@@ -3774,8 +3781,8 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
       continue;
 
     if (!handler->register_query_cache_table(thd,
-                                             table->s->table_cache_key.str,
-                                             table->s->table_cache_key.length,
+                                             table->s->normalized_path.str,
+                                             table->s->normalized_path.length,
                                              &tables_used->callback_func,
                                              &tables_used->engine_data))
     {
@@ -4195,8 +4202,10 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   *db_length= (filename - dbname) - 1;
   DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
 
-  DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
-			     filename) -key) + 1);
+  DBUG_RETURN(static_cast<uint>(strmake(strmake(key, dbname,
+                                                min<uint32>(*db_length,
+                                                            NAME_LEN)) + 1,
+                                filename, NAME_LEN) - key) + 1);
 }
 
 /****************************************************************************

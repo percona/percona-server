@@ -1185,6 +1185,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     beginning of each command.
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+
+  /**
+    Enforce password expiration for all RPC commands, except the
+    following:
+
+    COM_QUERY does a more fine-grained check later.
+    COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
+    COM_PING only discloses information that the server is running,
+       and that's available through other means.
+    COM_QUIT should work even for expired statements.
+  */
+  if (unlikely(thd->security_ctx->password_expired &&
+               command != COM_QUERY &&
+               command != COM_STMT_CLOSE &&
+               command != COM_STMT_SEND_LONG_DATA &&
+               command != COM_PING &&
+               command != COM_QUIT))
+  {
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    goto done;
+  }
+
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1643,9 +1665,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
-    ulong id=(ulong) uint4korr(packet);
-    sql_kill(thd,id,false);
+    if (thread_id & (~0xfffffffful))
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else
+    {
+      status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
+      ulong id=(ulong) uint4korr(packet);
+      sql_kill(thd,id,false);
+    }
     break;
   }
   case COM_SET_OPTION:
@@ -1685,6 +1712,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+done:
   DBUG_ASSERT(thd->derived_tables == NULL &&
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
@@ -2088,13 +2117,9 @@ bool sp_process_definer(THD *thd)
 
   if (!lex->definer)
   {
-    Query_arena original_arena;
-    Query_arena *ps_arena= thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     lex->definer= create_default_definer(thd);
-
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
 
     /* Error has been already reported. */
     if (lex->definer == NULL)
@@ -2238,6 +2263,18 @@ mysql_execute_command(THD *thd)
 #endif
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
+
+  if (unlikely(lex->is_broken()))
+  {
+    // Force a Reprepare, to get a fresh LEX
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
+    {
+      DBUG_ASSERT(thd->is_error());
+      DBUG_RETURN(1);
+    }
+  }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
@@ -6030,13 +6067,27 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
         writing to the general log, so rewriting still needs to happen because
         the other logs (binlog, slow query log, ...) can not be set to raw mode
         for security reasons.
+        Query-cache only handles SELECT, which we don't rewrite, so it's no
+        concern of ours.
+        We're not general-logging if we're the slave, or if we've already
+        done raw-logging earlier.
+        Sub-routines of mysql_rewrite_query() should try to only rewrite when
+        necessary (e.g. not do password obfuscation when query contains no
+        password), but we can optimize out even those necessary rewrites when
+        no logging happens at all. If rewriting does not happen here,
+        thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      mysql_rewrite_query(thd);
+      bool general= (opt_log && ! (opt_log_raw || thd->slave_thread));
 
-      if (thd->rewritten_query.length())
-        lex->safe_to_cache_query= false; // see comments below 
+      if (general || opt_slow_log || opt_bin_log)
+      {
+        mysql_rewrite_query(thd);
 
-      if (!thd->slave_thread && !opt_log_raw)
+        if (thd->rewritten_query.length())
+          lex->safe_to_cache_query= false; // see comments below
+      }
+
+      if (general)
       {
         if (thd->rewritten_query.length())
           general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
@@ -6090,8 +6141,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
-          if (unlikely(thd->security_ctx->password_expired && 
-                       !lex->is_change_password))
+          if (unlikely(thd->security_ctx->password_expired &&
+                       !lex->is_change_password &&
+                       lex->sql_command != SQLCOM_SET_OPTION))
           {
             my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
             error= 1;
@@ -6136,7 +6188,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   else
   {
     /*
-      Query cache hit. We need to write the general log here.
+      Query cache hit. We need to write the general log here if
+      we haven't already logged the statement earlier due to --log-raw.
       Right now, we only cache SELECT results; if the cache ever
       becomes more generic, we should also cache the rewritten
       query-string together with the original query-string (which
@@ -6507,8 +6560,13 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
-                        MDL_TRANSACTION);
+
+  // Pure table aliases do not need to be locked:
+  if (!test(table_options & TL_OPTION_ALIAS))
+  {
+    ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                          MDL_TRANSACTION);
+  }
   if (table->is_derived_table())
   {
     ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
@@ -6982,8 +7040,14 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
-      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
-      error=0;
+      /* process the kill only if thread is not already undergoing any kill
+         connection.
+      */
+      if (tmp->killed != THD::KILL_CONNECTION)
+      {
+        tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
+      }
+      error= 0;
     }
     else
       error=ER_KILL_DENIED_ERROR;

@@ -136,6 +136,8 @@ static const uint NO_FRM_RENAME=   1 << 2;
 static const uint FRM_ONLY=        1 << 3;
 /** Don't remove table in engine. Remove only .FRM and maybe .PAR files. */
 static const uint NO_HA_TABLE=     1 << 4;
+/** Don't resolve MySQL's fake "foo.sym" symbolic directory names. */
+static const uint SKIP_SYMDIR_ACCESS= 1 << 5;
 
 uint filename_to_tablename(const char *from, char *to, uint to_length
 #ifndef DBUG_OFF
@@ -146,7 +148,16 @@ uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
 bool check_mysql50_prefix(const char *name);
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
-                          const char *table, const char *ext, uint flags);
+                          const char *table, const char *ext,
+                          uint flags, bool *was_truncated);
+// For caller's who are mostly sure that path do not truncate
+uint inline build_table_filename(char *buff, size_t bufflen, const char *db,
+                          const char *table, const char *ext, uint flags)
+{
+    bool truncated_not_used;
+    return build_table_filename(buff, bufflen, db, table, ext, flags,
+                                &truncated_not_used);
+}
 uint build_table_shadow_filename(char *buff, size_t bufflen,
                                  ALTER_PARTITION_PARAM_TYPE *lpt);
 uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen);

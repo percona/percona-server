@@ -254,23 +254,31 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
   {
     DBUG_PRINT("info",("Sorting for group"));
     THD_STAGE_INFO(thd, stage_sorting_for_group);
+
     if (ordered_index_usage != ordered_index_group_by &&
+        (join_tab + const_tables)->type != JT_CONST && // Don't sort 1 row
         add_sorting_to_table(join_tab + const_tables, &group_list))
       goto err;
-    if (alloc_group_fields(this, group_list) ||
-        make_sum_func_list(all_fields, fields_list, true) ||
-        prepare_sum_aggregators(sum_funcs,
-                                !join_tab->is_using_agg_loose_index_scan()) ||
-        setup_sum_funcs(thd, sum_funcs))
+
+    if (alloc_group_fields(this, group_list))
+      goto err;
+    if (make_sum_func_list(all_fields, fields_list, true))
+      goto err;
+    if (prepare_sum_aggregators(sum_funcs,
+                                !join_tab->is_using_agg_loose_index_scan()))
+      goto err;
+    if (setup_sum_funcs(thd, sum_funcs))
       goto err;
     group_list= NULL;
   }
   else
   {
-    if (make_sum_func_list(all_fields, fields_list, false) ||
-        prepare_sum_aggregators(sum_funcs,
-                                !join_tab->is_using_agg_loose_index_scan()) ||
-        setup_sum_funcs(thd, sum_funcs))
+    if (make_sum_func_list(all_fields, fields_list, false))
+      goto err;
+    if (prepare_sum_aggregators(sum_funcs,
+                                !join_tab->is_using_agg_loose_index_scan()))
+      goto err;
+    if (setup_sum_funcs(thd, sum_funcs))
       goto err;
 
     if (!group_list && !table->distinct && order && simple_order)
@@ -1056,7 +1064,9 @@ sub_select_op(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   */
   DBUG_ASSERT(join_tab->use_quick != QS_DYNAMIC_RANGE);
 
-  DBUG_RETURN(op->put_record());
+  rc= op->put_record();
+
+  DBUG_RETURN(rc);
 }
 
 
@@ -2317,6 +2327,18 @@ join_init_quick_read_record(JOIN_TAB *tab)
   Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
   trace_table.add_utf8_table(tab->table);
 #endif
+
+  /* 
+    If this join tab was read through a QUICK for the last record
+    combination from earlier tables, test_if_quick_select() will
+    delete that quick and effectively close the index. Otherwise, we
+    need to close the index before the next join iteration starts
+    because the handler object might be reused by a different access
+    strategy.
+  */
+  if ((!tab->select || !tab->select->quick) && 
+      (tab->table->file->inited != handler::NONE))
+    tab->table->file->ha_index_or_rnd_end(); 
 
   if (test_if_quick_select(tab) == -1)
     return -1;					/* No possible records */
@@ -4197,7 +4219,7 @@ QEP_tmp_table::prepare_tmp_table()
   JOIN *join= join_tab->join;
   int rc= 0;
 
-  if (!join_tab->table->created)
+  if (!join_tab->table->is_created())
   {
     if (instantiate_tmp_table(table, join_tab->tmp_table_param->keyinfo,
                               join_tab->tmp_table_param->start_recinfo,

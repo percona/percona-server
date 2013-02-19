@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 #include "mysys_priv.h"
 #include <m_string.h>
@@ -239,7 +240,7 @@ size_t cleanup_dirname(register char *to, const char *from)
 my_bool my_use_symdir=0;	/* Set this if you want to use symdirs */
 
 #ifdef USE_SYMDIR
-void symdirget(char *dir)
+void symdirget(char *dir, my_bool *is_symdir)
 {
   char buff[FN_REFLEN+1];
   char *pos=strend(dir);
@@ -264,6 +265,8 @@ void symdirget(char *dir)
 	  *pos++=FN_LIBCHAR;
 
 	strmake(dir,buff, (size_t) (pos-buff));
+
+        *is_symdir= TRUE;
       }
       my_close(file, MYF(0));
     }
@@ -324,6 +327,9 @@ size_t normalize_dirname(char *to, const char *from)
 
   @param to     Result buffer, FN_REFLEN characters. May be == from
   @param from   'Packed' directory name (may contain ~)
+  @param[out] is_symdir  Indicates that directory in question turned
+                         out to be fake .sym symbolic link, which was
+                         resolved to real directory it points to.
 
   @details
   - Uses normalize_dirname()
@@ -335,11 +341,13 @@ size_t normalize_dirname(char *to, const char *from)
    Length of new directory name (= length of to)
 */
 
-size_t unpack_dirname(char * to, const char *from)
+size_t unpack_dirname(char * to, const char *from, my_bool *is_symdir)
 {
   size_t length, h_length;
   char buff[FN_REFLEN+1+4],*suffix,*tilde_expansion;
   DBUG_ENTER("unpack_dirname");
+
+  *is_symdir= FALSE;
 
   length= normalize_dirname(buff, from);
 
@@ -363,7 +371,7 @@ size_t unpack_dirname(char * to, const char *from)
   }
 #ifdef USE_SYMDIR
   if (my_use_symdir)
-    symdirget(buff);
+    symdirget(buff, is_symdir);
 #endif
   DBUG_RETURN(system_filename(to,buff));	/* Fix for open */
 } /* unpack_dirname */
@@ -419,10 +427,11 @@ size_t unpack_filename(char * to, const char *from)
 {
   size_t length, n_length, buff_length;
   char buff[FN_REFLEN];
+  my_bool not_used;
   DBUG_ENTER("unpack_filename");
 
   length=dirname_part(buff, from, &buff_length);/* copy & convert dirname */
-  n_length=unpack_dirname(buff,buff);
+  n_length=unpack_dirname(buff, buff, &not_used);
   if (n_length+strlen(from+length) < FN_REFLEN)
   {
     (void) strmov(buff+n_length,from+length);
@@ -451,10 +460,10 @@ char *intern_filename(char *to, const char *from)
   char buff[FN_REFLEN];
   if (from == to)
   {						/* Dirname may destroy from */
-    strmov(buff,from);
+    (void) strnmov(buff, from, FN_REFLEN);
     from=buff;
   }
   length= dirname_part(to, from, &to_length);	/* Copy dirname & fix chars */
-  (void) strmov(to + to_length,from+length);
+  (void) strnmov(to + to_length, from + length, FN_REFLEN - to_length);
   return (to);
 } /* intern_filename */

@@ -2261,10 +2261,8 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  Query_arena backup;
-  Query_arena *arena= thd->stmt_arena->is_stmt_prepare() ?
-                      thd->activate_stmt_arena_if_needed(&backup) :
-                      NULL;
+  Prepared_stmt_arena_holder ps_arena_holder(
+    thd, thd->stmt_arena->is_stmt_prepare());
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -2332,8 +2330,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       break; // we cannot return here, we need to restore "arena".
     }
   }
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
+
   return res;
 }
 
@@ -2874,8 +2871,7 @@ table_map Item_field::resolved_used_tables() const
 }
 
 void Item_ident::fix_after_pullout(st_select_lex *parent_select,
-                                   st_select_lex *removed_select,
-                                   Item **ref)
+                                   st_select_lex *removed_select)
 {
   /*
     Some field items may be created for use in execution only, without
@@ -4797,6 +4793,33 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
 
 /**
+  Check if an Item is fixed or is an Item_outer_ref.
+
+  @param ref the reference to check
+
+  @return Whether or not the item is a fixed item or an Item_outer_ref
+
+  @note Currently, this function is only used in DBUG_ASSERT
+  statements and therefore not included in optimized builds.
+*/
+#ifndef DBUG_OFF
+static bool is_fixed_or_outer_ref(Item *ref)
+{
+  /*
+    The requirements are that the Item pointer
+    1)  is not NULL, and
+    2a) points to a fixed Item, or
+    2b) points to an Item_outer_ref.
+  */
+  return (ref != NULL &&                     // 1
+          (ref->fixed ||                     // 2a
+           (ref->type() == Item::REF_ITEM && // 2b
+            static_cast<Item_ref *>(ref)->ref_type() == Item_ref::OUTER_REF)));
+}
+#endif
+
+
+/**
   Resolve a column reference in a sub-select.
 
   Resolve a column reference (usually inside a HAVING clause) against the
@@ -4897,10 +4920,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
        Assert if its an incorrect reference . We do not assert if its a outer
        reference, as they get fixed later in fix_innner_refs function.
       */
-      DBUG_ASSERT((*select_ref)->fixed ||
-                  ((*select_ref)->type() == Item::REF_ITEM &&
-                   ((Item_ref *)(*select_ref))->ref_type() ==
-                   Item_ref::OUTER_REF));
+      DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
 
       return &select->ref_pointer_array[counter];
     }
@@ -5101,7 +5121,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         return -1; /* Some error occurred (e.g. ambiguous names). */
       if (ref != not_found_item)
       {
-        DBUG_ASSERT(*ref && (*ref)->fixed);
+        /*
+          Either the item we found is already fixed, or it is an outer
+          reference that will be fixed later in fix_inner_refs().
+        */
+        DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
         prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
         prev_subselect_item->const_item_cache&= (*ref)->const_item();
         break;
@@ -5144,7 +5168,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     Item_ref *rf;
 
     /* Should have been checked in resolve_ref_in_select_and_group(). */
-    DBUG_ASSERT(*ref && (*ref)->fixed);
+    DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
     /*
       Here, a subset of actions performed by Item_ref::set_properties
       is not enough. So we pass ptr to NULL into Item_[direct]_ref
@@ -6010,10 +6034,6 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     field= new Field_double((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			    item_name.ptr(), decimals, 0, unsigned_flag);
     break;
-  case MYSQL_TYPE_NULL:
-    field= new Field_null((uchar*) 0, max_length, Field::NONE,
-			  item_name.ptr(), &my_charset_bin);
-    break;
   case MYSQL_TYPE_INT24:
     field= new Field_medium((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			    item_name.ptr(), 0, unsigned_flag);
@@ -6044,6 +6064,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     DBUG_ASSERT(0);
     /* If something goes awfully wrong, it's better to get a string than die */
   case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_NULL:
     if (fixed_length && max_length < CONVERT_IF_BIGGER_TO_BLOB)
     {
       field= new Field_string(max_length, maybe_null, item_name.ptr(),
@@ -7151,7 +7172,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             goto error; /* Some error occurred (e.g. ambiguous names). */
           if (ref != not_found_item)
           {
-            DBUG_ASSERT(*ref && (*ref)->fixed);
+            DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
             prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
             prev_subselect_item->const_item_cache&= (*ref)->const_item();
             break;
@@ -7253,13 +7274,15 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        Query_arena backup, *arena;
-        arena= thd->activate_stmt_arena_if_needed(&backup);
-        fld= new Item_field(thd, last_checked_context, from_field);
-        if (arena)
-          thd->restore_active_arena(arena, &backup);
-        if (!fld)
-          goto error;
+
+        {
+          Prepared_stmt_arena_holder ps_arena_holder(thd);
+          fld= new Item_field(thd, last_checked_context, from_field);
+
+          if (!fld)
+            goto error;
+        }
+
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
                           thd->lex->current_select, this, fld);
@@ -7283,7 +7306,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         goto error;
       }
       /* Should be checked in resolve_ref_in_select_and_group(). */
-      DBUG_ASSERT(*ref && (*ref)->fixed);
+      DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
       mark_as_dependent(thd, last_checked_context->select_lex,
                         context->select_lex, this, this);
       /*
@@ -7356,7 +7379,7 @@ void Item_ref::set_properties()
 
 table_map Item_ref::resolved_used_tables() const
 {
-  DBUG_ASSERT((*ref)->type() == FIELD_ITEM);
+  DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM);
   return ((Item_field*)(*ref))->resolved_used_tables();
 }
 
@@ -7858,25 +7881,23 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 }
 
 void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select,
-                                       Item **ref_arg)
+                                       st_select_lex *removed_select)
 {
-  if (depended_from == parent_select)
-  {
-    *ref_arg= outer_ref;
-    outer_ref->fix_after_pullout(parent_select, removed_select, ref_arg);
-  }
-  // @todo: Find an actual test case for this funcion.
-  DBUG_ASSERT(false);
+  /*
+    If this assertion holds, we need not call fix_after_pullout() on both
+    *ref and outer_ref, and Item_ref::fix_after_pullout() is sufficient.
+  */
+  DBUG_ASSERT(*ref == outer_ref);
+
+  Item_ref::fix_after_pullout(parent_select, removed_select);
 }
 
 void Item_ref::fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select,
-                                 Item **ref_arg)
+                                 st_select_lex *removed_select)
 {
-  (*ref)->fix_after_pullout(parent_select, removed_select, ref);
+  (*ref)->fix_after_pullout(parent_select, removed_select);
 
-  Item_ident::fix_after_pullout(parent_select, removed_select, ref_arg);
+  Item_ident::fix_after_pullout(parent_select, removed_select);
 }
 
 
@@ -8058,7 +8079,7 @@ bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item_insert_value::fix_fields(THD *thd, Item **items)
+bool Item_insert_value::fix_fields(THD *thd, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   /* We should only check that arg is in first table */
@@ -8096,17 +8117,14 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
   }
   else
   {
-    Field *tmp_field= field_arg->field;
-    /* charset doesn't matter here, it's to avoid sigsegv only */
-    tmp_field= new Field_null(0, 0, Field::NONE, field_arg->field->field_name,
-                          &my_charset_bin);
-    if (tmp_field)
-    {
-      tmp_field->init(field_arg->field->table);
-      set_field(tmp_field);
-    }
+    // VALUES() is used out-of-scope - its value is always NULL
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    Item *const item= new Item_null(this->item_name);
+    if (!item)
+      return true;
+    *reference= item;
   }
-  return FALSE;
+  return false;
 }
 
 void Item_insert_value::print(String *str, enum_query_type query_type)

@@ -437,7 +437,7 @@ master-bin.000001	#	Query	#	#	use `mysqltest1`; create table t2 like t1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
     DETERMINISTIC
 insert into t1 values (15)
-master-bin.000001	#	Query	#	#	use `mysqltest1`; GRANT EXECUTE, CREATE ROUTINE ON `mysqltest1`.* TO 'zedjzlcsjhd'@'127.0.0.1'
+master-bin.000001	#	Query	#	#	use `mysqltest1`; grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1
 master-bin.000001	#	Query	#	#	use `mysqltest1`; CREATE DEFINER=`zedjzlcsjhd`@`127.0.0.1` PROCEDURE `foo4`()
@@ -657,6 +657,7 @@ show function status like '%mysqltestbug36570%';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	mysqltestbug36570_f1	FUNCTION	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 flush logs;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -737,7 +738,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `foo3`()
 insert into t1 values (15)
 /*!*/;
 SET TIMESTAMP=t/*!*/;
-GRANT EXECUTE, CREATE ROUTINE ON `mysqltest1`.* TO 'zedjzlcsjhd'@'127.0.0.1'
+grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1
 /*!*/;
 SET TIMESTAMP=t/*!*/;
 grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1
@@ -1183,6 +1184,7 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 use test;
 drop procedure mysqltestbug36570_p1;
 drop procedure ` mysqltestbug36570_p2`;

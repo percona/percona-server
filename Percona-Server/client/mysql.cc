@@ -62,6 +62,9 @@ static char *server_version= NULL;
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
 
+/* Maximum memory limit that can be claimed by alloca(). */
+#define MAX_ALLOCA_SIZE              512
+
 #include "sql_string.h"
 
 extern "C" {
@@ -2554,14 +2557,17 @@ static bool add_line(String &buffer, char *line, ulong line_length,
   {
     uint length=(uint) (out-line);
 
-    if (!truncated && !is_delimiter_command(line, length))
+    if (!truncated && (!is_delimiter_command(line, length) ||
+                       (*in_string || *ml_comment)))
     {
       /* 
         Don't add a new line in case there's a DELIMITER command to be 
         added to the glob buffer (e.g. on processing a line like 
         "<command>;DELIMITER <non-eof>") : similar to how a new line is 
         not added in the case when the DELIMITER is the first command 
-        entered with an empty glob buffer. 
+        entered with an empty glob buffer. However, if the delimiter is
+        part of a string or a comment, the new line should be added. (e.g.
+        SELECT '\ndelimiter\n';\n)
       */
       *out++='\n';
       length++;
@@ -3655,8 +3661,10 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
+  size_t        sz;
 
-  num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
+  sz= sizeof(bool) * mysql_num_fields(result);
+  num_flag= (bool *) my_safe_alloca(sz, MAX_ALLOCA_SIZE);
   if (column_types_flag)
   {
     print_field_types(result);
@@ -3757,7 +3765,7 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("\n", PAGER);
   }
   tee_puts((char*) separator.ptr(), PAGER);
-  my_afree((uchar*) num_flag);
+  my_safe_afree((bool *) num_flag, sz, MAX_ALLOCA_SIZE);
 }
 
 /**
@@ -4677,6 +4685,8 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
+  my_bool interactive= status.batch ? FALSE : TRUE;
+
   if (connected)
   {
     connected= 0;
@@ -4767,6 +4777,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
                  "program_name", "mysql");
+  mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &interactive);
 
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,

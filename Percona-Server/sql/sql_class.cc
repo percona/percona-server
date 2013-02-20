@@ -3497,8 +3497,10 @@ void thd_increment_bytes_sent(ulong length)
 
 void thd_increment_bytes_received(ulong length)
 {
-  current_thd->status_var.bytes_received+= length;
-  current_thd->bytes_received+= length;
+  THD * const thd = current_thd;
+
+  thd->status_var.bytes_received+= length;
+  thd->bytes_received+= length;
 }
 
 

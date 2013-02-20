@@ -3378,7 +3378,7 @@ innobase_commit_low(
 		header for undo purposes, see the comment at corresponding call
 		at innobase_xa_prepare(). */
 
-		innobase_copy_repl_coords_to_trx(current_thd, trx);
+		innobase_copy_repl_coords_to_trx((THD *) trx->mysql_thd, trx);
 
 		trx_commit_for_mysql(trx);
 	}

@@ -41,7 +41,6 @@ Introduction
    :maxdepth: 1
    :glob:
 
-   feature_comparison
    percona_xtradb
    changed_in_56
 
@@ -53,7 +52,7 @@ Installation
    :glob:
 
    installation
-   upgrading_guide_51_55
+   upgrading_guide_55_56
 
 
 Scalability Improvements
@@ -65,7 +64,6 @@ Scalability Improvements
 
    scalability/innodb_split_buf_pool_mutex
    scalability/innodb_insert_buffer
-   scalability/innodb_io_55
    scalability/innodb_expand_undo_slots
    scalability/innodb_adaptive_hash_index_partitions
    scalability/innodb_extra_rseg
@@ -98,6 +96,7 @@ Flexibility Improvements
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
    flexibility/improved_memory_engine
+   flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
 ========================
@@ -106,7 +105,6 @@ Reliability Improvements
    :maxdepth: 1
    :glob:
 
-   reliability/innodb_recovery_update_relay_log
    reliability/log_connection_error
    reliability/error_pad
    reliability/innodb_corrupt_table_action
@@ -120,11 +118,6 @@ Management Improvements
    :glob:
 
    management/innodb_recovery_patches
-   management/innodb_dict_size_limit
-   management/innodb_expand_import
-   management/innodb_lru_dump_restore
-   management/innodb_fast_index_creation
-   management/innodb_extended_fast_index_creation
    management/sql_no_fcache
    management/udf_maatkit
    management/innodb_fake_changes
@@ -146,17 +139,8 @@ Diagnostics Improvements
    diagnostics/mysql_syslog
    diagnostics/response_time_distribution
    diagnostics/show_engines
-   diagnostics/innodb_show_lock_names
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
-
-Obsolete and Removed Features
-=============================
-.. toctree::
-   :maxdepth: 1
-   :glob:
-
-   management/innodb_buffer_pool_shm
 
 Reference
 =========

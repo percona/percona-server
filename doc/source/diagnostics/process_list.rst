@@ -6,28 +6,19 @@ Process List
 
 This page describes Percona changes to both the standard |MySQL| ``SHOW PROCESSLIST`` command and the standard |MySQL| ``INFORMATION_SCHEMA`` table ``PROCESSLIST``.
 
-The changes that have been made as of version 5.5 of the server are:
+The changes that have been made as of version 5.6 of the server are:
 
-  * ``SHOW PROCESSLIST`` command:
+  * :table:`PROCESSLIST` table:
 
-    * added columns ``ROWS_EXAMINED``, ``ROWS_SENT``, and ``ROWS_READ``
-
-  * ``PROCESSLIST`` table:
-
-    * added columns ``TIME_MS``, ``ROWS_EXAMINED``, ``ROWS_SENT``, and ``ROWS_READ``
+    * added column ``TIME_MS``
 
 Version Specific Information
 ============================
 
-  * 5.0.91-22:
+  * :rn:`5.6.5-60.0`:
 
     * Added column ``TIME_MS`` to table ``PROCESSLIST``.
 
-  * 5.5.10-20.1:
-
-    * Added columns ``ROWS_EXAMINED``, ``ROWS_SENT``, and ``ROWS_READ`` to ``SHOW PROCESSLIST`` command.
-
-    * Added columns ``ROWS_EXAMINED``, ``ROWS_SENT``, and ``ROWS_READ`` to table ``PROCESSLIST``.
 
 INFORMATION_SCHEMA Tables
 =========================
@@ -45,34 +36,18 @@ INFORMATION_SCHEMA Tables
    :column STATE: An action, event, or state that indicates what the thread is doing.
    :column INFO: The statement that the thread is executing, or NULL if it is not executing any statement.
    :column TIME_MS: The time in milliseconds that the thread has been in its current state.
-   :column ROWS_EXAMINED: The number of rows examined by the statement being executed.
-   :column ROWS_SENT:	The number of rows sent by the statement being executed.
-   :column ROWS_READ: The number of rows read by the statement being executed.
-   :version 5.0.91-22: Added column ``TIME_MS``
-   :version 5.5.10-20.1: Added columns ``ROWS_EXAMINED``, ``ROWS_SENT``, and ``ROWS_READ``
 
 
 Example Output
 ==============
 
-``SHOW PROCESSLIST`` Command: ::
-
-  mysql> show processlist;
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+-----------+---------------+-----------+
-  | Id   | User      | Host      | db     | Command | Time | State      | Info                                         | ROWS_SENT | ROWS_EXAMINED | ROWS_READ |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+-----------+---------------+-----------+
-  |    2 | root      | localhost | test   | Query   |    0 | NULL       | SHOW PROCESSLIST                             |         0 |             0 |         1 |
-  |   14 | root      | localhost | test   | Query   |    0 | User lock  | SELECT GET_LOCK(``t``,1000)                    |         0 |             0 |         1 |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+-----------+---------------+-----------+
-
 Table :table:`PROCESSLIST`: ::
 
-  mysql> select * from information_schema.PROCESSLIST;
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+----------+---------------+-----------+-----------+
-  | ID   | USER      | HOST      | DB     | COMMAND | TIME | STATE      | INFO                                         | TIME_MS  | ROWS_EXAMINED | ROWS_SENT | ROWS_READ |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+----------+---------------+-----------+-----------+
-  |   14 | root      | localhost | test   | Query   |    0 | User lock  | SELECT GET_LOCK(``t``,1000)                    |        1 |             0 |         0   |         1 |
-  |    2 | root      | localhost | test   | Query   |    0 | executing  | SELECT * from INFORMATION_SCHEMA.PROCESSLIST |        0 |             0 |         0 |         1 |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+----------+---------------+-----------+-----------+
+  mysql> SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
+  +----+------+-----------+--------------------+---------+------+-----------+----------------------------------------------+---------+
+  | ID | USER | HOST      | DB                 | COMMAND | TIME | STATE     | INFO                                         | TIME_MS |
+  +----+------+-----------+--------------------+---------+------+-----------+----------------------------------------------+---------+
+  |  5 | root | localhost | information_schema | Query   |    0 | executing | select * from information_schema.PROCESSLIST |       0 |
+  +----+------+-----------+--------------------+---------+------+-----------+----------------------------------------------+---------+
  

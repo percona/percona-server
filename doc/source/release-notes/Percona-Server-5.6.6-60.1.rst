@@ -10,22 +10,9 @@ Based on `MySQL 5.6.6 <http://dev.mysql.com/doc/refman/5.6/en/news-5-6-6.html>`_
 
 This release does NOT include all the features and fixes in Percona Server 5.5. A list of features included is provided below.
 
-Features Included
+Features removed
 =================
 
-  * Bug fix for :bug:`933969`
-  * TIME_MS column in INFORMATION_SCHEMA.PROCESSLIST
-  * ignore-create-error option to mysqldump
-  * INFORMATION_SCHEMA.TEMPORARY_TABLES and GLOBAL_TEMPORARY_TABLES
-
-Features removed
-================
-
-  * The optimizer_fix variable from Percona Server 5.5 will not be present in 5.6
-
-Changes Since 5.6.5-60.0
-========================
-
- * fast_index_creation variable has been removed, it is replaced by the MySQL 5.6's ALGORITHM= option to ALTER TABLE
- * HandlerSocket has been removed from the tree. It was not built with the 5.6.5-60.0 binaries and may return when HandlerSocket supports MySQL 5.6.
- * SHOW [GLOBAL] TEMPORARY TABLES functionality is now only available via the TEMPORARY_TABLES and GLOBAL_TEMPORARY_TABLES INFORMATION_SCHEMA tables.
+ * :variable:`fast_index_creation` variable has been removed, it is replaced by the MySQL 5.6's ALGORITHM= option to ALTER TABLE
+ * HandlerSocket has been removed from the tree. It was not built with the :rn:`5.6.5-60.0` binaries and may return when HandlerSocket supports MySQL 5.6.
+ * ``SHOW [GLOBAL] TEMPORARY TABLES`` functionality is now only available via the :table:`TEMPORARY_TABLES` and :table:`GLOBAL_TEMPORARY_TABLES` in the ``INFORMATION_SCHEMA`` database.

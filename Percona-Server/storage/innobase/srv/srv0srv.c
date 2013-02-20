@@ -3603,7 +3603,6 @@ retry_flush_batch:
 						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 						new_blocks_num++;
 					}
-					buf_flush_list_mutex_exit(buf_pool);
 
 					flushed_blocks_num = new_blocks_num + prev_flush_info[j].count
 								- blocks_num;
@@ -3611,7 +3610,6 @@ retry_flush_batch:
 						flushed_blocks_num = 0;
 					}
 
-					buf_flush_list_mutex_enter(buf_pool);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 					prev_flush_info[j].count = UT_LIST_GET_LEN(buf_pool->flush_list);

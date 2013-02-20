@@ -1,87 +1,71 @@
-################################################################################
-# Current test check following attributes:                                     #
-# 1) "Last_errno"                                                              #
-# 2) "Rows_{sent,examined|affected|read}                                       #
-# 3) Bytes_sent                                                                #
-# 4) Tmp_{tables|dist_tables|table_size}                                       #
-# 5) InnoDB statistic counters                                                 #
-# in Slow Query Log                                                            #
-# for administrative command "Quit"                                            #
-#                                                                              #
-# See Launchpad Bug #716210                                                    #
-################################################################################
+# Current test checks Last_errno for administrative command "Quit"
+# See Launchpad Bug #716210
 
---source include/have_innodb.inc
-
-################################################################################
---let log_file=percona.slow_extended.error_on_quit
---let wait_condition=SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST;
-################################################################################
+--source include/have_innodb_plugin.inc
+--source include/count_sessions.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t;
 --enable_warnings
+
+SET GLOBAL log_slow_admin_statements=ON;
+SET GLOBAL long_query_time=0;
+SET GLOBAL min_examined_row_limit=0;
+
 CREATE TABLE t(a INT) engine=InnoDB;
-INSERT INTO t VALUES(0),(1),(2),(3),(4);
-
-################################################################################
---source include/log_start.inc
 
 --connect(additional,localhost,root,,)
 --connection additional
 
-  SET log_slow_verbosity=innodb;
-  SET long_query_time= 0;
+#
+# 1st command in the log that sets Last_errno
+#
+--let log_file=percona.slow_extended.error_on_quit_1
+--source include/log_start.inc
 
---disable_result_log
 --error ER_TABLE_EXISTS_ERROR
-  CREATE TABLE t(a INT) engine=InnoDB;
---enable_result_log
+CREATE TABLE t(a INT) engine=InnoDB;
+--source include/log_stop.inc
 
---connection default
+--let grep_pattern=Last_errno: [1-9]\d*\s
+--source include/log_grep.inc
+
+#
+# Subsequent Quit should not have Last_errno set
+#
+--let log_file=percona.slow_extended.error_on_quit_2
+--source include/log_start.inc
 --echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
 --disconnect additional
---source include/wait_condition.inc
+--connection default
+--source include/wait_until_count_sessions.inc
 --source include/log_stop.inc
---source include/percona_slow_extended_error_on_quit.inc
-################################################################################
---source include/log_start.inc
+
+--let grep_pattern=Last_errno: 0\s
+--source include/log_grep.inc
 
 --connect(additional,localhost,root,,)
 --connection additional
 
-  SET log_slow_verbosity=innodb;
-  SET long_query_time= 0;
-
---disable_result_log
-  INSERT INTO t SELECT * FROM t ORDER BY RAND();
---enable_result_log
-
---connection default
---echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
---disconnect additional
---source include/wait_condition.inc
---source include/log_stop.inc
---source include/percona_slow_extended_error_on_quit.inc
-################################################################################
+#
+# Negative case: both regular command and Quit with errno = 0
+#
+--let log_file=percona.slow_extended.error_on_quit_3
 --source include/log_start.inc
 
---connect(additional,localhost,root,,)
---connection additional
+SELECT * FROM t;
 
-  SET log_slow_verbosity=innodb;
-  SET long_query_time= 0;
-
---disable_result_log
-  SELECT * FROM t;
---enable_result_log
-
---connection default
 --echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
 --disconnect additional
---source include/wait_condition.inc
+--connection default
+--source include/wait_until_count_sessions.inc
 --source include/log_stop.inc
---source include/percona_slow_extended_error_on_quit.inc
-################################################################################
+
+--let grep_pattern= Last_errno: 0\s
+--source include/log_grep.inc
 
 DROP TABLE t;
+SET GLOBAL log_slow_admin_statements=default;
+SET GLOBAL long_query_time=default;
+SET GLOBAL min_examined_row_limit=default;
+--source include/log_cleanup.inc

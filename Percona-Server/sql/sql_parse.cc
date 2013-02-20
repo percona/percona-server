@@ -1820,7 +1820,8 @@ void log_slow_statement(THD *thd)
                          &g.min_examined_row_limit);
 
   /* Do not log this thread's queries due to rate limiting. */
-  if (thd->write_to_slow_log != TRUE
+  if ((thd->variables.log_slow_rate_limit > 1 &&
+       (thd->thread_id % thd->variables.log_slow_rate_limit) != 0)
       && (thd->variables.long_query_time >= 1000000
           || (ulong) query_exec_time < 1000000))
     DBUG_VOID_RETURN;

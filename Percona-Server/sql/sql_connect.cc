@@ -2091,15 +2091,6 @@ pthread_handler_t handle_one_connection(void *arg)
       goto end_thread;
     }
 
-    /* 
-      If rate limiting of slow log writes is enabled, decide whether to log this 
-      new thread's queries or not. Uses extremely simple algorithm. :) 
-    */ 
-    thd->write_to_slow_log= FALSE; 
-    if (thd->variables.log_slow_rate_limit <= 1 ||  
-        (thd->thread_id % thd->variables.log_slow_rate_limit) == 0) 
-         thd->write_to_slow_log= TRUE; 
-
     prepare_new_connection_state(thd);
 
     while (!net->error && net->vio != 0 &&

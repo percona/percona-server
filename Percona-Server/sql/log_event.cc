@@ -3570,22 +3570,18 @@ end:
     don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax.
   */
-  close_thread_tables(thd);      
+  close_thread_tables(thd);
   if(process_log_slow_statement)
   {
       log_slow_statement(thd);
 
       /*
-        Resetting the enable_slow_log thd variable.
-
-        We need to reset it back to the opt_log_slow_slave_statements
-        value after the statement execution (and slow logging
-        is done). It might have changed if the statement was an
-        admin statement (in which case, down in mysql_parse execution
-        thd->enable_slow_log is set to the value of
+        Resetting the enable_slow_log thd variable. It might have changed if
+        the statement was an admin statement (in which case, down in
+        mysql_parse execution thd->enable_slow_log is set to the value of
         opt_log_slow_admin_statements).
       */
-      thd->enable_slow_log= opt_log_slow_slave_statements;
+      thd->enable_slow_log= TRUE;
   }
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */

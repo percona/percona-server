@@ -76,23 +76,21 @@ size_t my_strnxfrm_simple(CHARSET_INFO * cs,
                           const uchar *src, size_t srclen)
 {
   uchar *map= cs->sort_order;
-  size_t dstlen= len;
-  set_if_smaller(len, srclen);
-  if (dest != src)
+  const uchar *end;
+
+  if (likely(len <= srclen))
   {
-    const uchar *end;
-    for ( end=src+len; src < end ;  )
+    for (end = src + len; src < end ;  )
       *dest++= map[*src++];
   }
   else
   {
-    const uchar *end;
-    for ( end=dest+len; dest < end ; dest++)
-      *dest= (char) map[(uchar) *dest];
+    for (end = src + srclen; src < end ;  )
+      *dest++= map[*src++];
+    memset(dest, ' ', len - srclen);
   }
-  if (dstlen > len)
-    bfill(dest, dstlen - len, ' ');
-  return dstlen;
+
+  return len;
 }
 
 

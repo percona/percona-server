@@ -44,4 +44,11 @@ call mtr.add_suppression("InnoDB: Warning: truncated block detected.*");
 ib_modified_log_1
 ib_modified_log_2
 7th restart
+ib_modified_log_1
+ib_modified_log_2
+ib_modified_log_3
+8th restart
+RESET CHANGED_PAGE_BITMAPS;
+call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
+9th restart
 DROP TABLE t1, t2;

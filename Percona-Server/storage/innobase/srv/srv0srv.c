@@ -3077,11 +3077,19 @@ srv_redo_log_follow_thread(
 		os_event_reset(srv_checkpoint_completed_event);
 
 		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
-			log_online_follow_redo_log();
+			if (!log_online_follow_redo_log()) {
+				/* TODO: sync with I_S log tracking status? */
+				fprintf(stderr,
+					"InnoDB: Error: log tracking bitmap "
+					"write failed, stopping log tracking "
+					"thread!\n");
+				break;
+			}
 		}
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
 
+	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_thread_finished_event);
 
@@ -3479,8 +3487,7 @@ loop:
 
 						buf_pool = buf_pool_from_array(j);
 
-						/* The scanning flush_list is optimistic here */
-
+						buf_flush_list_mutex_enter(buf_pool);
 						level = 0;
 						n_blocks = 0;
 						bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
@@ -3494,6 +3501,7 @@ loop:
 							bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 							n_blocks++;
 						}
+						buf_flush_list_mutex_exit(buf_pool);
 
 						if (level) {
 							bpl += ((ib_uint64_t) n_blocks * n_blocks
@@ -3559,30 +3567,26 @@ retry_flush_batch:
 
 				/* prev_flush_info[j] should be the previous loop's */
 				for (j = 0; j < srv_buf_pool_instances; j++) {
-					lint	blocks_num, new_blocks_num, flushed_blocks_num;
-					ibool	found;
+					lint	blocks_num, new_blocks_num = 0;
+					lint	flushed_blocks_num;
 
 					buf_pool = buf_pool_from_array(j);
+					buf_flush_list_mutex_enter(buf_pool);
 
 					blocks_num = UT_LIST_GET_LEN(buf_pool->flush_list);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-					new_blocks_num = 0;
 
-					found = FALSE;
 					while (bpage != NULL) {
 						if (prev_flush_info[j].space == bpage->space
 						    && prev_flush_info[j].offset == bpage->offset
 						    && prev_flush_info[j].oldest_modification
 								== bpage->oldest_modification) {
-							found = TRUE;
 							break;
 						}
 						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 						new_blocks_num++;
 					}
-					if (!found) {
-						new_blocks_num = blocks_num;
-					}
+					buf_flush_list_mutex_exit(buf_pool);
 
 					flushed_blocks_num = new_blocks_num + prev_flush_info[j].count
 								- blocks_num;
@@ -3590,6 +3594,7 @@ retry_flush_batch:
 						flushed_blocks_num = 0;
 					}
 
+					buf_flush_list_mutex_enter(buf_pool);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 					prev_flush_info[j].count = UT_LIST_GET_LEN(buf_pool->flush_list);
@@ -3597,7 +3602,9 @@ retry_flush_batch:
 						prev_flush_info[j].space = bpage->space;
 						prev_flush_info[j].offset = bpage->offset;
 						prev_flush_info[j].oldest_modification = bpage->oldest_modification;
+						buf_flush_list_mutex_exit(buf_pool);
 					} else {
+						buf_flush_list_mutex_exit(buf_pool);
 						prev_flush_info[j].space = 0;
 						prev_flush_info[j].offset = 0;
 						prev_flush_info[j].oldest_modification = 0;
@@ -3623,6 +3630,7 @@ retry_flush_batch:
 				/* store previous first pages of the flush_list */
 				for (j = 0; j < srv_buf_pool_instances; j++) {
 					buf_pool = buf_pool_from_array(j);
+					buf_flush_list_mutex_enter(buf_pool);
 
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
@@ -3631,7 +3639,9 @@ retry_flush_batch:
 						prev_flush_info[j].space = bpage->space;
 						prev_flush_info[j].offset = bpage->offset;
 						prev_flush_info[j].oldest_modification = bpage->oldest_modification;
+						buf_flush_list_mutex_exit(buf_pool);
 					} else {
+						buf_flush_list_mutex_exit(buf_pool);
 						prev_flush_info[j].space = 0;
 						prev_flush_info[j].offset = 0;
 						prev_flush_info[j].oldest_modification = 0;

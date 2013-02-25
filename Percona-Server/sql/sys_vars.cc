@@ -2364,7 +2364,8 @@ static Sys_var_ulong Sys_net_wait_timeout(
 
 static Sys_var_mybool Sys_optimizer_fix(
        "optimizer_fix",
-       "Enable unofficial optimizer fixes.",
+       "OBSOLETE: only here for compatibility with old Percona Server "
+       "releases, does nothing.",
        GLOBAL_VAR(opt_optimizer_fix),
        NO_CMD_LINE, DEFAULT(TRUE));
 

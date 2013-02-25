@@ -2652,11 +2652,6 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
       table->reginfo.impossible_range=1;
       DBUG_RETURN(0);
     }
-    if (opt_optimizer_fix && error == 0)
-    {
-      /* quick select is not effective. but the estimated value is used. */
-      DBUG_RETURN(select->records);
-    }
     DBUG_PRINT("warning",("Couldn't use record count on const keypart"));
   }
   DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */

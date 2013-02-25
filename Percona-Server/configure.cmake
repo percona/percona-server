@@ -1018,11 +1018,12 @@ if available and 'smp' configuration otherwise.")
 MARK_AS_ADVANCED(WITH_ATOMIC_LOCKS MY_ATOMIC_MODE_RWLOCK MY_ATOMIC_MODE_DUMMY)
 
 IF(WITH_VALGRIND)
-  CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" 
-    HAVE_VALGRIND_HEADERS)
+  CHECK_INCLUDE_FILES("valgrind/memcheck.h;valgrind/valgrind.h" HAVE_VALGRIND_HEADERS)
   IF(HAVE_VALGRIND_HEADERS)
     SET(HAVE_VALGRIND 1)
-  ENDIF()
+  ELSE()
+    MESSAGE(FATAL_ERROR "No Valgrind headers found! Please install Valgrind development files!")
+  ENDIF(HAVE_VALGRIND_HEADERS)
 ENDIF()
 
 #--------------------------------------------------------------------

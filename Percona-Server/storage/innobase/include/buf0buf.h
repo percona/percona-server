@@ -716,10 +716,10 @@ buf_page_print(
 	const byte*	read_buf,	/*!< in: a database page */
 	ulint		zip_size,	/*!< in: compressed page size, or
 					0 for uncompressed pages */
-	ulint		flags)		/*!< in: 0 or
+	ulint		flags);		/*!< in: 0 or
 					BUF_PAGE_PRINT_NO_CRASH or
 					BUF_PAGE_PRINT_NO_FULL */
-	UNIV_COLD __attribute__((nonnull));
+
 /********************************************************************//**
 Decompress a block.
 @return	TRUE if successful */
@@ -1041,7 +1041,7 @@ buf_block_get_frame(
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
 #else /* UNIV_DEBUG */
-# define buf_block_get_frame(block) (block)->frame
+# define buf_block_get_frame(block) (block ? (block)->frame : 0)
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets the space id of a block.

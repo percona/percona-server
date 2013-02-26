@@ -9,12 +9,9 @@
  Percona Server 5.6 - Documentation
 ===================================
 
-WARNING: Alpha quality software ahead
-=====================================
-Please note: |Percona Server| 5.6 is ALPHA quality software. It should *NOT* be used in production environments. This documentation may be out of date for Percona Server 5.6 before the final release, please check the release notes closely.
+.. warning::
 
-Introduction
-============
+ Please note: |Percona Server| 5.6 is BETA quality software. It should *NOT* be used in production environments.
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 
@@ -62,7 +59,6 @@ Scalability Improvements
    :maxdepth: 1
    :glob:
 
-   scalability/innodb_split_buf_pool_mutex
    scalability/innodb_insert_buffer
    scalability/innodb_expand_undo_slots
    scalability/innodb_adaptive_hash_index_partitions
@@ -81,7 +77,7 @@ Performance Improvements
    performance/innodb_fast_checksum
    performance/remove_fcntl_excessive_calls
    performance/innodb_opt_lru_count
-   performance/innodb_thread_concurrency_timer_based
+   performance/threadpool
 
 Flexibility Improvements
 ========================
@@ -122,6 +118,7 @@ Management Improvements
    management/udf_maatkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
+   management/innodb_expanded_fast_index_creation
 
 Diagnostics Improvements
 ========================
@@ -149,6 +146,7 @@ Reference
    :maxdepth: 1
    :glob:
 
+   upstream-bug-fixes
    development
    trademark-policy
    faq

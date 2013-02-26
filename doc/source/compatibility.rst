@@ -4,18 +4,6 @@
 Options that make XtraDB tablespaces not compatible with MySQL
 ==============================================================
 
-Fast checksums
-==============
-
-Enabling :variable:`innodb_fast_checksum` will use more CPU-efficient algorithm, based on 4-byte words which can be beneficial for some workloads. Once enabled, turning it off will require table to be dump/imported again, since |Percona Server| will fail to start on data files created when :variable:`innodb_fast_checksums` was enabled.
-
-In case you've migrated from |Percona Server| to |MySQL| you could get the "corrupted checksum" error message. In order to recover that table you'll need to:
-
-  1) Reinstall Percona Server to read your tables that were created with fast checksums. 
-  2) Dump the tables (or temporarily convert them to MyISAM). 
-  3) Install stock MySQL (or at least disable fast checksums). 
-  4) Restore the InnoDB tables (or convert back from MyISAM). 
-
 Page sizes other than 16KiB
 ===========================
 

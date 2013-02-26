@@ -77,6 +77,7 @@ Performance Improvements
    performance/innodb_thread_concurrency_timer_based
    performance/innodb_numa_support
    performance/handlersocket
+   performance/threadpool
 
 Flexibility Improvements
 ========================

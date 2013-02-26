@@ -15,6 +15,15 @@ Sequence number can be used to easily check if all the required bitmap files are
 
 This feature will be used for implementing faster incremental backups that use this information to avoid full data scans in |Percona XtraBackup|.
 
+User statements for handling the XtraDB changed page bitmaps
+============================================================
+
+In |Percona Server| :rn:`5.5.29-30.0` new statements have been introduced for handling the changed page bitmap tracking. All of these statements require ``SUPER`` privilege.
+
+ * ``FLUSH CHANGED_PAGE_BITMAPS`` - this statement can be used for synchronous bitmap write for immediate catch-up with the log checkpoint. This is used by innobackupex to make sure that XtraBackup indeed has all the required data it needs.
+ * ``RESET CHANGED_PAGE_BITMAPS`` - this statement will delete all the bitmap log files and restart the bitmap log file sequence.
+ * ``PURGE CHANGED_PAGE_BITMAPS BEFORE <lsn>`` - this statement will delete all the change page bitmap files up to the specified log sequence number.
+
 Additional information in SHOW ENGINE INNODB STATUS
 ===================================================
 When log tracking is enabled, the following additional fields are displayed in the LOG section of the ``SHOW ENGINE INNODB STATUS`` output:
@@ -41,9 +50,10 @@ Number of records in this table can be limited by using the variable :variable:`
 System Variables
 ================
 
-.. variable:: innodb_changed_pages_limit
+.. variable:: innodb_max_changed_pages
 
-   :version 5.5.27-29.0: Variable introduced
+   :version 5.5.27-29.0: Variable :variable:`innodb_changed_pages_limit` introduced
+   :version 5.5.29-30.0: Variable renamed to :variable:`innodb_max_changed_pages`
    :cli: Yes
    :conf: Yes
    :scope: Global

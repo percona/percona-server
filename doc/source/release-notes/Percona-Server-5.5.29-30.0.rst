@@ -4,7 +4,7 @@
  |Percona Server| 5.5.29-30.0 
 ==============================
 
-Percona is glad to announce the release of |Percona Server| 5.5.29-29.4 on February 26th, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.29-29.4/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
+Percona is glad to announce the release of |Percona Server| 5.5.29-30.0 on February 26th, 2012 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.29-30.0/>`_ and from the `Percona Software Repositories <http://www.percona.com/docs/wiki/repositories:start>`_).
 
 Based on `MySQL 5.5.29 <http://dev.mysql.com/doc/relnotes/mysql/5.5/en/news-5-5-29.html>`_, including all the bug fixes in it, |Percona Server| 5.5.29-30.0 is now the current stable release in the 5.5 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.5.29-30.0 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.5.29-30.0>`_. 
 
@@ -22,7 +22,7 @@ Bug Fixes
 
  Ported a fix from `MariaDB <https://mariadb.atlassian.net/browse/MDEV-364>`_ for the upstream bug :mysqlbug:`67974`, which caused server crash on concurrent ``ALTER TABLE`` and ``SHOW ENGINE INNODB STATUS``. Bug fixed :bug:`1017192` (*Sergei Glushchenko*).
 
- The server could crash when executing an ``INSERT`` statement containing ``BLOB`` values. This regression was introduced in |Percona Server| :rn:`5.5.28-29.2`. Bug fixed :bug:`1100159` (*Laurynas Biveinis*).
+ The server could crash when executing an ``INSERT``  or ``UPDATE`` statement containing ``BLOB`` values for a compressed table. This regression was introduced in |Percona Server| :rn:`5.5.28-29.2`. Bug fixed :bug:`1100159` (*Laurynas Biveinis*).
 
  Upstream bug :mysqlbug:`67983` was causing a memory leak on a filtered slave. Bug fixed :bug:`1042946` (*Sergei Glushchenko*).
 

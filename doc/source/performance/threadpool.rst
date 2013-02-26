@@ -4,9 +4,13 @@
  Thread Pool
 =============
 
+.. note::
+
+ This feature implementation is considered BETA quality.
+
 |MySQL| executes statements using one thread per client connection. Once the number of connections increases past a certain point performance will degrade. 
 
-This feature enables the server to keep the top performance even with large number of client connections by introducing the dynamic thread pool. By using the thread pool server would decrease the number of threads, which will then reduce the context switching and hot locks contentions. Using the thread pool will have the most effect with ``OLTP`` workloads (relatively short CPU-bound queries). 
+This feature enables the server to keep the top performance even with large number of client connections by introducing a dynamic thread pool. By using the thread pool server would decrease the number of threads, which will then reduce the context switching and hot locks contentions. Using the thread pool will have the most effect with ``OLTP`` workloads (relatively short CPU-bound queries). 
 
 In order to enable the thread pool variable :variable:`thread_handling` should be set up to ``pool-of-threads`` value. This can be done by adding: ::
 
@@ -14,17 +18,17 @@ In order to enable the thread pool variable :variable:`thread_handling` should b
 
 to the |MySQL| configuration file :file:`my.cnf`.
 
-Although the default values for the thread pool should provide good performance, additional `tuning <https://kb.askmonty.org/en/threadpool-in-55/#optimizing-server-variables-on-unix>`_ can be made with the dynamic system variables described below. 
+Although the default values for the thread pool should provide good performance, additional `tuning <https://kb.askmonty.org/en/threadpool-in-55/#optimizing-server-variables-on-unix>`_ can be performed with the dynamic system variables described below. 
 
 .. note:: 
  
-  Current implementation of the thread pool is built in, unlike the upstream version which is implemented as a plugin. Other significant implementation difference is that this implementation doesn't try to minimize the number of concurrent transactions like the ``MySQL Enterprise Threadpool``. Because of these things this implementation isn't compatible with the upstream one.
+  Current implementation of the thread pool is built in the server, unlike the upstream version which is implemented as a plugin. Another significant implementation difference is that this implementation doesn't try to minimize the number of concurrent transactions like the ``MySQL Enterprise Threadpool``. Because of these things this implementation isn't compatible with the upstream one.
 
 Version Specific Information
 ============================
 
  * :rn:`5.5.29-30.0`
-    ``Thread Pool`` feature implemented. This feature was ported from |MariaDB| patches.
+    ``Thread Pool`` feature implemented. This feature was ported from |MariaDB|.
 
 System Variables
 ================

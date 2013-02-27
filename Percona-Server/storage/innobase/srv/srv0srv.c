@@ -1448,7 +1448,7 @@ retry:
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (innobase_get_slow_log() && trx->take_stats) {
+	if (UNIV_UNLIKELY(trx->take_stats)) {
 		ut_usectime(&sec, &ms);
 		start_time = (ib_uint64_t)sec * 1000000 + ms;
 	} else {
@@ -1463,7 +1463,7 @@ retry:
 
 	trx->op_info = "";
 
-	if (innobase_get_slow_log() && trx->take_stats && start_time) {
+	if (UNIV_UNLIKELY(start_time != 0)) {
 		ut_usectime(&sec, &ms);
 		finish_time = (ib_uint64_t)sec * 1000000 + ms;
 		trx->innodb_que_wait_timer += (ulint)(finish_time - start_time);

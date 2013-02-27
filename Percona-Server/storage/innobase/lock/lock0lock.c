@@ -1829,7 +1829,7 @@ lock_rec_enqueue_waiting(
 	trx->que_state = TRX_QUE_LOCK_WAIT;
 	trx->was_chosen_as_deadlock_victim = FALSE;
 	trx->wait_started = time(NULL);
-	if (innobase_get_slow_log() && trx->take_stats) {
+	if (UNIV_UNLIKELY(trx->take_stats)) {
 		ut_usectime(&sec, &ms);
 		trx->lock_que_wait_ustarted = (ib_uint64_t)sec * 1000000 + ms;
 	}
@@ -3837,7 +3837,7 @@ lock_table_enqueue_waiting(
 		return(DB_SUCCESS);
 	}
 
-	if (innobase_get_slow_log() && trx->take_stats) {
+	if (UNIV_UNLIKELY(trx->take_stats)) {
 		ut_usectime(&sec, &ms);
 		trx->lock_que_wait_ustarted = (ib_uint64_t)sec * 1000000 + ms;
 	}

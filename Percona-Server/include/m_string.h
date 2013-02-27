@@ -263,6 +263,45 @@ typedef struct st_mysql_const_lex_string LEX_CSTRING;
    @return          the last non-space character
 */
 
+#ifdef __x86_64__
+
+#if SIZEOF_LONG != 8
+# error "SIZEOF_LONG != 8"
+#endif
+
+/* Modern x86_64 CPUs do not have penalties for unaligned access */
+
+static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len)
+{
+  const uchar *begin;
+  ulong UNINIT_VAR(val);
+
+  if (unlikely(ptr == NULL))
+    return NULL;
+
+  begin= ptr;
+  ptr= ptr + len - 8;
+
+  while (ptr >= begin && (val= (*(ulong *) ptr) ^ 0x2020202020202020) == 0)
+    ptr-= 8;
+
+  if (likely(ptr >= begin))
+  {
+    do {
+      ptr++;
+    } while (val>>= 8);
+
+    return ptr;
+  }
+
+  for (ptr= ptr + 8; ptr > begin && ptr[-1] == 0x20; ptr--)
+    /* empty */;
+
+  return ptr;
+}
+
+#else
+
 static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
 {
   const uchar *end= ptr + len;
@@ -288,6 +327,7 @@ static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
     end--;
   return (end);
 }
+#endif
 
 static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
 {

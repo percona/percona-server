@@ -3910,7 +3910,7 @@ void handler::update_global_table_stats()
   table_stats->rows_changed+=           rows_changed;
   table_stats->rows_changed_x_indexes+=
     rows_changed * (table->s->keys ? table->s->keys : 1);
-  current_thd->diff_total_read_rows+=   rows_read;
+  ha_thd()->diff_total_read_rows+=   rows_read;
   rows_read= rows_changed=              0;
 end:
   mysql_mutex_unlock(&LOCK_global_table_stats);

@@ -3378,7 +3378,7 @@ innobase_commit_low(
 		header for undo purposes, see the comment at corresponding call
 		at innobase_xa_prepare(). */
 
-		innobase_copy_repl_coords_to_trx(current_thd, trx);
+		innobase_copy_repl_coords_to_trx((THD *) trx->mysql_thd, trx);
 
 		trx_commit_for_mysql(trx);
 	}
@@ -10359,23 +10359,26 @@ ha_innobase::external_lock(
 
 	if (trx->n_mysql_tables_in_use == 0) {
 #ifdef EXTENDED_SLOWLOG
-		increment_thd_innodb_stats(thd,
-					(unsigned long long) trx->id,
-					trx->io_reads,
-					trx->io_read,
-					trx->io_reads_wait_timer,
-					trx->lock_que_wait_timer,
-					trx->innodb_que_wait_timer,
-					trx->distinct_page_access);
+		if (UNIV_UNLIKELY(trx->take_stats)) {
+			increment_thd_innodb_stats(thd,
+						   (unsigned long long) trx->id,
+						   trx->io_reads,
+						   trx->io_read,
+						   trx->io_reads_wait_timer,
+						   trx->lock_que_wait_timer,
+						   trx->innodb_que_wait_timer,
+						   trx->distinct_page_access);
 
-		trx->io_reads = 0;
-		trx->io_read = 0;
-		trx->io_reads_wait_timer = 0;
-		trx->lock_que_wait_timer = 0;
-		trx->innodb_que_wait_timer = 0;
-		trx->distinct_page_access = 0;
-		if (trx->distinct_page_access_hash)
-			memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+			trx->io_reads = 0;
+			trx->io_read = 0;
+			trx->io_reads_wait_timer = 0;
+			trx->lock_que_wait_timer = 0;
+			trx->innodb_que_wait_timer = 0;
+			trx->distinct_page_access = 0;
+			if (trx->distinct_page_access_hash)
+				memset(trx->distinct_page_access_hash, 0,
+				       DPAH_SIZE);
+		}
 #endif
 
 		trx->mysql_n_tables_locked = 0;

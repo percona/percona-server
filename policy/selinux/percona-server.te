@@ -31,3 +31,5 @@ allow mysqld_t tmpfs_t:file { write getattr read create unlink open };
 
 allow mysqld_t user_tmp_t:dir { write add_name };
 allow mysqld_t user_tmp_t:file create;
+
+allow mysqld_t tmp_t:file { append create read write open getattr unlink setattr };

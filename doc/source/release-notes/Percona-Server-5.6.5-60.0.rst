@@ -13,13 +13,13 @@ This release does NOT include all the features and fixes in Percona Server 5.5. 
 Features Included
 =================
 
-  * Bug fix for :bug:`933969`
-  * TIME_MS column in INFORMATION_SCHEMA.PROCESSLIST
-  * ignore-create-error option to mysqldump
-  * control online alter index
-  * SHOW TEMP patch
+  * Fixed upstream |MySQL| bug :mysqlbug:`49336`, mysqlbinlog couldn't handle ``stdin`` when "|" was used. Bug fixed: :bug:`933969` (*Sergei Glushchenko*). 
+  * Added the ``TIME_MS`` column in the :table:`PROCESSLIST` table
+  * :ref:`mysqldump_ignore_create_error` feature has been ported from |Percona Server| 5.5
+  * :variable:`fast_index_creation` feature has been ported from |Percona Server| 5.5
+  * :ref:`temp_tables` information have been added to the ``INFORMATION_SCHEMA`` database
 
 Features removed
 ================
 
-  * The optimizer_fix variable from Percona Server 5.5 will not be present in 5.6
+  * The :variable:`optimizer_fix` variable from |Percona Server| 5.5 will not be present in 5.6

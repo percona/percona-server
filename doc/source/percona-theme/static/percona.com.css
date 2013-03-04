@@ -103,7 +103,7 @@ span.subpart
 	float:left;
 	overflow:hidden;
 	padding:20px 0;
-	width:240px;
+	width:220px;
 	zoom:1
 }
 
@@ -112,7 +112,7 @@ span.subpart
         overflow: hidden;
         zoom: 1;
         float: left;
-        width: 240px;
+        width: 220px;
         padding: 20px 0px;
 }
 
@@ -121,7 +121,7 @@ span.subpart
         overflow: hidden;
         zoom: 1;
         float: left;
-        width: 720px;
+        width: 740px;
         height: 35px;
         padding: 30px 0px;
 }
@@ -834,6 +834,7 @@ div.side-column-block .content .button-customer-login span{
 }
 .side-column-block .side-contact-buttons li {
 	margin-bottom: 5px;
+	list-style: none !important;
 }
 .side-column-block .side-contact-buttons a {
 	display: block;
@@ -843,7 +844,7 @@ div.side-column-block .content .button-customer-login span{
 }
 .side-column-block .side-contact-buttons a.contact-me { background-position: 0px 0px; }
 .side-column-block .side-contact-buttons a.webinar { background-position: 0px -36px; }
-.side-column-block .side-contact-buttons a.download-software { background-position: 0px -72px; }
+.side-column-block .side-contact-buttons a.download-software { background-position: 0px -71px; }
 .side-column-block .side-contact-buttons a.newsletters { background-position: 0px -108px; }
 
 .side-column-block .side-contact-buttons a span {

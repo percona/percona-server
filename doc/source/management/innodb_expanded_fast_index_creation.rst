@@ -1,12 +1,12 @@
-.. _extended_innodb_fast_index_creation:
+.. _expanded_innodb_fast_index_creation:
 
 ============================
-Extended Fast Index Creation
+Expanded Fast Index Creation
 ============================
 
-Percona has implemented several changes related to |MySQL|'s fast index creation feature. This feature extends the ``ALTER TABLE`` command by adding a new clause that provides online index renaming capability, that is renaming indexes without rebuilding the whole table.
+Percona has implemented several changes related to |MySQL|'s fast index creation feature. This feature expands the ``ALTER TABLE`` command by adding a new clause that provides online index renaming capability, that is renaming indexes without rebuilding the whole table.
 
-Enabling Extended Fast Index Creation
+Enabling Expanded Fast Index Creation
 =====================================
 
 Fast index creation was implemented in |MySQL| as a way to speed up the process of adding or dropping indexes on tables with many rows. However, cases have been found in which fast index creation creates an inconsistency between |MySQL| and |InnoDB| data dictionaries.
@@ -57,7 +57,7 @@ There’s also a number of cases when this optimization is not applicable:
 Version Specific Information
 ============================
 
-  * 5.5.16-22.0
+  * :rn:`5.6.10-60.2`
     Variable :variable:`expand_fast_index_creation` implemented.
     This variable is controling whether fast index creation optimizations made by Perocna are used.
 

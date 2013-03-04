@@ -7555,7 +7555,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(error != 0);
 }
 
-
 /*
   Temporarily remove secondary keys previously stored in
   alter_info->delayed_key_info.
@@ -7576,7 +7575,7 @@ remove_secondary_keys(THD *thd, HA_CREATE_INFO* create_info, TABLE *table,
 
   /*
     Create Alter_info for the table and fill create_list with fields
-    definitions. Not that fields not changed, so we set field==ogrig_field.
+    definitions. Note that fields not changed, so we set field==ogrig_field.
   */
   Alter_info alter_info_new;
   Field **f_ptr, *field;
@@ -7587,8 +7586,27 @@ remove_secondary_keys(THD *thd, HA_CREATE_INFO* create_info, TABLE *table,
     alter_info_new.create_list.push_back(new_field);
   }
 
+  /* table->key_info cannot be passed to ha_alter_info constructor,
+     because it has 1-based fieldnr in key_parts while ha_alter_info
+     expect them to be 0-based */
+  KEY* key_buf= (KEY*) thd->alloc(sizeof(KEY) * table->s->keys);
+  for (uint key_idx= 0; key_idx < table->s->keys; key_idx++) {
+    KEY* key = table->key_info + key_idx;
+    KEY_PART_INFO* key_parts_buf=
+           (KEY_PART_INFO*) thd->alloc(sizeof(KEY_PART_INFO) *
+                                       key->user_defined_key_parts);
+    for (uint key_part_idx= 0;
+         key_part_idx < key->user_defined_key_parts;
+         key_part_idx++) {
+      key_parts_buf[key_part_idx]= key->key_part[key_part_idx];
+      key_parts_buf[key_part_idx].fieldnr--;
+    }
+    key_buf[key_idx]= *key;
+    key_buf[key_idx].key_part= key_parts_buf;
+  }
+
   Alter_inplace_info ha_alter_info(create_info, &alter_info_new,
-                                     table->key_info, table->s->keys,
+                                     key_buf, table->s->keys,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
                                      thd->work_part_info,
 #else

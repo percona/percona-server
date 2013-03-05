@@ -1,0 +1,8 @@
+include/master-slave.inc
+[connection master]
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, payload MEDIUMBLOB NOT NULL);
+include/rpl_restart_server.inc [server_number=1]
+INSERT INTO t1(payload) VALUES(REPEAT('a',1468872));
+DROP TABLE t1;
+include/rpl_end.inc

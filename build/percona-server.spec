@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.29
+%define mysql_version   5.5.30
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 30
-%define minorversion 0
+%define minorversion 1
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 

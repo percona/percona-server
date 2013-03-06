@@ -1,5 +1,6 @@
 include/master-slave.inc
 [connection master]
+SET SESSION min_examined_row_limit=0;
 DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
 INSERT INTO t VALUES
@@ -10,8 +11,12 @@ INSERT INTO t VALUES
 (5,"aaaaabbbbbcccccdddddeeeeefffff");
 INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
 INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
-include/rpl_restart_server.inc [server_number=1]
+SET GLOBAL long_query_time=0;
+SET GLOBAL log_slow_slave_statements=TRUE;
+SET GLOBAL log_slow_verbosity='innodb';
+include/restart_slave.inc
 [log_start.inc] percona.slow_extended.log_slow_slave_statements-innodb
+INSERT INTO t SELECT t.id,t.data from t;
 [log_stop.inc] percona.slow_extended.log_slow_slave_statements-innodb
 [log_grep.inc] file: percona.slow_extended.log_slow_slave_statements-innodb pattern: InnoDB_IO_r_ops
 [log_grep.inc] lines:   1

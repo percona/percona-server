@@ -4,13 +4,15 @@
 
 --source include/have_innodb_plugin.inc
 
---source include/delete_innodb_bitmaps.inc
+# Delete any existing bitmaps
+--source include/restart_mysqld.inc
+RESET CHANGED_PAGE_BITMAPS;
 
 --disable_warnings
 DROP TABLE IF EXISTS T1;
 --enable_warnings
 
-let $old_changed_pages_limit= `SELECT @@GLOBAL.INNODB_CHANGED_PAGES_LIMIT`;
+let $old_max_changed_pages= `SELECT @@GLOBAL.INNODB_MAX_CHANGED_PAGES`;
 
 # In order to test multiple bitmap file support we need to ensure that two things
 # happen: 1) InnoDB checkpoints; 2) bitmap file rotation.  The best way to ensure
@@ -119,7 +121,7 @@ SET @cond_test_pages_count=
 		LIMIT 1);
 --enable_result_log
 
-SET GLOBAL INNODB_CHANGED_PAGES_LIMIT = 0;
+SET GLOBAL INNODB_MAX_CHANGED_PAGES = 0;
 --echo Total number of changed pages is smaller than reasonable limit (should be 1):
 eval SELECT COUNT(DISTINCT PAGE_ID) < 10
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
@@ -252,12 +254,12 @@ SELECT @r2_r3_pages+@r3_r4_pages=@r2_r4_pages AS should_be_1;
 # Check how limit for maximum rows count works #
 ################################################
 
-SET GLOBAL INNODB_CHANGED_PAGES_LIMIT = 1;
+SET GLOBAL INNODB_MAX_CHANGED_PAGES = 1;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 
-SET GLOBAL INNODB_CHANGED_PAGES_LIMIT = 5;
+SET GLOBAL INNODB_MAX_CHANGED_PAGES = 5;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 
-eval SET GLOBAL INNODB_CHANGED_PAGES_LIMIT = $old_changed_pages_limit;
+eval SET GLOBAL INNODB_MAX_CHANGED_PAGES = $old_max_changed_pages;
 
 DROP TABLE T1;

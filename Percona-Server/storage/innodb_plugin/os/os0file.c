@@ -3797,8 +3797,8 @@ os_aio(
 	ut_ad(file);
 	ut_ad(buf);
 	ut_ad(n > 0);
-	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_ad(n % OS_MIN_LOG_BLOCK_SIZE == 0);
+	ut_ad(offset % OS_MIN_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
 #ifdef WIN_ASYNC_IO
 	ut_ad((n & 0xFFFFFFFFUL) == n);

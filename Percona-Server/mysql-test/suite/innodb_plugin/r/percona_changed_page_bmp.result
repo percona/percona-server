@@ -1,3 +1,4 @@
+RESET CHANGED_PAGE_BITMAPS;
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -28,27 +29,23 @@ CREATE TABLE t2 (x INT) ENGINE=InnoDB;
 INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 ib_modified_log_2
-SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 4th restart
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 ib_modified_log_2
-ib_modified_log_3
 5th restart
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
-ib_modified_log_2
-7th restart
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-ib_modified_log_1
-8th restart
+6th restart
 call mtr.add_suppression("InnoDB: Warning: truncated block detected.*");
 ib_modified_log_1
 ib_modified_log_2
-9th restart
-INSERT INTO t1 SELECT x FROM t1;
-ERROR HY000: Lost connection to MySQL server during query
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+7th restart
 ib_modified_log_1
 ib_modified_log_2
-10th restart
+ib_modified_log_3
+8th restart
+RESET CHANGED_PAGE_BITMAPS;
+call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
+9th restart
 DROP TABLE t1, t2;

@@ -133,6 +133,10 @@ enum enum_server_command
 #define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_QUERY_RESPONSE_TIME 0x100000L /* response time distibution */
+#define REFRESH_FLUSH_PAGE_BITMAPS 0x200000L
+#define REFRESH_RESET_PAGE_BITMAPS 0x400000L
+
+#define PURGE_BITMAPS_TO_LSN 1
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */

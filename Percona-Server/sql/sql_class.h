@@ -1501,19 +1501,6 @@ public:
 
   /*** Following variables used in slow_extended.patch ***/
   /*
-    Variable write_to_slow_log:
-     1) initialized in
-       * sql_connect.cc (log_slow_rate_limit support)
-       * slave.cc       (log_slow_slave_statements support)
-     2) The variable is initialized on the thread startup and remains
-        constant afterwards.  This will change when 
-        LP #712396 ("log_slow_slave_statements not work on replication 
-        threads without RESTART") is implemented.
-     3) An implementation of LP #688646 ("Make query sampling possible 
-        by query") should use it.
-  */
-  bool       write_to_slow_log;
-  /*
     Variable bytes_send_old saves value of thd->status_var.bytes_sent
     before query execution.
   */

@@ -79,6 +79,7 @@ extern "C" {
 #include "row0sel.h"
 #include "row0upd.h"
 #include "log0log.h"
+#include "log0online.h"
 #include "lock0lock.h"
 #include "dict0crea.h"
 #include "btr0cur.h"
@@ -315,6 +316,25 @@ uint
 innobase_alter_table_flags(
 /*=======================*/
 	uint	flags);
+/************************************************************//**
+Synchronously read and parse the redo log up to the last
+checkpoint to write the changed page bitmap.
+@return 0 to indicate success.  Current implementation cannot fail. */
+static
+my_bool
+innobase_flush_changed_page_bitmaps();
+/*==================================*/
+/************************************************************//**
+Delete all the bitmap files for data less than the specified LSN.
+If called with lsn == 0 (i.e. set by RESET request) or
+IB_ULONGLONG_MAX, restart the bitmap file sequence, otherwise
+continue it.
+@return 0 to indicate success, 1 for failure. */
+static
+my_bool
+innobase_purge_changed_page_bitmaps(
+/*================================*/
+	ulonglong lsn);	/*!< in: LSN to purge files up to */
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -2264,6 +2284,10 @@ innobase_init(
         innobase_hton->flags=HTON_NO_FLAGS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
+	innobase_hton->flush_changed_page_bitmaps
+		= innobase_flush_changed_page_bitmaps;
+	innobase_hton->purge_changed_page_bitmaps
+		= innobase_purge_changed_page_bitmaps;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -2333,6 +2357,7 @@ innobase_init(
 	} else {
 		srv_log_block_size = 512;
 	}
+	ut_ad (srv_log_block_size >= OS_MIN_LOG_BLOCK_SIZE);
 
 	if (!srv_log_block_size) {
 		fprintf(stderr,
@@ -2843,6 +2868,35 @@ innobase_alter_table_flags(
 		| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_ADD_PK_INDEX_NO_WRITES);
+}
+
+/************************************************************//**
+Synchronously read and parse the redo log up to the last
+checkpoint to write the changed page bitmap.
+@return 0 to indicate success.  Current implementation cannot fail. */
+static
+my_bool
+innobase_flush_changed_page_bitmaps()
+/*=================================*/
+{
+	if (srv_track_changed_pages) {
+		log_online_follow_redo_log();
+	}
+	return FALSE;
+}
+
+/************************************************************//**
+Delete all the bitmap files for data less than the specified LSN.
+If called with lsn == IB_ULONGLONG_MAX (i.e. set by RESET request),
+restart the bitmap file sequence, otherwise continue it.
+@return 0 to indicate success, 1 for failure. */
+static
+my_bool
+innobase_purge_changed_page_bitmaps(
+/*================================*/
+	ulonglong lsn)	/*!< in: LSN to purge files up to */
+{
+	return (my_bool)log_online_purge_changed_page_bitmaps(lsn);
 }
 
 /****************************************************************//**
@@ -11738,7 +11792,8 @@ static MYSQL_SYSVAR_ULONG(page_size, innobase_page_size,
 static MYSQL_SYSVAR_ULONG(log_block_size, innobase_log_block_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "###EXPERIMENTAL###: The log block size of the transaction log file. Changing for created log file is not supported. Use on your own risk!",
-  NULL, NULL, (1 << 9)/*512*/, (1 << 9)/*512*/, (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
+  NULL, NULL, (1 << 9)/*512*/, OS_MIN_LOG_BLOCK_SIZE,
+  (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
 
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
@@ -12113,7 +12168,7 @@ static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
     "The maximum size of changed page bitmap files",
     NULL, NULL, 100*1024*1024ULL, 4096ULL, ULONGLONG_MAX, 0);
 
-static MYSQL_SYSVAR_ULONGLONG(changed_pages_limit, srv_changed_pages_limit,
+static MYSQL_SYSVAR_ULONGLONG(max_changed_pages, srv_max_changed_pages,
   PLUGIN_VAR_RQCMDARG,
   "The maximum number of rows for "
   "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES table, "
@@ -12378,7 +12433,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(track_changed_pages),
   MYSQL_SYSVAR(max_bitmap_file_size),
-  MYSQL_SYSVAR(changed_pages_limit),
+  MYSQL_SYSVAR(max_changed_pages),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */

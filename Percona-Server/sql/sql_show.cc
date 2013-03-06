@@ -23,7 +23,6 @@
 #include "sp.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
-#include "patch_info.h"
 #include "authors.h"
 #include "contributors.h"
 #ifdef HAVE_EVENT_SCHEDULER
@@ -7998,43 +7997,4 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     send data to the client. In this case we simply raise the error
     status and client connection will be closed.
   */
-}
-
-/***************************************************************************
-** List patches built into this release
-***************************************************************************/
-
-bool mysqld_show_patches(THD *thd)
-{
-  List<Item> field_list;
-  int i = 0;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_patches");
-
-  field_list.push_back(new Item_empty_string("File", 255));
-  field_list.push_back(new Item_empty_string("Name", 50));
-  field_list.push_back(new Item_empty_string("Version", 10));
-  field_list.push_back(new Item_empty_string("Author", 50));
-  field_list.push_back(new Item_empty_string("License", 50));
-  field_list.push_back(new Item_empty_string("Comment", 32));
-
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  for (i = 0; patches[i].file; i++)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(patches[i].file, system_charset_info);
-    protocol->store(patches[i].name, system_charset_info);
-    protocol->store(patches[i].version, system_charset_info);
-    protocol->store(patches[i].author, system_charset_info);
-    protocol->store(patches[i].license, system_charset_info);
-    protocol->store(patches[i].comment, system_charset_info);
-
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-  }
-
-  my_eof(thd);
-  DBUG_RETURN(FALSE);
 }

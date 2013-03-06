@@ -146,14 +146,8 @@ DEFS =			-DMYSQL_SERVER \
 			-DHAVE_EVENT_SCHEDULER \
 			@DEFS@
 
-# Automake 1.12 generates sql_yacc.hh instead of sql_yacc.h
-BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
-if HAVE_AM_YACC_C2H
-sql_yacc.h:
-	@LN_CP_F@ sql_yacc.hh sql_yacc.h
-endif
-
-BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h patch_info.h link_sources
+BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.$(YACC_HEXT)
+BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h \
 			message.mc  message.h message.rc MSG00001.bin \

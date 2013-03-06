@@ -1,0 +1,21 @@
+--source include/have_binlog_format_row.inc 
+--source include/master-slave.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+sync_slave_with_master;
+--enable_warnings
+
+connection master;
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, payload MEDIUMBLOB NOT NULL);
+
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+INSERT INTO t1(payload) VALUES(REPEAT('a',1468872));
+sync_slave_with_master;
+
+connection master;
+DROP TABLE t1;
+
+--source include/rpl_end.inc 

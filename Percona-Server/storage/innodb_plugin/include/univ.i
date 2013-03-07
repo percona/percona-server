@@ -43,9 +43,12 @@ Created 1/20/1994 Heikki Tuuri
 #include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
-#define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	17
+#include <mysql_version.h>
+
+/* Set InnoDB Plugin version to be the same as the MySQL server version.
+MYSQL_VERSION_ID is something like 50168. */
+#define INNODB_VERSION_MAJOR	(MYSQL_VERSION_ID / 10000)
+#define INNODB_VERSION_MINOR	(MYSQL_VERSION_ID / 100 % 100)
 
 #ifndef PERCONA_INNODB_VERSION
 #define PERCONA_INNODB_VERSION 14.0
@@ -61,16 +64,10 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT	\
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-/* auxiliary macros to help creating the version as string */
-#define __INNODB_VERSION(a, b, c, d)   (#a "." #b "." #c "-" #d)
-#define _INNODB_VERSION(a, b, c, d)    __INNODB_VERSION(a, b, c, d)
+#define _IB_TO_STR(s)   #s
+#define IB_TO_STR(s)    _IB_TO_STR(s)
 
-
-#define INNODB_VERSION_STR			\
-	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
-			INNODB_VERSION_MINOR,	\
-			INNODB_VERSION_BUGFIX,  \
-			PERCONA_INNODB_VERSION)
+#define INNODB_VERSION_STR	MYSQL_SERVER_VERSION "-" IB_TO_STR(PERCONA_INNODB_VERSION)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
 

@@ -8,7 +8,7 @@ CMAKE=cmake
 TMP=$(CURDIR)/debian/tmp/
 
 feature_set="community"
-compilation_comment_release="Percona Server (GPL), Release 60.1"
+compilation_comment_release="Percona Server (GPL), Release 60.2"
 server_suffix="-56"
 prefix="/usr"
 

@@ -78,6 +78,7 @@ Performance Improvements
    performance/innodb_numa_support
    performance/handlersocket
    performance/threadpool
+   performance/binary_group_commit
 
 Flexibility Improvements
 ========================

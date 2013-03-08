@@ -14,6 +14,7 @@ Features Included
 =================
 
   * Fixed upstream |MySQL| bug :mysqlbug:`49336`, mysqlbinlog couldn't handle ``stdin`` when "|" was used. Bug fixed: :bug:`933969` (*Sergei Glushchenko*). 
+  * Fixed upstream |MySQL| bug :mysqlbug:`65946`, which could cause the server to segfault if if using ``libeatmydata`` (and possibly other LD_PRELOADs). Bug fixed: :bug:`933969` (*Stewart Smith*).
   * Added the ``TIME_MS`` column in the :table:`PROCESSLIST` table
   * :ref:`mysqldump_ignore_create_error` feature has been ported from |Percona Server| 5.5
   * :variable:`fast_index_creation` feature has been ported from |Percona Server| 5.5

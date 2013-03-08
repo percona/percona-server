@@ -26,7 +26,6 @@ Some |Percona Server| 5.5 features have been replaced by similar or equivalent M
  * `Crash-Resistant Replication <http://www.percona.com/doc/percona-server/5.5/reliability/crash_resistant_replication.html>`_ has been replaced by |MySQL| crash safe replication
  * `Improved InnoDB I/O Scalability <http://www.percona.com/doc/percona-server/5.5/scalability/innodb_io_55.html>`_ patches have been replaced by improvements and changes in MySQL 5.6, although Percona may make improvements in the future
  * `InnoDB Data Dictionary Size Limit <http://www.percona.com/doc/percona-server/5.5/management/innodb_dict_size_limit.html>`_ has been replaced by |MySQL| 5.6 using the existing table-definition-cache variable to limit the size of the |InnoDB| data dictionary.
- * `Improved Buffer Pool Scalability <http://www.percona.com/doc/percona-server/5.5/scalability/innodb_split_buf_pool_mutex.html>`_ has been replaced by improvements in the upstream |InnoDB|
  * `Expand Table Import <http://www.percona.com/doc/percona-server/5.5/management/innodb_expand_import.html>`_ has been replaced by |MySQL| "InnoDB transportable tablespaces"
  * The |InnoDB| data dictionary INFORMATION_SCHEMA tables have been superseded by the |MySQL| implementations 
  * |XtraDB| SYS_STATS persistent table and index statistics has been replaced by the MySQL 5.6 implementation

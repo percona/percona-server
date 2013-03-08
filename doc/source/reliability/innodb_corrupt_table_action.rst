@@ -11,32 +11,15 @@ This feature adds a new system variable.
 Version Specific Information
 ============================
 
-  * 5.5.10-20.1:
-    Renamed variable :variable:`innodb_pass_corrupt_table` to :variable:`innodb_corrupt_table_action`.
+  * 5.6.10-60.2:
+    Feature ported from |Percona Server| 5.5
 
 System Variables
 ================
 
-.. variable:: innodb_pass_corrupt_table
-
-     :version 5.5.10-20.1: Renamed.
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: ULONG
-     :default: 0
-     :range: 0 - 1
-
-
-Pass corruptions of user tables as ``corrupt table`` instead of crashing itself, when used with innodb_file_per_table. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion.
-
- This variable was renamed to innodb_corrupt_table_action, beginning in release 5.5.10-20.1. It still exists as :variable:`innodb_pass_corrupt_table` in versions prior to that.
-
-
 .. variable:: innodb_corrupt_table_action
 
-     :version 5.5.10-20.1: Introduced.
+     :version 5.6.10-60.2: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -45,6 +28,4 @@ Pass corruptions of user tables as ``corrupt table`` instead of crashing itself,
      :default: ``assert``
      :range: ``assert``, ``warn``
 
-Pass corruptions of user tables as ``corrupt table`` instead of not crashing itself, when used with file_per_table. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion.
-
- This variable was added in release 5.5.10-20.1. Prior to that, it was named :variable:`innodb_pass_corrupt_table`, which still exists in earlier versions.
+When the default value is used InnoDB will stop the server if it finds a checksum mismatch on the tables. If warn values is used it will pass corruption of the table as corrupt table instead of crashing itself. For this to work variable :variable:`innodb_file_per_table` should be enabled. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion.

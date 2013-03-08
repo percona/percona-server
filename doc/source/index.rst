@@ -9,12 +9,9 @@
  Percona Server 5.6 - Documentation
 ===================================
 
-WARNING: Alpha quality software ahead
-=====================================
-Please note: |Percona Server| 5.6 is ALPHA quality software. It should *NOT* be used in production environments. This documentation may be out of date for Percona Server 5.6 before the final release, please check the release notes closely.
+.. warning::
 
-Introduction
-============
+ Please note: |Percona Server| 5.6 is ALPHA quality software. It should *NOT* be used in production environments.
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 
@@ -54,20 +51,6 @@ Installation
    installation
    upgrading_guide_55_56
 
-
-Scalability Improvements
-========================
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-
-   scalability/innodb_split_buf_pool_mutex
-   scalability/innodb_insert_buffer
-   scalability/innodb_expand_undo_slots
-   scalability/innodb_adaptive_hash_index_partitions
-   scalability/innodb_extra_rseg
-
 Performance Improvements
 ========================
 
@@ -75,13 +58,7 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
-   performance/innodb_lazy_drop_table
-   performance/innodb_doublewrite_path
-   performance/query_cache_enhance
-   performance/innodb_fast_checksum
-   performance/remove_fcntl_excessive_calls
-   performance/innodb_opt_lru_count
-   performance/innodb_thread_concurrency_timer_based
+   performance/threadpool
 
 Flexibility Improvements
 ========================
@@ -90,12 +67,6 @@ Flexibility Improvements
    :maxdepth: 1
    :glob:
 
-   flexibility/innodb_files_extend
-   flexibility/log_warnings_suppress
-   flexibility/mysql_remove_eol_carret
-   flexibility/buff_read_ahead_area
-   flexibility/innodb_fast_shutdown
-   flexibility/improved_memory_engine
    flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
@@ -105,10 +76,7 @@ Reliability Improvements
    :maxdepth: 1
    :glob:
 
-   reliability/log_connection_error
-   reliability/error_pad
    reliability/innodb_corrupt_table_action
-   reliability/show_slave_status_nolock
 
 Management Improvements
 =======================
@@ -117,11 +85,7 @@ Management Improvements
    :maxdepth: 1
    :glob:
 
-   management/innodb_recovery_patches
-   management/sql_no_fcache
-   management/udf_maatkit
-   management/innodb_fake_changes
-   management/innodb_kill_idle_trx
+   management/innodb_expanded_fast_index_creation
 
 Diagnostics Improvements
 ========================
@@ -131,14 +95,6 @@ Diagnostics Improvements
    :glob:
 
    diagnostics/index_info_schema_tables
-   diagnostics/innodb_stats
-   diagnostics/user_stats
-   diagnostics/slow_extended_55
-   diagnostics/innodb_show_status
-   diagnostics/innodb_deadlock_count
-   diagnostics/mysql_syslog
-   diagnostics/response_time_distribution
-   diagnostics/show_engines
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
 
@@ -149,6 +105,7 @@ Reference
    :maxdepth: 1
    :glob:
 
+   upstream-bug-fixes
    development
    trademark-policy
    faq

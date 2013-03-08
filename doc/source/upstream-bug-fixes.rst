@@ -11,3 +11,9 @@
 |:Fix Released: :rn:`5.6.10-60.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`65946` - Sid_map::Sid_map calls DBUG which may have unitialized THR_KEY_mysys and..|
+|:Launchpad bug: :bug:`1050758`                                                                               |
+|:Upstream state: Duplicate                                                                                   |
+|:Fix Released: :rn:`5.6.5-60.0`                                                                              |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+

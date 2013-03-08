@@ -243,9 +243,11 @@ not_to_recover:
 		if (ignore_nonexistent_pages || *err == DB_TABLESPACE_DELETED) {
 			buf_read_page_handle_error(bpage);
 			return(0);
+		} else if (srv_pass_corrupt_table) {
+			return 0;
+		} else {
+			ut_error;
 		}
-		/* else */
-		ut_error;
 	}
 
 	if (sync) {

@@ -1,0 +1,23 @@
+--source include/have_innodb.inc
+
+--echo Valid values are 'ON' and 'OFF' 
+select @@global.innodb_corrupt_table_action in ('assert', 'warn', 'salvage');
+select @@global.innodb_corrupt_table_action;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_corrupt_table_action;
+show global variables like 'innodb_corrupt_table_action';
+show session variables like 'innodb_corrupt_table_action';
+select * from information_schema.global_variables where variable_name='innodb_corrupt_table_action';
+select * from information_schema.session_variables where variable_name='innodb_corrupt_table_action';
+
+set global innodb_corrupt_table_action='assert';
+set global innodb_corrupt_table_action='warn';
+set global innodb_corrupt_table_action='salvage';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_corrupt_table_action='cry';
+
+--error ER_GLOBAL_VARIABLE
+set session innodb_corrupt_table_action='warn';
+
+set global innodb_corrupt_table_action='assert';

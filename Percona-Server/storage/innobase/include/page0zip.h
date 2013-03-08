@@ -127,7 +127,7 @@ page_zip_compress(
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
 	ulint		level,	/*!< in: commpression level */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
-	__attribute__((nonnull(1,2,3)));
+	__attribute__((nonnull(1,3)));
 
 /**********************************************************************//**
 Decompress a page.  This function should tolerate errors on the compressed

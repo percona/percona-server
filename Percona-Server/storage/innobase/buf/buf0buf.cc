@@ -53,6 +53,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "buf0checksum.h"
+#include "srv0start.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -718,6 +719,13 @@ buf_page_print(
 	dict_index_t*	index;
 #endif /* !UNIV_HOTBACKUP */
 	ulint		size = zip_size;
+
+	if (!read_buf) {
+		fprintf(stderr,
+			" InnoDB: Not dumping page as (in memory) pointer "
+			"is NULL\n");
+		return;
+	}
 
 	if (!size) {
 		size = UNIV_PAGE_SIZE;

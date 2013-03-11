@@ -139,7 +139,7 @@ EOF
     # Debian: beware of the bashisms... 
     # Debian: can safely run on upgrades with existing databases 
     set +e
-    /bin/bash ${PERCONA_PREFIX}/bin/mysql_install_db --user=mysql --rpm 2>&1 |
+    ${PERCONA_PREFIX}/bin/mysql_install_db --user=mysql --rpm 2>&1 |
         $ERR_LOGGER
     if [ "$?" != "0" ]; then
       echo "ATTENTION: An error has occured. More info is in the syslog!"
@@ -193,7 +193,7 @@ EOF
         "USE mysql\n" \
         "ALTER TABLE user CHANGE Password Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL"`;
     replace_query=`/bin/echo -e \
-        "USE mysql\n" \
+        "USE mysql;\n" \
         "REPLACE INTO user SET " \
         "  host='localhost', user='debian-sys-maint', password=password('$pass'), " \
         "  Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', " \
@@ -203,7 +203,8 @@ EOF
         "  Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', "\
         "  Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', "\
         "  Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', "\
-        "  Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y' "`;
+        "  Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', "\
+        "  ssl_cipher='', x509_issuer='', x509_subject=''; "`
     fix_privs=`/bin/echo -e \
         "USE mysql;\n" \
         "ALTER TABLE user ADD column Create_view_priv enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N'; " \
@@ -213,32 +214,13 @@ EOF
         "ALTER TABLE user ADD column Create_user_priv enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N'; " \
         "ALTER TABLE user ADD column Event_priv enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N'; " \
         "ALTER TABLE user ADD column Trigger_priv enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N'; " `
-    # Engines supported by etch should be installed per default. The query sequence is supposed
-    # to be aborted if the CREATE TABLE fails due to an already existent table in which case the
-    # admin might already have chosen to remove one or more plugins. Newlines are necessary.
-    install_plugins=`/bin/echo -e \
-        "USE mysql;\n" \
-        "CREATE TABLE plugin (name char(64) COLLATE utf8_bin NOT NULL DEFAULT '', " \
-        "  dl char(128) COLLATE utf8_bin NOT NULL DEFAULT '', " \
-        "  PRIMARY KEY (name)) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='MySQL plugins';\n" \
-        "INSERT INTO plugin VALUES ('innodb',    'ha_innodb.so');\n" \
-        "INSERT INTO plugin VALUES ('federated', 'ha_federated.so');\n" \
-        "INSERT INTO plugin VALUES ('blackhole', 'ha_blackhole.so');\n" \
-        "INSERT INTO plugin VALUES ('archive',   'ha_archive.so');" `
-
-    # Upgrade password column format before the root password gets set.
-    echo "$password_column_fix_query"                        | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
 
     db_get percona-server-server/root_password && rootpw="$RET"
     if ! set_mysql_rootpw; then
         password_error="yes"
     fi
 
-    echo "$fix_privs"                                        | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
     echo "$replace_query"                                    | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
-    set +e
-    echo "$install_plugins"                                  | $MYSQL_BOOTSTRAP 2>&1 | $ERR_LOGGER
-    set -e
   ;;
 
   abort-upgrade|abort-remove|abort-configure)

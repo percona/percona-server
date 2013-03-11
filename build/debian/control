@@ -76,7 +76,7 @@ Description: Percona Server database test suite
 
 Package: percona-server-client-5.6
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.6 (>= ${source:Version}), libmysqlclient18 (>= ${source:Version}), ${shlib:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.6 (>= ${source:Version}), libmysqlclient18, ${shlib:Depends}, ${misc:Depends}
 Provides: mysql-client, virtual-mysql-client
 Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1, percona-xtradb-client-5.0, percona-server-client-5.1, percona-server-client-5.5
 Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1, percona-xtradb-client-5.0, percona-server-client-5.1, percona-server-client-5.5

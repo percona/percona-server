@@ -25,7 +25,11 @@ System Variables
      :scope: Global
      :dyn: Yes
      :vartype: ULONG
-     :default: ``assert``
-     :range: ``assert``, ``warn``
+     :range: ``assert``, ``warn``, ``salvage``
 
-When the default value is used InnoDB will stop the server if it finds a checksum mismatch on the tables. If warn values is used it will pass corruption of the table as corrupt table instead of crashing itself. For this to work variable :variable:`innodb_file_per_table` should be enabled. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion.
+* With the default value |XtraDB| will intentionally crash the server with an assertion failure as it would normally do when detecting corrupted data in a single-table tablespace.
+
+* If the ``warn`` value is used it will pass corruption of the table as ``corrupt table`` instead of crashing itself. For this to work :option:`innodb_file_per_table` should be enabled. All file I/O for the datafile after detected as corrupt is disabled, except for the deletion. 
+
+* When the option value is ``salvage``, |XtraDB| allows read access to a corrupted tablespace, but ignores corrupted pages".
+

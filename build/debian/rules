@@ -9,7 +9,7 @@ include /usr/share/dpatch/dpatch.make
 TMP=$(CURDIR)/debian/tmp/
 
 major_version_default=14
-minor_version_default=2
+minor_version_default=4
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)

@@ -29,7 +29,7 @@
 # Change this to match the version of the shared libs you want to include
 #
 %define version55 5.5.8
-%define version51 5.1.67
+%define version51 5.1.68
 %define version50 5.0.91
 %define version41 4.1.22
 %define version40 4.0.27

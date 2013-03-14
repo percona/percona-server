@@ -4015,16 +4015,6 @@ pthread_handler_t handle_slave_io(void *arg)
                           mi->get_user(), mi->host, mi->port,
 			  mi->get_io_rpl_log_name(),
 			  llstr(mi->get_master_log_pos(), llbuff));
-  /*
-    Assign the max_packet_size with the bigger one of the values of
-    'max_packet_size' and 'opt_binlog_rows_event_max_size'. So that
-    slave I/O thread can replicate large row event from master.
-    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
-    thread, since a replication event can become this much larger than
-    the corresponding packet (query) sent from client to master.
-  */
-    thd->net.max_packet_size= slave_max_allowed_packet;
-    mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
   }
   else
   {
@@ -6647,6 +6637,16 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
+  /*
+    Assign the max_packet_size with the bigger one of the values of
+    'max_packet_size' and 'opt_binlog_rows_event_max_size'. So that
+    slave I/O thread can replicate large row event from master.
+    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
+    thread, since a replication event can become this much larger than
+    the corresponding packet (query) sent from client to master.
+  */
+  thd->net.max_packet_size= slave_max_allowed_packet;
+  mysql->options.max_allowed_packet= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
 
   if (mi->is_start_plugin_auth_configured())
   {

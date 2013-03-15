@@ -44,8 +44,8 @@ read_view_open_now(
 /*===============*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or 0 used in purge */
-	mem_heap_t*	heap);		/*!< in: memory heap from which
-					allocated */
+	read_view_t*	view);		/*!< in: pre-allocated view array or
+					NULL if a new one needs to be created */
 /*********************************************************************//**
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close.
@@ -56,8 +56,8 @@ read_view_oldest_copy_or_open_new(
 /*==============================*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or 0 used in purge */
-	mem_heap_t*	heap);		/*!< in: memory heap from which
-					allocated */
+	read_view_t*	view);		/*!< in: pre-allocated view array or
+					NULL if a new one needs to be created */
 /*********************************************************************//**
 Closes a read view. */
 UNIV_INTERN
@@ -65,6 +65,13 @@ void
 read_view_close(
 /*============*/
 	read_view_t*	view);	/*!< in: read view */
+/*********************************************************************//**
+Frees memory allocated by a read view. */
+UNIV_INTERN
+void
+read_view_free(
+/*===========*/
+	read_view_t*	view);	/*< in: read view */
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
@@ -145,6 +152,9 @@ struct read_view_struct{
 				this is the "low water mark". */
 	ulint		n_trx_ids;
 				/*!< Number of cells in the trx_ids array */
+	ulint		max_trx_ids;
+				/*!< Maximum number of cells in the trx_ids
+				array */
 	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
 				not see: typically, these are the active
 				transactions at the time when the read is

@@ -145,14 +145,27 @@ read_view_t*
 read_view_create_low(
 /*=================*/
 	ulint		n,	/*!< in: number of cells in the trx_ids array */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	read_view_t*	view)	/*!< in: pre-allocated view array or NULL if a
+				new one needs to be created */
 {
-	read_view_t*	view;
+	if (view == NULL) {
+		view = ut_malloc(sizeof(read_view_t));
+		view->max_trx_ids = 0;
+		view->trx_ids = NULL;
+	}
 
-	view = mem_heap_alloc(heap, sizeof(read_view_t));
+	if (UNIV_UNLIKELY(view->max_trx_ids < n)) {
+
+		/* avoid frequent reallocations by extending the array to the
+		desired size + 10% */
+
+		view->max_trx_ids = n + n / 10;
+		view->trx_ids = ut_realloc(view->trx_ids,
+					   view->max_trx_ids *
+					   sizeof *view->trx_ids);
+	}
 
 	view->n_trx_ids = n;
-	view->trx_ids = mem_heap_alloc(heap, n * sizeof *view->trx_ids);
 
 	return(view);
 }
@@ -169,8 +182,8 @@ read_view_oldest_copy_or_open_new(
 /*==============================*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or 0 used in purge */
-	mem_heap_t*	heap)		/*!< in: memory heap from which
-					allocated */
+	read_view_t*	view)		/*!< in: pre-allocated view array or
+					NULL if a new one needs to be created */
 {
 	read_view_t*	old_view;
 	read_view_t*	view_copy;
@@ -185,7 +198,7 @@ read_view_oldest_copy_or_open_new(
 
 	if (old_view == NULL) {
 
-		return(read_view_open_now(cr_trx_id, heap));
+		return(read_view_open_now(cr_trx_id, view));
 	}
 
 	n = old_view->n_trx_ids;
@@ -196,7 +209,7 @@ read_view_oldest_copy_or_open_new(
 		needs_insert = FALSE;
 	}
 
-	view_copy = read_view_create_low(n, heap);
+	view_copy = read_view_create_low(n, view);
 
 	/* Insert the id of the creator in the right place of the descending
 	array of ids, if needs_insert is TRUE: */
@@ -251,16 +264,15 @@ read_view_open_now(
 /*===============*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or 0 used in purge */
-	mem_heap_t*	heap)		/*!< in: memory heap from which
-					allocated */
+	read_view_t*	view)		/*!< in: current read view or NULL if it
+					doesn't exist yet */
 {
-	read_view_t*	view;
 	trx_t*		trx;
 	ulint		n;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
-	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
+	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), view);
 
 	view->creator_trx_id = cr_trx_id;
 	view->type = VIEW_NORMAL;
@@ -329,6 +341,23 @@ read_view_close(
 }
 
 /*********************************************************************//**
+Frees resource allocated by a read view. */
+UNIV_INTERN
+void
+read_view_free(
+/*===========*/
+	read_view_t*	view)	/*< in: read view */
+{
+	ut_ad(mutex_own(&kernel_mutex));
+
+	if (view->trx_ids != NULL) {
+		ut_free(view->trx_ids);
+	}
+
+	ut_free(view);
+}
+
+/*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
 UNIV_INTERN
@@ -342,8 +371,6 @@ read_view_close_for_mysql(
 	mutex_enter(&kernel_mutex);
 
 	read_view_close(trx->global_read_view);
-
-	mem_heap_empty(trx->global_read_view_heap);
 
 	trx->read_view = NULL;
 	trx->global_read_view = NULL;
@@ -425,7 +452,7 @@ read_cursor_view_create_for_mysql(
 	mutex_enter(&kernel_mutex);
 
 	curview->read_view = read_view_create_low(
-		UT_LIST_GET_LEN(trx_sys->trx_list), curview->heap);
+		UT_LIST_GET_LEN(trx_sys->trx_list), NULL);
 
 	view = curview->read_view;
 	view->creator_trx_id = cr_trx->id;
@@ -503,6 +530,8 @@ read_cursor_view_close_for_mysql(
 	mutex_enter(&kernel_mutex);
 
 	read_view_close(curview->read_view);
+	read_view_free(curview->read_view);
+
 	trx->read_view = trx->global_read_view;
 
 	mutex_exit(&kernel_mutex);

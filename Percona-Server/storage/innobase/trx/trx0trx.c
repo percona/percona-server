@@ -190,9 +190,9 @@ trx_create(
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 
-	trx->global_read_view_heap = mem_heap_create(256);
 	trx->global_read_view = NULL;
 	trx->read_view = NULL;
+	trx->prebuilt_view = NULL;
 
 	trx->io_reads = 0;
 	trx->io_read = 0;
@@ -355,11 +355,12 @@ trx_free(
 
 	ut_a(UT_LIST_GET_LEN(trx->trx_locks) == 0);
 
-	if (trx->global_read_view_heap) {
-		mem_heap_free(trx->global_read_view_heap);
+	if (trx->prebuilt_view != NULL) {
+		read_view_free(trx->prebuilt_view);
 	}
 
 	trx->global_read_view = NULL;
+	trx->prebuilt_view = NULL;
 
 	ut_a(trx->read_view == NULL);
 
@@ -410,10 +411,6 @@ trx_free_prepared(
 
 	if (trx->lock_heap) {
 		mem_heap_free(trx->lock_heap);
-	}
-
-	if (trx->global_read_view_heap) {
-		mem_heap_free(trx->global_read_view_heap);
 	}
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
@@ -1045,7 +1042,6 @@ trx_commit_off_kernel(
 
 	if (trx->global_read_view) {
 		read_view_close(trx->global_read_view);
-		mem_heap_empty(trx->global_read_view_heap);
 		trx->global_read_view = NULL;
 	}
 
@@ -1187,8 +1183,9 @@ trx_assign_read_view(
 	mutex_enter(&kernel_mutex);
 
 	if (!trx->read_view) {
-		trx->read_view = read_view_open_now(
-			trx->id, trx->global_read_view_heap);
+		trx->read_view = read_view_open_now(trx->id,
+						    trx->prebuilt_view);
+		trx->prebuilt_view = trx->read_view;
 		trx->global_read_view = trx->read_view;
 	}
 

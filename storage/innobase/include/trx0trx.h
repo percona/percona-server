@@ -459,6 +459,24 @@ trx_assign_rseg(
 /*============*/
 	trx_t*		trx);		/*!< A read-only transaction that
 					needs to be assigned a RBS. */
+
+/*************************************************************//**
+Callback function for trx_find_descriptor() to compare trx IDs. */
+UNIV_INTERN
+int
+trx_descr_cmp(
+/*==========*/
+	const void *a,	/*!< in: pointer to first comparison argument */
+	const void *b);	/*!< in: pointer to second comparison argument */
+
+/*************************************************************//**
+Release a slot for a given trx in the global descriptors array. */
+UNIV_INTERN
+void
+trx_release_descriptor(
+/*===================*/
+	trx_t* trx);	/*!< in: trx pointer */
+
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
@@ -891,6 +909,12 @@ struct trx_t{
 					/*!< TRUE if in
 					trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
+	UT_LIST_NODE_T(trx_t)
+			trx_serial_list;/*!< list node for
+					trx_sys->trx_serial_list */
+	bool		in_trx_serial_list;
+					/* Set when transaction is in the
+					trx_serial_list */
 	/*------------------------------*/
 	dberr_t		error_state;	/*!< 0 if no error, otherwise error
 					number; NOTE That ONLY the thread
@@ -910,9 +934,6 @@ struct trx_t{
 					survive over a transaction commit, if
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
-	mem_heap_t*	global_read_view_heap;
-					/*!< memory heap for the global read
-					view */
 	read_view_t*	global_read_view;
 					/*!< consistent read view associated
 					to a transaction or NULL */
@@ -922,6 +943,7 @@ struct trx_t{
 					associated to a transaction (i.e.
 					same as global_read_view) or read view
 					associated to a cursor */
+	read_view_t*	prebuilt_view;	/* pre-built view array */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t)
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,

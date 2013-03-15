@@ -5247,8 +5247,8 @@ row_search_check_if_query_cache_permitted(
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
 		    && !trx->read_view) {
 
-			trx->read_view = read_view_open_now(
-				trx->id, trx->global_read_view_heap);
+			trx->read_view = read_view_open_now(trx->id,
+							    trx->prebuilt_view);
 
 			trx->global_read_view = trx->read_view;
 		}

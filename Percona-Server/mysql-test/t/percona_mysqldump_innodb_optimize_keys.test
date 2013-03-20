@@ -223,5 +223,32 @@ CREATE TABLE t2 (
 
 DROP TABLE t1, t2;
 
+#############################################################################
+# Bug #1081016: mysqldump --innodb-optimize-keys may produce invalid SQL with
+#               explicitly named FK constraints
+#############################################################################
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `a` (`a`),
+  CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `t1` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

@@ -122,7 +122,7 @@ Management Improvements
    management/innodb_fast_index_creation
    management/innodb_expanded_fast_index_creation
    management/sql_no_fcache
-   management/udf_maatkit
+   management/udf_percona_toolkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
    management/enforce_engine
@@ -159,7 +159,6 @@ Obsolete and Removed Features
    :glob:
 
    management/innodb_buffer_pool_shm
-   performance/innodb_purge_thread
 
 Reference
 =========

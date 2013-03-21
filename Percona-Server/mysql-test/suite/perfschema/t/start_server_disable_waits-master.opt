@@ -1,1 +1,2 @@
 --loose-performance-schema-instrument='wait/%=OFF'
+--loose-performance-schema-max-statement-classes=167

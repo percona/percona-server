@@ -2835,13 +2835,6 @@ pthread_handler_t handle_slave_io(void *arg)
                           mi->user, mi->host, mi->port,
 			  IO_RPL_LOG_NAME,
 			  llstr(mi->master_log_pos,llbuff));
-  /*
-    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
-    thread, since a replication event can become this much larger than
-    the corresponding packet (query) sent from client to master.
-  */
-    thd->net.max_packet_size= slave_max_allowed_packet;
-    mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
   }
   else
   {
@@ -4266,6 +4259,13 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
+  /*
+    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
+    thread, since a replication event can become this much larger than
+    the corresponding packet (query) sent from client to master.
+  */
+  thd->net.max_packet_size= slave_max_allowed_packet;
+  mysql->options.max_allowed_packet= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
 
   /* Set MYSQL_PLUGIN_DIR in case master asks for an external authentication plugin */
   if (opt_plugin_dir_ptr && *opt_plugin_dir_ptr)

@@ -59,7 +59,6 @@ Scalability Improvements
    scalability/innodb_split_buf_pool_mutex
    scalability/innodb_insert_buffer
    scalability/innodb_io
-   scalability/innodb_extra_rseg
    scalability/innodb_expand_undo_slots
 
 Performance Improvements
@@ -121,7 +120,7 @@ Management Improvements
    management/innodb_fast_index_creation
    management/innodb_expanded_fast_index_creation
    management/sql_no_fcache
-   management/udf_maatkit
+   management/udf_percona_toolkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
    management/changed_page_tracking

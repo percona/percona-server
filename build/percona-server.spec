@@ -853,13 +853,14 @@ fi
 %{_libdir}/libhsclient.a
 %{_libdir}/libhsclient.la
 
+%{_libdir}/*.so
+%{_libdir}/mysql/*.so
+
 %files -n Percona-Server-shared%{package_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/*.so*
-
-%{_libdir}/mysql/*.so*
-
+%{_libdir}/*.so.*
+%{_libdir}/mysql/*.so.*
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)

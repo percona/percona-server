@@ -577,12 +577,11 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 fi
 
 %post -n Percona-Server-server%{package_suffix}
+if [ X${PERCONA_DEBUG} == X1 ]; then
+        set -x
+fi
+#
 mysql_datadir=%{mysqldatadir}
-
-# ----------------------------------------------------------------------
-# Create data directory
-# ----------------------------------------------------------------------
-mkdir -p $mysql_datadir/{mysql,test}
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
@@ -590,7 +589,7 @@ mkdir -p $mysql_datadir/{mysql,test}
 if [ -x /sbin/chkconfig ] ; then
 	/sbin/chkconfig --add mysql
 fi
-
+#
 # ----------------------------------------------------------------------
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
@@ -601,16 +600,12 @@ useradd -M -r -d $mysql_datadir -s /bin/bash -c "Percona Server" -g %{mysqld_gro
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
 # ----------------------------------------------------------------------
-# Change permissions so that the user that will run the MySQL daemon
-# owns all database files.
-# ----------------------------------------------------------------------
-chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
-
-# ----------------------------------------------------------------------
 # Initiate databases
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
-
+if [ $1 -eq 1 ]; then #clean installation
+        mkdir -p $mysql_datadir/{mysql,test}
+        %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi
 # ----------------------------------------------------------------------
 # FIXME upgrade databases if needed would go here - but it cannot be
 # automated yet

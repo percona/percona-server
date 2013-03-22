@@ -203,6 +203,12 @@
 |:Fix Released: :rn:`1.0.6-rel10.2`                                                                           |
 |:Upstream fix: 5.1.51                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`53237` - mysql_list_fields/COM_FIELD_LIST stack smashing - remote execution ...    |
+|:Launchpad bug: :bug:`580324`                                                                                |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.1.47-rel11.0`                                                                          |
+|:Upstream fix: 5.1.49                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`47621` - MySQL and InnoDB data dictionaries will become out of sync when renaming..|
 |:Launchpad bug: :bug:`488315`                                                                                |
 |:Upstream state: Closed                                                                                      |
@@ -220,6 +226,12 @@
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`1.0.3-7`                                                                                 |
 |:Upstream fix: 5.1.47                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`44140` - Insert buffer operation may destroy the page during its recovery process  |
+|:Launchpad bug: none                                                                                         |
+|:Upstream state: Open                                                                                        |
+|:Fix Released: :rn:`1.0.3-7`                                                                                 |
+|:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`42101` - Race condition in innodb_commit_concurrency                               |
 |:Launchpad bug: none                                                                                         |

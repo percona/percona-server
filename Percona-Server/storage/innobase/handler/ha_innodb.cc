@@ -4599,7 +4599,8 @@ ha_innobase::open(
 		DBUG_RETURN(1);
 	}
 
-	if (srv_pass_corrupt_table <= 1 && share->ib_table && share->ib_table->is_corrupt) {
+	if (UNIV_UNLIKELY(share->ib_table && share->ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
 		free_share(share);
 
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
@@ -4624,7 +4625,8 @@ retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
 
-	if (srv_pass_corrupt_table <= 1 && ib_table && ib_table->is_corrupt) {
+	if (UNIV_UNLIKELY(ib_table && ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
 		free_share(share);
 		my_free(upd_buf);
 		upd_buf = NULL;
@@ -6692,7 +6694,8 @@ ha_innobase::index_read(
 
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
-	if (srv_pass_corrupt_table <= 1 && share->ib_table->is_corrupt) {
+	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6763,7 +6766,8 @@ ha_innobase::index_read(
 		ret = DB_UNSUPPORTED;
 	}
 
-	if (srv_pass_corrupt_table <= 1 && share->ib_table->is_corrupt) {
+	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6881,7 +6885,8 @@ ha_innobase::change_active_index(
 {
 	DBUG_ENTER("change_active_index");
 
-	if (srv_pass_corrupt_table <= 1 && share->ib_table->is_corrupt) {
+	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -6998,7 +7003,8 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	if (srv_pass_corrupt_table <= 1 && share->ib_table->is_corrupt) {
+	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
@@ -7011,7 +7017,8 @@ ha_innobase::general_fetch(
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
-	if (srv_pass_corrupt_table <= 1 && share->ib_table->is_corrupt) {
+	if (UNIV_UNLIKELY(share->ib_table->is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 

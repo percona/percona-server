@@ -2892,7 +2892,7 @@ rescan_idle:
 		mutex_enter(&kernel_mutex);
 		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
 		while (trx) {
-			if (trx->conc_state == TRX_ACTIVE
+			if (trx->state == TRX_ACTIVE
 			    && trx->mysql_thd
 			    && innobase_thd_is_idle(trx->mysql_thd)) {
 				ib_int64_t	start_time = innobase_thd_get_start_time(trx->mysql_thd);

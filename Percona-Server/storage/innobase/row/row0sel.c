@@ -3813,9 +3813,9 @@ release_search_latch_if_needed:
 		trx->has_search_latch = FALSE;
 	}
 
-	ut_ad(prebuilt->sql_stat_start || trx->conc_state == TRX_ACTIVE);
-	ut_ad(trx->conc_state == TRX_NOT_STARTED
-	      || trx->conc_state == TRX_ACTIVE);
+	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_ACTIVE);
+	ut_ad(trx->state == TRX_NOT_STARTED
+	      || trx->state == TRX_ACTIVE);
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
 	      || trx->read_view);
@@ -4896,8 +4896,10 @@ row_search_check_if_query_cache_permitted(
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
 		    && !trx->read_view) {
 
-			trx->read_view = read_view_open_now(
-				trx->id, NULL);
+			trx->read_view =
+				read_view_open_now(trx->id,
+						   NULL, TRUE);
+
 			trx->global_read_view = trx->read_view;
 		}
 	}

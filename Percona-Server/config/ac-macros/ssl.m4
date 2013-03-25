@@ -110,9 +110,24 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
 
   #
   # Try to link with openSSL libs in <location>
+  # In 64 bit archs, try first with lib64/ in order to avoid pointless linkage
+  # against 32 bit libraries.
   #
-  openssl_libs="-L$location/lib/ -lssl -lcrypto"
-  MYSQL_CHECK_SSL_DIR([$openssl_includes], [$openssl_libs])
+  if test "$target_cpu" == "x86_64"
+  then
+    openssl_libs="-L$location/lib64/ -lssl -lcrypto"
+    MYSQL_CHECK_SSL_DIR([$openssl_includes], [$openssl_libs])
+  else
+    # So it gets set to lib/
+    openssl_libs="no"
+  fi
+
+  if test "$mysql_ssl_found" == "no"
+  then
+    # Now try lib/
+    openssl_libs="-L$location/lib/ -lssl -lcrypto"
+    MYSQL_CHECK_SSL_DIR([$openssl_includes], [$openssl_libs])
+  fi
 
   if test "$mysql_ssl_found" == "no"
   then

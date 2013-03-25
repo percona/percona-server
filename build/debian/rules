@@ -99,7 +99,7 @@ endif
 		--with-libwrap \
 		--with-readline \
 		$(USE_STATIC_MYSQLD) \
-		--with-ssl \
+		--with-ssl=/usr \
 	    	--without-docs \
 		--with-extra-charsets=all \
 		--with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \

@@ -1,4 +1,5 @@
 AC_INIT([maatkit-udf], [0.1], [http://code.google.com/p/maatkit/issues/list])
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 LT INIT
 AC_PROG_LIBTOOL

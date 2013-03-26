@@ -1910,7 +1910,7 @@ trx_is_started(
 /*===========*/
 	trx_t*	trx)	/* in: transaction */
 {
-	return(trx->conc_state != TRX_NOT_STARTED);
+	return(trx->state != TRX_NOT_STARTED);
 }
 
 /*********************************************************************//**
@@ -9046,7 +9046,7 @@ ha_innobase::info_low(
 
 				prebuilt->trx->op_info = "confirming rows of SYS_STATS to store statistics";
 
-				ut_a(prebuilt->trx->conc_state == TRX_NOT_STARTED);
+				ut_a(!trx_is_started(prebuilt->trx));
 
 				for (index = dict_table_get_first_index(ib_table);
 				     index != NULL;
@@ -9059,7 +9059,7 @@ ha_innobase::info_low(
 					innobase_commit_low(prebuilt->trx);
 				}
 
-				ut_a(prebuilt->trx->conc_state == TRX_NOT_STARTED);
+				ut_a(!trx_is_started(prebuilt->trx));
 			}
 
 			prebuilt->trx->op_info = "updating table statistics";

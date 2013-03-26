@@ -280,7 +280,12 @@ trx_purge_sys_close(void)
 	que_graph_free(purge_sys->query);
 
 	ut_a(purge_sys->sess->trx->is_purge);
-	purge_sys->sess->trx->conc_state = TRX_NOT_STARTED;
+	purge_sys->sess->trx->state = TRX_NOT_STARTED;
+
+	mutex_enter(&kernel_mutex);
+	trx_release_descriptor(purge_sys->sess->trx);
+	mutex_exit(&kernel_mutex);
+
 	sess_close(purge_sys->sess);
 	purge_sys->sess = NULL;
 

@@ -186,6 +186,7 @@ public:
   char *file;
   unsigned int line;
 
+  ulong m_seq;
   double time_usecs;
   double cpu_time_usecs;
   PROF_MEASUREMENT();
@@ -212,8 +213,9 @@ private:
   query_id_t profiling_query_id;        /* Session-specific id. */
   char *query_source;
 
-  PROF_MEASUREMENT *profile_start;
-  PROF_MEASUREMENT *profile_end;
+  double m_start_time_usecs;
+  double m_end_time_usecs;
+  ulong m_seq_counter;
   Queue<PROF_MEASUREMENT> entries;
 
 

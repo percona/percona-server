@@ -230,9 +230,6 @@ install: build
 
 	# percona-server-client
 	install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/
-	install -m 0755 debian/additions/innotop/innotop $(TMP)/usr/bin/
-	install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
-	install -m 0644 -D debian/additions/innotop/InnoDBParser.pm $(TMP)/usr/share/perl5/InnoDBParser.pm
 
 	# percona-server-server
 	install -m 0755 scripts/mysqld_safe $(TMP)/usr/bin/mysqld_safe

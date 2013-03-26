@@ -710,13 +710,16 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 fi
 
 %post -n Percona-Server-server%{product_suffix}
-
+if [ X${PERCONA_DEBUG} == X1 ]; then
+        set -x
+fi
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
 mysql_datadir=%{mysqldatadir}
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
+if [ $1 -eq 1 ]; then
 # ----------------------------------------------------------------------
 # Create data directory if needed, check whether upgrade or install
 # ----------------------------------------------------------------------
@@ -734,8 +737,11 @@ else
 	# If the directory exists, we may assume it is an upgrade.
 	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
 fi
-if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
-
+if [ ! -d $mysql_datadir/test ]; then 
+        mkdir $mysql_datadir/test; 
+fi
+%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
 # ----------------------------------------------------------------------
@@ -761,22 +767,15 @@ useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" \
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
 # ----------------------------------------------------------------------
-# Change permissions so that the user that will run the MySQL daemon
-# owns all database files.
-# ----------------------------------------------------------------------
-chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
-
-# ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
-
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
-# Change permissions again to fix any new files.
+# Change permissions so that the user that will run the MySQL daemon
+# owns all database files.
 # ----------------------------------------------------------------------
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
@@ -1123,12 +1122,13 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/mysql/libhsclient.a
 %{_libdir}/libhsclient.la
+%{_libdir}/*.so
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libmysql*.so*
+%{_libdir}/libmysql*.so.*
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la

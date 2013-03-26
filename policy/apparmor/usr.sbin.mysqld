@@ -1,0 +1,61 @@
+# Last Modified: Thu Mar  7 21:58:51 2013
+# Based on usr.sbin.mysqld packaged in mysql-server in Ubuntu.
+# For Percona Server and Percona XtraDB Cluster
+
+#include <tunables/global>
+
+/usr/sbin/mysqld flags=(complain) {
+  #include <abstractions/base>
+  #include <abstractions/mysql>
+  #include <abstractions/nameservice>
+  #include <abstractions/user-tmp>
+  #include <abstractions/winbind>
+  #include <local/usr.sbin.mysqld>
+
+
+  capability chown,
+  capability dac_override,
+  capability setgid,
+  capability setuid,
+  capability sys_rawio,
+  capability sys_resource,
+
+  network tcp,
+
+
+  /dev/dm-0 r,
+  /etc/group r,
+  /etc/gai.conf r,
+  /etc/hosts.allow r,
+  /etc/hosts.deny r,
+  /etc/ld.so.cache r,
+  /etc/mtab r,
+  /etc/my.cnf r,
+  /etc/mysql/*.cnf r,
+  /etc/mysql/*.pem r,
+  /etc/mysql/conf.d/ r,
+  /etc/mysql/conf.d/* r,
+  /etc/nsswitch.conf r,
+  /etc/passwd r,
+  /etc/services r,
+  /run/mysqld/mysqld.pid w,
+  /run/mysqld/mysqld.sock w,
+  /sys/devices/system/cpu/ r,
+  owner /tmp/** lk,
+  /tmp/** rw,
+  /usr/lib/mysql/plugin/ r,
+  /usr/lib/mysql/plugin/*.so* mr,
+  /usr/sbin/mysqld mr,
+  /usr/share/mysql/** r,
+  /var/lib/mysql/ r,
+  /var/lib/mysql/** rwk,
+  /var/log/mysql.err rw,
+  /var/log/mysql.log rw,
+  /var/log/mysql/ r,
+  /var/log/mysql/* rw,
+  /var/run/mysqld/mysqld.pid w,
+  /var/run/mysqld/mysqld.sock w,
+
+  # Site-specific additions and overrides. See local/README for details.
+  #include <local/usr.sbin.mysqld>
+}

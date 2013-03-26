@@ -42,6 +42,9 @@ slave-net-timeout=120
 log-bin=mysqld-bin
 
 # No performance schema sizing provided
+# Except the max-statement-classes which is set to default value of 167
+# as a workaround of http://bugs.mysql.com/bug.php?id=68635
+loose-performance-schema-max-statement-classes=167
 
 # Disable everything, we only need the sizing data,
 # and also need a stable output for show engine performance_schema status

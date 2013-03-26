@@ -1,1 +1,2 @@
 --loose-disable-performance-schema
+--loose-performance-schema-max-statement-classes=167

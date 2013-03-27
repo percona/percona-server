@@ -48,4 +48,9 @@ ib_modified_log_3
 RESET CHANGED_PAGE_BITMAPS;
 call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 9th restart
-DROP TABLE t1, t2;
+CREATE TABLE t3 (a MEDIUMBLOB) ENGINE=InnoDB;
+call mtr.add_suppression("InnoDB: Error: the age of the oldest untracked record exceeds the log group capacity!");
+call mtr.add_suppression("InnoDB: Error: stopping the log tracking thread at LSN");
+INSERT INTO t3 VALUES (REPEAT('a', 12582912));
+10th restart
+DROP TABLE t1, t2, t3;

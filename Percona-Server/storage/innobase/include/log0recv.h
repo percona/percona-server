@@ -297,14 +297,14 @@ recv_apply_log_recs_for_backup(void);
 Recovers from archived log files, and also from log files, if they exist.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 recv_recovery_from_archive_start(
 /*=============================*/
 	lsn_t		min_flushed_lsn,/*!< in: min flushed lsn field from the
 					data files */
 	lsn_t		limit_lsn,	/*!< in: recover up to this lsn if
 					possible */
-	ulint		first_log_no);	/*!< in: number of the first archived
+	lsn_t		first_log_no);	/*!< in: number of the first archived
 					log file to use in the recovery; the
 					file will be searched from
 					INNOBASE_LOG_ARCH_DIR specified in

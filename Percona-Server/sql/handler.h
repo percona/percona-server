@@ -881,6 +881,9 @@ struct handlerton
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
                         enum enum_schema_tables);
+   bool (*purge_archive_logs)(handlerton *hton, time_t before_date,
+                             const char* to_filename);
+
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler
@@ -3374,6 +3377,11 @@ int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
+
+/* remove old archived transaction logs files */
+bool ha_purge_archive_logs(THD *thd, handlerton *db_type, void* args);
+bool ha_purge_archive_logs_to(THD *thd, handlerton *db_type, void* args);
+
 
 /*
  transactions: interface to low-level handlerton functions. These are

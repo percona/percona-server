@@ -1,0 +1,30 @@
+#
+# Test bug 1155475
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--source ../include/percona_log_archiving_setup.inc
+
+--source ../include/percona_log_archiving_workload.inc
+--source ../include/percona_log_archiving_check.inc
+
+if ($archived_logs_count == 0)
+{
+  die "0 archived logs have been produced";
+}
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb_log_archive=ON --innodb_log_arch_dir=logs_archive --innodb-log-file-size=1M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+PURGE ARCHIVED LOGS BEFORE NOW();
+
+# server shouldn't crash
+--source ../include/percona_log_archiving_workload.inc
+
+--source ../include/percona_log_archiving_cleanup.inc

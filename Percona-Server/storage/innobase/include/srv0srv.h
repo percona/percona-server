@@ -348,6 +348,8 @@ extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
+extern ulong	srv_log_arch_expire_sec;
+
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
@@ -650,6 +652,18 @@ Function to pass InnoDB status variables to MySQL */
 UNIV_INTERN
 void
 srv_export_innodb_status(void);
+/*==========================*/
+/*************************************************************//**
+Removes old archived transaction log files.
+Both parameters couldn't be provided at the same time.
+@return DB_SUCCESS on success, otherwise DB_ERROR */
+UNIV_INTERN
+dberr_t
+purge_archived_logs(
+	time_t	before_date,		/*!< in: all files modified
+					before timestamp should be removed */
+	lsn_t	before_lsn);		/*!< in: files with this lsn in name
+					and earler should be removed */
 /*==========================*/
 /*******************************************************************//**
 Get current server activity count. We don't hold srv_sys::mutex while

@@ -1,0 +1,31 @@
+#
+# Test innodb_log_archive turning ON/OFF at runtime
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--source ../include/percona_log_archiving_setup.inc
+
+
+--source ../include/percona_log_archiving_workload.inc
+
+SET GLOBAL innodb_log_archive = OFF;
+
+--source ../include/percona_log_archiving_check.inc
+
+let $count = $archived_logs_count;
+
+--source ../include/percona_log_archiving_workload.inc
+
+SET GLOBAL innodb_log_archive = ON;
+
+--source ../include/percona_log_archiving_stat.inc
+
+if ($count != $archived_logs_count)
+{
+  die Test failed. Archived logs being written while innodb_log_archive being turned off.;
+}
+
+--source ../include/percona_log_archiving_cleanup.inc
+

@@ -989,6 +989,32 @@ normalize_table_name_low(
 					 name to lower case */
 
 /*************************************************************//**
+Removes old archived transaction log files.
+@return	true on error */
+static bool innobase_purge_archive_logs(
+	handlerton *hton,		/*!< in: InnoDB handlerton */
+	time_t before_date,		/*!< in: all files modified
+					before timestamp should be removed */
+	const char* to_filename)	/*!< in: this and earler files
+					should be removed */
+{
+	ulint err= DB_ERROR;
+	if (before_date > 0) {
+		err= purge_archived_logs(before_date, 0);
+	} else if (to_filename) {
+		if (is_prefix(to_filename, IB_ARCHIVED_LOGS_PREFIX)) {
+			unsigned long long log_file_lsn = strtoll(to_filename
+					+ IB_ARCHIVED_LOGS_PREFIX_LEN,
+					NULL, 10);
+			if (log_file_lsn > 0 && log_file_lsn < ULLONG_MAX) {
+				err= purge_archived_logs(0, log_file_lsn);
+			}
+		}
+	}
+	return (err != DB_SUCCESS);
+}
+
+/*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return	0 for valid innodb_commit_concurrency */
 static
@@ -2760,6 +2786,7 @@ innobase_init(
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
+	innobase_hton->purge_archive_logs = innobase_purge_archive_logs;
 
 	innobase_hton->data = &innodb_api_cb;
 
@@ -2862,12 +2889,9 @@ mem_free_and_error:
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
-	/* Since innodb_log_arch_dir has no relevance under MySQL,
-	starting from 4.0.6 we always set it the same as
-	innodb_log_group_home_dir: */
-
-	innobase_log_arch_dir = innobase_log_group_home_dir;
-
+	if (!innobase_log_arch_dir) {
+		innobase_log_arch_dir = srv_log_group_home_dir;
+	}
 	srv_arch_dir = innobase_log_arch_dir;
 #endif /* UNIG_LOG_ARCHIVE */
 
@@ -13684,6 +13708,45 @@ innodb_io_capacity_update(
 }
 
 /****************************************************************//**
+Update the system variable innodb_log_arch_expire_sec using
+the "saved" value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_log_archive_expire_update(
+/*==============================*/
+	THD*				thd,		/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,		/*!< in: pointer to
+							system variable */
+	void*				var_ptr,	/*!< out: unused */
+	const void*			save)		/*!< in: immediate result
+							from check function */
+{
+	srv_log_arch_expire_sec = *(ulint*) save;
+}
+
+static
+void
+innodb_log_archive_update(
+/*======================*/
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	my_bool	in_val = *static_cast<const my_bool*>(save);
+
+	if (in_val) {
+		/* turn archiving on */
+		srv_log_archive_on = innobase_log_archive = 1;
+		log_archive_archivelog();
+	} else {
+		/* turn archivng off */
+		srv_log_archive_on = innobase_log_archive = 0;
+		log_archive_noarchivelog();
+	}
+}
+
+/****************************************************************//**
 Update the system variable innodb_max_dirty_pages_pct using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
@@ -15486,13 +15549,19 @@ static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
   "Where full logs should be archived.", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_BOOL(log_archive, innobase_log_archive,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Set to 1 if you want to have logs archived.", NULL, NULL, FALSE);
+  PLUGIN_VAR_OPCMDARG,
+  "Set to 1 if you want to have logs archived.",
+  NULL, innodb_log_archive_update, FALSE);
 #endif /* UNIV_LOG_ARCHIVE */
 
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_ULONG(log_arch_expire_sec,
+  srv_log_arch_expire_sec, PLUGIN_VAR_OPCMDARG,
+  "Expiration time for archived innodb transaction logs.",
+  NULL, innodb_log_archive_expire_update, 0, 0, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
@@ -16140,6 +16209,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #ifdef UNIV_LOG_ARCHIVE
   MYSQL_SYSVAR(log_arch_dir),
   MYSQL_SYSVAR(log_archive),
+  MYSQL_SYSVAR(log_arch_expire_sec),
 #endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),

@@ -46,6 +46,10 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_MINOR	MYSQL_VERSION_MINOR
 #define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
+#ifndef PERCONA_INNODB_VERSION
+#define PERCONA_INNODB_VERSION 22
+#endif
+
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
 calculated in make_version_string() in sql/sql_show.cc like this:
@@ -58,7 +62,8 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_STR			\
 	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
 	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
-	IB_TO_STR(INNODB_VERSION_BUGFIX)
+	IB_TO_STR(INNODB_VERSION_BUGFIX) "-"	\
+	IB_TO_STR(PERCONA_INNODB_VERSION)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/"	\
 	IB_TO_STR(MYSQL_VERSION_MAJOR) "."		\
@@ -88,6 +93,9 @@ used throughout InnoDB but do not include too much themselves.  They
 support cross-platform development and expose comonly used SQL names. */
 
 # include <my_global.h>
+# ifdef HAVE_MALLOC_H
+#  include <malloc.h>
+# endif
 # include <my_thread.h>
 
 # ifndef UNIV_INNOCHECKSUM
@@ -245,6 +253,13 @@ rarely invoked function for size instead for speed. */
 # define UNIV_COLD MY_ATTRIBUTE((cold))
 #else
 # define UNIV_COLD /* empty */
+#endif
+
+#ifdef UNIV_LINUX
+# define UNIV_THREAD_LOCAL __thread
+#else
+/* FIXME: the TLS variables are silently broken on other platforms for now */
+# define UNIV_THREAD_LOCAL
 #endif
 
 #ifndef UNIV_MUST_NOT_INLINE
@@ -425,6 +440,7 @@ typedef unsigned __int32 ib_uint32_t;
 /* Use the integer types and formatting strings defined in the C99 standard. */
 # define UINT32PF	"%" PRIu32
 # define UINT64PF	"%" PRIu64
+# define INT64PF	"%" PRIi64
 # define UINT64PFx	"%016" PRIx64
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;

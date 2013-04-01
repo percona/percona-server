@@ -85,7 +85,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for stored procedure metadata lock", 0},
   {0, "Waiting for trigger metadata lock", 0},
   {0, "Waiting for event metadata lock", 0},
-  {0, "Waiting for commit lock", 0}
+  {0, "Waiting for commit lock", 0},
+  {0, "User lock", 0} /* Be compatible with old status. */
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -125,11 +126,15 @@ public:
   ~MDL_map_partition();
   inline MDL_lock *find_or_insert(const MDL_key *mdl_key,
                                   my_hash_value_type hash_value);
+  inline MDL_lock *find(const MDL_key *mdl_key,
+                        my_hash_value_type hash_value);
   inline void remove(MDL_lock *lock);
   my_hash_value_type get_key_hash(const MDL_key *mdl_key) const
   {
     return my_calc_hash(&m_locks, mdl_key->ptr(), mdl_key->length());
   }
+  unsigned long get_lock_owner(my_hash_value_type hash_value,
+                               const MDL_key *mdl_key);
 private:
   bool move_from_hash_to_lock_mutex(MDL_lock *lock);
   /** A partition of all acquired locks in the server. */
@@ -176,6 +181,7 @@ public:
   void destroy();
   MDL_lock *find_or_insert(const MDL_key *key);
   void remove(MDL_lock *lock);
+  unsigned long get_lock_owner(const MDL_key *key);
 private:
   /** Array of partitions where the locks are actually stored. */
   Dynamic_array<MDL_map_partition *> m_partitions;
@@ -428,6 +434,7 @@ public:
 
   inline static MDL_lock *create(const MDL_key *key,
                                  MDL_map_partition *map_part);
+  inline unsigned long get_lock_owner() const;
 
   void reschedule_waiters();
 
@@ -882,6 +889,36 @@ retry:
 
 
 /**
+  Find MDL_lock object corresponding to the key and hash value in
+  MDL_map partition.
+
+  @retval non-NULL - Success. MDL_lock instance for the key with
+                     *read*-locked MDL_lock::m_rwlock.
+  @retval NULL     - Failure (OOM).
+*/
+
+unsigned long
+MDL_map_partition::get_lock_owner(my_hash_value_type hash_value,
+                                  const MDL_key *mdl_key)
+{
+  unsigned long res = 0;
+  MDL_lock *lock;
+  mysql_mutex_lock(&m_mutex);
+  lock= (MDL_lock*) my_hash_search_using_hash_value(&m_locks,
+                                                    hash_value,
+                                                    mdl_key->ptr(),
+                                                    mdl_key->length());
+  if (lock)
+  {
+    mysql_prlock_rdlock(&lock->m_rwlock);
+    res= lock->get_lock_owner();
+    mysql_prlock_unlock(&lock->m_rwlock);
+  }
+  mysql_mutex_unlock(&m_mutex);
+  return res;
+}
+
+/**
   Release MDL_map_partition::m_mutex mutex and lock MDL_lock::m_rwlock for lock
   object from the hash. Handle situation when object was released
   while we held no locks.
@@ -951,6 +988,36 @@ bool MDL_map_partition::move_from_hash_to_lock_mutex(MDL_lock *lock)
     return TRUE;
   }
   return FALSE;
+}
+
+
+/**
+ * Return thread id of the owner of the lock, if it is owned.
+ */
+
+unsigned long
+MDL_map::get_lock_owner(const MDL_key *mdl_key)
+{
+  MDL_lock *lock;
+  unsigned long res= 0;
+
+  if (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
+      mdl_key->mdl_namespace() == MDL_key::COMMIT)
+  {
+    lock= (mdl_key->mdl_namespace() == MDL_key::GLOBAL) ? m_global_lock :
+                                                          m_commit_lock;
+    mysql_prlock_rdlock(&lock->m_rwlock);
+    res= lock->get_lock_owner();
+    mysql_prlock_unlock(&lock->m_rwlock);
+  }
+  else
+  {
+    my_hash_value_type hash_value= m_partitions.at(0)->get_key_hash(mdl_key);
+    uint part_id= hash_value % mdl_locks_hash_partitions;
+    MDL_map_partition *part= m_partitions.at(part_id);
+    res= part->get_lock_owner(hash_value, mdl_key);
+  }
+  return res;
 }
 
 
@@ -1745,6 +1812,23 @@ MDL_lock::can_grant_lock(enum_mdl_type type_arg,
 }
 
 
+/**
+  Return thread id of the thread to which the first ticket was
+  granted.
+*/
+
+inline unsigned long
+MDL_lock::get_lock_owner() const
+{
+  Ticket_iterator it(m_granted);
+  MDL_ticket *ticket;
+
+  if ((ticket= it++))
+    return thd_get_thread_id(ticket->get_ctx()->get_owner()->get_thd());
+  return 0;
+}
+
+
 /** Remove a ticket from waiting or pending queue and wakeup up waiters. */
 
 void MDL_lock::remove_ticket(Ticket_list MDL_lock::*list, MDL_ticket *ticket)
@@ -2212,31 +2296,37 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   find_deadlock();
 
-  if (lock->needs_notification(ticket))
+  struct timespec abs_shortwait;
+  set_timespec(abs_shortwait, 1);
+  wait_status= MDL_wait::EMPTY;
+
+  while (cmp_timespec(abs_shortwait, abs_timeout) <= 0)
   {
-    struct timespec abs_shortwait;
-    set_timespec(abs_shortwait, 1);
-    wait_status= MDL_wait::EMPTY;
+    /* abs_timeout is far away. Wait a short while and notify locks. */
+    wait_status= m_wait.timed_wait(m_owner, &abs_shortwait, FALSE,
+                                   mdl_request->key.get_wait_state_name());
 
-    while (cmp_timespec(abs_shortwait, abs_timeout) <= 0)
+    if (wait_status != MDL_wait::EMPTY)
+      break;
+    /* Check if the client is gone while we were waiting. */
+    if (! m_owner->is_connected())
     {
-      /* abs_timeout is far away. Wait a short while and notify locks. */
-      wait_status= m_wait.timed_wait(m_owner, &abs_shortwait, FALSE,
-                                     mdl_request->key.get_wait_state_name());
-
-      if (wait_status != MDL_wait::EMPTY)
-        break;
-
-      mysql_prlock_wrlock(&lock->m_rwlock);
-      lock->notify_conflicting_locks(this);
-      mysql_prlock_unlock(&lock->m_rwlock);
-      set_timespec(abs_shortwait, 1);
+      /*
+       * The client is disconnected. Don't wait forever:
+       * assume it's the same as a wait timeout, this
+       * ensures all error handling is correct.
+       */
+      wait_status= MDL_wait::TIMEOUT;
+      break;
     }
-    if (wait_status == MDL_wait::EMPTY)
-      wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
-                                     mdl_request->key.get_wait_state_name());
+
+    mysql_prlock_wrlock(&lock->m_rwlock);
+    if (lock->needs_notification(ticket))
+      lock->notify_conflicting_locks(this);
+    mysql_prlock_unlock(&lock->m_rwlock);
+    set_timespec(abs_shortwait, 1);
   }
-  else
+  if (wait_status == MDL_wait::EMPTY)
     wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
                                    mdl_request->key.get_wait_state_name());
 
@@ -2735,7 +2825,7 @@ void MDL_context::release_lock(MDL_ticket *ticket)
   the corresponding lists, i.e. stored in reverse temporal order.
   This allows to employ this function to:
   - back off in case of a lock conflict.
-  - release all locks in the end of a statment or transaction
+  - release all locks in the end of a statement or transaction
   - rollback to a savepoint.
 */
 
@@ -2854,6 +2944,22 @@ MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
 
 
 /**
+  Return thread id of the owner of the lock or 0 if
+  there is no owner.
+  @note: Lock type is not considered at all, the function
+  simply checks that there is some lock for the given key.
+
+  @return  thread id of the owner of the lock or 0
+*/
+
+unsigned long
+MDL_context::get_lock_owner(MDL_key *key)
+{
+  return mdl_locks.get_lock_owner(key);
+}
+
+
+/**
   Check if we have any pending locks which conflict with existing shared lock.
 
   @pre The ticket must match an acquired lock.
@@ -2866,6 +2972,11 @@ bool MDL_ticket::has_pending_conflicting_lock() const
   return m_lock->has_pending_conflicting_lock(m_type);
 }
 
+/** Return a key identifying this lock. */
+MDL_key *MDL_ticket::get_key() const
+{
+        return &m_lock->key;
+}
 
 /**
   Releases metadata locks that were acquired after a specific savepoint.

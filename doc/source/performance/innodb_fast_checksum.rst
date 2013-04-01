@@ -6,7 +6,7 @@
 
 .. warning::
 
- This feature has been deprecated after |Percona Server| :rn:`5.5.28-29.2`.
+  This feature has been deprecated after |Percona Server| :rn:`5.5.28-29.2` and it will not be available in |Percona Server| 5.6, because the innodb_checksum_algorithm feature in |MySQL| 5.6 makes it redundant.
 
 |InnoDB| writes a checksum at the end of each data page in order to detect data files corruption. However computing this checksum requires CPU cycles and in some circumstances this extra overhead can become significant.
 

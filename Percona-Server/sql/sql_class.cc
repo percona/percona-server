@@ -1356,8 +1356,6 @@ void THD::reset_diff_stats(void)
 // Updates 'diff' stats of a THD.
 void THD::update_stats(bool ran_command)
 {
-  if (opt_userstat)
-  {
   diff_total_busy_time+=            busy_time;
   diff_total_cpu_time+=             cpu_time;
   diff_total_bytes_received+=       bytes_received;
@@ -1402,7 +1400,7 @@ void THD::update_stats(bool ran_command)
   /* reset counters to zero to avoid double-counting since values
      are already store in diff_total_*.
   */
-  }
+
   busy_time=            0;
   cpu_time=             0;
   bytes_received=       0;

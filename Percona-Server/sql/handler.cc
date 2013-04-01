@@ -2348,8 +2348,13 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
-  rows_read= rows_changed= 0;
-  memset(index_rows_read, 0, sizeof(index_rows_read));
+
+  if (unlikely(opt_userstat))
+  {
+    rows_read= rows_changed= 0;
+    memset(index_rows_read, 0, sizeof(index_rows_read));
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -3861,12 +3866,6 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 // Updates the global table stats with the TABLE this handler represents.
 void handler::update_global_table_stats()
 {
-  if (!opt_userstat)
-  {
-    rows_read= rows_changed= 0;
-    return;
-  }
-
   if (!rows_read && !rows_changed)
     return;  // Nothing to update.
   // table_cache_key is db_name + '\0' + table_name + '\0'.
@@ -3922,15 +3921,6 @@ void handler::update_global_index_stats()
   // table_cache_key is db_name + '\0' + table_name + '\0'.
   if (!table->s || !table->s->table_cache_key.str || !table->s->table_name.str)
     return;
-
-  if (!opt_userstat)
-  {
-    for (uint x= 0; x < table->s->keys; ++x)
-    {
-      index_rows_read[x]= 0;
-    }
-    return;
-  }
 
   for (uint x = 0; x < table->s->keys; ++x)
   {

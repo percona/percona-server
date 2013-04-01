@@ -2677,7 +2677,14 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
+      res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0);
+      if (res)
+      {
+        /* Got error or warning. Set res to 1 if error */
+        if (!(res= thd->is_error()))
+          my_ok(thd);                           // CREATE ... IF NOT EXISTS
+      }
+      else
       {
         /* The table already exists */
         if (create_table->table)
@@ -5920,9 +5927,13 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     else
       thd->cpu_time = 0;
   }
+
   // Updates THD stats and the global user stats.
-  thd->update_stats(true);
-  update_global_user_stats(thd, true, time(NULL));
+  if (unlikely(opt_userstat))
+  {
+    thd->update_stats(true);
+    update_global_user_stats(thd, true, time(NULL));
+  }
 
   DBUG_VOID_RETURN;
 }

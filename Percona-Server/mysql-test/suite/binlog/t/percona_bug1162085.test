@@ -1,0 +1,30 @@
+########################################################################
+# Bug #1162085: Percona server 5.5.30-rel30.1.465 reproducable hang
+########################################################################
+
+-- source include/have_log_bin.inc
+-- source include/have_innodb.inc
+
+CREATE TABLE t1 (data LONGBLOB) ENGINE=InnoDB;
+
+START TRANSACTION;
+
+--disable_query_log
+let $i=1024;
+while($i)
+{
+	# Don't use REPEAT() here so we generate long enough writes to the
+	# binlog cache in both stmt and row-based mode
+
+	INSERT INTO t1 (data) VALUES ('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+	dec $i;
+}
+--enable_query_log
+
+SAVEPOINT savepoint_1;
+
+ROLLBACK TO SAVEPOINT_1;
+
+COMMIT;
+
+DROP TABLE t1;

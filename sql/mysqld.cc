@@ -1926,7 +1926,7 @@ void clean_up(bool print_message)
 #endif
   query_cache_destroy();
   hostname_cache_free();
-  item_user_lock_free();
+  item_func_sleep_free();
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
@@ -2552,7 +2552,6 @@ static void network_init(void)
     if (mysqld_extra_port)
       extra_ip_sock= activate_tcp_port(mysqld_extra_port);
   }
-
 
 #ifdef _WIN32
   /* create named pipe */

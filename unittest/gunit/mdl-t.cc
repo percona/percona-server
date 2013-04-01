@@ -45,6 +45,11 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
 {
 }
 
+extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
+{
+  return 1;
+}
+
 /*
   A mock error handler.
 */

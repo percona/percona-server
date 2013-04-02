@@ -13,9 +13,6 @@ Complete documentation on the *HandlerSocket* plugin, including installation and
 
 The plugin is disabled by default. To enable it in |Percona Server| with |XtraDB|, see below.
 
-**Please be aware that this is currently an experimental feature, and use it as such.**
-
-
 Version Specific Information
 ============================
 

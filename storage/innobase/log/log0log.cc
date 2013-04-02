@@ -265,13 +265,12 @@ log_buffer_extend(
 }
 
 /************************************************************//**
-Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release.
+Opens the log for log_write_low. The log must be closed with log_close.
 @return	start lsn of the log record */
 UNIV_INTERN
 lsn_t
-log_reserve_and_open(
-/*=================*/
+log_open(
+/*=====*/
 	ulint	len)	/*!< in: length of data to be catenated */
 {
 	log_t*	log			= log_sys;
@@ -298,7 +297,6 @@ log_reserve_and_open(
 		log_buffer_extend((len + 1) * 2);
 	}
 loop:
-	mutex_enter(&(log->mutex));
 	ut_ad(!recv_no_log_write);
 
 	if (log->is_extending) {
@@ -333,6 +331,8 @@ loop:
 
 		ut_ad(++count < 50);
 
+		mutex_enter(&(log->mutex));
+
 		goto loop;
 	}
 
@@ -352,6 +352,8 @@ loop:
 			log_archive_do(TRUE, &dummy);
 
 			ut_ad(++count < 50);
+
+			mutex_enter(&(log->mutex));
 
 			goto loop;
 		}

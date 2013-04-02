@@ -271,12 +271,14 @@ mtr_log_reserve_and_write(
 
 			return;
 		}
+	} else {
+		mutex_enter(&log_sys->mutex);
 	}
 
 	data_size = dyn_array_get_data_size(mlog);
 
 	/* Open the database log for log_write_low */
-	mtr->start_lsn = log_reserve_and_open(data_size);
+	mtr->start_lsn = log_open(data_size);
 
 	if (mtr->log_mode == MTR_LOG_ALL) {
 

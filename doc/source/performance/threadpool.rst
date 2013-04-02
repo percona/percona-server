@@ -80,7 +80,7 @@ This variable can be used to define the number of threads that can use the CPU a
 .. variable:: thread_pool_stall_limit
 
      :cli: Yes
-     :conf: No
+     :conf: Yes
      :scope: Global
      :dyn: No
      :vartype: Numeric

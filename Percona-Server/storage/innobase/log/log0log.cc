@@ -817,15 +817,11 @@ log_init(void)
 	rw_lock_create(archive_lock_key, &log_sys->archive_lock,
 		       SYNC_NO_ORDER_CHECK);
 
-	log_sys->archive_buf = NULL;
-
-	/* ut_align(
-	ut_malloc(LOG_ARCHIVE_BUF_SIZE
-	+ OS_FILE_LOG_BLOCK_SIZE),
-	OS_FILE_LOG_BLOCK_SIZE); */
-	log_sys->archive_buf_size = 0;
-
-	/* memset(log_sys->archive_buf, '\0', LOG_ARCHIVE_BUF_SIZE); */
+	log_sys->archive_buf = static_cast<byte*>(
+		ut_align(mem_zalloc(LOG_ARCHIVE_BUF_SIZE
+				    + OS_FILE_LOG_BLOCK_SIZE),
+			 OS_FILE_LOG_BLOCK_SIZE));
+	log_sys->archive_buf_size = LOG_ARCHIVE_BUF_SIZE;
 
 	log_sys->archiving_on = os_event_create();
 #endif /* UNIV_LOG_ARCHIVE */
@@ -896,10 +892,10 @@ log_group_init(
 		mem_zalloc(sizeof(byte**) * n_files));
 
 #ifdef UNIV_LOG_ARCHIVE
-	group->archive_file_header_bufs_ptr = static_cast<byte*>(
+	group->archive_file_header_bufs_ptr = static_cast<byte**>(
 		mem_zalloc( sizeof(byte*) * n_files));
 
-	group->archive_file_header_bufs = static_cast<byte*>(
+	group->archive_file_header_bufs = static_cast<byte**>(
 		mem_zalloc(sizeof(byte*) * n_files));
 #endif /* UNIV_LOG_ARCHIVE */
 
@@ -924,7 +920,7 @@ log_group_init(
 #ifdef UNIV_LOG_ARCHIVE
 	group->archive_space_id = archive_space_id;
 
-	group->archived_file_no = 0;
+	group->archived_file_no = LOG_START_LSN;
 	group->archived_offset = 0;
 #endif /* UNIV_LOG_ARCHIVE */
 
@@ -1708,15 +1704,13 @@ log_checkpoint_set_nth_group_info(
 /*==============================*/
 	byte*	buf,	/*!< in: buffer for checkpoint info */
 	ulint	n,	/*!< in: nth slot */
-	ulint	file_no,/*!< in: archived file number */
-	ulint	offset)	/*!< in: archived file offset */
+	lsn_t	file_no)/*!< in: archived file number */
 {
 	ut_ad(n < LOG_MAX_N_GROUPS);
 
-	mach_write_to_4(buf + LOG_CHECKPOINT_GROUP_ARRAY
-			+ 8 * n + LOG_CHECKPOINT_ARCHIVED_FILE_NO, file_no);
-	mach_write_to_4(buf + LOG_CHECKPOINT_GROUP_ARRAY
-			+ 8 * n + LOG_CHECKPOINT_ARCHIVED_OFFSET, offset);
+	mach_write_to_8(buf + LOG_CHECKPOINT_GROUP_ARRAY +
+			8 * n + LOG_CHECKPOINT_ARCHIVED_FILE_NO,
+			file_no);
 }
 
 /*******************************************************************//**
@@ -1727,15 +1721,12 @@ log_checkpoint_get_nth_group_info(
 /*==============================*/
 	const byte*	buf,	/*!< in: buffer containing checkpoint info */
 	ulint		n,	/*!< in: nth slot */
-	ulint*		file_no,/*!< out: archived file number */
-	ulint*		offset)	/*!< out: archived file offset */
+	lsn_t*		file_no)/*!< out: archived file number */
 {
 	ut_ad(n < LOG_MAX_N_GROUPS);
 
-	*file_no = mach_read_from_4(buf + LOG_CHECKPOINT_GROUP_ARRAY
-				    + 8 * n + LOG_CHECKPOINT_ARCHIVED_FILE_NO);
-	*offset = mach_read_from_4(buf + LOG_CHECKPOINT_GROUP_ARRAY
-				   + 8 * n + LOG_CHECKPOINT_ARCHIVED_OFFSET);
+	*file_no = mach_read_from_8(buf + LOG_CHECKPOINT_GROUP_ARRAY +
+				8 * n + LOG_CHECKPOINT_ARCHIVED_FILE_NO);
 }
 
 /******************************************************//**
@@ -1795,7 +1786,7 @@ log_group_checkpoint(
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
-		log_checkpoint_set_nth_group_info(buf, i, 0, 0);
+		log_checkpoint_set_nth_group_info(buf, i, 0);
 	}
 
 	group2 = UT_LIST_GET_FIRST(log_sys->log_groups);
@@ -1803,10 +1794,9 @@ log_group_checkpoint(
 	while (group2) {
 		log_checkpoint_set_nth_group_info(buf, group2->id,
 #ifdef UNIV_LOG_ARCHIVE
-						  group2->archived_file_no,
-						  group2->archived_offset
+						  group2->archived_file_no
 #else /* UNIV_LOG_ARCHIVE */
-						  0, 0
+						  0
 #endif /* UNIV_LOG_ARCHIVE */
 						  );
 
@@ -2225,7 +2215,7 @@ loop:
 	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id, 0,
 	       (ulint) (source_offset / UNIV_PAGE_SIZE),
 	       (ulint) (source_offset % UNIV_PAGE_SIZE),
-	       len, buf, NULL);
+	       len, buf, (type == LOG_ARCHIVE) ? &log_archive_io : NULL);
 
 	start_lsn += len;
 	buf += len;
@@ -2244,12 +2234,68 @@ void
 log_archived_file_name_gen(
 /*=======================*/
 	char*	buf,	/*!< in: buffer where to write */
+	ulint	buf_len,/*!< in: buffer length */
 	ulint	id __attribute__((unused)),
 			/*!< in: group id;
 			currently we only archive the first group */
-	ulint	file_no)/*!< in: file number */
+	lsn_t	file_no)/*!< in: file number */
 {
-	sprintf(buf, "%sib_arch_log_%010lu", srv_arch_dir, (ulong) file_no);
+	ulint	dirnamelen;
+
+	dirnamelen = strlen(srv_arch_dir);
+
+	ut_a(buf_len > dirnamelen +
+		       IB_ARCHIVED_LOGS_SERIAL_LEN +
+		       IB_ARCHIVED_LOGS_PREFIX_LEN + 2);
+
+	strcpy(buf, srv_arch_dir);
+
+	if (buf[dirnamelen-1] != SRV_PATH_SEPARATOR) {
+		buf[dirnamelen++] = SRV_PATH_SEPARATOR;
+	}
+	sprintf(buf + dirnamelen, IB_ARCHIVED_LOGS_PREFIX 
+		"%0" IB_TO_STR(IB_ARCHIVED_LOGS_SERIAL_LEN) "llu",
+		file_no);
+}
+
+/******************************************************//**
+Get offset within archived log file to continue to write
+with. */
+UNIV_INTERN
+void
+log_archived_get_offset(
+/*=====================*/
+	log_group_t*	group,		/*!< in: log group */
+	lsn_t		file_no,	/*!< in: archive log file number */
+	lsn_t		archived_lsn,	/*!< in: last archived LSN */
+	lsn_t*		offset)		/*!< out: offset within archived file */
+{
+	char		file_name[OS_FILE_MAX_PATH];
+	ibool		exists;
+	os_file_type_t	type;
+
+	log_archived_file_name_gen(file_name,
+		sizeof(file_name), group->id, file_no);
+
+	ut_a(os_file_status(file_name, &exists,	&type));
+
+	if (!exists) {
+		*offset = 0;
+		return;
+	}
+
+	*offset = archived_lsn - file_no + LOG_FILE_HDR_SIZE;
+
+	if (archived_lsn != IB_ULONGLONG_MAX) {
+		*offset = archived_lsn - file_no + LOG_FILE_HDR_SIZE;
+	} else {
+		/* Archiving was OFF prior startup */
+		*offset = 0;
+	}
+
+	ut_a(group->file_size >= *offset + LOG_FILE_HDR_SIZE);
+
+	return;
 }
 
 /******************************************************//**
@@ -2261,7 +2307,7 @@ log_group_archive_file_header_write(
 	log_group_t*	group,		/*!< in: log group */
 	ulint		nth_file,	/*!< in: header to the nth file in the
 					archive log file space */
-	ulint		file_no,	/*!< in: archived file number */
+	lsn_t		file_no,	/*!< in: archived file number */
 	ib_uint64_t	start_lsn)	/*!< in: log file data starts at this
 					lsn */
 {
@@ -2287,6 +2333,7 @@ log_group_archive_file_header_write(
 	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
+	       0,
 	       dest_offset / UNIV_PAGE_SIZE,
 	       dest_offset % UNIV_PAGE_SIZE,
 	       2 * OS_FILE_LOG_BLOCK_SIZE,
@@ -2322,6 +2369,7 @@ log_group_archive_completed_header_write(
 	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
+	       0,
 	       dest_offset / UNIV_PAGE_SIZE,
 	       dest_offset % UNIV_PAGE_SIZE,
 	       OS_FILE_LOG_BLOCK_SIZE,
@@ -2340,7 +2388,7 @@ log_group_archive(
 	os_file_t	file_handle;
 	lsn_t		start_lsn;
 	lsn_t		end_lsn;
-	char		name[1024];
+	char		name[OS_FILE_MAX_PATH];
 	byte*		buf;
 	ulint		len;
 	ibool		ret;
@@ -2372,12 +2420,19 @@ loop:
 
 		if (next_offset % group->file_size == 0) {
 			open_mode = OS_FILE_CREATE;
+			if (n_files == 0) {
+				/* Adjust archived_file_no to match start_lsn
+				   which is written in file header as well */
+				group->archived_file_no = start_lsn;
+			}
 		} else {
 			open_mode = OS_FILE_OPEN;
 		}
 
-		log_archived_file_name_gen(name, group->id,
-					   group->archived_file_no + n_files);
+		log_archived_file_name_gen(name, sizeof(name), group->id,
+					   group->archived_file_no +
+					   n_files * (group->file_size -
+					   LOG_FILE_HDR_SIZE));
 
 		file_handle = os_file_create(innodb_file_log_key,
 					     name, open_mode,
@@ -2414,13 +2469,14 @@ loop:
 
 		/* Add the archive file as a node to the space */
 
-		fil_node_create(name, group->file_size / UNIV_PAGE_SIZE,
-				group->archive_space_id, FALSE);
+		ut_a(fil_node_create(name, group->file_size / UNIV_PAGE_SIZE,
+				     group->archive_space_id, FALSE));
 
 		if (next_offset % group->file_size == 0) {
 			log_group_archive_file_header_write(
 				group, n_files,
-				group->archived_file_no + n_files,
+				group->archived_file_no +
+				n_files * (group->file_size - LOG_FILE_HDR_SIZE),
 				start_lsn);
 
 			next_offset += LOG_FILE_HDR_SIZE;
@@ -2451,6 +2507,7 @@ loop:
 	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->archive_space_id,
+	       0,
 	       (ulint) (next_offset / UNIV_PAGE_SIZE),
 	       (ulint) (next_offset % UNIV_PAGE_SIZE),
 	       ut_calc_align(len, OS_FILE_LOG_BLOCK_SIZE), buf,
@@ -2469,7 +2526,8 @@ loop:
 		goto loop;
 	}
 
-	group->next_archived_file_no = group->archived_file_no + n_files;
+	group->next_archived_file_no = group->archived_file_no +
+			n_files * (group->file_size - LOG_FILE_HDR_SIZE);
 	group->next_archived_offset = next_offset % group->file_size;
 
 	ut_a(group->next_archived_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -2501,7 +2559,7 @@ log_archive_write_complete_groups(void)
 /*===================================*/
 {
 	log_group_t*	group;
-	ulint		end_offset;
+	lsn_t		end_offset;
 	ulint		trunc_files;
 	ulint		n_files;
 	ib_uint64_t	start_lsn;
@@ -2822,18 +2880,8 @@ log_archive_close_groups(
 					 trunc_len);
 		if (increment_file_count) {
 			group->archived_offset = 0;
-			group->archived_file_no += 2;
 		}
 
-#ifdef UNIV_DEBUG
-		if (log_debug_writes) {
-			fprintf(stderr,
-				"Incrementing arch file no to %lu"
-				" in log group %lu\n",
-				(ulong) group->archived_file_no + 2,
-				(ulong) group->id);
-		}
-#endif /* UNIV_DEBUG */
 	}
 }
 
@@ -3087,7 +3135,6 @@ logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
 	lsn_t			lsn;
-	ulint			arch_log_no;
 	ulint			count = 0;
 	ulint			total_trx;
 	ulint			pending_io;
@@ -3304,15 +3351,7 @@ loop:
 		goto loop;
 	}
 
-	arch_log_no = 0;
-
 #ifdef UNIV_LOG_ARCHIVE
-	UT_LIST_GET_FIRST(log_sys->log_groups)->archived_file_no;
-
-	if (0 == UT_LIST_GET_FIRST(log_sys->log_groups)->archived_offset) {
-
-		arch_log_no--;
-	}
 
 	log_archive_close_groups(TRUE);
 #endif /* UNIV_LOG_ARCHIVE */
@@ -3371,7 +3410,7 @@ loop:
 	srv_shutdown_lsn = lsn;
 
 	if (!srv_read_only_mode) {
-		fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
+		fil_write_flushed_lsn_to_data_files(lsn, 0);
 
 		fil_flush_file_spaces(FIL_TABLESPACE);
 	}
@@ -3594,7 +3633,7 @@ log_shutdown(void)
 
 #ifdef UNIV_LOG_ARCHIVE
 	rw_lock_free(&log_sys->archive_lock);
-	os_event_create();
+	os_event_free(log_sys->archiving_on);
 #endif /* UNIV_LOG_ARCHIVE */
 
 #ifdef UNIV_LOG_DEBUG

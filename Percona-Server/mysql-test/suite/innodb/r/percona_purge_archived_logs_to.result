@@ -1,0 +1,35 @@
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+drop table if exists t;
+create table t (a int not null) ENGINE=InnoDB;
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
+insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
+SELECT sleep(1);
+sleep(1)
+0
+insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
+SELECT sleep(1);
+sleep(1)
+0
+insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
+SELECT sleep(1);
+sleep(1)
+0
+insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
+Check OK
+PURGE ARCHIVED LOGS TO 'val';
+PURGE ARCHIVED LOGS TO '#invalid_file';
+ERROR HY000: Unknown error during log purge
+DROP TABLE t;

@@ -3115,8 +3115,10 @@ recv_recovery_from_checkpoint_start_func(
 
 	while (group) {
 		log_checkpoint_get_nth_group_info(buf, group->id,
-						  &(group->archived_file_no),
-						  &(group->archived_offset));
+						  &(group->archived_file_no));
+
+		log_archived_get_offset(group, group->archived_file_no,
+			archived_lsn, &(group->archived_offset));
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
@@ -3690,7 +3692,7 @@ log_group_recover_from_archive_file(
 	os_offset_t	read_offset;
 	os_offset_t	file_size;
 	int		input_char;
-	char		name[10000];
+	char		name[OS_FILE_MAX_PATH];
 
 	ut_a(0);
 
@@ -3699,7 +3701,8 @@ try_open_again:
 
 	/* Add the file to the archive file space; open the file */
 
-	log_archived_file_name_gen(name, group->id, group->archived_file_no);
+	log_archived_file_name_gen(name, sizeof(name),
+				   group->id, group->archived_file_no);
 
 	file_handle = os_file_create(innodb_file_log_key,
 				     name, OS_FILE_OPEN,
@@ -3748,20 +3751,19 @@ ask_again:
 
 	/* Add the archive file as a node to the space */
 
-	fil_node_create(name, 1 + file_size / UNIV_PAGE_SIZE,
-			group->archive_space_id, FALSE);
-#if RECV_SCAN_SIZE < LOG_FILE_HDR_SIZE
-# error "RECV_SCAN_SIZE < LOG_FILE_HDR_SIZE"
-#endif
+	ut_a(fil_node_create(name, 1 + file_size / UNIV_PAGE_SIZE,
+			     group->archive_space_id, FALSE));
+	ut_a(RECV_SCAN_SIZE >= LOG_FILE_HDR_SIZE);
 
 	/* Read the archive file header */
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->archive_space_id, 0, 0,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->archive_space_id, 0,
+	       0, 0,
 	       LOG_FILE_HDR_SIZE, buf, NULL);
 
 	/* Check if the archive file header is consistent */
 
 	if (mach_read_from_4(buf + LOG_GROUP_ID) != group->id
-	    || mach_read_from_4(buf + LOG_FILE_NO)
+	    || mach_read_from_8(buf + LOG_FILE_START_LSN)
 	    != group->archived_file_no) {
 		fprintf(stderr,
 			"InnoDB: Archive file header inconsistent %s\n", name);
@@ -3828,7 +3830,7 @@ ask_again:
 #endif /* UNIV_DEBUG */
 
 		fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE,
-		       group->archive_space_id, read_offset / UNIV_PAGE_SIZE,
+		       group->archive_space_id, 0, read_offset / UNIV_PAGE_SIZE,
 		       read_offset % UNIV_PAGE_SIZE, len, buf, NULL);
 
 		ret = recv_scan_log_recs(
@@ -3863,14 +3865,14 @@ ask_again:
 Recovers from archived log files, and also from log files, if they exist.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 recv_recovery_from_archive_start(
 /*=============================*/
 	ib_uint64_t	min_flushed_lsn,/*!< in: min flushed lsn field from the
 					data files */
 	ib_uint64_t	limit_lsn,	/*!< in: recover up to this lsn if
 					possible */
-	ulint		first_log_no)	/*!< in: number of the first archived
+	lsn_t		first_log_no)	/*!< in: number of the first archived
 					log file to use in the recovery; the
 					file will be searched from
 					INNOBASE_LOG_ARCH_DIR specified in
@@ -3880,7 +3882,7 @@ recv_recovery_from_archive_start(
 	ulint		group_id;
 	ulint		trunc_len;
 	ibool		ret;
-	ulint		err;
+	dberr_t		err;
 
 	ut_a(0);
 
@@ -3939,7 +3941,7 @@ recv_recovery_from_archive_start(
 						 trunc_len);
 		}
 
-		group->archived_file_no++;
+		group->archived_file_no += group->file_size - LOG_FILE_HDR_SIZE;
 	}
 
 	if (recv_sys->recovered_lsn < limit_lsn) {

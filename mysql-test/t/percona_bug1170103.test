@@ -1,0 +1,23 @@
+########################################################################
+# Byg #1170103: Memory leak @ read_view_open_now...
+########################################################################
+
+--source include/have_query_cache.inc
+--source include/have_innodb.inc
+
+CREATE TABLE t(a INT) ENGINE=InnoDB;
+INSERT INTO t VALUES (1), (2), (3);
+
+SET @old_query_cache_size=@@query_cache_size;
+SET @old_query_cache_type=@@query_cache_type;
+
+SET GLOBAL query_cache_size=1024*1024;
+SET GLOBAL query_cache_type=1;
+
+SELECT * FROM t;
+SELECT * FROM t;
+
+SET GLOBAL query_cache_size=@old_query_cache_size;
+SET GLOBAL query_cache_type=@old_query_cache_type;
+
+DROP TABLE t;

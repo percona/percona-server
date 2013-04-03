@@ -22,6 +22,9 @@ extern uint threadpool_size; /* Number of parallel executing threads */
 extern uint threadpool_stall_limit;  /* time interval in 10 ms units for stall checks*/
 extern uint threadpool_max_threads;  /* Maximum threads in pool */
 extern uint threadpool_oversubscribe;  /* Maximum active threads in group */
+#ifndef _WIN32
+extern uint threadpool_high_prio_tickets;      /* High prio queue tickets */
+#endif
 
 
 

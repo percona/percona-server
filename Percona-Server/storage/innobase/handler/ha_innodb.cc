@@ -202,6 +202,7 @@ static ulong    innobase_sys_stats_root_page		= 0;
 #endif
 static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 static uint	innobase_buffer_pool_shm_key		= 0;
+static ulong	srv_lazy_drop_table			= 0;
 
 
 static char*	internal_innobase_data_file_path	= NULL;
@@ -3082,6 +3083,12 @@ innobase_change_buffering_inited_ok:
 		fprintf(stderr,
 			"InnoDB: Warning: innodb_buffer_pool_shm_key is deprecated function.\n"
 			"InnoDB:          innodb_buffer_pool_shm_key was ignored.\n");
+	}
+
+	if (srv_lazy_drop_table) {
+		fprintf(stderr,
+			"InnoDB: Warning: "
+			"innodb_lazy_drop_table is deprecated and ignored.\n");
 	}
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
@@ -13083,8 +13090,7 @@ static	MYSQL_SYSVAR_ENUM(corrupt_table_action, srv_pass_corrupt_table,
 
 static MYSQL_SYSVAR_ULONG(lazy_drop_table, srv_lazy_drop_table,
   PLUGIN_VAR_RQCMDARG,
-  "At deleting tablespace, only miminum needed processes at the time are done. "
-  "e.g. for http://bugs.mysql.com/51325",
+  "[Deprecated option] no effect",
   NULL, NULL, 0, 0, 1, 0);
 
 static MYSQL_SYSVAR_BOOL(locking_fake_changes, srv_fake_changes_locks,

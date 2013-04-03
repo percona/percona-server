@@ -267,8 +267,6 @@ extern ulint	srv_expand_import;
 extern ulint	srv_pass_corrupt_table;
 
 extern ulint	srv_dict_size_limit;
-
-extern ulint	srv_lazy_drop_table;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;

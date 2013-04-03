@@ -140,6 +140,7 @@ trx_reserve_descriptor(
 				   n_max * sizeof(trx_id_t)));
 
 		trx_sys->descr_n_max = n_max;
+		srv_descriptors_memory = n_max * sizeof(trx_id_t);
 	}
 
 	descr = trx_sys->descriptors + n_used - 1;

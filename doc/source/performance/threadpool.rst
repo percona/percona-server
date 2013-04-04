@@ -24,6 +24,12 @@ Although the default values for the thread pool should provide good performance,
  
   Current implementation of the thread pool is built in the server, unlike the upstream version which is implemented as a plugin. Another significant implementation difference is that this implementation doesn't try to minimize the number of concurrent transactions like the ``MySQL Enterprise Threadpool``. Because of these things this implementation isn't compatible with the upstream one.
 
+.. note::
+
+   Percona Server adds priority scheduling to the original
+implementation introduced in |MariaDB|. See description of the
+:variable:`thread_pool_high_prio_tickets` below.
+
 Version Specific Information
 ============================
 
@@ -87,6 +93,46 @@ This variable can be used to define the number of threads that can use the CPU a
      :default: 500 (ms)
 
 The number of milliseconds before a running thread is considered stalled. When this limit is reached thread pool will wake up or create another thread. This is being used to prevent a long-running query from monopolizing the pool.
+
+.. variable:: thread_pool_high_prio_tickets
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: Numeric
+     :default: 0
+
+This variable controls the high priority queue policy. Each new
+connection is assigned this many tickets to enter the high priority
+queue. Whenever a query has to be queued to be executed later because no
+threads are available, the thread pool puts the connection into the high
+priority queue if the following conditions apply:
+
+1. The connection has an open transaction in the server.
+2. The number of high priority tickets of this connection is non-zero.
+
+If both the above conditions hold, the connection is put into the high
+priority queue and its tickets value is decremented. Otherwise the
+connection is put into the common queue with the initial tickets value
+specified with this option.
+
+Each time the thread pool looks for a new connection to process, it
+first checks the high priority queue, and picks connections from the
+common queue only when the high priority one is empty.
+
+The idea is to minimize the number of open transactions in the
+server. In many cases it is beneficial to give short-running
+transactions a chance to commit faster and thus release server resources
+and locks without waiting in the same queue with other connections that
+are about to start a new transaction, or those that have run out of
+their high priority tickets.
+
+With the default value of 0, all connections are always put into the
+common queue, i.e. no priority scheduling is used as in the original
+implementation in |MariaDB|. The higher is the value, the more chances
+each transaction gets to enter the high priority queue and commit before
+it is put in the common queue.
 
 Status Variables
 =====================

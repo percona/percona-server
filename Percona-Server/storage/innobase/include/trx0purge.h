@@ -143,6 +143,7 @@ struct trx_purge_struct{
 					obtaining an s-latch here. */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
+	read_view_t*	prebuilt_view;	/*!< Pre-built view array */
 	ulonglong	n_pages_handled;/*!< Approximate number of undo log
 					pages processed in purge */
 	ulonglong	handle_limit;	/*!< Target of how many pages to get
@@ -156,6 +157,10 @@ struct trx_purge_struct{
 					than this */
 	undo_no_t	purge_undo_no;	/*!< Purge has advanced past all records
 					whose undo number is less than this */
+#ifdef UNIV_DEBUG
+	trx_id_t	done_trx_no;	/* Indicate 'purge pointer' which have
+					purged already accurately. */
+#endif /* UNIV_DEBUG */
 	/*-----------------------------*/
 	ibool		next_stored;	/*!< TRUE if the info of the next record
 					to purge is stored below: if yes, then

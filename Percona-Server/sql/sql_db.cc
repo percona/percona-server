@@ -924,7 +924,7 @@ update_binlog:
       bool exists;
 
       // Only write drop table to the binlog for tables that no longer exist.
-      if (check_if_table_exists(thd, tbl, &exists))
+      if (check_if_table_exists(thd, tbl, 0, &exists))
       {
         error= true;
         goto exit;

@@ -5,6 +5,18 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`68477` - Suboptimal code in skip_trailing_space()                                  |
+|:Launchpad bug: :bug:`1132351`                                                                               |
+|:Upstream state: Verified (checked on 2013-03-05)                                                            |
+|:Fix Released: :rn:`5.5.30-30.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`68476` - Suboptimal code in my_strnxfrm_simple()                                   |
+|:Launchpad bug: :bug:`1132350`                                                                               |
+|:Upstream state: Verified (checked on 2013-03-05)                                                            |
+|:Fix Released: :rn:`5.5.30-30.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68116` - InnoDB monitor may hit an assertion error in buf_page_get_gen in debug ...|
 |:Launchpad bug: :bug:`1100178`                                                                               |
 |:Upstream state: Analyzing (checked on 2013-02-21)                                                           |
@@ -63,6 +75,12 @@
 |:Launchpad bug: :bug:`959198`                                                                                |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.5.28-29.2`                                                                             |
+|:Upstream fix: 5.5.29                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`66890` - Slave server crash after a START SLAVE                                    |
+|:Launchpad bug: :bug:`1053342`                                                                               |
+|:Upstream state: Duplicate                                                                                   |
+|:Fix Released: :rn:`5.5.28-29.1`                                                                             |
 |:Upstream fix: 5.5.29                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62856` - Check for "stack overrun" doesn't work with gcc-4.6, server crashes       |

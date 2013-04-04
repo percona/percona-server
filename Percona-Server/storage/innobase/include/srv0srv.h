@@ -266,6 +266,21 @@ extern ulint	srv_adaptive_flushing_method;
 extern ulint	srv_expand_import;
 extern ulint	srv_pass_corrupt_table;
 
+/* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is FALSE,
+execute 'code' if srv_pass_corrupt_table is non-zero, or trigger a fatal error
+otherwise. The break statement in 'code' will obviously not work as expected. */
+
+#define SRV_CORRUPT_TABLE_CHECK(cond,code)		\
+	do {						\
+		if (UNIV_UNLIKELY(!(cond))) {		\
+			if (srv_pass_corrupt_table) {	\
+				code			\
+			} else {			\
+				ut_error;		\
+			}				\
+		}					\
+	} while(0)
+
 extern ulint	srv_dict_size_limit;
 /*-------------------------------------------*/
 
@@ -314,6 +329,10 @@ extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 extern lint	srv_kill_idle_transaction;
+
+#ifdef UNIV_DEBUG
+extern my_bool	srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
@@ -394,6 +413,9 @@ extern ibool srv_blocking_lru_restore;
 /** When TRUE, fake change transcations take S rather than X row locks.
 When FALSE, row locks are not taken at all. */
 extern my_bool srv_fake_changes_locks;
+
+/** print all user-level transactions deadlocks to mysqld stderr */
+extern my_bool srv_print_all_deadlocks;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
@@ -789,7 +811,9 @@ struct export_var_struct{
 	ulint innodb_dict_tables;
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
+	ulint innodb_buffer_pool_bytes_data;	/*!< File bytes used */
 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
+	ulint innodb_buffer_pool_bytes_dirty;	/*!< File bytes modified */
 	ulint innodb_buffer_pool_pages_misc;	/*!< Miscellanous pages */
 	ulint innodb_buffer_pool_pages_free;	/*!< Free pages */
 #ifdef UNIV_DEBUG
@@ -875,6 +899,11 @@ struct export_var_struct{
 	ib_int64_t innodb_x_lock_os_waits;
 	ib_int64_t innodb_x_lock_spin_rounds;
 	ib_int64_t innodb_x_lock_spin_waits;
+#ifdef UNIV_DEBUG
+	ulint innodb_purge_trx_id_age;		/*!< max_trx_id - purged trx_id */
+	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id
+						- purged view's min trx_id */
+#endif /* UNIV_DEBUG */
 };
 
 /** Thread slot in the thread table */

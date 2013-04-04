@@ -66,36 +66,6 @@ By default (option off), the queries are considered different, so the server wil
 If the option is enabled, the queries are considered identical, so the server will execute and cache the first one and will serve the second one directly from the query cache.
 
 
-.. Version Specific Information
-.. ----------------------------
-
-.. Disabling the query cache completely
-
-..  Percona Server Version	 Comments
-.. 5.1.49-12.0	 Full functionality available.
-.. Diagnosing contention more easily
-
-..  Percona Server Version	 Comments
-.. 5.1.49-12.0	 Full functionality available.
-.. Ignoring comments
-
-..  Percona Server Version	 Comments
-.. 5.1.47-11.0	 Critical bug (see MySQL bug 55032). Release was recalled.
-.. 5.1.47-11.1	 Fixed critical bug from previous release. MySQL bug 55032 actual. Bug b603618 actual. Bug 603619 actual.
-.. 5.1.47-11.2	 Full functionality available.
-.. 5.1.48-12.0	 Full functionality available.
-
-.. Other Information
-
-.. Disabling the query cache completely
-
-.. Author/Origin	 Percona
-.. Bugs fixed	LP bug 609027, MySQL bug 38551
-.. Diagnosing contention more easily
-
-.. Author/Origin	 Percona
-.. Bugs fixed	LP bug589484
-
 System Variables
 ================
 
@@ -115,9 +85,5 @@ Other Reading
 -------------
 
   * `MySQL general thread states <http://dev.mysql.com/doc/refman/5.1/en/general-thread-states.html>`_
-
-  * `RAII <http://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Resource_Acquisition_Is_Initialization>`_
-
-  * `Scope guard <http://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Scope_Guard>`_
 
   * `Query cache freezes <http://www.mysqlperformanceblog.com/2009/03/19/mysql-random-freezes-could-be-the-query-cache/>`_

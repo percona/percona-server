@@ -18,6 +18,7 @@ TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
 CMAKE_BUILD_TYPE='RelWithDebInfo'
 DEBUG_COMMENT=''
+WITH_JEMALLOC=''
 
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -25,7 +26,8 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iqdv" --longoptions=i686,quiet,debug,valgrind \
+    go_out="$(getopt --options=iqdvj: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -53,6 +55,11 @@ do
     -q | --quiet )
         shift
         QUIET=''
+        ;;
+    -j | --with-jemalloc )
+        shift
+        WITH_JEMALLOC="$1"
+        shift
         ;;
     esac
 done
@@ -117,6 +124,19 @@ export MAKE_JFLAG=-j4
 INSTALLDIR="$(cd "$WORKDIR" && TMPDIR="$WORKDIR_ABS" mktemp -d percona-build.XXXXXX)"
 INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
 
+# Test jemalloc directory
+if test "x$WITH_JEMALLOC" != "x"
+then
+    if ! test -d "$WITH_JEMALLOC"
+    then
+        echo >&2 "Jemalloc dir $WITH_JEMALLOC does not exist"
+        exit 1
+    fi
+    
+    JEMALLOCDIR="$(cd "$WITH_JEMALLOC"; pwd)"
+
+fi
+
 # Build
 (
     cd "$SOURCEDIR"
@@ -161,6 +181,23 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
         make DESTDIR="$INSTALLDIR" install
 
     )
+
+    # Build jemalloc
+    if test "x$WITH_JEMALLOC" != x
+    then
+    (
+        cd "$JEMALLOCDIR"
+
+        ./configure --prefix="/usr/local/$PRODUCT_FULL/" \
+                --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/"
+        make
+        make DESTDIR="$INSTALLDIR" install_lib_shared
+
+        # Copy COPYING file
+        cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
+
+    )
+    fi
 
 )
 

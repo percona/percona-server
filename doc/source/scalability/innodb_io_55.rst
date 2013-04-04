@@ -72,7 +72,7 @@ The following values are allowed:
     This setting causes checkpointing to operate exactly as it does in native |InnoDB|.
 
   * ``estimate`` [1]: 
-    If the oldest modified age exceeds 1/4 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by [number of modified blocks], [LSN progress speed] and [average age of all modified blocks]. So, this behavior is independent of the ``innodb_io_capacity`` variable.
+    If the oldest modified age exceeds 1/4 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by [number of modified blocks], [LSN progress speed] and [average age of all modified blocks]. So, this behavior is independent of the ``innodb_io_capacity`` variable for the 1-second loop, but the variable still has an effect for the 10-second loop.
 
   * ``keep_average`` [2]:
     This method attempts to keep the I/O rate constant by using a much shorter loop cycle (0.1 second) than that of the other methods (1.0 second). It is designed for use with SSD cards.
@@ -251,6 +251,16 @@ In upstream |MySQL| the limit for the combined size of log files must be less th
   * on 32-bit systems: individual log file limit is 4 GB and total log file size limit is 4 GB, i.e. the same as in the upstream server.
   * on 64-bit systems: both individual log files and total log file size are practically unlimited (the limit is 2^63 - 1 bytes which is 8+ million TB).
 
+.. variable:: innodb_purge_threads
+
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: No
+   :type: Numeric
+   :default: 1
+
+This variable is the same as the one in the upstream version. The only difference is the default value, in |Percona Server| it is ``1`` while in the upstream version is ``0``.
 
 Status Variables
 ----------------

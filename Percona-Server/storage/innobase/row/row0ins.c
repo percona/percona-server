@@ -1346,11 +1346,11 @@ run_again:
 		const rec_t*		rec = btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block = btr_pcur_get_block(&pcur);
 
-		if (srv_pass_corrupt_table && !block) {
+		SRV_CORRUPT_TABLE_CHECK(block,
+		{
 			err = DB_CORRUPTION;
-			break;
-		}
-		ut_a(block);
+			goto exit_loop;
+		});
 
 		if (page_rec_is_infimum(rec)) {
 
@@ -1474,6 +1474,7 @@ run_again:
 		}
 	} while (btr_pcur_move_to_next(&pcur, &mtr));
 
+exit_loop:
 	if (check_ref) {
 		row_ins_foreign_report_add_err(
 			trx, foreign, btr_pcur_get_rec(&pcur), entry);
@@ -2288,7 +2289,10 @@ row_ins_index_entry(
 	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry,
 				      n_ext, thr);
 	if (err != DB_FAIL) {
-
+		if (index == dict_table_get_first_index(index->table)
+		    && thr_get_trx(thr)->mysql_thd != 0) {
+			DEBUG_SYNC_C("row_ins_clust_index_entry_leaf_after");
+		}
 		return(err);
 	}
 

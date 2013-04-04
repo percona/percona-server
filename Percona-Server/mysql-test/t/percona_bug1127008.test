@@ -1,0 +1,28 @@
+######################################################################
+# Bug #1127008: CREATE TABLE for a table that already exists does not
+#               fail immediately 
+######################################################################
+
+--echo #
+--echo # Checking that CREATE IF NOT EXISTS is not blocked by running SELECT
+--echo #
+create table t1 (a int, b int) engine=myisam;
+create table t2 (a int, b int) engine=myisam;
+insert into t1 values (1,1);
+lock tables t1 read;
+connect (user1,localhost,root,,test);
+set @@lock_wait_timeout=5;
+create table if not exists t1 (a int, b int);
+create table if not exists t1 (a int, b int) select 2,2;
+create table if not exists t1 like t2;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int, b int);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int, b int) select 2,2;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 like t2;
+disconnect user1;
+connection default;
+select * from t1;
+unlock tables;
+drop table t1,t2;

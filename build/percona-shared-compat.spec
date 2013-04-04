@@ -28,7 +28,7 @@
 #
 # Change this to match the version of the shared libs you want to include
 #
-%define version55 5.5.29
+%define version55 5.5.30
 %define version51 5.1.66
 %define version50 5.0.91
 %define version41 4.1.22
@@ -47,7 +47,11 @@ Autoreqprov:  on
 Version:      %{version55}
 Release:      %{release}.%{gotrevision}.rhel%{redhatversion}
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
+%if "%{redhatversion}" == "5"
+Obsoletes:    MySQL-shared mysql
+%else
 Obsoletes:    MySQL-shared mysql-libs
+%endif
 Provides:     MySQL-shared mysql-libs
 Summary:      MySQL shared client libraries for MySQL %{version}, %{version50}, %{version41} and %{version40}
 

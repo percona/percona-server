@@ -97,6 +97,11 @@ srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
 UNIV_INTERN ulint	btr_cur_n_sea_old	= 0;
 
+#ifdef UNIV_DEBUG
+/* Flag to limit optimistic insert records */
+UNIV_INTERN uint	btr_cur_limit_optimistic_insert_debug = 0;
+#endif /* UNIV_DEBUG */
+
 /** In the optimistic insert, if the insert does not fit, but this much space
 can be released by page reorganize, then it is reorganized */
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
@@ -253,10 +258,8 @@ btr_cur_latch_leaves(
 		get_block = btr_block_get(
 			space, zip_size, page_no, mode, cursor->index, mtr);
 
-		if (srv_pass_corrupt_table && !get_block) {
-			return;
-		}
-		ut_a(get_block);
+		SRV_CORRUPT_TABLE_CHECK(get_block, return;);
+
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -278,10 +281,8 @@ btr_cur_latch_leaves(
 				space, zip_size, left_page_no,
 				sibling_mode, cursor->index, mtr);
 
-			if (srv_pass_corrupt_table && !get_block) {
-				return;
-			}
-			ut_a(get_block);
+			SRV_CORRUPT_TABLE_CHECK(get_block, return;);
+
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -304,10 +305,8 @@ btr_cur_latch_leaves(
 			space, zip_size, page_no,
 			mode, cursor->index, mtr);
 
-		if (srv_pass_corrupt_table && !get_block) {
-			return;
-		}
-		ut_a(get_block);
+		SRV_CORRUPT_TABLE_CHECK(get_block, return;);
+
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -320,10 +319,8 @@ btr_cur_latch_leaves(
 				space, zip_size, right_page_no,
 				sibling_mode, cursor->index, mtr);
 
-			if (srv_pass_corrupt_table && !get_block) {
-				return;
-			}
-			ut_a(get_block);
+			SRV_CORRUPT_TABLE_CHECK(get_block, return;);
+
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -352,10 +349,8 @@ btr_cur_latch_leaves(
 				left_page_no, mode, cursor->index, mtr);
 			cursor->left_block = get_block;
 
-			if (srv_pass_corrupt_table && !get_block) {
-				return;
-			}
-			ut_a(get_block);
+			SRV_CORRUPT_TABLE_CHECK(get_block, return;);
+
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -368,10 +363,8 @@ btr_cur_latch_leaves(
 		get_block = btr_block_get(
 			space, zip_size, page_no, mode, cursor->index, mtr);
 
-		if (srv_pass_corrupt_table && !get_block) {
-			return;
-		}
-		ut_a(get_block);
+		SRV_CORRUPT_TABLE_CHECK(get_block, return;);
+
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -647,18 +640,19 @@ retry_page_get:
 		file, line, mtr);
 
 	if (block == NULL) {
-		if (srv_pass_corrupt_table
-		    && buf_mode != BUF_GET_IF_IN_POOL
-		    && buf_mode != BUF_GET_IF_IN_POOL_OR_WATCH) {
-			page_cursor->block = 0;
-			page_cursor->rec = 0;
-			if (estimate) {
-				cursor->path_arr->nth_rec = ULINT_UNDEFINED;
-			}
-			goto func_exit;
-		}
-		ut_a(buf_mode == BUF_GET_IF_IN_POOL
-		     || buf_mode == BUF_GET_IF_IN_POOL_OR_WATCH);
+		SRV_CORRUPT_TABLE_CHECK(buf_mode == BUF_GET_IF_IN_POOL ||
+					buf_mode == BUF_GET_IF_IN_POOL_OR_WATCH,
+			{
+				page_cursor->block = 0;
+				page_cursor->rec = 0;
+				if (estimate) {
+
+					cursor->path_arr->nth_rec =
+						ULINT_UNDEFINED;
+				}
+
+				goto func_exit;
+			});
 
 		/* This must be a search to perform an insert/delete
 		mark/ delete; try using the insert/delete buffer */
@@ -734,15 +728,18 @@ retry_page_get:
 	block->check_index_page_at_flush = TRUE;
 	page = buf_block_get_frame(block);
 
-	if (srv_pass_corrupt_table && !page) {
+	SRV_CORRUPT_TABLE_CHECK(page,
+	{
 		page_cursor->block = 0;
 		page_cursor->rec = 0;
+
 		if (estimate) {
+
 			cursor->path_arr->nth_rec = ULINT_UNDEFINED;
 		}
+
 		goto func_exit;
-	}
-	ut_a(page);
+	});
 
 	if (rw_latch != RW_NO_LATCH) {
 #ifdef UNIV_ZIP_DEBUG
@@ -938,15 +935,19 @@ btr_cur_open_at_index_side_func(
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
 
-		if (srv_pass_corrupt_table && !page) {
+		SRV_CORRUPT_TABLE_CHECK(page,
+		{
 			page_cursor->block = 0;
 			page_cursor->rec = 0;
+
 			if (estimate) {
-				cursor->path_arr->nth_rec = ULINT_UNDEFINED;
+
+				cursor->path_arr->nth_rec =
+					ULINT_UNDEFINED;
 			}
-			break;
-		}
-		ut_a(page);
+			/* Can't use break with the macro */
+			goto exit_loop;
+		});
 
 		ut_ad(index->id == btr_page_get_index_id(page));
 
@@ -1016,6 +1017,7 @@ btr_cur_open_at_index_side_func(
 		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 	}
 
+exit_loop:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -1069,12 +1071,13 @@ btr_cur_open_at_rnd_pos_func(
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
 
-		if (srv_pass_corrupt_table && !page) {
+		SRV_CORRUPT_TABLE_CHECK(page,
+		{
 			page_cursor->block = 0;
 			page_cursor->rec = 0;
-			break;
-		}
-		ut_a(page);
+
+			goto exit_loop;
+		});
 
 		ut_ad(index->id == btr_page_get_index_id(page));
 
@@ -1107,6 +1110,7 @@ btr_cur_open_at_rnd_pos_func(
 		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 	}
 
+exit_loop:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -1295,10 +1299,7 @@ btr_cur_optimistic_insert(
 
 	block = btr_cur_get_block(cursor);
 
-	if (srv_pass_corrupt_table && !block) {
-		return(DB_CORRUPTION);
-	}
-	ut_a(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return(DB_CORRUPTION););
 
 	page = buf_block_get_frame(block);
 	index = cursor->index;
@@ -1377,6 +1378,9 @@ btr_cur_optimistic_insert(
 			return(DB_TOO_BIG_RECORD);
 		}
 	}
+
+	LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page),
+				      goto fail);
 
 	/* If there have been many consecutive inserts, and we are on the leaf
 	level, check if we have to split the page to reserve enough free space
@@ -3141,10 +3145,7 @@ btr_cur_optimistic_delete(
 
 	block = btr_cur_get_block(cursor);
 
-	if (srv_pass_corrupt_table && !block) {
-		return(DB_CORRUPTION);
-	}
-	ut_a(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return(DB_CORRUPTION););
 
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
@@ -3860,10 +3861,7 @@ btr_estimate_number_of_different_key_vals(
 
 		page = btr_cur_get_page(&cursor);
 
-		if (srv_pass_corrupt_table && !page) {
-			break;
-		}
-		ut_a(page);
+		SRV_CORRUPT_TABLE_CHECK(page, goto exit_loop;);
 
 		rec = page_rec_get_next(page_get_infimum_rec(page));
 
@@ -3949,6 +3947,7 @@ btr_estimate_number_of_different_key_vals(
 		mtr_commit(&mtr);
 	}
 
+exit_loop:
 	/* If we saw k borders between different key values on
 	n_sample_pages leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */

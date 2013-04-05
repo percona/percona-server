@@ -205,6 +205,7 @@ static uint	innobase_buffer_pool_shm_key		= 0;
 static ulong	srv_lazy_drop_table			= 0;
 
 
+
 static char*	internal_innobase_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;

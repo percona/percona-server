@@ -14,6 +14,14 @@ The following is a summary of the more relevant changes in the 5.6 series. For m
 
   * `Upgrading from MySQL 5.5 to 5.6 <http://dev.mysql.com/doc/refman/5.6/en/upgrading-from-previous-series.html>`_
 
+.. warning:: 
+
+ Upgrade from 5.5 to 5.6 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade. 
+
+.. note::
+
+ Upgrading the from older |Percona Server| version that doesn't have default (16k) |InnoDB| page size is not recommended. This could happen if the variable `innodb_page_size <http://www.percona.com/doc/percona-server/5.5/flexibility/innodb_files_extend.html>`_ was set to non-default value.
+
 Upgrading using the Percona repositories
 ========================================
 

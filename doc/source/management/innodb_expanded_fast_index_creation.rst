@@ -59,7 +59,7 @@ Version Specific Information
 
   * :rn:`5.6.10-60.2`
     Variable :variable:`expand_fast_index_creation` implemented.
-    This variable is controling whether fast index creation optimizations made by Perocna are used.
+    This variable is controlling whether fast index creation optimizations made by Percona are used.
 
 System Variables
 ================

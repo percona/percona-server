@@ -2655,6 +2655,49 @@ case SQLCOM_PREPARE:
     res = purge_master_logs_before_date(thd, (ulong)it->val_int());
     break;
   }
+  case SQLCOM_PURGE_ARCHIVE:
+  {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+    /* PURGE ARCHIVED LOGS TO 'file' */
+    if (!ha_purge_archive_logs_to(NULL, NULL, lex->to_log)) {
+      my_ok(thd);
+    } else {
+      my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0), "PURGE ARCHIVE LOGS TO");
+      goto error;
+    }
+
+    break;
+  }
+  case SQLCOM_PURGE_ARCHIVE_BEFORE:
+  {
+    Item *it;
+
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+    /* PURGE ARCHIVE LOGS BEFORE 'data' */
+    it= (Item *)lex->value_list.head();
+    if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
+        it->check_cols(1))
+    {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE ARCHIVE LOGS BEFORE");
+      goto error;
+    }
+    it= new Item_func_unix_timestamp(it);
+    /*
+      it is OK only emulate fix_fieds, because we need only
+      value of constant
+    */
+    it->quick_fix_field();
+    ulong before_timestamp = (ulong)it->val_int();
+    if (!ha_purge_archive_logs(NULL, NULL, &before_timestamp )) {
+      my_ok(thd);
+    } else {
+      my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0), "PURGE ARCHIVE LOGS BEFORE");
+      goto error;
+    }
+    break;
+  }
 #endif
   case SQLCOM_SHOW_WARNS:
   {

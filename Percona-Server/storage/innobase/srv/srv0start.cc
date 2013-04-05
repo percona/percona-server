@@ -640,6 +640,11 @@ create_log_files(
 		}
 	}
 
+#ifdef UNIV_LOG_ARCHIVE
+	/* Create the file space object for archived logs. */
+	fil_space_create("arch_log_space", SRV_LOG_SPACE_FIRST_ID + 1,
+			 0, FIL_LOG);
+#endif
 	log_group_init(0, srv_n_log_files,
 		       srv_log_file_size * UNIV_PAGE_SIZE,
 		       SRV_LOG_SPACE_FIRST_ID,
@@ -650,7 +655,12 @@ create_log_files(
 	/* Create a log checkpoint. */
 	mutex_enter(&log_sys->mutex);
 	ut_d(recv_no_log_write = FALSE);
-	recv_reset_logs(lsn);
+	recv_reset_logs(
+#ifdef UNIV_LOG_ARCHIVE
+		UT_LIST_GET_FIRST(log_sys->log_groups)->archived_file_no,
+		TRUE,
+#endif
+		lsn);
 	mutex_exit(&log_sys->mutex);
 
 	return(DB_SUCCESS);
@@ -738,9 +748,9 @@ open_or_create_data_files(
 	ibool*		create_new_db,	/*!< out: TRUE if new database should be
 					created */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,/*!< out: min of archived log
+	lsn_t*		min_arch_log_no,/*!< out: min of archived log
 					numbers in data files */
-	ulint*		max_arch_log_no,/*!< out: max of archived log
+	lsn_t*		max_arch_log_no,/*!< out: max of archived log
 					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
 	lsn_t*		min_flushed_lsn,/*!< out: min of flushed lsn
@@ -963,9 +973,6 @@ size_check:
 skip_size_check:
 			fil_read_first_page(
 				files[i], one_opened, &flags, &space,
-#ifdef UNIV_LOG_ARCHIVE
-				min_arch_log_no, max_arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
 
 			/* The first file of the system tablespace must
@@ -1443,8 +1450,8 @@ innobase_start_or_create_for_mysql(void)
 	lsn_t		min_flushed_lsn;
 	lsn_t		max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
-	ulint		min_arch_log_no;
-	ulint		max_arch_log_no;
+	lsn_t		min_arch_log_no;
+	lsn_t		max_arch_log_no;
 #endif /* UNIV_LOG_ARCHIVE */
 	ulint		sum_of_new_sizes;
 	ulint		sum_of_data_file_sizes;
@@ -1883,17 +1890,6 @@ innobase_start_or_create_for_mysql(void)
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
 	}
 
-#ifdef UNIV_LOG_ARCHIVE
-	if (0 != ut_strcmp(srv_log_group_home_dir, srv_arch_dir)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: you must set the log group home dir in my.cnf\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: the same as log arch dir.\n");
-
-		return(DB_ERROR);
-	}
-#endif /* UNIV_LOG_ARCHIVE */
-
 	if (srv_n_log_files * srv_log_file_size * UNIV_PAGE_SIZE
 	    >= 512ULL * 1024ULL * 1024ULL * 1024ULL) {
 		/* log_block_convert_lsn_to_no() limits the returned block
@@ -1982,7 +1978,6 @@ innobase_start_or_create_for_mysql(void)
 
 #ifdef UNIV_LOG_ARCHIVE
 	srv_normalize_path_for_win(srv_arch_dir);
-	srv_arch_dir = srv_add_path_separator_if_needed(srv_arch_dir);
 #endif /* UNIV_LOG_ARCHIVE */
 
 	dirnamelen = strlen(srv_log_group_home_dir);
@@ -2462,6 +2457,8 @@ files_checked:
 	if (!srv_log_archive_on) {
 		ut_a(DB_SUCCESS == log_archive_noarchivelog());
 	} else {
+		bool	start_archive;
+
 		mutex_enter(&(log_sys->mutex));
 
 		start_archive = FALSE;

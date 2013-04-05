@@ -229,6 +229,14 @@ fil_space_truncate_start(
 	ulint	trunc_len);	/*!< in: truncate by this much; it is an error
 				if this does not equal to the combined size of
 				some initial files in the space */
+/****************************************************************//**
+Check is there node in file space with given name. */
+UNIV_INTERN
+ibool
+fil_space_contains_node(
+/*====================*/
+	ulint	id,		/*!< in: space id */
+	char*	node_name);	/*!< in: node name */
 #endif /* UNIV_LOG_ARCHIVE */
 /*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
@@ -371,12 +379,6 @@ fil_read_first_page(
 						contain sensible data */
 	ulint*		flags,			/*!< out: tablespace flags */
 	ulint*		space_id,		/*!< out: tablespace ID */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< out: min of archived
-						log numbers in data files */
-	ulint*		max_arch_log_no,	/*!< out: max of archived
-						log numbers in data files */
-#endif /* UNIV_LOG_ARCHIVE */
 	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
 						lsn values in data files */
 	lsn_t*		max_flushed_lsn);	/*!< out: max of flushed

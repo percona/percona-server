@@ -12,13 +12,13 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "kK:bD" --longoptions key:,nosign,binary,nodebug \
+go_out="$(getopt --options "k:KbDS" --longoptions key:,nosign,binary,nodebug,source \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
 
 BUILDPKG_KEY=''
-BINARY=''
+DPKG_BINSRC=''
 DEBUG='yes'
 
 for arg
@@ -27,8 +27,9 @@ do
     -- ) shift; break;;
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
     -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
-    -b | --binary ) shift; BINARY='-b';;
+    -b | --binary ) shift; DPKG_BINSRC='-b';;
     -D | --nodebug ) shift; DEBUG='';;
+    -S | --source ) shift; DPKG_BINSRC='-S';;
     esac
 done
 
@@ -115,7 +116,7 @@ export MAKE_JFLAG=-j4
 
         DEB_CFLAGS_APPEND="$CFLAGS" DEB_CXXFLAGS_APPEND="$CXXFLAGS" \
                 BUILD_DEBUG_BINARY="$DEBUG" \
-                dpkg-buildpackage $BINARY -rfakeroot $BUILDPKG_KEY
+                dpkg-buildpackage $DPKG_BINSRC -rfakeroot $BUILDPKG_KEY
 
     )
 

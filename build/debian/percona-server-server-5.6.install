@@ -22,7 +22,6 @@ usr/bin/perror
 usr/bin/replace
 usr/bin/resolve_stack_dump
 usr/bin/resolveip
-usr/bin/innodb_memcached_config.sql
 usr/sbin/mysqld
 usr/share/man/man1/msql2mysql.1
 usr/share/man/man1/myisamchk.1

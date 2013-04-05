@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.6.6
+%define mysql_version   5.6.10
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 60
-%define minorversion 1
+%define minorversion 2
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	alpha%{majorversion}.%{minorversion}
 
@@ -998,7 +998,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_bindir}/innodb_memcached_config.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so

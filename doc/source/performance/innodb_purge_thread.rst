@@ -28,6 +28,9 @@ You can now have one or several threads dedicated to the purge. This feature pro
 
 But be aware that this feature comes at a cost: it reduces the overall performance because purging adds a non-negligible overhead. However we think it is better to have slightly worse but stable performance over time than to have better peak performance but unpredictable sharp drops.
 
+.. note::
+
+  This feature hasn't been ported to the future |Percona Server| releases.
 
 System Variables
 ================

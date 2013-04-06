@@ -23,7 +23,7 @@ After finishing the restore operation, the thread switches into dump mode, to pe
 Manual Operation
 ================
 
-Manual dump/restore is done through the ``INFORMATION_SCHEMA`` using the following two administrative commands (see ``XTRADB_ADMIN_COMMAND``):
+Manual dump/restore is done through the ``INFORMATION_SCHEMA`` using the following two administrative commands:
 
   * ``XTRA_LRU_DUMP``: 
     Dumps the contents of the buffer pool (a list of space_id and page_no) to the file ib_lru_dump in the directory specified by the datadir configuration setting.

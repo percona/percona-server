@@ -116,8 +116,4 @@ Other Reading
 
   * `MySQL general thread states <http://dev.mysql.com/doc/refman/5.1/en/general-thread-states.html>`_
 
-  * `RAII <http://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Resource_Acquisition_Is_Initialization>`_
-
-  * `Scope guard <http://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Scope_Guard>`_
-
   * `Query cache freezes <http://www.mysqlperformanceblog.com/2009/03/19/mysql-random-freezes-could-be-the-query-cache/>`_

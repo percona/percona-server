@@ -4,8 +4,6 @@
  Kill Idle Transactions
 ========================
 
-**NOTE:** This feature is currently considered **BETA** quality and may not yet be suitable for use in production environments.
-
 This feature limits the age of idle |XtraDB| transactions. If a transaction is idle for more seconds than the threshold specified, it will be killed. This prevents users from blocking purge by mistake.
 
 System Variables

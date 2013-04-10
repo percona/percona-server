@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.29
+%define mysql_version   5.5.30
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 30
-%define minorversion 0
+%define minorversion 1
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -232,13 +232,8 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-#
-%if %{rhel}
-BuildRequires: pam-devel
-%endif
-#
-BuildRequires:  %{distro_buildreq}
-#
+BuildRequires:  %{distro_buildreq} pam-devel
+
 # Think about what you use here since the first step is to
 # run a rm -rf
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build

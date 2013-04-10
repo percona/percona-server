@@ -282,8 +282,6 @@ otherwise. The break statement in 'code' will obviously not work as expected. */
 	} while(0)
 
 extern ulint	srv_dict_size_limit;
-
-extern ulint	srv_lazy_drop_table;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;

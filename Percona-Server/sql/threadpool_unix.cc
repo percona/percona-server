@@ -25,6 +25,7 @@
 #include <time.h>
 #include <sql_plist.h>
 #include <threadpool.h>
+#include <mysql/thread_pool_priv.h>             // thd_is_transaction_active()
 #include <time.h>
 #ifdef __linux__
 #include <sys/epoll.h>
@@ -112,6 +113,7 @@ struct connection_t
   bool logged_in;
   bool bound_to_poll_descriptor;
   bool waiting;
+  uint tickets;
 };
 
 typedef I_P_List<connection_t,
@@ -126,6 +128,7 @@ struct thread_group_t
 {
   mysql_mutex_t mutex;
   connection_queue_t queue;
+  connection_queue_t high_prio_queue;
   worker_list_t waiting_threads; 
   worker_thread_t *listener;
   pthread_attr_t *pthread_attr;
@@ -398,8 +401,13 @@ static connection_t *queue_get(thread_group_t *thread_group)
 {
   DBUG_ENTER("queue_get");
   thread_group->queue_event_count++;
-  connection_t *c= thread_group->queue.front();
-  if (c)
+  connection_t *c;
+
+  if ((c= thread_group->high_prio_queue.front()))
+  {
+    thread_group->high_prio_queue.remove(c);
+  }
+  else if ((c= thread_group->queue.front()))
   {
     thread_group->queue.remove(c);
   }
@@ -572,7 +580,8 @@ void check_stall(thread_group_t *thread_group)
     do wait and indicate that via thd_wait_begin/end callbacks, thread creation
     will be faster.
   */
-  if (!thread_group->queue.is_empty() && !thread_group->queue_event_count)
+  if ((!thread_group->high_prio_queue.is_empty() ||
+      !thread_group->queue.is_empty()) && !thread_group->queue_event_count)
   {
     thread_group->stalled= true;
     wake_or_create_thread(thread_group);
@@ -690,7 +699,8 @@ static connection_t * listener(worker_thread_t *current_thread,
      more workers.
     */
     
-    bool listener_picks_event= thread_group->queue.is_empty();
+    bool listener_picks_event= thread_group->high_prio_queue.is_empty() &&
+      thread_group->queue.is_empty();
     
     /* 
       If listener_picks_event is set, listener thread will handle first event, 
@@ -700,7 +710,16 @@ static connection_t * listener(worker_thread_t *current_thread,
     for(int i=(listener_picks_event)?1:0; i < cnt ; i++)
     {
       connection_t *c= (connection_t *)native_event_get_userdata(&ev[i]);
-      thread_group->queue.push_back(c);
+      if (c->tickets > 0 && thd_is_transaction_active(c->thd))
+      {
+        c->tickets--;
+        thread_group->high_prio_queue.push_back(c);
+      }
+      else
+      {
+        c->tickets= threadpool_high_prio_tickets;
+        thread_group->queue.push_back(c);
+      }
     }
     
     if (listener_picks_event)
@@ -995,6 +1014,7 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
   DBUG_ENTER("queue_put");
 
   mysql_mutex_lock(&thread_group->mutex);
+  connection->tickets= threadpool_high_prio_tickets;
   thread_group->queue.push_back(connection);
 
   if (thread_group->active_thread_count == 0)
@@ -1150,7 +1170,8 @@ void wait_begin(thread_group_t *thread_group)
   DBUG_ASSERT(thread_group->connection_count > 0);
  
   if ((thread_group->active_thread_count == 0) && 
-     (thread_group->queue.is_empty() || !thread_group->listener))
+      (thread_group->high_prio_queue.is_empty() ||
+       thread_group->queue.is_empty() || !thread_group->listener))
   {
     /* 
       Group might stall while this thread waits, thus wake 
@@ -1193,6 +1214,7 @@ connection_t *alloc_connection(THD *thd)
     connection->logged_in= false;
     connection->bound_to_poll_descriptor= false;
     connection->abs_wait_timeout= ULONGLONG_MAX;
+    connection->tickets = 0;
   }
   DBUG_RETURN(connection);
 }

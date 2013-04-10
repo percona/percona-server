@@ -193,7 +193,6 @@ static MEM_ROOT hash_mem_root;
 static uint prompt_counter;
 static char delimiter[16]= DEFAULT_DELIMITER;
 static uint delimiter_length= 1;
-unsigned short terminal_width= 80;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -1073,9 +1072,7 @@ static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 extern "C" sig_handler mysql_end(int sig);
 extern "C" sig_handler handle_sigint(int sig);
-#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-static sig_handler window_resize(int sig);
-#endif
+static unsigned short get_terminal_width();
 
 
 int main(int argc,char *argv[])
@@ -1174,13 +1171,6 @@ int main(int argc,char *argv[])
   else
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
-
-#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-  /* Readline will call this if it installs a handler */
-  signal(SIGWINCH, window_resize);
-  /* call the SIGWINCH handler to get the default term width */
-  window_resize(0);
-#endif
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
@@ -1354,15 +1344,16 @@ err:
 }
 
 
-#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
-sig_handler window_resize(int sig)
+unsigned short get_terminal_width()
 {
+#if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
   struct winsize window_size;
 
   if (ioctl(fileno(stdin), TIOCGWINSZ, &window_size) == 0)
-    terminal_width= window_size.ws_col;
-}
+    return window_size.ws_col;
 #endif
+  return 80;
+}
 
 static struct my_option my_long_options[] =
 {
@@ -3134,7 +3125,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	  print_table_data_html(result);
 	else if (opt_xml)
 	  print_table_data_xml(result);
-  else if (vertical || (auto_vertical_output && (terminal_width < get_result_width(result))))
+  else if (vertical || (auto_vertical_output && (get_terminal_width() < get_result_width(result))))
 	  print_table_data_vertically(result);
 	else if (opt_silent && verbose <= 2 && !output_tables)
 	  print_tab_data(result);

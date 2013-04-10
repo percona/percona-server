@@ -4,6 +4,10 @@
 Drop table performance
 ======================
 
+.. warning::
+
+  This feature has been removed and its controlling variable :variable:`innodb_lazy_drop_table` has been deprecated from |Percona Server| :rn:`5.5.30-30.2`. Feature has been removed because the upstream ``DROP TABLE`` implementation has been improved.
+
 When  *innodb_file_per_table* is set to 1, doing a DROP TABLE can take a long time on servers with a large buffer pool, even on an empty |InnoDB| table. This is because InnoDB has to scan through the buffer pool to purge pages that belong to the corresponding tablespace. Furthermore, no other queries can start while that scan is in progress.
 
 This feature allows you to do "background table drop".
@@ -12,6 +16,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.5.10-20.1` Feature added.
+  * :rn:`5.5.30-30.2` Feature deprecated.
 
 System Variables
 ================

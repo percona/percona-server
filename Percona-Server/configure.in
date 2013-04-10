@@ -22,7 +22,7 @@ AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE([1.9 tar-ustar])
 AC_PROG_LIBTOOL
 
-AM_CONFIG_HEADER([include/config.h])
+AC_CONFIG_HEADERS([include/config.h])
 
 # Request support for automake silent-rules if available.
 # Default to verbose output. One can use the configure-time

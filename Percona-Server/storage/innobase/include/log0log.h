@@ -977,6 +977,7 @@ struct log_t{
 					should wait for this without owning
 					the log mutex */
 	ulint		archive_buf_size;/*!< size of archive_buf */
+	byte*		archive_buf_ptr;/*!< unaligned archived_buf */
 	byte*		archive_buf;	/*!< log segment is written to the
 					archive from this buffer */
 	os_event_t	archiving_on;	/*!< if archiving has been stopped,

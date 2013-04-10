@@ -819,10 +819,12 @@ log_init(void)
 	rw_lock_create(archive_lock_key, &log_sys->archive_lock,
 		       SYNC_NO_ORDER_CHECK);
 
+	log_sys->archive_buf_ptr = static_cast<byte*>(
+		mem_zalloc(LOG_ARCHIVE_BUF_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+
 	log_sys->archive_buf = static_cast<byte*>(
-		ut_align(mem_zalloc(LOG_ARCHIVE_BUF_SIZE
-				    + OS_FILE_LOG_BLOCK_SIZE),
-			 OS_FILE_LOG_BLOCK_SIZE));
+		ut_align(log_sys->archive_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+
 	log_sys->archive_buf_size = LOG_ARCHIVE_BUF_SIZE;
 
 	log_sys->archiving_on = os_event_create();
@@ -3625,6 +3627,9 @@ log_shutdown(void)
 	mem_free(log_sys->checkpoint_buf_ptr);
 	log_sys->checkpoint_buf_ptr = NULL;
 	log_sys->checkpoint_buf = NULL;
+	mem_free(log_sys->archive_buf_ptr);
+	log_sys->archive_buf_ptr = NULL;
+	log_sys->archive_buf = NULL;
 
 	os_event_free(log_sys->no_flush_event);
 	os_event_free(log_sys->one_flushed_event);

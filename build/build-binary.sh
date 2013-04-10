@@ -125,7 +125,7 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
         --with-unix-socket-path=/var/lib/mysql/mysql.sock \
         --with-pic \
         --with-extra-charsets=complex \
-        --with-ssl \
+        --with-ssl=/usr \
         --enable-thread-safe-client \
         --enable-profiling \
         --with-readline 

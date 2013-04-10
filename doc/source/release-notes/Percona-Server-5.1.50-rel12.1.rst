@@ -4,6 +4,7 @@
  |Percona Server| 5.1.50-rel12.1
 =================================
 
+Percona is glad to announce the release of |Percona Server| 5.1.50-rel12.1 on September 23rd, 2010 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-5.1.50-12.1/>`_ and from the `Percona Software Repositories <http://www.percona.com/doc/percona-server/5.1/installation.html>`_).
 
 Functionality Added or Changed
 ==============================
@@ -16,7 +17,7 @@ Functionality Added or Changed
 
     * :ref:`innodb_buffer_pool_shm` - Implemented option :variable:`innodb_buffer_pool_shm_checksum`; when enabled, shared memory buffer pool is checksum validated. Bugs fixed: :bug:`643724`, :bug:`649408`, and :bug:`649393`. (*Yasufumi Kinoshita*)
 
-    * :ref:`innodb_expand_import_page` - Implemented more exact checking to avoid corruption of the ``.ibd`` file using :variable:`innodb_expand_export`. (*Yasufumi Kinoshita*)
+    * :ref:`innodb_expand_import_page` - Implemented more exact checking to avoid corruption of the ``.ibd`` file using :variable:`innodb_expand_import`. (*Yasufumi Kinoshita*)
 
     * :ref:`mysql_remove_eol_carret` - Implemented a |MySQL| client option to handle end-of-line in BLOB fields differently. Bug fixed: :bug:`625066`. (*Sasha Pachev*)
 

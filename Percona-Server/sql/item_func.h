@@ -1043,6 +1043,7 @@ public:
   const char *func_name() const { return "last_insert_id"; }
   void fix_length_and_dec()
   {
+    unsigned_flag= TRUE;
     if (arg_count)
       max_length= args[0]->max_length;
   }
@@ -1486,7 +1487,7 @@ public:
   my_decimal *val_decimal(my_decimal *decimal_buffer);
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref);
-  virtual void print(String *str, enum_query_type query_type);
+  void print_for_load(THD *thd, String *str);
   void set_null_value(CHARSET_INFO* cs);
   void set_value(const char *str, uint length, CHARSET_INFO* cs);
 };

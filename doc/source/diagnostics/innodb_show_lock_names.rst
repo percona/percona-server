@@ -4,11 +4,11 @@
  Show Lock Names
 =================
 
-This feature is curently undocumented except for the following example.
+This feature is currently undocumented except for the following example.
 
 Example: ::
 
-  mysql> show mutex status;
+  mysql> SHOW ENGINE INNODB MUTEX;
   +--------+---------------------------+---------------+
   | Type   | Name                      | Status        |
   +--------+---------------------------+---------------+

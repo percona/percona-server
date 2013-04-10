@@ -15,7 +15,7 @@ This feature can be used both manually and automatically. It is safe to enable a
 Automatic Operation
 ===================
 
-To perform dump/restore of the buffer pool automatically, set the :variable:`innodb_lru_dump_restore` configuration variable. A non-zero value for this variable causes the server to create a new thread at startup. This thread's first task is to read and sort the saved file, and then restore the LRU accordingly.
+To perform dump/restore of the buffer pool automatically, set the :variable:`innodb_auto_lru_dump` configuration variable. A non-zero value for this variable causes the server to create a new thread at startup. This thread's first task is to read and sort the saved file, and then restore the LRU accordingly.
 
 After finishing the restore operation, the thread switches into dump mode, to periodically dump the LRU. The period is specified by the configuration variable's value in seconds. For example, if you set the variable to 60, then the thread saves the LRU list once per minute.
 
@@ -23,7 +23,7 @@ After finishing the restore operation, the thread switches into dump mode, to pe
 Manual Operation
 ================
 
-Manual dump/restore is done through the ``INFORMATION_SCHEMA`` using the following two administrative commands (see ``XTRADB_ADMIN_COMMAND``):
+Manual dump/restore is done through the ``INFORMATION_SCHEMA`` using the following two administrative commands:
 
   * ``XTRA_LRU_DUMP``: 
     Dumps the contents of the buffer pool (a list of space_id and page_no) to the file ib_lru_dump in the directory specified by the datadir configuration setting.
@@ -131,6 +131,15 @@ This variable specifies the time in seconds between automatic buffer pool dumps.
      :range: ON/OFF
 
 When this variable is set to ON XtraDB waits until the restore of the dump is completed before reporting successful startup to the server.
+
+``INFORMATION_SCHEMA`` Tables
+=============================
+
+This feature provides the following table:
+
+.. table:: INFORMATION_SCHEMA.XTRADB_ADMIN_COMMAND
+
+  :column result_message: result message of the ``XTRADB_ADMIN_COMMAND`` 
 
 Other reading
 =============

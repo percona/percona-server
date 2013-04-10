@@ -1188,17 +1188,19 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	prebuilt->table->stat_n_rows++;
+	if (UNIV_LIKELY(!(trx->fake_changes))) {
 
-	srv_n_rows_inserted++;
+		prebuilt->table->stat_n_rows++;
 
-	if (prebuilt->table->stat_n_rows == 0) {
-		/* Avoid wrap-over */
-		prebuilt->table->stat_n_rows--;
+		if (prebuilt->table->stat_n_rows == 0) {
+			/* Avoid wrap-over */
+			prebuilt->table->stat_n_rows--;
+		}
+
+		srv_n_rows_inserted++;
+		row_update_statistics_if_needed(prebuilt->table);
 	}
 
-	if (!(trx->fake_changes))
-	row_update_statistics_if_needed(prebuilt->table);
 	trx->op_info = "";
 
 	return((int) err);
@@ -1446,6 +1448,11 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+		trx->op_info = "";
+		return((int) err);
+	}
+
 	if (node->is_delete) {
 		if (prebuilt->table->stat_n_rows > 0) {
 			prebuilt->table->stat_n_rows--;
@@ -1460,7 +1467,6 @@ run_again:
 	that changes indexed columns, UPDATEs that change only non-indexed
 	columns would not affect statistics. */
 	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-		if (!(trx->fake_changes))
 		row_update_statistics_if_needed(prebuilt->table);
 	}
 
@@ -1669,6 +1675,11 @@ run_again:
 		return(err);
 	}
 
+	if (UNIV_UNLIKELY((trx->fake_changes))) {
+
+		return(err);
+	}
+
 	if (node->is_delete) {
 		if (table->stat_n_rows > 0) {
 			table->stat_n_rows--;
@@ -1679,7 +1690,6 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(table);
 
 	return(err);
@@ -1782,7 +1792,8 @@ Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
-InnoDB will try to invoke mem_validate().
+InnoDB will try to invoke mem_validate(). On failure the transaction will
+be rolled back and the 'table' object will be freed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 int
@@ -1921,6 +1932,8 @@ err_exit:
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 			trx_commit_for_mysql(trx);
+		} else {
+			dict_mem_table_free(table);
 		}
 		break;
 

@@ -1,0 +1,38 @@
+# Testcase for bug 978036: undetected SYS_STATS corruption crashes server.
+--source include/have_innodb_plugin.inc
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("SYS_STATS table corrupted, recreating");
+--enable_query_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (10);
+
+SELECT a FROM t1;
+
+# Restart server with an option that will cause SYS_STATS to be detected as corrupted
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb-persistent-stats-root-page=7" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+INSERT INTO t1 VALUES (20);
+
+SELECT a FROM t1;
+
+# Test that dictionary header is rewritten correctly by restarting the server again
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 VALUES (30);
+
+SELECT a FROM t1;
+
+DROP TABLE t1;

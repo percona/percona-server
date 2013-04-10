@@ -1296,6 +1296,14 @@ os_file_create(
 	DWORD		create_flag;
 	DWORD		attributes;
 	ibool		retry;
+
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_disk_full",
+		*success = FALSE;
+		SetLastError(ERROR_DISK_FULL);
+		return((os_file_t) -1);
+	);
+
 try_again:
 	ut_a(name);
 
@@ -1410,6 +1418,13 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
+
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_disk_full",
+		*success = FALSE;
+		errno = ENOSPC;
+		return((os_file_t) -1);
+	);
 
 try_again:
 	ut_a(name);
@@ -1938,6 +1953,27 @@ os_file_set_eof(
 	return(!ftruncate(fileno(file), ftell(file)));
 #endif /* __WIN__ */
 }
+
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file, /*!< in: handle to a file */
+	ib_uint64_t	new_len)/*!< in: new file length */
+{
+#ifdef __WIN__
+	LARGE_INTEGER li, li2;
+	li.QuadPart = new_len;
+	return(SetFilePointerEx(file, li, &li2,FILE_BEGIN)
+	       && SetEndOfFile(file));
+#else
+	/* TODO: works only with -D_FILE_OFFSET_BITS=64 ? */
+	return(!ftruncate(file, new_len));
+#endif
+}
+
 
 #ifndef __WIN__
 /***********************************************************************//**
@@ -3761,8 +3797,8 @@ os_aio(
 	ut_ad(file);
 	ut_ad(buf);
 	ut_ad(n > 0);
-	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
+	ut_ad(n % OS_MIN_LOG_BLOCK_SIZE == 0);
+	ut_ad(offset % OS_MIN_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
 #ifdef WIN_ASYNC_IO
 	ut_ad((n & 0xFFFFFFFFUL) == n);

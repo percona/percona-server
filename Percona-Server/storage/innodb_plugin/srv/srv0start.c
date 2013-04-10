@@ -51,6 +51,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "rem0rec.h"
 #include "mtr0mtr.h"
 #include "log0log.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "page0page.h"
 #include "page0cur.h"
@@ -127,9 +128,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
+static ulint		n[SRV_MAX_N_IO_THREADS + 8 + UNIV_MAX_PARALLELISM];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 8 + UNIV_MAX_PARALLELISM];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1118,6 +1119,29 @@ skip_size_check:
 	return(DB_SUCCESS);
 }
 
+/*********************************************************************//**
+Initializes the log tracking subsystem and starts its thread.  */
+static
+void
+init_log_online(void)
+/*=================*/
+{
+	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
+		srv_track_changed_pages = FALSE;
+		return;
+	}
+
+	if (srv_track_changed_pages) {
+
+		log_online_read_init();
+
+		/* Create the thread that follows the redo log to output the
+		   changed page bitmap */
+		os_thread_create(&srv_redo_log_follow_thread, NULL,
+				 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+	}
+}
+
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
@@ -1667,6 +1691,8 @@ innobase_start_or_create_for_mysql(void)
 	trx_sys_file_format_init();
 
 	if (create_new_db) {
+		init_log_online();
+
 		mtr_start(&mtr);
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
 
@@ -1765,6 +1791,8 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
+		init_log_online();
+
 		/* Since the insert buffer init is in dict_boot, and the
 		insert buffer is needed in any disk i/o, first we call
 		dict_boot(). Note that trx_sys_init_at_db_start() only needs
@@ -1822,6 +1850,12 @@ innobase_start_or_create_for_mysql(void)
 			mtr_commit(&mtr);
 
 			trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
+		}
+
+		if (UNIV_UNLIKELY(!dict_verify_xtradb_sys_stats())) {
+			fprintf(stderr, "InnoDB: Warning: "
+				"SYS_STATS table corrupted, recreating\n");
+			dict_recreate_xtradb_sys_stats();
 		}
 	}
 

@@ -1,25 +1,37 @@
---source include/have_debug.inc
+#
+# Test slow_query_log_microseconds_timestamp variable.
+#
+SET SESSION min_examined_row_limit=0;
+SET long_query_time=0;
+SET GLOBAL log_slow_timestamp_every=TRUE;
 
-SET long_query_time=2;
---let log_file=percona.slow_extended.slow_query_log_microseconds_timestamp
+#
+# microsecond
+#
+SET GLOBAL slow_query_log_microseconds_timestamp=TRUE;
+
+--let log_file=percona_slow_extended_1
 --source include/log_start.inc
-
-SET SESSION query_exec_time=2.1;
-
 SELECT 1;
-
-SET GLOBAL slow_query_log_microseconds_timestamp=1;
-
-SELECT 1;
-
-SET SESSION query_exec_time=default;
-
 --source include/log_stop.inc
-SET GLOBAL slow_query_log_microseconds_timestamp=default;
+--let grep_pattern= ^# Time: \d{6} (\d| )\d:\d\d:\d\d\.\d{6}\$
+--source include/log_grep.inc
+
+#
+# second
+#
+SET GLOBAL slow_query_log_microseconds_timestamp=FALSE;
+
+--let log_file=percona_slow_extended_2
+--source include/log_start.inc
+SELECT 1;
+--source include/log_stop.inc
+--let grep_pattern= ^# Time: \d{6} (\d| )\d:\d\d:\d\d\$
+--source include/log_grep.inc
+
 SET long_query_time=default;
-
---let grep_pattern = # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+.[0-9]+
---source include/log_grep.inc
-
---let grep_pattern =  # Time: [0-9]+[ ]+[0-9]+:[0-9]+:[0-9]+
---source include/log_grep.inc
+SET SESSION min_examined_row_limit=default;
+# Using a "default" befow results in a testcase warning.
+SET GLOBAL log_slow_timestamp_every=TRUE;
+SET GLOBAL slow_query_log_microseconds_timestamp=default;
+--source include/log_cleanup.inc

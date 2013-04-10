@@ -116,6 +116,8 @@ static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
                                  bool send_refresh);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
 
 
 extern "C" uchar *table_cache_key(const uchar *record, size_t *length,
@@ -2225,6 +2227,8 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   */
     
   pthread_mutex_unlock(mutex);
+  DEBUG_SYNC(thd, "waiting_for_table_unlock");
+  DBUG_EXECUTE_IF("sleep_after_waiting_for_table", my_sleep(1000000););
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond= 0;
@@ -4164,22 +4168,22 @@ retry:
     entry->file->implicit_emptied= 0;
     if (mysql_bin_log.is_open())
     {
-      char *query, *end;
-      uint query_buf_size= 20 + share->db.length + share->table_name.length +1;
-      if ((query= (char*) my_malloc(query_buf_size,MYF(MY_WME))))
+      char query_buf[2*FN_REFLEN + 21];
+      String query(query_buf, sizeof(query_buf), system_charset_info);
+      query.length(0);
+      if (query.ptr())
       {
         /* this DELETE FROM is needed even with row-based binlogging */
-        end = strxmov(strmov(query, "DELETE FROM `"),
-                      share->db.str,"`.`",share->table_name.str,"`", NullS);
+        query.append("DELETE FROM ");
+        append_identifier(thd, &query, share->db.str, share->db.length);
+        query.append(".");
+        append_identifier(thd, &query, share->table_name.str,
+                          share->table_name.length);
         int errcode= query_error_code(thd, TRUE);
         if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                              query, (ulong)(end-query),
+                              query.ptr(), query.length(),
                               FALSE, FALSE, errcode))
-        {
-          my_free(query, MYF(0));
           goto err;
-        }
-        my_free(query, MYF(0));
       }
       else
       {
@@ -4188,9 +4192,20 @@ retry:
           DBA on top of warning the client (which will automatically be done
           because of MYF(MY_WME) in my_malloc() above).
         */
+	char q_db_c[512];
+	char q_table_name_c[512];
+	String q_db(q_db_c, sizeof(q_db_c), system_charset_info);
+	String q_table_name(q_table_name_c, sizeof(q_table_name), system_charset_info);
+	q_db.length(0);
+	q_table_name.length(0);
+	append_identifier(thd, &q_db, table_list->db, strlen(table_list->db));
+	append_identifier(thd,
+			  &q_table_name,
+			  table_list->table_name,
+			  strlen(table_list->table_name));
         sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM `%s`.`%s`' to the binary log",
-                        table_list->db, table_list->table_name);
+                        "to write 'DELETE FROM %s.%s' to the binary log",
+                        q_db.c_ptr(), q_table_name.c_ptr());
         delete entry->triggers;
         closefrm(entry, 0);
         goto err;
@@ -5493,6 +5508,12 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     {
       if (!table->placeholder())
 	*(ptr++)= table->table;
+    }
+
+    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables)
+    {
+      if (has_write_table_auto_increment_not_first_in_pk(tables))
+        thd->lex->set_stmt_unsafe();
     }
 
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
@@ -9085,6 +9106,32 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
     if (!table->placeholder() &&
         table->table->found_next_number_field &&
         (table->lock_type >= TL_WRITE_ALLOW_WRITE))
+      return 1;
+  }
+
+  return 0;
+}
+
+/*
+  Tells if there is a table whose auto_increment column is a part
+  of a compound primary key while is not the first column in
+  the table definition.
+
+  @param tables Table list
+
+  @return true if the table exists, fais if does not.
+*/
+
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        && table->table->s->next_number_keypart != 0)
       return 1;
   }
 

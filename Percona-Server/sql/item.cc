@@ -747,9 +747,10 @@ void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
   if (!my_charset_same(cs, system_charset_info))
   {
     size_t res_length;
-    name= sql_strmake_with_convert(str, name_length= length, cs,
+    name= sql_strmake_with_convert(str, length, cs,
 				   MAX_ALIAS_NAME, system_charset_info,
 				   &res_length);
+    name_length= res_length;
   }
   else
     name= sql_strmake(str, (name_length= min(length,MAX_ALIAS_NAME)));
@@ -6010,7 +6011,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        if (!(fld= new Item_field(from_field)))
+        Query_arena backup, *arena;
+        arena= thd->activate_stmt_arena_if_needed(&backup);
+        fld= new Item_field(thd, last_checked_context, from_field);
+        if (arena)
+          thd->restore_active_arena(arena, &backup);
+        if (!fld)
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,

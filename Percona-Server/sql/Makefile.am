@@ -71,6 +71,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			tztime.h my_decimal.h\
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
+			mem_root_array.h \
 			sql_array.h sql_cursor.h events.h scheduler.h \
                         event_db_repository.h event_queue.h \
 			sql_plugin.h authors.h event_parse_data.h \
@@ -145,7 +146,13 @@ DEFS =			-DMYSQL_SERVER \
 			-DHAVE_EVENT_SCHEDULER \
 			@DEFS@
 
+# Automake 1.12 generates sql_yacc.hh instead of sql_yacc.h
 BUILT_MAINT_SRC =	sql_yacc.cc sql_yacc.h
+if HAVE_AM_YACC_C2H
+sql_yacc.h:
+	@LN_CP_F@ sql_yacc.hh sql_yacc.h
+endif
+
 BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h patch_info.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h \

@@ -66,7 +66,7 @@ Example
 Version Specific Information
 ============================
 
-  * 5.1.62-13.3
+  * :rn:`5.1.62-13.3`
     Full functionality.
 
 Client Command Line Parameter

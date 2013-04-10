@@ -2898,6 +2898,8 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   char *query;
   uint32 query_length;
   int res;
+  QUERY_START_TIME_INFO time_info;
+
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
@@ -2907,6 +2909,19 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
 #endif
+
+  memset(&time_info, 0, sizeof(time_info));
+
+  if (thd->enable_slow_log)
+  {
+    /*
+      Save start time info for the CALL statement and overwrite it with the
+      current time for log_slow_statement() to log the individual query timing.
+    */
+    thd->get_time(&time_info);
+    thd->set_time();
+  }
+
   if (!(res= alloc_query(thd, m_query.str, m_query.length)) &&
       !(res=subst_spvars(thd, this, &m_query)))
   {
@@ -2939,6 +2954,11 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     if (!thd->is_error())
       thd->main_da.reset_diagnostics_area();
   }
+
+  /* Restore the original query start time */
+  if (thd->enable_slow_log)
+    thd->set_time(&time_info);
+
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -3840,8 +3860,6 @@ typedef struct st_sp_table
     Multi-set key:
       db_name\0table_name\0alias\0 - for normal tables
       db_name\0table_name\0        - for temporary tables
-    Note that in both cases we don't take last '\0' into account when
-    we count length of key.
   */
   LEX_STRING qname;
   uint db_length, table_name_length;
@@ -3898,19 +3916,26 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
   for (; table ; table= table->next_global)
     if (!table->derived && !table->schema_table)
     {
-      char tname[(NAME_LEN + 1) * 3];           // db\0table\0alias\0
-      uint tlen, alen;
+      /*
+        Structure of key for the multi-set is "db\0table\0alias\0".
+        Since "alias" part can have arbitrary length we use String
+        object to construct the key. By default String will use
+        buffer allocated on stack with NAME_LEN bytes reserved for
+        alias, since in most cases it is going to be smaller than
+        NAME_LEN bytes.
+      */
+      char tname_buff[(NAME_LEN + 1) * 3];
+      String tname(tname_buff, sizeof(tname_buff), &my_charset_bin);
+      uint temp_table_key_length;
 
-      tlen= table->db_length;
-      memcpy(tname, table->db, tlen);
-      tname[tlen++]= '\0';
-      memcpy(tname+tlen, table->table_name, table->table_name_length);
-      tlen+= table->table_name_length;
-      tname[tlen++]= '\0';
-      alen= strlen(table->alias);
-      memcpy(tname+tlen, table->alias, alen);
-      tlen+= alen;
-      tname[tlen]= '\0';
+      tname.length(0);
+      tname.append(table->db, table->db_length);
+      tname.append('\0');
+      tname.append(table->table_name, table->table_name_length);
+      tname.append('\0');
+      temp_table_key_length= tname.length();
+      tname.append(table->alias);
+      tname.append('\0');
 
       /*
         Upgrade the lock type because this table list will be used
@@ -3925,9 +3950,10 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         (and therefore should not be prelocked). Otherwise we will erroneously
         treat table with same name but with different alias as non-temporary.
       */
-      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname, tlen)) ||
-          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname,
-                                        tlen - alen - 1)) &&
+      if ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname.ptr(),
+                                        tname.length())) ||
+          ((tab= (SP_TABLE *)hash_search(&m_sptabs, (uchar *)tname.ptr(),
+                                         temp_table_key_length)) &&
            tab->temp))
       {
         if (tab->lock_type < table->lock_type)
@@ -3946,11 +3972,11 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
 	    lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
         {
 	  tab->temp= TRUE;
-          tab->qname.length= tlen - alen - 1;
+          tab->qname.length= temp_table_key_length;
         }
         else
-          tab->qname.length= tlen;
-        tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
+          tab->qname.length= tname.length();
+        tab->qname.str= (char*) thd->memdup(tname.ptr(), tab->qname.length);
         if (!tab->qname.str)
           return FALSE;
         tab->table_name_length= table->table_name_length;
@@ -4019,7 +4045,7 @@ sp_head::add_used_tables_to_table_list(THD *thd,
     if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
                                         stab->lock_count)) ||
         !(key_buff= (char*)thd->memdup(stab->qname.str,
-                                       stab->qname.length + 1)))
+                                       stab->qname.length)))
       DBUG_RETURN(FALSE);
 
     for (uint j= 0; j < stab->lock_count; j++)

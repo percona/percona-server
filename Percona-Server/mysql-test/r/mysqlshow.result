@@ -117,22 +117,25 @@ Database: information_schema
 | VIEWS                                 |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | INNODB_RSEG                           |
-| INNODB_LOCKS                          |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_BUFFER_POOL_PAGES              |
-| XTRADB_ENHANCEMENTS                   |
+| INNODB_TABLE_STATS                    |
 | INNODB_TRX                            |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLES                     |
 | INNODB_CMP                            |
-| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_POOL_STATS              |
 | INNODB_CMP_RESET                      |
 | INNODB_CMPMEM                         |
 | INNODB_INDEX_STATS                    |
 | INNODB_SYS_INDEXES                    |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_CMPMEM_RESET                   |
-| INNODB_TABLE_STATS                    |
+| INNODB_LOCKS                          |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_PAGE_LRU                |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -176,22 +179,25 @@ Database: INFORMATION_SCHEMA
 | VIEWS                                 |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | INNODB_RSEG                           |
-| INNODB_LOCKS                          |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_BUFFER_POOL_PAGES              |
-| XTRADB_ENHANCEMENTS                   |
+| INNODB_TABLE_STATS                    |
 | INNODB_TRX                            |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLES                     |
 | INNODB_CMP                            |
-| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_POOL_STATS              |
 | INNODB_CMP_RESET                      |
 | INNODB_CMPMEM                         |
 | INNODB_INDEX_STATS                    |
 | INNODB_SYS_INDEXES                    |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_CMPMEM_RESET                   |
-| INNODB_TABLE_STATS                    |
+| INNODB_LOCKS                          |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_SYS_STATS                      |
+| INNODB_BUFFER_PAGE_LRU                |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

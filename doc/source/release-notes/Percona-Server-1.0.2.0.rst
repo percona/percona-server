@@ -4,7 +4,8 @@
 |Percona Server| 1.0.2
 ======================
 
-Released on December 16, 2008
+Percona is glad to announce the release of |Percona Server| 1.0.2 on December 16th, 2008. 
+
 
   * ``innodb_show_enhancements_page``
 

@@ -188,6 +188,8 @@ extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
 
+#define OS_MIN_LOG_BLOCK_SIZE 512
+
 extern ulint	srv_log_block_size;
 
 /* File types for directory entry data type */
@@ -462,6 +464,14 @@ ibool
 os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file, /*!< in: handle to a file */
+	ib_uint64_t	new_len);/*!< in: new file length */
 /***********************************************************************//**
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */

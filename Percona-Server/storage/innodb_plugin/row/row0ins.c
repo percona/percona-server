@@ -1296,7 +1296,8 @@ run_again:
 		check_index = foreign->foreign_index;
 	}
 
-	if (check_table == NULL || check_table->ibd_file_missing) {
+	if (check_table == NULL || check_table->ibd_file_missing
+	    || check_index == NULL) {
 		if (check_ref) {
 			FILE*	ef = dict_foreign_err_file;
 
@@ -1330,9 +1331,6 @@ run_again:
 
 		goto exit_func;
 	}
-
-	ut_a(check_table);
-	ut_a(check_index);
 
 	if (check_table != table) {
 		/* We already have a LOCK_IX on table, but not necessarily
@@ -2018,6 +2016,7 @@ row_ins_index_entry_low(
 	big_rec_t*	big_rec			= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	heap			= NULL;
+	ulint		search_mode;
 
 	log_free_check();
 
@@ -2033,8 +2032,15 @@ row_ins_index_entry_low(
 		ignore_sec_unique = BTR_IGNORE_SEC_UNIQUE;
 	}
 
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		search_mode = (mode & BTR_MODIFY_TREE)
+			? BTR_SEARCH_TREE : BTR_SEARCH_LEAF;
+	} else {
+		search_mode = mode | BTR_INSERT | ignore_sec_unique;
+	}
+
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : (mode | BTR_INSERT | ignore_sec_unique),
+				    search_mode,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
@@ -2194,9 +2200,16 @@ row_ins_index_entry_low(
 
 				goto function_exit;
 			}
-			err = btr_cur_pessimistic_insert(
+
+			err = btr_cur_optimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
+
+			if (err == DB_FAIL) {
+				err = btr_cur_pessimistic_insert(
+					0, &cursor, entry, &insert_rec,
+					&big_rec, n_ext, thr, &mtr);
+			}
 		}
 	}
 

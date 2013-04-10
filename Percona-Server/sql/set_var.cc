@@ -436,6 +436,8 @@ static sys_var_const    sys_lower_case_table_names(&vars,
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
 					       &SV::max_allowed_packet,
                                                check_max_allowed_packet);
+static sys_var_long_ptr sys_slave_max_allowed_packet(&vars, "slave_max_allowed_packet",
+                                              &slave_max_allowed_packet); 
 static sys_var_ulonglong_ptr sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
                                                        &max_binlog_cache_size);
 static sys_var_long_ptr	sys_max_binlog_size(&vars, "max_binlog_size",
@@ -985,6 +987,7 @@ static sys_var_have_variable sys_have_query_cache(&vars, "have_query_cache",
 static sys_var_have_variable sys_have_community_features(&vars, "have_community_features", &have_community_features);
 static sys_var_have_variable sys_have_rtree_keys(&vars, "have_rtree_keys", &have_rtree_keys);
 static sys_var_have_variable sys_have_symlink(&vars, "have_symlink", &have_symlink);
+static sys_var_have_variable sys_have_flashcache(&vars, "have_flashcache", &have_flashcache);
 /* Global read-only variable describing server license */
 static sys_var_const_str	sys_license(&vars, "license", STRINGIFY_ARG(LICENSE));
 /* Global variables which enable|disable logging */

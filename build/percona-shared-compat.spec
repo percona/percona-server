@@ -28,8 +28,7 @@
 #
 # Change this to match the version of the shared libs you want to include
 #
-%define version55 5.5.8
-%define version51 5.1.63
+%define version51 5.1.67
 %define version50 5.0.91
 %define version41 4.1.22
 %define version40 4.0.27
@@ -37,7 +36,7 @@
 
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 
-Name:         Percona-Server-shared-compat
+Name:         Percona-Server-shared-compat-51
 Packager:     Percona MySQL Development Team <mysql-dev@percona.com>
 Vendor:       Percona Inc
 License:      GPL v2
@@ -66,11 +65,11 @@ NoSource:     0
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 %description
-This package includes the shared libraries for MySQL 4.0, 4.1, 5.0 and 5.5.
-Install this package instead of "MySQL-shared", if you have applications
-installed that are dynamically linked against older versions of the MySQL
-client library but you want to upgrade to MySQL %{version} without breaking the
-library dependencies.
+This package includes the shared libraries for MySQL 4.0, 4.1, and 5.0.
+Install this package alongside Percona-Server-shared-51, if you have
+applications installed that are dynamically linked against older versions of
+the MySQL client library but you want to upgrade to MySQL %{version} without
+breaking the library dependencies.
 
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;
@@ -81,6 +80,9 @@ rpm2cpio %{SOURCE0} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE2} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE3} | cpio -iv --make-directories
 /sbin/ldconfig -n $RPM_BUILD_ROOT%{_libdir}
+
+# Remove the .so.16 libraries
+rm -f $RPM_BUILD_ROOT%{_libdir}/libmysqlclient*.so.16*
 
 %clean
 [ "$RPM_BUILD_ROOT" != "/" ] && [ -d $RPM_BUILD_ROOT ] && rm -rf $RPM_BUILD_ROOT;

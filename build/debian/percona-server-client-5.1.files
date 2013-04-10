@@ -1,4 +1,3 @@
-usr/bin/innotop
 usr/bin/myisam_ftdump
 usr/bin/mysql
 usr/bin/mysqlaccess
@@ -17,7 +16,6 @@ usr/bin/mysqlshow
 usr/bin/mysql_waitpid
 usr/sbin/mysqlmanager
 usr/share/lintian/overrides/percona-server-client-5.1
-usr/share/man/man1/innotop.1
 usr/share/man/man1/myisam_ftdump.1
 usr/share/man/man1/mysql.1
 usr/share/man/man1/mysqlaccess.1
@@ -37,5 +35,4 @@ usr/share/man/man1/mysqlshow.1
 usr/share/man/man1/mysql_tableinfo.1
 usr/share/man/man1/mysql_waitpid.1
 usr/share/man/man1/mysql_client_test.1
-usr/share/perl5/InnoDBParser.pm
 usr/bin/hsclient

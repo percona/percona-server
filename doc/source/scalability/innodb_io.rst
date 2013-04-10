@@ -36,7 +36,7 @@ System Variables
 
 .. variable:: innodb_adaptive_checkpoint
 
-   :version: 5.1.54-12.5 Added 
+   :version 5.1.54-12.5: Added 
    :cli: Yes
    :conf: Yes
    :scope: Global
@@ -109,7 +109,7 @@ This variable allows you to change the default behavior of |InnoDB| concerning t
 
 .. variable:: innodb_flush_log_at_trx_commit_session
 
-     :version: 5.1.49-13 Added
+     :version 5.1.49-rel11.3: Added
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -131,6 +131,7 @@ The following values are available:
 
 .. variable:: innodb_flush_method
 
+     :version 5.1.54-12.5: ``ALL_O_DIRECT`` option added
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -152,7 +153,7 @@ The following values are allowed:
   * ``O_DIRECT``: 
     Use ``O_DIRECT`` (or ``directio()`` on Solaris) to open the data files; use ``fsync()`` to flush both the data and log files.
 
-  * ``ALL_O_DIRECT``: use ``O_DIRECT`` open and flush both the data and the log files. This value was added in |Percona Server| release :rn:`5.1.54-12.5`.
+  * ``ALL_O_DIRECT``: use ``O_DIRECT`` open and flush both the data and the log files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
 
 
 .. variable:: innodb_flush_neighbor_pages
@@ -181,12 +182,12 @@ If you use a storage which has no “head seek delay” (e.g. SSD or enough memo
      :cli: Yes
      :conf: Yes
      :scope: Global
-     :dyn: Yes
+     :dyn: No
      :vartype: Numeric
      :default: 512
      :units: Bytes
 
-This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use.
+This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use. Clean restart and removal of the old logs is needed for the variable :variable:`innodb_log_block_size` to be changed.
 
 .. variable:: innodb_log_file_size
 

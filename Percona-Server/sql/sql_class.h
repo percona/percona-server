@@ -1329,6 +1329,11 @@ struct Ha_data
   Ha_data() :ha_ptr(NULL) {}
 };
 
+typedef struct
+{
+  time_t start_time;
+  ulonglong start_utime;
+} QUERY_START_TIME_INFO;
 
 /**
   @class THD
@@ -1342,6 +1347,8 @@ class THD :public Statement,
 public:
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
+  /* Slave applier execution context */
+  Relay_log_info* rli_slave;
 
   /*
     Constant for THD::where initialization in the beginning of every query.
@@ -1391,10 +1398,22 @@ public:
     Protects THD data accessed from other threads:
     - thd->query and thd->query_length (used by SHOW ENGINE
       INNODB STATUS and SHOW PROCESSLIST
-    - thd->mysys_var (used by KILL statement and shutdown).
-    Is locked when THD is deleted.
   */
   pthread_mutex_t LOCK_thd_data;
+
+  /**
+    - Protects thd->mysys_var (used during KILL statement and shutdown).
+    - Is Locked when THD is deleted.
+
+    Note: This responsibility was earlier handled by LOCK_thd_data.
+    This lock is introduced to solve a deadlock issue waiting for
+    LOCK_thd_data. As this lock reduces responsibility of LOCK_thd_data
+    the deadlock issues is solved.
+    Caution: LOCK_thd_kill should not be taken while holding LOCK_thd_data.
+             THD::awake() currently takes LOCK_thd_data after holding
+             LOCK_thd_kill.
+  */
+  pthread_mutex_t LOCK_thd_kill;
 
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
@@ -1482,28 +1501,10 @@ public:
 
   /*** Following variables used in slow_extended.patch ***/
   /*
-    Variable write_to_slow_log:
-     1) initialized in
-       * sql_connect.cc (log_slow_rate_limit support)
-       * slave.cc       (log_slow_slave_statements support)
-     2) The variable is initialized on the thread startup and remains
-        constant afterwards.  This will change when 
-        LP #712396 ("log_slow_slave_statements not work on replication 
-        threads without RESTART") is implemented.
-     3) An implementation of LP #688646 ("Make query sampling possible 
-        by query") should use it.
-  */
-  bool       write_to_slow_log;
-  /*
     Variable bytes_send_old saves value of thd->status_var.bytes_sent
     before query execution.
   */
   ulonglong  bytes_sent_old;
-  /*
-    Original row_count value at the start of query execution
-    (used by the slow_extended patch).
-  */
-  ulong      orig_row_count;
   /*
     Variables tmp_tables_*** collect statistics about usage of temporary tables
   */
@@ -2203,6 +2204,16 @@ public:
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
   }
+  void get_time(QUERY_START_TIME_INFO *time_info)
+  {
+    time_info->start_time= start_time;
+    time_info->start_utime= start_utime;
+  }
+  void set_time(QUERY_START_TIME_INFO *time_info)
+  {
+    start_time= time_info->start_time;
+    start_utime= time_info->start_utime;
+  }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
@@ -2249,7 +2260,6 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
-#ifndef EMBEDDED_LIBRARY
   /**
     Clear the current error, if any.
     We do not clear is_fatal_error or is_fatal_sub_stmt_error since we
@@ -2265,9 +2275,9 @@ public:
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
+#ifndef EMBEDDED_LIBRARY
   inline bool vio_ok() const { return net.vio != 0; }
 #else
-  void clear_error();
   inline bool vio_ok() const { return true; }
 #endif
   /**

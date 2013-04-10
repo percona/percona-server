@@ -3596,7 +3596,8 @@ longlong Item_func_last_insert_id::val_int()
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
-  return thd->read_first_successful_insert_id_in_prev_stmt();
+  return
+    static_cast<longlong>(thd->read_first_successful_insert_id_in_prev_stmt());
 }
 
 
@@ -4724,7 +4725,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
-  str->append(name.str,name.length);
+  append_identifier(current_thd, str, name.str, name.length);
   str->append(')');
 }
 
@@ -4822,10 +4823,10 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 }
 
 
-void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
+void Item_user_var_as_out_param::print_for_load(THD *thd, String *str)
 {
   str->append('@');
-  str->append(name.str,name.length);
+  append_identifier(thd, str, name.str, name.length);
 }
 
 

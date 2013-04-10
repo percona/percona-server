@@ -27,6 +27,7 @@
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include <errno.h>
+#include "debug_sync.h"         // DEBUG_SYNC
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -2404,8 +2405,19 @@ int handler::update_auto_increment()
         reservation means potentially losing unused values).
         Note that in prelocked mode no estimation is given.
       */
+
       if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
+      else if ((auto_inc_intervals_count == 0) &&
+               (thd->lex->many_values.elements > 0))
+      {
+        /*
+          For multi-row inserts, if the bulk inserts cannot be started, the
+          handler::estimation_rows_to_insert will not be set. But we still
+          want to reserve the autoinc values.
+        */
+        nb_desired_values= thd->lex->many_values.elements;
+      }
       else /* go with the increasing defaults */
       {
         /* avoid overflow in formula, with this if() */
@@ -4388,7 +4400,19 @@ int handler::read_range_first(const key_range *start_key,
 		? HA_ERR_END_OF_FILE
 		: result);
 
-  DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+  if (compare_key(end_range) <= 0)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    /*
+      The last read row does not fall in the range. So request
+      storage engine to release row lock if possible.
+    */
+    unlock_row();
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 }
 
 
@@ -4420,7 +4444,20 @@ int handler::read_range_next()
   result= index_next(table->record[0]);
   if (result)
     DBUG_RETURN(result);
-  DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+
+  if (compare_key(end_range) <= 0)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    /*
+      The last read row does not fall in the range. So request
+      storage engine to release row lock if possible.
+    */
+    unlock_row();
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 }
 
 
@@ -4597,6 +4634,42 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   if (!result)
     my_eof(thd);
   return result;
+}
+
+static my_bool flush_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *unused2)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->flush_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->flush_changed_page_bitmaps();
+}
+
+bool ha_flush_changed_page_bitmaps()
+{
+  return plugin_foreach(NULL, flush_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
+static my_bool purge_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *lsn)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->purge_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->purge_changed_page_bitmaps(*(ulonglong *)lsn);
+}
+
+bool ha_purge_changed_page_bitmaps(ulonglong lsn)
+{
+  return plugin_foreach(NULL, purge_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, &lsn);
 }
 
 /*
@@ -4795,6 +4868,7 @@ int handler::ha_write_row(uchar *buf)
   int error;
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
+  DEBUG_SYNC(ha_thd(), "start_ha_write_row");
 
   mark_trx_read_write();
 
@@ -4802,6 +4876,8 @@ int handler::ha_write_row(uchar *buf)
     DBUG_RETURN(error);
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
+
+  DEBUG_SYNC_C("ha_write_row_end");
   DBUG_RETURN(0);
 }
 

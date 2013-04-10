@@ -59,7 +59,6 @@ Scalability Improvements
    scalability/innodb_split_buf_pool_mutex
    scalability/innodb_insert_buffer
    scalability/innodb_io
-   scalability/innodb_extra_rseg
    scalability/innodb_expand_undo_slots
 
 Performance Improvements
@@ -74,7 +73,6 @@ Performance Improvements
    performance/innodb_doublewrite_path
    performance/query_cache_enhance
    performance/innodb_fast_checksum
-   performance/remove_fcntl_excessive_calls
    performance/innodb_opt_lru_count
    performance/innodb_thread_concurrency_timer_based
    performance/handlersocket
@@ -93,6 +91,7 @@ Flexibility Improvements
    flexibility/replication_skip_single_statement
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
+   flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
 ========================
@@ -104,7 +103,7 @@ Reliability Improvements
    reliability/log_connection_error
    reliability/error_pad
    reliability/innodb_corrupt_table_action
-   reliability/innodb_recovery_update_relay_log
+   reliability/crash_resistant_replication
    reliability/show_slave_status_nolock
 
 Management Improvements
@@ -117,15 +116,14 @@ Management Improvements
    management/innodb_recovery_patches
    management/innodb_dict_size_limit
    management/innodb_expand_import
-   management/innodb_buffer_pool_shm
    management/innodb_lru_dump_restore
    management/innodb_fast_index_creation
-   management/innodb_extended_fast_index_creation
-   management/innodb_fast_index_renaming
+   management/innodb_expanded_fast_index_creation
    management/sql_no_fcache
-   management/udf_maatkit
+   management/udf_percona_toolkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
+   management/changed_page_tracking
 
 Diagnostics Improvements
 ========================
@@ -134,7 +132,6 @@ Diagnostics Improvements
    :maxdepth: 1
    :glob:
 
-   diagnostics/index_info_schema_tables
    diagnostics/innodb_stats
    diagnostics/user_stats
    diagnostics/slow_extended
@@ -153,6 +150,8 @@ Obsolete and Removed Features
    :glob:
 
    scalability/innodb_extra_rseg
+   performance/remove_fcntl_excessive_calls
+   management/innodb_buffer_pool_shm
 
 Reference
 =========
@@ -163,6 +162,8 @@ Reference
 
    development
    trademark-policy
+   upstream-bug-fixes
+   index_info_schema_tables
    faq
    compatibility
    release-notes/release-notes_index

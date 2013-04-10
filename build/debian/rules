@@ -8,8 +8,8 @@ include /usr/share/dpatch/dpatch.make
 
 TMP=$(CURDIR)/debian/tmp/
 
-major_version_default=13
-minor_version_default=4
+major_version_default=14
+minor_version_default=3
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -99,7 +99,7 @@ endif
 		--with-libwrap \
 		--with-readline \
 		$(USE_STATIC_MYSQLD) \
-		--with-ssl \
+		--with-ssl=/usr \
 	    	--without-docs \
 		--with-extra-charsets=all \
 		--with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
@@ -230,9 +230,6 @@ install: build
 
 	# percona-server-client
 	install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/
-	install -m 0755 debian/additions/innotop/innotop $(TMP)/usr/bin/
-	install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
-	install -m 0644 -D debian/additions/innotop/InnoDBParser.pm $(TMP)/usr/share/perl5/InnoDBParser.pm
 
 	# percona-server-server
 	install -m 0755 scripts/mysqld_safe $(TMP)/usr/bin/mysqld_safe
@@ -305,7 +302,7 @@ binary-arch: build install
 	dh_installinfo -a
 	dh_installlogcheck -a
 	dh_installchangelogs -a
-	dh_strip -a
+	dh_strip -a --dbg-package=percona-server-5.1-dbg
 	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
 	dh_compress -a
 	dh_fixperms -a

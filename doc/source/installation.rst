@@ -25,7 +25,7 @@ Using Percona Software Repositories
    installation/apt_repo
    installation/yum_repo
 
-|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS*, *Amazon Linux AMI*, and *Fedora*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |XtraDB|, |XtraBackup|, and *Maatkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager.
+|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS*, and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |XtraDB|, |XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager.
 
 This is the recommend way of installing where possible.
 
@@ -170,7 +170,7 @@ Install: ::
  Installing |Percona Server| from the Bazaar Source Tree
 ========================================================
 
-Percona uses the `Bazaar <http://www.bazaar-vcs.org>`_ revision
+Percona uses the `Bazaar <http://bazaar.canonical.com/en/>`_ revision
 control system for development. To build the latest Percona Server
 from the source tree you will need Bazaar installed on your system.
 

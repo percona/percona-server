@@ -1820,7 +1820,8 @@ void log_slow_statement(THD *thd)
                          &g.min_examined_row_limit);
 
   /* Do not log this thread's queries due to rate limiting. */
-  if (thd->write_to_slow_log != TRUE
+  if ((thd->variables.log_slow_rate_limit > 1 &&
+       (thd->thread_id % thd->variables.log_slow_rate_limit) != 0)
       && (thd->variables.long_query_time >= 1000000
           || (ulong) query_exec_time < 1000000))
     DBUG_VOID_RETURN;
@@ -2357,6 +2358,11 @@ mysql_execute_command(THD *thd)
       }
       DBUG_RETURN(0);
     }
+    /* 
+       Execute deferred events first
+    */
+    if (slave_execute_deferred_events(thd))
+      DBUG_RETURN(-1);
   }
   else
   {
@@ -2482,9 +2488,35 @@ mysql_execute_command(THD *thd)
   {
     if (check_global_access(thd, SUPER_ACL))
       goto error;
-    /* PURGE MASTER LOGS TO 'file' */
-    res = purge_master_logs(thd, lex->to_log);
-    break;
+    if (lex->type == 0)
+    {
+      /* PURGE MASTER LOGS TO 'file' */
+      res = purge_master_logs(thd, lex->to_log);
+      break;
+    }
+    if (lex->type == PURGE_BITMAPS_TO_LSN)
+    {
+      /* PURGE CHANGED_PAGE_BITMAPS BEFORE lsn */
+      ulonglong lsn= 0;
+      Item *it= (Item *)lex->value_list.head();
+      if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1)
+          || it->null_value)
+      {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0),
+                 "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+        goto error;
+      }
+      lsn= it->val_uint();
+      res= ha_purge_changed_page_bitmaps(lsn);
+      if (res)
+      {
+        my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0),
+                 "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+        goto error;
+      }
+      my_ok(thd);
+      break;
+    }
   }
   case SQLCOM_PURGE_BEFORE:
   {
@@ -3184,7 +3216,7 @@ end_with_restore_list:
     goto error;
 #else
     {
-      if (check_global_access(thd, SUPER_ACL))
+      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
 	goto error;
       res = show_binlogs(thd);
       break;
@@ -3449,6 +3481,7 @@ end_with_restore_list:
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
+    DEBUG_SYNC(thd, "after_mysql_insert");
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -7404,6 +7437,32 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     }
     pthread_mutex_unlock(&LOCK_global_user_client_stats);
   }
+  if (options & REFRESH_FLUSH_PAGE_BITMAPS)
+  {
+    if (check_global_access(thd, SUPER_ACL))
+      result= 1;
+    else
+    {
+      result= ha_flush_changed_page_bitmaps();
+      if (result)
+      {
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH CHANGED_PAGE_BITMAPS");
+      }
+    }
+  }
+  if (options & REFRESH_RESET_PAGE_BITMAPS)
+  {
+    if (check_global_access(thd, SUPER_ACL))
+      result= 1;
+    else
+    {
+      result= ha_purge_changed_page_bitmaps(0);
+      if (result)
+      {
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "RESET CHANGED_PAGE_BITMAPS");
+      }
+    }
+  }
  if (*write_to_binlog != -1)
    *write_to_binlog= tmp_write_to_binlog;
  /*
@@ -7438,7 +7497,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
       continue;
     if (tmp->thread_id == id)
     {
-      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
+      pthread_mutex_lock(&tmp->LOCK_thd_kill);	// Lock from delete
       break;
     }
   }
@@ -7466,12 +7525,13 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
+      DEBUG_SYNC(thd, "kill_one_thread_before_kill");
       tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
       error=0;
     }
     else
       error=ER_KILL_DENIED_ERROR;
-    pthread_mutex_unlock(&tmp->LOCK_thd_data);
+    pthread_mutex_unlock(&tmp->LOCK_thd_kill);
   }
   DBUG_PRINT("exit", ("%d", error));
   DBUG_RETURN(error);

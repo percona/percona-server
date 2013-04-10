@@ -25,6 +25,7 @@ test_SCRIPTS =	mtr \
 		mysql-stress-test.pl
 
 nobase_test_DATA = \
+	lib/Subunit.pm \
 	valgrind.supp \
 	lib/v1/mysql-test-run.pl \
 	lib/v1/mtr_cases.pl \
@@ -81,6 +82,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
 	suite/federated \
+	suite/federated/include \
 	suite/funcs_1 suite/funcs_1/bitdata \
 	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \
 	suite/funcs_1/t suite/funcs_1/views suite/funcs_1/cursors \

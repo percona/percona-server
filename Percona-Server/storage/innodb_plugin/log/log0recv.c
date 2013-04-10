@@ -840,7 +840,7 @@ block.  We also accept a log block in the old format before
 InnoDB-3.23.52 where the checksum field contains the log block number.
 @return TRUE if ok, or if the log block may be in the format of InnoDB
 version predating 3.23.52 */
-static
+UNIV_INTERN
 ibool
 log_block_checksum_is_ok_or_old_format(
 /*===================================*/
@@ -1687,9 +1687,8 @@ recv_recover_page_func(
 	if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
 		page_zip_des_t*	page_zip = buf_block_get_page_zip(block);
 
-		if (page_zip) {
-			ut_a(page_zip_validate_low(page_zip, page, FALSE));
-		}
+		ut_a(!page_zip
+		     || page_zip_validate_low(page_zip, page, NULL, FALSE));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -2084,7 +2083,7 @@ skip_this_recv_addr:
 /*******************************************************************//**
 Tries to parse a single log record and returns its length.
 @return	length of the record, or 0 if the record was not complete */
-static
+UNIV_INTERN
 ulint
 recv_parse_log_rec(
 /*===============*/
@@ -2155,7 +2154,7 @@ recv_parse_log_rec(
 
 /*******************************************************//**
 Calculates the new value for lsn when more data is added to the log. */
-static
+UNIV_INTERN
 ib_uint64_t
 recv_calc_lsn_on_data_add(
 /*======================*/
@@ -3540,6 +3539,8 @@ recv_reset_logs(
 #ifdef UNIV_LOG_ARCHIVE
 	log_sys->archived_lsn = log_sys->lsn;
 #endif /* UNIV_LOG_ARCHIVE */
+
+	log_sys->tracked_lsn = log_sys->lsn;
 
 	log_block_init(log_sys->buf, log_sys->lsn);
 	log_block_set_first_rec_group(log_sys->buf, LOG_BLOCK_HDR_SIZE);

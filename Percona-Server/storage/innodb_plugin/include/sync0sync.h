@@ -478,6 +478,7 @@ or row lock! */
 #define SYNC_REC_LOCK		299
 #define	SYNC_TRX_LOCK_HEAP	298
 #define SYNC_TRX_SYS_HEADER	290
+#define SYNC_LOG_ONLINE		175
 #define SYNC_LOG		170
 #define SYNC_RECV		168
 #define	SYNC_WORK_QUEUE		162

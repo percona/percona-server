@@ -69,6 +69,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "thr0loc.h"
 #include "que0que.h"
 #include "srv0que.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
@@ -160,6 +161,16 @@ UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
 UNIV_INTERN ulint	srv_use_purge_thread = 0;
+
+UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+
+UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
+
+UNIV_INTERN ulonglong	srv_max_changed_pages = 0;
+
+/** When TRUE, fake change transcations take S rather than X row locks.
+    When FALSE, row locks are not taken at all. */
+UNIV_INTERN my_bool	srv_fake_changes_locks = TRUE;
 
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
@@ -405,6 +416,9 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ulint	srv_stats_auto_update = 1;
 UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
+#ifdef UNIV_DEBUG
+UNIV_INTERN ulong	srv_sys_stats_root_page = 0;
+#endif
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -724,6 +738,10 @@ UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
 UNIV_INTERN os_event_t	srv_shutdown_event;
 
+UNIV_INTERN os_event_t	srv_checkpoint_completed_event;
+
+UNIV_INTERN os_event_t	srv_redo_log_thread_finished_event;
+
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
 /* padding to prevent other memory update hotspots from residing on
@@ -1030,6 +1048,9 @@ srv_init(void)
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
 	srv_shutdown_event = os_event_create(NULL);
+
+	srv_checkpoint_completed_event = os_event_create(NULL);
+	srv_redo_log_thread_finished_event = os_event_create(NULL);
 
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
@@ -2674,6 +2695,48 @@ exit_func:
 	OS_THREAD_DUMMY_RETURN;
 }
 
+/******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+UNIV_INTERN
+os_thread_ret_t
+srv_redo_log_follow_thread(
+/*=======================*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						     required by
+						     os_thread_create */
+{
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Redo log follower thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+	my_thread_init();
+
+	do {
+		os_event_wait(srv_checkpoint_completed_event);
+		os_event_reset(srv_checkpoint_completed_event);
+
+		if (!log_online_follow_redo_log()) {
+			/* TODO: sync with I_S log tracking status? */
+			fprintf(stderr,
+				"InnoDB: Error: log tracking bitmap write "
+				"failed, stopping log tracking thread!\n");
+			break;
+		}
+
+	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
+
+	srv_track_changed_pages = FALSE;
+	log_online_read_shutdown();
+	os_event_set(srv_redo_log_thread_finished_event);
+
+	my_thread_end();
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+
 /*******************************************************************//**
 Tells the InnoDB server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
@@ -3098,27 +3161,22 @@ retry_flush_batch:
 
 				/* prev_flush_info should be the previous loop's */
 				{
-					lint	blocks_num, new_blocks_num, flushed_blocks_num;
-					ibool	found;
+					lint	blocks_num, new_blocks_num = 0;
+					lint	flushed_blocks_num;
 
+					mutex_enter(&flush_list_mutex);
 					blocks_num = UT_LIST_GET_LEN(buf_pool->flush_list);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-					new_blocks_num = 0;
 
-					found = FALSE;
 					while (bpage != NULL) {
 						if (prev_flush_info.space == bpage->space
 						    && prev_flush_info.offset == bpage->offset
 						    && prev_flush_info.oldest_modification
 								== bpage->oldest_modification) {
-							found = TRUE;
 							break;
 						}
 						bpage = UT_LIST_GET_NEXT(flush_list, bpage);
 						new_blocks_num++;
-					}
-					if (!found) {
-						new_blocks_num = blocks_num;
 					}
 
 					flushed_blocks_num = new_blocks_num + prev_flush_info.count
@@ -3134,7 +3192,9 @@ retry_flush_batch:
 						prev_flush_info.space = bpage->space;
 						prev_flush_info.offset = bpage->offset;
 						prev_flush_info.oldest_modification = bpage->oldest_modification;
+						mutex_exit(&flush_list_mutex);
 					} else {
+						mutex_exit(&flush_list_mutex);
 						prev_flush_info.space = 0;
 						prev_flush_info.offset = 0;
 						prev_flush_info.oldest_modification = 0;
@@ -3160,6 +3220,7 @@ retry_flush_batch:
 			} else {
 				/* store previous first pages of the flush_list */
 				{
+					mutex_enter(&flush_list_mutex);
 					bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 					prev_flush_info.count = UT_LIST_GET_LEN(buf_pool->flush_list);
@@ -3167,7 +3228,9 @@ retry_flush_batch:
 						prev_flush_info.space = bpage->space;
 						prev_flush_info.offset = bpage->offset;
 						prev_flush_info.oldest_modification = bpage->oldest_modification;
+						mutex_exit(&flush_list_mutex);
 					} else {
+						mutex_exit(&flush_list_mutex);
 						prev_flush_info.space = 0;
 						prev_flush_info.offset = 0;
 						prev_flush_info.oldest_modification = 0;

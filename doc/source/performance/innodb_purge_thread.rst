@@ -28,6 +28,9 @@ You can now have one or several threads dedicated to the purge. This feature pro
 
 But be aware that this feature comes at a cost: it reduces the overall performance because purging adds a non-negligible overhead. However we think it is better to have slightly worse but stable performance over time than to have better peak performance but unpredictable sharp drops.
 
+.. note::
+
+  This feature hasn't been ported to the future |Percona Server| releases.
 
 System Variables
 ================
@@ -61,6 +64,6 @@ Other Reading
 
   * `Tuning for heavy writing workloads <http://www.mysqlperformanceblog.com/2009/10/14/tuning-for-heavy-writing-workloads/>`_
 
-  * `Reasons for run-away main |InnoDB| tablespace <http://www.mysqlperformanceblog.com/2009/10/14/tuning-for-heavy-writing-workloads/>`_
+  * `Reasons for run-away main InnoDB tablespace <http://www.mysqlperformanceblog.com/2010/06/10/reasons-for-run-away-main-innodb-tablespace/>`_
 
-  * `Purge thread spiral of death <http://www.mysqlperformanceblog.com/2009/10/14/tuning-for-heavy-writing-workloads/>`_
+  * `Purge thread spiral of death <http://www.mysqlperformanceblog.com/2010/06/10/purge-thread-spira-of-death/>`_

@@ -236,9 +236,11 @@ buf_LRU_drop_page_hash_batch(
 When doing a DROP TABLE/DISCARD TABLESPACE we have to drop all page
 hash index entries belonging to that table. This function tries to
 do that in batch. Note that this is a 'best effort' attempt and does
-not guarantee that ALL hash entries will be removed. */
+not guarantee that ALL hash entries will be removed.
+
+@return number of hashed pages found*/
 static
-void
+ulint
 buf_LRU_drop_page_hash_for_tablespace(
 /*==================================*/
 	ulint	id)	/*!< in: space id */
@@ -247,13 +249,14 @@ buf_LRU_drop_page_hash_for_tablespace(
 	ulint*		page_arr;
 	ulint		num_entries;
 	ulint		zip_size;
+	ulint		num_found = 0;
 
 	zip_size = fil_space_get_zip_size(id);
 
 	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
 		/* Somehow, the tablespace does not exist.  Nothing to drop. */
 		ut_ad(0);
-		return;
+		return num_found;
 	}
 
 	page_arr = ut_malloc(sizeof(ulint)
@@ -308,6 +311,7 @@ next_page:
 
 		ut_a(num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE);
 		++num_entries;
+		++num_found;
 
 		if (num_entries < BUF_LRU_DROP_SEARCH_HASH_SIZE) {
 			goto next_page;
@@ -360,6 +364,8 @@ next_page:
 	/* Drop any remaining batch of search hashed pages. */
 	buf_LRU_drop_page_hash_batch(id, zip_size, page_arr, num_entries);
 	ut_free(page_arr);
+
+	return num_found;
 }
 
 /******************************************************************//**
@@ -515,8 +521,6 @@ buf_LRU_mark_space_was_deleted(
 	ulint	id)	/*!< in: space id */
 {
 	buf_page_t*	bpage;
-	buf_chunk_t*	chunk;
-	ulint		i, j;
 
 	mutex_enter(&LRU_list_mutex);
 
@@ -531,28 +535,9 @@ buf_LRU_mark_space_was_deleted(
 
 	mutex_exit(&LRU_list_mutex);
 
-	rw_lock_s_lock(&btr_search_latch);
-	chunk = buf_pool->chunks;
-	for (i = buf_pool->n_chunks; i--; chunk++) {
-		buf_block_t*	block	= chunk->blocks;
-		for (j = chunk->size; j--; block++) {
-			if (buf_block_get_state(block)
-			    != BUF_BLOCK_FILE_PAGE
-			    || !(block->index != NULL)
-			    || buf_page_get_space(&block->page) != id) {
-				continue;
-			}
-
-			rw_lock_s_unlock(&btr_search_latch);
-
-			rw_lock_x_lock(&block->lock);
-			btr_search_drop_page_hash_index(block);
-			rw_lock_x_unlock(&block->lock);
-
-			rw_lock_s_lock(&btr_search_latch);
-		}
-	}
-	rw_lock_s_unlock(&btr_search_latch);
+	/* The AHI entries for the tablespace being deleted should be removed
+	by now.  */
+	ut_ad(buf_LRU_drop_page_hash_for_tablespace(id) == 0);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -1429,13 +1414,12 @@ buf_LRU_make_block_old(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns TRUE, it will temporarily
-release buf_pool_mutex.  Furthermore, the page frame will no longer be
-accessible via bpage.
+NOTE: This will temporarily release buf_pool_mutex.  Furthermore, the
+page frame will no longer be accessible via bpage.
 
-The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
-release these two mutexes after the call.  No other
-buf_page_get_mutex() may be held when calling this function.
+The caller must hold buf_page_get_mutex(bpage) and release this mutex
+after the call.  No other buf_page_get_mutex() may be held when
+calling this function.
 @return TRUE if freed, FALSE otherwise. */
 UNIV_INTERN
 ibool
@@ -1523,7 +1507,7 @@ alloc:
 	    || !buf_page_can_relocate(bpage)) {
 not_freed:
 		if (b) {
-			buf_buddy_free(b, sizeof *b, TRUE);
+			buf_page_free_descriptor(b);
 		}
 		if (!have_LRU_mutex)
 			mutex_exit(&LRU_list_mutex);
@@ -1855,7 +1839,9 @@ buf_LRU_block_remove_hashed_page(
 				break;
 			case FIL_PAGE_INDEX:
 #ifdef UNIV_ZIP_DEBUG
-				ut_a(page_zip_validate(&bpage->zip, page));
+				ut_a(page_zip_validate(
+					     &bpage->zip, page,
+					     ((buf_block_t*) bpage)->index));
 #endif /* UNIV_ZIP_DEBUG */
 				break;
 			default:
@@ -2100,6 +2086,11 @@ func_exit:
 Dump the LRU page list to the specific file. */
 #define LRU_DUMP_FILE "ib_lru_dump"
 #define LRU_DUMP_TEMP_FILE "ib_lru_dump.tmp"
+#define LRU_OS_FILE_WRITE() \
+	os_file_write(LRU_DUMP_FILE, dump_file, buffer, \
+		(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL, \
+		(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)), \
+		UNIV_PAGE_SIZE)
 
 UNIV_INTERN
 ibool
@@ -2111,17 +2102,19 @@ buf_LRU_file_dump(void)
 	byte*		buffer_base = NULL;
 	byte*		buffer = NULL;
 	buf_page_t*	bpage;
+	buf_page_t*	first_bpage;
 	ulint		buffers;
 	ulint		offset;
-	ibool		ret = FALSE;
+	ulint		pages_written;
 	ulint		i;
+	ulint		total_pages;
 
 	for (i = 0; i < srv_n_data_files; i++) {
 		if (strstr(srv_data_file_names[i], LRU_DUMP_FILE) != NULL) {
 			fprintf(stderr,
 				" InnoDB: The name '%s' seems to be used for"
-				" innodb_data_file_path. Dumping LRU list is not"
-				" done for safeness.\n", LRU_DUMP_FILE);
+				" innodb_data_file_path. Dumping LRU list is"
+				"  not done for safeness.\n", LRU_DUMP_FILE);
 			goto end;
 		}
 	}
@@ -2144,12 +2137,21 @@ buf_LRU_file_dump(void)
 	}
 
 	mutex_enter(&LRU_list_mutex);
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	bpage = first_bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+	total_pages = UT_LIST_GET_LEN(buf_pool->LRU);
 
-	buffers = offset = 0;
-	while (bpage != NULL) {
-		if (offset == 0) {
-			memset(buffer, 0, UNIV_PAGE_SIZE);
+	buffers = offset = pages_written = 0;
+	while (bpage != NULL && (pages_written++ < total_pages)) {
+
+		buf_page_t*	next_bpage = UT_LIST_GET_NEXT(LRU, bpage);
+
+		if (next_bpage == first_bpage) {
+			mutex_exit(&LRU_list_mutex);
+			success = FALSE;
+			fprintf(stderr,
+				"InnoDB: detected cycle in LRU, skipping "
+				"dump\n");
+			goto end;
 		}
 
 		mach_write_to_4(buffer + offset * 4, bpage->space);
@@ -2158,50 +2160,64 @@ buf_LRU_file_dump(void)
 		offset++;
 
 		if (offset == UNIV_PAGE_SIZE/4) {
+			mutex_t		*next_block_mutex = NULL;
+
 			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-				success = 0;
+				mutex_exit(&LRU_list_mutex);
+				success = FALSE;
 				fprintf(stderr,
 					" InnoDB: stopped dumping lru pages"
 					" because of server shutdown.\n");
 				goto end;
 			}
-			success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
-					(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
-					(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
-					UNIV_PAGE_SIZE);
+
+			/* while writing file, release buffer pool mutex but
+			   keep the next page fixed so we don't worry about
+			   our list iterator becoming invalid */
+			if (next_bpage) {
+				next_block_mutex = buf_page_get_mutex(
+							next_bpage);
+
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count++;
+				mutex_exit(next_block_mutex);
+			}
+			mutex_exit(&LRU_list_mutex);
+
+			success = LRU_OS_FILE_WRITE();
+
+			/* grab this again here so that next_bpage
+			   can't be purged when we drop the fix_count */
+			mutex_enter(&LRU_list_mutex);
+
+			if (next_bpage) {
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count--;
+				mutex_exit(next_block_mutex);
+			}
 			if (!success) {
 				mutex_exit(&LRU_list_mutex);
 				fprintf(stderr,
-					" InnoDB: cannot write page %lu of %s\n",
+					" InnoDB: cannot write page"
+					" %lu of %s\n",
 					buffers, LRU_DUMP_FILE);
 				goto end;
 			}
 			buffers++;
 			offset = 0;
+			bpage = next_bpage;
+		} else {
+			bpage = UT_LIST_GET_NEXT(LRU, bpage);
 		}
-
-		bpage = UT_LIST_GET_PREV(LRU, bpage);
-	}
+	} /* while(bpage ...) */
 	mutex_exit(&LRU_list_mutex);
 
-	if (offset == 0) {
-		memset(buffer, 0, UNIV_PAGE_SIZE);
-	}
-
 	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
 	offset++;
 	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
 	offset++;
 
-	success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
-			(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
-			(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
-			UNIV_PAGE_SIZE);
-	if (!success) {
-		goto end;
-	}
-
-	ret = TRUE;
+	success = LRU_OS_FILE_WRITE();
 end:
 	if (dump_file != -1) {
 		if (success) {
@@ -2216,7 +2232,7 @@ end:
 	if (buffer_base)
 		ut_free(buffer_base);
 
-	return(ret);
+	return(success);
 }
 
 typedef struct {

@@ -3,8 +3,8 @@ Section: misc
 Priority: optional
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
 Uploaders: Ignacio Nin <ignacio.nin@percona.com>
-Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper (>= 4.1.16), file (>= 3.28-1), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), psmisc, po-debconf, chrpath, automake (>= 1.9), doxygen, dpatch, gawk, bison, lsb-release, fakeroot
-Standards-Version: 3.8.0
+Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper (>= 7.0.50), file (>= 3.28-1), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), psmisc, po-debconf, chrpath, automake (>= 1.9), doxygen, dpatch, gawk, bison, lsb-release, fakeroot
+Standards-Version: 7.0.0
 Homepage: http://www.percona.com/software/
 Vcs-Bzr: lp:percona-server/5.1
 
@@ -27,6 +27,7 @@ Section: libdevel
 Depends: libmysqlclient16 (>= ${source:Version}), zlib1g-dev, , ${shlibs:Depends}
 Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev
 Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libpercona-xtradb-client-dev
+Provides: libmysqlclient-dev, libmysqlclient15-dev
 Description: Percona Server database development files
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
@@ -55,9 +56,9 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
 Package: percona-server-client-5.1
 Architecture: any
 Depends: debianutils (>=1.6), libdbi-perl, percona-server-common (>= ${source:Version}), libmysqlclient16 (>= ${source:Version}), ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
-Provides: mysql-client
-Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
-Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, percona-xtradb-client-5.0
+Provides: mysql-client, mysql-client-core, mysql-client-5.1, mysql-client-core-5.1
+Conflicts: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1, mysql-client-5.5, mysql-client-core-5.5, percona-xtradb-client-5.0
+Replaces: mysql-client (<< ${source:Version}), mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1 (<< ${source:Version}), percona-xtradb-client-5.0
 Description: Percona Server database client binaries
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
@@ -73,9 +74,9 @@ Suggests: tinyca
 Recommends: mailx, libhtml-template-perl
 Pre-Depends: percona-server-common (>= ${source:Version}), adduser (>= 3.40), debconf
 Depends: percona-server-client-5.1 (>= ${source:Version}), libdbi-perl, libdbd-mysql-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10)
-Conflicts: mysql-server (<< ${source:Version}), mysql-server-4.1, percona-xtradb-server-5.0
-Provides: mysql-server
-Replaces: mysql-server (<< ${source:Version}), mysql-server-5.0, percona-xtradb-server-5.0
+Provides: mysql-server, mysql-server-core, mysql-server-5.1, mysql-server-core-5.1
+Conflicts: mysql-server (<< ${source:Version}), mysql-server-5.1, mysql-server-core-5.1, mysql-server-5.5, mysql-server-core-5.5, mysql-server-4.1, percona-xtradb-server-5.0
+Replaces: mysql-server (<< ${source:Version}), mysql-server-5.0, mysql-server-5.1, mysql-server-core-5.1, percona-xtradb-server-5.0
 Description: Percona Server database server binaries                                     
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
@@ -83,3 +84,15 @@ Description: Percona Server database server binaries
  ease of use.
  .
  This package includes the server binaries.
+
+Package: percona-server-5.1-dbg
+Architecture: any
+Section: debug
+Depends: percona-server-server-5.1 (= ${binary:Version}), ${misc:Depends}
+Description: Debugging package for Percona Server
+ Percona Server is a fast, stable and true multi-user, multi-threaded SQL database
+ server. SQL (Structured Query Language) is the most popular database query
+ language in the world. The main goals of Percona Server are speed, robustness and
+ ease of use.
+ .
+ This package contains the debugging symbols for the Percona Server binaries.

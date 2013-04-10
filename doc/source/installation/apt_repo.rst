@@ -39,18 +39,16 @@ Ubuntu
 ------
 
  * 10.04LTS (lucid)
- * 11.10 (oneiric)
  * 12.04LTS (precise)
+ * 12.10 (quantal)
 
+Percona `apt` Experimental repository
+=====================================
 
-Release Candidate Repository
-============================
+Percona offers fresh beta builds from the experimental repository. To enable it add the following lines to your  :file:`/etc/apt/sources.list` , replacing ``VERSION`` with the name of your distribution: :: 
 
-To subscribe to the release candidate repository, add two lines to the :file:`/etc/apt/sources.list` file, again replacing ``VERSION`` with your server's release version: ::
-
-  deb http://repo.percona.com/apt-rc VERSION main
-  deb-src http://repo.percona.com/apt-rc VERSION main
-
+  deb http://repo.percona.com/apt VERSION main experimental
+  deb-src http://repo.percona.com/apt VERSION main experimental
 
 Apt-Pinning the packages
 ========================

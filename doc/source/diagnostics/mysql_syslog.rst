@@ -10,7 +10,7 @@ When enabled, this feature causes all commands run by the command line client to
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * :rn:`5.1.49-rel12.0`:
     Full functionality available.
 
 Other Information

@@ -1,3 +1,6 @@
+1.1.0 - 2011-12-29
+  * 1.1.0
+
 1.0.6 - 2010-10-29
   * Changed build instruction (autoreconf/configure/make), removed auto-generated files (Contributed by jmhodges)
   * 

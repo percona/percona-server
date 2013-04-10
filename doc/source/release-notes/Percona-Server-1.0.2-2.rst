@@ -4,7 +4,7 @@
 |Percona Server| 1.0.2-2
 ========================
 
-Released on December 28, 2008.
+Percona is glad to announce the release of |Percona Server| 1.0.2-2 on December 28th, 2008.
 
   * :ref:`innodb_split_buf_pool_mutex`
 

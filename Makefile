@@ -1,12 +1,12 @@
-MYSQL_VERSION=5.1.63
-PERCONA_SERVER_VERSION=rel13.4
+MYSQL_VERSION=5.1.67
+PERCONA_SERVER_VERSION=rel14.3
 PERCONA_SERVER         ?=Percona-Server-$(MYSQL_VERSION)-$(PERCONA_SERVER_VERSION)
 PERCONA_SERVER_SHORT_1 ?=Percona-Server-$(MYSQL_VERSION)
 PERCONA_SERVER_SHORT_2 ?=Percona-Server
 KEWPIE ?=kewpie
 BASEDIR = $(CURDIR)
 
-all:  main install-lic misc handlersocket maatkit-udf autorun
+all:  main install-lic handlersocket maatkit-udf autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -40,10 +40,6 @@ prepare:
 	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
 
 main: prepare
-
-misc:
-	@echo "Installing other files"
-	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
 clean:
 	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)

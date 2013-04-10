@@ -258,8 +258,9 @@ btr_cur_update_alloc_zip(
 	ulint		length,	/*!< in: size needed */
 	ibool		create,	/*!< in: TRUE=delete-and-insert,
 				FALSE=update-in-place */
-	mtr_t*		mtr)	/*!< in: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	mtr_t*		mtr,	/*!< in: mini-transaction */
+	trx_t*		trx)	/*!< in: NULL or transaction */
+    __attribute__((nonnull (1, 2, 3, 6), warn_unused_result));
 /*************************************************************//**
 Updates a record when the update causes no size changes in its fields.
 @return	DB_SUCCESS or error number */
@@ -357,19 +358,20 @@ btr_cur_del_mark_set_sec_rec(
 	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr);	/*!< in: mtr */
-/***********************************************************//**
-Clear a secondary index record's delete mark.  This function is only
+/***************************************************************
+Sets a secondary index record delete mark. This function is only
 used by the insert buffer insert merge mechanism. */
 UNIV_INTERN
 void
-btr_cur_del_unmark_for_ibuf(
-/*========================*/
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
 	rec_t*		rec,		/*!< in/out: record to delete unmark */
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
 					corresponding to rec, or NULL
 					when the tablespace is
 					uncompressed */
-	mtr_t*		mtr);		/*!< in: mtr */
+	ibool		val,		/*!< in: value to set */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 /*************************************************************//**
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid

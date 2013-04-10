@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.63
-%define majorversion 13
-%define minorversion 4
+%define mysqlversion 5.1.67
+%define majorversion 14
+%define minorversion 3
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -115,7 +115,7 @@
 
 %define lic_type GNU GPL v2
 %define lic_files COPYING README
-%define src_dir Percona-Server-%{mysqlversion}
+%define src_dir Percona-Server-%{mysqlversion}%{server_suffix}
 
 ##############################################################################
 # Main spec file section
@@ -128,7 +128,7 @@ Version:	%{mysqlversion}
 Release:	%{release}
 Distribution:	Red Hat Enterprise Linux %{redhatversion}
 License:    GPL	version 2 http://www.gnu.org/licenses/gpl-2.0.html
-Source:		Percona-Server-%{mysqlversion}.tar.gz
+Source:		Percona-Server-%{mysqlversion}%{server_suffix}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
@@ -156,7 +156,7 @@ be eligible for hot fixes, and boost your team's productivity.
 %package -n Percona-Server-server%{package_suffix}
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
-Requires:	 chkconfig coreutils shadow-utils grep procps
+Requires:	Percona-Server-shared%{package_suffix} Percona-Server-client%{package_suffix} chkconfig coreutils shadow-utils grep procps
 Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
 
 %description -n Percona-Server-server%{package_suffix}
@@ -288,11 +288,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	    --with-pic \
             -prefix=/usr \
 	    --with-extra-charsets=complex \
-%if %{YASSL_BUILD}
-	    --with-ssl \
-%else
-	    --without-ssl \
-%endif
+	    --with-ssl=/usr \
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \
@@ -581,12 +577,11 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 fi
 
 %post -n Percona-Server-server%{package_suffix}
+if [ X${PERCONA_DEBUG} == X1 ]; then
+        set -x
+fi
+#
 mysql_datadir=%{mysqldatadir}
-
-# ----------------------------------------------------------------------
-# Create data directory
-# ----------------------------------------------------------------------
-mkdir -p $mysql_datadir/{mysql,test}
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
@@ -594,7 +589,7 @@ mkdir -p $mysql_datadir/{mysql,test}
 if [ -x /sbin/chkconfig ] ; then
 	/sbin/chkconfig --add mysql
 fi
-
+#
 # ----------------------------------------------------------------------
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
@@ -605,16 +600,12 @@ useradd -M -r -d $mysql_datadir -s /bin/bash -c "Percona Server" -g %{mysqld_gro
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 
 # ----------------------------------------------------------------------
-# Change permissions so that the user that will run the MySQL daemon
-# owns all database files.
-# ----------------------------------------------------------------------
-chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
-
-# ----------------------------------------------------------------------
 # Initiate databases
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
-
+if [ $1 -eq 1 ]; then #clean installation
+        mkdir -p $mysql_datadir/{mysql,test}
+        %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi
 # ----------------------------------------------------------------------
 # FIXME upgrade databases if needed would go here - but it cannot be
 # automated yet
@@ -717,7 +708,6 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
-%doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
@@ -750,7 +740,6 @@ fi
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
 %attr(755, root, root) %{_bindir}/innochecksum
-%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
@@ -797,6 +786,7 @@ fi
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
+%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
@@ -811,6 +801,7 @@ fi
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
+%doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_waitpid.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*
@@ -857,13 +848,14 @@ fi
 %{_libdir}/libhsclient.a
 %{_libdir}/libhsclient.la
 
+%{_libdir}/*.so
+%{_libdir}/mysql/*.so
+
 %files -n Percona-Server-shared%{package_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/*.so*
-
-%{_libdir}/mysql/*.so*
-
+%{_libdir}/*.so.*
+%{_libdir}/mysql/*.so.*
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)

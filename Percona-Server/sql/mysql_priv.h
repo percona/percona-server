@@ -505,6 +505,41 @@ protected:
 */
 #define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
+/*
+  Check how many bytes are available on buffer.
+
+  @param buf_start    Pointer to buffer start.
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return             Number of bytes available on event buffer.
+*/
+template <class T> T available_buffer(const char* buf_start,
+                                      const char* buf_current,
+                                      T buf_len)
+{
+  return buf_len - (buf_current - buf_start);
+}
+
+/*
+  Check if jump value is within buffer limits.
+
+  @param jump         Number of positions we want to advance.
+  @param buf_start    Pointer to buffer start
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return      True   If jump value is within buffer limits.
+               False  Otherwise.
+*/
+template <class T> bool valid_buffer_range(T jump,
+                                           const char* buf_start,
+                                           const char* buf_current,
+                                           T buf_len)
+{
+  return (jump <= available_buffer(buf_start, buf_current, buf_len));
+}
+
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
 
@@ -1462,7 +1497,7 @@ bool append_escaped(String *to_str, String *from_str);
 /* sql_show.cc */
 bool mysqld_show_open_tables(THD *thd,const char *wild);
 bool mysqld_show_logs(THD *thd);
-void append_identifier(THD *thd, String *packet, const char *name,
+bool append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
@@ -2062,6 +2097,7 @@ extern uint max_user_connections;
 extern ulonglong denied_connections;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size;
+extern ulong slave_max_allowed_packet;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
@@ -2228,6 +2264,7 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
+extern SHOW_COMP_OPTION have_flashcache;
 
 extern int orig_argc;
 extern char **orig_argv;

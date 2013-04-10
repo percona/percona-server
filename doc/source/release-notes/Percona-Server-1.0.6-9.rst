@@ -4,6 +4,8 @@
 |Percona Server| 1.0.6-9
 ========================
 
+Percona is glad to announce the release of |Percona Server| 1.0.6-9.1 on January 13th, 2010.
+
 The release includes following new features:
 
     * The release is base on 1.0.6 version of |InnoDB| plugin.

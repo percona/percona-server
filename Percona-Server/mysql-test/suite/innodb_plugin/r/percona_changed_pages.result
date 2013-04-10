@@ -1,0 +1,156 @@
+RESET CHANGED_PAGE_BITMAPS;
+DROP TABLE IF EXISTS T1;
+CREATE TABLE T1 (F1 CHAR(255)) ENGINE=INNODB;
+1st interval end LSN greater than interval start LSN:
+should_be_1
+1
+log record interval start LSN should remain constant across the previous restarts
+should_be_1
+1
+log record interval end LSN should remain constant across the previous restarts
+should_be_1
+1
+INSERT INTO T1 VALUES (REPEAT('A', 255));
+log record interval start LSN should remain constant after workload
+should_be_1
+1
+log record interval end LSN should have advanced after workload
+should_be_1
+1
+At least some of the records should be attributed to T1
+should_be_1
+1
+INSERT INTO T1 VALUES (REPEAT('B', 255));
+log record interval start LSN should remain constant after workload
+should_be_1
+1
+log record interval end LSN should have advanced after workload
+should_be_1
+1
+INSERT INTO T1 VALUES (REPEAT('C', 255));
+log record interval start LSN should remain constant after workload
+should_be_1
+1
+log record interval end LSN should have advanced after workload
+should_be_1
+1
+At least some of the records should be attributed to T1
+should_be_1
+1
+Total number of changed pages is smaller than reasonable limit (should be 1):
+COUNT(DISTINCT PAGE_ID) < 10
+1
+Check if the maximum page id is less than resonable limit (should be 1):
+MAX(PAGE_ID) < 10
+1
+Check that the combination of the two above does not violate the pigeon hole principle (should be 1):
+MAX(PAGE_ID) + 1 >= COUNT(DISTINCT PAGE_ID)
+1
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN >= END_LSN;
+COUNT(*)
+0
+ICP tests (all should be 1):
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE END_LSN = @cond_test_max_end_lsn;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+END_LSN > (@cond_test_max_end_lsn - 1) AND
+END_LSN < (@cond_test_max_end_lsn + 1);
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+END_LSN >= @cond_test_max_end_lsn AND
+END_LSN <= @cond_test_max_end_lsn;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+(@cond_test_max_end_lsn - 1) < END_LSN AND
+@cond_test_max_end_lsn >= END_LSN;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN <= @cond_test_max_end_lsn AND
+END_LSN >= @cond_test_max_end_lsn;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN >= @cond_test_max_start_lsn;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN > (@cond_test_max_start_lsn - 1);
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN >= @cond_test_max_start_lsn AND
+END_LSN <= @cond_test_max_end_lsn;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN >= @cond_test_max_start_lsn AND
+END_LSN >= @cond_test_max_start_lsn;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+@cond_test_max_start_lsn <= START_LSN AND
+@cond_test_max_end_lsn >= END_LSN;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN > @cond_test_max_lsn AND
+END_LSN < @cond_test_max_lsn;
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN > @cond_test_max_lsn + 10 AND
+END_LSN < @cond_test_max_lsn - 10;
+COUNT(*)
+0
+SELECT @total_pages=@r1_r4_pages AS should_be_1;
+should_be_1
+1
+SELECT @r1_r2_pages+@r2_r3_pages+@r3_r4_pages=@r1_r4_pages AS should_be_1;
+should_be_1
+1
+SELECT @r1_r2_pages+@r2_r3_pages=@r1_r3_pages AS should_be_1;
+should_be_1
+1
+SELECT @r2_r3_pages+@r3_r4_pages=@r2_r4_pages AS should_be_1;
+should_be_1
+1
+SET GLOBAL INNODB_MAX_CHANGED_PAGES = 1;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+COUNT(*)
+1
+SET GLOBAL INNODB_MAX_CHANGED_PAGES = 5;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+COUNT(*)
+5
+SET GLOBAL INNODB_MAX_CHANGED_PAGES = 1000000;
+DROP TABLE T1;

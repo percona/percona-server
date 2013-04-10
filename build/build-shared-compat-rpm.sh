@@ -94,7 +94,7 @@ PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 # Build information
 REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \
     cut -d ' ' -f 2)"
-REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
+REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 
 # Compilation flags
 export CC=gcc
@@ -140,7 +140,7 @@ fi
     cd "$WORKDIR"
 
     # Issue RPM command
-    eval rpmbuild $SIGN -ba --clean --with yassl $TARGET_LIBDIR $TARGET_ARCH \
+    eval rpmbuild $SIGN -ba --clean $TARGET_LIBDIR $TARGET_ARCH \
         "$SOURCEDIR/build/percona-shared-compat.spec" \
         --define "_topdir\ $WORKDIR_ABS" \
         --define "redhat_version\ $REDHAT_RELEASE" \

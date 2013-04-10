@@ -246,12 +246,12 @@ wait_server_to_start(THD *thd, volatile int& shutdown_flag)
       &abstime);
     pthread_mutex_unlock(&LOCK_server_started);
     pthread_mutex_lock(&thd->mysys_var->mutex);
-    THD::killed_state st = thd->killed;
+    int killed = thd_killed(thd);
     pthread_mutex_unlock(&thd->mysys_var->mutex);
-    DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d\n", (int)st));
+    DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d\n", killed));
     pthread_mutex_lock(&LOCK_server_started);
-    if (st != THD::NOT_KILLED) {
-      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d break\n", (int)st));
+    if (killed) {
+      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d break\n", killed));
       r = -1;
       break;
     }
@@ -358,12 +358,12 @@ bool
 dbcontext::check_alive()
 {
   pthread_mutex_lock(&thd->mysys_var->mutex);
-  THD::killed_state st = thd->killed;
+  int killed = thd_killed(thd);
   pthread_mutex_unlock(&thd->mysys_var->mutex);
-  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %p %p %d %zu\n", thd, &thd->killed,
+  DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %p %p %d %u\n", thd, killed,
     (int)st, sizeof(*thd)));
-  if (st != THD::NOT_KILLED) {
-    DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d break\n", (int)st));
+  if (killed) {
+    DBG_SHUT(fprintf(stderr, "chk HNDSOCK kst %d break\n", killed));
     return false;
   }
   return true;
@@ -659,7 +659,7 @@ dbcontext::cmd_insert_internal(dbcallback_i& cb, const prep_stmt& pst,
   empty_record(table);
   memset(buf, 0, table->s->null_bytes); /* clear null flags */
   const prep_stmt::fields_type& rf = pst.get_ret_fields();
-  const size_t n = rf.size();
+  const size_t n = std::min(rf.size(), fvalslen);
   for (size_t i = 0; i < n; ++i) {
     uint32_t fn = rf[i];
     Field *const fld = table->field[fn];
@@ -1024,7 +1024,7 @@ dbcontext::cmd_open(dbcallback_i& cb, const cmd_open_args& arg)
       OPEN_VIEW_NO_PARSE);
     #endif
     if (table == 0) {
-      DENA_VERBOSE(10, fprintf(stderr,
+      DENA_VERBOSE(20, fprintf(stderr,
 	"HNDSOCK failed to open %p [%s] [%s] [%d]\n",
 	thd, arg.dbn, arg.tbl, static_cast<int>(refresh)));
       return cb.dbcb_resp_short(1, "open_table");

@@ -19,7 +19,7 @@ The following discussion will clarify the improvements made possible by this fea
 Goal of the Doublewrite Buffer
 ------------------------------
 
-|InnoDB| and |XtraDB| use many structures, some on disk and others in memory, to manage data as efficiently as possible. To have an overview of the different components see this post. Let``s now focus on the doublewrite buffer.
+|InnoDB| and |XtraDB| use many structures, some on disk and others in memory, to manage data as efficiently as possible. To have an overview of the different components see this `post <http://www.mysqlperformanceblog.com/2010/04/26/xtradb-innodb-internals-in-drawing/>`_. Let's now focus on the doublewrite buffer.
 
 |InnoDB| / |XtraDB| uses a reserved area in its main tablespace, called the doublewrite buffer, to prevent data corruption that could occur with partial page writes. When the data in the buffer pool is flushed to disk, |InnoDB| / |XtraDB| will flush whole pages at a time (by default 16KB pages) and not just the records that have changed within a page. It means that, if anything unexpected happens during the write, the page can be partially written leading to corrupt data.
 
@@ -27,7 +27,7 @@ With the doublewrite buffer feature, |InnoDB| / |XtraDB| first writes the page i
 
 If a partial page write occurs in the data files, |InnoDB| / |XtraDB| will check on recovery if the checksum of the page in the data file is different from the checksum of the page in the doublewrite buffer and thus will know if the page is corrupt or not. If it is corrupt, the recovery process will use the page stored in the doublewrite buffer to restore the correct data.
 
-If a partial write occurs in the doublewrite buffer, the original page is untouched and can be used with the redo logs to recover the data. For further information on the doublewrite buffer, you can see this post.
+If a partial write occurs in the doublewrite buffer, the original page is untouched and can be used with the redo logs to recover the data.
 
 Performance Impact of the Doublewrite Buffer
 --------------------------------------------
@@ -50,16 +50,16 @@ How to Choose a Good Location for the Doublewrite Buffer
 
 Basically if you want to improve the I/O activity, you will put the doublewrite buffer on a different disk. But is it better on an SSD or a more traditional HDD? First you should note that pages are written in a circular fashion in the doublewrite buffer and only read on recovery. So the doublewrite buffer performs mostly sequential writes and a few sequential reads. Second HDDs are very good at sequential write if a write cache is enabled, which is not the case of SSDs. Therefore you should choose a fast HDD if you want to see performance benefits from this option. For instance, you could place the redo logs (also written in a sequential way) and the doublewrite buffer on the same disk.
 
-Prior to release 5.1.53-12.4, it was necessary to recreate your database and |InnoDB| system files when a dedicated file to contain the doublewrite buffer was specified. Beginning with release 5.1.53-12.4, you no longer need to do this.
+Prior to release :rn:`5.1.53-12.4`, it was necessary to recreate your database and |InnoDB| system files when a dedicated file to contain the doublewrite buffer was specified. Beginning with release 5.1.53-12.4, you no longer need to do this.
 
 
 Version Specific Information
 ============================
 
-  * 5.1.47-11.0	 
+  * :rn:`5.1.47-rel11.1`
     Full functionality available.
 
-  * 5.1.53-12.4
+  * :rn:`5.1.53-12.4`
     Rebuild of database and system files no longer necessary.
 
 System Variables

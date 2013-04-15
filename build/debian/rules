@@ -28,6 +28,7 @@ ifneq ($(BUILD_DEBUG_BINARY),)
 	$(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
 	   -DINSTALL_LAYOUT=DEB \
 	   -DCMAKE_BUILD_TYPE=Debug \
+	   -DWITH_SSL=system \
 	   -DWITH_EMBEDDED_SERVER=OFF \
 	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
 	   -DFEATURE_SET=$(feature_set) \
@@ -40,6 +41,7 @@ endif
 	cd release && $(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
 	   -DINSTALL_LAYOUT=DEB \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	   -DWITH_SSL=system \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
            -DFEATURE_SET=$(feature_set) \

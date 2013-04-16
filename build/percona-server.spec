@@ -257,6 +257,7 @@ Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
 Provides:       mysql-server MySQL-server
+Conflicts:	Percona-SQL-server-50 Percona-Server-server-51
 
 %description -n Percona-Server-server%{product_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
@@ -279,6 +280,7 @@ Summary:        Percona Server - Client
 Group:          Applications/Databases
 Requires:      Percona-Server-shared%{product_suffix}
 Provides:       mysql-client MySQL-client mysql MySQL
+Conflicts:      Percona-SQL-client-50 Percona-Server-client-51
 
 %description -n Percona-Server-client%{product_suffix}
 This package contains the standard Percona Server client and administration tools.
@@ -291,6 +293,7 @@ Requires:       Percona-Server-client%{product_suffix} perl
 Summary:        Percona Server - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
+Conflicts:      Percona-SQL-test-50 Percona-Server-test-51
 AutoReqProv:    no
 
 %description -n Percona-Server-test%{product_suffix}
@@ -303,6 +306,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
+Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51
 
 %description -n Percona-Server-devel%{product_suffix}
 This package contains the development header files and libraries necessary

@@ -158,6 +158,7 @@ Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	Percona-Server-shared%{package_suffix} Percona-Server-client%{package_suffix} chkconfig coreutils shadow-utils grep procps
 Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
+Conflicts:	Percona-SQL-server-50
 
 %description -n Percona-Server-server%{package_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
@@ -180,6 +181,7 @@ package "Percona-Server-client%{package_suffix}" as well!
 Summary: Percona-Server - Client
 Group: Applications/Databases
 Provides: mysql-client MySQL-client Percona-XtraDB-client mysql MySQL
+Conflicts: Percona-SQL-client-50
 
 %description -n Percona-Server-client%{package_suffix}
 This package contains the standard Percona Server client and administration tools. 
@@ -194,6 +196,7 @@ Requires: mysql-client perl
 Summary: Percona-Server - Test suite
 Group: Applications/Databases
 Provides: mysql-test MySQL-test Percona-XtraDB-test
+Conflicts: Percona-SQL-test-50
 AutoReqProv: no
 
 %description -n Percona-Server-test%{package_suffix}
@@ -207,6 +210,7 @@ This package contains the Percona-Server regression test suite.
 Summary: Percona-Server - Development header files and libraries
 Group: Applications/Databases
 Provides: mysql-devel MySQL-devel Percona-XtraDB-devel
+Conflicts: Percona-SQL-devel-50
 
 %description -n Percona-Server-devel%{package_suffix}
 This package contains the development header files and libraries
@@ -288,7 +292,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	    --with-pic \
             -prefix=/usr \
 	    --with-extra-charsets=complex \
-	    --with-ssl \
+	    --with-ssl=/usr \
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \

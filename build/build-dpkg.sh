@@ -74,7 +74,7 @@ DEBIAN_VERSION="$(lsb_release -sc)"
 
 # Build information
 export BB_PERCONA_REVISION="$(cd "$SOURCEDIR"; bzr revno)"
-export DEB_BUILD_OPTIONS='nostrip debug nocheck'
+export DEB_BUILD_OPTIONS='debug'
 
 # Compilation flags
 export CC=${CC:-gcc}

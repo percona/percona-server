@@ -3,11 +3,10 @@ Section: database
 Priority: extra
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
 Uploaders: Ignacio Nin <ignacio.nin@percona.com>
-Build-Depends: debhelper (>= 7.0), dpatch, cmake, libtool, automake, autoconf, libncurses5-dev, perl, bison, fakeroot, devscripts, libaio-dev
-Standards-Version: 3.9.1
+Build-Depends: debhelper (>= 7.0.50), cmake, libtool, autoconf, libncurses5-dev, perl, bison, fakeroot, devscripts, libaio-dev, dpatch, automake
+Standards-Version: 7.0.0
 Homepage: http://www.percona.com/software/percona-server/
-Vcs-Bzr: bzr+ssh://bazaar.launchpad.net/~percona-core/percona-server/5.6
-Vcs-Browser: http://bazaar.launchpad.net/~percona-core/percona-server/5.6
+Vcs-Bzr: lp:percona-server/5.6
 
 Package: libmysqlclient18
 Section: libs

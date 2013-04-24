@@ -25,7 +25,7 @@ When used, this feature modifies the standard |MySQL| behavior described above. 
 Version Specific Information
 ============================
 
-  * 5.1.49-12.0:
+  * :rn:`5.1.49-rel12.0`
     Full functionality released.
 
 System Variables
@@ -50,7 +50,7 @@ This variable specifies the number of events in the current event group to skip.
 Consider this case: ::
 
   SET GLOBAL sql_slave_statement_skip_counter=n;
-  SET GLOBAL sql_slave__skip_counter=m;
+  SET GLOBAL sql_slave_skip_counter=m;
 
 The first statement will skip the next ``n`` events in the current event group. At that point, one would expect the second statement to operate as described in the |MySQL| documentation for ``sql_slave_skip_counter``. However, depending on the values of ``n`` and ``m`` and the contents of the binary log, the effects of the interactions of the two statements can involve very complicated scenarios. **THESE SCENARIOS HAVE NOT BEEN TESTED**.
 

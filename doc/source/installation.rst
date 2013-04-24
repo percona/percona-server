@@ -170,7 +170,7 @@ Install: ::
  Installing |Percona Server| from the Bazaar Source Tree
 ========================================================
 
-Percona uses the `Bazaar <http://www.bazaar-vcs.org>`_ revision
+Percona uses the `Bazaar <http://bazaar.canonical.com/en/>`_ revision
 control system for development. To build the latest Percona Server
 from the source tree you will need Bazaar installed on your system.
 

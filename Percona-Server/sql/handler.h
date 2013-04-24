@@ -693,6 +693,8 @@ struct handlerton
    int (*fill_files_table)(handlerton *hton, THD *thd,
                            TABLE_LIST *tables,
                            class Item *cond);
+   my_bool (*flush_changed_page_bitmaps)(void);
+   my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler
@@ -2073,6 +2075,9 @@ int ha_commit_one_phase(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
+
+bool ha_flush_changed_page_bitmaps();
+bool ha_purge_changed_page_bitmaps(ulonglong lsn);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_commit_trans(THD *thd, bool all);

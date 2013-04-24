@@ -1,119 +1,68 @@
--- source include/have_binlog_format_statement.inc
--- source include/master-slave.inc
---let log_file=percona.slow_extended.log_slow_slave_statements
---let show=SELECT Variable_value FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name LIKE 'log_slow_slave_statements';
+#
+# Test log_slow_slave_statements
+#
+--source include/have_innodb_plugin.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
 
-connection master;
--- disable_warnings
+--disable_warnings
 DROP TABLE IF EXISTS t;
--- enable_warnings
+--enable_warnings
 
-CREATE TABLE t(id INT);
+CREATE TABLE t(id INT) ENGINE=InnoDB;
 sync_slave_with_master;
 
-connection slave;
+SET GLOBAL min_examined_row_limit=0;
+SET GLOBAL long_query_time=0;
+SET GLOBAL log_slow_slave_statements=OFF;
+--source include/restart_slave_sql.inc
+
+--let log_file=percona.slow_extended.log_slow_slave_statements
 --source include/log_start.inc
 
---disable_query_log
---disable_result_log
-
---echo LINE 1
+#
+# A statement that should not be slow-logged
+#
 connection master;
 INSERT INTO t VALUES (1);
 sync_slave_with_master;
 
-connection slave;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
---echo LOG_SLOW_SLAVE_STATEMENTS=1
-SET GLOBAL log_slow_slave_statements=1;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
-
---echo LINE 2
+#
+# A statement that should be slow-logged
+#
+SET GLOBAL log_slow_slave_statements=ON;
 connection master;
+# Explicit transaction to avoid slow-logging implicit BEGIN/COMMIT
+BEGIN;
 INSERT INTO t VALUES (2);
+COMMIT;
 sync_slave_with_master;
 
---source include/restart_slave_sql.inc
-
-connection slave;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
-
---echo LINE 3
+#
+# A statement that should not be slow-logged
+#
+SET GLOBAL log_slow_slave_statements=OFF;
 connection master;
 INSERT INTO t VALUES (3);
 sync_slave_with_master;
 
-connection slave;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
---echo LOG_SLOW_SLAVE_STATEMENTS=0
-SET GLOBAL log_slow_slave_statements=0;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
-
---echo LINE 4
-connection master;
-INSERT INTO t VALUES (4);
-sync_slave_with_master;
-
---source include/restart_slave_sql.inc
-
-connection slave;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
-
---echo LINE 5
-connection master;
-INSERT INTO t VALUES (5);
-sync_slave_with_master;
-
-connection slave;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
---echo LOG_SLOW_SLAVE_STATEMENTS=1
-SET GLOBAL log_slow_slave_statements=1;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
-
---echo LINE 6
-connection master;
-INSERT INTO t VALUES (6);
-sync_slave_with_master;
-
---source include/restart_slave_sql.inc
-
-connection slave;
---let value=`$show`
---echo LOG_SLOW_SLAVE_STATAMENTS is $value
-
---echo LINE 7
-connection master;
-INSERT INTO t VALUES (7);
-sync_slave_with_master;
-
---enable_query_log
---enable_result_log
-
-connection slave;
 --source include/log_stop.inc
-SET GLOBAL log_slow_slave_statements=default;
 
-connection slave;
---let i=1
---let k=8
-while($k)
-{
---let grep_pattern= INSERT INTO t VALUES \($i\)
+--let grep_pattern= INSERT INTO t VALUES \(1\)
 --source include/log_grep.inc
-  inc $i;
-  dec $k;
-}
+--let grep_pattern= INSERT INTO t VALUES \(2\)
+--source include/log_grep.inc
+--let grep_pattern= INSERT INTO t VALUES \(3\)
+--source include/log_grep.inc
+--let grep_pattern= ^# User@Host: \[SQL_SLAVE\] @  \[\]
+--source include/log_grep.inc
 
 connection master;
 DROP TABLE t;
 sync_slave_with_master;
 
+SET GLOBAL log_slow_slave_statements=default;
+SET GLOBAL long_query_time=default;
+SET GLOBAL min_examined_row_limit=default;
 --source include/rpl_end.inc
+--source include/log_cleanup.inc

@@ -4655,12 +4655,16 @@ loop:
 
 			lock_mutex_exit_kernel();
 
-			mtr_start(&mtr);
+			if (srv_show_verbose_locks) {
+				mtr_start(&mtr);
 
-			buf_page_get_with_no_latch(space, zip_size,
-						   page_no, &mtr);
+				buf_page_get_gen(space, zip_size, page_no,
+						 RW_NO_LATCH, NULL,
+						 BUF_GET_POSSIBLY_FREED,
+						 __FILE__, __LINE__, &mtr);
 
-			mtr_commit(&mtr);
+				mtr_commit(&mtr);
+			}
 
 			load_page_first = FALSE;
 
@@ -5447,8 +5451,13 @@ lock_sec_rec_read_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes && mode == LOCK_X) {
-		mode = LOCK_S;
+	if (UNIV_UNLIKELY((thr && thr_get_trx(thr)->fake_changes))) {
+		if (!srv_fake_changes_locks) {
+			return(DB_SUCCESS);
+		}
+		if (mode == LOCK_X) {
+			mode = LOCK_S;
+		}
 	}
 
 	heap_no = page_rec_get_heap_no(rec);
@@ -5528,8 +5537,13 @@ lock_clust_rec_read_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes && mode == LOCK_X) {
-		mode = LOCK_S;
+	if (UNIV_UNLIKELY((thr && thr_get_trx(thr)->fake_changes))) {
+		if (!srv_fake_changes_locks) {
+			return(DB_SUCCESS);
+		}
+		if (mode == LOCK_X) {
+			mode = LOCK_S;
+		}
 	}
 
 	heap_no = page_rec_get_heap_no(rec);

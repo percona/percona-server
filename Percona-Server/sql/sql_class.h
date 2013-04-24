@@ -1329,6 +1329,11 @@ struct Ha_data
   Ha_data() :ha_ptr(NULL) {}
 };
 
+typedef struct
+{
+  time_t start_time;
+  ulonglong start_utime;
+} QUERY_START_TIME_INFO;
 
 /**
   @class THD
@@ -1496,28 +1501,10 @@ public:
 
   /*** Following variables used in slow_extended.patch ***/
   /*
-    Variable write_to_slow_log:
-     1) initialized in
-       * sql_connect.cc (log_slow_rate_limit support)
-       * slave.cc       (log_slow_slave_statements support)
-     2) The variable is initialized on the thread startup and remains
-        constant afterwards.  This will change when 
-        LP #712396 ("log_slow_slave_statements not work on replication 
-        threads without RESTART") is implemented.
-     3) An implementation of LP #688646 ("Make query sampling possible 
-        by query") should use it.
-  */
-  bool       write_to_slow_log;
-  /*
     Variable bytes_send_old saves value of thd->status_var.bytes_sent
     before query execution.
   */
   ulonglong  bytes_sent_old;
-  /*
-    Original row_count value at the start of query execution
-    (used by the slow_extended patch).
-  */
-  ulong      orig_row_count;
   /*
     Variables tmp_tables_*** collect statistics about usage of temporary tables
   */
@@ -2216,6 +2203,16 @@ public:
   {
     start_time= user_time= t;
     start_utime= utime_after_lock= my_micro_time();
+  }
+  void get_time(QUERY_START_TIME_INFO *time_info)
+  {
+    time_info->start_time= start_time;
+    time_info->start_utime= start_utime;
+  }
+  void set_time(QUERY_START_TIME_INFO *time_info)
+  {
+    start_time= time_info->start_time;
+    start_utime= time_info->start_utime;
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 

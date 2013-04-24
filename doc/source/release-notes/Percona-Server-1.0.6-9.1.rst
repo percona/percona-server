@@ -4,6 +4,8 @@
 |Percona Server| 1.0.6-9.1
 ==========================
 
+Percona is glad to announce the release of |Percona Server| 1.0.6-9.1 on March 15th, 2010.
+
 New features in version 9.1
 ===========================
   * |MySQL| 5.1.43 is taken as the basis

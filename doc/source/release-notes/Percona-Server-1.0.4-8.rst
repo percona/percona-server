@@ -4,6 +4,8 @@
 |Percona Server| 1.0.4-8
 ========================
 
+Percona is glad to announce the release of |Percona Server| 1.0.4-8 on October 12th, 2009.
+
 The release includes following new features:
 
     * The release is base on 1.0.4 version of |InnoDB| plugin. We thank `Schooner Information Technology <http://www.schoonerinfotech.com/>`_ for sponsoring and testing the port of |XtraDB| to 1.0.4

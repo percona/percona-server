@@ -753,6 +753,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CHAIN_SYM                     /* SQL-2003-N */
 %token  CHANGE
 %token  CHANGED
+%token  CHANGED_PAGE_BITMAPS_SYM      /* MYSQL      */
 %token  CHARSET
 %token  CHAR_SYM                      /* SQL-2003-R */
 %token  CHECKSUM_SYM
@@ -10691,6 +10692,8 @@ flush_option:
           { Lex->type|= REFRESH_DES_KEY_FILE; }
         | RESOURCES
           { Lex->type|= REFRESH_USER_RESOURCES; }
+        | CHANGED_PAGE_BITMAPS_SYM
+          { Lex->type|= REFRESH_FLUSH_PAGE_BITMAPS; }
         ;
 
 opt_table_list:
@@ -10717,6 +10720,8 @@ reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
         | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
+        | CHANGED_PAGE_BITMAPS_SYM
+          { Lex->type |= REFRESH_RESET_PAGE_BITMAPS; }
         ;
 
 purge:
@@ -10732,6 +10737,13 @@ purge:
 
 purge_options:
           master_or_binary LOGS_SYM purge_option
+        | CHANGED_PAGE_BITMAPS_SYM BEFORE_SYM real_ulonglong_num
+          {
+            LEX *lex= Lex;
+            lex->value_list.empty();
+            lex->value_list.push_front(new Item_uint($3));
+            lex->type= PURGE_BITMAPS_TO_LSN;
+          }
         ;
 
 purge_option:
@@ -11807,6 +11819,7 @@ keyword_sp:
         | CASCADED                 {}
         | CHAIN_SYM                {}
         | CHANGED                  {}
+        | CHANGED_PAGE_BITMAPS_SYM {}
         | CIPHER_SYM               {}
         | CLIENT_STATS_SYM         {}
         | CLIENT_SYM               {}

@@ -4,7 +4,7 @@
  |Percona Server| 1.0.2-3 Sapporo
 ==================================
 
-Released on March 2, 2009
+Percona is glad to announce the release of |Percona Server| 1.0.2-3 on March 2nd, 2009.
 
   * Move to |MySQL| 5.1.31
 

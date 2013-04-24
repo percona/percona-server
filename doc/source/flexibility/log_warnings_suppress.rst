@@ -10,22 +10,15 @@ This feature is intended to provide a general mechanism (using ``log_warnings_si
 Version Specific Information
 ============================
 
-  * 5.1.47-11.0: 
+  * :rn:`5.1.47-rel11.1`
     System variable :variable:`suppress_log_warning_1592` introduced.
-
-  * 5.5.8-20.0:
-    System variable :variable:`suppress_log_warning_1592` replaced by :variable:`log_warnings_silence`.
-
-  * 5.5.10-20.1:
-    Renamed variable :variable:`log_warnings_silence` to :variable:`log_warnings_suppress`.
 
 System Variables
 ================
 
 .. variable:: suppress_log_warning_1592
 
-     :version 5.1.47-11.0: Introduced.
-     :version 5.5.8-20.0: Deleted.
+     :version 5.1.47-rel11.1: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -46,33 +39,10 @@ In some circumstances, |MySQL| will warn you that a statement is unsafe to repli
 
   090213 16:58:54 [Warning] Statement is not safe to log in statement format.
 
-This variable was obsoleted, beginning in release :rn:`5.5.8-20.0`. It still exists in versions :rn:`5.1.47-11.0` to :rn:`5.1.54-12.5`.
-
-.. variable:: log_warnings_suppress
-
-     :version 5.5.8-20.0: Introduced.
-     :version 5.5.10-20.1: Renamed.
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: SET
-     :default: ``(empty string)``
-     :range: ``(empty string)``, ``1592``
-
-This variable was added in beta release ``5.5.8-20.0`` as :variable:`log_warnings_silence` and renamed in release 5.5.10-20.1.
-
-It is intended to provide a more general mechanism for disabling warnings than existed previously with variable suppress_log_warning_1592.
-
-When set to the empty string, no warnings are disabled. When set to ``1592``, warning #1592 messages (unsafe statement for binary logging) are suppressed.
-
-In the future, the ability to optionally disable additional warnings may also be added.
-
-
 Related Reading
 ===============
 
-  * `MySQL bug 42851 <http://bugs.mysql.com/bug.php?id=42851>`_
+  * `MySQL bug #42851 <http://bugs.mysql.com/bug.php?id=42851>`_
 
   * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.1/en/innodb-and-mysql-replication.html>`_
 

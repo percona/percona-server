@@ -86,7 +86,6 @@ execute_singleメソッドは列の挿入にも使用できます。
 
   my $res = $hs->execute_single(3, '+', [ 'foo', 'bar', 'baz' ]);
   die $hs->get_error() if $res->[0] != 0;
-  my $num_inserted_rows = $res->[1];
 
 第3引数は、対応するopen_index呼び出しの第5引数の列リストと同じだ
 けの長さの配列への参照でなければなりません。open_index呼び出しの

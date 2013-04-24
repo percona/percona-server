@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.65
+%define mysqlversion 5.1.66
 %define majorversion 14
-%define minorversion 0
+%define minorversion 2
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -156,7 +156,7 @@ be eligible for hot fixes, and boost your team's productivity.
 %package -n Percona-Server-server%{package_suffix}
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
-Requires:	 chkconfig coreutils shadow-utils grep procps
+Requires:	Percona-Server-shared%{package_suffix} Percona-Server-client%{package_suffix} chkconfig coreutils shadow-utils grep procps
 Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
 
 %description -n Percona-Server-server%{package_suffix}
@@ -288,11 +288,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	    --with-pic \
             -prefix=/usr \
 	    --with-extra-charsets=complex \
-%if %{YASSL_BUILD}
 	    --with-ssl \
-%else
-	    --without-ssl \
-%endif
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \
@@ -717,7 +713,6 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
-%doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
@@ -750,7 +745,6 @@ fi
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
 
 %attr(755, root, root) %{_bindir}/innochecksum
-%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
@@ -797,6 +791,7 @@ fi
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
+%attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
@@ -811,6 +806,7 @@ fi
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
+%doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_find_rows.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_waitpid.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlaccess.1*

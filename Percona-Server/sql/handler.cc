@@ -4400,7 +4400,19 @@ int handler::read_range_first(const key_range *start_key,
 		? HA_ERR_END_OF_FILE
 		: result);
 
-  DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+  if (compare_key(end_range) <= 0)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    /*
+      The last read row does not fall in the range. So request
+      storage engine to release row lock if possible.
+    */
+    unlock_row();
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 }
 
 
@@ -4432,7 +4444,20 @@ int handler::read_range_next()
   result= index_next(table->record[0]);
   if (result)
     DBUG_RETURN(result);
-  DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+
+  if (compare_key(end_range) <= 0)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    /*
+      The last read row does not fall in the range. So request
+      storage engine to release row lock if possible.
+    */
+    unlock_row();
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 }
 
 
@@ -4609,6 +4634,42 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   if (!result)
     my_eof(thd);
   return result;
+}
+
+static my_bool flush_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *unused2)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->flush_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->flush_changed_page_bitmaps();
+}
+
+bool ha_flush_changed_page_bitmaps()
+{
+  return plugin_foreach(NULL, flush_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
+static my_bool purge_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *lsn)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->purge_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->purge_changed_page_bitmaps(*(ulonglong *)lsn);
+}
+
+bool ha_purge_changed_page_bitmaps(ulonglong lsn)
+{
+  return plugin_foreach(NULL, purge_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, &lsn);
 }
 
 /*

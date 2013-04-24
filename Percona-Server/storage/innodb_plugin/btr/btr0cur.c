@@ -228,6 +228,7 @@ btr_cur_latch_leaves(
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		mode;
+	ulint		sibling_mode;
 	ulint		left_page_no;
 	ulint		right_page_no;
 	buf_block_t*	get_block;
@@ -251,14 +252,21 @@ btr_cur_latch_leaves(
 #endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 		return;
+	case BTR_SEARCH_TREE:
 	case BTR_MODIFY_TREE:
-		/* x-latch also brothers from left to right */
+		if (UNIV_UNLIKELY(latch_mode == BTR_SEARCH_TREE)) {
+			mode = RW_S_LATCH;
+			sibling_mode = RW_NO_LATCH;
+		} else {
+			mode = sibling_mode = RW_X_LATCH;
+		}
+		/* Fetch and possibly latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(
 				space, zip_size, left_page_no,
-				RW_X_LATCH, cursor->index, mtr);
+				sibling_mode, cursor->index, mtr);
 
 			if (srv_pass_corrupt_table && !get_block) {
 				return;
@@ -270,12 +278,21 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
+			if (sibling_mode == RW_NO_LATCH) {
+				/* btr_block_get() called with RW_NO_LATCH will
+				fix the read block in the buffer.  This serves
+				no purpose for the fake changes prefetching,
+				thus we unfix the sibling blocks immediately.*/
+				mtr_memo_release(mtr, get_block,
+						 MTR_MEMO_BUF_FIX);
+			} else {
+				get_block->check_index_page_at_flush = TRUE;
+			}
 		}
 
 		get_block = btr_block_get(
 			space, zip_size, page_no,
-			RW_X_LATCH, cursor->index, mtr);
+			mode, cursor->index, mtr);
 
 		if (srv_pass_corrupt_table && !get_block) {
 			return;
@@ -291,7 +308,7 @@ btr_cur_latch_leaves(
 		if (right_page_no != FIL_NULL) {
 			get_block = btr_block_get(
 				space, zip_size, right_page_no,
-				RW_X_LATCH, cursor->index, mtr);
+				sibling_mode, cursor->index, mtr);
 
 			if (srv_pass_corrupt_table && !get_block) {
 				return;
@@ -303,7 +320,12 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_prev(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			get_block->check_index_page_at_flush = TRUE;
+			if (sibling_mode == RW_NO_LATCH) {
+				mtr_memo_release(mtr, get_block,
+						 MTR_MEMO_BUF_FIX);
+			} else {
+				get_block->check_index_page_at_flush = TRUE;
+			}
 		}
 
 		return;
@@ -1307,7 +1329,12 @@ fail_err:
 
 		if (UNIV_UNLIKELY(reorg)) {
 			ut_a(zip_size);
-			ut_a(*rec);
+			/* It's possible for rec to be NULL if the
+			page is compressed.  This is because a
+			reorganized page may become incompressible. */
+			if (!*rec) {
+				goto fail;
+			}
 		}
 	}
 
@@ -1443,20 +1470,9 @@ btr_cur_pessimistic_insert(
 	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
-	/* Try first an optimistic insert; reset the cursor flag: we do not
-	assume anything of how it was positioned */
-
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-					big_rec, n_ext, thr, mtr);
-	if (err != DB_FAIL) {
-
-		return(err);
-	}
-
-	/* Retry with a pessimistic insert. Check locks and write to undo log,
-	if specified */
+	/* Check locks and write to undo log, if specified */
 
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &dummy_inh);
@@ -1467,6 +1483,9 @@ btr_cur_pessimistic_insert(
 	}
 
 	if (!(flags & BTR_NO_UNDO_LOG_FLAG)) {
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
+
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the insert will not fail because
 		of lack of space */
@@ -1761,7 +1780,8 @@ btr_cur_update_alloc_zip(
 	ulint		length,	/*!< in: size needed */
 	ibool		create,	/*!< in: TRUE=delete-and-insert,
 				FALSE=update-in-place */
-	mtr_t*		mtr)	/*!< in: mini-transaction */
+	mtr_t*		mtr,	/*!< in: mini-transaction */
+	trx_t*		trx)	/*!< in: NULL or transaction */
 {
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
@@ -1776,6 +1796,14 @@ btr_cur_update_alloc_zip(
 		/* The page has been freshly compressed, so
 		recompressing it will not help. */
 		return(FALSE);
+	}
+
+	if (trx && trx->fake_changes) {
+	    /* Don't call page_zip_compress_write_log_no_data as that has
+	    assert which would fail. Assume there won't be a compression
+	    failure. */
+
+	    return TRUE;
 	}
 
 	if (!page_zip_compress(page_zip, buf_block_get_frame(block),
@@ -1861,7 +1889,8 @@ btr_cur_update_in_place(
 	/* Check that enough space is available on the compressed page. */
 	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 rec_offs_size(offsets), FALSE, mtr)) {
+					 rec_offs_size(offsets), FALSE, mtr,
+					 trx)) {
 		return(DB_ZIP_OVERFLOW);
 	}
 
@@ -2060,7 +2089,8 @@ any_extern:
 
 	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
-					 new_rec_size, TRUE, mtr)) {
+					 new_rec_size, TRUE, mtr,
+					 thr_get_trx(thr))) {
 		err = DB_ZIP_OVERFLOW;
 		goto err_exit;
 	}
@@ -2083,8 +2113,12 @@ any_extern:
 		goto err_exit;
 	}
 
-	max_size = old_rec_size
-		+ page_get_max_insert_size_after_reorganize(page, 1);
+	/* We do not attempt to reorganize if the page is compressed.
+	This is because the page may fail to compress after reorganization. */
+	max_size = page_zip
+		? page_get_max_insert_size(page, 1)
+		: (old_rec_size
+		   + page_get_max_insert_size_after_reorganize(page, 1));
 
 	if (!(((max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT)
 	       && (max_size >= new_rec_size))
@@ -2297,7 +2331,15 @@ btr_cur_pessimistic_update(
 		of the index tree, so that the update will not fail because
 		of lack of space */
 
-		n_extents = cursor->tree_height / 16 + 3;
+		if (UNIV_UNLIKELY(cursor->tree_height == ULINT_UNDEFINED)) {
+			/* When the tree height is uninitialized due to fake
+			changes, reserve some hardcoded number of extents.  */
+			ut_a(thr && thr_get_trx(thr)->fake_changes);
+			n_extents = 3;
+		}
+		else {
+			n_extents = cursor->tree_height / 16 + 3;
+		}
 
 		if (flags & BTR_NO_UNDO_LOG_FLAG) {
 			reserve_flag = FSP_CLEANING;
@@ -2334,7 +2376,7 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG)) {
+	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -2452,7 +2494,12 @@ make_external:
 		err = DB_SUCCESS;
 		goto return_after_reservations;
 	} else {
-		ut_a(optim_err != DB_UNDERFLOW);
+		/* If the page is compressed and it initially
+		compresses very well, and there is a subsequent insert
+		of a badly-compressing record, it is possible for
+		btr_cur_optimistic_update() to return DB_UNDERFLOW and
+		btr_cur_insert_if_possible() to return FALSE. */
+		ut_a(page_zip || optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
 		if (!dict_index_is_clust(index)
@@ -2480,8 +2527,10 @@ make_external:
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
 
-	/* The first parameter means that no lock checking and undo logging
-	is made in the insert */
+	/* Lock checks and undo logging were already performed by
+	btr_cur_upd_lock_and_undo(). We do not try
+	btr_cur_optimistic_insert() because
+	btr_cur_insert_if_possible() already failed above. */
 
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
@@ -3096,6 +3145,8 @@ btr_cur_pessimistic_delete(
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the node pointer updates will
 		not fail because of lack of space */
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
 
 		n_extents = cursor->tree_height / 32 + 1;
 

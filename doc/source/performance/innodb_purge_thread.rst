@@ -61,6 +61,6 @@ Other Reading
 
   * `Tuning for heavy writing workloads <http://www.mysqlperformanceblog.com/2009/10/14/tuning-for-heavy-writing-workloads/>`_
 
-  * `Reasons for run-away main |InnoDB| tablespace <http://www.mysqlperformanceblog.com/2009/10/14/tuning-for-heavy-writing-workloads/>`_
+  * `Reasons for run-away main InnoDB tablespace <http://www.mysqlperformanceblog.com/2010/06/10/reasons-for-run-away-main-innodb-tablespace/>`_
 
-  * `Purge thread spiral of death <http://www.mysqlperformanceblog.com/2009/10/14/tuning-for-heavy-writing-workloads/>`_
+  * `Purge thread spiral of death <http://www.mysqlperformanceblog.com/2010/06/10/purge-thread-spira-of-death/>`_

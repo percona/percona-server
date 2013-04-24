@@ -74,15 +74,15 @@ Then discard the tables as preparation of import, for example, ::
 Version Specific Information
 ============================
 
-  * 5.5.10-20.1:
-    Renamed variable :variable:`innodb_expand_import` to :variable:`innodb_import_table_from_xtrabackup`.
+  * :rn:`5.1.50-rel12.1`
+    Introduced variable :variable:`innodb_expand_import`.
 
 System Variables
 ================
 
 .. variable:: innodb_expand_import
 
-     :version 5.5.10-20.1: Renamed.
+     :version 5.1.50-rel12.1: Introduced
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -92,25 +92,6 @@ System Variables
      :range: 0-1
 
 If set to 1, ``.ibd`` file is converted (``space id``, ``index id``, etc.) with index information in ``.exp`` file during the import process (``ALTER TABLE ... IMPORT TABLESPACE`` command).
-
- This variable was renamed to :variable:`innodb_import_table_from_xtrabackup`, beginning in release 5.5.10-20.1. It still exists as :variable:`innodb_expand_import` in versions prior to that.
-
-
-.. variable:: innodb_import_table_from_xtrabackup
-
-     :version 5.5.10-20.1: Introduced.
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: ULONG
-     :default: 0
-     :range: 0-1
-
-If set to 1, ``.ibd`` file is converted (``space id``, ``index id``, etc.) with index information in .exp file during the import process (``ALTER TABLE ... IMPORT TABLESPACE`` command).
-
- This variable was added in release 5.5.10-20.1. Prior to that, it was named :variable:`innodb_expand_import`, which still exists in earlier versions.
-
 
 .. Other Information
 

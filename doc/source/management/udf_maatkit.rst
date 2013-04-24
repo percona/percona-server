@@ -15,7 +15,7 @@ Three *Maatkit* and *Percona Toolkit* UDFs that provide faster checksums are pro
 Version Specific Information
 ============================
 
-  * 5.1.53-12.4:
+  * :rn:`5.1.53-12.4`:
     Began distributing ``fnv_udf``, ``fnv1a_udf``, and ``murmur_udf``.
 
 Other Information

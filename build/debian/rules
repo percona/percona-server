@@ -21,7 +21,7 @@ clean-patched:
 	rm -rf CMakeFiles
 
 override_dh_auto_configure: patch
-ifneq ($(BUILD_DEBUG_BINARY),)
+ifeq ($(SKIP_DEBUG_BINARY),)
 	# Make a debug binary
 	mkdir debug
 	cd debug && \
@@ -48,7 +48,7 @@ endif
 	   -DWITH_PAM=ON
 
 override_dh_auto_build:
-ifneq ($(BUILD_DEBUG_BINARY),)
+ifeq ($(SKIP_DEBUG_BINARY),)
 	cd debug && make $(MAKE_JFLAG)
 endif
 

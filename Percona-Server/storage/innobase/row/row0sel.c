@@ -4899,8 +4899,8 @@ row_search_check_if_query_cache_permitted(
 
 			trx->read_view =
 				read_view_open_now(trx->id,
-						   NULL, TRUE);
-
+						   trx->prebuilt_view, TRUE);
+			trx->prebuilt_view = trx->read_view;
 			trx->global_read_view = trx->read_view;
 		}
 	}

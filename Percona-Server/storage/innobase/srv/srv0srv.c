@@ -463,6 +463,9 @@ UNIV_INTERN ulint		srv_n_rows_updated CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_rows_deleted CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_rows_read CACHE_ALIGNED		= 0;
 
+UNIV_INTERN ulint		srv_read_views_memory CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_descriptors_memory CACHE_ALIGNED	= 0;
+
 UNIV_INTERN ulint		srv_n_lock_deadlock_count CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_count CACHE_ALIGNED	= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_current_count CACHE_ALIGNED = 0;
@@ -2129,6 +2132,9 @@ srv_printf_innodb_monitor(
 			"; in additional pool allocated " ULINTPF "\n",
 			ut_total_allocated_memory,
 			mem_pool_get_reserved(mem_comm_pool));
+	fprintf(file,
+		"Total memory allocated by read views " ULINTPF "\n",
+		srv_read_views_memory);
 	/* Calcurate reserved memories */
 	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
 		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index[0]->heap);
@@ -2214,6 +2220,12 @@ srv_printf_innodb_monitor(
 
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
+
+	fprintf(file, "%lu transactions active inside InnoDB\n",
+		UT_LIST_GET_LEN(trx_sys->trx_list));
+
+	fprintf(file, "%lu out of %lu descriptors used\n",
+		trx_sys->descr_n_used, trx_sys->descr_n_max);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list)) {
 		read_view_t*	view = UT_LIST_GET_LAST(trx_sys->view_list);
@@ -2524,6 +2536,8 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
+	export_vars.innodb_read_views_memory = srv_read_views_memory;
+	export_vars.innodb_descriptors_memory = srv_descriptors_memory;
 
 #ifdef UNIV_DEBUG
 	if (trx_sys->max_trx_id < purge_sys->done_trx_no) {

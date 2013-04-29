@@ -132,3 +132,14 @@ Description: Percona Server database client
  about which Percona Server version you want, as this is the one we consider 
  to be in the best shape.
 
+Package: percona-server-5.6-dbg
+Architecture: any
+Section: debug
+Depends: percona-server-server-5.6 (= ${binary:Version}), ${misc:Depends}
+Description: Debugging package for Percona Server
+ Percona Server is a fast, stable and true multi-user, multi-threaded SQL
+ database server. SQL (Structured Query Language) is the most popular database
+ query language in the world. The main goals of Percona Server are speed,
+ robustness and ease of use.
+ .
+ This package contains the debugging symbols for the Percona Server binaries.

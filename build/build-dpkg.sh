@@ -19,7 +19,7 @@ eval set -- $go_out
 
 BUILDPKG_KEY=''
 DPKG_BINSRC=''
-DEBUG='yes'
+SKIPDEBUG=''
 
 for arg
 do
@@ -28,7 +28,7 @@ do
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
     -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
     -b | --binary ) shift; DPKG_BINSRC='-b';;
-    -D | --nodebug ) shift; DEBUG='';;
+    -D | --nodebug ) shift; SKIPDEBUG='yes';;
     -S | --source ) shift; DPKG_BINSRC='-S';;
     esac
 done
@@ -105,8 +105,8 @@ export MAKE_JFLAG=-j4
         cp -R "$SOURCEDIR/build/debian" .
         chmod +x debian/rules
 
-        # If debug is not set, do not ship mysql-debug
-        if test "x$DEBUG" = "x"
+        # If nodebug is set, do not ship mysql-debug
+        if test "x$SKIPDEBUG" = "xyes"
         then
             sed -i '/mysqld-debug/d' debian/percona-server-server-5.6.install
         fi
@@ -115,7 +115,7 @@ export MAKE_JFLAG=-j4
         dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
 
         DEB_CFLAGS_APPEND="$CFLAGS" DEB_CXXFLAGS_APPEND="$CXXFLAGS" \
-		BUILD_DEBUG_BINARY="$DEBUG" \
+                SKIP_DEBUG_BINARY="$SKIPDEBUG" \
                 dpkg-buildpackage $DPKG_BINSRC -rfakeroot $BUILDPKG_KEY
 
     )

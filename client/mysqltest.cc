@@ -4398,6 +4398,8 @@ void do_change_user(struct st_command *command)
     mysql->reconnect= 1;
     mysql_reconnect(&cur_con->mysql);
   }
+  else
+    handle_no_error(command);
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
@@ -5163,7 +5165,7 @@ static void abort_process(int pid, const char *path)
 
 void do_shutdown_server(struct st_command *command)
 {
-  long timeout=60;
+  long timeout=600;
   int pid, error= 0;
   std::string ds_file_name;
   MYSQL* mysql = &cur_con->mysql;

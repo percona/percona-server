@@ -899,6 +899,7 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
+   failed_com_change_user(0),
    m_examined_row_count(0),
    m_statement_psi(NULL),
    m_idle_psi(NULL),

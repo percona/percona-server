@@ -9638,6 +9638,9 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   uint passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
                     (uchar) (*passwd++) : strlen(passwd));
 
+  if (passwd_len)
+    mpvio->auth_info.password_used= PASSWORD_USED_YES;
+
   db+= passwd_len + 1;
   /*
     Database name is always NUL-terminated, so in case of empty database

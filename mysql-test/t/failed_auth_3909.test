@@ -1,0 +1,39 @@
+source include/not_embedded.inc;
+
+#
+# MDEV-3909 remote user enumeration
+#
+# verify that for some failed login attemps (with wrong user names)
+# the server requests a plugin
+#
+optimize table mysql.user;
+insert mysql.user (user,plugin) values ('foo','bar'),('bar','bar'),('baz','bar');
+flush privileges;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect (fail,localhost,u1);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect (fail,localhost,u2);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect (fail,localhost,u2,password);
+
+--error ER_ACCESS_DENIED_ERROR
+change_user u1;
+
+# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+change_user u2;
+--enable_reconnect
+
+--error ER_ACCESS_DENIED_ERROR
+change_user u2,password;
+
+delete from mysql.user where plugin = 'bar';
+flush privileges;
+
+

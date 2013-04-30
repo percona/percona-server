@@ -9786,7 +9786,7 @@ ACL_USER *decoy_user(const LEX_STRING &username,
 
 /**
    Finds acl entry in user database for authentication purposes.
-   
+
    Finds a user and copies it into mpvio. Reports an authentication
    failure if a user is not found.
 

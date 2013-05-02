@@ -119,7 +119,7 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
     MYSQL_CHECK_SSL_DIR([$openssl_includes], [$openssl_libs])
   else
     # So it gets set to lib/
-    openssl_libs="no"
+    mysql_ssl_found="no"
   fi
 
   if test "$mysql_ssl_found" == "no"

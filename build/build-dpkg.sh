@@ -12,12 +12,14 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "k:KbS" --longoptions key:,nosign,binary,source \
+go_out="$(getopt --options "k:Ke:bS" \
+    --longoptions key:,nosign,epoch:,binary,source \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
 
 BUILDPKG_KEY=''
+EPOCH=''
 DPKG_BINSRC=''
 
 for arg
@@ -26,6 +28,7 @@ do
     -- ) shift; break;;
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
     -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
+    -e | --epoch ) shift; EPOCH="$1:"; shift;;
     -b | --binary ) shift; DPKG_BINSRC='-b';;
     -S | --source ) shift; DPKG_BINSRC='-S';;
     esac
@@ -104,7 +107,7 @@ export MYSQL_BUILD_CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_F
         chmod +x debian/rules
 
         # Update distribution name
-        dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
+        dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$EPOCH$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
 
         dpkg-buildpackage $DPKG_BINSRC -rfakeroot $BUILDPKG_KEY
 

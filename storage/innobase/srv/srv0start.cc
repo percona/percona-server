@@ -55,6 +55,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "rem0rec.h"
 #include "mtr0mtr.h"
 #include "log0log.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "page0page.h"
 #include "page0cur.h"
@@ -155,6 +156,7 @@ UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_log_tracking_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
@@ -1515,6 +1517,29 @@ srv_start_wait_for_purge_to_start()
 	}
 }
 
+/*********************************************************************//**
+Initializes the log tracking subsystem and starts its thread.  */
+static
+void
+init_log_online(void)
+/*=================*/
+{
+	if (UNIV_UNLIKELY(srv_force_recovery > 0 || srv_read_only_mode)) {
+		srv_track_changed_pages = FALSE;
+		return;
+	}
+
+	if (srv_track_changed_pages) {
+
+		log_online_read_init();
+
+		/* Create the thread that follows the redo log to output the
+		   changed page bitmap */
+		os_thread_create(&srv_redo_log_follow_thread, NULL,
+				 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+	}
+}
+
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
@@ -2315,6 +2340,7 @@ files_checked:
 	if (create_new_db) {
 
 		ut_a(!srv_read_only_mode);
+		init_log_online();
 
 		mtr_start(&mtr);
 
@@ -2431,6 +2457,8 @@ files_checked:
 
 			return(DB_ERROR);
 		}
+
+		init_log_online();
 
 		/* Since the insert buffer init is in dict_boot, and the
 		insert buffer is needed in any disk i/o, first we call
@@ -2567,8 +2595,14 @@ files_checked:
 				return(err);
 			}
 
+			/* create_log_files() can increase system lsn that is
+			why FIL_PAGE_FILE_FLUSH_LSN have to be updated */
+			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+			fil_write_flushed_lsn_to_data_files(min_flushed_lsn, 0);
+			fil_flush_file_spaces(FIL_TABLESPACE);
+
 			create_log_files_rename(logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
+						log_get_lsn(), logfile0);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;

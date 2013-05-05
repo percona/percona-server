@@ -2422,8 +2422,14 @@ files_checked:
 				return(err);
 			}
 
+			/* create_log_files() can increase system lsn that is
+			why FIL_PAGE_FILE_FLUSH_LSN have to be updated */
+			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+			fil_write_flushed_lsn_to_data_files(min_flushed_lsn, 0);
+			fil_flush_file_spaces(FIL_TABLESPACE);
+
 			create_log_files_rename(logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
+						log_get_lsn(), logfile0);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;

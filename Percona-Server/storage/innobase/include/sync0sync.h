@@ -41,6 +41,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "os0sync.h"
 #include "sync0arr.h"
+#include "ut0counter.h"
 
 #if  defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
 extern "C" my_bool	timed_mutexes;
@@ -172,14 +173,14 @@ necessary only if the memory block containing it is freed. */
 # ifdef UNIV_DEBUG
 #  ifdef UNIV_SYNC_DEBUG
 #   define mutex_create(K, M, level)				\
-	pfs_mutex_create_func((K), (M), #M, (level), __FILE__, __LINE__)
+	pfs_mutex_create_func((K), (M), (level), __FILE__, __LINE__, #M)
 #  else
 #   define mutex_create(K, M, level)				\
-	pfs_mutex_create_func((K), (M), #M, __FILE__, __LINE__)
+	pfs_mutex_create_func((K), (M), __FILE__, __LINE__, #M)
 #  endif/* UNIV_SYNC_DEBUG */
 # else
 #  define mutex_create(K, M, level)				\
-	pfs_mutex_create_func((K), (M), __FILE__, __LINE__)
+	pfs_mutex_create_func((K), (M), #M)
 # endif	/* UNIV_DEBUG */
 
 # define mutex_enter(M)						\
@@ -199,14 +200,14 @@ original non-instrumented functions */
 # ifdef UNIV_DEBUG
 #  ifdef UNIV_SYNC_DEBUG
 #   define mutex_create(K, M, level)			\
-	mutex_create_func((M), #M, (level), __FILE__, __LINE__)
+	mutex_create_func((M), (level), __FILE__, __LINE__, #M)
 #  else /* UNIV_SYNC_DEBUG */
 #   define mutex_create(K, M, level)				\
-	mutex_create_func((M), #M, __FILE__, __LINE__)
+	mutex_create_func((M), __FILE__, __LINE__, #M)
 #  endif /* UNIV_SYNC_DEBUG */
 # else /* UNIV_DEBUG */
 #  define mutex_create(K, M, level)				\
-	mutex_create_func((M), __FILE__, __LINE__)
+	mutex_create_func((M), #M)
 # endif	/* UNIV_DEBUG */
 
 # define mutex_enter(M)	mutex_enter_func((M), __FILE__, __LINE__)
@@ -231,13 +232,13 @@ mutex_create_func(
 /*==============*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline);		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name);	/*!< in: mutex name */
 
 /******************************************************************//**
 NOTE! Use the corresponding macro mutex_free(), not directly this function!
@@ -305,13 +306,13 @@ pfs_mutex_create_func(
 	PSI_mutex_key	key,		/*!< in: Performance Schema key */
 	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
 #  ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 #  endif /* UNIV_SYNC_DEBUG */
-# endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline);		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+# endif /* UNIV_DEBUG */
+	const char*	cmutex_name);
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter(), not directly
 this function!
@@ -764,8 +765,10 @@ struct ib_mutex_t {
 	ulint	line;		/*!< Line where the mutex was locked */
 	ulint	level;		/*!< Level in the global latching order */
 #endif /* UNIV_SYNC_DEBUG */
+#ifdef UNIV_DEBUG
 	const char*	cfile_name;/*!< File name where mutex created */
 	ulint		cline;	/*!< Line where created */
+#endif
 	ulong		count_os_wait;	/*!< count of os_wait */
 #ifdef UNIV_DEBUG
 
@@ -789,6 +792,16 @@ the thread. A value 600 rounds on a 1995 100 MHz Pentium seems to correspond
 to 20 microseconds. */
 
 #define	SYNC_SPIN_ROUNDS	srv_n_spin_wait_rounds
+
+/** The number of iterations in the mutex_spin_wait() spin loop.
+Intended for performance monitoring. */
+extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_round_count;
+/** The number of mutex_spin_wait() calls.  Intended for
+performance monitoring. */
+extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_wait_count;
+/** The number of OS waits in mutex_spin_wait().  Intended for
+performance monitoring. */
+extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_os_wait_count;
 
 /** The number of mutex_exit calls. Intended for performance monitoring. */
 extern	ib_int64_t	mutex_exit_count;

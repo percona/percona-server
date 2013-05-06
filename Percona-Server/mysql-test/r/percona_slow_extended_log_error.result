@@ -1,0 +1,10 @@
+SET long_query_time=0;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t(a INT);
+[log_start.inc] percona.slow_extended.log_error
+CREATE TABLE t(a INT);
+ERROR 42S01: Table 't' already exists
+[log_stop.inc] percona.slow_extended.log_error
+[log_grep.inc] file: percona.slow_extended.log_error pattern: Last_errno: 1050
+[log_grep.inc] lines:   1
+DROP TABLE t;

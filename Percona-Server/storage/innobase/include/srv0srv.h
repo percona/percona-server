@@ -125,6 +125,10 @@ struct srv_stats_t {
 
 	/** Number of rows inserted */
 	ulint_ctr_64_t		n_rows_inserted;
+
+	ulint_ctr_1_t		lock_deadlock_count;
+
+	ulint_ctr_1_t		n_lock_max_wait_time;
 };
 
 extern const char*	srv_main_thread_op_info;
@@ -153,6 +157,14 @@ extern char		srv_buffer_pool_load_at_startup;
 /* Whether to disable file system cache if it is defined */
 extern char		srv_disable_sort_file_cache;
 
+/* This event is set on checkpoint completion to wake the redo log parser
+thread */
+extern os_event_t	srv_checkpoint_completed_event;
+
+/* This event is set on the online redo log following thread exit to signal
+that the (slow) shutdown may proceed */
+extern os_event_t	srv_redo_log_thread_finished_event;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -160,6 +172,10 @@ at a time */
 
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
+
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
+
 /* Temporary file for innodb monitor output */
 extern FILE*	srv_monitor_file;
 /* Mutex for locking srv_dict_tmpfile. Only created if !srv_read_only_mode.
@@ -239,6 +255,12 @@ extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
 extern ulint*	srv_data_file_is_raw_partition;
 
+extern my_bool		srv_track_changed_pages;
+extern ulonglong	srv_max_bitmap_file_size;
+
+extern
+ulonglong       srv_changed_pages_limit;
+
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 extern char*	srv_log_group_home_dir;
@@ -253,14 +275,17 @@ extern ulong	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
 extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
-extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
+extern char	srv_use_global_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
 even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
+
+extern ulint    srv_show_locks_held;
+extern ulint    srv_show_verbose_locks;
 
 /* The sort order table of the MySQL latin1_swedish_ci character set
 collation */
@@ -271,6 +296,7 @@ extern my_bool	srv_use_sys_malloc;
 extern ibool	srv_use_sys_malloc;
 #endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
+extern my_bool	srv_buf_pool_populate;	/*!< virtual page preallocation */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
 extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
 					protect buf_pool->page_hash */
@@ -414,6 +440,7 @@ extern my_bool	srv_purge_view_update_only_debug;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
+extern lint	srv_kill_idle_transaction;
 
 #ifndef HAVE_ATOMIC_BUILTINS
 /** Mutex protecting some server global variables. */
@@ -447,6 +474,11 @@ extern struct export_var_t export_vars;
 /** Global counters */
 extern srv_stats_t	srv_stats;
 
+/** When TRUE, fake change transcations take S rather than X row locks.
+When FALSE, row locks are not taken at all. */
+extern my_bool srv_fake_changes_locks;
+
+
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
 extern mysql_pfs_key_t	buf_page_cleaner_thread_key;
@@ -458,6 +490,7 @@ extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
 extern mysql_pfs_key_t	recv_writer_thread_key;
+extern mysql_pfs_key_t	srv_log_tracking_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */
@@ -630,6 +663,16 @@ void
 srv_wake_master_thread(void);
 /*========================*/
 /******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+extern "C"
+UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(srv_redo_log_follow_thread)(
+/*=======================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+/******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
 due to failure to obtain necessary mutex */
@@ -785,6 +828,11 @@ srv_purge_wakeup(void);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{
+	ulint innodb_adaptive_hash_cells;
+	ulint innodb_adaptive_hash_heap_buffers;
+	ulint innodb_adaptive_hash_hash_searches;
+	ulint innodb_adaptive_hash_non_hash_searches;
+	ulint innodb_background_log_sync;
 	ulint innodb_data_pending_reads;	/*!< Pending reads */
 	ulint innodb_data_pending_writes;	/*!< Pending writes */
 	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
@@ -793,6 +841,7 @@ struct export_var_t{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
+	ulint innodb_dict_tables;
 	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
 	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
@@ -805,21 +854,52 @@ struct export_var_t{
 #ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
 #endif /* UNIV_DEBUG */
+	ulint innodb_buffer_pool_pages_made_not_young;
+	ulint innodb_buffer_pool_pages_made_young;
+	ulint innodb_buffer_pool_pages_old;
 	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
 	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
+	ulint innodb_buffer_pool_pages_LRU_flushed;	/*!< buf_lru_flush_page_count */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
 	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
+	ulint innodb_checkpoint_age;
+	ulint innodb_checkpoint_max_age;
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
+	ulint innodb_deadlocks;
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
+	ulint innodb_history_list_length;
+	ulint innodb_ibuf_size;
+	ulint innodb_ibuf_free_list;
+	ulint innodb_ibuf_segment_size;
+	ulint innodb_ibuf_merges;
+	ulint innodb_ibuf_merged_inserts;
+	ulint innodb_ibuf_merged_delete_marks;
+	ulint innodb_ibuf_merged_deletes;
+	ulint innodb_ibuf_discarded_inserts;
+	ulint innodb_ibuf_discarded_delete_marks;
+	ulint innodb_ibuf_discarded_deletes;
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */
 	lsn_t innodb_os_log_written;		/*!< srv_os_log_written */
+	lsn_t innodb_lsn_current;
+	lsn_t innodb_lsn_flushed;
+	lsn_t innodb_lsn_last_checkpoint;
+	ulint innodb_master_thread_active_loops;/*!< srv_main_active_loops */
+	ulint innodb_master_thread_idle_loops;	/*!< srv_main_idle_loops */
+	ib_int64_t innodb_max_trx_id;
+	ulint innodb_mem_adaptive_hash;
+	ulint innodb_mem_dictionary;
+	ulint innodb_mem_total;
+	ib_int64_t innodb_mutex_os_waits;
+	ib_int64_t innodb_mutex_spin_rounds;
+	ib_int64_t innodb_mutex_spin_waits;
+	ib_int64_t innodb_oldest_view_low_limit_trx_id;
 	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
 	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
 	ulint innodb_os_log_pending_fsyncs;	/*!< fil_n_pending_log_flushes */
@@ -827,6 +907,8 @@ struct export_var_t{
 	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
 	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
+	ib_int64_t innodb_purge_trx_id;
+	ib_int64_t innodb_purge_undo_no;
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
 	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
@@ -836,6 +918,7 @@ struct export_var_t{
 						/ srv_n_lock_wait_count */
 	ulint innodb_row_lock_time_max;		/*!< srv_n_lock_max_wait_time
 						/ 1000 */
+	ulint innodb_current_row_locks;
 	ulint innodb_rows_read;			/*!< srv_n_rows_read */
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
@@ -843,6 +926,12 @@ struct export_var_t{
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
 	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
+	ib_int64_t innodb_s_lock_os_waits;
+	ib_int64_t innodb_s_lock_spin_rounds;
+	ib_int64_t innodb_s_lock_spin_waits;
+	ib_int64_t innodb_x_lock_os_waits;
+	ib_int64_t innodb_x_lock_spin_rounds;
+	ib_int64_t innodb_x_lock_spin_waits;
 #ifdef UNIV_DEBUG
 	ulint innodb_purge_trx_id_age;		/*!< rw_max_trx_id - purged trx_id */
 	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id

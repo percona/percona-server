@@ -204,6 +204,9 @@ que_thr_end_lock_wait(
 {
 	que_thr_t*	thr;
 	ibool		was_active;
+	ulint		sec;
+	ulint		ms;
+	ib_uint64_t	now;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
@@ -219,6 +222,13 @@ que_thr_end_lock_wait(
 	was_active = thr->is_active;
 
 	que_thr_move_to_run_state(thr);
+
+	if (innobase_get_slow_log() && trx->take_stats) {
+		ut_usectime(&sec, &ms);
+		now = (ib_uint64_t)sec * 1000000 + ms;
+		trx->lock_que_wait_timer
+			+= (ulint)(now - trx->lock_que_wait_ustarted);
+	}
 
 	trx->lock.que_state = TRX_QUE_RUNNING;
 
@@ -1262,6 +1272,12 @@ que_eval_sql(
 	que_t*		graph;
 
 	ut_a(trx->error_state == DB_SUCCESS);
+
+	if (trx->fake_changes) {
+		/* fake_changes should not access to system tables */
+		fprintf(stderr, "InnoDB: ERROR: innodb_fake_changes tried to access to system tables.\n");
+		return(DB_ERROR);
+	}
 
 	if (reserve_dict_mutex) {
 		mutex_enter(&dict_sys->mutex);

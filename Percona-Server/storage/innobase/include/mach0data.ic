@@ -74,19 +74,6 @@ mach_write_to_2(
 }
 
 /********************************************************//**
-The following function is used to fetch data from 2 consecutive
-bytes. The most significant byte is at the lowest address.
-@return	ulint integer */
-UNIV_INLINE
-ulint
-mach_read_from_2(
-/*=============*/
-	const byte*	b)	/*!< in: pointer to 2 bytes */
-{
-	return(((ulint)(b[0]) << 8) | (ulint)(b[1]));
-}
-
-/********************************************************//**
 The following function is used to convert a 16-bit data item
 to the canonical format, for fast bytewise equality test
 against memory.
@@ -171,6 +158,19 @@ mach_write_to_4(
 }
 
 #endif /* !UNIV_INNOCHECKSUM */
+
+/********************************************************//**
+The following function is used to fetch data from 2 consecutive
+bytes. The most significant byte is at the lowest address.
+@return	ulint integer */
+UNIV_INLINE
+ulint
+mach_read_from_2(
+/*=============*/
+	const byte*	b)	/*!< in: pointer to 2 bytes */
+{
+	return(((ulint)(b[0]) << 8) | (ulint)(b[1]));
+}
 
 /********************************************************//**
 The following function is used to fetch data from 4 consecutive

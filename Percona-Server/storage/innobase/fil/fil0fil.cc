@@ -245,6 +245,7 @@ struct fil_space_t {
 	bool		is_in_unflushed_spaces;
 				/*!< true if this space is currently in
 				unflushed_spaces */
+	ibool		is_corrupt;
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
@@ -1315,6 +1316,8 @@ fil_space_create(
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = false;
+
+	space->is_corrupt = FALSE;
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -4804,7 +4807,7 @@ retry:
 		success = os_aio(OS_FILE_WRITE, OS_AIO_SYNC,
 				 node->name, node->handle, buf,
 				 offset, page_size * n_pages,
-				 NULL, NULL);
+				 NULL, NULL, space_id, NULL);
 #endif /* UNIV_HOTBACKUP */
 		if (success) {
 			os_has_said_disk_full = FALSE;
@@ -5144,7 +5147,7 @@ Reads or writes data. This operation is asynchronous (aio).
 i/o on a tablespace which does not exist */
 UNIV_INTERN
 dberr_t
-fil_io(
+_fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
 				ORed to OS_FILE_LOG, if a log i/o
@@ -5169,8 +5172,9 @@ fil_io(
 	void*	buf,		/*!< in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
+	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
+	trx_t*	trx)
 {
 	ulint		mode;
 	fil_space_t*	space;
@@ -5337,6 +5341,39 @@ fil_io(
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
+	if (srv_pass_corrupt_table == 1 && space->is_corrupt) {
+		/* should ignore i/o for the crashed space */
+		mutex_enter(&fil_system->mutex);
+		fil_node_complete_io(node, fil_system, type);
+		mutex_exit(&fil_system->mutex);
+		if (mode == OS_AIO_NORMAL) {
+			ut_a(space->purpose == FIL_TABLESPACE);
+			buf_page_io_complete(static_cast<buf_page_t *>
+					     (message));
+		}
+		if (type == OS_FILE_READ) {
+			return(DB_TABLESPACE_DELETED);
+		} else {
+			return(DB_SUCCESS);
+		}
+	} else {
+		if (srv_pass_corrupt_table > 1 && space->is_corrupt) {
+			/* should ignore write i/o for the crashed space */
+			if (type == OS_FILE_WRITE) {
+				mutex_enter(&fil_system->mutex);
+				fil_node_complete_io(node, fil_system, type);
+				mutex_exit(&fil_system->mutex);
+				if (mode == OS_AIO_NORMAL) {
+					ut_a(space->purpose == FIL_TABLESPACE);
+					buf_page_io_complete(
+					    static_cast<buf_page_t *>
+					    (message));
+				}
+				return(DB_SUCCESS);
+			}
+		}
+	}
+
 #ifdef UNIV_HOTBACKUP
 	/* In ibbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
@@ -5349,7 +5386,7 @@ fil_io(
 #else
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset, len, node, message);
+		     offset, len, node, message, space_id, trx);
 #endif /* UNIV_HOTBACKUP */
 	ut_a(ret);
 
@@ -5386,6 +5423,7 @@ fil_aio_wait(
 	fil_node_t*	fil_node;
 	void*		message;
 	ulint		type;
+	ulint		space_id = 0;
 
 	ut_ad(fil_validate_skip());
 
@@ -5393,10 +5431,10 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(
-			segment, 0, &fil_node, &message, &type);
+			segment, 0, &fil_node, &message, &type, &space_id);
 #elif defined(LINUX_NATIVE_AIO)
 		ret = os_aio_linux_handle(
-			segment, &fil_node, &message, &type);
+			segment, &fil_node, &message, &type, &space_id);
 #else
 		ut_error;
 		ret = 0; /* Eliminate compiler warning */
@@ -5405,7 +5443,7 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(
-			segment, &fil_node, &message, &type);
+			segment, &fil_node, &message, &type, &space_id);
 	}
 
 	ut_a(ret);
@@ -6215,3 +6253,44 @@ fil_mtr_rename_log(
 	mtr_commit(&mtr);
 }
 
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+	ibool		ret = FALSE;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (UNIV_UNLIKELY(space && space->is_corrupt)) {
+		ret = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(ret);
+}
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space) {
+		space->is_corrupt = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+}

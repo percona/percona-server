@@ -101,6 +101,10 @@ PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
     "$SOURCEDIR/Makefile" | cut -d = -f 2)"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
+# Extract version of the 5.1 branch, to get .so.16 from there.
+MYSQL_VERSION51="$(grep '^%define version51 ' \
+    "$SOURCEDIR/build/percona-shared-compat.spec" | cut -d ' ' -f3)"
+
 # Build information
 REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \
     cut -d ' ' -f 2)"
@@ -131,7 +135,8 @@ export MAKE_JFLAG=-j4
         RPMVER=i386
     fi
 
-    wget "http://www.percona.com/downloads/community/shared-compat/MySQL-shared-compat-$MYSQL_VERSION-1.linux2.6.$RPMVER.rpm"
+    wget -c "http://www.percona.com/downloads/community/shared-compat/MySQL-shared-compat-$MYSQL_VERSION-1.linux2.6.$RPMVER.rpm"
+    wget -c "http://www.percona.com/downloads/community/shared-compat/Percona-Server-shared-51-$MYSQL_VERSION51.rhel$REDHAT_RELEASE.$RPMVER.rpm"
 
 )
 
@@ -140,7 +145,7 @@ export MAKE_JFLAG=-j4
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild -ba --clean --with yassl $SIGN \
+    rpmbuild -ba --clean $SIGN \
         "$SOURCEDIR/build/percona-shared-compat.spec" \
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \

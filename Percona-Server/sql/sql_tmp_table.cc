@@ -475,6 +475,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               (ulong) rows_limit,test(group)));
 
   thd->inc_status_created_tmp_tables();
+  thd->query_plan_flags|= QPLAN_TMP_TABLE;
 
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
@@ -1395,12 +1396,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "weedout_key";
     {
-      key_part_info->null_bit=0;
-      key_part_info->field=  field;
-      key_part_info->offset= field->offset(table->record[0]);
-      key_part_info->length= (uint16) field->key_length();
-      key_part_info->type=   (uint8) field->key_type();
-      key_part_info->key_type = FIELDFLAG_BINARY;
+      key_part_info->init_from_field(field);
       if (!using_unique_constraint)
       {
         key_field= field->new_key_field(thd->mem_root, table, group_buff);
@@ -1739,6 +1735,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     goto err;
   }
   table->in_use->inc_status_created_tmp_disk_tables();
+  table->in_use->query_plan_flags|= QPLAN_TMP_DISK;
   share->db_record_offset= 1;
   DBUG_RETURN(0);
  err:
@@ -1831,6 +1828,14 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   save_proc_info=thd->proc_info;
   THD_STAGE_INFO(thd, stage_removing_tmp_table);
+
+  thd->tmp_tables_used++;
+  if (entry->file)
+  {
+      thd->tmp_tables_size += entry->file->stats.data_file_length;
+      if (entry->file->ht->db_type != DB_TYPE_HEAP)
+          thd->tmp_tables_disk_used++;
+  }
 
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);

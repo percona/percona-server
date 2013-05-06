@@ -259,10 +259,17 @@ uint explain_filename(THD* thd,
       {
         part_name_len= tmp_p - part_name - 1;
         subpart_name= tmp_p + 3;
+	tmp_p+= 3;
+      }
+      else if ((tmp_p[1] == 'Q' || tmp_p[1] == 'q') &&
+               (tmp_p[2] == 'L' || tmp_p[2] == 'l') &&
+                tmp_p[3] == '-')
+      {
+        name_type= TEMP;
+        tmp_p+= 4; /* sql- prefix found */
       }
       else
         res= 2;
-      tmp_p+= 3;
       break;
     case 'T':
     case 't':
@@ -7587,8 +7594,27 @@ remove_secondary_keys(THD *thd, HA_CREATE_INFO* create_info, TABLE *table,
     alter_info_new.create_list.push_back(new_field);
   }
 
+  /* table->key_info cannot be passed to ha_alter_info constructor,
+     because it has 1-based fieldnr in key_parts while ha_alter_info
+     expect them to be 0-based */
+  KEY* key_buf= (KEY*) thd->alloc(sizeof(KEY) * table->s->keys);
+  for (uint key_idx= 0; key_idx < table->s->keys; key_idx++) {
+    KEY* key = table->key_info + key_idx;
+    KEY_PART_INFO* key_parts_buf=
+      (KEY_PART_INFO*) thd->alloc(sizeof(KEY_PART_INFO) *
+                                  key->user_defined_key_parts);
+    for (uint key_part_idx= 0;
+         key_part_idx < key->user_defined_key_parts;
+         key_part_idx++) {
+      key_parts_buf[key_part_idx]= key->key_part[key_part_idx];
+      key_parts_buf[key_part_idx].fieldnr--;
+    }
+    key_buf[key_idx]= *key;
+    key_buf[key_idx].key_part= key_parts_buf;
+  }
+
   Alter_inplace_info ha_alter_info(create_info, &alter_info_new,
-                                     table->key_info, table->s->keys,
+                                     key_buf, table->s->keys,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
                                      thd->work_part_info,
 #else
@@ -8400,7 +8426,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   if (!(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
   {
-
     /*
       Check if we can temporarily remove secondary indexes from the table
       before copying the data and recreate them later to utilize InnoDB fast
@@ -9212,11 +9237,25 @@ static bool check_engine(THD *thd, const char *db_name,
   DBUG_ENTER("check_engine");
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
+  handlerton *enf_engine= ha_enforce_handlerton(thd);
+
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     DBUG_RETURN(true);
+
+  if (enf_engine)
+  {
+    if (enf_engine != *new_engine && no_substitution)
+    {
+      const char *engine_name= ha_resolve_storage_engine_name(req_engine);
+      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name, engine_name);
+      DBUG_RETURN(TRUE);
+    }
+    *new_engine= enf_engine;
+  }
 
   if (req_engine && req_engine != *new_engine)
   {

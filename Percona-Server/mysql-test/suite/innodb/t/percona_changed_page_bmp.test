@@ -1,0 +1,266 @@
+#
+# Tests for the changed page tracking bitmap.
+#
+
+# Does not test if innodb_max_bitmap_file_size variable actually works, as we cannot force
+# a checkpoint deterministically without generating a bunch of log data and restarts (which
+# then cause bitmap file rotations on their own).
+
+--source include/not_embedded.inc
+--source include/not_crashrep.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+# Valgrind reports useless errors on very fast server shutdowns
+--source include/not_valgrind.inc
+
+--source include/delete_innodb_bitmaps.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $BITMAP_FILE= $MYSQLD_DATADIR/ib_modified_log_1_0.xdb;
+
+#
+# Test that a bitmap file is created 
+#
+
+# Create some log data, less than log capacity
+CREATE TABLE t1 (x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+file_exists $BITMAP_FILE;
+# Here and below remove the LSNs from the file names on listing them
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Test that the bitmap file is rotated on a server restart and tracking continues
+#
+
+--echo 1st restart
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+--echo 2nd restart
+--source include/restart_mysqld.inc
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Test that an empty existing bitmap file is handled properly when it's
+# possible to re-read the entire missing range.
+#
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
+write_file $BITMAP_FILE;
+EOF
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo 3rd restart
+--source include/wait_until_connected_again.inc
+
+#
+# Test tracking more log data than the log capacity and the second tablespace id
+#
+
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+CREATE TABLE t2 (x INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Test the very fast server shutdown
+# 
+
+SET GLOBAL INNODB_FAST_SHUTDOWN=2;
+
+--echo 4th restart
+--source include/restart_mysqld.inc
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Test that an empty existing bitmap file is handled properly when it's impossible to re-read the full missing range.
+#
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
+write_file $BITMAP_FILE;
+EOF
+--enable_reconnect
+--echo 5th restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Test that the bitmap file is read in block size multiples with junk at the end discarded
+#
+
+# 1st restart: remove all the bitmap files
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
+--enable_reconnect
+--echo 7th restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+# 2nd restart: there should be only one bitmap file, append junk to it
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+append_file $BITMAP_FILE;
+junk junk junk junk
+EOF
+--enable_reconnect
+--echo 8th restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+call mtr.add_suppression("InnoDB: Warning: truncated block detected.*");
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Test crash right before writing of new bitmap data
+#
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:-#d,crash_before_bitmap_write" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--echo 9th restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+INSERT INTO t1 SELECT x FROM t1;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+file_exists $BITMAP_FILE;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+# TODO: check the tracked LSN range continuity once this info is exposed through
+# INFORMATION_SCHEMA.
+
+#
+# Test that last tracked LSN is determined correctly when the last bitmap file is fully
+# corrupted
+#
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+# Create and source a file with the following contents:
+# --remove_file 2nd_bmp_file
+# --write_file 2nd_bmp_file
+# junk junk junk
+# EOF
+
+# Less awkward way to get this info would be to expose it through I_S.
+
+write_file $MYSQLD_DATADIR/corrupt_bmp_2.inc;
+--remove_file $MYSQLD_DATADIR/EOF
+list_files_append_file $MYSQLD_DATADIR/corrupt_bmp_2.inc $MYSQLD_DATADIR ib_modified_log_2_*;
+append_file $MYSQLD_DATADIR/corrupt_bmp_2.inc;
+--write_file $MYSQLD_DATADIR/EOF
+list_files_append_file $MYSQLD_DATADIR/corrupt_bmp_2.inc $MYSQLD_DATADIR ib_modified_log_2_*;
+append_file $MYSQLD_DATADIR/corrupt_bmp_2.inc END_OF_FILE;
+junk junk junk
+EOF
+END_OF_FILE
+source $MYSQLD_DATADIR/corrupt_bmp_2.inc;
+remove_file $MYSQLD_DATADIR/corrupt_bmp_2.inc;
+--enable_reconnect
+--echo 10th restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+DROP TABLE t1, t2;
+
+#
+# Test that --innodb-read-only works
+#
+SET GLOBAL innodb_fast_shutdown=0;
+
+--echo 11th restart
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb-read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@innodb_read_only;
+SELECT @@innodb_track_changed_pages;
+
+--echo 12th restart
+--source include/restart_mysqld.inc
+         

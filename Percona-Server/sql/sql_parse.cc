@@ -127,6 +127,11 @@ static bool check_show_access(THD *thd, TABLE_LIST *table);
 static void sql_kill(THD *thd, ulong id, bool only_kill_query);
 static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 
+static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime);
+
+// Uses the THD to update the global stats by user name and client IP
+void update_global_user_stats(THD* thd, bool create_user, time_t now);
+
 const char *any_db="*any*";	// Special symbol for check_access
 
 const LEX_STRING command_name[]={
@@ -419,6 +424,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_NOLOCK_STAT]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
@@ -937,6 +943,12 @@ bool do_command(THD *thd)
   */
   thd->clear_error();				// Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
+  thd->updated_row_count=    0;
+  thd->busy_time=            0;
+  thd->cpu_time=             0;
+  thd->bytes_received=       0;
+  thd->bytes_sent=           0;
+  thd->binlog_bytes_written= 0;
 
   net_new_transaction(net);
 
@@ -1140,6 +1152,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
+  DBUG_EXECUTE_IF("crash_dispatch_command_before",
+                  { DBUG_PRINT("crash_dispatch_command_before", ("now"));
+                    DBUG_ABORT(); });
+
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
   thd->profiling.start_new_query();
@@ -1155,11 +1171,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                                                com_statement_info[command].m_key);
 
   thd->set_command(command);
+
+  /* To increment the current command counter for user stats, 'command' must
+     be saved because it is set to COM_SLEEP at the end of this function.
+  */
+  thd->old_command= command;
   /*
     Commands which always take a long time are logged into
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log= TRUE;
+  thd->clear_slow_extended();
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   if (!thd->is_valid_time())
@@ -1768,6 +1790,58 @@ done:
   DBUG_RETURN(error);
 }
 
+/**
+   Calculate execution time for the current query.
+
+   SET queries outside stored procedures are ignored so that
+   statements changing query_exec_time are not affected by
+   themselves.
+
+   @param thd              thread handle
+   @param lex              current relative time in microseconds
+
+   @return                 time in microseconds from utime_after_lock
+*/
+
+static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime)
+{
+  ulonglong res;
+
+#ifndef DBUG_OFF
+  if (thd->variables.query_exec_time != 0)
+    res= thd->lex->sql_command != SQLCOM_SET_OPTION ?
+      thd->variables.query_exec_time : 0;
+  else
+#endif
+  res= cur_utime - thd->utime_after_lock;
+
+  if (res > thd->variables.long_query_time)
+    thd->server_status|= SERVER_QUERY_WAS_SLOW;
+  else
+    thd->server_status&= ~SERVER_QUERY_WAS_SLOW;
+
+  return res;
+}
+
+
+static inline void copy_global_to_session(THD *thd, ulong flag,
+                                          const ulong *val)
+{
+  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  if (opt_slow_query_log_use_global_control & (1ULL << flag))
+    *(ulong *)((char *) &thd->variables + offset) = *val;
+}
+
+
+static inline void copy_global_to_session(THD *thd, ulong flag,
+                                          const ulonglong *val)
+{
+  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  if (opt_slow_query_log_use_global_control & (1ULL << flag))
+    *(ulonglong *)((char *) &thd->variables + offset) = *val;
+}
+
+
 
 /**
   Check whether we need to write the current statement (or its rewritten
@@ -1793,6 +1867,47 @@ bool log_slow_applicable(THD *thd)
   */
   if (unlikely(thd->in_sub_stmt))
     DBUG_RETURN(false);                         // Don't set time for sub stmt
+
+  /* Follow the slow log filter configuration. */
+  if (thd->variables.log_slow_filter != 0 &&
+      (!(thd->variables.log_slow_filter & thd->query_plan_flags) ||
+       ((thd->variables.log_slow_filter & SLOG_F_QC_NO) &&
+        (thd->query_plan_flags & QPLAN_QC))))
+    DBUG_RETURN(false);
+
+  ulonglong end_utime_of_query= thd->current_utime();
+  ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
+#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
+  if (opt_query_response_time_stats)
+  {
+    query_response_time_collect(query_exec_time);
+  }
+#endif
+
+  /*
+    Low long_query_time value most likely means user is debugging stuff and even
+    though some thread's queries are not supposed to be logged b/c of the rate
+    limit, if one of them takes long enough (>= 1 second) it will be sensible
+    to make an exception and write to slow log anyway.
+  */
+
+  system_variables const &g= global_system_variables;
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER,
+                         &g.log_slow_filter);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
+                         &g.log_slow_rate_limit);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
+                         &g.log_slow_verbosity);
+  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME,
+                         &g.long_query_time);
+  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+                         &g.min_examined_row_limit);
+
+  /* Do not log this thread's queries due to rate limiting. */
+  if (!thd->write_to_slow_log && (thd->variables.long_query_time >= 1000000
+                                  || (ulong) query_exec_time < 1000000))
+    DBUG_RETURN(false);
+
 
   /*
     Do not log administrative statements unless the appropriate option is
@@ -1830,6 +1945,7 @@ void log_slow_do(THD *thd)
 {
   DBUG_ENTER("log_slow_do");
 
+  thd_proc_info(thd, "logging slow query");
   THD_STAGE_INFO(thd, stage_logging_slow_query);
   thd->status_var.long_query_count++;
 
@@ -1970,6 +2086,13 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     thd->profiling.discard_current_query();
 #endif
     break;
+  case SCH_USER_STATS:
+  case SCH_CLIENT_STATS:
+  case SCH_THREAD_STATS:
+    if (check_global_access(thd, SUPER_ACL | PROCESS_ACL))
+      DBUG_RETURN(1);
+  case SCH_TABLE_STATS:
+  case SCH_INDEX_STATS:
   case SCH_OPTIMIZER_TRACE:
   case SCH_OPEN_TABLES:
   case SCH_VARIABLES:
@@ -2141,6 +2264,7 @@ bool sp_process_definer(THD *thd)
                        thd->security_ctx->priv_host)) &&
         check_global_access(thd, SUPER_ACL))
     {
+      thd->diff_access_denied_errors++;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       DBUG_RETURN(TRUE);
     }
@@ -2745,14 +2869,40 @@ case SQLCOM_PREPARE:
     mysql_mutex_unlock(&LOCK_active_mi);
     break;
   }
+  case SQLCOM_SHOW_SLAVE_NOLOCK_STAT:
   case SQLCOM_SHOW_SLAVE_STAT:
   {
     /* Accept one of two privileges */
     if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
       goto error;
-    mysql_mutex_lock(&LOCK_active_mi);
-    res= show_slave_status(thd, active_mi);
-    mysql_mutex_unlock(&LOCK_active_mi);
+    bool do_lock=SQLCOM_SHOW_SLAVE_NOLOCK_STAT != lex->sql_command;
+    if(do_lock)
+    {
+      mysql_mutex_lock(&LOCK_active_mi);
+    }
+    if (active_mi != NULL)
+    {
+      res = show_slave_status(thd, active_mi);
+    }
+    else
+    {
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
+      my_ok(thd);
+    }
+    if(do_lock)
+    {
+      mysql_mutex_unlock(&LOCK_active_mi);
+    }
+    DBUG_EXECUTE_IF("after_show_slave_status",
+                    {
+                      const char act[]=
+                        "now "
+                        "signal signal.after_show_slave_status";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
@@ -3402,6 +3552,7 @@ end_with_restore_list:
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
+    DEBUG_SYNC(thd, "after_mysql_insert");
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -5208,6 +5359,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
       case ACL_INTERNAL_ACCESS_DENIED:
         if (! no_errors)
         {
+          thd->diff_access_denied_errors++;
           my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                    sctx->priv_user, sctx->priv_host, db);
         }
@@ -5258,6 +5410,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     DBUG_PRINT("error",("No possible access"));
     if (!no_errors)
     {
+      thd->diff_access_denied_errors++;
       if (thd->password == 2)
         my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
                  sctx->priv_user,
@@ -5371,6 +5524,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
     if (!thd->col_access && check_grant_db(thd, dst_db_name))
     {
+      thd->diff_access_denied_errors++;
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_ctx->priv_user,
                thd->security_ctx->priv_host,
@@ -5662,6 +5816,7 @@ bool check_global_access(THD *thd, ulong want_access)
   if ((thd->security_ctx->master_access & want_access))
     DBUG_RETURN(0);
   get_privilege_desc(command, sizeof(command), want_access);
+  thd->diff_access_denied_errors++;
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
   DBUG_RETURN(1);
 #else
@@ -5824,7 +5979,8 @@ void THD::reset_for_next_command()
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->reset_for_next_command();
   thd->rand_used= 0;
-  thd->m_sent_row_count= thd->m_examined_row_count= 0;
+
+  thd->clear_slow_extended();
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
@@ -6049,6 +6205,32 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
 
+  int start_time_error=   0;
+  int end_time_error=     0;
+  struct timeval start_time, end_time;
+  double start_usecs=     0;
+  double end_usecs=       0;
+  /* cpu time */
+  int cputime_error=      0;
+  struct timespec tp;
+  double start_cpu_nsecs= 0;
+  double end_cpu_nsecs=   0;
+
+  if (opt_userstat)
+  {
+#ifdef HAVE_CLOCK_GETTIME
+    /* get start cputime */
+    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      start_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
+#endif
+
+    // Gets the start time, in order to measure how long this command takes.
+    if (!(start_time_error = gettimeofday(&start_time, NULL)))
+    {
+      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
+    }
+  }
+
   if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
   {
     LEX *lex= thd->lex;
@@ -6203,6 +6385,54 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
     parser_state->m_lip.found_semicolon= NULL;
   }
+
+  if (opt_userstat)
+  {
+    // Gets the end time.
+    if (!(end_time_error= gettimeofday(&end_time, NULL)))
+    {
+      end_usecs= end_time.tv_sec * 1000000.0 + end_time.tv_usec;
+    }
+
+    // Calculates the difference between the end and start times.
+    if (start_usecs && end_usecs >= start_usecs && !start_time_error && !end_time_error)
+    {
+      thd->busy_time= (end_usecs - start_usecs) / 1000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->busy_time > 2629743)
+      {
+        thd->busy_time= 0;
+      }
+    }
+    else
+    {
+      // end time went back in time, or gettimeofday() failed.
+      thd->busy_time= 0;
+    }
+
+#ifdef HAVE_CLOCK_GETTIME
+    /* get end cputime */
+    if (!cputime_error &&
+        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      end_cpu_nsecs = tp.tv_sec*1000000000.0+tp.tv_nsec;
+#endif
+    if (start_cpu_nsecs && !cputime_error)
+    {
+      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->cpu_time > 2629743)
+      {
+        thd->cpu_time = 0;
+      }
+    }
+    else
+      thd->cpu_time = 0;
+  }
+  // Updates THD stats and the global user stats.
+  thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
+  update_global_user_stats(thd, true, time(NULL));
+#endif
 
   DBUG_VOID_RETURN;
 }

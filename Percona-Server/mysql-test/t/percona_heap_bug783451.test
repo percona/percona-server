@@ -1,0 +1,16 @@
+# Testcase for the bug https://bugs.launchpad.net/percona-projects-qa/+bug/783451
+# With dynamic row format in HEAP and the UPDATE statement that significantly
+# increases the data size, the table scan in-progress desyncs its table position state.
+# Run with Valgrind if it does not crash for you.
+--disable_warnings
+DROP TABLE IF EXISTS local_1_1;
+--enable_warnings
+CREATE  TABLE IF NOT EXISTS local_1_1 ( f1 VARCHAR ( 32 ) NOT NULL  , f2 VARCHAR ( 128 ) NOT NULL DEFAULT 'cboepfaobilcchabvglgjdbynog' , f3 VARCHAR ( 32 ) NOT NULL  , f4 VARBINARY ( 32 ) NOT NULL  , f5 VARBINARY ( 1024 )  DEFAULT 'ycboepfao' , KEY ( f1 /* ( 2 ) */ , f2 /* ( 2 ) */ ) ) ENGINE=HEAP KEY_BLOCK_SIZE = 512;
+INSERT IGNORE INTO local_1_1 VALUES ( REPEAT( 'ervydbimvmbqmsowdbsa' , 1 ) , 'v' , NULL , NULL , REPEAT( 'mervydbimvmbqms' , 5 ) ) , ( 'p' , 6 , 'n' , REPEAT( 'imervydbimvmbqmsowdbs' , 4 ) , 'do' ) , ( NULL , NULL , REPEAT( 'himervydbimvmbqmsowdbsaybudvwaamvhempuublmia' , 6 ) , REPEAT('X', POW(2, 20) * 2) , REPEAT('X', POW(2, 20) * 2) ) , ( REPEAT('X', POW(2, 20) * 2) , REPEAT( 'Y' , 763 ) , NULL , REPEAT('X', POW(2, 20) * 2) , NULL ) , ( REPEAT('X', POW(2, 20) * 2) , 'time' , 'how' , 2 , REPEAT( 'Y' , 107 ) ) , ( REPEAT( 'hyshimervydbimvmbqmsowdbsaybud' , 5 ) , 2 , 8 , NULL , REPEAT('X', POW(2, 20) * 2) ) , ( 'come' , NULL , 'i' , NULL , REPEAT('X', POW(2, 20) * 2) );
+INSERT IGNORE INTO local_1_1 VALUES ( 'ok' , NULL , REPEAT( 'Y' , 651 ) , 2 , 5 ) , ( REPEAT( 'zylcdzkfrqpihyshimervydbimvmbqmsowdbsaybu' , 3 ) , REPEAT( 'Y' , 282 ) , REPEAT( 'X' , 0 ) , REPEAT( 'Y' , 369 ) , 'g' ) , ( 'think' , REPEAT('X', POW(2, 20) * 2), NULL , NULL , REPEAT('X', POW(2, 20) * 2) ) , ( REPEAT( 'Y' , 468 ) , REPEAT( 'dfvbrzylcd' , 6 ) , REPEAT( 'Y' , 264 ) , NULL , 'c' ) , ( NULL , NULL , REPEAT( 'srdfvbrzylcdzkfrqpihyshimervydbimvmbqms' , 0 ) , REPEAT( 'Y' , 244 ) , 7 ) , ( REPEAT( 'Y' , 0 ) , 'how' , 'going' , 'q' , NULL );
+INSERT IGNORE INTO local_1_1 VALUES ( REPEAT('X', POW(2, 20) * 2) , NULL , NULL , NULL , REPEAT('X', POW(2, 20) * 2) ) , ( REPEAT('X', POW(2, 20) * 2) , NULL , REPEAT('X', POW(2, 20) * 2) , 'this' , 'e' ) , ( NULL , 'think' , NULL , 'were' , NULL ) , ( 9 , 'l' , 'c' , 3 , REPEAT( 'geysrdfvbrzylcdzkfrqpihyshimervydbi' , 5 ) ) , ( NULL , NULL , NULL , 'h' , 'w' );
+--enable_warnings
+INSERT IGNORE INTO local_1_1 SELECT * FROM local_1_1;
+INSERT IGNORE INTO local_1_1 SELECT * FROM local_1_1;
+UPDATE local_1_1 SET f5 = REPEAT ('X', 215566);
+DROP TABLE local_1_1;

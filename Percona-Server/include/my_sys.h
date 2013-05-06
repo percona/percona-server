@@ -346,8 +346,8 @@ extern struct st_my_file_info *my_file_info;
 typedef struct st_dynamic_array
 {
   uchar *buffer;
-  uint elements,max_element;
-  uint alloc_increment;
+  ulong elements, max_element;
+  ulong alloc_increment;
   uint size_of_element;
 } DYNAMIC_ARRAY;
 
@@ -788,6 +788,7 @@ extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,
 				 myf cache_myflags);
 extern my_bool real_open_cached_file(IO_CACHE *cache);
+extern my_bool truncate_cached_file(IO_CACHE *cache, my_off_t pos);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
@@ -796,22 +797,23 @@ File create_temp_file(char *to, const char *dir, const char *pfx,
 #define my_init_dynamic_array2(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
 #define my_init_dynamic_array2_ci(A,B,C,D,E) init_dynamic_array2(A,B,C,D,E)
 extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
-                                   void *init_buffer, uint init_alloc,
-                                   uint alloc_increment);
+                                   void *init_buffer, ulong init_alloc,
+                                   ulong alloc_increment);
 /* init_dynamic_array() function is deprecated */
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-                                  uint init_alloc, uint alloc_increment);
+                                  ulong init_alloc, ulong alloc_increment);
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
 extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern void *pop_dynamic(DYNAMIC_ARRAY*);
 extern my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element,
-                           uint array_index);
-extern my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements);
+                           ulong idx);
+extern my_bool allocate_dynamic(DYNAMIC_ARRAY *array, ulong max_elements);
 extern void get_dynamic(DYNAMIC_ARRAY *array, void *element,
-                        uint array_index);
+                        ulong idx);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
-extern void delete_dynamic_element(DYNAMIC_ARRAY *array, uint array_index);
+extern void delete_dynamic_element(DYNAMIC_ARRAY *array, ulong array_index);
 extern void freeze_size(DYNAMIC_ARRAY *array);
+extern long get_index_dynamic(DYNAMIC_ARRAY *array, const void *element);
 #define dynamic_array_ptr(array,array_index) ((array)->buffer+(array_index)*(array)->size_of_element)
 #define dynamic_element(array,array_index,type) ((type)((array)->buffer) +(array_index))
 #define push_dynamic(A,B) insert_dynamic((A),(B))

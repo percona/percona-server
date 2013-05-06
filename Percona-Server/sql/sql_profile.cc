@@ -247,7 +247,14 @@ void PROF_MEASUREMENT::collect()
 {
   time_usecs= (double) my_getsystime() / 10.0;  /* 1 sec was 1e7, now is 1e6 */
 #ifdef HAVE_GETRUSAGE
-  getrusage(RUSAGE_SELF, &rusage);
+  if ((profile->get_profiling())->enabled_getrusage())
+  {
+#ifdef RUSAGE_THREAD
+    getrusage(RUSAGE_THREAD, &rusage);
+#else
+    getrusage(RUSAGE_SELF, &rusage);
+#endif
+  }
 #elif defined(_WIN32)
   FILETIME ftDummy;
   // NOTE: Get{Process|Thread}Times has a granularity of the clock interval,
@@ -255,6 +262,19 @@ void PROF_MEASUREMENT::collect()
   // measurable by this function.
   GetProcessTimes(GetCurrentProcess(), &ftDummy, &ftDummy, &ftKernel, &ftUser);
 #endif
+
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+
+  if (!(clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+  {
+    cpu_time_usecs= tp.tv_sec*1000000000.0 + tp.tv_nsec;
+  }
+  else
+#endif
+  {
+    cpu_time_usecs= 0;
+  }
 }
 
 
@@ -378,7 +398,8 @@ void PROFILING::start_new_query(const char *initial_state)
     finish_current_query();
   }
 
-  enabled= ((thd->variables.option_bits & OPTION_PROFILING) != 0);
+  enabled= ((thd->variables.option_bits & OPTION_PROFILING) != 0) ||
+            ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_PROFILING)) != 0);
 
   if (! enabled) DBUG_VOID_RETURN;
 
@@ -416,7 +437,8 @@ void PROFILING::finish_current_query()
     status_change("ending", NULL, NULL, 0);
 
     if ((enabled) &&                                    /* ON at start? */
-        ((thd->variables.option_bits & OPTION_PROFILING) != 0) &&   /* and ON at end? */
+        (((thd->variables.option_bits & OPTION_PROFILING) != 0) ||
+          ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_PROFILING)) != 0)) &&   /* and ON at end? */
         (current->query_source != NULL) &&
         (! current->entries.is_empty()))
     {
@@ -516,6 +538,118 @@ void PROFILING::set_query_source(char *query_source_arg, uint query_length_arg)
   DBUG_VOID_RETURN;
 }
 
+bool PROFILING::enabled_getrusage()
+{
+  return ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_PROFILING_USE_GETRUSAGE)) != 0);
+}
+
+/**
+   For a given profile entry specified by a name and 2 time measurements,
+   print its normalized name (i.e. with all spaces replaced with underscores)
+   along with its wall clock and CPU time.
+*/
+
+static void my_b_print_status(IO_CACHE *log_file, const char *status,
+                              PROF_MEASUREMENT *start, PROF_MEASUREMENT *stop)
+{
+  DBUG_ENTER("my_b_print_status");
+  DBUG_ASSERT(log_file != NULL && status != NULL);
+  char query_time_buff[22+7];
+  const char *tmp;
+
+  my_b_printf(log_file, "Profile_");
+  for (tmp= status; *tmp; tmp++)
+    my_b_write_byte(log_file, *tmp == ' ' ? '_' : *tmp);
+
+  snprintf(query_time_buff, sizeof(query_time_buff), "%.6f",
+           (stop->time_usecs - start->time_usecs) / (1000.0 * 1000));
+  my_b_printf(log_file, ": %s ", query_time_buff);
+
+  my_b_printf(log_file, "Profile_");
+  for (tmp= status; *tmp; tmp++)
+    my_b_write_byte(log_file, *tmp == ' ' ? '_' : *tmp);
+  my_b_printf(log_file, "_cpu: ");
+
+  snprintf(query_time_buff, sizeof(query_time_buff), "%.6f",
+           (stop->cpu_time_usecs - start->cpu_time_usecs) /
+           (1000.0 * 1000 * 1000));
+  my_b_printf(log_file, "%s ", query_time_buff);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Print output for current query to file 
+*/
+
+int PROFILING::print_current(IO_CACHE *log_file)
+{
+  DBUG_ENTER("PROFILING::print_current");
+  ulonglong row_number= 0;
+
+  QUERY_PROFILE *query;
+  /* Get current query */
+  if (current == NULL)
+  {
+    DBUG_RETURN(0);
+  }
+
+  query= current;
+
+  my_b_printf(log_file, "# ");
+
+    void *entry_iterator;
+    PROF_MEASUREMENT *entry= NULL, *previous= NULL, *first= NULL;
+    /* ...and for each query, go through all its state-change steps. */
+    for (entry_iterator= query->entries.new_iterator();
+         entry_iterator != NULL;
+         entry_iterator= query->entries.iterator_next(entry_iterator),
+         previous=entry, row_number++)
+    {
+      entry= query->entries.iterator_value(entry_iterator);
+
+      /* Skip the first.  We count spans of fence, not fence-posts. */
+      if (previous == NULL) {first= entry; continue;}
+
+      if (thd->lex->sql_command == SQLCOM_SHOW_PROFILE)
+      {
+        /*
+          We got here via a SHOW command.  That means that we stored
+          information about the query we wish to show and that isn't
+          in a WHERE clause at a higher level to filter out rows we
+          wish to exclude.
+
+          Because that functionality isn't available in the server yet,
+          we must filter here, at the wrong level.  Once one can con-
+          struct where and having conditions at the SQL layer, then this
+          condition should be ripped out.
+        */
+        if (thd->lex->profile_query_id == 0) /* 0 == show final query */
+        {
+          if (query != last)
+            continue;
+        }
+        else
+        {
+          if (thd->lex->profile_query_id != query->profiling_query_id)
+            continue;
+        }
+      }
+
+      my_b_print_status(log_file, previous->status, previous, entry);
+    }
+
+    my_b_write_byte(log_file, '\n');
+    if ((entry != NULL) && (first != NULL))
+    {
+      my_b_printf(log_file, "# ");
+      my_b_print_status(log_file, "total", first, entry);
+      my_b_write_byte(log_file, '\n');
+    }
+
+  DBUG_RETURN(0);
+}
+
 /**
   Fill the information schema table, "query_profile", as defined in show.cc .
   There are two ways to get to this function:  Selecting from the information
@@ -612,6 +746,8 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
 
 #ifdef HAVE_GETRUSAGE
 
+      if (enabled_getrusage())
+      {
       my_decimal cpu_utime_decimal, cpu_stime_decimal;
 
       double2my_decimal(E_DEC_FATAL_ERROR,
@@ -699,6 +835,7 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
       table->field[14]->store((uint32)(entry->rusage.ru_nswap -
                              previous->rusage.ru_nswap), true);
       table->field[14]->set_notnull();
+      }
 #else
       /* TODO: Add swap info for non-BSD systems */
 #endif

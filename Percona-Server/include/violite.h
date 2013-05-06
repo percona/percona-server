@@ -252,7 +252,7 @@ struct st_vio
   my_bool (*was_timeout)(Vio*);
   int     (*vioclose)(Vio*);
   my_bool (*is_connected)(Vio*);
-  int (*shutdown)(Vio *, int);
+  int     (*shutdown)(Vio *, int);
   my_bool (*has_data) (Vio*);
   int (*io_wait)(Vio*, enum enum_vio_io_event, int);
   my_bool (*connect)(Vio*, struct sockaddr *, socklen_t, int);

@@ -893,7 +893,7 @@ block.  We also accept a log block in the old format before
 InnoDB-3.23.52 where the checksum field contains the log block number.
 @return TRUE if ok, or if the log block may be in the format of InnoDB
 version predating 3.23.52 */
-static
+UNIV_INTERN
 ibool
 log_block_checksum_is_ok_or_old_format(
 /*===================================*/
@@ -2131,7 +2131,7 @@ skip_this_recv_addr:
 /*******************************************************************//**
 Tries to parse a single log record and returns its length.
 @return	length of the record, or 0 if the record was not complete */
-static
+UNIV_INTERN
 ulint
 recv_parse_log_rec(
 /*===============*/
@@ -2202,7 +2202,7 @@ recv_parse_log_rec(
 
 /*******************************************************//**
 Calculates the new value for lsn when more data is added to the log. */
-static
+UNIV_INTERN
 lsn_t
 recv_calc_lsn_on_data_add(
 /*======================*/
@@ -3005,6 +3005,7 @@ recv_recovery_from_checkpoint_start_func(
 	log_group_t*	group;
 	log_group_t*	max_cp_group;
 	ulint		max_cp_field;
+	ulint		log_hdr_log_block_size;
 	lsn_t		checkpoint_lsn;
 	ib_uint64_t	checkpoint_no;
 	lsn_t		group_scanned_lsn = 0;
@@ -3014,8 +3015,12 @@ recv_recovery_from_checkpoint_start_func(
 	lsn_t		archived_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
-	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
+	byte*		log_hdr_buf;
+	byte		log_hdr_buf_base[LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE];
 	dberr_t		err;
+
+	log_hdr_buf = static_cast<byte *>
+		(ut_align(log_hdr_buf_base, OS_FILE_LOG_BLOCK_SIZE));
 
 #ifdef UNIV_LOG_ARCHIVE
 	ut_ad(type != LOG_CHECKPOINT || limit_lsn == LSN_MAX);
@@ -3108,6 +3113,21 @@ recv_recovery_from_checkpoint_start_func(
 		       max_cp_group->space_id, 0,
 		       0, 0, OS_FILE_LOG_BLOCK_SIZE,
 		       log_hdr_buf, max_cp_group);
+	}
+
+	log_hdr_log_block_size
+		= mach_read_from_4(log_hdr_buf + LOG_FILE_OS_FILE_LOG_BLOCK_SIZE);
+	if (log_hdr_log_block_size == 0) {
+		/* 0 means default value */
+		log_hdr_log_block_size = 512;
+	}
+	if (UNIV_UNLIKELY(log_hdr_log_block_size != srv_log_block_size)) {
+		fprintf(stderr,
+			"InnoDB: Error: The block size of ib_logfile (" ULINTPF
+			") is not equal to innodb_log_block_size.\n"
+			"InnoDB: Error: Suggestion - Recreate log files.\n",
+			log_hdr_log_block_size);
+		return(DB_ERROR);
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -3557,6 +3577,8 @@ recv_reset_logs(
 #ifdef UNIV_LOG_ARCHIVE
 	log_sys->archived_lsn = log_sys->lsn;
 #endif /* UNIV_LOG_ARCHIVE */
+
+	log_sys->tracked_lsn = log_sys->lsn;
 
 	log_block_init(log_sys->buf, log_sys->lsn);
 	log_block_set_first_rec_group(log_sys->buf, LOG_BLOCK_HDR_SIZE);

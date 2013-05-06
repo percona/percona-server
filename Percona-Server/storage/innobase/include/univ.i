@@ -46,6 +46,11 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_MINOR	2
 #define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
+#ifndef PERCONA_INNODB_VERSION
+#define PERCONA_INNODB_VERSION 29.3
+#endif
+
+
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
 calculated in make_version_string() in sql/sql_show.cc like this:
@@ -58,7 +63,8 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_STR			\
 	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
 	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
-	IB_TO_STR(INNODB_VERSION_BUGFIX)
+	IB_TO_STR(INNODB_VERSION_BUGFIX) "-"	\
+	IB_TO_STR(PERCONA_INNODB_VERSION)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/"	\
 	IB_TO_STR(MYSQL_VERSION_MAJOR) "."		\

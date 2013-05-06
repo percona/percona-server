@@ -28,8 +28,8 @@
 #
 # Change this to match the version of the shared libs you want to include
 #
-%define version55 5.5.22
-%define version51 5.1.48
+%define version55 5.5.28
+%define version51 5.1.66
 %define version50 5.0.91
 %define version41 4.1.22
 %define version40 4.0.27
@@ -53,6 +53,7 @@ Summary:      MySQL shared client libraries for MySQL %{version}, %{version50}, 
 
 # We extract the older libraries from mysql-shared-compat and the newer from our sources
 Source0:      MySQL-shared-compat-%{version55}-1.linux2.6.%{_arch}.rpm
+Source1:      Percona-Server-shared-51-%{version51}.rhel%{redhatversion}.%{_arch}.rpm
 #Source1:      MySQL-shared-%{version50}-1.%{_arch}.rpm
 #Source2:      MySQL-shared-%{version41}-0.%{_arch}.rpm
 #Source3:      MySQL-shared-%{version40}-0.%{_arch}.rpm
@@ -60,7 +61,7 @@ Source0:      MySQL-shared-compat-%{version55}-1.linux2.6.%{_arch}.rpm
 # No need to include the RPMs once more - they can be downloaded seperately
 # if you want to rebuild this package
 NoSource:     0
-#NoSource:     1
+NoSource:     1
 #NoSource:     2
 #NoSource:     3
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
@@ -80,6 +81,7 @@ rpm2cpio %{SOURCE0} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE1} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE2} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE3} | cpio -iv --make-directories
+rpm2cpio %{SOURCE1} | cpio -ivu '*/usr/lib64/libmysqlclient*so.16*'
 /sbin/ldconfig -n $RPM_BUILD_ROOT%{_libdir}
 
 %clean

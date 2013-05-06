@@ -1,0 +1,20 @@
+#
+# Bug #788722: Second valgrind warning around hp_extract_record in mysql-55-eb-blobs 
+#
+
+CREATE TABLE IF NOT EXISTS local_1_1 (f1 VARCHAR (32) NOT NULL,
+                                      f2 VARCHAR (128) NOT NULL,
+				      f3 BLOB NOT NULL,
+				      f4 TEXT,
+				      f5 BLOB (1024),
+				      PRIMARY KEY (f1),
+				      KEY (f1 , f2)
+) ENGINE=HEAP ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE = 2048;
+
+INSERT IGNORE INTO local_1_1 VALUES
+       (REPEAT('egqeqfxwaejpqixuvvtentruyqadxiybjdfqjspfbyjdjczrrwjnagkzsoagatqookhsgtrvvbxacppljfzaseidqggxvuirm' , 5), NULL, NULL, NULL, REPEAT('hegqeqfxwaejpqixuvvtentruyqadxiy', 1)),
+       ('you', NULL, 0, REPEAT("X", 2048) , 0);
+
+INSERT IGNORE INTO local_1_1 SELECT * FROM local_1_1;
+
+DROP TABLE local_1_1;

@@ -4,5 +4,5 @@ README
 COPYING*
 Docs/INSTALL-BINARY
 Docs/mysql.info
-Docs/INFO_BIN
-Docs/INFO_SRC
+release/Docs/INFO_BIN
+release/Docs/INFO_SRC

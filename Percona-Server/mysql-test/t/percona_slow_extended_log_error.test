@@ -1,0 +1,15 @@
+--let log_file=percona.slow_extended.log_error
+SET long_query_time=0;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t(a INT);
+--source include/log_start.inc
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t(a INT);
+
+--source include/log_stop.inc
+--let grep_pattern = Last_errno: 1050
+--source include/log_grep.inc
+DROP TABLE t;

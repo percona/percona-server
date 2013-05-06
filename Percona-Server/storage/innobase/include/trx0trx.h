@@ -772,6 +772,7 @@ struct trx_t{
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
+	ulint		fake_changes;
 	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
@@ -847,6 +848,8 @@ struct trx_t{
 					/*!< if MySQL binlog is used, this
 					field contains the end offset of the
 					binlog entry */
+	time_t		idle_start;
+	ib_int64_t	last_stmt_start;
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /*!< number of Innobase tables
 					used in the processing of the current
@@ -990,6 +993,17 @@ struct trx_t{
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
+	/*------------------------------*/
+	ulint		io_reads;
+	ib_uint64_t	io_read;
+	ulint		io_reads_wait_timer;
+	ib_uint64_t	lock_que_wait_ustarted;
+	ulint           lock_que_wait_timer;
+	ulint           innodb_que_wait_timer;
+	ulint           distinct_page_access;
+#define	DPAH_SIZE	8192
+	byte*		distinct_page_access_hash;
+	ibool		take_stats;
 };
 
 /* Transaction isolation levels (trx->isolation_level) */

@@ -1,0 +1,16 @@
+--source include/have_debug.inc
+--let log_file=percona.slow_extended.log_slow_rate_limit
+
+SET GLOBAL long_query_time=1;
+
+SET GLOBAL log_slow_rate_type='session';
+SET GLOBAL log_slow_rate_limit=3;
+--source include/percona_slow_query_log_rate.inc
+
+SET GLOBAL log_slow_rate_type='query';
+SET GLOBAL log_slow_rate_limit=2;
+--source include/percona_slow_query_log_rate.inc
+
+SET GLOBAL long_query_time=default;
+SET GLOBAL log_slow_rate_type=default;
+SET GLOBAL log_slow_rate_limit=default;

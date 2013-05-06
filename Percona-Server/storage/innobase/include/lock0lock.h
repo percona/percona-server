@@ -43,6 +43,8 @@ Created 5/7/1996 Heikki Tuuri
 extern ibool	lock_print_waits;
 #endif /* UNIV_DEBUG */
 
+extern ulint	srv_n_lock_deadlock_count;
+
 /*********************************************************************//**
 Gets the size of a lock struct.
 @return	size in bytes */
@@ -899,6 +901,7 @@ struct lock_sys_t{
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
+	ulint		rec_num;
 	ib_mutex_t	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads

@@ -1,0 +1,38 @@
+# Testcase for MySQL bug #54330 - broken fast index creation
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+       id BIGINT(20) AUTO_INCREMENT PRIMARY KEY,
+       bar BIGINT(20)
+) ENGINE=InnoDB;
+
+--disable_query_log
+SET @old_autocommit=@@AUTOCOMMIT;
+SET AUTOCOMMIT=0;
+let $1= 515641;
+while ($1)
+{
+  eval INSERT INTO t1 (bar) VALUES (NULL);
+  dec $1;
+}
+let $1= 2031;
+while ($1)
+{
+  eval INSERT INTO t1 (bar) VALUES ($1);
+  dec $1;
+}
+COMMIT;
+SET AUTOCOMMIT=@old_autocommit;
+--enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+ALTER TABLE t1 ADD INDEX baz (bar);
+
+# With the bug present this will differ from the SELECT above!
+SELECT COUNT(*) FROM t1 FORCE INDEX (baz);
+
+DROP TABLE t1;

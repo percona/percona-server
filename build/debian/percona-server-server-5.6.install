@@ -24,6 +24,7 @@ usr/bin/resolve_stack_dump
 usr/bin/resolveip
 usr/bin/innodb_memcached_config.sql
 usr/sbin/mysqld
+usr/sbin/mysqld-debug
 usr/share/man/man1/msql2mysql.1
 usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1
@@ -50,6 +51,7 @@ usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man1/mysql.server.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/mysqlman.1
+usr/share/man/man8/mysqld.8
 usr/share/mysql/
 debian/additions/debian-start etc/mysql/
 debian/additions/debian-start.inc.sh usr/share/mysql

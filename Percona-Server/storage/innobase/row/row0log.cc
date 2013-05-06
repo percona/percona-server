@@ -2457,7 +2457,7 @@ row_log_allocate(
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	size = 2 * srv_sort_buf_size + sizeof *log;
-	buf = (byte*) os_mem_alloc_large(&size);
+	buf = (byte*) os_mem_alloc_large(&size, FALSE);
 	if (!buf) {
 		return(false);
 	}

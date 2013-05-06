@@ -33,4 +33,4 @@ Other Information
 Other Reading
 =============
 
-  * `BUF_READ_AHEAD_AREA Bottleneck <http://www.facebook.com/notes/|MySQL|facebook/using-pmp-to-double-|MySQL|-throughput-part-2/405092575932>`_
+  * `BUF_READ_AHEAD_AREA Bottleneck <http://www.facebook.com/notes/mysqlfacebook/using-pmp-to-double-mysql-throughput-part-2/405092575932>`_

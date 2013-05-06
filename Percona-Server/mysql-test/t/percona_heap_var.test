@@ -1,0 +1,85 @@
+#
+# Test heap tables with variable-sized records.
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+set @@session.max_heap_table_size=16*1024*1024;
+
+--error 1234
+create table t1 (a int not null, b varchar(400), c int, primary key (a), key (c)) engine=heap comment="testing heaps" key_block_size=128;
+
+--error 1234
+create table t1 (a int not null, b int, c varchar(400), primary key (a), key (b)) engine=heap comment="testing heaps" key_block_size=4;
+
+create table t1 (a int not null, b int, c varchar(400), d varchar(400), primary key (a), key (b)) engine=heap comment="testing heaps" key_block_size=24;
+
+--replace_column 6 X 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+--query_vertical show table status like "t1"
+
+insert into t1 values (1,1,'012',NULL), (2,2,'0123456789',NULL), (3,3,'012345678901234567890123456789',NULL), (4,4,NULL,'0123456789012345678901234567890123456789012345678901234567890123456789');
+select * from t1;
+
+delete from t1 where a = 3;
+select * from t1;
+
+insert into t1 values (5,5,NULL,'0123'), (6,6,NULL,'0123');
+select * from t1;
+
+update t1 set c = '012345678901234567890123456789' where a = 2;
+select * from t1;
+
+update t1 set c = '0123456789' where a = 2;
+select * from t1;
+
+insert into t1 values (7,7,'0123',NULL), (8,8,'0123',NULL);
+select * from t1;
+
+--replace_column 6 X 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+--query_vertical show table status like "t1"
+alter table t1 key_block_size = 0;
+--replace_column 6 X 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+--query_vertical show table status like "t1"
+alter table t1 row_format = dynamic;
+--replace_column 6 X 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+--replace_regex /KEY_BLOCK_SIZE=[[:digit:]]+/KEY_BLOCK_SIZE=X/
+--query_vertical show table status like "t1"
+alter table t1 key_block_size = 128, max_rows = 10001;
+--replace_column 6 X 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+--query_vertical show table status like "t1"
+
+select * from t1;
+
+delete from t1;
+select * from t1;
+
+let $1=10001;
+
+call mtr.add_suppression("The table 't1' is full");
+
+disable_query_log;
+
+while ($1) 
+{
+
+  eval insert into t1 values ($1,$1,$1,$1);
+
+  dec $1;
+
+}
+enable_query_log;
+
+select count(*) from t1;
+
+--error 1114
+insert into t1 values (100000,100000,NULL,'0123'), (100000,100000,NULL,'0123');
+
+--replace_column 6 X 7 X 8 X 9 X 10 X 11 X 12 X 13 X 14 X
+--query_vertical show table status like "t1"
+select count(*) from t1;
+
+set @@session.max_heap_table_size=default;
+
+drop table t1;

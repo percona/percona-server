@@ -20,7 +20,7 @@ if ($dir_bin =~ m|/usr/|) {
     $dir_docs = glob "$dir_docs/packages/MySQL-server*";
   } else {
     # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    $dir_docs = glob "$dir_docs/Percona-Server-server*";
   }
 } elsif ($dir_bin =~ m|/usr$|) {
   # RPM build during development
@@ -28,9 +28,12 @@ if ($dir_bin =~ m|/usr/|) {
   if(-d "$dir_docs/packages") {
     # SuSE: "packages/" in the documentation path
     $dir_docs = glob "$dir_docs/packages/MySQL-server*";
+  } elsif (glob "$dir_docs/percona-server-server*") {
+    # Debian
+    $dir_docs = glob "$dir_docs/percona-server-server*";
   } else {
     # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    $dir_docs = glob "$dir_docs/Percona-Server-server*";
   }
 } else {
   # tar.gz package, Windows, or developer work (in BZR)

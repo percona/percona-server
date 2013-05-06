@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -171,13 +171,13 @@ Q.E.D. */
 
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
-static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_round_count;
+UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_round_count;
 /** The number of mutex_spin_wait() calls.  Intended for
 performance monitoring. */
-static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_wait_count;
+UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_wait_count;
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */
-static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_os_wait_count;
+UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_os_wait_count;
 /** The number of mutex_exit() calls. Intended for performance
 monitoring. */
 UNIV_INTERN ib_int64_t			mutex_exit_count;
@@ -264,13 +264,13 @@ mutex_create_func(
 /*==============*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
 # ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline)		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
 	mutex_reset_lock_word(mutex);
@@ -288,9 +288,12 @@ mutex_create_func(
 	mutex->file_name = "not yet reserved";
 	mutex->level = level;
 #endif /* UNIV_SYNC_DEBUG */
+#ifdef UNIV_DEBUG
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
+#endif /* UNIV_DEBUG */
 	mutex->count_os_wait = 0;
+	mutex->cmutex_name=	  cmutex_name;
 
 	/* Check that lock_word is aligned; this is important on Intel */
 	ut_ad(((ulint)(&(mutex->lock_word))) % 4 == 0);
@@ -511,6 +514,14 @@ spin_loop:
 		os_thread_yield();
 	}
 
+#ifdef UNIV_SRV_PRINT_LATCH_WAITS
+	fprintf(stderr,
+		"Thread " ULINTPF " spin wait mutex at %p"
+		" '%s' rnds " ULINTPF "\n",
+		os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
+		mutex->cmutex_name, i);
+#endif
+
 	mutex_spin_round_count.add(counter_index, i);
 
 	if (ib_mutex_test_and_set(mutex) == 0) {
@@ -572,6 +583,14 @@ spin_loop:
 	/* Now we know that there has been some thread holding the mutex
 	after the change in the wait array and the waiters field was made.
 	Now there is no risk of infinite wait on the event. */
+
+#ifdef UNIV_SRV_PRINT_LATCH_WAITS
+	fprintf(stderr,
+		"Thread " ULINTPF " OS wait mutex at %p '%s' rnds " ULINTPF
+		"\n",
+		os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
+		mutex->cmutex_name, i);
+#endif
 
 	mutex_os_wait_count.add(counter_index, 1);
 
@@ -793,9 +812,8 @@ sync_print_warning(
 
 	if (mutex->magic_n == MUTEX_MAGIC_N) {
 		fprintf(stderr,
-			"Mutex created at %s %lu\n",
-			innobase_basename(mutex->cfile_name),
-			(ulong) mutex->cline);
+			"Mutex '%s'\n",
+			mutex->cmutex_name);
 
 		if (mutex_get_lock_word(mutex) != 0) {
 			ulint		line;

@@ -1,0 +1,20 @@
+# default value
+SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+# set value to 'true'
+SET GLOBAL log_slow_admin_statements=true;
+SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+# set value to 'false'
+SET GLOBAL log_slow_admin_statements=false;
+SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+# set value to 'foo'
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_slow_admin_statements=foo;
+SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';
+# set value to default
+SET GLOBAL log_slow_admin_statements=default;
+SHOW GLOBAL VARIABLES like 'log_slow_admin_statements';
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='log_slow_admin_statements';

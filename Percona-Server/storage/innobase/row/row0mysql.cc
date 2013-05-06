@@ -43,6 +43,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0dict.h"
 #include "dict0crea.h"
 #include "dict0load.h"
+#include "dict0priv.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
@@ -1390,15 +1391,19 @@ error_exit:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	srv_stats.n_rows_inserted.add((size_t)trx->id, 1);
+	if (UNIV_LIKELY(!(trx->fake_changes))) {
 
-	/* Not protected by dict_table_stats_lock() for performance
-	reasons, we would rather get garbage in stat_n_rows (which is
-	just an estimate anyway) than protecting the following code
-	with a latch. */
-	dict_table_n_rows_inc(table);
+		srv_stats.n_rows_inserted.add((size_t)trx->id, 1);
 
-	row_update_statistics_if_needed(table);
+		/* Not protected by dict_table_stats_lock() for performance
+		reasons, we would rather get garbage in stat_n_rows (which is
+		just an estimate anyway) than protecting the following code
+		with a latch. */
+		dict_table_n_rows_inc(table);
+
+		row_update_statistics_if_needed(table);
+	}
+
 	trx->op_info = "";
 
 	return(err);
@@ -1756,6 +1761,12 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+
+		trx->op_info = "";
+		return(err);
+	}
+
 	if (dict_table_has_fts_index(table)
 	    && trx->fts_next_doc_id != UINT64_UNDEFINED) {
 		err = row_fts_update_or_delete(prebuilt);
@@ -1987,6 +1998,11 @@ run_again:
 	}
 
 	if (err != DB_SUCCESS) {
+
+		return(err);
+	}
+
+	if (UNIV_UNLIKELY((trx->fake_changes))) {
 
 		return(err);
 	}
@@ -4379,7 +4395,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
+		table = dict_table_get_low(table_name);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);

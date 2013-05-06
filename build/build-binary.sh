@@ -16,6 +16,8 @@ set -ue
 TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
+CMAKE_BUILD_TYPE='RelWithDebInfo'
+DEBUG_COMMENT=''
 
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -23,7 +25,7 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iqdv" --longoptions=i686,quiet,debug,valgrind \
+    go_out="$(getopt --options="iqd" --longoptions=i686,quiet,debug \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -38,19 +40,14 @@ do
         TARGET="i686"
         TARGET_CFLAGS="-m32 -march=i686"
         ;;
+    -d | --debug )
+        shift
+        CMAKE_BUILD_TYPE='Debug'
+        DEBUG_COMMENT='-debug'
+        ;;
     -q | --quiet )
         shift
         QUIET=''
-        ;;
-    -d | --debug )
-        shift
-        BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
-        CMAKE_BUILD_TYPE='Debug'
-        ;;
-    -v | --valgrind )
-        shift
-        CMAKE_OPTS="${CMAKE_OPTS:-} -DWITH_VALGRIND=ON"
-        BUILD_COMMENT="${BUILD_COMMENT:-}-valgrind"
         ;;
     esac
 done
@@ -79,13 +76,13 @@ then
         exit 1
     fi
 
-    WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
-
 else
     echo >&2 "Usage: $0 [target dir]"
     exit 1
 
 fi
+
+WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
 test -e "$SOURCEDIR/Makefile" || exit 2
@@ -98,15 +95,15 @@ PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
-REVISION="$(cd "$SOURCEDIR"; bzr revno)"
+REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}.$(uname -s).$TARGET"
+PRODUCT_FULL="$PRODUCT_FULL-$REVISION$DEBUG_COMMENT.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
-COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
+COMMENT="$COMMENT, Revision $REVISION$DEBUG_COMMENT"
 
 # Compilation flags
 export CC=${CC:-gcc}
-export CXX=${CXX:-g++}
+export CXX=${CXX:-gcc}
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
 export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
@@ -123,11 +120,10 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     make clean all
 
     cd "$PRODUCT"
-    cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
-        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
+    cmake . -DBUILD_CONFIG=mysql_release \
+        -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \
-        -DENABLE_DTRACE=OFF \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DMYSQL_SERVER_SUFFIX="-$PERCONA_SERVER_VERSION" \

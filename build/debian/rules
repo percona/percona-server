@@ -18,60 +18,67 @@ clean-patched:
 	dh clean
 	rm -rf CMakeFiles
 
-build: patch
-	dh_testdir
-	$(CMAKE) . -DBUILD_CONFIG=mysql_release \
+override_dh_auto_configure: patch
+ifeq ($(SKIP_DEBUG_BINARY),)
+	# Make a debug binary
+	mkdir debug
+	cd debug && \
+	$(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
 	   -DINSTALL_LAYOUT=DEB \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-           -DWITH_EMBEDDED_SERVER=OFF \
-           -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
-           -DFEATURE_SET=$(feature_set) \
-           -DCOMPILATION_COMMENT=$(compilation_comment_release) \
-           -DMYSQL_SERVER_SUFFIX=$(server_suffix)
-	make $(MAKE_JFLAG)
+	   -DCMAKE_BUILD_TYPE=Debug \
+	   -DWITH_EMBEDDED_SERVER=OFF \
+	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
+	   -DFEATURE_SET=$(feature_set) \
+	   -DCOMPILATION_COMMENT=$(compilation_comment_debug) \
+	   -DMYSQL_SERVER_SUFFIX=$(server_suffix)
+endif
+
+	mkdir release
+	cd release && $(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
+	   -DINSTALL_LAYOUT=DEB \
+	    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	    -DWITH_EMBEDDED_SERVER=OFF \
+	    -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
+	    -DFEATURE_SET=$(feature_set) \
+	    -DCOMPILATION_COMMENT=$(compilation_comment_release) \
+	    -DMYSQL_SERVER_SUFFIX=$(server_suffix)
 	
+override_dh_auto_build:
+ifeq ($(SKIP_DEBUG_BINARY),)
+	cd debug && make $(MAKE_JFLAG)
+endif
+
+	cd release && make $(MAKE_JFLAG)
+
 	# Build UDF
 	cd UDF && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
+	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --includedir=$(CURDIR)/include \
 			--libdir=$(prefix)/lib/mysql/plugin && \
 	make $(MAKE_JFLAG)
 	
-	dh_auto_test
+build:
+	dh build
 
 binary:
-	echo "Making binary"
-	dh --before dh_auto_install binary
-	dh_auto_install
-	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit binary
-	dh_installinit --name=mysql
-	dh --after dh_installinit binary
-
+	dh -Brelease binary
 
 binary-arch:
-	echo "Making binary"
-	dh --before dh_auto_install binary-arch
-	dh_auto_install
-	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit binary-arch
-	dh_installinit --name=mysql
-	dh --after dh_installinit binary-arch
+	dh -Brelease binary-arch
 
 binary-indep:
-	echo "Making binary"
-	dh --before dh_auto_install binary-indep
-	dh_auto_install
-	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit binary-indep
-	dh_installinit --name=mysql
-	dh --after dh_installinit binary-indep
+	dh -Brelease binary-indep
 
 install:
-	echo "Making binary"
-	dh --before dh_auto_install install
+	dh install
+
+override_dh_auto_install:
 	dh_auto_install
 	cd UDF && make DESTDIR=$(TMP) install
-	dh --after dh_auto_install --before dh_installinit install
+
+override_dh_installinit:
 	dh_installinit --name=mysql
-	dh --after dh_installinit install
+
+override_dh_strip:
+	dh_strip --dbg-package=percona-server-5.6-dbg
+

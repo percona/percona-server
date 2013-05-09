@@ -76,7 +76,6 @@ Performance Improvements
    :glob:
 
    performance/innodb_lazy_drop_table
-   performance/innodb_doublewrite_path
    performance/query_cache_enhance
    performance/innodb_fast_checksum
    performance/remove_fcntl_excessive_calls
@@ -96,6 +95,7 @@ Flexibility Improvements
    flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
    flexibility/improved_memory_engine
+   flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
@@ -118,10 +118,15 @@ Management Improvements
    :glob:
 
    management/innodb_recovery_patches
-   management/sql_no_fcache
    management/udf_maatkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
+   management/enforce_engine
+   management/utility_user
+   management/secure_file_priv_extended
+   management/expanded_program_option_modifiers
+   management/changed_page_tracking
+   management/pam_plugin
 
 Diagnostics Improvements
 ========================

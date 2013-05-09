@@ -1,0 +1,1 @@
+--innodb_track_changed_pages=TRUE --innodb_log_file_size=5M

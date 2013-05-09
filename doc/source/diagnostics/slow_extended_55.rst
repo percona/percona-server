@@ -8,7 +8,7 @@ This feature adds microsecond time resolution and additional statistics to the s
 
 The ability to log queries with microsecond precision is essential for measuring the work the |MySQL| server performs. The standard slow query log in |MySQL| 5.0 has only 1-second granularity, which is too coarse for all but the slowest queries. |MySQL| 5.1 has microsecond resolution, but does not have the extra information about query execution that is included in the |Percona Server|.
 
-You can use Maatkit``s mk-query-digest tool to aggregate similar queries together and report on those that consume the most execution time.
+You can use *Percona-Toolkit*'s `pt-query-digest <http://www.percona.com/doc/percona-toolkit/2.1/pt-query-digest.html>`_ tool to aggregate similar queries together and report on those that consume the most execution time.
 
 
 Version Specific Information
@@ -32,6 +32,15 @@ Other Information
 
 System Variables
 ================
+
+.. variable:: log_slow_admin_statements
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: yes
+
+When this variable is enabled, administrative statements will be logged to the slow query log. Upstream version of the |MySQL| server has implemented command line option with same name. Significant difference is that this feature is implemented as variable in |Percona Server|, that means it can be enabled/disabled dynamically without restarting the server.
 
 .. variable:: log_slow_filter
 
@@ -113,7 +122,7 @@ For example, if you set the value to 100, then one percent of ``sessions/queries
      :scope: Global, session
      :dyn: Yes (in 5.1 releases only)
 
-Specifies that queries replayed by the slave SQL thread on a |MySQL| slave will be logged. The standard |MySQL| server will not log any queries executed by the slave``s SQL thread.
+Specifies that slow queries replayed by the slave SQL thread on a |MySQL| slave will be logged. Upstream version of the |MySQL| server has implemented command line option with same name. Significant difference is that this feature is implemented as variable in |Percona Server|, that means it can be enabled/disabled dynamically without restarting the server.
 
 To start the logging from the slave thread, you should change the global value: set global :variable:`log_slow_slave_statements` ``=ON``; and then execute: ``STOP SLAVE; START SLAVE;``. This will destroy and recreate the slave SQL thread, so it will see the newly set global value.
 
@@ -132,27 +141,37 @@ To stop the logging from the slave thread, you should just change the global val
 
 If ``TRUE``, statements executed by stored procedures are logged to the slow if it is open.
 
+.. note::
+
+ Support for logging stored procedures doesn't involve triggers, so they won't be logged even if this feature is enabled.
+
 .. variable:: log_slow_verbosity
 
+     :version 5.5.8-20.0: Added ``profiling`` and ``profiling_use_getrusage``
      :cli: Yes
      :conf: Yes
      :scope: Global, session
      :dyn: Yes
-     :version 5.5.8-20.0: Added ``profiling`` and ``profiling_use_getrusage``
 
 Specifies how much information to include in your slow log. The value is a comma-delimited string, and can contain any combination of the following values:
 
   * ``microtime``:
-    Log queries with microsecond precision (mandatory).
+    Log queries with microsecond precision.
 
   * ``query_plan``:
-    Log information about the query``s execution plan (optional).
+    Log information about the query's execution plan.
 
   * ``innodb``:
-    Log |InnoDB| statistics (optional).
+    Log |InnoDB| statistics.
+
+  * ``minimal``:
+    Equivalent to enabling just ``microtime``.
+
+  * ``standard``:
+    Equivalent to enabling ``microtime,innodb``.
 
   * ``full``:
-    Equivalent to all other values OR``ed together.
+    Equivalent to all other values OR'ed together.
 
   * ``profiling``:
     Enables profiling of all queries in all connections.
@@ -160,26 +179,13 @@ Specifies how much information to include in your slow log. The value is a comma
   * ``profiling_use_getrusage``:
     Enables usage of the getrusage function.
 
-Values are OR``ed together.
+Values are OR'ed together.
 
-For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb``. To turn all options on, set the option to ``full``.
-
-.. variable:: long_query_time
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global, session
-     :dyn: Yes
-
-Specifies the time threshold for filtering queries out of the slow query log. The unit of time is seconds. This option has the same meaning as in a standard |MySQL| server, with the following changes:
-
-The option accepts fractional values. If set to 0.5, for example, queries longer than 1/2 second will be logged.
-
-If the value is set to 0, then all queries are logged. This is different from the standard |MySQL| build, where a value of 0 disables logging.
-Before version 1.01 of this feature, the value was an integer, and the unit of time was microseconds, not seconds.
+For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.
 
 .. variable:: slow_query_log_timestamp_always
 
+     :version 5.5.10-20.1: Introduced  (renamed from :variable:`log_slow_timestamp_every`)
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -187,11 +193,8 @@ Before version 1.01 of this feature, the value was an integer, and the unit of t
      :vartype: Boolean
      :default: FALSE
      :range: TRUE/FALSE
-     :version 5.5.10-20.1: Introduced  (renamed from :variable:`log_slow_timestamp_every`)
 
 If ``TRUE``, a timestamp is printed on every slow log record. Multiple records may have the same time.
-
-**NOTE:** This variable has been renamed from log_slow_timestamp_every since 5.5.10-20.1.
 
 .. variable:: slow_query_log_timestamp_precision
 
@@ -211,9 +214,6 @@ Normally, entries to the slow query log are in seconds precision, in this format
 If :variable:`slow_query_log_timestamp_precision` ``=microsecond``, entries to the slow query log are in microsecond precision, in this format: ::
 
   # Time: 090402 9:23:36.123456 # User@Host: XXX @ XXX [10.X.X.X]
-
-**NOTE:** This variable has been renamed from :variable:`slow_query_log_microseconds_timestamp` since 5.5.10-20.1.
-
 
 .. variable:: slow_query_log_use_global_control
 

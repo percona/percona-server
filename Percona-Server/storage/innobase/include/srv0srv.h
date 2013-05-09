@@ -259,7 +259,7 @@ extern my_bool		srv_track_changed_pages;
 extern ulonglong	srv_max_bitmap_file_size;
 
 extern
-ulonglong       srv_changed_pages_limit;
+ulonglong       srv_max_changed_pages;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;

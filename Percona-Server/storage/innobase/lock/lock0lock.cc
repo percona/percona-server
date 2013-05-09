@@ -5395,14 +5395,17 @@ loop:
 			lock_mutex_exit();
 			mutex_exit(&trx_sys->mutex);
 
-			mtr_start(&mtr);
+			if (srv_show_verbose_locks) {
 
-			buf_page_get_gen(space, zip_size, page_no,
-					 RW_NO_LATCH, NULL,
-					 BUF_GET_POSSIBLY_FREED,
-					 __FILE__, __LINE__, &mtr);
+				mtr_start(&mtr);
 
-			mtr_commit(&mtr);
+				buf_page_get_gen(space, zip_size, page_no,
+						 RW_NO_LATCH, NULL,
+						 BUF_GET_POSSIBLY_FREED,
+						 __FILE__, __LINE__, &mtr);
+
+				mtr_commit(&mtr);
+			}
 
 			load_page_first = FALSE;
 

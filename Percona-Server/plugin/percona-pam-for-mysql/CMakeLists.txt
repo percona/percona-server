@@ -13,8 +13,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #
+IF(WITH_PAM)
 INCLUDE (CheckLibraryExists)
 CHECK_LIBRARY_EXISTS(pam pam_authenticate "" HAVE_PAM) 
+IF(NOT HAVE_PAM)
+	MESSAGE(FATAL_ERROR "Required PAM dev library not found. Please install PAM development files!")
+ENDIF(NOT HAVE_PAM)
 CHECK_SYMBOL_EXISTS(getpwnam_r "pwd.h" HAVE_GETPWNAM_R)
 CHECK_SYMBOL_EXISTS(getgrgid_r "grp.h" HAVE_GETGRGID_R)
 IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R)
@@ -27,3 +31,4 @@ IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R)
   MYSQL_ADD_PLUGIN(auth_pam_compat ${AUTH_PAM_COMPAT_SOURCES} LINK_LIBRARIES pam MODULE_ONLY)
   MYSQL_ADD_PLUGIN(dialog src/dialog.c LINK_LIBRARIES mysqlclient MODULE_ONLY)
 ENDIF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R)
+ENDIF(WITH_PAM)

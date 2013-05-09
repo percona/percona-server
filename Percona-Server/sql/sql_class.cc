@@ -4780,11 +4780,6 @@ void THD::set_query_id(query_id_t new_query_id)
   }
 #endif
   query_id= new_query_id;
-  if (opt_slow_query_log_rate_type == SLOG_RT_QUERY)
-  {
-    const ulong& limit= variables.log_slow_rate_limit;
-    write_to_slow_log= limit == 0 || (query_id % limit) == 0;
-  }
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 

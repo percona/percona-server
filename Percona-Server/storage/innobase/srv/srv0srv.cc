@@ -182,7 +182,7 @@ UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
 
 UNIV_INTERN ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
 
-UNIV_INTERN ulonglong	srv_changed_pages_limit = 0;
+UNIV_INTERN ulonglong	srv_max_changed_pages = 0;
 
 /** When TRUE, fake change transcations take S rather than X row locks.
     When FALSE, row locks are not taken at all. */
@@ -1372,7 +1372,8 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_get_active_threads(),
 		srv_conc_get_waiting_threads());
 
-	/* This is a dirty read, without holding trx_sys->mutex. */
+	mutex_enter(&trx_sys->mutex);
+
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -1385,6 +1386,8 @@ srv_printf_innodb_monitor(
 			fprintf(file, "-----------------\n");
 		}
 	}
+
+	mutex_exit(&trx_sys->mutex);
 
 	n_reserved = fil_space_get_n_reserved_extents(0);
 	if (n_reserved > 0) {
@@ -2163,11 +2166,18 @@ DECLARE_THREAD(srv_redo_log_follow_thread)(
 		os_event_reset(srv_checkpoint_completed_event);
 
 		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
-			log_online_follow_redo_log();
+			if (!log_online_follow_redo_log()) {
+				/* TODO: sync with I_S log tracking status? */
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"log tracking bitmap write failed, "
+					"stopping log tracking thread!\n");
+				break;
+			}
 		}
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
 
+	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_thread_finished_event);
 

@@ -31,6 +31,7 @@ perl;
   while(<FILE>) {
     next if (!/^#/);
     next if (/^# Time:/);
+    s/: +[0-9]+/: X/g;
     s/[0-9]+/X/g;
     print;
   }

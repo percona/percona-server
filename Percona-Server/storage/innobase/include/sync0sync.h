@@ -778,9 +778,9 @@ struct ib_mutex_t {
 	os_thread_id_t thread_id; /*!< The thread id of the thread
 				which locked the mutex. */
 	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-	const char*	cmutex_name;	/*!< mutex name */
 	ulint		ib_mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
 #endif /* UNIV_DEBUG */
+	const char*	cmutex_name;	/*!< mutex name */
 #ifdef UNIV_PFS_MUTEX
 	struct PSI_mutex* pfs_psi;	/*!< The performance schema
 					instrumentation hook */

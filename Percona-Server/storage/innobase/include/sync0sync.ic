@@ -335,9 +335,9 @@ pfs_mutex_create_func(
 #  ifdef UNIV_SYNC_DEBUG
 			  level,
 #  endif /* UNIV_SYNC_DEBUG */
-# endif /* UNIV_DEBUG */
 			  cfile_name,
 			  cline,
+# endif /* UNIV_DEBUG */
 			  cmutex_name);
 }
 

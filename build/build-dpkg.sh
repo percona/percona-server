@@ -12,12 +12,14 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "kK:bH" --longoptions key:,nosign,binary \
+go_out="$(getopt --options "k:Ke:b" \
+    --longoptions key:,nosign,epoch:binary \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
 
 BUILDPKG_KEY=''
+EPOCH=''
 BINARY=''
 
 for arg
@@ -26,6 +28,7 @@ do
     -- ) shift; break;;
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
     -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
+    -e | --epoch ) shift; EPOCH="$1:"; shift;;
     -b | --binary ) shift; BINARY='-b';;
     esac
 done
@@ -103,7 +106,7 @@ export MAKE_JFLAG=-j4
         chmod +x debian/rules
 
         # Update distribution name
-        dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
+        dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$EPOCH$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
 
         DEB_CFLAGS_APPEND="$CFLAGS" DEB_CXXFLAGS_APPEND="$CXXFLAGS" \
                 dpkg-buildpackage $BINARY -rfakeroot $BUILDPKG_KEY

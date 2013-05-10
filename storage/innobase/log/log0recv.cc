@@ -3658,7 +3658,6 @@ recv_reset_log_files_for_backup(
 #endif /* UNIV_HOTBACKUP */
 
 #ifdef UNIV_LOG_ARCHIVE
-/* Dead code */
 /******************************************************//**
 Reads from the archive of a log group and performs recovery.
 @return	TRUE if no more complete consistent archive files */
@@ -3810,7 +3809,7 @@ ask_again:
 		if (log_debug_writes) {
 			fprintf(stderr,
 				"InnoDB: Archive read starting at"
-				" lsn %llu, len %lu from file %s\n",
+				" lsn " LSN_PF ", len %lu from file %s\n",
 				start_lsn,
 				(ulong) len, name);
 		}

@@ -1,0 +1,1 @@
+--innodb-overwrite-relay-log-info --skip-core-file --skip-stack-trace --log-bin --log-slave-updates

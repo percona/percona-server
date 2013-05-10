@@ -223,7 +223,7 @@ que_thr_end_lock_wait(
 
 	que_thr_move_to_run_state(thr);
 
-	if (innobase_get_slow_log() && trx->take_stats) {
+	if (UNIV_UNLIKELY(trx->take_stats)) {
 		ut_usectime(&sec, &ms);
 		now = (ib_uint64_t)sec * 1000000 + ms;
 		trx->lock_que_wait_timer

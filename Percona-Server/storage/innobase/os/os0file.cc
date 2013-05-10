@@ -2387,7 +2387,7 @@ os_file_pread(
 
 	os_n_file_reads++;
 
-	if (innobase_get_slow_log() && trx && trx->take_stats)
+	if (UNIV_UNLIKELY(trx && trx->take_stats))
 	{
 	        trx->io_reads++;
 		trx->io_read += n;
@@ -2434,7 +2434,7 @@ os_file_pread(
 	os_mutex_exit(os_file_count_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD == 8 */
 
-	if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+	if (UNIV_UNLIKELY(start_time != 0))
 	{
 		ut_usectime(&sec, &ms);
 		finish_time = (ib_uint64_t)sec * 1000000 + ms;
@@ -2499,7 +2499,7 @@ os_file_pread(
 		os_mutex_exit(os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD_SIZE == 8 */
 
-		if (innobase_get_slow_log() && trx && trx->take_stats && start_time)
+		if (UNIV_UNLIKELY(start_time != 0)
 		{
 			ut_usectime(&sec, &ms);
 			finish_time = (ib_uint64_t)sec * 1000000 + ms;

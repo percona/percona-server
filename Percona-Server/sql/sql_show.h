@@ -165,7 +165,7 @@ int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 
-void append_identifier(THD *thd, String *packet, const char *name,
+bool append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 inline void append_identifier(THD *thd, String *packet, Simple_cstring str)
 {

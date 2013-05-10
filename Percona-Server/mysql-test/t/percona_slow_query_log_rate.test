@@ -1,0 +1,23 @@
+# Force deterministic session and query ids
+--source include/restart_mysqld.inc
+
+SET GLOBAL long_query_time=0;
+
+SET GLOBAL log_slow_rate_type='session';
+SET GLOBAL log_slow_rate_limit=3;
+--let log_file=percona.slow_extended.log_slow_rate_limit_1
+--source include/percona_slow_query_log_rate.inc
+
+# This is restart is necessary because of the variable possible number of session
+# disconnect checks at the end of the previous test
+--source include/restart_mysqld.inc
+
+SET GLOBAL log_slow_rate_type='query';
+SET GLOBAL log_slow_rate_limit=2;
+--let log_file=percona.slow_extended.log_slow_rate_limit_2
+--source include/percona_slow_query_log_rate.inc
+
+SET GLOBAL long_query_time=default;
+SET GLOBAL log_slow_rate_type=default;
+SET GLOBAL log_slow_rate_limit=default;
+--source include/log_cleanup.inc

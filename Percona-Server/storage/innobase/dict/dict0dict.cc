@@ -5543,6 +5543,44 @@ dict_set_corrupted_index_cache_only(
 
 	index->type |= DICT_CORRUPT;
 }
+
+/*************************************************************************
+set is_corrupt flag by space_id*/
+
+void
+dict_table_set_corrupt_by_space(
+/*============================*/
+	ulint	space_id,
+	ibool	need_mutex)
+{
+	dict_table_t*	table;
+	ibool		found = FALSE;
+
+	ut_a(space_id != 0 && space_id < SRV_LOG_SPACE_FIRST_ID);
+
+	if (need_mutex)
+		mutex_enter(&(dict_sys->mutex));
+
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+
+	while (table) {
+		if (table->space == space_id) {
+			table->is_corrupt = TRUE;
+			found = TRUE;
+		}
+
+		table = UT_LIST_GET_NEXT(table_LRU, table);
+	}
+
+	if (need_mutex)
+		mutex_exit(&(dict_sys->mutex));
+
+	if (!found) {
+		fprintf(stderr, "InnoDB: space to be marked as "
+			"crashed was not found for id " ULINTPF ".\n",
+			space_id);
+	}
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**

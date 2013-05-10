@@ -723,6 +723,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   bool need_subst= false;
   bool rc= false;
+  QUERY_START_TIME_INFO time_info;
 
   DBUG_PRINT("info", ("query: '%.*s'", (int) m_query.length, m_query.str));
 
@@ -732,6 +733,18 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   /* This SP-instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
 #endif
+
+  memset(&time_info, 0, sizeof(time_info));
+
+  if (thd->enable_slow_log)
+  {
+    /*
+      Save start time info for the CALL statement and overwrite it with the
+      current time for log_slow_statement() to log the individual query timing.
+    */
+    thd->get_time(&time_info);
+    thd->set_time();
+  }
 
   /*
     If we can't set thd->query_string at all, we give up on this statement.
@@ -828,6 +841,10 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   if (!thd->is_error())
     thd->get_stmt_da()->reset_diagnostics_area();
+
+  /* Restore the original query start time */
+  if (thd->enable_slow_log)
+    thd->set_time(&time_info);
 
   return rc || thd->is_error();
 }

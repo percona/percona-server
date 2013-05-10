@@ -256,7 +256,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'perconaserver55', u'Percona Server 5.6 Documentation',
+    ('index', 'perconaserver56', u'Percona Server 5.6 Documentation',
      [u'Percona Ireland Ltd. 2009-2013'], 1)
 ]
 

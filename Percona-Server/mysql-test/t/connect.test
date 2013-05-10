@@ -1,3 +1,5 @@
+set global log_warnings=0;
+
 # This test is to check various cases of connections
 # with right and wrong password, with and without database
 # Unfortunately the check is incomplete as we can't connect without database
@@ -496,3 +498,4 @@ DROP USER wl6587@localhost;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+set global log_warnings=1;

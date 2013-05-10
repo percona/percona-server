@@ -296,7 +296,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
 
 /*
-  Check update fields for the timestamp field.
+  Check update fields for the auto_increment field.
 
   SYNOPSIS
     check_update_fields()
@@ -304,6 +304,10 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     insert_table_list           The insert table list.
     table                       The table for update.
     update_fields               The update fields.
+
+  NOTE
+    If the update fields include an autoinc field, set the
+    table->next_number_field_updated flag.
 
   RETURN
     0           OK
@@ -314,6 +318,18 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_fields,
                                List<Item> &update_values, table_map *map)
 {
+  TABLE *table= insert_table_list->table;
+  my_bool autoinc_mark= FALSE;
+
+  table->next_number_field_updated= FALSE;
+
+  if (table->found_next_number_field)
+  {
+    autoinc_mark=
+      bitmap_test_and_clear(table->write_set,
+                            table->found_next_number_field->field_index);
+  }
+
   /* Check the fields we are going to modify */
   if (setup_fields(thd, Ref_ptr_array(),
                    update_fields, MARK_COLUMNS_WRITE, 0, 0))
@@ -323,6 +339,17 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
       check_view_single_update(update_fields, &update_values,
                                insert_table_list, map))
     return -1;
+
+  if (table->found_next_number_field)
+  {
+    if (bitmap_is_set(table->write_set,
+                      table->found_next_number_field->field_index))
+      table->next_number_field_updated= TRUE;
+
+    if (autoinc_mark)
+      bitmap_set_bit(table->write_set,
+                     table->found_next_number_field->field_index);
+  }
   return 0;
 }
 
@@ -1164,13 +1191,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   if (error)
     goto exit_without_my_ok;
+  ha_rows row_count;
   if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
-    my_ok(thd, info.stats.copied + info.stats.deleted +
+    row_count= info.stats.copied + info.stats.deleted +
                ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
-                info.stats.touched : info.stats.updated),
-          id);
+                info.stats.touched : info.stats.updated);
+    my_ok(thd, row_count, id);
   }
   else
   {
@@ -1188,8 +1216,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_warn_count());
-    my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
+    row_count= info.stats.copied + info.stats.deleted + updated;
+    my_ok(thd, row_count, id, buff);
   }
+  thd->updated_row_count+= row_count;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
@@ -1601,6 +1631,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   MY_BITMAP *save_read_set, *save_write_set;
   ulonglong prev_insert_id= table->file->next_insert_id;
   ulonglong insert_id_for_cur_row= 0;
+  ulonglong prev_insert_id_for_cur_row= 0;
   DBUG_ENTER("write_record");
 
   info->stats.records++;
@@ -1756,6 +1787,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             Except if LAST_INSERT_ID(#) was in the INSERT query, which is
             handled separately by THD::arg_of_last_insert_id_function.
           */
+          prev_insert_id_for_cur_row= table->file->insert_id_for_cur_row;
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1763,9 +1795,24 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           info->stats.copied++;
         }
 
-        if (table->next_number_field)
+        /*
+          Only update next_insert_id if the AUTO_INCREMENT value was explicitly
+          updated, so we don't update next_insert_id with the value from the row
+          being updated. Otherwise reset next_insert_id to what it was before
+          the duplicate key error, since that value is unused.
+        */
+        if (table->next_number_field_updated)
+        {
+          DBUG_ASSERT(table->next_number_field != NULL);
+
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
+        }
+        else
+        {
+          table->file->restore_auto_increment(prev_insert_id_for_cur_row);
+        }
+
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -1821,6 +1868,15 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             trg_error= 1;
             goto ok_or_after_trg_err;
           }
+
+          /*
+            Avoid the infinite loop
+            1) get dup key on fake insert
+            2) do nothing on fake delete
+            3) goto #1
+          */
+          if (table->file->is_fake_change_enabled(thd))
+            goto ok_or_after_trg_err;
           /* Let us attempt do write_row() once more */
         }
       }
@@ -3756,6 +3812,7 @@ bool select_insert::send_eof()
      thd->first_successful_insert_id_in_prev_stmt :
      (info.stats.copied ? autoinc_value_of_last_inserted_row : 0));
   my_ok(thd, row_count, id, buff);
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(0);
 }
 

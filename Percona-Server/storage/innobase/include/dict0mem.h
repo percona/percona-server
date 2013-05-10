@@ -28,6 +28,9 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0mem_h
 
 #include "univ.i"
+
+#ifndef UNIV_INNOCHECKSUM
+
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -103,6 +106,8 @@ are described in fsp0fsp.h. */
 /** This bitmask is used in SYS_TABLES.N_COLS to set and test whether
 the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
 #define DICT_N_COLS_COMPACT	0x80000000UL
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 /** Width of the COMPACT flag */
 #define DICT_TF_WIDTH_COMPACT		1
@@ -181,6 +186,8 @@ allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_GET_UNUSED(flags)			\
 		(flags >> DICT_TF_POS_UNUSED)
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** @brief Table Flags set number 2.
 
@@ -985,6 +992,7 @@ struct dict_table_t{
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks;	/*!< list of locks on the table; protected
 				by lock_sys->mutex */
+	ibool		is_corrupt;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
@@ -997,5 +1005,7 @@ struct dict_table_t{
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
 #endif
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

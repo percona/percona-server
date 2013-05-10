@@ -320,25 +320,25 @@ pfs_mutex_create_func(
 	mysql_pfs_key_t	key,		/*!< in: Performance Schema key */
 	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
 #  ifdef UNIV_SYNC_DEBUG
 	ulint		level,		/*!< in: level */
 #  endif /* UNIV_SYNC_DEBUG */
-# endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline)		/*!< in: file line where created */
+	ulint		cline,		/*!< in: file line where created */
+# endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
 {
 	mutex->pfs_psi = PSI_MUTEX_CALL(init_mutex)(key, mutex);
 
 	mutex_create_func(mutex,
 # ifdef UNIV_DEBUG
-			  cmutex_name,
 #  ifdef UNIV_SYNC_DEBUG
 			  level,
 #  endif /* UNIV_SYNC_DEBUG */
-# endif /* UNIV_DEBUG */
 			  cfile_name,
-			  cline);
+			  cline,
+# endif /* UNIV_DEBUG */
+			  cmutex_name);
 }
 
 /******************************************************************//**

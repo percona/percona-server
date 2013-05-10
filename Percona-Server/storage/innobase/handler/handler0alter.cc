@@ -2549,6 +2549,12 @@ prepare_inplace_alter_table_dict(
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
 
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+		trx_rollback_to_savepoint(trx, NULL);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 	if (!heap) {
@@ -3244,6 +3250,10 @@ ha_innobase::prepare_inplace_alter_table(
 
 	if (srv_read_only_mode) {
 		DBUG_RETURN(false);
+	}
+
+	if (UNIV_UNLIKELY(prebuilt->trx->fake_changes)) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);

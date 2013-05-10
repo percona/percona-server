@@ -479,6 +479,50 @@ bool String::append_with_prefill(const char *s,uint32 arg_length,
   return FALSE;
 }
 
+bool String::append_identifier(const char *name,
+			       uint length,
+			       const CHARSET_INFO *ci,
+			       int quote_char)
+{
+  const char *name_end;
+  char q= (char)quote_char;
+  const CHARSET_INFO *lci = ci ? ci : charset();
+
+  if (quote_char == EOF)
+    return append(name, length, charset());
+
+  /*
+    The identifier must be quoted as it includes a quote character or
+   it's a keyword
+  */
+
+  (void)reserve(length*2 + 2);
+  if (append(&q, 1, lci))
+    return true;
+
+  for (name_end= name+length ; name < name_end ; name+= length)
+  {
+    uchar chr= (uchar) *name;
+    length= my_mbcharlen(lci, chr);
+    /*
+      my_mbcharlen can return 0 on a wrong multibyte
+      sequence. It is possible when upgrading from 4.0,
+      and identifier contains some accented characters.
+      The manual says it does not work. So we'll just
+      change length to 1 not to hang in the endless loop.
+    */
+    if (!length)
+      length= 1;
+    if (length == 1 && chr == (uchar) q &&
+        append(&q, 1, lci))
+      return true;
+    if (append(name, length, lci))
+      return true;
+  }
+  return append(&q, 1, lci);
+}
+
+
 uint32 String::numchars() const
 {
   return str_charset->cset->numchars(str_charset, Ptr, Ptr+str_length);

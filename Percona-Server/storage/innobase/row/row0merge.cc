@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1392,6 +1392,11 @@ end_of_index:
 		}
 
 		rec = page_cur_get_rec(cur);
+
+		if (srv_pass_corrupt_table && !rec) {
+			err = DB_CORRUPTION;
+			goto func_exit;
+		}
 
 		offsets = rec_get_offsets(rec, clust_index, NULL,
 					  ULINT_UNDEFINED, &row_heap);
@@ -3490,7 +3495,7 @@ row_merge_build_indexes(
 
 	block_size = 3 * srv_sort_buf_size;
 	block = static_cast<row_merge_block_t*>(
-		os_mem_alloc_large(&block_size));
+		os_mem_alloc_large(&block_size, FALSE));
 
 	if (block == NULL) {
 		return(DB_OUT_OF_MEMORY);

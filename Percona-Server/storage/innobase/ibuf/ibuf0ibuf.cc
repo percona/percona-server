@@ -477,6 +477,45 @@ ibuf_close(void)
 }
 
 /******************************************************************//**
+Function to pass ibuf status variables */
+UNIV_INTERN
+void
+ibuf_export_ibuf_status(
+/*====================*/
+	ulint*	size,
+	ulint*	free_list,
+	ulint*	segment_size,
+	ulint*	merges,
+	ulint*	merged_inserts,
+	ulint*	merged_delete_marks,
+	ulint*	merged_deletes,
+	ulint*	discarded_inserts,
+	ulint*	discarded_delete_marks,
+	ulint*	discarded_deletes)
+{
+	*size
+		= ibuf->size;
+	*free_list
+		= ibuf->free_list_len;
+	*segment_size
+		= ibuf->seg_size;
+	*merges
+		= ibuf->n_merges;
+	*merged_inserts
+		= ibuf->n_merged_ops[IBUF_OP_INSERT];
+	*merged_delete_marks
+		= ibuf->n_merged_ops[IBUF_OP_DELETE_MARK];
+	*merged_deletes
+		= ibuf->n_merged_ops[IBUF_OP_DELETE];
+	*discarded_inserts
+		= ibuf->n_discarded_ops[IBUF_OP_INSERT];
+	*discarded_delete_marks
+		= ibuf->n_discarded_ops[IBUF_OP_DELETE_MARK];
+	*discarded_deletes
+		= ibuf->n_discarded_ops[IBUF_OP_DELETE];
+}
+
+/******************************************************************//**
 Updates the size information of the ibuf, assuming the segment size has not
 changed. */
 static
@@ -3485,6 +3524,8 @@ ibuf_insert_low(
 	ut_ad(!no_counter || op == IBUF_OP_INSERT);
 	ut_a(op < IBUF_OP_COUNT);
 
+	ut_ad(!(thr_get_trx(thr)->fake_changes));
+
 	do_merge = FALSE;
 
 	/* Perform dirty reads of ibuf->size and ibuf->max_size, to
@@ -4106,7 +4147,7 @@ dump:
 							    update)
 		    && (!page_zip || btr_cur_update_alloc_zip(
 				page_zip, block, index,
-				rec_offs_size(offsets), FALSE, mtr))) {
+				rec_offs_size(offsets), FALSE, mtr, NULL))) {
 			/* This is the easy case. Do something similar
 			to btr_cur_update_in_place(). */
 			row_upd_rec_in_place(rec, index, offsets,

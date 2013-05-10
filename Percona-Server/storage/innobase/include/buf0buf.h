@@ -134,6 +134,7 @@ struct buf_pool_info_t{
 	/* General buffer pool info */
 	ulint	pool_unique_id;		/*!< Buffer Pool ID */
 	ulint	pool_size;		/*!< Buffer Pool size in pages */
+	ulint	pool_size_bytes;
 	ulint	lru_len;		/*!< Length of buf_pool->LRU */
 	ulint	old_lru_len;		/*!< buf_pool->LRU_old_len */
 	ulint	free_list_len;		/*!< Length of buf_pool->free list */
@@ -231,6 +232,7 @@ dberr_t
 buf_pool_init(
 /*=========*/
 	ulint	size,		/*!< in: Size of the total pool in bytes */
+	ibool	populate,	/*!< in: Force virtual page preallocation */
 	ulint	n_instances);	/*!< in: Number of instances */
 /********************************************************************//**
 Frees the buffer pool at shutdown.  This must not be invoked before
@@ -1575,6 +1577,7 @@ struct buf_page_t{
 					0 if the block was never accessed
 					in the buffer pool. Protected by
 					block mutex */
+	ibool		is_corrupt;
 # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when
@@ -1756,6 +1759,7 @@ struct buf_pool_stat_t{
 				buf_page_peek_if_too_old() */
 	ulint	LRU_bytes;	/*!< LRU size in bytes */
 	ulint	flush_list_bytes;/*!< flush_list size in bytes */
+	ulint	buf_lru_flush_page_count;
 };
 
 /** Statistics of buddy blocks of a given size. */

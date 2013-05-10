@@ -78,6 +78,7 @@ bool handle_select(THD *thd, select_result *result,
   LEX *lex= thd->lex;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
+ 
   MYSQL_SELECT_START(thd->query());
 
   if (lex->proc_analyse && lex->sql_command != SQLCOM_SELECT)
@@ -2848,7 +2849,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  {
 	    join->thd->set_status_no_index_used();
 	    if (statistics)
-	      join->thd->inc_status_select_scan();
+            {
+              join->thd->inc_status_select_scan();
+              join->thd->query_plan_flags|= QPLAN_FULL_SCAN;
+            }
 	  }
 	}
 	else
@@ -2862,7 +2866,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  {
 	    join->thd->set_status_no_index_used();
 	    if (statistics)
-	      join->thd->inc_status_select_full_join();
+            {
+              join->thd->inc_status_select_full_join();
+              join->thd->query_plan_flags|= QPLAN_FULL_JOIN;
+            }
 	  }
 	}
 	if (!table->no_keyread)
@@ -3856,6 +3863,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   {
     DBUG_RETURN(1);
   }
+
+  /* Check that we are always called with first non-const table */
+  DBUG_ASSERT(tab == tab->join->join_tab + tab->join->const_tables);
 
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already

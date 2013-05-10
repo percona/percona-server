@@ -112,7 +112,15 @@ public:
   SHOW_TYPE show_type() { return show_val_type; }
   int scope() const { return flags & SCOPE_MASK; }
   const CHARSET_INFO *charset(THD *thd);
-  bool is_readonly() const { return flags & READONLY; }
+  bool is_readonly() const 
+  {
+    const my_bool *readonly= getopt_constraint_get_readonly_value(option.name,
+                                                                  0, FALSE);
+    if (readonly && *readonly)
+      return TRUE;  
+    
+    return flags & READONLY;
+  }
   bool not_visible() const { return flags & INVISIBLE; }
   /**
     the following is only true for keycache variables,

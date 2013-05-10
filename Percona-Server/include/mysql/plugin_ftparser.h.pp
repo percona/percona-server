@@ -186,6 +186,16 @@ int thd_tx_is_read_only(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
+void increment_thd_innodb_stats(void* thd,
+                    unsigned long long trx_id,
+                    long io_reads,
+                    long long io_read,
+                    long io_reads_wait_timer,
+                    long lock_que_wait_timer,
+                    long que_wait_timer,
+                    long page_access);
+unsigned long thd_log_slow_verbosity(const void* thd);
+int thd_opt_slow_log();
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 void thd_binlog_pos(const void* thd,
@@ -199,6 +209,9 @@ void mysql_query_cache_invalidate4(void* thd,
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
+int thd_command(const void* thd);
+long long thd_start_time(const void* thd);
+void thd_kill(unsigned long id);
 enum enum_ftparser_mode
 {
   MYSQL_FTPARSER_SIMPLE_MODE= 0,

@@ -1,0 +1,71 @@
+# Current test checks Last_errno for administrative command "Quit"
+# See Launchpad Bug #716210
+
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET GLOBAL log_slow_admin_statements=ON;
+SET GLOBAL long_query_time=0;
+SET GLOBAL min_examined_row_limit=0;
+
+CREATE TABLE t(a INT) engine=InnoDB;
+
+--connect(additional,localhost,root,,)
+--connection additional
+
+#
+# 1st command in the log that sets Last_errno
+#
+--let log_file=percona.slow_extended.error_on_quit_1
+--source include/log_start.inc
+
+--error ER_TABLE_EXISTS_ERROR
+CREATE TABLE t(a INT) engine=InnoDB;
+--source include/log_stop.inc
+
+--let grep_pattern=Last_errno: [1-9]\d*\s
+--source include/log_grep.inc
+
+#
+# Subsequent Quit should not have Last_errno set
+#
+--let log_file=percona.slow_extended.error_on_quit_2
+--source include/log_start.inc
+--echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+--disconnect additional
+--connection default
+--source include/wait_until_count_sessions.inc
+--source include/log_stop.inc
+
+--let grep_pattern=Last_errno: 0\s
+--source include/log_grep.inc
+
+--connect(additional,localhost,root,,)
+--connection additional
+
+#
+# Negative case: both regular command and Quit with errno = 0
+#
+--let log_file=percona.slow_extended.error_on_quit_3
+--source include/log_start.inc
+
+SELECT * FROM t;
+
+--echo # Disconnecting (passing to Slow Query Log "# administrative command: Quit")
+--disconnect additional
+--connection default
+--source include/wait_until_count_sessions.inc
+--source include/log_stop.inc
+
+--let grep_pattern= Last_errno: 0\s
+--source include/log_grep.inc
+
+DROP TABLE t;
+SET GLOBAL log_slow_admin_statements=default;
+SET GLOBAL long_query_time=default;
+SET GLOBAL min_examined_row_limit=default;
+--source include/log_cleanup.inc

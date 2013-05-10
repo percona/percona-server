@@ -2544,6 +2544,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
 
   if (mi != NULL && mi->host[0])
   {
+    bool do_lock=SQLCOM_SHOW_SLAVE_NOLOCK_STAT != thd->lex->sql_command;
     DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
     protocol->prepare_for_resend();
@@ -2552,9 +2553,16 @@ bool show_slave_status(THD* thd, Master_info* mi)
       slave_running can be accessed without run_lock but not other
       non-volotile members like mi->info_thd, which is guarded by the mutex.
     */
-    mysql_mutex_lock(&mi->run_lock);
-    protocol->store(mi->info_thd ? mi->info_thd->get_proc_info() : "", &my_charset_bin);
-    mysql_mutex_unlock(&mi->run_lock);
+    if (do_lock)
+    {
+      mysql_mutex_lock(&mi->run_lock);
+    }
+    protocol->store(mi->info_thd ? mi->info_thd->get_proc_info() : "",
+                    &my_charset_bin);
+    if (do_lock)
+    {
+      mysql_mutex_unlock(&mi->run_lock);
+    }
 
     mysql_mutex_lock(&mi->rli->run_lock);
     slave_sql_running_state= const_cast<char *>(mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
@@ -2863,7 +2871,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 */
   thd->variables.max_allowed_packet= slave_max_allowed_packet;
   thd->slave_thread = 1;
-  thd->enable_slow_log= opt_log_slow_slave_statements;
+  thd->enable_slow_log= TRUE;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   mysql_mutex_lock(&LOCK_thread_count);

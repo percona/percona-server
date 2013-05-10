@@ -497,39 +497,40 @@ read_view_close_for_mysql(
 }
 
 /*********************************************************************//**
-Prints a read view to stderr. */
+Prints a read view to file. */
 UNIV_INTERN
 void
 read_view_print(
 /*============*/
+	FILE*			file,	/*!< in: file to print to */
 	const read_view_t*	view)	/*!< in: read view */
 {
 	ulint	n_ids;
 	ulint	i;
 
 	if (view->type == VIEW_HIGH_GRANULARITY) {
-		fprintf(stderr,
+		fprintf(file,
 			"High-granularity read view undo_n:o " TRX_ID_FMT "\n",
 			view->undo_no);
 	} else {
-		fprintf(stderr, "Normal read view\n");
+		fprintf(file, "Normal read view\n");
 	}
 
-	fprintf(stderr, "Read view low limit trx n:o " TRX_ID_FMT "\n",
+	fprintf(file, "Read view low limit trx n:o " TRX_ID_FMT "\n",
 		view->low_limit_no);
 
-	fprintf(stderr, "Read view up limit trx id " TRX_ID_FMT "\n",
+	fprintf(file, "Read view up limit trx id " TRX_ID_FMT "\n",
 		view->up_limit_id);
 
-	fprintf(stderr, "Read view low limit trx id " TRX_ID_FMT "\n",
+	fprintf(file, "Read view low limit trx id " TRX_ID_FMT "\n",
 		view->low_limit_id);
 
-	fprintf(stderr, "Read view individually stored trx ids:\n");
+	fprintf(file, "Read view individually stored trx ids:\n");
 
 	n_ids = view->n_trx_ids;
 
 	for (i = 0; i < n_ids; i++) {
-		fprintf(stderr, "Read view trx id " TRX_ID_FMT "\n",
+		fprintf(file, "Read view trx id " TRX_ID_FMT "\n",
 			view->trx_ids[i]);
 	}
 }

@@ -210,10 +210,10 @@
 ##############################################################################
 
 %if %{commercial}
-%define license_files_server    %{src_dir}/LICENSE.mysql
+%define license_files_server    LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_server    %{src_dir}/COPYING %{src_dir}/README
+%define license_files_server    COPYING README
 %define license_type            GPL
 %endif
 
@@ -229,17 +229,15 @@ Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
 Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{majorversion}.%{minorversion}/source/%{src_dir}.tar.gz
+#TODO
+Patch1:         mysql-dubious-exports.patch
+#TODO
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-#
-%if %{rhel}
-BuildRequires: pam-devel
-%endif
-#
 BuildRequires:  %{distro_buildreq}
-#
+
 # Think about what you use here since the first step is to
 # run a rm -rf
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
@@ -263,6 +261,7 @@ Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix}
 Provides:       mysql-server MySQL-server
+Conflicts:	Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55
 
 %description -n Percona-Server-server%{product_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
@@ -285,6 +284,7 @@ Summary:        Percona Server - Client
 Group:          Applications/Databases
 Requires:      Percona-Server-shared%{product_suffix}
 Provides:       mysql-client MySQL-client mysql MySQL
+Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55
 
 %description -n Percona-Server-client%{product_suffix}
 This package contains the standard Percona Server client and administration tools.
@@ -297,6 +297,7 @@ Requires:       Percona-Server-client%{product_suffix} perl
 Summary:        Percona Server - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
+Conflicts:      Percona-SQL-test-50 Percona-Server-test-51 Percona-Server-test-55
 AutoReqProv:    no
 
 %description -n Percona-Server-test%{product_suffix}
@@ -309,6 +310,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
+Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51 Percona-Server-devel-55
 
 %description -n Percona-Server-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -321,6 +323,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 Provides:       mysql-shared
+Conflicts:	Percona-Server-shared-55
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -328,8 +331,10 @@ and applications need to dynamically load and use Percona Server.
 
 ##############################################################################
 %prep
-%setup -T -a 0 -c -n %{src_dir}
-
+%setup -n %{src_dir}
+#TODO
+%patch1 -p1 
+#TODO
 ##############################################################################
 %build
 
@@ -340,7 +345,7 @@ BuildUDF() {
     cd UDF
     CXX="${UDF_CXX:-g++}"\
         CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/%{src_dir}/include \
+        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
         --libdir=%{_libdir}/mysql/plugin
     make all
     cd -
@@ -371,7 +376,7 @@ export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
 export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
@@ -395,15 +400,14 @@ mkdir debug
                   -e 's/ $//'`
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
-  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+  ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
-	   -DWITH_PAM=ON
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make ${MAKE_JFLAG}
 )
@@ -413,18 +417,17 @@ mkdir release
   cd release
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
-  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+  ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
-           -DWITH_PAM=ON
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make ${MAKE_JFLAG}
-  cd ../%{src_dir}
+  cd ../
   d="`pwd`"
   BuildUDF
   cd "$d"
@@ -497,7 +500,7 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   d="`pwd`"
-  cd $MBD/%{src_dir}/UDF
+  cd $MBD/UDF
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
 )
@@ -526,7 +529,7 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
-install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
+install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
   $RBR%{_datadir}/mysql/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}

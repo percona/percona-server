@@ -5,9 +5,9 @@
 
 @DPATCH@
 diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server~/scripts/mysqld_safe.sh Percona-Server/scripts/mysqld_safe.sh
---- Percona-Server~/scripts/mysqld_safe.sh	2013-01-22 11:14:28.000000000 -0500
-+++ Percona-Server/scripts/mysqld_safe.sh	2013-01-22 11:14:39.000000000 -0500
-@@ -31,8 +31,6 @@
+--- Percona-Server~/scripts/mysqld_safe.sh	2013-03-04 08:26:59.000000000 -0500
++++ Percona-Server/scripts/mysqld_safe.sh	2013-03-04 08:27:48.000000000 -0500
+@@ -29,9 +29,6 @@
  syslog_tag_mysqld=mysqld
  syslog_tag_mysqld_safe=mysqld_safe
  
@@ -17,8 +17,8 @@ diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' 
  # MySQL-specific environment variable. First off, it's not really a umask,
  # it's the desired mode. Second, it follows umask(2), not umask(3) in that
  # octal needs to be explicit. Our shell might be a proper sh without printf,
-@@ -782,6 +780,12 @@
-   exit 1
+@@ -739,6 +736,12 @@
+   fi
  fi
  
 +# From now on, we catch signals to do a proper shutdown of mysqld

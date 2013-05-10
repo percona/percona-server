@@ -12,14 +12,16 @@
 set -ue
 
 # Examine parameters
-go_out="$(getopt --options "kK:bD" --longoptions key:,nosign,binary,nodebug \
+go_out="$(getopt --options "k:Ke:bDS" \
+    --longoptions key:,nosign,epoch:,binary,nodebug,source \
     --name "$(basename "$0")" -- "$@")"
 test $? -eq 0 || exit 1
 eval set -- $go_out
 
 BUILDPKG_KEY=''
-BINARY=''
-DEBUG='yes'
+EPOCH=''
+DPKG_BINSRC=''
+SKIPDEBUG=''
 
 for arg
 do
@@ -27,8 +29,10 @@ do
     -- ) shift; break;;
     -k | --key ) shift; BUILDPKG_KEY="-pgpg -k$1"; shift;;
     -K | --nosign ) shift; BUILDPKG_KEY="-uc -us";;
-    -b | --binary ) shift; BINARY='-b';;
-    -D | --nodebug ) shift; DEBUG='';;
+    -e | --epoch ) shift; EPOCH="$1:"; shift;;
+    -b | --binary ) shift; DPKG_BINSRC='-b';;
+    -D | --nodebug ) shift; SKIPDEBUG='yes';;
+    -S | --source ) shift; DPKG_BINSRC='-S';;
     esac
 done
 
@@ -75,13 +79,13 @@ DEBIAN_VERSION="$(lsb_release -sc)"
 
 # Build information
 export BB_PERCONA_REVISION="$(cd "$SOURCEDIR"; bzr revno)"
-export DEB_BUILD_OPTIONS='debug nocheck'
+export DEB_BUILD_OPTIONS='debug'
 
 # Compilation flags
 export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION ${CFLAGS:-}"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION ${CXXFLAGS:-}"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
 
 # Prepare sources
@@ -104,18 +108,18 @@ export MAKE_JFLAG=-j4
         cp -R "$SOURCEDIR/build/debian" .
         chmod +x debian/rules
 
-        # If debug is not set, do not ship mysql-debug
-        if test "x$DEBUG" = "x"
+        # If nodebug is set, do not ship mysql-debug
+        if test "x$SKIPDEBUG" = "xyes"
         then
-            sed -i '/mysqld-debug/d' debian/percona-server-server-5.5.install
+            sed -i '/mysqld-debug/d' debian/percona-server-server-5.6.install
         fi
 
         # Update distribution name
-        dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
+        dch -m -D "$DEBIAN_VERSION" --force-distribution -v "$EPOCH$MYSQL_VERSION-$PERCONA_SERVER_VERSION-$BB_PERCONA_REVISION.$DEBIAN_VERSION" 'Update distribution'
 
         DEB_CFLAGS_APPEND="$CFLAGS" DEB_CXXFLAGS_APPEND="$CXXFLAGS" \
-                BUILD_DEBUG_BINARY="$DEBUG" \
-                dpkg-buildpackage $BINARY -rfakeroot $BUILDPKG_KEY
+                SKIP_DEBUG_BINARY="$SKIPDEBUG" \
+                dpkg-buildpackage $DPKG_BINSRC -rfakeroot $BUILDPKG_KEY
 
     )
 

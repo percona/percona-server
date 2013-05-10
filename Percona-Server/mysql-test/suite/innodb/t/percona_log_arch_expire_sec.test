@@ -1,0 +1,29 @@
+#
+# Test innodb_log_archive_expire_sec
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--source ../include/percona_log_archiving_setup.inc
+
+SET @save_log_arch_expire_sec = @@innodb_log_arch_expire_sec;
+SET GLOBAL innodb_log_arch_expire_sec = 1;
+
+--source ../include/percona_log_archiving_workload.inc
+
+--source ../include/percona_log_archiving_workload.inc
+
+SELECT sleep(4);
+
+--source ../include/percona_log_archiving_stat.inc
+
+if ($archived_logs_count > 1)
+{
+  die Test failed. Archived logs have nod been purged.;
+}
+
+SET GLOBAL innodb_log_arch_expire_sec = @save_log_arch_expire_sec;
+
+--source ../include/percona_log_archiving_cleanup.inc
+

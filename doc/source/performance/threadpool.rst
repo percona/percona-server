@@ -27,7 +27,7 @@ Although the default values for the thread pool should provide good performance,
 Version Specific Information
 ============================
 
- * :rn:`5.5.29-30.0`
+ * :rn:`5.6.10-60.2`
     ``Thread Pool`` feature implemented. This feature was ported from |MariaDB|.
 
 System Variables
@@ -80,7 +80,7 @@ This variable can be used to define the number of threads that can use the CPU a
 .. variable:: thread_pool_stall_limit
 
      :cli: Yes
-     :conf: No
+     :conf: Yes
      :scope: Global
      :dyn: No
      :vartype: Numeric

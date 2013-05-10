@@ -20,19 +20,40 @@ clean-patched:
 	dh clean
 	rm -rf CMakeFiles
 
-build: patch
-	dh_testdir
-	$(CMAKE) . -DBUILD_CONFIG=mysql_release \
+override_dh_auto_configure: patch
+ifeq ($(SKIP_DEBUG_BINARY),)
+	# Make a debug binary
+	mkdir debug
+	cd debug && \
+	$(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
 	   -DINSTALL_LAYOUT=DEB \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-           -DWITH_EMBEDDED_SERVER=OFF \
-           -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
-           -DFEATURE_SET=$(feature_set) \
-           -DCOMPILATION_COMMENT=$(compilation_comment_release) \
-           -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
+	   -DCMAKE_BUILD_TYPE=Debug \
+	   -DWITH_EMBEDDED_SERVER=OFF \
+	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
+	   -DFEATURE_SET=$(feature_set) \
+	   -DCOMPILATION_COMMENT=$(compilation_comment_debug) \
+	   -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
 	   -DWITH_PAM=ON
-	make $(MAKE_JFLAG)
+endif
+
+	mkdir release
+	cd release && $(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
+	   -DINSTALL_LAYOUT=DEB \
+	    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	    -DWITH_EMBEDDED_SERVER=OFF \
+	    -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
+	    -DFEATURE_SET=$(feature_set) \
+	    -DCOMPILATION_COMMENT=$(compilation_comment_release) \
+	    -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
+	    -DWITH_PAM=ON
 	
+override_dh_auto_build:
+ifeq ($(SKIP_DEBUG_BINARY),)
+	cd debug && make $(MAKE_JFLAG)
+endif
+
+	cd release && make $(MAKE_JFLAG)
+
 	# Build UDF
 	cd UDF && \
 	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/include" \
@@ -77,4 +98,6 @@ install:
 	cd UDF && make DESTDIR=$(TMP) install
 	dh --after dh_auto_install --before dh_installinit install
 	dh_installinit --name=mysql
-	dh --after dh_installinit install
+
+override_dh_strip:
+	dh_strip --dbg-package=percona-server-5.6-dbg

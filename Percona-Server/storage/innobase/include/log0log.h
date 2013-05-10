@@ -70,6 +70,10 @@ extern	ibool	log_debug_writes;
 /** Maximum number of log groups in log_group_t::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
+#define IB_ARCHIVED_LOGS_PREFIX		"ib_log_archive_"
+#define IB_ARCHIVED_LOGS_PREFIX_LEN	(sizeof(IB_ARCHIVED_LOGS_PREFIX) - 1)
+#define IB_ARCHIVED_LOGS_SERIAL_LEN	20
+
 /*******************************************************************//**
 Calculates where in log files we find a specified lsn.
 @return	log file number */
@@ -114,14 +118,22 @@ UNIV_INLINE
 void
 log_free_check(void);
 /*================*/
-/************************************************************//**
-Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release.
-@return	start lsn of the log record */
-UNIV_INTERN
+/**************************************************************************//**
+Locks the log mutex and opens the log for log_write_low. The log must be closed
+with log_close and released with log_release.
+@return start lsn of the log record */
+UNIV_INLINE
 lsn_t
 log_reserve_and_open(
 /*=================*/
+	ulint	len);	/*!< in: length of data to be catenated */
+/************************************************************//**
+Opens the log for log_write_low. The log must be closed with log_close.
+@return	start lsn of the log record */
+UNIV_INTERN
+lsn_t
+log_open(
+/*=====*/
 	ulint	len);	/*!< in: length of data to be catenated */
 /************************************************************//**
 Writes to the log the string given. It is assumed that the caller holds the
@@ -283,8 +295,7 @@ log_checkpoint_get_nth_group_info(
 /*==============================*/
 	const byte*	buf,	/*!< in: buffer containing checkpoint info */
 	ulint		n,	/*!< in: nth slot */
-	ulint*		file_no,/*!< out: archived file number */
-	ulint*		offset);/*!< out: archived file offset */
+	lsn_t*		file_no);/*!< out: archived file number */
 /******************************************************//**
 Writes checkpoint info to groups. */
 UNIV_INTERN
@@ -340,8 +351,18 @@ void
 log_archived_file_name_gen(
 /*=======================*/
 	char*	buf,	/*!< in: buffer where to write */
+	ulint	buf_len,/*!< in: buffer length */
 	ulint	id,	/*!< in: group id */
-	ulint	file_no);/*!< in: file number */
+	lsn_t	file_no);/*!< in: file number */
+
+UNIV_INTERN
+void
+log_archived_get_offset(
+/*====================*/
+	log_group_t*	group,		/*!< in: log group */
+	lsn_t		file_no,	/*!< in: archive log file number */
+	lsn_t		archived_lsn,	/*!< in: last archived LSN */
+	lsn_t*		offset);	/*!< out: offset within archived file */
 #else /* !UNIV_HOTBACKUP */
 /******************************************************//**
 Writes info to a buffer of a log group when log files are created in
@@ -739,19 +760,19 @@ struct log_group_t{
 	ulint		archive_space_id;/*!< file space which
 					implements the log group
 					archive */
-	ulint		archived_file_no;/*!< file number corresponding to
+	lsn_t		archived_file_no;/*!< file number corresponding to
 					log_sys->archived_lsn */
-	ulint		archived_offset;/*!< file offset corresponding to
+	lsn_t		archived_offset;/*!< file offset corresponding to
 					log_sys->archived_lsn, 0 if we have
 					not yet written to the archive file
 					number archived_file_no */
-	ulint		next_archived_file_no;/*!< during an archive write,
+	lsn_t		next_archived_file_no;/*!< during an archive write,
 					until the write is completed, we
 					store the next value for
 					archived_file_no here: the write
 					completion function then sets the new
 					value to ..._file_no */
-	ulint		next_archived_offset; /*!< like the preceding field */
+	lsn_t		next_archived_offset; /*!< like the preceding field */
 #endif /* UNIV_LOG_ARCHIVE */
 	/*-----------------------------*/
 	lsn_t		scanned_lsn;	/*!< used only in recovery: recovery scan
@@ -959,6 +980,7 @@ struct log_t{
 					should wait for this without owning
 					the log mutex */
 	ulint		archive_buf_size;/*!< size of archive_buf */
+	byte*		archive_buf_ptr;/*!< unaligned archived_buf */
 	byte*		archive_buf;	/*!< log segment is written to the
 					archive from this buffer */
 	os_event_t	archiving_on;	/*!< if archiving has been stopped,

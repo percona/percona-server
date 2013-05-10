@@ -7562,7 +7562,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(error != 0);
 }
 
-
 /*
   Temporarily remove secondary keys previously stored in
   alter_info->delayed_key_info.
@@ -7583,7 +7582,7 @@ remove_secondary_keys(THD *thd, HA_CREATE_INFO* create_info, TABLE *table,
 
   /*
     Create Alter_info for the table and fill create_list with fields
-    definitions. Not that fields not changed, so we set field==ogrig_field.
+    definitions. Note that fields not changed, so we set field==ogrig_field.
   */
   Alter_info alter_info_new;
   Field **f_ptr, *field;

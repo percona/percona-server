@@ -116,12 +116,12 @@ export CXX="${CXX:-g++}"
 export HS_CXX="${HS_CXX:-g++}"
 export UDF_CXX="${UDF_CXX:-g++}"
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
+export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
 export MAKE_JFLAG=-j4
 
 # Create directories for rpmbuild if these don't exist
 (cd "$WORKDIR" && mkdir -p BUILD RPMS SOURCES SPECS SRPMS)
-
+cp -f $(readlink -f $(dirname $0))/rpm/*.patch ${WORKDIR}/SOURCES/
 (
     cd "$SOURCEDIR"
  
@@ -133,7 +133,6 @@ export MAKE_JFLAG=-j4
     then
         sed -i 's/lib64/lib/' "$PRODUCT/cmake/install_layout.cmake"
     fi
-
     # Create tarball for build
     tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"*
 

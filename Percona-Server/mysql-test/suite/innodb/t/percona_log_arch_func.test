@@ -1,0 +1,19 @@
+#
+# Test that log archiving is working (produce some files at least)
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--source ../include/percona_log_archiving_setup.inc
+
+--source ../include/percona_log_archiving_workload.inc
+--source ../include/percona_log_archiving_check.inc
+
+if ($archived_logs_count == 0)
+{
+  die "0 archived logs have been produced";
+}
+
+--source ../include/percona_log_archiving_cleanup.inc
+

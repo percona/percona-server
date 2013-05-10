@@ -5,7 +5,6 @@ show variables like "max_connections";
 # Results vary by platform:
 # show variables like "open_files_limit";
 show variables like "%performance_schema%";
-show status like "%performance_schema%";
 
 # Each test script should provide a different test.cnf file,
 # with different settings.

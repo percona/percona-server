@@ -524,7 +524,10 @@ log_online_start_bitmap_file(void)
 
 	/* Check for an old file that should be deleted first */
 	if (log_online_should_overwrite(log_bmp_sys->out.name)) {
-		success = os_file_delete(log_bmp_sys->out.name);
+
+		success = static_cast<ibool>(
+			os_file_delete(innodb_file_bmp_key,
+				       log_bmp_sys->out.name));
 	}
 
 	if (UNIV_LIKELY(success)) {
@@ -1660,9 +1663,12 @@ log_online_purge_changed_page_bitmaps(
 	for (i = 0; i < bitmap_files.count; i++) {
 		if (bitmap_files.files[i].seq_num == 0
 		    || bitmap_files.files[i].start_lsn >= lsn) {
+
 			break;
 		}
-		if (!os_file_delete_if_exists(bitmap_files.files[i].name)) {
+		if (!os_file_delete_if_exists(innodb_file_bmp_key,
+					      bitmap_files.files[i].name)) {
+
 			os_file_get_last_error(TRUE);
 			result = TRUE;
 			break;

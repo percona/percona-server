@@ -233,6 +233,7 @@ int thd_tx_is_read_only(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
+int thd_allow_batch(void* thd);
 void increment_thd_innodb_stats(void* thd,
                     unsigned long long trx_id,
                     long io_reads,

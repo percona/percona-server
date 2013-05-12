@@ -5,6 +5,18 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`68477` - Suboptimal code in skip_trailing_space()                                  |
+|:Launchpad bug: :bug:`1132351`                                                                               |
+|:Upstream state: Verified (checked on 2013-03-05)                                                            |
+|:Fix Released: :rn:`5.6.11-60.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`68476` - Suboptimal code in my_strnxfrm_simple()                                   |
+|:Launchpad bug: :bug:`1132350`                                                                               |
+|:Upstream state: Verified (checked on 2013-03-05)                                                            |
+|:Fix Released: :rn:`5.6.11-60.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`67504` - Duplicate error in replication with slave triggers and auto increment     |
 |:Launchpad bug: :bug:`1068210`                                                                               |
 |:Upstream state: Verified (checked on 2013-02-21)                                                            |
@@ -74,7 +86,7 @@
 |:Upstream bug: :mysqlbug:`54127` - mysqld segfaults when built using --with-max-indexes=128                  |
 |:Launchpad bug: :bug:`1042517`                                                                               |
 |:Upstream state: Verified (checked on 2013-02-21)                                                            |
-|:Fix Released: :rn:`5.5.10-60.3`                                                                             |
+|:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64800` - mysqldump with --include-master-host-port putting quotes around port no.  | 

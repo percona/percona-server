@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, 2012, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -449,6 +449,20 @@ public:
   }
 #endif
   /**
+    Find the oldest binary log that contains any GTID that
+    is not in the given gtid set.
+
+    @param[out] binlog_file_name, the file name of oldest binary log found
+    @param[in]  gtid_set, the given gtid set
+    @param[out] errmsg, the error message outputted, which is left untouched
+                if the function returns false
+    @return false on success, true on error.
+  */
+  bool find_first_log_not_in_gtid_set(char *binlog_file_name,
+                                      const Gtid_set *gtid_set,
+                                      const char **errmsg);
+
+  /**
     Reads the set of all GTIDs in the binary log, and the set of all
     lost GTIDs in the binary log, and stores each set in respective
     argument.
@@ -560,7 +574,7 @@ public:
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache);
+  int  do_write_cache(THD *thd, IO_CACHE *cache);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -605,6 +619,7 @@ public:
   int purge_logs(const char *to_log, bool included,
                  bool need_lock_index, bool need_update_threads,
                  ulonglong *decrease_log_space);
+  int purge_logs_maximum_number(ulong max_nr_files);
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(Relay_log_info* rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);

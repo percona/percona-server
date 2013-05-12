@@ -52,6 +52,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "rem0rec.h"
 #include "mtr0mtr.h"
 #include "log0log.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "page0page.h"
 #include "page0cur.h"
@@ -152,6 +153,7 @@ UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_log_tracking_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
@@ -1437,6 +1439,29 @@ srv_start_wait_for_purge_to_start()
 	}
 }
 
+/*********************************************************************//**
+Initializes the log tracking subsystem and starts its thread.  */
+static
+void
+init_log_online(void)
+/*=================*/
+{
+	if (UNIV_UNLIKELY(srv_force_recovery > 0 || srv_read_only_mode)) {
+		srv_track_changed_pages = FALSE;
+		return;
+	}
+
+	if (srv_track_changed_pages) {
+
+		log_online_read_init();
+
+		/* Create the thread that follows the redo log to output the
+		   changed page bitmap */
+		os_thread_create(&srv_redo_log_follow_thread, NULL,
+				 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+	}
+}
+
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
@@ -1586,10 +1611,6 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_ZIP_COPY */
 
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"CPU %s crc32 instructions",
-		ut_crc32_sse2_enabled ? "supports" : "does not support");
-
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
 	print an error message if someone tries to start up InnoDB a
@@ -1730,6 +1751,10 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_boot();
 
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"%s CPU crc32 instructions",
+		ut_crc32_sse2_enabled ? "Using" : "Not using");
+
 	if (!srv_read_only_mode) {
 
 		mutex_create(srv_monitor_file_mutex_key,
@@ -1850,7 +1875,8 @@ innobase_start_or_create_for_mysql(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Initializing buffer pool, size = %.1f%c", size, unit);
 
-	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
+	err = buf_pool_init(srv_buf_pool_size, (ibool) srv_buf_pool_populate,
+			    srv_buf_pool_instances);
 
 	if (err != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1883,7 +1909,7 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Create i/o-handler threads: */
 
-	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
+	for (i = 0; i < srv_n_file_io_threads; ++i) {
 
 		n[i] = i;
 
@@ -2182,6 +2208,7 @@ files_checked:
 	if (create_new_db) {
 
 		ut_a(!srv_read_only_mode);
+		init_log_online();
 
 		mtr_start(&mtr);
 
@@ -2296,6 +2323,8 @@ files_checked:
 
 			return(DB_ERROR);
 		}
+
+		init_log_online();
 
 		/* Since the insert buffer init is in dict_boot, and the
 		insert buffer is needed in any disk i/o, first we call
@@ -2712,7 +2741,8 @@ files_checked:
 
 	if (srv_print_verbose_log) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"%s started; log sequence number " LSN_PF "",
+			" Percona XtraDB (http://www.percona.com) %s started; "
+			"log sequence number " LSN_PF "",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 

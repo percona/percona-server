@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1490,6 +1490,11 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
   table->mdl_ticket= NULL;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
+  if(table->file)
+  {
+    table->file->update_global_table_stats();
+    table->file->update_global_index_stats();
+  }
   *table_ptr=table->next;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
@@ -2147,6 +2152,8 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
                           table->s->db.str, table->s->table_name.str));
 
+  table->file->update_global_table_stats();
+  table->file->update_global_index_stats();
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
@@ -3574,13 +3581,12 @@ Locked_tables_list::reopen_tables(THD *thd)
 
     share->table_map_id is given a value that with a high certainty is
     not used by any other table (the only case where a table id can be
-    reused is on wrap-around, which means more than 4 billion table
+    reused is on wrap-around, which means more than 2^48 table
     share opens have been executed while one table was open all the
     time).
 
-    share->table_map_id is not ~0UL.
- */
-static ulong last_table_id= ~0UL;
+*/
+static Table_id last_table_id;
 
 void assign_new_table_id(TABLE_SHARE *share)
 {
@@ -3591,18 +3597,14 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_ASSERT(share != NULL);
   mysql_mutex_assert_owner(&LOCK_open);
 
-  ulong tid= ++last_table_id;                   /* get next id */
-  /*
-    There is one reserved number that cannot be used.  Remember to
-    change this when 6-byte global table id's are introduced.
-  */
-  if (unlikely(tid == ~0UL))
-    tid= ++last_table_id;
-  share->table_map_id= tid;
-  DBUG_PRINT("info", ("table_id=%lu", tid));
+  DBUG_EXECUTE_IF("dbug_table_map_id_500", last_table_id= 500;);
+  DBUG_EXECUTE_IF("dbug_table_map_id_4B_UINT_MAX+501",
+                  last_table_id= 501ULL + UINT_MAX;);
+  DBUG_EXECUTE_IF("dbug_table_map_id_6B_UINT_MAX",
+                  last_table_id= (~0ULL >> 16););
 
-  /* Post conditions */
-  DBUG_ASSERT(share->table_map_id != ~0UL);
+  share->table_map_id= last_table_id++;
+  DBUG_PRINT("info", ("table_id=%llu", share->table_map_id.id()));
 
   DBUG_VOID_RETURN;
 }
@@ -3832,28 +3834,44 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
     entry->file->implicit_emptied= 0;
     if (mysql_bin_log.is_open())
     {
-      bool error= false;
-      String temp_buf;
-      error= temp_buf.append("DELETE FROM ");
-      append_identifier(thd, &temp_buf, share->db.str, strlen(share->db.str));
-      error= temp_buf.append(".");
-      append_identifier(thd, &temp_buf, share->table_name.str,
-                        strlen(share->table_name.str));
-      int errcode= query_error_code(thd, TRUE);
-      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, TRUE, FALSE, errcode))
-        return TRUE;
-      if (error)
+      char query_buf[2*FN_REFLEN + 21];
+      String query(query_buf, sizeof(query_buf), system_charset_info);
+      query.length(0);
+      if (query.ptr())
+      {
+        /* this DELETE FROM is needed even with row-based binlogging */
+        query.append("DELETE FROM ");
+        append_identifier(thd, &query, share->db.str, share->db.length);
+        query.append(".");
+        append_identifier(thd, &query, share->table_name.str,
+                          share->table_name.length);
+        int errcode= query_error_code(thd, TRUE);
+        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query.ptr(), query.length(),
+                              FALSE, FALSE, FALSE, errcode))
+          return FALSE;
+      }
+      else
       {
         /*
           As replication is maybe going to be corrupted, we need to warn the
           DBA on top of warning the client (which will automatically be done
           because of MYF(MY_WME) in my_malloc() above).
         */
+	char q_db_c[512];
+	char q_table_name_c[512];
+	String q_db(q_db_c, sizeof(q_db_c), system_charset_info);
+	String q_table_name(q_table_name_c, sizeof(q_table_name), system_charset_info);
+	q_db.length(0);
+	q_table_name.length(0);
+	append_identifier(thd, &q_db, share->db.str, share->db.length);
+	append_identifier(thd,
+			  &q_table_name,
+			  share->table_name.str,
+			  share->table_name.length);
         sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM `%s`.`%s`' to the binary log",
-                        share->db.str, share->table_name.str);
+                        "to write 'DELETE FROM %s.%s' to the binary log",
+                        q_db.c_ptr(), q_table_name.c_ptr());
         delete entry->triggers;
         return TRUE;
       }
@@ -5048,6 +5066,12 @@ restart:
         if (need_prelocking && ! *start)
           *start= thd->lex->query_tables;
 
+        if (need_prelocking && ! thd->lex->requires_prelocking())
+          thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+        if (need_prelocking && ! *start)
+          *start= thd->lex->query_tables;
+
         if (error)
         {
           if (ot_ctx.can_recover_from_failed_open())
@@ -5367,6 +5391,12 @@ static bool check_lock_and_start_stmt(THD *thd,
   int error;
   thr_lock_type lock_type;
   DBUG_ENTER("check_lock_and_start_stmt");
+
+  /*
+    Prelocking placeholder is not set for TABLE_LIST that
+    are directly used by TOP level statement.
+  */
+  DBUG_ASSERT(table_list->prelocking_placeholder == false);
 
   /*
     TL_WRITE_DEFAULT and TL_READ_DEFAULT are supposed to be parser only
@@ -8158,7 +8188,8 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   thd->mark_used_columns= mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   if (allow_sum_func)
-    thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+    thd->lex->allow_sum_func|=
+      (nesting_map)1 << thd->lex->current_select->nest_level;
   thd->where= THD::DEFAULT_WHERE;
   save_is_item_list_lookup= thd->lex->current_select->is_item_list_lookup;
   thd->lex->current_select->is_item_list_lookup= 0;

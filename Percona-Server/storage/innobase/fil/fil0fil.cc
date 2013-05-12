@@ -245,6 +245,7 @@ struct fil_space_t {
 	bool		is_in_unflushed_spaces;
 				/*!< true if this space is currently in
 				unflushed_spaces */
+	ibool		is_corrupt;
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
@@ -1349,6 +1350,8 @@ fil_space_create(
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = false;
 
+	space->is_corrupt = FALSE;
+
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
 	mutex_exit(&fil_system->mutex);
@@ -1514,6 +1517,21 @@ fil_space_get_space(
 	if (space->size == 0 && space->purpose == FIL_TABLESPACE) {
 		ut_a(id != 0);
 
+		mutex_exit(&fil_system->mutex);
+
+		/* It is possible that the space gets evicted at this point
+		before the fil_mutex_enter_and_prepare_for_io() acquires
+		the fil_system->mutex. Check for this after completing the
+		call to fil_mutex_enter_and_prepare_for_io(). */
+		fil_mutex_enter_and_prepare_for_io(id);
+
+		/* We are still holding the fil_system->mutex. Check if
+		the space is still in memory cache. */
+		space = fil_space_get_by_id(id);
+		if (space == NULL) {
+			return(NULL);
+		}
+
 		/* The following code must change when InnoDB supports
 		multiple datafiles per tablespace. */
 		ut_a(1 == UT_LIST_GET_LEN(space->chain));
@@ -1585,8 +1603,7 @@ fil_space_get_size(
 	ulint		size;
 
 	ut_ad(fil_system);
-
-	fil_mutex_enter_and_prepare_for_io(id);
+	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_space(id);
 
@@ -1616,7 +1633,7 @@ fil_space_get_flags(
 		return(0);
 	}
 
-	fil_mutex_enter_and_prepare_for_io(id);
+	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_space(id);
 
@@ -2583,7 +2600,7 @@ fil_close_tablespace(
 
 	char*	cfg_name = fil_make_cfg_name(path);
 
-	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 
 	mem_free(path);
 	mem_free(cfg_name);
@@ -2666,7 +2683,7 @@ fil_delete_tablespace(
 	when we drop the database the remove directory will fail. */
 	{
 		char*	cfg_name = fil_make_cfg_name(path);
-		os_file_delete_if_exists(cfg_name);
+		os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 		mem_free(cfg_name);
 	}
 
@@ -2694,7 +2711,8 @@ fil_delete_tablespace(
 
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
-	} else if (!os_file_delete(path) && !os_file_delete_if_exists(path)) {
+	} else if (!os_file_delete(innodb_file_data_key, path)
+		   && !os_file_delete_if_exists(innodb_file_data_key, path)) {
 
 		/* Note: This is because we have removed the
 		tablespace instance from the cache. */
@@ -3163,7 +3181,7 @@ fil_delete_link_file(
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete_if_exists(link_filepath);
+	os_file_delete_if_exists(innodb_file_data_key, link_filepath);
 
 	mem_free(link_filepath);
 }
@@ -3474,7 +3492,7 @@ error_exit_1:
 error_exit_2:
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
-		os_file_delete(path);
+		os_file_delete(innodb_file_data_key, path);
 	}
 error_exit_3:
 	mem_free(path);
@@ -4805,7 +4823,7 @@ retry:
 		success = os_aio(OS_FILE_WRITE, OS_AIO_SYNC,
 				 node->name, node->handle, buf,
 				 offset, page_size * n_pages,
-				 NULL, NULL);
+				 NULL, NULL, space_id, NULL);
 #endif /* UNIV_HOTBACKUP */
 		if (success) {
 			os_has_said_disk_full = FALSE;
@@ -5145,7 +5163,7 @@ Reads or writes data. This operation is asynchronous (aio).
 i/o on a tablespace which does not exist */
 UNIV_INTERN
 dberr_t
-fil_io(
+_fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
 				ORed to OS_FILE_LOG, if a log i/o
@@ -5170,8 +5188,9 @@ fil_io(
 	void*	buf,		/*!< in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
+	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
+	trx_t*	trx)
 {
 	ulint		mode;
 	fil_space_t*	space;
@@ -5335,8 +5354,41 @@ fil_io(
 
 	/* Do aio */
 
-	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
+	ut_a(byte_offset % OS_MIN_LOG_BLOCK_SIZE == 0);
+	ut_a((len % OS_MIN_LOG_BLOCK_SIZE) == 0);
+
+	if (srv_pass_corrupt_table == 1 && space->is_corrupt) {
+		/* should ignore i/o for the crashed space */
+		mutex_enter(&fil_system->mutex);
+		fil_node_complete_io(node, fil_system, type);
+		mutex_exit(&fil_system->mutex);
+		if (mode == OS_AIO_NORMAL) {
+			ut_a(space->purpose == FIL_TABLESPACE);
+			buf_page_io_complete(static_cast<buf_page_t *>
+					     (message));
+		}
+		if (type == OS_FILE_READ) {
+			return(DB_TABLESPACE_DELETED);
+		} else {
+			return(DB_SUCCESS);
+		}
+	} else {
+		if (srv_pass_corrupt_table > 1 && space->is_corrupt) {
+			/* should ignore write i/o for the crashed space */
+			if (type == OS_FILE_WRITE) {
+				mutex_enter(&fil_system->mutex);
+				fil_node_complete_io(node, fil_system, type);
+				mutex_exit(&fil_system->mutex);
+				if (mode == OS_AIO_NORMAL) {
+					ut_a(space->purpose == FIL_TABLESPACE);
+					buf_page_io_complete(
+					    static_cast<buf_page_t *>
+					    (message));
+				}
+				return(DB_SUCCESS);
+			}
+		}
+	}
 
 #ifdef UNIV_HOTBACKUP
 	/* In ibbackup do normal i/o, not aio */
@@ -5350,7 +5402,7 @@ fil_io(
 #else
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset, len, node, message);
+		     offset, len, node, message, space_id, trx);
 #endif /* UNIV_HOTBACKUP */
 	ut_a(ret);
 
@@ -5387,6 +5439,7 @@ fil_aio_wait(
 	fil_node_t*	fil_node;
 	void*		message;
 	ulint		type;
+	ulint		space_id = 0;
 
 	ut_ad(fil_validate_skip());
 
@@ -5394,10 +5447,10 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(
-			segment, 0, &fil_node, &message, &type);
+			segment, 0, &fil_node, &message, &type, &space_id);
 #elif defined(LINUX_NATIVE_AIO)
 		ret = os_aio_linux_handle(
-			segment, &fil_node, &message, &type);
+			segment, &fil_node, &message, &type, &space_id);
 #else
 		ut_error;
 		ret = 0; /* Eliminate compiler warning */
@@ -5406,7 +5459,7 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(
-			segment, &fil_node, &message, &type);
+			segment, &fil_node, &message, &type, &space_id);
 	}
 
 	ut_a(ret);
@@ -6110,11 +6163,11 @@ fil_delete_file(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_name);
 
-	os_file_delete_if_exists(ibd_name);
+	os_file_delete_if_exists(innodb_file_data_key, ibd_name);
 
 	char*	cfg_name = fil_make_cfg_name(ibd_name);
 
-	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 
 	mem_free(cfg_name);
 }
@@ -6204,15 +6257,59 @@ fil_mtr_rename_log(
 	ulint		new_space_id,	/*!< in: tablespace id of the new
 					table */
 	const char*	new_name,	/*!< in: new table name */
-	const char*	tmp_name)	/*!< in: temp table name used while
+	const char*	tmp_name,	/*!< in: temp table name used while
 					swapping */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	mtr_t           mtr;
-	mtr_start(&mtr);
-	fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
-			 0, 0, old_name, tmp_name, &mtr);
-	fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
-			 0, 0, new_name, old_name, &mtr);
-	mtr_commit(&mtr);
+	if (old_space_id != TRX_SYS_SPACE) {
+		fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
+				 0, 0, old_name, tmp_name, mtr);
+	}
+
+	if (new_space_id != TRX_SYS_SPACE) {
+		fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
+				 0, 0, new_name, old_name, mtr);
+	}
 }
 
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+	ibool		ret = FALSE;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (UNIV_UNLIKELY(space && space->is_corrupt)) {
+		ret = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(ret);
+}
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space) {
+		space->is_corrupt = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+}

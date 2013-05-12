@@ -1,0 +1,3 @@
+SELECT @@innodb_version;
+@@innodb_version
+x.x.x-x.x

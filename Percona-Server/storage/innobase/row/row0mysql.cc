@@ -43,6 +43,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0dict.h"
 #include "dict0crea.h"
 #include "dict0load.h"
+#include "dict0priv.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
@@ -618,8 +619,8 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_DICT_CHANGED:
 		if (savept) {
-			/* Roll back the latest, possibly incomplete
-			insertion or update */
+			/* Roll back the latest, possibly incomplete insertion
+			or update */
 
 			trx_rollback_to_savepoint(trx, savept);
 		}
@@ -1390,15 +1391,19 @@ error_exit:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	srv_stats.n_rows_inserted.add((size_t)trx->id, 1);
+	if (UNIV_LIKELY(!(trx->fake_changes))) {
 
-	/* Not protected by dict_table_stats_lock() for performance
-	reasons, we would rather get garbage in stat_n_rows (which is
-	just an estimate anyway) than protecting the following code
-	with a latch. */
-	dict_table_n_rows_inc(table);
+		srv_stats.n_rows_inserted.add((size_t)trx->id, 1);
 
-	row_update_statistics_if_needed(table);
+		/* Not protected by dict_table_stats_lock() for performance
+		reasons, we would rather get garbage in stat_n_rows (which is
+		just an estimate anyway) than protecting the following code
+		with a latch. */
+		dict_table_n_rows_inc(table);
+
+		row_update_statistics_if_needed(table);
+	}
+
 	trx->op_info = "";
 
 	return(err);
@@ -1756,6 +1761,12 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+
+		trx->op_info = "";
+		return(err);
+	}
+
 	if (dict_table_has_fts_index(table)
 	    && trx->fts_next_doc_id != UINT64_UNDEFINED) {
 		err = row_fts_update_or_delete(prebuilt);
@@ -1987,6 +1998,11 @@ run_again:
 	}
 
 	if (err != DB_SUCCESS) {
+
+		return(err);
+	}
+
+	if (UNIV_UNLIKELY((trx->fake_changes))) {
 
 		return(err);
 	}
@@ -2521,7 +2537,7 @@ row_table_add_foreign_constraints(
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, FALSE, TRUE);
+		err = dict_load_foreigns(name, NULL, false, true);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -2801,7 +2817,7 @@ row_discard_tablespace_begin(
 		name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table) {
-		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+		dict_stats_wait_bg_to_stop_using_table(table, trx);
 		ut_a(table->space != TRX_SYS_SPACE);
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
@@ -3246,7 +3262,7 @@ row_truncate_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+	dict_stats_wait_bg_to_stop_using_table(table, trx);
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -3796,8 +3812,8 @@ row_drop_table_for_mysql(
 		tables since we know temp tables do not use persistent
 		stats. */
 		if (!dict_table_is_temporary(table)) {
-			dict_stats_wait_bg_to_stop_using_tables(
-				table, NULL, trx);
+			dict_stats_wait_bg_to_stop_using_table(
+				table, trx);
 		}
 	}
 
@@ -4167,6 +4183,11 @@ check_next_foreign:
 		DICT_TF2_FTS flag set. So keep this out of above
 		dict_table_has_fts_index condition */
 		if (table->fts) {
+			/* Need to set TABLE_DICT_LOCKED bit, since
+			fts_que_graph_free_check_lock would try to acquire
+			dict mutex lock */
+			table->fts->fts_status |= TABLE_DICT_LOCKED;
+
 			fts_free(table);
 		}
 
@@ -4379,7 +4400,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
+		table = dict_table_get_low(table_name);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);
@@ -4668,6 +4689,7 @@ row_rename_table_for_mysql(
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
+	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
 	if (srv_created_new_raw || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
@@ -4692,7 +4714,6 @@ row_rename_table_for_mysql(
 	}
 
 	trx->op_info = "renaming table";
-	trx_start_if_not_started_xa(trx);
 
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
@@ -4968,7 +4989,8 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
+			new_name, NULL,
+			false, !old_is_tmp || trx->check_foreigns);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);

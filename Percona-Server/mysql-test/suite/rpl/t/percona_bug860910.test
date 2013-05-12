@@ -1,0 +1,38 @@
+########################################################################
+# Bug #860910: SHOW SLAVE STATUS gives wrong output with master-master
+#              and using SET uservars
+########################################################################
+
+--echo *** Set up master (server_1) <-> master (server_2) replication  ***
+--let $rpl_topology= 1->2->1
+--source include/rpl_init.inc
+--echo
+
+--connection server_1
+SELECT @@global.log_slave_updates;
+
+--connection server_2
+SELECT @@global.log_slave_updates;
+
+--connection server_1
+CREATE TABLE t1(a INT);
+SET @var:=0;
+INSERT INTO t1 VALUES (@var);
+INSERT INTO t1 VALUES (1);
+
+DROP TABLE t1;
+
+# The following would hang with the bug not fixed due to incorrect
+# Exec_Master_Log_Pos
+--source include/rpl_sync.inc
+
+--connection server_2
+--let $master_log_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--connection server_1
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/check_slave_param.inc
+
+# Cleanup
+--source include/rpl_end.inc

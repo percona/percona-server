@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,6 +42,8 @@ Created 5/7/1996 Heikki Tuuri
 #ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
 #endif /* UNIV_DEBUG */
+
+extern ulint	srv_n_lock_deadlock_count;
 
 /*********************************************************************//**
 Gets the size of a lock struct.
@@ -899,6 +901,7 @@ struct lock_sys_t{
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
+	ulint		rec_num;
 	ib_mutex_t	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads

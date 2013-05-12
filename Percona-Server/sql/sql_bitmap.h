@@ -51,7 +51,11 @@ public:
   void intersect(ulonglong map2buff)
   {
     MY_BITMAP map2;
-    bitmap_init(&map2, (uint32 *)&map2buff, sizeof(ulonglong)*8, 0);
+    ulonglong buf;
+
+    /* bitmap_init() zeroes the supplied buffer */
+    bitmap_init(&map2, (uint32 *)&buf, sizeof(ulonglong)*8, 0);
+    buf= map2buff;
     bitmap_intersect(&map, &map2);
   }
   /* Use highest bit for all bits above sizeof(ulonglong)*8. */
@@ -71,6 +75,7 @@ public:
   my_bool is_subset(const Bitmap& map2) const { return bitmap_is_subset(&map, &map2.map); }
   my_bool is_overlapping(const Bitmap& map2) const { return bitmap_is_overlapping(&map, &map2.map); }
   my_bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
+  my_bool operator!=(const Bitmap& map2) const { return !(*this == map2); }
   char *print(char *buf) const
   {
     char *s=buf;
@@ -91,9 +96,9 @@ public:
   ulonglong to_ulonglong() const
   {
     if (sizeof(buffer) >= 8)
-      return uint8korr(buffer);
+      return uint8korr((uchar *) buffer);
     DBUG_ASSERT(sizeof(buffer) >= 4);
-    return (ulonglong) uint4korr(buffer);
+    return (ulonglong) uint4korr((uchar *) buffer);
   }
   uint bits_set() const { return bitmap_bits_set(&map); }
 };
@@ -141,6 +146,7 @@ public:
   my_bool is_subset(const Bitmap<64>& map2) const { return !(map & ~map2.map); }
   my_bool is_overlapping(const Bitmap<64>& map2) const { return (map & map2.map)!= 0; }
   my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
+  my_bool operator!=(const Bitmap<64>& map2) const { return !(*this == map2); }
   char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
   ulonglong to_ulonglong() const { return map; }
 };

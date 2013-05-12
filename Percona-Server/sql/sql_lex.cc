@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -483,6 +483,7 @@ void lex_start(THD *thd)
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
   lex->is_change_password= false;
+  lex->is_set_password_sql= false;
   lex->mark_broken(false);
   DBUG_VOID_RETURN;
 }
@@ -2840,7 +2841,7 @@ void Query_tables_list::destroy_query_tables_list()
 
 LEX::LEX()
   :result(0), option_type(OPT_DEFAULT), is_change_password(false),
-  is_lex_started(0)
+  is_set_password_sql(false), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
@@ -3601,6 +3602,8 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    We also save the chain of ORDER::next in group_list, in case
+    the list is modified by remove_const().
     AND/OR trees.
     We also save the chain of ORDER::next in group_list and order_list, in
     case the list is modified by remove_const().
@@ -3642,12 +3645,16 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     }
     if (*conds)
     {
+      /*
+        In "WHERE outer_field", *conds may be an Item_outer_ref allocated in
+        the execution memroot.
+      */
       prep_where= (*conds)->real_item();
       *conds= where= prep_where->copy_andor_structure(thd);
     }
     if (*having_conds)
     {
-      prep_having= (*having_conds)->real_item();
+      prep_having= *having_conds;
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, table_list.first);
@@ -3956,4 +3963,8 @@ void binlog_unsafe_map_init()
   UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
      BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
 }
+#endif
+
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+template class Mem_root_array<ORDER*, true>;
 #endif

@@ -58,6 +58,8 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/query_cache_enhance
+   performance/innodb_numa_support
    performance/threadpool
 
 Flexibility Improvements
@@ -76,6 +78,8 @@ Reliability Improvements
    :maxdepth: 1
    :glob:
 
+   reliability/log_connection_error
+   reliability/error_pad
    reliability/innodb_corrupt_table_action
 
 Management Improvements
@@ -85,6 +89,15 @@ Management Improvements
    :maxdepth: 1
    :glob:
 
+   management/udf_maatkit
+   management/innodb_fake_changes
+   management/innodb_kill_idle_trx
+   management/enforce_engine
+   management/utility_user
+   management/secure_file_priv_extended
+   management/expanded_program_option_modifiers
+   management/changed_page_tracking
+   management/pam_plugin
    management/innodb_expanded_fast_index_creation
 
 Diagnostics Improvements
@@ -95,6 +108,13 @@ Diagnostics Improvements
    :glob:
 
    diagnostics/index_info_schema_tables
+   diagnostics/innodb_stats
+   diagnostics/user_stats
+   diagnostics/slow_extended_55
+   diagnostics/innodb_show_status
+   diagnostics/innodb_deadlock_count
+   diagnostics/mysql_syslog
+   diagnostics/show_engines
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
 

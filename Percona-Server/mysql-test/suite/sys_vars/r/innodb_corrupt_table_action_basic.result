@@ -1,29 +1,49 @@
-Valid values are 'ON' and 'OFF' 
-select @@global.innodb_corrupt_table_action in ('assert', 'warn', 'salvage');
-@@global.innodb_corrupt_table_action in ('assert', 'warn', 'salvage')
+SET @saved_val = @@global.innodb_corrupt_table_action;
+SELECT @@global.innodb_corrupt_table_action IN ('assert', 'warn', 'salvage');
+@@global.innodb_corrupt_table_action IN ('assert', 'warn', 'salvage')
 1
-select @@global.innodb_corrupt_table_action;
-@@global.innodb_corrupt_table_action
-assert
-select @@session.innodb_corrupt_table_action;
+SELECT @@session.innodb_corrupt_table_action;
 ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable
-show global variables like 'innodb_corrupt_table_action';
-Variable_name	Value
-innodb_corrupt_table_action	assert
-show session variables like 'innodb_corrupt_table_action';
-Variable_name	Value
-innodb_corrupt_table_action	assert
-select * from information_schema.global_variables where variable_name='innodb_corrupt_table_action';
+SET GLOBAL innodb_corrupt_table_action='assert';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+@@GLOBAL.innodb_corrupt_table_action
+assert
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
 INNODB_CORRUPT_TABLE_ACTION	assert
-select * from information_schema.session_variables where variable_name='innodb_corrupt_table_action';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
 INNODB_CORRUPT_TABLE_ACTION	assert
-set global innodb_corrupt_table_action='assert';
-set global innodb_corrupt_table_action='warn';
-set global innodb_corrupt_table_action='salvage';
-set global innodb_corrupt_table_action='cry';
-ERROR 42000: Variable 'innodb_corrupt_table_action' can't be set to the value of 'cry'
-set session innodb_corrupt_table_action='warn';
+SET GLOBAL innodb_corrupt_table_action='warn';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+@@GLOBAL.innodb_corrupt_table_action
+warn
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	warn
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	warn
+SET GLOBAL innodb_corrupt_table_action='salvage';
+SELECT @@GLOBAL.innodb_corrupt_table_action;
+@@GLOBAL.innodb_corrupt_table_action
+salvage
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	salvage
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_CORRUPT_TABLE_ACTION	salvage
+SET SESSION innodb_corrupt_table_action='warn';
 ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable and should be set with SET GLOBAL
-set global innodb_corrupt_table_action='assert';
+SET @@session.innodb_corrupt_table_action='salvage';
+ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable and should be set with SET GLOBAL
+SET global innodb_corrupt_table_action=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_corrupt_table_action'
+SET global innodb_corrupt_table_action=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_corrupt_table_action'
+SET global innodb_corrupt_table_action='foo';
+ERROR 42000: Variable 'innodb_corrupt_table_action' can't be set to the value of 'foo'
+SET global innodb_corrupt_table_action=-2;
+ERROR 42000: Variable 'innodb_corrupt_table_action' can't be set to the value of '-2'
+SET @@global.innodb_corrupt_table_action = @saved_val;

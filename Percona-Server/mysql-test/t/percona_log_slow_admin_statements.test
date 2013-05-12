@@ -1,0 +1,41 @@
+#
+# Test log_slow_slave_admin_statements
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+
+#
+# Test enabled admin statement slow-logging
+#
+SET GLOBAL log_slow_admin_statements=ON;
+--let log_file=percona_log_slow_admin_stmt_1
+--source include/log_start.inc
+ALTER TABLE t1 ADD INDEX a(a);
+--source include/log_stop.inc
+--let grep_pattern=ALTER TABLE t1 ADD INDEX a\(a\);
+--source include/log_grep.inc
+
+#
+# Test disabled admin statement slow-logging
+#
+SET GLOBAL log_slow_admin_statements=OFF;
+--let log_file=percona_log_slow_admin_stmt_2
+--source include/log_start.inc
+ALTER TABLE t1 DROP INDEX a;
+--source include/log_stop.inc
+--let grep_pattern=ALTER TABLE t1 DROP INDEX a;
+--source include/log_grep.inc
+
+SET GLOBAL log_slow_admin_statements=default;
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;
+
+DROP TABLE t1;
+--source include/log_cleanup.inc

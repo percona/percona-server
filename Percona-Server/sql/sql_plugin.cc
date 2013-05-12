@@ -2164,29 +2164,48 @@ err:
   return 1;
 }
 
-
+#define CHECK_FUNC_RANGE(cfr_ctype, cfr_vmin, cfr_vmax, cfr_save, cfr_res) \
+  do { \
+    if (cfr_vmin && *(cfr_ctype *) cfr_save < *(cfr_ctype *) cfr_vmin) { \
+      *(cfr_ctype *)cfr_save= *(cfr_ctype *) cfr_vmin; \
+      cfr_res= TRUE; \
+    } \
+    if (cfr_vmax && *(cfr_ctype *) cfr_save > *(cfr_ctype *) cfr_vmax) { \
+      *(cfr_ctype *) cfr_save= *(cfr_ctype *) cfr_vmax; \
+      cfr_res= TRUE; \
+    } \
+  } while(0)
+ 
 static int check_func_int(THD *thd, struct st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
   my_bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
+  const void *vmin, *vmax;
   value->val_int(value, &orig);
   val= orig;
   plugin_opt_set_limits(&options, var);
 
+  vmin= getopt_constraint_get_min_value(var->name, 0, FALSE);
+  vmax= getopt_constraint_get_max_value(var->name, 0, FALSE);
+  
   if (var->flags & PLUGIN_VAR_UNSIGNED)
   {
     if ((fixed1= (!value->is_unsigned(value) && val < 0)))
       val=0;
     *(uint *)save= (uint) getopt_ull_limit_value((ulonglong) val, &options,
                                                    &fixed2);
+
+    CHECK_FUNC_RANGE(uint, vmin, vmax, save, fixed1);
   }
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
       val=LONGLONG_MAX;
     *(int *)save= (int) getopt_ll_limit_value(val, &options, &fixed2);
+    
+    CHECK_FUNC_RANGE(int, vmin, vmax, save, fixed1);
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
@@ -2200,22 +2219,30 @@ static int check_func_long(THD *thd, struct st_mysql_sys_var *var,
   my_bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
+  const void *vmin, *vmax;
   value->val_int(value, &orig);
   val= orig;
   plugin_opt_set_limits(&options, var);
 
+  vmin= getopt_constraint_get_min_value(var->name, 0, FALSE);
+  vmax= getopt_constraint_get_max_value(var->name, 0, FALSE);
+  
   if (var->flags & PLUGIN_VAR_UNSIGNED)
   {
     if ((fixed1= (!value->is_unsigned(value) && val < 0)))
       val=0;
     *(ulong *)save= (ulong) getopt_ull_limit_value((ulonglong) val, &options,
                                                    &fixed2);
+    
+    CHECK_FUNC_RANGE(ulong, vmin, vmax, save, fixed1);
   }
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
       val=LONGLONG_MAX;
     *(long *)save= (long) getopt_ll_limit_value(val, &options, &fixed2);
+    
+    CHECK_FUNC_RANGE(long, vmin, vmax, save, fixed1);
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
@@ -2229,22 +2256,30 @@ static int check_func_longlong(THD *thd, struct st_mysql_sys_var *var,
   my_bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
+  const void *vmin, *vmax;
   value->val_int(value, &orig);
   val= orig;
   plugin_opt_set_limits(&options, var);
 
+  vmin= getopt_constraint_get_min_value(var->name, 0, FALSE);
+  vmax= getopt_constraint_get_max_value(var->name, 0, FALSE);
+  
   if (var->flags & PLUGIN_VAR_UNSIGNED)
   {
     if ((fixed1= (!value->is_unsigned(value) && val < 0)))
       val=0;
     *(ulonglong *)save= getopt_ull_limit_value((ulonglong) val, &options,
                                                &fixed2);
+    
+     CHECK_FUNC_RANGE(ulonglong, vmin, vmax, save, fixed1);
   }
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
       val=LONGLONG_MAX;
     *(longlong *)save= getopt_ll_limit_value(val, &options, &fixed2);
+    
+    CHECK_FUNC_RANGE(longlong, vmin, vmax, save, fixed1);
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
@@ -2392,6 +2427,13 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
   plugin_ref plugin;
   DBUG_ENTER("find_sys_var");
 
+  const my_bool *hidden= getopt_constraint_get_hidden_value(str, 0, FALSE);
+  if (hidden && *hidden)
+  {
+    var= NULL;
+    goto exit;
+  }
+
   mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   if ((var= intern_find_sys_var(str, length)) &&
@@ -2413,6 +2455,7 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin);
 
+exit:
   if (!var)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
   DBUG_RETURN(var);
@@ -3776,3 +3819,40 @@ void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root)
   }
 }
 
+/** 
+  Searches for a correctly loaded plugin of a particular type by name
+
+  @param plugin   the name of the plugin we're looking for
+  @param type     type of the plugin (0-MYSQL_MAX_PLUGIN_TYPE_NUM)
+  @return plugin, or NULL if not found
+*/
+struct st_plugin_int *plugin_find_by_type(LEX_STRING *plugin, int type)
+{
+  st_plugin_int *ret;
+  DBUG_ENTER("plugin_find_by_type");
+
+  ret= plugin_find_internal(plugin, type);
+  DBUG_RETURN(ret && ret->state == PLUGIN_IS_READY ? ret : NULL);
+}
+
+
+/** 
+  Locks the plugin strucutres so calls to plugin_find_inner can be issued.
+
+  Must be followed by unlock_plugin_data.
+*/
+int lock_plugin_data()
+{
+  DBUG_ENTER("lock_plugin_data");
+  DBUG_RETURN(mysql_mutex_lock(&LOCK_plugin));
+}
+
+
+/** 
+  Unlocks the plugin strucutres as locked by lock_plugin_data()
+*/
+int unlock_plugin_data()
+{
+  DBUG_ENTER("unlock_plugin_data");
+  DBUG_RETURN(mysql_mutex_unlock(&LOCK_plugin));
+}

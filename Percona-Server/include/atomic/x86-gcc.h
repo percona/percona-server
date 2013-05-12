@@ -108,27 +108,23 @@
   v=tmp;
 
 /*
-  On some platforms (e.g. Mac OS X and Solaris) the ebx register
-  is held as a pointer to the global offset table. Thus we're not
-  allowed to use the b-register on those platforms when compiling
-  PIC code, to avoid this we push ebx and pop ebx. The new value
-  is copied directly from memory to avoid problems with a implicit
-  manipulation of the stack pointer by the push.
-
   cmpxchg8b works on both 32-bit platforms and 64-bit platforms but
   the code here is only used on 32-bit platforms, on 64-bit
   platforms the much simpler make_atomic_cas_body32 will work
   fine.
 */
-#define make_atomic_cas_body64                                    \
-  asm volatile ("push %%ebx;"                                     \
-                "movl (%%ecx), %%ebx;"                            \
-                "movl 4(%%ecx), %%ecx;"                           \
-                LOCK_prefix "; cmpxchg8b %0;"                     \
-                "setz %2; pop %%ebx"                              \
-                : "=m" (*a), "+A" (*cmp), "=c" (ret)              \
-                : "c" (&set), "m" (*a)                            \
-                : "memory", "esp")
+#define make_atomic_cas_body64                                     \
+  asm volatile ("movl %%edi, -4(%%esp);"                           \
+                "leal %0, %%edi;"                                  \
+                "xchgl %%ebx, %%esi;"                              \
+                LOCK_prefix "; cmpxchg8b (%%edi);"                 \
+                "movl %%esi, %%ebx;"                               \
+                "movl -4(%%esp), %%edi;"                           \
+                "setz %1;"                                         \
+                : "+m" (*a), "=q" (ret), "+A" (*cmp)               \
+                : "S" ((int32)(set & 0xFFFFFFFF)),                 \
+                  "c" ((int32)(set >> 32))                         \
+                : "memory", "flags")
 #endif
 
 /*

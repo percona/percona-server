@@ -1711,16 +1711,22 @@ do_possible_lock_wait:
 		/* We had temporarily released dict_operation_lock in
 		above lock sleep wait, now we have the lock again, and
 		we will need to re-check whether the foreign key has been
-		dropped */
-		for (const dict_foreign_t* check_foreign = UT_LIST_GET_FIRST(
-			table->referenced_list);
-		     check_foreign;
-		     check_foreign = UT_LIST_GET_NEXT(
-                                referenced_list, check_foreign)) {
-			if (check_foreign == foreign) {
-				verified = true;
-				break;
+		dropped. We only need to verify if the table is referenced
+		table case (check_ref == 0), since MDL lock will prevent
+		concurrent DDL and DML on the same table */
+		if (!check_ref) {
+			for (const dict_foreign_t* check_foreign
+				= UT_LIST_GET_FIRST( table->referenced_list);
+			     check_foreign;
+			     check_foreign = UT_LIST_GET_NEXT(
+					referenced_list, check_foreign)) {
+				if (check_foreign == foreign) {
+					verified = true;
+					break;
+				}
 			}
+		} else {
+			verified = true;
 		}
 
 		if (!verified) {
@@ -1736,6 +1742,11 @@ exit_func:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
+
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+		err = DB_SUCCESS;
+	}
+
 	return(err);
 }
 
@@ -2310,8 +2321,15 @@ row_ins_clust_index_entry_low(
 	mtr_start(&mtr);
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+		if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+			mode = BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED;
+		} else {
+			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+		}
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	} else if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		mode = (mode & BTR_MODIFY_TREE)
+			? BTR_SEARCH_TREE : BTR_SEARCH_LEAF;
 	}
 
 	cursor.thr = thr;
@@ -2319,6 +2337,11 @@ row_ins_clust_index_entry_low(
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
+
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		mode = (mode & BTR_MODIFY_TREE)
+			? BTR_SEARCH_TREE : BTR_SEARCH_LEAF;
+	}
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, mode,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
@@ -2451,8 +2474,9 @@ err_exit:
 		rec_t*	insert_rec;
 
 		if (mode != BTR_MODIFY_TREE) {
-			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)
-			      == BTR_MODIFY_LEAF);
+			ut_ad(((mode & ~BTR_ALREADY_S_LATCHED)
+			       == BTR_MODIFY_LEAF)
+			      || thr_get_trx(thr)->fake_changes);
 			err = btr_cur_optimistic_insert(
 				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
@@ -2481,6 +2505,13 @@ err_exit:
 
 		if (UNIV_LIKELY_NULL(big_rec)) {
 			mtr_commit(&mtr);
+
+			if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+
+				/* skip store extern */
+				mem_heap_free(big_rec->heap);
+				goto func_exit;
+			}
 
 			/* Online table rebuild could read (and
 			ignore) the incomplete record at this point.
@@ -2703,7 +2734,9 @@ row_ins_sec_index_entry_low(
 
 		btr_cur_search_to_nth_level(
 			index, 0, entry, PAGE_CUR_LE,
-			search_mode & ~(BTR_INSERT | BTR_IGNORE_SEC_UNIQUE),
+			thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF :
+			(btr_latch_mode)
+			(search_mode & ~(BTR_INSERT | BTR_IGNORE_SEC_UNIQUE)),
 			&cursor, 0, __FILE__, __LINE__, &mtr);
 	}
 

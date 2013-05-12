@@ -50,6 +50,7 @@ usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man1/mysql.server.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/mysqlman.1
+usr/share/man/man8/mysqld.8
 usr/share/mysql/
 debian/additions/debian-start etc/mysql/
 debian/additions/debian-start.inc.sh usr/share/mysql

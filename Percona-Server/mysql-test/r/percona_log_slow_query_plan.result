@@ -1,0 +1,268 @@
+FLUSH STATUS;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(
+a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(NULL, 10), (NULL, 5);
+SET SESSION long_query_time=0;
+SET SESSION min_examined_row_limit=0;
+SET SESSION log_slow_verbosity='microtime,query_plan';
+EXPLAIN SELECT * FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
+[log_start.inc] percona_slow_query_log.query_plan_0
+SELECT * FROM t1;
+a	b
+1	10
+2	5
+[log_stop.inc] percona_slow_query_log.query_plan_0
+[log_grep.inc] file: percona_slow_query_log.query_plan_0 pattern: ^# Filesort: No  Filesort_on_disk: No  Merge_passes: 0$
+[log_grep.inc] lines:   2
+EXPLAIN SELECT * FROM t1 ORDER BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using filesort
+[log_start.inc] percona_slow_query_log.query_plan_1
+SELECT * FROM t1 ORDER BY b;
+a	b
+2	5
+1	10
+[log_stop.inc] percona_slow_query_log.query_plan_1
+[log_grep.inc] file: percona_slow_query_log.query_plan_1 pattern: ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0$
+[log_grep.inc] lines:   1
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort_on_disk';
+[log_start.inc] percona_slow_query_log.query_plan_1a
+SELECT * FROM t1 ORDER BY b;
+a	b
+2	5
+1	10
+[log_stop.inc] percona_slow_query_log.query_plan_1a
+[log_grep.inc] file: percona_slow_query_log.query_plan_1a pattern: ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0$
+[log_grep.inc] lines:   0
+SET SESSION log_slow_filter=default;
+SET SESSION sort_buffer_size=32804;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (5), (16), (2), (17), (1);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+Variable_name	Value
+Sort_merge_passes	0
+EXPLAIN SELECT * FROM t2 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	ROWS	Using filesort
+[log_start.inc] percona_slow_query_log.query_plan_2
+SELECT * FROM t2 ORDER BY a;
+[log_stop.inc] percona_slow_query_log.query_plan_2
+[log_grep.inc] file: percona_slow_query_log.query_plan_2 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1$
+[log_grep.inc] lines:   1
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+Variable_name	Value
+Sort_merge_passes	1
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk';
+[log_start.inc] percona_slow_query_log.query_plan_2a
+SELECT * FROM t2 ORDER BY a;
+[log_stop.inc] percona_slow_query_log.query_plan_2a
+[log_grep.inc] file: percona_slow_query_log.query_plan_2a pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1$
+[log_grep.inc] lines:   0
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+Variable_name	Value
+Sort_merge_passes	2
+SET SESSION log_slow_filter=default;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t2;
+[log_start.inc] percona_slow_query_log.query_plan_3
+SELECT * FROM t2 ORDER BY a;
+[log_stop.inc] percona_slow_query_log.query_plan_3
+[log_grep.inc] file: percona_slow_query_log.query_plan_3 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 6$
+[log_grep.inc] lines:   1
+SHOW SESSION STATUS LIKE 'Sort_merge_passes';
+Variable_name	Value
+Sort_merge_passes	8
+SET SESSION sort_buffer_size=default;
+SHOW SESSION STATUS LIKE 'Select_scan';
+Variable_name	Value
+Select_scan	37
+[log_start.inc] percona_slow_query_log.query_plan_4
+SELECT * FROM t1 WHERE a=1;
+a	b
+1	10
+[log_stop.inc] percona_slow_query_log.query_plan_4
+[log_grep.inc] file: percona_slow_query_log.query_plan_4 pattern: ^#.*Full_scan: No.*$
+[log_grep.inc] lines:   2
+SHOW SESSION STATUS LIKE 'Select_scan';
+Variable_name	Value
+Select_scan	40
+[log_start.inc] percona_slow_query_log.query_plan_5
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+[log_stop.inc] percona_slow_query_log.query_plan_5
+[log_grep.inc] file: percona_slow_query_log.query_plan_5 pattern: ^#.*Full_scan: Yes.*$
+[log_grep.inc] lines:   1
+SHOW SESSION STATUS LIKE 'Select_scan';
+Variable_name	Value
+Select_scan	44
+SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort,filesort_on_disk';
+[log_start.inc] percona_slow_query_log.query_plan_5a
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+[log_stop.inc] percona_slow_query_log.query_plan_5a
+[log_grep.inc] file: percona_slow_query_log.query_plan_5a pattern: ^#.*Full_scan: Yes.*$
+[log_grep.inc] lines:   0
+SHOW SESSION STATUS LIKE 'Select_scan';
+Variable_name	Value
+Select_scan	48
+SET SESSION log_slow_filter=default;
+CREATE TABLE t3(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (1), (2), (3);
+SHOW SESSION STATUS LIKE 'Select_full_join';
+Variable_name	Value
+Select_full_join	0
+[log_start.inc] percona_slow_query_log.query_plan_6
+SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a;
+COUNT(*)
+2
+[log_stop.inc] percona_slow_query_log.query_plan_6
+[log_grep.inc] file: percona_slow_query_log.query_plan_6 pattern: ^#.*Full_join: No.*$
+[log_grep.inc] lines:   2
+SHOW SESSION STATUS LIKE 'Select_full_join';
+Variable_name	Value
+Select_full_join	0
+[log_start.inc] percona_slow_query_log.query_plan_7
+SELECT COUNT(*) FROM t1, t2 WHERE t1.b = t2.a;
+COUNT(*)
+8192
+[log_stop.inc] percona_slow_query_log.query_plan_7
+[log_grep.inc] file: percona_slow_query_log.query_plan_7 pattern: ^#.*Full_join: Yes.*$
+[log_grep.inc] lines:   1
+SHOW SESSION STATUS LIKE 'Select_full_join';
+Variable_name	Value
+Select_full_join	1
+SET SESSION log_slow_filter='tmp_table,tmp_table_on_disk,filesort,filesort_on_disk';
+[log_start.inc] percona_slow_query_log.query_plan_7a
+SELECT COUNT(*) FROM t1, t2 WHERE t1.b = t2.a;
+COUNT(*)
+8192
+[log_stop.inc] percona_slow_query_log.query_plan_7a
+[log_grep.inc] file: percona_slow_query_log.query_plan_7a pattern: ^#.*Full_join: Yes.*$
+[log_grep.inc] lines:   0
+SHOW SESSION STATUS LIKE 'Select_full_join';
+Variable_name	Value
+Select_full_join	2
+SET SESSION log_slow_filter=default;
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	49
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	Using index
+[log_start.inc] percona_slow_query_log.query_plan_8
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+[log_stop.inc] percona_slow_query_log.query_plan_8
+[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0$
+[log_grep.inc] lines:   2
+[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_table: No  Tmp_table_on_disk: No$
+[log_grep.inc] lines:   2
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	52
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+EXPLAIN SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index; Using temporary; Using filesort
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
+[log_start.inc] percona_slow_query_log.query_plan_9
+SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
+COUNT(*)
+1
+1
+[log_stop.inc] percona_slow_query_log.query_plan_9
+[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: No$
+[log_grep.inc] lines:   1
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	57
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+SET SESSION log_slow_filter='full_join,tmp_table_on_disk,filesort_on_disk';
+[log_start.inc] percona_slow_query_log.query_plan_9a
+SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
+COUNT(*)
+1
+1
+[log_stop.inc] percona_slow_query_log.query_plan_9a
+[log_grep.inc] file: percona_slow_query_log.query_plan_9a pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona_slow_query_log.query_plan_9a pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: No$
+[log_grep.inc] lines:   0
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	61
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	0
+SET SESSION log_slow_filter=default;
+CREATE TABLE t4(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (1, "aaa"), (2, "bbb"), (3, "ccc");
+EXPLAIN SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index; Using temporary; Using filesort
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
+[log_start.inc] percona_slow_query_log.query_plan_10
+SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
+COUNT(*)
+1
+1
+[log_stop.inc] percona_slow_query_log.query_plan_10
+[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes$
+[log_grep.inc] lines:   1
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	66
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	1
+SET SESSION log_slow_filter='full_join,filesort_on_disk';
+[log_start.inc] percona_slow_query_log.query_plan_10a
+SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
+COUNT(*)
+1
+1
+[log_stop.inc] percona_slow_query_log.query_plan_10a
+[log_grep.inc] file: percona_slow_query_log.query_plan_10a pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona_slow_query_log.query_plan_10a pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes$
+[log_grep.inc] lines:   0
+SHOW SESSION STATUS LIKE 'Created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	70
+SHOW SESSION STATUS LIKE 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	2
+SET SESSION log_slow_filter=default;
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;
+SET SESSION log_slow_verbosity=default;
+DROP TABLE t1, t2, t3, t4;

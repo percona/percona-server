@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -630,7 +630,7 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#if defined(HAVE_NDB_BINLOG) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
+#if defined(HAVE_GTID_NEXT_LIST) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
 static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_sub_stmt)
@@ -648,7 +648,7 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_NDB_BINLOG) || defined(HAVE_REPLICATION)
+#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
@@ -1151,7 +1151,7 @@ static Sys_var_ulong Sys_connect_timeout(
 static Sys_var_charptr Sys_datadir(
        "datadir", "Path to the database root directory",
        READ_ONLY GLOBAL_VAR(mysql_real_data_home_ptr),
-       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(0));
+       CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(mysql_real_data_home));
 
 #ifndef DBUG_OFF
 static Sys_var_dbug Sys_dbug(
@@ -1297,6 +1297,14 @@ static Sys_var_ulong Sys_expire_logs_days(
        "days; possible purges happen at startup and at binary log rotation",
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_max_binlog_files(
+       "max_binlog_files",
+       "Maximum number of binlog files. Used with --max-binlog-size this can "
+       "be used to limit the total amount of disk space used for the binlog. "
+       "Default is 0, don't limit.",
+       GLOBAL_VAR(max_binlog_files),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_flush(
        "flush", "Flush MyISAM tables to disk between SQL commands",
@@ -1536,6 +1544,19 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
        GLOBAL_VAR(opt_log_queries_not_using_indexes),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static Sys_var_mybool Sys_log_slow_admin_statements(
+       "log_slow_admin_statements",
+       "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
+       "the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_admin_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_log_slow_slave_statements(
+       "log_slow_slave_statements",
+       "Log slow statements executed by slave thread to the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_slave_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
                                                           THD *thd,
                                                           enum_var_type type)
@@ -1587,6 +1608,36 @@ static Sys_var_double Sys_long_query_time(
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_long_query_time));
+
+#ifndef DBUG_OFF
+static bool update_cached_query_exec_time(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  if (type == OPT_SESSION)
+    thd->variables.query_exec_time=
+      double2ulonglong(thd->variables.query_exec_time_double * 1e6);
+  else
+    global_system_variables.query_exec_time=
+      double2ulonglong(global_system_variables.query_exec_time_double * 1e6);
+  return false;
+}
+
+static Sys_var_double Sys_query_exec_time(
+       "query_exec_time",
+       "Pretend queries take this many seconds. When 0 (the default) use the "
+       "actual execution time. Used only for debugging.",
+       SESSION_VAR(query_exec_time_double),
+       NO_CMD_LINE, VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0),
+       NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_cached_query_exec_time));
+static Sys_var_ulong sys_query_exec_id(
+       "query_exec_id",
+       "Pretend queries take this query id. When 0 (the default) use the"
+       "actual query id. Used only for debugging.",
+       SESSION_VAR(query_exec_id),
+       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, IN_BINLOG);
+#endif
 
 static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2175,6 +2226,15 @@ static Sys_var_uint Sys_port(
        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
 
+const char *log_warnings_suppress_name[]= { "1592" };
+static Sys_var_set Sys_log_warnings_suppress(
+       "log_warnings_suppress",
+       "disable logging of enumerated warnings: "
+       "1592: unsafe statements for binary logging; "
+       "possible values : [1592]",
+       GLOBAL_VAR(opt_log_warnings_suppress), CMD_LINE(REQUIRED_ARG),
+       log_warnings_suppress_name, DEFAULT(0));
+
 static Sys_var_ulong Sys_preload_buff_size(
        "preload_buffer_size",
        "The size of the buffer that is allocated when preloading indexes",
@@ -2292,6 +2352,17 @@ static Sys_var_mybool Sys_readonly(
        GLOBAL_VAR(read_only), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
+
+static Sys_var_mybool Sys_userstat(
+       "userstat",
+       "Control USER_STATISTICS, CLIENT_STATISTICS, THREAD_STATISTICS, "
+       "INDEX_STATISTICS and TABLE_STATISTICS running",
+       GLOBAL_VAR(opt_userstat), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_thread_statistics(
+       "thread_statistics",
+       "Control TABLE_STATISTICS running, when userstat is enabled",
+       GLOBAL_VAR(opt_thread_statistics), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 // Small lower limit to be able to test MRR
 static Sys_var_ulong Sys_read_rnd_buff_size(
@@ -2507,6 +2578,11 @@ static Sys_var_ulong Sys_query_cache_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_query_cache_size));
 
+static Sys_var_mybool Sys_query_cache_strip_comments(
+       "query_cache_strip_comments", "Enable and disable optimisation \"strip comment for query cache\" - optimisation strip all comments from query while search query result in query cache",
+       GLOBAL_VAR(opt_query_cache_strip_comments), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 static Sys_var_ulong Sys_query_cache_limit(
        "query_cache_limit",
        "Don't cache results that are bigger than this",
@@ -2576,9 +2652,10 @@ static Sys_var_mybool Sys_secure_auth(
 static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
-       "within specified directory",
+       "within specified directory. "
+       "If no argument is specified disable loading files.",
        READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
-       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
+       CMD_LINE(OPT_ARG, OPT_SECURE_FILE_PRIV), IN_FS_CHARSET, DEFAULT(0));
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2647,13 +2724,13 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
 static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
 {
   String str, *res;
-
-  if(!var->value)
-    return false;
+  /* null value is not allowed */
+  if (check_not_null(self, thd, var))
+    return true;
 
   /** empty value ('') is not allowed */
-  res= var->value->val_str(&str);
-  if (res->is_empty())
+  res= var->value? var->value->val_str(&str) : NULL;
+  if (res && res->is_empty())
     return true;
 
   return false;
@@ -2966,6 +3043,7 @@ static Sys_var_ulong Sys_thread_cache_size(
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
+#ifdef HAVE_POOL_OF_THREADS
 
 static bool fix_tp_max_threads(sys_var *, THD *, enum_var_type)
 {
@@ -3000,7 +3078,6 @@ static bool fix_threadpool_stall_limit(sys_var*, THD*, enum_var_type)
 }
 #endif
 
-#ifdef HAVE_POOL_OF_THREADS
 #ifdef _WIN32
 static Sys_var_uint Sys_threadpool_min_threads(
   "thread_pool_min_threads",
@@ -3206,6 +3283,14 @@ static Sys_var_plugin Sys_storage_engine(
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null),
        ON_UPDATE(NULL), DEPRECATED("'@@default_storage_engine'"));
+
+static Sys_var_charptr Sys_enforce_storage_engine(
+       "enforce_storage_engine", "Force the use of a storage engine for new "
+       "tables",
+       READ_ONLY GLOBAL_VAR(enforce_storage_engine),
+       CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
+       DEFAULT(0));
+
 
 #if defined(ENABLED_DEBUG_SYNC)
 /*
@@ -3879,6 +3964,124 @@ static Sys_var_mybool Sys_slow_query_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_log_state));
 
+const char *log_slow_filter_name[]= { "qc_miss", "full_scan", "full_join",
+                                      "tmp_table", "tmp_table_on_disk", "filesort", "filesort_on_disk", 0};
+static Sys_var_set Sys_log_slow_filter(
+       "log_slow_filter",
+       "Log only the queries that followed certain execution plan. "
+       "Multiple flags allowed in a comma-separated string. "
+       "[qc_miss, full_scan, full_join, tmp_table, tmp_table_on_disk, "
+       "filesort, filesort_on_disk]",
+       SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG),
+       log_slow_filter_name, DEFAULT(0));
+static Sys_var_ulong sys_log_slow_rate_limit(
+       "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
+       SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+const char* log_slow_verbosity_name[] = { 
+  "microtime", "query_plan", "innodb", 
+  "profiling", "profiling_use_getrusage", 
+  "minimal", "standard", "full", 0
+};
+static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong what, ulonglong by)
+{
+  if((value & what) == what)
+  {
+    value = value & (~what);
+    value = value | by;
+  }
+  return value;
+}
+void update_log_slow_verbosity(ulonglong* value_ptr)
+{
+  ulonglong &value    = *value_ptr;
+  ulonglong microtime= ULL(1) << SLOG_V_MICROTIME;
+  ulonglong query_plan= ULL(1) << SLOG_V_QUERY_PLAN;
+  ulonglong innodb= ULL(1) << SLOG_V_INNODB;
+  ulonglong minimal= ULL(1) << SLOG_V_MINIMAL;
+  ulonglong standard= ULL(1) << SLOG_V_STANDARD;
+  ulonglong full= ULL(1) << SLOG_V_FULL;
+  value= update_log_slow_verbosity_replace(value,minimal,microtime);
+  value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
+  value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
+}
+static bool update_log_slow_verbosity_helper(sys_var */*self*/, THD *thd,
+                                          enum_var_type type)
+{
+  if(type == OPT_SESSION)
+  {
+    update_log_slow_verbosity(&(thd->variables.log_slow_verbosity));
+  }
+  else
+  {
+    update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
+  }
+  return false;
+}
+void init_slow_query_log_use_global_control()
+{
+  update_log_slow_verbosity(&(global_system_variables.log_slow_verbosity));
+}
+static Sys_var_set Sys_log_slow_verbosity(
+        "log_slow_verbosity",
+        "Choose how verbose the messages to your slow log will be. "
+        "Multiple flags allowed in a comma-separated string. [microtime, query_plan, innodb, profiling, profiling_use_getrusage]",
+        SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
+        log_slow_verbosity_name, DEFAULT(SLOG_V_MICROTIME),
+        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+        ON_UPDATE(update_log_slow_verbosity_helper));
+static Sys_var_mybool Sys_log_slow_sp_statements(
+       "log_slow_sp_statements",
+       "Log slow statements executed by stored procedure to the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_sp_statements), CMD_LINE(OPT_ARG),
+       DEFAULT(TRUE));
+static Sys_var_mybool Sys_slow_query_log_timestamp_always(
+       "slow_query_log_timestamp_always",
+       "Timestamp is printed for all records of the slow log even if they are same time.",
+       GLOBAL_VAR(opt_slow_query_log_timestamp_always), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+const char *slow_query_log_use_global_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
+static bool update_slow_query_log_use_global_control(sys_var */*self*/, THD */*thd*/,
+                                               enum_var_type /*type*/)
+{
+  if(opt_slow_query_log_use_global_control & (ULL(1) << SLOG_UG_ALL))
+  {
+    opt_slow_query_log_use_global_control=
+      SLOG_UG_LOG_SLOW_FILTER | SLOG_UG_LOG_SLOW_RATE_LIMIT | SLOG_UG_LOG_SLOW_VERBOSITY |
+      SLOG_UG_LONG_QUERY_TIME | SLOG_UG_MIN_EXAMINED_ROW_LIMIT;
+  }
+  return false;
+}
+void init_log_slow_verbosity()
+{
+  update_slow_query_log_use_global_control(0,0,OPT_GLOBAL);
+}
+static Sys_var_set Sys_slow_query_log_use_global_control(
+       "slow_query_log_use_global_control",
+       "Choose flags, wich always use the global variables. Multiple flags allowed in a comma-separated string. [none, log_slow_filter, log_slow_rate_limit, log_slow_verbosity, long_query_time, min_examined_row_limit, all]",
+       GLOBAL_VAR(opt_slow_query_log_use_global_control), CMD_LINE(REQUIRED_ARG),
+       slow_query_log_use_global_control_name, DEFAULT(0),
+        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_slow_query_log_use_global_control));
+const char *slow_query_log_timestamp_precision_name[]= { "second", "microsecond", 0 };
+static Sys_var_enum Sys_slow_query_log_timestamp_precision(
+       "slow_query_log_timestamp_precision",
+       "Select the timestamp precision for use in the slow query log.  "
+       "[second, microsecond]",
+       GLOBAL_VAR(opt_slow_query_log_timestamp_precision), CMD_LINE(REQUIRED_ARG),
+       slow_query_log_timestamp_precision_name, DEFAULT(SLOG_SECOND));
+
+const char* slow_query_log_rate_name[]= {"session", "query", 0};
+static Sys_var_enum Sys_slow_query_log_rate_type(
+       "log_slow_rate_type",
+       "Choose the log_slow_rate_limit behavior: session or query. "
+       "When you choose 'session' - every %log_slow_rate_limit connection "
+       "will be processed to slow query log. "
+       "When you choose 'query' - every %log_slow_rate_limit query "
+       "will be processed to slow query log. "
+       "[session, query]",
+       GLOBAL_VAR(opt_slow_query_log_rate_type), CMD_LINE(REQUIRED_ARG),
+       slow_query_log_rate_name, DEFAULT(SLOG_RT_SESSION));
 
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -4446,7 +4649,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
   if (gtid_next_list != NULL)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     // If GTID_NEXT==SID:GNO, then SID:GNO must be listed in GTID_NEXT_LIST
     if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
     {
@@ -4498,7 +4701,7 @@ static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
   return false;
 }
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");
@@ -4552,7 +4755,7 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_purged");
 
-  if (check_top_level_stmt(self, thd, var) ||
+  if (!var->value || check_top_level_stmt(self, thd, var) ||
       check_outside_transaction(self, thd, var) ||
       check_outside_sp(self, thd, var))
     DBUG_RETURN(true);
@@ -4677,3 +4880,14 @@ static Sys_var_mybool Sys_disconnect_on_expired_password(
        "Give clients that don't signal password expiration support execution time error(s) instead of connection error",
        READ_ONLY GLOBAL_VAR(disconnect_on_expired_password),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS 
+static Sys_var_mybool Sys_validate_user_plugins(
+       "validate_user_plugins",
+       "Turns on additional validation of authentication plugins assigned "
+       "to user accounts. ",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(validate_user_plugins),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+#endif
+

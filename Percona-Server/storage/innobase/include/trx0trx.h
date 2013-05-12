@@ -190,7 +190,18 @@ UNIV_INTERN
 void
 trx_commit(
 /*=======*/
-	trx_t*	trx);	/*!< in: transaction */
+	trx_t*	trx)	/*!< in/out: transaction */
+	__attribute__((nonnull));
+/****************************************************************//**
+Commits a transaction and a mini-transaction. */
+UNIV_INTERN
+void
+trx_commit_low(
+/*===========*/
+	trx_t*	trx,	/*!< in/out: transaction */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction (will be committed),
+			or NULL if trx made no modifications */
+	__attribute__((nonnull(1)));
 /****************************************************************//**
 Cleans up a transaction at database startup. The cleanup is needed if
 the transaction already got to the middle of a commit when the database
@@ -665,7 +676,7 @@ lock_sys->mutex and sometimes by trx->mutex. */
 struct trx_t{
 	ulint		magic_n;
 
-	ib_mutex_t		mutex;		/*!< Mutex protecting the fields
+	ib_mutex_t	mutex;		/*!< Mutex protecting the fields
 					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
@@ -772,6 +783,7 @@ struct trx_t{
 					FALSE, one can save CPU time and about
 					150 bytes in the undo log size as then
 					we skip XA steps */
+	ulint		fake_changes;
 	ulint		flush_log_later;/* In 2PC, we hold the
 					prepare_commit mutex across
 					both phases. In that case, we
@@ -847,6 +859,8 @@ struct trx_t{
 					/*!< if MySQL binlog is used, this
 					field contains the end offset of the
 					binlog entry */
+	time_t		idle_start;
+	ib_int64_t	last_stmt_start;
 	/*------------------------------*/
 	ulint		n_mysql_tables_in_use; /*!< number of Innobase tables
 					used in the processing of the current
@@ -914,7 +928,7 @@ struct trx_t{
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
-	ib_mutex_t		undo_mutex;	/*!< mutex protecting the fields in this
+	ib_mutex_t	undo_mutex;	/*!< mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT
 					last_sql_stat_start, which can be
 					accessed only when we know that there
@@ -990,6 +1004,17 @@ struct trx_t{
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
+	/*------------------------------*/
+	ulint		io_reads;
+	ib_uint64_t	io_read;
+	ulint		io_reads_wait_timer;
+	ib_uint64_t	lock_que_wait_ustarted;
+	ulint           lock_que_wait_timer;
+	ulint           innodb_que_wait_timer;
+	ulint           distinct_page_access;
+#define	DPAH_SIZE	8192
+	byte*		distinct_page_access_hash;
+	ibool		take_stats;
 };
 
 /* Transaction isolation levels (trx->isolation_level) */

@@ -36,6 +36,7 @@ Created 10/21/1995 Heikki Tuuri
 #define os0file_h
 
 #include "univ.i"
+#include "trx0types.h"
 
 #ifndef __WIN__
 #include <dirent.h>
@@ -99,7 +100,7 @@ whole block gets written. This should be true even in most cases of a crash:
 if this fails for a log block, then it is equivalent to a media failure in the
 log. */
 
-#define OS_FILE_LOG_BLOCK_SIZE		512
+#define OS_FILE_LOG_BLOCK_SIZE		srv_log_block_size
 
 /** Options for os_file_create_func @{ */
 enum os_file_create_t {
@@ -202,18 +203,25 @@ extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
 
+#define OS_MIN_LOG_BLOCK_SIZE 512
+
+extern ulint	srv_log_block_size;
+
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
 extern mysql_pfs_key_t	innodb_file_data_key;
 extern mysql_pfs_key_t	innodb_file_log_key;
 extern mysql_pfs_key_t	innodb_file_temp_key;
+extern mysql_pfs_key_t	innodb_file_bmp_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.
 1) register_pfs_file_open_begin() and register_pfs_file_open_end() are
 used to register file creation, opening, closing and renaming.
 2) register_pfs_file_io_begin() and register_pfs_file_io_end() are
-used to register actual file read, write and flush */
+used to register actual file read, write and flush
+3) register_pfs_file_close_begin() and register_pfs_file_close_end()
+are used to register file deletion operations*/
 # define register_pfs_file_open_begin(state, locker, key, op, name,	\
 				      src_file, src_line)		\
 do {									\
@@ -230,6 +238,25 @@ do {									\
 	if (UNIV_LIKELY(locker != NULL)) {				\
 		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(\
 			locker, file);					\
+	}								\
+} while (0)
+
+# define register_pfs_file_close_begin(state, locker, key, op, name,	\
+				      src_file, src_line)		\
+do {									\
+	locker = PSI_FILE_CALL(get_thread_file_name_locker)(		\
+		state, key, op, name, &locker);				\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_FILE_CALL(start_file_close_wait)(			\
+			locker, src_file, src_line);			\
+	}								\
+} while (0)
+
+# define register_pfs_file_close_end(locker, result)			\
+do {									\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_FILE_CALL(end_file_close_wait)(			\
+			locker, result);				\
 	}								\
 } while (0)
 
@@ -286,12 +313,18 @@ The wrapper functions have the prefix of "innodb_". */
 	pfs_os_file_close_func(file, __FILE__, __LINE__)
 
 # define os_aio(type, mode, name, file, buf, offset,			\
-		n, message1, message2)					\
+		n, message1, message2, space_id, trx)			\
 	pfs_os_aio_func(type, mode, name, file, buf, offset,		\
-			n, message1, message2, __FILE__, __LINE__)
+		n, message1, message2, space_id, trx,			\
+		__FILE__, __LINE__)
 
 # define os_file_read(file, buf, offset, n)				\
-	pfs_os_file_read_func(file, buf, offset, n, __FILE__, __LINE__)
+	pfs_os_file_read_func(file, buf, offset, n, NULL,		\
+			      __FILE__, __LINE__)
+
+# define os_file_read_trx(file, buf, offset, n, trx)			\
+	pfs_os_file_read_func(file, buf, offset, n, trx,		\
+			      __FILE__, __LINE__)
 
 # define os_file_read_no_error_handling(file, buf, offset, n)		\
 	pfs_os_file_read_no_error_handling_func(file, buf, offset, n,	\
@@ -306,6 +339,12 @@ The wrapper functions have the prefix of "innodb_". */
 
 # define os_file_rename(key, oldpath, newpath)				\
 	pfs_os_file_rename_func(key, oldpath, newpath, __FILE__, __LINE__)
+
+# define os_file_delete(key, name)					\
+	pfs_os_file_delete_func(key, name, __FILE__, __LINE__)
+
+# define os_file_delete_if_exists(key, name)				\
+	pfs_os_file_delete_if_exists_func(key, name, __FILE__, __LINE__)
 #else /* UNIV_PFS_IO */
 
 /* If UNIV_PFS_IO is not defined, these I/O APIs point
@@ -323,12 +362,16 @@ to original un-instrumented file I/O APIs */
 
 # define os_file_close(file)	os_file_close_func(file)
 
-# define os_aio(type, mode, name, file, buf, offset, n, message1, message2) \
+# define os_aio(type, mode, name, file, buf, offset, n, message1,	\
+		message2, space_id, trx)				\
 	os_aio_func(type, mode, name, file, buf, offset, n,		\
-		    message1, message2)
+		    message1, message2, space_id, trx)
 
-# define os_file_read(file, buf, offset, n)	\
-	os_file_read_func(file, buf, offset, n)
+# define os_file_read(file, buf, offset, n)				\
+	os_file_read_func(file, buf, offset, n, NULL)
+
+# define os_file_read_trx(file, buf, offset, n, trx)			\
+	os_file_read_func(file, buf, offset, n, trx)
 
 # define os_file_read_no_error_handling(file, buf, offset, n)		\
 	os_file_read_no_error_handling_func(file, buf, offset, n)
@@ -340,6 +383,11 @@ to original un-instrumented file I/O APIs */
 
 # define os_file_rename(key, oldpath, newpath)				\
 	os_file_rename_func(oldpath, newpath)
+
+# define os_file_delete(key, name)	os_file_delete_func(name)
+
+# define os_file_delete_if_exists(key, name)				\
+	os_file_delete_if_exists_func(name)
 
 #endif /* UNIV_PFS_IO */
 
@@ -527,8 +575,8 @@ Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
 bool
-os_file_delete(
-/*===========*/
+os_file_delete_func(
+/*================*/
 	const char*	name);	/*!< in: file path as a null-terminated
 				string */
 
@@ -537,8 +585,8 @@ Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
 bool
-os_file_delete_if_exists(
-/*=====================*/
+os_file_delete_if_exists_func(
+/*==========================*/
 	const char*	name);	/*!< in: file path as a null-terminated
 				string */
 /***********************************************************************//**
@@ -668,6 +716,7 @@ pfs_os_file_read_func(
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
 	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 
@@ -716,6 +765,8 @@ pfs_os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
                                 OS_AIO_SYNC */
+	ulint		space_id,
+	trx_t*		trx,
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 /*******************************************************************//**
@@ -767,6 +818,38 @@ pfs_os_file_rename_func(
 	const char*	newpath,/*!< in: new file path */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
+
+/***********************************************************************//**
+NOTE! Please use the corresponding macro os_file_delete(), not directly
+this function!
+This is the performance schema instrumented wrapper function for
+os_file_delete()
+@return TRUE if success */
+UNIV_INLINE
+bool
+pfs_os_file_delete_func(
+/*====================*/
+	mysql_pfs_key_t	key,	/*!< in: Performance Schema Key */
+	const char*	name,	/*!< in: old file path as a null-terminated
+				string */
+	const char*	src_file,/*!< in: file name where func invoked */
+	ulint		src_line);/*!< in: line where the func invoked */
+
+/***********************************************************************//**
+NOTE! Please use the corresponding macro os_file_delete_if_exists(), not
+directly this function!
+This is the performance schema instrumented wrapper function for
+os_file_delete_if_exists()
+@return TRUE if success */
+UNIV_INLINE
+bool
+pfs_os_file_delete_if_exists_func(
+/*==============================*/
+	mysql_pfs_key_t	key,	/*!< in: Performance Schema Key */
+	const char*	name,	/*!< in: old file path as a null-terminated
+				string */
+	const char*	src_file,/*!< in: file name where func invoked */
+	ulint		src_line);/*!< in: line where the func invoked */
 #endif	/* UNIV_PFS_IO */
 
 #ifdef UNIV_HOTBACKUP
@@ -809,6 +892,14 @@ os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
 /***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file,	/*!< in: handle to a file */
+	ib_uint64_t	new_len);/*!< in: new file length */
+/***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */
@@ -840,7 +931,8 @@ os_file_read_func(
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	os_offset_t	offset,	/*!< in: file offset where to read */
-	ulint		n);	/*!< in: number of bytes to read */
+	ulint		n,	/*!< in: number of bytes to read */
+	trx_t*		trx);
 /*******************************************************************//**
 Rewind file to its start, read at most size - 1 bytes from it to str, and
 NUL-terminate str. All errors are silently ignored. This function is
@@ -896,8 +988,8 @@ os_file_status(
 The function os_file_dirname returns a directory component of a
 null-terminated pathname string.  In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' charac­
-ters are not counted as part of the pathname.
+is the component following the final '/'.  Trailing '/' characters
+are not counted as part of the pathname.
 
 If path does not contain a slash, dirname returns the string ".".
 
@@ -1044,10 +1136,12 @@ os_aio_func(
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
-	void*		message2);/*!< in: message for the aio handler
+	void*		message2,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
 				OS_AIO_SYNC */
+	ulint		space_id,
+	trx_t*		trx);
 /************************************************************************//**
 Wakes up all async i/o threads so that they know to exit themselves in
 shutdown. */
@@ -1107,7 +1201,8 @@ os_aio_windows_handle(
 				parameters are valid and can be used to
 				restart the operation, for example */
 	void**	message2,
-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id);
 #endif
 
 /**********************************************************************//**
@@ -1129,7 +1224,8 @@ os_aio_simulated_handle(
 				parameters are valid and can be used to
 				restart the operation, for example */
 	void**	message2,
-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id);
 /**********************************************************************//**
 Validates the consistency of the aio system.
 @return	TRUE if ok */
@@ -1210,7 +1306,8 @@ os_aio_linux_handle(
 				aio operation failed, these output
 				parameters are valid and can be used to
 				restart the operation. */
-	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	type,		/*!< out: OS_FILE_WRITE or ..._READ */
+	ulint*	space_id);
 #endif /* LINUX_NATIVE_AIO */
 
 #ifndef UNIV_NONINL

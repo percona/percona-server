@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,11 @@
 #include "my_readline.h"
 #include <signal.h>
 #include <violite.h>
+#ifndef __WIN__
+#include "syslog.h"
+#endif
+
+#define MAX_SYSLOG_MESSAGE 900
 
 #include <algorithm>
 
@@ -151,7 +156,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0;
+               ignore_spaces= 0, opt_syslog= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
@@ -254,6 +259,7 @@ void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);
+void write_syslog(String *buffer);
 static void tee_print_sized_data(const char *, unsigned int, unsigned int, bool);
 /* The names of functions that actually do the manipulation. */
 static int get_options(int argc,char **argv);
@@ -1736,6 +1742,10 @@ static struct my_option my_long_options[] =
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
+#ifndef __WIN__
+  {"syslog", OPT_SYSLOG, "Logs all queries to syslog", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1860,6 +1870,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                                     opt->name);
 #endif
     break;
+#ifndef __WIN__
+  case OPT_SYSLOG:
+    opt_syslog = 1;
+    break;
+#endif
   case OPT_SERVER_ARG:
 #ifdef EMBEDDED_LIBRARY
     /*
@@ -2297,6 +2312,40 @@ static COMMANDS *find_command(char *name)
   DBUG_RETURN((COMMANDS *) 0);
 }
 
+void write_syslog(String *line){
+#ifndef __WIN__
+  uint length= line->length();
+  uint chunk_len= MY_MIN(MAX_SYSLOG_MESSAGE, length);
+  char *ptr= line->c_ptr_safe();
+  char buff[MAX_SYSLOG_MESSAGE + 1];
+
+  for (;
+       length;
+       length-= chunk_len, ptr+= chunk_len,
+           chunk_len= MY_MIN(MAX_SYSLOG_MESSAGE, length))
+  {
+    char *str;
+    if (length == chunk_len)
+      str= ptr;                                 // last chunk => skip copy
+    else
+    {
+      memcpy(buff, ptr, chunk_len);
+      buff[chunk_len]= '\0';
+      str= buff;
+    }
+    syslog(LOG_INFO,
+           "SYSTEM_USER:'%s', MYSQL_USER:'%s', CONNECTION_ID:%lu, "
+           "DB_SERVER:'%s', DB:'%s', QUERY:'%s'",
+           getenv("SUDO_USER") ? getenv("SUDO_USER") : 
+           getenv("USER") ? getenv("USER") : "--",
+           current_user ? current_user : "--",
+           mysql_thread_id(&mysql),
+           current_host ? current_host : "--",
+           current_db ? current_db : "--",
+           str);
+  }
+#endif
+}
 
 static bool add_line(String &buffer, char *line, ulong line_length,
                      char *in_string, bool *ml_comment, bool truncated)
@@ -2902,7 +2951,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
         mysql_free_result(fields);
         break;
       }
-      field_names[i][num_fields*2]= '\0';
+      field_names[i][num_fields*2]= NULL;
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
       {
@@ -3369,6 +3418,11 @@ com_go(String *buffer,char *line __attribute__((unused)))
     buffer->append(vertical ? "\\G" : delimiter);
     /* Append final command onto history */
     fix_history(buffer);
+  }
+#endif
+#ifndef __WIN__
+  if (opt_syslog && buffer->length() && connect_flag == CLIENT_INTERACTIVE){
+    write_syslog(buffer);
   }
 #endif
 

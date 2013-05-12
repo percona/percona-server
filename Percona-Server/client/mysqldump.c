@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1927,7 +1927,9 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
                           const char *str_create)
 {
   uint i;
+#ifndef DBUG_OFF
   my_bool body_found= 0;
+#endif
   char *create_stmt_ptr= NULL;
   ulong create_stmt_len= 0;
   MYSQL_FIELD *field;
@@ -1945,7 +1947,9 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
       {
         create_stmt_ptr= (*row)[i];
         create_stmt_len= lengths[i];
+#ifndef DBUG_OFF
         body_found= 1;
+#endif
       }
       else
       {
@@ -5162,7 +5166,7 @@ static int do_show_slave_status(MYSQL *mysql_con)
         if (row[1])
           fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
         if (row[3])
-          fprintf(md_result_file, "MASTER_PORT='%s', ", row[3]);
+          fprintf(md_result_file, "MASTER_PORT=%s, ", row[3]);
       }
       fprintf(md_result_file,
               "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -279,6 +279,37 @@ handlerton *ha_default_handlerton(THD *thd)
   return hton;
 }
 
+/** @brief
+  Return the enforced storage engine handlerton for thread
+
+  SYNOPSIS
+    ha_enforce_handlerton(thd)
+    thd         current thread
+    
+  RETURN
+    pointer to handlerton
+*/
+handlerton *ha_enforce_handlerton(THD* thd)
+{
+  if (enforce_storage_engine)
+  {
+    LEX_STRING name= { enforce_storage_engine,
+      strlen(enforce_storage_engine) };
+    plugin_ref plugin= ha_resolve_by_name(thd, &name, FALSE);
+    if (plugin)
+    {
+      handlerton *hton= plugin_data(plugin, handlerton*);
+      DBUG_ASSERT(hton);
+      return hton;
+    }
+    else
+    {
+      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), enforce_storage_engine,
+        enforce_storage_engine);
+    }
+  }
+  return NULL;
+}
 
 static plugin_ref ha_default_temp_plugin(THD *thd)
 {
@@ -469,7 +500,8 @@ handler *get_ha_partition(partition_info *part_info)
   }
   else
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(ha_partition)));
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+             static_cast<int>(sizeof(ha_partition)));
   }
   DBUG_RETURN(((handler*) partition));
 }
@@ -1553,7 +1585,20 @@ int ha_rollback_trans(THD *thd, bool all)
 #ifndef DBUG_OFF
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
 #endif
-
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transaction is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT or BEGIN statement, or implicit
+    commit issued by DDL (in these cases all == TRUE),
+    or if we're running in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() is called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
+  */
+  bool is_real_trans= all || thd->transaction.all.ha_list == NULL;
   DBUG_ENTER("ha_rollback_trans");
 
   /*
@@ -1581,12 +1626,19 @@ int ha_rollback_trans(THD *thd, bool all)
     tc_log->rollback(thd, all);
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
-  if (all)
+  if (is_real_trans)
     thd->transaction.cleanup();
+
+  thd->diff_rollback_trans++;
   if (all)
     thd->transaction_rollback_request= FALSE;
 
-  gtid_rollback(thd);
+  /*
+    Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
+    complete transaction is being rollback or autocommit=1.
+  */
+  if (is_real_trans)
+    gtid_rollback(thd);
 
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
@@ -1601,8 +1653,7 @@ int ha_rollback_trans(THD *thd, bool all)
   thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
-  if ((all || thd->transaction.stmt.ha_list == 0) &&
-      thd->transaction.all.cannot_safely_rollback() &&
+  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     thd->transaction.push_unsafe_rollback_warnings(thd);
   DBUG_RETURN(error);
@@ -1994,6 +2045,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
   trans->ha_list= sv->ha_list;
+  thd->diff_rollback_trans++;
   DBUG_RETURN(error);
 }
 
@@ -2464,6 +2516,8 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
+  rows_read= rows_changed= 0;
+  memset(index_rows_read, 0, sizeof(index_rows_read));
   DBUG_RETURN(error);
 }
 
@@ -2667,6 +2721,20 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
+  DBUG_RETURN(result);
+}
+
+int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
+                                    key_part_map keypart_map)
+{
+  int result;
+  DBUG_ENTER("handler::ha_index_read_last_map");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
+
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_last_map(buf, key, keypart_map); })
   DBUG_RETURN(result);
 }
 
@@ -3976,6 +4044,9 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   }
   if ((error= check(thd, check_opt)))
     return error;
+  /* Skip updating frm version if not main handler. */
+  if (table->file != this)
+    return error;
   return update_frm_version(table);
 }
 
@@ -4593,6 +4664,128 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   return;
 }
 
+// Updates the global table stats with the TABLE this handler represents.
+void handler::update_global_table_stats()
+{
+  if (!opt_userstat)
+  {
+    rows_read= rows_changed= 0;
+    return;
+  }
+
+  if (!rows_read && !rows_changed)
+    return;  // Nothing to update.
+  // table_cache_key is db_name + '\0' + table_name + '\0'.
+  if (!table->s || !table->s->table_cache_key.str || !table->s->table_name.str)
+    return;
+
+  TABLE_STATS* table_stats;
+  char key[NAME_LEN * 2 + 2];
+  // [db] + '.' + [table]
+  sprintf(key, "%s.%s", table->s->table_cache_key.str, table->s->table_name.str);
+
+  mysql_mutex_lock(&LOCK_global_table_stats);
+  // Gets the global table stats, creating one if necessary.
+  if (!(table_stats = (TABLE_STATS *) my_hash_search(&global_table_stats,
+                                                     (uchar*)key,
+                                                     strlen(key))))
+  {
+    if (!(table_stats = ((TABLE_STATS *)
+                         my_malloc(sizeof(TABLE_STATS), MYF(MY_WME | MY_ZEROFILL)))))
+    {
+      // Out of memory.
+      sql_print_error("Allocating table stats failed.");
+      goto end;
+    }
+    strncpy(table_stats->table, key, sizeof(table_stats->table));
+    table_stats->rows_read=              0;
+    table_stats->rows_changed=           0;
+    table_stats->rows_changed_x_indexes= 0;
+    table_stats->engine_type=            (int) ht->db_type;
+
+    if (my_hash_insert(&global_table_stats, (uchar *) table_stats))
+    {
+      // Out of memory.
+      sql_print_error("Inserting table stats failed.");
+      my_free((char *) table_stats);
+      goto end;
+    }
+  }
+  // Updates the global table stats.
+  table_stats->rows_read+=              rows_read;
+  table_stats->rows_changed+=           rows_changed;
+  table_stats->rows_changed_x_indexes+=
+    rows_changed * (table->s->keys ? table->s->keys : 1);
+  ha_thd()->diff_total_read_rows+=   rows_read;
+  rows_read= rows_changed=              0;
+end:
+  mysql_mutex_unlock(&LOCK_global_table_stats);
+}
+
+// Updates the global index stats with this handler's accumulated index reads.
+void handler::update_global_index_stats()
+{
+  // table_cache_key is db_name + '\0' + table_name + '\0'.
+  if (!table || !table->s || !table->s->table_cache_key.str ||
+      !table->s->table_name.str)
+    return;
+
+  if (!opt_userstat)
+  {
+    for (uint x= 0; x < table->s->keys; ++x)
+    {
+      index_rows_read[x]= 0;
+    }
+    return;
+  }
+
+  for (uint x = 0; x < table->s->keys; ++x)
+  {
+    if (index_rows_read[x])
+    {
+      // Rows were read using this index.
+      KEY* key_info = &table->key_info[x];
+
+      if (!key_info->name) continue;
+
+      INDEX_STATS* index_stats;
+      char key[NAME_LEN * 3 + 3];
+      // [db] + '.' + [table] + '.' + [index]
+      sprintf(key, "%s.%s.%s",  table->s->table_cache_key.str,
+              table->s->table_name.str, key_info->name);
+
+      mysql_mutex_lock(&LOCK_global_index_stats);
+      // Gets the global index stats, creating one if necessary.
+      if (!(index_stats = (INDEX_STATS *) my_hash_search(&global_index_stats,
+                                                         (uchar *) key,
+                                                         strlen(key))))
+      {
+        if (!(index_stats = ((INDEX_STATS *)
+                             my_malloc(sizeof(INDEX_STATS), MYF(MY_WME | MY_ZEROFILL)))))
+        {
+          // Out of memory.
+          sql_print_error("Allocating index stats failed.");
+          goto end;
+        }
+        strncpy(index_stats->index, key, sizeof(index_stats->index));
+        index_stats->rows_read= 0;
+
+        if (my_hash_insert(&global_index_stats, (uchar *) index_stats))
+        {
+          // Out of memory.
+          sql_print_error("Inserting index stats failed.");
+          my_free((char *) index_stats);
+          goto end;
+        }
+      }
+      // Updates the global index stats.
+      index_stats->rows_read+= index_rows_read[x];
+      index_rows_read[x]=      0;
+  end:
+      mysql_mutex_unlock(&LOCK_global_index_stats);
+    }
+  }
+}
 
 /****************************************************************************
 ** Some general functions that isn't in the handler class
@@ -6867,6 +7060,42 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   return result;
 }
 
+static my_bool flush_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *unused2)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->flush_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->flush_changed_page_bitmaps();
+}
+
+bool ha_flush_changed_page_bitmaps()
+{
+  return plugin_foreach(NULL, flush_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
+static my_bool purge_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *lsn)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->purge_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->purge_changed_page_bitmaps(*(ulonglong *)lsn);
+}
+
+bool ha_purge_changed_page_bitmaps(ulonglong lsn)
+{
+  return plugin_foreach(NULL, purge_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, &lsn);
+}
+
 static my_bool purge_archive_logs_handlerton(THD *thd, plugin_ref plugin,
                                              void *arg)
 {
@@ -7185,6 +7414,9 @@ int handler::ha_write_row(uchar *buf)
               m_lock_type == F_WRLCK);
 
   DBUG_ENTER("handler::ha_write_row");
+  DEBUG_SYNC(ha_thd(), "start_ha_write_row");
+  DBUG_EXECUTE_IF("inject_error_ha_write_row",
+                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -7216,6 +7448,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
     (and the old record is in record[1]).
    */
   DBUG_ASSERT(new_data == table->record[0]);
+  DBUG_ASSERT(old_data == table->record[1]);
 
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -7237,6 +7470,13 @@ int handler::ha_delete_row(const uchar *buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
+  /*
+    Normally table->record[0] is used, but sometimes table->record[1] is used.
+  */
+  DBUG_ASSERT(buf == table->record[0] ||
+              buf == table->record[1]);
+  DBUG_EXECUTE_IF("inject_error_ha_delete_row",
+                  return HA_ERR_INTERNAL_ERROR; );
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

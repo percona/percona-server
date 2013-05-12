@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -400,7 +400,7 @@
 
 #cmakedefine HAVE_MBSTATE_T
 
-#define MAX_INDEXES 64U
+#cmakedefine MAX_INDEXES @MAX_INDEXES@
 
 #cmakedefine QSORT_TYPE_IS_VOID 1
 #cmakedefine RETQSORTTYPE @RETQSORTTYPE@
@@ -495,7 +495,7 @@
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine HAVE_DTRACE 1
 
-#cmakedefine SIGNAL_WITH_VIO_CLOSE 1
+#cmakedefine SIGNAL_WITH_VIO_SHUTDOWN 1
 
 /* Windows stuff, mostly functions, that have Posix analogs but named differently */
 #cmakedefine S_IROTH @S_IROTH@

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -413,9 +413,9 @@ ibuf_count_get(
 #endif
 /******************************************************************//**
 Looks if the insert buffer is empty.
-@return	TRUE if empty */
+@return	true if empty */
 UNIV_INTERN
-ibool
+bool
 ibuf_is_empty(void);
 /*===============*/
 /******************************************************************//**
@@ -440,6 +440,22 @@ UNIV_INTERN
 void
 ibuf_close(void);
 /*============*/
+/******************************************************************//**
+Function to pass ibuf status variables */
+UNIV_INTERN
+void
+ibuf_export_ibuf_status(
+/*====================*/
+	ulint*	size,
+	ulint*	free_list,
+	ulint*	segment_size,
+	ulint*	merges,
+	ulint*	merged_inserts,
+	ulint*	merged_delete_marks,
+	ulint*	merged_deletes,
+	ulint*	discarded_inserts,
+	ulint*	discarded_delete_marks,
+	ulint*	discarded_deletes);
 
 /******************************************************************//**
 Checks the insert buffer bitmaps on IMPORT TABLESPACE.

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -36,6 +36,10 @@
 #include <keycache.h>
 
 class Alter_info;
+
+#if MAX_KEY > 128
+#error MAX_KEY is too large.  Values up to 128 are supported.
+#endif
 
 // the following is for checking tables
 
@@ -676,10 +680,12 @@ struct TABLE;
 enum enum_schema_tables
 {
   SCH_CHARSETS= 0,
+  SCH_CLIENT_STATS,
   SCH_COLLATIONS,
   SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
   SCH_COLUMNS,
   SCH_COLUMN_PRIVILEGES,
+  SCH_INDEX_STATS,
   SCH_ENGINES,
   SCH_EVENTS,
   SCH_FILES,
@@ -707,9 +713,12 @@ enum enum_schema_tables
   SCH_TABLE_CONSTRAINTS,
   SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
+  SCH_TABLE_STATS,
   SCH_TEMPORARY_TABLES,
+  SCH_THREAD_STATS,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
+  SCH_USER_STATS,
   SCH_VARIABLES,
   SCH_VIEWS
 };
@@ -881,6 +890,8 @@ struct handlerton
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
                         enum enum_schema_tables);
+   my_bool (*flush_changed_page_bitmaps)(void);
+   my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
    bool (*purge_archive_logs)(handlerton *hton, time_t before_date,
                              const char* to_filename);
 
@@ -1270,6 +1281,18 @@ public:
   inplace_alter_handler_ctx *handler_ctx;
 
   /**
+    If the table uses several handlers, like ha_partition uses one handler
+    per partition, this contains a Null terminated array of ctx pointers
+    that should all be committed together.
+    Or NULL if only handler_ctx should be committed.
+    Set to NULL if the low level handler::commit_inplace_alter_table uses it,
+    to signal to the main handler that everything was committed as atomically.
+
+    @see inplace_alter_handler_ctx for information about object lifecycle.
+  */
+  inplace_alter_handler_ctx **group_commit_ctx;
+
+  /**
      Flags describing in detail which operations the storage engine is to execute.
   */
   HA_ALTER_FLAGS handler_flags;
@@ -1316,6 +1339,7 @@ public:
     index_add_count(0),
     index_add_buffer(NULL),
     handler_ctx(NULL),
+    group_commit_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
     ignore(ignore_arg),
@@ -1841,6 +1865,9 @@ public:
   Item *pushed_idx_cond;
   uint pushed_idx_cond_keyno;  /* The index which the above condition is for */
 
+  ulonglong rows_read;
+  ulonglong rows_changed;
+  ulonglong index_rows_read[MAX_KEY];
   /**
     next_insert_id is the next value which should be inserted into the
     auto_increment column: in a inserting-multi-row statement (like INSERT
@@ -1913,7 +1940,8 @@ public:
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     implicit_emptied(0),
-    pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
+    pushed_cond(0), pushed_idx_cond(NULL),
+    pushed_idx_cond_keyno(MAX_KEY), rows_changed(0),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
@@ -1921,6 +1949,7 @@ public:
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
                   F_UNLCK, F_RDLCK, F_WRLCK));
+      memset(index_rows_read, 0, sizeof(index_rows_read));
     }
   virtual ~handler(void)
   {
@@ -1946,6 +1975,8 @@ public:
   int ha_index_read_map(uchar *buf, const uchar *key,
                         key_part_map keypart_map,
                         enum ha_rkey_function find_flag);
+  int ha_index_read_last_map(uchar * buf, const uchar * key,
+                             key_part_map keypart_map);
   int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
                            key_part_map keypart_map,
                            enum ha_rkey_function find_flag);
@@ -2047,6 +2078,8 @@ public:
   {
     table= table_arg;
     table_share= share;
+    rows_read= rows_changed= 0;
+    memset(index_rows_read, 0, sizeof(index_rows_read));
   }
   /* Estimates calculation */
   virtual double scan_time()
@@ -2190,6 +2223,7 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
+protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle
@@ -2206,7 +2240,6 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return  index_read(buf, key, key_len, find_flag);
   }
-protected:
   /**
      @brief
      Positions an index cursor to the index specified in argument. Fetches
@@ -2229,7 +2262,6 @@ protected:
   /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-public:
   /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
@@ -2244,6 +2276,7 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return index_read_last(buf, key, key_len);
   }
+public:
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
@@ -2486,7 +2519,7 @@ public:
   uint max_keys() const
   {
     using std::min;
-    return min(MAX_KEY, max_supported_keys());
+    return min((uint)MAX_KEY, max_supported_keys());
   }
   uint max_key_parts() const
   {
@@ -2516,6 +2549,14 @@ public:
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
+  void update_global_table_stats();
+  void update_global_index_stats();
+
+  /**
+     Return true when innodb_fake_changes was set for the current transaction
+     on this handler.
+  */
+  virtual my_bool is_fake_change_enabled(THD *thd) { return FALSE; }
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
@@ -2929,6 +2970,10 @@ protected:
 
     @note In case of partitioning, this function might be called for rollback
     without prepare_inplace_alter_table() having been called first.
+    Also partitioned tables sets ha_alter_info->group_commit_ctx to a NULL
+    terminated array of the partitions handlers and if all of them are
+    committed as one, then group_commit_ctx should be set to NULL to indicate
+    to the partitioning handler that all partitions handlers are committed.
     @see prepare_inplace_alter_table().
 
     @param    altered_table     TABLE object for new version of table.
@@ -2943,7 +2988,11 @@ protected:
  virtual bool commit_inplace_alter_table(TABLE *altered_table,
                                          Alter_inplace_info *ha_alter_info,
                                          bool commit)
- { return false; }
+{
+  /* Nothing to commit/rollback, mark all handlers committed! */
+  ha_alter_info->group_commit_ctx= NULL;
+  return false;
+}
 
 
  /**
@@ -3294,7 +3343,8 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 handlerton *ha_default_temp_handlerton(THD *thd);
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name, 
+handlerton *ha_enforce_handlerton(THD *thd);
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name,
                               bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
@@ -3391,6 +3441,9 @@ bool ha_purge_archive_logs_to(THD *thd, handlerton *db_type, void* args);
 int ha_commit_low(THD *thd, bool all);
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
+
+bool ha_flush_changed_page_bitmaps();
+bool ha_purge_changed_page_bitmaps(ulonglong lsn);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);

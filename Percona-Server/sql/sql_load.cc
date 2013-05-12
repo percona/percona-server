@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,7 +307,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ignore= 1;
 
   /*
-    (1):
     * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
     sets all columns, except if file's row lacks some: in that case,
     defaults are set by read_fixed_length() and read_sep_field(),
@@ -315,9 +314,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     * LOAD DATA INFILE fff INTO TABLE xxx (columns1) SET columns2=
     may need a default for columns other than columns1 and columns2.
   */
+  const bool manage_defaults= fields_vars.elements != 0;
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields_vars, &set_fields,
-                 fields_vars.elements != 0, //(1)
+                 manage_defaults,
                  handle_duplicates, ignore, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
@@ -674,19 +674,21 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                bool transactional_table,
                                                int errcode)
 {
-  char                *load_data_query,
-                      *end,
-                      *fname_start,
-                      *fname_end,
-                      *p= NULL;
-  size_t               pl= 0;
+  char                *load_data_query;
+  my_off_t            fname_start,
+                      fname_end;
   List<Item>           fv;
   Item                *item, *val;
-  String               pfield, pfields;
   int                  n;
-  const char          *tbl= table_name_arg;
+  const char          *tbl;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
   String              string_buf;
+  const char          *qualify_db= NULL;
+  char                command_buffer[1024];
+  String              query_str(command_buffer, sizeof(command_buffer),
+                              system_charset_info);
+
+  query_str.length(0);
   if (!thd->db || strcmp(db_arg, thd->db))
   {
     /*
@@ -697,6 +699,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     string_buf.set_charset(system_charset_info);
     append_identifier(thd, &string_buf, db_arg, strlen(db_arg));
     string_buf.append(".");
+    qualify_db= db_arg;
   }
   append_identifier(thd, &string_buf, table_name_arg,
                     strlen(table_name_arg));
@@ -709,6 +712,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   */
   if (thd->lex->local_file)
     lle.set_fname_outside_temp_buf(ex->file_name, strlen(ex->file_name));
+  lle.print_query(thd, FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
+                  &query_str, &fname_start, &fname_end, qualify_db);
 
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
@@ -717,20 +722,24 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   {
     List_iterator<Item>  li(thd->lex->field_list);
 
-    pfields.append(" (");
+    query_str.append(" (");
     n= 0;
 
     while ((item= li++))
     {
       if (n++)
-        pfields.append(", ");
+        query_str.append(", ");
       if (item->type() == Item::FIELD_ITEM)
-        append_identifier(thd, &pfields, item->item_name.ptr(),
+        append_identifier(thd, &query_str, item->item_name.ptr(),
                           strlen(item->item_name.ptr()));
       else
-        item->print(&pfields, QT_ORDINARY);
+      {
+        /* Actually Item_user_var_as_out_param despite claiming STRING_ITEM. */
+        DBUG_ASSERT(item->type() == Item::STRING_ITEM);
+        ((Item_user_var_as_out_param *)item)->print_for_load(thd, &query_str);
+      }
     }
-    pfields.append(")");
+    query_str.append(")");
   }
 
   if (!thd->lex->update_list.is_empty())
@@ -738,37 +747,26 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     List_iterator<Item> lu(thd->lex->update_list);
     List_iterator<Item> lv(thd->lex->value_list);
 
-    pfields.append(" SET ");
+    query_str.append(" SET ");
     n= 0;
 
     while ((item= lu++))
     {
       val= lv++;
       if (n++)
-        pfields.append(", ");
-      append_identifier(thd, &pfields, item->item_name.ptr(),
+        query_str.append(", ");
+      append_identifier(thd, &query_str, item->item_name.ptr(),
                         strlen(item->item_name.ptr()));
-      pfields.append(val->item_name.ptr());
+      query_str.append(val->item_name.ptr());
     }
   }
 
-  p= pfields.c_ptr_safe();
-  pl= strlen(p);
-
-  if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
+  if (!(load_data_query= (char *)thd->strmake(query_str.ptr(), query_str.length())))
     return TRUE;
 
-  lle.print_query(FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
-                  load_data_query, &end,
-                  (char **)&fname_start, (char **)&fname_end);
-
-  strcpy(end, p);
-  end += pl;
-
   Execute_load_query_log_event
-    e(thd, load_data_query, end-load_data_query,
-      (uint) ((char*) fname_start - load_data_query - 1),
-      (uint) ((char*) fname_end - load_data_query),
+    e(thd, load_data_query, query_str.length(),
+      (uint) (fname_start - 1), (uint) fname_end,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);

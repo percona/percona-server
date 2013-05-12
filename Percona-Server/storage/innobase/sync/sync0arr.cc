@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -123,7 +123,7 @@ struct sync_array_t {
 	ulint		n_cells;	/*!< number of cells in the
 					wait array */
 	sync_cell_t*	array;		/*!< pointer to wait array */
-	ib_mutex_t		mutex;		/*!< possible database mutex
+	ib_mutex_t	mutex;		/*!< possible database mutex
 					protecting this data structure */
 	os_ib_mutex_t	os_mutex;	/*!< Possible operating system mutex
 					protecting the data structure.
@@ -444,7 +444,7 @@ sync_array_cell_print(
 
 	fprintf(file,
 		"--Thread %lu has waited at %s line %lu"
-		" for %.2f seconds the semaphore:\n",
+		" for %#.5g seconds the semaphore:\n",
 		(ulong) os_thread_pf(cell->thread),
 		innobase_basename(cell->file), (ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
@@ -455,13 +455,12 @@ sync_array_cell_print(
 		mutex = cell->old_wait_mutex;
 
 		fprintf(file,
-			"Mutex at %p created file %s line %lu, lock var %lu\n"
+			"Mutex at %p '%s', lock var %lu\n"
 #ifdef UNIV_SYNC_DEBUG
 			"Last time reserved in file %s line %lu, "
 #endif /* UNIV_SYNC_DEBUG */
 			"waiters flag %lu\n",
-			(void*) mutex, innobase_basename(mutex->cfile_name),
-			(ulong) mutex->cline,
+			(void*) mutex, mutex->cmutex_name,
 			(ulong) mutex->lock_word,
 #ifdef UNIV_SYNC_DEBUG
 			mutex->file_name, (ulong) mutex->line,
@@ -479,9 +478,8 @@ sync_array_cell_print(
 		rwlock = cell->old_wait_rw_lock;
 
 		fprintf(file,
-			" RW-latch at %p created in file %s line %lu\n",
-			(void*) rwlock, innobase_basename(rwlock->cfile_name),
-			(ulong) rwlock->cline);
+			" RW-latch at %p '%s'\n",
+			(void*) rwlock, rwlock->lock_name);
 		writer = rw_lock_get_writer(rwlock);
 		if (writer != RW_LOCK_NOT_LOCKED) {
 			fprintf(file,
@@ -570,10 +568,6 @@ sync_array_deadlock_step(
 	new_cell = sync_array_find_thread(arr, thread);
 
 	if (new_cell == start) {
-		/* Stop running of other threads */
-
-		ut_dbg_stop_threads = TRUE;
-
 		/* Deadlock */
 		fputs("########################################\n"
 		      "DEADLOCK of threads detected!\n", stderr);
@@ -978,11 +972,15 @@ sync_array_print_long_waits(
 
 		sync_array_t*	arr = sync_wait_array[i];
 
+		sync_array_enter(arr);
+
 		if (sync_array_print_long_waits_low(
 				arr, waiter, sema, &noticed)) {
 
 			fatal = TRUE;
 		}
+
+		sync_array_exit(arr);
 	}
 
 	if (noticed) {

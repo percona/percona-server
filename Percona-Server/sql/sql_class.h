@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,10 @@
 #include <mysql_com_server.h>
 #include "sql_data_change.h"
 
+#ifdef HAVE_QUERY_CACHE
+#include "query_strip_comments.h"
+#endif // HAVE_QUERY_CACHE
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
@@ -86,6 +90,37 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
+enum enum_slow_query_log_use_global_control {
+  SLOG_UG_LOG_SLOW_FILTER, SLOG_UG_LOG_SLOW_RATE_LIMIT
+  , SLOG_UG_LOG_SLOW_VERBOSITY, SLOG_UG_LONG_QUERY_TIME
+  , SLOG_UG_MIN_EXAMINED_ROW_LIMIT, SLOG_UG_ALL
+};
+enum enum_log_slow_verbosity { 
+  SLOG_V_MICROTIME, SLOG_V_QUERY_PLAN, SLOG_V_INNODB, 
+  SLOG_V_PROFILING, SLOG_V_PROFILING_USE_GETRUSAGE,
+  SLOG_V_MINIMAL, SLOG_V_STANDARD, SLOG_V_FULL
+};
+enum enum_slow_query_log_timestamp_precision {
+  SLOG_SECOND, SLOG_MICROSECOND
+};
+enum enum_slow_query_log_rate_type {
+  SLOG_RT_SESSION, SLOG_RT_QUERY
+};
+#define QPLAN_NONE            0
+#define QPLAN_QC_NO           (1 << 0)
+#define QPLAN_FULL_SCAN       (1 << 1)
+#define QPLAN_FULL_JOIN       (1 << 2)
+#define QPLAN_TMP_TABLE       (1 << 3)
+#define QPLAN_TMP_DISK        (1 << 4)
+#define QPLAN_FILESORT        (1 << 5)
+#define QPLAN_FILESORT_DISK   (1 << 6)
+#define QPLAN_QC              (1 << 7)
+enum enum_log_slow_filter {
+  SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN,
+  SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
+  SLOG_F_FILESORT_DISK
+};
+enum enum_log_warnings_suppress { log_warnings_suppress_1592 };
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
                             SLAVE_EXEC_MODE_LAST_BIT };
@@ -506,6 +541,8 @@ typedef struct system_variables
   my_bool engine_condition_pushdown;
   my_bool keep_files_on_create;
 
+  my_bool online_alter_index;
+
   my_bool old_alter_table;
   uint old_passwords;
   my_bool big_tables;
@@ -540,6 +577,22 @@ typedef struct system_variables
 
   my_bool sysdate_is_now;
   my_bool binlog_rows_query_log_events;
+
+#ifndef DBUG_OFF
+  ulonglong query_exec_time;
+  double    query_exec_time_double;
+  ulong     query_exec_id;
+#endif
+  ulong log_slow_rate_limit;
+  ulonglong log_slow_filter;
+  ulonglong log_slow_verbosity;
+
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
 
   double long_query_time_double;
 
@@ -792,6 +845,9 @@ public:
     statement lifetime. FIXME: must be const
   */
    ulong id;
+#ifdef HAVE_QUERY_CACHE
+  QueryStripComments query_strip_comments; // see sql_cache.cc
+#endif //HAVE_QUERY_CACHE
 
   /*
     MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
@@ -1646,6 +1702,24 @@ public:
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
+
+  /*** Following variables used in slow_extended.patch ***/
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+
+  bool       innodb_was_used;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  ulong      query_plan_flags;
+  ulong      query_plan_fsort_passes;
+  /*** The variables above used in slow_extended.patch ***/
+
   SAVEPOINT *savepoints;
   enum enum_check_fields count_cuted_fields;
 };
@@ -1949,6 +2023,12 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   tm->tv_usec= (long) (micro_time % 1000000);
 }
 
+typedef struct
+{
+  struct timeval start_time;
+  ulonglong start_utime;
+} QUERY_START_TIME_INFO;
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -2123,6 +2203,8 @@ private:
 public:
   uint32     unmasked_server_id;
   uint32     server_id;
+  // Used to save the command, before it is set to COM_SLEEP.
+  enum enum_server_command old_command;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;
@@ -2134,6 +2216,59 @@ public:
 
   thr_lock_type update_lock_default;
   Delayed_insert *di;
+
+  /*** Following variables used in slow_extended.patch ***/
+  /*
+    Variable bytes_send_old saves value of thd->status_var.bytes_sent
+    before query execution.
+  */
+  ulonglong  bytes_sent_old;
+  /*
+    Variables tmp_tables_*** collect statistics about usage of temporary tables
+  */
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool       innodb_was_used;
+  /*
+    Following Variables innodb_*** (is |should be) different from
+    default values only if (innodb_was_used==TRUE)
+  */
+  ulonglong  innodb_trx_id;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  /*
+    Variable query_plan_flags collects information about query plan entites
+    used on query execution.
+  */
+  ulong      query_plan_flags;
+  /*
+    Variable query_plan_fsort_passes collects information about file sort passes
+    acquired during query execution.
+  */
+  ulong      query_plan_fsort_passes;
+  /*
+    Query can generate several errors/warnings during execution
+    (see THD::handle_condition comment in sql_class.h)
+    Variable last_errno contains the last error/warning acquired during
+    query execution.
+  */
+  uint       last_errno;
+  /*** The variables above used in slow_extended.patch ***/
+
+  /*** Following methods used in slow_extended.patch ***/
+  void clear_slow_extended();
+  void reset_sub_statement_state_slow_extended(Sub_statement_state *backup);
+  void restore_sub_statement_state_slow_extended(const Sub_statement_state *backup);
+  /*** The methods above used in slow_extended.patch ***/
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -2426,7 +2561,7 @@ public:
 #ifndef __WIN__
   sigset_t signals;
 #endif
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   Vio* active_vio;
 #endif
   /*
@@ -2779,6 +2914,8 @@ public:
   */
   bool              tx_read_only;
   enum_check_fields count_cuted_fields;
+  ha_rows    updated_row_count;
+  ha_rows    sent_row_count_2; /* for userstat */
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
@@ -2936,6 +3073,49 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
+
+  /*
+    Used to update global user stats.  The global user stats are updated
+    occasionally with the 'diff' variables.  After the update, the 'diff'
+    variables are reset to 0.
+  */
+  // Time when the current thread connected to MySQL.
+  time_t current_connect_time;
+  // Last time when THD stats were updated in global_user_stats.
+  time_t last_global_update_time;
+  // Busy (non-idle) time for just one command.
+  double busy_time;
+  // Busy time not updated in global_user_stats yet.
+  double diff_total_busy_time;
+  // Cpu (non-idle) time for just one thread.
+  double cpu_time;
+  // Cpu time not updated in global_user_stats yet.
+  double diff_total_cpu_time;
+  /* bytes counting */
+  ulonglong bytes_received;
+  ulonglong diff_total_bytes_received;
+  ulonglong bytes_sent;
+  ulonglong diff_total_bytes_sent;
+  ulonglong binlog_bytes_written;
+  ulonglong diff_total_binlog_bytes_written;
+
+  // Number of rows not reflected in global_user_stats yet.
+  ha_rows diff_total_sent_rows, diff_total_updated_rows, diff_total_read_rows;
+  // Number of commands not reflected in global_user_stats yet.
+  ulonglong diff_select_commands, diff_update_commands, diff_other_commands;
+  // Number of transactions not reflected in global_user_stats yet.
+  ulonglong diff_commit_trans, diff_rollback_trans;
+  // Number of connection errors not reflected in global_user_stats yet.
+  ulonglong diff_denied_connections, diff_lost_connections;
+  // Number of db access denied, not reflected in global_user_stats yet.
+  ulonglong diff_access_denied_errors;
+  // Number of queries that return 0 rows
+  ulonglong diff_empty_queries;
+
+  // Per account query delay in miliseconds. When not 0, sleep this number of
+  // milliseconds before every SQL command.
+  ulonglong query_delay_millis;
+
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -3044,11 +3224,16 @@ public:
     alloc_root. 
   */
   void init_for_queries(Relay_log_info *rli= NULL);
+  void reset_stats(void);
+  void reset_diff_stats(void);
+  // ran_command is true when this is called immediately after a
+  // command has been run.
+  void update_stats(bool ran_command);
   void change_user(void);
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   inline void set_active_vio(Vio* vio)
   {
     mysql_mutex_lock(&LOCK_thd_data);
@@ -3062,7 +3247,7 @@ public:
     active_vio = 0;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
-  void close_active_vio();
+  void shutdown_active_vio();
 #endif
   void awake(THD::killed_state state_to_set);
 
@@ -3222,6 +3407,16 @@ public:
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
+  void get_time(QUERY_START_TIME_INFO *time_info)
+  {
+    time_info->start_time= start_time;
+    time_info->start_utime= start_utime;
+  }
+  void set_time(QUERY_START_TIME_INFO *time_info)
+  {
+    start_time= time_info->start_time;
+    start_utime= time_info->start_utime;
+  }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
@@ -3372,8 +3567,8 @@ public:
     return system_thread || (vio_ok() ? vio_is_connected(net.vio) : FALSE);
   }
 #else
-  inline bool vio_ok() const { return TRUE; }
-  inline bool is_connected() { return TRUE; }
+  inline bool vio_ok() const { return true; }
+  inline bool is_connected() { return true; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not
@@ -3604,7 +3799,7 @@ public:
   {
     if (owned_gtid.sidno == -1)
     {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
 #else
       DBUG_ASSERT(0);
@@ -3693,6 +3888,15 @@ public:
     return FALSE;
   }
   thd_scheduler event_scheduler;
+
+  /* Returns string as 'IP:port' for the client-side
+     of the connnection represented
+     by 'client' as displayed by SHOW PROCESSLIST.
+     Allocates memory from the heap of
+     this THD and that is not reclaimed
+     immediately, so use sparingly. May return NULL.
+  */
+  char *get_client_host_port(THD *client);
 
 public:
   inline Internal_error_handler *get_internal_handler()
@@ -3956,6 +4160,10 @@ private:
   LEX_STRING invoker_host;
 };
 
+/* Returns string as 'IP' for the client-side of the connection represented by
+   'client'. Does not allocate memory. May return "".
+*/
+const char *get_client_host(THD *client);
 
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.
@@ -4257,16 +4465,8 @@ public:
 
      @param table_list_par   The table reference for the destination table.
      @param table_par        The destination table. May be NULL.
-     @param target_columns   The columns of the table which is the target for
-                             insertion. May be NULL, but if not, the same
-                             value must be used for target_or_source_columns.
-     @param target_or_source_columns The columns of the source table providing
-                             data, or columns of the target table. If the
-                             target table is known, the columns of that table
-                             should be used. If the target table is not known
-                             (it may not yet exist), the columns of the source
-                             table should be used, and target_columns should
-                             be NULL.
+     @param target_columns   See details.
+     @param target_or_source_columns See details.
      @param update_fields    The columns to be updated in case of duplicate
                              keys. May be NULL.
      @param update_values    The values to be assigned in case of duplicate
@@ -4281,25 +4481,31 @@ public:
      select_insert members initialized here are totally redundant, as they are
      found inside the COPY_INFO.
 
-     Here is the explanation of how we set the manage_defaults parameter of
-     info's constructor below.
-     @li if target_columns==NULL, the statement is
+     The target_columns and target_or_source_columns arguments are set by
+     callers as follows:
+     @li if CREATE SELECT:
+      - target_columns == NULL,
+      - target_or_source_columns == expressions listed after SELECT, as in
+          CREATE ... SELECT expressions
+     @li if INSERT SELECT:
+      target_columns
+      == target_or_source_columns
+      == columns listed between INSERT and SELECT, as in
+          INSERT INTO t (columns) SELECT ...
+
+     We set the manage_defaults argument of info's constructor as follows
+     ([...] denotes something optional):
+     @li If target_columns==NULL, the statement is
 @verbatim
-     CREATE TABLE a_table (possibly some columns1) SELECT columns2
+     CREATE TABLE a_table [(columns1)] SELECT expressions2
 @endverbatim
-     which sets all of a_table's columns2 to values returned by SELECT (no
-     default needs to be set); a_table's columns1 get set from defaults
-     prepared by make_empty_rec() when table is created, not by COPY_INFO. So
-     manage_defaults is "false".
-     @li otherwise, target_columns!=NULL and so it is INSERT SELECT. If there
-     are explicitely listed columns like
+     so 'info' must manage defaults of columns1.
+     @li Otherwise it is:
 @verbatim
-     INSERT INTO a_table (columns1) SELECT ...
+     INSERT INTO a_table [(columns1)] SELECT ...
 @verbatim
-     then non-listed columns (columns of a_table which are not columns1) may
-     need a default set by COPY_INFO so manage_defaults is "true". If no
-     column is explicitely listed, all columns will be set to values returned
-     by SELECT, so "manage_defaults" is false.
+     target_columns is columns1, if not empty then 'info' must manage defaults
+     of other columns than columns1.
   */
   select_insert(TABLE_LIST *table_list_par,
                 TABLE *table_par,
@@ -4316,7 +4522,7 @@ public:
      info(COPY_INFO::INSERT_OPERATION,
           target_columns,
           // manage_defaults
-          target_columns != NULL && target_columns->elements != 0,
+          (target_columns == NULL || target_columns->elements != 0),
           duplic,
           ignore),
      update(COPY_INFO::UPDATE_OPERATION,
@@ -4994,6 +5200,7 @@ public:
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
+  Item_func_set_user_var **set_var_items;
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}

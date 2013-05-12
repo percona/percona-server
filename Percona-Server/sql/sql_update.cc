@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -271,6 +271,7 @@ int mysql_update(THD *thd,
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
+  table->possible_quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
@@ -994,8 +995,10 @@ int mysql_update(THD *thd,
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
                 (ulong) thd->get_stmt_da()->current_statement_warn_count());
-    my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
-          id, buff);
+    ha_rows row_count=
+        (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
+    my_ok(thd, row_count, id, buff);
+    thd->updated_row_count += row_count;
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -2444,7 +2447,9 @@ bool multi_update::send_eof()
     thd->first_successful_insert_id_in_prev_stmt : 0;
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
               (ulong) found, (ulong) updated, (ulong) thd->cuted_fields);
-  ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
-          id, buff);
+  ha_rows row_count=
+    (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
+  ::my_ok(thd, row_count, id, buff);
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(FALSE);
 }

@@ -2095,11 +2095,11 @@ err_exit:
 		return(NULL);
 	}
 
-	if (srv_pass_corrupt_table <= 1) {
-		if (bpage->is_corrupt) {
-			rw_lock_s_unlock(hash_lock);
-			return(NULL);
-		}
+	if (UNIV_UNLIKELY(bpage->is_corrupt && srv_pass_corrupt_table <= 1)) {
+
+		rw_lock_s_unlock(hash_lock);
+
+		return(NULL);
 	}
 
 	ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
@@ -2695,11 +2695,12 @@ null_exit:
 		return(NULL);
 	}
 
-	if (srv_pass_corrupt_table <= 1) {
-		if (block->page.is_corrupt) {
-			mutex_exit(block_mutex);
-			return(NULL);
-		}
+	if (UNIV_UNLIKELY(block->page.is_corrupt &&
+			  srv_pass_corrupt_table <= 1)) {
+
+		mutex_exit(block_mutex);
+
+		return(NULL);
 	}
 
 	switch (buf_block_get_state(block)) {
@@ -4139,7 +4140,8 @@ buf_page_io_complete(
 				(ulong) bpage->offset);
 		}
 
-		if (!srv_pass_corrupt_table || !bpage->is_corrupt) {
+		if (UNIV_LIKELY(!bpage->is_corrupt ||
+				!srv_pass_corrupt_table)) {
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
@@ -4239,13 +4241,26 @@ corrupt:
 		}
 
 		if (uncompressed && !recv_no_ibuf_operations) {
+
+			buf_block_t*	block;
+			ibool		update_ibuf_bitmap;
+
+			if (UNIV_UNLIKELY(bpage->is_corrupt &&
+					  srv_pass_corrupt_table)) {
+
+				block = NULL;
+				update_ibuf_bitmap = FALSE;
+
+			} else {
+
+				block = (buf_block_t *) bpage;
+				update_ibuf_bitmap = TRUE;
+			}
+
 			ibuf_merge_or_delete_for_page(
-				/* Delete possible entries, if bpage is_corrupt */
-				(srv_pass_corrupt_table && bpage->is_corrupt) ? NULL :
-				(buf_block_t*) bpage, bpage->space,
+				block, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),
-				(srv_pass_corrupt_table && bpage->is_corrupt) ? FALSE :
-				TRUE);
+				update_ibuf_bitmap);
 		}
 	}
 

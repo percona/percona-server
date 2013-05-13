@@ -5357,40 +5357,38 @@ _fil_io(
 	ut_a(byte_offset % OS_MIN_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_MIN_LOG_BLOCK_SIZE) == 0);
 
-	if (srv_pass_corrupt_table == 1 && space->is_corrupt) {
+#ifndef UNIV_HOTBACKUP
+	if (UNIV_UNLIKELY(space->is_corrupt && srv_pass_corrupt_table)) {
+
 		/* should ignore i/o for the crashed space */
-		mutex_enter(&fil_system->mutex);
-		fil_node_complete_io(node, fil_system, type);
-		mutex_exit(&fil_system->mutex);
-		if (mode == OS_AIO_NORMAL) {
-			ut_a(space->purpose == FIL_TABLESPACE);
-			buf_page_io_complete(static_cast<buf_page_t *>
-					     (message));
-		}
-		if (type == OS_FILE_READ) {
-			return(DB_TABLESPACE_DELETED);
-		} else {
-			return(DB_SUCCESS);
-		}
-	} else {
-		if (srv_pass_corrupt_table > 1 && space->is_corrupt) {
-			/* should ignore write i/o for the crashed space */
-			if (type == OS_FILE_WRITE) {
-				mutex_enter(&fil_system->mutex);
-				fil_node_complete_io(node, fil_system, type);
-				mutex_exit(&fil_system->mutex);
-				if (mode == OS_AIO_NORMAL) {
-					ut_a(space->purpose == FIL_TABLESPACE);
-					buf_page_io_complete(
-					    static_cast<buf_page_t *>
-					    (message));
-				}
-				return(DB_SUCCESS);
+		if (srv_pass_corrupt_table == 1 ||
+		    type == OS_FILE_WRITE) {
+
+			mutex_enter(&fil_system->mutex);
+			fil_node_complete_io(node, fil_system, type);
+			mutex_exit(&fil_system->mutex);
+			if (mode == OS_AIO_NORMAL) {
+				ut_a(space->purpose == FIL_TABLESPACE);
+				buf_page_io_complete(static_cast<buf_page_t *>
+						     (message));
 			}
+		}
+
+		if (srv_pass_corrupt_table == 1 && type == OS_FILE_READ) {
+
+			return(DB_TABLESPACE_DELETED);
+
+		} else if (type == OS_FILE_WRITE) {
+
+			return(DB_SUCCESS);
 		}
 	}
 
-#ifdef UNIV_HOTBACKUP
+	/* Queue the aio request */
+	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
+		offset, len, node, message, space_id, trx);
+
+#else
 	/* In ibbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
 		ret = os_file_read(node->handle, buf, offset, len);
@@ -5399,11 +5397,7 @@ _fil_io(
 		ret = os_file_write(node->name, node->handle, buf,
 				    offset, len);
 	}
-#else
-	/* Queue the aio request */
-	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset, len, node, message, space_id, trx);
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 	ut_a(ret);
 
 	if (mode == OS_AIO_SYNC) {

@@ -2641,6 +2641,7 @@ public:
   }
 
   ha_rows    cuted_fields;
+  uint8      failed_com_change_user;
 
 private:
   /**

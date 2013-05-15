@@ -2970,7 +2970,8 @@ i_s_innodb_fill_buffer_pool(
 				i_s_innodb_buffer_page_get_info(
 					&block->page, pool_id, block_id,
 					info_buffer + num_page);
-				mutex_exit(block_mutex);
+				if (block_mutex)
+					mutex_exit(block_mutex);
 				block_id++;
 				num_page++;
 			}

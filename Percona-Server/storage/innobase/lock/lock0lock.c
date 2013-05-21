@@ -2005,6 +2005,8 @@ lock_rec_lock_fast(
 	      || mode - (LOCK_MODE_MASK & mode) == 0
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(LOCK_REC_FAIL););
+
 	lock = lock_rec_get_first_on_page(block);
 
 	trx = thr_get_trx(thr);
@@ -2081,6 +2083,8 @@ lock_rec_lock_slow(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 
 	trx = thr_get_trx(thr);
+
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(DB_DEADLOCK););
 
 	lock = lock_rec_has_expl(mode, block, heap_no, trx);
 	if (lock) {
@@ -4145,6 +4149,7 @@ lock_rec_unlock(
 
 	ut_ad(trx && rec);
 	ut_ad(block->frame == page_align(rec));
+	ut_ad(trx->state == TRX_ACTIVE);
 
 	heap_no = page_rec_get_heap_no(rec);
 

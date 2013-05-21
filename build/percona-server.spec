@@ -745,20 +745,6 @@ fi
 if [ ! -d $mysql_datadir/test ]; then 
         mkdir $mysql_datadir/test; 
 fi
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
-fi 
-# ----------------------------------------------------------------------
-# Make MySQL start/shutdown automatically when the machine does it.
-# ----------------------------------------------------------------------
-# NOTE: This still needs to be debated. Should we check whether these links
-# for the other run levels exist(ed) before the upgrade?
-# use chkconfig on Enterprise Linux and newer SuSE releases
-if [ -x /sbin/chkconfig ] ; then
-        /sbin/chkconfig --add mysql
-# use insserv for older SuSE Linux versions
-elif [ -x /sbin/insserv ] ; then
-        /sbin/insserv %{_sysconfdir}/init.d/mysql
-fi
 
 # ----------------------------------------------------------------------
 # Create a MySQL user and group. Do not report any problems if it already
@@ -774,6 +760,22 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
+%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi 
+
+# ----------------------------------------------------------------------
+# Make MySQL start/shutdown automatically when the machine does it.
+# ----------------------------------------------------------------------
+# NOTE: This still needs to be debated. Should we check whether these links
+# for the other run levels exist(ed) before the upgrade?
+# use chkconfig on Enterprise Linux and newer SuSE releases
+if [ -x /sbin/chkconfig ] ; then
+        /sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+elif [ -x /sbin/insserv ] ; then
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
+fi
+
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
 # ----------------------------------------------------------------------

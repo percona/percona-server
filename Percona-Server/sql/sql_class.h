@@ -2086,6 +2086,7 @@ public:
   }
 
   ha_rows    cuted_fields;
+  uint8      failed_com_change_user;
 
   /*
     number of rows we actually sent to the client, including "synthetic"

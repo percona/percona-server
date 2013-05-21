@@ -723,16 +723,17 @@ mysql_datadir=%{mysqldatadir}
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
-if [ $1 -eq 1 ]; then
-# ----------------------------------------------------------------------
-# Create data directory if needed, check whether upgrade or install
-# ----------------------------------------------------------------------
-if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
 if [ -f $STATUS_FILE ] ; then
 	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
 else
 	SERVER_TO_START=''
 fi
+
+if [ $1 -eq 1 ]; then
+# ----------------------------------------------------------------------
+# Create data directory if needed, check whether upgrade or install
+# ----------------------------------------------------------------------
+if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
 	mkdir $mysql_datadir/mysql;

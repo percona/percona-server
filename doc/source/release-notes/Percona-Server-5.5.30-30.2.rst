@@ -19,6 +19,11 @@ New Features
 
  :ref:`innodb_lazy_drop_table_page` has been removed and its controlling variable :variable:`innodb_lazy_drop_table` has been deprecated. Feature has been removed because the upstream ``DROP TABLE`` implementation has been improved. (*Laurynas Biveinis*)
 
+Known Issues
+============
+
+ This release contains a regression introduced by the fix for bug :bug:`1131187`. The workaround is to disable the query cache. Regression is reported as bug :bug:`1170103`.
+
 Bug Fixes
 =========
 

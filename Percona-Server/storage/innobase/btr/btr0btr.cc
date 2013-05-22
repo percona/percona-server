@@ -690,7 +690,7 @@ btr_root_fseg_validate(
 {
 	ulint	offset = mach_read_from_2(seg_header + FSEG_HDR_OFFSET);
 
-	if (UNIV_UNLIKELY(srv_pass_corrupt_table)) {
+	if (UNIV_UNLIKELY(srv_pass_corrupt_table != 0)) {
 		return (mach_read_from_4(seg_header + FSEG_HDR_SPACE) == space)
 			&& (offset >= FIL_PAGE_DATA)
 			&& (offset <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
@@ -726,17 +726,14 @@ btr_root_block_get(
 
 	block = btr_block_get(space, zip_size, root_page_no, mode, index, mtr);
 
-	if (srv_pass_corrupt_table && !block) {
-		return(0);
-	}
-	ut_a(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return(0););
 
 	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_BTR_DEBUG
 	if (!dict_index_is_ibuf(index)) {
 		const page_t*	root = buf_block_get_frame(block);
 
-		if (UNIV_UNLIKELY(srv_pass_corrupt_table)) {
+		if (UNIV_UNLIKELY(srv_pass_corrupt_table != 0)) {
 			if (!btr_root_fseg_validate(FIL_PAGE_DATA
 						    + PAGE_BTR_SEG_LEAF
 						    + root, space))
@@ -1217,11 +1214,11 @@ btr_get_size(
 
 	root = btr_root_get(index, mtr);
 
-	if (srv_pass_corrupt_table && !root) {
+	SRV_CORRUPT_TABLE_CHECK(root,
+	{
 		mtr_commit(mtr);
 		return(0);
-	}
-	ut_a(root);
+	});
 
 	if (flag == BTR_N_LEAF_PAGES) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
@@ -1687,11 +1684,11 @@ leaf_loop:
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
 
-	if (srv_pass_corrupt_table && !root) {
+	SRV_CORRUPT_TABLE_CHECK(root,
+	{
 		mtr_commit(&mtr);
 		return;
-	}
-	ut_a(root);
+	});
 
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
@@ -1717,11 +1714,12 @@ top_loop:
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
 
-	if (srv_pass_corrupt_table && !root) {
+	SRV_CORRUPT_TABLE_CHECK(root,
+	{
 		mtr_commit(&mtr);
 		return;
-	}
-	ut_a(root);
+	});
+
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
 				    + root, space));
@@ -1755,10 +1753,7 @@ btr_free_root(
 	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH,
 			      NULL, mtr);
 
-	if (srv_pass_corrupt_table && !block) {
-		return;
-	}
-	ut_a(block);
+	SRV_CORRUPT_TABLE_CHECK(block, return;);
 
 	btr_search_drop_page_hash_index(block);
 
@@ -4895,10 +4890,11 @@ btr_validate_index(
 	bool	ok = true;
 	page_t*	root = btr_root_get(index, &mtr);
 
-	if (UNIV_UNLIKELY(srv_pass_corrupt_table && !root)) {
-	    mtr_commit(&mtr);
-	    return(FALSE);
-	}
+	SRV_CORRUPT_TABLE_CHECK(root,
+	{
+		mtr_commit(&mtr);
+		return(FALSE);
+	});
 
 	ulint	n = btr_page_get_level(root, &mtr);
 

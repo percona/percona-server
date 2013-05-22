@@ -3167,7 +3167,14 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
+      res= open_normal_and_derived_tables(thd, all_tables, 0);
+      if (res)
+      {
+        /* Got error or warning. Set res to 1 if error */
+        if (!(res= thd->is_error()))
+          my_ok(thd);                           // CREATE ... IF NOT EXISTS
+      }
+      else
       {
         /* The table already exists */
         if (create_table->table || create_table->view)

@@ -29,21 +29,17 @@
 size_t vio_read_pipe(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_pipe(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_pipe(Vio *vio);
-int vio_close_pipe(Vio * vio);
-int cancel_io(HANDLE handle, DWORD thread_id);
-int vio_shutdown_pipe(Vio *vio,int how);
+int vio_shutdown_pipe(Vio * vio, int how);
 #endif
 
 #ifdef HAVE_SMEM
 size_t vio_read_shared_memory(Vio *vio, uchar * buf, size_t size);
 size_t vio_write_shared_memory(Vio *vio, const uchar * buf, size_t size);
 my_bool vio_is_connected_shared_memory(Vio *vio);
-int vio_close_shared_memory(Vio * vio);
-my_bool vio_shared_memory_has_data(Vio *vio);
-int vio_shutdown_shared_memory(Vio *vio, int how);
+int vio_shutdown_shared_memory(Vio * vio, int how);
+void vio_delete_shared_memory(Vio *vio);
 #endif
 
-int vio_socket_shutdown(Vio *vio, int how);
 my_bool vio_buff_has_data(Vio *vio);
 int vio_socket_io_wait(Vio *vio, enum enum_vio_io_event event);
 int vio_socket_timeout(Vio *vio, uint which, my_bool old_mode);
@@ -55,7 +51,7 @@ size_t	vio_ssl_read(Vio *vio,uchar* buf,	size_t size);
 size_t	vio_ssl_write(Vio *vio,const uchar* buf, size_t size);
 
 /* When the workday is over... */
-int vio_ssl_close(Vio *vio);
+int vio_ssl_shutdown(Vio *vio, int how);
 void vio_ssl_delete(Vio *vio);
 my_bool vio_ssl_has_data(Vio *vio);
 

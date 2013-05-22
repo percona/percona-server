@@ -329,7 +329,7 @@ void thd_unlock_thread_count(THD *)
 void thd_close_connection(THD *thd)
 {
   if (thd->net.vio)
-    vio_close(thd->net.vio);
+    vio_shutdown(thd->net.vio, SHUT_RDWR);
 }
 
 /**
@@ -1072,7 +1072,7 @@ THD::THD(bool enable_plugins)
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.flags.enabled= true;
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   active_vio = 0;
 #endif
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
@@ -1343,12 +1343,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
     DBUG_RETURN(cond);
 
-  /* When simulating OOM, skip writing to error log to avoid mtr errors. */
-  cond= DBUG_EVALUATE_IF(
-    "simulate_out_of_memory",
-    NULL,
-    da->push_warning(this, sql_errno, sqlstate, level, msg));
-
   if (level == Sql_condition::WARN_LEVEL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
@@ -1379,6 +1373,16 @@ Sql_condition* THD::raise_condition(uint sql_errno,
 
   query_cache_abort(&query_cache_tls);
 
+  /* 
+     Avoid pushing a condition for fatal out of memory errors as this will 
+     require memory allocation and therefore might fail. Non fatal out of 
+     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
+  */
+  if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
+                           sql_errno == ER_OUTOFMEMORY)))
+  {
+    cond= da->push_warning(this, sql_errno, sqlstate, level, msg);
+  }
   DBUG_RETURN(cond);
 }
 
@@ -1782,7 +1786,7 @@ THD::~THD()
 
   if (variables.gtid_next_list.gtid_set != NULL)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     delete variables.gtid_next_list.gtid_set;
     variables.gtid_next_list.gtid_set= NULL;
     variables.gtid_next_list.is_non_null= false;
@@ -1888,11 +1892,36 @@ void THD::awake(THD::killed_state state_to_set)
 
   if (state_to_set != THD::KILL_QUERY)
   {
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     if (this != current_thd)
     {
-      if(active_vio)
-        vio_shutdown(active_vio, SHUT_RDWR);
+      /*
+        Before sending a signal, let's close the socket of the thread
+        that is being killed ("this", which is not the current thread).
+        This is to make sure it does not block if the signal is lost.
+        This needs to be done only on platforms where signals are not
+        a reliable interruption mechanism.
+
+        Note that the downside of this mechanism is that we could close
+        the connection while "this" target thread is in the middle of
+        sending a result to the application, thus violating the client-
+        server protocol.
+
+        On the other hand, without closing the socket we have a race
+        condition. If "this" target thread passes the check of
+        thd->killed, and then the current thread runs through
+        THD::awake(), sets the 'killed' flag and completes the
+        signaling, and then the target thread runs into read(), it will
+        block on the socket. As a result of the discussions around
+        Bug#37780, it has been decided that we accept the race
+        condition. A second KILL awakes the target from read().
+
+        If we are killing ourselves, we know that we are not blocked.
+        We also know that we will check thd->killed before we go for
+        reading the next statement.
+      */
+
+      shutdown_active_vio();
     }
 #endif
 
@@ -1961,20 +1990,20 @@ void THD::disconnect()
 
   killed= THD::KILL_CONNECTION;
 
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   /*
     Since a active vio might might have not been set yet, in
     any case save a reference to avoid closing a inexistent
     one or closing the vio twice if there is a active one.
   */
   vio= active_vio;
-  close_active_vio();
+  shutdown_active_vio();
 #endif
 
   /* Disconnect even if a active vio is not associated. */
   if (net.vio != vio && net.vio != NULL)
   {
-    vio_close(net.vio);
+    vio_shutdown(net.vio, SHUT_RDWR);
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -2371,7 +2400,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 				      key_length + 1);
   if (!new_table)
   {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
+    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR),
              ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= KILL_CONNECTION;
     return 0;
@@ -2431,15 +2460,15 @@ int THD::send_explain_fields(select_result *result)
                                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
-#ifdef SIGNAL_WITH_VIO_CLOSE
-void THD::close_active_vio()
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
+void THD::shutdown_active_vio()
 {
-  DBUG_ENTER("close_active_vio");
+  DBUG_ENTER("shutdown_active_vio");
   mysql_mutex_assert_owner(&LOCK_thd_data);
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
-    vio_close(active_vio);
+    vio_shutdown(active_vio, SHUT_RDWR);
     active_vio = 0;
   }
 #endif
@@ -2972,7 +3001,7 @@ bool select_export::send_data(List<Item> &items)
       set_if_smaller(estimated_bytes, UINT_MAX32);
       if (cvt_str.realloc((uint32) estimated_bytes))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), (uint32) estimated_bytes);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
         goto err;
       }
 
@@ -3738,11 +3767,11 @@ void Statement_map::reset()
 
 Statement_map::~Statement_map()
 {
-  /* Must go first, hash_free will reset st_hash.records */
-  mysql_mutex_lock(&LOCK_prepared_stmt_count);
-  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
-  prepared_stmt_count-= st_hash.records;
-  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
+  /*
+    We do not want to grab the global LOCK_prepared_stmt_count mutex here.
+    reset() should already have been called to maintain prepared_stmt_count.
+   */
+  DBUG_ASSERT(st_hash.records == 0);
 
   my_hash_free(&names_hash);
   my_hash_free(&st_hash);
@@ -4227,6 +4256,19 @@ extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
   return((unsigned long)thd->thread_id);
 }
 
+/**
+  Check if batching is allowed for the thread
+  @param thd  user thread
+  @retval 1 batching allowed
+  @retval 0 batching not allowed
+*/
+extern "C" int thd_allow_batch(MYSQL_THD thd)
+{
+  if ((thd->variables.option_bits & OPTION_ALLOW_BATCH) ||
+      (thd->slave_thread && opt_slave_allow_batching))
+    return 1;
+  return 0;
+}
 
 #ifdef INNODB_COMPATIBILITY_HOOKS
 extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)

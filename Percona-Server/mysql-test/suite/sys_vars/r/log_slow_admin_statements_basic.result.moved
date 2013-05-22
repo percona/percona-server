@@ -1,0 +1,3 @@
+SELECT @@global.log_slow_admin_statements;
+@@global.log_slow_admin_statements
+0

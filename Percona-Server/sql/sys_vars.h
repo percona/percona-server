@@ -193,9 +193,6 @@ public:
       if (SIGNED)
       {
         longlong max_val= *max_var_ptr();
-        fprintf(stderr, "v = %lld, max_val = %lld\n", v, max_val);
-        fprintf(stderr, "save_result = %lld\n",
-                (longlong)(var->save_result.ulonglong_value));
         if (((longlong)(var->save_result.ulonglong_value)) > max_val)
           var->save_result.ulonglong_value= max_val;
         /*
@@ -218,12 +215,6 @@ public:
       (getopt_constraint_get_min_value(option.name, 0, FALSE));
     vmax= static_cast<const T *>
       (getopt_constraint_get_max_value(option.name, 0, FALSE));
-    if (vmin)
-      fprintf(stderr, "vmin = signed %lld, unsigned %llu\n",
-              (long long)*vmin, (unsigned long long)*vmin);
-    if (vmax)
-      fprintf(stderr, "vmax = signed %lld, unsigned %llu\n",
-              (long long)*vmax, (unsigned long long)*vmax);
 
     if (SIGNED)
     {

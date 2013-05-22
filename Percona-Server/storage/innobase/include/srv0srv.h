@@ -372,6 +372,10 @@ extern my_bool			srv_stats_auto_recalc;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
+extern ibool	srv_use_atomic_writes;
+#ifdef HAVE_POSIX_FALLOCATE
+extern ibool	srv_use_posix_fallocate;
+#endif
 extern ulong	srv_checksum_algorithm;
 
 extern ulong	srv_log_arch_expire_sec;

@@ -180,6 +180,7 @@ static my_bool	innobase_file_format_check		= TRUE;
 static my_bool	innobase_log_archive			= FALSE;
 static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
+static my_bool	innobase_use_atomic_writes		= FALSE;
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
@@ -3451,6 +3452,37 @@ innobase_change_buffering_inited_ok:
 #ifndef EXTENDED_FOR_KILLIDLE
 	srv_kill_idle_transaction = 0;
 #endif
+
+	srv_use_atomic_writes = (ibool) innobase_use_atomic_writes;
+	if (innobase_use_atomic_writes) {
+		ib_logf(IB_LOG_LEVEL_INFO, "using atomic writes.");
+
+		/* Force doublewrite buffer off, atomic writes replace it. */
+		if (srv_use_doublewrite_buf) {
+			ib_logf(IB_LOG_LEVEL_INFO, "switching off doublewrite "
+				"buffer because of atomic writes.");
+			innobase_use_doublewrite = FALSE;
+			srv_use_doublewrite_buf	= FALSE;
+		}
+
+		/* Force O_DIRECT on Unixes (on Windows writes are always
+		unbuffered)*/
+#ifndef _WIN32
+		if(!innobase_file_flush_method ||
+		   !strstr(innobase_file_flush_method, "O_DIRECT")) {
+			innobase_file_flush_method =
+				srv_file_flush_method_str = (char*)"O_DIRECT";
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"using O_DIRECT due to atomic writes.");
+		}
+#endif
+#ifdef HAVE_POSIX_FALLOCATE
+		/* Due to a bug in directFS, using atomics needs
+		posix_fallocate() to extend the file, because pwrite() past the
+		end of the file won't work */
+		srv_use_posix_fallocate = TRUE;
+#endif
+	}
 
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
@@ -16025,6 +16057,15 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(use_atomic_writes, innobase_use_atomic_writes,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Prevent partial page writes, via atomic writes (beta). "
+  "The option is used to prevent partial writes in case of a crash/poweroff, "
+  "as faster alternative to doublewrite buffer. "
+  "Currently this option works only "
+  "on Linux only with FusionIO device, and directFS filesystem.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
@@ -16867,6 +16908,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_enable_binlog),
   MYSQL_SYSVAR(api_enable_mdl),
   MYSQL_SYSVAR(api_disable_rowlock),
+  MYSQL_SYSVAR(use_atomic_writes),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),

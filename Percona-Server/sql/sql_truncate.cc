@@ -35,7 +35,8 @@
   @return TRUE on failure, FALSE otherwise.
 */
 
-static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
+static bool fk_info_append_fields(THD *thd, String *str,
+                                  List<LEX_STRING> *fields)
 {
   bool res= FALSE;
   LEX_STRING *field;
@@ -43,7 +44,7 @@ static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
 
   while ((field= it++))
   {
-    append_identifier(NULL, str, field->str, field->length);
+    res|= append_identifier(thd, str, field->str, field->length);
     res|= str->append(", ");
   }
 
@@ -75,24 +76,24 @@ static const char *fk_info_str(THD *thd, FOREIGN_KEY_INFO *fk_info)
     `db`.`tbl`, CONSTRAINT `id` FOREIGN KEY (`fk`) REFERENCES `db`.`tbl` (`fk`)
   */
 
-  append_identifier(NULL, &str, fk_info->foreign_db->str,
-                    fk_info->foreign_db->length);
+  res|= append_identifier(thd, &str, fk_info->foreign_db->str,
+                          fk_info->foreign_db->length);
   res|= str.append(".");
-  append_identifier(NULL, &str, fk_info->foreign_table->str,
-                    fk_info->foreign_table->length);
+  res|= append_identifier(thd, &str, fk_info->foreign_table->str,
+                          fk_info->foreign_table->length);
   res|= str.append(", CONSTRAINT ");
-  append_identifier(NULL, &str, fk_info->foreign_id->str,
-                    fk_info->foreign_id->length);
+  res|= append_identifier(thd, &str, fk_info->foreign_id->str,
+                          fk_info->foreign_id->length);
   res|= str.append(" FOREIGN KEY (");
-  res|= fk_info_append_fields(&str, &fk_info->foreign_fields);
+  res|= fk_info_append_fields(thd, &str, &fk_info->foreign_fields);
   res|= str.append(") REFERENCES ");
-  append_identifier(NULL, &str, fk_info->referenced_db->str,
-                    fk_info->referenced_db->length);
+  res|= append_identifier(thd, &str, fk_info->referenced_db->str,
+                          fk_info->referenced_db->length);
   res|= str.append(".");
-  append_identifier(NULL, &str, fk_info->referenced_table->str,
-                    fk_info->referenced_table->length);
+  res|= append_identifier(thd, &str, fk_info->referenced_table->str,
+                          fk_info->referenced_table->length);
   res|= str.append(" (");
-  res|= fk_info_append_fields(&str, &fk_info->referenced_fields);
+  res|= fk_info_append_fields(thd, &str, &fk_info->referenced_fields);
   res|= str.append(')');
 
   return res ? NULL : thd->strmake(str.ptr(), str.length());

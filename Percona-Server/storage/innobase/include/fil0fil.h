@@ -38,6 +38,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "ibuf0types.h"
 #include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "trx0types.h"
 
 #include <list>
 
@@ -137,8 +138,6 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_DATA_END	8	/*!< size of the page trailer */
 /* @} */
 
-#ifndef UNIV_INNOCHECKSUM
-
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
 #define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
@@ -157,6 +156,8 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB2
 					/*!< Last page type */
 /* @} */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /** Space types @{ */
 #define FIL_TABLESPACE		501	/*!< tablespace */
@@ -717,9 +718,12 @@ fil_space_get_n_reserved_extents(
 Reads or writes data. This operation is asynchronous (aio).
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
+#define fil_io(type, sync, space_id, zip_size, block_offset, byte_offset, len, buf, message) \
+	_fil_io(type, sync, space_id, zip_size, block_offset, byte_offset, len, buf, message, NULL)
+
 UNIV_INTERN
 dberr_t
-fil_io(
+_fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
 				ORed to OS_FILE_LOG, if a log i/o
@@ -744,8 +748,9 @@ fil_io(
 	void*	buf,		/*!< in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message)	/*!< in: message for aio handler if non-sync
+	void*	message,	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
+	trx_t*	trx)
 	__attribute__((nonnull(8)));
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
@@ -994,5 +999,18 @@ fil_system_hash_cells(void);
 ulint
 fil_system_hash_nodes(void);
 /*========================*/
+
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id);
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id);
 
 #endif /* fil0fil_h */

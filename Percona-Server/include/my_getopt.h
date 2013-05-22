@@ -128,6 +128,24 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
 ulonglong max_of_int_range(int var_type);
 
+/* Get the specific range constraint for the value named. If you do not
+   have the name length availa ble, specify 0. Specify 0 for 'create' to
+   simply obtain the existong value or specify a size value to have the
+   storage allocated if it does not yet exist. */
+extern const void* getopt_constraint_get_max_value(const char *name,
+                                                   size_t length,
+                                                   size_t create);
+extern const void* getopt_constraint_get_min_value(const char *name,
+                                                   size_t length,
+                                                   size_t create);
+extern const my_bool* getopt_constraint_get_hidden_value(const char *name,
+                                                         size_t length,
+                                                         my_bool create);
+extern const my_bool* getopt_constraint_get_readonly_value(const char *name,
+                                                           size_t length,
+                                                           my_bool create);
+
+
 C_MODE_END
 
 #endif /* _my_getopt_h */

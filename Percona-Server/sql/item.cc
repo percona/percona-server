@@ -1002,6 +1002,22 @@ void Name_string::copy(const char *str, size_t length, const CHARSET_INFO *cs)
   }
 }
 
+void Item_name_string::copy_no_truncate(const char *str, size_t length,
+                                        const CHARSET_INFO *cs)
+{
+  if (!my_charset_same(cs, system_charset_info))
+  {
+    size_t res_length;
+    char *tmp= sql_strmake_with_convert(str, length, cs, UINT_MAX,
+                                        system_charset_info, &res_length);
+    set(tmp, tmp ? res_length : 0);
+  }
+  else
+  {
+    char *tmp= sql_strmake(str, length);
+    set(tmp, tmp ? length : 0);
+  }
+}
 
 void Item_name_string::copy(const char *str_arg, size_t length_arg,
                             const CHARSET_INFO *cs_arg,

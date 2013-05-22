@@ -122,6 +122,9 @@ dict_mem_table_create(
 	} else {
 		table->fts = NULL;
 	}
+
+	table->is_corrupt = FALSE;
+
 #endif /* !UNIV_HOTBACKUP */
 
 	return(table);

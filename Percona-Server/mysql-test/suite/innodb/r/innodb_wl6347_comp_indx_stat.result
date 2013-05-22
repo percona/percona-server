@@ -987,7 +987,7 @@ AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
-The size of the tab5.ibd file: 159744 
+The size of the tab5.ibd file: 2097152 
 # fetch the compressed page and check the stats
 ===============
 Fetch Records
@@ -1013,7 +1013,7 @@ AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
-The size of the tab5.ibd file: 159744 
+The size of the tab5.ibd file: 2097152 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
 ===============
@@ -1040,7 +1040,7 @@ AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
 compress_stat	1
-The size of the tab5.ibd file: 159744 
+The size of the tab5.ibd file: 2097152 
 #cleanup
 DROP TABLE IF EXISTS tab5;
 #reset the stat table before starting next testcase

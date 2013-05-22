@@ -2,6 +2,11 @@
 # Check some special create statements.
 #
 
+# This test checks some limits which are related to MAX_INDEXES constant
+# which could be set to non-default value at build time.
+# We just skip the test in this case.
+--source include/have_64_keys.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
@@ -33,7 +38,7 @@ create table t2 select auto+1 from t1;
 drop table if exists t1,t2;
 --error 1167
 create table t1 (b char(0) not null, index(b));
---error 1163
+# BLOB/TEXT fields are now supported by HEAP
 create table t1 (a int not null,b text) engine=heap;
 drop table if exists t1;
 

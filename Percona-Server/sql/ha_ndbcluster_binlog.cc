@@ -1828,12 +1828,9 @@ int ndbcluster_log_schema_op(THD *thd,
     DBUG_RETURN(0);
   }
 
-  char tmp_buf2[FN_REFLEN];
-  char quoted_table1[2 + 2 * FN_REFLEN + 1];
-  char quoted_db1[2 + 2 * FN_REFLEN + 1];
-  char quoted_db2[2 + 2 * FN_REFLEN + 1];
-  char quoted_table2[2 + 2 * FN_REFLEN + 1];
-  int id_length= 0;
+  char tmp_buf2_mem[FN_REFLEN];
+  String tmp_buf2(tmp_buf2_mem, sizeof(tmp_buf2_mem), system_charset_info);
+  tmp_buf2.length(0);
   const char *type_str;
   int also_internal= 0;
   uint32 log_type= (uint32)type;
@@ -1844,15 +1841,10 @@ int ndbcluster_log_schema_op(THD *thd,
     if (thd->lex->sql_command ==  SQLCOM_DROP_DB)
       DBUG_RETURN(0);
     /* redo the drop table query as is may contain several tables */
-    query= tmp_buf2;
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table1,
-                                            table_name, 0);
-    quoted_table1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db1,
-                                            db, 0);
-    quoted_db1[id_length]= '\0';
-    query_length= (uint) (strxmov(tmp_buf2, "drop table ", quoted_db1, ".",
-                                  quoted_table1, NullS) - tmp_buf2);
+    tmp_buf2.append(STRING_WITH_LEN("drop table "));
+    append_identifier(thd, &tmp_buf2, table_name, strlen(table_name));
+    query= tmp_buf2.c_ptr_safe();
+    query_length= tmp_buf2.length();
     type_str= "drop table";
     break;
   case SOT_RENAME_TABLE_PREPARE:
@@ -1861,22 +1853,16 @@ int ndbcluster_log_schema_op(THD *thd,
     break;
   case SOT_RENAME_TABLE:
     /* redo the rename table query as is may contain several tables */
-    query= tmp_buf2;
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db1,
-                                            db, 0);
-    quoted_db1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table1,
-                                            table_name, 0);
-    quoted_table1[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db2,
-                                            new_db, 0);
-    quoted_db2[id_length]= '\0';
-    id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table2,
-                                            new_table_name, 0);
-    quoted_table2[id_length]= '\0';
-    query_length= (uint) (strxmov(tmp_buf2, "rename table ",
-                                  quoted_db1, ".", quoted_table1, " to ",
-                                  quoted_db2, ".", quoted_table2, NullS) - tmp_buf2);
+    tmp_buf2.append(STRING_WITH_LEN("rename table "));
+    append_identifier(thd, &tmp_buf2, db, strlen(db));
+    tmp_buf2.append(STRING_WITH_LEN("."));
+    append_identifier(thd, &tmp_buf2, table_name, strlen(table_name));
+    tmp_buf2.append(STRING_WITH_LEN(" to "));
+    append_identifier(thd, &tmp_buf2, new_db, strlen(new_db));
+    tmp_buf2.append(STRING_WITH_LEN("."));
+    append_identifier(thd, &tmp_buf2, new_table_name, strlen(new_table_name));
+    query= tmp_buf2.c_ptr_safe();
+    query_length= tmp_buf2.length();
     type_str= "rename table";
     break;
   case SOT_CREATE_TABLE:

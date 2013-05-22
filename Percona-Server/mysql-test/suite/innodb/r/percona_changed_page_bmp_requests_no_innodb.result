@@ -1,0 +1,4 @@
+call mtr.add_suppression("Info table is not ready to be used");
+FLUSH CHANGED_PAGE_BITMAPS;
+RESET CHANGED_PAGE_BITMAPS;
+PURGE CHANGED_PAGE_BITMAPS BEFORE 1;

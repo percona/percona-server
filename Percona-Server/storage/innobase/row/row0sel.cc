@@ -57,6 +57,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "read0read.h"
 #include "buf0lru.h"
 #include "ha_prototypes.h"
+#include "srv0start.h"
 
 #include "my_compare.h" /* enum icp_result */
 
@@ -4243,7 +4244,14 @@ rec_loop:
 	if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
 
 wrong_offs:
-		if (srv_force_recovery == 0 || moves_up == FALSE) {
+		if (srv_pass_corrupt_table && index->table->space != 0 &&
+		    index->table->space < SRV_LOG_SPACE_FIRST_ID) {
+			index->table->is_corrupt = TRUE;
+			fil_space_set_corrupt(index->table->space);
+		}
+
+		if ((srv_force_recovery == 0 || moves_up == FALSE)
+		    && srv_pass_corrupt_table <= 1) {
 			ut_print_timestamp(stderr);
 			buf_page_print(page_align(rec), 0,
 				       BUF_PAGE_PRINT_NO_CRASH);
@@ -4298,7 +4306,8 @@ wrong_offs:
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
+	if (UNIV_UNLIKELY(srv_force_recovery > 0)
+	    || (srv_pass_corrupt_table == 2 && index->table->is_corrupt)) {
 		if (!rec_validate(rec, offsets)
 		    || !btr_index_rec_validate(rec, index, FALSE)) {
 			fprintf(stderr,

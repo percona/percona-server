@@ -1801,7 +1801,7 @@ public:
 
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref);
-  virtual void print(String *str, enum_query_type query_type);
+  virtual void print_for_load(THD *thd, String *str);
   void set_null_value(const CHARSET_INFO* cs);
   void set_value(const char *str, uint length, const CHARSET_INFO* cs);
 };

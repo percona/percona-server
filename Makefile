@@ -20,7 +20,7 @@ CONFIGURE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -
 REVS = $(shell bzr log | grep rev | head -1   )
 REV  = $(word 2, $(REVS) )
 
-all: main maatkit-udf install-lic misc
+all: main maatkit-udf install-lic
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -69,10 +69,6 @@ prepare:
 	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
 
 main: prepare
-
-misc:
-	@echo "Installing other files"
-	install -m 644 lrusort.py $(PERCONA_SERVER)/scripts
 
 clean:
 	rm -rf $(RELEASE_DIR) $(DEBUG_DIR)

@@ -84,11 +84,12 @@ read_view_sees_trx_id(
 	trx_id_t		trx_id)	/*!< in: trx id */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Prints a read view to stderr. */
+Prints a read view to file. */
 UNIV_INTERN
 void
 read_view_print(
 /*============*/
+	FILE*			file,	/*!< in: file to print to */
 	const read_view_t*	view);	/*!< in: read view */
 /*********************************************************************//**
 Create a consistent cursor view for mysql to be used in cursors. In this

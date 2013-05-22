@@ -1,0 +1,68 @@
+#
+# Test log_slow_slave_statements
+#
+--source include/have_innodb.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+CREATE TABLE t(id INT) ENGINE=InnoDB;
+sync_slave_with_master;
+
+SET GLOBAL min_examined_row_limit=0;
+SET GLOBAL long_query_time=0;
+SET GLOBAL log_slow_slave_statements=OFF;
+--source include/restart_slave_sql.inc
+
+--let log_file=percona.slow_extended.log_slow_slave_statements
+--source include/log_start.inc
+
+#
+# A statement that should not be slow-logged
+#
+connection master;
+INSERT INTO t VALUES (1);
+sync_slave_with_master;
+
+#
+# A statement that should be slow-logged
+#
+SET GLOBAL log_slow_slave_statements=ON;
+connection master;
+# Explicit transaction to avoid slow-logging implicit BEGIN/COMMIT
+BEGIN;
+INSERT INTO t VALUES (2);
+COMMIT;
+sync_slave_with_master;
+
+#
+# A statement that should not be slow-logged
+#
+SET GLOBAL log_slow_slave_statements=OFF;
+connection master;
+INSERT INTO t VALUES (3);
+sync_slave_with_master;
+
+--source include/log_stop.inc
+
+--let grep_pattern= INSERT INTO t VALUES \(1\)
+--source include/log_grep.inc
+--let grep_pattern= INSERT INTO t VALUES \(2\)
+--source include/log_grep.inc
+--let grep_pattern= INSERT INTO t VALUES \(3\)
+--source include/log_grep.inc
+--let grep_pattern= ^# User@Host: \[SQL_SLAVE\] @  \[\]
+--source include/log_grep.inc
+
+connection master;
+DROP TABLE t;
+sync_slave_with_master;
+
+SET GLOBAL log_slow_slave_statements=default;
+SET GLOBAL long_query_time=default;
+SET GLOBAL min_examined_row_limit=default;
+--source include/rpl_end.inc
+--source include/log_cleanup.inc

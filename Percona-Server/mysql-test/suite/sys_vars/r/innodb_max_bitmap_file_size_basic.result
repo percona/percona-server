@@ -1,0 +1,84 @@
+SET @start_value = @@global.innodb_max_bitmap_file_size;
+SELECT @start_value;
+@start_value
+104857600
+SET @@global.innodb_max_bitmap_file_size = 5000;
+SET @@global.innodb_max_bitmap_file_size = DEFAULT;
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+104857600
+SET @@global.innodb_max_bitmap_file_size = 4096;
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@global.innodb_max_bitmap_file_size = 4097;
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4097
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551614;
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+18446744073709551614
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551615;
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+18446744073709551615
+SET @@global.innodb_max_bitmap_file_size = 4095;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_bitmap_file_size value: '4095'
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_bitmap_file_size'
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@global.innodb_max_bitmap_file_size = 18446744073709551617;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_bitmap_file_size'
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@global.innodb_max_bitmap_file_size = 105.54;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_bitmap_file_size'
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@global.innodb_max_bitmap_file_size = -200;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_bitmap_file_size value: '-200'
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@global.innodb_max_bitmap_file_size = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_bitmap_file_size'
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@global.innodb_max_bitmap_file_size = 'foo';
+ERROR 42000: Incorrect argument type to variable 'innodb_max_bitmap_file_size'
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+4096
+SET @@session.innodb_max_bitmap_file_size = 4096;
+ERROR HY000: Variable 'innodb_max_bitmap_file_size' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.innodb_max_bitmap_file_size;
+ERROR HY000: Variable 'innodb_max_bitmap_file_size' is a GLOBAL variable
+SELECT @@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_bitmap_file_size';
+@@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
+1
+SELECT @@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_bitmap_file_size';
+@@global.innodb_max_bitmap_file_size = VARIABLE_VALUE
+1
+SET @@global.innodb_max_bitmap_file_size=6789;
+SELECT @@global.innodb_max_bitmap_file_size=@@innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size=@@innodb_max_bitmap_file_size
+1
+SET @@global.innodb_max_bitmap_file_size=@start_value;
+SELECT @@global.innodb_max_bitmap_file_size;
+@@global.innodb_max_bitmap_file_size
+104857600

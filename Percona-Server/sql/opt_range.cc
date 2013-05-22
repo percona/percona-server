@@ -13994,7 +13994,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
   }
   if (min_max_ranges.elements > 0)
   {
-    fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n",
+    fprintf(DBUG_FILE, "%*susing %lu quick_ranges for MIN/MAX:\n",
             indent, "", min_max_ranges.elements);
   }
 }

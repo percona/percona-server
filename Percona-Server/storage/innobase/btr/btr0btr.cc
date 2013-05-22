@@ -690,6 +690,12 @@ btr_root_fseg_validate(
 {
 	ulint	offset = mach_read_from_2(seg_header + FSEG_HDR_OFFSET);
 
+	if (UNIV_UNLIKELY(srv_pass_corrupt_table)) {
+		return (mach_read_from_4(seg_header + FSEG_HDR_SPACE) == space)
+			&& (offset >= FIL_PAGE_DATA)
+			&& (offset <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
+	}
+
 	ut_a(mach_read_from_4(seg_header + FSEG_HDR_SPACE) == space);
 	ut_a(offset >= FIL_PAGE_DATA);
 	ut_a(offset <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
@@ -730,6 +736,17 @@ btr_root_block_get(
 	if (!dict_index_is_ibuf(index)) {
 		const page_t*	root = buf_block_get_frame(block);
 
+		if (UNIV_UNLIKELY(srv_pass_corrupt_table)) {
+			if (!btr_root_fseg_validate(FIL_PAGE_DATA
+						    + PAGE_BTR_SEG_LEAF
+						    + root, space))
+				return(NULL);
+			if (!btr_root_fseg_validate(FIL_PAGE_DATA
+						    + PAGE_BTR_SEG_TOP
+						    + root, space))
+				return(NULL);
+			return(block);
+		}
 		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 					    + root, space));
 		ut_a(btr_root_fseg_validate(FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
@@ -1022,7 +1039,7 @@ btr_get_next_user_rec(
 /**************************************************************//**
 Creates a new index page (not the root, and also not
 used in page reorganization).  @see btr_page_empty(). */
-static
+UNIV_INTERN
 void
 btr_page_create(
 /*============*/
@@ -1201,6 +1218,7 @@ btr_get_size(
 	root = btr_root_get(index, mtr);
 
 	if (srv_pass_corrupt_table && !root) {
+		mtr_commit(mtr);
 		return(0);
 	}
 	ut_a(root);
@@ -1999,7 +2017,7 @@ btr_parse_page_reorganize(
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Empties an index page.  @see btr_page_create(). */
-static
+UNIV_INTERN
 void
 btr_page_empty(
 /*===========*/
@@ -4813,6 +4831,12 @@ btr_validate_index(
 
 	bool	ok = true;
 	page_t*	root = btr_root_get(index, &mtr);
+
+	if (UNIV_UNLIKELY(srv_pass_corrupt_table && !root)) {
+	    mtr_commit(&mtr);
+	    return(FALSE);
+	}
+
 	ulint	n = btr_page_get_level(root, &mtr);
 
 	for (ulint i = 0; i <= n; ++i) {

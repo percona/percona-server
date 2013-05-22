@@ -1490,6 +1490,11 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
   table->mdl_ticket= NULL;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
+  if(table->file)
+  {
+    table->file->update_global_table_stats();
+    table->file->update_global_index_stats();
+  }
   *table_ptr=table->next;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
@@ -2147,6 +2152,8 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
                           table->s->db.str, table->s->table_name.str));
 
+  table->file->update_global_table_stats();
+  table->file->update_global_index_stats();
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
@@ -3832,28 +3839,44 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
     entry->file->implicit_emptied= 0;
     if (mysql_bin_log.is_open())
     {
-      bool error= false;
-      String temp_buf;
-      error= temp_buf.append("DELETE FROM ");
-      append_identifier(thd, &temp_buf, share->db.str, strlen(share->db.str));
-      error= temp_buf.append(".");
-      append_identifier(thd, &temp_buf, share->table_name.str,
-                        strlen(share->table_name.str));
-      int errcode= query_error_code(thd, TRUE);
-      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, TRUE, FALSE, errcode))
-        return TRUE;
-      if (error)
+      char query_buf[2*FN_REFLEN + 21];
+      String query(query_buf, sizeof(query_buf), system_charset_info);
+      query.length(0);
+      if (query.ptr())
+      {
+        /* this DELETE FROM is needed even with row-based binlogging */
+        query.append("DELETE FROM ");
+        append_identifier(thd, &query, share->db.str, share->db.length);
+        query.append(".");
+        append_identifier(thd, &query, share->table_name.str,
+                          share->table_name.length);
+        int errcode= query_error_code(thd, TRUE);
+        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query.ptr(), query.length(),
+                              FALSE, FALSE, FALSE, errcode))
+          return FALSE;
+      }
+      else
       {
         /*
           As replication is maybe going to be corrupted, we need to warn the
           DBA on top of warning the client (which will automatically be done
           because of MYF(MY_WME) in my_malloc() above).
         */
+	char q_db_c[512];
+	char q_table_name_c[512];
+	String q_db(q_db_c, sizeof(q_db_c), system_charset_info);
+	String q_table_name(q_table_name_c, sizeof(q_table_name), system_charset_info);
+	q_db.length(0);
+	q_table_name.length(0);
+	append_identifier(thd, &q_db, share->db.str, share->db.length);
+	append_identifier(thd,
+			  &q_table_name,
+			  share->table_name.str,
+			  share->table_name.length);
         sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM `%s`.`%s`' to the binary log",
-                        share->db.str, share->table_name.str);
+                        "to write 'DELETE FROM %s.%s' to the binary log",
+                        q_db.c_ptr(), q_table_name.c_ptr());
         delete entry->triggers;
         return TRUE;
       }
@@ -5048,6 +5071,12 @@ restart:
         if (need_prelocking && ! *start)
           *start= thd->lex->query_tables;
 
+        if (need_prelocking && ! thd->lex->requires_prelocking())
+          thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+        if (need_prelocking && ! *start)
+          *start= thd->lex->query_tables;
+
         if (error)
         {
           if (ot_ctx.can_recover_from_failed_open())
@@ -5367,6 +5396,12 @@ static bool check_lock_and_start_stmt(THD *thd,
   int error;
   thr_lock_type lock_type;
   DBUG_ENTER("check_lock_and_start_stmt");
+
+  /*
+    Prelocking placeholder is not set for TABLE_LIST that
+    are directly used by TOP level statement.
+  */
+  DBUG_ASSERT(table_list->prelocking_placeholder == false);
 
   /*
     TL_WRITE_DEFAULT and TL_READ_DEFAULT are supposed to be parser only

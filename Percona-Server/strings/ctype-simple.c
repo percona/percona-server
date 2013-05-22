@@ -78,21 +78,12 @@ my_strnxfrm_simple(const CHARSET_INFO *cs,
 {
   uchar *map= cs->sort_order;
   uchar *d0= dst;
+  const uchar *end;
   uint frmlen;
   if ((frmlen= MY_MIN(dstlen, nweights)) > srclen)
     frmlen= srclen;
-  if (dst != src)
-  {
-    const uchar *end;
-    for (end= src + frmlen; src < end;)
-      *dst++= map[*src++];
-  }
-  else
-  {
-    const uchar *end;
-    for (end= dst + frmlen; dst < end; dst++)
-      *dst= map[(uchar) *dst];
-  }
+  for (end= src + frmlen; src < end;)
+    *dst++= map[*src++];
   return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, d0 + dstlen,
                                          nweights - frmlen, flags, 0);
 }

@@ -106,6 +106,11 @@ public:
   }
 };
 
+#define QUOTED_IDENTIFIER(str_name, buf_size, q, cs, id_name, id_size) \
+	char buf_##str_name[(buf_size)]; \
+	String str_name((buf_##str_name), (buf_size), (cs)); \
+	str_name.length(0); \
+	str_name.append_identifier((id_name), (id_size), (cs), (q));
 
 class String;
 typedef struct charset_info_st CHARSET_INFO;
@@ -414,6 +419,10 @@ public:
   bool append_with_prefill(const char *s, uint32 arg_length, 
 			   uint32 full_length, char fill_char);
   bool append_parenthesized(long nr, int radix= 10);
+  bool append_identifier(const char *name,
+			 uint length,
+			 const CHARSET_INFO *ci,
+			 int quote_char);
   int strstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   int strrstr(const String &search,uint32 offset=0); // Returns offset to substring or -1
   bool replace(uint32 offset,uint32 arg_length,const char *to,uint32 length);
@@ -516,6 +525,7 @@ public:
     return FALSE;
   }
   void print(String *print);
+  void append_for_single_quote(const char *st, uint len);
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s);

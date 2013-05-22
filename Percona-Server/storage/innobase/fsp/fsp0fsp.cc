@@ -198,6 +198,12 @@ fsp_get_space_header(
 	ut_ad(id || !zip_size);
 
 	block = buf_page_get(id, zip_size, 0, RW_X_LATCH, mtr);
+
+	if (srv_pass_corrupt_table && !block) {
+		return(0);
+	}
+	ut_a(block);
+
 	header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -1656,6 +1662,11 @@ fsp_seg_inode_page_find_free(
 	}
 	ut_a(page);
 
+	if (srv_pass_corrupt_table && !page) {
+		return(ULINT_UNDEFINED);
+	}
+	ut_a(page);
+
 	for (; i < FSP_SEG_INODES_PER_PAGE(zip_size); i++) {
 
 		fseg_inode_t*	inode;
@@ -2796,8 +2807,11 @@ try_again:
 	/* Below we play safe when counting free extents above the free limit:
 	some of them will contain extent descriptor pages, and therefore
 	will not be free extents */
-
-	n_free_up = (size - free_limit) / FSP_EXTENT_SIZE;
+	if (size <= free_limit) {
+		n_free_up = 0;
+	} else {
+		n_free_up = (size - free_limit) / FSP_EXTENT_SIZE;
+	}
 
 	if (n_free_up > 0) {
 		n_free_up--;

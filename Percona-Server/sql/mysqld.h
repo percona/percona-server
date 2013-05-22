@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
 #include "sql_list.h"                      /* I_List */
 #include "sql_cmd.h"                       /* SQLCOM_END */
+#include "hash.h"
 
 class THD;
 struct handlerton;
@@ -100,6 +101,7 @@ extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log, opt_log_raw;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
+extern my_bool opt_query_cache_strip_comments;
 extern ulonglong log_output_options;
 extern ulong log_backup_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
@@ -126,12 +128,18 @@ extern uint slave_rows_last_search_algorithm_used;
 #ifndef EMBEDDED_LIBRARY
 extern "C" int check_enough_stack_size(int);
 #endif
+extern my_bool opt_userstat, opt_thread_statistics;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
 extern size_t opt_secure_backup_file_priv_len;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
+extern my_bool opt_log_slow_sp_statements;
+extern my_bool opt_slow_query_log_timestamp_always;
+extern ulonglong opt_slow_query_log_use_global_control;
+extern ulong opt_slow_query_log_timestamp_precision;
+extern ulong opt_slow_query_log_rate_type;
 extern my_bool sp_automatic_privileges, opt_noacl;
 extern my_bool opt_old_style_user_limits, trust_function_creators;
 extern uint opt_crash_binlog_innodb;
@@ -147,6 +155,7 @@ extern bool opt_using_transactions;
 extern ulong max_long_data_size;
 extern ulong current_pid;
 extern ulong expire_logs_days;
+extern ulong max_binlog_files;
 extern my_bool relay_log_recovery;
 extern uint sync_binlog_period, sync_relaylog_period, 
             sync_relayloginfo_period, sync_masterinfo_period,
@@ -204,6 +213,7 @@ extern ulong extra_max_connections;
 extern ulong thread_created;
 extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
 extern my_bool log_bin_use_v1_row_events;
+extern ulonglong denied_connections;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
@@ -252,6 +262,11 @@ extern SHOW_VAR status_vars[];
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
 extern struct rand_struct sql_rand;
+extern HASH global_user_stats;
+extern HASH global_client_stats;
+extern HASH global_thread_stats;
+extern HASH global_table_stats;
+extern HASH global_index_stats;
 extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
@@ -289,6 +304,14 @@ extern ulong log_warnings;
 
 extern uint mysqld_extra_port;
 
+extern ulonglong opt_log_warnings_suppress;
+
+extern char* enforce_storage_engine;
+
+extern char* utility_user;
+extern char* utility_user_password;
+extern char* utility_user_schema_access;
+
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
   using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
@@ -318,6 +341,8 @@ extern PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
+  key_LOCK_stats, key_LOCK_global_user_client_stats,
+  key_LOCK_global_table_stats, key_LOCK_global_index_stats,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
@@ -570,7 +595,9 @@ extern mysql_mutex_t
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count,
-       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout;
+       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
+       LOCK_stats, LOCK_global_user_client_stats,
+       LOCK_global_table_stats, LOCK_global_index_stats;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -651,7 +678,8 @@ enum options_mysqld
   OPT_SECURE_AUTH,
   OPT_THREAD_CACHE_SIZE,
   OPT_HOST_CACHE_SIZE,
-  OPT_TABLE_DEFINITION_CACHE
+  OPT_TABLE_DEFINITION_CACHE,
+  OPT_SECURE_FILE_PRIV
 };
 
 
@@ -690,6 +718,17 @@ inline __attribute__((warn_unused_result)) query_id_t next_query_id()
   my_atomic_rwlock_wrunlock(&global_query_id_lock);
   return (id+1);
 }
+
+void init_global_user_stats(void);
+void init_global_table_stats(void);
+void init_global_index_stats(void);
+void init_global_client_stats(void);
+void init_global_thread_stats(void);
+void free_global_user_stats(void);
+void free_global_table_stats(void);
+void free_global_index_stats(void);
+void free_global_client_stats(void);
+void free_global_thread_stats(void);
 
 /*
   TODO: Replace this with an inline function.

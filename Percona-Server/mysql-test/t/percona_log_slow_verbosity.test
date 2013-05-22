@@ -1,0 +1,75 @@
+#
+# Test the extended slow query log output format for various log_slow_verbosity values.
+#
+--source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+
+#
+# Test all enabled options with InnoDB-involving query
+#
+SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
+--let log_file=percona.slow_extended.log_slow_verbosity_0
+
+--source include/log_start.inc
+INSERT INTO t1 VALUE(0);
+--source include/log_stop.inc
+
+--echo log_slow_verbosity='microtime,innodb,query_plan':
+--source include/percona_slow_log_verbosity_grep.inc
+
+#
+# Test for "No InnoDB statistics available" in output when InnoDB stats are requested
+# but the query does not involve InnoDB tables
+#
+
+SET SESSION log_slow_verbosity='microtime,innodb,query_plan'; 
+--let log_file=percona.slow_extended.log_slow_verbosity_1
+
+--source include/log_start.inc
+SELECT 1;
+--source include/log_stop.inc
+
+--echo log_slow_verbosity='microtime,innodb,query_plan':
+--source include/percona_slow_log_verbosity_grep.inc
+
+#
+# Test only 'microtime' in the output (bug 730173: InnoDB and query plan information
+# are logged when not enabled)
+#
+SET log_slow_verbosity='microtime';
+--let log_file=percona.slow_extended.log_slow_verbosity_2
+
+--source include/log_start.inc
+INSERT INTO t1 VALUE(1);
+--source include/log_stop.inc
+
+--echo log_slow_verbosity='microtime':
+--source include/percona_slow_log_verbosity_grep.inc
+
+#
+# Test 'query_plan'
+#
+SET log_slow_verbosity='microtime,query_plan';
+--let log_file=percona.slow_extended.log_slow_verbosity_3
+
+--source include/log_start.inc
+INSERT INTO t1 VALUE(2);
+--source include/log_stop.inc
+
+--echo log_slow_verbosity='query_plan':
+--source include/percona_slow_log_verbosity_grep.inc
+
+SET SESSION log_slow_verbosity=default;
+SET SESSION long_query_time=default;
+SET SESSION min_examined_row_limit=default;
+
+DROP TABLE t1;
+--source include/log_cleanup.inc

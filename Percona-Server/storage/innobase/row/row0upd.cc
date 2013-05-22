@@ -23,6 +23,8 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0upd.h"
 
 #ifdef UNIV_NONINL
@@ -1748,7 +1750,10 @@ row_upd_sec_index_entry(
 	able to invoke thd_get_trx(). */
 	btr_pcur_get_btr_cur(&pcur)->thr = thr;
 
-	search_result = row_search_index_entry(index, entry, mode,
+	search_result = row_search_index_entry(index, entry,
+					       trx->fake_changes
+					       ? BTR_SEARCH_LEAF
+					       : (btr_latch_mode)mode,
 					       &pcur, &mtr);
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -2010,9 +2015,11 @@ row_upd_clust_rec_by_insert(
 		the previous invocation of this function. Mark the
 		off-page columns in the entry inherited. */
 
+		if (!(trx->fake_changes)) {
 		change_ownership = row_upd_clust_rec_by_insert_inherit(
 			NULL, NULL, entry, node->update);
 		ut_a(change_ownership);
+		}
 		/* fall through */
 	case UPD_NODE_INSERT_CLUSTERED:
 		/* A lock wait occurred in row_ins_clust_index_entry() in
@@ -2042,7 +2049,7 @@ err_exit:
 		delete-marked old record, mark them disowned by the
 		old record and owned by the new entry. */
 
-		if (rec_offs_any_extern(offsets)) {
+		if (rec_offs_any_extern(offsets) && !(trx->fake_changes)) {
 			change_ownership = row_upd_clust_rec_by_insert_inherit(
 				rec, offsets, entry, node->update);
 
@@ -2197,7 +2204,9 @@ row_upd_clust_rec(
 	the same transaction do not modify the record in the meantime.
 	Therefore we can assert that the restoration of the cursor succeeds. */
 
-	ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
+	ut_a(btr_pcur_restore_position(thr_get_trx(thr)->fake_changes
+				       ? BTR_SEARCH_TREE : BTR_MODIFY_TREE,
+				       pcur, mtr));
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
@@ -2211,7 +2220,7 @@ row_upd_clust_rec(
 		&offsets, offsets_heap, heap, &big_rec,
 		node->update, node->cmpl_info,
 		thr, thr_get_trx(thr)->id, mtr);
-	if (big_rec) {
+	if (big_rec && !(thr_get_trx(thr)->fake_changes)) {
 		ut_a(err == DB_SUCCESS);
 		/* Write out the externally stored
 		columns while still x-latching
@@ -2380,7 +2389,9 @@ row_upd_clust_step(
 	}
 #endif /* UNIV_DEBUG */
 
-	if (dict_index_is_online_ddl(index)) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		mode = BTR_SEARCH_LEAF;
+	} else if (dict_index_is_online_ddl(index)) {
 		ut_ad(node->table->id != DICT_INDEXES_ID);
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 		mtr_s_lock(dict_index_get_lock(index), &mtr);

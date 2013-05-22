@@ -1,0 +1,27 @@
+# -- source include/have_innodb.inc
+# embedded server ignores 'delayed', so skip this
+-- source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+SET @old_sql_mode= @@session.sql_mode;
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET SESSION sql_mode='';
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 VARCHAR(10)) ENGINE=InnoDB;
+
+SET SESSION sql_mode=@old_sql_mode;

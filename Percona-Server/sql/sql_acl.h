@@ -303,6 +303,10 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 int digest_password(THD *thd, LEX_USER *user_record);
 int check_password_strength(String *password);
 int check_password_policy(String *password);
+
+my_bool acl_is_utility_user(const char *user, const char *host,
+                         const char *ip);
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0

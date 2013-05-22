@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -389,6 +389,10 @@ struct sql_ex_info
 #define Q_UPDATED_DB_NAMES 12
 
 #define Q_MICROSECONDS 13
+
+#ifndef DBUG_OFF
+#define Q_QUERY_EXEC_TIME 250
+#endif
 
 /* Intvar event post-header */
 
@@ -1178,7 +1182,8 @@ public:
   */
   static void init_show_field_list(List<Item>* field_list);
 #ifdef HAVE_REPLICATION
-  int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
+  int net_send(THD *thd, Protocol *protocol, const char* log_name,
+               my_off_t pos);
 
   /**
     Stores a string representation of this event in the Protocol.
@@ -1187,7 +1192,7 @@ public:
     @retval 0 success
     @retval nonzero error
   */
-  virtual int pack_info(Protocol *protocol);
+  virtual int pack_info(THD *thd, Protocol *protocol);
 
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
@@ -2118,7 +2123,7 @@ public:
   virtual uchar mts_number_dbs() { return mts_accessed_dbs; }
 
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2404,9 +2409,11 @@ protected:
                      const Format_description_log_event* description_event);
 
 public:
-  uint get_query_buffer_length();
-  void print_query(bool need_db, const char *cs, char *buf, char **end,
-                   char **fn_start, char **fn_end);
+#ifndef MYSQL_CLIENT
+  void print_query(THD *thd, bool need_db, const char *cs, String *buf,
+                   my_off_t *fn_start, my_off_t *fn_end,
+                   const char *qualify_db);
+#endif
   ulong thread_id;
   ulong slave_proxy_id;
   uint32 table_name_len;
@@ -2467,7 +2474,7 @@ public:
                   Name_resolution_context *context);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2566,7 +2573,7 @@ public:
 #ifdef MYSQL_SERVER
   Start_log_event_v3();
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
@@ -2738,7 +2745,7 @@ public:
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
     val(val_arg), type(type_arg) { }
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2816,7 +2823,7 @@ class Rand_log_event: public Log_event
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
     seed1(seed1_arg), seed2(seed2_arg) { }
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2865,7 +2872,7 @@ class Xid_log_event: public Log_event
   xid(x)
   { }
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2927,7 +2934,7 @@ public:
     { 
       is_null= !val;
     }
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -3065,7 +3072,7 @@ public:
 		   uint ident_len_arg,
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3126,7 +3133,7 @@ public:
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3198,7 +3205,7 @@ public:
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD* thd, Protocol* protocol);
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
@@ -3239,7 +3246,7 @@ public:
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD* thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3280,7 +3287,7 @@ public:
 #ifdef MYSQL_SERVER
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD* thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3385,7 +3392,7 @@ public:
                                bool using_trans, bool immediate,
                                bool suppress_use, int errcode);
 #ifdef HAVE_REPLICATION
-  int pack_info(Protocol* protocol);
+  int pack_info(THD* thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3854,7 +3861,7 @@ public:
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual int pack_info(Protocol *protocol);
+  virtual int pack_info(THD* thd, Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -3977,7 +3984,7 @@ public:
   virtual Log_event_type get_general_type_code() = 0; /* General rows op type, no version */
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual int pack_info(Protocol *protocol);
+  virtual int pack_info(THD* thd, Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -4605,7 +4612,7 @@ public:
 #endif
 
 #ifdef MYSQL_SERVER
-  int pack_info(Protocol*);
+  int pack_info(THD*, Protocol*);
 #endif
 
   Incident_log_event(const char *buf, uint event_len,
@@ -4677,7 +4684,7 @@ public:
   virtual ~Ignorable_log_event();
 
 #ifndef MYSQL_CLIENT
-  int pack_info(Protocol*);
+  virtual int pack_info(THD*, Protocol*);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -4708,7 +4715,7 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  int pack_info(Protocol*);
+  virtual int pack_info(THD*, Protocol*);
 #endif
 
   Rows_query_log_event(const char *buf, uint event_len,
@@ -4809,7 +4816,7 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  int pack_info(Protocol*);
+  virtual int pack_info(THD*, Protocol*);
 #endif
 
   Gtid_log_event(const char *buffer, uint event_len,
@@ -4947,7 +4954,7 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  int pack_info(Protocol*);
+  virtual int pack_info(THD*, Protocol*);
 #endif
 
   Previous_gtids_log_event(const char *buffer, uint event_len,

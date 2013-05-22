@@ -2980,16 +2980,7 @@ case SQLCOM_PREPARE:
     {
       mysql_mutex_lock(&LOCK_active_mi);
     }
-    if (active_mi != NULL)
-    {
-      res = show_slave_status(thd, active_mi);
-    }
-    else
-    {
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   WARN_NO_MASTER_INFO, ER(WARN_NO_MASTER_INFO));
-      my_ok(thd);
-    }
+    res = show_slave_status(thd, active_mi);
     if(do_lock)
     {
       mysql_mutex_unlock(&LOCK_active_mi);

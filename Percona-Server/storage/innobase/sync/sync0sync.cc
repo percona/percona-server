@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -514,14 +514,6 @@ spin_loop:
 		os_thread_yield();
 	}
 
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-	fprintf(stderr,
-		"Thread " ULINTPF " spin wait mutex at %p"
-		" '%s' rnds " ULINTPF "\n",
-		os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cmutex_name, i);
-#endif
-
 	mutex_spin_round_count.add(counter_index, i);
 
 	if (ib_mutex_test_and_set(mutex) == 0) {
@@ -583,14 +575,6 @@ spin_loop:
 	/* Now we know that there has been some thread holding the mutex
 	after the change in the wait array and the waiters field was made.
 	Now there is no risk of infinite wait on the event. */
-
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-	fprintf(stderr,
-		"Thread " ULINTPF " OS wait mutex at %p '%s' rnds " ULINTPF
-		"\n",
-		os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cmutex_name, i);
-#endif
 
 	mutex_os_wait_count.add(counter_index, 1);
 

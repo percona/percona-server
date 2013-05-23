@@ -156,6 +156,10 @@ struct trx_purge_t{
 					parallelized purge operation */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
+	read_view_t*	prebuilt_clone;	/*!< Pre-built view which is used as a
+					temporary clone of the oldest view in
+					read_view_purge_open() */
+	read_view_t*	prebuilt_view;	/*!< Pre-built view array */
 	volatile ulint	n_submitted;	/*!< Count of total tasks submitted
 					to the task queue */
 	volatile ulint	n_completed;	/*!< Count of total tasks completed */

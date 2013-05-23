@@ -911,9 +911,6 @@ struct trx_t{
 					survive over a transaction commit, if
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
-	mem_heap_t*	global_read_view_heap;
-					/*!< memory heap for the global read
-					view */
 	read_view_t*	global_read_view;
 					/*!< consistent read view associated
 					to a transaction or NULL */
@@ -923,6 +920,7 @@ struct trx_t{
 					associated to a transaction (i.e.
 					same as global_read_view) or read view
 					associated to a cursor */
+	read_view_t*	prebuilt_view;	/* pre-built view array */
 	/*------------------------------*/
 	UT_LIST_BASE_NODE_T(trx_named_savept_t)
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,

@@ -1215,7 +1215,19 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* Clear variables that are allocated */
     thd->user_connect= 0;
     thd->security_ctx->priv_user= thd->security_ctx->user;
-    res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
+    thd->password= passwd_len > 0;
+
+    /*
+      to limit COM_CHANGE_USER ability to brute-force passwords,
+      we only allow three unsuccessful COM_CHANGE_USER per connection.
+    */
+    if (thd->failed_com_change_user >= 3)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      res= 1;
+    }
+    else
+      res= check_user(thd, COM_CHANGE_USER, passwd, passwd_len, db, FALSE);
 
     if (res)
     {
@@ -1224,6 +1236,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->user_connect= save_user_connect;
       thd->db= save_db;
       thd->db_length= save_db_length;
+      thd->failed_com_change_user++;
+      my_sleep(1000000);
     }
     else
     {

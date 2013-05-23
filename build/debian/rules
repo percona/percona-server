@@ -119,7 +119,7 @@ build-stamp: configure
 	dh_testdir
 
 	$(MAKE) $(MAKE_J)
-ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
+ifneq ($(findstring check,$(DEB_BUILD_OPTIONS)),)
 	if [ ! -f testsuite-stamp ] ; then \
 	  $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
 	fi

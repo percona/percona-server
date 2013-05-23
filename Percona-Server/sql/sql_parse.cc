@@ -6545,11 +6545,15 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     else
       thd->cpu_time = 0;
   }
+
   // Updates THD stats and the global user stats.
-  thd->update_stats(true);
+  if (unlikely(opt_userstat))
+  {
+    thd->update_stats(true);
 #ifndef EMBEDDED_LIBRARY
-  update_global_user_stats(thd, true, time(NULL));
+    update_global_user_stats(thd, true, time(NULL));
 #endif
+  }
 
   DBUG_VOID_RETURN;
 }

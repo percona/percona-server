@@ -44,8 +44,8 @@ read_view_open_now(
 /*===============*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or 0 used in purge */
-	mem_heap_t*	heap);		/*!< in: memory heap from which
-					allocated */
+	read_view_t*&	view);		/*!< in,out: pre-allocated view array or
+					NULL if a new one needs to be created */
 /*********************************************************************//**
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close.
@@ -54,8 +54,11 @@ UNIV_INTERN
 read_view_t*
 read_view_purge_open(
 /*=================*/
-	mem_heap_t*	heap);		/*!< in: memory heap from which
-					allocated */
+	read_view_t*&	clone_view,	/*!< in,out: pre-allocated view that
+					will be used to clone the oldest view if
+					exists */
+	read_view_t*&	view);		/*!< in,out: pre-allocated view array or
+					NULL if a new one needs to be created */
 /*********************************************************************//**
 Remove a read view from the trx_sys->view_list. */
 UNIV_INLINE
@@ -65,6 +68,13 @@ read_view_remove(
 	read_view_t*	view,		/*!< in: read view, can be 0 */
 	bool		own_mutex);	/*!< in: true if caller owns the
 					trx_sys_t::mutex */
+/*********************************************************************//**
+Frees memory allocated by a read view. */
+UNIV_INTERN
+void
+read_view_free(
+/*===========*/
+	read_view_t*&	view);	/*< in,out: read view */
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
@@ -146,6 +156,9 @@ struct read_view_t{
 				this is the "low water mark". */
 	ulint		n_trx_ids;
 				/*!< Number of cells in the trx_ids array */
+	ulint		max_trx_ids;
+				/*!< Maximum number of cells in the trx_ids
+				array */
 	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
 				not see: typically, these are the read-write
 				active transactions at the time when the read

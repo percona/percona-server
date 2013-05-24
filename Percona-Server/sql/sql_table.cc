@@ -184,6 +184,13 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
   diagnostic, error etc. when it would be useful to know what a particular
   file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
 
+  Examples:
+
+    t1#P#p1                 table t1 partition p1
+    t1#P#p1#SP#sp1          table t1 partition p1 subpartition sp1
+    t1#P#p1#SP#sp1#TMP#     table t1 partition p1 subpartition sp1 temporary
+    t1#P#p1#SP#sp1#REN#     table t1 partition p1 subpartition sp1 renamed
+
    @param      thd          Thread handle
    @param      from         Path name in my_charset_filename
                             Null terminated in my_charset_filename, normalized
@@ -222,7 +229,7 @@ uint explain_filename(THD* thd,
   int  part_name_len= 0;
   const char *subpart_name= NULL;
   int  subpart_name_len= 0;
-  enum enum_file_name_type {NORMAL, TEMP, RENAMED} name_type= NORMAL;
+  uint name_variant= NORMAL_PART_NAME;
   const char *tmp_p;
   DBUG_ENTER("explain_filename");
   DBUG_PRINT("enter", ("from '%s'", from));
@@ -265,7 +272,6 @@ uint explain_filename(THD* thd,
                (tmp_p[2] == 'L' || tmp_p[2] == 'l') &&
                 tmp_p[3] == '-')
       {
-        name_type= TEMP;
         tmp_p+= 4; /* sql- prefix found */
       }
       else
@@ -276,7 +282,7 @@ uint explain_filename(THD* thd,
       if ((tmp_p[1] == 'M' || tmp_p[1] == 'm') &&
           (tmp_p[2] == 'P' || tmp_p[2] == 'p') &&
           tmp_p[3] == '#' && !tmp_p[4])
-        name_type= TEMP;
+        name_variant= TEMP_PART_NAME;
       else
         res= 3;
       tmp_p+= 4;
@@ -286,7 +292,7 @@ uint explain_filename(THD* thd,
       if ((tmp_p[1] == 'E' || tmp_p[1] == 'e') &&
           (tmp_p[2] == 'N' || tmp_p[2] == 'n') &&
           tmp_p[3] == '#' && !tmp_p[4])
-        name_type= RENAMED;
+        name_variant= RENAMED_PART_NAME;
       else
         res= 4;
       tmp_p+= 4;
@@ -311,7 +317,7 @@ uint explain_filename(THD* thd,
       subpart_name_len= strlen(subpart_name);
     else
       part_name_len= strlen(part_name);
-    if (name_type != NORMAL)
+    if (name_variant != NORMAL_PART_NAME)
     {
       if (subpart_name)
         subpart_name_len-= 5;
@@ -353,9 +359,9 @@ uint explain_filename(THD* thd,
       to_p= strnmov(to_p, " ", end_p - to_p);
     else
       to_p= strnmov(to_p, ", ", end_p - to_p);
-    if (name_type != NORMAL)
+    if (name_variant != NORMAL_PART_NAME)
     {
-      if (name_type == TEMP)
+      if (name_variant == TEMP_PART_NAME)
         to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
                       end_p - to_p);
       else
@@ -9027,6 +9033,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   end_read_record(&info);
   free_io_cache(from);
   delete [] copy;				// This is never 0
+
+  DEBUG_SYNC(thd, "after_copy_data_between_tables");
 
   if (to->file->ha_end_bulk_insert() && error <= 0)
   {

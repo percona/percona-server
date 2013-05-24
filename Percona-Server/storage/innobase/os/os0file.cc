@@ -61,6 +61,13 @@ Created 10/21/1995 Heikki Tuuri
 #include <libaio.h>
 #endif
 
+#if defined(UNIV_LINUX) && defined(HAVE_SYS_IOCTL_H)
+# include <sys/ioctl.h>
+# ifndef DFS_IOCTL_ATOMIC_WRITE_SET
+#  define DFS_IOCTL_ATOMIC_WRITE_SET _IOW(0x95, 2, uint)
+# endif
+#endif
+
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
 
@@ -1496,6 +1503,35 @@ os_file_set_nocache(
 }
 
 /****************************************************************//**
+Tries to enable the atomic write feature, if available, for the specified file
+handle.
+@return TRUE if success */
+static __attribute__((warn_unused_result))
+ibool
+os_file_set_atomic_writes(
+/*======================*/
+	const char*	name,	/*!< in: name of the file */
+	os_file_t	file)	/*!< in: handle to the file */
+{
+#ifdef DFS_IOCTL_ATOMIC_WRITE_SET
+	int	atomic_option	= 1;
+
+	if (ioctl(file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic_option)) {
+
+		os_file_handle_error_no_exit(name, "ioctl", FALSE);
+		return(FALSE);
+	}
+
+	return(TRUE);
+#else
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"trying to enable atomic writes on non-supported platform! "
+		"Please restart with innodb_use_atomic_writes disabled.\n");
+	return(FALSE);
+#endif
+}
+
+/****************************************************************//**
 NOTE! Use the corresponding macro os_file_create(), not directly
 this function!
 Opens an existing file or creates a new.
@@ -1792,6 +1828,14 @@ os_file_create_func(
 		file = -1;
 	}
 #endif /* USE_FILE_LOCK */
+
+	if (srv_use_atomic_writes && type == OS_DATA_FILE
+	    && os_file_set_atomic_writes(name, file)) {
+
+		*success = FALSE;
+		close(file);
+		file = -1;
+	}
 
 #endif /* __WIN__ */
 
@@ -2101,6 +2145,23 @@ os_file_set_size(
 	ulint		buf_size;
 
 	current_size = 0;
+
+#ifdef HAVE_POSIX_FALLOCATE
+	if (srv_use_posix_fallocate) {
+
+		if (posix_fallocate(file, current_size, size) == -1) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR, "preallocating file "
+				"space for file \'%s\' failed.  Current size "
+				INT64PF ", desired size " INT64PF "\n",
+				name, current_size, size);
+			os_file_handle_error_no_exit (name, "posix_fallocate",
+						      FALSE);
+			return(FALSE);
+		}
+		return(TRUE);
+	}
+#endif
 
 	/* Write up to 1 megabyte at a time. */
 	buf_size = ut_min(64, (ulint) (size / UNIV_PAGE_SIZE))

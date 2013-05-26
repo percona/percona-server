@@ -5556,7 +5556,7 @@ lock_rec_queue_validate(
 		if the check and assertion are covered by the lock mutex. */
 
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
-		impl_trx = trx_rw_is_active_low(trx_id, NULL);
+		impl_trx = trx_rw_get_active_trx_by_id(trx_id, NULL);
 
 		ut_ad(lock_mutex_own());
 		/* impl_trx cannot be committed until lock_mutex_exit()
@@ -6055,7 +6055,9 @@ lock_rec_convert_impl_to_expl(
 		/* If the transaction is still active and has no
 		explicit x-lock set on the record, set one for it */
 
-		impl_trx = trx_rw_is_active(trx_id, NULL);
+		mutex_enter(&trx_sys->mutex);
+		impl_trx = trx_rw_get_active_trx_by_id(trx_id, NULL);
+		mutex_exit(&trx_sys->mutex);
 
 		/* impl_trx cannot be committed until lock_mutex_exit()
 		because lock_trx_release_locks() acquires lock_sys->mutex */
@@ -6843,8 +6845,12 @@ lock_trx_release_locks(
 	}
 
 	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
-	is protected by both the lock_sys->mutex and the trx->mutex. */
+	is protected by both the lock_sys->mutex and the trx->mutex.
+	We also lock trx_sys->mutex, because state transition to
+	TRX_STATE_COMMITTED_IN_MEMORY must be atomic with removing trx
+	from the descriptors array. */
 	lock_mutex_enter();
+	mutex_enter(&trx_sys->mutex);
 	trx_mutex_enter(trx);
 
 	/* The following assignment makes the transaction committed in memory
@@ -6863,6 +6869,8 @@ lock_trx_release_locks(
 
 	/*--------------------------------------*/
 	trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
+	/* The following also removes trx from trx_serial_list */
+	trx_release_descriptor(trx);
 	/*--------------------------------------*/
 
 	/* If the background thread trx_rollback_or_clean_recovered()
@@ -6879,6 +6887,8 @@ lock_trx_release_locks(
 	trx->is_recovered = FALSE;
 
 	trx_mutex_exit(trx);
+
+	mutex_exit(&trx_sys->mutex);
 
 	lock_release(trx);
 

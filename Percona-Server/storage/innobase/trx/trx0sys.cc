@@ -506,6 +506,13 @@ trx_sys_init_at_db_start(void)
 
 	mtr_start(&mtr);
 
+	/* Allocate the trx descriptors array */
+	trx_sys->descriptors = static_cast<trx_id_t*>(
+		ut_malloc(sizeof(trx_id_t) *
+			  TRX_DESCR_ARRAY_INITIAL_SIZE));
+	trx_sys->descr_n_max = TRX_DESCR_ARRAY_INITIAL_SIZE;
+	trx_sys->descr_n_used = 0;
+
 	sys_header = trx_sysf_get(&mtr);
 
 	if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
@@ -1231,6 +1238,9 @@ trx_sys_close(void)
 	mutex_exit(&trx_sys->mutex);
 
 	mutex_free(&trx_sys->mutex);
+
+	ut_ad(trx_sys->descr_n_used == 0);
+	ut_free(trx_sys->descriptors);
 
 	mem_free(trx_sys);
 

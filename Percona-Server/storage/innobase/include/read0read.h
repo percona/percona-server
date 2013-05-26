@@ -32,6 +32,7 @@ Created 2/16/1997 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0lst.h"
 #include "trx0trx.h"
+#include "trx0sys.h"
 #include "read0types.h"
 
 /*********************************************************************//**
@@ -46,6 +47,7 @@ read_view_open_now(
 					transaction, or 0 used in purge */
 	read_view_t*&	view);		/*!< in,out: pre-allocated view array or
 					NULL if a new one needs to be created */
+
 /*********************************************************************//**
 Makes a copy of the oldest existing read view, or opens a new. The view
 must be closed with ..._close.
@@ -154,17 +156,18 @@ struct read_view_t{
 				are strictly smaller (<) than this value.
 				In other words,
 				this is the "low water mark". */
-	ulint		n_trx_ids;
+	ulint		n_descr;
 				/*!< Number of cells in the trx_ids array */
-	ulint		max_trx_ids;
+	ulint		max_descr;
 				/*!< Maximum number of cells in the trx_ids
 				array */
-	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
+	trx_id_t*	descriptors;
+				/*!< Additional trx ids which the read should
 				not see: typically, these are the read-write
 				active transactions at the time when the read
 				is serialized, except the reading transaction
 				itself; the trx ids in this array are in a
-				descending order. These trx_ids should be
+				ascending order. These trx_ids should be
 				between the "low" and "high" water marks,
 				that is, up_limit_id and low_limit_id. */
 	trx_id_t	creator_trx_id;

@@ -83,6 +83,127 @@ trx_set_detailed_error_from_file(
 			    sizeof(trx->detailed_error));
 }
 
+/*************************************************************//**
+Callback function for trx_find_descriptor() to compare trx IDs. */
+UNIV_INTERN
+int
+trx_descr_cmp(
+/*==========*/
+	const void *a,	/*!< in: pointer to first comparison argument */
+	const void *b)	/*!< in: pointer to second comparison argument */
+{
+	const trx_id_t*	da = (const trx_id_t*) a;
+	const trx_id_t*	db = (const trx_id_t*) b;
+
+	if (*da < *db) {
+		return -1;
+	} else if (*da > *db) {
+		return 1;
+	}
+
+	return 0;
+}
+
+/*************************************************************//**
+Reserve a slot for a given trx in the global descriptors array. */
+UNIV_INLINE
+void
+trx_reserve_descriptor(
+/*===================*/
+	const trx_t* trx)	/*!< in: trx pointer */
+{
+	ulint		n_used;
+	ulint		n_max;
+	trx_id_t*	descr;
+
+	ut_ad(mutex_own(&trx_sys->mutex) || srv_is_being_started);
+	ut_ad(srv_is_being_started ||
+	      !trx_find_descriptor(trx_sys->descriptors,
+				   trx_sys->descr_n_used,
+				   trx->id));
+
+	n_used = trx_sys->descr_n_used + 1;
+	n_max = trx_sys->descr_n_max;
+
+	if (UNIV_UNLIKELY(n_used > n_max)) {
+
+		n_max = n_max * 2;
+
+		trx_sys->descriptors = static_cast<trx_id_t*>(
+			ut_realloc(trx_sys->descriptors,
+				   n_max * sizeof(trx_id_t)));
+
+		trx_sys->descr_n_max = n_max;
+	}
+
+	descr = trx_sys->descriptors + n_used - 1;
+
+	if (UNIV_UNLIKELY(n_used > 1 && trx->id < descr[-1])) {
+
+		/* Find the slot where it should be inserted. We could use a
+		binary search, but in reality linear search should be faster,
+		because the slot we are looking for is near the array end. */
+
+		trx_id_t*	tdescr;
+
+		for (tdescr = descr - 1;
+		     tdescr >= trx_sys->descriptors && *tdescr > trx->id;
+		     tdescr--) {
+		}
+
+		tdescr++;
+
+		ut_memmove(tdescr + 1, tdescr, (descr - tdescr) *
+			   sizeof(trx_id_t));
+
+		descr = tdescr;
+	}
+
+	*descr = trx->id;
+
+	trx_sys->descr_n_used = n_used;
+}
+
+/*************************************************************//**
+Release a slot for a given trx in the global descriptors array. */
+UNIV_INTERN
+void
+trx_release_descriptor(
+/*===================*/
+	trx_t* trx)	/*!< in: trx pointer */
+{
+	ulint		size;
+	trx_id_t*	descr;
+
+	ut_ad(mutex_own(&trx_sys->mutex));
+
+	if (UNIV_LIKELY(trx->in_trx_serial_list)) {
+
+		UT_LIST_REMOVE(trx_serial_list, trx_sys->trx_serial_list,
+			       trx);
+		trx->in_trx_serial_list = 0;
+	}
+
+	descr = trx_find_descriptor(trx_sys->descriptors,
+				    trx_sys->descr_n_used,
+				    trx->id);
+
+	if (UNIV_UNLIKELY(descr == NULL)) {
+
+		return;
+	}
+
+	size = (trx_sys->descriptors + trx_sys->descr_n_used - 1 - descr) *
+		sizeof(trx_id_t);
+
+	if (UNIV_LIKELY(size > 0)) {
+
+		ut_memmove(descr, descr + 1, size);
+	}
+
+	trx_sys->descr_n_used--;
+}
+
 /****************************************************************//**
 Creates and initializes a transaction object. It must be explicitly
 started with trx_start_if_not_started() before using it. The default
@@ -108,6 +229,7 @@ trx_create(void)
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
 	trx->no = IB_ULONGLONG_MAX;
+	trx->in_trx_serial_list = 0;
 
 	trx->support_xa = TRUE;
 
@@ -207,11 +329,12 @@ trx_allocate_for_mysql(void)
 }
 
 /********************************************************************//**
-Frees a transaction object. */
+Frees a transaction object without releasing the corresponding descriptor.
+Should be used by callers that already own trx_sys->mutex. */
 static
 void
-trx_free(
-/*=====*/
+trx_free_low(
+/*=========*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -252,6 +375,21 @@ trx_free(
 	read_view_free(trx->prebuilt_view);
 
 	mem_free(trx);
+}
+
+/********************************************************************//**
+Frees a transaction object. */
+static
+void
+trx_free(
+/*=========*/
+	trx_t*	trx)	/*!< in, own: trx object */
+{
+	mutex_enter(&trx_sys->mutex);
+	trx_release_descriptor(trx);
+	mutex_exit(&trx_sys->mutex);
+
+	trx_free_low(trx);
 }
 
 /********************************************************************//**
@@ -328,7 +466,11 @@ trx_free_prepared(
 	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
 
-	trx_free(trx);
+	trx_release_descriptor(trx);
+
+	trx_free_low(trx);
+
+	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->rw_trx_list));
 }
 
 /********************************************************************//**
@@ -595,6 +737,7 @@ trx_lists_init_at_db_start(void)
 
 	UT_LIST_INIT(trx_sys->ro_trx_list);
 	UT_LIST_INIT(trx_sys->rw_trx_list);
+	UT_LIST_INIT(trx_sys->trx_serial_list);
 
 	/* Look from the rollback segments if there exist undo logs for
 	transactions */
@@ -617,6 +760,11 @@ trx_lists_init_at_db_start(void)
 
 			trx = trx_resurrect_insert(undo, rseg);
 
+			if (trx->state == TRX_STATE_ACTIVE ||
+			    trx->state == TRX_STATE_PREPARED) {
+
+				trx_reserve_descriptor(trx);
+			}
 			trx_list_rw_insert_ordered(trx);
 		}
 
@@ -642,6 +790,11 @@ trx_lists_init_at_db_start(void)
 			trx_resurrect_update(trx, undo, rseg);
 
 			if (trx_created) {
+				if (trx->state == TRX_STATE_ACTIVE ||
+				    trx->state == TRX_STATE_PREPARED) {
+
+					trx_reserve_descriptor(trx);
+				}
 				trx_list_rw_insert_ordered(trx);
 			}
 		}
@@ -791,6 +944,8 @@ trx_start_low(
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
 		ut_d(trx_sys->rw_max_trx_id = trx->id);
+
+		trx_reserve_descriptor(trx);
 	}
 
 	ut_ad(trx_sys_validate_trx_list());
@@ -819,6 +974,14 @@ trx_serialisation_number_get(
 	mutex_enter(&trx_sys->mutex);
 
 	trx->no = trx_sys_get_new_trx_id();
+
+	if (UNIV_LIKELY(trx->in_trx_serial_list == 0)) {
+
+		UT_LIST_ADD_LAST(trx_serial_list, trx_sys->trx_serial_list,
+				 trx);
+
+		trx->in_trx_serial_list = 1;
+	}
 
 	/* If the rollack segment is not empty then the
 	new trx_t::no can't be less than any trx_t::no
@@ -1104,6 +1267,8 @@ trx_commit_in_memory(
 		} else {
 			UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 			ut_d(trx->in_rw_trx_list = FALSE);
+			ut_ad(trx_sys->descr_n_used <=
+			      UT_LIST_GET_LEN(trx_sys->rw_trx_list));
 			MONITOR_INC(MONITOR_TRX_RW_COMMIT);
 		}
 
@@ -1219,6 +1384,8 @@ trx_commit_in_memory(
 	ut_ad(!trx->in_rw_trx_list);
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->rw_trx_list));
 
 	trx->error_state = DB_SUCCESS;
 
@@ -1343,9 +1510,13 @@ trx_cleanup_at_db_startup(
 	ut_a(!trx->read_only);
 
 	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
+	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->rw_trx_list));
 
 	assert_trx_in_rw_list(trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
+
+	trx->state = TRX_STATE_NOT_STARTED;
+	trx_release_descriptor(trx);
 
 	mutex_exit(&trx_sys->mutex);
 
@@ -1356,7 +1527,6 @@ trx_cleanup_at_db_startup(
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
 	ut_ad(!trx->in_mysql_trx_list);
-	trx->state = TRX_STATE_NOT_STARTED;
 }
 
 /********************************************************************//**
@@ -1376,11 +1546,8 @@ trx_assign_read_view(
 		return(trx->read_view);
 	}
 
-	if (!trx->read_view) {
-		trx->read_view = read_view_open_now(trx->id,
-						    trx->prebuilt_view);
-		trx->global_read_view = trx->read_view;
-	}
+	trx->read_view = read_view_open_now(trx->id, trx->prebuilt_view);
+	trx->global_read_view = trx->read_view;
 
 	return(trx->read_view);
 }

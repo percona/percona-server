@@ -25,7 +25,7 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.6.10
+%define mysql_version   5.6.11
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 60
 %define minorversion 2
@@ -236,7 +236,7 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-BuildRequires:  %{distro_buildreq}
+BuildRequires:  %{distro_buildreq} pam-devel
 
 # Think about what you use here since the first step is to
 # run a rm -rf

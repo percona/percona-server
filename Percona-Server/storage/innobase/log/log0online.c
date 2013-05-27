@@ -544,7 +544,6 @@ log_online_start_bitmap_file(void)
 		fprintf(stderr,
 			"InnoDB: Error: Cannot create \'%s\'\n",
 			log_bmp_sys->out.name);
-		log_bmp_sys->out.file = -1;
 		return FALSE;
 	}
 
@@ -563,9 +562,9 @@ log_online_rotate_bitmap_file(
 	ib_uint64_t	next_file_start_lsn)	/*!<in: the start LSN name
 						part */
 {
-	if (log_bmp_sys->out.file != -1) {
+	if (log_bmp_sys->out.file != os_file_invalid) {
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = -1;
+		log_bmp_sys->out.file = os_file_invalid;
 	}
 	log_bmp_sys->out_seq_num++;
 	log_online_make_bitmap_name(next_file_start_lsn);
@@ -762,9 +761,9 @@ log_online_read_shutdown(void)
 {
 	ib_rbt_node_t *free_list_node = log_bmp_sys->page_free_list;
 
-	if (log_bmp_sys->out.file != -1) {
+	if (log_bmp_sys->out.file != os_file_invalid) {
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = -1;
+		log_bmp_sys->out.file = os_file_invalid;
 	}
 
 	rbt_free(log_bmp_sys->modified_pages);
@@ -1666,7 +1665,7 @@ log_online_purge_changed_page_bitmaps(
 		/* If we have to delete the current output file, close it
 		first. */
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = -1;
+		log_bmp_sys->out.file = os_file_invalid;
 	}
 
 	for (i = 0; i < bitmap_files.count; i++) {

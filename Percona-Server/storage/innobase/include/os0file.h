@@ -77,6 +77,7 @@ typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
 /** File handle */
 # define os_file_t	HANDLE
+# define os_file_invalid	INVALID_HANDLE_VALUE
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -84,6 +85,7 @@ typedef ib_uint64_t os_offset_t;
 #else
 /** File handle */
 typedef int	os_file_t;
+# define os_file_invalid	(-1)
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */

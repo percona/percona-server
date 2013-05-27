@@ -406,6 +406,9 @@ expected. */
 
 /*-------------------------------------------*/
 
+extern ulint	srv_read_views_memory;
+extern ulint	srv_descriptors_memory;
+
 extern ibool	srv_print_innodb_monitor;
 extern ibool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_innodb_tablespace_monitor;
@@ -960,6 +963,8 @@ struct export_var_t{
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
 	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
+	ulint innodb_read_views_memory;		/*!< srv_read_views_memory */
+	ulint innodb_descriptors_memory;	/*!< srv_descriptors_memory */
 	ib_int64_t innodb_s_lock_os_waits;
 	ib_int64_t innodb_s_lock_spin_rounds;
 	ib_int64_t innodb_s_lock_spin_waits;

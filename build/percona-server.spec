@@ -404,6 +404,7 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -421,6 +422,7 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -712,6 +714,12 @@ mysql_datadir=%{mysqldatadir}
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
+if [ -f $STATUS_FILE ] ; then
+	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
+else
+	SERVER_TO_START=''
+fi
+
 if [ $1 -eq 1 ]; then
 # ----------------------------------------------------------------------
 # Create a MySQL user and group. Do not report any problems if it already
@@ -727,11 +735,6 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # Create data directory if needed, check whether upgrade or install
 # ----------------------------------------------------------------------
 if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
-if [ -f $STATUS_FILE ] ; then
-	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
-else
-	SERVER_TO_START=''
-fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
 	mkdir $mysql_datadir/mysql;
@@ -743,8 +746,13 @@ fi
 if [ ! -d $mysql_datadir/test ]; then 
         mkdir $mysql_datadir/test; 
 fi
+
+# ----------------------------------------------------------------------
+# Initiate databases if needed
+# ----------------------------------------------------------------------
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 fi 
+
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
 # ----------------------------------------------------------------------
@@ -758,9 +766,6 @@ elif [ -x /sbin/insserv ] ; then
         /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
 
-# ----------------------------------------------------------------------
-# Initiate databases if needed
-# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
 # ----------------------------------------------------------------------

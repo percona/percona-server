@@ -1266,7 +1266,10 @@ log_online_setup_bitmap_file_range(
 	os_file_dir_t	bitmap_dir;
 	os_file_stat_t	bitmap_dir_file_info;
 	ulong		first_file_seq_num	= ULONG_MAX;
+	ulong		last_file_seq_num	= 0;
 	ib_uint64_t	first_file_start_lsn	= IB_ULONGLONG_MAX;
+
+	ut_ad(range_end >= range_start);
 
 	bitmap_files->count = 0;
 	bitmap_files->files = NULL;
@@ -1274,7 +1277,7 @@ log_online_setup_bitmap_file_range(
 	/* 1st pass: size the info array */
 
 	bitmap_dir = os_file_opendir(srv_data_home, FALSE);
-	if (!bitmap_dir) {
+	if (UNIV_UNLIKELY(!bitmap_dir)) {
 		fprintf(stderr,
 			"InnoDB: Error: "
 			"failed to open bitmap directory \'%s\'\n",
@@ -1296,12 +1299,17 @@ log_online_setup_bitmap_file_range(
 			continue;
 		}
 
+		if (file_seq_num > last_file_seq_num) {
+
+			last_file_seq_num = file_seq_num;
+		}
+
 		if (file_start_lsn >= range_start
 		    || file_start_lsn == first_file_start_lsn
 		    || first_file_start_lsn > range_start) {
 
 			/* A file that falls into the range */
-			bitmap_files->count++;
+
 			if (file_start_lsn < first_file_start_lsn) {
 
 				first_file_start_lsn = file_start_lsn;
@@ -1319,23 +1327,27 @@ log_online_setup_bitmap_file_range(
 		}
 	}
 
-	ut_a(first_file_seq_num != ULONG_MAX || bitmap_files->count == 0);
+	if (UNIV_UNLIKELY(os_file_closedir(bitmap_dir))) {
 
-	if (os_file_closedir(bitmap_dir)) {
 		os_file_get_last_error(TRUE);
 		fprintf(stderr, "InnoDB: Error: cannot close \'%s\'\n",
 			srv_data_home);
 		return FALSE;
 	}
 
-	if (!bitmap_files->count) {
+	if (first_file_seq_num == ULONG_MAX && last_file_seq_num == 0) {
+
+		bitmap_files->count = 0;
 		return TRUE;
 	}
+
+	bitmap_files->count = last_file_seq_num - first_file_seq_num + 1;
 
 	/* 2nd pass: get the file names in the file_seq_num order */
 
 	bitmap_dir = os_file_opendir(srv_data_home, FALSE);
-	if (!bitmap_dir) {
+	if (UNIV_UNLIKELY(!bitmap_dir)) {
+
 		fprintf(stderr, "InnoDB: Error: "
 			"failed to open bitmap directory \'%s\'\n",
 			srv_data_home);
@@ -1359,11 +1371,25 @@ log_online_setup_bitmap_file_range(
 					       &file_start_lsn)
 		    || file_start_lsn >= range_end
 		    || file_start_lsn < first_file_start_lsn) {
+
 			continue;
 		}
 
 		array_pos = file_seq_num - first_file_seq_num;
+		if (UNIV_UNLIKELY(array_pos >= bitmap_files->count)) {
+
+			fprintf(stderr,
+				"InnoDB: Error: inconsistent bitmap file "
+				"directory for a "
+				"INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query"
+				"\n");
+			free(bitmap_files->files);
+			return FALSE;
+		}
+
+
 		if (file_seq_num > bitmap_files->files[array_pos].seq_num) {
+
 			bitmap_files->files[array_pos].seq_num = file_seq_num;
 			strncpy(bitmap_files->files[array_pos].name,
 				bitmap_dir_file_info.name, FN_REFLEN);
@@ -1374,7 +1400,8 @@ log_online_setup_bitmap_file_range(
 		}
 	}
 
-	if (os_file_closedir(bitmap_dir)) {
+	if (UNIV_UNLIKELY(os_file_closedir(bitmap_dir))) {
+
 		os_file_get_last_error(TRUE);
 		fprintf(stderr, "InnoDB: Error: cannot close \'%s\'\n",
 			srv_data_home);
@@ -1421,15 +1448,18 @@ log_online_open_bitmap_file_read_only(
 	ulint	size_low;
 	ulint	size_high;
 
+	ut_ad(name[0] != '\0');
+
 	ut_snprintf(bitmap_file->name, FN_REFLEN, "%s%s", srv_data_home, name);
 	bitmap_file->file
 		= os_file_create_simple_no_error_handling(bitmap_file->name,
 							  OS_FILE_OPEN,
 							  OS_FILE_READ_ONLY,
 							  &success);
-	if (!success) {
+	if (UNIV_UNLIKELY(!success)) {
+
 		/* Here and below assume that bitmap file names do not
-		   contain apostrophes, thus no need for ut_print_filename(). */
+		contain apostrophes, thus no need for ut_print_filename(). */
 		fprintf(stderr,
 			"InnoDB: Warning: error opening the changed page "
 			"bitmap \'%s\'\n", bitmap_file->name);
@@ -1470,7 +1500,8 @@ log_online_diagnose_bitmap_eof(
 	    || (bitmap_file->offset
 		> bitmap_file->size - MODIFIED_PAGE_BLOCK_SIZE)) {
 
-		if (bitmap_file->offset != bitmap_file->size) {
+		if (UNIV_UNLIKELY(bitmap_file->offset != bitmap_file->size)) {
+
 			/* If we are not at EOF and we have less than one page
 			to read, it's junk.  This error is not fatal in
 			itself. */
@@ -1481,7 +1512,8 @@ log_online_diagnose_bitmap_eof(
 				bitmap_file->name);
 		}
 
-		if (!last_page_in_run) {
+		if (UNIV_UNLIKELY(!last_page_in_run)) {
+
 			/* We are at EOF but the last read page did not finish
 			a run */
 			/* It's a "Warning" here because it's not a fatal error
@@ -1521,6 +1553,7 @@ log_online_bitmap_iterator_init(
 	if (!log_online_setup_bitmap_file_range(&i->in_files, min_lsn,
 		max_lsn)) {
 
+		i->failed = TRUE;
 		return FALSE;
 	}
 
@@ -1528,11 +1561,13 @@ log_online_bitmap_iterator_init(
 
 	/* Open the 1st bitmap file */
 	i->in_i = 0;
-	if (!log_online_open_bitmap_file_read_only(i->in_files.files[i->in_i].
-						   name,
-						   &i->in)) {
+	if (UNIV_UNLIKELY(!log_online_open_bitmap_file_read_only(
+				i->in_files.files[i->in_i].name,
+				&i->in))) {
+
 		i->in_i = i->in_files.count;
 		free(i->in_files.files);
+		i->failed = TRUE;
 		return FALSE;
 	}
 
@@ -1543,6 +1578,7 @@ log_online_bitmap_iterator_init(
 	i->first_page_id = 0;
 	i->last_page_in_run = TRUE;
 	i->changed = FALSE;
+	i->failed = FALSE;
 
 	return TRUE;
 }
@@ -1557,11 +1593,14 @@ log_online_bitmap_iterator_release(
 {
 	ut_a(i);
 
-	if (i->in_i < i->in_files.count) {
+	if (i->in.file != os_file_invalid) {
+
 		os_file_close(i->in.file);
+		i->in.file = os_file_invalid;
 	}
 	ut_free(i->in_files.files);
 	ut_free(i->page);
+	i->failed = TRUE;
 }
 
 /*********************************************************************//**
@@ -1576,10 +1615,11 @@ log_online_bitmap_iterator_next(
 	log_bitmap_iterator_t *i) /*!<in/out: iterator */
 {
 	ibool	checksum_ok = FALSE;
+	ibool	success;
 
 	ut_a(i);
 
-	if (i->bit_offset < MODIFIED_PAGE_BLOCK_BITMAP_LEN)
+	if (UNIV_LIKELY(i->bit_offset < MODIFIED_PAGE_BLOCK_BITMAP_LEN))
 	{
 		++i->bit_offset;
 		i->changed =
@@ -1596,29 +1636,56 @@ log_online_bitmap_iterator_next(
 
 			/* Advance file */
 			i->in_i++;
-			os_file_close(i->in.file);
-			log_online_diagnose_bitmap_eof(&i->in,
-						       i->last_page_in_run);
-			if (i->in_i == i->in_files.count
-			    || i->in_files.files[i->in_i].seq_num == 0) {
+			success = os_file_close_no_error_handling(i->in.file);
+			i->in.file = os_file_invalid;
+			if (UNIV_UNLIKELY(!success)) {
+
+				os_file_get_last_error(TRUE);
+				i->failed = TRUE;
+				return FALSE;
+			}
+
+			success = log_online_diagnose_bitmap_eof(
+					&i->in, i->last_page_in_run);
+			if (UNIV_UNLIKELY(!success)) {
+
+				i->failed = TRUE;
+				return FALSE;
+
+			}
+
+			if (i->in_i == i->in_files.count) {
 
 				return FALSE;
 			}
 
-			if (!log_online_open_bitmap_file_read_only(
+			if (UNIV_UNLIKELY(i->in_files.files[i->in_i].seq_num
+					  == 0)) {
+
+				i->failed = TRUE;
+				return FALSE;
+			}
+
+			success = log_online_open_bitmap_file_read_only(
 					i->in_files.files[i->in_i].name,
-					&i->in)) {
+					&i->in);
+			if (UNIV_UNLIKELY(!success)) {
+
+				i->failed = TRUE;
 				return FALSE;
 			}
 		}
 
-		if (!log_online_read_bitmap_page(&i->in, i->page,
-						 &checksum_ok)) {
+		success = log_online_read_bitmap_page(&i->in, i->page,
+						      &checksum_ok);
+		if (UNIV_UNLIKELY(!success)) {
+
 			os_file_get_last_error(TRUE);
 			fprintf(stderr,
 				"InnoDB: Warning: failed reading "
 				"changed page bitmap file \'%s\'\n",
 				i->in_files.files[i->in_i].name);
+			i->failed = TRUE;
 			return FALSE;
 		}
 	}

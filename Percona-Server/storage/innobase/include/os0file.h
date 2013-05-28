@@ -823,7 +823,6 @@ pfs_os_file_rename_func(
 	ulint		src_line);/*!< in: line where the func invoked */
 #endif	/* UNIV_PFS_IO */
 
-#ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
@@ -832,7 +831,6 @@ ibool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-#endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */

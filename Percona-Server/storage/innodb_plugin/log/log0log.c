@@ -2281,7 +2281,8 @@ loop:
 }
 
 /******************************************************//**
-Reads a specified log segment to a buffer. */
+Reads a specified log segment to a buffer.  Optionally releases the log mutex
+before the I/O.  */
 UNIV_INTERN
 void
 log_group_read_log_seg(
@@ -2290,7 +2291,9 @@ log_group_read_log_seg(
 	byte*		buf,		/*!< in: buffer where to read */
 	log_group_t*	group,		/*!< in: log group */
 	ib_uint64_t	start_lsn,	/*!< in: read area start */
-	ib_uint64_t	end_lsn)	/*!< in: read area end */
+	ib_uint64_t	end_lsn,	/*!< in: read area end */
+	ibool		release_mutex)	/*!< in: whether the log_sys->mutex
+					should be released before the read */
 {
 	ulint	len;
 	ulint	source_offset;
@@ -2320,6 +2323,10 @@ loop:
 
 	log_sys->n_log_ios++;
 
+	if (release_mutex) {
+		mutex_exit(&(log_sys->mutex));
+	}
+
 	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id, 0,
 	       source_offset / UNIV_PAGE_SIZE, source_offset % UNIV_PAGE_SIZE,
 	       len, buf, NULL);
@@ -2329,6 +2336,9 @@ loop:
 
 	if (start_lsn != end_lsn) {
 
+		if (release_mutex) {
+			mutex_enter(&(log_sys->mutex));
+		}
 		goto loop;
 	}
 }
@@ -2818,7 +2828,7 @@ arch_none:
 
 	log_group_read_log_seg(LOG_ARCHIVE, log_sys->archive_buf,
 			       UT_LIST_GET_FIRST(log_sys->log_groups),
-			       start_lsn, limit_lsn);
+			       start_lsn, limit_lsn, FALSE);
 
 	mutex_exit(&(log_sys->mutex));
 

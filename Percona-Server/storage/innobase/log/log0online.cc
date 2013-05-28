@@ -53,6 +53,8 @@ struct log_bitmap_struct {
 					parsed, it points to the start,
 					otherwise points immediatelly past the
 					end of the incomplete log record. */
+	char		bmp_file_home[FN_REFLEN];
+					/*!< directory for bitmap files */
 	log_online_bitmap_file_t out;	/*!< The current bitmap file */
 	ulint		out_seq_num;	/*!< the bitmap file sequence number */
 	lsn_t		start_lsn;	/*!< the LSN of the next unparsed
@@ -489,9 +491,8 @@ log_online_make_bitmap_name(
 	lsn_t	start_lsn)	/*!< in: the start LSN name part */
 {
 	ut_snprintf(log_bmp_sys->out.name, FN_REFLEN, bmp_file_name_template,
-		    srv_data_home, bmp_file_name_stem,
+		    log_bmp_sys->bmp_file_home, bmp_file_name_stem,
 		    log_bmp_sys->out_seq_num, start_lsn);
-
 }
 
 /*********************************************************************//**
@@ -614,6 +615,7 @@ log_online_read_init(void)
 	os_file_dir_t	bitmap_dir;
 	os_file_stat_t	bitmap_dir_file_info;
 	lsn_t	last_file_start_lsn	= MIN_TRACKED_LSN;
+	size_t	srv_data_home_len;
 
 	/* Bitmap data start and end in a bitmap block must be 8-byte
 	aligned. */
@@ -626,16 +628,31 @@ log_online_read_init(void)
 	mutex_create(log_bmp_sys_mutex_key, &log_bmp_sys->mutex,
 		     SYNC_LOG_ONLINE);
 
+	/* Initialize bitmap file directory from srv_data_home and add a path
+	separator if needed.  */
+	srv_data_home_len = strlen(srv_data_home);
+	ut_a (srv_data_home_len < FN_REFLEN);
+	strcpy(log_bmp_sys->bmp_file_home, srv_data_home);
+	if (srv_data_home_len
+	    && log_bmp_sys->bmp_file_home[srv_data_home_len - 1]
+	    != SRV_PATH_SEPARATOR) {
+
+		ut_a (srv_data_home_len < FN_REFLEN - 1);
+		log_bmp_sys->bmp_file_home[srv_data_home_len]
+			= SRV_PATH_SEPARATOR;
+		log_bmp_sys->bmp_file_home[srv_data_home_len + 1] = '\0';
+	}
+
 	/* Enumerate existing bitmap files to either open the last one to get
 	the last tracked LSN either to find that there are none and start
 	tracking from scratch.  */
 	log_bmp_sys->out.name[0] = '\0';
 	log_bmp_sys->out_seq_num = 0;
 
-	bitmap_dir = os_file_opendir(srv_data_home, TRUE);
+	bitmap_dir = os_file_opendir(log_bmp_sys->bmp_file_home, TRUE);
 	ut_a(bitmap_dir);
-	while (!os_file_readdir_next_file(srv_data_home, bitmap_dir,
-					  &bitmap_dir_file_info)) {
+	while (!os_file_readdir_next_file(log_bmp_sys->bmp_file_home,
+					  bitmap_dir, &bitmap_dir_file_info)) {
 
 		ulong	file_seq_num;
 		lsn_t	file_start_lsn;
@@ -650,8 +667,8 @@ log_online_read_init(void)
 		    && bitmap_dir_file_info.size > 0) {
 			log_bmp_sys->out_seq_num = file_seq_num;
 			last_file_start_lsn = file_start_lsn;
-			/* No dir component (srv_data_home) here, because
-			that's the cwd */
+			/* No dir component (log_bmp_sys->bmp_file_home) here,
+			because	that's the cwd */
 			strncpy(log_bmp_sys->out.name,
 				bitmap_dir_file_info.name, FN_REFLEN - 1);
 			log_bmp_sys->out.name[FN_REFLEN - 1] = '\0';
@@ -661,7 +678,7 @@ log_online_read_init(void)
 	if (os_file_closedir(bitmap_dir)) {
 		os_file_get_last_error(TRUE);
 		ib_logf(IB_LOG_LEVEL_ERROR, "cannot close \'%s\'\n",
-			srv_data_home);
+			log_bmp_sys->bmp_file_home);
 		exit(1);
 	}
 

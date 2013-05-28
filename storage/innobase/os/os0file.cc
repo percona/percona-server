@@ -2090,7 +2090,6 @@ os_file_close_func(
 #endif /* __WIN__ */
 }
 
-#ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
@@ -2125,7 +2124,6 @@ os_file_close_no_error_handling(
 	return(TRUE);
 #endif /* __WIN__ */
 }
-#endif /* UNIV_HOTBACKUP */
 
 /***********************************************************************//**
 Gets a file size.

@@ -54,6 +54,7 @@ Created July 18, 2007 Vasil Dimov
 #include "dict0types.h"
 #include "ha_prototypes.h"
 #include "srv0start.h"
+#include "srv0srv.h"
 #include "trx0i_s.h"
 #include "trx0trx.h"
 #include "srv0mon.h"
@@ -8411,6 +8412,13 @@ i_s_innodb_changed_pages_fill(
 	TABLE_LIST*	tables,	/*!<in/out: tables to fill */
 	Item*		cond)	/*!<in: condition */
 {
+	TABLE*			table = (TABLE *) tables->table;
+	log_bitmap_iterator_t	i;
+	ib_uint64_t		output_rows_num = 0UL;
+	lsn_t			max_lsn = LSN_MAX;
+	lsn_t			min_lsn = 0ULL;
+	int			ret = 0;
+
 	DBUG_ENTER("i_s_innodb_changed_pages_fill");
 
 	/* deny access to non-superusers */
@@ -8421,7 +8429,88 @@ i_s_innodb_changed_pages_fill(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
-	DBUG_RETURN(0);
+	if (cond) {
+		limit_lsn_range_from_condition(table, cond, &min_lsn,
+					       &max_lsn);
+	}
+
+	if (!log_online_bitmap_iterator_init(&i, min_lsn, max_lsn)) {
+		DBUG_RETURN(1);
+	}
+
+	while(log_online_bitmap_iterator_next(&i) &&
+	      (!srv_max_changed_pages ||
+	       output_rows_num < srv_max_changed_pages) &&
+	      /*
+		There is no need to compare both start LSN and end LSN fields
+		with maximum value. It's enough to compare only start LSN.
+		Example:
+
+				      max_lsn = 100
+		\\\\\\\\\\\\\\\\\\\\\\\\\|\\\\\\\\	  - Query 1
+		I------I I-------I I-------------I I----I
+		//////////////////	 |		  - Query 2
+		   1	    2		  3	     4
+
+		Query 1:
+		SELECT * FROM INNODB_CHANGED_PAGES WHERE start_lsn < 100
+		will select 1,2,3 bitmaps
+		Query 2:
+		SELECT * FROM INNODB_CHANGED_PAGES WHERE end_lsn < 100
+		will select 1,2 bitmaps
+
+		The condition start_lsn <= 100 will be false after reading
+		1,2,3 bitmaps which suits for both cases.
+	      */
+	      LOG_BITMAP_ITERATOR_START_LSN(i) <= max_lsn)
+	{
+		if (!LOG_BITMAP_ITERATOR_PAGE_CHANGED(i))
+			continue;
+
+		/* SPACE_ID */
+		table->field[0]->store(
+				       LOG_BITMAP_ITERATOR_SPACE_ID(i));
+		/* PAGE_ID */
+		table->field[1]->store(
+				       LOG_BITMAP_ITERATOR_PAGE_NUM(i));
+		/* START_LSN */
+		table->field[2]->store(
+				       LOG_BITMAP_ITERATOR_START_LSN(i), true);
+		/* END_LSN */
+		table->field[3]->store(
+				       LOG_BITMAP_ITERATOR_END_LSN(i), true);
+
+		/*
+		  I_S tables are in-memory tables. If bitmap file is big enough
+		  a lot of memory can be used to store the table. But the size
+		  of used memory can be diminished if we store only data which
+		  corresponds to some conditions (in WHERE sql clause). Here
+		  conditions are checked for the field values stored above.
+
+		  Conditions are checked twice. The first is here (during table
+		  generation) and the second during query execution. Maybe it
+		  makes sense to use some flag in THD object to avoid double
+		  checking.
+		*/
+		if (cond && !cond->val_int())
+			continue;
+
+		if (schema_table_store_record(thd, table))
+		{
+			log_online_bitmap_iterator_release(&i);
+			DBUG_RETURN(1);
+		}
+
+		++output_rows_num;
+	}
+
+	if (i.failed) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+		ret = 1;
+	}
+
+	log_online_bitmap_iterator_release(&i);
+	DBUG_RETURN(ret);
 }
 
 static

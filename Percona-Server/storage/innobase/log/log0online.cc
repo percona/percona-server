@@ -504,12 +504,13 @@ log_online_should_overwrite(
 /*========================*/
 	const char	*path)	/*!< in: path to file */
 {
-	ibool		success;
+	dberr_t		err;
 	os_file_stat_t	file_info;
 
 	/* Currently, it's OK to overwrite 0-sized files only */
-	success = os_file_get_status(path, &file_info, false);
-	return success && file_info.size == 0LL;
+	err = os_file_get_status(path, &file_info, false);
+	return err == DB_SUCCESS && file_info.type == OS_FILE_TYPE_FILE
+		&& file_info.size == 0LL;
 }
 
 /*********************************************************************//**
@@ -527,8 +528,8 @@ log_online_start_bitmap_file(void)
 	if (log_online_should_overwrite(log_bmp_sys->out.name)) {
 
 		success = static_cast<ibool>(
-			os_file_delete(innodb_file_bmp_key,
-				       log_bmp_sys->out.name));
+			os_file_delete_if_exists(innodb_file_bmp_key,
+						 log_bmp_sys->out.name));
 	}
 
 	if (UNIV_LIKELY(success)) {

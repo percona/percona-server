@@ -1,0 +1,60 @@
+# Tests for innodb_max_changed_pages variable
+--source include/have_innodb.inc
+
+SET @start_value = @@global.innodb_max_changed_pages;
+SELECT @start_value;
+
+SET @@global.innodb_max_changed_pages = 5000;
+SET @@global.innodb_max_changed_pages = DEFAULT;
+SELECT @@global.innodb_max_changed_pages;
+
+# Valid boundary values
+SET @@global.innodb_max_changed_pages = 0;
+SELECT @@global.innodb_max_changed_pages;
+SET @@global.innodb_max_changed_pages = 1;
+SELECT @@global.innodb_max_changed_pages;
+SET @@global.innodb_max_changed_pages = 18446744073709551614;
+SELECT @@global.innodb_max_changed_pages;
+SET @@global.innodb_max_changed_pages = 18446744073709551615;
+SELECT @@global.innodb_max_changed_pages;
+
+# Invalid values
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_changed_pages = 18446744073709551616;
+SELECT @@global.innodb_max_changed_pages;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_changed_pages = 18446744073709551617;
+SELECT @@global.innodb_max_changed_pages;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_changed_pages = 105.54;
+SELECT @@global.innodb_max_changed_pages;
+SET @@global.innodb_max_changed_pages = -200;
+SELECT @@global.innodb_max_changed_pages;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_changed_pages = ON;
+SELECT @@global.innodb_max_changed_pages;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_changed_pages = 'foo';
+SELECT @@global.innodb_max_changed_pages;
+
+# Accessing as session variable forbidden
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_max_changed_pages = 4096;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_max_changed_pages;
+
+# Verify INFORMATION_SCHEMA access
+SELECT @@global.innodb_max_changed_pages = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_changed_pages';
+
+SELECT @@global.innodb_max_changed_pages = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_changed_pages';
+
+# Check default scope
+SET @@global.innodb_max_changed_pages=6789;
+SELECT @@global.innodb_max_changed_pages=@@innodb_max_changed_pages;
+
+SET @@global.innodb_max_changed_pages=@start_value;
+SELECT @@global.innodb_max_changed_pages;

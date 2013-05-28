@@ -991,8 +991,8 @@ log_online_follow_log_seg(
 
 	mutex_enter(&log_sys->mutex);
 	log_group_read_log_seg(LOG_RECOVER, log_bmp_sys->read_buf,
-			       group, block_start_lsn, block_end_lsn);
-	mutex_exit(&log_sys->mutex);
+			       group, block_start_lsn, block_end_lsn, TRUE);
+	/* log_group_read_log_seg will release the log_sys->mutex for us */
 
 	while (log_block < log_block_end
 	       && log_bmp_sys->next_parse_lsn < log_bmp_sys->end_lsn) {

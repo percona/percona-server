@@ -76,6 +76,7 @@ extern ulint	os_n_pending_writes;
 #endif
 
 #ifdef __WIN__
+#define SRV_PATH_SEPARATOR	'\\'
 /** File handle */
 # define os_file_t	HANDLE
 # define os_file_invalid	INVALID_HANDLE_VALUE
@@ -84,6 +85,7 @@ extern ulint	os_n_pending_writes;
 @return		native file handle */
 # define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
+#define SRV_PATH_SEPARATOR	'/'
 /** File handle */
 typedef int	os_file_t;
 # define os_file_invalid	(-1)

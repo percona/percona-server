@@ -496,12 +496,6 @@ io_handler_thread(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-#ifdef __WIN__
-#define SRV_PATH_SEPARATOR	'\\'
-#else
-#define SRV_PATH_SEPARATOR	'/'
-#endif
-
 /*********************************************************************//**
 Normalizes a directory path for Windows: converts slashes to backslashes. */
 UNIV_INTERN

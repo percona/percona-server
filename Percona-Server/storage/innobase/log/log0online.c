@@ -510,7 +510,8 @@ log_online_should_overwrite(
 
 	/* Currently, it's OK to overwrite 0-sized files only */
 	success = os_file_get_status(path, &file_info);
-	return success && file_info.size == 0LL;
+	return success && file_info.type == OS_FILE_TYPE_FILE
+		&& file_info.size == 0LL;
 }
 
 /*********************************************************************//**
@@ -526,7 +527,7 @@ log_online_start_bitmap_file(void)
 
 	/* Check for an old file that should be deleted first */
 	if (log_online_should_overwrite(log_bmp_sys->out.name)) {
-		success = os_file_delete(log_bmp_sys->out.name);
+		success = os_file_delete_if_exists(log_bmp_sys->out.name);
 	}
 
 	if (UNIV_LIKELY(success)) {

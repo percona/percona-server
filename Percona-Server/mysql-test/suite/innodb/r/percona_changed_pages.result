@@ -150,4 +150,24 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 COUNT(*)
 5
 SET GLOBAL INNODB_MAX_CHANGED_PAGES = 1000000;
+ib_modified_log_1
+ib_modified_log_2
+ib_modified_log_3
+ib_modified_log_4
+ib_modified_log_5
+ib_modified_log_6
+ib_modified_log_7
+ib_modified_log_8
+ib_modified_log_9
+ib_modified_log_1
+ib_modified_log_2
+ib_modified_log_3
+ib_modified_log_5
+ib_modified_log_6
+ib_modified_log_7
+ib_modified_log_8
+ib_modified_log_9
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN > 10000;
+ERROR HY000: Can't read record in system table
 DROP TABLE T1;

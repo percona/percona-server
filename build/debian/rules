@@ -56,7 +56,7 @@ endif
 
 	# Build UDF
 	cd UDF && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
+	CXX="$${UDF_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --includedir=$(CURDIR)/include \
 			--libdir=$(prefix)/lib/mysql/plugin && \
 	make $(MAKE_JFLAG)

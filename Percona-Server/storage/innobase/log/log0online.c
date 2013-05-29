@@ -43,8 +43,8 @@ UNIV_INTERN mysql_pfs_key_t	log_bmp_sys_mutex_key;
 
 /** Log parsing and bitmap output data structure */
 struct log_bitmap_struct {
-	byte		read_buf[FOLLOW_SCAN_SIZE];
-					/*!< log read buffer */
+	byte*		read_buf_ptr;	/*!< Unaligned log read buffer */
+	byte*		read_buf;	/*!< log read buffer */
 	byte		parse_buf[RECV_PARSING_BUF_SIZE];
 					/*!< log parse buffer */
 	byte*		parse_buf_end;  /*!< parse buffer position where the
@@ -622,6 +622,10 @@ log_online_read_init(void)
 	compile_time_assert(MODIFIED_PAGE_BLOCK_BITMAP_LEN % 8 == 0);
 
 	log_bmp_sys = ut_malloc(sizeof(*log_bmp_sys));
+	log_bmp_sys->read_buf_ptr = ut_malloc(FOLLOW_SCAN_SIZE
+					      + OS_FILE_LOG_BLOCK_SIZE);
+	log_bmp_sys->read_buf = ut_align(log_bmp_sys->read_buf_ptr,
+					 OS_FILE_LOG_BLOCK_SIZE);
 
 	mutex_create(log_bmp_sys_mutex_key, &log_bmp_sys->mutex,
 		     SYNC_LOG_ONLINE);
@@ -794,6 +798,7 @@ log_online_read_shutdown(void)
 
 	mutex_free(&log_bmp_sys->mutex);
 
+	ut_free(log_bmp_sys->read_buf_ptr);
 	ut_free(log_bmp_sys);
 }
 

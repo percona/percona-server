@@ -52,7 +52,7 @@ extern "C" {
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h" /* for innobase_convert_name() */
-#include "srv0srv.h" /* for srv_track_changed_pages */
+#include "srv0srv.h" /* for srv_max_changed_pages */
 #include "srv0start.h" /* for srv_was_started */
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
@@ -7483,10 +7483,6 @@ i_s_innodb_changed_pages_fill(
 	}
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
-	if (!srv_track_changed_pages) {
-		DBUG_RETURN(0);
-	}
 
 	if (cond) {
 		limit_lsn_range_from_condition(table, cond, &min_lsn,

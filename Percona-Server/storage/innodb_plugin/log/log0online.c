@@ -1562,10 +1562,18 @@ log_online_bitmap_iterator_init(
 		return FALSE;
 	}
 
-	ut_a(i->in_files.count > 0);
+	i->in_i = 0;
+
+	if (i->in_files.count == 0) {
+
+		/* Empty range */
+		i->in.file = os_file_invalid;
+		i->page = NULL;
+		i->failed = FALSE;
+		return TRUE;
+	}
 
 	/* Open the 1st bitmap file */
-	i->in_i = 0;
 	if (UNIV_UNLIKELY(!log_online_open_bitmap_file_read_only(
 				i->in_files.files[i->in_i].name,
 				&i->in))) {
@@ -1603,8 +1611,14 @@ log_online_bitmap_iterator_release(
 		os_file_close(i->in.file);
 		i->in.file = os_file_invalid;
 	}
-	ut_free(i->in_files.files);
-	ut_free(i->page);
+	if (i->in_files.files) {
+
+		ut_free(i->in_files.files);
+	}
+	if (i->page) {
+
+		ut_free(i->page);
+	}
 	i->failed = TRUE;
 }
 
@@ -1623,6 +1637,11 @@ log_online_bitmap_iterator_next(
 	ibool	success;
 
 	ut_a(i);
+
+	if (UNIV_UNLIKELY(i->in_files.count == 0)) {
+
+		return FALSE;
+	}
 
 	if (UNIV_LIKELY(i->bit_offset < MODIFIED_PAGE_BLOCK_BITMAP_LEN))
 	{

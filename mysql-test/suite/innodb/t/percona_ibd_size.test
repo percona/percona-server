@@ -1,0 +1,108 @@
+#
+# Test tablespace sizes for various schemas and row counts.  We are especially
+# interested in their sizes around 1MB size, where InnoDB switches from small to
+# big tablespace handling.
+# This is also a regression test for bug 1169494.
+#
+--source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+
+SET GLOBAL innodb_file_per_table=ON;
+
+#
+# Table 1: small rows
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+let IBD_TO_CHECK=t1;
+echo Empty table:;
+--source include/percona_show_ibd_size.inc
+
+let $i = 0;
+
+--disable_query_log
+BEGIN;
+while ($i < 25000) {
+      eval INSERT INTO t1 VALUES($i);
+      inc $i;
+      let $print= `SELECT $i MOD 5000`;
+      if ($print == 0) {
+         COMMIT;
+         echo Rows inserted: $i;
+         source include/percona_show_ibd_size.inc;
+         BEGIN;
+      }
+}
+COMMIT;
+--enable_query_log
+
+DROP TABLE t1;
+
+
+#
+# Table 2: BLOB
+#
+CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB) ENGINE=InnoDB;
+
+let IBD_TO_CHECK=t2;
+echo Empty table:;
+--source include/percona_show_ibd_size.inc
+
+let $i = 0;
+
+--disable_query_log
+BEGIN;
+while ($i < 20) {
+      eval INSERT INTO t2 VALUES($i, REPEAT('a', 30000));
+      inc $i;
+      let $print= `SELECT $i MOD 4`;
+      if ($print == 0) {
+         COMMIT;
+         echo Rows inserted: $i;
+         source include/percona_show_ibd_size.inc;
+         BEGIN;
+      }
+}
+COMMIT;
+--enable_query_log
+
+DROP TABLE t2;
+
+#
+# Table 3: compressed BLOB
+#
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE t3 (a INT PRIMARY KEY, b BLOB)
+       ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+let IBD_TO_CHECK=t3;
+echo Empty table:;
+--source include/percona_show_ibd_size.inc
+
+let $i = 0;
+
+--disable_query_log
+BEGIN;
+while ($i < 40) {
+      eval INSERT INTO t3 VALUES($i, REPEAT('a', 30000));
+      inc $i;
+      let $print= `SELECT $i MOD 8`;
+      if ($print == 0) {
+         COMMIT;
+         echo Rows inserted: $i;
+         source include/percona_show_ibd_size.inc;
+         BEGIN;
+      }
+}
+COMMIT;
+--enable_query_log
+
+DROP TABLE t3;
+
+SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_format=default;

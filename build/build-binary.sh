@@ -107,7 +107,7 @@ PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
-REVISION="$(cd "$SOURCEDIR"; bzr log -r-1 | grep ^revno: | cut -d ' ' -f 2)"
+REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
@@ -153,7 +153,7 @@ fi
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DMYSQL_SERVER_SUFFIX="-$PERCONA_SERVER_VERSION" \
         -DCOMPILATION_COMMENT="$COMMENT" \
-	-DWITH_PAM=ON
+        -DWITH_PAM=ON
 
     make $MAKE_JFLAG $QUIET
     make DESTDIR="$INSTALLDIR" install

@@ -913,7 +913,7 @@ struct trx_t{
 	UT_LIST_NODE_T(trx_t)
 			trx_serial_list;/*!< list node for
 					trx_sys->trx_serial_list */
-	ibool		in_trx_serial_list;
+	bool		in_trx_serial_list;
 					/* Set when transaction is in the
 					trx_serial_list */
 	/*------------------------------*/

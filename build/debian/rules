@@ -191,7 +191,7 @@ install: build
 	# build HandlerSockect
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
 	./autogen.sh && \
-	CXX=g++ ./configure --with-mysql-source="$(MYSQL_SRC)" \
+	CXX="$${HS_CXX:-g++}" ./configure --with-mysql-source="$(MYSQL_SRC)" \
 	--with-mysql-bindir="$(MYSQL_SRC)/scripts" \
 	--with-mysql-plugindir="/usr/lib/mysql/plugin" \
 	--libdir="/usr/lib" \
@@ -199,7 +199,7 @@ install: build
 	$(MAKE)
 	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
 	# build Maatkit UDF
-	cd UDF/ && CXX=g++ ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
+	cd UDF/ && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

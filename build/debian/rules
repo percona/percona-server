@@ -60,7 +60,7 @@ endif
 	echo "Configuring HandlerSocket"
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
 	bash -x autogen.sh && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
+	CXX="$${HS_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --with-mysql-source=$(CURDIR) \
 			--with-mysql-bindir=$(CURDIR)/release/scripts \
 			--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
@@ -70,7 +70,7 @@ endif
 	
 	# Build UDF
 	cd UDF && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
+	CXX="$${UDF_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --includedir=$(CURDIR)/include \
 			--libdir=$(prefix)/lib/mysql/plugin && \
 	make $(MAKE_JFLAG)

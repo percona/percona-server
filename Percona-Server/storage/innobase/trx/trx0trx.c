@@ -219,7 +219,7 @@ trx_create(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(sess);
 
-	trx = mem_alloc(sizeof(trx_t));
+	trx = ut_malloc(sizeof(trx_t));
 
 	trx->magic_n = TRX_MAGIC_N;
 
@@ -488,7 +488,7 @@ trx_free(
 
 	trx_release_descriptor(trx);
 
-	mem_free(trx);
+	ut_free(trx);
 }
 
 /********************************************************************//**
@@ -546,7 +546,7 @@ trx_free_prepared(
 
 	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->trx_list));
 
-	mem_free(trx);
+	ut_free(trx);
 }
 
 /********************************************************************//**

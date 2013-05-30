@@ -3,5 +3,4 @@ usr/include
 usr/lib/libmysqlclient.a
 usr/lib/libmysqlclient_r.a
 usr/lib/libmysqlservices.a
-usr/lib/libhsclient.a
 usr/share/man/man1/mysql_config.1

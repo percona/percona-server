@@ -24,7 +24,7 @@ QUIET=''
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="iKqH" --longoptions=i686,nosign,quiet \
+    go_out="$(getopt --options="iKq" --longoptions=i686,nosign,quiet \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -143,7 +143,7 @@ cp -f $(readlink -f $(dirname $0))/rpm/*.patch ${WORKDIR}/SOURCES/
     cd "$WORKDIR"
 
     # Issue RPM command
-    rpmbuild -ba --clean --with yassl $TARGET $SIGN $QUIET \
+    rpmbuild -ba --clean $TARGET $SIGN $QUIET \
         "$SOURCEDIR/build/percona-server.spec" \
         --define "_topdir $WORKDIR_ABS" \
         --define "redhat_version $REDHAT_RELEASE" \

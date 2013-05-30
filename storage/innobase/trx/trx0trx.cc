@@ -236,6 +236,7 @@ trx_create(void)
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
 	trx->no = TRX_ID_MAX;
+	trx->in_trx_serial_list = false;
 
 	trx->support_xa = TRUE;
 
@@ -450,10 +451,16 @@ trx_free_prepared(
 	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
 
+	mutex_enter(&trx_sys->mutex);
+	trx_release_descriptor(trx);
+	mutex_exit(&trx_sys->mutex);
+
 	/* Undo trx_resurrect_table_locks(). */
 	UT_LIST_INIT(trx->lock.trx_locks);
 
-	trx_free(trx);
+	trx_free_low(trx);
+
+	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->rw_trx_list));
 }
 
 /********************************************************************//**

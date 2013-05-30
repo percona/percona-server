@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 04/05/2013
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.5
+.\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "04/05/2013" "MySQL 5\&.6" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -27,7 +36,37 @@ mysql_install_db \- initialize MySQL data directory
 .SH "DESCRIPTION"
 .PP
 \fBmysql_install_db\fR
-initializes the MySQL data directory and creates the system tables that it contains, if they do not exist\&.
+initializes the MySQL data directory and creates the system tables that it contains, if they do not exist\&. It also initializes the
+system tablespace
+and related data structures needed to manage
+InnoDB
+tables\&. As of MySQL 5\&.6\&.8,
+\fBmysql_install_db\fR
+is a Perl script and can be used on any system with Perl installed\&. Before 5\&.6\&.8, it is a shell script and is available only on Unix platforms\&.
+.PP
+As of MySQL 5\&.6\&.8, on Unix platforms,
+\fBmysql_install_db\fR
+creates a default option file named
+my\&.cnf
+in the base installation directory\&. This file is created from a template included in the distribution package named
+my\-default\&.cnf\&. You can find the template in or under the base installation directory\&. When started using
+\fBmysqld_safe\fR, the server uses
+my\&.cnf
+file by default\&. If
+my\&.cnf
+already exists,
+\fBmysql_install_db\fR
+assumes it to be in use and writes a new file named
+my\-new\&.cnf
+instead\&.
+.PP
+With one exception, the settings in the default option file are commented and have no effect\&. The exception is that the file changes the
+sql_mode
+system variable from its default of
+NO_ENGINE_SUBSTITUTION
+to also include
+STRICT_TRANS_TABLES\&. This setting produces a server configuration that results in errors rather than warnings for bad data in operations that modify transactional tables\&. See
+Section\ \&5.1.7, \(lqServer SQL Modes\(rq\&.
 .PP
 To invoke
 \fBmysql_install_db\fR, use the following syntax:
@@ -45,7 +84,7 @@ shell> \fBmysql_install_db [\fR\fB\fIoptions\fR\fR\fB]\fR
 Because the MySQL server,
 \fBmysqld\fR, needs to access the data directory when it runs later, you should either run
 \fBmysql_install_db\fR
-from the same account that will be used for running
+from the same system account that will be used for running
 \fBmysqld\fR
 or run it as
 root
@@ -80,18 +119,7 @@ with the
 \fB\-\-bootstrap\fR
 and
 \fB\-\-skip\-grant\-tables\fR
-options\&. If MySQL was configured with the
-\fBDISABLE_GRANT_OPTIONS\fR
-compiler flag,
-\fB\-\-bootstrap\fR
-and
-\fB\-\-skip\-grant\-tables\fR
-will be disabled (see
-Section\ \&2.9.4, \(lqMySQL Source-Configuration Options\(rq)\&. To handle this, set the
-MYSQLD_BOOTSTRAP
-environment variable to the full path name of a server that has all options enabled\&.
-\fBmysql_install_db\fR
-will use that server\&.
+options\&.
 .if n \{\
 .sp
 .\}
@@ -107,28 +135,44 @@ will use that server\&.
 .PP
 If you have set a custom
 TMPDIR
-variable when performing the installation, and the specified directory is not accessible, the execution of
+environment variable when performing the installation, and the specified directory is not accessible,
 \fBmysql_install_db\fR
-may fail\&. You should unset
-TMPDIR, or set
+may fail\&. If so, unset
+TMPDIR
+or set
 TMPDIR
 to point to the system temporary directory (usually
 /tmp)\&.
+.PP
+After
+\fBmysql_install_db\fR
+sets up the
+InnoDB
+system tablespace, changes to some of tablespace characteristics require setting up a whole new
+instance\&. This includes the file name of the first file in the system tablespace and the number of undo logs\&. If you do not want to use the default values, make sure that the settings for the
+innodb_data_file_path
+and
+innodb_log_file_size
+configuration options are in place in the MySQL
+configuration file
+before running
+\fBmysql_install_db\fR\&.
 .sp .5v
 .RE
 .PP
 \fBmysql_install_db\fR
 supports the following options, which can be specified on the command line or in the
 [mysql_install_db]
-and (if they are common to
-\fBmysqld\fR)
+group of an option file\&. (Options that are common to
+\fBmysqld\fR
+can also be specified in the
 [mysqld]
-groups of an option file\&. Other options are passed to
+group\&.) Other options are passed to
 \fBmysqld\fR\&. For information about option files, see
 Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.
 \fBmysql_install_db\fR
 also supports the options for processing option files described at
-Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -153,13 +197,16 @@ The path to the MySQL installation directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: force option
-.\" force option: mysql_install_db
-\fB\-\-force\fR
+.\" mysql_install_db: datadir option
+.\" datadir option: mysql_install_db
+.\" mysql_install_db: ldata option
+.\" ldata option: mysql_install_db
+\fB\-\-datadir=\fR\fB\fIpath\fR\fR,
+\fB\-\-ldata=\fR\fB\fIpath\fR\fR
 .sp
-Cause
+The path to the MySQL data directory\&. Beginning with MySQL 5\&.6\&.8,
 \fBmysql_install_db\fR
-to run even if DNS does not work\&. In that case, grant table entries that normally use host names will use IP addresses\&.
+is more strict about the option value\&. Only the last component of the path name is created if it does not exist; the parent directory must already exist or an error occurs\&.
 .RE
 .sp
 .RS 4
@@ -170,14 +217,128 @@ to run even if DNS does not work\&. In that case, grant table entries that norma
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: datadir option
-.\" datadir option: mysql_install_db
-.\" mysql_install_db: ldata option
-.\" ldata option: mysql_install_db
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR,
-\fB\-\-ldata=\fR\fB\fIpath\fR\fR
+.\" mysql_install_db: force option
+.\" force option: mysql_install_db
+\fB\-\-force\fR
 .sp
-The path to the MySQL data directory\&.
+Cause
+\fBmysql_install_db\fR
+to run even if DNS does not work\&. Grant table entries that normally use host names will use IP addresses\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: random-passwords option
+.\" random-passwords option: mysql_install_db
+\fB\-\-random\-passwords\fR
+.sp
+On Unix platforms, this option provides for more secure MySQL installation\&. Invoking
+\fBmysql_install_db\fR
+with
+\fB\-\-random\-passwords\fR
+causes it to perform the following actions in addition to its normal operation:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Create a random password, assign it to the initial MySQL
+root
+accounts, and set the
+\(lqpassword expired\(rq
+flag for those accounts\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Write the initial password file to the
+\&.mysql_secret
+file in the directory named by the
+HOME
+environment variable\&. Depending on operating system, using a command such as
+\fBsudo\fR
+may cause the value of
+HOME
+to refer to the home directory of the
+root
+system user\&.
+.sp
+If
+\&.mysql_secret
+already exists, the new password information is appended to it\&. Each password entry includes a timestamp so that in the event of multiple install operations it is possible to determine the password associated with each one\&.
+.sp
+\&.mysql_secret
+is created with mode 600 to be accessible only to the system user for whom it is created\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Remove the anonymous\-user MySQL accounts\&.
+.RE
+.sp
+As a result of these actions, it is necessary after installation to start the server, connect as
+root
+using the password written to the
+\&.mysql_secret
+file, and to assign a new
+root
+password\&. Until this is done,
+root
+cannot do anything else\&. This must be done for each
+root
+account you intend to use\&. To change the password, you can use the
+SET PASSWORD
+statement (for example, with the
+\fBmysql\fR
+client)\&. You can also use
+\fBmysqladmin\fR
+or
+\fBmysql_secure_installation\fR\&.
+.sp
+New RPM install operations (not upgrades) invoke
+\fBmysql_install_db\fR
+with the
+\fB\-\-random\-passwords\fR
+option\&. (Install operations using RPMs for Unbreakable Linux Network are unaffected because they do not use
+\fBmysql_install_db\fR\&.)
+.sp
+As of MySQL 5\&.6\&.9, new Solaris PKG install operations (not upgrades) invoke
+\fBmysql_install_db\fR
+with the
+\fB\-\-random\-passwords\fR
+option\&.
+.sp
+For install operations using a binary
+\&.tar\&.gz
+distribution or a source distribution, you can invoke
+\fBmysql_install_db\fR
+with the
+\fB\-\-random\-passwords\fR
+option manually to make your MySQL installation more secure\&. This is recommended, particularly for sites with sensitive data\&.
+.sp
+This option was added in MySQL 5\&.6\&.8\&.
 .RE
 .sp
 .RS 4
@@ -192,7 +353,7 @@ The path to the MySQL data directory\&.
 .\" rpm option: mysql_install_db
 \fB\-\-rpm\fR
 .sp
-For internal use\&. This option is used by RPM files during the MySQL installation process\&.
+For internal use\&. This option is used during the MySQL installation process for install operations performed using RPM packages\&.
 .RE
 .sp
 .RS 4
@@ -222,7 +383,7 @@ Use IP addresses rather than host names when creating grant table entries\&. Thi
 .\" srcdir option: mysql_install_db
 \fB\-\-srcdir=\fR\fB\fIpath\fR\fR
 .sp
-For internal use\&. The directory under which
+For internal use\&. This option specifies the directory under which
 \fBmysql_install_db\fR
 looks for support files such as the error message file and the file for populating the help tables\&.
 .RE
@@ -239,7 +400,7 @@ looks for support files such as the error message file and the file for populati
 .\" user option: mysql_install_db
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
 .sp
-The login user name to use for running
+The system (login) user name to use for running
 \fBmysqld\fR\&. Files and directories created by
 \fBmysqld\fR
 will be owned by this user\&. You must be
@@ -281,13 +442,42 @@ For internal use\&. This option is used for creating Windows distributions\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
 .PP
-This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
+.PP
+U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
+.PP
+This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
+.PP
+Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
+.PP
+This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
+.PP
+This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
+.PP
+This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
+.PP
+You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
+.PP
+For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
+\m[blue]\fBMySQL Contact & Questions\fR\m[].
+.PP
+For additional licensing information, including licenses for third-party libraries used by MySQL products, see
+Preface and Legal Notices.
+.PP
+For help with using MySQL, please visit either the
+\m[blue]\fBMySQL Forums\fR\m[]
+or
+\m[blue]\fBMySQL Mailing Lists\fR\m[]
+where you can discuss your issues with other MySQL users.
+.PP
+For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
+\m[blue]\fBMySQL Documentation Library\fR\m[].
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

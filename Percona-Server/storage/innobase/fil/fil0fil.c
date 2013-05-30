@@ -2426,15 +2426,11 @@ try_again:
 	To deal with potential read requests by checking the
 	::stop_new_ops flag in fil_io() */
 
-	if (srv_lazy_drop_table) {
-		buf_LRU_mark_space_was_deleted(id);
-	} else {
 	buf_LRU_flush_or_remove_pages(
 		id, evict_all
 		? BUF_REMOVE_ALL_NO_WRITE
 		: BUF_REMOVE_FLUSH_NO_WRITE);
 
-	}
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 
@@ -4865,6 +4861,26 @@ fil_extend_space_to_desired_size(
 	start_page_no = space->size;
 	file_start_page_no = space->size - node->size;
 
+#ifdef HAVE_POSIX_FALLOCATE
+	if (srv_use_posix_fallocate) {
+		offset_high = (size_after_extend - file_start_page_no)
+			* page_size / (4ULL * 1024 * 1024 * 1024);
+		offset_low = (size_after_extend - file_start_page_no)
+			* page_size % (4ULL * 1024 * 1024 * 1024);
+
+		mutex_exit(&fil_system->mutex);
+		success = os_file_set_size(node->name, node->handle,
+					   offset_low, offset_high);
+		mutex_enter(&fil_system->mutex);
+		if (success) {
+			node->size += (size_after_extend - start_page_no);
+			space->size += (size_after_extend - start_page_no);
+			os_has_said_disk_full = FALSE;
+		}
+		goto complete_io;
+	}
+#endif
+
 	/* Extend at most 64 pages at a time */
 	buf_size = ut_min(64, size_after_extend - start_page_no) * page_size;
 	buf2 = mem_alloc(buf_size + page_size);
@@ -4922,6 +4938,10 @@ fil_extend_space_to_desired_size(
 	mem_free(buf2);
 
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
+
+#ifdef HAVE_POSIX_FALLOCATE
+complete_io:
+#endif
 
 	*actual_size = space->size;
 
@@ -5304,22 +5324,6 @@ _fil_io(
 		srv_data_written+= len;
 	}
 
-	/* if the table space was already deleted, space might not exist already. */
-	if (message
-	    && space_id < SRV_LOG_SPACE_FIRST_ID
-	    && ((buf_page_t*)message)->space_was_being_deleted) {
-
-		if (mode == OS_AIO_NORMAL) {
-			buf_page_io_complete(message);
-			return(DB_SUCCESS); /*fake*/
-		}
-		if (type == OS_FILE_READ) {
-			return(DB_TABLESPACE_DELETED);
-		} else {
-			return(DB_SUCCESS); /*fake*/
-		}
-	}
-
 	/* Reserve the fil_system mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
@@ -5465,20 +5469,6 @@ _fil_io(
 	}
 #endif
 
-	/* if the table space was already deleted, space might not exist already. */
-	if (message
-	    && space_id < SRV_LOG_SPACE_FIRST_ID
-	    && ((buf_page_t*)message)->space_was_being_deleted) {
-
-		if (mode == OS_AIO_SYNC) {
-			if (type == OS_FILE_READ) {
-				return(DB_TABLESPACE_DELETED);
-			} else {
-				return(DB_SUCCESS); /*fake*/
-			}
-		}
-	}
-
 	ut_a(ret);
 
 	if (mode == OS_AIO_SYNC) {
@@ -5599,21 +5589,6 @@ fil_aio_wait(
 
 		ret = os_aio_simulated_handle(segment, &fil_node,
 					      &message, &type, &space_id);
-	}
-
-	/* if the table space was already deleted, fil_node might not exist already. */
-	if (message
-	    && space_id < SRV_LOG_SPACE_FIRST_ID
-	    && ((buf_page_t*)message)->space_was_being_deleted) {
-
-		/* intended not to be uncompress read page */
-		ut_a(buf_page_get_io_fix_unlocked(message) == BUF_IO_WRITE
-		     || !buf_page_get_zip_size(message)
-		     || buf_page_get_state(message) != BUF_BLOCK_FILE_PAGE);
-
-		srv_set_io_thread_op_info(segment, "complete io for buf page");
-		buf_page_io_complete(message);
-		return;
 	}
 
 	ut_a(ret);

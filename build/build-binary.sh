@@ -149,6 +149,7 @@ fi
         -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \
+        -DWITH_SSL=system \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DMYSQL_SERVER_SUFFIX="-$PERCONA_SERVER_VERSION" \

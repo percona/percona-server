@@ -2,12 +2,11 @@ Source: percona-server-5.5
 Section: database
 Priority: extra
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
-Uploaders: Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
+Uploaders: Ignacio Nin <ignacio.nin@percona.com>
 Build-Depends: debhelper (>= 7.0.50), cmake, libtool, autoconf, libncurses5-dev, perl, bison, fakeroot, devscripts, libaio-dev, libpam-dev, dpatch, automake
 Standards-Version: 7.0.0
 Homepage: http://www.percona.com/software/percona-server/
-Vcs-Bzr: bzr+ssh://bazaar.launchpad.net/~percona-dev/percona-server/release-5.5.8-20/
-Vcs-Browser: http://bazaar.launchpad.net/~percona-dev/percona-server/release-5.5.8-20/files
+Vcs-Bzr: lp:percona-server/5.5
 
 Package: libmysqlclient18
 Section: libs
@@ -78,7 +77,7 @@ Description: Percona Server database client binaries
 Package: percona-server-server-5.5
 Architecture: any
 Suggests: tinyca
-Depends: percona-server-client-5.5 (>= ${source:Version}), libdbi-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), percona-server-common-5.5 (>= ${source:Version}), adduser (>= 3.40), debconf
+Depends: percona-server-client-5.5 (>= ${source:Version}), libdbi-perl, libdbd-mysql-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), percona-server-common-5.5 (>= ${source:Version}), adduser (>= 3.40), debconf
 Conflicts: mysql-server (<< ${source:Version}), mysql-server-4.1, mysql-server-5.5, mysql-server-core-5.1, mysql-server-core-5.5, percona-xtradb-server-5.0, percona-server-server-5.1
 Provides: mysql-server, mysql-server-core, mysql-server-5.5, mysql-server-core-5.5
 Replaces: mysql-server (<< ${source:Version}), mysql-server-5.0, mysql-server-core-5.1, mysql-server-core-5.5, percona-xtradb-server-5.0, percona-server-server-5.1

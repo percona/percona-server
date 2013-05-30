@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2002,27 +2002,6 @@ lookup:
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	}
 
-	if (UNIV_UNLIKELY(bpage->space_was_being_deleted)) {
-		/* This page is obsoleted, should discard and retry */
-		rw_lock_s_unlock(&buf_pool->page_hash_latch);
-
-		mutex_enter(&buf_pool->LRU_list_mutex);
-		block_mutex = buf_page_get_mutex_enter(bpage);
-
-		if (UNIV_UNLIKELY(!block_mutex)) {
-			mutex_exit(&buf_pool->LRU_list_mutex);
-			goto lookup;
-		}
-
-		buf_LRU_free_block(bpage, TRUE, TRUE);
-
-		mutex_exit(&buf_pool->LRU_list_mutex);
-		mutex_exit(block_mutex);
-		block_mutex = NULL;
-
-		goto lookup;
-	}
-
 	if (UNIV_UNLIKELY(!bpage->zip.data)) {
 		/* There is no compressed page. */
 err_exit:
@@ -2533,26 +2512,6 @@ loop:
 		block = (buf_block_t*) buf_page_hash_get_low(
 			buf_pool, space, offset, fold);
 		if (block) {
-			if (UNIV_UNLIKELY(block->page.space_was_being_deleted)) {
-				/* This page is obsoleted, should discard and retry */
-				rw_lock_s_unlock(&buf_pool->page_hash_latch);
-
-				mutex_enter(&buf_pool->LRU_list_mutex);
-				block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
-
-				if (UNIV_UNLIKELY(!block_mutex)) {
-					mutex_exit(&buf_pool->LRU_list_mutex);
-					goto loop;
-				}
-
-				buf_LRU_free_block((buf_page_t*)block, TRUE, TRUE);
-
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				mutex_exit(block_mutex);
-				block_mutex = NULL;
-
-				goto loop;
-			}
 
 			block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
 			ut_a(block_mutex);
@@ -2597,6 +2556,10 @@ loop2:
 			retries = 0;
 		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
 			++retries;
+			DBUG_EXECUTE_IF(
+				"innodb_page_corruption_retries",
+				retries = BUF_PAGE_READ_MAX_RETRIES;
+			);
 		} else {
 			fprintf(stderr, "InnoDB: Error: Unable"
 				" to read tablespace %lu page no"
@@ -2634,6 +2597,7 @@ got_block:
 		/* The page is being read to buffer pool,
 		but we cannot wait around for the read to
 		complete. */
+null_exit:
 		//buf_pool_mutex_exit(buf_pool);
 		mutex_exit(block_mutex);
 
@@ -2644,7 +2608,6 @@ got_block:
 			  srv_pass_corrupt_table <= 1)) {
 
 		mutex_exit(block_mutex);
-
 		return(NULL);
 	}
 
@@ -2663,6 +2626,14 @@ got_block:
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 		ut_ad(block_mutex == &buf_pool->zip_mutex);
+		if (mode == BUF_PEEK_IF_IN_POOL) {
+			/* This mode is only used for dropping an
+			adaptive hash index.  There cannot be an
+			adaptive hash index for a compressed-only
+			page, so do not bother decompressing the page. */
+			goto null_exit;
+		}
+
 		bpage = &block->page;
 		/* Protect bpage->buf_fix_count. */
 		//mutex_enter(&buf_pool->zip_mutex);
@@ -3488,27 +3459,11 @@ buf_page_init_for_read(
 
 	fold = buf_page_address_fold(space, offset);
 
-retry:
 	//buf_pool_mutex_enter(buf_pool);
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 
 	watch_page = buf_page_hash_get_low(buf_pool, space, offset, fold);
-
-	if (UNIV_UNLIKELY(watch_page && watch_page->space_was_being_deleted)) {
-		mutex_t*	block_mutex = buf_page_get_mutex_enter(watch_page);
-
-		/* This page is obsoleted, should discard and retry */
-		rw_lock_x_unlock(&buf_pool->page_hash_latch);
-		ut_a(block_mutex);
-
-		buf_LRU_free_block(watch_page, TRUE, TRUE);
-
-		mutex_exit(&buf_pool->LRU_list_mutex);
-		mutex_exit(block_mutex);
-
-		goto retry;
-	}
 
 	if (watch_page && !buf_pool_watch_is_sentinel(buf_pool, watch_page)) {
 		/* The page is already in the buffer pool. */
@@ -3638,7 +3593,6 @@ err_exit:
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
 		bpage->space	= space;
 		bpage->offset	= offset;
-		bpage->space_was_being_deleted = FALSE;
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
@@ -3723,28 +3677,12 @@ buf_page_create(
 
 	fold = buf_page_address_fold(space, offset);
 
-retry:
 	//buf_pool_mutex_enter(buf_pool);
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
 
 	block = (buf_block_t*) buf_page_hash_get_low(
 		buf_pool, space, offset, fold);
-
-	if (UNIV_UNLIKELY(block && block->page.space_was_being_deleted)) {
-		mutex_t*	block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
-
-		/* This page is obsoleted, should discard and retry */
-		rw_lock_x_unlock(&buf_pool->page_hash_latch);
-		ut_a(block_mutex);
-
-		buf_LRU_free_block((buf_page_t*)block, TRUE, TRUE);
-
-		mutex_exit(&buf_pool->LRU_list_mutex);
-		mutex_exit(block_mutex);
-
-		goto retry;
-	}
 
 	if (block
 	    && buf_page_in_file(&block->page)

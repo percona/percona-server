@@ -135,6 +135,7 @@ trx_reserve_descriptor(
 				   n_max * sizeof(trx_id_t));
 
 		trx_sys->descr_n_max = n_max;
+		srv_descriptors_memory = n_max * sizeof(trx_id_t);
 	}
 
 	descr = trx_sys->descriptors + n_used - 1;
@@ -1091,6 +1092,18 @@ trx_write_serialisation_history(
 			trx->mysql_master_log_file_name,
 			trx->mysql_master_log_pos,
 			TRX_SYS_COMMIT_MASTER_LOG_INFO, &mtr);
+
+		trx_sys_update_mysql_binlog_offset(
+			sys_header,
+			trx->mysql_relay_log_file_name,
+			trx->mysql_relay_log_pos,
+			TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
+
+		trx_sys_update_mysql_binlog_offset(
+			sys_header,
+			trx->mysql_master_log_file_name,
+			trx->mysql_master_log_pos,
+			TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
 
 		trx->mysql_master_log_file_name = "";
 	}

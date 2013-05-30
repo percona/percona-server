@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.29
+%define mysql_version   5.5.31
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 30
-%define minorversion 0
+%define minorversion 3
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -209,10 +209,10 @@
 ##############################################################################
 
 %if %{commercial}
-%define license_files_server    %{src_dir}/LICENSE.mysql
+%define license_files_server    LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_server    %{src_dir}/COPYING %{src_dir}/README
+%define license_files_server    COPYING README
 %define license_type            GPL
 %endif
 
@@ -228,17 +228,13 @@ Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
 Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{majorversion}.%{minorversion}/source/%{src_dir}.tar.gz
+Patch1:         mysql-dubious-exports.patch
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-#
-%if %{rhel}
-BuildRequires: pam-devel
-%endif
-#
-BuildRequires:  %{distro_buildreq}
-#
+BuildRequires:  %{distro_buildreq} pam-devel
+
 # Think about what you use here since the first step is to
 # run a rm -rf
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
@@ -262,6 +258,7 @@ Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
 Provides:       mysql-server MySQL-server
+Conflicts:	Percona-SQL-server-50 Percona-Server-server-51
 
 %description -n Percona-Server-server%{product_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
@@ -284,6 +281,7 @@ Summary:        Percona Server - Client
 Group:          Applications/Databases
 Requires:      Percona-Server-shared%{product_suffix}
 Provides:       mysql-client MySQL-client mysql MySQL
+Conflicts:      Percona-SQL-client-50 Percona-Server-client-51
 
 %description -n Percona-Server-client%{product_suffix}
 This package contains the standard Percona Server client and administration tools.
@@ -296,6 +294,7 @@ Requires:       Percona-Server-client%{product_suffix} perl
 Summary:        Percona Server - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
+Conflicts:      Percona-SQL-test-50 Percona-Server-test-51
 AutoReqProv:    no
 
 %description -n Percona-Server-test%{product_suffix}
@@ -308,6 +307,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
+Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51
 
 %description -n Percona-Server-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -328,8 +328,10 @@ and applications need to dynamically load and use Percona Server.
 
 ##############################################################################
 %prep
-%setup -T -a 0 -c -n %{src_dir}
-
+%setup -n %{src_dir}
+#
+%patch1 -p1 
+#
 ##############################################################################
 %build
 
@@ -342,7 +344,7 @@ BuildHandlerSocket() {
     echo "Configuring HandlerSocket"
     CXX="${HS_CXX:-g++}" \
         MYSQL_CFLAGS="-I $RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir}/%{src_dir} \
+        ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
         --with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/release/scripts \
         --with-mysql-plugindir=%{_libdir}/mysql/plugin \
         --libdir=%{_libdir} \
@@ -355,7 +357,7 @@ BuildUDF() {
     cd UDF
     CXX="${UDF_CXX:-g++}"\
         CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/%{src_dir}/include \
+        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
         --libdir=%{_libdir}/mysql/plugin
     make all
     cd -
@@ -410,9 +412,10 @@ mkdir debug
                   -e 's/ $//'`
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
-  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+  ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -427,9 +430,10 @@ mkdir release
   cd release
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
-  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+  ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -437,7 +441,7 @@ mkdir release
            -DWITH_PAM=ON
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make ${MAKE_JFLAG}
-  cd ../%{src_dir}
+  cd ../
   d="`pwd`"
   BuildHandlerSocket
   BuildUDF
@@ -504,10 +508,10 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   d="`pwd`"
-  cd $MBD/%{src_dir}/storage/HandlerSocket-Plugin-for-MySQL
+  cd $MBD/storage/HandlerSocket-Plugin-for-MySQL
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
-  cd $MBD/%{src_dir}/UDF
+  cd $MBD/UDF
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
 )
@@ -536,7 +540,7 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
-install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
+install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
   $RBR%{_datadir}/mysql/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}
@@ -719,16 +723,17 @@ mysql_datadir=%{mysqldatadir}
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
-if [ $1 -eq 1 ]; then
-# ----------------------------------------------------------------------
-# Create data directory if needed, check whether upgrade or install
-# ----------------------------------------------------------------------
-if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
 if [ -f $STATUS_FILE ] ; then
 	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
 else
 	SERVER_TO_START=''
 fi
+
+if [ $1 -eq 1 ]; then
+# ----------------------------------------------------------------------
+# Create data directory if needed, check whether upgrade or install
+# ----------------------------------------------------------------------
+if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
 	mkdir $mysql_datadir/mysql;
@@ -739,20 +744,6 @@ else
 fi
 if [ ! -d $mysql_datadir/test ]; then 
         mkdir $mysql_datadir/test; 
-fi
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
-fi 
-# ----------------------------------------------------------------------
-# Make MySQL start/shutdown automatically when the machine does it.
-# ----------------------------------------------------------------------
-# NOTE: This still needs to be debated. Should we check whether these links
-# for the other run levels exist(ed) before the upgrade?
-# use chkconfig on Enterprise Linux and newer SuSE releases
-if [ -x /sbin/chkconfig ] ; then
-        /sbin/chkconfig --add mysql
-# use insserv for older SuSE Linux versions
-elif [ -x /sbin/insserv ] ; then
-        /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
 
 # ----------------------------------------------------------------------
@@ -769,6 +760,22 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
+%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+fi 
+
+# ----------------------------------------------------------------------
+# Make MySQL start/shutdown automatically when the machine does it.
+# ----------------------------------------------------------------------
+# NOTE: This still needs to be debated. Should we check whether these links
+# for the other run levels exist(ed) before the upgrade?
+# use chkconfig on Enterprise Linux and newer SuSE releases
+if [ -x /sbin/chkconfig ] ; then
+        /sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+elif [ -x /sbin/insserv ] ; then
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
+fi
+
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
 # ----------------------------------------------------------------------

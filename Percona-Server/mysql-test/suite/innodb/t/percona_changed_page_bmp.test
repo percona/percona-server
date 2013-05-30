@@ -224,4 +224,17 @@ call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*"
 --echo 9th restart
 --source include/restart_mysqld.inc
 
-DROP TABLE t1, t2;
+#
+# Test that impossible to track log is handled gracefully (bug 1108613)
+#
+CREATE TABLE t3 (a MEDIUMBLOB) ENGINE=InnoDB;
+
+call mtr.add_suppression("InnoDB: Error: the age of the oldest untracked record exceeds the log group capacity!");
+call mtr.add_suppression("InnoDB: Error: stopping the log tracking thread at LSN");
+
+INSERT INTO t3 VALUES (REPEAT('a', 12582912));
+
+--echo 10th restart
+--source include/restart_mysqld.inc
+
+DROP TABLE t1, t2, t3;

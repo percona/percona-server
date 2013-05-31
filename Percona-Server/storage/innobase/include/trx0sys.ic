@@ -435,7 +435,7 @@ trx_rw_is_active_low(
 			*corrupt = TRUE;
 		}
 
-		return(NULL);
+		return(false);
 	}
 
 	return(trx_find_descriptor(trx_sys->descriptors, trx_sys->descr_n_used,

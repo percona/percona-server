@@ -643,8 +643,6 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_dblwr_writes,		  SHOW_LONG},
   {"deadlocks",
   (char*) &export_vars.innodb_deadlocks,		  SHOW_LONG},
-  {"dict_tables",
-  (char*) &export_vars.innodb_dict_tables,		  SHOW_LONG},
   {"have_atomic_builtins",
   (char*) &export_vars.innodb_have_atomic_builtins,	  SHOW_BOOL},
   {"history_list_length",

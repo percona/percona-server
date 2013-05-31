@@ -862,8 +862,6 @@ srv_purge_wakeup(void);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{
-	ulint innodb_adaptive_hash_cells;
-	ulint innodb_adaptive_hash_heap_buffers;
 	ulint innodb_adaptive_hash_hash_searches;
 	ulint innodb_adaptive_hash_non_hash_searches;
 	ulint innodb_background_log_sync;
@@ -875,7 +873,6 @@ struct export_var_t{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
-	ulint innodb_dict_tables;
 	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
 	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */

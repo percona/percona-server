@@ -40,19 +40,19 @@ do
         TARGET="i686"
         TARGET_CFLAGS="-m32 -march=i686"
         ;;
-    -q | --quiet )
-        shift
-        QUIET=''
-        ;;
     -d | --debug )
         shift
-        BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
         CMAKE_BUILD_TYPE='Debug'
+        BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
         ;;
     -v | --valgrind )
         shift
         CMAKE_OPTS="${CMAKE_OPTS:-} -DWITH_VALGRIND=ON"
         BUILD_COMMENT="${BUILD_COMMENT:-}-valgrind"
+        ;;
+    -q | --quiet )
+        shift
+        QUIET=''
         ;;
     -j | --with-jemalloc )
         shift
@@ -86,13 +86,13 @@ then
         exit 1
     fi
 
-    WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
-
 else
     echo >&2 "Usage: $0 [target dir]"
     exit 1
 
 fi
+
+WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
 test -e "$SOURCEDIR/Makefile" || exit 2
@@ -109,7 +109,7 @@ REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
-COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
+COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
 # Compilation flags
 export CC=${CC:-gcc}

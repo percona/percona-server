@@ -76,15 +76,19 @@ extern ulint	os_n_pending_writes;
 #endif
 
 #ifdef __WIN__
+#define SRV_PATH_SEPARATOR	'\\'
 /** File handle */
 #define os_file_t	HANDLE
+#define os_file_invalid	INVALID_HANDLE_VALUE
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
 #define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
+#define SRV_PATH_SEPARATOR	'/'
 /** File handle */
 typedef int	os_file_t;
+#define os_file_invalid	(-1)
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -414,7 +418,6 @@ ibool
 os_file_close(
 /*==========*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-#ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
@@ -423,7 +426,6 @@ ibool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-#endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
 @return	TRUE if success */

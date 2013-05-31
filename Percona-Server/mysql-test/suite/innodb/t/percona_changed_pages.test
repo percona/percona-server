@@ -9,7 +9,7 @@
 RESET CHANGED_PAGE_BITMAPS;
 
 --disable_warnings
-DROP TABLE IF EXISTS T1;
+DROP TABLE IF EXISTS T1, ICP_COPY;
 --enable_warnings
 
 let $old_max_changed_pages= `SELECT @@GLOBAL.INNODB_MAX_CHANGED_PAGES`;
@@ -105,9 +105,9 @@ eval SELECT COUNT(*) > 0 AS should_be_1
 # Gather data for condition pushdown testing not using conditions #
 ###################################################################
 --disable_result_log
-SET @cond_test_max_end_lsn=
-	(SELECT MAX(end_lsn)
-		FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES);
+SET @max_end_lsn=
+        (SELECT MAX(end_lsn)
+                FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES);
 
 SET @cond_test_max_start_lsn=
         (SELECT MAX(start_lsn)
@@ -153,31 +153,31 @@ SELECT COUNT(*)
 # Baseline as ICP currently does not support equality
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
-  WHERE END_LSN = @cond_test_max_end_lsn;
+  WHERE END_LSN = @max_end_lsn;
   
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
-  END_LSN > (@cond_test_max_end_lsn - 1) AND
-  END_LSN < (@cond_test_max_end_lsn + 1);
+  END_LSN > (@max_end_lsn - 1) AND
+  END_LSN < (@max_end_lsn + 1);
 
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
-  END_LSN >= @cond_test_max_end_lsn AND
-  END_LSN <= @cond_test_max_end_lsn;
+  END_LSN >= @max_end_lsn AND
+  END_LSN <= @max_end_lsn;
 
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
-  (@cond_test_max_end_lsn - 1) < END_LSN AND
-  @cond_test_max_end_lsn >= END_LSN;
+  (@max_end_lsn - 1) < END_LSN AND
+  @max_end_lsn >= END_LSN;
 
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
-  START_LSN <= @cond_test_max_end_lsn AND
-  END_LSN >= @cond_test_max_end_lsn;
+  START_LSN <= @max_end_lsn AND
+  END_LSN >= @max_end_lsn;
 
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
@@ -193,7 +193,7 @@ SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
   START_LSN >= @cond_test_max_start_lsn AND
-  END_LSN <= @cond_test_max_end_lsn;
+  END_LSN <= @max_end_lsn;
 
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
@@ -205,7 +205,7 @@ SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
   @cond_test_max_start_lsn <= START_LSN AND
-  @cond_test_max_end_lsn >= END_LSN;
+  @max_end_lsn >= END_LSN;
 
 # Empty range
 SELECT COUNT(*)
@@ -262,4 +262,75 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 
 eval SET GLOBAL INNODB_MAX_CHANGED_PAGES = $old_max_changed_pages;
 
-DROP TABLE T1;
+#
+# Test that I_S.INNODB_CHANGED_PAGES can be queried with the log tracking disabled
+# (bug 1185304)
+#
+
+# We have to skip ICP_COPY bitmap writes.  Thus all the I_S queries from
+# this point are limited to the max_end_lsn.
+
+# Save the copy of current table contents
+CREATE TABLE ICP_COPY (
+       space_id INT(11) NOT NULL,
+       page_id INT(11) NOT NULL,
+       start_lsn BIGINT(21) NOT NULL,
+       end_lsn BIGINT(21) NOT NULL,
+       INDEX page_id(space_id, page_id)) ENGINE=InnoDB;
+
+INSERT INTO ICP_COPY SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+       WHERE END_LSN <= @max_end_lsn;
+
+# Restart with log tracking disabled       
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:--innodb-track-changed-pages=FALSE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@global.innodb_track_changed_pages;
+
+let $icp_1_checksum= `CHECKSUM TABLE ICP_COPY`;
+
+SET @max_end_lsn= (SELECT MAX(end_lsn) FROM ICP_COPY);
+
+# Read the table again
+TRUNCATE TABLE ICP_COPY;
+
+INSERT INTO ICP_COPY SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+       WHERE END_LSN <= @max_end_lsn;
+
+# Compare the checksums of both reads
+let $icp_2_checksum= `CHECKSUM TABLE ICP_COPY`;
+--disable_query_log
+--echo Check that INNODB_CHANGED_PAGES copies checksum the same (should be 1):
+eval SELECT "$icp_1_checksum" LIKE "$icp_2_checksum" AS should_be_1;
+--enable_query_log
+
+--source include/restart_mysqld.inc
+
+SELECT @@global.innodb_track_changed_pages;
+
+#
+# Test for
+# - bug 1179974 (INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query fails server
+#   with an I/O error if a bitmap file in the middle of requested range is missing)
+# - bug 1185040 (INFORMATION_SCHEMA.INNODB_CHANGED_PAGES_QUERY should return a
+#   warning if the result set is partial)
+#
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log_4_*;
+
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log_4_*.xdb;
+
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log_4_*;
+
+--error ER_CANT_FIND_SYSTEM_REC
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE START_LSN > 10000;
+
+DROP TABLE T1, ICP_COPY;

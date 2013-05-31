@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 02/29/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 03/28/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "02/29/2012" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "03/28/2013" "MySQL" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -187,7 +196,7 @@ is disabled\&. This is an expected failure in this case\&.
 .PP
 To run
 \fBmysql\-test\-run\&.pl\fR
-on Windows, you\'ll need either Cygwin or ActiveState Perl to run it\&. You may also need to install the modules required by the script\&. To run the test script, change location into the
+on Windows, you\*(Aqll need either Cygwin or ActiveState Perl to run it\&. You may also need to install the modules required by the script\&. To run the test script, change location into the
 mysql\-test
 directory, set the
 MTR_VS_CONFIG
@@ -222,9 +231,11 @@ lB lB.
 T{
 Variable
 T}:T{
-Meaning
+Description
 T}
 .T&
+l l
+l l
 l l
 l l
 l l
@@ -283,9 +294,24 @@ Setting of a timeout in minutes or seconds, corresponding to command
                 MySQL 5\&.1\&.44\&.
 T}
 T{
+MYSQL_CONFIG_EDITOR
+T}:T{
+Path name to \fBmysql_config_editor\fR binary\&. Supported as
+                of MySQL 5\&.6\&.6\&.
+T}
+T{
 MYSQL_TEST
 T}:T{
 Path name to \fBmysqltest\fR binary
+T}
+T{
+MYSQL_TEST_LOGIN_FILE
+T}:T{
+Path name to login file used by \fBmysql_config_editor\fR\&.
+                If not set, the default is
+                $HOME/\&.mylogin\&.cnf, or
+                %APPDATA%\eMySQL\e\&.mylogin\&.cnf on
+                Windows\&. Supported as of MySQL 5\&.6\&.6\&.
 T}
 T{
 MYSQLD_BOOTSTRAP
@@ -300,14 +326,14 @@ T}
 T{
 MYSQLD
 T}:T{
-Full path to server executable used in tests\&. Supported from MySQL
+Full path to server executable used in tests\&. Supported as of MySQL
                 5\&.5\&.17\&.
 T}
 T{
 MYSQLD_CMD
 T}:T{
 Command line for starting server as used in tests, with the minimum set
-                of required arguments\&. Supported from MySQL 5\&.5\&.17\&.
+                of required arguments\&. Supported as of MySQL 5\&.5\&.17\&.
 T}
 T{
 MYSQLTEST_VARDIR
@@ -396,7 +422,7 @@ Display a help message and exit\&.
 \fB\-\-big\-test\fR
 .sp
 Allow tests marked as "big" to run\&. Tests can be thus marked by including the line
-\fB\-\-source include/big_test\&.inc\fR, and they will only be run if this option is given, or if the environment variable
+\-\-source include/big_test\&.inc, and they will only be run if this option is given, or if the environment variable
 BIG_TEST
 is set to 1\&.
 .sp
@@ -821,7 +847,7 @@ mysqld
 as server\&. If it does find
 mysqld\&.debug, it will search for plugin libraries in a subdirectory
 debug
-under the directory where it\'s normally located\&. This option does not turn on trace output and is independt of the
+under the directory where it\*(Aqs normally located\&. This option does not turn on trace output and is independent of the
 \fBdebug\fR
 option\&.
 .sp
@@ -997,7 +1023,7 @@ if they fail\&. This option was added in MySQL 5\&.1\&.33\&.
 For an example of a file that might be specified using this option, see
 mysql\-test/collections/default\&.experimental\&.
 .sp
-From MySQL 5\&.1\&.51, it\'s possible to supply more than one
+From MySQL 5\&.1\&.51, it\*(Aqs possible to supply more than one
 \fB\-\-experimental\fR, test cases listed in all the files will be treated as experimental\&.
 .RE
 .sp
@@ -1084,7 +1110,7 @@ causes execution to continue regardless of test case failure\&.
 .\" force-restart option: mysql-test-run.pl
 \fB\-\-force\-restart\fR
 .sp
-Always restart the server(s) between each tast case, whether it\'s needed or not\&. Will also restart between repeated runs of the same test case\&. This may be useful e\&.g\&. when looking for the source of a memory leak, as there will only have been one test run before the server exits\&.
+Always restart the server(s) between each tast case, whether it\*(Aqs needed or not\&. Will also restart between repeated runs of the same test case\&. This may be useful e\&.g\&. when looking for the source of a memory leak, as there will only have been one test run before the server exits\&.
 .sp
 The
 \fB\-\-force\-restart\fR
@@ -1939,7 +1965,7 @@ option, it sets up a secure connection for all test cases\&. In this case, if
 does not support SSL,
 \fBmysql\-test\-run\&.pl\fR
 exits with an error message:
-Couldn\'t find support for SSL
+Couldn\*(Aqt find support for SSL
 .RE
 .sp
 .RS 4
@@ -2052,7 +2078,38 @@ sorts the list of names of the test cases to be run, and then begins with
 Create
 \fBstrace\fR
 output for
-\fBmysqltest\fR\&.
+\fBmysqltest\fR\&. Will produce default
+\fBstrace\fR
+output as
+mysqltest\&.strace\&. Note that this will be overwritten for each new test case, so it\*(Aqs most useful for running only one test\&.
+.sp
+The
+\fBstrace\-client\fR
+option is functional from MySQL 5\&.5\&.20, and only supported on Linux\&. The option was available in earlier versions too, but was not working properly\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: strace-server option
+.\" strace-server option: mysql-test-run.pl
+\fB\-\-strace\-server\fR
+.sp
+Create
+\fBstrace\fR
+output for the server\&. Will produce default
+\fBstrace\fR
+output as
+mysqld\&.1\&.strace\&. Note that this will be overwritten each time the server is restarted, so it\*(Aqs most useful for running a single test, or if you want trace from the first test that fails\&.
+.sp
+The
+\fBstrace\-server\fR
+option is available from MySQL 5\&.5\&.20, on Linux only\&.
 .RE
 .sp
 .RS 4
@@ -2494,13 +2551,43 @@ in their name\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
 .PP
-This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
+.PP
+U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
+.PP
+This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
+.PP
+Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
+.PP
+This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
+.PP
+This documentation is in prerelease status and is intended for demonstration and preliminary use only. It may not be specific to the hardware on which you are using the software. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to this documentation and will not be responsible for any loss, costs, or damages incurred due to the use of this documentation.
+.PP
+The information contained in this document is for informational sharing purposes only and should be considered in your capacity as a customer advisory board member or pursuant to your beta trial agreement only. It is not a commitment to deliver any material, code, or functionality, and should not be relied upon in making purchasing decisions. The development, release, and timing of any features or functionality described in this document remains at the sole discretion of Oracle.
+.PP
+This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
+.PP
+This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
+.PP
+You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
+.PP
+For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
+\m[blue]\fBMySQL Contact & Questions\fR\m[].
+.PP
+For help with using MySQL, please visit either the
+\m[blue]\fBMySQL Forums\fR\m[]
+or
+\m[blue]\fBMySQL Mailing Lists\fR\m[]
+where you can discuss your issues with other MySQL users.
+.PP
+For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
+\m[blue]\fBMySQL Documentation Library\fR\m[].
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

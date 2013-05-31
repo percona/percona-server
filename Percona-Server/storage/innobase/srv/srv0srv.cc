@@ -410,6 +410,20 @@ static ulint		srv_n_rows_read_old		= 0;
 UNIV_INTERN ulint	srv_truncated_status_writes	= 0;
 UNIV_INTERN ulint	srv_available_undo_logs         = 0;
 
+/* Ensure status variables are on separate cache lines */
+
+#define CACHE_LINE_SIZE 64
+#define CACHE_ALIGNED __attribute__ ((aligned (CACHE_LINE_SIZE)))
+
+UNIV_INTERN byte
+counters_pad_start[CACHE_LINE_SIZE] __attribute__((unused)) = {0};
+
+UNIV_INTERN ulint		srv_read_views_memory CACHE_ALIGNED	= 0;
+UNIV_INTERN ulint		srv_descriptors_memory CACHE_ALIGNED	= 0;
+
+UNIV_INTERN byte
+counters_pad_end[CACHE_LINE_SIZE] __attribute__((unused)) = {0};
+
 /* Set the following to 0 if you want InnoDB to write messages on
 stderr on startup/shutdown. */
 UNIV_INTERN ibool	srv_print_verbose_log		= TRUE;
@@ -1288,6 +1302,11 @@ srv_printf_innodb_monitor(
 			"; in additional pool allocated " ULINTPF "\n",
 			ut_total_allocated_memory,
 			mem_pool_get_reserved(mem_comm_pool));
+
+	fprintf(file,
+		"Total memory allocated by read views " ULINTPF "\n",
+		os_atomic_increment_lint(&srv_read_views_memory, 0));
+
 	/* Calculate reserved memories */
 	if (btr_search_sys && btr_search_sys->hash_index->heap) {
 		btr_search_sys_subtotal
@@ -1382,6 +1401,15 @@ srv_printf_innodb_monitor(
 
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
+
+	fprintf(file, "%lu RW transactions active inside InnoDB\n",
+		UT_LIST_GET_LEN(trx_sys->rw_trx_list));
+
+	fprintf(file, "%lu RO transactions active inside InnoDB\n",
+		UT_LIST_GET_LEN(trx_sys->ro_trx_list));
+
+	fprintf(file, "%lu out of %lu descriptors used\n",
+		trx_sys->descr_n_used, trx_sys->descr_n_max);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list)) {
 		read_view_t*	view = UT_LIST_GET_LAST(trx_sys->view_list);
@@ -1714,6 +1742,10 @@ srv_export_innodb_status(void)
 		srv_truncated_status_writes;
 
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
+	export_vars.innodb_read_views_memory
+		= os_atomic_increment_lint(&srv_read_views_memory, 0);
+	export_vars.innodb_descriptors_memory
+		= os_atomic_increment_lint(&srv_descriptors_memory, 0);
 
 #ifdef UNIV_DEBUG
 	rw_lock_s_lock(&purge_sys->latch);

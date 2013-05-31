@@ -25,7 +25,7 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.6.10
+%define mysql_version   5.6.11
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 60
 %define minorversion 2
@@ -236,7 +236,7 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-BuildRequires:  %{distro_buildreq}
+BuildRequires:  %{distro_buildreq} pam-devel
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -404,6 +404,7 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -421,6 +422,7 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -714,11 +716,6 @@ STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 # Create data directory if needed, check whether upgrade or install
 # ----------------------------------------------------------------------
 if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
-if [ -f $STATUS_FILE ] ; then
-	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
-else
-	SERVER_TO_START=''
-fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
 	mkdir $mysql_datadir/mysql;

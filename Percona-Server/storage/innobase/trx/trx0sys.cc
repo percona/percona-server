@@ -512,6 +512,8 @@ trx_sys_init_at_db_start(void)
 			  TRX_DESCR_ARRAY_INITIAL_SIZE));
 	trx_sys->descr_n_max = TRX_DESCR_ARRAY_INITIAL_SIZE;
 	trx_sys->descr_n_used = 0;
+	srv_descriptors_memory = TRX_DESCR_ARRAY_INITIAL_SIZE *
+		sizeof(trx_id_t);
 
 	sys_header = trx_sysf_get(&mtr);
 

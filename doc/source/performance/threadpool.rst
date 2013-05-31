@@ -24,11 +24,33 @@ Although the default values for the thread pool should provide good performance,
  
   Current implementation of the thread pool is built in the server, unlike the upstream version which is implemented as a plugin. Another significant implementation difference is that this implementation doesn't try to minimize the number of concurrent transactions like the ``MySQL Enterprise Threadpool``. Because of these things this implementation isn't compatible with the upstream one.
 
+Priority connection scheduling
+==============================
+
+In |Percona Server| :rn:`5.6.11-60.3` priority connection scheduling for thread pool has been implemented. Even though thread pool puts a limit on the number of concurrently running queries, the number of open transactions may remain high, because connections with already started transactions are put to the end of the queue. Higher number of open transactions has a number of implications on the currently running queries. To improve the performance new :variable:`thread_pool_high_prio_tickets` variable has been introduced.
+
+This variable controls the high priority queue policy. Each new connection is assigned this many tickets to enter the high priority queue. Whenever a query has to be queued to be executed later because no threads are available, the thread pool puts the connection into the high priority queue if the following conditions apply:
+
+  1. The connection has an open transaction in the server.
+  2. The number of high priority tickets of this connection is non-zero.
+
+If both the above conditions hold, the connection is put into the high priority queue and its tickets value is decremented. Otherwise the connection is put into the common queue with the initial tickets value specified with this option.
+
+Each time the thread pool looks for a new connection to process, first it checks the high priority queue, and picks connections from the common queue only when the high priority one is empty.
+
+The goal is to minimize the number of open transactions in the server. In many cases it is beneficial to give short-running transactions a chance to commit faster and thus deallocate server resources and locks without waiting in the same queue with other connections that are about to start a new transaction, or those that have run out of their high priority tickets.
+
+With the default value of 0, all connections are always put into the common queue, i.e. no priority scheduling is used as in the original implementation in |MariaDB|. The higher is the value, the more chances each transaction gets to enter the high priority queue and commit before it is put in the common queue.
+
+
 Version Specific Information
 ============================
 
  * :rn:`5.6.10-60.2`
     ``Thread Pool`` feature implemented. This feature was ported from |MariaDB|.
+
+ * :rn:`5.6.11-60.3`
+    Implemented priority connection scheduling and introduced new variable :variable:`thread_pool_high_prio_tickets` to the original implementation introduced in |MariaDB|.
 
 System Variables
 ================
@@ -43,6 +65,17 @@ System Variables
      :default: 60 (seconds)
 
 This variable can be used to limit the time an idle thread should wait before exiting.
+
+.. variable:: thread_pool_high_prio_tickets
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: Numeric
+     :default: 0
+
+This variable controls the high priority queue policy. Each new connection is assigned this many tickets to enter the high priority queue. 
 
 .. variable:: thread_pool_max_threads
 

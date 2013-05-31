@@ -64,7 +64,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 INSERT INTO t1 VALUES (3, REPEAT("c", 20000));
 
 #
-# Test innodb_flush_method=O_DIRECT
+# Test innodb_flush_method=O_DIRECT_NO_FSYNC
 # Check that the previous test produced bitmap data while the server is down.
 #
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -74,7 +74,7 @@ file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
 --enable_reconnect
---exec echo "restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT_NO_FSYNC" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 INSERT INTO t1 VALUES (4, REPEAT("d", 20000));

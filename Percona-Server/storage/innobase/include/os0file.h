@@ -75,15 +75,19 @@ extern ulint	os_n_pending_writes;
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
+#define SRV_PATH_SEPARATOR	'\\'
 /** File handle */
 # define os_file_t	HANDLE
+# define os_file_invalid	INVALID_HANDLE_VALUE
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
 # define OS_FILE_FROM_FD(fd) (HANDLE) _get_osfhandle(fd)
 #else
+#define SRV_PATH_SEPARATOR	'/'
 /** File handle */
 typedef int	os_file_t;
+# define os_file_invalid	(-1)
 /** Convert a C file descriptor to a native file handle
 @param fd	file descriptor
 @return		native file handle */
@@ -852,7 +856,6 @@ pfs_os_file_delete_if_exists_func(
 	ulint		src_line);/*!< in: line where the func invoked */
 #endif	/* UNIV_PFS_IO */
 
-#ifdef UNIV_HOTBACKUP
 /***********************************************************************//**
 Closes a file handle.
 @return	TRUE if success */
@@ -861,7 +864,6 @@ ibool
 os_file_close_no_error_handling(
 /*============================*/
 	os_file_t	file);	/*!< in, own: handle to a file */
-#endif /* UNIV_HOTBACKUP */
 /***********************************************************************//**
 Gets a file size.
 @return	file size, or (os_offset_t) -1 on failure */

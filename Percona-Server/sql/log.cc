@@ -2000,12 +2000,12 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
     if (my_b_printf(&log_file,
                     "# Schema: %s  Last_errno: %u  Killed: %u\n"
                     "# Query_time: %s  Lock_time: %s  Rows_sent: %s  "
-                    "Rows_examined: %s  Rows_affected: %s  Rows_read: %s\n"
+                    "Rows_examined: %s  Rows_affected: %s\n"
                     "# Bytes_sent: %lu",
                     (thd->db ? thd->db : ""),
                     thd->last_errno, (uint) thd->killed,
                     query_time_buff, lock_time_buff, sent_row_buff,
-                    examined_row_buff, affected_row_buff, examined_row_buff,
+                    examined_row_buff, affected_row_buff,
                     (ulong) (thd->status_var.bytes_sent - thd->bytes_sent_old))
         == (uint) -1)
       tmp_errno= errno;

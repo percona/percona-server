@@ -1,7 +1,7 @@
 # Common extensions to the slow query log
 --let grep_pattern = ^# Schema: .+  Last_errno: \d+  Killed: \d+\$
 --source include/log_grep.inc
---let grep_pattern = ^#.*Rows_affected: \d+  Rows_read: \d+\$
+--let grep_pattern = ^#.*Rows_affected: \d+\$
 --source include/log_grep.inc
 --let grep_pattern = ^# Bytes_sent: \d+.*\$
 --source include/log_grep.inc

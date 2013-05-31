@@ -92,6 +92,22 @@ ut_malloc_low(
 Allocates memory. */
 #define ut_malloc(n) ut_malloc_low(n, TRUE)
 /**********************************************************************//**
+Allocates cleared memory, provides calloc()-like interface.
+@return own: allocated memory */
+UNIV_INTERN
+void*
+ut_calloc_low(
+/*==========*/
+	ulint	n,			/*!< in: number of elements */
+	ulint	c,			/*!< in: size of an element */
+	ibool	assert_on_error)	/*!< in: if TRUE, we crash mysqld if
+					the memory cannot be allocated */
+	__attribute__((malloc));
+/**********************************************************************//**
+Allocates cleared memory, provides calloc()-like interface.
+@return own: allocated memory */
+#define ut_calloc(n, c) ut_calloc_low(n, c, TRUE)
+/**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */
 UNIV_INTERN

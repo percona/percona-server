@@ -60,9 +60,15 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   int buflen, int *h_errnop)
 {
   struct hostent *hp;
+  int ret;
   DBUG_ASSERT((size_t) buflen >= sizeof(*result));
-  if (gethostbyname_r(name,result, buffer, (size_t) buflen, &hp, h_errnop))
+  ret= gethostbyname_r(name,result, buffer, (size_t) buflen, &hp, h_errnop);
+  if (unlikely(ret || !hp)) {
+    if (*h_errnop == NETDB_INTERNAL) {
+      *h_errnop= errno;
+    }
     return 0;
+  }
   return hp;
 }
 

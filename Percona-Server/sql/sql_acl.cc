@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 
 /*
@@ -1356,19 +1356,10 @@ ulong acl_get(const char *host, const char *ip,
 {
   ulong host_access= ~(ulong)0, db_access= 0;
   uint i;
-  size_t key_length, copy_length;
+  size_t key_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
   DBUG_ENTER("acl_get");
-  
-  copy_length= (size_t) (strlen(ip ? ip : "") +
-                 strlen(user ? user : "") +
-                 strlen(db ? db : ""));
-  /*
-    Make sure that strmov() operations do not result in buffer overflow.
-  */
-  if (copy_length >= ACL_KEY_LENGTH)
-    DBUG_RETURN(0);
 
   tmp_db= strmov(strmov(key, ip ? ip : "") + 1, user) + 1;
   end= strnmov(tmp_db, db, key + sizeof(key) - tmp_db);
@@ -3481,7 +3472,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strmov(tmp_db,db);
+    strnmov(tmp_db,db,NAME_LEN);
+    tmp_db[NAME_LEN]= '\0';
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
@@ -4355,16 +4347,6 @@ bool check_grant_db(THD *thd,const char *db)
   char helping [NAME_LEN+USERNAME_LENGTH+2], *end;
   uint len;
   bool error= TRUE;
-  size_t copy_length;
-
-  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
-                 strlen(db ? db : ""));
-
-  /*
-    Make sure that strmov() operations do not result in buffer overflow.
-  */
-  if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
-    return 1;
 
   end= strmov(helping, sctx->priv_user) + 1;
   end= strnmov(end, db, helping + sizeof(helping) - end);

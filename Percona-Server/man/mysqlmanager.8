@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysqlmanager\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/26/2011
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 03/05/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLMANAGER\FR" "8" "10/26/2011" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLMANAGER\FR" "8" "03/05/2013" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -94,7 +103,7 @@ When Instance Manager starts, it starts each guarded instance\&. If the instance
 .\}
 A nonguarded instance is not started when Instance Manager starts or monitored by it\&. If the instance crashes after being started, Instance Manager does not restart it\&. When Instance Manager exits, it does not stop the instance if it is running\&.
 .RE
-.RS 4
+.sp
 Instances are guarded by default\&. An instance can be designated as nonguarded by including the
 \fBnonguarded\fR
 option in the configuration file\&.
@@ -280,7 +289,7 @@ Drop all users from the password file\&. This option was added in MySQL 5\&.1\&.
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
-\'d:t:o,\fIfile_name\fR\'\&. This option was added in MySQL 5\&.1\&.10\&.
+\*(Aqd:t:o,\fIfile_name\fR\*(Aq\&. This option was added in MySQL 5\&.1\&.10\&.
 .RE
 .sp
 .RS 4
@@ -448,7 +457,7 @@ account does not exist, so the connection attempts by Instance Manager cause the
 .RS 4
 .\}
 .nf
-Access denied for user \'MySQL_Instance_M\'@\'localhost\' \(Fc
+Access denied for user \*(AqMySQL_Instance_M\*(Aq@\*(Aqlocalhost\*(Aq \(Fc
     (using password: YES)
 .fi
 .if n \{\
@@ -457,7 +466,7 @@ Access denied for user \'MySQL_Instance_M\'@\'localhost\' \(Fc
 .sp
 The
 nonguarded
-option in the appropriate server instance section disables monitoring for a particular instance\&. If the instance dies after being started, Instance Manager will not restart it\&. Instance Manager tries to connect to a nonguarded instance only when you request the instance\'s status (for example, with the
+option in the appropriate server instance section disables monitoring for a particular instance\&. If the instance dies after being started, Instance Manager will not restart it\&. Instance Manager tries to connect to a nonguarded instance only when you request the instance\*(Aqs status (for example, with the
 SHOW INSTANCES
 status\&.
 .sp
@@ -784,7 +793,7 @@ Each
 or
 [mysqld\fIN\fR]
 instance section specifies options given by Instance Manager to a server instance at startup\&. These are mainly common MySQL Server options (see
-Section\ \&5.1.2, \(lqServer Command Options\(rq)\&. In addition, a
+Section\ \&5.1.3, \(lqServer Command Options\(rq)\&. In addition, a
 [mysqld\fIN\fR]
 section can contain the options in the following list, which are specific to Instance Manager\&. These options are interpreted by Instance Manager itself; it does not pass them to the server when it attempts to start that server\&.
 .if n \{\
@@ -992,7 +1001,7 @@ binary resides\&. If there are multiple instances, it may also be necessary to s
 \fBdatadir\fR
 and
 \fBport\fR, to ensure that each instance has a different data directory and TCP/IP port number\&.
-Section\ \&5.6, \(lqRunning Multiple MySQL Instances on One Machine\(rq, discusses the configuration values that must differ for each instance when you run multiple instance on the same machine\&.
+Section\ \&5.3, \(lqRunning Multiple MySQL Instances on One Machine\(rq, discusses the configuration values that must differ for each instance when you run multiple instance on the same machine\&.
 .if n \{\
 .sp
 .\}
@@ -1129,7 +1138,7 @@ Instance Manager accounts differ somewhat from MySQL Server accounts:
 .IP \(bu 2.3
 .\}
 MySQL Server accounts are associated with a host name, user name, and password (see
-Section\ \&5.5.1, \(lqUser Names and Passwords\(rq)\&.
+Section\ \&6.3.1, \(lqUser Names and Passwords\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1202,7 +1211,7 @@ is invoked directly from an IBM 5250 terminal\&. To work around this, use a comm
 .\}
 .nf
 shell> \fBmysql \-B \-\-skip\-column\-name \e\fR
-         \fB\-e \'SELECT CONCAT("\fR\fB\fIuser_name\fR\fR\fB",":",PASSWORD("\fR\fB\fIpass_val\fR\fR\fB"));\'\fR
+         \fB\-e \*(AqSELECT CONCAT("\fR\fB\fIuser_name\fR\fR\fB",":",PASSWORD("\fR\fB\fIpass_val\fR\fR\fB"));\*(Aq\fR
 .fi
 .if n \{\
 .RE
@@ -1321,7 +1330,7 @@ mysqlmanager \-\-edit\-user \-\-username=\fIuser_name\fR [\-\-password=\fIpasswo
 .RE
 .\}
 .sp
-This command changes the given user\'s password in the password file\&. The user name is required\&.
+This command changes the given user\*(Aqs password in the password file\&. The user name is required\&.
 \fBmysqlmanager\fR
 prompts for the password it is not given on the command line\&. The command fails if the user does not exist\&.
 .RE
@@ -1430,7 +1439,7 @@ command\&. This is the only status monitoring done for nonguarded instances\&.
 .PP
 Instance Manager knows if a server instance fails at startup because it receives a status from the attempt\&. For an instance that starts but later crashes, Instance Manager receives a signal because it is the parent process of the instance\&.
 .PP
-Beginning with MySQL 5\&.1\&.12, Instance Manager tracks instance states so that it can determine which commands are permitted for each instance\&. For example, commands that modify an instance\'s configuration are permitted only while the instance is offline\&.
+Beginning with MySQL 5\&.1\&.12, Instance Manager tracks instance states so that it can determine which commands are permitted for each instance\&. For example, commands that modify an instance\*(Aqs configuration are permitted only while the instance is offline\&.
 .PP
 Each instance is in one of the states described in the following table\&. Guarded instances can be in any of the states\&. Nonguarded instances can only be offline or online\&. Instance state information is displayed in the
 status
@@ -1912,7 +1921,7 @@ displays information only about log files\&. If a server instance uses log table
 Section\ \&5.2.1, \(lqSelecting General Query and Slow Query Log Output Destinations\(rq), no information about those tables is shown\&.
 .sp
 Log options are described in
-Section\ \&5.1.2, \(lqServer Command Options\(rq\&.
+Section\ \&5.1.3, \(lqServer Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1957,7 +1966,7 @@ mysql> \fBSHOW mysqld LOG GENERAL 21, 2;\fR
 .\}
 SET \fIinstance_name\fR\&.\fIoption_name\fR[=\fIoption_value\fR]
 .sp
-This command edits the specified instance\'s configuration section to change or add instance options\&. The option is added to the section is it is not already present\&. Otherwise, the new setting replaces the existing one\&.
+This command edits the specified instance\*(Aqs configuration section to change or add instance options\&. The option is added to the section is it is not already present\&. Otherwise, the new setting replaces the existing one\&.
 .sp
 .if n \{\
 .RS 4
@@ -1985,7 +1994,7 @@ Query OK, 0 rows affected (0\&.00 sec)
 .RE
 .\}
 .sp
-Before MySQL 5\&.1\&.12, only a single option can be specified\&. Also, changes made to the configuration file do not take effect until the MySQL server is restarted\&. In addition, these changes are not stored in the instance manager\'s local cache of instance settings until a
+Before MySQL 5\&.1\&.12, only a single option can be specified\&. Also, changes made to the configuration file do not take effect until the MySQL server is restarted\&. In addition, these changes are not stored in the instance manager\*(Aqs local cache of instance settings until a
 FLUSH INSTANCES
 command is executed\&.
 .RE
@@ -2000,7 +2009,7 @@ command is executed\&.
 .\}
 UNSET \fIinstance_name\fR\&.\fIoption_name\fR
 .sp
-This command removes an option from an instance\'s configuration section\&.
+This command removes an option from an instance\*(Aqs configuration section\&.
 .sp
 .if n \{\
 .RS 4
@@ -2028,7 +2037,7 @@ Query OK, 0 rows affected (0\&.00 sec)
 .RE
 .\}
 .sp
-Before MySQL 5\&.1\&.12, only a single option can be specified\&. Also, changes made to the configuration file do not take effect until the MySQL server is restarted\&. In addition, these changes are not stored in the instance manager\'s local cache of instance settings until a
+Before MySQL 5\&.1\&.12, only a single option can be specified\&. Also, changes made to the configuration file do not take effect until the MySQL server is restarted\&. In addition, these changes are not stored in the instance manager\*(Aqs local cache of instance settings until a
 FLUSH INSTANCES
 command is executed\&.
 .RE
@@ -2063,13 +2072,42 @@ Query OK, 0 rows affected (0\&.04 sec)
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
 .PP
-This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
+.PP
+U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
+.PP
+This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
+.PP
+Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
+.PP
+This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
+.PP
+This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
+.PP
+This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
+.PP
+You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
+.PP
+For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
+\m[blue]\fBMySQL Contact & Questions\fR\m[].
+.PP
+For additional licensing information, including licenses for third-party libraries used by MySQL products, see
+Preface and Legal Notices.
+.PP
+For help with using MySQL, please visit either the
+\m[blue]\fBMySQL Forums\fR\m[]
+or
+\m[blue]\fBMySQL Mailing Lists\fR\m[]
+where you can discuss your issues with other MySQL users.
+.PP
+For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
+\m[blue]\fBMySQL Documentation Library\fR\m[].
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

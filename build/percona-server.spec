@@ -259,7 +259,7 @@ be eligible for hot fixes, and boost your team's productivity.
 %package -n Percona-Server-server%{product_suffix}
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
-Requires:       %{distro_requires} Percona-Server-shared%{product_suffix}
+Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
 Provides:       mysql-server MySQL-server
 Conflicts:	Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55
 
@@ -322,8 +322,9 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-shared%{product_suffix}
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
-Provides:       mysql-shared
+Provides:       mysql-shared mysql-libs
 Conflicts:	Percona-Server-shared-55
+Obsoletes:	mysql-libs
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages

@@ -18,7 +18,7 @@ This feature will be used for implementing faster incremental backups that use t
 User statements for handling the XtraDB changed page bitmaps
 ============================================================
 
-In |Percona Server| :rn:`5.5.29-30.0` new statements have been introduced for handling the changed page bitmap tracking. All of these statements require ``SUPER`` privilege.
+In |Percona Server| :rn:`5.6.11-60.3` new statements have been introduced for handling the changed page bitmap tracking. All of these statements require ``SUPER`` privilege.
 
  * ``FLUSH CHANGED_PAGE_BITMAPS`` - this statement can be used for synchronous bitmap write for immediate catch-up with the log checkpoint. This is used by innobackupex to make sure that XtraBackup indeed has all the required data it needs.
  * ``RESET CHANGED_PAGE_BITMAPS`` - this statement will delete all the bitmap log files and restart the bitmap log file sequence.
@@ -52,8 +52,7 @@ System Variables
 
 .. variable:: innodb_max_changed_pages
 
-   :version 5.5.27-29.0: Variable :variable:`innodb_changed_pages_limit` introduced
-   :version 5.5.29-30.0: Variable renamed to :variable:`innodb_max_changed_pages`
+   :version 5.6.11-60.3: Variable :variable:`innodb_max_changed_pages` introduced
    :cli: Yes
    :conf: Yes
    :scope: Global
@@ -64,7 +63,7 @@ System Variables
 
 .. variable:: innodb_track_changed_pages
 
-   :version 5.5.27-29.0: Variable introduced
+   :version 5.6.11-60.3: Variable introduced
    :cli: Yes
    :conf: Yes
    :scope: Global
@@ -75,7 +74,7 @@ System Variables
 
 .. variable:: innodb_max_bitmap_file_size
 
-   :version 5.5.28-29.2: Variable introduced
+   :version 5.6.11-60.3: Variable introduced
    :cli: Yes
    :conf: Yes
    :scope: Global

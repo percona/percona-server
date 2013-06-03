@@ -29,12 +29,6 @@ After the Change: ::
 Version-Specific Information
 ============================
 
-  * 5.5.8-20.0:
+  * :rn:`5.6.11-60.3`:
     Full functionality available.
-
-Other Information
-=================
-
-  * Author / Origin:
-    Percona
 

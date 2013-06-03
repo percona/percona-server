@@ -51,6 +51,15 @@ Installation
    installation
    upgrading_guide_55_56
 
+Scalability Improvements
+========================
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   scalability/innodb_io
+
 Performance Improvements
 ========================
 
@@ -69,6 +78,9 @@ Flexibility Improvements
    :maxdepth: 1
    :glob:
 
+   flexibility/log_warnings_suppress
+   flexibility/improved_memory_engine
+   flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
 
 Reliability Improvements
@@ -81,6 +93,7 @@ Reliability Improvements
    reliability/log_connection_error
    reliability/error_pad
    reliability/innodb_corrupt_table_action
+   reliability/show_slave_status_nolock
 
 Management Improvements
 =======================
@@ -89,7 +102,7 @@ Management Improvements
    :maxdepth: 1
    :glob:
 
-   management/udf_maatkit
+   management/udf_percona_toolkit
    management/innodb_fake_changes
    management/innodb_kill_idle_trx
    management/enforce_engine
@@ -107,16 +120,16 @@ Diagnostics Improvements
    :maxdepth: 1
    :glob:
 
-   diagnostics/index_info_schema_tables
-   diagnostics/innodb_stats
    diagnostics/user_stats
-   diagnostics/slow_extended_55
+   diagnostics/slow_extended
    diagnostics/innodb_show_status
    diagnostics/innodb_deadlock_count
    diagnostics/mysql_syslog
    diagnostics/show_engines
+   diagnostics/innodb_show_lock_names
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
+   diagnostics/thread_based_profiling
 
 Reference
 =========
@@ -128,6 +141,7 @@ Reference
    upstream-bug-fixes
    development
    trademark-policy
+   index_info_schema_tables
    faq
    compatibility
    release-notes/release-notes_index

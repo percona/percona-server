@@ -11,7 +11,7 @@ System Variables
 
 .. variable:: innodb_kill_idle_transaction
    
-   :version 5.5.16-22.0: Introduced
+   :version 5.6.11-60.3: Introduced
    :scope: ``GLOBAL``
    :config: ``YES``
    :dyn: ``YES``

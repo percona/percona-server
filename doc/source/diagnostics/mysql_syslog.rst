@@ -9,8 +9,8 @@ When enabled, this feature causes all commands run by the command line client to
 Version Specific Information
 ============================
 
-  * :rn:`5.5.8-20.0`:
-    Full functionality available.
+  * :rn:`5.6.11-60.3`:
+    Feature ported from |Percona Server| 5.5.
 
 Other Information
 =================

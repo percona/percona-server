@@ -10,7 +10,7 @@ Extending the :option:`secure-file-priv` server option
 Version Specific Information
 ============================
 
-  * :rn:`5.5.25a-27.1`
+  * :rn:`5.6.11-60.3`
     Variable :variable:`secure-file-priv` extended behavior implemented.
 
 System Variables

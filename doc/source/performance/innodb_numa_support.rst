@@ -13,7 +13,7 @@ It is generally recommended to enable all of the options together to maximize th
 Version Specific Information
 ============================
 
- * :rn:`5.5.28-29.1`
+ * :rn:`5.6.11-60.3`
     Improved ``NUMA`` support implemented. This feature was ported from Twitter's |MySQL| patches.
 
 System Variables

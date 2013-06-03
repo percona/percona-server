@@ -12,21 +12,21 @@ The functionality is disabled by default, and must be enabled by setting ``users
 Version Specific Information
 ============================
 
-  * :rn:`5.5.10-20.1`:
-     Renamed variable :variable:`userstat_running` to :variable:`userstat`.
+  * :rn:`5.6.11-60.3`:
+     Feature ported from |Percona Server| 5.5.
 
 Other Information
 =================
 
   * Author/Origin:
-     *Google*; *Percona* added the ``INFORMATION_SCHEMA`` tables and the :variable:`userstat_running` variable.
+     *Google*; *Percona* added the ``INFORMATION_SCHEMA`` tables and the :variable:`userstat` variable.
 
 System Variables
 ================
 
-.. variable:: userstat_running
+.. variable:: userstat
 
-     :version 5.5.10-20.1: Renamed to :variable:`userstat`
+     :version 5.6.11-60.3: Variable introduced
      :cli: Yes
      :conf: Yes
      :scope: Global

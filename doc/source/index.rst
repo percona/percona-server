@@ -9,9 +9,9 @@
  Percona Server 5.6 - Documentation
 ===================================
 
-.. warning::
+.. note::
 
- Please note: |Percona Server| 5.6 is ALPHA quality software. It should *NOT* be used in production environments.
+ Please note: |Percona Server| 5.6 is RELEASE CANDIDATE quality software. It should *NOT* be used in production environments.
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 
@@ -67,6 +67,7 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/atomic_fio
    performance/query_cache_enhance
    performance/innodb_numa_support
    performance/threadpool
@@ -112,6 +113,7 @@ Management Improvements
    management/changed_page_tracking
    management/pam_plugin
    management/innodb_expanded_fast_index_creation
+   management/log_archiving
 
 Diagnostics Improvements
 ========================

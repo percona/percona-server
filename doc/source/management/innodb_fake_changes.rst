@@ -4,7 +4,7 @@
  Support for Fake Changes
 ==========================
 
-Restarting a slave server in a replication environment or setting up new slave server can cause a replication reads slower. This is happening because replication in |MySQL| is single-threaded and because it needs to read the data before it can execute the queries. The process can be speeded up by having prefetch threads to warm the server: replay statements and then rollback at commit.
+Restarting a slave server in a replication environment or setting up new slave server can cause a replication reads slower. This is happening because replication in |MySQL| is single-threaded and because it needs to read the data before it can execute the queries. The process can be sped up by having prefetch threads to warm the server: replay statements and then rollback at commit.
 
 That makes prefetch simple but has high overhead from locking rows only to undo changes at rollback.
 
@@ -35,13 +35,23 @@ System Variables
 
 .. variable:: innodb_fake_changes
    
-   :version 5.5.16-22.0: Introduced
+   :version 5.6.11-60.3: Introduced
    :scope: ``GLOBAL``
    :type: ``BOOLEAN``
    :dyn: ``YES``
    :default: ``FALSE``
 
    This variable enables the *Fake Changes* feature.
+
+.. variable:: innodb_locking_fake_changes
+
+   :version 5.6.11-60.3: Introduced
+   :scope: ``GLOBAL``
+   :type: ``BOOLEAN``
+   :dyn: ``YES``
+   :default: ``TRUE``
+ 
+   When this variable is set to ``FALSE``, it makes fake transactions not to take any row locks. This feature was implemented because, although fake change transactions downgrade the requested exclusive (X) row locks to shared (S) locks, these S locks prevent X locks from being taken and block the real changes. However, this option is not safe to set to FALSE by default, because the fake changes implementation is not ready for lock-less operation for all workloads. Namely, if a real transaction will remove a row that a fake transaction is doing a secondary index maintenance for, the latter will fail. This option is considered experimental and might be removed in the future if lockless operation mode fixes are implemented.
 
 Implementation Details
 ======================

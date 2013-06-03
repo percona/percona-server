@@ -8,11 +8,11 @@ This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Serve
 
   * :table:`CLIENT_STATISTICS`
 
-  * :table:`INDEX_STATISTICS`
-
   * :table:`GLOBAL_TEMPORARY_TABLES`
 
-  * :table:`QUERY_RESPONSE_TIME`
+  * :table:`INDEX_STATISTICS`
+
+  * :table:`INNODB_CHANGED_PAGES`
 
   * :table:`TABLE_STATISTICS`
 
@@ -22,37 +22,9 @@ This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Serve
 
   * :table:`USER_STATISTICS`
 
-  * :table:`INNODB_RSEG`
+  * :table:`XTRADB_INTERNAL_HASH_TABLES`
 
-  * :table:`INNODB_UNDO_LOGS`
+  * :table:`XTRADB_READ_VIEW`
 
-  * :table:`INNODB_SYS_TABLESTATS`
-
-  * :table:`INNODB_INDEX_STATS`
-
-  * :table:`INNODB_CHANGED_PAGES`
-
-  * :table:`INNODB_BUFFER_POOL_PAGES`
-
-  * :table:`INNODB_BUFFER_POOL_PAGES_BLOB`
-
-  * :table:`INNODB_BUFFER_POOL_PAGES_INDEX`
-
-  * :table:`INNODB_SYS_TABLES`
-
-  * :table:`INNODB_SYS_FIELDS`
-
-  * :table:`INNODB_SYS_COLUMNS`
-
-  * :table:`INNODB_SYS_STATS`
-
-  * :table:`INNODB_SYS_FOREIGN`
-
-  * :table:`INNODB_SYS_INDEXES`
-
-  * :table:`XTRADB_ADMIN_COMMAND`
-
-  * :table:`INNODB_TABLE_STATS`
-
-  * :table:`INNODB_SYS_FOREIGN_COLS`
+  * :table:`XTRADB_RSEG`
 

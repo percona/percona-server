@@ -201,4 +201,4 @@ build. ::
 
 .. note::
 
-  :ref:`pam_plugin` has been merged into |Percona Server| in :rn:`5.5.24-26.0` but it is not built with the server by default. In order to build the Percona Server with PAM plugin, additional option :option:`-DWITH_PAM=ON` should be used.
+  :ref:`pam_plugin` is not built with the server by default. In order to build the Percona Server with PAM plugin, additional option :option:`-DWITH_PAM=ON` should be used.

@@ -14,10 +14,12 @@ This features modifies the ``SLOW SLAVE STATUS`` syntax to allow: ::
 
 This will display the slave's status as if there were no lock, allowing the user to detect and understand the situation that is occurring.
 
-**NOTE:** The information given when ``NOLOCK`` is used may be slightly inconsistent with the actual situation while the lock is being held.
+.. note:: 
+
+  The information given when ``NOLOCK`` is used may be slightly inconsistent with the actual situation while the lock is being held.
 
 
 Version Specific Information
 ============================
 
-  * 5.5.8-20.0:
+  * :rn:`5.6.11-60.3`: Feature ported from |Percona Server| 5.5.

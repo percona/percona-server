@@ -26,7 +26,7 @@ When the server starts, it will note in the log output that the utility user exi
 
 In order to have the ability for a special type of MySQL user, which will have a very limited and special amount of control over the system and can not be see or modified by any other user including the root user, three new options have been added.
 
-Option :variable:`utility_user` specifies the user which the system will create and recognize as the utility user. The host in the utility user specification follows conventions described in the `MySQL manual <http://dev.mysql.com/doc/refman/5.5/en/connection-access.html>`_, i.e. it allows wildcards and IP masks. Anonymous user names are not permitted to be used for the utility user name.
+Option :variable:`utility_user` specifies the user which the system will create and recognize as the utility user. The host in the utility user specification follows conventions described in the `MySQL manual <http://dev.mysql.com/doc/refman/5.6/en/connection-access.html>`_, i.e. it allows wildcards and IP masks. Anonymous user names are not permitted to be used for the utility user name.
 
 This user must not be an exact match to any other user that exists in the mysql.user table. If the server detects that the user specified with this option exactly matches any user within the mysql.user table on start up, the server will report an error and shut down gracefully. If host name wildcards are used and a more specific user specification is identified on start up, the server will report a warning and continue. 
 
@@ -51,7 +51,7 @@ System Variables
 
 .. variable:: utility_user
 
-     :version 5.5.27-28.0: Implemented
+     :version 5.6.11-60.3: Implemented
      :cli: Yes
      :conf: utility_user=<user@host>
      :scope: Global
@@ -63,7 +63,7 @@ Specifies a MySQL user that will be added to the internal list of users and reco
 
 .. variable:: utility_user_password
 
-     :version 5.5.27-28.0: Implemented
+     :version 5.6.11-60.3: Implemented
      :cli: Yes
      :conf: utility_user_password=<password>
      :scope: Global
@@ -75,7 +75,7 @@ Specifies the password required for the utility user.
 
 .. variable:: utility_user_schema_access
 
-     :version 5.5.27-28.0: Implemented
+     :version 5.6.11-60.3: Implemented
      :cli: Yes
      :conf: utility_user_schema_access=<schema>,<schema>,<schema>
      :scope: Global

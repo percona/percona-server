@@ -11,7 +11,7 @@ This variable can be used with the existing :variable:`max_binlog_size` variable
 Version Specific Information
 ============================
 
-  * 5.5.27-29.0:
+  * 5.6.11-60.3:
     Variable :variable:`max_binlog_files` introduced.
 
 System Variables
@@ -19,7 +19,7 @@ System Variables
 
 .. variable:: max_binlog_files
 
-     :version 5.5.27-29.0: Introduced.
+     :version 5.6.11-60.3: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global

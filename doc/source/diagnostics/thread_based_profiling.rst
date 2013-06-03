@@ -13,5 +13,5 @@ This feature is enabled by default if your system supports it, in other cases it
 Version Specific Information
 ============================
 
-  * :rn:`5.5.25a-27.1`:
-    Thread based profiling introduced
+  * :rn:`5.6.11-60.3`:
+    Thread based profiling ported from |Percona Server| 5.5.

@@ -1,10 +1,10 @@
-.. _udf_maatkit:
+.. _udf_percona_toolkit:
 
-======================================
- *Percona Toolkit* and *Maatkit* UDFs
-======================================
+========================
+ *Percona Toolkit* UDFs
+========================
 
-Three *Percona Toolkit* and *Maatkit* UDFs that provide faster checksums are provided:
+Three *Percona Toolkit* UDFs that provide faster checksums are provided:
 
   * ``fnv_udf``
 
@@ -15,7 +15,7 @@ Three *Percona Toolkit* and *Maatkit* UDFs that provide faster checksums are pro
 Version Specific Information
 ============================
 
-  * 5.1.53-12.4:
+  * :rn:`5.6.11-60.3`:
     Began distributing ``fnv_udf``, ``fnv1a_udf``, and ``murmur_udf``.
 
 Other Information
@@ -39,11 +39,16 @@ This will place the *Percona Toolkit* UDFs onto your system. However, they will 
 
 Executing each of these commands will install its respective UDF into the server.
 
-If you have any difficulty, or require more detailed information, refer to the *Maatkit* `Installing UDFs <http://code.google.com/p/maatkit/wiki/InstallingUdfs>`_ documentation.
+Troubleshooting
+================
 
+If you get the error: :: 
+
+  ERROR 1126 (HY000): Can't open shared library 'fnv_udf.so' (errno: 22 fnv_udf.so: cannot open shared object file: No such file or directory)
+
+Then you may need to copy the .so file to another location in your system. Try both ``/lib`` and ``/usr/lib``. Look at your environment's ``$LD_LIBRARY_PATH`` variable for clues. If none is set, and neither ``/lib`` nor ``/usr/lib`` works, you may need to set ``LD_LIBRARY_PATH`` to ``/lib`` or ``/usr/lib``.
 
 Other Reading
 =============
 
-  * *Percona Toolkit* - http://www.percona.com/doc/percona-toolkit
-  * *Maatkit* - http://www.maatkit.org/
+  * *Percona Toolkit* `documentation <http://www.percona.com/doc/percona-toolkit/>`_

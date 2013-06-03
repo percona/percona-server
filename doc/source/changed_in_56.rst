@@ -10,15 +10,15 @@ Some features that were present in |Percona Server| 5.5 have been removed in |Pe
 
  * `fast_index_creation <http://www.percona.com/doc/percona-server/5.5/management/innodb_fast_index_creation.html>`_ (use MySQL 5.6's ALGORITHM= option instead)
  * `HandlerSocket <http://www.percona.com/doc/percona-server/5.5/performance/handlersocket.html>`_ (may return when HandlerSocket supports MySQL 5.6)
- * SHOW [GLOBAL] TEMPORARY TABLES functionality is now only available via the INFORMATION_SCHEMA tables TEMPORARY_TABLES and GLOBAL_TEMPORARY_TABLES.
+ * SHOW [GLOBAL] TEMPORARY TABLES functionality is now only available via the INFORMATION_SCHEMA tables :table:`TEMPORARY_TABLES` and :table:`GLOBAL_TEMPORARY_TABLES`.
  * `InnoDB timer-based Concurrency Throttling <http://www.percona.com/doc/percona-server/5.5/performance/innodb_thread_concurrency_timer_based.html>`_
  * `InnoDB Recovery Stats <http://www.percona.com/doc/percona-server/5.5/management/innodb_recovery_patches.html>`_
 
 Some features that were present in |Percona Server| 5.5 have been replaced by a different implementation of the same/similar functionality in |Percona Server| 5.6. These are:
 
- * SHOW INNODB STATUS section "OLDEST VIEW" has been replaced by the XTRADB_READ_VIEW INFORMATION_SCHEMA table.
- * SHOW INNODB STATUS sections on memory usage for InnoDB/XtraDB hash tables has been replaced by the XTRADB_INTERNAL_HASH_TABLES INFORMATION_SCHEMA table.
- * The INNODB_RSEG table has been renamed to XTRADB_RSEG
+ * ``SHOW ENGINE INNODB STATUS`` section "OLDEST VIEW" has been replaced by the :table:`XTRADB_READ_VIEW` INFORMATION_SCHEMA table.
+ * ``SHOW ENGINE INNODB STATUS`` sections on memory usage for InnoDB/XtraDB hash tables has been replaced by the :table:`XTRADB_INTERNAL_HASH_TABLES` INFORMATION_SCHEMA table.
+ * The :table:`INNODB_RSEG` table has been renamed to :table:`XTRADB_RSEG`.
 
 Some |Percona Server| 5.5 features have been replaced by similar or equivalent MySQL 5.6 features, so we now keep the MySQL 5.6 implementations in |Percona Server| 5.6. These are:
 

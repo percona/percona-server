@@ -4,17 +4,17 @@
  Error Code Compatibility
 ==========================
 
-|Percona Server| with |XtraDB| has error code incompatibilities with |MySQL| 5.5. It is important to maintain compatibility in the error codes used by the servers. For example, scripts that may be run on both servers could contain references to error codes.
+|Percona Server| with |XtraDB| has error code incompatibilities with |MySQL| 5.6. It is important to maintain compatibility in the error codes used by the servers. For example, scripts that may be run on both servers could contain references to error codes.
 
 The reasons for the current incompatibilities are:
 
-  * |Percona Server| with |XtraDB| contains features that have been backported from MyQL 5.5. Some of the |MySQL| 5.5 features added new error codes.
+  * |Percona Server| with |XtraDB| contains features that have been backported from MyQL 5.6. Some of the |MySQL| 5.6 features added new error codes.
 
   * Some |Percona Server| with |XtraDB| features have added new error codes.
 
-The solution to the first problem is to preserve |MySQL| 5.5 error codes in the |Percona Server|. An example of where this has been done is |Percona Server| feature Query Cache Enhancements. This feature adds error ``ER_QUERY_CACHE_DISABLED`` to the |Percona Server|, which is defined as error code 1651 in |MySQL| 5.5.
+The solution to the first problem is to preserve |MySQL| 5.6 error codes in the |Percona Server|. An example of where this has been done is |Percona Server| feature Query Cache Enhancements. This feature adds error ``ER_QUERY_CACHE_DISABLED`` to the |Percona Server|, which is defined as error code 1651 in |MySQL| 5.6.
 
-After migrating |Percona Server| / |XtraDB| to |MySQL| 5.5, users might experience troubles because of this.
+After migrating |Percona Server| / |XtraDB| to |MySQL| 5.6, users might experience troubles because of this.
 
 The solution to the second problem is to insure that unique error codes are chosen, when adding new ones to |Percona Server|, that will never be duplicated during |MySQL| development.
 
@@ -51,5 +51,5 @@ Patch only adds prefix ``PADD_`` and padds error in sys files. All other |MySQL|
 Version-Specific Information
 ============================
 
-  * 5.5.8-20.0
-    Full functionality available.
+  * :rn:`5.6.11-60.3`
+    Feature ported from |Percona Server| 5.5.

@@ -68,5 +68,5 @@ This will create a user ``newuser`` that can connect from ``localhost`` who will
 Version Specific Information
 ============================
 
-  * :rn:`5.5.24-26.0`
+  * :rn:`5.6.11-60.3`
     PAM authentication plugin has been integrated with |Percona Server|.

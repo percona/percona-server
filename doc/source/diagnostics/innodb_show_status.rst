@@ -361,6 +361,22 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
      :vartype: Numeric
      :scope: Global
 
+.. variable:: innodb_descriptors_memory
+
+     :version 5.6.11-60.3: Introduced.
+     :vartype: Numeric
+     :scope: Global
+
+This status variable shows the current size of the descriptors array (in bytes). The descriptor array is an |XtraDB| data structure that contains the information on currently running transactions.
+
+.. variable:: innodb_read_views_memory
+
+     :version 5.6.11-60.3: Introduced.
+     :vartype: Numeric
+     :scope: Global
+
+This status variable shows the total amount of memory allocated for the |InnoDB| read view (in bytes).
+
 TRANSACTIONS
 ------------
 

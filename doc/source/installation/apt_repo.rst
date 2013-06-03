@@ -33,15 +33,16 @@ Supported Releases
 Debian
 ------
 
- * 5.0 (lenny)
  * 6.0 (squeeze)
+ * 7.0 (wheezy)
 
 Ubuntu
 ------
 
  * 10.04LTS (lucid)
- * 11.10 (oneiric)
  * 12.04LTS (precise)
+ * 12.10 (quantal)
+ * 13.04 (raring)
 
 
 Release Candidate Repository

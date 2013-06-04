@@ -25,9 +25,9 @@ User statements for handling the XtraDB log archiving
 
 New statements have been introduced in |Percona Server| for handling the |XtraDB| log archiving. Both of these statements require ``SUPER`` privilege.
 
- * ``PURGE ARCHIVED LOGS BEFORE <log_filename>`` - this will delete all archived logs up to 'filename' (and 'filename' too). Archive which is currently in progress will not be deleted.
+ * ``PURGE ARCHIVED LOGS BEFORE <datetime>`` - this will delete archived logs modified before date-time. Archive which is currently in progress will not be deleted.
 
- * ``PURGE ARCHIVED LOGS TO <datetime>`` - this will all archived logs modified before date time. Archive which is currently in progress will not be deleted.
+ * ``PURGE ARCHIVED LOGS TO <log_filename>`` - this will delete all archived logs up to the 'log_filename' (including 'log_filename' too). Archive which is currently in progress will not be deleted.
 
 
 Version Specific Information

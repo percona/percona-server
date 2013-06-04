@@ -22,22 +22,10 @@
        else
  	crypted_pw[0]=0;			/* No password */
 
-=== modified file 'Percona-Server/include/errmsg.h'
---- Percona-Server/include/errmsg.h	2013-04-15 06:52:16 +0000
-+++ Percona-Server/include/errmsg.h	2013-04-15 07:08:31 +0000
-@@ -25,6 +25,7 @@
- void	init_client_errs(void);
- void	finish_client_errs(void);
- extern const char *client_errors[];	/* Error messages */
-+extern const char **mysql_client_errors;	/* Error messages */
- #ifdef	__cplusplus
- }
- #endif
-
 === modified file 'Percona-Server/include/my_sys.h'
 --- Percona-Server/include/my_sys.h	2013-03-05 12:46:43 +0000
 +++ Percona-Server/include/my_sys.h	2013-04-15 07:08:10 +0000
-@@ -260,6 +260,7 @@
+@@ -261,6 +261,7 @@
  
  /* charsets */
  #define MY_ALL_CHARSETS_SIZE 2048
@@ -76,7 +64,7 @@
 === modified file 'Percona-Server/include/mysql_com.h'
 --- Percona-Server/include/mysql_com.h	2013-03-05 12:46:43 +0000
 +++ Percona-Server/include/mysql_com.h	2013-04-15 07:08:10 +0000
-@@ -482,6 +482,7 @@
+@@ -497,6 +497,7 @@
  void my_net_local_init(NET *net);
  void net_end(NET *net);
  void net_clear(NET *net, my_bool check_buffer);
@@ -84,7 +72,7 @@
  my_bool net_realloc(NET *net, size_t length);
  my_bool	net_flush(NET *net);
  my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);
-@@ -559,14 +560,12 @@
+@@ -574,14 +575,12 @@
  void create_random_string(char *to, unsigned int length, struct rand_struct *rand_st);
  
  void hash_password(unsigned long *to, const char *password, unsigned int password_len);
@@ -103,7 +91,7 @@
 === modified file 'Percona-Server/libmysql/CMakeLists.txt'
 --- Percona-Server/libmysql/CMakeLists.txt	2013-04-15 06:52:16 +0000
 +++ Percona-Server/libmysql/CMakeLists.txt	2013-04-15 07:08:10 +0000
-@@ -221,7 +221,7 @@
+@@ -224,7 +224,7 @@
        SET(libmysql_link_flags
          "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
        SET(libmysql_link_flags
@@ -112,16 +100,4 @@
        SET_TARGET_PROPERTIES(libmysql
          PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
      ENDIF() 
-
-=== modified file 'Percona-Server/libmysql/errmsg.c'
---- Percona-Server/libmysql/errmsg.c	2013-04-15 06:52:16 +0000
-+++ Percona-Server/libmysql/errmsg.c	2013-04-15 07:08:10 +0000
-@@ -23,6 +23,7 @@
- #include <my_sys.h>
- #include "errmsg.h"
- 
-+const char **mysql_client_errors = client_errors;
- const char *client_errors[]=
- {
-   "Unknown MySQL error",
 

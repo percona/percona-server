@@ -28,15 +28,15 @@
 %define mysql_version   5.6.11
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 60
-%define minorversion 2
+%define minorversion 3
 %define distribution  rhel%{redhatversion}
-%define percona_server_version	alpha%{majorversion}.%{minorversion}
+%define percona_server_version	rc%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         alpha%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rc%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -974,6 +974,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
+%doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -1086,6 +1087,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlimport.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_config_editor.1*
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-devel%{product_suffix} -f optional-files-devel

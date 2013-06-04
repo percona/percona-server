@@ -30,3 +30,4 @@ usr/share/man/man1/mysqlshow.1
 usr/share/man/man1/mysql_waitpid.1
 usr/share/man/man1/mysql_client_test.1
 usr/share/man/man1/mysqlslap.1
+usr/share/man/man1/mysql_config_editor.1

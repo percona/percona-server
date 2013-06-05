@@ -63,6 +63,14 @@ fi
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
 test -e "$SOURCEDIR/Makefile" || exit 2
 
+# The number of processors is a good default for -j
+if test -e "/proc/cpuinfo"
+then
+    PROCESSORS="$(grep -c ^processor /proc/cpuinfo)"
+else
+    PROCESSORS=4
+fi
+
 # Extract version from the Makefile
 MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
     | cut -d = -f 2)"
@@ -75,12 +83,13 @@ DEBIAN_VERSION="$(lsb_release -sc)"
 # Build information
 export BB_PERCONA_REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 export DEB_BUILD_OPTIONS='debug nocheck'
-export MYSQL_BUILD_CC='gcc'
-export MYSQL_BUILD_CXX='gcc'
+export MYSQL_BUILD_CC="${CC:-gcc}"
+export MYSQL_BUILD_CXX="${CXX:-gcc}"
 export HS_CXX=${HS_CXX:-g++}
 export UDF_CXX=${UDF_CXX:-g++}
 export MYSQL_BUILD_CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_INNODB_VERSION"
 export MYSQL_BUILD_CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_INNODB_VERSION"
+export MYSQL_BUILD_MAKE_JFLAG="${MAKE_JFLAG:--j$PROCESSORS}"
 
 # Prepare sources
 (

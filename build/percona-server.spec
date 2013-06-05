@@ -269,8 +269,10 @@ echo $*
 MAKE_J=-j`if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi`
 if [ $MAKE_J = -j0 ]
 then
-  MAKE_J=-j1
+  MAKE_J=-j4
 fi
+
+MAKE_JFLAG="${MAKE_JFLAG:-$MAKE_J}"
 
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
@@ -305,7 +307,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 %endif
 	    $OPT_DEBUG \
 	    --with-readline \
-	    ; make $MAKE_J"
+	    ; make $MAKE_JFLAG"
 }
 # end of function definition "BuildMySQL"
 
@@ -317,14 +319,14 @@ CXX=${HS_CXX:-g++} ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--with-mysql-plugindir=%{_libdir}/mysql/plugin \
 	--libdir=%{_libdir} \
 	--prefix=%{_prefix}
-make
+make $MAKE_JFLAG
 cd -
 }
 
 BuildUDF() {
 cd UDF
 CXX=${UDF_CXX:-g++} ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
-make all
+make $MAKE_JFLAG all
 cd -
 }
 # end of function definition "BuildHandlerSocket"
@@ -402,7 +404,7 @@ make clean
 ( BuildServer )   # subshell, so that CFLAGS + CXXFLAGS are modified only locally
 
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make %{DEBUG_TEST_MODE}
+	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{DEBUG_TEST_MODE}
 fi
 
 # Get the debug server and its .sym file from the build tree
@@ -424,7 +426,7 @@ BuildServer
 BuildHandlerSocket
 BuildUDF
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
+	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{NORMAL_TEST_MODE}
 fi
 
 # Now, build plugin 

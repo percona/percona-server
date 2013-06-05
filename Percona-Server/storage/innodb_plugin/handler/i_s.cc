@@ -47,7 +47,7 @@ extern "C" {
 #include "buf0buddy.h" /* for i_s_cmpmem */
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
 #include "ha_prototypes.h" /* for innobase_convert_name() */
-#include "srv0srv.h" /* for srv_track_changed_pages */
+#include "srv0srv.h" /* for srv_max_changed_pages */
 #include "srv0start.h" /* for srv_was_started */
 #include "btr0btr.h" /* for btr_page_get_index_id */
 #include "trx0rseg.h" /* for trx_rseg_struct */
@@ -3951,6 +3951,7 @@ i_s_innodb_changed_pages_fill(
 	ib_uint64_t		output_rows_num = 0UL;
 	ib_uint64_t		max_lsn = IB_ULONGLONG_MAX;
 	ib_uint64_t		min_lsn = 0ULL;
+	int			ret = 0;
 
 	DBUG_ENTER("i_s_innodb_changed_pages_fill");
 
@@ -3961,10 +3962,6 @@ i_s_innodb_changed_pages_fill(
 	}
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
-	if (!srv_track_changed_pages) {
-		DBUG_RETURN(0);
-	}
 
 	if (cond) {
 		limit_lsn_range_from_condition(table, cond, &min_lsn,
@@ -4041,8 +4038,13 @@ i_s_innodb_changed_pages_fill(
 		++output_rows_num;
 	}
 
+	if (i.failed) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+		ret = 1;
+	}
+
 	log_online_bitmap_iterator_release(&i);
-	DBUG_RETURN(0);
+	DBUG_RETURN(ret);
 }
 
 static

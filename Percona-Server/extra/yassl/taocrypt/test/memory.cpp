@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 To use MemoryTracker merely add this file to your project
 No need to instantiate anything
 
-If your app is multi threaded define YASSL_THREAD_SAFE
+If your app is multi threaded define MULTI_THREADED
 
 *********************************************************************/
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1840,6 +1840,7 @@ public:
   ulonglong  options;           /* Bitmap of states */
   longlong   row_count_func;    /* For the ROW_COUNT() function */
   ha_rows    cuted_fields;
+  uint8      failed_com_change_user;
 
   /*
     number of rows we actually sent to the client, including "synthetic"

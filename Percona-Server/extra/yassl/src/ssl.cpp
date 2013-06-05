@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2005-2007 MySQL AB, 2008-2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +23,6 @@
 
  *  stunnel functions at end of file
  */
-
 
 
 
@@ -1014,7 +1012,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
   static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
-        SetErrorString(errNumber, buffer);
+        SetErrorString(YasslError(errNumber), buffer);
         return buffer;
     }
 

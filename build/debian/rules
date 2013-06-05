@@ -9,7 +9,7 @@ include /usr/share/dpatch/dpatch.make
 TMP=$(CURDIR)/debian/tmp/
 
 major_version_default=14
-minor_version_default=3
+minor_version_default=6
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -105,7 +105,7 @@ endif
 		--with-libwrap \
 		--with-readline \
 		$(USE_STATIC_MYSQLD) \
-		--with-ssl \
+		--with-ssl=/usr \
 	    	--without-docs \
 		--with-extra-charsets=all \
 		--with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
@@ -125,7 +125,7 @@ build-stamp: configure
 	dh_testdir
 
 	$(MAKE) $(MAKE_JFLAG)
-ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
+ifneq ($(findstring check,$(DEB_BUILD_OPTIONS)),)
 	if [ ! -f testsuite-stamp ] ; then \
 	  $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
 	fi
@@ -197,7 +197,7 @@ install: build
 	# build HandlerSockect
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
 	./autogen.sh && \
-	CXX=g++ ./configure --with-mysql-source="$(MYSQL_SRC)" \
+	CXX="$${HS_CXX:-g++}" ./configure --with-mysql-source="$(MYSQL_SRC)" \
 	--with-mysql-bindir="$(MYSQL_SRC)/scripts" \
 	--with-mysql-plugindir="/usr/lib/mysql/plugin" \
 	--libdir="/usr/lib" \
@@ -205,7 +205,7 @@ install: build
 	$(MAKE) $(MAKE_JFLAG)
 	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
 	# build Maatkit UDF
-	cd UDF/ && CXX=g++ ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
+	cd UDF/ && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

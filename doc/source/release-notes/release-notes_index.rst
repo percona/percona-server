@@ -8,6 +8,7 @@ Percona Server 5.1 Release notes
    :glob:
 
    Percona-Server-5.1.69-14.7
+   Percona-Server-5.1.68-14.6
    Percona-Server-5.1.68-14.5
    Percona-Server-5.1.67-14.4
    Percona-Server-5.1.67-14.3

@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 10/26/2011
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 03/05/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "10/26/2011" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/05/2013" "MySQL 5\&.1" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -32,9 +41,7 @@ mysql \- the MySQL command\-line tool
 .SH "DESCRIPTION"
 .PP
 \fBmysql\fR
-is a simple SQL shell (with GNU
-readline
-capabilities)\&. It supports interactive and noninteractive use\&. When used interactively, query results are presented in an ASCII\-table format\&. When used noninteractively (for example, as a filter), the result is presented in tab\-separated format\&. The output format can be changed using command options\&.
+is a simple SQL shell with input line editing capabilities\&. It supports interactive and noninteractive use\&. When used interactively, query results are presented in an ASCII\-table format\&. When used noninteractively (for example, as a filter), the result is presented in tab\-separated format\&. The output format can be changed using command options\&.
 .PP
 If you have problems due to insufficient memory for large result sets, use the
 \fB\-\-quick\fR
@@ -115,7 +122,7 @@ and
 groups of an option file\&.
 \fBmysql\fR
 also supports the options for processing option files described at
-Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -212,7 +219,7 @@ client that is supplied with MySQL Cluster, beginning with MySQL Cluster NDB 6\&
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -313,8 +320,8 @@ The database to use\&. This is useful primarily in an option file\&.
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
-\'d:t:o,\fIfile_name\fR\'\&. The default is
-\'d:t:o,/tmp/mysql\&.trace\'\&.
+\*(Aqd:t:o,\fIfile_name\fR\*(Aq\&. The default is
+\*(Aqd:t:o,/tmp/mysql\&.trace\*(Aq\&.
 .RE
 .sp
 .RS 4
@@ -375,7 +382,7 @@ latin1
 character set by default\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
 See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq, for more information\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -499,7 +506,7 @@ Produce HTML output\&.
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&5.1.6, \(lqServer SQL Modes\(rq)\&.
+Section\ \&5.1.7, \(lqServer SQL Modes\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -815,7 +822,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -1129,7 +1136,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.6.4, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1292,7 +1299,7 @@ Produce XML output\&.
 Prior to MySQL 5\&.1\&.12, there was no differentiation in the output when using this option between columns containing the
 NULL
 value and columns containing the string literal
-\'NULL\'; both were represented as
+\*(AqNULL\*(Aq; both were represented as
 .sp .5v
 .RE
 .sp
@@ -1321,9 +1328,9 @@ Beginning with MySQL 5\&.1\&.18, the XML output also uses an XML namespace, as s
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \'version%\'"\fR
+shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \*(Aqversion%\*(Aq"\fR
 <?xml version="1\&.0"?>
-<resultset statement="SHOW VARIABLES LIKE \'version%\'" xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
+<resultset statement="SHOW VARIABLES LIKE \*(Aqversion%\*(Aq" xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
 <row>
 <field name="Variable_name">version</field>
 <field name="Value">5\&.0\&.40\-debug</field>
@@ -1449,8 +1456,8 @@ prompt:
 .nf
 mysql> \fBhelp\fR
 List of all MySQL commands:
-Note that all text commands must be first on line and end with \';\'
-?         (\e?) Synonym for `help\'\&.
+Note that all text commands must be first on line and end with \*(Aq;\*(Aq
+?         (\e?) Synonym for `help\*(Aq\&.
 clear     (\ec) Clear command\&.
 connect   (\er) Reconnect to the server\&. Optional arguments are db and host\&.
 delimiter (\ed) Set statement delimiter\&.
@@ -1460,7 +1467,7 @@ exit      (\eq) Exit mysql\&. Same as quit\&.
 go        (\eg) Send command to mysql server\&.
 help      (\eh) Display this help\&.
 nopager   (\en) Disable pager, print to stdout\&.
-notee     (\et) Don\'t write into outfile\&.
+notee     (\et) Don\*(Aqt write into outfile\&.
 pager     (\eP) Set PAGER [to_pager]\&. Print the query results via PAGER\&.
 print     (\ep) Print current command\&.
 prompt    (\eR) Change your mysql prompt\&.
@@ -1475,8 +1482,8 @@ use       (\eu) Use another database\&. Takes database name as argument\&.
 charset   (\eC) Switch to another charset\&. Might be needed for processing
                binlog with multi\-byte charsets\&.
 warnings  (\eW) Show warnings after every statement\&.
-nowarning (\ew) Don\'t show warnings after every statement\&.
-For server side help, type \'help contents\'
+nowarning (\ew) Don\*(Aqt show warnings after every statement\&.
+For server side help, type \*(Aqhelp contents\*(Aq
 .fi
 .if n \{\
 .RE
@@ -1586,7 +1593,7 @@ interprets as the separator between SQL statements\&. The default is the semicol
 .sp
 The delimiter string can be specified as an unquoted or quoted argument on the
 delimiter
-command line\&. Quoting can be done with either single quote (\'), douple quote ("), or backtick (`) characters\&. To include a quote within a quoted string, either quote the string with a different quote character or escape the quote with a backslash (\(lq\e\(rq) character\&. Backslash should be avoided outside of quoted strings because it is the escape character for MySQL\&. For an unquoted argument, the delimiter is read up to the first space or end of line\&. For a quoted argument, the delimiter is read up to the matching quote on the line\&.
+command line\&. Quoting can be done with either single quote (\*(Aq), double quote ("), or backtick (`) characters\&. To include a quote within a quoted string, either quote the string with a different quote character or escape the quote with a backslash (\(lq\e\(rq) character\&. Backslash should be avoided outside of quoted strings because it is the escape character for MySQL\&. For an unquoted argument, the delimiter is read up to the first space or end of line\&. For a quoted argument, the delimiter is read up to the matching quote on the line\&.
 .sp
 \fBmysql\fR
 interprets instances of the delimiter string as a statement delimiter anywhere it occurs, except within quoted strings\&. Be careful about defining a delimiter that might occur within other words\&. For example, if you define the delimiter as
@@ -1605,8 +1612,8 @@ is set to something other than the default of
 \(lq;\(rq, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 \(lq;\(rq
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&20.9.12, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&18.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&21.8.12, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&19.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -2308,7 +2315,7 @@ T}:T{
 A space (a space follows the backslash)
 T}
 T{
-\e\'
+\e\*(Aq
 T}:T{
 Single quote
 T}
@@ -2455,7 +2462,7 @@ prompt
 .\}
 .nf
 mysql> \fBprompt (\eu@\eh) [\ed]>\e_\fR
-PROMPT set to \'(\eu@\eh) [\ed]>\e_\'
+PROMPT set to \*(Aq(\eu@\eh) [\ed]>\e_\*(Aq
 (\fIuser\fR@\fIhost\fR) [\fIdatabase\fR]>
 (\fIuser\fR@\fIhost\fR) [\fIdatabase\fR]> prompt
 Returning to default PROMPT of mysql>
@@ -2485,9 +2492,10 @@ environment variable\&.
 The
 \&.mysql_history
 should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .PP
-It is possible to suppress logging of statements to the history file by using the
+\fBmysql\fR
+does not write statements to the history file when used noninteractively (for example, when reading input from a file or a pipe)\&. It is also possible to explicitly suppress logging of statements to the history file by using the
 \fB\-\-batch\fR
 or
 \fB\-\-execute\fR
@@ -2508,7 +2516,7 @@ if it exists, and then use either of the following techniques:
 Set the
 MYSQL_HISTFILE
 variable to
-/dev/null\&. To cause this setting to take effect each time you log in, put the setting in one of your shell\'s startup files\&.
+/dev/null\&. To cause this setting to take effect each time you log in, put the setting in one of your shell\*(Aqs startup files\&.
 .RE
 .sp
 .RS 4
@@ -2555,7 +2563,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.8, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.9, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -2565,7 +2573,7 @@ If there is no match for the search string, the search fails:
 .nf
 mysql> \fBhelp me\fR
 Nothing found
-Please try to run \'help contents\' for a list of all accessible topics
+Please try to run \*(Aqhelp contents\*(Aq for a list of all accessible topics
 .fi
 .if n \{\
 .RE
@@ -2581,7 +2589,7 @@ to see a list of the help categories:
 .nf
 mysql> \fBhelp contents\fR
 You asked for help about help category: "Contents"
-For more information, type \'help <item>\', where <item> is one of the
+For more information, type \*(Aqhelp <item>\*(Aq, where <item> is one of the
 following categories:
    Account Management
    Administration
@@ -2613,7 +2621,7 @@ shows a list of matching topics:
 .nf
 mysql> \fBhelp logs\fR
 Many help items for your request exist\&.
-To make a more specific request, please type \'help <item>\',
+To make a more specific request, please type \*(Aqhelp <item>\*(Aq,
 where <item> is one of the following topics:
    SHOW
    SHOW BINARY LOGS
@@ -2631,7 +2639,7 @@ Use a topic as the search string to see the help entry for that topic:
 .\}
 .nf
 mysql> \fBhelp show binary logs\fR
-Name: \'SHOW BINARY LOGS\'
+Name: \*(AqSHOW BINARY LOGS\*(Aq
 Description:
 Syntax:
 SHOW BINARY LOGS
@@ -2731,7 +2739,7 @@ Sometimes you may want your script to display progress information to the user\&
 .RS 4
 .\}
 .nf
-SELECT \'<info_to_display>\' AS \' \';
+SELECT \*(Aq<info_to_display>\*(Aq AS \*(Aq \*(Aq;
 .fi
 .if n \{\
 .RE
@@ -2781,7 +2789,7 @@ mail_from: Monty
       sbj: UTF\-8
       txt: >>>>> "Thimble" == Thimble Smith writes:
 Thimble> Hi\&.  I think this is a good idea\&.  Is anyone familiar
-Thimble> with UTF\-8 or Unicode? Otherwise, I\'ll put this on my
+Thimble> with UTF\-8 or Unicode? Otherwise, I\*(Aqll put this on my
 Thimble> TODO list and see what happens\&.
 Yes, please do that\&.
 Regards,
@@ -2823,7 +2831,7 @@ SET sql_safe_updates=1, sql_select_limit=1000, sql_max_join_size=1000000;
 .\}
 .PP
 See
-Section\ \&5.1.3, \(lqServer System Variables\(rq\&.
+Section\ \&5.1.4, \(lqServer System Variables\(rq\&.
 .PP
 The
 SET
@@ -2945,17 +2953,46 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&20.9.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
+Section\ \&21.8.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
 .PP
-This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
 .PP
-You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
+.PP
+U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
+.PP
+This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
+.PP
+Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
+.PP
+This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
+.PP
+This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
+.PP
+This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
+.PP
+You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
+.PP
+For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
+\m[blue]\fBMySQL Contact & Questions\fR\m[].
+.PP
+For additional licensing information, including licenses for third-party libraries used by MySQL products, see
+Preface and Legal Notices.
+.PP
+For help with using MySQL, please visit either the
+\m[blue]\fBMySQL Forums\fR\m[]
+or
+\m[blue]\fBMySQL Mailing Lists\fR\m[]
+where you can discuss your issues with other MySQL users.
+.PP
+For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
+\m[blue]\fBMySQL Documentation Library\fR\m[].
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

@@ -9,7 +9,7 @@ include /usr/share/dpatch/dpatch.make
 TMP=$(CURDIR)/debian/tmp/
 
 major_version_default=14
-minor_version_default=3
+minor_version_default=6
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -28,8 +28,14 @@ DISTRIBUTION = $(shell echo "Percona Server (GPL), `if test -z \"$(major_version
 
 MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
 ifeq (${MAKE_J}, -j0)
-  MAKE_J = -j1
+  MAKE_J = -j4
 endif
+ifeq ($(MYSQL_BUILD_MAKE_JFLAG),)
+  MAKE_JFLAG = $(MAKE_J)
+else
+  MAKE_JFLAG = $(MYSQL_BUILD_MAKE_JFLAG)
+endif
+
 MYSQL_SRC = $(shell pwd)
 
 MAKE_TEST_TARGET=test-force
@@ -99,7 +105,7 @@ endif
 		--with-libwrap \
 		--with-readline \
 		$(USE_STATIC_MYSQLD) \
-		--with-ssl \
+		--with-ssl=/usr \
 	    	--without-docs \
 		--with-extra-charsets=all \
 		--with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
@@ -118,8 +124,8 @@ build: build-stamp
 build-stamp: configure
 	dh_testdir
 
-	$(MAKE) $(MAKE_J)
-ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
+	$(MAKE) $(MAKE_JFLAG)
+ifneq ($(findstring check,$(DEB_BUILD_OPTIONS)),)
 	if [ ! -f testsuite-stamp ] ; then \
 	  $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
 	fi
@@ -191,15 +197,15 @@ install: build
 	# build HandlerSockect
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
 	./autogen.sh && \
-	CXX=g++ ./configure --with-mysql-source="$(MYSQL_SRC)" \
+	CXX="$${HS_CXX:-g++}" ./configure --with-mysql-source="$(MYSQL_SRC)" \
 	--with-mysql-bindir="$(MYSQL_SRC)/scripts" \
 	--with-mysql-plugindir="/usr/lib/mysql/plugin" \
 	--libdir="/usr/lib" \
 	--prefix="/usr" && \
-	$(MAKE)
+	$(MAKE) $(MAKE_JFLAG)
 	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
 	# build Maatkit UDF
-	cd UDF/ && CXX=g++ ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
+	cd UDF/ && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

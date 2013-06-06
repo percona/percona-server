@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -958,8 +958,34 @@ public:
 				   pthread_mutex_t* log_lock,
                                    const Format_description_log_event
                                    *description_event);
+
+  /**
+    Reads an event from a binlog or relay log. Used by the dump thread
+    this method reads the event into a raw buffer without parsing it.
+
+    @Note If mutex is 0, the read will proceed without mutex.
+
+    @Note If a log name is given than the method will check if the
+    given binlog is still active.
+
+    @param[in]  file                log file to be read
+    @param[out] packet              packet to hold the event
+    @param[in]  lock                the lock to be used upon read
+    @param[in]  log_file_name_arg   the log's file name
+    @param[out] is_binlog_active    is the current log still active
+
+    @retval 0                   success
+    @retval LOG_READ_EOF        end of file, nothing was read
+    @retval LOG_READ_BOGUS      malformed event
+    @retval LOG_READ_IO         io error while reading
+    @retval LOG_READ_MEM        packet memory allocation failed
+    @retval LOG_READ_TRUNC      only a partial event could be read
+    @retval LOG_READ_TOO_LARGE  event too large
+   */
   static int read_log_event(IO_CACHE* file, String* packet,
-			    pthread_mutex_t* log_lock);
+                            pthread_mutex_t* log_lock,
+                            const char *log_file_name_arg= NULL,
+                            bool* is_binlog_active= NULL);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
@@ -983,7 +1009,7 @@ public:
     return thd ? thd->db : 0;
   }
 #else
-  Log_event() : temp_buf(0) {}
+  Log_event() : temp_buf(0), flags(0) {}
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
@@ -2265,12 +2291,26 @@ public:
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const
+  bool header_is_valid() const
   {
     return ((common_header_len >= ((binlog_version==1) ? OLD_HEADER_LEN :
                                    LOG_EVENT_MINIMAL_HEADER_LEN)) &&
             (post_header_len != NULL));
   }
+
+  bool version_is_valid() const
+  {
+    /* It is invalid only when all version numbers are 0 */
+    return !(server_version_split[0] == 0 &&
+             server_version_split[1] == 0 &&
+             server_version_split[2] == 0);
+  }
+
+  bool is_valid() const
+  {
+    return header_is_valid() && version_is_valid();
+  }
+
   int get_data_size()
   {
     /*
@@ -2505,6 +2545,7 @@ public:
   bool is_null;
 #ifndef MYSQL_CLIENT
   bool deferred;
+  query_id_t query_id;
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg)
@@ -2529,7 +2570,11 @@ public:
      and which case the applier adjusts execution path.
   */
   bool is_deferred() { return deferred; }
-  void set_deferred() { deferred= true; }
+  /*
+    In case of the deffered applying the variable instance is flagged
+    and the parsing time query id is stored to be used at applying time.
+  */
+  void set_deferred(query_id_t qid) { deferred= true; query_id= qid; }
 #endif
   bool is_valid() const { return name != 0; }
 

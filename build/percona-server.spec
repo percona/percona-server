@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.67
+%define mysqlversion 5.1.68
 %define majorversion 14
-%define minorversion 3
+%define minorversion 6
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -158,6 +158,7 @@ Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	Percona-Server-shared%{package_suffix} Percona-Server-client%{package_suffix} chkconfig coreutils shadow-utils grep procps
 Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
+Conflicts:	Percona-SQL-server-50
 
 %description -n Percona-Server-server%{package_suffix}
 The Percona Server software delivers a very fast, multi-threaded, multi-user,
@@ -180,6 +181,7 @@ package "Percona-Server-client%{package_suffix}" as well!
 Summary: Percona-Server - Client
 Group: Applications/Databases
 Provides: mysql-client MySQL-client Percona-XtraDB-client mysql MySQL
+Conflicts: Percona-SQL-client-50
 
 %description -n Percona-Server-client%{package_suffix}
 This package contains the standard Percona Server client and administration tools. 
@@ -194,6 +196,7 @@ Requires: mysql-client perl
 Summary: Percona-Server - Test suite
 Group: Applications/Databases
 Provides: mysql-test MySQL-test Percona-XtraDB-test
+Conflicts: Percona-SQL-test-50
 AutoReqProv: no
 
 %description -n Percona-Server-test%{package_suffix}
@@ -207,6 +210,7 @@ This package contains the Percona-Server regression test suite.
 Summary: Percona-Server - Development header files and libraries
 Group: Applications/Databases
 Provides: mysql-devel MySQL-devel Percona-XtraDB-devel
+Conflicts: Percona-SQL-devel-50
 
 %description -n Percona-Server-devel%{package_suffix}
 This package contains the development header files and libraries
@@ -269,8 +273,10 @@ echo $*
 MAKE_J=-j`if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi`
 if [ $MAKE_J = -j0 ]
 then
-  MAKE_J=-j1
+  MAKE_J=-j4
 fi
+
+MAKE_JFLAG="${MAKE_JFLAG:-$MAKE_J}"
 
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
@@ -288,7 +294,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 	    --with-pic \
             -prefix=/usr \
 	    --with-extra-charsets=complex \
-	    --with-ssl \
+	    --with-ssl=/usr \
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
             --libdir=%{_libdir} \
@@ -305,7 +311,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 %endif
 	    $OPT_DEBUG \
 	    --with-readline \
-	    ; make $MAKE_J"
+	    ; make $MAKE_JFLAG"
 }
 # end of function definition "BuildMySQL"
 
@@ -317,14 +323,14 @@ CXX=${HS_CXX:-g++} ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--with-mysql-plugindir=%{_libdir}/mysql/plugin \
 	--libdir=%{_libdir} \
 	--prefix=%{_prefix}
-make
+make $MAKE_JFLAG
 cd -
 }
 
 BuildUDF() {
 cd UDF
 CXX=${UDF_CXX:-g++} ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
-make all
+make $MAKE_JFLAG all
 cd -
 }
 # end of function definition "BuildHandlerSocket"
@@ -402,7 +408,7 @@ make clean
 ( BuildServer )   # subshell, so that CFLAGS + CXXFLAGS are modified only locally
 
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make %{DEBUG_TEST_MODE}
+	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{DEBUG_TEST_MODE}
 fi
 
 # Get the debug server and its .sym file from the build tree
@@ -424,7 +430,7 @@ BuildServer
 BuildHandlerSocket
 BuildUDF
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
+	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{NORMAL_TEST_MODE}
 fi
 
 # Now, build plugin 
@@ -580,8 +586,17 @@ fi
 if [ X${PERCONA_DEBUG} == X1 ]; then
         set -x
 fi
-#
-mysql_datadir=%{mysqldatadir}
+
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.

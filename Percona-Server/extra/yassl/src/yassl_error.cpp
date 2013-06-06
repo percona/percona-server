@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,11 +31,6 @@
     #pragma warning(disable: 4996)
 #endif
 
-#ifdef _MSC_VER
-    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
-    #pragma warning(disable: 4996)
-#endif
-
 namespace yaSSL {
 
 
@@ -60,7 +55,7 @@ Library Error::get_lib() const
 */
 
 
-void SetErrorString(unsigned long error, char* buffer)
+void SetErrorString(YasslError error, char* buffer)
 {
     using namespace TaoCrypt;
     const int max = MAX_ERROR_SZ;  // shorthand
@@ -147,6 +142,10 @@ void SetErrorString(unsigned long error, char* buffer)
 
     case pms_version_error :
         strncpy(buffer, "bad PreMasterSecret version error", max);
+        break;
+
+    case sanityCipher_error :
+        strncpy(buffer, "sanity check on cipher text size error", max);
         break;
 
         // openssl errors

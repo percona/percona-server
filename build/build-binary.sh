@@ -99,6 +99,14 @@ WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
 test -e "$SOURCEDIR/Makefile" || exit 2
 
+# The number of processors is a good default for -j
+if test -e "/proc/cpuinfo"
+then
+    PROCESSORS="$(grep -c ^processor /proc/cpuinfo)"
+else
+    PROCESSORS=4
+fi
+
 # Extract version from the Makefile
 MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
     | cut -d = -f 2)"
@@ -118,7 +126,7 @@ export CC=${CC:-gcc}
 export CXX=${CXX:-gcc}
 export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
 export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
-export MAKE_JFLAG=-j4
+export MAKE_JFLAG="${MAKE_JFLAG:--j$PROCESSORS}"
 
 # Create a temporary working directory
 INSTALLDIR="$(cd "$WORKDIR" && TMPDIR="$WORKDIR_ABS" mktemp -d percona-build.XXXXXX)"
@@ -168,7 +176,7 @@ fi
             --with-mysql-plugindir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
             --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
             --prefix="/usr/local/$PRODUCT_FULL"
-        make
+        make $MAKE_JFLAG
         make DESTDIR="$INSTALLDIR" install
 
     )
@@ -178,7 +186,7 @@ fi
         cd "UDF"
         CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/$PRODUCT/include" \
             --libdir="/usr/local/$PRODUCT_FULL/mysql/plugin"
-        make
+        make $MAKE_JFLAG
         make DESTDIR="$INSTALLDIR" install
 
     )
@@ -191,7 +199,7 @@ fi
 
         ./configure --prefix="/usr/local/$PRODUCT_FULL/" \
                 --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/"
-        make
+        make $MAKE_JFLAG
         make DESTDIR="$INSTALLDIR" install_lib_shared
 
         # Copy COPYING file

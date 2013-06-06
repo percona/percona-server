@@ -1,0 +1,78 @@
+SET @start_value = @@global.innodb_max_changed_pages;
+SELECT @start_value;
+@start_value
+1000000
+SET @@global.innodb_max_changed_pages = 5000;
+SET @@global.innodb_max_changed_pages = DEFAULT;
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+1000000
+SET @@global.innodb_max_changed_pages = 0;
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+0
+SET @@global.innodb_max_changed_pages = 1;
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+1
+SET @@global.innodb_max_changed_pages = 18446744073709551614;
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+18446744073709551614
+SET @@global.innodb_max_changed_pages = 18446744073709551615;
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+18446744073709551615
+SET @@global.innodb_max_changed_pages = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_changed_pages'
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+18446744073709551615
+SET @@global.innodb_max_changed_pages = 18446744073709551617;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_changed_pages'
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+18446744073709551615
+SET @@global.innodb_max_changed_pages = 105.54;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_changed_pages'
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+18446744073709551615
+SET @@global.innodb_max_changed_pages = -200;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_changed_pages value: '-200'
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+0
+SET @@global.innodb_max_changed_pages = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_changed_pages'
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+0
+SET @@global.innodb_max_changed_pages = 'foo';
+ERROR 42000: Incorrect argument type to variable 'innodb_max_changed_pages'
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+0
+SET @@session.innodb_max_changed_pages = 4096;
+ERROR HY000: Variable 'innodb_max_changed_pages' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@session.innodb_max_changed_pages;
+ERROR HY000: Variable 'innodb_max_changed_pages' is a GLOBAL variable
+SELECT @@global.innodb_max_changed_pages = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_changed_pages';
+@@global.innodb_max_changed_pages = VARIABLE_VALUE
+1
+SELECT @@global.innodb_max_changed_pages = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_changed_pages';
+@@global.innodb_max_changed_pages = VARIABLE_VALUE
+1
+SET @@global.innodb_max_changed_pages=6789;
+SELECT @@global.innodb_max_changed_pages=@@innodb_max_changed_pages;
+@@global.innodb_max_changed_pages=@@innodb_max_changed_pages
+1
+SET @@global.innodb_max_changed_pages=@start_value;
+SELECT @@global.innodb_max_changed_pages;
+@@global.innodb_max_changed_pages
+1000000

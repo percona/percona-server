@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.30
+%define mysql_version   5.5.31
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 30
-%define minorversion 2
+%define minorversion 3
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -349,7 +349,7 @@ BuildHandlerSocket() {
         --with-mysql-plugindir=%{_libdir}/mysql/plugin \
         --libdir=%{_libdir} \
         --prefix=%{_prefix}
-    make
+    make ${MAKE_JFLAG}
     cd -
 }
 
@@ -359,7 +359,7 @@ BuildUDF() {
         CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
         ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
         --libdir=%{_libdir}/mysql/plugin
-    make all
+    make ${MAKE_JFLAG} all
     cd -
 }
 
@@ -563,7 +563,16 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -719,7 +728,16 @@ if [ X${PERCONA_DEBUG} == X1 ]; then
 fi
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
@@ -904,7 +922,16 @@ fi
 #   http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch10s02.html
 # For all details of this code, see the "pre" and "post" sections.
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER-LAST  # Note the difference!
 STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY

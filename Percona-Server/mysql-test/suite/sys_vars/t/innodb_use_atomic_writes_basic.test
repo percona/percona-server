@@ -1,0 +1,29 @@
+# Test that innodb_use_atomic_writes is a global read-only variable
+--source include/have_innodb.inc
+
+SELECT @@global.innodb_use_atomic_writes;
+
+SELECT @@innodb_use_atomic_writes;
+
+SELECT COUNT(VARIABLE_VALUE) AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_use_atomic_writes';
+
+SELECT COUNT(VARIABLE_VALUE) AS should_be_1
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='innodb_use_atomic_writes';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.innodb_use_atomic_writes=1;
+
+SELECT IF(@@global.innodb_use_atomic_writes, "ON", "OFF") = VARIABLE_VALUE AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_use_atomic_writes';
+
+SELECT @@innodb_use_atomic_writes = @@global.innodb_use_atomic_writes AS should_be_1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.innodb_use_atomic_writes;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_use_atomic_writes;

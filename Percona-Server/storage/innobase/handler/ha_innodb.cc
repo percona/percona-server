@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -186,6 +186,7 @@ static my_bool	innobase_file_format_check		= TRUE;
 static my_bool	innobase_log_archive			= FALSE;
 static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
+static my_bool	innobase_use_atomic_writes		= FALSE;
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_fast_checksum			= FALSE;
@@ -1306,6 +1307,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_UNDO_REC_TOO_BIG);
 	case DB_OUT_OF_MEMORY:
 		return(HA_ERR_OUT_OF_MEM);
+	case DB_IDENTIFIER_TOO_LONG:
+		return(HA_ERR_INTERNAL_ERROR);
 	}
 }
 
@@ -1384,6 +1387,37 @@ innobase_convert_from_table_id(
 	uint	errors;
 
 	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
+}
+
+/**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+The input to this function is an identifier in charset my_charset_filename.
+return true when length of identifier is too long. */
+extern "C" UNIV_INTERN
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id)	/* in: identifier to check.  it must belong
+				to charset my_charset_filename */
+{
+	char		tmp[MAX_TABLE_NAME_LEN + 10];
+	uint		errors;
+	uint		len;
+	int		well_formed_error = 0;
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = thd_charset(current_thd);
+
+	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+
+	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
+					      NAME_CHAR_LEN,
+					      &well_formed_error);
+
+	if (well_formed_error || res != len) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
+		return(true);
+	}
+	return(false);
 }
 
 /******************************************************************//**
@@ -3084,6 +3118,39 @@ innobase_change_buffering_inited_ok:
 #ifndef EXTENDED_FOR_KILLIDLE
 	srv_kill_idle_transaction = 0;
 #endif
+
+	srv_use_atomic_writes = (ibool) innobase_use_atomic_writes;
+	if (innobase_use_atomic_writes) {
+		fprintf(stderr, "InnoDB: using atomic writes.\n");
+
+		/* Force doublewrite buffer off, atomic writes replace it. */
+		if (srv_use_doublewrite_buf) {
+			fprintf(stderr,
+				"InnoDB: Switching off doublewrite buffer "
+				"because of atomic writes.\n");
+			innobase_use_doublewrite = FALSE;
+			srv_use_doublewrite_buf	= FALSE;
+		}
+
+		/* Force O_DIRECT on Unixes (on Windows writes are always
+		unbuffered)*/
+#ifndef _WIN32
+		if(!innobase_file_flush_method ||
+		   !strstr(innobase_file_flush_method, "O_DIRECT")) {
+			innobase_file_flush_method =
+				srv_file_flush_method_str = (char*)"O_DIRECT";
+			fprintf(stderr,
+				"InnoDB: using O_DIRECT due to atomic "
+				"writes.\n");
+		}
+#endif
+#ifdef HAVE_POSIX_FALLOCATE
+		/* Due to a bug in directFS, using atomics needs
+		posix_fallocate() to extend the file, because pwrite() past the
+		end of the file won't work */
+		srv_use_posix_fallocate = TRUE;
+#endif
+	}
 
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
@@ -6478,6 +6545,8 @@ ha_innobase::unlock_row(void)
 {
 	DBUG_ENTER("ha_innobase::unlock_row");
 
+	ut_ad(prebuilt->trx->state == TRX_ACTIVE);
+
 	/* Consistent read does not take any locks, thus there is
 	nothing to unlock. */
 
@@ -8519,11 +8588,17 @@ innobase_rename_table(
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
 	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
+	no deadlocks can occur then in these operations.  Start the
+	transaction first to avoid a possible deadlock in the server. */
 
+	trx_start_if_not_started(trx);
 	if (lock_and_commit) {
 		row_mysql_lock_data_dictionary(trx);
 	}
+
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	error = row_rename_table_for_mysql(
 		norm_from, norm_to, trx, lock_and_commit);
@@ -12267,6 +12342,63 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+#ifndef DBUG_OFF
+static char* srv_buffer_pool_evict;
+
+/****************************************************************//**
+Called on SET GLOBAL innodb_buffer_pool_evict=...
+Handles some values specially, to evict pages from the buffer pool.
+SET GLOBAL innodb_buffer_pool_evict='uncompressed'
+evicts all uncompressed page frames of compressed tablespaces. */
+static
+void
+innodb_buffer_pool_evict_update(
+/*============================*/
+	THD*			thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*var,	/*!< in: pointer to system variable */
+	void*			var_ptr,/*!< out: ignored */
+	const void*		save)	/*!< in: immediate result
+					from check function */
+{
+	if (const char* op = *static_cast<const char*const*>(save)) {
+		if (!strcmp(op, "uncompressed")) {
+			/* Evict all uncompressed pages of compressed
+			tables from the buffer pool. Keep the compressed
+			pages in the buffer pool. */
+
+			for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+				buf_pool_t*	buf_pool = &buf_pool_ptr[i];
+
+				//buf_pool_mutex_enter(buf_pool);
+				mutex_enter(&buf_pool->LRU_list_mutex);
+
+				for (buf_block_t* block = UT_LIST_GET_LAST(
+					     buf_pool->unzip_LRU);
+				     block != NULL; ) {
+
+					buf_block_t*	prev_block
+						= UT_LIST_GET_PREV(unzip_LRU,
+								   block);
+					ut_ad(buf_block_get_state(block)
+					      == BUF_BLOCK_FILE_PAGE);
+					ut_ad(block->in_unzip_LRU_list);
+					ut_ad(block->page.in_LRU_list);
+
+					mutex_enter(&block->mutex);
+					buf_LRU_free_block(&block->page,
+							   FALSE, FALSE);
+					mutex_exit(&block->mutex);
+					block = prev_block;
+				}
+
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				//buf_pool_mutex_exit(buf_pool);
+			}
+		}
+	}
+}
+#endif /* !DBUG_OFF */
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -12427,6 +12559,15 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Enable InnoDB doublewrite buffer (enabled by default). "
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(use_atomic_writes, innobase_use_atomic_writes,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Prevent partial page writes, via atomic writes (beta). "
+  "The option is used to prevent partial writes in case of a crash/poweroff, "
+  "as faster alternative to doublewrite buffer. "
+  "Currently this option works only "
+  "on Linux only with FusionIO device, and directFS filesystem.",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
@@ -12639,6 +12780,13 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
   PLUGIN_VAR_RQCMDARG,
   "Data file autoextend increment in megabytes",
   NULL, NULL, 8L, 1L, 1000L, 0);
+
+#ifndef DBUG_OFF
+static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
+  PLUGIN_VAR_RQCMDARG,
+  "Evict pages from the InnoDB buffer pool.",
+  NULL, innodb_buffer_pool_evict_update, "");
+#endif /* !DBUG_OFF */
 
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -13058,6 +13206,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_block_size),
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
+#ifndef DBUG_OFF
+  MYSQL_SYSVAR(buffer_pool_evict),
+#endif /* !DBUG_OFF */
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_populate),
   MYSQL_SYSVAR(buffer_pool_instances),
@@ -13072,6 +13223,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite_file),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(use_atomic_writes),
   MYSQL_SYSVAR(recovery_stats),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),

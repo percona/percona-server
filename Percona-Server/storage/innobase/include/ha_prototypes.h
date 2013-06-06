@@ -325,4 +325,15 @@ thd_merge_sort_block_size(
 	void* thd); /*!< in: thread handle (THD*), or NULL to query
 			the global merge_sort_block_size */
 
+/**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+The input to this function is an identifier in charset my_charset_filename.
+return true when length of identifier is too long. */
+UNIV_INTERN
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id);	/* in: identifier to check.  it must belong
+				to charset my_charset_filename */
+
 #endif

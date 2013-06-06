@@ -546,7 +546,8 @@ recv_copy_group(
 		}
 
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
-				       up_to_date_group, start_lsn, end_lsn);
+				       up_to_date_group, start_lsn, end_lsn,
+				       FALSE);
 
 		len = (ulint) (end_lsn - start_lsn);
 
@@ -590,7 +591,7 @@ recv_synchronize_groups(
 	ut_a(start_lsn != end_lsn);
 
 	log_group_read_log_seg(LOG_RECOVER, recv_sys->last_block,
-			       up_to_date_group, start_lsn, end_lsn);
+			       up_to_date_group, start_lsn, end_lsn, FALSE);
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
@@ -2887,7 +2888,7 @@ recv_group_scan_log_recs(
 		end_lsn = start_lsn + RECV_SCAN_SIZE;
 
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
-				       group, start_lsn, end_lsn);
+				       group, start_lsn, end_lsn, FALSE);
 
 		finished = recv_scan_log_recs(
 			(buf_pool_get_n_pages()

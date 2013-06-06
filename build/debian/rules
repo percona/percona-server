@@ -28,8 +28,14 @@ DISTRIBUTION = $(shell echo "Percona Server (GPL), `if test -z \"$(major_version
 
 MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
 ifeq (${MAKE_J}, -j0)
-  MAKE_J = -j1
+  MAKE_J = -j4
 endif
+ifeq ($(MYSQL_BUILD_MAKE_JFLAG),)
+  MAKE_JFLAG = $(MAKE_J)
+else
+  MAKE_JFLAG = $(MYSQL_BUILD_MAKE_JFLAG)
+endif
+
 MYSQL_SRC = $(shell pwd)
 
 MAKE_TEST_TARGET=test-force
@@ -118,7 +124,7 @@ build: build-stamp
 build-stamp: configure
 	dh_testdir
 
-	$(MAKE) $(MAKE_J)
+	$(MAKE) $(MAKE_JFLAG)
 ifneq ($(findstring check,$(DEB_BUILD_OPTIONS)),)
 	if [ ! -f testsuite-stamp ] ; then \
 	  $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
@@ -196,7 +202,7 @@ install: build
 	--with-mysql-plugindir="/usr/lib/mysql/plugin" \
 	--libdir="/usr/lib" \
 	--prefix="/usr" && \
-	$(MAKE)
+	$(MAKE) $(MAKE_JFLAG)
 	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
 	# build Maatkit UDF
 	cd UDF/ && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/

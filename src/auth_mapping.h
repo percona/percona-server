@@ -1,7 +1,7 @@
 #ifndef AUTH_MAPPING_INCLUDED
 #define AUTH_MAPPING_INCLUDED
 /*
-  (C) 2012 Percona Inc.
+  (C) 2012, 2013 Percona Ireland Ltd.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,11 +31,6 @@ extern "C" {
 /** Mapping iterator. It's not exposed outsude */
 struct mapping_iter;
 
-/** Lookup NSS database for group name by specified user name.
-    On sucess user_group returned, otherwise NULL */
-char *lookup_user_group (const char *user_name,
-                         char *user_group, int user_group_len);
-
 /** Create iterator through mapping string.
     Initially iterator set to position before first
     key-value pair. On success non-NULL pointer returned, otherwise NULL */
@@ -59,7 +54,7 @@ char *mapping_iter_get_value(struct mapping_iter *it, char *buf, int buf_len);
 
 /** Get value by given key. On success value_buf returned,
     otherwise NULL */
-char *mapping_get_value(const char *key, char *value_buf, int value_buf_len,
+char *mapping_lookup_user(const char *key, char *value_buf, int value_buf_len,
                         const char *mapping_string);
 
 /** Get service name for auth_string. On success buf returned,

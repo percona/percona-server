@@ -1510,8 +1510,11 @@ static __attribute__((warn_unused_result))
 ibool
 os_file_set_atomic_writes(
 /*======================*/
-	const char*	name,	/*!< in: name of the file */
-	os_file_t	file)	/*!< in: handle to the file */
+	const char*	name	/*!< in: name of the file */
+	__attribute__((unused)),
+	os_file_t	file	/*!< in: handle to the file */
+	__attribute__((unused)))
+
 {
 #ifdef DFS_IOCTL_ATOMIC_WRITE_SET
 	int	atomic_option	= 1;

@@ -1,5 +1,5 @@
 /*
-(C) 2012 Percona Inc.
+(C) 2012, 2013 Percona Ireland Ltd.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "config.h"
 #endif
 
+#include <string.h>
 #include "auth_pam_common.h"
 
 /** The maximum length of buffered PAM messages, i.e. any messages up to the

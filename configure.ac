@@ -1,5 +1,5 @@
 #                                               -*- Autoconf -*-
-# (C) 2011 Percona Inc.
+# (C) 2011-2013 Percona Ireland Ltd.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,10 +46,7 @@ AC_CHECK_LIB([pam], [pam_start], [AUTH_PAM_LIBS="$AUTH_PAM_LIBS -lpam"],
     AC_MSG_ERROR(
         [Unable to find PAM. Please install the PAM development libraries])
 )
-AC_CHECK_LIB([mysqlclient], [mysql_init], [DIALOG_LIBS="$DIALOG_LIBS -lmysqlclient"],
-    AC_MSG_ERROR(
-        [Unable to find libmysqlclient. Please install the mysql development libraries])
-)
+DIALOG_LIBS="$DIALOG_LIBS "`${MYSQL_CONFIG} --libs_r`
 
 # Replace -I with -isystem for the MySQL header include GCC option to silence 
 # warnings originating from them

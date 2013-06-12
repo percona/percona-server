@@ -173,6 +173,7 @@ Reference
    upstream-bug-fixes
    index_info_schema_tables
    faq
+   copyright
    compatibility
    release-notes/release-notes_index
    glossary

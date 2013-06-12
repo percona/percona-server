@@ -15,6 +15,10 @@ Percona Server is built upon MySQL from Oracle. Along with making our own
 modifications, we merge in changes from other sources such as community
 contributions and changes from MariaDB.
 
+The original SHOW USER/TABLE/INDEX statistics code came from Google.
+
+The original SHOW PATCHES code is by Jeremy Cole.
+
 Percona does not require copyright assignment.
 
 See the COPYING files accompanying the software distribution.

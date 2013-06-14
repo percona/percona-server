@@ -44,7 +44,7 @@ Most packages should do this for you, so this is likely only required with the b
 
 In order to load the plugin into the working server, issue the following command: ::
 
- mysql> INSTALL PLUGIN auth_pam SONAME 'auth_pam.so';
+ mysql> INSTALL PLUGIN auth_pam_server SONAME 'auth_pam.so';
 
 
 You can now create a PAM configuration for the MySQL server and create users that are authenticated by PAM.

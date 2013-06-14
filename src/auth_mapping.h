@@ -24,6 +24,8 @@
 
 */
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,20 +48,20 @@ void mapping_iter_free(struct mapping_iter *it);
 
 /** Get key at current iterator position. On success buf returned,
     otherwise NULL */
-char *mapping_iter_get_key(struct mapping_iter *it, char *buf, int buf_len);
+char *mapping_iter_get_key(struct mapping_iter *it, char *buf, size_t buf_len);
 
 /** Get value at current iterator position. On success buf returned,
     otherwise NULL */
-char *mapping_iter_get_value(struct mapping_iter *it, char *buf, int buf_len);
+char *mapping_iter_get_value(struct mapping_iter *it, char *buf, size_t buf_len);
 
 /** Get value by given key. On success value_buf returned,
     otherwise NULL */
-char *mapping_lookup_user(const char *key, char *value_buf, int value_buf_len,
+char *mapping_lookup_user(const char *key, char *value_buf, size_t value_buf_len,
                         const char *mapping_string);
 
 /** Get service name for auth_string. On success buf returned,
     otherwise NULL */
-char *mapping_get_service_name(char *buf, int buf_len,
+char *mapping_get_service_name(char *buf, size_t buf_len,
                                const char *mapping_string);
 
 #ifdef __cplusplus

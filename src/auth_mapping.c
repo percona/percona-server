@@ -29,7 +29,7 @@ struct token
 {
   enum { tok_id, tok_comma, tok_eq, tok_eof } token_type;
   const char *token;
-  int token_len;
+  size_t token_len;
 };
 
 /** Iterator in key-value mapping:
@@ -38,9 +38,9 @@ struct token
     current position in string */
 struct mapping_iter {
   const char *key;
-  int key_len;
+  size_t key_len;
   const char *value;
-  int value_len;
+  size_t value_len;
   const char *ptr;
 };
 
@@ -104,7 +104,7 @@ struct mapping_iter *mapping_iter_new(const char *mapping_string)
     otherwise NULL */
 const char *mapping_iter_next(struct mapping_iter *it)
 {
-  struct token token[4]= {{0}};
+  struct token token[4]= {{0, 0, 0}};
 
   /* read next 4 tokens */
   it->ptr= get_token(token + 3,
@@ -155,7 +155,7 @@ void mapping_iter_free(struct mapping_iter *it)
 
     On success value_buf returned, otherwise NULL */
 char *mapping_lookup_user(const char *user_name,
-                          char *value_buf, int value_buf_len,
+                          char *value_buf, size_t value_buf_len,
                           const char *mapping_string)
 {
   /* Iterate through the key-value list stored in auth_string and
@@ -202,7 +202,7 @@ char *mapping_lookup_user(const char *user_name,
 
 /** Get key in current iterator pos. On success buf returned,
     otherwise NULL */
-char *mapping_iter_get_key(struct mapping_iter *it, char *buf, int buf_len)
+char *mapping_iter_get_key(struct mapping_iter *it, char *buf, size_t buf_len)
 {
   if (it->key == NULL)
     return NULL;
@@ -213,7 +213,7 @@ char *mapping_iter_get_key(struct mapping_iter *it, char *buf, int buf_len)
 
 /** Get value in current iterator pos. On success buf returned,
     otherwise NULL */
-char *mapping_iter_get_value(struct mapping_iter *it, char *buf, int buf_len)
+char *mapping_iter_get_value(struct mapping_iter *it, char *buf, size_t buf_len)
 {
   if (it->value == NULL)
     return NULL;
@@ -224,7 +224,7 @@ char *mapping_iter_get_value(struct mapping_iter *it, char *buf, int buf_len)
 
 /** Get value by key. On success pointer to service_name
     returned, otherwise NULL */
-char *mapping_get_service_name(char *buf, int buf_len,
+char *mapping_get_service_name(char *buf, size_t buf_len,
                                const char *mapping_string)
 {
   struct token token;

@@ -1,5 +1,5 @@
 /*
-(C) 2012 Percona Inc.
+(C) 2012, 2013 Percona Ireland Ltd.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,18 +16,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
 #include "auth_mapping.h"
-#include <pwd.h>
-#include <grp.h>
+#include "groups.h"
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-
-/** The maximum length of buffer for storing NSS record. NSS will store in
-    buffer the whole result of lookup request including user name,
-    gecos, etc. */
-enum { max_nss_name_len = 10240 };
 
 /** Token representation:
     token type, string repr, length of token */
@@ -35,7 +29,7 @@ struct token
 {
   enum { tok_id, tok_comma, tok_eq, tok_eof } token_type;
   const char *token;
-  int token_len;
+  size_t token_len;
 };
 
 /** Iterator in key-value mapping:
@@ -44,48 +38,11 @@ struct token
     current position in string */
 struct mapping_iter {
   const char *key;
-  int key_len;
+  size_t key_len;
   const char *value;
-  int value_len;
+  size_t value_len;
   const char *ptr;
 };
-
-
-/** Lookup NSS database for group name by specified user name.
-    On sucess user_group returned, otherwise NULL */
-char *lookup_user_group (const char *user_name,
-                         char *user_group, int user_group_len)
-{
-  struct passwd pwd, *pwd_result;
-  struct group grp, *grp_result;
-  char *buf;
-  int error;
-
-  buf= malloc(max_nss_name_len);
-  if (buf == NULL)
-    return NULL;
-
-  error= getpwnam_r(user_name, &pwd, buf, max_nss_name_len, &pwd_result);
-  if (error != 0 || pwd_result == NULL)
-  {
-    free(buf);
-    return NULL;
-  }
-
-  error= getgrgid_r(pwd_result->pw_gid,
-                    &grp, buf, max_nss_name_len, &grp_result);
-  if (error != 0 || grp_result == NULL)
-  {
-    free(buf);
-    return NULL;
-  }
-
-  strncpy(user_group, grp_result->gr_name, user_group_len);
-  user_group[user_group_len]= '\0';
-  free(buf);
-
-  return user_group;
-}
 
 /** Get next token from buf. Returns new buf position. */
 static const char *get_token(struct token *token,
@@ -147,7 +104,7 @@ struct mapping_iter *mapping_iter_new(const char *mapping_string)
     otherwise NULL */
 const char *mapping_iter_next(struct mapping_iter *it)
 {
-  struct token token[4];
+  struct token token[4]= {{0, 0, 0}};
 
   /* read next 4 tokens */
   it->ptr= get_token(token + 3,
@@ -182,35 +139,70 @@ void mapping_iter_free(struct mapping_iter *it)
   free(it);
 }
 
-/** Get value by given key. On success value_buf returned,
-    otherwise NULL */
-char *mapping_get_value(const char *key, char *value_buf, int value_buf_len,
-                        const char *mapping_string)
-{
-  struct mapping_iter *it= mapping_iter_new(mapping_string);
-  int key_len= strlen(key);
+/** Get mapped value for given user name.
+    Value is looked up by using all user groups as a key.
+    Auth string is iterated only once, while groups are iterated
+    for every key-value pair. This is mean than auth string order
+    is dominant.
 
-  if (it == NULL)
+    Example:
+
+    given:
+      user "foo" is the member of "wheel", "staff" and "bar".
+      auth string is "mysql, root=user1, bar=user2, staff=user3"
+
+    result is "user2".
+
+    On success value_buf returned, otherwise NULL */
+char *mapping_lookup_user(const char *user_name,
+                          char *value_buf, size_t value_buf_len,
+                          const char *mapping_string)
+{
+  /* Iterate through the key-value list stored in auth_string and
+  find key (which is interpreted as group name) in the list of groups
+  for specified user. If match is found, store appropriate value in
+  the authenticated_as field. */
+  struct groups_iter *group_it;
+  struct mapping_iter *keyval_it;
+  const char *key;
+  const char *group;
+
+  keyval_it= mapping_iter_new(mapping_string);
+  if (keyval_it == NULL)
     return NULL;
 
-  while (mapping_iter_next(it))
+  group_it= groups_iter_new(user_name);
+  if (group_it == NULL)
   {
-    if (key_len == it->key_len && strncmp(key, it->key, key_len) == 0)
-    {
-      memcpy(value_buf, it->value, MIN(value_buf_len, it->value_len));
-      value_buf[MIN(value_buf_len, it->value_len)]= '\0';
-      mapping_iter_free(it);
-      return value_buf;
-    }
+    mapping_iter_free(keyval_it);
+    return NULL;
   }
-  mapping_iter_free(it);
+
+  while ((key= mapping_iter_next(keyval_it)) != NULL) {
+    while ((group= groups_iter_next(group_it)) != NULL) {
+      if (keyval_it->key_len == strlen(group) &&
+          strncmp(key, group, keyval_it->key_len) == 0) {
+        /* match is found */
+        memcpy(value_buf, keyval_it->value,
+               MIN(value_buf_len, keyval_it->value_len));
+        value_buf[MIN(value_buf_len, keyval_it->value_len)]= '\0';
+        groups_iter_free(group_it);
+        mapping_iter_free(keyval_it);
+        return value_buf;
+      }
+    }
+    groups_iter_reset(group_it);
+  }
+
+  groups_iter_free(group_it);
+  mapping_iter_free(keyval_it);
 
   return NULL;
 }
 
 /** Get key in current iterator pos. On success buf returned,
     otherwise NULL */
-char *mapping_iter_get_key(struct mapping_iter *it, char *buf, int buf_len)
+char *mapping_iter_get_key(struct mapping_iter *it, char *buf, size_t buf_len)
 {
   if (it->key == NULL)
     return NULL;
@@ -221,7 +213,7 @@ char *mapping_iter_get_key(struct mapping_iter *it, char *buf, int buf_len)
 
 /** Get value in current iterator pos. On success buf returned,
     otherwise NULL */
-char *mapping_iter_get_value(struct mapping_iter *it, char *buf, int buf_len)
+char *mapping_iter_get_value(struct mapping_iter *it, char *buf, size_t buf_len)
 {
   if (it->value == NULL)
     return NULL;
@@ -232,7 +224,7 @@ char *mapping_iter_get_value(struct mapping_iter *it, char *buf, int buf_len)
 
 /** Get value by key. On success pointer to service_name
     returned, otherwise NULL */
-char *mapping_get_service_name(char *buf, int buf_len,
+char *mapping_get_service_name(char *buf, size_t buf_len,
                                const char *mapping_string)
 {
   struct token token;

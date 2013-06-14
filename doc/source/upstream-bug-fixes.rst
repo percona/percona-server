@@ -77,6 +77,12 @@
 |:Fix Released: :rn:`5.5.29-29.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69380` - Incomplete fix for security vulnerability CVE-2012-5611                   |
+|:Launchpad bug: :bug:`1186748`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.5.28-29.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`66550` - security vulnerability CVE-2012-4414                                      |
 |:Launchpad bug: :bug:`1049871`                                                                               |
 |:Upstream state: N/A                                                                                         |
@@ -92,6 +98,12 @@
 |:Upstream bug: :mysqlbug:`66237` - Temporary files created by binary log cache are not purged after transa...|
 |:Launchpad bug: :bug:`1070856`                                                                               |
 |:Upstream state: Verified (checked on 2013-04-10)                                                            |
+|:Fix Released: :rn:`5.5.28-29.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69124` - Incorrect truncation of long SET expression in LOAD DATA can cause SQL ...|
+|:Launchpad bug: :bug:`1175519`                                                                               |
+|:Upstream state: N/A                                                                                         |
 |:Fix Released: :rn:`5.5.28-29.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -209,8 +221,20 @@
 |:Fix Released: :rn:`5.5.16-22.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`25007` - memory tables with dynamic rows format                                    |
+|:Launchpad bug: N/A                                                                                          |
+|:Upstream state: Verified (checked on 2013-06-14)                                                            |
+|:Fix Released: :rn:`5.5.15-21.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`51196` - Slave SQL: Got an error writing communication packets, Error_code: 1160   |
 |:Launchpad bug: :bug:`813587`                                                                                |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.5.14-20.5`                                                                             |
+|:Upstream fix: 5.5.21                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`43593` - dump/backup/restore/upgrade tools fails because of utf8_general_ci        |
+|:Launchpad bug: N/A                                                                                          |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.5.14-20.5`                                                                             |
 |:Upstream fix: 5.5.21                                                                                        |
@@ -237,5 +261,23 @@
 |:Launchpad bug: none                                                                                         |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.5.10-20.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`20001` - Support for temp-tables in INFORMATION_SCHEMA                             |
+|:Launchpad bug: none                                                                                         |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.5.8-20.0`                                                                              |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69146` - Optimization in buf_pool_get_oldest_modification if srv_buf_pool_instances|
+|:Launchpad bug: :bug:`1176496`                                                                               |
+|:Upstream state: Open (checked on 2013-06-14)                                                                |
+|:Fix Released: :rn:`5.5.8-20.0`                                                                              |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`54790` - Use of non-blocking mode for sockets limits performance                   |
+|:Launchpad bug: :bug:`606810`                                                                                |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.5.8-20.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

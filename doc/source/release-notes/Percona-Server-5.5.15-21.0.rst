@@ -12,7 +12,7 @@ Based on |MySQL| 5.5.15, including all the bug fixes in it, |Percona Server| 5.5
 New features
 =============
 
-As of MySQL 5.5.15, a *Fixed Row Format* (FRF) is still being used in the ``MEMORY`` storage engine. The fixed row format imposes restrictions on the type of columns as it assigns on advance a limited amount of memory per row. This renders a ``VARCHAR`` field in a ``CHAR`` field in practice, making impossible to have a TEXT or BLOB field with that engine implementation.
+As of MySQL 5.5.15, a *Fixed Row Format* (FRF) is still being used in the ``MEMORY`` storage engine. The fixed row format imposes restrictions on the type of columns as it assigns on advance a limited amount of memory per row. This renders a ``VARCHAR`` field in a ``CHAR`` field in practice, making impossible to have a TEXT or BLOB field with that engine implementation. This feature also fixed the upstream :mysqlbug:`25007`.
 
 To overcome this limitation, the :ref:`improved_memory_engine` is introduced in this release for supporting true ``VARCHAR``, ``VARBINARY``, ``TEXT`` and ``BLOB`` fields in ``MEMORY`` tables.
 This implementation is based on the *Dynamic Row Format* (DFR) introduced by the mysql-heap-dynamic-rows patch.

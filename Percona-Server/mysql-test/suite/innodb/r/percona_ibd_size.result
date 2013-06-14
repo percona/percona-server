@@ -1,0 +1,48 @@
+DROP TABLE IF EXISTS t1;
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+Empty table:
+The size of t1 tablespace file in bytes: 98304
+Rows inserted: 5000
+The size of t1 tablespace file in bytes: 212992
+Rows inserted: 10000
+The size of t1 tablespace file in bytes: 344064
+Rows inserted: 15000
+The size of t1 tablespace file in bytes: 458752
+Rows inserted: 20000
+The size of t1 tablespace file in bytes: 589824
+Rows inserted: 25000
+The size of t1 tablespace file in bytes: 9437184
+DROP TABLE t1;
+CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB) ENGINE=InnoDB;
+Empty table:
+The size of t2 tablespace file in bytes: 98304
+Rows inserted: 4
+The size of t2 tablespace file in bytes: 196608
+Rows inserted: 8
+The size of t2 tablespace file in bytes: 327680
+Rows inserted: 12
+The size of t2 tablespace file in bytes: 458752
+Rows inserted: 16
+The size of t2 tablespace file in bytes: 589824
+Rows inserted: 20
+The size of t2 tablespace file in bytes: 9437184
+DROP TABLE t2;
+SET GLOBAL innodb_file_format='barracuda';
+CREATE TABLE t3 (a INT PRIMARY KEY, b BLOB)
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+Empty table:
+The size of t3 tablespace file in bytes: 65536
+Rows inserted: 8
+The size of t3 tablespace file in bytes: 65536
+Rows inserted: 16
+The size of t3 tablespace file in bytes: 65536
+Rows inserted: 24
+The size of t3 tablespace file in bytes: 65536
+Rows inserted: 32
+The size of t3 tablespace file in bytes: 2097152
+Rows inserted: 40
+The size of t3 tablespace file in bytes: 2097152
+DROP TABLE t3;
+SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_format=default;

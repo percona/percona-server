@@ -31,6 +31,9 @@ Version Specific Information
 
   * :rn:`5.5.10-20.1`:
     Renamed status variable :variable:`innodb_row_lock_numbers` to :variable:`innodb_current_row_locks`.
+ 
+  * :rn:`5.5.31-30.3`:
+    Added :variable:`innodb_read_views_memory` and :variable:`innodb_descriptors_memory` to improve |InnoDB| memory diagnostics. 
 
 Other Information
 =================
@@ -343,6 +346,7 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
   BUFFER POOL AND MEMORY
   ----------------------
   Total memory allocated 137625600; in additional pool allocated 0
+  Total memory allocated by read views 88
   Internal hash tables (constant factor + variable factor)
       Adaptive hash index 3774352 (2213656 + 1560696)
       Page hash 139144
@@ -366,6 +370,7 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
   469000.00 reads/s, 78000.00 creates/s, 138000.00 writes/s
   Buffer pool hit rate 994 / 1000, young-making rate 34 / 1000 not 0 / 1000
   Pages read ahead 0.00/s, evicted without access 15000.00/s
+
 
 .. variable:: innodb_mem_adaptive_hash
 
@@ -408,6 +413,22 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
+
+.. variable:: innodb_descriptors_memory
+
+     :version 5.5.31-30.3: Introduced.
+     :vartype: Numeric
+     :scope: Global
+
+This status variable shows the current size of the descriptors array (in bytes). The descriptor array is an |XtraDB| data structure that contains the information on currently running transactions.
+
+.. variable:: innodb_read_views_memory
+
+     :version 5.5.31-30.3: Introduced.
+     :vartype: Numeric
+     :scope: Global
+
+This status variable shows the total amount of memory allocated for the |InnoDB| read view (in bytes).
 
 OLDEST VIEW
 -----------

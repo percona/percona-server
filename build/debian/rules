@@ -9,7 +9,7 @@ TMP=$(CURDIR)/debian/tmp/
 
 feature_set="community"
 major_version=30
-minor_version=2
+minor_version=3
 compilation_comment_release="Percona Server (GPL), Release $(major_version).$(minor_version)"
 server_suffix="-$(major_version).$(minor_version)"
 prefix="/usr"
@@ -40,13 +40,13 @@ endif
 	mkdir release
 	cd release && $(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
 	   -DINSTALL_LAYOUT=DEB \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DWITH_SSL=system \
-           -DWITH_EMBEDDED_SERVER=OFF \
-           -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
-           -DFEATURE_SET=$(feature_set) \
-           -DCOMPILATION_COMMENT=$(compilation_comment_release) \
-           -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
+	   -DWITH_EMBEDDED_SERVER=OFF \
+	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
+	   -DFEATURE_SET=$(feature_set) \
+	   -DCOMPILATION_COMMENT=$(compilation_comment_release) \
+	   -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
 	   -DWITH_PAM=ON
 
 override_dh_auto_build:
@@ -60,7 +60,7 @@ endif
 	echo "Configuring HandlerSocket"
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
 	bash -x autogen.sh && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
+	CXX="$${HS_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --with-mysql-source=$(CURDIR) \
 			--with-mysql-bindir=$(CURDIR)/release/scripts \
 			--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
@@ -70,7 +70,7 @@ endif
 	
 	# Build UDF
 	cd UDF && \
-	CXX=g++ CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
+	CXX="$${UDF_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
 		./configure --includedir=$(CURDIR)/include \
 			--libdir=$(prefix)/lib/mysql/plugin && \
 	make $(MAKE_JFLAG)

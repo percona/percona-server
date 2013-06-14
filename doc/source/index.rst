@@ -68,6 +68,7 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/atomic_fio
    performance/innodb_lazy_drop_table
    performance/innodb_doublewrite_path
    performance/query_cache_enhance
@@ -173,6 +174,7 @@ Reference
    upstream-bug-fixes
    index_info_schema_tables
    faq
+   copyright
    compatibility
    release-notes/release-notes_index
    glossary

@@ -2379,7 +2379,6 @@ int ha_federated::index_read_idx(uchar *buf, uint index, const uchar *key,
                                               &mysql_result)))
     DBUG_RETURN(retval);
   mysql_free_result(mysql_result);
-  results.elements--;
   DBUG_RETURN(0);
 }
 
@@ -2444,7 +2443,6 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   if ((retval= read_next(buf, *result)))
   {
     mysql_free_result(*result);
-    results.elements--;
     *result= 0;
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(retval);
@@ -2629,7 +2627,6 @@ int ha_federated::rnd_end()
 int ha_federated::index_end(void)
 {
   DBUG_ENTER("ha_federated::index_end");
-  free_result();
   active_index= MAX_KEY;
   DBUG_RETURN(0);
 }

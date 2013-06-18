@@ -1065,12 +1065,6 @@ The following options may be given as the first argument:
  Turns on additional validation of authentication plugins
  assigned to user accounts. 
  (Defaults to on; use --skip-validate-user-plugins to disable.)
-=======
- --validate-user-plugins 
- Turns on additional validation of authentication plugins
- assigned to user accounts. 
- (Defaults to on; use --skip-validate-user-plugins to disable.)
->>>>>>> MERGE-SOURCE
  -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a

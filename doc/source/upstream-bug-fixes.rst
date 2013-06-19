@@ -109,9 +109,9 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`67974` - Server crashes in add_identifier on concurrent ALTER TABLE and SHOW ENGINE|
 |:Launchpad bug: :bug:`1017192`                                                                               |
-|:Upstream state: N/A                                                                                         |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
-|:Upstream fix: N/A                                                                                           |
+|:Upstream fix: 5.6.12                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68045` - security vulnerability CVE-2012-4414                                      |
 |:Launchpad bug: :bug:`1049871`                                                                               |
@@ -203,6 +203,12 @@
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`25007` - memory tables with dynamic rows format                                    |
+|:Launchpad bug: N/A                                                                                          |
+|:Upstream state: Verified (checked on 2013-06-14)                                                            |
+|:Fix Released: :rn:`5.6.11-60.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61595` - mysql-test/include/wait_for_slave_param.inc timeout logic is incorrect    |
 |:Launchpad bug: :bug:`800035`                                                                                |
 |:Upstream state: Verified (checked on 2013-06-04)                                                            |
@@ -230,6 +236,12 @@
 |:Upstream bug: :mysqlbug:`20001` - Support for temp-tables in INFORMATION_SCHEMA                             |
 |:Launchpad bug: N/A                                                                                          |
 |:Upstream state: Verified (checked on 2013-06-04)                                                            |
+|:Fix Released: :rn:`5.6.5-60.0`                                                                              |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69146` - Optimization in buf_pool_get_oldest_modification if srv_buf_pool_instances|
+|:Launchpad bug: :bug:`1176496`                                                                               |
+|:Upstream state: Open (checked on 2013-06-14)                                                                |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

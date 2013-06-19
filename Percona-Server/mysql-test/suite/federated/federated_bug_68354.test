@@ -1,0 +1,79 @@
+# Bug 1182572 68354: Server crashes on update/join FEDERATED + local table when 
+# only 1 local row. 
+# 
+# When updating a federated table with UPDATE ... JOIN, the server consistently 
+# crashes with Signal 11 when only 1 row exists in the local table involved in 
+# the join and that 1 row can be joined with a row in the federated table. 
+# 
+
+--source suite/federated/include/federated.inc
+
+connection default;
+
+# Disable concurrent inserts to avoid test failures when reading
+# data from concurrent connections (insert might return before
+# the data is actually in the table).
+SET @OLD_MASTER_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @@GLOBAL.CONCURRENT_INSERT= 0;
+
+connection slave;
+SET @OLD_SLAVE_CONCURRENT_INSERT= @@GLOBAL.CONCURRENT_INSERT;
+SET @@GLOBAL.CONCURRENT_INSERT= 0;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `dummy` int(20) DEFAULT NULL,
+    PRIMARY KEY (`id`))
+  ENGINE="MyISAM"
+  DEFAULT CHARSET=latin1;
+
+INSERT INTO federated.t1 (`id`) VALUES
+    (1001), (1002), (1003), (1004), (1005),
+    (1006), (1007), (1008), (1009), (1010);
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.t1 (
+    `id` int(20) NOT NULL,
+    `dummy` int(20) DEFAULT NULL,
+    PRIMARY KEY (`id`))
+  ENGINE="FEDERATED"
+  DEFAULT CHARSET=latin1
+  CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+
+CREATE TABLE federated.t2 (
+    `id` int(20) NOT NULL,
+    `dummy` int(20) NOT NULL,
+    PRIMARY KEY (`id`))
+  ENGINE="MyISAM"
+  DEFAULT CHARSET=latin1;
+
+INSERT INTO federated.t2 (`id`, `dummy`) VALUES (1005, 5);
+
+SELECT * FROM federated.t1;
+
+# master would crash here before bug fix
+UPDATE federated.t1 ft1 INNER JOIN federated.t2 ft2 ON ft1.id = ft2.id SET ft1.dummy = ft2.dummy WHERE ft1.dummy IS NULL;
+
+# sanity test to make sure correct rows are being returned and server doesn't
+# also crash during DELETE
+SELECT * FROM federated.t1;
+DELETE FROM federated.t1 WHERE id = 1005;
+SELECT * FROM federated.t1 WHERE id = 1005;
+
+SELECT * FROM federated.t1;
+
+DROP TABLE federated.t2;
+DROP TABLE federated.t1;
+
+connection slave;
+DROP TABLE federated.t1;
+
+connection default;
+
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_MASTER_CONCURRENT_INSERT;
+connection slave;
+SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
+
+connection default;
+--source suite/federated/include/federated_cleanup.inc

@@ -12,27 +12,6 @@ This page describes the enhancements for the query cache. At the moment three fe
 
   * Ignoring comments
 
-Disabling the cache completely
-==============================
-
-This feature allows the user to completely disable use of the query cache. When the server is compiled with the query cache enabled, the query cache is locked during use by the query cache mutex. This lock can cause performance to decrease in some situations. By disabling use of the query cache altogether when the server is started, any possibility of locking it is eliminated, and performance may be improved.
-
-The query cache can now be disabled at server startup or in an option file by: ::
-
-  --query_cache_type=0
-
-The default is 1 (query cache enabled).
-
-**Note:** This variable already exists in standard |MySQL|, but when setting query_cache_type=0, the query cache mutex will still be in used. Setting query_cache_type=0 in |Percona Server| ensures that both the cache is disabled and the mutex is not used.
-
-If query caching is off and a user tries to turn it on from within a session, the following error will be reported: ::
-
-  SET GLOBAL query_cache_type=ON;
-  ERROR 1651(HY000): Query cache is disabled; restart the server with query_cache_type=1 to enable it
-
-**Note:** This variable is implemented in standard |MySQL| from version 5.5.0.
-
-
 Diagnosing contention more easily
 =================================
 

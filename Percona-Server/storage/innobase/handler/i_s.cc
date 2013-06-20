@@ -8132,7 +8132,7 @@ limit_lsn_range_from_condition(
 			tmp_result = right->val_int();
 			if (((func_type == Item_func::LE_FUNC)
 			     || (func_type == Item_func::GE_FUNC))
-			    && (tmp_result != IB_ULONGLONG_MAX)) {
+			    && (tmp_result != IB_UINT64_MAX)) {
 
 				tmp_result++;
 			}
@@ -8152,7 +8152,7 @@ limit_lsn_range_from_condition(
 			}
 			if (((func_type == Item_func::LT_FUNC)
 			     || (func_type == Item_func::GT_FUNC))
-			    && (tmp_result != IB_ULONGLONG_MAX)) {
+			    && (tmp_result != IB_UINT64_MAX)) {
 
 				tmp_result++;
 			}
@@ -8181,8 +8181,8 @@ i_s_innodb_changed_pages_fill(
 	TABLE*			table = (TABLE *) tables->table;
 	log_bitmap_iterator_t	i;
 	ib_uint64_t		output_rows_num = 0UL;
-	ib_uint64_t		max_lsn = IB_ULONGLONG_MAX;
-	ib_uint64_t		min_lsn = 0ULL;
+	lsn_t			max_lsn = LSN_MAX;
+	lsn_t			min_lsn = 0ULL;
 	int			ret = 0;
 
 	DBUG_ENTER("i_s_innodb_changed_pages_fill");

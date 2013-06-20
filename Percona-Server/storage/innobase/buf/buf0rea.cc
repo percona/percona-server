@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -107,7 +107,7 @@ buf_read_page_low(
 	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
 			trying to read from a non-existent tablespace, or a
 			tablespace which is just now being dropped */
-	ibool	sync,	/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,	/*!< in: true if synchronous aio is desired */
 	ulint	mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ...,
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
 			at read-ahead functions) */
@@ -153,7 +153,7 @@ buf_read_page_low(
 		syncronous i/o, to make sure they do not get involved in
 		thread deadlocks. */
 
-		sync = TRUE;
+		sync = true;
 	}
 
 	/* The following call will also check if the tablespace does not exist
@@ -210,9 +210,8 @@ not_to_recover:
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr,
-			"Posting read request for page %lu, sync %lu\n",
-			(ulong) offset,
-			(ulong) sync);
+			"Posting read request for page %lu, sync %s\n",
+			(ulong) offset, sync ? "true" : "false");
 	}
 #endif
 
@@ -385,7 +384,7 @@ read_ahead:
 
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
-				&err, FALSE,
+				&err, false,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
 				space, zip_size, FALSE,
 				tablespace_version, i, trx);
@@ -450,7 +449,7 @@ buf_read_page(
 	/* We do the i/o in the synchronous aio mode to save thread
 	switches: hence TRUE */
 
-	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, space,
 				  zip_size, FALSE,
 				  tablespace_version, offset, trx);
 	srv_stats.buf_pool_reads.add(count);
@@ -496,7 +495,7 @@ buf_read_page_async(
 
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE
+	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,
@@ -758,7 +757,7 @@ buf_read_ahead_linear(
 
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
-				&err, FALSE,
+				&err, false,
 				ibuf_mode,
 				space, zip_size, FALSE, tablespace_version, i, trx);
 			if (err == DB_TABLESPACE_DELETED) {
@@ -804,7 +803,7 @@ UNIV_INTERN
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
-	ibool		sync,		/*!< in: TRUE if the caller
+	bool		sync,		/*!< in: true if the caller
 					wants this function to wait
 					for the highest address page
 					to get read in, before this
@@ -987,11 +986,11 @@ not_to_recover:
 		os_aio_print_debug = FALSE;
 
 		if ((i + 1 == n_stored) && sync) {
-			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+			buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, space,
 					  zip_size, TRUE, tablespace_version,
 					  page_nos[i], NULL);
 		} else {
-			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
+			buf_read_page_low(&err, false, BUF_READ_ANY_PAGE
 					  | OS_AIO_SIMULATED_WAKE_LATER,
 					  space, zip_size, TRUE,
 					  tablespace_version, page_nos[i], NULL);

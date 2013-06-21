@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -933,7 +933,7 @@ log_init(void)
 	recv_sys->scanned_lsn = log_sys->lsn;
 	recv_sys->scanned_checkpoint_no = 0;
 	recv_sys->recovered_lsn = log_sys->lsn;
-	recv_sys->limit_lsn = IB_ULONGLONG_MAX;
+	recv_sys->limit_lsn = LSN_MAX;
 #endif
 }
 
@@ -1245,7 +1245,7 @@ log_group_file_header_flush(
 
 		srv_stats.os_log_pending_writes.inc();
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id, 0,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->space_id, 0,
 		       (ulint) (dest_offset / UNIV_PAGE_SIZE),
 		       (ulint) (dest_offset % UNIV_PAGE_SIZE),
 		       OS_FILE_LOG_BLOCK_SIZE,
@@ -1374,7 +1374,7 @@ loop:
 
 		ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id, 0,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->space_id, 0,
 		       (ulint) (next_offset / UNIV_PAGE_SIZE),
 		       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
 		       group);
@@ -1407,7 +1407,7 @@ log_write_up_to(
 /*============*/
 	lsn_t	lsn,	/*!< in: log sequence number up to which
 			the log should be written,
-			IB_ULONGLONG_MAX if not specified */
+			LSN_MAX if not specified */
 	ulint	wait,	/*!< in: LOG_NO_WAIT, LOG_WAIT_ONE_GROUP,
 			or LOG_WAIT_ALL_GROUPS */
 	ibool	flush_to_disk)
@@ -1862,14 +1862,14 @@ log_group_checkpoint(
 
 #ifdef UNIV_LOG_ARCHIVE
 	if (log_sys->archiving_state == LOG_ARCH_OFF) {
-		archived_lsn = IB_ULONGLONG_MAX;
+		archived_lsn = LSN_MAX;
 	} else {
 		archived_lsn = log_sys->archived_lsn;
 	}
 
 	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
 #else /* UNIV_LOG_ARCHIVE */
-	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, LSN_MAX);
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
@@ -1924,7 +1924,7 @@ log_group_checkpoint(
 		added with 1, as we want to distinguish between a normal log
 		file write and a checkpoint field write */
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->space_id, 0,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, false, group->space_id, 0,
 		       write_offset / UNIV_PAGE_SIZE,
 		       write_offset % UNIV_PAGE_SIZE,
 		       OS_FILE_LOG_BLOCK_SIZE,
@@ -1975,7 +1975,7 @@ log_reset_first_header_and_checkpoint(
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, 2 * 1024 * 1024);
 
-	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, LSN_MAX);
 
 	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
 	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_1, fold);
@@ -2006,7 +2006,7 @@ log_group_read_checkpoint_info(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->space_id, 0,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true, group->space_id, 0,
 	       field / UNIV_PAGE_SIZE, field % UNIV_PAGE_SIZE,
 	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
@@ -2139,7 +2139,7 @@ void
 log_make_checkpoint_at(
 /*===================*/
 	lsn_t	lsn,		/*!< in: make a checkpoint at this or a
-				later lsn, if IB_ULONGLONG_MAX, makes
+				later lsn, if LSN_MAX, makes
 				a checkpoint at the latest lsn */
 	ibool	write_always)	/*!< in: the function normally checks if
 				the new checkpoint would have a
@@ -2268,7 +2268,7 @@ log_group_read_log_seg(
 {
 	ulint	len;
 	lsn_t	source_offset;
-	ibool	sync;
+	bool	sync;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -2383,7 +2383,7 @@ log_archived_get_offset(
 
 	*offset = archived_lsn - file_no + LOG_FILE_HDR_SIZE;
 
-	if (archived_lsn != IB_ULONGLONG_MAX) {
+	if (archived_lsn != LSN_MAX) {
 		*offset = archived_lsn - file_no + LOG_FILE_HDR_SIZE;
 	} else {
 		/* Archiving was OFF prior startup */
@@ -2429,7 +2429,7 @@ log_group_archive_file_header_write(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
+	fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->archive_space_id,
 	       0,
 	       dest_offset / UNIV_PAGE_SIZE,
 	       dest_offset % UNIV_PAGE_SIZE,
@@ -2465,7 +2465,7 @@ log_group_archive_completed_header_write(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
+	fil_io(OS_FILE_WRITE | OS_FILE_LOG, true, group->archive_space_id,
 	       0,
 	       dest_offset / UNIV_PAGE_SIZE,
 	       dest_offset % UNIV_PAGE_SIZE,
@@ -2603,7 +2603,7 @@ loop:
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->archive_space_id,
+	fil_io(OS_FILE_WRITE | OS_FILE_LOG, false, group->archive_space_id,
 	       0,
 	       (ulint) (next_offset / UNIV_PAGE_SIZE),
 	       (ulint) (next_offset % UNIV_PAGE_SIZE),

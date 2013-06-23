@@ -83,7 +83,6 @@ class sp_cache;
 class Parser_state;
 class Rows_log_event;
 class Sroutine_hash_entry;
-class User_level_lock;
 class user_var_entry;
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -2183,11 +2182,11 @@ public:
 
   HASH		handler_tables_hash;
   /*
-    One thread can hold up to one named user-level lock. This variable
-    points to a lock object if the lock is present. See item_func.cc and
-    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+    A thread can hold named user-level locks. This variable
+    contains granted tickets if a lock is present. See item_func.cc and
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
-  User_level_lock *ull;
+  HASH ull_hash;
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
@@ -3558,7 +3557,7 @@ public:
 #ifndef EMBEDDED_LIBRARY
   inline bool vio_ok() const { return net.vio != 0; }
   /** Return FALSE if connection to client is broken. */
-  bool is_connected()
+  virtual bool is_connected()
   {
     /*
       All system threads (e.g., the slave IO thread) are connected but
@@ -3569,7 +3568,7 @@ public:
   }
 #else
   inline bool vio_ok() const { return true; }
-  inline bool is_connected() { return true; }
+  virtual bool is_connected() { return true; }
 #endif
   /**
     Mark the current error as fatal. Warning: this does not

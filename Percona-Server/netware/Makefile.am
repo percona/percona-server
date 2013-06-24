@@ -23,7 +23,7 @@ mysqld_safe_SOURCES=		mysqld_safe.c my_manage.c
 mysql_install_db_SOURCES=	mysql_install_db.c my_manage.c
 mysql_test_run_SOURCES=		mysql_test_run.c my_manage.c
 libmysql_SOURCES=		libmysqlmain.c
-libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a \
+libmysql_LDADD =		../libmysql/.libs/libperconaserverclient.a \
 				@openssl_libs@ @yassl_libs@
 
 netware_build_files =           client/mysql.def client/mysqladmin.def \

@@ -285,7 +285,7 @@ mkdir -p $DESTDIR/lib/plugin
 cp sql/$TARGET/mysqld.lib $DESTDIR/lib/
 cp libmysql/$TARGET/libmysql.dll \
    libmysql/$TARGET/libmysql.lib \
-   libmysql/$TARGET/mysqlclient.lib \
+   libmysql/$TARGET/perconaserverclient.lib \
    mysys/$TARGET/mysys.lib \
    regex/$TARGET/regex.lib \
    strings/$TARGET/strings.lib \
@@ -297,7 +297,7 @@ fi
 
 if [ x"$TARGET" != x"release" ] ; then
   cp libmysql/$TARGET/libmysql.pdb \
-     libmysql/$TARGET/mysqlclient.pdb \
+     libmysql/$TARGET/perconaserverclient.pdb \
      mysys/$TARGET/mysys.pdb \
      regex/$TARGET/regex.pdb \
      strings/$TARGET/strings.pdb \
@@ -316,8 +316,8 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
   cp libmysql/debug/libmysql.dll \
      libmysql/debug/libmysql.lib \
      libmysql/debug/libmysql.pdb \
-     libmysql/debug/mysqlclient.lib \
-     libmysql/debug/mysqlclient.pdb \
+     libmysql/debug/perconaserverclient.lib \
+     libmysql/debug/perconaserverclient.pdb \
      mysys/debug/mysys.lib \
      mysys/debug/mysys.pdb \
      regex/debug/regex.lib \

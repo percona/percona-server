@@ -20,7 +20,7 @@
 #
 # This file is public domain and comes with NO WARRANTY of any kind
 
-target =	libmysqlclient.la
+target =	libperconaserverclient.la
 target_defs =	-DMYSQL_CLIENT_NO_THREADS -DDONT_USE_RAID @LIB_EXTRA_CCFLAGS@
 LIBS =		@CLIENT_LIBS@ 
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
@@ -28,9 +28,9 @@ INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include \
 
 include $(srcdir)/Makefile.shared
 
-libmysqlclient_la_SOURCES = $(target_sources)
-libmysqlclient_la_LIBADD = $(target_libadd) $(yassl_las)
-libmysqlclient_la_LDFLAGS = $(target_ldflags)
+libperconaserverclient_la_SOURCES = $(target_sources)
+libperconaserverclient_la_LIBADD = $(target_libadd) $(yassl_las)
+libperconaserverclient_la_LDFLAGS = $(target_ldflags)
 EXTRA_DIST = Makefile.shared libmysql.def dll.c CMakeLists.txt
 noinst_HEADERS = client_settings.h
 

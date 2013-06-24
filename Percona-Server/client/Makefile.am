@@ -16,9 +16,9 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 if THREAD_SAFE_CLIENT
-LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libmysqlclient_r.la
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libperconaserverclient_r.la
 else
-LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql/libmysqlclient.la
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql/libperconaserverclient.la
 endif
 
 INCLUDES =			-I$(top_builddir)/include \
@@ -30,7 +30,7 @@ INCLUDES =			-I$(top_builddir)/include \
 LIBS =				@CLIENT_LIBS@
 
 LDADD=				@CLIENT_EXTRA_LDFLAGS@ $(CLIENT_THREAD_LIBS) \
-				$(top_builddir)/libmysql/libmysqlclient.la
+				$(top_builddir)/libmysql/libperconaserverclient.la
 
 noinst_HEADERS =		sql_string.h completion_hash.h my_readline.h \
 				client_priv.h

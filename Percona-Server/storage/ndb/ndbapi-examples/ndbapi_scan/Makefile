@@ -15,7 +15,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src/.libs \
 SYS_LIB = 
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lmysqlclient_r -lmysys -lmystrings -lz $(SYS_LIB) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(LFLAGS) $(LIB_DIR) $(OBJS) -lndbclient -lperconaserverclient_r -lmysys -lmystrings -lz $(SYS_LIB) -o $(TARGET)
 
 $(TARGET).o: $(SRCS)
 	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/extra -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)

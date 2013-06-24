@@ -101,7 +101,7 @@ testReadPerf_SOURCES = testReadPerf.cpp
 testLcp_SOURCES = testLcp.cpp
 testPartitioning_SOURCES = testPartitioning.cpp
 testNDBT_SOURCES = testNDBT.cpp
-testNDBT_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
+testNDBT_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libperconaserverclient_r.la
 testBitfield_SOURCES = testBitfield.cpp
 NdbRepStress_SOURCES = acrt/NdbRepStress.cpp
 DbCreate_SOURCES = bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
@@ -123,7 +123,7 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
 NdbRepStress_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/test/include -I$(top_srcdir)/include
 testBackup_LDADD = $(LDADD) bank/libbank.a
 testSRBank_LDADD = bank/libbank.a $(LDADD) 
-NdbRepStress_LDADD = $(LDADD) $(top_builddir)/libmysql_r/libmysqlclient_r.la
+NdbRepStress_LDADD = $(LDADD) $(top_builddir)/libmysql_r/libperconaserverclient_r.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

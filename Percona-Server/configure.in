@@ -374,7 +374,7 @@ fi
 
 MYSQL_PROG_AR
 
-# libmysqlclient versioning when linked with GNU ld.
+# libperconaserverclient versioning when linked with GNU ld.
 if $LD --version 2>/dev/null| grep GNU >/dev/null 2>&1; then
   LD_VERSION_SCRIPT="-Wl,--version-script=\$(top_builddir)/libmysql/libmysql.ver"
   AC_CONFIG_FILES(libmysql/libmysql.ver)
@@ -1164,7 +1164,7 @@ EOF
         client/Makefile.in)
           #
           cat > $filesed << EOF
-s,libmysqlclient.la,.libs/libmysqlclient.a,
+s,libperconaserverclient.la,.libs/libperconaserverclient.a,
 EOF
           ;;
       esac

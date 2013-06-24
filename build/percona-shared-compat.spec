@@ -87,5 +87,5 @@ rpm2cpio %{SOURCE0} | cpio -iv --make-directories
 
 %files
 %defattr(-, root, root)
-%{_libdir}/libmysqlclient*
+%{_libdir}/libperconaserverclient*
 

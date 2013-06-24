@@ -20,9 +20,9 @@
 
 
 if THREAD_SAFE_CLIENT
-LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libmysqlclient_r.la
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql_r/libperconaserverclient_r.la
 else
-LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql/libmysqlclient.la
+LIBMYSQLCLIENT_LA =		$(top_builddir)/libmysql/libperconaserverclient.la
 endif
 
 EXTRA_DIST =		auto_increment.res auto_increment.tst \

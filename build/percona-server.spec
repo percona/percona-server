@@ -552,7 +552,7 @@ A manual upgrade is required.
   rpm -qa | grep -i '^mysql-'
 
   You may choose to use 'rpm --nodeps -ev <package-name>' to remove
-  the package which contains the mysqlclient shared library.  The
+  the package which contains the perconaserverclient shared library.  The
   library will be reinstalled by the Percona-shared-compat package.
 - Install the new Percona Server packages supplied by $myvendor
 - Ensure that the Percona Server is started
@@ -836,10 +836,10 @@ fi
 %endif
 %{_libdir}/mysql/libmyisam.a
 %{_libdir}/mysql/libmyisammrg.a
-%{_libdir}/mysql/libmysqlclient.a
-%{_libdir}/mysql/libmysqlclient.la
-%{_libdir}/mysql/libmysqlclient_r.a
-%{_libdir}/mysql/libmysqlclient_r.la
+%{_libdir}/mysql/libperconaserverclient.a
+%{_libdir}/mysql/libperconaserverclient.la
+%{_libdir}/mysql/libperconaserverclient_r.a
+%{_libdir}/mysql/libperconaserverclient_r.la
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
 %{_libdir}/mysql/libvio.a

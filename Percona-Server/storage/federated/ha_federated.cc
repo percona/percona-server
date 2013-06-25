@@ -2738,7 +2738,6 @@ void ha_federated::position(const uchar *record __attribute__ ((unused)))
   /* Store data cursor position. */
   memcpy(ref + sizeof(MYSQL_RES *), &current_position,
                sizeof(MYSQL_ROW_OFFSET));
-
   position_called= true;
   DBUG_VOID_RETURN;
 }

@@ -11434,7 +11434,11 @@ opt_limit_clause:
 limit_clause:
           LIMIT limit_options
           {
-            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+            if (Select->select_limit->fixed &&
+                Select->select_limit->val_int() != 0)
+            {
+              Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+            }
           }
         ;
 
@@ -11524,7 +11528,11 @@ delete_limit_clause:
           {
             SELECT_LEX *sel= Select;
             sel->select_limit= $2;
-            Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+            if (Select->select_limit->fixed &&
+                Select->select_limit->val_int() != 0)
+            {
+              Lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+            }
             sel->explicit_limit= 1;
           }
         ;

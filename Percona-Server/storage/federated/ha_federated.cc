@@ -2330,8 +2330,8 @@ int ha_federated::index_read(uchar *buf, const uchar *key,
   DBUG_ENTER("ha_federated::index_read");
 
   if ((retval= index_read_idx_with_result_set(buf, active_index, key,
-                                             key_len, find_flag,
-                                             &mysql_result)))
+                                              key_len, find_flag,
+                                              &mysql_result)))
     DBUG_RETURN(retval);
 
   set_last_result(mysql_result);
@@ -2507,7 +2507,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   }
 
   set_last_result(mysql_result);
-  
+
   DBUG_RETURN(read_next(table->record[0], mysql_result));
 
 error:
@@ -2598,8 +2598,7 @@ int ha_federated::rnd_init(bool scan)
 int ha_federated::rnd_end()
 {
   DBUG_ENTER("ha_federated::rnd_end");
-  active_index= MAX_KEY;
-  DBUG_RETURN(0);
+  DBUG_RETURN(index_end());
 }
 
 
@@ -2714,7 +2713,6 @@ void ha_federated::position(const uchar *record __attribute__ ((unused)))
   /* Store data cursor position. */
   memcpy_fixed(ref + sizeof(MYSQL_RES *), &current_position,
                sizeof(MYSQL_ROW_OFFSET));
-
   position_called= true;
   DBUG_VOID_RETURN;
 }
@@ -3258,7 +3256,7 @@ void ha_federated::set_last_result(MYSQL_RES *result)
   DBUG_VOID_RETURN;
 }
 
-
+ 
 int ha_federated::external_lock(THD *thd, int lock_type)
 {
   int error= 0;

@@ -1732,6 +1732,8 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  bool order_deterministic;
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 

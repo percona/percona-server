@@ -1115,33 +1115,27 @@ innobase_convert_from_table_id(
 
 /**********************************************************************
 Check if the length of the identifier exceeds the maximum allowed.
-The input to this function is an identifier in charset my_charset_filename.
 return true when length of identifier is too long. */
-extern "C" UNIV_INTERN
+extern "C"
 my_bool
 innobase_check_identifier_length(
 /*=============================*/
-	const char*	id)	/* in: identifier to check.  it must belong
-				to charset my_charset_filename */
+	const char*	id)	/* in: FK identifier to check excluding the
+				database portion. */
 {
-	char		tmp[MAX_TABLE_NAME_LEN + 10];
-	uint		errors;
-	uint		len;
 	int		well_formed_error = 0;
-	CHARSET_INFO*	cs1 = &my_charset_filename;
-	CHARSET_INFO*	cs2 = thd_charset(current_thd);
+	CHARSET_INFO	*cs = system_charset_info;
+	DBUG_ENTER("innobase_check_identifier_length");
 
-	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+	uint res = cs->cset->well_formed_len(cs, id, id + strlen(id),
+					     NAME_CHAR_LEN,
+					     &well_formed_error);
 
-	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
-					      NAME_CHAR_LEN,
-					      &well_formed_error);
-
-	if (well_formed_error || res != len) {
-		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
-		return(true);
+	if (well_formed_error || res == NAME_CHAR_LEN) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
+		DBUG_RETURN(true);
 	}
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /******************************************************************//**
@@ -1158,6 +1152,23 @@ innobase_convert_from_id(
 	uint	errors;
 
 	strconvert(cs, from, system_charset_info, to, (uint) len, &errors);
+}
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len,	/* in: length of 'to', in bytes */
+	uint*		errors)	/* out: error return */
+{
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = system_charset_info;
+
+	return(strconvert(cs1, from, cs2, to, len, errors));
 }
 
 /******************************************************************//**
@@ -4138,7 +4149,6 @@ ha_innobase::open(
 	dict_table_t*	ib_table;
 	char		norm_name[1000];
 	THD*		thd;
-	ulint		retries = 0;
 	char*		is_part = NULL;
 	ibool		par_case_name_set = FALSE;
 	char		par_case_name[MAX_FULL_NAME_LEN + 1];
@@ -4190,17 +4200,13 @@ ha_innobase::open(
 	}
 
 	/* We look for pattern #P# to see if the table is partitioned
-	MySQL table. The retry logic for partitioned tables is a
-	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
-	at support issue https://support.mysql.com/view.php?id=21080
-	for more details. */
+	MySQL table. */
 #ifdef __WIN__
 	is_part = strstr(norm_name, "#p#");
 #else
 	is_part = strstr(norm_name, "#P#");
 #endif /* __WIN__ */
 
-retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
 
@@ -4214,7 +4220,7 @@ retry:
 	share->ib_table = ib_table;
 
 	if (NULL == ib_table) {
-		if (is_part && retries < 10) {
+		if (is_part) {
 			/* MySQL partition engine hard codes the file name
 			separator as "#P#". The text case is fixed even if
 			lower_case_table_names is set to 1 or 2. This is true
@@ -4257,11 +4263,7 @@ retry:
 				ib_table = dict_table_get(
 					par_case_name, FALSE);
 			}
-			if (!ib_table) {
-				++retries;
-				os_thread_sleep(100000);
-				goto retry;
-			} else {
+			if (ib_table) {
 #ifndef __WIN__
 				sql_print_warning("Partition table %s opened "
 						  "after converting to lower "
@@ -4287,9 +4289,8 @@ retry:
 		}
 
 		if (is_part) {
-			sql_print_error("Failed to open table %s after "
-					"%lu attempts.\n", norm_name,
-					retries);
+			sql_print_error("Failed to open table %s.\n",
+					norm_name);
 		}
 
 		sql_print_error("Cannot find or open table %s from\n"
@@ -12756,5 +12757,21 @@ test_innobase_convert_name()
 		}
 	}
 }
-
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_filename_charset(
+/*=================================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len)	/* in: length of 'to', in bytes */
+{
+	uint		errors;
+	CHARSET_INFO*	cs_to = &my_charset_filename;
+	CHARSET_INFO*	cs_from = system_charset_info;
+
+	return(strconvert(cs_from, from, cs_to, to, len, &errors));
+}

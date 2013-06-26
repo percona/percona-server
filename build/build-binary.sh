@@ -17,6 +17,7 @@ TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
 WITH_JEMALLOC=''
+DEBUG_EXTNAME=''
 
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -44,6 +45,7 @@ do
         shift
         CMAKE_BUILD_TYPE='Debug'
         BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
+        DEBUG_EXTNAME='-DDEBUG_EXTNAME=OFF'
         ;;
     -v | --valgrind )
         shift
@@ -153,6 +155,7 @@ fi
     cd "$PRODUCT"
     cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
+        $DEBUG_EXTNAME \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \
         -DENABLE_DTRACE=OFF \

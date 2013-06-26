@@ -1,4 +1,4 @@
-# Bug 1182572 68354: Server crashes on update/join FEDERATED + local table when
+# Bug 1182572 68354: Server crashes on update/join FEDERATED + local table when 
 # only 1 local row.
 #
 # When updating a federated table with UPDATE ... JOIN, the server consistently

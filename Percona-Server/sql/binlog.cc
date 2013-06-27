@@ -28,6 +28,7 @@
 #include "global_threads.h"
 #include "sql_show.h"
 #include "sql_parse.h"
+#include "sql_base.h"
 #include "rpl_mi.h"
 #include <list>
 #include <string>
@@ -8622,6 +8623,31 @@ void THD::issue_unsafe_warnings()
 
   uint32 unsafe_type_flags= binlog_unsafe_warning_flags;
 
+  if ((unsafe_type_flags & (1U << LEX::BINLOG_STMT_UNSAFE_LIMIT)) != 0)
+  {
+    if ((lex->sql_command == SQLCOM_DELETE || lex->sql_command == SQLCOM_UPDATE) &&
+        lex->select_lex.select_limit)
+    {
+      ORDER *order= (ORDER *) ((lex->select_lex.order_list.elements) ?
+                               lex->select_lex.order_list.first : NULL);
+      if ((lex->select_lex.select_limit &&
+           lex->select_lex.select_limit->fixed &&
+           lex->select_lex.select_limit->val_int() == 0) ||
+          is_order_deterministic(lex->query_tables,
+                                   lex->select_lex.where, order))
+      {
+        unsafe_type_flags&= ~(1U << LEX::BINLOG_STMT_UNSAFE_LIMIT);
+      }
+    }
+    if ((lex->sql_command == SQLCOM_INSERT_SELECT ||
+         lex->sql_command == SQLCOM_REPLACE_SELECT) &&
+        order_deterministic)
+    {
+      unsafe_type_flags&= ~(1U << LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    }
+
+  }
+
   /*
     For each unsafe_type, check if the statement is unsafe in this way
     and issue a warning.
@@ -8728,7 +8754,10 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
   */
   if ((variables.option_bits & OPTION_BIN_LOG) &&
       sp_runtime_ctx == NULL && !binlog_evt_union.do_union)
+  {
     issue_unsafe_warnings();
+    order_deterministic= true;
+  }
 
   switch (qtype) {
     /*

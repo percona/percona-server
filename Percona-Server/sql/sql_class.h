@@ -2279,6 +2279,8 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  bool order_deterministic;
+
   /*
     Position of first event in Binlog
     *after* last event written by this

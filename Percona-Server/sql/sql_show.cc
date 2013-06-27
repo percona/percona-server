@@ -6399,13 +6399,15 @@ int get_cs_converted_part_value_from_string(THD *thd,
 static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
                                            TABLE *showing_table,
                                            partition_element *part_elem,
-                                           handler *file, uint part_id)
+                                           handler *file, uint part_id,
+                                           ha_rows *records)
 {
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
   PARTITION_STATS stat_info;
   MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
+  *records= stat_info.records;
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
   table->field[12]->store((longlong) stat_info.records, TRUE);
   table->field[13]->store((longlong) stat_info.mean_rec_length, TRUE);
@@ -6528,8 +6530,12 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   String tmp_str;
   TABLE *show_table= tables->table;
   handler *file;
+  ha_rows records;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;
+  uint handler_part_id= 0;
+  ha_rows max_records= 0;
+  PARTITION_STATS stat_info;
 #endif
   DBUG_ENTER("get_schema_partitions_record");
 
@@ -6657,6 +6663,8 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                                list_value,
                                                tmp_str))
           {
+            file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+                       HA_STATUS_VARIABLE_EXTRA | HA_STATUS_NO_LOCK);
             DBUG_RETURN(1);
           }
           table->field[11]->store(tmp_str.ptr(), tmp_str.length(), cs);
@@ -6695,6 +6703,8 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
                                                  list_value,
                                                  tmp_str))
             {
+              file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+                         HA_STATUS_VARIABLE_EXTRA | HA_STATUS_NO_LOCK);
               DBUG_RETURN(1);
             }
             if (part_info->part_field_list.elements > 1U)
@@ -6731,27 +6741,39 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
           table->field[6]->set_notnull();
           
           store_schema_partitions_record(thd, table, show_table, subpart_elem,
-                                         file, part_id);
+                                         file, part_id, &records);
+          handler_part_id= (records > max_records) ? part_id : handler_part_id;
           part_id++;
           if(schema_table_store_record(thd, table))
+          {
+            file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+                       HA_STATUS_VARIABLE_EXTRA | HA_STATUS_NO_LOCK);
             DBUG_RETURN(1);
+          }
         }
       }
       else
       {
         store_schema_partitions_record(thd, table, show_table, part_elem,
-                                       file, part_id);
+                                       file, part_id, &records);
+        handler_part_id= (records > max_records) ? part_id : handler_part_id;
         part_id++;
         if(schema_table_store_record(thd, table))
+        {
+          file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
+                     HA_STATUS_VARIABLE_EXTRA | HA_STATUS_NO_LOCK);
           DBUG_RETURN(1);
+        }
       }
     }
+    file->get_dynamic_partition_info(&stat_info, handler_part_id);
     DBUG_RETURN(0);
   }
   else
 #endif
   {
-    store_schema_partitions_record(thd, table, show_table, 0, file, 0);
+    store_schema_partitions_record(thd, table, show_table, 0, file, 0,
+                                   &records);
     if(schema_table_store_record(thd, table))
       DBUG_RETURN(1);
   }

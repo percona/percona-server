@@ -65,8 +65,19 @@ After the PAM plugin has been configured, users can be created with the PAM plug
 
 This will create a user ``newuser`` that can connect from ``localhost`` who will be authenticated using the PAM plugin. If the ``pam_unix`` method is being used user will need to exist on the system.
 
+Supplementary groups support
+============================
+
+|Percona Server| has implemented PAM plugin support for supplementary groups. Supplementary or secondary groups are extra groups a specific user is member of. For example user ``joe`` might be a member of groups: ``joe`` (his primary group) and secondary groups ``developers`` and ``dba``. A complete list of groups and users belonging to them can be checked with ``vigr`` command.
+
+This feature enables using secondary groups in the mapping part of the authentication string, like "``mysql, developers=joe, dba=mark``". Previously only primary groups could have been specified there. If user is a member of both ``developers`` and ``dba``, PAM plugin will map it to the ``joe`` because ``developers`` matches first. 
+
 Version Specific Information
 ============================
 
   * :rn:`5.6.11-60.3`
     PAM authentication plugin has been integrated with |Percona Server|.
+  
+  * :rn:`5.6.12-60.4`
+    Implemented PAM support for supplementary groups.
+

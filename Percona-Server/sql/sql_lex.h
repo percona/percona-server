@@ -1384,6 +1384,17 @@ public:
   static const int binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT];
 
   /**
+    Determine if this statement is marked as unsafe with
+    specific type
+
+    @retval false if the statement is not marked as unsafe.
+    @retval true if it is.
+  */
+  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) const {
+    return ((binlog_stmt_flags & (1U << unsafe_type)) != 0);
+  }
+
+  /**
     Determine if this statement is marked as unsafe.
 
     @retval 0 if the statement is not marked as unsafe.

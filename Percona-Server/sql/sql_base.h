@@ -288,6 +288,10 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
+bool is_order_deterministic(List<TABLE_LIST>* join_list,
+                            COND* cond, ORDER* order);
+bool is_order_deterministic(TABLE_LIST *table,
+                            COND *cond, ORDER* order);
 
 /* Functions to work with system tables. */
 bool open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,

@@ -603,8 +603,14 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # Initiate databases
 # ----------------------------------------------------------------------
 if [ $1 -eq 1 ]; then #clean installation
-        mkdir -p $mysql_datadir/{mysql,test}
+    # Does $mysql_datadir/mysql exist? In this case, this is probably an
+    # upgrade from a previous version or a reinstall. It's best not to
+    # call mysql_install_db in this case since the test db would be
+    # possibly recreated (bug #1169522).
+    if test ! -e $mysql_datadir/mysql
+    then
         %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+    fi
 fi
 # ----------------------------------------------------------------------
 # FIXME upgrade databases if needed would go here - but it cannot be

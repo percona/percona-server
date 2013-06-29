@@ -236,7 +236,7 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-BuildRequires:  %{distro_buildreq} pam-devel
+BuildRequires:  %{distro_buildreq} pam-devel openssl-devel
 
 # Think about what you use here since the first step is to
 # run a rm -rf

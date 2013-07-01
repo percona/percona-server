@@ -737,13 +737,11 @@ STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
-	mkdir $mysql_datadir/mysql;
 	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
 else
 	# If the directory exists, we may assume it is an upgrade.
 	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
 fi
-if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
@@ -778,8 +776,15 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} \
-    --datadir=$mysql_datadir
+    # Does $mysql_datadir/mysql exist? In this case, this is probably an
+    # upgrade from a previous version or a reinstall. It's best not to
+    # call mysql_install_db in this case since the test db would be
+    # possibly recreated (bug #1169522).
+    if test ! -e $mysql_datadir/mysql
+    then
+        %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} \
+            --datadir=$mysql_datadir
+    fi
 
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet

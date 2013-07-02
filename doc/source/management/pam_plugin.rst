@@ -68,7 +68,7 @@ This will create a user ``newuser`` that can connect from ``localhost`` who will
 Supplementary groups support
 ============================
 
-|Percona Server| has implemented PAM plugin support for supplementary groups. Supplementary or secondary groups are extra groups a specific user is member of. For example user ``joe`` might be a member of groups: ``joe`` (his primary group) and secondary groups ``developers`` and ``dba``. A complete list of groups and users belonging to them can be checked with ``vigr`` command.
+|Percona Server| has implemented PAM plugin support for supplementary groups. Supplementary or secondary groups are extra groups a specific user is member of. For example user ``joe`` might be a member of groups: ``joe`` (his primary group) and secondary groups ``developers`` and ``dba``. A complete list of groups and users belonging to them can be checked with ``cat /etc/group`` command.
 
 This feature enables using secondary groups in the mapping part of the authentication string, like "``mysql, developers=joe, dba=mark``". Previously only primary groups could have been specified there. If user is a member of both ``developers`` and ``dba``, PAM plugin will map it to the ``joe`` because ``developers`` matches first. 
 

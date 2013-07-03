@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1899,7 +1899,7 @@ loop2:
 	if (must_read && (mode == BUF_GET_IF_IN_POOL
 			  || mode == BUF_PEEK_IF_IN_POOL)) {
 		/* The page is only being read to buffer */
-		//buf_pool_mutex_exit();
+null_exit:
 		mutex_exit(block_mutex);
 
 		return(NULL);
@@ -1927,6 +1927,15 @@ loop2:
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 		ut_ad(block_mutex == &buf_pool_zip_mutex);
+
+		if (mode == BUF_PEEK_IF_IN_POOL) {
+			/* This mode is only used for dropping an
+			adaptive hash index.  There cannot be an
+			adaptive hash index for a compressed-only
+			page, so do not bother decompressing the page. */
+			goto null_exit;
+		}
+
 		bpage = &block->page;
 		/* Protect bpage->buf_fix_count. */
 		/* Already proteced here. */

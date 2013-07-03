@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /* This file defines the InnoDB handler: the interface between MySQL and InnoDB
 NOTE: You can only use noninlined InnoDB functions in this file, because we
@@ -791,6 +791,11 @@ convert_error_code_to_mysql(
 	} else if (error == DB_UNSUPPORTED) {
 
 		return(HA_ERR_UNSUPPORTED);
+
+	} else if (error == DB_IDENTIFIER_TOO_LONG) {
+
+		return(HA_ERR_INTERNAL_ERROR);
+
 	} else if (error == DB_INTERRUPTED) {
 
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
@@ -895,6 +900,31 @@ innobase_convert_from_table_id(
 }
 
 /**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+return true when length of identifier is too long. */
+extern "C"
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id)	/* in: FK identifier to check excluding the
+				database portion. */
+{
+	int		well_formed_error = 0;
+	CHARSET_INFO	*cs = system_charset_info;
+	DBUG_ENTER("innobase_check_identifier_length");
+
+	uint res = cs->cset->well_formed_len(cs, id, id + strlen(id),
+					     NAME_CHAR_LEN,
+					     &well_formed_error);
+
+	if (well_formed_error || res == NAME_CHAR_LEN) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
+		DBUG_RETURN(true);
+	}
+	DBUG_RETURN(false);
+}
+
+/**********************************************************************
 Converts an identifier to UTF-8.
 
 NOTE that the exact prototype of this function has to be in
@@ -912,6 +942,59 @@ innobase_convert_from_id(
 	strconvert(thd_charset(current_thd), from,
 		   system_charset_info, to, (uint) len, &errors);
 }
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len,	/* in: length of 'to', in bytes */
+	uint*		errors)	/* out: error return */
+{
+	uint		rlen;
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = system_charset_info;
+
+	rlen = strconvert(cs1, from, cs2, to, len, errors);
+
+	if (*errors) {
+		fprintf(stderr, "InnoDB: There was a problem in converting"
+			"'%s' in charset %s to charset %s", from, cs1->name,
+			cs2->name);
+	}
+
+	return(rlen);
+}
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_filename_charset(
+/*=================================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len)	/* in: length of 'to', in bytes */
+{
+	uint		errors;
+	uint		rlen;
+	CHARSET_INFO*	cs_to = &my_charset_filename;
+	CHARSET_INFO*	cs_from = system_charset_info;
+
+	rlen = strconvert(cs_from, from, cs_to, to, len, &errors);
+
+	if (errors) {
+		fprintf(stderr, "InnoDB: There was a problem in converting"
+			"'%s' in charset %s to charset %s", from, cs_from->name,
+			cs_to->name);
+	}
+
+	return(rlen);
+}
+
 
 /**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.
@@ -2914,7 +2997,6 @@ ha_innobase::open(
 	dict_table_t*	ib_table;
 	char		norm_name[1000];
 	THD*		thd;
-	ulint		retries = 0;
 	char*		is_part = NULL;
 	ibool		par_case_name_set = FALSE;
 	char		par_case_name[MAX_FULL_NAME_LEN + 1];
@@ -2960,22 +3042,18 @@ ha_innobase::open(
 	}
 
 	/* We look for pattern #P# to see if the table is partitioned
-	MySQL table. The retry logic for partitioned tables is a
-	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
-	at support issue https://support.mysql.com/view.php?id=21080
-	for more details. */
+	MySQL table. */
 #ifdef __WIN__
 	is_part = strstr(norm_name, "#p#");
 #else
 	is_part = strstr(norm_name, "#P#");
 #endif /* __WIN__ */
 
-retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
 
 	if (NULL == ib_table) {
-		if (is_part && retries < 10) {
+		if (is_part) {
 			/* MySQL partition engine hard codes the file name
 			separator as "#P#". The text case is fixed even if
 			lower_case_table_names is set to 1 or 2. This is true
@@ -3018,11 +3096,7 @@ retry:
 				ib_table = dict_table_get(
 					par_case_name, FALSE);
 			}
-			if (!ib_table) {
-				++retries;
-				os_thread_sleep(100000);
-				goto retry;
-			} else {
+			if (ib_table) {
 #ifndef __WIN__
 				sql_print_warning("Partition table %s opened "
 						  "after converting to lower "
@@ -3045,12 +3119,9 @@ retry:
 #endif
 				goto table_opened;
 			}
-		}
 
-		if (is_part) {
-			sql_print_error("Failed to open table %s after "
-					"%lu attemtps.\n", norm_name,
-					retries);
+			sql_print_error("Failed to open table %s.\n",
+					norm_name);
 		}
 
 		sql_print_error("Cannot find or open table %s from\n"

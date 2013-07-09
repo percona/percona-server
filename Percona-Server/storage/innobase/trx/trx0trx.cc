@@ -225,7 +225,7 @@ trx_create(void)
 	mem_heap_t*	heap;
 	ib_alloc_t*	heap_alloc;
 
-	trx = static_cast<trx_t*>(ut_calloc(1, sizeof(*trx)));
+	trx = static_cast<trx_t*>(mem_zalloc(sizeof(*trx)));
 
 	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
 
@@ -381,7 +381,7 @@ trx_free_low(
 
 	read_view_free(trx->prebuilt_view);
 
-	ut_free(trx);
+	mem_free(trx);
 }
 
 /********************************************************************//**

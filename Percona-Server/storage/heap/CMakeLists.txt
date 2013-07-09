@@ -23,7 +23,8 @@ SET(HEAP_SOURCES  _check.c _rectest.c hp_block.c hp_clear.c hp_close.c hp_create
 				hp_dspace.c hp_record.c
 				hp_rrnd.c hp_rsame.c hp_scan.c hp_static.c hp_update.c hp_write.c)
 
-MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY RECOMPILE_FOR_EMBEDDED)
+MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY
+                 RECOMPILE_FOR_EMBEDDED DTRACE_INSTRUMENTED)
 
 ADD_EXECUTABLE(hp_test1 hp_test1.c)
 TARGET_LINK_LIBRARIES(hp_test1 mysys heap dbug strings)

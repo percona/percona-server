@@ -2127,6 +2127,10 @@ row_ins_index_entry_low(
 
 			if (big_rec) {
 				ut_a(err == DB_SUCCESS);
+				if (UNIV_UNLIKELY(thr_get_trx(thr)->
+						  fake_changes)) {
+					goto stored_big_rec;
+				}
 				/* Write out the externally stored
 				columns while still x-latching
 				index->lock and block->lock. Allocate

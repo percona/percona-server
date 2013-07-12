@@ -37,6 +37,8 @@ This variable can be used to enable or disable atomic writes instead of the doub
 
 Other Reading
 =============
+ 
+ * For general |InnoDB| tuning :ref:`innodb_io_page` documentation is available.
 
  * `FusionIO DirectFS atomic write support in *MariaDB* <https://kb.askmonty.org/en/fusionio-directfs-atomic-write-support/>`_
 

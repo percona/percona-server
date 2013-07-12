@@ -26,9 +26,9 @@ Other Information
 System Variables
 ================
 
-.. variable:: userstat_running
+.. variable:: userstat
 
-     :version 5.5.10-20.1: Renamed to :variable:`userstat`
+     :version 5.5.10-20.1: Renamed from :variable:`userstat_running`
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -39,6 +39,22 @@ System Variables
 
 Enables or disables collection of statistics. The default is ``OFF``, meaning no statistics are gathered. This is to ensure that the statistics collection doesn't cause any extra load on the server unless desired.
 
+.. variable:: thread_statistics
+
+     :version 5.5.8-20.0: Feature ported from |Percona Server| 5.1
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: BOOLEAN
+     :default: OFF
+     :range: ON/OFF
+
+Enables or disables collection of thread statistics. The default is ``OFF``, meaning no thread statistics are gathered. This is to ensure that the statistics collection doesn't cause any extra load on the server unless desired. Variable :variable:`userstat` needs to be enabled as well in order for thread statistics to be collected.
+
+.. note::
+
+ In Percona Server 5.5 :variable:`thread_statistics` is a reserved word. Which means you have to quote it when using the system variable with the same name: ``mysql> set global `thread_statistics`=1;``
 
 INFORMATION_SCHEMA Tables
 =========================

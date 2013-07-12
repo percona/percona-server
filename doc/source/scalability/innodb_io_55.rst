@@ -96,26 +96,6 @@ This variable controls the maximum value of the checkpoint age if its value is d
 It is not needed to shrink ``innodb_log_file_size`` to tune recovery time.
 
 
-.. variable:: innodb_enable_unsafe_group_commit
-
-   This variable is not needed after |XtraDB| 1.0.5.
-
-   :cli: Yes
-   :conf: Yes
-   :scope: Global
-   :dyn: Yes
-   :vartype: Numeric
-   :default: 0
-   :range: 0 - 1
-
-This variable allows you to change the default behavior of |InnoDB| concerning the synchronization between the transaction logs and the binary logs at commit time. The following values are available:
-
-  * 0 (default): 
-    |InnoDB| keeps transactions in the same order between the transaction logs and the binary logs. This is the safer value but also the slower.
-
-  * 1: 
-    transactions can be group-committed but the order between transactions will not be guaranteed to be kept anymore. Thus there is a slight risk of desynchronization between transaction logs and binary logs. However for servers that perform write-intensive workloads (and have RAID without BBU), you may expect a significant improvement in performance. (See Implementation Details if you need to understand the goal of this feature.)
-
 .. variable:: innodb_flush_method
 
    :cli: Yes
@@ -284,3 +264,8 @@ The following information has been added to ``SHOW ENGINE INNODB STATUS`` to con
   Checkpoint age      4243362
   0 pending log writes, 0 pending chkp writes
   ...
+
+Other Reading
+=============
+
+ * For Fusion-IO devices-specific tuning, see :ref:`atomic_fio` documentation.

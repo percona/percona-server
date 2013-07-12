@@ -83,37 +83,37 @@ The following variables contain information in the BACKGROUND THREAD section of 
 
  Insert an example of BACKGROUND THREAD section output here.
 
-.. variable:: innodb_master_thread_1_second_loops
+.. variable:: Innodb_master_thread_1_second_loops
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_master_thread_10_second_loops
+.. variable:: Innodb_master_thread_10_second_loops
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_master_thread_background_loops
+.. variable:: Innodb_master_thread_background_loops
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_master_thread_main_flush_loops
+.. variable:: Innodb_master_thread_main_flush_loops
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_master_thread_sleeps
+.. variable:: Innodb_master_thread_sleeps
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_background_log_sync
+.. variable:: Innodb_background_log_sync
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
@@ -132,55 +132,55 @@ The following variables contain information in the SEMAPHORES section of the out
   RW-shared spins 5155, OS waits 1678; RW-excl spins 5632, OS waits 2592
   Spin rounds per wait: 10.87 mutex, 15.01 RW-shared, 27.19 RW-excl
 
-.. variable:: innodb_mutex_os_waits
+.. variable:: Innodb_mutex_os_waits
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_mutex_spin_rounds
+.. variable:: Innodb_mutex_spin_rounds
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_mutex_spin_waits
+.. variable:: Innodb_mutex_spin_waits
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_s_lock_os_waits
+.. variable:: Innodb_s_lock_os_waits
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_s_lock_spin_rounds
+.. variable:: Innodb_s_lock_spin_rounds
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_s_lock_spin_waits
+.. variable:: Innodb_s_lock_spin_waits
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_x_lock_os_waits
+.. variable:: Innodb_x_lock_os_waits
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_x_lock_spin_rounds
+.. variable:: Innodb_x_lock_spin_rounds
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_x_lock_spin_waits
+.. variable:: Innodb_x_lock_spin_waits
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
@@ -199,85 +199,85 @@ The following variables contain information in the INSERT BUFFER AND ADAPTIVE HA
   Hash table size 276707, node heap has 1 buffer(s)
   0.00 hash searches/s, 0.00 non-hash searches/s
 
-.. variable:: innodb_ibuf_discarded_delete_marks
+.. variable:: Innodb_ibuf_discarded_delete_marks
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_discarded_deletes
+.. variable:: Innodb_ibuf_discarded_deletes
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_discarded_inserts
+.. variable:: Innodb_ibuf_discarded_inserts
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_free_list
+.. variable:: Innodb_ibuf_free_list
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_merged_delete_marks
+.. variable:: Innodb_ibuf_merged_delete_marks
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_merged_deletes
+.. variable:: Innodb_ibuf_merged_deletes
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_merged_inserts
+.. variable:: Innodb_ibuf_merged_inserts
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_merges
+.. variable:: Innodb_ibuf_merges
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_segment_size
+.. variable:: Innodb_ibuf_segment_size
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_ibuf_size
+.. variable:: Innodb_ibuf_size
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_adaptive_hash_cells
+.. variable:: Innodb_adaptive_hash_cells
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_adaptive_hash_heap_buffers
+.. variable:: Innodb_adaptive_hash_heap_buffers
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_adaptive_hash_hash_searches
+.. variable:: Innodb_adaptive_hash_hash_searches
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_adaptive_hash_non_hash_searches
+.. variable:: Innodb_adaptive_hash_non_hash_searches
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
@@ -301,37 +301,37 @@ The following variables contain information in the LOG section of the output fro
   0 pending log writes, 0 pending chkp writes
   8570 log i/o's done, 2000.00 log i/o's/second
 
-.. variable:: innodb_lsn_current
+.. variable:: Innodb_lsn_current
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_lsn_flushed
+.. variable:: Innodb_lsn_flushed
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_lsn_last_checkpoint
+.. variable:: Innodb_lsn_last_checkpoint
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_checkpoint_age
+.. variable:: Innodb_checkpoint_age
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_checkpoint_max_age
+.. variable:: Innodb_checkpoint_max_age
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_checkpoint_target_age
+.. variable:: Innodb_checkpoint_target_age
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
@@ -372,49 +372,49 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
   Pages read ahead 0.00/s, evicted without access 15000.00/s
 
 
-.. variable:: innodb_mem_adaptive_hash
+.. variable:: Innodb_mem_adaptive_hash
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_mem_dictionary
+.. variable:: Innodb_mem_dictionary
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_mem_total
+.. variable:: Innodb_mem_total
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_buffer_pool_pages_LRU_flushed
+.. variable:: Innodb_buffer_pool_pages_LRU_flushed
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_buffer_pool_pages_made_not_young
+.. variable:: Innodb_buffer_pool_pages_made_not_young
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_buffer_pool_pages_made_young
+.. variable:: Innodb_buffer_pool_pages_made_young
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_buffer_pool_pages_old
+.. variable:: Innodb_buffer_pool_pages_old
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_descriptors_memory
+.. variable:: Innodb_descriptors_memory
 
      :version 5.5.31-30.3: Introduced.
      :vartype: Numeric
@@ -422,7 +422,7 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
 
 This status variable shows the current size of the descriptors array (in bytes). The descriptor array is an |XtraDB| data structure that contains the information on currently running transactions.
 
-.. variable:: innodb_read_views_memory
+.. variable:: Innodb_read_views_memory
 
      :version 5.5.31-30.3: Introduced.
      :vartype: Numeric
@@ -465,37 +465,37 @@ The following variables contain information in the TRANSACTIONS section of the o
   ---TRANSACTION F561FC, ACTIVE 29 sec, process no 993, OS thread id 140213152769808 updating or deleting
   mysql tables in use 1, locked 1
 
-.. variable:: innodb_history_list_length
+.. variable:: Innodb_history_list_length
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_max_trx_id
+.. variable:: Innodb_max_trx_id
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_oldest_view_low_limit_trx_id
+.. variable:: Innodb_oldest_view_low_limit_trx_id
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_purge_trx_id
+.. variable:: Innodb_purge_trx_id
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_purge_undo_no
+.. variable:: Innodb_purge_undo_no
 
      :version 5.5.8-20.0: Introduced.
      :vartype: Numeric
      :scope: Global
 
-.. variable:: innodb_current_row_locks
+.. variable:: Innodb_current_row_locks
 
      :version 5.5.8-20.0: Introduced.
      :version 5.5.10-20.1: Renamed.

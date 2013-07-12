@@ -172,6 +172,7 @@ Reference
    development
    trademark-policy
    upstream-bug-fixes
+   ps-variables
    index_info_schema_tables
    faq
    copyright

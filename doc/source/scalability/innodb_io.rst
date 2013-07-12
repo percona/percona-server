@@ -69,3 +69,8 @@ The following information has been added to ``SHOW ENGINE INNODB STATUS`` to con
   Checkpoint age      4243362
   0 pending log writes, 0 pending chkp writes
   ...
+
+Other Reading
+=============
+
+ * For Fusion-IO devices-specific tuning, see :ref:`atomic_fio` documentation.

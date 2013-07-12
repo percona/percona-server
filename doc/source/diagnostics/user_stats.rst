@@ -37,6 +37,18 @@ System Variables
 
 Enables or disables collection of statistics. The default is ``OFF``, meaning no statistics are gathered. This is to ensure that the statistics collection doesn't cause any extra load on the server unless desired.
 
+.. variable:: thread_statistics
+
+     :version 5.6.11-60.3: Feature ported from |Percona Server| 5.5
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: BOOLEAN
+     :default: OFF
+     :range: ON/OFF
+
+Enables or disables collection of thread statistics. The default is ``OFF``, meaning no thread statistics are gathered. This is to ensure that the statistics collection doesn't cause any extra load on the server unless desired. Variable :variable:`userstat` needs to be enabled as well in order for thread statistics to be collected.
 
 INFORMATION_SCHEMA Tables
 =========================

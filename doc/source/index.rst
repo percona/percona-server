@@ -141,6 +141,7 @@ Reference
    :glob:
 
    upstream-bug-fixes
+   ps-variables
    development
    trademark-policy
    index_info_schema_tables

@@ -44,7 +44,7 @@ Status Variables
 
 One new status variable was introduced by this feature.
 
-.. variable:: innodb_deadlocks
+.. variable:: Innodb_deadlocks
 
      :vartype: LONG
      :scope: Global

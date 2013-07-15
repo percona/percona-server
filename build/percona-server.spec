@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.31
+%define mysql_version   5.5.32
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 30
-%define minorversion 3
+%define majorversion 31
+%define minorversion 0
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -233,7 +233,7 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-BuildRequires:  %{distro_buildreq} pam-devel
+BuildRequires:  %{distro_buildreq} pam-devel openssl-devel
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -754,14 +754,10 @@ if [ $1 -eq 1 ]; then
 if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
-	mkdir $mysql_datadir/mysql;
 	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
 else
 	# If the directory exists, we may assume it is an upgrade.
 	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
-fi
-if [ ! -d $mysql_datadir/test ]; then 
-        mkdir $mysql_datadir/test; 
 fi
 
 # ----------------------------------------------------------------------
@@ -778,7 +774,14 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+    # Does $mysql_datadir/mysql exist? In this case, this is probably an
+    # upgrade from a previous version or a reinstall. It's best not to
+    # call mysql_install_db in this case since the test db would be
+    # possibly recreated (bug #1169522).
+    if test ! -e $mysql_datadir/mysql
+    then
+        %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+    fi
 fi 
 
 # ----------------------------------------------------------------------

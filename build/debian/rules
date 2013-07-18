@@ -296,7 +296,7 @@ binary-arch: build install
 	dh_installlogrotate -a --name percona-server-server
 	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
 	# started which might depend on a running database server.
-	dh_installinit -a --name=mysql -- defaults 19 21
+	dh_installinit -a --name=mysql --error-handler=: -- defaults 19 21
 	dh_installcron -a --name percona-server-server
 	dh_installman -a
 	dh_installinfo -a

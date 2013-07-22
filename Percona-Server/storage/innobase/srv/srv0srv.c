@@ -179,7 +179,7 @@ UNIV_INTERN char*	srv_doublewrite_file = NULL;
 
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
-UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
 

@@ -180,7 +180,7 @@ UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
 UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
-UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
 

@@ -60,6 +60,9 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 using std::min;
 using std::max;
 
+/* Needed by rpl_filter.cc when it is linked into mysqlbinlog. */
+CHARSET_INFO *table_alias_charset= &my_charset_bin;
+
 #define BIN_LOG_HEADER_SIZE	4U
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
 #define INTVAR_DYNAMIC_INIT	16

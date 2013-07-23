@@ -234,12 +234,12 @@ ENDIF()
 MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
 ADD_SUBDIRECTORY(authentication_ldap)
   
-# Merge several convenience libraries into one big mysqlclient
-MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS} COMPONENT Development)
+# Merge several convenience libraries into one big perconaserverclient
+MERGE_CONVENIENCE_LIBRARIES(perconaserverclient ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
-  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
 
   INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
   INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
@@ -280,7 +280,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DEFINED ENV{PB2WORKDIR})
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  # Merge several convenience libraries into one big mysqlclient
+  # Merge several convenience libraries into one big perconaserverclient
   # and link them together into shared library.
   MERGE_LIBRARIES_SHARED(libmysql ${LIBS}
     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
@@ -293,9 +293,9 @@ IF(NOT DISABLE_SHARED)
       SET(OS_SHARED_LIB_VERSION
         "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
     ENDIF()
-    # Name of shared library is mysqlclient on Unix
+    # Name of shared library is perconaserverclient on Unix
     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-      OUTPUT_NAME mysqlclient 
+      OUTPUT_NAME perconaserverclient
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
@@ -324,8 +324,8 @@ IF(NOT DISABLE_SHARED)
         PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
     ENDIF() 
     # clean direct output needs to be set several targets have the same name
-    #(mysqlclient in this case)
-    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    #(perconaserverclient in this case)
+    SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
   ENDIF()

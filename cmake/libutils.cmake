@@ -28,8 +28,8 @@
 # excessive recompiles.
 
 # Except for convenience libraries, this file provides macros to merge static 
-# libraries (we need it for mysqlclient) and to create shared library out of 
-# convenience libraries(again, for mysqlclient)
+# libraries (we need it for perconaserverclient) and to create shared library out of 
+# convenience libraries(again, for perconaserverclient)
 
 # Important global flags 
 # - WITH_PIC : If set, it is assumed that everything is compiled as position

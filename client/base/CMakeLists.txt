@@ -49,10 +49,10 @@ ADD_COMPILE_FLAGS(
   mutex.cc
   mysql_query_runner.cc
   show_variable_query_extractor.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
 )
 
-TARGET_LINK_LIBRARIES(client_base mysqlclient)
+TARGET_LINK_LIBRARIES(client_base perconaserverclient)
 
 # Do not build library unless it is needed by some other target.
 SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)

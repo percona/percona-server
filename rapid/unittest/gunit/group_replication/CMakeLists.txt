@@ -44,7 +44,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small)
   # mysys_ssl/libmysys_ssl.a already includes SSL objects on Solaris
   IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
+    TARGET_LINK_LIBRARIES(${test}-t perconaserverclient)
   ENDIF()
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()

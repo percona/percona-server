@@ -214,7 +214,7 @@ ELSE()
       "NGS_DISABLE_LOGGING;USE_MYSQLX_FULL_PROTO")
   ENDIF()
 
-  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings mysqlclient)
+  TARGET_LINK_LIBRARIES(mysqlxtest mysys strings perconaserverclient)
   TARGET_LINK_LIBRARIES(mysqlxtest ${PROTOBUF_LIBRARY})
 
   IF(INSTALL_MYSQLTESTDIR)

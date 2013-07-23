@@ -131,10 +131,10 @@ client.
 
 The ``percona-server-dfsg`` package contains....
 
-The ``libmysqlclient-dev`` package contains header files needed to
+The ``libperconaserverclient-dev`` package contains header files needed to
 compile software to use the client library.
 
-The ``libmysqlclient18`` package contains the client shared
+The ``libperconaserverclient18`` package contains the client shared
 library. The ``18`` is a reference to the version of the shared
 library. The version is incremented when there is a ABI change that
 requires software using the client library to be recompiled or their

@@ -85,7 +85,7 @@ rpm2cpio %{SOURCE0} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE1} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE2} | cpio -iv --make-directories
 #rpm2cpio %{SOURCE3} | cpio -iv --make-directories
-rpm2cpio %{SOURCE1} | cpio -ivu '*/usr/lib64/libmysqlclient*so.16*'
+rpm2cpio %{SOURCE1} | cpio -ivu '*/usr/lib64/libperconaserverclient*so.16*'
 /sbin/ldconfig -n $RPM_BUILD_ROOT%{_libdir}
 
 %clean
@@ -93,5 +93,5 @@ rpm2cpio %{SOURCE1} | cpio -ivu '*/usr/lib64/libmysqlclient*so.16*'
 
 %files
 %defattr(-, root, root)
-%{_libdir}/libmysqlclient*
+%{_libdir}/libperconaserverclient*
 

@@ -46,9 +46,9 @@ AC_CHECK_LIB([pam], [pam_start], [AUTH_PAM_LIBS="$AUTH_PAM_LIBS -lpam"],
     AC_MSG_ERROR(
         [Unable to find PAM. Please install the PAM development libraries])
 )
-AC_CHECK_LIB([mysqlclient], [mysql_init], [DIALOG_LIBS="$DIALOG_LIBS -lmysqlclient"],
+AC_CHECK_LIB([perconaserverclient], [mysql_init], [DIALOG_LIBS="$DIALOG_LIBS -lperconaserverclient"],
     AC_MSG_ERROR(
-        [Unable to find libmysqlclient. Please install the mysql development libraries])
+        [Unable to find libperconaserverclient. Please install the mysql development libraries])
 )
 
 # Replace -I with -isystem for the MySQL header include GCC option to silence 

@@ -1,6 +1,6 @@
 Prefix mysql_ to the real names of several symbols that have to be exported
-from libmysqlclient because mysql-connector-odbc and/or PHP depend on them.
-This limits the intrusion on application namespace.
+from libperconaserverclient because mysql-connector-odbc and/or PHP depend on
+them. This limits the intrusion on application namespace.
 
 Also, remove all traces of make_scrambled_password and
 make_scrambled_password_323, so that references to these functions draw

@@ -513,7 +513,7 @@ gcc $CFLAGS $LDFLAGS -o scriptstub "-DLIBDIR=\"%{_libdir}/mysql\"" %{SOURCE4}
 cd release
 mkdir libmysqld/work
 cd libmysqld/work
-# "libmysqld" provides the same ABI as "libmysqlclient", but it implements the server:
+# "libmysqld" provides the same ABI as "libperconaserverclient", but it implements the server:
 # The shared object is identified by the full version,
 # for linkage selection the first two levels are sufficient so that upgrades are possible
 # (see "man ld", option "-soname").
@@ -637,7 +637,7 @@ rm -f ${RPM_BUILD_ROOT}%{_bindir}/make_win_binary_distribution
 rm -f ${RPM_BUILD_ROOT}%{_bindir}/make_win_src_distribution
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/make_win_bin_dist.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/make_win_src_distribution.1*
-rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqlclient*.la
+rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/libperconaserverclient*.la
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/*.a
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/plugin/*.la
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/plugin/*.a
@@ -730,7 +730,7 @@ A manual upgrade is required.
   rpm -qa | grep -i '^mysql-'
 
   You may choose to use 'rpm --nodeps -ev <package-name>' to remove
-  the package which contains the mysqlclient shared library.  The
+  the package which contains the perconaserverclient shared library.  The
   library will be reinstalled by the MySQL-shared-compat package.
 - Install the new MySQL packages supplied by $myvendor
 - Ensure that the MySQL server is started
@@ -821,7 +821,7 @@ fi
 # libs package because it can be used for client settings too.
 %config(noreplace) /etc/my.cnf
 %dir %{_libdir}/mysql
-%{_libdir}/mysql/libmysqlclient*.so.*
+%{_libdir}/mysql/libperconaserverclient*.so.*
 /etc/ld.so.conf.d/*
 
 %dir %{_datadir}/mysql
@@ -955,7 +955,7 @@ fi
 %defattr(-,root,root)
 /usr/include/mysql
 /usr/share/aclocal/mysql.m4
-%{_libdir}/mysql/libmysqlclient*.so
+%{_libdir}/mysql/libperconaserverclient*.so
 
 %files -n mysql-embedded%{product_suffix}
 %defattr(-,root,root)

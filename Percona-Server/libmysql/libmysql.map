@@ -1,5 +1,5 @@
 # symbols exported from mysql 5.1
-libmysqlclient_16 {
+libperconaserverclient_16 {
   global:
 	_fini;
 	_init;
@@ -124,7 +124,7 @@ libmysqlclient_16 {
 	*;
 };
 # symbols added in mysql 5.5
-libmysqlclient_18 {
+libperconaserverclient_18 {
   global:
 	mysql_client_find_plugin;
 	mysql_client_register_plugin;
@@ -136,7 +136,7 @@ libmysqlclient_18 {
 # Ideally the following symbols wouldn't be exported, but various applications
 # require them.  We limit the namespace damage by prefixing mysql_
 # (see mysql-dubious-exports.patch), which means the symbols are not present
-# in libmysqlclient_16.
+# in libperconaserverclient_16.
 #
 # mysql-connector-odbc requires these
 	mysql_default_charset_info;
@@ -149,7 +149,7 @@ libmysqlclient_18 {
 	my_net_read;
 };
 # symbols added in mysql 5.6
-libmysqlclient_18_1 {
+libperconaserverclient_18_1 {
   global:
 	get_tty_password;
 };

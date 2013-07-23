@@ -171,7 +171,7 @@ UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
 UNIV_INTERN ulint	srv_use_purge_thread = 0;
 
-UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
 

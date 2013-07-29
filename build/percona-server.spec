@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.68
+%define mysqlversion 5.1.70
 %define majorversion 14
-%define minorversion 6
+%define minorversion 8
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -273,8 +273,10 @@ echo $*
 MAKE_J=-j`if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi`
 if [ $MAKE_J = -j0 ]
 then
-  MAKE_J=-j1
+  MAKE_J=-j4
 fi
+
+MAKE_JFLAG="${MAKE_JFLAG:-$MAKE_J}"
 
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
@@ -309,7 +311,7 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 %endif
 	    $OPT_DEBUG \
 	    --with-readline \
-	    ; make $MAKE_J"
+	    ; make $MAKE_JFLAG"
 }
 # end of function definition "BuildMySQL"
 
@@ -321,14 +323,14 @@ CXX=${HS_CXX:-g++} ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
 	--with-mysql-plugindir=%{_libdir}/mysql/plugin \
 	--libdir=%{_libdir} \
 	--prefix=%{_prefix}
-make
+make $MAKE_JFLAG
 cd -
 }
 
 BuildUDF() {
 cd UDF
 CXX=${UDF_CXX:-g++} ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
-make all
+make $MAKE_JFLAG all
 cd -
 }
 # end of function definition "BuildHandlerSocket"
@@ -406,7 +408,7 @@ make clean
 ( BuildServer )   # subshell, so that CFLAGS + CXXFLAGS are modified only locally
 
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make %{DEBUG_TEST_MODE}
+	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{DEBUG_TEST_MODE}
 fi
 
 # Get the debug server and its .sym file from the build tree
@@ -428,7 +430,7 @@ BuildServer
 BuildHandlerSocket
 BuildUDF
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make %{NORMAL_TEST_MODE}
+	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{NORMAL_TEST_MODE}
 fi
 
 # Now, build plugin 
@@ -616,8 +618,14 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # Initiate databases
 # ----------------------------------------------------------------------
 if [ $1 -eq 1 ]; then #clean installation
-        mkdir -p $mysql_datadir/{mysql,test}
+    # Does $mysql_datadir/mysql exist? In this case, this is probably an
+    # upgrade from a previous version or a reinstall. It's best not to
+    # call mysql_install_db in this case since the test db would be
+    # possibly recreated (bug #1169522).
+    if test ! -e $mysql_datadir/mysql
+    then
         %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+    fi
 fi
 # ----------------------------------------------------------------------
 # FIXME upgrade databases if needed would go here - but it cannot be

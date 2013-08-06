@@ -969,7 +969,6 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
-   failed_com_change_user(0),
    m_examined_row_count(0),
    m_statement_psi(NULL),
    m_idle_psi(NULL),
@@ -2148,6 +2147,9 @@ void THD::cleanup_after_query()
     rand_used= 0;
     binlog_accessed_db_names= NULL;
     m_trans_fixed_log_file= NULL;
+
+    if (gtid_mode > 0)
+      gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.

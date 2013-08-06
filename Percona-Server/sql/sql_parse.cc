@@ -1262,47 +1262,27 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* acl_authenticate() takes the data from net->read_pos */
     net->read_pos= (uchar*)packet;
 
-    uint save_db_length= thd->db_length;
-    char *save_db= thd->db;
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
+    char *save_db= thd->db;
+    uint save_db_length= thd->db_length;
     Security_context save_security_ctx= *thd->security_ctx;
-    const CHARSET_INFO *save_character_set_client=
-      thd->variables.character_set_client;
-    const CHARSET_INFO *save_collation_connection=
-      thd->variables.collation_connection;
-    const CHARSET_INFO *save_character_set_results=
-      thd->variables.character_set_results;
 
-    /* Ensure we don't free security_ctx->user in case we have to revert */
-    thd->security_ctx->user= 0;
-    thd->set_user_connect(0);
-
-    /*
-      to limit COM_CHANGE_USER ability to brute-force passwords,
-      we only allow three unsuccessful COM_CHANGE_USER per connection.
-    */
-    if (thd->failed_com_change_user >= 3)
-    {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      auth_rc= 1;
-    }
-    else
-      auth_rc= acl_authenticate(thd, packet_length);
-
+    auth_rc= acl_authenticate(thd, packet_length);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
     if (auth_rc)
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->set_user_connect(save_user_connect);
-      thd->reset_db (save_db, save_db_length);
-      thd->variables.character_set_client= save_character_set_client;
-      thd->variables.collation_connection= save_collation_connection;
-      thd->variables.character_set_results= save_character_set_results;
-      thd->update_charset();
-      thd->failed_com_change_user++;
-      my_sleep(1000000);
+      thd->reset_db(save_db, save_db_length);
+
+      my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
+               thd->security_ctx->user,
+               thd->security_ctx->host_or_ip,
+               (thd->password ? ER(ER_YES) : ER(ER_NO)));
+      thd->killed= THD::KILL_CONNECTION;
+      error=true;
     }
     else
     {
@@ -1313,6 +1293,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       my_free(save_db);
       my_free(save_security_ctx.user);
+
     }
     break;
   }
@@ -1338,12 +1319,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet, packet_length);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet, packet_length);
     break;
   }
   case COM_QUERY:
@@ -1578,6 +1559,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     int not_used;
 
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
+
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains unitialized and may cause crash
@@ -1626,6 +1613,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     status_var_increment(thd->status_var.com_other);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1712,6 +1704,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (thread_id & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else if (packet_length < 4)
+      my_error(ER_MALFORMED_PACKET, MYF(0));
     else
     {
       status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
@@ -1722,6 +1716,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_SET_OPTION:
   {
+
+    if (packet_length < 2)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     status_var_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION]);
     uint opt_command= uint2korr(packet);
 

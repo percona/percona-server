@@ -133,6 +133,8 @@ extern my_bool* getopt_constraint_get_hidden_value(const char *name,
 extern my_bool* getopt_constraint_get_readonly_value(const char *name,
                                              size_t length, my_bool create);
 
+ulonglong getopt_double2ulonglong(double);
+double getopt_ulonglong2double(ulonglong);
 
 C_MODE_END
 

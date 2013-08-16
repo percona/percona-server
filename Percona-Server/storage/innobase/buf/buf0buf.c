@@ -4054,10 +4054,10 @@ corrupt:
 	if (io_type == BUF_IO_WRITE
 	    && (
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		/* to keep consistency at buf_LRU_insert_zip_clean() */
 		buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY ||
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)) {
-		/* to keep consistency at buf_LRU_insert_zip_clean() */
 		have_LRU_mutex = TRUE; /* optimistic */
 	}
 retry_mutex:
@@ -4065,10 +4065,15 @@ retry_mutex:
 		mutex_enter(&buf_pool->LRU_list_mutex);
 	block_mutex = buf_page_get_mutex_enter(bpage);
 	ut_a(block_mutex);
-	if (io_type == BUF_IO_WRITE
-	    && (buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
-		|| buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)
-	    && !have_LRU_mutex) {
+	if (UNIV_UNLIKELY(io_type == BUF_IO_WRITE
+			  && (
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+			      buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
+			      ||
+#endif
+			      buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)
+			  && !have_LRU_mutex)) {
+
 		mutex_exit(block_mutex);
 		have_LRU_mutex = TRUE;
 		goto retry_mutex;

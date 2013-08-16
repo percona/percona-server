@@ -210,13 +210,6 @@ holding file pages that have been modified in the memory
 but not written to disk yet. The block with the oldest modification
 which has not yet been written to disk is at the end of the chain.
 
-The chain of unmodified compressed blocks (buf_pool->zip_clean)
-contains the control blocks (buf_page_t) of those compressed pages
-that are not in buf_pool->flush_list and for which no uncompressed
-page has been allocated in the buffer pool.  The control blocks for
-uncompressed pages are accessible via buf_block_t objects that are
-reachable via buf_pool->chunks[].
-
 The chains of free memory blocks (buf_pool->zip_free[]) are used by
 the buddy allocator (buf0buddy.c) to keep track of currently unused
 memory blocks of size sizeof(buf_page_t)..UNIV_PAGE_SIZE / 2.  These
@@ -2031,10 +2024,11 @@ wait_until_unfixed:
 
 		if (buf_page_get_state(&block->page)
 		    == BUF_BLOCK_ZIP_PAGE) {
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#if 0
+			/* Disabled for XtraDB, see buf_flush_remove(). */
 			UT_LIST_REMOVE(zip_list, buf_pool->zip_clean,
 				       &block->page);
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif
 			ut_ad(!block->page.in_flush_list);
 		} else {
 			/* Relocate buf_pool->flush_list. */
@@ -2858,11 +2852,12 @@ err_exit:
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#if 0
+		/* Disabled for XtraDB, see buf_flush_remove(). */
 		mutex_enter(&flush_list_mutex);
 		buf_LRU_insert_zip_clean(bpage);
 		mutex_exit(&flush_list_mutex);
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif
 
 		mutex_exit(&LRU_list_mutex);
 
@@ -3063,6 +3058,7 @@ buf_page_io_complete(
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
 	mutex_t*	block_mutex;
+	enum buf_flush	flush_type	= BUF_FLUSH_N_TYPES;
 
 	ut_a(buf_page_in_file(bpage));
 
@@ -3219,9 +3215,12 @@ corrupt:
 		}
 	}
 
-	//buf_pool_mutex_enter();
 	if (io_type == BUF_IO_WRITE) {
-		mutex_enter(&LRU_list_mutex);
+
+		flush_type = buf_page_get_flush_type(bpage);
+		if (flush_type == BUF_FLUSH_LRU) {
+			mutex_enter(&LRU_list_mutex);
+		}
 	}
 	block_mutex = buf_page_get_mutex_enter(bpage);
 	ut_a(block_mutex);
@@ -3265,10 +3264,9 @@ corrupt:
 
 		buf_flush_write_complete(bpage);
 
-		/* to keep consistency at buf_LRU_insert_zip_clean() */
-		//if (flush_type == BUF_FLUSH_LRU) { /* optimistic! */
+		if (flush_type == BUF_FLUSH_LRU) {
 			mutex_exit(&LRU_list_mutex);
-		//}
+		}
 
 		if (uncompressed) {
 			rw_lock_s_unlock_gen(&((buf_block_t*) bpage)->lock,
@@ -3404,7 +3402,7 @@ buf_validate(void)
 			case BUF_BLOCK_ZIP_PAGE:
 			case BUF_BLOCK_ZIP_DIRTY:
 				/* These should only occur on
-				zip_clean, zip_free[], or flush_list. */
+				zip_free[], or flush_list. */
 				ut_error;
 				break;
 
@@ -3480,6 +3478,9 @@ buf_validate(void)
 
 	mutex_enter(&buf_pool_zip_mutex);
 
+#if 0
+	/* Disabled for XtraDB, see buf_flush_remove(). */
+
 	/* Check clean compressed-only blocks. */
 
 	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
@@ -3505,6 +3506,7 @@ buf_validate(void)
 		n_lru++;
 		n_zip++;
 	}
+#endif
 
 	/* Check dirty compressed-only blocks. */
 
@@ -3566,7 +3568,7 @@ buf_validate(void)
 		ut_error;
 	}
 
-	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
+	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) >= n_lru);
 	/* because of latching order with block->mutex, we cannot get free_list_mutex before that */
 /*
 	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
@@ -3766,6 +3768,9 @@ buf_get_latched_pages_number(void)
 
 	/* Traverse the lists of clean and dirty compressed-only blocks. */
 
+#if 0
+	/* Disabled for XtraDB, see buf_flush_remove(). */
+
 	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
 	     b = UT_LIST_GET_NEXT(zip_list, b)) {
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
@@ -3776,6 +3781,7 @@ buf_get_latched_pages_number(void)
 			fixed_pages_number++;
 		}
 	}
+#endif
 
 	mutex_enter(&flush_list_mutex);
 	for (b = UT_LIST_GET_FIRST(buf_pool->flush_list); b;

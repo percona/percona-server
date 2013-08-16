@@ -1219,7 +1219,6 @@ struct buf_page_struct{
 					- BUF_BLOCK_NOT_USED:	free
 					- BUF_BLOCK_FILE_PAGE:	flush_list
 					- BUF_BLOCK_ZIP_DIRTY:	flush_list
-					- BUF_BLOCK_ZIP_PAGE:	zip_clean
 					- BUF_BLOCK_ZIP_FREE:	zip_free[]
 
 					The contents of the list node
@@ -1233,7 +1232,7 @@ struct buf_page_struct{
 	/* resplit for optimistic use */
 	UT_LIST_NODE_T(buf_page_t) free;
 	UT_LIST_NODE_T(buf_page_t) flush_list;
-	UT_LIST_NODE_T(buf_page_t) zip_list; /* zip_clean or zip_free[] */
+	UT_LIST_NODE_T(buf_page_t) zip_list; /* zip_free[] */
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
 					when buf_pool_mutex is free, the
@@ -1587,10 +1586,11 @@ struct buf_pool_struct{
 	frames and buf_page_t descriptors of blocks that exist
 	in the buffer pool only in compressed form. */
 	/* @{ */
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#if 0
+	/* Disabled for XtraDB, see buf_flush_remove(). */
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
 					/*!< buddy free lists */
 //#if BUF_BUDDY_HIGH != UNIV_PAGE_SIZE

@@ -481,7 +481,7 @@ scan_again:
 
 		if (bpage->oldest_modification != 0) {
 
-			buf_flush_remove(bpage);
+			buf_flush_remove(bpage, FALSE);
 		}
 
 		/* Remove from the LRU list. */
@@ -540,7 +540,8 @@ buf_LRU_mark_space_was_deleted(
 	ut_ad(buf_LRU_drop_page_hash_for_tablespace(id) == 0);
 }
 
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#if 0
+/* Disabled for XtraDB, see buf_flush_remove(). */
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -1452,7 +1453,7 @@ buf_LRU_free_block(
 	}
 
 	if (bpage->space_was_being_deleted && bpage->oldest_modification != 0) {
-		buf_flush_remove(bpage);
+		buf_flush_remove(bpage, FALSE);
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -1619,9 +1620,11 @@ not_freed:
 
 			mutex_enter(&flush_list_mutex);
 			if (b->state == BUF_BLOCK_ZIP_PAGE) {
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#if 0
+				/* Disabled for XtraDB, see
+				buf_flush_remove(). */
 				buf_LRU_insert_zip_clean(b);
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif
 			} else {
 				/* Relocate on buf_pool->flush_list. */
 				buf_flush_relocate_on_flush_list(bpage, b);
@@ -1920,9 +1923,10 @@ buf_LRU_block_remove_hashed_page(
 		ut_a(bpage->zip.data);
 		ut_a(buf_page_get_zip_size(bpage));
 
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#if 0
+		/* Disabled for XtraDB, see buf_flush_remove(). */
 		UT_LIST_REMOVE(zip_list, buf_pool->zip_clean, bpage);
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif
 
 		mutex_exit(&buf_pool_zip_mutex);
 		//buf_pool_mutex_exit_forbid();

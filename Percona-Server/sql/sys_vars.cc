@@ -2298,6 +2298,7 @@ static Sys_var_ulong Sys_thread_cache_size(
        GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
+#ifdef HAVE_POOL_OF_THREADS
 
 static bool fix_tp_max_threads(sys_var *, THD *, enum_var_type)
 {
@@ -2332,7 +2333,6 @@ static bool fix_threadpool_stall_limit(sys_var*, THD*, enum_var_type)
 }
 #endif
 
-#ifdef HAVE_POOL_OF_THREADS
 #ifdef _WIN32
 static Sys_var_uint Sys_threadpool_min_threads(
   "thread_pool_min_threads",

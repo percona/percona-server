@@ -1238,6 +1238,27 @@ static void close_connections(void)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_CLOSE_SERVER_SOCK
+static void close_socket(my_socket sock, const char *info)
+{
+  DBUG_ENTER("close_socket");
+
+  if (sock != INVALID_SOCKET)
+  {
+    DBUG_PRINT("info", ("calling shutdown on %s socket", info));
+    (void) mysql_socket_shutdown(sock, SHUT_RDWR);
+#if defined(__NETWARE__)
+    /*
+      The following code is disabled for normal systems as it causes MySQL
+      to hang on AIX 4.3 during shutdown
+    */
+    DBUG_PRINT("info", ("calling closesocket on %s socket", info));
+    (void) closesocket(tmp_sock);
+#endif
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
 
 static void close_server_sock()
 {
@@ -4265,6 +4286,7 @@ void decrement_handler_count()
 #define decrement_handler_count()
 #endif /* defined(_WIN32) || defined(HAVE_SMEM) */
 
+#ifndef EMBEDDED_LIBRARY
 #if defined(__linux__)
 /*
  * Auto detect if we support flash cache on the host system.
@@ -4355,7 +4377,6 @@ static void cleanup_cachedev(void)
 }
 #endif//__linux__
 
-#ifndef EMBEDDED_LIBRARY
 #ifndef DBUG_OFF
 /*
   Debugging helper function to keep the locale database

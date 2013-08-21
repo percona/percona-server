@@ -2,7 +2,7 @@
 # -*- mode: python; indent-tabs-mode: nil; -*-
 # vim:expandtab:shiftwidth=2:tabstop=2:smarttab:
 #
-# Copyright (C) 2013 Percona Ireland Ltd.
+# Copyright (C) 2013 Percona LLC and/or its affiliates
 #
 #
 # This program is free software; you can redistribute it and/or modify

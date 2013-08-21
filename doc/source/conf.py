@@ -45,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Percona Server'
-copyright = u'Percona Ireland Ltd. 2009-2013'
+copyright = u'Percona LLC and/or its affiliates 2009-2013'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -225,7 +225,7 @@ htmlhelp_basename = 'PerconaServer55doc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'PerconaServer-5.5.tex', u'Percona Server Documentation',
-   u'Percona Ireland Ltd. 2009-2013', 'manual'),
+   u'Percona LLC and/or its affiliates 2009-2013', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -258,7 +258,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'perconaserver55', u'Percona Server 5.5 Documentation',
-     [u'Percona Ireland Ltd. 2009-2013'], 1)
+     [u'Percona LLC and/or its affiliates 2009-2013'], 1)
 ]
 
 

@@ -1,7 +1,7 @@
 #ifndef AUTH_PAM_GROUPS_INCLUDED
 #define AUTH_PAM_GROUPS_INCLUDED
 /*
-  (C) 2013 Percona Ireland Ltd.
+  (C) 2013 Percona LLC and/or its affiliates
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

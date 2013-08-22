@@ -897,6 +897,7 @@ struct handlerton
    my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
    bool (*purge_archive_logs)(handlerton *hton, time_t before_date,
                              const char* to_filename);
+   my_bool (*is_fake_change)(handlerton *hton, THD *thd);
 
    uint32 flags;                                /* global handler flags */
    /*

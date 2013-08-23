@@ -459,6 +459,19 @@ innobase_purge_changed_page_bitmaps(
 /*================================*/
 	ulonglong lsn);	/*!< in: LSN to purge files up to */
 
+
+/*****************************************************************//**
+Check whether this is a fake change transaction.
+@return TRUE if a fake change transaction */
+static
+my_bool
+innobase_is_fake_change(
+/*====================*/
+	handlerton	*hton,  /*!< in: InnoDB handlerton */
+	THD*		thd);	/*!< in: MySQL thread handle of the user for
+				  whom the transaction is being committed */
+
+
 static const char innobase_hton_name[]= "InnoDB";
 
 /*************************************************************//**
@@ -2659,6 +2672,7 @@ innobase_init(
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
 		= innobase_purge_changed_page_bitmaps;
+	innobase_hton->is_fake_change = innobase_is_fake_change;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -3344,6 +3358,23 @@ innobase_purge_changed_page_bitmaps(
 {
 	return (my_bool)log_online_purge_changed_page_bitmaps(lsn);
 }
+
+/*****************************************************************//**
+Check whether this is a fake change transaction.
+@return TRUE if a fake change transaction */
+static
+my_bool
+innobase_is_fake_change(
+/*====================*/
+	handlerton	*hton __attribute__((unused)),
+				/*!< in: InnoDB handlerton */
+	THD*		thd)	/*!< in: MySQL thread handle of the user for
+				whom the transaction is being committed */
+{
+	trx_t*	trx = check_trx_exists(thd);
+	return trx->fake_changes;
+}
+
 
 /****************************************************************//**
 Copy the current replication position from MySQL to a transaction. */
@@ -11554,7 +11585,14 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+
+		if (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT
+					      | OPTION_BEGIN))) {
+
+			thd->stmt_da->reset_diagnostics_area();
+			return(HA_ERR_WRONG_COMMAND);
+		}
 		return(0);
 	}
 

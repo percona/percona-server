@@ -1324,6 +1324,8 @@ buf_pool_init_instance(
 		buf_pool->instance_no = instance_no;
 		buf_pool->old_pool_size = buf_pool_size;
 		buf_pool->curr_size = chunk->size;
+		buf_pool->read_ahead_area
+			= ut_min(64, ut_2_power_up(buf_pool->curr_size / 32));
 		buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
 
 		/* Number of locks protecting page_hash must be a

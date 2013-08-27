@@ -669,6 +669,10 @@ char* utility_user= NULL;
 char* utility_user_password= NULL;
 char* utility_user_schema_access= NULL;
 
+/* Plucking this from sql/sql_acl.cc for an array of privilege names */
+extern TYPELIB utility_user_privileges_typelib;
+ulonglong utility_user_privileges= 0;
+
 /* Thread specific variables */
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
@@ -6262,6 +6266,11 @@ struct my_option my_long_options[]=
    "utility user.",
    &utility_user_password, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"utility_user_privileges", 0, "Specifies the privileges that the utility "
+   "user will have in a comma delimited list. See the manual for a complete "
+   "list of privileges.",
+   &utility_user_privileges, 0, &utility_user_privileges_typelib,
+   GET_SET, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"utility_user_schema_access", 0, "Specifies the schemas that the utility "
    "user has access to in a comma delimited list.",
    &utility_user_schema_access, 0, 0, GET_STR, REQUIRED_ARG,

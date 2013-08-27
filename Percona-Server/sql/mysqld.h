@@ -251,6 +251,7 @@ extern char* enforce_storage_engine;
 extern char* utility_user;
 extern char* utility_user_password;
 extern char* utility_user_schema_access;
+extern ulonglong utility_user_privileges;
 
 extern uint mysqld_extra_port;
 

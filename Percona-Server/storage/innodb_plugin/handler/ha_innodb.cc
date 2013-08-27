@@ -124,7 +124,6 @@ static pthread_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
 static pthread_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
-static pthread_mutex_t commit_threads_m;
 static pthread_cond_t commit_cond;
 static pthread_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
@@ -335,6 +334,19 @@ my_bool
 innobase_purge_changed_page_bitmaps(
 /*================================*/
 	ulonglong lsn);	/*!< in: LSN to purge files up to */
+
+
+/*****************************************************************//**
+Check whether this is a fake change transaction.
+@return TRUE if a fake change transaction */
+static
+my_bool
+innobase_is_fake_change(
+/*====================*/
+	handlerton	*hton,  /*!< in: InnoDB handlerton */
+	THD*		thd);	/*!< in: MySQL thread handle of the user for
+				  whom the transaction is being committed */
+
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -1115,33 +1127,27 @@ innobase_convert_from_table_id(
 
 /**********************************************************************
 Check if the length of the identifier exceeds the maximum allowed.
-The input to this function is an identifier in charset my_charset_filename.
 return true when length of identifier is too long. */
-extern "C" UNIV_INTERN
+extern "C"
 my_bool
 innobase_check_identifier_length(
 /*=============================*/
-	const char*	id)	/* in: identifier to check.  it must belong
-				to charset my_charset_filename */
+	const char*	id)	/* in: FK identifier to check excluding the
+				database portion. */
 {
-	char		tmp[MAX_TABLE_NAME_LEN + 10];
-	uint		errors;
-	uint		len;
 	int		well_formed_error = 0;
-	CHARSET_INFO*	cs1 = &my_charset_filename;
-	CHARSET_INFO*	cs2 = thd_charset(current_thd);
+	CHARSET_INFO	*cs = system_charset_info;
+	DBUG_ENTER("innobase_check_identifier_length");
 
-	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+	uint res = cs->cset->well_formed_len(cs, id, id + strlen(id),
+					     NAME_CHAR_LEN,
+					     &well_formed_error);
 
-	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
-					      NAME_CHAR_LEN,
-					      &well_formed_error);
-
-	if (well_formed_error || res != len) {
-		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
-		return(true);
+	if (well_formed_error || res == NAME_CHAR_LEN) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), id);
+		DBUG_RETURN(true);
 	}
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /******************************************************************//**
@@ -1158,6 +1164,23 @@ innobase_convert_from_id(
 	uint	errors;
 
 	strconvert(cs, from, system_charset_info, to, (uint) len, &errors);
+}
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_system_charset(
+/*===============================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len,	/* in: length of 'to', in bytes */
+	uint*		errors)	/* out: error return */
+{
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = system_charset_info;
+
+	return(strconvert(cs1, from, cs2, to, len, errors));
 }
 
 /******************************************************************//**
@@ -2343,6 +2366,7 @@ innobase_init(
 		= innobase_flush_changed_page_bitmaps;
 	innobase_hton->purge_changed_page_bitmaps
 		= innobase_purge_changed_page_bitmaps;
+	innobase_hton->is_fake_change = innobase_is_fake_change;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -2828,7 +2852,6 @@ innobase_change_buffering_inited_ok:
 	innobase_open_tables = hash_create(200);
 	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
-	pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
 	pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
 	pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
@@ -2882,7 +2905,6 @@ innobase_end(
 						MYF(MY_ALLOW_ZERO_PTR));
 		pthread_mutex_destroy(&innobase_share_mutex);
 		pthread_mutex_destroy(&prepare_commit_mutex);
-		pthread_mutex_destroy(&commit_threads_m);
 		pthread_mutex_destroy(&commit_cond_m);
 		pthread_cond_destroy(&commit_cond);
 	}
@@ -2953,6 +2975,23 @@ innobase_purge_changed_page_bitmaps(
 {
 	return (my_bool)log_online_purge_changed_page_bitmaps(lsn);
 }
+
+/*****************************************************************//**
+Check whether this is a fake change transaction.
+@return TRUE if a fake change transaction */
+static
+my_bool
+innobase_is_fake_change(
+/*====================*/
+	handlerton	*hton __attribute__((unused)),
+				/*!< in: InnoDB handlerton */
+	THD*		thd)	/*!< in: MySQL thread handle of the user for
+				whom the transaction is being committed */
+{
+	trx_t*	trx = check_trx_exists(thd);
+	return trx->fake_changes;
+}
+
 
 /****************************************************************//**
 Copy the current replication position from MySQL to a transaction. */
@@ -4138,7 +4177,6 @@ ha_innobase::open(
 	dict_table_t*	ib_table;
 	char		norm_name[1000];
 	THD*		thd;
-	ulint		retries = 0;
 	char*		is_part = NULL;
 	ibool		par_case_name_set = FALSE;
 	char		par_case_name[MAX_FULL_NAME_LEN + 1];
@@ -4190,17 +4228,13 @@ ha_innobase::open(
 	}
 
 	/* We look for pattern #P# to see if the table is partitioned
-	MySQL table. The retry logic for partitioned tables is a
-	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
-	at support issue https://support.mysql.com/view.php?id=21080
-	for more details. */
+	MySQL table. */
 #ifdef __WIN__
 	is_part = strstr(norm_name, "#p#");
 #else
 	is_part = strstr(norm_name, "#P#");
 #endif /* __WIN__ */
 
-retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
 
@@ -4214,7 +4248,7 @@ retry:
 	share->ib_table = ib_table;
 
 	if (NULL == ib_table) {
-		if (is_part && retries < 10) {
+		if (is_part) {
 			/* MySQL partition engine hard codes the file name
 			separator as "#P#". The text case is fixed even if
 			lower_case_table_names is set to 1 or 2. This is true
@@ -4257,11 +4291,7 @@ retry:
 				ib_table = dict_table_get(
 					par_case_name, FALSE);
 			}
-			if (!ib_table) {
-				++retries;
-				os_thread_sleep(100000);
-				goto retry;
-			} else {
+			if (ib_table) {
 #ifndef __WIN__
 				sql_print_warning("Partition table %s opened "
 						  "after converting to lower "
@@ -4287,9 +4317,8 @@ retry:
 		}
 
 		if (is_part) {
-			sql_print_error("Failed to open table %s after "
-					"%lu attempts.\n", norm_name,
-					retries);
+			sql_print_error("Failed to open table %s.\n",
+					norm_name);
 		}
 
 		sql_print_error("Cannot find or open table %s from\n"
@@ -10869,7 +10898,14 @@ innobase_xa_prepare(
 		return(0);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+
+		if (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT
+					      | OPTION_BEGIN))) {
+
+			thd->main_da.reset_diagnostics_area();
+			return(HA_ERR_WRONG_COMMAND);
+		}
 		return(0);
 	}
 
@@ -12756,5 +12792,21 @@ test_innobase_convert_name()
 		}
 	}
 }
-
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+
+/**********************************************************************
+Converts an identifier from my_charset_filename to UTF-8 charset. */
+extern "C"
+uint
+innobase_convert_to_filename_charset(
+/*=================================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len)	/* in: length of 'to', in bytes */
+{
+	uint		errors;
+	CHARSET_INFO*	cs_to = &my_charset_filename;
+	CHARSET_INFO*	cs_from = system_charset_info;
+
+	return(strconvert(cs_from, from, cs_to, to, len, &errors));
+}

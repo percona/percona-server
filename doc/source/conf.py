@@ -45,7 +45,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Percona Server'
-copyright = u'Percona Ireland Ltd. 2009-2013'
+copyright = u'Percona LLC and/or its affiliates 2009-2013'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -227,7 +227,7 @@ htmlhelp_basename = 'PerconaServer51doc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'PerconaServer-5.1.tex', u'Percona Server Documentation',
-   u'Percona Ireland Ltd. 2009-2013', 'manual'),
+   u'Percona LLC and/or its affiliates 2009-2013', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -260,13 +260,13 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'perconaserver51', u'Percona Server 5.1 Documentation',
-     [u'Percona Ireland Ltd. 2009-2013'], 1)
+     [u'Percona LLC and/or its affiliates 2009-2013'], 1)
 ]
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     'ps55' : ('http://www.percona.com/doc/percona-server/5.5/', None),
-    'xtrabackup' : ('http://www.percona.com/doc/percona-xtrabackup/2.1/', None),
+    'xtrabackup' : ('http://www.percona.com/doc/percona-xtrabackup/2.1', None),
     'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit/2.2/', None)
  }

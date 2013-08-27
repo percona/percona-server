@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -38,7 +38,10 @@ UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
-	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	ibool		have_flush_list_mutex);	/*!< in: TRUE if
+						flush_list_mutex is held */
+
 /********************************************************************//**
 Relocates a buffer control block on the flush_list.
 Note that it is assumed that the contents of bpage has already been

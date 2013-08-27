@@ -7,6 +7,7 @@ Percona Server 5.1 Release notes
    :maxdepth: 1
    :glob:
 
+   Percona-Server-5.1.71-14.9
    Percona-Server-5.1.70-14.8
    Percona-Server-5.1.69-14.7
    Percona-Server-5.1.68-14.6

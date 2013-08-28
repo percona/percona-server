@@ -950,6 +950,17 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
         == (uint) -1)
       goto err;
   }
+
+  if (thd->variables.log_slow_rate_limit > 1)
+  {
+    if (my_b_printf(&log_file,
+                    "# Log_slow_rate_type: %s  Log_slow_rate_limit: %lu\n",
+                    opt_slow_query_log_rate_type == SLOG_RT_SESSION ?
+                    "session" : "query",
+                    thd->variables.log_slow_rate_limit) == (uint) -1)
+      goto err;
+  }
+
   if (thd->db().str && strcmp(thd->db().str, db))
   {						// Database changed
     if (my_b_printf(&log_file,"use %s;\n",thd->db().str) == (uint) -1)
@@ -1833,15 +1844,13 @@ bool log_slow_applicable(THD *thd)
   if (opt_slow_query_log_rate_type == SLOG_RT_QUERY
       && thd->variables.log_slow_rate_limit
       && thd->query_id % thd->variables.log_slow_rate_limit
-      && (thd->variables.long_query_time >= 1000000
-          || (ulong) query_exec_time < 1000000))
+      && query_exec_time < slow_query_log_always_write_time)
     DBUG_RETURN(false);
 
   if (opt_slow_query_log_rate_type == SLOG_RT_SESSION
       && thd->variables.log_slow_rate_limit
       && thd->thread_id() % thd->variables.log_slow_rate_limit
-      && (thd->variables.long_query_time >= 1000000
-          || (ulong) query_exec_time < 1000000))
+      && query_exec_time < slow_query_log_always_write_time)
     DBUG_RETURN(false);
 
   /*

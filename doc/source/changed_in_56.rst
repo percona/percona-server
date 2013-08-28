@@ -25,6 +25,7 @@ Some features that were present in |Percona Server| 5.5 have been replaced by a 
  * ``SHOW ENGINE INNODB STATUS`` section "OLDEST VIEW" has been replaced by the :table:`XTRADB_READ_VIEW` INFORMATION_SCHEMA table.
  * ``SHOW ENGINE INNODB STATUS`` sections on memory usage for InnoDB/XtraDB hash tables has been replaced by the :table:`XTRADB_INTERNAL_HASH_TABLES` INFORMATION_SCHEMA table.
  * The :table:`INNODB_RSEG` table has been renamed to :table:`XTRADB_RSEG`.
+ * :ref:`buff_read_ahead_area` has been implemented differently. Buffer read-ahead area size is now precalculated once per buffer pool instance initialization instead of hardcoding it at 64MB (like it was done in previous |Percona Server| versions).
 
 Features available in |Percona Server| 5.5 that have been replaced with |MySQL| 5.6 features
 ============================================================================================
@@ -75,6 +76,7 @@ Following features were ported from |Percona Server| 5.5 to |Percona Server| 5.6
  :ref:`mysql_syslog`                         :rn:`5.6.11-60.3`
  :ref:`show_engines`                         :rn:`5.6.11-60.3`
  :ref:`thread_based_profiling`               :rn:`5.6.11-60.3`
+ :ref:`buff_read_ahead_area`                 :rn:`5.6.13-60.5`
  ========================================== ===================
 
 List of status variables that are no longer available in |Percona Server| 5.6

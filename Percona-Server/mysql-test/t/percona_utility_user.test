@@ -66,8 +66,6 @@ DROP USER 'frank'@'localhost';
 --error ER_CANNOT_USER 
 DROP USER 'frank'@'%';
 
-CREATE DATABASE mysqltest;
-CREATE TABLE mysqltest.t1 (a INT, b INT);
 CREATE USER 'mysqltest_1'@'localhost';
 
 connect (frank,localhost,frank,password,mysql);
@@ -91,13 +89,28 @@ SET PASSWORD FOR 'frankjr'@'localhost' = PASSWORD('');
 
 DROP USER 'frankjr'@'localhost';
 
---error ER_DBACCESS_DENIED_ERROR
+# Allowed because --utility-user-priviliges has CREATE
+CREATE DATABASE mysqltest;
+
+# Allowed because --utility-user-priviliges has CREATE
+CREATE TABLE mysqltest.t1 (a INT, b INT);
+
+# Allowed because --utility-user-priviliges has SHOW DATABASES
 SHOW TABLES IN mysqltest;
 
---error ER_DBACCESS_DENIED_ERROR
-CREATE DATABASE foobar;
+# NOT allowed because --utility-user-priviliges does not have INSERT
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysqltest.t1(a, b) VALUES (1, 1);
 
---error ER_DBACCESS_DENIED_ERROR
+# NOT allowed because --utility-user-priviliges does not have SELECT
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysqltest.t1;
+
+# NOT allowed because --utility-user-priviliges does not have ALTER
+--error ER_TABLEACCESS_DENIED_ERROR
+ALTER TABLE mysqltest.t1 DROP COLUMN b;
+
+# Allowed because --utility-user-priviliges has DROP
 DROP DATABASE mysqltest;
 
 SET PASSWORD FOR 'mysqltest_1'@'localhost' = PASSWORD('newpass');
@@ -117,11 +130,12 @@ SELECT @@global.innodb_lazy_drop_table;
 SET @@global.innodb_lazy_drop_table= @testtemp;
 
 connection default;
-
-DROP USER 'mysqltest_1'@'localhost';
-DROP DATABASE mysqltest;
-
 disconnect frank;
+
+#
+# cleanup from above tests
+#
+DROP USER 'mysqltest_1'@'localhost';
 
 #
 # Try to impersonate a proxied utility_user

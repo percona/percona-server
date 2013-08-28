@@ -1303,7 +1303,26 @@ acl_init_utility_user(my_bool check_no_resolve)
   {
     goto cleanup;
   }
-  acl_utility_user.access= 0; 
+
+  DBUG_ASSERT(utility_user_privileges <= UINT_MAX32);
+  acl_utility_user.access= utility_user_privileges & UINT_MAX32;
+  if (acl_utility_user.access)
+  {
+    char privilege_desc[512];
+    get_privilege_desc(privilege_desc, array_elements(privilege_desc), acl_utility_user.access);
+    sql_print_information("Utility user '%s'@'%s' in use with access rights "
+                          "'%s'.",
+                          acl_utility_user.user,
+                          acl_utility_user.host.hostname,
+                          privilege_desc);
+  }
+  else
+  {
+    sql_print_information("Utility user '%s'@'%s' in use with basic "
+                          "access rights.",
+                          acl_utility_user.user,
+                          acl_utility_user.host.hostname);
+  }
 
   acl_utility_user.ssl_type= SSL_TYPE_NONE;
 
@@ -5399,20 +5418,28 @@ static void add_user_option(String *grant, ulong value, const char *name)
   }
 }
 
-static const char *command_array[]=
+const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
   "SHUTDOWN", "PROCESS","FILE", "GRANT", "REFERENCES", "INDEX",
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
   "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
-  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
+  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE", 0
 };
 
-static uint command_lengths[]=
+TYPELIB utility_user_privileges_typelib=
+{
+  array_elements(command_array) - 1,
+  "utility_user_privileges_typelib",
+  command_array,
+  NULL
+};
+
+uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
-  14, 13, 11, 5, 7, 17
+  14, 13, 11, 5, 7, 17, 0
 };
 
 

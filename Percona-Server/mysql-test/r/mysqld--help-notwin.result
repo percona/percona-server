@@ -811,6 +811,10 @@ The following options may be given as the first argument:
  list of users and recognized as the utility user.
  --utility-user-password=name 
  Specifies the password required for the utility user.
+ --utility-user-privileges=name 
+ Specifies the privileges that the utility user will have
+ in a comma delimited list. See the manual for a complete
+ list of privileges.
  --utility-user-schema-access=name 
  Specifies the schemas that the utility user has access to
  in a comma delimited list.
@@ -1069,6 +1073,7 @@ updatable-views-with-limit YES
 userstat FALSE
 utility-user (No default value)
 utility-user-password (No default value)
+utility-user-privileges 
 utility-user-schema-access (No default value)
 verbose TRUE
 wait-timeout 28800

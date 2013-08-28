@@ -268,5 +268,5 @@ intersphinx_mapping = {
     'ps51' : ('http://www.percona.com/doc/percona-server/5.1/', None),
     'ps55' : ('http://www.percona.com/doc/percona-server/5.5/', None),
     'xtrabackup' : ('http://www.percona.com/doc/percona-xtrabackup/2.1/', None),
-    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit/2.1/', None)
+    'ptoolkit' : ('http://www.percona.com/doc/percona-toolkit/2.2/', None)
  }

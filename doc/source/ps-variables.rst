@@ -1,7 +1,7 @@
 .. _ps_variables:
 
 ====================================================
- List of variables introduced in Percona Server 5.5
+ List of variables introduced in Percona Server 5.6
 ====================================================
 
 System Variables

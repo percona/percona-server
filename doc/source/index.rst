@@ -83,6 +83,7 @@ Flexibility Improvements
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
+   flexibility/buff_read_ahead_area
 
 Reliability Improvements
 ========================

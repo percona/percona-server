@@ -1948,6 +1948,7 @@ bool log_slow_applicable(THD *thd)
   if (opt_slow_query_log_rate_type == SLOG_RT_QUERY
       && thd->variables.log_slow_rate_limit
       && thd->query_id % thd->variables.log_slow_rate_limit
+      && query_exec_time < slow_query_log_always_write_time
       && (thd->variables.long_query_time >= 1000000
           || (ulong) query_exec_time < 1000000)) {
     DBUG_RETURN(false);
@@ -1955,6 +1956,7 @@ bool log_slow_applicable(THD *thd)
   if (opt_slow_query_log_rate_type == SLOG_RT_SESSION
       && thd->variables.log_slow_rate_limit
       && thd->thread_id % thd->variables.log_slow_rate_limit
+      && query_exec_time < slow_query_log_always_write_time
       && (thd->variables.long_query_time >= 1000000
           || (ulong) query_exec_time < 1000000)) {
     DBUG_RETURN(false);

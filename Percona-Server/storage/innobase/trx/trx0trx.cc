@@ -23,6 +23,7 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "btr0types.h"
 #include "trx0trx.h"
 
 #ifdef UNIV_NONINL

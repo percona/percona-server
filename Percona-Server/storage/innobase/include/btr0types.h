@@ -54,16 +54,16 @@ but does NOT protect:
 
 Bear in mind (3) and (4) when using the hash index.
 */
-extern rw_lock_t*	btr_search_latch_temp;
+extern rw_lock_t**	btr_search_latch_arr;
 
 #endif /* UNIV_HOTBACKUP */
-
-/** The latch protecting the adaptive search system */
-#define btr_search_latch	(*btr_search_latch_temp)
 
 /** Flag: has the search system been enabled?
 Protected by btr_search_latch. */
 extern char	btr_search_enabled;
+
+/** Number of adaptive hash index partitions */
+extern ulint	btr_search_index_num;
 
 #ifdef UNIV_BLOB_DEBUG
 # include "buf0types.h"

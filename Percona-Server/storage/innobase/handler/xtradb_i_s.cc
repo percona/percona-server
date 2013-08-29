@@ -329,34 +329,34 @@ static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, 
 
 	if (btr_search_sys)
 	{
-	  ulint btr_search_sys_subtotal= 0;
+		ulint			btr_search_sys_subtotal;
+		const hash_table_t*	hash_index_0
+			= btr_search_sys->hash_index[0];
 
-	  rw_lock_s_lock(&btr_search_latch);
-	  if (btr_search_sys->hash_index->heap) {
-	    btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index->heap);
-	  } else {
-	    btr_search_sys_subtotal = 0;
-	    for (unsigned int i=0;
-		 i < btr_search_sys->hash_index->n_sync_obj;
-		 i++) {
-	      btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index->heaps[i]);
-	    }
-	  }
-	  rw_lock_s_unlock(&btr_search_latch);
+		if (hash_index_0->heap) {
+			btr_search_sys_subtotal
+				= mem_heap_get_size(hash_index_0->heap);
+		} else {
+			for (ulint i = 0; i < hash_index_0->n_sync_obj; i++) {
+				btr_search_sys_subtotal
+					+= mem_heap_get_size(hash_index_0
+							     ->heaps[i]);
+			}
+		}
+		btr_search_sys_subtotal *= btr_search_index_num;
 
-	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],
-				"Adaptive hash index"));
-	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
-			       btr_search_sys_subtotal
-			       + (btr_search_sys->hash_index->n_cells
-				  * sizeof(hash_cell_t))));
-	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
-			       (btr_search_sys->hash_index->n_cells
-				* sizeof(hash_cell_t))));
-	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
-			       btr_search_sys_subtotal));
-	  OK(schema_table_store_record(thd, table));
-
+		OK(field_store_string(fields[INT_HASH_TABLES_NAME],
+				      "Adaptive hash index"));
+		OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+				     btr_search_sys_subtotal
+				     + (hash_index_0->n_cells
+					* sizeof(hash_cell_t))));
+		OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+				     (hash_index_0->n_cells
+				      * sizeof(hash_cell_t))));
+		OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+				     btr_search_sys_subtotal));
+		OK(schema_table_store_record(thd, table));
 	}
 
 	{

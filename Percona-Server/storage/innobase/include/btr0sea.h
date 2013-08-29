@@ -86,7 +86,8 @@ UNIV_INTERN
 ulint
 btr_search_info_get_ref_count(
 /*==========================*/
-	btr_search_t*   info);	/*!< in: search info. */
+	btr_search_t*   info,	/*!< in: search info. */
+	index_id_t	key);	/*!< in: id of the index owning search info */
 /*********************************************************************//**
 Updates the search info. */
 UNIV_INLINE
@@ -193,6 +194,55 @@ btr_search_validate(void);
 # define btr_search_validate()	TRUE
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
+/********************************************************************//**
+Returns the adaptive hash index table for a given index key.
+@return the adaptive hash index table for a given index key */
+UNIV_INLINE
+hash_table_t*
+btr_search_get_hash_index(
+/*======================*/
+	index_id_t	key)	/*!< in: index key */
+	__attribute__((pure,warn_unused_result));
+
+/********************************************************************//**
+Returns the adaptive hash index latch for a given index key.
+@return the adaptive hash index latch for a given index key */
+UNIV_INLINE
+rw_lock_t*
+btr_search_get_latch(
+/*=================*/
+	index_id_t	key)	/*!< in: index key */
+	__attribute__((pure,warn_unused_result));
+
+/********************************************************************//**
+Latches all adaptive hash index latches in exclusive mode.  */
+UNIV_INLINE
+void
+btr_search_x_lock_all(void);
+/*========================*/
+
+/********************************************************************//**
+Unlatches all adaptive hash index latches in exclusive mode.  */
+UNIV_INLINE
+void
+btr_search_x_unlock_all(void);
+/*==========================*/
+
+#ifdef UNIV_SYNC_DEBUG
+/******************************************************************//**
+Checks if the thread has locked all the adaptive hash index latches in the
+specified mode.
+
+@return true if all latches are locked by the current thread, false
+otherwise.  */
+UNIV_INLINE
+bool
+btr_search_own_all(
+/*===============*/
+	ulint lock_type)
+	__attribute__((warn_unused_result));
+#endif /* UNIV_SYNC_DEBUG */
+
 /** The search info struct in an index */
 struct btr_search_t{
 	ulint	ref_count;	/*!< Number of blocks in this index tree
@@ -250,7 +300,7 @@ struct btr_search_t{
 
 /** The hash index system */
 struct btr_search_sys_t{
-	hash_table_t*	hash_index;	/*!< the adaptive hash index,
+	hash_table_t**	hash_index;	/*!< the adaptive hash index,
 					mapping dtuple_fold values
 					to rec_t pointers on index pages */
 };

@@ -1233,7 +1233,8 @@ row_sel_try_search_shortcut(
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
 	if (search_latch_locked) {
-		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+		ut_ad(rw_lock_own(btr_search_get_latch(index->id),
+				  RW_LOCK_SHARED));
 	}
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1405,10 +1406,11 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_lock(btr_search_get_latch(index->id));
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_WAIT_EX) {
+		} else if (rw_lock_get_writer(btr_search_get_latch(index->id))
+			   == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1417,8 +1419,8 @@ table_loop:
 			from acquiring an s-latch for a long time, lowering
 			performance significantly in multiprocessors. */
 
-			rw_lock_s_unlock(&btr_search_latch);
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_unlock(btr_search_get_latch(index->id));
+			rw_lock_s_lock(btr_search_get_latch(index->id));
 		}
 
 		found_flag = row_sel_try_search_shortcut(node, plan,
@@ -1443,7 +1445,7 @@ table_loop:
 	}
 
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_search_get_latch(index->id));
 
 		search_latch_locked = FALSE;
 	}
@@ -2019,7 +2021,7 @@ lock_wait_or_error:
 
 func_exit:
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_search_get_latch(index->id));
 	}
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -3597,6 +3599,47 @@ row_search_idx_cond_check(
 }
 
 /********************************************************************//**
+Acquires an S latch for the adaptive hash index for a given index tree if is
+not acquired already.  If the current transaction already owns a latch with
+a higher index in the latch array, release all the already-held S latches
+and reacquire them together with the desired latch to honor the latching
+order. */
+static
+void
+trx_search_latch_lock(
+/*==================*/
+	trx_t*	trx,		/*!< in: latching transcation */
+	ulint	index_id)	/*!< in: index to latch AHI for */
+{
+	ulint	latch_mask = 1UL << (index_id % btr_search_index_num);
+
+	if (!(trx->has_search_latch & latch_mask)) {
+
+		if (trx->has_search_latch < latch_mask) {
+
+			rw_lock_s_lock(btr_search_get_latch(index_id));
+			trx->has_search_latch |= latch_mask;
+		} else {
+
+			ulint	taken_latches = trx->has_search_latch;
+
+			trx_search_latch_release_if_reserved(trx);
+
+			trx->has_search_latch = taken_latches | latch_mask;
+
+			for (ulint i = 0; i < btr_search_index_num; i++) {
+				if (trx->has_search_latch & (1UL << i)) {
+
+					rw_lock_s_lock(
+						btr_search_latch_arr[i]);
+				}
+			}
+		}
+	}
+}
+
+
+/********************************************************************//**
 Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
@@ -3658,6 +3701,7 @@ row_search_for_mysql(
 	ulint*		offsets				= offsets_;
 	ibool		table_lock_waited		= FALSE;
 	byte*		next_buf			= 0;
+	bool		should_release;
 
 	rec_offs_init(offsets_);
 
@@ -3733,19 +3777,28 @@ row_search_for_mysql(
 		(ulong) trx->mysql_n_tables_locked);
 #endif
 	/*-------------------------------------------------------------*/
-	/* PHASE 0: Release a possible s-latch we are holding on the
-	adaptive hash index latch if there is someone waiting behind */
+	/* PHASE 0: Release possible latches we are holding on the
+	adaptive hash index latches if there is someone waiting behind */
 
-	if (UNIV_UNLIKELY(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED)
-	    && trx->has_search_latch) {
+	should_release = false;
+	for (ulint i = 0; i < btr_search_index_num; i++) {
+		/* we should check all latches (fix Bug#791030) */
+		if (UNIV_UNLIKELY(rw_lock_get_writer(btr_search_latch_arr[i])
+				  != RW_LOCK_NOT_LOCKED)) {
+			should_release = true;
+			break;
+		}
+	}
+
+	if (UNIV_UNLIKELY(should_release)) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
 		BTR_SEA_TIMEOUT rounds before trying to keep it again over
 		calls from MySQL */
 
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
+		/* We should release all s-latches (fix Bug#791030) */
+		trx_search_latch_release_if_reserved(trx);
 
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
@@ -3896,10 +3949,7 @@ row_search_for_mysql(
 			hash index semaphore! */
 
 #ifndef UNIV_SEARCH_DEBUG
-			if (!trx->has_search_latch) {
-				rw_lock_s_lock(&btr_search_latch);
-				trx->has_search_latch = TRUE;
-			}
+			trx_search_latch_lock(trx, index->id);
 #endif
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
@@ -3969,8 +4019,8 @@ release_search_latch_if_needed:
 
 					trx->search_latch_timeout--;
 
-					rw_lock_s_unlock(&btr_search_latch);
-					trx->has_search_latch = FALSE;
+					trx_search_latch_release_if_reserved(
+						trx);
 				}
 
 				/* NOTE that we do NOT store the cursor
@@ -3992,10 +4042,7 @@ release_search_latch_if_needed:
 	/*-------------------------------------------------------------*/
 	/* PHASE 3: Open or restore index cursor position */
 
-	if (trx->has_search_latch) {
-		rw_lock_s_unlock(&btr_search_latch);
-		trx->has_search_latch = FALSE;
-	}
+	trx_search_latch_release_if_reserved(trx);
 
 	/* The state of a running trx can only be changed by the
 	thread that is currently serving the transaction. Because we

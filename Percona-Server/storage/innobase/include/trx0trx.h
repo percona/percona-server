@@ -1136,10 +1136,7 @@ but does NOT protect:
 
 Bear in mind (3) and (4) when using the hash index.
 */
-extern rw_lock_t*	btr_search_latch_temp;
-
-/** The latch protecting the adaptive search system */
-#define btr_search_latch	(*btr_search_latch_temp)
+extern rw_lock_t**	btr_search_latch_arr;
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

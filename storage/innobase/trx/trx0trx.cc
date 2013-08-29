@@ -625,6 +625,12 @@ trx_free_resurrected(trx_t* trx)
 void
 trx_free_for_background(trx_t* trx)
 {
+	if (trx->distinct_page_access_hash)
+	{
+		ut_free(trx->distinct_page_access_hash);
+		trx->distinct_page_access_hash= NULL;
+	}
+
 	trx_validate_state_before_free(trx);
 
 	trx_free(trx);

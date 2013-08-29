@@ -6,7 +6,7 @@
 
 # Check setup
 SELECT @@GLOBAL.innodb_adaptive_hash_index;
-SELECT @@GLOBAL.innodb_adaptive_hash_index_partitions;
+SELECT @@GLOBAL.innodb_adaptive_hash_index_parts;
 
 SET GLOBAL innodb_monitor_enable=module_adaptive_hash;
 

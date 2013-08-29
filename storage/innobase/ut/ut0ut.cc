@@ -43,6 +43,7 @@ Created 5/11/1994 Heikki Tuuri
 #endif
 
 #ifndef UNIV_HOTBACKUP
+# include "btr0types.h"
 # include "trx0trx.h"
 #endif /* !UNIV_HOTBACKUP */
 

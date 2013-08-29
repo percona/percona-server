@@ -1831,20 +1831,21 @@ add_table_to_thread_cache(
 }
 
 /********************************************************************//**
-Call this function when mysqld passes control to the client. That is to
-avoid deadlocks on the adaptive hash S-latch possibly held by thd. For more
-documentation, see handler.cc.
+In XtraDB it is impossible for a transaction to own a search latch outside of
+InnoDB code, so there is nothing to release on demand.  We keep this function to
+simplify maintenance.
 @return 0 */
 inline
 int
 innobase_release_temporary_latches(
 /*===============================*/
-	handlerton*	hton,	/*!< in: handlerton */
-	THD*		thd)	/*!< in: MySQL thread */
+	handlerton*	hton MY_ATTRIBUTE((unused)),	/*!< in: handlerton */
+	THD*		thd MY_ATTRIBUTE((unused)))	/*!< in: MySQL thread */
 {
+#ifdef UNIV_DEBUG
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	if (!innodb_inited) {
+	if (!innodb_inited || thd == NULL) {
 
 		return(0);
 	}
@@ -1854,6 +1855,7 @@ innobase_release_temporary_latches(
 	if (trx != NULL) {
 		trx_search_latch_release_if_reserved(trx);
 	}
+#endif
 
 	return(0);
 }

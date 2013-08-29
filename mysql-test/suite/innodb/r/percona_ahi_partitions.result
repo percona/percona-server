@@ -1,8 +1,8 @@
 SELECT @@GLOBAL.innodb_adaptive_hash_index;
 @@GLOBAL.innodb_adaptive_hash_index
 1
-SELECT @@GLOBAL.innodb_adaptive_hash_index_partitions;
-@@GLOBAL.innodb_adaptive_hash_index_partitions
+SELECT @@GLOBAL.innodb_adaptive_hash_index_parts;
+@@GLOBAL.innodb_adaptive_hash_index_parts
 4
 SET GLOBAL innodb_monitor_enable=module_adaptive_hash;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c CHAR(200), UNIQUE INDEX b(b)) ENGINE=InnoDB;

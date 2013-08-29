@@ -46,6 +46,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "fil0fil.h"
+#include "btr0types.h"
 #include "trx0trx.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"

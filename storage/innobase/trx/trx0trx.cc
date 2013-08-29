@@ -23,6 +23,7 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
+#include "btr0types.h"
 #include "trx0trx.h"
 
 #ifdef UNIV_NONINL
@@ -345,6 +346,9 @@ trx_free_low(
 	ut_a(trx->lock.wait_thr == NULL);
 
 	ut_a(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
+#endif
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -1044,11 +1048,14 @@ trx_start_low(
 		ut_ad(!trx_is_autocommit_non_locking(trx));
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
+
 #ifdef UNIV_DEBUG
 		if (trx->id > trx_sys->rw_max_trx_id) {
 			trx_sys->rw_max_trx_id = trx->id;
 		}
 #endif /* UNIV_DEBUG */
+
+		trx_reserve_descriptor(trx);
 	}
 
 	ut_ad(trx_sys_validate_trx_list());
@@ -2475,3 +2482,4 @@ trx_start_for_ddl_low(
 
 	ut_error;
 }
+

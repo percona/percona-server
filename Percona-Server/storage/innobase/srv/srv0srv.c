@@ -1275,8 +1275,10 @@ retry:
 		os_thread_yield();
 		goto retry;
 	}
-	if (trx->has_search_latch
-	    || NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+	ut_ad(!trx->has_search_latch);
+
+	if (NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
 
 		conc_n_threads = os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		enter_innodb_with_tickets(trx);
@@ -1319,7 +1321,9 @@ srv_conc_enter_innodb(
 	ulint                   sec;
 	ulint                   ms;
 
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1379,7 +1383,9 @@ retry:
 	/* If the transaction is not holding resources, let it sleep
 	for SRV_THREAD_SLEEP_DELAY microseconds, and try again then */
 
-	if (!has_slept && !trx->has_search_latch
+	ut_ad(!trx->has_search_latch);
+
+	if (!has_slept
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
 
 		has_slept = TRUE; /* We let it sleep only once to avoid
@@ -1434,10 +1440,8 @@ retry:
 		return;
 	}
 
-	/* Release possible search system latch this thread has */
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+	/* No-op for XtraDB. */
+	trx_search_latch_release_if_reserved(trx);
 
 	/* Add to the queue */
 	slot->reserved = TRUE;
@@ -1456,6 +1460,7 @@ retry:
 
 	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1507,7 +1512,9 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1598,7 +1605,9 @@ srv_conc_force_exit_innodb(
 		os_event_set(slot->event);
 	}
 
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 }
@@ -1612,7 +1621,9 @@ srv_conc_exit_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1885,7 +1896,9 @@ srv_suspend_mysql_thread(
 	os_event_wait(event);
 	thd_wait_end(trx->mysql_thd);
 
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 

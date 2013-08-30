@@ -194,7 +194,9 @@ btr_search_sys_create(
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
-	/* btr_search_index_num should be <= 32. (bits of trx->has_search_latch) */
+	/* btr_search_index_num is constrained to machine word size for
+	historical reasons. This limitation can be easily removed later. */
+
 	btr_search_latch_part = mem_alloc(sizeof(rw_lock_t*) * btr_search_index_num);
 	btr_search_sys->hash_index = mem_alloc(sizeof(hash_table_t*) * btr_search_index_num);
 	for (i = 0; i < btr_search_index_num; i++) {

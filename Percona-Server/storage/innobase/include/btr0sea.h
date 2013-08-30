@@ -224,15 +224,16 @@ void
 btr_search_x_unlock_all(void);
 /*==========================*/
 
+#ifdef UNIV_SYNC_DEBUG
+/********************************************************************//**
+Checks if the thread owns any adaptive hash latches in either S or X mode.
+@return	TRUE if the thread owns at least one latch in any mode. */
 UNIV_INLINE
-void
-btr_search_s_lock_all(void);
-/*========================*/
-
-UNIV_INLINE
-void
-btr_search_s_unlock_all(void);
-/*==========================*/
+ibool
+btr_search_own_any(void)
+/*=====================*/
+	 __attribute__((warn_unused_result));
+#endif
 
 /** The search info struct in an index */
 struct btr_search_struct{

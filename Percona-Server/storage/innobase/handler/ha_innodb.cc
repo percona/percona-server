@@ -956,9 +956,8 @@ innobase_release_stat_resources(
 /*============================*/
 	trx_t*	trx)	/*!< in: transaction object */
 {
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+	/* No-op in XtraDB */
+	trx_search_latch_release_if_reserved(trx);
 
 	if (trx->declared_to_be_inside_innodb) {
 		/* Release our possible ticket in the FIFO */
@@ -3522,9 +3521,8 @@ innobase_commit_ordered(
 	/* Since we will reserve the kernel mutex, we have to release
 	the search system latch first to obey the latching order. */
 
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+	/* No-op in XtraDB */
+	trx_search_latch_release_if_reserved(trx);
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 		/* We cannot throw error here; instead we will catch this error
@@ -3570,9 +3568,8 @@ innobase_commit(
 	/* Since we will reserve the kernel mutex, we have to release
 	the search system latch first to obey the latching order. */
 
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+	/* No-op in XtraDB */
+	trx_search_latch_release_if_reserved(trx);
 
 	if (trx->fake_changes && (all || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
 		innobase_rollback(hton, thd, all); /* rollback implicitly */
@@ -12746,6 +12743,8 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   "Disable with --skip-innodb-adaptive-hash-index.",
   NULL, innodb_adaptive_hash_index_update, TRUE);
 
+/* btr_search_index_num is constrained to machine word size for historical
+reasons. This limitation can be easily removed later. */
 static MYSQL_SYSVAR_ULONG(adaptive_hash_index_partitions, btr_search_index_num,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of InnoDB adaptive hash index partitions (default 1: disable partitioning)",

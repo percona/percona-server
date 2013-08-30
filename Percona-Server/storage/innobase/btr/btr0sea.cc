@@ -182,9 +182,8 @@ btr_search_sys_create(
 	/* We allocate the search latch from dynamic memory:
 	see above at the global variable definition */
 
-	/* btr_search_index_num should be no greater than bits of
-	trx->has_search_latch, which is ulint. */
-	ut_ad(btr_search_index_num <= sizeof(ulint));
+	/* btr_search_index_num is constrained to machine word size for
+	historical reasons. This limitation can be easily removed later. */
 
 	btr_search_latch_arr = (rw_lock_t**)
 		mem_alloc(sizeof(rw_lock_t *) * btr_search_index_num);

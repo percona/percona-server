@@ -164,21 +164,14 @@ ok:
 }
 
 /********************************************************************//**
-Releases the search latches if trx has reserved them. */
+In XtraDB it is impossible for a transaction to own a search latch outside of
+InnoDB code, so there is nothing to release on demand.  We keep this function to
+simplify maintenance.*/
 UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
-	trx_t*	   trx) /*!< in: transaction */
+	trx_t*	   trx __attribute__((unused))) /*!< in: transaction */
 {
-	ulint i;
-
-	for (i = 0; i < btr_search_index_num; i++) {
-		if (trx->has_search_latch & (1UL << i)) {
-			rw_lock_s_unlock(btr_search_latch_arr[i]);
-		}
-	}
-
-	trx->has_search_latch = 0;
+	ut_ad(!trx->has_search_latch);
 }
-

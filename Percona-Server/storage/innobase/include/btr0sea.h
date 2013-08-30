@@ -241,7 +241,15 @@ btr_search_own_all(
 /*===============*/
 	ulint lock_type)
 	__attribute__((warn_unused_result));
-#endif /* UNIV_SYNC_DEBUG */
+/********************************************************************//**
+Checks if the thread owns any adaptive hash latches in either S or X mode.
+@return	true if the thread owns at least one latch in any mode. */
+UNIV_INLINE
+bool
+btr_search_own_any(void)
+/*=====================*/
+	 __attribute__((warn_unused_result));
+#endif
 
 /** The search info struct in an index */
 struct btr_search_t{

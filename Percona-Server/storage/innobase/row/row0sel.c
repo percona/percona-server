@@ -1224,7 +1224,7 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(btr_search_get_latch(index), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
 	row_sel_open_pcur(plan, TRUE, mtr);
@@ -1395,10 +1395,11 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(btr_search_get_latch(index->id));
+			rw_lock_s_lock(btr_search_get_latch(index));
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(btr_search_get_latch(index->id)) == RW_LOCK_WAIT_EX) {
+		} else if (rw_lock_get_writer(btr_search_get_latch(index))
+			   == RW_LOCK_WAIT_EX) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1407,8 +1408,8 @@ table_loop:
 			from acquiring an s-latch for a long time, lowering
 			performance significantly in multiprocessors. */
 
-			rw_lock_s_unlock(btr_search_get_latch(index->id));
-			rw_lock_s_lock(btr_search_get_latch(index->id));
+			rw_lock_s_unlock(btr_search_get_latch(index));
+			rw_lock_s_lock(btr_search_get_latch(index));
 		}
 
 		found_flag = row_sel_try_search_shortcut(node, plan, &mtr);
@@ -1431,7 +1432,7 @@ table_loop:
 	}
 
 	if (search_latch_locked) {
-		rw_lock_s_unlock(btr_search_get_latch(index->id));
+		rw_lock_s_unlock(btr_search_get_latch(index));
 
 		search_latch_locked = FALSE;
 	}
@@ -2007,7 +2008,7 @@ lock_wait_or_error:
 
 func_exit:
 	if (search_latch_locked) {
-		rw_lock_s_unlock(btr_search_get_latch(index->id));
+		rw_lock_s_unlock(btr_search_get_latch(index));
 	}
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -3665,7 +3666,7 @@ row_search_for_mysql(
 
 #ifndef UNIV_SEARCH_DEBUG
 			ut_ad(!trx->has_search_latch);
-			rw_lock_s_lock(btr_search_get_latch(index->id));
+			rw_lock_s_lock(btr_search_get_latch(index));
 			trx->has_search_latch = TRUE;
 #endif
 			switch (row_sel_try_search_shortcut_for_mysql(
@@ -3721,8 +3722,8 @@ row_search_for_mysql(
 
 				err = DB_RECORD_NOT_FOUND;
 release_search_latch:
-				rw_lock_s_unlock(btr_search_get_latch(
-							 index->id));
+				rw_lock_s_unlock(
+					btr_search_get_latch(index));
 				trx->has_search_latch = FALSE;
 
 				/* NOTE that we do NOT store the cursor
@@ -3739,7 +3740,7 @@ release_search_latch:
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
 
-			rw_lock_s_unlock(btr_search_get_latch(index->id));
+			rw_lock_s_unlock(btr_search_get_latch(index));
 			trx->has_search_latch = FALSE;
 		}
 	}

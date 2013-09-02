@@ -2126,7 +2126,7 @@ srv_printf_innodb_monitor(
 	ibuf_print(file);
 
 	for (i = 0; i < btr_search_index_num; i++) {
-		ha_print_info(file, btr_search_get_hash_index((index_id_t)i));
+		ha_print_info(file, btr_search_sys->hash_tables[i]);
 	}
 
 	fprintf(file,
@@ -2155,12 +2155,13 @@ srv_printf_innodb_monitor(
 		"Total memory allocated by read views " ULINTPF "\n",
 		srv_read_views_memory);
 	/* Calcurate reserved memories */
-	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
-		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index[0]->heap);
+	if (btr_search_sys && btr_search_sys->hash_tables[0]->heap) {
+		btr_search_sys_subtotal = mem_heap_get_size(
+			btr_search_sys->hash_tables[0]->heap);
 	} else {
 		btr_search_sys_subtotal = 0;
-		for (i=0; i < btr_search_sys->hash_index[0]->n_mutexes; i++) {
-			btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index[0]->heaps[i]);
+		for (i=0; i < btr_search_sys->hash_tables[0]->n_mutexes; i++) {
+			btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_tables[0]->heaps[i]);
 		}
 	}
 	btr_search_sys_subtotal *= btr_search_index_num;
@@ -2189,10 +2190,14 @@ srv_printf_innodb_monitor(
 			"    Recovery system     %lu \t(%lu + %lu)\n",
 
 			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t)) : 0)
+				? (btr_search_sys->hash_tables[0]->n_cells *
+				   btr_search_index_num * sizeof(hash_cell_t)) :
+				 0)
 			+ btr_search_sys_subtotal,
 			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t)) : 0),
+				? (btr_search_sys->hash_tables[0]->n_cells *
+				   btr_search_index_num * sizeof(hash_cell_t)) :
+				 0),
 			(ulong) btr_search_sys_subtotal,
 
 			(ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t)),
@@ -2355,17 +2360,21 @@ srv_export_innodb_status(void)
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
-	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
-		mem_adaptive_hash = mem_heap_get_size(btr_search_sys->hash_index[0]->heap);
+	if (btr_search_sys && btr_search_sys->hash_tables[0]->heap) {
+		mem_adaptive_hash = mem_heap_get_size(
+			btr_search_sys->hash_tables[0]->heap);
 	} else {
 		mem_adaptive_hash = 0;
-		for (i=0; i < btr_search_sys->hash_index[0]->n_mutexes; i++) {
-			mem_adaptive_hash += mem_heap_get_size(btr_search_sys->hash_index[0]->heaps[i]);
+		for (i=0; i < btr_search_sys->hash_tables[0]->n_mutexes; i++) {
+			mem_adaptive_hash += mem_heap_get_size(
+				btr_search_sys->hash_tables[0]->heaps[i]);
 		}
 	}
 	mem_adaptive_hash *= btr_search_index_num;
 	if (btr_search_sys) {
-		mem_adaptive_hash += (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t));
+		mem_adaptive_hash += (btr_search_sys->hash_tables[0]->n_cells *
+				      btr_search_index_num *
+				      sizeof(hash_cell_t));
 	}
 
 	mem_dictionary = (dict_sys ? ((dict_sys->table_hash->n_cells
@@ -2378,7 +2387,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_adaptive_hash_cells = 0;
 	export_vars.innodb_adaptive_hash_heap_buffers = 0;
 	for (i = 0; i < btr_search_index_num; i++) {
-		hash_table_t*	table = btr_search_get_hash_index((index_id_t)i);
+		hash_table_t*	table = btr_search_sys->hash_tables[i];
 
 		export_vars.innodb_adaptive_hash_cells
 			+= hash_get_n_cells(table);

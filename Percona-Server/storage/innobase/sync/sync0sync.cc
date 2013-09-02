@@ -1187,12 +1187,12 @@ sync_thread_add_level(
 		array */
 		bool found_current = false;
 		for (ulint i = 0; i < btr_search_index_num; i++) {
-			if (btr_search_latch_arr[i] == latch) {
+			if (&btr_search_latch_arr[i] == latch) {
 				found_current = true;
 			} else if (found_current) {
-				ut_ad(!rw_lock_own(btr_search_latch_arr[i],
+				ut_ad(!rw_lock_own(&btr_search_latch_arr[i],
 						   RW_LOCK_SHARED));
-				ut_ad(!rw_lock_own(btr_search_latch_arr[i],
+				ut_ad(!rw_lock_own(&btr_search_latch_arr[i],
 						   RW_LOCK_EX));
 			}
 		}

@@ -1700,8 +1700,6 @@ struct buf_block_t{
 					complete, though: there may
 					have been hash collisions,
 					record deletions, etc. */
-	rw_lock_t*	btr_search_latch;/*!< Adaptive hash index latch for the
-					 index this block belongs to or NULL */
 	/* @} */
 # ifdef UNIV_SYNC_DEBUG
 	/** @name Debug fields */

@@ -1308,16 +1308,16 @@ srv_printf_innodb_monitor(
 		os_atomic_increment_lint(&srv_read_views_memory, 0));
 
 	/* Calculate reserved memories */
-	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
+	if (btr_search_sys && btr_search_sys->hash_tables[0]->heap) {
 		btr_search_sys_subtotal
-			= mem_heap_get_size(btr_search_sys->hash_index[0]
+			= mem_heap_get_size(btr_search_sys->hash_tables[0]
 					    ->heap);
 	} else {
 		btr_search_sys_subtotal = 0;
-		for (i=0; i < btr_search_sys->hash_index[0]->n_sync_obj; i++) {
+		for (i=0; i < btr_search_sys->hash_tables[0]->n_sync_obj; i++) {
 			btr_search_sys_subtotal
 				+= mem_heap_get_size(
-					btr_search_sys->hash_index[0]
+					btr_search_sys->hash_tables[0]
 					->heaps[i]);
 		}
 	}
@@ -1350,13 +1350,13 @@ srv_printf_innodb_monitor(
 			"    Recovery system     %lu \t(%lu + " ULINTPF ")\n",
 
 			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index[0]->n_cells
+				? (btr_search_sys->hash_tables[0]->n_cells
 				   * sizeof(hash_cell_t)
 				   * btr_search_index_num)
 				 : 0)
 			+ btr_search_sys_subtotal,
 			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index[0]->n_cells
+				? (btr_search_sys->hash_tables[0]->n_cells
 				   * sizeof(hash_cell_t)
 				   * btr_search_index_num)
 				 : 0),
@@ -1509,20 +1509,20 @@ srv_export_innodb_status(void)
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
-	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
+	if (btr_search_sys && btr_search_sys->hash_tables[0]->heap) {
 		mem_adaptive_hash
 			= mem_heap_get_size(btr_search_sys
-					    ->hash_index[0]->heap);
+					    ->hash_tables[0]->heap);
 	} else {
 		mem_adaptive_hash = 0;
-		for (i=0; i < btr_search_sys->hash_index[0]->n_sync_obj; i++) {
+		for (i=0; i < btr_search_sys->hash_tables[0]->n_sync_obj; i++) {
 			mem_adaptive_hash
 				+= mem_heap_get_size
-				(btr_search_sys->hash_index[0]->heaps[i]);
+				(btr_search_sys->hash_tables[0]->heaps[i]);
 		}
 	}
 	if (btr_search_sys) {
-		mem_adaptive_hash += (btr_search_sys->hash_index[0]->n_cells
+		mem_adaptive_hash += (btr_search_sys->hash_tables[0]->n_cells
 				      * sizeof(hash_cell_t));
 	}
 	mem_adaptive_hash *= btr_search_index_num;

@@ -331,7 +331,7 @@ static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, 
 	{
 		ulint			btr_search_sys_subtotal;
 		const hash_table_t*	hash_index_0
-			= btr_search_sys->hash_index[0];
+			= btr_search_sys->hash_tables[0];
 
 		if (hash_index_0->heap) {
 			btr_search_sys_subtotal

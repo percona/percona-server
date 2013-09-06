@@ -309,9 +309,11 @@ static ST_FIELD_INFO xtradb_internal_hash_tables_fields_info[] =
 
 static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, Item*)
 {
-	const char*		table_name;
-	Field**	fields;
-	TABLE* table;
+	const char*	table_name;
+	Field**		fields;
+	TABLE*		table;
+	ulong		btr_search_sys_constant;
+	ulong		btr_search_sys_variable;
 
 	DBUG_ENTER("xtradb_internal_hash_tables_fill_table");
 
@@ -327,37 +329,37 @@ static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, 
 
 	RETURN_IF_INNODB_NOT_STARTED(table_name);
 
-	if (btr_search_sys)
-	{
-		ulint			btr_search_sys_subtotal;
-		const hash_table_t*	hash_index_0
-			= btr_search_sys->hash_index[0];
+	/* Calculate AHI constant and variable memory allocations */
 
-		if (hash_index_0->heap) {
-			btr_search_sys_subtotal
-				= mem_heap_get_size(hash_index_0->heap);
-		} else {
-			for (ulint i = 0; i < hash_index_0->n_sync_obj; i++) {
-				btr_search_sys_subtotal
-					+= mem_heap_get_size(hash_index_0
-							     ->heaps[i]);
-			}
-		}
-		btr_search_sys_subtotal *= btr_search_index_num;
+	btr_search_sys_constant = 0;
+	btr_search_sys_variable = 0;
 
-		OK(field_store_string(fields[INT_HASH_TABLES_NAME],
-				      "Adaptive hash index"));
-		OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
-				     btr_search_sys_subtotal
-				     + (hash_index_0->n_cells
-					* sizeof(hash_cell_t))));
-		OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
-				     (hash_index_0->n_cells
-				      * sizeof(hash_cell_t))));
-		OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
-				     btr_search_sys_subtotal));
-		OK(schema_table_store_record(thd, table));
+	ut_ad(btr_search_sys->hash_tables);
+
+	for (ulint i = 0; i < btr_search_index_num; i++) {
+		hash_table_t* ht = btr_search_sys->hash_tables[i];
+
+		ut_ad(ht);
+		ut_ad(ht->heap);
+
+		/* Multiple mutexes/heaps are currently never used for adaptive
+		hash index tables. */
+		ut_ad(!ht->n_sync_obj);
+		ut_ad(!ht->heaps);
+
+		btr_search_sys_variable += mem_heap_get_size(ht->heap);
+		btr_search_sys_constant += ht->n_cells * sizeof(hash_cell_t);
 	}
+
+	OK(field_store_string(fields[INT_HASH_TABLES_NAME],
+			      "Adaptive hash index"));
+	OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			     btr_search_sys_variable + btr_search_sys_constant));
+	OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			     btr_search_sys_constant));
+	OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+			     btr_search_sys_variable));
+	OK(schema_table_store_record(thd, table));
 
 	{
 	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],

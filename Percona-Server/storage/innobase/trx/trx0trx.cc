@@ -360,6 +360,9 @@ trx_free_low(
 	ut_a(trx->lock.wait_thr == NULL);
 
 	ut_a(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
+#endif
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 

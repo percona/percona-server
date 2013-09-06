@@ -113,13 +113,13 @@ ha_assert_btr_x_locked(
 	ut_ad(table->adaptive);
 
 	for (i = 0; i < btr_search_index_num; i++) {
-		if (btr_search_sys->hash_index[i] == table) {
+		if (btr_search_sys->hash_tables[i] == table) {
 			break;
 		}
 	}
 
 	ut_ad(i < btr_search_index_num);
-	ut_ad(rw_lock_own(btr_search_latch_arr[i], RW_LOCK_EX));
+	ut_ad(rw_lock_own(&btr_search_latch_arr[i], RW_LOCK_EX));
 
 	return(true);
 }

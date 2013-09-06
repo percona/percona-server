@@ -60,8 +60,8 @@ btr_search_info_update(
 	btr_search_t*	info;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_SHARED));
-	ut_ad(!rw_lock_own(btr_search_get_latch(index->id), RW_LOCK_EX));
+	ut_ad(!rw_lock_own(btr_search_get_latch(index), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(btr_search_get_latch(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	info = btr_search_get_info(index);
@@ -86,11 +86,14 @@ Returns the adaptive hash index table for a given index key.
 @return the adaptive hash index table for a given index key */
 UNIV_INLINE
 hash_table_t*
-btr_search_get_hash_index(
+btr_search_get_hash_table(
 /*======================*/
-	index_id_t	key)	/*!< in: index key */
+	const dict_index_t*	index)	/*!< in: index */
 {
-	return(btr_search_sys->hash_index[key % btr_search_index_num]);
+	ut_ad(index);
+	ut_ad(index->search_table);
+
+	return(index->search_table);
 }
 
 /********************************************************************//**
@@ -100,9 +103,41 @@ UNIV_INLINE
 rw_lock_t*
 btr_search_get_latch(
 /*=================*/
-	index_id_t	key)	/*!< in: index key */
+	const dict_index_t*	index)	/*!< in: index */
 {
-	return(btr_search_latch_arr[key % btr_search_index_num]);
+	ut_ad(index);
+	ut_ad(index->search_latch >= btr_search_latch_arr &&
+	      index->search_latch < btr_search_latch_arr +
+	      btr_search_index_num);
+
+	return(index->search_latch);
+}
+
+/*********************************************************************//**
+Returns the AHI partition number corresponding to a given index ID. */
+UNIV_INLINE
+ulint
+btr_search_get_key(
+/*===============*/
+	index_id_t	index_id)	/*!< in: index ID */
+{
+	return(index_id % btr_search_index_num);
+}
+
+/*********************************************************************//**
+Initializes AHI-related fields in a newly created index. */
+UNIV_INLINE
+void
+btr_search_index_init(
+/*===============*/
+	dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index);
+
+	index->search_latch =
+		&btr_search_latch_arr[btr_search_get_key(index->id)];
+	index->search_table =
+		btr_search_sys->hash_tables[btr_search_get_key(index->id)];
 }
 
 /********************************************************************//**
@@ -115,7 +150,7 @@ btr_search_x_lock_all(void)
 	ulint	i;
 
 	for (i = 0; i < btr_search_index_num; i++) {
-		rw_lock_x_lock(btr_search_latch_arr[i]);
+		rw_lock_x_lock(&btr_search_latch_arr[i]);
 	}
 }
 
@@ -129,7 +164,7 @@ btr_search_x_unlock_all(void)
 	ulint	i;
 
 	for (i = 0; i < btr_search_index_num; i++) {
-		rw_lock_x_unlock(btr_search_latch_arr[i]);
+		rw_lock_x_unlock(&btr_search_latch_arr[i]);
 	}
 }
 
@@ -149,11 +184,31 @@ btr_search_own_all(
 	ulint	i;
 
 	for (i = 0; i < btr_search_index_num; i++) {
-		if (!rw_lock_own(btr_search_latch_arr[i], lock_type)) {
+		if (!rw_lock_own(&btr_search_latch_arr[i], lock_type)) {
 			return(false);
 		}
 	}
 
 	return(true);
+}
+
+/********************************************************************//**
+Checks if the thread owns any adaptive hash latches in either S or X mode.
+@return	true if the thread owns at least one latch in any mode. */
+UNIV_INLINE
+bool
+btr_search_own_any(void)
+/*====================*/
+{
+	ulint	i;
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		if (rw_lock_own(&btr_search_latch_arr[i], RW_LOCK_SHARED) ||
+		    rw_lock_own(&btr_search_latch_arr[i], RW_LOCK_EX)) {
+			return(true);
+		}
+	}
+
+	return(false);
 }
 #endif /* UNIV_SYNC_DEBUG */

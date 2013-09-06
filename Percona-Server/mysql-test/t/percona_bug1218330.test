@@ -1,0 +1,42 @@
+############################################################################
+# Bug #1218330: Adaptive hash index memory is incorrectly calculated in SHOW
+#               ENGINE INNODB STATUS and I_S
+############################################################################
+
+--source include/have_innodb.inc
+
+let $adaptive_hash_mem_1=`SELECT VARIABLE_VALUE FROM
+    INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+    VARIABLE_NAME='Innodb_mem_adaptive_hash'`;
+
+CREATE TABLE t1 (
+       a INT PRIMARY KEY, b INT,
+       c CHAR(200),
+       UNIQUE INDEX b(b)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, 1, REPEAT("a", 200));
+
+--disable_query_log
+
+--let $i=200
+--disable_result_log
+while ($i)
+{
+        SELECT a FROM t1 WHERE a=1;
+        SELECT b FROM t1 WHERE b=1;
+        --dec $i
+}
+--enable_result_log
+
+let $adaptive_hash_mem_2=`SELECT VARIABLE_VALUE FROM
+    INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+    VARIABLE_NAME='Innodb_mem_adaptive_hash'`;
+
+# The original implementation would should identical values in
+# adaptive_hash_mem_1 and adaptive_hash_mem_2
+
+--eval SELECT $adaptive_hash_mem_1 != $adaptive_hash_mem_2 as should_be_1
+
+--enable_query_log
+
+DROP TABLE t1;

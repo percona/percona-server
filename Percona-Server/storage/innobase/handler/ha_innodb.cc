@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <my_base.h>	// HA_OPTION_*
 #include <mysys_err.h>
 #include <mysql/innodb_priv.h>
+#include <mysql/thread_pool_priv.h>
 
 /** @file ha_innodb.cc */
 
@@ -809,6 +810,15 @@ innobase_close_connection(
 					which to close the connection */
 
 /*****************************************************************//**
+Cancel any pending lock request associated with the current THD. */
+static
+void
+innobase_kill_connection(
+/*======================*/
+        handlerton*	hton,	/*!< in:  innobase handlerton */
+	THD*	thd);	/*!< in: handle to the MySQL thread being killed */
+
+/*****************************************************************//**
 Commits a transaction in an InnoDB database or marks an SQL statement
 ended.
 @return	0 */
@@ -1540,7 +1550,7 @@ convert_error_code_to_mysql(
 		return(0);
 
 	case DB_INTERRUPTED:
-		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		thd_set_kill_status(thd ? thd : thd_get_current_thd());
 		return(-1);
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
@@ -3017,6 +3027,8 @@ innobase_init(
 		= innobase_purge_changed_page_bitmaps;
 	innobase_hton->is_fake_change = innobase_is_fake_change;
 
+	innobase_hton->kill_connection = innobase_kill_connection;
+
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
 #ifndef DBUG_OFF
@@ -4197,6 +4209,40 @@ ha_innobase::get_row_type() const
 	}
 	ut_ad(0);
 	return(ROW_TYPE_NOT_USED);
+}
+
+/*****************************************************************//**
+Cancel any pending lock request associated with the current THD. */
+static
+void
+innobase_kill_connection(
+/*======================*/
+        handlerton*	hton,	/*!< in:  innobase handlerton */
+	THD*	thd)	/*!< in: handle to the MySQL thread being killed */
+{
+	trx_t*	trx;
+
+	DBUG_ENTER("innobase_kill_connection");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	lock_mutex_enter();
+
+	trx = thd_to_trx(thd);
+
+	if (trx)
+	{
+		trx_mutex_enter(trx);
+
+		/* Cancel a pending lock request. */
+		if (trx->lock.wait_lock)
+			lock_cancel_waiting_and_release(trx->lock.wait_lock);
+
+		trx_mutex_exit(trx);
+	}
+
+	lock_mutex_exit();
+
+	DBUG_VOID_RETURN;
 }
 
 
@@ -11874,7 +11920,7 @@ ha_innobase::check(
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
-		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		thd_set_kill_status(user_thd);
 	}
 
 	if (UNIV_UNLIKELY(share->ib_table->is_corrupt)) {

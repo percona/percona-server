@@ -66,6 +66,8 @@
 using std::min;
 using std::max;
 
+#include "sql_timer.h"                          // thd_timer_end
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -1126,6 +1128,8 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  timer= timer_cache= NULL;
 }
 
 
@@ -1763,6 +1767,11 @@ THD::~THD()
   mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_unlock(&LOCK_thd_data);
 
+  DBUG_ASSERT(timer == NULL);
+
+  if (timer_cache)
+    thd_timer_end(timer_cache);
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   my_free(db);
@@ -1887,7 +1896,8 @@ void THD::awake(THD::killed_state state_to_set)
   /* Set the 'killed' flag of 'this', which is the target THD object. */
   killed= state_to_set;
 
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set != THD::KILL_QUERY &&
+      state_to_set != THD::KILL_TIMEOUT)
   {
 #ifdef SIGNAL_WITH_VIO_SHUTDOWN
     if (this != current_thd)
@@ -1929,6 +1939,13 @@ void THD::awake(THD::killed_state state_to_set)
     if (!slave_thread)
       MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
   }
+
+  /* Interrupt target waiting inside a storage engine. */
+  if (state_to_set != THD::NOT_KILLED)
+    ha_kill_connection(this);
+
+  if (state_to_set == THD::KILL_TIMEOUT)
+    status_var_increment(status_var.max_statement_time_exceeded);
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
@@ -4245,6 +4262,16 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
   return(thd->killed);
+}
+
+/**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+extern "C" void thd_set_kill_status(const MYSQL_THD thd)
+{
+  thd->send_kill_message();
 }
 
 /**

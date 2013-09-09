@@ -11861,6 +11861,63 @@ innobase_thd_kill(
 #endif
 }
 
+#ifdef UNIV_DEBUG
+static my_bool	innodb_log_checkpoint_now = TRUE;
+
+/****************************************************************//**
+Force innodb to checkpoint. */
+static
+void
+checkpoint_now_set(
+/*===============*/
+	THD*				thd	/*!< in: thread handle */
+	__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+	__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+	__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save) {
+		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			fil_flush_file_spaces(FIL_LOG);
+		}
+		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
+		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
+}
+
+static my_bool	innodb_track_redo_log_now = TRUE;
+
+/****************************************************************//**
+Force log tracker to track the log synchronously.  */
+static
+void
+track_redo_log_now_set(
+/*===================*/
+	THD*				thd	/*!< in: thread handle */
+	__attribute__((unused)),
+	struct st_mysql_sys_var*	var	/*!< in: pointer to system
+						variable */
+	__attribute__((unused)),
+	void*				var_ptr	/*!< out: where the formal
+						string goes */
+	__attribute__((unused)),
+	const void*			save)	/*!< in: immediate result from
+						check function */
+{
+	if (*(my_bool*) save && srv_track_changed_pages) {
+
+		log_online_follow_redo_log();
+	}
+}
+
+
+#endif /* UNIV_DEBUG */
 
 static SHOW_VAR innodb_status_variables_export[]= {
   {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
@@ -12270,9 +12327,15 @@ static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
    NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
 
 static MYSQL_SYSVAR_BOOL(track_changed_pages, srv_track_changed_pages,
-    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-    "Track the redo log for changed pages and output a changed page bitmap",
-    NULL, NULL, FALSE);
+  PLUGIN_VAR_NOCMDARG
+#ifndef UNIV_DEBUG
+  /* Make this variable dynamic for debug builds to
+  provide a testcase sync facility */
+  | PLUGIN_VAR_READONLY
+#endif
+  ,
+  "Track the redo log for changed pages and output a changed page bitmap",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
     PLUGIN_VAR_RQCMDARG,
@@ -12458,6 +12521,18 @@ static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
   "It is to create artificially the situation the purge view have been updated "
   "but the each purges were not done yet.",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force checkpoint now",
+  NULL, checkpoint_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(track_redo_log_now,
+  innodb_track_redo_log_now,
+  PLUGIN_VAR_OPCMDARG,
+  "Force log tracker to catch up with checkpoint now",
+  NULL, track_redo_log_now_set, FALSE);
+
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_BOOL(locking_fake_changes, srv_fake_changes_locks,
@@ -12577,6 +12652,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),
   MYSQL_SYSVAR(trx_purge_view_update_only_debug),
+  MYSQL_SYSVAR(log_checkpoint_now),
+  MYSQL_SYSVAR(track_redo_log_now),
 #endif /* UNIV_DEBUG */
   NULL
 };

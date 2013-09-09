@@ -764,8 +764,11 @@ int thd_opt_slow_log()
   
   @note LOCK_thread_count mutex is not necessary when the function is invoked on
    the currently running thread (current_thd) or if the caller in some other
-   way guarantees that access to thd->query is serialized.
- 
+   way guarantees that the thread won't be going away.
+
+  @note The query string is only printed if the session (thd) to be
+        described belongs to the calling thread.
+
   @return Pointer to string
 */
 
@@ -778,13 +781,11 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   char header[256];
   int len;
   /*
-    The pointers thd->query and thd->proc_info might change since they are
-    being modified concurrently. This is acceptable for proc_info since its
-    values doesn't have to very accurate and the memory it points to is static,
-    but we need to attempt a snapshot on the pointer values to avoid using NULL
-    values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thread_count or risk pointing to
-    uninitialized memory.
+    The thd->proc_info pointer might change since it is being modified
+    concurrently. This is acceptable for proc_info since its value
+    doesn't have to be accurate and the memory it points to is static,
+    but we need to attempt a snapshot on the pointer values to avoid
+    using NULL values.
   */
   const char *proc_info= thd->proc_info;
 
@@ -818,9 +819,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-
-  if (thd->query())
+  if (thd == current_thd && thd->query())
   {
     if (max_query_len < 1)
       len= thd->query_length();
@@ -829,8 +828,6 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append('\n');
     str.append(thd->query(), len);
   }
-
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   if (str.c_ptr_safe() == buffer)
     return buffer;

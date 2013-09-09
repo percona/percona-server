@@ -1,0 +1,27 @@
+# A global BOOL variable
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+
+SET @@GLOBAL.innodb_track_redo_log_now=1;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+SET @@GLOBAL.innodb_track_redo_log_now=0;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+SET @@GLOBAL.innodb_track_redo_log_now=ON;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+SET @@GLOBAL.innodb_track_redo_log_now=OFF;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.innodb_track_redo_log_now=ON;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.innodb_track_redo_log_now=1.1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.innodb_track_redo_log_now='foo';
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.innodb_track_redo_log_now=1e1;
+
+SET @@GLOBAL.innodb_track_redo_log_now=default;

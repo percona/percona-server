@@ -49,6 +49,3 @@ connection_three
 [log_grep.inc] file: percona.slow_extended.log_slow_rate_limit_2 pattern: 
 [log_grep.inc] sum:  0
 [log_grep.inc] zero: 3
-SET GLOBAL long_query_time=default;
-SET GLOBAL log_slow_rate_type=default;
-SET GLOBAL log_slow_rate_limit=default;

@@ -3998,6 +3998,23 @@ static Sys_var_ulong sys_log_slow_rate_limit(
        "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
        SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+
+static double opt_slow_query_log_always_write_time;
+static bool update_slow_query_log_always_write_time(sys_var *self, THD *thd,
+                                                    enum_var_type type)
+{
+  slow_query_log_always_write_time=
+    double2ulonglong(opt_slow_query_log_always_write_time * 1e6);
+  return false;
+}
+static Sys_var_double sys_slow_query_log_always_write_time(
+       "slow_query_log_always_write_time",
+       "Log queries which run longer than specified by this value regardless "
+       "of the log_slow_rate_limit valiue.",
+       GLOBAL_VAR(opt_slow_query_log_always_write_time), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(update_slow_query_log_always_write_time));
 const char* log_slow_verbosity_name[] = { 
   "microtime", "query_plan", "innodb", 
   "profiling", "profiling_use_getrusage", 

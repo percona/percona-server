@@ -2075,6 +2075,14 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
           my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
         tmp_errno=errno;
     }
+    if (thd->variables.log_slow_rate_limit > 1)
+    {
+      my_b_printf(&log_file,
+                  "# Log_slow_rate_type: %s  Log_slow_rate_limit: %lu\n",
+                  opt_slow_query_log_rate_type == SLOG_RT_SESSION ?
+                                                  "session" : "query",
+                  thd->variables.log_slow_rate_limit);
+    }
 
     if (thd->db && strcmp(thd->db, db))
     {						// Database changed

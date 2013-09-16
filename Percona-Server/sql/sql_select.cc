@@ -273,7 +273,9 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
+#if defined(__linux__)
   pid_t pid;
+#endif
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 #if defined(__linux__)

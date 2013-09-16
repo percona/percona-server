@@ -275,30 +275,6 @@ init_user_stats(USER_STATS *user_stats,
                 ulonglong access_denied_errors,
                 ulonglong empty_queries);
 
-/* Increment values of an instance of USER_STATS */
-extern void
-add_user_stats(USER_STATS *user_stats,
-               uint total_connections,
-               uint concurrent_connections,
-               time_t connected_time,
-               double busy_time,
-               double cpu_time,
-               ulonglong bytes_received,
-               ulonglong bytes_sent,
-               ulonglong binlog_bytes_written,
-               ha_rows rows_fetched,
-               ha_rows rows_updated,
-               ha_rows rows_read,
-               ulonglong select_commands,
-               ulonglong update_commands,
-               ulonglong other_commands,
-               ulonglong commit_trans,
-               ulonglong rollback_trans,
-               ulonglong denied_connections,
-               ulonglong lost_connections,
-               ulonglong access_denied_errors,
-               ulonglong empty_queries);
-
 typedef struct st_thread_stats {
   my_thread_id id;
   uint total_connections;
@@ -350,30 +326,6 @@ init_thread_stats(THREAD_STATS *thread_stats,
                 ulonglong lost_connections,
                 ulonglong access_denied_errors,
                 ulonglong empty_queries);
-
-/* Increment values of an instance of THREAD_STATS */
-extern void
-add_thread_stats(THREAD_STATS *thread_stats,
-               uint total_connections,
-               uint concurrent_connections,
-               time_t connected_time,
-               double busy_time,
-               double cpu_time,
-               ulonglong bytes_received,
-               ulonglong bytes_sent,
-               ulonglong binlog_bytes_written,
-               ha_rows rows_fetched,
-               ha_rows rows_updated,
-               ha_rows rows_read,
-               ulonglong select_commands,
-               ulonglong update_commands,
-               ulonglong other_commands,
-               ulonglong commit_trans,
-               ulonglong rollback_trans,
-               ulonglong denied_connections,
-               ulonglong lost_connections,
-               ulonglong access_denied_errors,
-               ulonglong empty_queries);
 
 typedef struct st_table_stats {
   char table[NAME_LEN * 2 + 2];  // [db] + '.' + [table] + '\0'

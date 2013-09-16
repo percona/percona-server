@@ -5818,7 +5818,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   double end_usecs=       0;
   /* cpu time */
   int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
+#endif
   double start_cpu_nsecs= 0;
   double end_cpu_nsecs=   0;
 

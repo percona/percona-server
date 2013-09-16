@@ -2266,7 +2266,9 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   double end_usecs=       0;
   /* cpu time */
   int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
+#endif
   double start_cpu_nsecs= 0;
   double end_cpu_nsecs=   0;
 
@@ -2739,7 +2741,9 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   double end_usecs=       0;
   /* cpu time */
   int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
+#endif
   double start_cpu_nsecs= 0;
   double end_cpu_nsecs=   0;
 
@@ -2926,7 +2930,9 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   double end_usecs=       0;
   /* cpu time */
   int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
+#endif
   double start_cpu_nsecs= 0;
   double end_cpu_nsecs=   0;
 
@@ -3072,7 +3078,9 @@ void mysqld_stmt_reset(THD *thd, char *packet, uint packet_length)
   double end_usecs=       0;
   /* cpu time */
   int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
+#endif
   double start_cpu_nsecs= 0;
   double end_cpu_nsecs=   0;
 

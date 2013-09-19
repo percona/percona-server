@@ -32,6 +32,7 @@ extern "C" {
 #define MY_S_IFBLK	S_IFBLK /* block special */
 #define MY_S_IFREG	S_IFREG /* regular */
 #define MY_S_IFIFO	S_IFIFO /* fifo */
+#define MY_S_IFSOCK	S_IFSOCK /* socket */
 #define MY_S_ISUID	S_ISUID /* set user id on execution */
 #define MY_S_ISGID	S_ISGID /* set group id on execution */
 #define MY_S_ISVTX	S_ISVTX /* save swapped text even after use */
@@ -44,6 +45,7 @@ extern "C" {
 #define MY_S_ISBLK(m)	(((m) & MY_S_IFMT) == MY_S_IFBLK)
 #define MY_S_ISREG(m)	(((m) & MY_S_IFMT) == MY_S_IFREG)
 #define MY_S_ISFIFO(m)	(((m) & MY_S_IFMT) == MY_S_IFIFO)
+#define MY_S_ISSOCK(m)	(((m) & MY_S_IFMT) == MY_S_IFSOCK)
 
 #define MY_DONT_SORT	512	/* my_lib; Don't sort files */
 #define MY_WANT_STAT	1024	/* my_lib; stat files */

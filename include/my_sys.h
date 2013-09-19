@@ -582,6 +582,9 @@ extern void my_once_free(void);
 extern char *my_once_strdup(const char *src,myf myflags);
 extern void *my_once_memdup(const void *src, size_t len, myf myflags);
 extern File my_open(const char *FileName,int Flags,myf MyFlags);
+#ifndef __WIN__
+extern File my_unix_socket_connect(const char *FileName,myf MyFlags);
+#endif
 extern File my_register_filename(File fd, const char *FileName,
 				 enum file_type type_of_file,
 				 uint error_message_number, myf MyFlags);
@@ -785,7 +788,6 @@ extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,
 				 myf cache_myflags);
 extern my_bool real_open_cached_file(IO_CACHE *cache);
-extern my_bool truncate_cached_file(IO_CACHE *cache, my_off_t pos);
 extern void close_cached_file(IO_CACHE *cache);
 File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);

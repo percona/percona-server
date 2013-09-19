@@ -67,7 +67,9 @@ extern const char *globerrs[];  /* my_error_messages is here */
 #define EE_CHANGE_PERMISSIONS   32
 #define EE_CANT_SEEK            33
 #define EE_CAPACITY_EXCEEDED    34
-#define EE_ERROR_LAST           34 /* Copy last error nr */
+#define EE_SOCKET               35
+#define EE_TOOLONGFILENAME      36
+#define EE_ERROR_LAST           36 /* Copy last error nr */
 /* Add error numbers before EE_ERROR_LAST and change it accordingly. */
 
 /* Exit codes for option processing. When exiting from server use the

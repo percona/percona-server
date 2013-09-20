@@ -458,8 +458,6 @@ class MYSQL_BIN_LOG: public TC_LOG
             const char *new_name);
   bool init_and_set_log_file_name(const char *log_name,
                                   const char *new_name);
-  int generate_new_name(char *new_name, const char *log_name);
-
 public:
   const char *generate_name(const char *log_name, const char *suffix,
                             char *buff);
@@ -846,8 +844,8 @@ public:
   int purge_logs(const char *to_log, bool included,
                  bool need_lock_index, bool need_update_threads,
                  ulonglong *decrease_log_space, bool auto_purge);
-  int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_logs_maximum_number(ulong max_nr_files);
+  int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_first_log(Relay_log_info* rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
@@ -972,9 +970,19 @@ bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(THD *thd, bool not_killed);
 
+bool generate_new_log_name(char *new_name, ulong *new_ext,
+                           const char *log_name, bool is_binlog);
+
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
 extern bool opt_binlog_order_commits;
+
+/*
+  Maximum unique log filename extension.
+  Note: setting to 0x7FFFFFFF due to atol windows
+  overflow/truncate.
+*/
+#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
 
 /**
   Turns a relative log binary log path into a full path, based on the

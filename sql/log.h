@@ -88,7 +88,8 @@ enum enum_log_table_type
 class File_query_log
 {
   File_query_log(enum_log_table_type log_type)
-  : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
+    : m_log_type(log_type), name(NULL), write_error(false), log_open(false),
+      cur_log_ext(-1)
   {
     memset(&log_file, 0, sizeof(log_file));
     mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
@@ -105,6 +106,8 @@ class File_query_log
     DBUG_ASSERT(!is_open());
     mysql_mutex_destroy(&LOCK_log);
   }
+  int rotate(ulong max_size, bool *need_purge);
+  int new_file();
 
   /** @return true if the file log is open, false otherwise. */
   bool is_open() const { return log_open; }
@@ -201,10 +204,14 @@ private:
   /** True if the file log is open, false otherwise. */
   volatile bool log_open;
 
+  ulong cur_log_ext;
+
 #ifdef HAVE_PSI_INTERFACE
   /** Instrumentation key to use for file io in @c log_file */
   PSI_file_key m_log_file_key;
 #endif
+
+  bool purge_up_to(ulong to_ext, const char *log_name);
 
   friend class Log_to_file_event_handler;
   friend class Query_logger;

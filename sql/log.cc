@@ -32,6 +32,7 @@
 #include "sql_parse.h"    // sql_command_flags
 #include "sql_time.h"     // calc_time_from_sec
 #include "table.h"        // TABLE_FIELD_TYPE
+#include "binlog.h"       // generate_new_log_name
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -211,6 +212,8 @@ protected:
 static Query_log_table_intact log_table_intact;
 
 ulong max_binlog_files;
+ulong max_slowlog_size;
+ulong max_slowlog_files;
 
 /**
   Silence all errors and warnings reported when performing a write
@@ -639,7 +642,14 @@ bool File_query_log::open()
     goto err;
   }
 
-  fn_format(log_file_name, name, mysql_data_home, "", 4);
+  if (cur_log_ext == (ulong)-1)
+  {
+    if (generate_new_log_name(log_file_name, &cur_log_ext, name, false))
+      goto err;
+  } else {
+    snprintf(log_file_name, sizeof(log_file_name),
+             "%s.%06lu", name, cur_log_ext);
+  }
 
   /* File is regular writable file */
   if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
@@ -842,10 +852,15 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   char buff[80], *end;
   char query_time_buff[22+7], lock_time_buff[22+7];
   size_t buff_len;
+  bool need_purge= false;
+  ulong save_cur_ext= 0;
   end= buff;
 
   mysql_mutex_lock(&LOCK_log);
   DBUG_ASSERT(is_open());
+
+  if ((max_slowlog_size > 0) && rotate(max_slowlog_size, &need_purge))
+    goto err;
 
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
   {
@@ -1016,7 +1031,18 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       flush_io_cache(&log_file))
     goto err;
 
+  save_cur_ext = cur_log_ext;
+
   mysql_mutex_unlock(&LOCK_log);
+
+  if (max_slowlog_files && need_purge &&
+      purge_up_to(save_cur_ext > max_slowlog_files ?
+                  save_cur_ext - max_slowlog_files : 0, log_file_name))
+  {
+    check_and_print_write_error();
+    return true;
+  }
+
   return false;
 
 err:
@@ -1733,7 +1759,6 @@ Query_logger::check_if_log_table(TABLE_LIST *table_list,
     {
       if (!check_if_opened || is_log_table_enabled(QUERY_LOG_SLOW))
         return QUERY_LOG_SLOW;
-      return QUERY_LOG_NONE;
     }
   }
   return QUERY_LOG_NONE;
@@ -1742,6 +1767,26 @@ Query_logger::check_if_log_table(TABLE_LIST *table_list,
 
 Query_logger query_logger;
 
+bool File_query_log::purge_up_to(ulong to_ext, const char *log_name)
+{
+  char buff[FN_REFLEN];
+  bool error= false;
+
+  DBUG_ENTER("File_query_log::purge_up_to");
+
+  do {
+    snprintf(buff, sizeof(buff), "%s.%06lu", name, to_ext);
+    if ((error= unlink(buff)))
+    {
+      if (my_errno() == ENOENT)
+        error= false;
+      break;
+    }
+    --to_ext;
+  } while (to_ext > 0);
+
+  DBUG_RETURN(error);
+}
 
 char *make_query_log_name(char *buff, enum_log_table_type log_type)
 {
@@ -2057,6 +2102,81 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
   return suppress_current;
 }
 
+int File_query_log::rotate(ulong max_size, bool *need_purge)
+{
+  int error;
+  DBUG_ENTER("File_query_log::rotate");
+
+  *need_purge= false;
+  if (my_b_tell(&log_file) > max_size)
+  {
+    if ((error= new_file()))
+      DBUG_RETURN(error);
+
+    *need_purge= true;
+  }
+
+  DBUG_RETURN(0);
+}
+
+int File_query_log::new_file()
+{
+  int error= 0, close_on_error= FALSE;
+  char new_name[FN_REFLEN], *old_name;
+
+  DBUG_ENTER("File_query_log::new_file");
+  if (!is_open())
+  {
+    DBUG_PRINT("info",("log is closed"));
+    DBUG_RETURN(error);
+  }
+
+  mysql_mutex_assert_owner(&LOCK_log);
+
+  if (cur_log_ext == (ulong)-1)
+  {
+    strcpy(new_name, name);
+    if ((error= generate_new_log_name(new_name, &cur_log_ext, name, false)))
+      goto end;
+  }
+  else
+  {
+    if (cur_log_ext == MAX_LOG_UNIQUE_FN_EXT)
+    {
+      error= 1;
+      goto end;
+    }
+    snprintf(new_name, sizeof(new_name), "%s.%06lu", name, ++cur_log_ext);
+  }
+
+  /*
+    close will try to free name and zero name pointer,
+    We saving current name value and zeroing the pointer to
+    prvent it.
+  */
+  old_name= name;
+  name= NULL;
+  close();
+  name= old_name;
+
+  error= open();
+
+  my_free(old_name);
+
+end:
+
+  if (error && close_on_error /* rotate or reopen failed */)
+  {
+    sql_print_error("Could not open %s for logging (error %d). "
+                    "Turning logging off for the whole duration "
+                    "of the MySQL server process. To turn it on "
+                    "again: fix the cause, shutdown the MySQL "
+                    "server and restart it.",
+                    new_name, errno);
+  }
+
+  DBUG_RETURN(error);
+}
 
 bool Error_log_throttle::log()
 {
@@ -2066,7 +2186,6 @@ bool Error_log_throttle::log()
 
   /*
     If the window has expired, we'll try to write a summary line.
-    The subroutine will know whether we actually need to.
   */
   if (!in_window(end_utime_of_query))
   {

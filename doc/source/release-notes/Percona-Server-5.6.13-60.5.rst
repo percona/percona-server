@@ -4,7 +4,7 @@
  |Percona Server| 5.6.13-60.5
 ==============================
 
-Percona is glad to announce the third Release Candidate release of |Percona Server| 5.6.13-60.5 on August 28th, 2013 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.12-60.4/>`_ and from the :doc:`Percona Software Repositories </installation>`.
+Percona is glad to announce the third Release Candidate release of |Percona Server| 5.6.13-60.5 on August 28th, 2013 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.13-60.5/>`_ and from the :doc:`Percona Software Repositories </installation>`.
 
 Based on `MySQL 5.6.13 <http://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-13.html>`_, including all the bug fixes in it, |Percona Server| 5.6.13-60.5 is the third RC release in the |Percona Server| 5.6 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.6.13-60.5 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.6.13-60.5>`_.
 

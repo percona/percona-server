@@ -35,8 +35,8 @@ Created December 2006 by Marko Makela
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
-The buf_pool_mutex may be released and reacquired.
+buf_pool->LRU_list_mutex and must not hold buf_pool->zip_mutex or any
+block->mutex.  The buf_pool->LRU_list_mutex may be released and reacquired.
 @return	allocated block, never NULL */
 UNIV_INTERN
 void*
@@ -48,8 +48,8 @@ buf_buddy_alloc_low(
 	ibool*		lru)		/*!< in: pointer to a variable that
 					will be assigned TRUE if storage was
 					allocated from the LRU list and
-					buf_pool->mutex was temporarily
-					released */
+					buf_pool->LRU_list_mutex was
+					temporarily released */
 	__attribute__((malloc, nonnull));
 
 /**********************************************************************//**
@@ -88,8 +88,8 @@ buf_buddy_get_slot(
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool->zip_mutex or any
-block->mutex.  The buf_pool->mutex may be released and reacquired.
+buf_pool->LRU_list_mutex and must not hold buf_pool->zip_mutex or any
+block->mutex.  The buf_pool->LRU_list_mutex may be released and reacquired.
 This function should only be used for allocating compressed page frames.
 @return	allocated block, never NULL */
 UNIV_INLINE
@@ -104,10 +104,10 @@ buf_buddy_alloc(
 	ibool*		lru)		/*!< in: pointer to a variable
 					that will be assigned TRUE if
 				       	storage was allocated from the
-				       	LRU list and buf_pool->mutex was
-				       	temporarily released */
+					LRU list and buf_pool->LRU_list_mutex
+					was temporarily released */
 {
-	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(ut_is_2pow(size));
 	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size <= UNIV_PAGE_SIZE);
@@ -129,7 +129,6 @@ buf_buddy_free(
 	ulint		size)		/*!< in: block size,
 					up to UNIV_PAGE_SIZE */
 {
-	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(ut_is_2pow(size));
 	ut_ad(size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(size <= UNIV_PAGE_SIZE);

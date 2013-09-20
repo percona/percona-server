@@ -37,7 +37,7 @@ Created 11/5/1995 Heikki Tuuri
 extern ibool buf_page_cleaner_is_active;
 
 /********************************************************************//**
-Remove a block from the flush list of modified blocks. */
+Remove a block from the flush list of modified blocks.  */
 UNIV_INTERN
 void
 buf_flush_remove(
@@ -75,9 +75,9 @@ buf_flush_init_for_writing(
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**
 Writes a flushable page asynchronously from the buffer pool to a file.
-NOTE: buf_pool->mutex and block->mutex must be held upon entering this
-function, and they will be released by this function after flushing.
-This is loosely based on buf_flush_batch() and buf_flush_page().
+NOTE: block->mutex must be held upon entering this function, and they will be
+released by this function after flushing.  This is loosely based on
+buf_flush_batch() and buf_flush_page().
 @return TRUE if the page was flushed and the mutexes released */
 UNIV_INTERN
 ibool
@@ -232,9 +232,8 @@ buf_flush_free_flush_rbt(void);
 Writes a flushable page asynchronously from the buffer pool to a file.
 NOTE: in simulated aio we must call
 os_aio_simulated_wake_handler_threads after we have posted a batch of
-writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
-held upon entering this function, and they will be released by this
-function. */
+writes! NOTE: buf_page_get_mutex(bpage) must be held upon entering this
+function, and they will be released by this function. */
 UNIV_INTERN
 void
 buf_flush_page(

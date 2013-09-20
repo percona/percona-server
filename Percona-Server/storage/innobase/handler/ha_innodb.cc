@@ -294,6 +294,11 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
 	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
+	{&buf_pool_LRU_list_mutex_key, "buf_pool_LRU_list_mutex", 0},
+	{&buf_pool_free_list_mutex_key, "buf_pool_free_list_mutex", 0},
+	{&buf_pool_zip_free_mutex_key, "buf_pool_zip_free_mutex", 0},
+	{&buf_pool_zip_hash_mutex_key, "buf_pool_zip_hash_mutex", 0},
+	{&buf_pool_flush_state_mutex_key, "buf_pool_flush_state_mutex", 0},
 	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
 	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
 	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
@@ -15485,7 +15490,7 @@ innodb_buffer_pool_evict_uncompressed(void)
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool = &buf_pool_ptr[i];
 
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		for (buf_block_t* block = UT_LIST_GET_LAST(
 			     buf_pool->unzip_LRU);
@@ -15497,14 +15502,19 @@ innodb_buffer_pool_evict_uncompressed(void)
 			ut_ad(block->in_unzip_LRU_list);
 			ut_ad(block->page.in_LRU_list);
 
+			mutex_enter(&block->mutex);
 			if (!buf_LRU_free_page(&block->page, false)) {
+				mutex_exit(&block->mutex);
 				all_evicted = false;
+			} else {
+				mutex_exit(&block->mutex);
+				mutex_enter(&buf_pool->LRU_list_mutex);
 			}
 
 			block = prev_block;
 		}
 
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->LRU_list_mutex);
 	}
 
 	return(all_evicted);

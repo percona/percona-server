@@ -2870,7 +2870,7 @@ fsp_get_available_space_in_free_extents(
 
 	/* The convoluted mutex acquire is to overcome latching order
 	issues: The problem is that the fil_mutex is at a lower level
-	than the tablespace latch and the buffer pool mutex. We have to
+	than the tablespace latch and the buffer pool mutexes. We have to
 	first prevent any operations on the file system by acquiring the
 	dictionary mutex. Then acquire the tablespace latch to obey the
 	latching order and then release the dictionary mutex. That way we

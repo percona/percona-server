@@ -71,6 +71,11 @@ extern mysql_pfs_key_t	autoinc_mutex_key;
 extern mysql_pfs_key_t	buffer_block_mutex_key;
 extern mysql_pfs_key_t	buf_pool_mutex_key;
 extern mysql_pfs_key_t	buf_pool_zip_mutex_key;
+extern mysql_pfs_key_t	buf_pool_LRU_list_mutex_key;
+extern mysql_pfs_key_t	buf_pool_free_list_mutex_key;
+extern mysql_pfs_key_t	buf_pool_zip_free_mutex_key;
+extern mysql_pfs_key_t	buf_pool_zip_hash_mutex_key;
+extern mysql_pfs_key_t	buf_pool_flush_state_mutex_key;
 extern mysql_pfs_key_t	cache_last_read_mutex_key;
 extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
 extern mysql_pfs_key_t	dict_sys_mutex_key;
@@ -632,7 +637,7 @@ V
 Search system mutex
 |
 V
-Buffer pool mutex
+Buffer pool mutexes
 |
 V
 Log mutex
@@ -723,11 +728,15 @@ or row lock! */
 					SYNC_SEARCH_SYS, as memory allocation
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
-#define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
+#define	SYNC_BUF_LRU_LIST	151
 #define	SYNC_BUF_PAGE_HASH	149	/* buf_pool->page_hash rw_lock */
 #define	SYNC_BUF_BLOCK		146	/* Block mutex */
-#define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
-#define SYNC_DOUBLEWRITE	140
+#define	SYNC_BUF_FREE_LIST	145
+#define	SYNC_BUF_ZIP_FREE	144
+#define	SYNC_BUF_ZIP_HASH	143
+#define	SYNC_BUF_FLUSH_STATE	142
+#define	SYNC_BUF_FLUSH_LIST	141	/* Buffer flush list mutex */
+#define	SYNC_DOUBLEWRITE	139
 #define	SYNC_ANY_LATCH		135
 #define	SYNC_MEM_HASH		131
 #define	SYNC_MEM_POOL		130

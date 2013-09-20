@@ -1201,7 +1201,11 @@ sync_thread_add_level(
 		/* fallthrough */
 	}
 	case SYNC_BUF_FLUSH_LIST:
-	case SYNC_BUF_POOL:
+	case SYNC_BUF_LRU_LIST:
+	case SYNC_BUF_FREE_LIST:
+	case SYNC_BUF_ZIP_FREE:
+	case SYNC_BUF_ZIP_HASH:
+	case SYNC_BUF_FLUSH_STATE:
 		/* We can have multiple mutexes of this type therefore we
 		can only check whether the greater than condition holds. */
 		if (!sync_thread_levels_g(array, level-1, TRUE)) {
@@ -1215,17 +1219,12 @@ sync_thread_add_level(
 
 	case SYNC_BUF_PAGE_HASH:
 		/* Multiple page_hash locks are only allowed during
-		buf_validate and that is where buf_pool mutex is already
-		held. */
+		buf_validate. */
 		/* Fall through */
 
 	case SYNC_BUF_BLOCK:
-		/* Either the thread must own the buffer pool mutex
-		(buf_pool->mutex), or it is allowed to latch only ONE
-		buffer block (block->mutex or buf_pool->zip_mutex). */
 		if (!sync_thread_levels_g(array, level, FALSE)) {
 			ut_a(sync_thread_levels_g(array, level - 1, TRUE));
-			ut_a(sync_thread_levels_contain(array, SYNC_BUF_POOL));
 		}
 		break;
 	case SYNC_REC_LOCK:

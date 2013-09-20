@@ -3137,7 +3137,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_PRINT("enter",("name: %s", log_name));
 
   if (init_and_set_log_file_name(log_name, new_name, LOG_BIN,
-                                 io_cache_type_arg))
+                                 io_cache_type_arg, true))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
@@ -3179,7 +3179,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #ifdef HAVE_PSI_INTERFACE
                       m_key_file_log,
 #endif
-                      log_name, LOG_BIN, new_name, io_cache_type_arg))
+                      log_name, LOG_BIN, new_name, io_cache_type_arg, true))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -4626,6 +4626,26 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+  Remove all logs before the given file date from disk and from the
+  index file.
+
+  @param thd		Thread pointer
+  @param purge_time	Delete all log files before given date.
+  @param auto_purge     True if this is an automatic purge.
+
+  @note
+    If any of the logs before the deleted one is in use,
+    only purge logs up to this one.
+
+  @retval
+    0				ok
+  @retval
+    LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
+    LOG_INFO_FATAL              if any other than ENOENT error from
+                                mysql_file_stat() or mysql_file_delete()
+*/
+
 int MYSQL_BIN_LOG::purge_logs_maximum_number(ulong max_nr_files)
 {
   int error;
@@ -4677,25 +4697,6 @@ err:
   DBUG_RETURN(error);
 }
 
-/**
-  Remove all logs before the given file date from disk and from the
-  index file.
-
-  @param thd		Thread pointer
-  @param purge_time	Delete all log files before given date.
-  @param auto_purge     True if this is an automatic purge.
-
-  @note
-    If any of the logs before the deleted one is in use,
-    only purge logs up to this one.
-
-  @retval
-    0				ok
-  @retval
-    LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
-    LOG_INFO_FATAL              if any other than ENOENT error from
-                                mysql_file_stat() or mysql_file_delete()
-*/
 
 int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
 {
@@ -4939,7 +4940,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     We have to do this here and not in open as we want to store the
     new file name in the current binary log file.
   */
-  if ((error= generate_new_name(new_name, name)))
+  if ((error= generate_new_name(new_name, name, log_type == LOG_BIN)))
     goto end;
   else
   {

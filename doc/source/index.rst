@@ -58,7 +58,9 @@ Scalability Improvements
    :maxdepth: 1
    :glob:
 
+   scalability/innodb_split_buf_pool_mutex
    scalability/innodb_io
+   scalability/innodb_adaptive_hash_index_partitions
 
 Performance Improvements
 ========================

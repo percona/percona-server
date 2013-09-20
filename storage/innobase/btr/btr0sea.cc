@@ -363,12 +363,9 @@ btr_search_disable(
 void
 btr_search_enable()
 {
-	buf_pool_mutex_enter_all();
-	if (srv_buf_pool_old_size != srv_buf_pool_size) {
-		buf_pool_mutex_exit_all();
+	os_rmb;
+	if (srv_buf_pool_old_size != srv_buf_pool_size)
 		return;
-	}
-	buf_pool_mutex_exit_all();
 
 	btr_search_x_lock_all();
 	btr_search_enabled = true;
@@ -1129,11 +1126,6 @@ btr_search_guess_on_hash(
 #ifdef UNIV_SEARCH_PERF_STAT
 	btr_search_n_succ++;
 #endif
-	if (!has_search_latch && buf_page_peek_if_too_old(&block->page)) {
-
-		buf_page_make_young(&block->page);
-	}
-
 	/* Increment the page get statistics though we did not really
 	fix the page: for user info only */
 
@@ -1180,6 +1172,7 @@ retry:
 	assert_block_ahi_valid(block);
 
 	if (index == NULL) {
+		assert_block_ahi_empty(block);
 		return;
 	}
 
@@ -1206,6 +1199,7 @@ retry:
 
 	if (block->index == NULL) {
 		rw_lock_s_unlock(latch);
+		assert_block_ahi_empty(block);
 		return;
 	}
 
@@ -1979,7 +1973,6 @@ btr_search_hash_table_validate(ulint hash_table_id)
 	rec_offs_init(offsets_);
 
 	btr_search_x_lock_all();
-	buf_pool_mutex_enter_all();
 
 	cell_count = hash_get_n_cells(
 			btr_search_sys->hash_tables[hash_table_id]);
@@ -1989,13 +1982,11 @@ btr_search_hash_table_validate(ulint hash_table_id)
 		give other queries a chance to run. */
 		if ((i != 0) && ((i % chunk_size) == 0)) {
 
-			buf_pool_mutex_exit_all();
 			btr_search_x_unlock_all();
 
 			os_thread_yield();
 
 			btr_search_x_lock_all();
-			buf_pool_mutex_enter_all();
 
 			ulint	curr_cell_count = hash_get_n_cells(
 				btr_search_sys->hash_tables[hash_table_id]);
@@ -2014,13 +2005,16 @@ btr_search_hash_table_validate(ulint hash_table_id)
 			btr_search_sys->hash_tables[hash_table_id], i)->node;
 
 		for (; node != NULL; node = node->next) {
-			const buf_block_t*	block
+			buf_block_t*		block
 				= buf_block_from_ahi((byte*) node->data);
 			const buf_block_t*	hash_block;
 			buf_pool_t*		buf_pool;
 			index_id_t		page_index_id;
 
 			buf_pool = buf_pool_from_bpage((buf_page_t*) block);
+			/* Prevent BUF_BLOCK_FILE_PAGE -> BUF_BLOCK_REMOVE_HASH
+			transition until we lock the block mutex */
+			mutex_enter(&buf_pool->LRU_list_mutex);
 
 			if (UNIV_LIKELY(buf_block_get_state(block)
 					== BUF_BLOCK_FILE_PAGE)) {
@@ -2053,6 +2047,9 @@ btr_search_hash_table_validate(ulint hash_table_id)
 				ut_a(buf_block_get_state(block)
 				     == BUF_BLOCK_REMOVE_HASH);
 			}
+
+			mutex_enter(&block->mutex);
+			mutex_exit(&buf_pool->LRU_list_mutex);
 
 			ut_a(!dict_index_is_ibuf(block->index));
 			ut_ad(block->page.id.space() == block->index->space);
@@ -2098,6 +2095,8 @@ btr_search_hash_table_validate(ulint hash_table_id)
 					(ulong) block->curr_left_side);
 				ut_ad(0);
 			}
+
+			mutex_exit(&block->mutex);
 		}
 	}
 
@@ -2106,13 +2105,11 @@ btr_search_hash_table_validate(ulint hash_table_id)
 		give other queries a chance to run. */
 		if (i != 0) {
 
-			buf_pool_mutex_exit_all();
 			btr_search_x_unlock_all();
 
 			os_thread_yield();
 
 			btr_search_x_lock_all();
-			buf_pool_mutex_enter_all();
 
 			ulint	curr_cell_count = hash_get_n_cells(
 				btr_search_sys->hash_tables[hash_table_id]);
@@ -2135,7 +2132,6 @@ btr_search_hash_table_validate(ulint hash_table_id)
 		}
 	}
 
-	buf_pool_mutex_exit_all();
 	btr_search_x_unlock_all();
 
 	if (UNIV_LIKELY_NULL(heap)) {

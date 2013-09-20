@@ -473,7 +473,11 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_LIST);
 	LEVEL_MAP_INSERT(SYNC_BUF_BLOCK);
 	LEVEL_MAP_INSERT(SYNC_BUF_PAGE_HASH);
-	LEVEL_MAP_INSERT(SYNC_BUF_POOL);
+	LEVEL_MAP_INSERT(SYNC_BUF_LRU_LIST);
+	LEVEL_MAP_INSERT(SYNC_BUF_FREE_LIST);
+	LEVEL_MAP_INSERT(SYNC_BUF_ZIP_FREE);
+	LEVEL_MAP_INSERT(SYNC_BUF_ZIP_HASH);
+	LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_STATE);
 	LEVEL_MAP_INSERT(SYNC_POOL);
 	LEVEL_MAP_INSERT(SYNC_POOL_MANAGER);
 	LEVEL_MAP_INSERT(SYNC_SEARCH_SYS);
@@ -835,7 +839,11 @@ LatchDebug::check_order(
 		break;
 
 	case SYNC_BUF_FLUSH_LIST:
-	case SYNC_BUF_POOL:
+	case SYNC_BUF_LRU_LIST:
+	case SYNC_BUF_FREE_LIST:
+	case SYNC_BUF_ZIP_FREE:
+	case SYNC_BUF_ZIP_HASH:
+	case SYNC_BUF_FLUSH_STATE:
 
 		/* We can have multiple mutexes of this type therefore we
 		can only check whether the greater than condition holds. */
@@ -844,22 +852,10 @@ LatchDebug::check_order(
 		break;
 
 	case SYNC_BUF_PAGE_HASH:
-
-		/* Multiple page_hash locks are only allowed during
-		buf_validate and that is where buf_pool mutex is already
-		held. */
-
-		/* Fall through */
-
 	case SYNC_BUF_BLOCK:
-
-		/* Either the thread must own the (buffer pool) buf_pool->mutex
-		or it is allowed to latch only ONE of (buffer block)
-		block->mutex or buf_pool->zip_mutex. */
 
 		if (less(latches, level) != NULL) {
 			basic_check(latches, level, level - 1);
-			ut_a(find(latches, SYNC_BUF_POOL) != 0);
 		}
 		break;
 
@@ -1352,7 +1348,20 @@ sync_latch_meta_init()
 	LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
 #endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 
-	LATCH_ADD_MUTEX(BUF_POOL, SYNC_BUF_POOL, buf_pool_mutex_key);
+	LATCH_ADD_MUTEX(BUF_POOL_LRU_LIST, SYNC_BUF_LRU_LIST,
+			buf_pool_LRU_list_mutex_key);
+
+	LATCH_ADD_MUTEX(BUF_POOL_FREE_LIST, SYNC_BUF_FREE_LIST,
+			buf_pool_free_list_mutex_key);
+
+	LATCH_ADD_MUTEX(BUF_POOL_ZIP_FREE, SYNC_BUF_ZIP_FREE,
+			buf_pool_zip_free_mutex_key);
+
+	LATCH_ADD_MUTEX(BUF_POOL_ZIP_HASH, SYNC_BUF_ZIP_HASH,
+			buf_pool_zip_free_mutex_key);
+
+	LATCH_ADD_MUTEX(BUF_POOL_FLUSH_STATE, SYNC_BUF_FLUSH_STATE,
+			buf_pool_flush_state_mutex_key);
 
 	LATCH_ADD_MUTEX(BUF_POOL_ZIP, SYNC_BUF_BLOCK, buf_pool_zip_mutex_key);
 
@@ -1504,7 +1513,9 @@ sync_latch_meta_init()
 	LATCH_ADD_MUTEX(SYNC_ARRAY_MUTEX, SYNC_NO_ORDER_CHECK,
 			sync_array_mutex_key);
 
+#ifdef _WIN32
 	LATCH_ADD_MUTEX(THREAD_MUTEX, SYNC_NO_ORDER_CHECK, thread_mutex_key);
+#endif
 
 	LATCH_ADD_MUTEX(ZIP_PAD_MUTEX, SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
 
@@ -1814,8 +1825,7 @@ sync_check_init()
 	sync_array_init(OS_THREAD_MAX_N);
 }
 
-/** Frees the resources in InnoDB's own synchronization data structures. Use
-os_sync_free() after calling this. */
+/** Frees the resources in InnoDB's own synchronization data structures. */
 void
 sync_check_close()
 {

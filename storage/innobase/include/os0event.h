@@ -27,8 +27,218 @@ Created 2012-09-23 Sunny Bains (split from os0sync.h)
 
 #include "univ.i"
 
-// Forward declaration.
-struct os_event;
+#ifndef UNIV_INNOCHECKSUM
+
+#include "sync0types.h"
+
+typedef OSMutex EventMutex;
+
+/** InnoDB condition variable. */
+struct os_event {
+
+	os_event(void) UNIV_NOTHROW;
+
+	~os_event() UNIV_NOTHROW;
+
+	/**
+	Destroys a condition variable */
+	void destroy() UNIV_NOTHROW
+	{
+#ifndef _WIN32
+		int	ret = pthread_cond_destroy(&cond_var);
+		ut_a(ret == 0);
+#endif /* !_WIN32 */
+
+		mutex.destroy();
+	}
+
+	/** Set the event */
+	void set() UNIV_NOTHROW
+	{
+		mutex.enter();
+
+		if (UNIV_LIKELY(!is_set())) {
+			broadcast();
+		}
+
+		mutex.exit();
+	}
+
+	int64_t signal_count() const UNIV_NOTHROW
+	{
+		return (count_and_set & count_mask);
+	}
+
+	int64_t reset() UNIV_NOTHROW
+	{
+		mutex.enter();
+
+		if (UNIV_LIKELY(is_set())) {
+			count_and_set &= count_mask;
+		}
+
+		int64_t	ret = signal_count();
+
+		mutex.exit();
+
+		return(ret);
+	}
+
+	/**
+	Waits for an event object until it is in the signaled state.
+
+	Typically, if the event has been signalled after the os_event_reset()
+	we'll return immediately because event->m_set == true.
+	There are, however, situations (e.g.: sync_array code) where we may
+	lose this information. For example:
+
+	thread A calls os_event_reset()
+	thread B calls os_event_set()   [event->m_set == true]
+	thread C calls os_event_reset() [event->m_set == false]
+	thread A calls os_event_wait()  [infinite wait!]
+	thread C calls os_event_wait()  [infinite wait!]
+
+	Where such a scenario is possible, to avoid infinite wait, the
+	value returned by reset() should be passed in as
+	reset_sig_count. */
+	void wait_low(int64_t reset_sig_count) UNIV_NOTHROW;
+
+	/**
+	Waits for an event object until it is in the signaled state or
+	a timeout is exceeded.
+	@param time_in_usec - timeout in microseconds,
+	or OS_SYNC_INFINITE_TIME
+	@param reset_sig_count- zero or the value returned by
+	previous call of os_event_reset().
+	@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+	ulint wait_time_low(
+		ulint		time_in_usec,
+		int64_t		reset_sig_count) UNIV_NOTHROW;
+
+	/** @return true if the event is in the signalled state. */
+	bool is_set() const UNIV_NOTHROW
+	{
+		return(count_and_set & set_mask);
+	}
+
+private:
+	/**
+	Initialize a condition variable */
+	void init() UNIV_NOTHROW
+	{
+
+		mutex.init();
+
+#ifdef _WIN32
+		InitializeConditionVariable(&cond_var);
+#else
+		{
+			int	ret;
+
+			ret = pthread_cond_init(&cond_var, NULL);
+			ut_a(ret == 0);
+		}
+#endif /* _WIN32 */
+	}
+
+	/**
+	Wait on condition variable */
+	void wait() UNIV_NOTHROW
+	{
+#ifdef _WIN32
+		if (!SleepConditionVariableCS(&cond_var, mutex, INFINITE)) {
+			ut_error;
+		}
+#else
+		{
+			int	ret;
+
+			ret = pthread_cond_wait(&cond_var, mutex);
+			ut_a(ret == 0);
+		}
+#endif /* _WIN32 */
+	}
+
+	/**
+	Wakes all threads waiting for condition variable */
+	void broadcast() UNIV_NOTHROW
+	{
+		count_and_set |= set_mask;
+		count_and_set++;
+
+#ifdef _WIN32
+		WakeAllConditionVariable(&cond_var);
+#else
+		{
+			int	ret;
+
+			ret = pthread_cond_broadcast(&cond_var);
+			ut_a(ret == 0);
+		}
+#endif /* _WIN32 */
+	}
+
+	/**
+	Wakes one thread waiting for condition variable */
+	void signal() UNIV_NOTHROW
+	{
+#ifdef _WIN32
+		WakeConditionVariable(&cond_var);
+#else
+		{
+			int	ret;
+
+			ret = pthread_cond_signal(&cond_var);
+			ut_a(ret == 0);
+		}
+#endif /* _WIN32 */
+	}
+
+	/**
+	Do a timed wait on condition variable.
+	@param abstime - timeout
+	@param time_in_ms - timeout in milliseconds.
+	@return true if timed out, false otherwise */
+	bool timed_wait(
+#ifndef _WIN32
+		const timespec*	abstime
+#else
+		DWORD		time_in_ms
+#endif /* !_WIN32 */
+			);
+
+private:
+
+	/** Masks for the event signal count and set flag in the count_and_set
+	field */
+	enum { count_mask = 0x7fffffffffffffffULL,
+	       set_mask   = 0x8000000000000000ULL};
+
+	/** The MSB is set whenever when the event is in the signaled state,
+	i.e. a thread does not stop if it tries to wait for this event.
+	bits are incremented each time the event becomes signaled. */
+	uint64_t		count_and_set;
+
+	EventMutex		mutex;		/*!< this mutex protects
+						the next fields */
+
+#ifdef _WIN32
+/** Native condition variable. */
+	typedef CONDITION_VARIABLE	os_cond_t;
+#else
+/** Native condition variable */
+	typedef pthread_cond_t		os_cond_t;
+#endif /* _WIN32 */
+
+	os_cond_t		cond_var;	/*!< condition variable is
+						used in waiting for the event */
+
+	// Disable copy constructor
+	os_event(const os_event&);
+};
+
+#endif
+
 typedef struct os_event* os_event_t;
 
 /** Denotes an infinite delay for os_event_wait_time() */

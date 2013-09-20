@@ -142,7 +142,7 @@ this must be equal to UNIV_PAGE_SIZE */
 #include "sync0rw.h"
 
 typedef ib_bpmutex_t BPageMutex;
-typedef ib_mutex_t BufPoolMutex;
+typedef ib_mutex_t BufListMutex;
 typedef ib_mutex_t FlushListMutex;
 typedef BPageMutex BufPoolZipMutex;
 typedef rw_lock_t BPageLock;

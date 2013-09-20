@@ -54,7 +54,11 @@ extern mysql_pfs_key_t	autoinc_mutex_key;
 # ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 extern mysql_pfs_key_t	buffer_block_mutex_key;
 # endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-extern mysql_pfs_key_t	buf_pool_mutex_key;
+extern mysql_pfs_key_t	buf_pool_flush_state_mutex_key;
+extern mysql_pfs_key_t	buf_pool_LRU_list_mutex_key;
+extern mysql_pfs_key_t	buf_pool_free_list_mutex_key;
+extern mysql_pfs_key_t	buf_pool_zip_free_mutex_key;
+extern mysql_pfs_key_t	buf_pool_zip_hash_mutex_key;
 extern mysql_pfs_key_t	buf_pool_zip_mutex_key;
 extern mysql_pfs_key_t	cache_last_read_mutex_key;
 extern mysql_pfs_key_t	dict_foreign_err_mutex_key;

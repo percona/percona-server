@@ -87,10 +87,11 @@ buf_flush_init_for_writing(
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**
 Writes a flushable page asynchronously from the buffer pool to a file.
-NOTE: buf_pool->mutex and block->mutex must be held upon entering this
-function, and they will be released by this function after flushing.
-This is loosely based on buf_flush_batch() and buf_flush_page().
+NOTE: block and LRU list mutexes must be held upon entering this function, and
+they will be released by this function after flushing. This is loosely based on
+buf_flush_batch() and buf_flush_page().
 @return TRUE if the page was flushed and the mutexes released */
+
 ibool
 buf_flush_page_try(
 /*===============*/
@@ -204,7 +205,8 @@ buf_flush_recv_note_modification(
 					set of mtr's */
 /********************************************************************//**
 Returns TRUE if the file page block is immediately suitable for replacement,
-i.e., transition FILE_PAGE => NOT_USED allowed.
+i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the
+LRU list and block mutexes.
 @return TRUE if can replace immediately */
 ibool
 buf_flush_ready_for_replace(
@@ -295,9 +297,10 @@ buf_flush_free_flush_rbt(void);
 Writes a flushable page asynchronously from the buffer pool to a file.
 NOTE: in simulated aio we must call
 os_aio_simulated_wake_handler_threads after we have posted a batch of
-writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
-held upon entering this function, and they will be released by this
-function.
+writes! NOTE: buf_page_get_mutex(bpage) must be held upon entering this
+function.  The LRU list mutex must be held iff flush_type
+== BUF_FLUSH_SINGLE_PAGE. Both mutexes will be released by this function if it
+returns true.
 @return TRUE if page was flushed */
 ibool
 buf_flush_page(

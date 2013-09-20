@@ -38,9 +38,11 @@ Created 9/8/1995 Heikki Tuuri
 
 #include <map>
 
+#ifdef _WIN32
 /** Mutex that tracks the thread count. Used by innorwlocktest.cc
 FIXME: the unit tests should use APIs */
 SysMutex	thread_mutex;
+#endif
 
 /** Number of threads active. */
 ulint	os_thread_count;
@@ -166,9 +168,7 @@ os_thread_create_func(
 
 	pthread_attr_init(&attr);
 
-	mutex_enter(&thread_mutex);
-	++os_thread_count;
-	mutex_exit(&thread_mutex);
+	os_atomic_increment_ulint(&os_thread_count, 1);
 
 	int	ret = pthread_create(&new_thread_id, &attr, func, arg);
 
@@ -224,12 +224,11 @@ os_thread_exit(
 	pfs_delete_thread();
 #endif
 
-	mutex_enter(&thread_mutex);
-
-	os_thread_count--;
+	os_atomic_decrement_ulint(&os_thread_count, 1);
 
 #ifdef _WIN32
 	DWORD win_thread_id = GetCurrentThreadId();
+	mutex_enter(&thread_mutex);
 	HANDLE handle = win_thread_map[win_thread_id];
 	CloseHandle(handle);
 	size_t ret = win_thread_map.erase(win_thread_id);
@@ -239,7 +238,6 @@ os_thread_exit(
 
 	ExitThread(0);
 #else
-	mutex_exit(&thread_mutex);
 	if (detach) {
 		pthread_detach(pthread_self());
 	}
@@ -294,8 +292,7 @@ bool
 os_thread_active()
 /*==============*/
 {
-	mutex_enter(&thread_mutex);
-
+	os_rmb;
 	bool active = (os_thread_count > 0);
 
 	/* All the threads have exited or are just exiting;
@@ -306,8 +303,6 @@ os_thread_active()
 	os_thread_exit().  Now we just sleep 0.1
 	seconds and hope that is enough! */
 
-	mutex_exit(&thread_mutex);
-
 	return(active);
 }
 
@@ -317,7 +312,9 @@ void
 os_thread_init()
 /*============*/
 {
+#ifdef _WIN32
 	mutex_create(LATCH_ID_THREAD_MUTEX, &thread_mutex);
+#endif
 }
 
 /**
@@ -331,6 +328,8 @@ os_thread_free()
 			" still active";
 	}
 
+#ifdef _WIN32
 	mutex_destroy(&thread_mutex);
+#endif
 }
 

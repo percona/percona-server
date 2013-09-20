@@ -6638,33 +6638,40 @@ btr_blob_free(
 	mtr_t*		mtr)	/*!< in: mini-transaction to commit */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
-	ulint		space = block->page.id.space();
-	ulint		page_no	= block->page.id.page_no();
+	page_id_t	page_id(block->page.id.space(),
+				block->page.id.page_no());
+	bool	freed	= false;
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
 	mtr_commit(mtr);
 
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
+	buf_page_mutex_enter(block);
 
 	/* Only free the block if it is still allocated to
 	the same file page. */
 
-	if (buf_block_get_state(block)
-	    == BUF_BLOCK_FILE_PAGE
-	    && block->page.id.space() == space
-	    && block->page.id.page_no() == page_no) {
+	if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+	    && page_id.equals_to(block->page.id)) {
 
-		if (!buf_LRU_free_page(&block->page, all)
-		    && all && block->page.zip.data) {
+		freed = buf_LRU_free_page(&block->page, all);
+
+		if (!freed && all && block->page.zip.data
+		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+		    && page_id.equals_to(block->page.id)) {
+
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_page(&block->page, false);
+			freed = buf_LRU_free_page(&block->page, false);
 		}
 	}
 
-	buf_pool_mutex_exit(buf_pool);
+	if (!freed) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+		buf_page_mutex_exit(block);
+	}
 }
 
 /** Helper class used while writing blob pages, during insert or update. */

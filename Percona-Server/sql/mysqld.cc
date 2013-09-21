@@ -108,6 +108,8 @@
 #include "sp_cache.h"
 #include "sql_reload.h"  // reload_acl_and_cache
 
+#include "my_timer.h"    // my_os_timer_init_ext, my_os_timer_deinit
+
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
@@ -719,6 +721,8 @@ char* utility_user_schema_access= NULL;
 /* Plucking this from sql/sql_acl.cc for an array of privilege names */
 extern TYPELIB utility_user_privileges_typelib;
 ulonglong utility_user_privileges= 0;
+
+SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
@@ -1789,6 +1793,12 @@ void clean_up(bool print_message)
 
   memcached_shutdown();
 
+#ifdef HAVE_MY_TIMER
+  if (have_statement_timeout == SHOW_OPTION_YES)
+    my_os_timer_deinit();
+#endif
+
+  have_statement_timeout= SHOW_OPTION_DISABLED;
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
@@ -4583,6 +4593,15 @@ static int init_server_components()
   mdl_init();
   if (table_def_init() | hostname_cache_init())
     unireg_abort(1);
+
+#ifdef HAVE_MY_TIMER
+  if (my_os_timer_init_ext())
+    sql_print_error("Failed to initialize timer component (errno %d).", errno);
+  else
+    have_statement_timeout= SHOW_OPTION_YES;
+#else
+  have_statement_timeout= SHOW_OPTION_NO;
+#endif
 
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_init();
@@ -7991,6 +8010,9 @@ SHOW_VAR status_vars[]= {
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
+  {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded), SHOW_LONG_STATUS},
+  {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set), SHOW_LONG_STATUS},
+  {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONG_STATUS},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},

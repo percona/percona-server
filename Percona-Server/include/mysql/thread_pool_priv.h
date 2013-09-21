@@ -30,7 +30,13 @@
   to include sql_profile.h and table.h.
 */
 #include <mysqld_error.h> /* To get ER_ERROR_ON_READ */
+/*
+  MYSQL_SERVER can be defined before including this header, check it to avoid
+  compilation error.
+*/
+#ifndef MYSQL_SERVER
 #define MYSQL_SERVER 1
+#endif //MYSQL_SERVER
 #include <scheduler.h>
 #include <debug_sync.h>
 #include <sql_profile.h>

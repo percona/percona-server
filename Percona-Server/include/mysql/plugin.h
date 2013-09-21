@@ -627,6 +627,13 @@ void thd_binlog_pos(const MYSQL_THD thd,
                     unsigned long long *pos_var);
 
 /**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+void thd_set_kill_status(const MYSQL_THD thd);
+
+/**
   Return the thread id of a user thread
 
   @param thd  user thread connection handle

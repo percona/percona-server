@@ -908,6 +908,9 @@ struct handlerton
                             const char *db, const char *table_name);
    int (*release_temporary_latches)(handlerton *hton, THD *thd);
 
+   /* Terminate connection/statement notification. */
+   void (*kill_connection)(handlerton *hton, THD *thd);
+
    /*
      Get log status.
      If log_status is null then the handler do not support transaction
@@ -3399,6 +3402,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
+void ha_kill_connection(THD *thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,

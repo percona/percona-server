@@ -66,6 +66,8 @@
 using std::min;
 using std::max;
 
+#include "sql_timer.h"                          // thd_timer_end
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -764,8 +766,11 @@ int thd_opt_slow_log()
   
   @note LOCK_thread_count mutex is not necessary when the function is invoked on
    the currently running thread (current_thd) or if the caller in some other
-   way guarantees that access to thd->query is serialized.
- 
+   way guarantees that the thread won't be going away.
+
+  @note The query string is only printed if the session (thd) to be
+        described belongs to the calling thread.
+
   @return Pointer to string
 */
 
@@ -778,13 +783,11 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   char header[256];
   int len;
   /*
-    The pointers thd->query and thd->proc_info might change since they are
-    being modified concurrently. This is acceptable for proc_info since its
-    values doesn't have to very accurate and the memory it points to is static,
-    but we need to attempt a snapshot on the pointer values to avoid using NULL
-    values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thread_count or risk pointing to
-    uninitialized memory.
+    The thd->proc_info pointer might change since it is being modified
+    concurrently. This is acceptable for proc_info since its value
+    doesn't have to be accurate and the memory it points to is static,
+    but we need to attempt a snapshot on the pointer values to avoid
+    using NULL values.
   */
   const char *proc_info= thd->proc_info;
 
@@ -818,9 +821,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-
-  if (thd->query())
+  if (thd == current_thd && thd->query())
   {
     if (max_query_len < 1)
       len= thd->query_length();
@@ -829,8 +830,6 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append('\n');
     str.append(thd->query(), len);
   }
-
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -1129,6 +1128,8 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  timer= timer_cache= NULL;
 }
 
 
@@ -1766,6 +1767,11 @@ THD::~THD()
   mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_unlock(&LOCK_thd_data);
 
+  DBUG_ASSERT(timer == NULL);
+
+  if (timer_cache)
+    thd_timer_end(timer_cache);
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   my_free(db);
@@ -1890,7 +1896,8 @@ void THD::awake(THD::killed_state state_to_set)
   /* Set the 'killed' flag of 'this', which is the target THD object. */
   killed= state_to_set;
 
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set != THD::KILL_QUERY &&
+      state_to_set != THD::KILL_TIMEOUT)
   {
 #ifdef SIGNAL_WITH_VIO_SHUTDOWN
     if (this != current_thd)
@@ -1932,6 +1939,13 @@ void THD::awake(THD::killed_state state_to_set)
     if (!slave_thread)
       MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
   }
+
+  /* Interrupt target waiting inside a storage engine. */
+  if (state_to_set != THD::NOT_KILLED)
+    ha_kill_connection(this);
+
+  if (state_to_set == THD::KILL_TIMEOUT)
+    status_var_increment(status_var.max_statement_time_exceeded);
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
@@ -4269,6 +4283,16 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
   return(thd->killed);
+}
+
+/**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+extern "C" void thd_set_kill_status(const MYSQL_THD thd)
+{
+  thd->send_kill_message();
 }
 
 /**

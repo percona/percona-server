@@ -28,4 +28,8 @@ Created 9/5/1995 Heikki Tuuri
 
 struct ib_mutex_t;
 
+/* The relative priority of the current thread.  If 0, low priority; if 1, high
+priority.  */
+extern UNIV_THREAD_LOCAL ulint srv_current_thread_priority;
+
 #endif

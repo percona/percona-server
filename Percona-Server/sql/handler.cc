@@ -4731,6 +4731,7 @@ void handler::update_global_table_stats()
       goto end;
     }
     strncpy(table_stats->table, key, sizeof(table_stats->table));
+    table_stats->table_len=              strlen(table_stats->table);
     table_stats->rows_read=              0;
     table_stats->rows_changed=           0;
     table_stats->rows_changed_x_indexes= 0;
@@ -4792,6 +4793,7 @@ void handler::update_global_index_stats()
           goto end;
         }
         strncpy(index_stats->index, key, sizeof(index_stats->index));
+        index_stats->index_len= strlen(index_stats->index);
         index_stats->rows_read= 0;
 
         if (my_hash_insert(&global_index_stats, (uchar *) index_stats))

@@ -250,6 +250,8 @@ typedef struct st_user_stats {
   uint total_connections;
   uint total_ssl_connections;
   uint concurrent_connections;
+  size_t user_len;
+  size_t priv_user_len;
   time_t connected_time;  // in seconds
   double busy_time;       // in seconds
   double cpu_time;        // in seconds
@@ -352,6 +354,7 @@ init_thread_stats(THREAD_STATS *thread_stats,
 
 typedef struct st_table_stats {
   char table[NAME_LEN * 2 + 2];  // [db] + '.' + [table] + '\0'
+  size_t table_len;
   ulonglong rows_read, rows_changed;
   ulonglong rows_changed_x_indexes;
   /* Stores enum db_type, but forward declarations cannot be done */
@@ -360,6 +363,7 @@ typedef struct st_table_stats {
 
 typedef struct st_index_stats {
   char index[NAME_LEN * 3 + 3];  // [db] + '.' + [table] + '.' + [index] + '\0'
+  size_t index_len;
   ulonglong rows_read;
 } INDEX_STATS;
 

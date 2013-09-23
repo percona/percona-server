@@ -19938,6 +19938,21 @@ static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, srv_doublewrite_batch_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Number of pages reserved in doublewrite buffer for batch flushing",
   NULL, NULL, 120, 1, 127, 0);
+
+#ifdef UNIV_LINUX
+
+static MYSQL_SYSVAR_BOOL(priority_purge, srv_purge_thread_priority,
+  PLUGIN_VAR_OPCMDARG,
+  "Make purge coordinator and worker threads acquire shared resources with "
+  "priority", NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(priority_master, srv_master_thread_priority,
+  PLUGIN_VAR_OPCMDARG,
+  "Make buffer pool cleaner thread acquire shared resources with priority",
+   NULL, NULL, FALSE);
+
+#endif /* UNIV_LINUX */
+
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,
@@ -20688,6 +20703,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
   MYSQL_SYSVAR(doublewrite_batch_size),
+#ifdef UNIV_LINUX
+  MYSQL_SYSVAR(priority_purge),
+  MYSQL_SYSVAR(priority_master),
+#endif /* UNIV_LINUX */
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(status_output),
   MYSQL_SYSVAR(status_output_locks),

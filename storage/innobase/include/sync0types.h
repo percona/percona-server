@@ -32,4 +32,13 @@ struct ib_mutex_t;
 priority.  */
 extern UNIV_THREAD_LOCAL ulint srv_current_thread_priority;
 
+struct ib_prio_mutex_t;
+
+/** Priority mutex and rwlatch acquisition priorities */
+enum ib_sync_priority {
+	DEFAULT_PRIO,
+	LOW_PRIO,
+	HIGH_PRIO
+};
+
 #endif

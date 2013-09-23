@@ -796,7 +796,7 @@ struct log_t{
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
-	ib_mutex_t		mutex;		/*!< mutex protecting the log */
+	ib_prio_mutex_t		mutex;		/*!< mutex protecting the log */
 
 	ib_mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting

@@ -83,7 +83,8 @@ struct sync_cell_t {
 	void*		wait_object;	/*!< pointer to the object the
 					thread is waiting for; if NULL
 					the cell is free for use */
-	ib_mutex_t*	old_wait_mutex;	/*!< the latest wait mutex in cell */
+	void*		old_wait_mutex;	/*!< the latest regular or priority
+					wait mutex in cell */
 	rw_lock_t*	old_wait_rw_lock;
 					/*!< the latest wait rw-lock
 					in cell */
@@ -295,6 +296,9 @@ sync_cell_get_event(
 
 	if (type == SYNC_MUTEX) {
 		return(((ib_mutex_t*) cell->wait_object)->event);
+	} else if (type == SYNC_PRIO_MUTEX) {
+		return(((ib_prio_mutex_t*) cell->wait_object)
+		       ->high_priority_event);
 	} else if (type == RW_LOCK_WAIT_EX) {
 		return(((rw_lock_t*) cell->wait_object)->wait_ex_event);
 	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
@@ -336,9 +340,8 @@ sync_array_reserve_cell(
 			cell->waiting = FALSE;
 			cell->wait_object = object;
 
-			if (type == SYNC_MUTEX) {
-				cell->old_wait_mutex =
-					static_cast<ib_mutex_t*>(object);
+			if (type == SYNC_MUTEX || type == SYNC_PRIO_MUTEX) {
+				cell->old_wait_mutex = object;
 			} else {
 				cell->old_wait_rw_lock =
 					static_cast<rw_lock_t*>(object);
@@ -436,6 +439,7 @@ sync_array_cell_print(
 	sync_cell_t*	cell)	/*!< in: sync cell */
 {
 	ib_mutex_t*	mutex;
+	ib_prio_mutex_t*	prio_mutex;
 	rw_lock_t*	rwlock;
 	ulint		type;
 	ulint		writer;
@@ -449,10 +453,19 @@ sync_array_cell_print(
 		innobase_basename(cell->file), (ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
 
-	if (type == SYNC_MUTEX) {
+	if (type == SYNC_MUTEX || type == SYNC_PRIO_MUTEX) {
 		/* We use old_wait_mutex in case the cell has already
 		been freed meanwhile */
-		mutex = cell->old_wait_mutex;
+		if (type == SYNC_MUTEX) {
+
+			mutex = static_cast<ib_mutex_t*>(cell->old_wait_mutex);
+		} else {
+
+			prio_mutex = static_cast<ib_prio_mutex_t*>
+				(cell->old_wait_mutex);
+			mutex = &prio_mutex->base_mutex;
+		}
+
 
 		fprintf(file,
 			"Mutex at %p '%s', lock var %lu\n"
@@ -466,6 +479,13 @@ sync_array_cell_print(
 			mutex->file_name, (ulong) mutex->line,
 #endif /* UNIV_SYNC_DEBUG */
 			(ulong) mutex->waiters);
+
+		if (type == SYNC_PRIO_MUTEX) {
+
+			fprintf(file,
+				"high-priority waiters flag %lu\n",
+				(ulong) prio_mutex->high_priority_waiters);
+		}
 
 	} else if (type == RW_LOCK_EX
 		   || type == RW_LOCK_WAIT_EX
@@ -615,9 +635,15 @@ sync_array_detect_deadlock(
 		return(FALSE); /* No deadlock here */
 	}
 
-	if (cell->request_type == SYNC_MUTEX) {
+	if (cell->request_type == SYNC_MUTEX
+	    || cell->request_type == SYNC_PRIO_MUTEX) {
 
-		mutex = static_cast<ib_mutex_t*>(cell->wait_object);
+		if (cell->request_type == SYNC_MUTEX) {
+			mutex = static_cast<ib_mutex_t*>(cell->wait_object);
+		} else {
+			mutex = &(static_cast<ib_prio_mutex_t*>(
+					  cell->wait_object))->base_mutex;
+		}
 
 		if (mutex_get_lock_word(mutex) != 0) {
 
@@ -734,9 +760,15 @@ sync_arr_cell_can_wake_up(
 	ib_mutex_t*	mutex;
 	rw_lock_t*	lock;
 
-	if (cell->request_type == SYNC_MUTEX) {
+	if (cell->request_type == SYNC_MUTEX
+	    || cell->request_type == SYNC_PRIO_MUTEX) {
 
-		mutex = static_cast<ib_mutex_t*>(cell->wait_object);
+		if (cell->request_type == SYNC_MUTEX) {
+			mutex = static_cast<ib_mutex_t*>(cell->wait_object);
+		} else {
+			mutex = &(static_cast<ib_prio_mutex_t*>(
+					  cell->wait_object))->base_mutex;
+		}
 
 		if (mutex_get_lock_word(mutex) == 0) {
 

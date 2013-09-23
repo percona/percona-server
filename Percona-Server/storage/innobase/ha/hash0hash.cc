@@ -105,15 +105,15 @@ UNIV_INTERN
 void
 hash_mutex_exit_all_but(
 /*====================*/
-	hash_table_t*	table,		/*!< in: hash table */
-	ib_mutex_t*	keep_mutex)	/*!< in: mutex to keep */
+	hash_table_t*		table,		/*!< in: hash table */
+	ib_prio_mutex_t*	keep_mutex)	/*!< in: mutex to keep */
 {
 	ulint	i;
 
 	ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
 	for (i = 0; i < table->n_sync_obj; i++) {
 
-		ib_mutex_t* mutex = table->sync_obj.mutexes + i;
+		ib_prio_mutex_t* mutex = table->sync_obj.mutexes + i;
 		if (UNIV_LIKELY(keep_mutex != mutex)) {
 			mutex_exit(mutex);
 		}
@@ -373,8 +373,8 @@ hash_create_sync_obj_func(
 
 	switch (type) {
 	case HASH_TABLE_SYNC_MUTEX:
-		table->sync_obj.mutexes = static_cast<ib_mutex_t*>(
-			mem_alloc(n_sync_obj * sizeof(ib_mutex_t)));
+		table->sync_obj.mutexes = static_cast<ib_prio_mutex_t*>(
+			mem_alloc(n_sync_obj * sizeof(ib_prio_mutex_t)));
 
 		for (i = 0; i < n_sync_obj; i++) {
 			mutex_create(hash_table_mutex_key,

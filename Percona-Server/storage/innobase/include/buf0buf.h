@@ -1818,8 +1818,8 @@ struct buf_pool_t{
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
-	ib_mutex_t	LRU_list_mutex;
-	ib_mutex_t	free_list_mutex;
+	ib_prio_mutex_t	LRU_list_mutex;
+	ib_prio_mutex_t	free_list_mutex;
 	ib_mutex_t	zip_free_mutex;
 	ib_mutex_t	zip_hash_mutex;
 	ib_mutex_t	flush_state_mutex;	/*!< Flush state protection

@@ -1552,7 +1552,7 @@ extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_t{
-	ib_mutex_t		mutex;		/*!< mutex protecting the data
+	ib_prio_mutex_t		mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
 					this mutex serializes CREATE TABLE

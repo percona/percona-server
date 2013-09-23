@@ -479,6 +479,18 @@ i/o handler thread */
 extern const char* srv_io_thread_op_info[];
 extern const char* srv_io_thread_function[];
 
+/* The relative priority of the purge coordinator and worker threads.  */
+extern my_bool srv_purge_thread_priority;
+
+/* The relative priority of the I/O threads.  */
+extern my_bool srv_io_thread_priority;
+
+/* The relative priority of the cleaner thread.  */
+extern my_bool srv_cleaner_thread_priority;
+
+/* The relative priority of the master thread.  */
+extern my_bool srv_master_thread_priority;
+
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
 

@@ -277,6 +277,13 @@ rarely invoked function for size instead for speed. */
 # define UNIV_COLD /* empty */
 #endif
 
+#ifdef UNIV_LINUX
+# define UNIV_THREAD_LOCAL __thread
+#else
+/* FIXME: the TLS variables are silently broken on other platforms for now */
+# define UNIV_THREAD_LOCAL
+#endif
+
 #ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
 

@@ -1187,7 +1187,7 @@ buf_LRU_get_free_only(
 {
 	buf_block_t*	block;
 
-	mutex_enter(&buf_pool->free_list_mutex);
+	mutex_enter_last(&buf_pool->free_list_mutex);
 
 	block = (buf_block_t*) UT_LIST_GET_LAST(buf_pool->free);
 
@@ -2228,7 +2228,7 @@ buf_LRU_block_free_non_file_page(
 		page_zip_set_size(&block->page.zip, 0);
 	}
 
-	mutex_enter(&buf_pool->free_list_mutex);
+	mutex_enter_first(&buf_pool->free_list_mutex);
 	buf_block_set_state(block, BUF_BLOCK_NOT_USED);
 	UT_LIST_ADD_FIRST(list, buf_pool->free, (&block->page));
 	ut_d(block->page.in_free_list = TRUE);

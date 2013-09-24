@@ -3184,6 +3184,12 @@ srv_redo_log_follow_thread(
 		os_event_wait(srv_checkpoint_completed_event);
 		os_event_reset(srv_checkpoint_completed_event);
 
+#ifdef UNIV_DEBUG
+		if (!srv_track_changed_pages) {
+			continue;
+		}
+#endif
+
 		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 			if (!log_online_follow_redo_log()) {
 				/* TODO: sync with I_S log tracking status? */

@@ -4892,6 +4892,8 @@ commit_cache_rebuild(
 		ctx->old_table, ctx->tmp_name, FALSE);
 	ut_a(error == DB_SUCCESS);
 
+	DEBUG_SYNC_C("commit_cache_rebuild_middle");
+
 	error = dict_table_rename_in_cache(
 		ctx->new_table, old_name, FALSE);
 	ut_a(error == DB_SUCCESS);

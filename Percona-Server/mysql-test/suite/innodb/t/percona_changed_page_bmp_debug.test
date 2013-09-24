@@ -3,6 +3,7 @@
 #
 --source include/have_debug.inc
 --source include/have_innodb.inc
+--source include/count_sessions.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -56,3 +57,48 @@ INSERT INTO t1 SELECT x FROM t1;
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;
+
+#
+# Test for bug 1217002 (RENAME/DROP crashes with innodb_track_changed_pages)
+#
+CREATE TABLE t1 (x INT NOT NULL UNIQUE KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(5);
+
+# 1. Pause the log tracking thread
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+
+# 2. Rename a table to log a MLOG_FILE_RENAME operation
+RENAME TABLE t1 TO t2;
+
+# 3. Start an ALTER TABLE and stop it after the table -> temp table rename
+--connect (con2,localhost,root,,)
+--connection default
+
+SET DEBUG_SYNC="commit_cache_rebuild_middle SIGNAL alter_table_ready WAIT_FOR finish_alter_table";
+
+send ALTER TABLE t2 ADD PRIMARY KEY(x);
+
+# 4. Force a checkpoint and resume the log tracker thread, so that it misapplies the t1 > t2 rename.
+--connection con2
+
+SET DEBUG_SYNC="now WAIT_FOR alter_table_ready";
+
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+
+# 5. Force the log tracker to catch up.
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+# 6. Finish the ALTER TABLE, which then crashes if the bug is present.
+SET DEBUG_SYNC="now SIGNAL finish_alter_table";
+
+--connection default
+reap;
+SET DEBUG_SYNC="RESET";
+
+disconnect con2;
+
+DROP TABLE t2;
+
+--source include/wait_until_count_sessions.inc

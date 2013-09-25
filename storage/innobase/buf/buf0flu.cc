@@ -141,7 +141,8 @@ buf_flush_set_hp(
 {
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 	ut_ad(buf_pool->flush_list_hp == NULL || bpage == NULL);
-	ut_ad(!bpage || buf_page_in_file(bpage));
+	ut_ad(!bpage || buf_page_in_file(bpage)
+	      || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 	ut_ad(!bpage || bpage->in_flush_list);
 	ut_ad(!bpage || buf_pool_from_bpage(bpage) == buf_pool);
 
@@ -1346,7 +1347,8 @@ buf_flush_page_and_try_neighbors(
 		mutex_enter(block_mutex);
 	}
 
-	ut_a(buf_page_in_file(bpage));
+	ut_a(buf_page_in_file(bpage)
+	     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 
 	if (buf_flush_ready_for_flush(bpage, flush_type)) {
 		buf_pool_t*	buf_pool;
@@ -1359,8 +1361,10 @@ buf_flush_page_and_try_neighbors(
 
 		/* These fields are protected by the buf_page_get_mutex()
 		mutex. */
-		space = buf_page_get_space(bpage);
-		offset = buf_page_get_page_no(bpage);
+		/* Read the fields directly in order to avoid asserting on
+		BUF_BLOCK_REMOVE_HASH pages. */
+		ulint	space = bpage->space;
+		ulint	offset = bpage->offset;
 
 		if (flush_type == BUF_FLUSH_LRU) {
 			mutex_exit(block_mutex);
@@ -2681,11 +2685,12 @@ buf_pool_get_dirty_pages_count(
 	     bpage != 0;
 	     bpage = UT_LIST_GET_NEXT(list, bpage)) {
 
-		ut_ad(buf_page_in_file(bpage));
+		ut_ad(buf_page_in_file(bpage)
+		      || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_ad(bpage->in_flush_list);
 		ut_ad(bpage->oldest_modification > 0);
 
-		if (buf_page_get_space(bpage) == id) {
+		if (bpage->space == id) {
 			++count;
 		}
 	}

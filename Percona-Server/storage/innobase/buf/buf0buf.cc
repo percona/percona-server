@@ -4938,13 +4938,16 @@ buf_get_latched_pages_number_instance(
 			break;
 		case BUF_BLOCK_FILE_PAGE:
 			/* uncompressed page */
+		case BUF_BLOCK_REMOVE_HASH:
+			/* We hold flush list but not LRU list mutex here.
+			Thus encountering BUF_BLOCK_REMOVE_HASH pages is
+			possible.  */
 			break;
 		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:
 		case BUF_BLOCK_MEMORY:
-		case BUF_BLOCK_REMOVE_HASH:
 			ut_error;
 			break;
 		}

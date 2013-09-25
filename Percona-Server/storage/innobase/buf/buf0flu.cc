@@ -141,7 +141,8 @@ buf_flush_set_hp(
 {
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 	ut_ad(buf_pool->flush_list_hp == NULL || bpage == NULL);
-	ut_ad(!bpage || buf_page_in_file(bpage));
+	ut_ad(!bpage || buf_page_in_file(bpage)
+	      || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 	ut_ad(!bpage || bpage->in_flush_list);
 	ut_ad(!bpage || buf_pool_from_bpage(bpage) == buf_pool);
 
@@ -1371,6 +1372,16 @@ buf_flush_page_and_try_neighbors(
 	if (flush_type == BUF_FLUSH_LRU) {
 		block_mutex = buf_page_get_mutex(bpage);
 		mutex_enter(block_mutex);
+	}
+
+	if (UNIV_UNLIKELY(buf_page_get_state(bpage)
+			  == BUF_BLOCK_REMOVE_HASH)) {
+
+		/* In case we don't hold the LRU list mutex, we may see a page
+		that is about to be relocated on the flush list.  Do not
+		attempt to flush it.  */
+		ut_ad(flush_type == BUF_FLUSH_LIST);
+		return (flushed);
 	}
 
 	ut_a(buf_page_in_file(bpage));
@@ -2667,11 +2678,12 @@ buf_pool_get_dirty_pages_count(
 	     bpage != 0;
 	     bpage = UT_LIST_GET_NEXT(list, bpage)) {
 
-		ut_ad(buf_page_in_file(bpage));
+		ut_ad(buf_page_in_file(bpage)
+		      || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_ad(bpage->in_flush_list);
 		ut_ad(bpage->oldest_modification > 0);
 
-		if (buf_page_get_space(bpage) == id) {
+		if (bpage->space == id) {
 			++count;
 		}
 	}

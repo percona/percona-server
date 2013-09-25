@@ -30,6 +30,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 	   -DCMAKE_BUILD_TYPE=Debug \
 	   -DWITH_SSL=system \
 	   -DWITH_EMBEDDED_SERVER=OFF \
+	   -DWITH_INNODB_MEMCACHED=ON \
 	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
 	   -DFEATURE_SET=$(feature_set) \
 	   -DCOMPILATION_COMMENT=$(compilation_comment_debug) \
@@ -43,6 +44,7 @@ endif
 	   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DWITH_SSL=system \
 	   -DWITH_EMBEDDED_SERVER=OFF \
+	   -DWITH_INNODB_MEMCACHED=ON \
 	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
 	   -DFEATURE_SET=$(feature_set) \
 	   -DCOMPILATION_COMMENT=$(compilation_comment_release) \

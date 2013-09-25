@@ -35,5 +35,11 @@ SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
 SET @@GLOBAL.innodb_track_changed_pages=TRUE;
 SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 SET DEBUG_SYNC="now SIGNAL finish_alter_table";
+SET DEBUG_SYNC="setup_bitmap_range_middle SIGNAL changed_pages_query_ready WAIT_FOR finish_changed_pages_query";
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+SET DEBUG_SYNC="now WAIT_FOR changed_pages_query_ready";
+call mtr.add_suppression("InnoDB: Warning: inconsistent bitmap file directory");
+SET DEBUG_SYNC="now SIGNAL finish_changed_pages_query";
+ERROR HY000: Can't read record in system table
 SET DEBUG_SYNC="RESET";
 DROP TABLE t2;

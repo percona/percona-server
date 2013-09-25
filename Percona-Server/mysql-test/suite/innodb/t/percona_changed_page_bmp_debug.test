@@ -95,6 +95,37 @@ SET DEBUG_SYNC="now SIGNAL finish_alter_table";
 
 --connection default
 reap;
+
+#
+# Test for
+# - bug 1191580 (InnoDB: Failing assertion: bitmap_files->files[0].seq_num
+#   == first_file_seq_num in file log0online.cc line 1423 | abort in
+#   log_online_setup_bitmap_file_range)
+# - bug 1191589 (mysqld-debug: .../sql/protocol.cc:518: void
+#   Protocol::end_statement(): Assertion `0' failed on a
+#   INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query)
+#
+
+SET DEBUG_SYNC="setup_bitmap_range_middle SIGNAL changed_pages_query_ready WAIT_FOR finish_changed_pages_query";
+
+send SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+
+--connection con2
+
+SET DEBUG_SYNC="now WAIT_FOR changed_pages_query_ready";
+
+# Remove the first bitmap file in the range after it has been enumerated 
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log_1_*.xdb;
+
+call mtr.add_suppression("InnoDB: Warning: inconsistent bitmap file directory");
+
+SET DEBUG_SYNC="now SIGNAL finish_changed_pages_query";
+
+--connection default
+
+--error ER_CANT_FIND_SYSTEM_REC
+reap;
+
 SET DEBUG_SYNC="RESET";
 
 disconnect con2;

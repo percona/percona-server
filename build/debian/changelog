@@ -1,3 +1,11 @@
+percona-server-5.5 (5.5.33-rel31.2) unstable; urgency=low
+
+  * Added --error-handler=: to dh_installinit in order to
+    avoid an error when the server wouldn't start for any
+    reasons other than bad installation.
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Wed, 24 Jul 2013 11:20:00 -0300
+
 percona-server-5.5 (5.5.13-rel20.4) unstable; urgency=low
 
   * Update versions to 5.5.13

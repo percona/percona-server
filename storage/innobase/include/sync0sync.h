@@ -923,6 +923,8 @@ or row lock! */
 #define RW_LOCK_WAIT_EX		353
 #define SYNC_MUTEX		354
 #define SYNC_PRIO_MUTEX		355
+#define PRIO_RW_LOCK_EX		356
+#define PRIO_RW_LOCK_SHARED	357
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock
@@ -979,12 +981,11 @@ struct ib_prio_mutex_t {
 					word etc. for the priority mutex  */
 	os_event_t	high_priority_event; /* High priority wait array
 					event */
-	volatile ulint	high_priority_waiters; /* Set to 1 if there are (or
-					may be) threads that asked for this
-					mutex to be acquired with high priority
-					in the global wait array for this mutex
-					to be released.  Otherwise, this is
-					0.  */
+	volatile ulint	high_priority_waiters; /* Number of threads that asked
+					for this mutex to be acquired with high
+					priority in the global wait array
+					waiting for this mutex to be
+					released. */
 };
 
 /** Constant determining how long spin wait is continued before suspending

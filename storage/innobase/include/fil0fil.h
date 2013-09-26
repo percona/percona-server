@@ -187,9 +187,6 @@ struct fsp_open_info {
 	lsn_t		lsn;		/*!< Flushed LSN from header page */
 	ulint		id;		/*!< Space ID */
 	ulint		flags;		/*!< Tablespace flags */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint		arch_log_no;	/*!< latest archived log file number */
-#endif /* UNIV_LOG_ARCHIVE */
 };
 
 #ifndef UNIV_HOTBACKUP
@@ -206,7 +203,7 @@ fil_space_get_version(
 Returns the latch of a file space.
 @return	latch protecting storage allocation */
 UNIV_INTERN
-rw_lock_t*
+prio_rw_lock_t*
 fil_space_get_latch(
 /*================*/
 	ulint	id,	/*!< in: space id */

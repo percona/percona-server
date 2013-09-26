@@ -234,7 +234,7 @@ mtr_release_s_latch_at_savepoint(
 /*=============================*/
 	mtr_t*		mtr,		/*!< in: mtr */
 	ulint		savepoint,	/*!< in: savepoint */
-	rw_lock_t*	lock);		/*!< in: latch to release */
+	prio_rw_lock_t*	lock);		/*!< in: latch to release */
 #else /* !UNIV_HOTBACKUP */
 # define mtr_release_s_latch_at_savepoint(mtr,savepoint,lock) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
@@ -281,7 +281,7 @@ UNIV_INLINE
 void
 mtr_s_lock_func(
 /*============*/
-	rw_lock_t*	lock,	/*!< in: rw-lock */
+	prio_rw_lock_t*	lock,	/*!< in: rw-lock */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line number */
 	mtr_t*		mtr);	/*!< in: mtr */
@@ -292,7 +292,7 @@ UNIV_INLINE
 void
 mtr_x_lock_func(
 /*============*/
-	rw_lock_t*	lock,	/*!< in: rw-lock */
+	prio_rw_lock_t*	lock,	/*!< in: rw-lock */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line number */
 	mtr_t*		mtr);	/*!< in: mtr */

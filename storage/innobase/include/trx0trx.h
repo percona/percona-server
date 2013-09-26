@@ -1141,7 +1141,7 @@ but does NOT protect:
 
 Bear in mind (3) and (4) when using the hash index.
 */
-extern rw_lock_t*	btr_search_latch_arr;
+extern prio_rw_lock_t*	btr_search_latch_arr;
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

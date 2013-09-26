@@ -547,7 +547,6 @@ buf_buddy_relocate(
 	const ulint	size	= BUF_BUDDY_LOW << i;
 	ulint		space;
 	ulint		offset;
-	rw_lock_t*	hash_lock;
 
 	ut_ad(mutex_own(&buf_pool->zip_free_mutex));
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
@@ -568,8 +567,10 @@ buf_buddy_relocate(
 
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
+	mutex_exit(&buf_pool->zip_free_mutex);
+
 	ulint		fold = buf_page_address_fold(space, offset);
-	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	prio_rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 	rw_lock_x_lock(hash_lock);
 
@@ -583,6 +584,7 @@ buf_buddy_relocate(
 
 		rw_lock_x_unlock(hash_lock);
 
+		mutex_enter(&buf_pool->zip_free_mutex);
 		return(false);
 	}
 
@@ -594,6 +596,7 @@ buf_buddy_relocate(
 
 		rw_lock_x_unlock(hash_lock);
 
+		mutex_enter(&buf_pool->zip_free_mutex);
 		return(false);
 	}
 

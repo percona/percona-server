@@ -55,7 +55,7 @@ but do NOT protect:
 Bear in mind (3) and (4) when using the hash indexes.
 */
 
-extern rw_lock_t*	btr_search_latch_arr;
+extern prio_rw_lock_t*	btr_search_latch_arr;
 
 #endif /* UNIV_HOTBACKUP */
 

@@ -1282,7 +1282,7 @@ buf_page_hash_get_locked(
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	rw_lock_t**	lock,		/*!< in/out: lock of the page
+	prio_rw_lock_t**	lock,	/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
@@ -1310,7 +1310,7 @@ buf_block_hash_get_locked(
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	rw_lock_t**	lock,		/*!< in/out: lock of the page
+	prio_rw_lock_t**	lock,	/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
@@ -1487,7 +1487,7 @@ struct buf_page_t{
 	buf_pool->mutex for writes only @see enum buf_io_fix */
 	unsigned	io_fix:2;
 
-	/*!< state of the control block; also protected by buf_pool->mutex.
+	/*!< state of the control block.
 	State transitions from BUF_BLOCK_READY_FOR_USE to BUF_BLOCK_MEMORY
 	need not be protected by buf_page_get_mutex(). @see enum buf_page_state.
 	State changes that are relevant to page_hash are additionally protected
@@ -1661,8 +1661,7 @@ struct buf_block_t{
 					used in debugging */
 #endif /* UNIV_DEBUG */
 	ib_mutex_t	mutex;		/*!< mutex protecting this block:
-					state (also protected by the buffer
-					pool mutex), io_fix, buf_fix_count,
+					state, io_fix, buf_fix_count,
 					and accessed; we introduce this new
 					mutex in InnoDB-5.1 to relieve
 					contention on the buffer pool mutex */
@@ -1847,8 +1846,6 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	ib_mutex_t	mutex;		/*!< Buffer pool mutex of this
-					instance */
 	ib_mutex_t	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not

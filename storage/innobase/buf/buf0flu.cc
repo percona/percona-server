@@ -1116,7 +1116,7 @@ buf_flush_check_neighbor(
 	buf_page_t*	bpage;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	bool		ret;
-	rw_lock_t*	hash_lock;
+	prio_rw_lock_t*	hash_lock;
 	ib_mutex_t*	block_mutex;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU
@@ -1235,8 +1235,7 @@ buf_flush_try_neighbors(
 
 	for (i = low; i < high; i++) {
 
-		buf_page_t*	bpage;
-		rw_lock_t*	hash_lock;
+		prio_rw_lock_t*	hash_lock;
 		ib_mutex_t*	block_mutex;
 
 		if ((count + n_flushed) >= n_to_flush) {
@@ -1257,8 +1256,8 @@ buf_flush_try_neighbors(
 		buf_pool = buf_pool_get(space, i);
 
 		/* We only want to flush pages from this buffer pool. */
-		bpage = buf_page_hash_get_s_locked(buf_pool, space, i,
-						   &hash_lock);
+		buf_page_t*	bpage = buf_page_hash_get_s_locked(buf_pool,
+						   space, i, &hash_lock);
 
 		if (bpage == NULL) {
 

@@ -552,7 +552,8 @@ mutex_spin_wait(
 	/* The typecast below is performed for some of the priority mutexes
 	too, when !high_priority.  This exploits the fact that regular mutex is
 	a prefix of the priority mutex in memory.  */
-	ib_mutex_t*	mutex = (ib_mutex_t *) _mutex;
+	ib_mutex_t*		mutex = (ib_mutex_t *) _mutex;
+	ib_prio_mutex_t*	prio_mutex = NULL;
 
 	counter_index = (size_t) os_thread_get_curr_id();
 
@@ -613,7 +614,10 @@ spin_loop:
 		goto spin_loop;
 	}
 
-	sync_arr = sync_array_get_and_reserve_cell(mutex, SYNC_MUTEX,
+	sync_arr = sync_array_get_and_reserve_cell(mutex,
+						   high_priority
+						   ? SYNC_PRIO_MUTEX
+						   : SYNC_MUTEX,
 						   file_name, line, &index);
 
 	/* The memory order of the array reservation and the change in the
@@ -623,8 +627,12 @@ spin_loop:
 	then the event is set to the signaled state. */
 
 	if (high_priority) {
-		((ib_prio_mutex_t *)_mutex)->high_priority_waiters = 1;
+
+		prio_mutex = reinterpret_cast<ib_prio_mutex_t *>(_mutex);
+		os_atomic_increment_ulint(&prio_mutex->high_priority_waiters,
+					  1);
 	} else {
+
 		mutex_set_waiters(mutex, 1);
 	}
 
@@ -640,6 +648,11 @@ spin_loop:
 			mutex_set_debug_info(mutex, file_name, line);
 #endif
 
+			if (prio_mutex) {
+				os_atomic_decrement_ulint(
+					&prio_mutex->high_priority_waiters,
+					1);
+			}
 			return;
 
 			/* Note that in this case we leave the waiters field
@@ -657,6 +670,12 @@ spin_loop:
 	mutex->count_os_wait++;
 
 	sync_array_wait_event(sync_arr, index);
+
+	if (prio_mutex) {
+
+		os_atomic_decrement_ulint(&prio_mutex->high_priority_waiters,
+					  1);
+	}
 
 	goto mutex_loop;
 }

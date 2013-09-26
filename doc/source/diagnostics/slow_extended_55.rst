@@ -185,7 +185,7 @@ For example, to enable microsecond query timing and |InnoDB| statistics, set thi
 
 .. variable:: slow_query_log_timestamp_always
 
-     :version 5.5.10-20.1: Introduced  (renamed from :variable:`log_slow_timestamp_every`)
+     :version 5.5.10-20.1: Introduced  (renamed from :variable:`use_global_log_slow_control`)
      :cli: Yes
      :conf: Yes
      :scope: Global

@@ -38,7 +38,7 @@ Command-line Options
 .. variable:: flush_caches
 
      :cli: No
-     :conf: No
+     :conf: Yes
      :location: mysqld_safe
      :dyn: No
      :vartype: Boolean
@@ -50,7 +50,7 @@ When enabled this will flush and purge buffers/caches before starting the server
 .. variable:: numa_interleave
 
      :cli: No
-     :conf: No
+     :conf: Yes
      :location: mysqld_safe
      :dyn: No
      :vartype: Boolean

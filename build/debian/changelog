@@ -1,3 +1,9 @@
+percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
+
+  * Enable innodb memcached
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Tue, 24 Sep 2013 20:00:00 -0300
+
 percona-server-5.6 (5.6.5-alpha60.0) unstable; urgency=low
 
   * Update versions to 5.6

@@ -208,7 +208,7 @@ btr_search_get_hash_table(
 Returns the adaptive hash index latch for a given index key.
 @return the adaptive hash index latch for a given index key */
 UNIV_INLINE
-rw_lock_t*
+prio_rw_lock_t*
 btr_search_get_latch(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */

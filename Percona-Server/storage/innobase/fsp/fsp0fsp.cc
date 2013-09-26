@@ -2044,7 +2044,7 @@ fseg_create_general(
 	ib_id_t		seg_id;
 	buf_block_t*	block	= 0; /* remove warning */
 	fseg_header_t*	header	= 0; /* remove warning */
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 	ibool		success;
 	ulint		n_reserved;
 	ulint		i;
@@ -2212,7 +2212,7 @@ fseg_n_reserved_pages(
 	ulint		space;
 	ulint		flags;
 	ulint		zip_size;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 
 	space = page_get_space_id(page_align(header));
 	latch = fil_space_get_latch(space, &flags);
@@ -2632,7 +2632,7 @@ fseg_alloc_free_page_general(
 	ulint		space;
 	ulint		flags;
 	ulint		zip_size;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 	buf_block_t*	block;
 	ulint		n_reserved;
 
@@ -2749,7 +2749,7 @@ fsp_reserve_free_extents(
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 {
 	fsp_header_t*	space_header;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 	ulint		n_free_list_ext;
 	ulint		free_limit;
 	ulint		size;
@@ -2865,7 +2865,7 @@ fsp_get_available_space_in_free_extents(
 	ulint		n_free;
 	ulint		n_free_up;
 	ulint		reserve;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 	mtr_t		mtr;
 
 	/* The convoluted mutex acquire is to overcome latching order
@@ -3195,7 +3195,7 @@ fseg_free_page(
 	ulint		flags;
 	ulint		zip_size;
 	fseg_inode_t*	seg_inode;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = fsp_flags_get_zip_size(flags);
@@ -3225,7 +3225,7 @@ fseg_page_is_free(
 	mtr_t		mtr;
 	ibool		is_free;
 	ulint		flags;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 	xdes_t*		descr;
 	ulint		zip_size;
 	fseg_inode_t*	seg_inode;
@@ -3350,7 +3350,7 @@ fseg_free_step(
 	ulint		flags;
 	ulint		zip_size;
 	ulint		header_page;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 
 	space = page_get_space_id(page_align(header));
 	header_page = page_get_page_no(page_align(header));
@@ -3438,7 +3438,7 @@ fseg_free_step_not_header(
 	ulint		flags;
 	ulint		zip_size;
 	ulint		page_no;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 
 	space = page_get_space_id(page_align(header));
 
@@ -3755,7 +3755,7 @@ fsp_validate(
 	fsp_header_t*	header;
 	fseg_inode_t*	seg_inode;
 	page_t*		seg_inode_page;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 	ulint		size;
 	ulint		flags;
 	ulint		zip_size;
@@ -4007,7 +4007,7 @@ fsp_print(
 	fsp_header_t*	header;
 	fseg_inode_t*	seg_inode;
 	page_t*		seg_inode_page;
-	rw_lock_t*	latch;
+	prio_rw_lock_t*	latch;
 	ulint		flags;
 	ulint		zip_size;
 	ulint		size;

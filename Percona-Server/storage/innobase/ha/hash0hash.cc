@@ -132,7 +132,7 @@ hash_lock_s(
 	ulint		fold)	/*!< in: fold */
 {
 
-	rw_lock_t* lock = hash_get_lock(table, fold);
+	prio_rw_lock_t* lock = hash_get_lock(table, fold);
 
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
@@ -155,7 +155,7 @@ hash_lock_x(
 	ulint		fold)	/*!< in: fold */
 {
 
-	rw_lock_t* lock = hash_get_lock(table, fold);
+	prio_rw_lock_t* lock = hash_get_lock(table, fold);
 
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
@@ -179,7 +179,7 @@ hash_unlock_s(
 	ulint		fold)	/*!< in: fold */
 {
 
-	rw_lock_t* lock = hash_get_lock(table, fold);
+	prio_rw_lock_t* lock = hash_get_lock(table, fold);
 
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
@@ -200,7 +200,7 @@ hash_unlock_x(
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold)	/*!< in: fold */
 {
-	rw_lock_t* lock = hash_get_lock(table, fold);
+	prio_rw_lock_t* lock = hash_get_lock(table, fold);
 
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
@@ -225,7 +225,7 @@ hash_lock_x_all(
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	for (i = 0; i < table->n_sync_obj; i++) {
 
-		rw_lock_t* lock = table->sync_obj.rw_locks + i;
+		prio_rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
 		ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
@@ -248,7 +248,7 @@ hash_unlock_x_all(
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	for (i = 0; i < table->n_sync_obj; i++) {
 
-		rw_lock_t* lock = table->sync_obj.rw_locks + i;
+		prio_rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -264,14 +264,14 @@ void
 hash_unlock_x_all_but(
 /*==================*/
 	hash_table_t*	table,		/*!< in: hash table */
-	rw_lock_t*	keep_lock)	/*!< in: lock to keep */
+	prio_rw_lock_t*	keep_lock)	/*!< in: lock to keep */
 {
 	ulint	i;
 
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	for (i = 0; i < table->n_sync_obj; i++) {
 
-		rw_lock_t* lock = table->sync_obj.rw_locks + i;
+		prio_rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -384,8 +384,8 @@ hash_create_sync_obj_func(
 		break;
 
 	case HASH_TABLE_SYNC_RW_LOCK:
-		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
-			mem_alloc(n_sync_obj * sizeof(rw_lock_t)));
+		table->sync_obj.rw_locks = static_cast<prio_rw_lock_t*>(
+			mem_alloc(n_sync_obj * sizeof(prio_rw_lock_t)));
 
 		for (i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_rw_lock_key,

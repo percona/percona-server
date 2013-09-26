@@ -919,6 +919,8 @@ or row lock! */
 #define RW_LOCK_WAIT_EX		353
 #define SYNC_MUTEX		354
 #define SYNC_PRIO_MUTEX		355
+#define PRIO_RW_LOCK_EX		356
+#define PRIO_RW_LOCK_SHARED	357
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock

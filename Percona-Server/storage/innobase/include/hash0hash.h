@@ -391,7 +391,7 @@ hash_get_nth_mutex(
 Gets the nth rw_lock in a hash table.
 @return	rw_lock */
 UNIV_INLINE
-rw_lock_t*
+prio_rw_lock_t*
 hash_get_nth_lock(
 /*==============*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -409,7 +409,7 @@ hash_get_mutex(
 Gets the rw_lock for a fold value in a hash table.
 @return	rw_lock */
 UNIV_INLINE
-rw_lock_t*
+prio_rw_lock_t*
 hash_get_lock(
 /*==========*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -506,7 +506,7 @@ void
 hash_unlock_x_all_but(
 /*==================*/
 	hash_table_t*	table,		/*!< in: hash table */
-	rw_lock_t*	keep_lock);	/*!< in: lock to keep */
+	prio_rw_lock_t*	keep_lock);	/*!< in: lock to keep */
 
 #else /* !UNIV_HOTBACKUP */
 # define hash_get_heap(table, fold)	((table)->heap)
@@ -551,7 +551,7 @@ struct hash_table_t {
 					/* NULL, or an array of mutexes
 					used to protect segments of the
 					hash table */
-		rw_lock_t*	rw_locks;/* NULL, or an array of rw_lcoks
+		prio_rw_lock_t*	rw_locks;/* NULL, or an array of rw_lcoks
 					used to protect segments of the
 					hash table */
 	} sync_obj;

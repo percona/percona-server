@@ -85,9 +85,9 @@ struct sync_cell_t {
 					the cell is free for use */
 	void*		old_wait_mutex;	/*!< the latest regular or priority
 					wait mutex in cell */
-	rw_lock_t*	old_wait_rw_lock;
-					/*!< the latest wait rw-lock
-					in cell */
+	void*		old_wait_rw_lock;
+					/*!< the latest regular or priority
+					wait rw-lock in cell */
 	ulint		request_type;	/*!< lock type requested on the
 					object */
 	const char*	file;		/*!< in debug version file where
@@ -301,7 +301,14 @@ sync_cell_get_event(
 		       ->high_priority_event);
 	} else if (type == RW_LOCK_WAIT_EX) {
 		return(((rw_lock_t*) cell->wait_object)->wait_ex_event);
+	} else if (type == PRIO_RW_LOCK_SHARED) {
+		return(((prio_rw_lock_t *) cell->wait_object)
+		       ->high_priority_s_event);
+	} else if (type == PRIO_RW_LOCK_EX) {
+		return(((prio_rw_lock_t *) cell->wait_object)
+		       ->high_priority_x_event);
 	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
+		ut_ad(type == RW_LOCK_SHARED || type == RW_LOCK_EX);
 		return(((rw_lock_t*) cell->wait_object)->event);
 	}
 }
@@ -343,8 +350,7 @@ sync_array_reserve_cell(
 			if (type == SYNC_MUTEX || type == SYNC_PRIO_MUTEX) {
 				cell->old_wait_mutex = object;
 			} else {
-				cell->old_wait_rw_lock =
-					static_cast<rw_lock_t*>(object);
+				cell->old_wait_rw_lock = object;
 			}
 
 			cell->request_type = type;
@@ -441,6 +447,7 @@ sync_array_cell_print(
 	ib_mutex_t*	mutex;
 	ib_prio_mutex_t*	prio_mutex;
 	rw_lock_t*	rwlock;
+	prio_rw_lock_t*	prio_rwlock	= NULL;
 	ulint		type;
 	ulint		writer;
 
@@ -489,13 +496,29 @@ sync_array_cell_print(
 
 	} else if (type == RW_LOCK_EX
 		   || type == RW_LOCK_WAIT_EX
-		   || type == RW_LOCK_SHARED) {
+		   || type == RW_LOCK_SHARED
+		   || type == PRIO_RW_LOCK_SHARED
+		   || type == PRIO_RW_LOCK_EX) {
 
-		fputs(type == RW_LOCK_EX ? "X-lock on"
+		fputs((type == RW_LOCK_EX || type == PRIO_RW_LOCK_EX)
+		      ? "X-lock on"
 		      : type == RW_LOCK_WAIT_EX ? "X-lock (wait_ex) on"
 		      : "S-lock on", file);
 
-		rwlock = cell->old_wait_rw_lock;
+		/* Currently we are unable to tell high priority
+	        RW_LOCK_WAIT_EX waiter from a regular priority one.  Assume
+	        it's a regular one.  */
+		if (type == RW_LOCK_EX || type == RW_LOCK_WAIT_EX
+		    || type == RW_LOCK_SHARED) {
+
+			rwlock = static_cast<rw_lock_t *>
+				(cell->old_wait_rw_lock);
+		} else {
+
+			prio_rwlock = static_cast<prio_rw_lock_t *>
+				(cell->old_wait_rw_lock);
+			rwlock = &prio_rwlock->base_lock;
+		}
 
 		fprintf(file,
 			" RW-latch at %p '%s'\n",
@@ -523,6 +546,15 @@ sync_array_cell_print(
 			(ulong) rwlock->last_s_line,
 			rwlock->last_x_file_name,
 			(ulong) rwlock->last_x_line);
+		if (prio_rwlock) {
+			fprintf(stderr, "high priority S waiters flag %lu, "
+				"high priority X waiters flag %lu, "
+				"wait-exclusive waiter is "
+				"high priority if exists: %lu\n",
+				prio_rwlock->high_priority_s_waiters,
+				prio_rwlock->high_priority_x_waiters,
+				prio_rwlock->high_priority_wait_ex_waiter);
+		}
 	} else {
 		ut_error;
 	}
@@ -673,6 +705,7 @@ sync_array_detect_deadlock(
 		return(FALSE); /* No deadlock */
 
 	} else if (cell->request_type == RW_LOCK_EX
+		   || cell->request_type == PRIO_RW_LOCK_EX
 		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
@@ -711,7 +744,8 @@ print:
 
 		return(FALSE);
 
-	} else if (cell->request_type == RW_LOCK_SHARED) {
+	} else if (cell->request_type == RW_LOCK_SHARED
+		   || cell->request_type == PRIO_RW_LOCK_SHARED) {
 
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
@@ -775,7 +809,8 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 
-	} else if (cell->request_type == RW_LOCK_EX) {
+	} else if (cell->request_type == RW_LOCK_EX
+		   || cell->request_type == PRIO_RW_LOCK_EX) {
 
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
@@ -794,7 +829,8 @@ sync_arr_cell_can_wake_up(
 
 			return(TRUE);
 		}
-	} else if (cell->request_type == RW_LOCK_SHARED) {
+	} else if (cell->request_type == RW_LOCK_SHARED
+		   || cell->request_type == PRIO_RW_LOCK_SHARED) {
 		lock = static_cast<rw_lock_t*>(cell->wait_object);
 
                 /* lock_word > 0 means no writer or reserved writer */
@@ -802,6 +838,9 @@ sync_arr_cell_can_wake_up(
 
 			return(TRUE);
 		}
+	} else {
+
+		ut_error;
 	}
 
 	return(FALSE);

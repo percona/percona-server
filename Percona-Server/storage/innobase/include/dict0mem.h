@@ -544,7 +544,7 @@ struct zip_pad_info_t {
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
 	index_id_t	id;	/*!< id of the index */
-	rw_lock_t*	search_latch; /*!< latch protecting the AHI partition
+	prio_rw_lock_t*	search_latch; /*!< latch protecting the AHI partition
 				      corresponding to this index */
 	hash_table_t*	search_table; /*!< hash table protected by
 				      search_latch */
@@ -632,7 +632,7 @@ struct dict_index_t{
 				/*!< approximate number of leaf pages in the
 				index tree */
 	/* @} */
-	rw_lock_t	lock;	/*!< read-write lock protecting the
+	prio_rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
 	trx_id_t	trx_id; /*!< id of the transaction that created this
 				index, or 0 if the index existed

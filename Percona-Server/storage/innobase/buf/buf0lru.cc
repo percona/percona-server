@@ -751,7 +751,7 @@ scan_again:
 	     bpage != NULL;
 	     /* No op */) {
 
-		rw_lock_t*	hash_lock;
+		prio_rw_lock_t*	hash_lock;
 		buf_page_t*	prev_bpage;
 		ib_mutex_t*	block_mutex = NULL;
 
@@ -1900,7 +1900,7 @@ buf_LRU_free_page(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	prio_rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
@@ -2264,7 +2264,7 @@ buf_LRU_block_remove_hashed(
 	ulint			fold;
 	const buf_page_t*	hashed_bpage;
 	buf_pool_t*		buf_pool = buf_pool_from_bpage(bpage);
-	rw_lock_t*		hash_lock;
+	prio_rw_lock_t*		hash_lock;
 
 	ut_ad(bpage);
 	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -2513,7 +2513,7 @@ buf_LRU_free_one_page(
 #ifdef UNIV_SYNC_DEBUG
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	prio_rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 #endif
 	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 

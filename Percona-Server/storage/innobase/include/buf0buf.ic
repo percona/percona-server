@@ -1100,7 +1100,7 @@ buf_page_hash_get_low(
 
 #ifdef UNIV_SYNC_DEBUG
 	ulint		hash_fold;
-	rw_lock_t*	hash_lock;
+	prio_rw_lock_t*	hash_lock;
 
 	hash_fold = buf_page_address_fold(space, offset);
 	ut_ad(hash_fold == fold);
@@ -1149,7 +1149,7 @@ buf_page_hash_get_locked(
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	rw_lock_t**	lock,		/*!< in/out: lock of the page
+	prio_rw_lock_t**	lock,	/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock
@@ -1160,7 +1160,7 @@ buf_page_hash_get_locked(
 {
 	buf_page_t*	bpage = NULL;
 	ulint		fold;
-	rw_lock_t*	hash_lock;
+	prio_rw_lock_t*	hash_lock;
 	ulint		mode = RW_LOCK_SHARED;
 
 	if (lock != NULL) {
@@ -1232,7 +1232,7 @@ buf_block_hash_get_locked(
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	rw_lock_t**	lock,		/*!< in/out: lock of the page
+	prio_rw_lock_t**	lock,	/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
 					is passed then the hash_lock

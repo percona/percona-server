@@ -164,6 +164,47 @@ Install: ::
 
   $ make install
 
+===================================================
+ Installing |Percona Server| from a Binary Tarball
+===================================================
+
+Fetch and extract the binary tarball. For example: ::
+
+ $ wget http://www.percona.com/redir/downloads/Percona-Server-5.6/LATEST/binary/linux/x86_64/Percona-Server-5.6.13-rc60.6-427.Linux.x86_64.tar.gz
+ $ xzfv Percona-Server-5.6.13-rc60.6-427.Linux.x86_64.tar.gz 
+
+After that you need to add/create ``mysql`` user and group: ::
+
+ $ groupadd mysql
+ $ useradd -r -g mysql mysql
+
+Now create a symlink from the extracted folder to the ``/usr/local`` folder: :: 
+
+ $ cd /usr/local/
+ $ ln -s /usr/local/Percona-Server-5.6.13-rc60.6-427.Linux.x86_64 mysql
+
+Change the ownership of the folder to ``mysql`` user: ::
+
+ $ chown mysql:mysql -R mysql/
+
+And run the ``mysql_install_db`` script, which will initialize the |MySQL| data directory, create the system tables that it contains, and create the default configuration file :file:`my.cnf`. Make sure that this configuration file has correct information. ::
+
+ $ cd mysql
+ $ scripts/mysql_install_db --user=mysql 
+
+Directory ownership can be assigned to the ``root`` user, except the data directory which should be under the ``mysql`` user: ::
+
+ $ chown -R root .
+ $ chown -R mysql data
+
+After this is successfully done server can be started with: ::
+
+ $ bin/mysqld_safe --user=mysql &
+
+.. note::
+
+   The binary tarball on RHEL 6-like OS depends on OpenSSL 0.9.8e being installed, available in openssl098e package, which is side-by-side installable with openssl 1.0.
+
 =========================================================
  Installing |Percona Server| from the Bazaar Source Tree
 =========================================================

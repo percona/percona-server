@@ -72,7 +72,7 @@ NOTE: They do not protect values of non-ordering fields within a record from
 being updated in-place! We can use fact (1) to perform unique searches to
 indexes. */
 
-UNIV_INTERN rw_lock_t*		btr_search_latch_arr;
+UNIV_INTERN prio_rw_lock_t*	btr_search_latch_arr;
 
 /** padding to prevent other memory update hotspots from residing on
 the same memory cache line */
@@ -184,8 +184,8 @@ btr_search_sys_create(
 	/* btr_search_index_num is constrained to machine word size for
 	historical reasons. This limitation can be easily removed later. */
 
-	btr_search_latch_arr = (rw_lock_t *)
-		mem_alloc(sizeof(rw_lock_t) * btr_search_index_num);
+	btr_search_latch_arr = (prio_rw_lock_t *)
+		mem_alloc(sizeof(prio_rw_lock_t) * btr_search_index_num);
 
 	btr_search_sys = (btr_search_sys_t*)
 		mem_alloc(sizeof(btr_search_sys_t));

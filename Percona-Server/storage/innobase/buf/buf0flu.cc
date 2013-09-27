@@ -1141,7 +1141,7 @@ buf_flush_check_neighbor(
 	buf_page_t*	bpage;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	bool		ret;
-	rw_lock_t*	hash_lock;
+	prio_rw_lock_t*	hash_lock;
 	ib_mutex_t*	block_mutex;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU
@@ -1260,7 +1260,7 @@ buf_flush_try_neighbors(
 	for (i = low; i < high; i++) {
 
 		buf_page_t*	bpage;
-		rw_lock_t*	hash_lock;
+		prio_rw_lock_t*	hash_lock;
 		ib_mutex_t*	block_mutex;
 
 		if ((count + n_flushed) >= n_to_flush) {
@@ -2451,6 +2451,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	buf_page_cleaner_is_active = TRUE;
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+
+		srv_current_thread_priority = srv_cleaner_thread_priority;
 
 		/* The page_cleaner skips sleep if the server is
 		idle and there are no pending IOs in the buffer pool

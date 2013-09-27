@@ -238,7 +238,7 @@ struct fil_space_t {
 	hash_node_t	hash;	/*!< hash chain node */
 	hash_node_t	name_hash;/*!< hash chain the name_hash table */
 #ifndef UNIV_HOTBACKUP
-	rw_lock_t	latch;	/*!< latch protecting the file space storage
+	prio_rw_lock_t	latch;	/*!< latch protecting the file space storage
 				allocation */
 #endif /* !UNIV_HOTBACKUP */
 	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
@@ -547,7 +547,7 @@ fil_space_get_version(
 Returns the latch of a file space.
 @return	latch protecting storage allocation */
 UNIV_INTERN
-rw_lock_t*
+prio_rw_lock_t*
 fil_space_get_latch(
 /*================*/
 	ulint	id,	/*!< in: space id */

@@ -548,7 +548,7 @@ buf_buddy_relocate(
 	ib_mutex_t*	mutex;
 	ulint		space;
 	ulint		offset;
-	rw_lock_t*	hash_lock;
+	prio_rw_lock_t*	hash_lock;
 
 	ut_ad(mutex_own(&buf_pool->zip_free_mutex));
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));

@@ -65,7 +65,7 @@ buf_read_page_handle_error(
 					== BUF_BLOCK_FILE_PAGE);
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
-	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	prio_rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 	mutex_enter(&buf_pool->LRU_list_mutex);
 	rw_lock_x_lock(hash_lock);
@@ -347,7 +347,7 @@ buf_read_ahead_random(
 
 	for (i = low; i < high; i++) {
 
-		rw_lock_t*	hash_lock;
+		prio_rw_lock_t*	hash_lock;
 
 		const buf_page_t* bpage =
 			buf_page_hash_get_s_locked(buf_pool, space, i,
@@ -642,7 +642,7 @@ buf_read_ahead_linear(
 
 	for (i = low; i < high; i++) {
 
-		rw_lock_t*	hash_lock;
+		prio_rw_lock_t*	hash_lock;
 
 		bpage = buf_page_hash_get_s_locked(buf_pool, space, i,
 						   &hash_lock);

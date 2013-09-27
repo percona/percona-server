@@ -476,6 +476,7 @@ DECLARE_THREAD(io_handler_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+		srv_current_thread_priority = srv_io_thread_priority;
 		fil_aio_wait(segment);
 	}
 

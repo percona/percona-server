@@ -321,6 +321,40 @@ mutex_create_func(
 }
 
 /******************************************************************//**
+Creates, or rather, initializes a priority mutex object in a specified memory
+location (which must be appropriately aligned). The mutex is initialized
+in the reset state. Explicit freeing of the mutex with mutex_free is
+necessary only if the memory block containing it is freed. */
+UNIV_INTERN
+void
+mutex_create_func(
+/*==============*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to memory */
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+	ulint			level,		/*!< in: level */
+# endif /* UNIV_SYNC_DEBUG */
+	const char*		cfile_name,	/*!< in: file name where
+						created */
+	ulint			cline,		/*!< in: file line where
+						created */
+#endif /* UNIV_DEBUG */
+	const char*		cmutex_name)	/*!< in: mutex name */
+{
+	mutex_create_func(&mutex->base_mutex,
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+			  level,
+#endif /* UNIV_SYNC_DEBUG */
+			  cfile_name,
+			  cline,
+#endif /* UNIV_DEBUG */
+			  cmutex_name);
+	mutex->high_priority_waiters = 0;
+	mutex->high_priority_event = os_event_create();
+}
+
+/******************************************************************//**
 NOTE! Use the corresponding macro mutex_free(), not directly this function!
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
@@ -378,6 +412,22 @@ func_exit:
 	mutex->magic_n = 0;
 #endif /* UNIV_DEBUG */
 	return;
+}
+
+/******************************************************************//**
+NOTE! Use the corresponding macro mutex_free(), not directly this function!
+Calling this function is obligatory only if the memory buffer containing
+the mutex is freed. Removes a priority mutex object from the mutex list. The
+mutex is checked to be in the reset state. */
+UNIV_INTERN
+void
+mutex_free_func(
+/*============*/
+	ib_prio_mutex_t*	mutex)	/*!< in: mutex */
+{
+	ut_a(mutex->high_priority_waiters == 0);
+	os_event_free(mutex->high_priority_event);
+	mutex_free_func(&mutex->base_mutex);
 }
 
 /********************************************************************//**
@@ -442,6 +492,20 @@ mutex_own(
 	return(mutex_get_lock_word(mutex) == 1
 	       && os_thread_eq(mutex->thread_id, os_thread_get_curr_id()));
 }
+
+/******************************************************************//**
+Checks that the current thread owns the priority mutex. Works only
+in the debug version.
+@return	TRUE if owns */
+UNIV_INTERN
+ibool
+mutex_own(
+/*======*/
+	const ib_prio_mutex_t*	mutex)	/*!< in: priority mutex */
+{
+	return mutex_own(&mutex->base_mutex);
+}
+
 #endif /* UNIV_DEBUG */
 
 /******************************************************************//**
@@ -464,14 +528,17 @@ mutex_set_waiters(
 }
 
 /******************************************************************//**
-Reserves a mutex for the current thread. If the mutex is reserved, the
-function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
-for the mutex before suspending the thread. */
+Reserves a mutex or a priority mutex for the current thread. If the mutex is
+reserved, the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
+waiting for the mutex before suspending the thread. */
 UNIV_INTERN
 void
 mutex_spin_wait(
 /*============*/
-	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	void*		_mutex,		/*!< in: pointer to mutex */
+	bool		high_priority,	/*!< in: whether the mutex is a
+					priority mutex with high priority
+					specified */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line)		/*!< in: line where requested */
@@ -480,6 +547,10 @@ mutex_spin_wait(
 	ulint		index;		/* index of the reserved wait cell */
 	sync_array_t*	sync_arr;
 	size_t		counter_index;
+	/* The typecast below is performed for some of the priority mutexes
+	too, when !high_priority.  This exploits the fact that regular mutex is
+	a prefix of the priority mutex in memory.  */
+	ib_mutex_t*	mutex = (ib_mutex_t *) _mutex;
 
 	counter_index = (size_t) os_thread_get_curr_id();
 
@@ -543,7 +614,8 @@ spin_loop:
 	sync_arr = sync_array_get();
 
 	sync_array_reserve_cell(
-		sync_arr, mutex, SYNC_MUTEX, file_name, line, &index);
+		sync_arr, mutex, high_priority ? SYNC_PRIO_MUTEX : SYNC_MUTEX,
+		file_name, line, &index);
 
 	/* The memory order of the array reservation and the change in the
 	waiters field is important: when we suspend a thread, we first
@@ -551,7 +623,11 @@ spin_loop:
 	released in mutex_exit, the waiters field is first set to zero and
 	then the event is set to the signaled state. */
 
-	mutex_set_waiters(mutex, 1);
+	if (high_priority) {
+		((ib_prio_mutex_t *)_mutex)->high_priority_waiters = 1;
+	} else {
+		mutex_set_waiters(mutex, 1);
+	}
 
 	/* Try to reserve still a few times */
 	for (i = 0; i < 4; i++) {

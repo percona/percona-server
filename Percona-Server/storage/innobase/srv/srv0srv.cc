@@ -319,6 +319,22 @@ UNIV_INTERN ulong	srv_adaptive_flushing_lwm	= 10;
 /* Number of iterations over which adaptive flushing is averaged. */
 UNIV_INTERN ulong	srv_flushing_avg_loops		= 30;
 
+/* The relative priority of the current thread.  If 0, low priority; if 1, high
+priority.  */
+UNIV_INTERN UNIV_THREAD_LOCAL ulint srv_current_thread_priority = 0;
+
+/* The relative priority of the purge coordinator and worker threads.  */
+UNIV_INTERN my_bool	srv_purge_thread_priority	= FALSE;
+
+/* The relative priority of the I/O threads.  */
+UNIV_INTERN my_bool	srv_io_thread_priority		= FALSE;
+
+/* The relative priority of the cleaner thread.  */
+UNIV_INTERN my_bool	srv_cleaner_thread_priority	= FALSE;
+
+/* The relative priority of the master thread.  */
+UNIV_INTERN my_bool	srv_master_thread_priority	= FALSE;
+
 /* The number of purge threads to use.*/
 UNIV_INTERN ulong	srv_n_purge_threads = 1;
 
@@ -2863,6 +2879,8 @@ loop:
 
 		MONITOR_INC(MONITOR_MASTER_THREAD_SLEEP);
 
+		srv_current_thread_priority = srv_master_thread_priority;
+
 		if (srv_check_activity(old_activity_count)) {
 			old_activity_count = srv_get_activity_count();
 			srv_master_do_active_tasks();
@@ -3002,6 +3020,8 @@ DECLARE_THREAD(srv_worker_thread)(
 		srv_suspend_thread(slot);
 
 		os_event_wait(slot->event);
+
+		srv_current_thread_priority = srv_purge_thread_priority;
 
 		if (srv_task_execute()) {
 
@@ -3278,6 +3298,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		}
 
 		n_total_purged = 0;
+
+		srv_current_thread_priority = srv_purge_thread_priority;
 
 		rseg_history_len = srv_do_purge(
 			srv_n_purge_threads, &n_total_purged);

@@ -277,6 +277,41 @@ rw_lock_create_func(
 }
 
 /******************************************************************//**
+Creates, or rather, initializes a priority rw-lock object in a specified memory
+location (which must be appropriately aligned). The rw-lock is initialized
+to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
+is necessary only if the memory block containing it is freed. */
+UNIV_INTERN
+void
+rw_lock_create_func(
+/*================*/
+	prio_rw_lock_t*	lock,		/*!< in: pointer to memory */
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+	ulint		level,		/*!< in: level */
+# endif /* UNIV_SYNC_DEBUG */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
+{
+	rw_lock_create_func(&lock->base_lock,
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+			    level,
+# endif
+			    cfile_name,
+			    cline,
+#endif
+			    cmutex_name);
+	lock->high_priority_s_waiters = 0;
+	lock->high_priority_s_event = os_event_create();
+	lock->high_priority_x_waiters = 0;
+	lock->high_priority_x_event = os_event_create();
+	lock->high_priority_wait_ex_waiter = 0;
+}
+
+/******************************************************************//**
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
@@ -321,6 +356,21 @@ rw_lock_free_func(
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
+/******************************************************************//**
+Calling this function is obligatory only if the memory buffer containing
+the priority rw-lock is freed. Removes an rw-lock object from the global list.
+The rw-lock is checked to be in the non-locked state. */
+UNIV_INTERN
+void
+rw_lock_free_func(
+/*==============*/
+	prio_rw_lock_t*	lock)	/*!< in: rw-lock */
+{
+	os_event_free(lock->high_priority_s_event);
+	os_event_free(lock->high_priority_x_event);
+	rw_lock_free_func(&lock->base_lock);
+}
+
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the rw-lock has been initialized and that there are no
@@ -347,20 +397,41 @@ rw_lock_validate(
 
 	return(TRUE);
 }
+
+/******************************************************************//**
+Checks that the priority rw-lock has been initialized and that there are no
+simultaneous shared and exclusive locks.
+@return	TRUE */
+UNIV_INTERN
+ibool
+rw_lock_validate(
+/*=============*/
+	prio_rw_lock_t*	lock)	/*!< in: rw-lock */
+{
+	ut_ad(lock->high_priority_s_waiters < 2);
+	ut_ad(lock->high_priority_x_waiters < 2);
+	return(rw_lock_validate(&lock->base_lock));
+}
+
 #endif /* UNIV_DEBUG */
 
 /******************************************************************//**
-Lock an rw-lock in shared mode for the current thread. If the rw-lock is
-locked in exclusive mode, or there is an exclusive lock request waiting,
-the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
-for the lock, before suspending the thread. */
+Lock a regular or priority rw-lock in shared mode for the current thread. If
+the rw-lock is locked in exclusive mode, or there is an exclusive lock request
+waiting, the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
+waiting for the lock, before suspending the thread. */
 UNIV_INTERN
 void
 rw_lock_s_lock_spin(
 /*================*/
-	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	void*		_lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock
 				will be passed to another thread to unlock */
+	bool		priority_lock,
+				/*!< in: whether the lock is a priority lock */
+	bool		high_priority,
+				/*!< in: whether we are acquiring a priority
+				lock with high priority */
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
@@ -368,6 +439,7 @@ rw_lock_s_lock_spin(
 	ulint		i = 0;	/* spin round count */
 	sync_array_t*	sync_arr;
 	size_t		counter_index;
+	rw_lock_t*	lock = (rw_lock_t *) _lock;
 
 	/* We reuse the thread id to index into the counter, cache
 	it here for efficiency. */
@@ -379,35 +451,47 @@ rw_lock_s_lock_spin(
 	rw_lock_stats.rw_s_spin_wait_count.add(counter_index, 1);
 lock_loop:
 
-	/* Spin waiting for the writer field to become free */
-	while (i < SYNC_SPIN_ROUNDS && lock->lock_word <= 0) {
-		if (srv_spin_wait_delay) {
-			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+	if (!rw_lock_higher_prio_waiters_exist(priority_lock, high_priority,
+					       lock)) {
+
+		/* Spin waiting for the writer field to become free */
+		while (i < SYNC_SPIN_ROUNDS && lock->lock_word <= 0) {
+			if (srv_spin_wait_delay) {
+				ut_delay(ut_rnd_interval(0,
+							 srv_spin_wait_delay));
+			}
+
+			i++;
 		}
 
-		i++;
-	}
+		if (i == SYNC_SPIN_ROUNDS) {
+			os_thread_yield();
+		}
 
-	if (i == SYNC_SPIN_ROUNDS) {
+		if (srv_print_latch_waits) {
+			fprintf(stderr,
+				"Thread " ULINTPF " spin wait rw-s-lock at %p"
+				" '%s' rnds " ULINTPF "\n",
+				os_thread_pf(os_thread_get_curr_id()),
+				(void*) lock, lock->lock_name, i);
+		}
+	} else {
+
+		/* In case of higher priority waiters already present, perform
+		only this part of the spinning code path.  */
 		os_thread_yield();
 	}
 
-	if (srv_print_latch_waits) {
-		fprintf(stderr,
-			"Thread " ULINTPF " spin wait rw-s-lock at %p"
-			" '%s' rnds " ULINTPF "\n",
-			os_thread_pf(os_thread_get_curr_id()),
-			(void*) lock, lock->lock_name, i);
-	}
-
 	/* We try once again to obtain the lock */
-	if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
+	if (!rw_lock_higher_prio_waiters_exist(priority_lock, high_priority,
+					       lock)
+	    && (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line))) {
 		rw_lock_stats.rw_s_spin_round_count.add(counter_index, i);
 
 		return; /* Success */
 	} else {
 
-		if (i < SYNC_SPIN_ROUNDS) {
+		if (i > 0 && i < SYNC_SPIN_ROUNDS) {
 			goto lock_loop;
 		}
 
@@ -416,14 +500,24 @@ lock_loop:
 		sync_arr = sync_array_get();
 
 		sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_SHARED,
+			sync_arr, lock,
+			high_priority ? PRIO_RW_LOCK_SHARED : RW_LOCK_SHARED,
 			file_name, line, &index);
 
 		/* Set waiters before checking lock_word to ensure wake-up
 		signal is sent. This may lead to some unnecessary signals. */
-		rw_lock_set_waiter_flag(lock);
+		if (high_priority) {
+			prio_rw_lock_t*	prio_rw_lock
+				= (prio_rw_lock_t *) _lock;
+			prio_rw_lock->high_priority_s_waiters = 1;
+		} else {
+			rw_lock_set_waiter_flag(lock);
+		}
 
-		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
+		if (!rw_lock_higher_prio_waiters_exist(priority_lock,
+						       high_priority, lock)
+		    && (TRUE == rw_lock_s_lock_low(lock, pass,
+						   file_name, line))) {
 			sync_array_free_cell(sync_arr, index);
 			return; /* Success */
 		}
@@ -618,7 +712,12 @@ rw_lock_x_lock_func(
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
-	ulint		line)	/*!< in: line where requested */
+	ulint		line,	/*!< in: line where requested */
+	bool		priority_lock,
+				/*!< in: whether the lock is a priority lock */
+	bool		high_priority)
+				/*!< in: whether we are acquiring a priority
+				lock with high priority */
 {
 	ulint		i;	/*!< spin round count */
 	ulint		index;	/*!< index of the reserved wait cell */
@@ -640,12 +739,15 @@ rw_lock_x_lock_func(
 
 lock_loop:
 
-	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
+	if (!rw_lock_higher_prio_waiters_exist(priority_lock, high_priority,
+					       lock)
+	    && rw_lock_x_lock_low(lock, pass, file_name, line)) {
 		rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
 
 		return;	/* Locking succeeded */
 
-	} else {
+	} else if (!rw_lock_higher_prio_waiters_exist(priority_lock,
+						      high_priority, lock)) {
 
 		if (!spinning) {
 			spinning = TRUE;
@@ -669,26 +771,42 @@ lock_loop:
 		} else {
 			goto lock_loop;
 		}
+	} else {
+
+		/* In case we skipped spinning because of higher-priority
+		waiters already waiting, perform only this bit of the spinning
+		code path.  */
+		os_thread_yield();
 	}
 
-	rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
+	if (spinning) {
 
-	if (srv_print_latch_waits) {
-		fprintf(stderr,
-			"Thread " ULINTPF " spin wait rw-x-lock at %p"
-			" '%s' rnds " ULINTPF "\n",
-			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
-			lock->lock_name, i);
+		rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
+
+		if (srv_print_latch_waits) {
+			fprintf(stderr,
+				"Thread " ULINTPF " spin wait rw-x-lock at %p"
+				" '%s' rnds " ULINTPF "\n",
+				os_thread_pf(os_thread_get_curr_id()),
+				(void*) lock,lock->lock_name, i);
+		}
 	}
 
 	sync_arr = sync_array_get();
 
 	sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_EX, file_name, line, &index);
+		sync_arr, lock,
+		high_priority ? PRIO_RW_LOCK_EX : RW_LOCK_EX,
+		file_name, line, &index);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
-	rw_lock_set_waiter_flag(lock);
+	if (high_priority) {
+		prio_rw_lock_t*	prio_lock = (prio_rw_lock_t *)lock;
+		prio_lock->high_priority_x_waiters = 1;
+	} else {
+		rw_lock_set_waiter_flag(lock);
+	}
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
 		sync_array_free_cell(sync_arr, index);
@@ -711,6 +829,29 @@ lock_loop:
 
 	i = 0;
 	goto lock_loop;
+}
+
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function! Lock a priority
+rw-lock in exclusive mode for the current thread. If the rw-lock is locked
+in shared or exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+for the lock, before suspending the thread. If the same thread has an x-lock
+on the rw-lock, locking succeed, with the following exception: if pass != 0,
+only a single x-lock may be taken on the lock. NOTE: If the same thread has
+an s-lock, locking does not succeed! */
+UNIV_INTERN
+void
+rw_lock_x_lock_func(
+/*================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				  be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	rw_lock_x_lock_func(&lock->base_lock, pass, file_name, line, true,
+			    srv_current_thread_priority > 0);
 }
 
 #ifdef UNIV_SYNC_DEBUG
@@ -881,6 +1022,21 @@ rw_lock_own(
 
 	return(FALSE);
 }
+
+/******************************************************************//**
+Checks if the thread has locked the priority rw-lock in the specified mode,
+with the pass value == 0. */
+UNIV_INTERN
+ibool
+rw_lock_own(
+/*========*/
+	prio_rw_lock_t*	lock,		/*!< in: rw-lock */
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
+					RW_LOCK_EX */
+{
+	return(rw_lock_own(&lock->base_lock, lock_type));
+}
+
 #endif /* UNIV_SYNC_DEBUG */
 
 /******************************************************************//**

@@ -189,7 +189,7 @@ fil_space_get_version(
 Returns the latch of a file space.
 @return	latch protecting storage allocation */
 UNIV_INTERN
-rw_lock_t*
+prio_rw_lock_t*
 fil_space_get_latch(
 /*================*/
 	ulint	id,	/*!< in: space id */

@@ -96,6 +96,7 @@ of concurrent read locks before the rw_lock breaks. The current value of
 #define X_LOCK_DECR		0x00100000
 
 struct rw_lock_t;
+struct prio_rw_lock_t;
 #ifdef UNIV_SYNC_DEBUG
 struct rw_lock_debug_t;
 #endif /* UNIV_SYNC_DEBUG */
@@ -299,6 +300,24 @@ rw_lock_create_func(
 #endif /* UNIV_DEBUG */
 	const char*	cmutex_name);	/*!< in: mutex name */
 /******************************************************************//**
+Creates, or rather, initializes a priority rw-lock object in a specified memory
+location (which must be appropriately aligned). The rw-lock is initialized
+to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
+is necessary only if the memory block containing it is freed. */
+UNIV_INTERN
+void
+rw_lock_create_func(
+/*================*/
+	prio_rw_lock_t*	lock,		/*!< in: pointer to memory */
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+	ulint		level,		/*!< in: level */
+# endif /* UNIV_SYNC_DEBUG */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name);	/*!< in: mutex name */
+/******************************************************************//**
 Calling this function is obligatory only if the memory buffer containing
 the rw-lock is freed. Removes an rw-lock object from the global list. The
 rw-lock is checked to be in the non-locked state. */
@@ -307,6 +326,15 @@ void
 rw_lock_free_func(
 /*==============*/
 	rw_lock_t*	lock);	/*!< in: rw-lock */
+/******************************************************************//**
+Calling this function is obligatory only if the memory buffer containing
+the priority rw-lock is freed. Removes an rw-lock object from the global list.
+The rw-lock is checked to be in the non-locked state. */
+UNIV_INTERN
+void
+rw_lock_free_func(
+/*==============*/
+	prio_rw_lock_t*	lock);	/*!< in: rw-lock */
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the rw-lock has been initialized and that there are no
@@ -317,6 +345,15 @@ ibool
 rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock);	/*!< in: rw-lock */
+/******************************************************************//**
+Checks that the priority rw-lock has been initialized and that there are no
+simultaneous shared and exclusive locks.
+@return	TRUE */
+UNIV_INTERN
+ibool
+rw_lock_validate(
+/*=============*/
+	prio_rw_lock_t*	lock);	/*!< in: rw-lock */
 #endif /* UNIV_DEBUG */
 /******************************************************************//**
 Low-level function which tries to lock an rw-lock in s-mode. Performs no
@@ -349,6 +386,22 @@ rw_lock_s_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
 /******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function, except if
+you supply the file name and line number. Lock a priority rw-lock in shared
+mode for the current thread, using the relative thread priority.  If the
+rw-lock is locked in exclusive mode, or there is an exclusive lock request
+waiting, the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
+waiting for the lock, before suspending the thread. */
+UNIV_INLINE
+void
+rw_lock_s_lock_func(
+/*================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be
 obtained immediately.
@@ -373,6 +426,17 @@ rw_lock_s_unlock_func(
 	rw_lock_t*	lock);	/*!< in/out: rw-lock */
 
 /******************************************************************//**
+Releases a shared mode priority lock. */
+UNIV_INLINE
+void
+rw_lock_s_unlock_func(
+/*==================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
+				been passed to another thread to unlock */
+#endif
+	prio_rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread. If the rw-lock is locked
 in shared or exclusive mode, or there is an exclusive lock request waiting,
@@ -385,7 +449,30 @@ UNIV_INTERN
 void
 rw_lock_x_lock_func(
 /*================*/
-	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	rw_lock_t*      lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line,	/*!< in: line where requested */
+	bool		priority_lock = false,
+				/*!< in: whether the lock is a priority lock */
+	bool		high_priority = false);
+				/*!< in: whether we are acquiring a priority
+				lock with high priority */
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function! Lock a priority
+rw-lock in exclusive mode for the current thread. If the rw-lock is locked
+in shared or exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+for the lock, before suspending the thread. If the same thread has an x-lock
+on the rw-lock, locking succeed, with the following exception: if pass != 0,
+only a single x-lock may be taken on the lock. NOTE: If the same thread has
+an s-lock, locking does not succeed! */
+UNIV_INTERN
+void
+rw_lock_x_lock_func(
+/*================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
@@ -401,6 +488,17 @@ rw_lock_x_unlock_func(
 				been passed to another thread to unlock */
 #endif
 	rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
+Releases an exclusive mode priority lock. */
+UNIV_INLINE
+void
+rw_lock_x_unlock_func(
+/*==================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
+				been passed to another thread to unlock */
+#endif
+	prio_rw_lock_t*	lock);	/*!< in/out: rw-lock */
 /******************************************************************//**
 This function is used in the insert buffer to move the ownership of an
 x-latch on a buffer frame to the current thread. The x-latch was set by
@@ -424,6 +522,15 @@ ulint
 rw_lock_get_x_lock_count(
 /*=====================*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
+/******************************************************************//**
+Returns the value of writer_count for the priority lock. Does not reserve the
+lock mutex, so the caller must be sure it is not changed during the call.
+@return	value of writer_count */
+UNIV_INLINE
+ulint
+rw_lock_get_x_lock_count(
+/*=====================*/
+	const prio_rw_lock_t*	lock);	/*!< in: rw-lock */
 /********************************************************************//**
 Check if there are threads waiting for the rw-lock.
 @return	1 if waiters, 0 otherwise */
@@ -432,6 +539,14 @@ ulint
 rw_lock_get_waiters(
 /*================*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
+/********************************************************************//**
+Check if there are threads waiting for the priority rw-lock.
+@return	1 if waiters, 0 otherwise */
+UNIV_INLINE
+ulint
+rw_lock_get_waiters(
+/*================*/
+	const prio_rw_lock_t*	lock);	/*!< in: rw-lock */
 /******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
@@ -442,6 +557,15 @@ rw_lock_get_writer(
 /*===============*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
 /******************************************************************//**
+Returns the write-status of the priority lock - this function made more sense
+with the old rw_lock implementation.
+@return	RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
+UNIV_INLINE
+ulint
+rw_lock_get_writer(
+/*===============*/
+	const prio_rw_lock_t*	lock);	/*!< in: rw-lock */
+/******************************************************************//**
 Returns the number of readers.
 @return	number of readers */
 UNIV_INLINE
@@ -449,6 +573,14 @@ ulint
 rw_lock_get_reader_count(
 /*=====================*/
 	const rw_lock_t*	lock);	/*!< in: rw-lock */
+/******************************************************************//**
+Returns the number of readers.
+@return	number of readers */
+UNIV_INLINE
+ulint
+rw_lock_get_reader_count(
+/*=====================*/
+	const prio_rw_lock_t*	lock);	/*!< in: rw-lock */
 /******************************************************************//**
 Decrements lock_word the specified amount if it is greater than 0.
 This is used by both s_lock and x_lock operations.
@@ -493,6 +625,17 @@ ibool
 rw_lock_own(
 /*========*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
+					RW_LOCK_EX */
+	__attribute__((warn_unused_result));
+/******************************************************************//**
+Checks if the thread has locked the priority rw-lock in the specified mode,
+with the pass value == 0. */
+UNIV_INTERN
+ibool
+rw_lock_own(
+/*========*/
+	prio_rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
 					RW_LOCK_EX */
 	__attribute__((warn_unused_result));
@@ -631,6 +774,27 @@ struct rw_lock_t {
 #endif /* UNIV_DEBUG */
 };
 
+/** The structure implementing a priority rw lock.  */
+struct prio_rw_lock_t {
+	struct rw_lock_t	base_lock;	/* The regular rw latch
+						provides the lock word etc. for
+						the priority rw lock  */
+	volatile ulint		high_priority_s_waiters;
+						/* If 1, high priority S
+						waiters exist */
+	os_event_t		high_priority_s_event; /* High priority wait
+						array event for S waiters */
+	volatile ulint		high_priority_x_waiters;
+						/* If 1, high priority X
+						waiters exist */
+	os_event_t		high_priority_x_event;
+						/* High priority wait arraay
+						event for X waiters */
+	volatile ulint		high_priority_wait_ex_waiter;
+						/* If 1, a waiting next-writer
+						exists and is high-priority */
+};
+
 #ifdef UNIV_SYNC_DEBUG
 /** The structure for storing debug info of an rw-lock.  All access to this
 structure must be protected by rw_lock_debug_mutex_enter(). */
@@ -695,6 +859,26 @@ pfs_rw_lock_create_func(
 	const char*	cmutex_name);	/*!< in: mutex name */
 
 /******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_create_func()
+NOTE! Please use the corresponding macro rw_lock_create(), not
+directly this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_create_func(
+/*====================*/
+	PSI_rwlock_key  key,		/*!< in: key registered with
+					performance schema */
+	prio_rw_lock_t*	lock,		/*!< in: rw lock */
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+	ulint		level,		/*!< in: level */
+# endif /* UNIV_SYNC_DEBUG */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline,		/*!< in: file line where created */
+#endif /* UNIV_DEBUG */
+	const char*	cmutex_name);	/*!< in: mutex name */
+
+/******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_x_lock_func()
 NOTE! Please use the corresponding macro rw_lock_x_lock(), not
 directly this function! */
@@ -707,6 +891,21 @@ pfs_rw_lock_x_lock_func(
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_lock_func()
+NOTE! Please use the corresponding macro rw_lock_x_lock(), not
+directly this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_lock_func(
+/*====================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+
 /******************************************************************//**
 Performance schema instrumented wrap function for
 rw_lock_x_lock_func_nowait()
@@ -719,6 +918,7 @@ pfs_rw_lock_x_lock_func_nowait(
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
+
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly
@@ -732,6 +932,21 @@ pfs_rw_lock_s_lock_func(
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_lock_func(
+/*====================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly
@@ -748,6 +963,21 @@ pfs_rw_lock_s_lock_low(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
 /******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly
+this function!
+@return TRUE if success */
+UNIV_INLINE
+ibool
+pfs_rw_lock_s_lock_low(
+/*===================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock will be passed to another
+				thread to unlock */
+	const char*	file_name, /*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_x_lock_func()
 NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
 this function! */
@@ -756,6 +986,19 @@ void
 pfs_rw_lock_x_lock_func(
 /*====================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_lock_func()
+NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_lock_func(
+/*====================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
@@ -776,6 +1019,20 @@ pfs_rw_lock_s_unlock_func(
 	rw_lock_t*	lock);	/*!< in/out: rw-lock */
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_s_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_s_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_unlock_func(
+/*======================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+			        thread to unlock */
+#endif
+	prio_rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
 this function! */
 UNIV_INLINE
@@ -789,6 +1046,20 @@ pfs_rw_lock_x_unlock_func(
 #endif
 	rw_lock_t*	lock);	/*!< in/out: rw-lock */
 /******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_unlock_func(
+/*======================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+				thread to unlock */
+#endif
+	prio_rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_free_func()
 NOTE! Please use the corresponding macro rw_lock_free(), not directly
 this function! */
@@ -797,6 +1068,15 @@ void
 pfs_rw_lock_free_func(
 /*==================*/
 	rw_lock_t*	lock);	/*!< in: rw-lock */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_free_func()
+NOTE! Please use the corresponding macro rw_lock_free(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_free_func(
+/*==================*/
+	prio_rw_lock_t*	lock);	/*!< in: rw-lock */
 #endif  /* UNIV_PFS_RWLOCK */
 
 

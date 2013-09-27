@@ -160,6 +160,8 @@ if "UNIV_PFS_MUTEX" is defined:
 
 mutex_create
 mutex_enter
+mutex_enter_first
+mutex_enter_last
 mutex_exit
 mutex_enter_nowait
 mutex_free
@@ -195,6 +197,12 @@ necessary only if the memory block containing it is freed. */
 # define mutex_enter_nowait(M)					\
 	pfs_mutex_enter_nowait_func((M), __FILE__, __LINE__)
 
+# define mutex_enter_first(M)					\
+	pfs_mutex_enter_func((M), __FILE__, __LINE__, HIGH_PRIO)
+
+# define mutex_enter_last(M)					\
+	pfs_mutex_enter_func((M), __FILE__, __LINE__, LOW_PRIO)
+
 # define mutex_exit(M)	pfs_mutex_exit_func(M)
 
 # define mutex_free(M)	pfs_mutex_free_func(M)
@@ -220,6 +228,12 @@ original non-instrumented functions */
 
 # define mutex_enter_nowait(M)	\
 	mutex_enter_nowait_func((M), __FILE__, __LINE__)
+
+# define mutex_enter_first(M)	\
+	mutex_enter_func((M), __FILE__, __LINE__, HIGH_PRIO)
+
+# define mutex_enter_last(M)	\
+	mutex_enter_func((M), __FILE__, __LINE__, LOW_PRIO)
 
 # define mutex_exit(M)	mutex_exit_func(M)
 
@@ -247,6 +261,26 @@ mutex_create_func(
 	const char*	cmutex_name);	/*!< in: mutex name */
 
 /******************************************************************//**
+Creates, or rather, initializes a priority mutex object in a specified memory
+location (which must be appropriately aligned). The mutex is initialized
+in the reset state. Explicit freeing of the mutex with mutex_free is
+necessary only if the memory block containing it is freed. */
+UNIV_INTERN
+void
+mutex_create_func(
+/*==============*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to memory */
+#ifdef UNIV_DEBUG
+# ifdef UNIV_SYNC_DEBUG
+	ulint			level,		/*!< in: level */
+# endif /* UNIV_SYNC_DEBUG */
+	const char*		cfile_name,	/*!< in: file name where
+						created */
+	ulint			cline,		/*!< in: file line where
+						created */
+#endif /* UNIV_DEBUG */
+	const char*		cmutex_name);	/*!< in: mutex name */
+/******************************************************************//**
 NOTE! Use the corresponding macro mutex_free(), not directly this function!
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
@@ -256,6 +290,16 @@ void
 mutex_free_func(
 /*============*/
 	ib_mutex_t*	mutex);	/*!< in: mutex */
+/******************************************************************//**
+NOTE! Use the corresponding macro mutex_free(), not directly this function!
+Calling this function is obligatory only if the memory buffer containing
+the mutex is freed. Removes a priority mutex object from the mutex list. The
+mutex is checked to be in the reset state. */
+UNIV_INTERN
+void
+mutex_free_func(
+/*============*/
+	ib_prio_mutex_t*	mutex);	/*!< in: mutex */
 /**************************************************************//**
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
@@ -275,6 +319,26 @@ mutex_enter_func(
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line);		/*!< in: line where locked */
+/******************************************************************//**
+NOTE! Use the corresponding macro in the header file, not this function
+directly. Locks a priority mutex for the current thread. If the mutex is
+reserved the function spins a preset time (controlled by SYNC_SPIN_ROUNDS)
+waiting for the mutex before suspending the thread. If the thread is suspended,
+the priority argument value determines the relative order for its wake up.  Any
+HIGH_PRIO waiters will be woken up before any LOW_PRIO waiters.  In case of
+DEFAULT_PRIO, the relative priority will be set according to
+srv_current_thread_priority.  */
+UNIV_INLINE
+void
+mutex_enter_func(
+/*=============*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*		file_name,	/*!< in: file name where
+						locked */
+	ulint			line,		/*!< in: line where locked */
+	enum ib_sync_priority	priority = DEFAULT_PRIO);
+						/*!<in: mutex acquisition
+						priority */
 /********************************************************************//**
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
@@ -288,6 +352,20 @@ mutex_enter_nowait_func(
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line);		/*!< in: line where requested */
+/********************************************************************//**
+NOTE! Use the corresponding macro in the header file, not this function
+directly. Tries to lock the mutex for the current thread. If the lock is not
+acquired immediately, returns with return value 1.
+@return	0 if succeed, 1 if not */
+UNIV_INTERN
+ulint
+mutex_enter_nowait_func(
+/*====================*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*		file_name,	/*!< in: file name where mutex
+						requested */
+	ulint			line);		/*!< in: line where
+						requested */
 /******************************************************************//**
 NOTE! Use the corresponding macro mutex_exit(), not directly this function!
 Unlocks a mutex owned by the current thread. */
@@ -296,6 +374,14 @@ void
 mutex_exit_func(
 /*============*/
 	ib_mutex_t*	mutex);	/*!< in: pointer to mutex */
+/******************************************************************//**
+NOTE! Use the corresponding macro mutex_exit(), not directly this function!
+Unlocks a priority mutex owned by the current thread. */
+UNIV_INLINE
+void
+mutex_exit_func(
+/*============*/
+	ib_prio_mutex_t*	mutex);	/*!< in: pointer to mutex */
 
 
 #ifdef UNIV_PFS_MUTEX
@@ -320,6 +406,29 @@ pfs_mutex_create_func(
 # endif /* UNIV_DEBUG */
 	const char*	cmutex_name);
 /******************************************************************//**
+NOTE! Please use the corresponding macro mutex_create(), not directly
+this function!
+A wrapper function for mutex_create_func(), registers the mutex
+with peformance schema if "UNIV_PFS_MUTEX" is defined when
+creating the performance mutex */
+UNIV_INLINE
+void
+pfs_mutex_create_func(
+/*==================*/
+	PSI_mutex_key		key,		/*!< in: Performance Schema
+						key */
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to memory */
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+	ulint			level,		/*!< in: level */
+#  endif /* UNIV_SYNC_DEBUG */
+	const char*		cfile_name,	/*!< in: file name where
+						created */
+	ulint			cline,		/*!< in: file line where
+						created */
+# endif /* UNIV_DEBUG */
+	const char*		cmutex_name);
+/******************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter(), not directly
 this function!
 This is a performance schema instrumented wrapper function for
@@ -331,6 +440,22 @@ pfs_mutex_enter_func(
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line);		/*!< in: line where locked */
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_func(). */
+UNIV_INLINE
+void
+pfs_mutex_enter_func(
+/*=================*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*		file_name,	/*!< in: file name where
+						locked */
+	ulint			line,		/*!< in: line where locked */
+	enum ib_sync_priority	priority = DEFAULT_PRIO);
+						/*!<in: mutex acquisition
+						priority */
 /********************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
 this function!
@@ -345,6 +470,21 @@ pfs_mutex_enter_nowait_func(
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line);		/*!< in: line where requested */
+/********************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_nowait_func.
+@return	0 if succeed, 1 if not */
+UNIV_INLINE
+ulint
+pfs_mutex_enter_nowait_func(
+/*========================*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*		file_name,	/*!< in: file name where mutex
+						requested */
+	ulint			line);		/*!< in: line where
+						requested */
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_exit(), not directly
 this function!
@@ -355,6 +495,16 @@ void
 pfs_mutex_exit_func(
 /*================*/
 	ib_mutex_t*	mutex);	/*!< in: pointer to mutex */
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_exit(), not directly
+this function!
+A wrap function of mutex_exit_func() with peformance schema instrumentation.
+Unlocks a priority mutex owned by the current thread. */
+UNIV_INLINE
+void
+pfs_mutex_exit_func(
+/*================*/
+	ib_prio_mutex_t*	mutex);	/*!< in: pointer to mutex */
 
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_free(), not directly
@@ -366,6 +516,16 @@ void
 pfs_mutex_free_func(
 /*================*/
 	ib_mutex_t*	mutex);	/*!< in: mutex */
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_free(), not directly
+this function!
+Wrapper function for mutex_free_func(). Also destroys the performance
+schema probes when freeing the priority mutex */
+UNIV_INLINE
+void
+pfs_mutex_free_func(
+/*================*/
+	ib_prio_mutex_t*	mutex);	/*!< in: mutex */
 
 #endif /* UNIV_PFS_MUTEX */
 
@@ -413,6 +573,16 @@ ibool
 mutex_own(
 /*======*/
 	const ib_mutex_t*	mutex)	/*!< in: mutex */
+	__attribute__((warn_unused_result));
+/******************************************************************//**
+Checks that the current thread owns the priority mutex. Works only
+in the debug version.
+@return	TRUE if owns */
+UNIV_INTERN
+ibool
+mutex_own(
+/*======*/
+	const ib_prio_mutex_t*	mutex)	/*!< in: priority mutex */
 	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
@@ -748,6 +918,9 @@ or row lock! */
 #define RW_LOCK_SHARED		352
 #define RW_LOCK_WAIT_EX		353
 #define SYNC_MUTEX		354
+#define SYNC_PRIO_MUTEX		355
+#define PRIO_RW_LOCK_EX		356
+#define PRIO_RW_LOCK_SHARED	357
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock
@@ -796,6 +969,20 @@ struct ib_mutex_t {
 	struct PSI_mutex* pfs_psi;	/*!< The performance schema
 					instrumentation hook */
 #endif
+};
+
+/** XtraDB priority mutex */
+struct ib_prio_mutex_t {
+	ib_mutex_t	base_mutex;	/* The regular mutex provides the lock
+					word etc. for the priority mutex  */
+	os_event_t	high_priority_event; /* High priority wait array
+					event */
+	volatile ulint	high_priority_waiters; /* Set to 1 if there are (or
+					may be) threads that asked for this
+					mutex to be acquired with high priority
+					in the global wait array for this mutex
+					to be released.  Otherwise, this is
+					0.  */
 };
 
 /** Constant determining how long spin wait is continued before suspending

@@ -114,6 +114,9 @@ public:
   */
   bool set_default(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
+  void stmt_update(THD *thd) {
+    on_update && on_update(this, thd, OPT_SESSION);
+  }
 
   SHOW_TYPE show_type() { return show_val_type; }
   int scope() const { return flags & SCOPE_MASK; }

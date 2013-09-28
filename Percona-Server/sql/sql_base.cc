@@ -9503,7 +9503,6 @@ typedef And_node All_columns_node;
 class Table_node :public Or_node {
 public:
   Table_node(const TABLE* table_arg);
-  ~Table_node();
   Column_node* get_column_node(const Field* field) const;
   Column_node* create_column_node(const Field* field);
   All_columns_node* create_all_columns_node();
@@ -9514,7 +9513,8 @@ private:
 };
 
 Table_node::Table_node(const TABLE* table_arg)
-  :table(table_arg), columns(new Column_node*[table->s->fields])
+  :table(table_arg),
+   columns((Column_node**)sql_alloc(sizeof(Column_node*) * table->s->fields))
 {
   memset(columns, 0, sizeof(Column_node*) * table->s->fields);
   
@@ -9530,11 +9530,6 @@ Table_node::Table_node(const TABLE* table_arg)
          (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
       add_successor(create_key_node(&table->s->key_info[key]));
   }
-}
-
-Table_node::~Table_node()
-{
-  delete [] columns;
 }
 
 inline Column_node* Table_node::get_column_node(const Field* field) const

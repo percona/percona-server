@@ -85,7 +85,7 @@ override_dh_auto_install:
 	cd UDF && make DESTDIR=$(TMP) install
 
 override_dh_installinit:
-	dh_installinit --name=mysql
+	dh_installinit --name=mysql --error-handler=:
 
 override_dh_strip:
 	dh_strip --dbg-package=percona-server-5.6-dbg

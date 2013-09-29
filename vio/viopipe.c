@@ -140,3 +140,18 @@ int vio_shutdown_pipe(Vio *vio, int how)
 
   DBUG_RETURN(ret);
 }
+
+int vio_cancel_pipe(Vio *vio, int how)
+{
+  DBUG_ENTER("vio_shutdown_pipe");
+
+  CancelIo(vio->hPipe);
+  CloseHandle(vio->overlapped.hEvent);
+  DisconnectNamedPipe(vio->hPipe);
+
+  vio->inactive= TRUE;
+
+  DBUG_RETURN(0);
+}
+
+#endif

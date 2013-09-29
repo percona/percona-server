@@ -1295,7 +1295,7 @@ void tp_post_kill_notification(THD *thd)
     DBUG_VOID_RETURN;
   
   if (thd->net.vio)
-    vio_shutdown(thd->net.vio, SHUT_RD);
+    vio_cancel(thd->net.vio, SHUT_RD);
   DBUG_VOID_RETURN;
 }
 

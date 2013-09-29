@@ -226,6 +226,7 @@ int threadpool_add_connection(THD *thd)
         thd->net.reading_or_writing= 1;
         thd->skip_wait_timeout= true;
         MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+        thd->m_server_idle= true;
         threadpool_init_net_server_extension(thd);
       }
     }
@@ -326,13 +327,18 @@ int threadpool_process_request(THD *thd)
       thd->net.reading_or_writing= 1;
       goto end;
     }
+    if (!thd->m_server_idle) {
+      MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+      MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
+      thd->m_server_idle= true;
+    }
   }
 
 end:
-  if (!thd->m_server_idle) {
+  if (!retval && !thd->m_server_idle) {
     MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
     MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
-    thd->m_server_idle = true;
+    thd->m_server_idle= true;
   }
 
   worker_context.restore();

@@ -564,8 +564,10 @@ enum enum_acl_lists
 };
 
 static ACL_USER acl_utility_user;
+static bool acl_utility_user_initialized= false;
 static DYNAMIC_ARRAY acl_utility_user_schema_access;
 static my_bool acl_init_utility_user(my_bool check_no_resolve);
+static void acl_free_utility_user();
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -1082,6 +1084,7 @@ end:
 
 void acl_free(bool end)
 {
+  acl_free_utility_user();
   free_root(&mem,MYF(0));
   delete_dynamic(&acl_hosts);
   delete_dynamic(&acl_users);
@@ -1213,9 +1216,16 @@ acl_init_utility_user(my_bool check_no_resolve)
   if (!utility_user)
     goto end;
 
-  /* parse out the option to its component user and host name parts */
+  acl_free_utility_user();
+
+  /* Allocate all initial resources necessary */
   acl_user_name.str= (char *) my_malloc(USERNAME_LENGTH+1, MY_ZEROFILL);
   acl_host_name.str= (char *) my_malloc(HOSTNAME_LENGTH+1, MY_ZEROFILL);
+  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
+                               5, 10);
+  acl_utility_user_initialized= true;
+
+  /* parse out the option to its component user and host name parts */
   parse_user(utility_user, strlen(utility_user),
              acl_user_name.str, &acl_user_name.length,
              acl_host_name.str, &acl_host_name.length);
@@ -1310,9 +1320,6 @@ acl_init_utility_user(my_bool check_no_resolve)
   (void) push_dynamic(&acl_users,(uchar*) &acl_utility_user);
         
   /* initialize the schema access list if specified */
-  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
-                               5, 10);
-
   if (utility_user_schema_access)
   {
     char *cur_pos= utility_user_schema_access;
@@ -1346,12 +1353,35 @@ acl_init_utility_user(my_bool check_no_resolve)
   goto end;
 
 cleanup:
-  my_free(acl_utility_user.user);
-  my_free(acl_utility_user.host.hostname);
-  bzero(&acl_utility_user, sizeof(acl_utility_user));
+  acl_free_utility_user();
 
 end:
   return ret;
+}
+
+/*
+  Free up any resources allocated during acl_init_utility_user.
+*/
+static
+void
+acl_free_utility_user()
+{
+  if (acl_utility_user_initialized)
+  {
+    uint i;
+    for (i=0 ; i < acl_utility_user_schema_access.elements ; i++)
+    {
+      char** dbname= dynamic_element(&acl_utility_user_schema_access, i, char**);
+      if (*dbname)
+        my_free(*dbname);
+    }
+    delete_dynamic(&acl_utility_user_schema_access);
+
+    my_free(acl_utility_user.user);
+    my_free(acl_utility_user.host.hostname);
+    bzero(&acl_utility_user, sizeof(acl_utility_user));
+    acl_utility_user_initialized= false;
+  }
 }
 
 /*

@@ -309,6 +309,35 @@ extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
+extern ulint	srv_cleaner_max_lru_time;/*!< the maximum time limit for a
+					single LRU tail flush iteration by the
+					page cleaner thread */
+
+extern ulint	srv_cleaner_max_flush_time;/*!< the maximum time limit for a
+					single flush list flush iteration by
+					the page cleaner thread */
+
+extern ulint	srv_cleaner_flush_chunk_size;
+					/*!< page cleaner flush list flush
+					batches are further divided into this
+					chunk size  */
+
+extern ulint	srv_cleaner_lru_chunk_size;
+					/*!< page cleaner LRU list flush
+					batches are further divided into this
+					chunk size  */
+
+extern ulint	srv_cleaner_free_list_lwm;/*!< if free list length is lower
+					than this percentage of
+					srv_LRU_scan_depth, page cleaner LRU
+					flushes will issue flush batches to the
+					same instance in a row  */
+
+extern my_bool	srv_cleaner_eviction_factor;
+					/*!< if TRUE, page cleaner heuristics
+					use evicted instead of flushed page
+					counts for its heuristics  */
+
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;

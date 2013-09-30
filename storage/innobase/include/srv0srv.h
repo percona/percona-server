@@ -353,6 +353,14 @@ extern ulint    srv_show_verbose_locks;
 
 extern ulint	srv_lock_table_size;
 
+extern ulint	srv_cleaner_max_lru_time;/*!< the maximum time limit for a
+					single LRU tail flush iteration by the
+					page cleaner thread */
+
+extern ulint	srv_cleaner_max_flush_time;/*!< the maximum time limit for a
+					single flush list flush iteration by
+					the page cleaner thread */
+
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;

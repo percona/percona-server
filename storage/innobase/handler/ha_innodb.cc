@@ -19919,7 +19919,6 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   static_cast<longlong>(srv_buf_pool_def_size),
   static_cast<longlong>(srv_buf_pool_min_size),
   LLONG_MAX, 1024*1024L);
-
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a single memory chunk within each buffer pool instance"
@@ -19936,22 +19935,37 @@ static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
 
 static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, srv_doublewrite_batch_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+// TODO: the option is here, but currently a no-op
   "Number of pages reserved in doublewrite buffer for batch flushing",
   NULL, NULL, 120, 1, 127, 0);
 
 #ifdef UNIV_LINUX
 
 static MYSQL_SYSVAR_BOOL(priority_purge, srv_purge_thread_priority,
+// TODO: the option is here, but currently a no-op
   PLUGIN_VAR_OPCMDARG,
   "Make purge coordinator and worker threads acquire shared resources with "
   "priority", NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(priority_master, srv_master_thread_priority,
   PLUGIN_VAR_OPCMDARG,
+// TODO: the option is here, but currently a no-op
   "Make buffer pool cleaner thread acquire shared resources with priority",
    NULL, NULL, FALSE);
 
 #endif /* UNIV_LINUX */
+
+static MYSQL_SYSVAR_ULONG(cleaner_max_lru_time, srv_cleaner_max_lru_time,
+  PLUGIN_VAR_RQCMDARG,
+  "The maximum time limit for a single LRU tail flush iteration by the page "
+  "cleaner thread in miliseconds",
+  NULL, NULL, 1000, 0, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(cleaner_max_flush_time, srv_cleaner_max_flush_time,
+  PLUGIN_VAR_RQCMDARG,
+  "The maximum time limit for a single flush list flush iteration by the page "
+  "cleaner thread in miliseconds",
+  NULL, NULL, 1000, 0, ~0UL, 0);
 
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
@@ -20707,6 +20721,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(priority_purge),
   MYSQL_SYSVAR(priority_master),
 #endif /* UNIV_LINUX */
+  MYSQL_SYSVAR(cleaner_max_lru_time),
+  MYSQL_SYSVAR(cleaner_max_flush_time),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(status_output),
   MYSQL_SYSVAR(status_output_locks),

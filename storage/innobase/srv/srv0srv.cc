@@ -293,6 +293,14 @@ ulong	srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
+/** The maximum time limit for a single LRU tail flush iteration by the page
+cleaner thread */
+ulint	srv_cleaner_max_lru_time = 1000;
+
+/** The maximum time limit for a single flush list flush iteration by the page
+cleaner thread */
+ulint	srv_cleaner_max_flush_time = 1000;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 ulint	srv_n_read_io_threads	= ULINT_MAX;

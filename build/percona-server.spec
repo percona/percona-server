@@ -393,6 +393,16 @@ export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
 
+# "Fix" cmake directories in case we're crosscompiling.
+# We detect crosscompiles to i686 if uname is x86_64 however _libdir does not
+# contain lib64.
+# In this case, we cannot instruct cmake to change CMAKE_SYSTEM_PROCESSOR, so
+# we need to alter the directories in cmake/install_layout.cmake manually.
+if test "x$(uname -m)" = "xx86_64" && echo "%{_libdir}" | fgrep -vq lib64
+then
+    sed -i 's/lib64/lib/' "cmake/install_layout.cmake"
+fi
+
 # Build debug mysqld and libmysqld.a
 mkdir debug
 (

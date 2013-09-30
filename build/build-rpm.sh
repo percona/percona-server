@@ -136,11 +136,6 @@ cp -f $(readlink -f $(dirname $0))/rpm/*.patch ${WORKDIR}/SOURCES/
     # Execute clean and download mysql, apply patches
     make clean all
 
-    # "Fix" cmake destdirs, since we cannot alter SYSTEM_PROCESSOR
-    if test "x$TARGET" != "x"
-    then
-        sed -i 's/lib64/lib/' "$PRODUCT/cmake/install_layout.cmake"
-    fi
     # Create tarball for build
     tar czf "$WORKDIR_ABS/SOURCES/$PRODUCT.tar.gz" "$PRODUCT/"*
 

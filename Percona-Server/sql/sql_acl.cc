@@ -891,8 +891,11 @@ enum enum_acl_lists
 };
 
 static ACL_USER acl_utility_user;
+LEX_STRING acl_utility_user_name, acl_utility_user_host_name;
 static DYNAMIC_ARRAY acl_utility_user_schema_access;
+static bool acl_utility_user_initialized= false;
 static my_bool acl_init_utility_user(my_bool check_no_resolve);
+static void acl_free_utility_user();
 
 /**
   Convert scrambled password to binary form, according to scramble type, 
@@ -1462,6 +1465,7 @@ end:
 
 void acl_free(bool end)
 {
+  acl_free_utility_user();
   free_root(&global_acl_memory,MYF(0));
   delete_dynamic(&acl_users);
   delete_dynamic(&acl_dbs);
@@ -1652,7 +1656,6 @@ static
 my_bool
 acl_init_utility_user(my_bool check_no_resolve)
 {
-  LEX_STRING acl_user_name, acl_host_name;
   char password[CRYPT_MAX_PASSWORD_SIZE + 1];
   uint i, passlen;
   my_bool ret= TRUE;
@@ -1660,15 +1663,23 @@ acl_init_utility_user(my_bool check_no_resolve)
   if (!utility_user)
     goto end;
 
+  acl_free_utility_user();
+
+  /* Allocate all initial resources necessary */
+  acl_utility_user_name.str= (char *) my_malloc(USERNAME_LENGTH+1, MY_ZEROFILL);
+  acl_utility_user_host_name.str= (char *) my_malloc(HOSTNAME_LENGTH+1, MY_ZEROFILL);
+  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
+                               5, 10);
+  acl_utility_user_initialized= true;
+
   /* parse out the option to its component user and host name parts */
-  acl_user_name.str= (char *) my_malloc(USERNAME_LENGTH+1, MY_ZEROFILL);
-  acl_host_name.str= (char *) my_malloc(HOSTNAME_LENGTH+1, MY_ZEROFILL);
   parse_user(utility_user, strlen(utility_user),
-             acl_user_name.str, &acl_user_name.length,
-             acl_host_name.str, &acl_host_name.length);
+             acl_utility_user_name.str, &acl_utility_user_name.length,
+             acl_utility_user_host_name.str,
+	     &acl_utility_user_host_name.length);
 
   /* Check to see if the username is anonymous */
-  if (!acl_user_name.str || acl_user_name.str[0] == '\0')
+  if (!acl_utility_user_name.str || acl_utility_user_name.str[0] == '\0')
   {
     sql_print_error("'utility user' specified as '%s' is anonymous"
                     " and not allowed.",
@@ -1688,9 +1699,9 @@ acl_init_utility_user(my_bool check_no_resolve)
   }
 
   /* set up some of the static utility user struct fields */
-  acl_utility_user.user= acl_user_name.str;
+  acl_utility_user.user= acl_utility_user_name.str;
 
-  acl_utility_user.host.update_hostname(acl_host_name.str);
+  acl_utility_user.host.update_hostname(acl_utility_user_host_name.str);
 
   acl_utility_user.sort= get_sort(2, acl_utility_user.host.get_host(),
                                    acl_utility_user.user);
@@ -1700,7 +1711,7 @@ acl_init_utility_user(my_bool check_no_resolve)
   {
     ACL_USER *user= dynamic_element(&acl_users, i, ACL_USER*);
     if (user->user
-        && strcmp(acl_user_name.str, user->user) == 0)
+        && strcmp(acl_utility_user_name.str, user->user) == 0)
     {
       if (user->sort == acl_utility_user.sort)
       {
@@ -1774,9 +1785,6 @@ acl_init_utility_user(my_bool check_no_resolve)
   (void) push_dynamic(&acl_users,(uchar*) &acl_utility_user);
         
   /* initialize the schema access list if specified */
-  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
-                               5, 10);
-
   if (utility_user_schema_access)
   {
     char *cur_pos= utility_user_schema_access;
@@ -1810,12 +1818,35 @@ acl_init_utility_user(my_bool check_no_resolve)
   goto end;
 
 cleanup:
-  my_free(acl_user_name.str);
-  my_free(acl_host_name.str);
-  memset(&acl_utility_user, 0, sizeof(acl_utility_user));
+  acl_free_utility_user();
 
 end:
   return ret;
+}
+
+/*
+  Free up any resources allocated during acl_init_utility_user.
+*/
+static
+void
+acl_free_utility_user()
+{
+  if (acl_utility_user_initialized)
+  {
+    uint i;
+    for (i=0 ; i < acl_utility_user_schema_access.elements ; i++)
+    {
+      char** dbname= dynamic_element(&acl_utility_user_schema_access, i, char**);
+      if (*dbname)
+        my_free(*dbname);
+    }
+    delete_dynamic(&acl_utility_user_schema_access);
+
+    my_free(acl_utility_user_name.str);
+    my_free(acl_utility_user_host_name.str);
+    memset(&acl_utility_user, 0, sizeof(acl_utility_user));
+    acl_utility_user_initialized= false;
+  }
 }
 
 /*

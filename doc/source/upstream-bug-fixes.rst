@@ -113,6 +113,12 @@
 |:Fix Released: :rn:`5.5.29-29.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`70277` - last argument of LOAD DATA ... SET ... statement repeated twice in binlog |
+|:Launchpad bug: :bug:`1223196`                                                                               |
+|:Upstream state: Verified (checked on 2013-09-30)                                                            |
+|:Fix Released: :rn:`5.5.28-29.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69380` - Incomplete fix for security vulnerability CVE-2012-5611                   |
 |:Launchpad bug: :bug:`1186748`                                                                               |
 |:Upstream state: N/A                                                                                         |

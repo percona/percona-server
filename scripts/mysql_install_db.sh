@@ -269,16 +269,16 @@ then
     cannot_find_file mysqld $basedir/libexec $basedir/sbin $basedir/bin
     exit 1
   fi
-  langdir=`find_in_basedir --dir errmsg.sys share/english share/mysql/english`
+  langdir=`find_in_basedir --dir errmsg.sys share/english share/percona-server/english share/mysql/english`
   if test -z "$langdir"
   then
-    cannot_find_file errmsg.sys $basedir/share/english $basedir/share/mysql/english
+    cannot_find_file errmsg.sys $basedir/share/english $basedir/share/percona-server/english $basedir/share/mysql/english
     exit 1
   fi
-  pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/mysql`
+  pkgdatadir=`find_in_basedir --dir fill_help_tables.sql share share/percona-server share/mysql`
   if test -z "$pkgdatadir"
   then
-    cannot_find_file fill_help_tables.sql $basedir/share $basedir/share/mysql
+    cannot_find_file fill_help_tables.sql $basedir/share $basedir/share/percona-server $basedir/share/mysql
     exit 1
   fi
   scriptdir="$basedir/scripts"
@@ -426,8 +426,8 @@ else
   echo "describes problems on your OS.  Another information source are the"
   echo "MySQL email archives available at http://lists.mysql.com/."
   echo
-  echo "Please check all of the above before submitting a bug report"
-  echo "at http://bugs.mysql.com/"
+  echo "Please check all of the above before submitting a bug report at"
+  echo "  https://bugs.launchpad.net/percona-server/+filebug"
   echo
   exit 1
 fi
@@ -478,7 +478,8 @@ then
   fi
 
   echo
-  echo "Please report any problems at http://bugs.mysql.com/"
+  echo "Please report any problems at"
+  echo "  https://bugs.launchpad.net/percona-server/+filebug"
   echo
 fi
 

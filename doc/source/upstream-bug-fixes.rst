@@ -71,6 +71,12 @@
 |:Fix Released: :rn:`5.6.12-60.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`70277` - last argument of LOAD DATA ... SET ... statement repeated twice in binlog |
+|:Launchpad bug: :bug:`1223196`                                                                               |
+|:Upstream state: Verified (checked on 2013-09-30)                                                            |
+|:Fix Released: :rn:`5.6.11-60.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69252` - All the parts.partition_max* tests are broken with MTR --parallel         |
 |:Launchpad bug: :bug:`1180481`                                                                               |
 |:Upstream state: Verified (checked on 2013-09-27)                                                            |

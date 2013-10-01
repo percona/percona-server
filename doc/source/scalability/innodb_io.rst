@@ -47,6 +47,36 @@ If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will
 
 This variable changes the size of transaction log records. The default size of 512 bytes is good in most situations. However, setting it to 4096 may be a good optimization with SSD cards. While settings other than 512 and 4096 are possible, as a practical matter these are really the only two that it makes sense to use. Clean restart and removal of the old logs is needed for the variable :variable:`innodb_log_block_size` to be changed.
 
+.. variable:: innodb_flush_method
+
+   :Version Info: - :rn:`5.6.13-61.0` - Ported from |Percona Server| 5.5
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :Dyn: No
+   :vartype: Enumeration
+   :default: ``fdatasync``
+   :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
+
+This is an existing |MySQL| 5.6 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method |InnoDB| uses to flush its data and log files. (See ``innodb_flush_method`` in the |MySQL| 5.6 `Reference Manual <https://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
+
+The following values are allowed:
+
+  * ``fdatasync``: 
+    use ``fsync()`` to flush both the data and log files.
+
+  * ``O_SYNC``: 
+    use O_SYNC to open and flush the log files; use ``fsync()`` to flush the data files.
+
+  * ``O_DIRECT``: 
+    use O_DIRECT to open the data files and fsync() system call to flush both the data and log files.
+
+  * ``O_DIRECT_NO_FSYNC``:
+    use O_DIRECT to open the data files but don't use ``fsync()`` system call to flush both the data and log files. This option isn't suitable for *XFS* file system.
+
+  * ``ALL_O_DIRECT``: 
+    use O_DIRECT to open both data and log files, and use ``fsync()`` to flush the data files but not the log files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
+
 Status Variables
 ----------------
 

@@ -39,6 +39,7 @@ Introduction
    :glob:
 
    percona_xtradb
+   ps-versions-comparison
    changed_in_56
 
 Installation
@@ -72,6 +73,7 @@ Performance Improvements
    performance/atomic_fio
    performance/query_cache_enhance
    performance/innodb_numa_support
+   performance/innodb_opt_lru_count
    performance/threadpool
 
 Flexibility Improvements

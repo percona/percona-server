@@ -41,43 +41,46 @@ Some |Percona Server| 5.5 features have been replaced by similar or equivalent |
  * `Dump/Restore of the Buffer Pool <http://www.percona.com/doc/percona-server/5.5/management/innodb_lru_dump_restore.html>`_ is now available in |MySQL| 5.6, so we have replaced the |Percona Server| implementation with the MySQL one.
  * `fast_index_creation <http://www.percona.com/doc/percona-server/5.5/management/innodb_fast_index_creation.html>`_ (replaced by |MySQL| 5.6's `ALGORITHM= option <http://dev.mysql.com/doc/refman/5.6/en/alter-table.html>`_). 
  * :ref:`Fast InnoDB Checksum <ps55:innodb_fast_checksum_page>` has been deprecated after |Percona Server| 5.5.28-29.2 because the :variable:`innodb_checksum_algorithm` variable in |MySQL| 5.6 makes it redundant. If this feature was enabled, turning it off before the upgrade requires table(s) to be dump and imported, since it will fail to start on data files created when :variable:`innodb_fast_checksums` was enabled. 
+ * :ref:`Handle BLOB End of Line <ps55:mysql_remove_eol_carret>` feature has been replaced by |MySQL| 5.6 `binary-mode <http://dev.mysql.com/doc/refman/5.6/en/mysql-command-options.html#option_mysql_binary-mode>`_ configuration option.
 
 Features ported from |Percona Server| 5.5 to |Percona Server| 5.6
 ==================================================================
 
 Following features were ported from |Percona Server| 5.5 to |Percona Server| 5.6: 
 
- ========================================== ===================
- Feature Ported                              Version
- ========================================== ===================
- :ref:`threadpool`                           :rn:`5.6.10-60.2`
- :ref:`atomic_fio`                           :rn:`5.6.11-60.3`
- :ref:`innodb_io_page`                       :rn:`5.6.11-60.3`
- :ref:`innodb_numa_support`                  :rn:`5.6.11-60.3`
- :ref:`log_warning_suppress`                 :rn:`5.6.11-60.3`
- :ref:`improved_memory_engine`               :rn:`5.6.11-60.3`
- :ref:`maximum_binlog_files`                 :rn:`5.6.11-60.3`
- :ref:`log_connection_error`                 :rn:`5.6.11-60.3`
- :ref:`error_pad`                            :rn:`5.6.11-60.3`
- :ref:`show_slave_status_nolock`             :rn:`5.6.11-60.3`
- :ref:`udf_percona_toolkit`                  :rn:`5.6.11-60.3`
- :ref:`innodb_fake_changes_page`             :rn:`5.6.11-60.3`
- :ref:`innodb_kill_idle_trx`                 :rn:`5.6.11-60.3`
- :ref:`enforce_engine`                       :rn:`5.6.11-60.3`
- :ref:`psaas_utility_user`                   :rn:`5.6.11-60.3`
- :ref:`secure_file_priv_extended`            :rn:`5.6.11-60.3`
- :ref:`expanded_option_modifiers`            :rn:`5.6.11-60.3`
- :ref:`changed_page_tracking`                :rn:`5.6.11-60.3`
- :ref:`pam_plugin`                           :rn:`5.6.11-60.3`
- :ref:`user_stats`                           :rn:`5.6.11-60.3`
- :ref:`slow_extended`                        :rn:`5.6.11-60.3`
- :ref:`innodb_show_status`                   :rn:`5.6.11-60.3`
- :ref:`innodb_deadlocks_page`                :rn:`5.6.11-60.3`
- :ref:`mysql_syslog`                         :rn:`5.6.11-60.3`
- :ref:`show_engines`                         :rn:`5.6.11-60.3`
- :ref:`thread_based_profiling`               :rn:`5.6.11-60.3`
- :ref:`buff_read_ahead_area`                 :rn:`5.6.13-60.5`
- ========================================== ===================
+ ================================================= ===================
+ Feature Ported                                     Version
+ ================================================= ===================
+ :ref:`threadpool`                                  :rn:`5.6.10-60.2`
+ :ref:`atomic_fio`                                  :rn:`5.6.11-60.3`
+ :ref:`innodb_io_page`                              :rn:`5.6.11-60.3`
+ :ref:`innodb_numa_support`                         :rn:`5.6.11-60.3`
+ :ref:`log_warning_suppress`                        :rn:`5.6.11-60.3`
+ :ref:`improved_memory_engine`                      :rn:`5.6.11-60.3`
+ :ref:`maximum_binlog_files`                        :rn:`5.6.11-60.3`
+ :ref:`log_connection_error`                        :rn:`5.6.11-60.3`
+ :ref:`error_pad`                                   :rn:`5.6.11-60.3`
+ :ref:`show_slave_status_nolock`                    :rn:`5.6.11-60.3`
+ :ref:`udf_percona_toolkit`                         :rn:`5.6.11-60.3`
+ :ref:`innodb_fake_changes_page`                    :rn:`5.6.11-60.3`
+ :ref:`innodb_kill_idle_trx`                        :rn:`5.6.11-60.3`
+ :ref:`enforce_engine`                              :rn:`5.6.11-60.3`
+ :ref:`psaas_utility_user`                          :rn:`5.6.11-60.3`
+ :ref:`secure_file_priv_extended`                   :rn:`5.6.11-60.3`
+ :ref:`expanded_option_modifiers`                   :rn:`5.6.11-60.3`
+ :ref:`changed_page_tracking`                       :rn:`5.6.11-60.3`
+ :ref:`pam_plugin`                                  :rn:`5.6.11-60.3`
+ :ref:`user_stats`                                  :rn:`5.6.11-60.3`
+ :ref:`slow_extended`                               :rn:`5.6.11-60.3`
+ :ref:`innodb_show_status`                          :rn:`5.6.11-60.3`
+ :ref:`innodb_deadlocks_page`                       :rn:`5.6.11-60.3`
+ :ref:`mysql_syslog`                                :rn:`5.6.11-60.3`
+ :ref:`show_engines`                                :rn:`5.6.11-60.3`
+ :ref:`thread_based_profiling`                      :rn:`5.6.11-60.3`
+ :ref:`buff_read_ahead_area`                        :rn:`5.6.13-60.5`
+ :ref:`innodb_split_buf_pool_mutex`                 :rn:`5.6.13-60.6`
+ :ref:`innodb_adaptive_hash_index_partitions_page`  :rn:`5.6.13-60.6`
+ ================================================= ===================
 
 List of status variables that are no longer available in |Percona Server| 5.6
 =============================================================================
@@ -143,8 +146,6 @@ Following system variables available in |Percona Server| 5.5 are no longer prese
      - :ref:`Response Time Distribution <ps55:response_time_distribution>` feature containing this variable has not been ported to |Percona Server| 5.6 yet
    * - :variable:`innodb_adaptive_flushing_method`         
      - replaced by MySQL 5.6 `flushing <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-lru-background-flushing>`_ implementation
-   * - :variable:`innodb_adaptive_hash_index_partitions`   
-     - variable has not been ported to |Percona Server| 5.6 yet
    * - :variable:`innodb_blocking_buffer_pool_restore`     
      - variable doesn't have direct replacement in |MySQL| 5.6. Feature will be implemented in a `future <https://blueprints.launchpad.net/percona-server/+spec/blocking-buffer-pool-restore>`_ |Percona Server| 5.6 release
    * - :variable:`innodb_buffer_pool_restore_at_startup`   

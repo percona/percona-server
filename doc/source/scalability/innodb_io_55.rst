@@ -117,10 +117,10 @@ The following values are allowed:
     use O_SYNC to open and flush the log files; use fsync() to flush the data files.
 
   * ``O_DIRECT``: 
-    use O_DIRECT (or directio() on Solaris) to open the data files; use fsync() to flush both the data and log files.
+    use O_DIRECT to open the data files and fsync() system call to flush both the data and log files.
 
   * ``ALL_O_DIRECT``: 
-    use O_DIRECT open and flush both the data and the log files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
+    use O_DIRECT to open both data and log files, and use fsync() to flush the data files but it is skipped for all log files writes. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
 
 .. variable:: innodb_flush_neighbor_pages
 

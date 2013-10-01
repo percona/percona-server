@@ -161,9 +161,13 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
   if (! EVP_EncryptInit_ex(&ctx, EVP_aes_128_ecb(), NULL,
                         (const unsigned char *) rkey, NULL))
     goto aes_error;                             /* Error */
-  if (! EVP_EncryptUpdate(&ctx, (unsigned char *) dest, &u_len,
-                          (unsigned const char *) source, source_length))
-    goto aes_error;                             /* Error */
+  u_len= 0;
+  if (source_length > 0) /* workaround for old OpenSSL versions */
+  {
+    if (! EVP_EncryptUpdate(&ctx, (unsigned char *) dest, &u_len,
+                            (unsigned const char *) source, source_length))
+      goto aes_error;                             /* Error */
+  }
   if (! EVP_EncryptFinal(&ctx, (unsigned char *) dest + u_len, &f_len))
     goto aes_error;                             /* Error */
 

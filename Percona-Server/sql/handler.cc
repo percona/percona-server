@@ -585,6 +585,7 @@ int ha_init_errors(void)
   SETMSG(HA_FTS_INVALID_DOCID,          "Invalid InnoDB FTS Doc ID");
   SETMSG(HA_ERR_TABLE_IN_FK_CHECK,	ER_DEFAULT(ER_TABLE_IN_FK_CHECK));
   SETMSG(HA_ERR_TABLESPACE_EXISTS,      "Tablespace already exists");
+  SETMSG(HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT,  "FTS query exceeds result cache limit");
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -884,6 +885,24 @@ static my_bool closecon_handlerton(THD *thd, plugin_ref plugin,
 void ha_close_connection(THD* thd)
 {
   plugin_foreach(thd, closecon_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
+}
+
+static my_bool kill_handlerton(THD *thd, plugin_ref plugin, void *)
+{
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton->state == SHOW_OPTION_YES && hton->kill_connection)
+  {
+    if (thd_get_ha_data(thd, hton))
+      hton->kill_connection(hton, thd);
+  }
+
+  return FALSE;
+}
+
+void ha_kill_connection(THD *thd)
+{
+  plugin_foreach(thd, kill_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, 0);
 }
 
 /* ========================================================================
@@ -1297,6 +1316,18 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
   {
     if (ha_info->is_trx_read_write())
       ++rw_ha_count;
+    else
+    {
+      /*
+        If we have any fake changes handlertons, they will not be marked as
+        read-write, potentially skipping 2PC and causing the fake transaction
+        to be binlogged.  Force using 2PC in this case by bumping rw_ha_count
+        for each fake changes handlerton.
+       */
+      handlerton *ht= ha_info->ht();
+      if (unlikely(ht->is_fake_change && ht->is_fake_change(ht, thd)))
+        ++rw_ha_count;
+    }
 
     if (! all)
     {
@@ -1327,6 +1358,11 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
 
 /**
+  @param[in] ignore_global_read_lock   Allow commit to complete even if a
+                                       global read lock is active. This can be
+                                       used to allow changes to internal tables
+                                       (e.g. slave status tables).
+
   @retval
     0   ok
   @retval
@@ -1340,7 +1376,8 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
     stored functions or triggers. So we simply do nothing now.
     TODO: This should be fixed in later ( >= 5.1) releases.
 */
-int ha_commit_trans(THD *thd, bool all)
+
+int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 {
   int error= 0;
   /*
@@ -1410,7 +1447,7 @@ int ha_commit_trans(THD *thd, bool all)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
-    if (rw_trans)
+    if (rw_trans && !ignore_global_read_lock)
     {
       /*
         Acquire a metadata lock which will ensure that COMMIT is blocked
@@ -2072,7 +2109,14 @@ int ha_prepare_low(THD *thd, bool all)
         transaction is read-only. This allows for simpler
         implementation in engines that are always read-only.
       */
-      if (!ha_info->is_trx_read_write())
+      /*
+        But do call two-phase commit if the handlerton has fake changes
+        enabled even if it's not marked as read-write.  This will ensure that
+        the fake changes handlerton prepare will fail, preventing binlogging
+        and committing the transaction in other engines.
+      */
+      if (!ha_info->is_trx_read_write()
+          && !(ht->is_fake_change && ht->is_fake_change(ht, thd)))
         continue;
       if ((err= ht->prepare(ht, thd, all)))
       {
@@ -3730,6 +3774,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TOO_MANY_FIELDS:
     textno= ER_TOO_MANY_FIELDS;
+    break;
+  case HA_ERR_INNODB_READ_ONLY:
+    textno= ER_INNODB_READ_ONLY;
     break;
   default:
     {
@@ -6319,7 +6366,7 @@ int DsMrr_impl::dsmrr_next(char **range_info)
     rowid= rowids_buf_cur;
 
     if (is_mrr_assoc)
-      memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar**));
+      memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar*));
 
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
     if (h2->mrr_funcs.skip_record &&

@@ -363,6 +363,19 @@ C_MODE_END
 #include <crypt.h>
 #endif
 
+/**
+  Cast a member of a structure to the structure that contains it.
+
+  @param  ptr     Pointer to the member.
+  @param  type    Type of the structure that contains the member.
+  @param  member  Name of the member within the structure.
+*/
+#define my_container_of(ptr, type, member)              \
+  ({                                                    \
+    const typeof(((type *)0)->member) *__mptr= (ptr);   \
+    (type *)((char *)__mptr - offsetof(type, member));  \
+  })
+
 /*
   A lot of our programs uses asserts, so better to always include it
   This also fixes a problem when people uses DBUG_ASSERT without including
@@ -377,7 +390,7 @@ C_MODE_END
 #define compile_time_assert(X)                                  \
   do                                                            \
   {                                                             \
-    typedef char compile_time_assert[(X) ? 1 : -1];             \
+    typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
   } while(0)
 #endif
 
@@ -947,7 +960,7 @@ typedef unsigned long my_off_t;
   TODO Convert these to use Bitmap class.
  */
 typedef ulonglong table_map;          /* Used for table bits in join */
-typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+typedef ulonglong nesting_map;  /* Used for flags of nesting constructs */
 
 #if defined(__WIN__)
 #define socket_errno	WSAGetLastError()

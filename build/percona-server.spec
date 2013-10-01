@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.6.12
+%define mysql_version   5.6.13
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 60
-%define minorversion 4
+%define minorversion 5
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rc%{majorversion}.%{minorversion}
 
@@ -382,6 +382,16 @@ export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
 
+# "Fix" cmake directories in case we're crosscompiling.
+# We detect crosscompiles to i686 if uname is x86_64 however _libdir does not
+# contain lib64.
+# In this case, we cannot instruct cmake to change CMAKE_SYSTEM_PROCESSOR, so
+# we need to alter the directories in cmake/install_layout.cmake manually.
+if test "x$(uname -m)" = "xx86_64" && echo "%{_libdir}" | fgrep -vq lib64
+then
+    sed -i 's/lib64/lib/' "cmake/install_layout.cmake"
+fi
+
 # Build debug mysqld and libmysqld.a
 mkdir debug
 (
@@ -405,6 +415,7 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -423,6 +434,7 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -559,7 +571,7 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -722,7 +734,7 @@ fi
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -917,7 +929,7 @@ fi
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -1040,44 +1052,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
-%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
-# UDF files
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0.0.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so.0.0.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0.0.0
-
-
-
+%attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
+%attr(755, root, root) %{_libdir}/mysql/plugin/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}

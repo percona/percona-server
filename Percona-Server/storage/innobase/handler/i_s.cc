@@ -32,7 +32,7 @@ Created July 18, 2007 Vasil Dimov
 #endif //MYSQL_SERVER
 
 #include <mysqld_error.h>
-#include <sql_acl.h>				// PROCESS_ACL
+#include <sql_acl.h>
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -43,19 +43,20 @@ Created July 18, 2007 Vasil Dimov
 #include <sql_plugin.h>
 #include <mysql/innodb_priv.h>
 
-#include "btr0pcur.h"	/* for file sys_tables related info. */
+#include "btr0pcur.h"
 #include "btr0types.h"
-#include "buf0buddy.h"	/* for i_s_cmpmem */
-#include "buf0buf.h"	/* for buf_pool */
-#include "dict0dict.h"	/* for dict_table_stats_lock() */
-#include "dict0load.h"	/* for file sys_tables related info. */
+#include "dict0dict.h"
+#include "dict0load.h"
+#include "buf0buddy.h"
+#include "buf0buf.h"
+#include "ibuf0ibuf.h"
 #include "dict0mem.h"
 #include "dict0types.h"
-#include "ha_prototypes.h" /* for innobase_convert_name() */
-#include "srv0start.h"	/* for srv_was_started */
-#include "srv0srv.h" /* for srv_max_changed_pages */
+#include "ha_prototypes.h"
+#include "srv0start.h"
+#include "srv0srv.h"
 #include "trx0i_s.h"
-#include "trx0trx.h"	/* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "trx0trx.h"
 #include "srv0mon.h"
 #include "fut0fut.h"
 #include "pars0pars.h"
@@ -74,8 +75,12 @@ struct buf_page_desc_t{
 	ulint		type_value;	/*!< Page type or page state */
 };
 
-/** Any states greater than FIL_PAGE_TYPE_LAST would be treated as unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		(FIL_PAGE_TYPE_LAST + 1)
+/** Change buffer B-tree page */
+#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 1)
+
+/** Any states greater than I_S_PAGE_TYPE_IBUF would be treated as
+unknown. */
+#define	I_S_PAGE_TYPE_UNKNOWN		(I_S_PAGE_TYPE_IBUF + 1)
 
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
 in i_s_page_type[] array */
@@ -96,6 +101,7 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"BLOB", FIL_PAGE_TYPE_BLOB},
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
+	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
 	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN}
 };
 
@@ -2097,7 +2103,7 @@ i_s_cmpmem_fill_low(
 
 		buf_pool = buf_pool_from_array(i);
 
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->zip_free_mutex);
 
 		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 			buf_buddy_stat_t*	buddy_stat;
@@ -2116,7 +2122,8 @@ i_s_cmpmem_fill_low(
 				(ulong) (buddy_stat->relocated_usec / 1000000));
 
 			if (reset) {
-				/* This is protected by buf_pool->mutex. */
+				/* This is protected by
+				buf_pool->zip_free_mutex. */
 				buddy_stat->relocated = 0;
 				buddy_stat->relocated_usec = 0;
 			}
@@ -2127,7 +2134,7 @@ i_s_cmpmem_fill_low(
 			}
 		}
 
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->zip_free_mutex);
 
 		if (status) {
 			break;
@@ -4890,14 +4897,21 @@ i_s_innodb_set_page_type(
 	if (page_type == FIL_PAGE_INDEX) {
 		const page_t*	page = (const page_t*) frame;
 
+		page_info->index_id = btr_page_get_index_id(page);
+
 		/* FIL_PAGE_INDEX is a bit special, its value
 		is defined as 17855, so we cannot use FIL_PAGE_INDEX
 		to index into i_s_page_type[] array, its array index
 		in the i_s_page_type[] array is I_S_PAGE_TYPE_INDEX
-		(1) */
-		page_info->page_type = I_S_PAGE_TYPE_INDEX;
-
-		page_info->index_id = btr_page_get_index_id(page);
+		(1) for index pages or I_S_PAGE_TYPE_IBUF for
+		change buffer index pages */
+		if (page_info->index_id
+		    == static_cast<index_id_t>(DICT_IBUF_ID_MIN
+					       + IBUF_SPACE_ID)) {
+			page_info->page_type = I_S_PAGE_TYPE_IBUF;
+		} else {
+			page_info->page_type = I_S_PAGE_TYPE_INDEX;
+		}
 
 		page_info->data_size = (ulint)(page_header_get_field(
 			page, PAGE_HEAP_TOP) - (page_is_comp(page)
@@ -4906,7 +4920,7 @@ i_s_innodb_set_page_type(
 			- page_header_get_field(page, PAGE_GARBAGE));
 
 		page_info->num_recs = page_get_n_recs(page);
-	} else if (page_type >= I_S_PAGE_TYPE_UNKNOWN) {
+	} else if (page_type > FIL_PAGE_TYPE_LAST) {
 		/* Encountered an unknown page type */
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	} else {
@@ -4941,11 +4955,15 @@ i_s_innodb_buffer_page_get_info(
 					out: structure filled with scanned
 					info */
 {
+	ib_mutex_t*	mutex = buf_page_get_mutex(bpage);
+
 	ut_ad(pool_id < MAX_BUFFER_POOLS);
 
 	page_info->pool_id = pool_id;
 
 	page_info->block_id = pos;
+
+	mutex_enter(mutex);
 
 	page_info->page_state = buf_page_get_state(bpage);
 
@@ -4978,6 +4996,17 @@ i_s_innodb_buffer_page_get_info(
 
 		page_info->freed_page_clock = bpage->freed_page_clock;
 
+		switch (buf_page_get_io_fix(bpage)) {
+		case BUF_IO_NONE:
+		case BUF_IO_WRITE:
+		case BUF_IO_PIN:
+			break;
+		case BUF_IO_READ:
+			page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
+			mutex_exit(mutex);
+			return;
+		}
+
 		if (page_info->page_state == BUF_BLOCK_FILE_PAGE) {
 			const buf_block_t*block;
 
@@ -4995,6 +5024,8 @@ i_s_innodb_buffer_page_get_info(
 	} else {
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	}
+
+	mutex_exit(mutex);
 }
 
 /*******************************************************************//**
@@ -5052,7 +5083,6 @@ i_s_innodb_fill_buffer_pool(
 			buffer pool info printout, we are not required to
 			preserve the overall consistency, so we can
 			release mutex periodically */
-			buf_pool_mutex_enter(buf_pool);
 
 			/* GO through each block in the chunk */
 			for (n_blocks = num_to_process; n_blocks--; block++) {
@@ -5062,8 +5092,6 @@ i_s_innodb_fill_buffer_pool(
 				block_id++;
 				num_page++;
 			}
-
-			buf_pool_mutex_exit(buf_pool);
 
 			/* Fill in information schema table with information
 			just collected from the buffer chunk scan */
@@ -5586,9 +5614,9 @@ i_s_innodb_fill_buffer_lru(
 	DBUG_ENTER("i_s_innodb_fill_buffer_lru");
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
-	/* Obtain buf_pool mutex before allocate info_buffer, since
+	/* Obtain buf_pool->LRU_list_mutex before allocate info_buffer, since
 	UT_LIST_GET_LEN(buf_pool->LRU) could change */
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
@@ -5622,7 +5650,7 @@ i_s_innodb_fill_buffer_lru(
 	ut_ad(lru_pos == UT_LIST_GET_LEN(buf_pool->LRU));
 
 exit:
-	buf_pool_mutex_exit(buf_pool);
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	if (info_buffer) {
 		status = i_s_innodb_buf_page_lru_fill(
@@ -8201,6 +8229,7 @@ i_s_innodb_changed_pages_fill(
 	}
 
 	if (!log_online_bitmap_iterator_init(&i, min_lsn, max_lsn)) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
 		DBUG_RETURN(1);
 	}
 
@@ -8264,6 +8293,7 @@ i_s_innodb_changed_pages_fill(
 		if (schema_table_store_record(thd, table))
 		{
 			log_online_bitmap_iterator_release(&i);
+			my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
 			DBUG_RETURN(1);
 		}
 

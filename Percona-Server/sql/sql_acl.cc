@@ -891,8 +891,11 @@ enum enum_acl_lists
 };
 
 static ACL_USER acl_utility_user;
+LEX_STRING acl_utility_user_name, acl_utility_user_host_name;
 static DYNAMIC_ARRAY acl_utility_user_schema_access;
+static bool acl_utility_user_initialized= false;
 static my_bool acl_init_utility_user(my_bool check_no_resolve);
+static void acl_free_utility_user();
 
 /**
   Convert scrambled password to binary form, according to scramble type, 
@@ -1462,6 +1465,7 @@ end:
 
 void acl_free(bool end)
 {
+  acl_free_utility_user();
   free_root(&global_acl_memory,MYF(0));
   delete_dynamic(&acl_users);
   delete_dynamic(&acl_dbs);
@@ -1652,7 +1656,6 @@ static
 my_bool
 acl_init_utility_user(my_bool check_no_resolve)
 {
-  LEX_STRING acl_user_name, acl_host_name;
   char password[CRYPT_MAX_PASSWORD_SIZE + 1];
   uint i, passlen;
   my_bool ret= TRUE;
@@ -1660,15 +1663,23 @@ acl_init_utility_user(my_bool check_no_resolve)
   if (!utility_user)
     goto end;
 
+  acl_free_utility_user();
+
+  /* Allocate all initial resources necessary */
+  acl_utility_user_name.str= (char *) my_malloc(USERNAME_LENGTH+1, MY_ZEROFILL);
+  acl_utility_user_host_name.str= (char *) my_malloc(HOSTNAME_LENGTH+1, MY_ZEROFILL);
+  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
+                               5, 10);
+  acl_utility_user_initialized= true;
+
   /* parse out the option to its component user and host name parts */
-  acl_user_name.str= (char *) my_malloc(USERNAME_LENGTH+1, MY_ZEROFILL);
-  acl_host_name.str= (char *) my_malloc(HOSTNAME_LENGTH+1, MY_ZEROFILL);
   parse_user(utility_user, strlen(utility_user),
-             acl_user_name.str, &acl_user_name.length,
-             acl_host_name.str, &acl_host_name.length);
+             acl_utility_user_name.str, &acl_utility_user_name.length,
+             acl_utility_user_host_name.str,
+	     &acl_utility_user_host_name.length);
 
   /* Check to see if the username is anonymous */
-  if (!acl_user_name.str || acl_user_name.str[0] == '\0')
+  if (!acl_utility_user_name.str || acl_utility_user_name.str[0] == '\0')
   {
     sql_print_error("'utility user' specified as '%s' is anonymous"
                     " and not allowed.",
@@ -1688,9 +1699,9 @@ acl_init_utility_user(my_bool check_no_resolve)
   }
 
   /* set up some of the static utility user struct fields */
-  acl_utility_user.user= acl_user_name.str;
+  acl_utility_user.user= acl_utility_user_name.str;
 
-  acl_utility_user.host.update_hostname(acl_host_name.str);
+  acl_utility_user.host.update_hostname(acl_utility_user_host_name.str);
 
   acl_utility_user.sort= get_sort(2, acl_utility_user.host.get_host(),
                                    acl_utility_user.user);
@@ -1700,7 +1711,7 @@ acl_init_utility_user(my_bool check_no_resolve)
   {
     ACL_USER *user= dynamic_element(&acl_users, i, ACL_USER*);
     if (user->user
-        && strcmp(acl_user_name.str, user->user) == 0)
+        && strcmp(acl_utility_user_name.str, user->user) == 0)
     {
       if (user->sort == acl_utility_user.sort)
       {
@@ -1749,16 +1760,31 @@ acl_init_utility_user(my_bool check_no_resolve)
     goto cleanup;
   }
 
-  acl_utility_user.access= 0;
+  DBUG_ASSERT(utility_user_privileges <= UINT_MAX32);
+  acl_utility_user.access= utility_user_privileges & UINT_MAX32;
+  if (acl_utility_user.access)
+  {
+    char privilege_desc[512];
+    get_privilege_desc(privilege_desc, array_elements(privilege_desc), acl_utility_user.access);
+    sql_print_information("Utility user '%s'@'%s' in use with access rights "
+                          "'%s'.",
+                          acl_utility_user.user,
+                          acl_utility_user.host.get_host(),
+                          privilege_desc);
+  }
+  else
+  {
+    sql_print_information("Utility user '%s'@'%s' in use with basic "
+                          "access rights.",
+                          acl_utility_user.user,
+                          acl_utility_user.host.get_host());
+  }
 
   acl_utility_user.ssl_type= SSL_TYPE_NONE;
 
   (void) push_dynamic(&acl_users,(uchar*) &acl_utility_user);
         
   /* initialize the schema access list if specified */
-  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
-                               5, 10);
-
   if (utility_user_schema_access)
   {
     char *cur_pos= utility_user_schema_access;
@@ -1792,12 +1818,35 @@ acl_init_utility_user(my_bool check_no_resolve)
   goto end;
 
 cleanup:
-  my_free(acl_user_name.str);
-  my_free(acl_host_name.str);
-  memset(&acl_utility_user, 0, sizeof(acl_utility_user));
+  acl_free_utility_user();
 
 end:
   return ret;
+}
+
+/*
+  Free up any resources allocated during acl_init_utility_user.
+*/
+static
+void
+acl_free_utility_user()
+{
+  if (acl_utility_user_initialized)
+  {
+    uint i;
+    for (i=0 ; i < acl_utility_user_schema_access.elements ; i++)
+    {
+      char** dbname= dynamic_element(&acl_utility_user_schema_access, i, char**);
+      if (*dbname)
+        my_free(*dbname);
+    }
+    delete_dynamic(&acl_utility_user_schema_access);
+
+    my_free(acl_utility_user_name.str);
+    my_free(acl_utility_user_host_name.str);
+    memset(&acl_utility_user, 0, sizeof(acl_utility_user));
+    acl_utility_user_initialized= false;
+  }
 }
 
 /*
@@ -2474,6 +2523,48 @@ int check_change_password(THD *thd, const char *host, const char *user,
 
 
 /**
+  Update the security context when updating the user
+
+  Helper function.
+  Update only if the security context is pointing to the same user.
+  And return true if the update happens (i.e. we're operating on the
+  user account of the current user).
+  Normalize the names for a safe compare.
+
+  @param sctx           The security context to update
+  @param acl_user_ptr   User account being updated
+  @param expired        new value of the expiration flag
+  @return               did the update happen ?
+ */
+static bool
+update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr, bool expired)
+{
+  const char *acl_host= acl_user_ptr->host.get_host();
+  const char *acl_user= acl_user_ptr->user;
+  const char *sctx_user= sctx->priv_user;
+  const char *sctx_host= sctx->priv_host;
+
+  if (!acl_host)
+    acl_host= "";
+  if(!acl_user)
+    acl_user= "";
+  if (!sctx_host)
+    sctx_host= "";
+  if (!sctx_user)
+    sctx_user= "";
+
+  if (!strcmp(acl_user, sctx_user) && !strcmp(acl_host, sctx_host))
+  {
+    sctx->password_expired= expired;
+    return true;
+  }
+
+  return false;
+}
+
+
+
+/**
   Change a password hash for a user.
 
   @param thd Thread handle
@@ -2627,17 +2718,26 @@ bool change_password(THD *thd, const char *host, const char *user,
       password_field= MYSQL_USER_FIELD_AUTHENTICATION_STRING;
       if (new_password_len < CRYPT_MAX_PASSWORD_SIZE + 1)
       {
+        /*
+          Since we're changing the password for the user we need to reset the
+          expiration flag.
+        */
+        if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+            thd->security_ctx->password_expired)
+        {
+          /* the current user is not the same as the user we operate on */
+          my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+          result= 1;
+          mysql_mutex_unlock(&acl_cache->lock);
+          goto end;
+        }
+
+        acl_user->password_expired= false;
         /* copy string including \0 */
         acl_user->auth_string.str= (char *) memdup_root(&global_acl_memory,
                                                        new_password,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
-        /*
-          Since we're changing the password for the user we need to reset the
-          expiration flag.
-        */
-        acl_user->password_expired= false;
-        thd->security_ctx->password_expired= false;
       }
     } else
     {
@@ -2717,9 +2817,16 @@ bool change_password(THD *thd, const char *host, const char *user,
       my_error(ER_PASSWORD_FORMAT, MYF(0));
       result= 1;
       mysql_mutex_unlock(&acl_cache->lock);
-      goto end;  
+      goto end;
     }
-    thd->security_ctx->password_expired= false;
+    if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+        thd->security_ctx->password_expired)
+    {
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      result= 1;
+      mysql_mutex_unlock(&acl_cache->lock);
+      goto end;
+    }
   }
   else
   {
@@ -6459,13 +6566,21 @@ const char *command_array[]=
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
   "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
-  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
+  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE", 0
+};
+
+TYPELIB utility_user_privileges_typelib=
+{
+  array_elements(command_array) - 1,
+  "utility_user_privileges_typelib",
+  command_array,
+  NULL
 };
 
 uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
-  14, 13, 11, 5, 7, 17
+  14, 13, 11, 5, 7, 17, 0
 };
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -10072,9 +10187,6 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   */
   uint passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
                     (uchar) (*passwd++) : strlen(passwd));
-
-  if (passwd_len)
-    mpvio->auth_info.password_used= PASSWORD_USED_YES;
 
   db+= passwd_len + 1;
   /*

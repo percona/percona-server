@@ -2960,7 +2960,9 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;
 		}
+	}
 
+	if (ctx->online) {
 		/* Assign a consistent read view for
 		row_merge_read_clustered_index(). */
 		trx_assign_read_view(ctx->prebuilt->trx);
@@ -4889,6 +4891,8 @@ commit_cache_rebuild(
 	error = dict_table_rename_in_cache(
 		ctx->old_table, ctx->tmp_name, FALSE);
 	ut_a(error == DB_SUCCESS);
+
+	DEBUG_SYNC_C("commit_cache_rebuild_middle");
 
 	error = dict_table_rename_in_cache(
 		ctx->new_table, old_name, FALSE);

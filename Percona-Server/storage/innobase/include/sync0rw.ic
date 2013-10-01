@@ -31,17 +31,22 @@ Created 9/11/1995 Heikki Tuuri
 *******************************************************/
 
 /******************************************************************//**
-Lock an rw-lock in shared mode for the current thread. If the rw-lock is
-locked in exclusive mode, or there is an exclusive lock request waiting,
-the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
+Lock a regular or priority rw-lock in shared mode for the current thread. If
+the rw-lock is locked in exclusive mode, or there is an exclusive lock request
+waiting, the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
 waiting for the lock before suspending the thread. */
 UNIV_INTERN
 void
 rw_lock_s_lock_spin(
 /*================*/
-	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	void*		_lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
+	bool		priority_lock,
+				/*!< in: whether the lock is a priority lock */
+	bool		high_priority,
+				/*!< in: whether we are acquiring a priority
+				lock with high priority */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
 #ifdef UNIV_SYNC_DEBUG
@@ -77,6 +82,20 @@ rw_lock_get_waiters(
 	const rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	return(lock->waiters);
+}
+
+/********************************************************************//**
+Check if there are threads waiting for the priority rw-lock.
+@return	1 if waiters, 0 otherwise */
+UNIV_INLINE
+ulint
+rw_lock_get_waiters(
+/*================*/
+	const prio_rw_lock_t*	lock)	/*!< in: rw-lock */
+{
+	return rw_lock_get_waiters(&lock->base_lock)
+		| lock->high_priority_s_waiters
+		| lock->high_priority_x_waiters;
 }
 
 /********************************************************************//**
@@ -137,6 +156,19 @@ rw_lock_get_writer(
 }
 
 /******************************************************************//**
+Returns the write-status of the priority lock - this function made more sense
+with the old rw_lock implementation.
+@return	RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
+UNIV_INLINE
+ulint
+rw_lock_get_writer(
+/*===============*/
+	const prio_rw_lock_t*	lock)	/*!< in: rw-lock */
+{
+	return(rw_lock_get_writer(&lock->base_lock));
+}
+
+/******************************************************************//**
 Returns the number of readers.
 @return	number of readers */
 UNIV_INLINE
@@ -154,6 +186,18 @@ rw_lock_get_reader_count(
 		return((ulint)(-lock_word));
 	}
 	return(0);
+}
+
+/******************************************************************//**
+Returns the number of readers.
+@return	number of readers */
+UNIV_INLINE
+ulint
+rw_lock_get_reader_count(
+/*=====================*/
+	const prio_rw_lock_t*	lock)	/*!< in: rw-lock */
+{
+	return(rw_lock_get_reader_count(&lock->base_lock));
 }
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
@@ -182,6 +226,19 @@ rw_lock_get_x_lock_count(
 		return(0);
 	}
 	return((lock_copy == 0) ? 1 : (2 - (lock_copy + X_LOCK_DECR)));
+}
+
+/******************************************************************//**
+Returns the value of writer_count for the priority lock. Does not reserve the
+lock mutex, so the caller must be sure it is not changed during the call.
+@return	value of writer_count */
+UNIV_INLINE
+ulint
+rw_lock_get_x_lock_count(
+/*=====================*/
+	const prio_rw_lock_t*	lock)	/*!< in: rw-lock */
+{
+	return(rw_lock_get_x_lock_count(&lock->base_lock));
 }
 
 /******************************************************************//**
@@ -361,7 +418,75 @@ rw_lock_s_lock_func(
 	} else {
 		/* Did not succeed, try spin wait */
 
-		rw_lock_s_lock_spin(lock, pass, file_name, line);
+		rw_lock_s_lock_spin(lock, pass, false, false, file_name, line);
+
+		return;
+	}
+}
+
+/******************************************************************//**
+Return true if waiters of higher priority than the current thread
+exist.
+@true if waiterss of higher priority exist */
+UNIV_INLINE
+bool
+rw_lock_higher_prio_waiters_exist(
+/*==============================*/
+	bool	priority_lock,	/*!< in: whether the lock is a priority lock */
+	bool	high_priority,	/*!< in: whether we are acquiring a priority
+				lock with high priority */
+	void*	lock)		/*!< in: rw lock */
+{
+	if (high_priority || !priority_lock) {
+		ut_ad(!(!priority_lock && high_priority));
+		return(false);
+	}
+
+	ut_ad(priority_lock && !high_priority);
+
+	prio_rw_lock_t *prio_rw_lock = (prio_rw_lock_t *) lock;
+	return prio_rw_lock->high_priority_wait_ex_waiter > 0
+		|| prio_rw_lock->high_priority_s_waiters > 0
+		|| prio_rw_lock->high_priority_x_waiters > 0;
+}
+
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function, except if
+you supply the file name and line number. Lock a priority rw-lock in shared
+mode for the current thread, using the relative thread priority.  If the
+rw-lock is locked in exclusive mode, or there is an exclusive lock request
+waiting, the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
+waiting for the lock, before suspending the thread. */
+UNIV_INLINE
+void
+rw_lock_s_lock_func(
+/*================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED)); /* see NOTE above */
+	ut_ad(!rw_lock_own(lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	bool	high_priority = srv_current_thread_priority > 0;
+
+	/* Do not attempt to acquire a low-priority S latch if there are
+	high-priority waiters even if such attempt would be successful.  This
+	is to prevent a high priority X request from being starved by a
+	sequence of overlapping regular priority S requests.  */
+
+	if (!rw_lock_higher_prio_waiters_exist(true, high_priority, lock)
+	    && rw_lock_s_lock_low(&lock->base_lock, pass, file_name, line)) {
+
+		return; /* Success */
+	} else {
+		/* Did not succeed, try spin wait */
+		rw_lock_s_lock_spin(lock, pass, true, high_priority, file_name,
+				    line);
 
 		return;
 	}
@@ -380,8 +505,6 @@ rw_lock_x_lock_func_nowait(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
-
 	ibool success;
 
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
@@ -401,7 +524,8 @@ rw_lock_x_lock_func_nowait(
 		rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 
 	} else if (lock->recursive
-		   && os_thread_eq(lock->writer_thread, curr_thread)) {
+		   && os_thread_eq(lock->writer_thread,
+				   os_thread_get_curr_id())) {
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */
@@ -469,11 +593,73 @@ rw_lock_s_unlock_func(
 }
 
 /******************************************************************//**
-Releases an exclusive mode lock. */
+Releases a shared mode priority lock. */
 UNIV_INLINE
 void
-rw_lock_x_unlock_func(
+rw_lock_s_unlock_func(
 /*==================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
+				  been passed to another thread to unlock */
+#endif
+	prio_rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	ut_ad(lock->base_lock.lock_word > -X_LOCK_DECR);
+	ut_ad(lock->base_lock.lock_word != 0);
+	ut_ad(lock->base_lock.lock_word < X_LOCK_DECR);
+
+#ifdef UNIV_SYNC_DEBUG
+	rw_lock_remove_debug_info(&lock->base_lock, pass, RW_LOCK_SHARED);
+#endif
+
+	/* Increment lock_word to indicate 1 less reader */
+	if (rw_lock_lock_word_incr(&lock->base_lock, 1) == 0) {
+
+		/* A waiting next-writer exists, either high priority or
+		regular.  Wake up the first waiter in this order: 1) high
+		priority next-writer; 2) high priority X waiters; 3) high
+		priority S waiters; 4) regular priority next-waiter.  This
+		allows high priority requests to overtake an already-waiting
+		regular priority next-waiter.  */
+		if (lock->high_priority_wait_ex_waiter) {
+
+			lock->high_priority_wait_ex_waiter = 0;
+			/* Note that we do not have a separate high priority
+			next-waiter event.  There can be only one such waiter,
+			here we already know it's high priority, no
+			regular-priority wakeup may happen.  */
+			os_event_set(lock->base_lock.wait_ex_event);
+		} else if (lock->high_priority_x_waiters) {
+
+			lock->high_priority_x_waiters = 0;
+			os_event_set(lock->high_priority_x_event);
+		} else if (lock->high_priority_s_waiters) {
+
+			lock->high_priority_s_waiters = 0;
+			os_event_set(lock->high_priority_s_event);
+		} else {
+
+			os_event_set(lock->base_lock.wait_ex_event);
+		}
+		sync_array_object_signalled();
+	}
+
+	ut_ad(rw_lock_validate(lock));
+
+#ifdef UNIV_SYNC_PERF_STAT
+	rw_s_exit_count++;
+#endif
+}
+
+/******************************************************************//**
+Prepares an exclusive mode lock release: resets the recursion flag and removes
+the debug information if needed  and returns the required lock word increment
+value.
+@return lock word increment value to perform the unlock */
+UNIV_INLINE
+ulint
+rw_lock_x_prepare_unlock(
+/*=====================*/
 #ifdef UNIV_SYNC_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
@@ -507,13 +693,87 @@ rw_lock_x_unlock_func(
 		x_lock_incr = 1;
 	}
 
+	return(x_lock_incr);
+}
+
+/******************************************************************//**
+Releases an exclusive mode lock. */
+UNIV_INLINE
+void
+rw_lock_x_unlock_func(
+/*==================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
+				been passed to another thread to unlock */
+#endif
+	rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	ulint x_lock_incr = rw_lock_x_prepare_unlock(
+#ifdef UNIV_SYNC_DEBUG
+						     pass,
+#endif
+						     lock);
+
 	if (rw_lock_lock_word_incr(lock, x_lock_incr) == X_LOCK_DECR) {
 		/* Lock is now free. May have to signal read/write waiters.
 		We do not need to signal wait_ex waiters, since they cannot
 		exist when there is a writer. */
+
 		if (lock->waiters) {
 			rw_lock_reset_waiter_flag(lock);
 			os_event_set(lock->event);
+			sync_array_object_signalled();
+		}
+	}
+
+	ut_ad(rw_lock_validate(lock));
+
+#ifdef UNIV_SYNC_PERF_STAT
+	rw_x_exit_count++;
+#endif
+}
+
+/******************************************************************//**
+Releases an exclusive mode priority lock. */
+UNIV_INLINE
+void
+rw_lock_x_unlock_func(
+/*==================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
+				been passed to another thread to unlock */
+#endif
+	prio_rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	ulint x_lock_incr = rw_lock_x_prepare_unlock(
+#ifdef UNIV_SYNC_DEBUG
+						     pass,
+#endif
+						     &lock->base_lock);
+
+	if (rw_lock_lock_word_incr(&lock->base_lock, x_lock_incr)
+	    == X_LOCK_DECR) {
+
+		/* Priority lock is now free.  Signal any waiters in this
+	        order: 1) high priority X waiters; 2) high priority S waiters;
+	        3) regular priority waiters.
+		We do not need to signal wait_ex waiters, since they cannot
+		exist when there is a writer. */
+
+		if (lock->high_priority_x_waiters) {
+
+			lock->high_priority_x_waiters = 0;
+			os_event_set(lock->high_priority_x_event);
+			sync_array_object_signalled();
+		} else if (lock->high_priority_s_waiters) {
+
+			lock->high_priority_s_waiters = 0;
+			os_event_set(lock->high_priority_s_event);
+			sync_array_object_signalled();
+		} else if (lock->base_lock.waiters) {
+
+			rw_lock_reset_waiter_flag(&lock->base_lock);
+			os_event_set(lock->base_lock.event);
 			sync_array_object_signalled();
 		}
 	}
@@ -561,6 +821,42 @@ pfs_rw_lock_create_func(
 # endif /* UNIV_DEBUG */
 			    cmutex_name);
 }
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_create_func().
+NOTE! Please use the corresponding macro rw_lock_create(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_create_func(
+/*====================*/
+	mysql_pfs_key_t	key,		/*!< in: key registered with
+					performance schema */
+	prio_rw_lock_t*	lock,		/*!< in: pointer to memory */
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+	ulint		level,		/*!< in: level */
+#  endif /* UNIV_SYNC_DEBUG */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline,		/*!< in: file line where created */
+# endif /* UNIV_DEBUG */
+	const char*	cmutex_name)	/*!< in: mutex name */
+{
+	/* Initialize the rwlock for performance schema */
+	lock->base_lock.pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key, lock);
+
+	/* The actual function to initialize an rwlock */
+	rw_lock_create_func(lock,
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+			    level,
+#  endif /* UNIV_SYNC_DEBUG */
+			    cfile_name,
+			    cline,
+# endif /* UNIV_DEBUG */
+			    cmutex_name);
+}
+
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_x_lock_func()
 NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
@@ -594,6 +890,42 @@ pfs_rw_lock_x_lock_func(
 		rw_lock_x_lock_func(lock, pass, file_name, line);
 	}
 }
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_lock_func()
+NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_lock_func(
+/*====================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	if (lock->base_lock.pfs_psi != NULL)
+	{
+		PSI_rwlock_locker*	locker;
+		PSI_rwlock_locker_state	state;
+
+		/* Record the entry of rw x lock request in performance schema */
+		locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+			&state, lock->base_lock.pfs_psi, PSI_RWLOCK_WRITELOCK,
+			file_name, line);
+
+		rw_lock_x_lock_func(lock, pass, file_name, line);
+
+		if (locker != NULL)
+			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
+	}
+	else
+	{
+		rw_lock_x_lock_func(lock, pass, file_name, line);
+	}
+}
+
 /******************************************************************//**
 Performance schema instrumented wrap function for
 rw_lock_x_lock_func_nowait()
@@ -650,6 +982,26 @@ pfs_rw_lock_free_func(
 
 	rw_lock_free_func(lock);
 }
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_free_func()
+NOTE! Please use the corresponding macro rw_lock_free(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_free_func(
+/*==================*/
+	prio_rw_lock_t*	lock)	/*!< in: pointer to rw-lock */
+{
+	if (lock->base_lock.pfs_psi != NULL)
+	{
+		PSI_RWLOCK_CALL(destroy_rwlock)(lock->base_lock.pfs_psi);
+		lock->base_lock.pfs_psi = NULL;
+	}
+
+	rw_lock_free_func(lock);
+}
+
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not
@@ -687,6 +1039,46 @@ pfs_rw_lock_s_lock_func(
 
 	return;
 }
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not
+directly this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_lock_func(
+/*====================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock will be passed to another
+				thread to unlock */
+	const char*	file_name,/*!< in: file name where lock
+				requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	if (lock->base_lock.pfs_psi != NULL)
+	{
+		PSI_rwlock_locker*	locker;
+		PSI_rwlock_locker_state	state;
+
+		/* Instrumented to inform we are aquiring a shared rwlock */
+		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+			&state, lock->base_lock.pfs_psi, PSI_RWLOCK_READLOCK,
+			file_name, line);
+
+		rw_lock_s_lock_func(lock, pass, file_name, line);
+
+		if (locker != NULL)
+			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
+	}
+	else
+	{
+		rw_lock_s_lock_func(lock, pass, file_name, line);
+	}
+
+	return;
+}
+
 /******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not
@@ -728,6 +1120,26 @@ pfs_rw_lock_s_lock_low(
 }
 
 /******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not
+directly this function!
+@return	TRUE if success */
+UNIV_INLINE
+ibool
+pfs_rw_lock_s_lock_low(
+/*===================*/
+	prio_rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				  lock will be passed to another
+				  thread to unlock */
+	const char*	file_name, /*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	return(pfs_rw_lock_s_lock_low(&lock->base_lock, pass,
+				      file_name, line));
+}
+
+/******************************************************************//**
 Performance schema instrumented wrap function for rw_lock_x_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
 this function! */
@@ -745,6 +1157,32 @@ pfs_rw_lock_x_unlock_func(
 	/* Inform performance schema we are unlocking the lock */
 	if (lock->pfs_psi != NULL)
 		PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
+
+	rw_lock_x_unlock_func(
+#ifdef UNIV_SYNC_DEBUG
+		pass,
+#endif
+		lock);
+}
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_unlock_func(
+/*======================*/
+#ifdef UNIV_SYNC_DEBUG
+		ulint		pass,	/*!< in: pass value; != 0, if the
+					lock may have been passed to another
+					thread to unlock */
+#endif
+		prio_rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	/* Inform performance schema we are unlocking the lock */
+	if (lock->base_lock.pfs_psi != NULL)
+		PSI_RWLOCK_CALL(unlock_rwlock)(lock->base_lock.pfs_psi);
 
 	rw_lock_x_unlock_func(
 #ifdef UNIV_SYNC_DEBUG
@@ -779,4 +1217,32 @@ pfs_rw_lock_s_unlock_func(
 		lock);
 
 }
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_unlock_func()
+NOTE! Please use the corresponding macro pfs_rw_lock_s_unlock(), not
+directly this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_unlock_func(
+/*======================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				  lock may have been passed to another
+				  thread to unlock */
+#endif
+	prio_rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	/* Inform performance schema we are unlocking the lock */
+	if (lock->base_lock.pfs_psi != NULL)
+		PSI_RWLOCK_CALL(unlock_rwlock)(lock->base_lock.pfs_psi);
+
+	rw_lock_s_unlock_func(
+#ifdef UNIV_SYNC_DEBUG
+		pass,
+#endif
+		lock);
+
+}
+
 #endif /* UNIV_PFS_RWLOCK */

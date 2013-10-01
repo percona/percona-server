@@ -1208,7 +1208,7 @@ dict_table_can_be_evicted(
 
 			See also: dict_index_remove_from_cache_low() */
 
-			if (btr_search_info_get_ref_count(info) > 0) {
+			if (btr_search_info_get_ref_count(info, index) > 0) {
 				return(FALSE);
 			}
 		}
@@ -2483,7 +2483,8 @@ dict_index_remove_from_cache_low(
 	zero. See also: dict_table_can_be_evicted() */
 
 	do {
-		ulint ref_count = btr_search_info_get_ref_count(info);
+		ulint ref_count = btr_search_info_get_ref_count(info,
+								index);
 
 		if (ref_count == 0) {
 			break;
@@ -2775,6 +2776,7 @@ dict_index_build_internal_clust(
 	new_index->n_user_defined_cols = index->n_fields;
 
 	new_index->id = index->id;
+	btr_search_index_init(new_index);
 
 	/* Copy the fields of index */
 	dict_index_copy(new_index, index, table, 0, index->n_fields);
@@ -2946,6 +2948,7 @@ dict_index_build_internal_non_clust(
 	new_index->n_user_defined_cols = index->n_fields;
 
 	new_index->id = index->id;
+	btr_search_index_init(new_index);
 
 	/* Copy fields from index to new_index */
 	dict_index_copy(new_index, index, table, 0, index->n_fields);
@@ -3029,6 +3032,7 @@ dict_index_build_internal_fts(
 	new_index->n_user_defined_cols = index->n_fields;
 
 	new_index->id = index->id;
+	btr_search_index_init(new_index);
 
 	/* Copy fields from index to new_index */
 	dict_index_copy(new_index, index, table, 0, index->n_fields);
@@ -3451,14 +3455,27 @@ dict_scan_to(
 	const char*	string)	/*!< in: look for this */
 {
 	char	quote	= '\0';
+	bool	escape	= false;
 
 	for (; *ptr; ptr++) {
 		if (*ptr == quote) {
 			/* Closing quote character: do not look for
 			starting quote or the keyword. */
-			quote = '\0';
+
+			/* If the quote character is escaped by a
+			backslash, ignore it. */
+			if (escape) {
+				escape = false;
+			} else {
+				quote = '\0';
+			}
 		} else if (quote) {
 			/* Within quotes: do nothing. */
+			if (escape) {
+				escape = false;
+			} else if (*ptr == '\\') {
+				escape = true;
+			}
 		} else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *ptr;
@@ -3873,6 +3890,11 @@ dict_strip_comments(
 	char*		ptr;
 	/* unclosed quote character (0 if none) */
 	char		quote	= 0;
+	bool		escape = false;
+
+	DBUG_ENTER("dict_strip_comments");
+
+	DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
 
 	str = static_cast<char*>(mem_alloc(sql_length + 1));
 
@@ -3887,16 +3909,29 @@ end_of_string:
 
 			ut_a(ptr <= str + sql_length);
 
-			return(str);
+			DBUG_PRINT("dict_strip_comments", ("%s", str));
+			DBUG_RETURN(str);
 		}
 
 		if (*sptr == quote) {
 			/* Closing quote character: do not look for
 			starting quote or comments. */
-			quote = 0;
+
+			/* If the quote character is escaped by a
+			backslash, ignore it. */
+			if (escape) {
+				escape = false;
+			} else {
+				quote = 0;
+			}
 		} else if (quote) {
 			/* Within quotes: do not look for
 			starting quotes or comments. */
+			if (escape) {
+				escape = false;
+			} else if (*sptr == '\\') {
+				escape = true;
+			}
 		} else if (*sptr == '"' || *sptr == '`' || *sptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;

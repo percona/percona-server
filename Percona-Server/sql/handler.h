@@ -894,6 +894,7 @@ struct handlerton
    my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
    bool (*purge_archive_logs)(handlerton *hton, time_t before_date,
                              const char* to_filename);
+   my_bool (*is_fake_change)(handlerton *hton, THD *thd);
 
    uint32 flags;                                /* global handler flags */
    /*
@@ -906,6 +907,9 @@ struct handlerton
                             const char *query, uint query_length,
                             const char *db, const char *table_name);
    int (*release_temporary_latches)(handlerton *hton, THD *thd);
+
+   /* Terminate connection/statement notification. */
+   void (*kill_connection)(handlerton *hton, THD *thd);
 
    /*
      Get log status.
@@ -984,6 +988,7 @@ struct handlerton
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
+
 /*
   This flag should be set when deciding that the engine does not allow row based
   binary logging (RBL) optimizations.
@@ -997,6 +1002,17 @@ struct handlerton
   no meaning for replication.
 */
 #define HTON_NO_BINLOG_ROW_OPT       (1 << 9)
+
+/**
+  Engine supports extended keys. The flag allows to
+  use 'extended key' feature if the engine is able to
+  do it (has primary key values in the secondary key).
+  Note that handler flag HA_PRIMARY_KEY_IN_READ_INDEX is
+  actually partial case of HTON_SUPPORTS_EXTENDED_KEYS.
+*/
+
+#define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
+
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -1375,7 +1391,8 @@ typedef struct st_key_create_information
   /**
     A flag to determine if we will check for duplicate indexes.
     This typically means that the key information was specified
-    directly by the user (set by the parser).
+    directly by the user (set by the parser) or a column
+    associated with it was dropped.
   */
   bool check_for_duplicate_indexes;
 } KEY_CREATE_INFO;
@@ -3385,6 +3402,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
+void ha_kill_connection(THD *thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
@@ -3423,7 +3441,7 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
-int ha_commit_trans(THD *thd, bool all);
+int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);

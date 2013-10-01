@@ -382,7 +382,7 @@ hash_get_heap(
 Gets the nth mutex in a hash table.
 @return	mutex */
 UNIV_INLINE
-ib_mutex_t*
+ib_prio_mutex_t*
 hash_get_nth_mutex(
 /*===============*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -391,7 +391,7 @@ hash_get_nth_mutex(
 Gets the nth rw_lock in a hash table.
 @return	rw_lock */
 UNIV_INLINE
-rw_lock_t*
+prio_rw_lock_t*
 hash_get_nth_lock(
 /*==============*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -400,7 +400,7 @@ hash_get_nth_lock(
 Gets the mutex for a fold value in a hash table.
 @return	mutex */
 UNIV_INLINE
-ib_mutex_t*
+ib_prio_mutex_t*
 hash_get_mutex(
 /*===========*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -409,7 +409,7 @@ hash_get_mutex(
 Gets the rw_lock for a fold value in a hash table.
 @return	rw_lock */
 UNIV_INLINE
-rw_lock_t*
+prio_rw_lock_t*
 hash_get_lock(
 /*==========*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -450,8 +450,8 @@ UNIV_INTERN
 void
 hash_mutex_exit_all_but(
 /*====================*/
-	hash_table_t*	table,		/*!< in: hash table */
-	ib_mutex_t*	keep_mutex);	/*!< in: mutex to keep */
+	hash_table_t*		table,		/*!< in: hash table */
+	ib_prio_mutex_t*	keep_mutex);	/*!< in: mutex to keep */
 /************************************************************//**
 s-lock a lock for a fold value in a hash table. */
 UNIV_INTERN
@@ -506,7 +506,7 @@ void
 hash_unlock_x_all_but(
 /*==================*/
 	hash_table_t*	table,		/*!< in: hash table */
-	rw_lock_t*	keep_lock);	/*!< in: lock to keep */
+	prio_rw_lock_t*	keep_lock);	/*!< in: lock to keep */
 
 #else /* !UNIV_HOTBACKUP */
 # define hash_get_heap(table, fold)	((table)->heap)
@@ -547,10 +547,11 @@ struct hash_table_t {
 					rw_locks depending on the type.
 					Must be a power of 2 */
 	union {
-		ib_mutex_t*	mutexes;/* NULL, or an array of mutexes
+		ib_prio_mutex_t*	mutexes;
+					/* NULL, or an array of mutexes
 					used to protect segments of the
 					hash table */
-		rw_lock_t*	rw_locks;/* NULL, or an array of rw_lcoks
+		prio_rw_lock_t*	rw_locks;/* NULL, or an array of rw_lcoks
 					used to protect segments of the
 					hash table */
 	} sync_obj;

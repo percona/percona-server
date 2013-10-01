@@ -39,6 +39,7 @@ Introduction
    :glob:
 
    percona_xtradb
+   ps-versions-comparison
    changed_in_56
 
 Installation
@@ -58,7 +59,9 @@ Scalability Improvements
    :maxdepth: 1
    :glob:
 
+   scalability/innodb_split_buf_pool_mutex
    scalability/innodb_io
+   scalability/innodb_adaptive_hash_index_partitions
 
 Performance Improvements
 ========================
@@ -70,6 +73,7 @@ Performance Improvements
    performance/atomic_fio
    performance/query_cache_enhance
    performance/innodb_numa_support
+   performance/innodb_opt_lru_count
    performance/threadpool
 
 Flexibility Improvements
@@ -83,6 +87,7 @@ Flexibility Improvements
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
+   flexibility/buff_read_ahead_area
 
 Reliability Improvements
 ========================

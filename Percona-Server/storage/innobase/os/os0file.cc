@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -43,6 +43,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "btr0types.h"
 #include "trx0trx.h"
 #include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
@@ -1789,14 +1790,16 @@ os_file_create_func(
 
 	} while (retry);
 
-	/* We disable OS caching (O_DIRECT) only on data files */
-
 	if (!srv_read_only_mode
 	    && *success
 	    && type != OS_LOG_FILE
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
 		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
+		os_file_set_nocache(file, name, mode_str);
+	} else if (!srv_read_only_mode
+	    && *success
+	    && srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
 		os_file_set_nocache(file, name, mode_str);
 	}
 
@@ -1833,7 +1836,7 @@ os_file_create_func(
 #endif /* USE_FILE_LOCK */
 
 	if (srv_use_atomic_writes && type == OS_DATA_FILE
-	    && os_file_set_atomic_writes(name, file)) {
+	    && !os_file_set_atomic_writes(name, file)) {
 
 		*success = FALSE;
 		close(file);
@@ -4220,7 +4223,7 @@ os_aio_get_segment_no_from_slot(
 		seg_len = os_aio_read_array->n_slots
 			/ os_aio_read_array->n_segments;
 
-		segment = 2 + slot->pos / seg_len;
+		segment = (srv_read_only_mode ? 0 : 2) + slot->pos / seg_len;
 	} else {
 		ut_ad(!srv_read_only_mode);
 		ut_a(array == os_aio_write_array);

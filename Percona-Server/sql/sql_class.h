@@ -86,6 +86,8 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 
+struct st_thd_timer;
+
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -125,7 +127,9 @@ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
                             SLAVE_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
@@ -598,6 +602,8 @@ typedef struct system_variables
 
   my_bool pseudo_slave_mode;
 
+  ulong max_statement_time;
+
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
 
@@ -680,6 +686,11 @@ typedef struct system_status_var
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
+  ulong max_statement_time_exceeded;
+  ulong max_statement_time_set;
+  ulong max_statement_time_set_failed;
+
 } STATUS_VAR;
 
 /*
@@ -2385,6 +2396,9 @@ public:
     return m_binlog_filter_state;
   }
 
+  /** Timer object. */
+  struct st_thd_timer *timer, *timer_cache;
+
 private:
   /**
     Indicate if the current statement should be discarded
@@ -2785,7 +2799,6 @@ public:
   }
 
   ha_rows    cuted_fields;
-  uint8      failed_com_change_user;
 
 private:
   /**
@@ -3028,6 +3041,7 @@ public:
     KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
   killed_state volatile killed;
@@ -4690,7 +4704,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4717,8 +4744,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
+     group_length(0), group_null_parts(0), outer_sum_func_count(0),
+     using_outer_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}

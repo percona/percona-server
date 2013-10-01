@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,6 +45,14 @@ IF(HAVE_ALARM)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_alarm.c)
 ENDIF()
 
+IF(HAVE_POSIX_TIMERS)
+ SET(MYSYS_SOURCES ${MYSYS_SOURCES} posix_timers.c)
+ENDIF()
+
+IF(HAVE_KQUEUE_TIMERS)
+  SET(MYSYS_SOURCES ${MYSYS_SOURCES} kqueue_timers.c)
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   # Inline assembly template for rdtsc
   SET_SOURCE_FILES_PROPERTIES(my_rdtsc.c
@@ -63,6 +71,11 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
 TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY} 
  ${LIBNSL} ${LIBM} ${LIBRT})
 DTRACE_INSTRUMENT(mysys)
+
+# Need explicit pthread for gcc -fsanitize=address
+IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
+  TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
 
 ADD_EXECUTABLE(thr_lock thr_lock.c)
 TARGET_LINK_LIBRARIES(thr_lock mysys)

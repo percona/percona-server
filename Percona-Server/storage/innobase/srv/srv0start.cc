@@ -476,6 +476,7 @@ DECLARE_THREAD(io_handler_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+		srv_current_thread_priority = srv_io_thread_priority;
 		fil_aio_wait(segment);
 	}
 
@@ -1702,6 +1703,9 @@ innobase_start_or_create_for_mysql(void)
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
+
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "ALL_O_DIRECT")) {
+		srv_unix_file_flush_method = SRV_UNIX_ALL_O_DIRECT;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT_NO_FSYNC")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT_NO_FSYNC;

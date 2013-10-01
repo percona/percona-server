@@ -5,21 +5,75 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`70228` - Is buf_LRU_free_page() really supposed to make non-zip block sticky at ...|
+|:Launchpad bug: :bug:`1220544`                                                                               |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
+|:Fix Released: :rn:`5.6.13-60.6`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69617` - 5.6.12 removed UNIV_SYNC_DEBUG from UNIV_DEBUG                            |
+|:Launchpad bug: :bug:`1216815`                                                                               |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
+|:Fix Released: :rn:`5.6.13-60.6`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69258` - does buf_LRU_buf_pool_running_out need to lock buffer pool mutexes        |
+|:Launchpad bug: :bug:`1219842`                                                                               |
+|:Upstream state: Not a Bug                                                                                   |
+|:Fix Released: :rn:`5.6.13-60.6`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`70216` - Unnecessary overhead from persistent adaptive hash index latches          |
+|:Launchpad bug: :bug:`1218347`                                                                               |
+|:Upstream state: Open (checked on 2013-09-27)                                                                |
+|:Fix Released: :rn:`5.6.13-60.6`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`62018` - innodb adaptive hash index mutex contention                               |
+|:Launchpad bug: :bug:`1216804`                                                                               |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
+|:Fix Released: :rn:`5.6.13-60.6`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69179` - accessing information_schema.partitions causes plans to change            |
+|:Launchpad bug: :bug:`1192354`                                                                               |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.6.13-60.5`                                                                             |
+|:Upstream fix: 5.6.14                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`42415` - UPDATE/DELETE with LIMIT clause unsafe for SBL even with ORDER BY PK ...  |
+|:Launchpad bug: :bug:`1132194`                                                                               |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
+|:Fix Released: :rn:`5.6.13-60.5`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69639` - mysql failed to build with dtrace Sun D 1.11                              |
+|:Launchpad bug: :bug:`1196460`                                                                               |
+|:Upstream state: Open (checked on 2013-09-27)                                                                |
+|:Fix Released: :rn:`5.6.13-60.5`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69524` - Some tests for table cache variables fail if open files limit is too low  |
 |:Launchpad bug: :bug:`1182572`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.12-60.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68354` - Server crashes on update/join FEDERATED + local table when only 1 local...|
 |:Launchpad bug: :bug:`1182572`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.6.12-60.4`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69856` - mysql_install_db does not function properly in 5.6 for debug builds       |
+|:Launchpad bug: :bug:`1179359`                                                                               |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.12-60.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69252` - All the parts.partition_max* tests are broken with MTR --parallel         |
 |:Launchpad bug: :bug:`1180481`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -31,7 +85,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68714` - Remove literal statement digest values from perfschema tests              |
 |:Launchpad bug: :bug:`1157078`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -55,13 +109,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68970` - fsp_reserve_free_extents switches from small to big tblspace handling ... |
 |:Launchpad bug: :bug:`1169494`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68713` - create_duplicate_weedout_tmp_table() leaves key_part_flag uninitialized   |
 |:Launchpad bug: :bug:`1157037`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -73,21 +127,21 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68999` - SSL_OP_NO_COMPRESSION not defined                                         |
 |:Launchpad bug: :bug:`1183610`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Need Feedback (checked on 2013-09-27)                                                       |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68845` - Unnecessary log_sys->mutex reacquisition in mtr_log_reserve_and_write()   |
 |:Launchpad bug: :bug:`1163439`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62578` - mysql client aborts connection on terminal resize                         |
 |:Launchpad bug: :bug:`925343`                                                                                |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
-|:Upstream fix: N/A                                                                                           |
+|:Upstream fix: 5.6.12                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`49169` - read_view_open_now is inefficient with many concurrent sessions           |
 |:Launchpad bug: :bug:`1131187` and :bug:`1131189`                                                            |
@@ -109,7 +163,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68476` - Suboptimal code in my_strnxfrm_simple()                                   |
 |:Launchpad bug: :bug:`1132350`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -145,7 +199,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`66237` - Temporary files created by binary log cache are not purged after transa...|
 |:Launchpad bug: :bug:`1070856`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -163,13 +217,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61180` - korr/store macros in my_global.h assume the argument to be a char pointer |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61178` - Incorrect implementation of intersect(ulonglong) in non-optimized Bitmap..|
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -181,7 +235,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64800` - mysqldump with --include-master-host-port putting quotes around port no.  | 
 |:Launchpad bug: :bug:`1013432`                                                                               |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -199,7 +253,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64663` - Segfault when adding indexes to InnoDB temporary tables                   |
 |:Launchpad bug: :bug:`999147`                                                                                |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -211,13 +265,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`25007` - memory tables with dynamic rows format                                    |
 |:Launchpad bug: N/A                                                                                          |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61595` - mysql-test/include/wait_for_slave_param.inc timeout logic is incorrect    |
 |:Launchpad bug: :bug:`800035`                                                                                |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -229,7 +283,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68116` - InnoDB monitor may hit an assertion error in buf_page_get_gen in debug ...|
 |:Launchpad bug: :bug:`1100178`                                                                               |
-|:Upstream state: Analyzing (checked on 2013-06-26)                                                           |
+|:Upstream state: Analyzing (checked on 2013-09-27)                                                           |
 |:Fix Released: :rn:`5.6.10-60.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -241,13 +295,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`20001` - Support for temp-tables in INFORMATION_SCHEMA                             |
 |:Launchpad bug: N/A                                                                                          |
-|:Upstream state: Verified (checked on 2013-06-26)                                                            |
+|:Upstream state: Verified (checked on 2013-09-27)                                                            |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69146` - Optimization in buf_pool_get_oldest_modification if srv_buf_pool_instances|
 |:Launchpad bug: :bug:`1176496`                                                                               |
-|:Upstream state: Open (checked on 2013-06-26)                                                                |
+|:Upstream state: Open (checked on 2013-09-27)                                                                |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

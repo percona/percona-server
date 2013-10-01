@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.33-rel31.1) unstable; urgency=low
+
+  * Remove the info entry for mysql.info, which was pointless.
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Tue,  1 Oct 2013 17:00:00 -0300
+
 percona-server-5.5 (5.5.13-rel20.4) unstable; urgency=low
 
   * Update versions to 5.5.13

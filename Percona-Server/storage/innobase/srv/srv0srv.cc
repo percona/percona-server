@@ -261,6 +261,31 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
+/** The maximum time limit for a single LRU tail flush iteration by the page
+cleaner thread */
+UNIV_INTERN ulint	srv_cleaner_max_lru_time = 1000;
+
+/** The maximum time limit for a single flush list flush iteration by the page
+cleaner thread */
+UNIV_INTERN ulint	srv_cleaner_max_flush_time = 1000;
+
+/** Page cleaner flush list flush batches are further divided into this chunk
+size  */
+UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 100;
+
+/** Page cleaner LRU list flush batches are further divided into this chunk
+size  */
+UNIV_INTERN ulint	srv_cleaner_lru_chunk_size = 100;
+
+/** If free list length is lower than this percentage of srv_LRU_scan_depth,
+page cleaner LRU flushes will issue flush batches to the same instance in a
+row  */
+UNIV_INTERN ulint	srv_cleaner_free_list_lwm = 10;
+
+/** If TRUE, page cleaner heuristics use evicted instead of flushed page counts
+for its heuristics  */
+UNIV_INTERN my_bool	srv_cleaner_eviction_factor = FALSE;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;

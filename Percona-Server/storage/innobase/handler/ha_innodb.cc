@@ -16574,6 +16574,42 @@ static MYSQL_SYSVAR_BOOL(priority_master, srv_master_thread_priority,
 
 #endif /* UNIV_LINUX */
 
+static MYSQL_SYSVAR_ULONG(cleaner_max_lru_time, srv_cleaner_max_lru_time,
+  PLUGIN_VAR_RQCMDARG,
+  "The maximum time limit for a single LRU tail flush iteration by the page "
+  "cleaner thread in miliseconds",
+  NULL, NULL, 1000, 0, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(cleaner_max_flush_time, srv_cleaner_max_flush_time,
+  PLUGIN_VAR_RQCMDARG,
+  "The maximum time limit for a single flush list flush iteration by the page "
+  "cleaner thread in miliseconds",
+  NULL, NULL, 1000, 0, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(cleaner_flush_chunk_size,
+  srv_cleaner_flush_chunk_size,
+  PLUGIN_VAR_RQCMDARG,
+  "Divide page cleaner flush list flush batches into chunks of this size",
+  NULL, NULL, 200, 1, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(cleaner_lru_chunk_size,
+  srv_cleaner_lru_chunk_size,
+  PLUGIN_VAR_RQCMDARG,
+  "Divide page cleaner LRU list flush batches into chunks of this size",
+  NULL, NULL, 100, 1, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(cleaner_free_list_lwm, srv_cleaner_free_list_lwm,
+  PLUGIN_VAR_RQCMDARG,
+  "Page cleaner will keep on flushing the same buffer pool instance if its "
+  "free list length is below this percentage of innodb_lru_scan_depth",
+  NULL, NULL, 10, 0, 100, 0);
+
+static MYSQL_SYSVAR_BOOL(cleaner_eviction_factor, srv_cleaner_eviction_factor,
+  PLUGIN_VAR_OPCMDARG,
+  "Make page cleaner LRU flushes use evicted instead of flushed page counts "
+  "for its heuristics",
+  NULL, NULL, FALSE);
+
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
@@ -17241,6 +17277,12 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(priority_cleaner),
   MYSQL_SYSVAR(priority_master),
 #endif /* UNIV_LINUX */
+  MYSQL_SYSVAR(cleaner_max_lru_time),
+  MYSQL_SYSVAR(cleaner_max_flush_time),
+  MYSQL_SYSVAR(cleaner_flush_chunk_size),
+  MYSQL_SYSVAR(cleaner_lru_chunk_size),
+  MYSQL_SYSVAR(cleaner_free_list_lwm),
+  MYSQL_SYSVAR(cleaner_eviction_factor),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),

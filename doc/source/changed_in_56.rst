@@ -42,6 +42,7 @@ Some |Percona Server| 5.5 features have been replaced by similar or equivalent |
  * `fast_index_creation <http://www.percona.com/doc/percona-server/5.5/management/innodb_fast_index_creation.html>`_ (replaced by |MySQL| 5.6's `ALGORITHM= option <http://dev.mysql.com/doc/refman/5.6/en/alter-table.html>`_). 
  * :ref:`Fast InnoDB Checksum <ps55:innodb_fast_checksum_page>` has been deprecated after |Percona Server| 5.5.28-29.2 because the :variable:`innodb_checksum_algorithm` variable in |MySQL| 5.6 makes it redundant. If this feature was enabled, turning it off before the upgrade requires table(s) to be dump and imported, since it will fail to start on data files created when :variable:`innodb_fast_checksums` was enabled. 
  * :ref:`Handle BLOB End of Line <ps55:mysql_remove_eol_carret>` feature has been replaced by |MySQL| 5.6 `binary-mode <http://dev.mysql.com/doc/refman/5.6/en/mysql-command-options.html#option_mysql_binary-mode>`_ configuration option.
+ * |Percona Server| 5.5 implemented ``utf8_general50_ci`` and ``ucs2_general50_ci`` collations as a fix for the upstream bug: :mysqlbug:`27877`. These are now being replaced by |MySQL| 5.6 ``utf8_general_mysql500_ci`` and ``ucs2_general_mysql500_ci`` collations.
 
 Features ported from |Percona Server| 5.5 to |Percona Server| 5.6
 ==================================================================

@@ -5,6 +5,7 @@ percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
     reasons other than bad installation.
   * Enable innodb memcached
   * Remove the info entry for mysql.info, which was pointless.
+  * Change libmysqlclient18's name to libmysqlclient18.1.
 
  -- Ignacio Nin <ignacio.nin@percona.com>  Tue,  1 Oct 2013 17:00:00 -0300
 

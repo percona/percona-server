@@ -5,6 +5,11 @@ percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
     reasons other than bad installation.
   * Enable innodb memcached
   * Remove the info entry for mysql.info, which was pointless.
+  * Do not package the libmysqlclient18.so links in the library package.
+  * Add a manual link from the libmysqlclient_r fully versioned library
+    to the libmysqlclient fully versioned library. The one cmake(1)
+    installs goes to the non-fully versioned one ant it seems impossible
+    to change at the CMakeLists.txt level in an easy way.
   * Change libmysqlclient18's name to libmysqlclient18.1.
 
  -- Ignacio Nin <ignacio.nin@percona.com>  Tue,  1 Oct 2013 17:00:00 -0300

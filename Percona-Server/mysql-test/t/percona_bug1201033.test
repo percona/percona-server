@@ -1,0 +1,5 @@
+#
+# Bug #1201033: Crash when using AES_ENCRYPT on empty string
+#
+
+SELECT HEX(AES_ENCRYPT('','6b2d440b57b3bae74e3cf71e415b3965'));

@@ -1,6 +1,11 @@
 percona-server-5.5 (5.5.33-rel31.1) unstable; urgency=low
 
   * Remove the info entry for mysql.info, which was pointless.
+  * Do not package the libmysqlclient18.so links in the library package.
+  * Add a manual link from the libmysqlclient_r fully versioned library
+    to the libmysqlclient fully versioned library. The one cmake(1)
+    installs goes to the non-fully versioned one ant it seems impossible
+    to change at the CMakeLists.txt level in an easy way.
 
  -- Ignacio Nin <ignacio.nin@percona.com>  Tue,  1 Oct 2013 17:00:00 -0300
 

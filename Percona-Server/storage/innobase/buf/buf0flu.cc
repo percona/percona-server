@@ -2247,25 +2247,22 @@ buf_flush_LRU_tail(void)
 					buffer pool instance. */
 					buf_flush_wait_batch_end(
 						buf_pool, BUF_FLUSH_LRU);
-				} else {
-
-					total_flushed += n.flushed;
-
-					/* When we evict less pages than we did
-					on a previous try we relax the LRU scan
-					limit in order to attempt to evict
-					more */
-					limited_scan[i]
-						= (previous_evicted[i]
-						   > n.evicted);
-					previous_evicted[i] = n.evicted;
-
-					requested_pages[i] += lru_chunk_size;
 				}
 
+				total_flushed += n.flushed;
+
+				/* When we evict less pages than we did	on a
+				previous try we relax the LRU scan limit in
+				order to attempt to evict more */
+				limited_scan[i]
+					= (previous_evicted[i] > n.evicted);
+				previous_evicted[i] = n.evicted;
+
+				requested_pages[i] += lru_chunk_size;
+
 				if (requested_pages[i] >= scan_depth[i]
-				    || (srv_cleaner_eviction_factor
-					? n.evicted : n.flushed)) {
+				    || !(srv_cleaner_eviction_factor
+					 ? n.evicted : n.flushed)) {
 
 					active_instance[i] = false;
 					remaining_instances--;

@@ -338,6 +338,10 @@ extern my_bool	srv_cleaner_eviction_factor;
 					use evicted instead of flushed page
 					counts for its heuristics  */
 
+extern ulong	srv_cleaner_lsn_age_factor;
+					/*!< page cleaner LSN age factor
+					formula option */
+
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;

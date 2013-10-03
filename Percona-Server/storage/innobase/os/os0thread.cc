@@ -30,6 +30,12 @@ Created 9/8/1995 Heikki Tuuri
 
 #ifdef __WIN__
 #include <windows.h>
+#elif UNIV_LINUX
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #endif
 
 #ifndef UNIV_HOTBACKUP
@@ -97,6 +103,24 @@ os_thread_get_curr_id(void)
 	return(pthread_self());
 #endif
 }
+
+/*****************************************************************//**
+Returns the system-specific thread identifier of current thread.  On Linux,
+returns tid.  On other systems currently returns os_thread_get_curr_id().
+
+@return	current thread identifier */
+UNIV_INTERN
+os_tid_t
+os_thread_get_tid(void)
+/*===================*/
+{
+#ifdef UNIV_LINUX
+	return((os_tid_t)syscall(SYS_gettid));
+#else
+	return(os_thread_get_curr_id());
+#endif
+}
+
 
 /****************************************************************//**
 Creates a new thread of execution. The execution starts from
@@ -253,5 +277,33 @@ os_thread_sleep(
 	t.tv_usec = tm % 1000000;
 
 	select(0, NULL, NULL, NULL, &t);
+#endif
+}
+
+/*****************************************************************//**
+Set relative scheduling priority for a given thread on Linux.  Currently a
+no-op on other systems.
+
+@return An actual thread priority after the update */
+UNIV_INTERN
+ulint
+os_thread_set_priority(
+/*===================*/
+	os_tid_t	thread_id,		/*!< in: thread id */
+	ulint		relative_priority)	/*!< in: system-specific
+						priority value */
+{
+#ifdef UNIV_LINUX
+	lint	thread_nice = relative_priority - 20;
+	if (setpriority(PRIO_PROCESS, thread_id, thread_nice) == -1) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Setting thread %lu nice to %ld failed, "
+			"current nice %d, errno %d",
+			os_thread_pf(thread_id), thread_nice,
+			getpriority(PRIO_PROCESS, thread_id), errno);
+	}
+	return(getpriority(PRIO_PROCESS, thread_id) + 20);
+#else
+	return(relative_priority);
 #endif
 }

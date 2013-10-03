@@ -503,10 +503,36 @@ extern ib_mutex_t	server_mutex;
 
 #define SRV_MAX_N_IO_THREADS	130
 
+#define SRV_MAX_N_PURGE_THREADS 32
+
 /* Array of English strings describing the current state of an
 i/o handler thread */
 extern const char* srv_io_thread_op_info[];
 extern const char* srv_io_thread_function[];
+
+/* The tid of the cleaner thread */
+extern os_tid_t	srv_cleaner_tid;
+
+/* The tids of the purge threads */
+extern os_tid_t srv_purge_tids[];
+
+/* The tids of the I/O threads */
+extern os_tid_t	srv_io_tids[];
+
+/* The tid of the master thread */
+extern os_tid_t	srv_master_tid;
+
+/* The relative scheduling priority of the cleaner thread */
+extern ulint	srv_sched_priority_cleaner;
+
+/* The relative scheduling priority of the purge threads */
+extern ulint	srv_sched_priority_purge;
+
+/* The relative scheduling priority of the I/O threads */
+extern ulint	srv_sched_priority_io;
+
+/* The relative scheduling priority of the master thread */
+extern ulint	srv_sched_priority_master;
 
 /* The relative priority of the purge coordinator and worker threads.  */
 extern my_bool srv_purge_thread_priority;

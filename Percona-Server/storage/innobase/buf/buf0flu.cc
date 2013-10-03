@@ -2633,6 +2633,10 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	pfs_register_thread(buf_page_cleaner_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
+	srv_cleaner_tid = os_thread_get_tid();
+
+	os_thread_set_priority(srv_cleaner_tid, srv_sched_priority_cleaner);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "InnoDB: page_cleaner thread running, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));

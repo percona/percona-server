@@ -2681,11 +2681,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 		next_loop_time = ut_time_ms() + page_cleaner_sleep_time;
 
+		/* Flush pages from end of LRU if required */
+		n_flushed = buf_flush_LRU_tail();
+
 		if (srv_check_activity(last_activity)) {
 			last_activity = srv_get_activity_count();
-
-			/* Flush pages from end of LRU if required */
-			n_flushed = buf_flush_LRU_tail();
 
 			/* Flush pages from flush_list if required */
 			n_flushed += page_cleaner_flush_pages_if_needed();

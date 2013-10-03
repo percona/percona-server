@@ -127,7 +127,8 @@ static os_file_t	files[1000];
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6
+				   + SRV_MAX_N_PURGE_THREADS];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -452,6 +453,9 @@ srv_free_paths_and_sizes(void)
 }
 
 #ifndef UNIV_HOTBACKUP
+
+static ulint io_tid_i = 0;
+
 /********************************************************************//**
 I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
@@ -463,8 +467,14 @@ DECLARE_THREAD(io_handler_thread)(
 			the aio array */
 {
 	ulint	segment;
+	ulint	tid_i = os_atomic_increment_ulint(&io_tid_i, 1) - 1;
+
+	ut_ad(tid_i < srv_n_file_io_threads);
 
 	segment = *((ulint*) arg);
+
+	srv_io_tids[tid_i] = os_thread_get_tid();
+	os_thread_set_priority(srv_io_tids[tid_i], srv_sched_priority_io);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,

@@ -2401,10 +2401,22 @@ af_get_pct_for_lsn(
 	lsn_age_factor = (age * 100) / max_async_age;
 
 	ut_ad(srv_max_io_capacity >= srv_io_capacity);
-	return(static_cast<ulint>(
-		((srv_max_io_capacity / srv_io_capacity)
-		* (lsn_age_factor * sqrt((double)lsn_age_factor)))
-		/ 7.5));
+	switch ((srv_cleaner_lsn_age_factor_t)srv_cleaner_lsn_age_factor) {
+	case SRV_CLEANER_LSN_AGE_FACTOR_LEGACY:
+		return(static_cast<ulint>(
+			       ((srv_max_io_capacity / srv_io_capacity)
+				* (lsn_age_factor
+				   * sqrt((double)lsn_age_factor)))
+			       / 7.5));
+	case SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT:
+		return(static_cast<ulint>(
+			       ((srv_max_io_capacity / srv_io_capacity)
+				* (lsn_age_factor * lsn_age_factor
+				   * sqrt((double)lsn_age_factor)))
+			       / 700.5));
+	default:
+		ut_error;
+	}
 }
 
 /*********************************************************************//**

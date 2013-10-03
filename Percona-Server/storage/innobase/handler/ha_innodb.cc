@@ -235,6 +235,21 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 	NULL
 };
 
+/** Possible values for system variable "innodb_cleaner_lsn_age_factor".  */
+static const char* innodb_cleaner_lsn_age_factor_names[] = {
+	"legacy",
+	"high_checkpoint",
+	NullS
+};
+
+/** Enumeration for innodb_cleaner_lsn_age_factor.  */
+static TYPELIB innodb_cleaner_lsn_age_factor_typelib = {
+	array_elements(innodb_cleaner_lsn_age_factor_names) - 1,
+	"innodb_cleaner_lsn_age_factor_typelib",
+	innodb_cleaner_lsn_age_factor_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -16612,6 +16627,15 @@ static MYSQL_SYSVAR_BOOL(cleaner_eviction_factor, srv_cleaner_eviction_factor,
 
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
+static MYSQL_SYSVAR_ENUM(cleaner_lsn_age_factor,
+  srv_cleaner_lsn_age_factor,
+  PLUGIN_VAR_OPCMDARG,
+  "The formula for LSN age factor for page cleaner adaptive flushing. "
+  "LEGACY: Original Oracle MySQL 5.6 formula. "
+  "HIGH_CHECKPOINT: (the default) Percona Server 5.6 formula.",
+  NULL, NULL, SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT,
+  &innodb_cleaner_lsn_age_factor_typelib);
+
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
@@ -17284,6 +17308,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(cleaner_free_list_lwm),
   MYSQL_SYSVAR(cleaner_eviction_factor),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
+  MYSQL_SYSVAR(cleaner_lsn_age_factor),
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),

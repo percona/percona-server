@@ -92,6 +92,21 @@ enum srv_checksum_algorithm_t {
 						when reading */
 };
 
+/** Alternatives for srv_cleaner_lsn_age_factor, set through
+innodb_cleaner_lsn_age_factor variable  */
+enum srv_cleaner_lsn_age_factor_t {
+	SRV_CLEANER_LSN_AGE_FACTOR_LEGACY,	/*!< Original Oracle MySQL 5.6
+						formula */
+	SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT
+						/*!< Percona Server 5.6 formula
+						that returns lower values than
+					        legacy option for low
+					        checkpoint ages, and higher
+					        values for high ages.  This has
+					        the effect of stabilizing the
+						checkpoint age higher.  */
+};
+
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
 /** Zip shift value for the smallest page size */

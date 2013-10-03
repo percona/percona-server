@@ -367,7 +367,8 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_TIME_SLOT},
 
 	{"buffer_LRU_batch_flush_avg_time_slot", "buffer",
-	 "Avg time (ms) spent for LRU batch flushing recently per slot.",
+	 "Avg time (ms) spent for LRU batch flushing recently per slot. "
+	 "Always 0 in XtraDB.",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_LRU_BATCH_FLUSH_AVG_TIME_SLOT},
 
@@ -377,7 +378,8 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_TIME_THREAD},
 
 	{"buffer_LRU_batch_flush_avg_time_thread", "buffer",
-	 "Avg time (ms) spent for LRU batch flushing recently per thread.",
+	 "Avg time (ms) spent for LRU batch flushing recently per thread."
+	 "Always 0 in XtraDB.",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_LRU_BATCH_FLUSH_AVG_TIME_THREAD},
 
@@ -387,7 +389,8 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_TIME_EST},
 
 	{"buffer_LRU_batch_flush_avg_time_est", "buffer",
-	 "Estimated time (ms) spent for LRU batch flushing recently.",
+	 "Estimated time (ms) spent for LRU batch flushing recently."
+	 "Always 0 in XtraDB.",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_LRU_BATCH_FLUSH_AVG_TIME_EST},
 
@@ -402,7 +405,8 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_PASS},
 
 	{"buffer_LRU_batch_flush_avg_pass", "buffer",
-	 "Number of LRU batch flushes passed during the recent Avg period.",
+	 "Number of LRU batch flushes passed during the recent Avg period."
+	 "Always 0 in XtraDB.",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_LRU_BATCH_FLUSH_AVG_PASS},
 

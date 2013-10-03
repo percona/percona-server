@@ -285,6 +285,36 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 	NULL
 };
 
+/** Possible values for system variable "innodb_cleaner_lsn_age_factor".  */
+static const char* innodb_cleaner_lsn_age_factor_names[] = {
+	"legacy",
+	"high_checkpoint",
+	NullS
+};
+
+/** Enumeration for innodb_cleaner_lsn_age_factor.  */
+static TYPELIB innodb_cleaner_lsn_age_factor_typelib = {
+	array_elements(innodb_cleaner_lsn_age_factor_names) - 1,
+	"innodb_cleaner_lsn_age_factor_typelib",
+	innodb_cleaner_lsn_age_factor_names,
+	NULL
+};
+
+/** Possible values for system variable "innodb_empty_free_list_algorithm".  */
+static const char* innodb_empty_free_list_algorithm_names[] = {
+	"legacy",
+	"backoff",
+	NullS
+};
+
+/** Enumeration for innodb_empty_free_list_algorithm.  */
+static TYPELIB innodb_empty_free_list_algorithm_typelib = {
+	array_elements(innodb_empty_free_list_algorithm_names) - 1,
+	"innodb_empty_free_list_algorithm_typelib",
+	innodb_empty_free_list_algorithm_names,
+	NULL
+};
+
 /** Possible values for system variable "innodb_default_row_format". */
 static const char* innodb_default_row_format_names[] = {
 	"redundant",
@@ -410,7 +440,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
-	PSI_KEY(recv_writer_mutex),
 	PSI_KEY(redo_rseg_mutex),
 	PSI_KEY(noredo_rseg_mutex),
 #  ifdef UNIV_DEBUG
@@ -490,7 +519,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(io_read_thread),
 	PSI_KEY(io_write_thread),
 	PSI_KEY(page_cleaner_thread),
-	PSI_KEY(recv_writer_thread),
+	PSI_KEY(buf_lru_manager_thread),
 	PSI_KEY(srv_error_monitor_thread),
 	PSI_KEY(srv_lock_timeout_thread),
 	PSI_KEY(srv_master_thread),
@@ -20106,6 +20135,25 @@ static MYSQL_SYSVAR_ULONG(cleaner_max_flush_time, srv_cleaner_max_flush_time,
 
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
+static MYSQL_SYSVAR_ENUM(cleaner_lsn_age_factor,
+  srv_cleaner_lsn_age_factor,
+  PLUGIN_VAR_OPCMDARG,
+  "The formula for LSN age factor for page cleaner adaptive flushing. "
+  "LEGACY: Original Oracle MySQL 5.6 formula. "
+  "HIGH_CHECKPOINT: (the default) Percona Server 5.6 formula.",
+  NULL, NULL, SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT,
+  &innodb_cleaner_lsn_age_factor_typelib);
+
+static MYSQL_SYSVAR_ENUM(empty_free_list_algorithm,
+  srv_empty_free_list_algorithm,
+  PLUGIN_VAR_OPCMDARG,
+  "The algorithm to use for empty free list handling.  Allowed values: "
+  "LEGACY: (default) Original Oracle MySQL 5.6 handling with single page flushes; "
+  "BACKOFF: Wait until cleaner produces a free page.",
+  NULL, NULL,
+  SRV_EMPTY_FREE_LIST_BACKOFF,
+  &innodb_empty_free_list_algorithm_typelib);
+
 static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
@@ -20867,6 +20915,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(status_output),
   MYSQL_SYSVAR(status_output_locks),
+  MYSQL_SYSVAR(cleaner_lsn_age_factor),
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),

@@ -8,11 +8,14 @@
 
 --disable_query_log
 
-SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+# Cleaner and LRU manager threads are disabled for the test. Rely on single-page
+# flushing to prefer taking clean pages from LRU.
+SET GLOBAL innodb_empty_free_list_algorithm = LEGACY;
 SET GLOBAL innodb_dict_stats_disabled_debug = 1;
 SET GLOBAL innodb_master_thread_disabled_debug = 1;
 
 set global innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
 
 DELIMITER |;
 CREATE PROCEDURE create_table(IN SIZE INT)
@@ -54,6 +57,8 @@ call create_table(1300);
 
 set debug = "+d, increase_mtr_checkpoint_size";
 set debug = "+d, crash_after_checkpoint";
+# Percona Server only flushes by the dedicated threads, thus re-enable them to checkpoint
+SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
 --error 2013
 set global innodb_log_checkpoint_now = 1;
 
@@ -66,11 +71,14 @@ set global innodb_log_checkpoint_now = 1;
 call drop_table(1300);
 --enable_query_log
 
-SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+# Cleaner and LRU manager threads are disabled for the test. Rely on single-page
+# flushing to prefer taking clean pages from LRU.
+SET GLOBAL innodb_empty_free_list_algorithm = LEGACY;
 SET GLOBAL innodb_dict_stats_disabled_debug = 1;
 SET GLOBAL innodb_master_thread_disabled_debug = 1;
 
 set global innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
 
 --echo # Commit the multi-rec mini transaction if mtr size
 --echo # exceeds LOG_CHECKPOINT_FREE_PER_THREAD size during checkpoint.
@@ -83,6 +91,8 @@ call create_table(1300);
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 set debug = "+d, crash_after_checkpoint";
+# Percona Server only flushes by the dedicated threads, thus re-enable them to checkpoint
+SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
 --error 2013
 set global innodb_log_checkpoint_now = 1;
 

@@ -1675,7 +1675,6 @@ innobase_start_or_create_for_mysql(void)
 			    + 1 /* buf_dump_thread */
 			    + 1 /* dict_stats_thread */
 			    + 1 /* fts_optimize_thread */
-			    + 1 /* recv_writer_thread */
 			    + 1 /* trx_rollback_or_clean_all_recovered */
 			    + 128 /* added as margin, for use of
 				  InnoDB Memcached etc. */
@@ -1909,9 +1908,18 @@ innobase_start_or_create_for_mysql(void)
 				 NULL, NULL);
 	}
 
+	for (i = 0; i < srv_buf_pool_instances; i++) {
+		os_thread_create(buf_lru_manager, reinterpret_cast<void *>(i),
+				 NULL);
+	}
+
 	/* Make sure page cleaner is active. */
-	while (!buf_page_cleaner_is_active) {
+	os_rmb;
+	while (!buf_page_cleaner_is_active
+	       || buf_lru_manager_running_threads < srv_buf_pool_instances) {
+
 		os_thread_sleep(10000);
+		os_rmb;
 	}
 
 	srv_start_state_set(SRV_START_STATE_IO);

@@ -2739,6 +2739,8 @@ ibuf_merge_in_background(
 
 		sum_bytes += n_bytes;
 		sum_pages += n_pag2;
+
+		srv_inc_activity_count();
 	}
 
 	return(sum_bytes);

@@ -301,6 +301,13 @@ ulint	srv_cleaner_max_lru_time = 1000;
 cleaner thread */
 ulint	srv_cleaner_max_flush_time = 1000;
 
+/** Page cleaner LSN age factor formula option */
+ulong	srv_cleaner_lsn_age_factor
+	= SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT;
+
+/** Empty free list for a query thread handling algorithm option  */
+ulong	srv_empty_free_list_algorithm = SRV_EMPTY_FREE_LIST_BACKOFF;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 ulint	srv_n_read_io_threads	= ULINT_MAX;
@@ -2778,6 +2785,8 @@ srv_task_execute(void)
 
 		os_atomic_inc_ulint(
 			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+
+		srv_inc_activity_count();
 	}
 
 	return(thr != NULL);
@@ -3123,6 +3132,8 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 		rseg_history_len = srv_do_purge(
 			srv_n_purge_threads, &n_total_purged);
+
+		srv_inc_activity_count();
 
 	} while (!srv_purge_should_exit(n_total_purged));
 

@@ -261,6 +261,10 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
+/** Query thread preflush algorithm */
+UNIV_INTERN ulint	srv_foreground_preflush
+	= SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF;
+
 /** The maximum time limit for a single LRU tail flush iteration by the page
 cleaner thread */
 UNIV_INTERN ulint	srv_cleaner_max_lru_time = 1000;

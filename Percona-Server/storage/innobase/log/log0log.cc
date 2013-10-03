@@ -1716,8 +1716,8 @@ log_preflush_pool_modified_pages(
 	lsn_t	new_oldest)	/*!< in: try to advance oldest_modified_lsn
 				at least to this lsn */
 {
-	bool	success;
-	ulint	n_pages;
+	lsn_t	current_oldest;
+	ulint	i;
 
 	if (recv_recovery_on) {
 		/* If the recovery is running, we must first apply all
@@ -1732,21 +1732,45 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	success = buf_flush_list(ULINT_MAX, new_oldest, &n_pages);
+	if (!buf_page_cleaner_is_active
+	    || (srv_foreground_preflush
+		== SRV_FOREGROUND_PREFLUSH_SYNC_PREFLUSH)) {
 
-	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		ulint n_pages;
 
-	if (!success) {
-		MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+		bool success = buf_flush_list(ULINT_MAX, new_oldest, &n_pages);
+
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+		if (!success) {
+			MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+		}
+
+		MONITOR_INC_VALUE_CUMULATIVE(
+			MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+			MONITOR_FLUSH_SYNC_COUNT,
+			MONITOR_FLUSH_SYNC_PAGES,
+			n_pages);
+
+		return(success);
 	}
 
-	MONITOR_INC_VALUE_CUMULATIVE(
-		MONITOR_FLUSH_SYNC_TOTAL_PAGE,
-		MONITOR_FLUSH_SYNC_COUNT,
-		MONITOR_FLUSH_SYNC_PAGES,
-		n_pages);
+	ut_ad(srv_foreground_preflush == SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF);
 
-	return(success);
+	current_oldest = buf_pool_get_oldest_modification();
+	i = 0;
+
+	while (buf_page_cleaner_is_active && current_oldest < new_oldest
+	       && current_oldest) {
+
+		os_thread_sleep(ut_rnd_interval(0, 1 << i));
+		i++;
+		i %= 16;
+
+		current_oldest = buf_pool_get_oldest_modification();
+	}
+
+	return(current_oldest >= new_oldest || !current_oldest);
 }
 
 /******************************************************//**

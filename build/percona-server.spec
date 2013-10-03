@@ -323,7 +323,6 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 Provides:       mysql-shared mysql-libs
-Conflicts:	Percona-Server-shared-55
 Obsoletes:	mysql-libs
 
 %description -n Percona-Server-shared%{product_suffix}

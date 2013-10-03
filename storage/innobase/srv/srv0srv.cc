@@ -358,6 +358,24 @@ ulong	srv_adaptive_flushing_lwm	= 10;
 /* Number of iterations over which adaptive flushing is averaged. */
 ulong	srv_flushing_avg_loops		= 30;
 
+/* The tids of the purge threads */
+os_tid_t	srv_purge_tids[SRV_MAX_N_PURGE_THREADS];
+
+/* The tids of the I/O threads */
+os_tid_t	srv_io_tids[SRV_MAX_N_IO_THREADS];
+
+/* The tid of the master thread */
+os_tid_t	srv_master_tid;
+
+/* The relative scheduling priority of the purge threads */
+ulint	srv_sched_priority_purge	= 19;
+
+/* The relative scheduling priority of the I/O threads */
+ulint	srv_sched_priority_io		= 19;
+
+/* The relative scheduling priority of the master thread */
+ulint	srv_sched_priority_master	= 19;
+
 /* The relative priority of the current thread.  If 0, low priority; if 1, high
 priority.  */
 UNIV_THREAD_LOCAL ulint srv_current_thread_priority = 0;
@@ -2632,6 +2650,10 @@ DECLARE_THREAD(srv_master_thread)(
 
 	ut_ad(!srv_read_only_mode);
 
+	srv_master_tid = os_thread_get_tid();
+
+	os_thread_set_priority(srv_master_tid, srv_sched_priority_master);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Master thread starts, id "
 		<< os_thread_pf(os_thread_get_curr_id());
@@ -2761,6 +2783,8 @@ srv_task_execute(void)
 	return(thr != NULL);
 }
 
+static ulint purge_tid_i = 0;
+
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
 @return a dummy parameter */
@@ -2772,11 +2796,17 @@ DECLARE_THREAD(srv_worker_thread)(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
+	ulint		tid_i = os_atomic_increment_ulint(&purge_tid_i, 1);
 
+	ut_ad(tid_i < srv_n_purge_threads);
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 	my_thread_init();
 	THD *thd= create_thd(false, true, true, srv_worker_thread_key.m_value);
+
+	srv_purge_tids[tid_i] = os_thread_get_tid();
+	os_thread_set_priority(srv_purge_tids[tid_i],
+			       srv_sched_priority_purge);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Worker thread starting, id "
@@ -2871,6 +2901,8 @@ srv_do_purge(
 	}
 
 	do {
+		srv_current_thread_priority = srv_purge_thread_priority;
+
 		if (trx_sys->rseg_history_len > rseg_history_len
 		    || (srv_max_purge_lag > 0
 			&& rseg_history_len > srv_max_purge_lag)) {
@@ -3049,6 +3081,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	ut_a(srv_n_purge_threads >= 1);
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
+
+	srv_purge_tids[0] = os_thread_get_tid();
+	os_thread_set_priority(srv_purge_tids[0], srv_sched_priority_purge);
 
 	rw_lock_x_lock(&purge_sys->latch);
 

@@ -1,10 +1,6 @@
 --source include/have_debug.inc
 --source include/have_innodb.inc
-
-if (`SELECT @@version_compile_os LIKE "Linux" = 0`)
-{
-  skip Needs Linux;
-}
+--source include/linux.inc
 
 # A dynamic, global variable
 

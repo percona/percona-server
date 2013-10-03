@@ -3,14 +3,16 @@ percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
   * Added --error-handler=: to dh_installinit in order to
     avoid an error when the server wouldn't start for any
     reasons other than bad installation.
-
- -- Ignacio Nin <ignacio.nin@percona.com>  Wed, 24 Jul 2013 11:20:00 -0300
-
-percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
-
   * Enable innodb memcached
+  * Remove the info entry for mysql.info, which was pointless.
+  * Do not package the libmysqlclient18.so links in the library package.
+  * Add a manual link from the libmysqlclient_r fully versioned library
+    to the libmysqlclient fully versioned library. The one cmake(1)
+    installs goes to the non-fully versioned one ant it seems impossible
+    to change at the CMakeLists.txt level in an easy way.
+  * Change libmysqlclient18's name to libmysqlclient18.1.
 
- -- Ignacio Nin <ignacio.nin@percona.com>  Tue, 24 Sep 2013 20:00:00 -0300
+ -- Ignacio Nin <ignacio.nin@percona.com>  Tue,  1 Oct 2013 17:00:00 -0300
 
 percona-server-5.6 (5.6.5-alpha60.0) unstable; urgency=low
 

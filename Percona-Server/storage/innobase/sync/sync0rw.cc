@@ -569,6 +569,10 @@ void
 rw_lock_x_lock_wait(
 /*================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	bool		high_priority,
+				/*!< in: if true, the rw lock is a priority
+				lock and is being acquired with high
+				priority  */
 #ifdef UNIV_SYNC_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
@@ -605,6 +609,13 @@ rw_lock_x_lock_wait(
 		sync_array_reserve_cell(
 			sync_arr, lock, RW_LOCK_WAIT_EX,
 			file_name, line, &index);
+
+		if (high_priority) {
+
+			prio_rw_lock_t*	prio_rw_lock
+				= reinterpret_cast<prio_rw_lock_t *>(lock);
+			prio_rw_lock->high_priority_wait_ex_waiter = 1;
+		}
 
 		i = 0;
 
@@ -645,6 +656,10 @@ ibool
 rw_lock_x_lock_low(
 /*===============*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	bool		high_priority,
+				/*!< in: if true, the rw lock is a priority
+			        lock and is being acquired with high
+				priority  */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
@@ -662,7 +677,7 @@ rw_lock_x_lock_low(
 		rw_lock_set_writer_id_and_recursion_flag(
 			lock, pass ? FALSE : TRUE);
 
-		rw_lock_x_lock_wait(lock,
+		rw_lock_x_lock_wait(lock, high_priority,
 #ifdef UNIV_SYNC_DEBUG
 				    pass,
 #endif
@@ -737,11 +752,14 @@ rw_lock_x_lock_func(
 
 	i = 0;
 
+	ut_ad(priority_lock || !high_priority);
+
 lock_loop:
 
 	if (!rw_lock_higher_prio_waiters_exist(priority_lock, high_priority,
 					       lock)
-	    && rw_lock_x_lock_low(lock, pass, file_name, line)) {
+	    && rw_lock_x_lock_low(lock, high_priority, pass,
+				  file_name, line)) {
 		rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
 
 		return;	/* Locking succeeded */
@@ -808,7 +826,7 @@ lock_loop:
 		rw_lock_set_waiter_flag(lock);
 	}
 
-	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
+	if (rw_lock_x_lock_low(lock, high_priority, pass, file_name, line)) {
 		sync_array_free_cell(sync_arr, index);
 		return; /* Locking succeeded */
 	}

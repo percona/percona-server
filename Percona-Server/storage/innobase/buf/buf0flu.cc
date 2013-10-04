@@ -2196,7 +2196,6 @@ buf_flush_LRU_tail(void)
 	ulint	lru_chunk_size = srv_cleaner_lru_chunk_size;
 	ulint	free_list_lwm = srv_LRU_scan_depth / 100
 		* srv_cleaner_free_list_lwm;
-	bool	timeout = false;
 
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 
@@ -2210,10 +2209,14 @@ buf_flush_LRU_tail(void)
 		previous_evicted[i] = 0;
 	}
 
-	while (remaining_instances && !timeout) {
+	while (remaining_instances) {
 
-		for (ulint i = 0; i < srv_buf_pool_instances && !timeout;
-		     i++) {
+		if (ut_time_ms() - start_time >= srv_cleaner_max_lru_time) {
+
+			break;
+		}
+
+		for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 
 			if (!active_instance[i]) {
 				continue;
@@ -2224,13 +2227,6 @@ buf_flush_LRU_tail(void)
 
 			do {
 				flush_counters_t	n;
-
-				if (ut_time_ms() - start_time
-				    >= srv_cleaner_max_lru_time) {
-
-					timeout = true;
-					break;
-				}
 
 				ut_ad(requested_pages[i] <= scan_depth[i]);
 

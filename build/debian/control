@@ -24,14 +24,6 @@ Description: Percona Server database client library
 Package: libmysqlclient18-dev
 Architecture: any
 Section: libdevel
-Depends: libmysqlclient-dev (= ${binary:Version}), ${misc:Depends}
-Description: Percona Server database development files - empty transitional 
- package. This is an empty package that depends on libmysqlclient-dev to ease 
- the transition for packages with versioned build-deps on libmysqlclient18-dev.
-
-Package: libmysqlclient-dev
-Architecture: any
-Section: libdevel
 Depends: libmysqlclient18 (= ${binary:Version}), zlib1g-dev, ${misc:Depends}
 Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev
 Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev, libpercona-xtradb-client-dev

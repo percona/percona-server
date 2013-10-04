@@ -275,7 +275,7 @@ UNIV_INTERN ulint	srv_cleaner_max_flush_time = 1000;
 
 /** Page cleaner flush list flush batches are further divided into this chunk
 size  */
-UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 100;
+UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 200;
 
 /** Page cleaner LRU list flush batches are further divided into this chunk
 size  */
@@ -293,6 +293,10 @@ UNIV_INTERN my_bool	srv_cleaner_eviction_factor = FALSE;
 /** Page cleaner LSN age factor formula option */
 UNIV_INTERN ulong	srv_cleaner_lsn_age_factor
 	= SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT;
+
+/** Empty free list for a query thread handling algorithm option  */
+UNIV_INTERN ulong	srv_empty_free_list_algorithm
+	= SRV_EMPTY_FREE_LIST_BACKOFF;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */

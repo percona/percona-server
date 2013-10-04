@@ -265,6 +265,21 @@ static TYPELIB innodb_foreground_preflush_typelib = {
 	NULL
 };
 
+/** Possible values for system variable "innodb_empty_free_list_algorithm".  */
+static const char* innodb_empty_free_list_algorithm_names[] = {
+	"legacy",
+	"backoff",
+	NullS
+};
+
+/** Enumeration for innodb_empty_free_list_algorithm.  */
+static TYPELIB innodb_empty_free_list_algorithm_typelib = {
+	array_elements(innodb_empty_free_list_algorithm_names) - 1,
+	"innodb_empty_free_list_algorithm_typelib",
+	innodb_empty_free_list_algorithm_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -16850,6 +16865,15 @@ static MYSQL_SYSVAR_ENUM(cleaner_lsn_age_factor,
   NULL, NULL, SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT,
   &innodb_cleaner_lsn_age_factor_typelib);
 
+static MYSQL_SYSVAR_ENUM(empty_free_list_algorithm,
+  srv_empty_free_list_algorithm,
+  PLUGIN_VAR_OPCMDARG,
+  "The algorithm to use for empty free list handling.  Allowed values: "
+  "LEGACY: Original Oracle MySQL 5.6 handling with single page flushes; "
+  "BACKOFF: (default) Wait until cleaner produces a free page.",
+  NULL, NULL, SRV_EMPTY_FREE_LIST_BACKOFF,
+  &innodb_empty_free_list_algorithm_typelib);
+
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
@@ -17530,6 +17554,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(cleaner_lsn_age_factor),
   MYSQL_SYSVAR(foreground_preflush),
+  MYSQL_SYSVAR(empty_free_list_algorithm),
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),

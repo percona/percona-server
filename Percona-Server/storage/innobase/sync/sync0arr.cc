@@ -547,7 +547,7 @@ sync_array_cell_print(
 			rwlock->last_x_file_name,
 			(ulong) rwlock->last_x_line);
 		if (prio_rwlock) {
-			fprintf(stderr, "high priority S waiters flag %lu, "
+			fprintf(file, "high priority S waiters flag %lu, "
 				"high priority X waiters flag %lu, "
 				"wait-exclusive waiter is "
 				"high priority if exists: %lu\n",

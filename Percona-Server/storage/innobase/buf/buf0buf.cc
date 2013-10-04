@@ -3580,6 +3580,7 @@ err_exit:
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
 		mutex_exit(&buf_pool->LRU_list_mutex);
+		lru = TRUE;
 
 		/* We set a pass-type x-lock on the frame because then
 		the same thread which called for the read operation

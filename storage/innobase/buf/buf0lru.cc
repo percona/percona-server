@@ -1294,6 +1294,15 @@ buf_LRU_check_size_of_non_data_objects(
 	}
 }
 
+/** The maximum allowed backoff sleep time duration, microseconds */
+#define MAX_FREE_LIST_BACKOFF_SLEEP 10000
+
+/** The sleep reduction factor for high-priority waiter backoff sleeps */
+#define FREE_LIST_BACKOFF_HIGH_PRIO_DIVIDER 100
+
+/** The sleep reduction factor for low-priority waiter backoff sleeps */
+#define FREE_LIST_BACKOFF_LOW_PRIO_DIVIDER 1
+
 /******************************************************************//**
 Returns a free block from the buf_pool. The block is taken off the
 free list. If free list is empty, blocks are moved from the end of the

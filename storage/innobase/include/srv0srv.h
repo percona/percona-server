@@ -344,6 +344,10 @@ extern ulong	srv_cleaner_lsn_age_factor;
 					/*!< page cleaner LSN age factor
 					formula option */
 
+extern ulong	srv_empty_free_list_algorithm;
+					/*!< Empty free list for a query thread
+					handling algorithm option */
+
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;

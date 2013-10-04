@@ -1,7 +1,7 @@
 SET @start_value = @@GLOBAL.innodb_cleaner_flush_chunk_size;
 SELECT @@GLOBAL.innodb_cleaner_flush_chunk_size;
 @@GLOBAL.innodb_cleaner_flush_chunk_size
-200
+100
 SELECT @@SESSION.innodb_cleaner_flush_chunk_size;
 ERROR HY000: Variable 'innodb_cleaner_flush_chunk_size' is a GLOBAL variable
 SET GLOBAL innodb_cleaner_flush_chunk_size=1;

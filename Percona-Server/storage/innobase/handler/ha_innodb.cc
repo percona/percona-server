@@ -16819,7 +16819,7 @@ static MYSQL_SYSVAR_ULONG(cleaner_flush_chunk_size,
   srv_cleaner_flush_chunk_size,
   PLUGIN_VAR_RQCMDARG,
   "Divide page cleaner flush list flush batches into chunks of this size",
-  NULL, NULL, 200, 1, ~0UL, 0);
+  NULL, NULL, 100, 1, ~0UL, 0);
 
 static MYSQL_SYSVAR_ULONG(cleaner_lru_chunk_size,
   srv_cleaner_lru_chunk_size,

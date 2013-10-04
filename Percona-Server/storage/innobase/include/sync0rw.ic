@@ -604,6 +604,8 @@ rw_lock_s_unlock_func(
 #endif
 	prio_rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
+	lint lock_word;
+
 	ut_ad(lock->base_lock.lock_word > -X_LOCK_DECR);
 	ut_ad(lock->base_lock.lock_word != 0);
 	ut_ad(lock->base_lock.lock_word < X_LOCK_DECR);
@@ -613,7 +615,8 @@ rw_lock_s_unlock_func(
 #endif
 
 	/* Increment lock_word to indicate 1 less reader */
-	if (rw_lock_lock_word_incr(&lock->base_lock, 1) == 0) {
+	lock_word = rw_lock_lock_word_incr(&lock->base_lock, 1);
+	if (lock_word == 0) {
 
 		/* A waiting next-writer exists, either high priority or
 		regular.  Wake up the first waiter in this order: 1) high
@@ -642,6 +645,17 @@ rw_lock_s_unlock_func(
 			os_event_set(lock->base_lock.wait_ex_event);
 		}
 		sync_array_object_signalled();
+	} else if (lock_word == X_LOCK_DECR) {
+
+		/* S-waiters may exist during an S unlock if a high-priority
+		thread released it, because low-priority threads are prevented
+		from acquiring S lock while high-priority thread holds it.  */
+		if (lock->base_lock.waiters) {
+
+			rw_lock_reset_waiter_flag(&lock->base_lock);
+			os_event_set(lock->base_lock.event);
+			sync_array_object_signalled();
+		}
 	}
 
 	ut_ad(rw_lock_validate(lock));

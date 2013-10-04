@@ -2893,6 +2893,7 @@ skip_this_recv_addr:
 @param[in]	apply		whether to apply MLOG_FILE_* records
 @param[out]	body		start of log record body
 @return length of the record, or 0 if the record was not complete */
+
 ulint
 recv_parse_log_rec(
 	mlog_id_t*	type,
@@ -2971,6 +2972,7 @@ recv_parse_log_rec(
 
 /*******************************************************//**
 Calculates the new value for lsn when more data is added to the log. */
+
 lsn_t
 recv_calc_lsn_on_data_add(
 /*======================*/

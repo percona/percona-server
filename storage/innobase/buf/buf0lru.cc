@@ -1474,6 +1474,8 @@ loop:
 		return(block);
 	}
 
+	MONITOR_INC( MONITOR_LRU_GET_FREE_LOOPS );
+
 	freed = false;
 
 	os_rmb;

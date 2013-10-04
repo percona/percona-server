@@ -16764,7 +16764,7 @@ static MYSQL_SYSVAR_ENUM(foreground_preflush, srv_foreground_preflush,
 static MYSQL_SYSVAR_ULONG(sched_priority_cleaner, srv_sched_priority_cleaner,
   PLUGIN_VAR_RQCMDARG,
   "Nice value for the cleaner thread scheduling",
-  NULL, innodb_sched_priority_cleaner_update, 20, 0, 39, 0);
+  NULL, innodb_sched_priority_cleaner_update, 19, 0, 39, 0);
 
 #endif /* UNIV_LINUX */
 
@@ -16784,17 +16784,17 @@ static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, srv_doublewrite_batch_size,
 static MYSQL_SYSVAR_ULONG(sched_priority_purge, srv_sched_priority_purge,
   PLUGIN_VAR_RQCMDARG,
   "Nice value for the purge thread scheduling",
-  NULL, innodb_sched_priority_purge_update, 20, 0, 39, 0);
+  NULL, innodb_sched_priority_purge_update, 19, 0, 39, 0);
 
 static MYSQL_SYSVAR_ULONG(sched_priority_io, srv_sched_priority_io,
   PLUGIN_VAR_RQCMDARG,
   "Nice value for the I/O handler thread scheduling",
-  NULL, innodb_sched_priority_io_update, 20, 0, 39, 0);
+  NULL, innodb_sched_priority_io_update, 19, 0, 39, 0);
 
 static MYSQL_SYSVAR_ULONG(sched_priority_master, srv_sched_priority_master,
   PLUGIN_VAR_RQCMDARG,
   "Nice value for the master thread scheduling",
-  NULL, innodb_sched_priority_master_update, 20, 0, 39, 0);
+  NULL, innodb_sched_priority_master_update, 19, 0, 39, 0);
 
 static MYSQL_SYSVAR_BOOL(priority_purge, srv_purge_thread_priority,
   PLUGIN_VAR_OPCMDARG,

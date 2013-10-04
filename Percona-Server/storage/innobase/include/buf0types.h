@@ -118,6 +118,17 @@ enum srv_foreground_preflush_t {
 						for us  */
 };
 
+/** Alternatives for srv_empty_free_list_algorithm, set through
+innodb_empty_free_list_algorithm variable  */
+enum srv_empty_free_list_t {
+	SRV_EMPTY_FREE_LIST_LEGACY,	/*!< Original Oracle MySQL 5.6
+				        algorithm */
+	SRV_EMPTY_FREE_LIST_BACKOFF	/*!< Percona Server 5.6 algorithm that
+					loops in a progressive backoff until a
+					free page is produced by the cleaner
+					thread */
+};
+
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */
 /** Zip shift value for the smallest page size */

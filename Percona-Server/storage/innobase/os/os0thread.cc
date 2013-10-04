@@ -294,7 +294,7 @@ os_thread_set_priority(
 						priority value */
 {
 #ifdef UNIV_LINUX
-	lint	thread_nice = relative_priority - 20;
+	lint	thread_nice = 19 - relative_priority;
 	if (setpriority(PRIO_PROCESS, thread_id, thread_nice) == -1) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Setting thread %lu nice to %ld failed, "
@@ -302,7 +302,7 @@ os_thread_set_priority(
 			os_thread_pf(thread_id), thread_nice,
 			getpriority(PRIO_PROCESS, thread_id), errno);
 	}
-	return(getpriority(PRIO_PROCESS, thread_id) + 20);
+	return(19 - getpriority(PRIO_PROCESS, thread_id));
 #else
 	return(relative_priority);
 #endif

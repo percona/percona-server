@@ -15,22 +15,22 @@ SELECT @@SESSION.innodb_sched_priority_master;
 
 # Correct values
 # The high priority values may need permissions, thus do not test them
-# SET GLOBAL innodb_sched_priority_master=0;
+# SET GLOBAL innodb_sched_priority_master=39;
 # SELECT @@GLOBAL.innodb_sched_priority_master;
-#SET GLOBAL innodb_sched_priority_master=15;
+#SET GLOBAL innodb_sched_priority_master=34;
 # SELECT @@GLOBAL.innodb_sched_priority_master;
-SET GLOBAL innodb_sched_priority_master=20;
+SET GLOBAL innodb_sched_priority_master=19;
 SELECT @@GLOBAL.innodb_sched_priority_master;
-SET GLOBAL innodb_sched_priority_master=25;
+SET GLOBAL innodb_sched_priority_master=5;
 SELECT @@GLOBAL.innodb_sched_priority_master;
-SET GLOBAL innodb_sched_priority_master=39;
+SET GLOBAL innodb_sched_priority_master=0;
 SELECT @@GLOBAL.innodb_sched_priority_master;
 
 # Incorrect values
-#SET GLOBAL innodb_sched_priority_master=-1;
-#SELECT @@GLOBAL.innodb_sched_priority_master;
-SET GLOBAL innodb_sched_priority_master=41;
+SET GLOBAL innodb_sched_priority_master=-1;
 SELECT @@GLOBAL.innodb_sched_priority_master;
+#SET GLOBAL innodb_sched_priority_master=40;
+#SELECT @@GLOBAL.innodb_sched_priority_master;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL innodb_sched_priority_master=1.1;
 --error ER_WRONG_TYPE_FOR_VAR

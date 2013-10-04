@@ -369,16 +369,16 @@ UNIV_INTERN os_tid_t	srv_io_tids[SRV_MAX_N_IO_THREADS];
 UNIV_INTERN os_tid_t	srv_master_tid;
 
 /* The relative scheduling priority of the cleaner thread */
-UNIV_INTERN ulint	srv_sched_priority_cleaner	= 20;
+UNIV_INTERN ulint	srv_sched_priority_cleaner	= 19;
 
 /* The relative scheduling priority of the purge threads */
-UNIV_INTERN ulint	srv_sched_priority_purge	= 20;
+UNIV_INTERN ulint	srv_sched_priority_purge	= 19;
 
 /* The relative scheduling priority of the I/O threads */
-UNIV_INTERN ulint	srv_sched_priority_io		= 20;
+UNIV_INTERN ulint	srv_sched_priority_io		= 19;
 
 /* The relative scheduling priority of the master thread */
-UNIV_INTERN ulint	srv_sched_priority_master	= 20;
+UNIV_INTERN ulint	srv_sched_priority_master	= 19;
 
 /* The relative priority of the current thread.  If 0, low priority; if 1, high
 priority.  */
@@ -3164,6 +3164,8 @@ srv_do_purge(
 	}
 
 	do {
+		srv_current_thread_priority = srv_purge_thread_priority;
+
 		if (trx_sys->rseg_history_len > rseg_history_len
 		    || (srv_max_purge_lag > 0
 			&& rseg_history_len > srv_max_purge_lag)) {

@@ -15,22 +15,22 @@ SELECT @@SESSION.innodb_sched_priority_io;
 
 # Correct values
 # The high priority values may need permissions, thus do not test them
-# SET GLOBAL innodb_sched_priority_io=0;
+# SET GLOBAL innodb_sched_priority_io=39;
 # SELECT @@GLOBAL.innodb_sched_priority_io;
-#SET GLOBAL innodb_sched_priority_io=15;
-# SELECT @@GLOBAL.innodb_sched_priority_io;
-SET GLOBAL innodb_sched_priority_io=20;
+#SET GLOBAL innodb_sched_priority_io=34;
+# SELECT @@GLOBAL.innodb_sched_priorit_io;
+SET GLOBAL innodb_sched_priority_io=19;
 SELECT @@GLOBAL.innodb_sched_priority_io;
-SET GLOBAL innodb_sched_priority_io=25;
+SET GLOBAL innodb_sched_priority_io=5;
 SELECT @@GLOBAL.innodb_sched_priority_io;
-SET GLOBAL innodb_sched_priority_io=39;
+SET GLOBAL innodb_sched_priority_io=0;
 SELECT @@GLOBAL.innodb_sched_priority_io;
 
 # Incorrect values
-#SET GLOBAL innodb_sched_priority_io=-1;
-#SELECT @@GLOBAL.innodb_sched_priority_io;
-SET GLOBAL innodb_sched_priority_io=41;
+SET GLOBAL innodb_sched_priority_io=-1;
 SELECT @@GLOBAL.innodb_sched_priority_io;
+#SET GLOBAL innodb_sched_priority_io=40;
+#SELECT @@GLOBAL.innodb_sched_priority_io;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL innodb_sched_priority_io=1.1;
 --error ER_WRONG_TYPE_FOR_VAR

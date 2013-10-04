@@ -14,22 +14,22 @@ SELECT @@SESSION.innodb_sched_priority_cleaner;
 
 # Correct values
 # The high priority values may need permissions, thus do not test them
-# SET GLOBAL innodb_sched_priority_cleaner=0;
+# SET GLOBAL innodb_sched_priority_cleaner=39;
 # SELECT @@GLOBAL.innodb_sched_priority_cleaner;
-#SET GLOBAL innodb_sched_priority_cleaner=15;
+#SET GLOBAL innodb_sched_priority_cleaner=34;
 # SELECT @@GLOBAL.innodb_sched_priority_cleaner;
-SET GLOBAL innodb_sched_priority_cleaner=20;
+SET GLOBAL innodb_sched_priority_cleaner=19;
 SELECT @@GLOBAL.innodb_sched_priority_cleaner;
-SET GLOBAL innodb_sched_priority_cleaner=25;
+SET GLOBAL innodb_sched_priority_cleaner=5;
 SELECT @@GLOBAL.innodb_sched_priority_cleaner;
-SET GLOBAL innodb_sched_priority_cleaner=39;
+SET GLOBAL innodb_sched_priority_cleaner=0;
 SELECT @@GLOBAL.innodb_sched_priority_cleaner;
 
 # Incorrect values
-#SET GLOBAL innodb_sched_priority_cleaner=-1;
-#SELECT @@GLOBAL.innodb_sched_priority_cleaner;
-SET GLOBAL innodb_sched_priority_cleaner=41;
+SET GLOBAL innodb_sched_priority_cleaner=-1;
 SELECT @@GLOBAL.innodb_sched_priority_cleaner;
+#SET GLOBAL innodb_sched_priority_cleaner=40;
+#SELECT @@GLOBAL.innodb_sched_priority_cleaner;
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL innodb_sched_priority_cleaner=1.1;
 --error ER_WRONG_TYPE_FOR_VAR

@@ -1734,7 +1734,8 @@ log_preflush_pool_modified_pages(
 
 	if (!buf_page_cleaner_is_active
 	    || (srv_foreground_preflush
-		== SRV_FOREGROUND_PREFLUSH_SYNC_PREFLUSH)) {
+		== SRV_FOREGROUND_PREFLUSH_SYNC_PREFLUSH)
+	    || (new_oldest == LSN_MAX)) {
 
 		ulint n_pages;
 
@@ -1760,12 +1761,17 @@ log_preflush_pool_modified_pages(
 	current_oldest = buf_pool_get_oldest_modification();
 	i = 0;
 
-	while (buf_page_cleaner_is_active && current_oldest < new_oldest
-	       && current_oldest) {
+	while (current_oldest < new_oldest && current_oldest) {
 
-		os_thread_sleep(ut_rnd_interval(0, 1 << i));
-		i++;
-		i %= 16;
+		while (!buf_flush_flush_list_in_progress()) {
+
+			/* If a flush list flush by the cleaner thread is not
+			running, backoff until one is started.  */
+			os_thread_sleep(ut_rnd_interval(0, 1 << i));
+			i++;
+			i %= 16;
+		}
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		current_oldest = buf_pool_get_oldest_modification();
 	}

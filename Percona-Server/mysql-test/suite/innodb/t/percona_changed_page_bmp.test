@@ -68,7 +68,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 call mtr.add_suppression("last tracked LSN in");
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
 write_file $BITMAP_FILE;
@@ -114,7 +114,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 call mtr.add_suppression("the age of last tracked LSN exceeds log capacity");
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
 write_file $BITMAP_FILE;
@@ -136,7 +136,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 
 # 1st restart: remove all the bitmap files
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
 --enable_reconnect
@@ -151,7 +151,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 
 # 2nd restart: there should be only one bitmap file, append junk to it
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 append_file $BITMAP_FILE;
 junk junk junk junk
@@ -174,7 +174,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 # corrupted
 #
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 # Create and source a file with the following contents:
@@ -219,7 +219,7 @@ call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Allocated tablespace [0-9]+, old maximum was");
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 --echo 8th restart
@@ -254,7 +254,7 @@ DROP TABLE t3;
 SET GLOBAL innodb_fast_shutdown=0;
 --echo 11th restart
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 --exec echo "restart:--innodb-read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -275,7 +275,7 @@ call mtr.add_suppression("Creating foreign key constraint system tables");
 call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data dictionary");
 call mtr.add_suppression("Info table is not ready to be used");
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
 --mkdir $MYSQLTEST_VARDIR/tmpdatadir
@@ -289,7 +289,7 @@ file_exists $MYSQLTEST_VARDIR/tmpdatadir/ib_modified_log_1_0.xdb;
 list_files $MYSQLTEST_VARDIR/tmpdatadir ib_modified_log*;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
 --remove_files_wildcard $MYSQLD_DATADIR ibdata*

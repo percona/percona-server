@@ -2002,11 +2002,15 @@ buf_flush_list(
 		so no limit here. */
 		min_n = (min_n + srv_buf_pool_instances - 1)
 			 / srv_buf_pool_instances;
-		flush_start_time = ut_time_ms();
+		if (lsn_limit != LSN_MAX) {
+			flush_start_time = ut_time_ms();
+		}
 	}
 
 	/* Flush to lsn_limit in all buffer pool instances */
 	while (remaining_instances && !timeout) {
+
+		ulint flush_common_batch = 0;
 
 		for (i = 0; i < srv_buf_pool_instances; i++) {
 
@@ -2042,7 +2046,7 @@ buf_flush_list(
 
 				buf_flush_end(buf_pool, BUF_FLUSH_LIST);
 
-				buf_flush_common(BUF_FLUSH_LIST, n.flushed);
+				flush_common_batch += n.flushed;
 
 				if (n_processed) {
 					*n_processed += n.flushed;
@@ -2066,6 +2070,8 @@ buf_flush_list(
 				}
 			}
 		}
+
+		buf_flush_common(BUF_FLUSH_LIST, flush_common_batch);
 	}
 
 	/* If we haven't flushed all the instances due to timeout or a repeat
@@ -2483,7 +2489,9 @@ page_cleaner_flush_pages_if_needed(void)
 
 	/* Cap the maximum IO capacity that we are going to use by
 	max_io_capacity. */
-	n_pages = (PCT_IO(pct_total) + avg_page_rate) / 2;
+	n_pages = PCT_IO(pct_total);
+	if (age < log_get_max_modified_age_async())
+		n_pages = (n_pages + avg_page_rate) / 2;
 
 	if (n_pages > srv_max_io_capacity) {
 		n_pages = srv_max_io_capacity;

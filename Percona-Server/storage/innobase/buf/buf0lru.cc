@@ -50,6 +50,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "log0recv.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "srv0mon.h"
 #include "lock0lock.h"
 
@@ -1364,7 +1365,8 @@ loop:
 	}
 
 	if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF
-	    && buf_page_cleaner_is_active) {
+	    && buf_page_cleaner_is_active
+	    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* Backoff to minimize the free list mutex contention while the
 		free list is empty */
@@ -1410,7 +1412,8 @@ loop:
 		requested, will perform a single page flush  */
 		ut_ad((srv_empty_free_list_algorithm
 		       == SRV_EMPTY_FREE_LIST_LEGACY)
-		      || !buf_page_cleaner_is_active);
+		      || !buf_page_cleaner_is_active
+		      || (srv_shutdown_state != SRV_SHUTDOWN_NONE));
 	}
 
 	mutex_enter(&buf_pool->flush_state_mutex);

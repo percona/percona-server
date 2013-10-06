@@ -278,6 +278,16 @@ buf_flush_get_dirty_pages_count(
 
 #endif /* !UNIV_HOTBACKUP */
 
+/******************************************************************//**
+Check if a flush list flush is in progress for any buffer pool instance for
+heuristic purposes.
+@return true if flush list flush is in progress  */
+UNIV_INLINE
+bool
+buf_flush_flush_list_in_progress(void)
+/*==================================*/
+	__attribute__((warn_unused_result));
+
 #ifndef UNIV_NONINL
 #include "buf0flu.ic"
 #endif

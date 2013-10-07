@@ -38,7 +38,12 @@ Some |Percona Server| 5.5 features have been replaced by similar or equivalent |
  * `Expand Table Import <http://www.percona.com/doc/percona-server/5.5/management/innodb_expand_import.html>`_ has been replaced by |MySQL| "InnoDB transportable tablespaces"
  * The |InnoDB| data dictionary INFORMATION_SCHEMA tables have been superseded by the |MySQL| implementations 
  * |XtraDB| SYS_STATS persistent table and index statistics has been replaced by the MySQL 5.6 implementation
- * `Dump/Restore of the Buffer Pool <http://www.percona.com/doc/percona-server/5.5/management/innodb_lru_dump_restore.html>`_ is now available in |MySQL| 5.6, so we have replaced the |Percona Server| implementation with the MySQL one.
+ * `Dump/Restore of the Buffer Pool <http://www.percona.com/doc/percona-server/5.5/management/innodb_lru_dump_restore.html>`_ is now available in |MySQL| 5.6, so we have replaced the |Percona Server| implementation with the |MySQL| `one <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-preload-buffer-pool>`_. The upstream implementation doesn't have the periodic dump feature, but it's possible to set it up by using the `event scheduler <https://dev.mysql.com/doc/refman/5.6/en/events.html>`_ and the new `innodb_buffer_pool_dump_now <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_buffer_pool_dump_now>`_ variable. The following example shows how to implement a periodic buffer pool dump every hour: ::
+
+     mysql> CREATE EVENT automatic_bufferpool_dump 
+            ON SCHEDULE EVERY 1 HOUR 
+            DO 
+              SET global innodb_buffer_pool_dump_now=ON;
  * `fast_index_creation <http://www.percona.com/doc/percona-server/5.5/management/innodb_fast_index_creation.html>`_ (replaced by |MySQL| 5.6's `ALGORITHM= option <http://dev.mysql.com/doc/refman/5.6/en/alter-table.html>`_). 
  * :ref:`Fast InnoDB Checksum <ps55:innodb_fast_checksum_page>` has been deprecated after |Percona Server| 5.5.28-29.2 because the :variable:`innodb_checksum_algorithm` variable in |MySQL| 5.6 makes it redundant. If this feature was enabled, turning it off before the upgrade requires table(s) to be dump and imported, since it will fail to start on data files created when :variable:`innodb_fast_checksums` was enabled. 
  * :ref:`Handle BLOB End of Line <ps55:mysql_remove_eol_carret>` feature has been replaced by |MySQL| 5.6 `binary-mode <http://dev.mysql.com/doc/refman/5.6/en/mysql-command-options.html#option_mysql_binary-mode>`_ configuration option.

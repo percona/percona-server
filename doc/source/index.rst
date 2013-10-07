@@ -40,6 +40,7 @@ Introduction
 
    percona_xtradb
    ps-versions-comparison
+   feature_comparison
    changed_in_56
 
 Installation

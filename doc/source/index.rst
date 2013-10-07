@@ -75,6 +75,8 @@ Performance Improvements
    performance/innodb_numa_support
    performance/innodb_opt_lru_count
    performance/threadpool
+   performance/page_cleaner_tuning
+   performance/xtradb_performance_improvements
 
 Flexibility Improvements
 ========================

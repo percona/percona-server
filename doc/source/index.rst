@@ -9,10 +9,6 @@
  Percona Server 5.6 - Documentation
 ===================================
 
-.. note::
-
- Please note: |Percona Server| 5.6 is RELEASE CANDIDATE quality software. It should *NOT* be used in production environments.
-
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 
   * Your queries will run faster and more consistently.

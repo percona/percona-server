@@ -90,6 +90,7 @@ Flexibility Improvements
    flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
    flexibility/buff_read_ahead_area
+   flexibility/extended_select_into_outfile
 
 Reliability Improvements
 ========================
@@ -121,6 +122,7 @@ Management Improvements
    management/pam_plugin
    management/innodb_expanded_fast_index_creation
    management/log_archiving
+   management/statement_timeout
 
 Diagnostics Improvements
 ========================

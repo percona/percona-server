@@ -8,7 +8,7 @@ Standards-Version: 7.0.0
 Homepage: http://www.percona.com/software/
 Vcs-Bzr: lp:percona-server/5.1
 
-Package: libmysqlclient16
+Package: libperconaserverclient16
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}
@@ -21,13 +21,13 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libmysqlclient16-dev
+Package: libperconaserverclient16-dev
 Architecture: any
 Section: libdevel
-Depends: libmysqlclient16 (>= ${source:Version}), zlib1g-dev, , ${shlibs:Depends}
-Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev
+Depends: libperconaserverclient16 (>= ${source:Version}), zlib1g-dev, , ${shlibs:Depends}
+Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev
 Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libpercona-xtradb-client-dev
-Provides: libmysqlclient-dev, libmysqlclient15-dev
+Provides: libmysqlclient-dev, libmysqlclient15-dev, libmysqlclient16-dev
 Description: Percona Server database development files
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query

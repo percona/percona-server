@@ -131,14 +131,17 @@ client.
 
 The ``percona-server-dfsg`` package contains....
 
-The ``libmysqlclient-dev`` package contains header files needed to
-compile software to use the client library.
+The ``libperconaserverclient-dev`` package contains header files needed to
+compile software to use the client library. Ordinarily you should link against
+the distribution provided ``libmysqclient`` unless there is a special reason
+to prefer ``libperconaserverclient`` over it.
 
-The ``libmysqlclient16`` package contains the client shared
+The ``libperconaserverclient16`` package contains the client shared
 library. The ``16`` is a reference to the version of the shared
 library. The version is incremented when there is a ABI change that
 requires software using the client library to be recompiled or their
-source code modified.
+source code modified. You should normally link against ``libmysqclient``
+provided by your distribution rather than against ``libperconaserverclient``.
 
 ==================================================
  Installing |Percona Server| from a Source Tarball

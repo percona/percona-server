@@ -415,16 +415,16 @@ $CP netware/*.pl $BASE/scripts
 $CP scripts/mysqlhotcopy $BASE/scripts/mysqlhotcopy.pl
 
 copyfileto $BASE/lib \
-  libmysql/.libs/libmysqlclient.a \
-  libmysql/.libs/libmysqlclient.so* \
-  libmysql/.libs/libmysqlclient.sl* \
-  libmysql/.libs/libmysqlclient*.dylib \
-  libmysql/libmysqlclient.* \
-  libmysql_r/.libs/libmysqlclient_r.a \
-  libmysql_r/.libs/libmysqlclient_r.so* \
-  libmysql_r/.libs/libmysqlclient_r.sl* \
-  libmysql_r/.libs/libmysqlclient_r*.dylib \
-  libmysql_r/libmysqlclient_r.* \
+  libmysql/.libs/libperconaserverclient.a \
+  libmysql/.libs/libperconaserverclient.so* \
+  libmysql/.libs/libperconaserverclient.sl* \
+  libmysql/.libs/libperconaserverclient*.dylib \
+  libmysql/libperconaserverclient.* \
+  libmysql_r/.libs/libperconaserverclient_r.a \
+  libmysql_r/.libs/libperconaserverclient_r.so* \
+  libmysql_r/.libs/libperconaserverclient_r.sl* \
+  libmysql_r/.libs/libperconaserverclient_r*.dylib \
+  libmysql_r/libperconaserverclient_r.* \
   libmysqld/.libs/libmysqld.a \
   libmysqld/.libs/libmysqld.so* \
   libmysqld/.libs/libmysqld.sl* \

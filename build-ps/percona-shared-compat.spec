@@ -89,5 +89,5 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libmysqlclient*.so.16*
 
 %files
 %defattr(-, root, root)
-%{_libdir}/libmysqlclient*
+%{_libdir}/libperconaserverclient*
 

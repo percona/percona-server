@@ -111,17 +111,17 @@ SET(CLIENT_SOURCES   ../mysys/array.c ../strings/bchange.c ../strings/bmove.c
 # beond the documented API, and try access the Thread Local Storage.
 # The "_notls" means no Tls*() functions used, i.e. "static" TLS.
 
-ADD_LIBRARY(mysqlclient       STATIC ${CLIENT_SOURCES})
-ADD_DEPENDENCIES(mysqlclient GenError)
-TARGET_LINK_LIBRARIES(mysqlclient)
+ADD_LIBRARY(perconaserverclient       STATIC ${CLIENT_SOURCES})
+ADD_DEPENDENCIES(perconaserverclient GenError)
+TARGET_LINK_LIBRARIES(perconaserverclient)
 
-ADD_LIBRARY(mysqlclient_notls STATIC ${CLIENT_SOURCES})
-ADD_DEPENDENCIES(mysqlclient_notls GenError)
-TARGET_LINK_LIBRARIES(mysqlclient_notls)
+ADD_LIBRARY(perconaserverclient_notls STATIC ${CLIENT_SOURCES})
+ADD_DEPENDENCIES(perconaserverclient_notls GenError)
+TARGET_LINK_LIBRARIES(perconaserverclient_notls)
 
 ADD_LIBRARY(libmysql          SHARED ${CLIENT_SOURCES} dll.c libmysql.def)
 IF(WIN32)
-  SET_TARGET_PROPERTIES(libmysql mysqlclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
+  SET_TARGET_PROPERTIES(libmysql perconaserverclient PROPERTIES COMPILE_FLAGS "-DUSE_TLS")
 ENDIF(WIN32)
 ADD_DEPENDENCIES(libmysql GenError)
 TARGET_LINK_LIBRARIES(libmysql wsock32)

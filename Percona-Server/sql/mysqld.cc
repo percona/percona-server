@@ -1588,6 +1588,7 @@ void clean_up(bool print_message)
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
   sys_var_end();
+  handle_options_end();
 
   /*
     The following lines may never be executed as the main thread may have

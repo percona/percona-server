@@ -6,7 +6,7 @@ PERCONA_SERVER_SHORT_2 ?=Percona-Server
 KEWPIE ?=kewpie
 BASEDIR = $(CURDIR)
 
-all:  main install-lic handlersocket maatkit-udf autorun
+all:  main handlersocket maatkit-udf autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -28,10 +28,6 @@ handlersocket:
 maatkit-udf:
 	cp -R UDF "$(PERCONA_SERVER)"
 	cd "$(PERCONA_SERVER)"/UDF && autoreconf --install
-
-install-lic: 
-	@echo "Installing license files"
-	install -m 644 COPYING.* $(PERCONA_SERVER)
 
 prepare: 
 	@echo "Prepare Percona Server sources"

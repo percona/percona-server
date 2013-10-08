@@ -114,6 +114,7 @@ extern int my_handle_options (int *argc, char ***argv,
                               my_get_one_option,
                               const char **command_list);
 extern void my_cleanup_options(const struct my_option *options);
+extern void my_handle_options_end();
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);

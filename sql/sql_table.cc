@@ -56,6 +56,7 @@
 #include "sql_resolver.h"              // setup_order, fix_inner_refs
 #include "table_cache.h"
 #include <mysql/psi/mysql_table.h>
+#include "mysql.h"			// in_bootstrap & opt_noacl
 
 #ifdef __WIN__
 #include <io.h>
@@ -9608,10 +9609,14 @@ static bool check_engine(THD *thd, const char *db_name,
   DBUG_ENTER("check_engine");
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
-  handlerton *enf_engine= ha_enforce_handlerton(thd);
+  handlerton *enf_engine= NULL;
 
   bool no_substitution=
         MY_TEST(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+
+  if (!in_bootstrap && !opt_noacl)
+    enf_engine= ha_enforce_handlerton(thd);
+
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     DBUG_RETURN(true);

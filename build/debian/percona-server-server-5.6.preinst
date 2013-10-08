@@ -48,7 +48,7 @@ stop_server() {
 
 ################################ main() ##########################
 
-this_version=5.5
+this_version=5.6
 
 # Check kernel version
 if dpkg --compare-versions `uname -r` lt 2.6; then

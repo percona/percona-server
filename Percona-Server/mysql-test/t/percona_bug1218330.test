@@ -1,0 +1,72 @@
+############################################################################
+# Bug #1218330: Adaptive hash index memory is incorrectly calculated in SHOW
+#               ENGINE INNODB STATUS and I_S
+############################################################################
+
+--source include/have_innodb.inc
+
+let $adaptive_hash_mem_1=`SELECT VARIABLE_VALUE FROM
+    INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+    VARIABLE_NAME='Innodb_mem_adaptive_hash'`;
+
+let $is_adaptive_hash_mem_constant_1=`SELECT CONSTANT_MEMORY FROM
+    INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES WHERE
+    INTERNAL_HASH_TABLE_NAME='Adaptive hash index'`;
+
+let $is_adaptive_hash_mem_variable_1=`SELECT VARIABLE_MEMORY FROM
+    INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES WHERE
+    INTERNAL_HASH_TABLE_NAME='Adaptive hash index'`;
+    
+let $is_adaptive_hash_mem_total_1=`SELECT TOTAL_MEMORY FROM
+    INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES WHERE
+    INTERNAL_HASH_TABLE_NAME='Adaptive hash index'`;
+   
+CREATE TABLE t1 (
+       a INT PRIMARY KEY, b INT,
+       c CHAR(200),
+       UNIQUE INDEX b(b)) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, 1, REPEAT("a", 200));
+
+--disable_query_log
+
+--let $i=200
+--disable_result_log
+while ($i)
+{
+        SELECT a FROM t1 WHERE a=1;
+        SELECT b FROM t1 WHERE b=1;
+        --dec $i
+}
+--enable_result_log
+
+let $adaptive_hash_mem_2=`SELECT VARIABLE_VALUE FROM
+    INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
+    VARIABLE_NAME='Innodb_mem_adaptive_hash'`;
+
+let $is_adaptive_hash_mem_constant_2=`SELECT CONSTANT_MEMORY FROM
+    INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES WHERE
+    INTERNAL_HASH_TABLE_NAME='Adaptive hash index'`;
+
+let $is_adaptive_hash_mem_variable_2=`SELECT VARIABLE_MEMORY FROM
+    INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES WHERE
+    INTERNAL_HASH_TABLE_NAME='Adaptive hash index'`;
+    
+let $is_adaptive_hash_mem_total_2=`SELECT TOTAL_MEMORY FROM
+    INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES WHERE
+    INTERNAL_HASH_TABLE_NAME='Adaptive hash index'`;
+
+# The original implementation would should identical values in
+# adaptive_hash_mem_1 and adaptive_hash_mem_2
+
+--eval SELECT $adaptive_hash_mem_1 != $adaptive_hash_mem_2 as should_be_1
+
+# Should show identical constant, but different variable parts
+
+--eval SELECT $is_adaptive_hash_mem_total_1 != $is_adaptive_hash_mem_total_2 as should_be_1
+--eval SELECT $is_adaptive_hash_mem_constant_1 = $is_adaptive_hash_mem_constant_2 as should_be_1
+--eval SELECT $is_adaptive_hash_mem_variable_1 != $is_adaptive_hash_mem_variable_2 as should_be_1
+
+--enable_query_log
+
+DROP TABLE t1;

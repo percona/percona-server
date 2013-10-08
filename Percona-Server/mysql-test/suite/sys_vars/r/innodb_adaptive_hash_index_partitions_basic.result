@@ -1,0 +1,9 @@
+SELECT @@GLOBAL.innodb_adaptive_hash_index_partitions;
+@@GLOBAL.innodb_adaptive_hash_index_partitions
+1
+SET @@GLOBAL.innodb_adaptive_hash_index_partitions=1;
+ERROR HY000: Variable 'innodb_adaptive_hash_index_partitions' is a read only variable
+SELECT @@LOCAL.innodb_adaptive_hash_index_partitions;
+ERROR HY000: Variable 'innodb_adaptive_hash_index_partitions' is a GLOBAL variable
+SELECT @@SESSION.innodb_adaptive_hash_index_partitions;
+ERROR HY000: Variable 'innodb_adaptive_hash_index_partitions' is a GLOBAL variable

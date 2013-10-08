@@ -449,7 +449,30 @@ int vio_shutdown(Vio * vio, int how)
   int r=0;
   DBUG_ENTER("vio_shutdown");
 
- if (vio->inactive == FALSE)
+  r= vio_cancel(vio, how);
+
+  if (mysql_socket_close(vio->mysql_socket))
+    r= -1;
+
+  if (r)
+  {
+    DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
+    /* FIXME: error handling (not critical for MySQL) */
+  }
+
+  vio->inactive= TRUE;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
+
+  DBUG_RETURN(r);
+}
+
+
+int vio_cancel(Vio * vio, int how)
+{
+  int r= 0;
+  DBUG_ENTER("vio_cancel");
+
+  if (vio->inactive == FALSE)
   {
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
@@ -463,16 +486,8 @@ int vio_shutdown(Vio * vio, int how)
     Windows). */
     (void) cancel_io((HANDLE)vio->mysql_socket, vio->thread_id);
 #endif
-    if (mysql_socket_close(vio->mysql_socket))
-      r= -1;
   }
-  if (r)
-  {
-    DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
-    /* FIXME: error handling (not critical for MySQL) */
-  }
-  vio->inactive= TRUE;
-  vio->mysql_socket= MYSQL_INVALID_SOCKET;
+
   DBUG_RETURN(r);
 }
 

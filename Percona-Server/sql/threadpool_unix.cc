@@ -54,6 +54,7 @@ static bool threadpool_started= false;
 */
  
  
+#ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_group_mutex;
 static PSI_mutex_key key_timer_mutex;
 static PSI_mutex_info mutex_list[]=
@@ -81,6 +82,7 @@ static PSI_thread_info	thread_list[] =
 /* Macro to simplify performance schema registration */ 
 #define PSI_register(X) \
  if(PSI_server) PSI_server->register_ ## X("threadpool", X ## _list, array_elements(X ## _list))
+#endif
 
 
 struct thread_group_t;
@@ -1295,7 +1297,7 @@ void tp_post_kill_notification(THD *thd)
     DBUG_VOID_RETURN;
   
   if (thd->net.vio)
-    vio_shutdown(thd->net.vio, SHUT_RD);
+    vio_cancel(thd->net.vio, SHUT_RD);
   DBUG_VOID_RETURN;
 }
 
@@ -1554,9 +1556,11 @@ bool tp_init()
     sql_print_error("Can't set threadpool size to %d",threadpool_size);
     DBUG_RETURN(1);
   }
+#ifdef HAVE_PSI_INTERFACE
   PSI_register(mutex);
   PSI_register(cond);
   PSI_register(thread);
+#endif
   
   pool_timer.tick_interval= threadpool_stall_limit;
   start_timer(&pool_timer);

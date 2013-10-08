@@ -82,10 +82,10 @@ mtr_memo_slot_release_func(
 		buf_page_release((buf_block_t*) object, slot->type);
 		break;
 	case MTR_MEMO_S_LOCK:
-		rw_lock_s_unlock((rw_lock_t*) object);
+		rw_lock_s_unlock((prio_rw_lock_t*) object);
 		break;
 	case MTR_MEMO_X_LOCK:
-		rw_lock_x_unlock((rw_lock_t*) object);
+		rw_lock_x_unlock((prio_rw_lock_t*) object);
 		break;
 #ifdef UNIV_DEBUG
 	default:
@@ -344,9 +344,10 @@ mtr_commit(
 
 #ifndef UNIV_HOTBACKUP
 /***************************************************//**
-Releases an object in the memo stack. */
+Releases an object in the memo stack.
+@return true if released */
 UNIV_INTERN
-void
+bool
 mtr_memo_release(
 /*=============*/
 	mtr_t*	mtr,	/*!< in/out: mini-transaction */
@@ -375,10 +376,12 @@ mtr_memo_release(
 		while (slot-- != start) {
 			if (object == slot->object && type == slot->type) {
 				mtr_memo_slot_release(mtr, slot);
-				return;
+				return(true);
 			}
 		}
 	}
+
+	return(false);
 }
 #endif /* !UNIV_HOTBACKUP */
 

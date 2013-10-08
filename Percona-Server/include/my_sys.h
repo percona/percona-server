@@ -234,13 +234,8 @@ extern void my_large_free(uchar *ptr);
 #define my_afree(PTR) my_free(PTR)
 #endif /* HAVE_ALLOCA */
 
-#ifndef errno				/* did we already get it? */
-#ifdef HAVE_ERRNO_AS_DEFINE
 #include <errno.h>			/* errno is a define */
-#else
-extern int errno;			/* declare errno */
-#endif
-#endif					/* #ifndef errno */
+
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
 extern char curr_dir[];		/* Current directory for user */
@@ -587,6 +582,9 @@ extern void my_once_free(void);
 extern char *my_once_strdup(const char *src,myf myflags);
 extern void *my_once_memdup(const void *src, size_t len, myf myflags);
 extern File my_open(const char *FileName,int Flags,myf MyFlags);
+#ifndef __WIN__
+extern File my_unix_socket_connect(const char *FileName,myf MyFlags);
+#endif
 extern File my_register_filename(File fd, const char *FileName,
 				 enum file_type type_of_file,
 				 uint error_message_number, myf MyFlags);

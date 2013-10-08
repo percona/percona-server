@@ -530,6 +530,8 @@ innobase_init_foreign(
 	ulint		referenced_num_field)	/*!< in: number of referenced
 						columns */
 {
+	ut_ad(mutex_own(&dict_sys->mutex));
+
         if (constraint_name) {
                 ulint   db_len;
 
@@ -546,22 +548,21 @@ innobase_init_foreign(
                 ut_memcpy(foreign->id, table->name, db_len);
                 foreign->id[db_len] = '/';
                 strcpy(foreign->id + db_len + 1, constraint_name);
-        }
 
-	ut_ad(mutex_own(&dict_sys->mutex));
+		/* Check if any existing foreign key has the same id,
+		this is needed only if user supplies the constraint name */
 
-	/* Check if any existing foreign key has the same id */
+		for (const dict_foreign_t* existing_foreign
+			= UT_LIST_GET_FIRST(table->foreign_list);
+		     existing_foreign != 0;
+		     existing_foreign = UT_LIST_GET_NEXT(
+			     foreign_list, existing_foreign)) {
 
-	for (const dict_foreign_t* existing_foreign
-		= UT_LIST_GET_FIRST(table->foreign_list);
-	     existing_foreign != 0;
-	     existing_foreign = UT_LIST_GET_NEXT(
-		     foreign_list, existing_foreign)) {
-
-		if (ut_strcmp(existing_foreign->id, foreign->id) == 0) {
-			return(false);
+			if (ut_strcmp(existing_foreign->id, foreign->id) == 0) {
+				return(false);
+			}
 		}
-	}
+        }
 
         foreign->foreign_table = table;
         foreign->foreign_table_name = mem_heap_strdup(
@@ -2959,7 +2960,9 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;
 		}
+	}
 
+	if (ctx->online) {
 		/* Assign a consistent read view for
 		row_merge_read_clustered_index(). */
 		trx_assign_read_view(ctx->prebuilt->trx);
@@ -4689,7 +4692,8 @@ innobase_update_foreign_cache(
 	and prevent the table from being evicted from the data
 	dictionary cache (work around the lack of WL#6049). */
 	DBUG_RETURN(dict_load_foreigns(user_table->name,
-				       ctx->col_names, false, true));
+				       ctx->col_names, false, true,
+				       DICT_ERR_IGNORE_NONE));
 }
 
 /** Commit the changes made during prepare_inplace_alter_table()
@@ -4887,6 +4891,8 @@ commit_cache_rebuild(
 	error = dict_table_rename_in_cache(
 		ctx->old_table, ctx->tmp_name, FALSE);
 	ut_a(error == DB_SUCCESS);
+
+	DEBUG_SYNC_C("commit_cache_rebuild_middle");
 
 	error = dict_table_rename_in_cache(
 		ctx->new_table, old_name, FALSE);

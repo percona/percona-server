@@ -4,6 +4,10 @@
  Support for Fake Changes
 ==========================
 
+.. note::
+
+ This feature implementation is considered ALPHA quality.
+
 Restarting a slave server in a replication environment or setting up new slave server can cause a replication reads slower. This is happening because replication in |MySQL| is single-threaded and because it needs to read the data before it can execute the queries. The process can be sped up by having prefetch threads to warm the server: replay statements and then rollback at commit.
 
 That makes prefetch simple but has high overhead from locking rows only to undo changes at rollback.

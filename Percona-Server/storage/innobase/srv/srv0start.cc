@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -127,7 +127,8 @@ static os_file_t	files[1000];
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6
+				   + SRV_MAX_N_PURGE_THREADS];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -222,9 +223,9 @@ srv_file_check_mode(
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"%s can't be opened in %s mode",
+					name,
 					srv_read_only_mode
-					? "read-write" : "read",
-					name);
+					? "read" : "read-write");
 
 				return(false);
 			}
@@ -452,6 +453,9 @@ srv_free_paths_and_sizes(void)
 }
 
 #ifndef UNIV_HOTBACKUP
+
+static ulint io_tid_i = 0;
+
 /********************************************************************//**
 I/o-handler thread function.
 @return	OS_THREAD_DUMMY_RETURN */
@@ -463,8 +467,14 @@ DECLARE_THREAD(io_handler_thread)(
 			the aio array */
 {
 	ulint	segment;
+	ulint	tid_i = os_atomic_increment_ulint(&io_tid_i, 1) - 1;
+
+	ut_ad(tid_i < srv_n_file_io_threads);
 
 	segment = *((ulint*) arg);
+
+	srv_io_tids[tid_i] = os_thread_get_tid();
+	os_thread_set_priority(srv_io_tids[tid_i], srv_sched_priority_io);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,
@@ -476,6 +486,7 @@ DECLARE_THREAD(io_handler_thread)(
 #endif /* UNIV_PFS_THREAD */
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+		srv_current_thread_priority = srv_io_thread_priority;
 		fil_aio_wait(segment);
 	}
 
@@ -878,6 +889,7 @@ open_or_create_data_files(
 		}
 
 		if (ret == FALSE) {
+			const char* check_msg;
 			/* We open the data file */
 
 			if (one_created) {
@@ -973,9 +985,16 @@ size_check:
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_first_page(
+			check_msg = fil_read_first_page(
 				files[i], one_opened, &flags, &space,
 				min_flushed_lsn, max_flushed_lsn);
+
+			if (check_msg) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%s in data file %s",
+					check_msg, name);
+				return(DB_ERROR);
+			}
 
 			/* The first file of the system tablespace must
 			have space ID = TRX_SYS_SPACE.  The FSP_SPACE_ID
@@ -1487,6 +1506,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		io_limit;
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
+	ulint		n_recovered_trx;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
@@ -1693,6 +1713,9 @@ innobase_start_or_create_for_mysql(void)
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
+
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "ALL_O_DIRECT")) {
+		srv_unix_file_flush_method = SRV_UNIX_ALL_O_DIRECT;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT_NO_FSYNC")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT_NO_FSYNC;
@@ -2223,6 +2246,7 @@ files_checked:
 		trx_sys_create_sys_pages();
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2274,6 +2298,7 @@ files_checked:
 		}
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2316,7 +2341,7 @@ files_checked:
 		been shut down normally: this is the normal startup path */
 
 		err = recv_recovery_from_checkpoint_start(
-			LOG_CHECKPOINT, IB_ULONGLONG_MAX,
+			LOG_CHECKPOINT, LSN_MAX,
 			min_flushed_lsn, max_flushed_lsn);
 
 		if (err != DB_SUCCESS) {
@@ -2339,6 +2364,7 @@ files_checked:
 		}
 
 		ib_bh = trx_sys_init_at_db_start();
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2366,9 +2392,17 @@ files_checked:
 			an .ibd file.
 
 			We also determine the maximum tablespace id used. */
+			dict_check_t	dict_check;
 
-			dict_check_tablespaces_and_store_max_id(
-				recv_needed_recovery);
+			if (recv_needed_recovery) {
+				dict_check = DICT_CHECK_ALL_LOADED;
+			} else if (n_recovered_trx) {
+				dict_check = DICT_CHECK_SOME_LOADED;
+			} else {
+				dict_check = DICT_CHECK_NONE_LOADED;
+			}
+
+			dict_check_tablespaces_and_store_max_id(dict_check);
 		}
 
 		if (!srv_force_recovery

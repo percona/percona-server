@@ -108,6 +108,8 @@
 #include "sp_cache.h"
 #include "sql_reload.h"  // reload_acl_and_cache
 
+#include "my_timer.h"    // my_os_timer_init_ext, my_os_timer_deinit
+
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
@@ -349,6 +351,13 @@ static PSI_rwlock_key key_rwlock_openssl;
 volatile sig_atomic_t ld_assume_kernel_is_set= 0;
 #endif
 
+/**
+  Statement instrumentation key for replication.
+*/
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+PSI_statement_info stmt_info_rpl;
+#endif
+
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
@@ -379,6 +388,7 @@ static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log, opt_log_raw;
+ulonglong slow_query_log_always_write_time= 10000000;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 ulong opt_log_throttle_queries_not_using_indexes= 0;
@@ -544,6 +554,7 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 ulong extra_max_connections;
+ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
@@ -706,6 +717,12 @@ char* enforce_storage_engine= NULL;
 char* utility_user= NULL;
 char* utility_user_password= NULL;
 char* utility_user_schema_access= NULL;
+
+/* Plucking this from sql/sql_acl.cc for an array of privilege names */
+extern TYPELIB utility_user_privileges_typelib;
+ulonglong utility_user_privileges= 0;
+
+SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
 /* Thread specific variables */
 
@@ -1417,8 +1434,8 @@ static void close_connections(void)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;
-    MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (tmp));
     mysql_mutex_lock(&tmp->LOCK_thd_data);
+    MYSQL_CALLBACK(thread_scheduler, post_kill_notification, (tmp));
     if (tmp->mysys_var)
     {
       tmp->mysys_var->abort=1;
@@ -1776,11 +1793,18 @@ void clean_up(bool print_message)
 
   memcached_shutdown();
 
+#ifdef HAVE_MY_TIMER
+  if (have_statement_timeout == SHOW_OPTION_YES)
+    my_os_timer_deinit();
+#endif
+
+  have_statement_timeout= SHOW_OPTION_DISABLED;
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  sql_print_information("Binlog end");
+  if ((opt_help == 0) || (opt_verbose > 0))
+    sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
   logger.cleanup_base();
@@ -3720,6 +3744,7 @@ int init_common_variables()
                              key_BINLOG_LOCK_log,
                              key_BINLOG_LOCK_sync,
                              key_BINLOG_LOCK_sync_queue,
+                             key_BINLOG_LOCK_xids,
                              key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
                              key_BINLOG_prep_xids_cond,
@@ -3909,70 +3934,6 @@ int init_common_variables()
   var= intern_find_sys_var(STRING_WITH_LEN("host_cache_size"));
   var->update_default(default_value);
 
-  /* Calculate and update default value for table_def_size. */
-  if ((default_value= 400 + table_cache_size / 2) > 2000)
-    default_value= 2000;
-  var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
-  var->update_default(default_value);
-
-  /* connections and databases needs lots of files */
-  {
-    uint files, wanted_files, max_open_files;
-
-    /* MyISAM requires two file handles per table. */
-    wanted_files= (10 + max_connections + extra_max_connections +
-                   table_cache_size*2);
-    /*
-      We are trying to allocate no less than max_connections*5 file
-      handles (i.e. we are trying to set the limit so that they will
-      be available).  In addition, we allocate no less than how much
-      was already allocated.  However below we report a warning and
-      recompute values only if we got less file handles than were
-      explicitly requested.  No warning and re-computation occur if we
-      can't get max_connections*5 but still got no less than was
-      requested (value of wanted_files).
-      Try to allocate no less than 5000 by default.
-    */
-    max_open_files= max<uint>(max<uint>(wanted_files,
-                              (max_connections + extra_max_connections)*5),
-                              open_files_limit);
-
-    files= my_set_max_open_files(max_open_files);
-
-    if (files < wanted_files)
-    {
-      if (!open_files_limit)
-      {
-        /*
-          If we have requested too much file handles than we bring
-          max_connections in supported bounds.
-        */
-        max_connections= min<ulong>(files - 10 - TABLE_OPEN_CACHE_MIN * 2,
-                                    max_connections);
-        /*
-          Decrease table_cache_size according to max_connections, but
-          not below TABLE_OPEN_CACHE_MIN.  Outer min() ensures that we
-          never increase table_cache_size automatically (that could
-          happen if max_connections is decreased above).
-        */
-        table_cache_size= min<ulong>(max<ulong>((files-10-max_connections)/2,
-                                                TABLE_OPEN_CACHE_MIN),
-                                     table_cache_size);
-        DBUG_PRINT("warning", ("Changed limits: max_open_files: %u  "
-                               "max_connections: %ld  table_cache: %ld",
-                               files, max_connections, table_cache_size));
-        if (log_warnings)
-          sql_print_warning("Changed limits: max_open_files: %u  "
-                            "max_connections: %ld  table_cache: %ld",
-                            files, max_connections, table_cache_size);
-      }
-      else if (log_warnings)
-        sql_print_warning("Could not increase number of max_open_files to "
-                          "more than %u (request: %u)", files, wanted_files);
-    }
-    open_files_limit= files;
-  }
-
   /* Fix thread_cache_size. */
   if (!thread_cache_size_specified &&
       (max_blocked_pthreads= 8 + max_connections / 100) > 100)
@@ -3984,16 +3945,10 @@ int init_common_variables()
       (host_cache_size= 628 + ((max_connections - 500) / 20)) > 2000)
     host_cache_size= 2000;
 
-  /* Fix table_definition_cache. */
-  if (!table_definition_cache_specified &&
-      (table_def_size= 400 + table_cache_size / 2) > 2000)
-    table_def_size= 2000;
-
   /* Fix back_log */
   if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
     back_log= 900;
 
-  table_cache_size_per_instance= table_cache_size / table_cache_instances;
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
         my_locale_by_name(lc_messages)))
@@ -4639,6 +4594,15 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
+#ifdef HAVE_MY_TIMER
+  if (my_os_timer_init_ext())
+    sql_print_error("Failed to initialize timer component (errno %d).", errno);
+  else
+    have_statement_timeout= SHOW_OPTION_YES;
+#else
+  have_statement_timeout= SHOW_OPTION_NO;
+#endif
+
   query_cache_set_min_res_unit(query_cache_min_res_unit);
   query_cache_init();
   query_cache_resize(query_cache_size);
@@ -5079,7 +5043,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     time_t purge_time= server_start_time - expire_logs_days*24*60*60;
     if (purge_time >= 0)
-      mysql_bin_log.purge_logs_before_date(purge_time);
+      mysql_bin_log.purge_logs_before_date(purge_time, true);
   }
   if (opt_bin_log && max_binlog_files)
   {
@@ -5302,27 +5266,29 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
-  adjust_related_options();
+  {
+    ulong requested_open_files;
+    adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  if (ho_error == 0)
-  {
-    if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
+    if (ho_error == 0)
     {
-      /* Add sizing hints from the server sizing parameters. */
-      pfs_param.m_hints.m_table_definition_cache= table_def_size;
-      pfs_param.m_hints.m_table_open_cache= table_cache_size;
-      pfs_param.m_hints.m_max_connections= max_connections;
-      pfs_param.m_hints.m_open_files_limit= open_files_limit;
-      PSI_hook= initialize_performance_schema(&pfs_param);
-      if (PSI_hook == NULL)
+      if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
       {
-        pfs_param.m_enabled= false;
-        buffered_logs.buffer(WARNING_LEVEL,
-                             "Performance schema disabled (reason: init failed).");
+        /* Add sizing hints from the server sizing parameters. */
+        pfs_param.m_hints.m_table_definition_cache= table_def_size;
+        pfs_param.m_hints.m_table_open_cache= table_cache_size;
+        pfs_param.m_hints.m_max_connections= max_connections;
+	pfs_param.m_hints.m_open_files_limit= requested_open_files;
+        PSI_hook= initialize_performance_schema(&pfs_param);
+        if (PSI_hook == NULL)
+        {
+          pfs_param.m_enabled= false;
+          buffered_logs.buffer(WARNING_LEVEL,
+                               "Performance schema disabled (reason: init failed).");
+        }
       }
     }
-  }
 #else
   /*
     Other provider of the instrumentation interface should
@@ -5334,6 +5300,7 @@ int mysqld_main(int argc, char **argv)
     these two defines are kept separate.
   */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+  }
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -6926,11 +6893,131 @@ int handle_early_options()
   return ho_error;
 }
 
-void adjust_related_options()
+/**
+  Adjust @c open_files_limit.
+  Computation is  based on:
+  - @c max_connections,
+  - @c table_cache_size,
+  - the platform max open file limit.
+*/
+void adjust_open_files_limit(ulong *requested_open_files)
+{
+  ulong limit_1;
+  ulong limit_2;
+  ulong limit_3;
+  ulong request_open_files;
+  ulong effective_open_files;
+
+  /* MyISAM requires two file handles per table. */
+  limit_1= 10 + max_connections + extra_max_connections + table_cache_size * 2;
+
+  /*
+    We are trying to allocate no less than max_connections*5 file
+    handles (i.e. we are trying to set the limit so that they will
+    be available).
+  */
+  limit_2= (max_connections + extra_max_connections) * 5;
+
+  /* Try to allocate no less than 5000 by default. */
+  limit_3= open_files_limit ? open_files_limit : 5000;
+
+  request_open_files= max<ulong>(max<ulong>(limit_1, limit_2), limit_3);
+
+  /* Notice: my_set_max_open_files() may return more than requested. */
+  effective_open_files= my_set_max_open_files(request_open_files);
+
+  if (effective_open_files < request_open_files)
+  {
+    char msg[1024];
+
+    if (open_files_limit == 0)
+    {
+      snprintf(msg, sizeof(msg),
+               "Changed limits: max_open_files: %lu (requested %lu)",
+               effective_open_files, request_open_files);
+      buffered_logs.buffer(WARNING_LEVEL, msg);
+    }
+    else
+    {
+      snprintf(msg, sizeof(msg),
+               "Could not increase number of max_open_files to "
+               "more than %lu (request: %lu)",
+               effective_open_files, request_open_files);
+      buffered_logs.buffer(WARNING_LEVEL, msg);
+    }
+  }
+
+  open_files_limit= effective_open_files;
+  if (requested_open_files)
+    *requested_open_files= min<ulong>(effective_open_files, request_open_files);
+}
+
+void adjust_max_connections(ulong requested_open_files)
+{
+  ulong limit;
+
+  limit= requested_open_files - 10 - TABLE_OPEN_CACHE_MIN * 2;
+
+  if (limit < max_connections)
+  {
+    char msg[1024];
+
+    snprintf(msg, sizeof(msg),
+             "Changed limits: max_connections: %lu (requested %lu)",
+             limit, max_connections);
+    buffered_logs.buffer(WARNING_LEVEL, msg);
+
+    max_connections= limit;
+  }
+}
+
+void adjust_table_cache_size(ulong requested_open_files)
+{
+  ulong limit;
+
+  limit= max<ulong>((requested_open_files - 10 - max_connections) / 2,
+                    TABLE_OPEN_CACHE_MIN);
+
+  if (limit < table_cache_size)
+  {
+    char msg[1024];
+
+    snprintf(msg, sizeof(msg),
+             "Changed limits: table_cache: %lu (requested %lu)",
+             limit, table_cache_size);
+    buffered_logs.buffer(WARNING_LEVEL, msg);
+
+    table_cache_size= limit;
+  }
+
+  table_cache_size_per_instance= table_cache_size / table_cache_instances;
+}
+
+void adjust_table_def_size()
+{
+  longlong default_value;
+  sys_var *var;
+
+  default_value= min<longlong> (400 + table_cache_size / 2, 2000);
+  var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
+  DBUG_ASSERT(var != NULL);
+  var->update_default(default_value);
+
+  if (! table_definition_cache_specified)
+    table_def_size= default_value;
+}
+
+void adjust_related_options(ulong *requested_open_files)
 {
   /* In bootstrap, disable grant tables (we are about to create them) */
   if (opt_bootstrap)
     opt_noacl= 1;
+
+  /* The order is critical here, because of dependencies. */
+  adjust_open_files_limit(requested_open_files);
+  adjust_max_connections(*requested_open_files);
+  adjust_table_cache_size(*requested_open_files);
+  adjust_table_def_size();
 }
 
 vector<my_option> all_options;
@@ -7326,6 +7413,11 @@ struct my_option my_long_options[]=
    "utility user.",
    &utility_user_password, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"utility_user_privileges", 0, "Specifies the privileges that the utility "
+   "user will have in a comma delimited list. See the manual for a complete "
+   "list of privileges.",
+   &utility_user_privileges, 0, &utility_user_privileges_typelib,
+   GET_SET, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"utility_user_schema_access", 0, "Specifies the schemas that the utility "
    "user has access to in a comma delimited list.",
    &utility_user_schema_access, 0, 0, GET_STR, REQUIRED_ARG,
@@ -7373,15 +7465,10 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
-  mysql_mutex_assert_owner(&LOCK_status);
-  mysql_mutex_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   var->value= buff;
   *((my_bool *)buff)= (my_bool) (active_mi &&
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                  active_mi->rli->slave_running);
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
@@ -7391,50 +7478,33 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
     TODO: with multimaster, have one such counter per line in
     SHOW SLAVE STATUS, and have the sum over all lines here.
   */
-  mysql_mutex_assert_owner(&LOCK_status);
-  mysql_mutex_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_LONG;
     var->value= buff;
-    mysql_mutex_lock(&active_mi->rli->data_lock);
     *((long *)buff)= (long)active_mi->rli->retried_trans;
-    mysql_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
-  mysql_mutex_assert_owner(&LOCK_status);
-  mysql_mutex_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_LONGLONG;
     var->value= buff;
-    mysql_mutex_lock(&active_mi->rli->data_lock);
     *((longlong *)buff)= active_mi->received_heartbeats;
-    mysql_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
-  mysql_mutex_assert_owner(&LOCK_status);
-  mysql_mutex_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_CHAR;
@@ -7450,17 +7520,12 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
 static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
   DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
-  mysql_mutex_assert_owner(&LOCK_status);
-  mysql_mutex_unlock(&LOCK_status);
-  mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
     var->type= SHOW_CHAR;
@@ -7469,8 +7534,6 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   }
   else
     var->type= SHOW_UNDEF;
-  mysql_mutex_unlock(&LOCK_active_mi);
-  mysql_mutex_lock(&LOCK_status);
   return 0;
 }
 
@@ -7947,6 +8010,9 @@ SHOW_VAR status_vars[]= {
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Last_query_partial_plans", (char*) offsetof(STATUS_VAR, last_query_partial_plans), SHOW_LONGLONG_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
+  {"Max_statement_time_exceeded",   (char*) offsetof(STATUS_VAR, max_statement_time_exceeded), SHOW_LONG_STATUS},
+  {"Max_statement_time_set",        (char*) offsetof(STATUS_VAR, max_statement_time_set), SHOW_LONG_STATUS},
+  {"Max_statement_time_set_failed", (char*) offsetof(STATUS_VAR, max_statement_time_set_failed), SHOW_LONG_STATUS},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
@@ -8648,67 +8714,103 @@ mysqld_get_one_option(int optid,
     {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #ifndef EMBEDDED_LIBRARY
-      /* Parse instrument name and value from argument string */
-      char* name = argument,*p, *val;
 
-      /* Assignment required */
+      /*
+        Parse instrument name and value from argument string. Handle leading
+        and trailing spaces. Also handle single quotes.
+
+        Acceptable:
+          performance_schema_instrument = ' foo/%/bar/  =  ON  '
+          performance_schema_instrument = '%=OFF'
+        Not acceptable:
+          performance_schema_instrument = '' foo/%/bar = ON ''
+          performance_schema_instrument = '%='OFF''
+      */
+      char *name= argument,*p= NULL, *val= NULL;
+      my_bool quote= false; /* true if quote detected */
+      my_bool error= true;  /* false if no errors detected */
+      const int PFS_BUFFER_SIZE= 128;
+      char orig_argument[PFS_BUFFER_SIZE+1];
+      orig_argument[0]= 0;
+
+      if (!argument)
+        goto pfs_error;
+
+      /* Save original argument string for error reporting */
+      strncpy(orig_argument, argument, PFS_BUFFER_SIZE);
+
+      /* Split instrument name and value at the equal sign */
       if (!(p= strchr(argument, '=')))
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Missing value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
-      /* Option value */
+      /* Get option value */
       val= p + 1;
       if (!*val)
+        goto pfs_error;
+
+      /* Trim leading spaces and quote from the instrument name */
+      while (*name && (my_isspace(mysqld_charset, *name) || (*name == '\'')))
       {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Missing value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
+        /* One quote allowed */
+        if (*name == '\'')
+        {
+          if (!quote)
+            quote= true;
+          else
+            goto pfs_error;
+        }
+        name++;
       }
 
-      /* Trim leading spaces from instrument name */
-      while (*name && my_isspace(mysqld_charset, *name))
-        name++;
-
-      /* Trim trailing spaces and slashes from instrument name */
-      while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+      /* Trim trailing spaces from instrument name */
+      while ((p > name) && my_isspace(mysqld_charset, p[-1]))
         p--;
       *p= 0;
 
+      /* Remove trailing slash from instrument name */
+      if (p > name && (p[-1] == '/'))
+        p[-1]= 0;
+
       if (!*name)
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid instrument name for "
-                               "performance_schema_instrument '%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
       /* Trim leading spaces from option value */
       while (*val && my_isspace(mysqld_charset, *val))
         val++;
 
-      /* Trim trailing spaces from option value */
-      if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
-        *p= 0;
+      /* Trim trailing spaces and matching quote from value */
+      p= val + strlen(val);
+      while (p > val && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '\''))
+      {
+        /* One matching quote allowed */
+        if (p[-1] == '\'')
+        {
+          if (quote)
+            quote= false;
+          else
+            goto pfs_error;
+        }
+        p--;
+      }
+
+      *p= 0;
 
       if (!*val)
-      {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid value for performance_schema_instrument "
-                               "'%s'", argument);
-        return 0;
-      }
+        goto pfs_error;
 
       /* Add instrument name and value to array of configuration options */
       if (add_pfs_instr_to_array(name, val))
+        goto pfs_error;
+
+      error= false;
+
+pfs_error:
+      if (error)
       {
-         my_getopt_error_reporter(WARNING_LEVEL,
-                               "Invalid value for performance_schema_instrument "
-                               "'%s'", argument);
+        my_getopt_error_reporter(WARNING_LEVEL,
+                                 "Invalid instrument name or value for "
+                                 "performance_schema_instrument '%s'",
+                                 orig_argument);
         return 0;
       }
 #endif /* EMBEDDED_LIBRARY */
@@ -9372,6 +9474,7 @@ PSI_mutex_key key_BINLOG_LOCK_index;
 PSI_mutex_key key_BINLOG_LOCK_log;
 PSI_mutex_key key_BINLOG_LOCK_sync;
 PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+PSI_mutex_key key_BINLOG_LOCK_xids;
 PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
@@ -9404,6 +9507,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
+PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_LOCK_thread_created;
@@ -9429,6 +9533,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_BINLOG_LOCK_log, "MYSQL_BIN_LOG::LOCK_log", 0},
   { &key_BINLOG_LOCK_sync, "MYSQL_BIN_LOG::LOCK_sync", 0},
   { &key_BINLOG_LOCK_sync_queue, "MYSQL_BIN_LOG::LOCK_sync_queue", 0 },
+  { &key_BINLOG_LOCK_xids, "MYSQL_BIN_LOG::LOCK_xids", 0 },
   { &key_RELAYLOG_LOCK_commit, "MYSQL_RELAY_LOG::LOCK_commit", 0},
   { &key_RELAYLOG_LOCK_commit_queue, "MYSQL_RELAY_LOG::LOCK_commit_queue", 0 },
   { &key_RELAYLOG_LOCK_done, "MYSQL_RELAY_LOG::LOCK_done", 0 },
@@ -9437,6 +9542,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0},
   { &key_RELAYLOG_LOCK_sync, "MYSQL_RELAY_LOG::LOCK_sync", 0},
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0 },
+  { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
@@ -9913,7 +10019,7 @@ void init_server_psi_keys(void)
 
   /*
     When a new packet is received,
-    it is instrumented as "statement/com/".
+    it is instrumented as "statement/com/new_packet".
     Based on the packet type found, it later mutates to the
     proper narrow type, for example
     "statement/com/query" or "statement/com/ping".
@@ -9922,9 +10028,21 @@ void init_server_psi_keys(void)
     narrow classification, for example "statement/sql/select".
   */
   stmt_info_new_packet.m_key= 0;
-  stmt_info_new_packet.m_name= "";
+  stmt_info_new_packet.m_name= "new_packet";
   stmt_info_new_packet.m_flags= PSI_FLAG_MUTABLE;
-  mysql_statement_register(category, & stmt_info_new_packet, 1);
+  mysql_statement_register(category, &stmt_info_new_packet, 1);
+
+  /*
+    Statements processed from the relay log are initially instrumented as
+    "statement/rpl/relay_log". The parser will mutate the statement type to
+    a more specific classification, for example "statement/sql/insert".
+  */
+  category= "rpl";
+  stmt_info_rpl.m_key= 0;
+  stmt_info_rpl.m_name= "relay_log";
+  stmt_info_rpl.m_flags= PSI_FLAG_MUTABLE;
+  mysql_statement_register(category, &stmt_info_rpl, 1);
+
 #endif
 }
 

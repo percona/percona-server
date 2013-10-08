@@ -16,6 +16,10 @@ Version Specific Information
 
      * Feature ported from |Percona Server| 5.5.
 
+  * :rn:`5.6.13-60.4`:
+
+      * New :variable:`slow_query_log_always_write_time` variable introduced
+
 Other Information
 =================
 
@@ -96,7 +100,9 @@ Decision "log or no" calculated in following manner:
 
 This allows flexible setup logging behavior.
 
-For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged.
+For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| :rn:`5.6.13-60.6` information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
+ 
+  Log_slow_rate_type: query  Log_slow_rate_limit: 10
 
 .. variable:: log_slow_sp_statements
 
@@ -212,6 +218,15 @@ Specifies which variables have global scope instead of local. Value is a "flag" 
   * ``all``
     Global variables has effect (instead of local)
 
+.. variable:: slow_query_log_always_write_time
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :default: 10
+
+This variable can be used to specify the query execution time after which the query will be written to the slow query log. It can be used to specify an additional execution time threshold for the slow query log, that, when exceeded, will cause a query to be logged unconditionally, that is, :variable:`log_slow_rate_limit` will not apply to it.
 
 Other Information
 =================

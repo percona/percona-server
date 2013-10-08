@@ -76,14 +76,17 @@ struct Worker_thread_context
 
   void save()
   {
-    psi_thread=  PSI_server?PSI_server->get_thread():0;
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    psi_thread= PSI_THREAD_CALL(get_thread)();
+#endif
     mysys_var= (st_my_thread_var *)pthread_getspecific(THR_KEY_mysys);
   }
 
   void restore()
   {
-    if (PSI_server)
-      PSI_server->set_thread(psi_thread);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread)(psi_thread);
+#endif
     pthread_setspecific(THR_KEY_mysys,mysys_var);
     pthread_setspecific(THR_THD, 0);
     pthread_setspecific(THR_MALLOC, 0);
@@ -99,8 +102,9 @@ static bool thread_attach(THD* thd)
   pthread_setspecific(THR_KEY_mysys,thd->mysys_var);
   thd->thread_stack=(char*)&thd;
   thd->store_globals();
-  if (PSI_server)
-    PSI_server->set_thread(thd->event_scheduler.m_psi);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(set_thread)(thd->event_scheduler.m_psi);
+#endif
   mysql_socket_set_thread_owner(thd->net.vio->mysql_socket);
   return 0;
 }
@@ -196,11 +200,10 @@ int threadpool_add_connection(THD *thd)
   }
 
   /* Create new PSI thread for use with the THD. */
-  if (PSI_server)
-  {
-    thd->event_scheduler.m_psi=
-      PSI_server->new_thread(key_thread_one_connection, thd, thd->thread_id);
-  }
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  thd->event_scheduler.m_psi=
+    PSI_THREAD_CALL(new_thread)(key_thread_one_connection, thd, thd->thread_id);
+#endif
 
 
   /* Login. */
@@ -226,6 +229,7 @@ int threadpool_add_connection(THD *thd)
         thd->net.reading_or_writing= 1;
         thd->skip_wait_timeout= true;
         MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+        thd->m_server_idle= true;
         threadpool_init_net_server_extension(thd);
       }
     }
@@ -326,13 +330,18 @@ int threadpool_process_request(THD *thd)
       thd->net.reading_or_writing= 1;
       goto end;
     }
+    if (!thd->m_server_idle) {
+      MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
+      MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
+      thd->m_server_idle= true;
+    }
   }
 
 end:
-  if (!thd->m_server_idle) {
+  if (!retval && !thd->m_server_idle) {
     MYSQL_SOCKET_SET_STATE(thd->net.vio->mysql_socket, PSI_SOCKET_STATE_IDLE);
     MYSQL_START_IDLE_WAIT(thd->m_idle_psi, &thd->m_idle_state);
-    thd->m_server_idle = true;
+    thd->m_server_idle= true;
   }
 
   worker_context.restore();

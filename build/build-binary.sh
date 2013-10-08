@@ -17,6 +17,12 @@ TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
 WITH_JEMALLOC=''
+DEBUG_EXTNAME=''
+WITH_SSL='/usr'
+OPENSSL_INCLUDE=''
+OPENSSL_LIBRARY=''
+CRYPTO_LIBRARY=''
+TAG=''
 
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -24,8 +30,8 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options=iqdvj: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc: \
+    go_out="$(getopt --options=iqdvjt: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -44,6 +50,7 @@ do
         shift
         CMAKE_BUILD_TYPE='Debug'
         BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
+        DEBUG_EXTNAME='-DDEBUG_EXTNAME=OFF'
         ;;
     -v | --valgrind )
         shift
@@ -57,6 +64,31 @@ do
     -j | --with-jemalloc )
         shift
         WITH_JEMALLOC="$1"
+        shift
+        ;;
+    --with-ssl )
+        shift
+        WITH_SSL="$1"
+        shift
+        # Set openssl and crypto library path
+        if test -e "$WITH_SSL/lib/libssl.a"
+        then
+            OPENSSL_INCLUDE="-DOPENSSL_INCLUDE_DIR=$WITH_SSL/include"
+            OPENSSL_LIBRARY="-DOPENSSL_LIBRARY=$WITH_SSL/lib/libssl.a"
+            CRYPTO_LIBRARY="-DCRYPTO_LIBRARY=$WITH_SSL/lib/libcrypto.a"
+        elif test -e "$WITH_SSL/lib64/libssl.a"
+        then
+            OPENSSL_INCLUDE="-DOPENSSL_INCLUDE_DIR=$WITH_SSL/include"
+            OPENSSL_LIBRARY="-DOPENSSL_LIBRARY=$WITH_SSL/lib64/libssl.a"
+            CRYPTO_LIBRARY="-DCRYPTO_LIBRARY=$WITH_SSL/lib64/libcrypto.a"
+        else
+            echo >&2 "Cannot find libssl.a in $WITH_SSL"
+            exit 3
+        fi
+        ;;
+    -t | --tag )
+        shift
+        TAG="$1"
         shift
         ;;
     esac
@@ -115,7 +147,7 @@ PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 # Build information
 REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}.$(uname -s).$TARGET"
+PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}$TAG.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
 COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
@@ -153,6 +185,7 @@ fi
     cd "$PRODUCT"
     cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
+        $DEBUG_EXTNAME \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \
         -DENABLE_DTRACE=OFF \
@@ -161,7 +194,9 @@ fi
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DMYSQL_SERVER_SUFFIX="-$PERCONA_SERVER_VERSION" \
         -DCOMPILATION_COMMENT="$COMMENT" \
-        -DWITH_PAM=ON
+        -DWITH_PAM=ON \
+        -DWITH_INNODB_MEMCACHED=ON \
+        $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
     make DESTDIR="$INSTALLDIR" install

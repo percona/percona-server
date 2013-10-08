@@ -18,6 +18,8 @@ CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX(a));
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
+call mtr.add_suppression("does not exist in the InnoDB internal");
+
 SET debug="+d,crash_innodb_add_index_after";
 --error 2013
 ALTER TABLE t1 ADD INDEX (b);

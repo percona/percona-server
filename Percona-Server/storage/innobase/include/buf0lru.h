@@ -79,12 +79,14 @@ buf_LRU_insert_zip_clean(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns true, it will temporarily
-release buf_pool->mutex.  Furthermore, the page frame will no longer be
-accessible via bpage.
+NOTE: If this function returns true, it will release the LRU list mutex,
+and temporarily release and relock the buf_page_get_mutex() mutex.
+Furthermore, the page frame will no longer be accessible via bpage.  If this
+function returns false, the buf_page_get_mutex() might be temporarily released
+and relocked too.
 
-The caller must hold buf_pool->mutex and must not hold any
-buf_page_get_mutex() when calling this function.
+The caller must hold the LRU list and buf_page_get_mutex() mutexes.
+
 @return true if freed, false otherwise. */
 UNIV_INTERN
 bool
@@ -291,7 +293,7 @@ Cleared by buf_LRU_stat_update(). */
 extern buf_LRU_stat_t	buf_LRU_stat_cur;
 
 /** Running sum of past values of buf_LRU_stat_cur.
-Updated by buf_LRU_stat_update().  Protected by buf_pool->mutex. */
+Updated by buf_LRU_stat_update().  */
 extern buf_LRU_stat_t	buf_LRU_stat_sum;
 
 /********************************************************************//**

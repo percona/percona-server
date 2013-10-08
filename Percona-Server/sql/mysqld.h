@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,6 +99,7 @@ extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log, opt_log_raw;
+extern ulonglong slow_query_log_always_write_time;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
 extern my_bool opt_query_cache_strip_comments;
@@ -212,6 +213,7 @@ extern uint max_user_connections;
 extern ulong extra_max_connections;
 extern ulong thread_created;
 extern scheduler_functions *thread_scheduler, *extra_thread_scheduler;
+extern ulong rpl_stop_slave_timeout;
 extern my_bool log_bin_use_v1_row_events;
 extern ulonglong denied_connections;
 extern ulong what_to_log,flush_time;
@@ -282,7 +284,7 @@ extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern struct my_option my_long_early_options[];
 int handle_early_options();
-void adjust_related_options();
+void adjust_related_options(ulong *requested_open_files);
 extern int mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
@@ -311,6 +313,7 @@ extern char* enforce_storage_engine;
 extern char* utility_user;
 extern char* utility_user_password;
 extern char* utility_user_schema_access;
+extern ulonglong utility_user_privileges;
 
 /*
   THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
@@ -337,6 +340,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index;
 extern PSI_mutex_key key_BINLOG_LOCK_log;
 extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+extern PSI_mutex_key key_BINLOG_LOCK_xids;
 extern PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
@@ -369,6 +373,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
+extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_LOCK_thread_created;
@@ -544,6 +549,11 @@ extern PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
   The last entry, at [COM_END], is for packet errors.
 */
 extern PSI_statement_info com_statement_info[(uint) COM_END + 1];
+
+/**
+  Statement instrumentation key for replication.
+*/
+extern PSI_statement_info stmt_info_rpl;
 
 void init_sql_statement_info();
 void init_com_statement_info();

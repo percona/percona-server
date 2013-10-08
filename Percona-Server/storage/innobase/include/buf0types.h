@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,7 @@ struct buf_dblwr_t;
 typedef	byte	buf_frame_t;
 
 /** Flags for flush types */
-enum buf_flush {
+enum buf_flush_t {
 	BUF_FLUSH_LRU = 0,		/*!< flush via the LRU list */
 	BUF_FLUSH_LIST,			/*!< flush via the flush list
 					of dirty blocks */
@@ -90,6 +90,43 @@ enum srv_checksum_algorithm_t {
 						innodb or none when reading */
 	SRV_CHECKSUM_ALGORITHM_STRICT_NONE	/*!< Write none, allow none
 						when reading */
+};
+
+/** Alternatives for srv_cleaner_lsn_age_factor, set through
+innodb_cleaner_lsn_age_factor variable  */
+enum srv_cleaner_lsn_age_factor_t {
+	SRV_CLEANER_LSN_AGE_FACTOR_LEGACY,	/*!< Original Oracle MySQL 5.6
+						formula */
+	SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT
+						/*!< Percona Server 5.6 formula
+						that returns lower values than
+					        legacy option for low
+					        checkpoint ages, and higher
+					        values for high ages.  This has
+					        the effect of stabilizing the
+						checkpoint age higher.  */
+};
+
+/** Alternatives for srv_foreground_preflush, set through
+innodb_foreground_preflush variable  */
+enum srv_foreground_preflush_t {
+	SRV_FOREGROUND_PREFLUSH_SYNC_PREFLUSH,	/*!< Original Oracle MySQL 5.6
+						behavior of performing a sync
+						flush list flush  */
+	SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF	/*!< Exponential backoff wait
+						for the page cleaner to flush
+						for us  */
+};
+
+/** Alternatives for srv_empty_free_list_algorithm, set through
+innodb_empty_free_list_algorithm variable  */
+enum srv_empty_free_list_t {
+	SRV_EMPTY_FREE_LIST_LEGACY,	/*!< Original Oracle MySQL 5.6
+				        algorithm */
+	SRV_EMPTY_FREE_LIST_BACKOFF	/*!< Percona Server 5.6 algorithm that
+					loops in a progressive backoff until a
+					free page is produced by the cleaner
+					thread */
 };
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */

@@ -79,11 +79,19 @@ class ha_federated: public handler
   THR_LOCK_DATA lock;      /* MySQL lock */
   FEDERATED_SHARE *share;    /* Shared lock info */
   MYSQL *mysql; /* MySQL connection */
-  MYSQL_RES *stored_result;
-  /**
-    Array of all stored results we get during a query execution.
+  /*
+    Last fetched result, freed if !position_called when set to next result.
   */
-  DYNAMIC_ARRAY results;
+  MYSQL_RES *last_result;
+  /*
+    Array of stored results that exist because of position call.
+  */
+  DYNAMIC_ARRAY stored_results;
+  /*
+    Indicates if position has been called since last_result was set, used to
+    determine if last_result needs pushed into stored_results when
+    set_last_result is called.
+  */
   bool position_called;
   uint fetch_num; // stores the fetch num
   MYSQL_ROW_OFFSET current_position;  // Current position used by ::position()
@@ -258,8 +266,9 @@ public:
   bool get_error_message(int error, String *buf);
   
   MYSQL_RES *store_result(MYSQL *mysql);
-  void free_result();
-  
+  void set_last_result(MYSQL_RES *result);
+  MYSQL_RES *get_last_result() const{ return last_result; }
+
   int external_lock(THD *thd, int lock_type);
   int connection_commit();
   int connection_rollback();

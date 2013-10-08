@@ -180,7 +180,7 @@ UNIV_INTERN char**	srv_data_file_names = NULL;
 /* size in database pages */
 UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 
-UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
 
@@ -261,6 +261,43 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
+/** Query thread preflush algorithm */
+UNIV_INTERN ulint	srv_foreground_preflush
+	= SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF;
+
+/** The maximum time limit for a single LRU tail flush iteration by the page
+cleaner thread */
+UNIV_INTERN ulint	srv_cleaner_max_lru_time = 1000;
+
+/** The maximum time limit for a single flush list flush iteration by the page
+cleaner thread */
+UNIV_INTERN ulint	srv_cleaner_max_flush_time = 1000;
+
+/** Page cleaner flush list flush batches are further divided into this chunk
+size  */
+UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 200;
+
+/** Page cleaner LRU list flush batches are further divided into this chunk
+size  */
+UNIV_INTERN ulint	srv_cleaner_lru_chunk_size = 100;
+
+/** If free list length is lower than this percentage of srv_LRU_scan_depth,
+page cleaner LRU flushes will issue flush batches to the same instance in a
+row  */
+UNIV_INTERN ulint	srv_cleaner_free_list_lwm = 10;
+
+/** If TRUE, page cleaner heuristics use evicted instead of flushed page counts
+for its heuristics  */
+UNIV_INTERN my_bool	srv_cleaner_eviction_factor = FALSE;
+
+/** Page cleaner LSN age factor formula option */
+UNIV_INTERN ulong	srv_cleaner_lsn_age_factor
+	= SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT;
+
+/** Empty free list for a query thread handling algorithm option  */
+UNIV_INTERN ulong	srv_empty_free_list_algorithm
+	= SRV_EMPTY_FREE_LIST_BACKOFF;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
@@ -318,6 +355,46 @@ UNIV_INTERN ulong	srv_adaptive_flushing_lwm	= 10;
 
 /* Number of iterations over which adaptive flushing is averaged. */
 UNIV_INTERN ulong	srv_flushing_avg_loops		= 30;
+
+/* The tid of the cleaner thread */
+UNIV_INTERN os_tid_t	srv_cleaner_tid;
+
+/* The tids of the purge threads */
+UNIV_INTERN os_tid_t	srv_purge_tids[SRV_MAX_N_PURGE_THREADS];
+
+/* The tids of the I/O threads */
+UNIV_INTERN os_tid_t	srv_io_tids[SRV_MAX_N_IO_THREADS];
+
+/* The tid of the master thread */
+UNIV_INTERN os_tid_t	srv_master_tid;
+
+/* The relative scheduling priority of the cleaner thread */
+UNIV_INTERN ulint	srv_sched_priority_cleaner	= 19;
+
+/* The relative scheduling priority of the purge threads */
+UNIV_INTERN ulint	srv_sched_priority_purge	= 19;
+
+/* The relative scheduling priority of the I/O threads */
+UNIV_INTERN ulint	srv_sched_priority_io		= 19;
+
+/* The relative scheduling priority of the master thread */
+UNIV_INTERN ulint	srv_sched_priority_master	= 19;
+
+/* The relative priority of the current thread.  If 0, low priority; if 1, high
+priority.  */
+UNIV_INTERN UNIV_THREAD_LOCAL ulint srv_current_thread_priority = 0;
+
+/* The relative priority of the purge coordinator and worker threads.  */
+UNIV_INTERN my_bool	srv_purge_thread_priority	= FALSE;
+
+/* The relative priority of the I/O threads.  */
+UNIV_INTERN my_bool	srv_io_thread_priority		= FALSE;
+
+/* The relative priority of the cleaner thread.  */
+UNIV_INTERN my_bool	srv_cleaner_thread_priority	= FALSE;
+
+/* The relative priority of the master thread.  */
+UNIV_INTERN my_bool	srv_master_thread_priority	= FALSE;
 
 /* The number of purge threads to use.*/
 UNIV_INTERN ulong	srv_n_purge_threads = 1;
@@ -1182,7 +1259,8 @@ srv_printf_innodb_monitor(
 	ulint	n_reserved;
 	ibool	ret;
 
-	ulint	btr_search_sys_subtotal;
+	ulong	btr_search_sys_constant;
+	ulong	btr_search_sys_variable;
 	ulint	lock_sys_subtotal;
 	ulint	recv_sys_subtotal;
 
@@ -1307,17 +1385,26 @@ srv_printf_innodb_monitor(
 		"Total memory allocated by read views " ULINTPF "\n",
 		os_atomic_increment_lint(&srv_read_views_memory, 0));
 
-	/* Calculate reserved memories */
-	if (btr_search_sys && btr_search_sys->hash_index->heap) {
-		btr_search_sys_subtotal
-			= mem_heap_get_size(btr_search_sys->hash_index->heap);
-	} else {
-		btr_search_sys_subtotal = 0;
-		for (i=0; i < btr_search_sys->hash_index->n_sync_obj; i++) {
-			btr_search_sys_subtotal
-				+= mem_heap_get_size(
-					btr_search_sys->hash_index->heaps[i]);
-		}
+	/* Calculate AHI constant and variable memory allocations */
+
+	btr_search_sys_constant = 0;
+	btr_search_sys_variable = 0;
+
+	ut_ad(btr_search_sys->hash_tables);
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		hash_table_t* ht = btr_search_sys->hash_tables[i];
+
+		ut_ad(ht);
+		ut_ad(ht->heap);
+
+		/* Multiple mutexes/heaps are currently never used for adaptive
+		hash index tables. */
+		ut_ad(!ht->n_sync_obj);
+		ut_ad(!ht->heaps);
+
+		btr_search_sys_variable += mem_heap_get_size(ht->heap);
+		btr_search_sys_constant += ht->n_cells * sizeof(hash_cell_t);
 	}
 
 	lock_sys_subtotal = 0;
@@ -1346,16 +1433,9 @@ srv_printf_innodb_monitor(
 			"    Lock system         %lu \t(%lu + " ULINTPF ")\n"
 			"    Recovery system     %lu \t(%lu + " ULINTPF ")\n",
 
-			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index->n_cells
-				   * sizeof(hash_cell_t))
-				 : 0)
-			+ btr_search_sys_subtotal,
-			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index->n_cells
-				   * sizeof(hash_cell_t))
-				 : 0),
-			btr_search_sys_subtotal,
+			btr_search_sys_constant + btr_search_sys_variable,
+			btr_search_sys_constant,
+			btr_search_sys_variable,
 
 			(ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t)),
 
@@ -1504,20 +1584,22 @@ srv_export_innodb_status(void)
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
-	if (btr_search_sys && btr_search_sys->hash_index->heap) {
-		mem_adaptive_hash
-			= mem_heap_get_size(btr_search_sys->hash_index->heap);
-	} else {
-		mem_adaptive_hash = 0;
-		for (i=0; i < btr_search_sys->hash_index->n_sync_obj; i++) {
-			mem_adaptive_hash
-				+= mem_heap_get_size
-				(btr_search_sys->hash_index->heaps[i]);
-		}
-	}
-	if (btr_search_sys) {
-		mem_adaptive_hash += (btr_search_sys->hash_index->n_cells
-				      * sizeof(hash_cell_t));
+	mem_adaptive_hash = 0;
+
+	ut_ad(btr_search_sys->hash_tables);
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		hash_table_t*	ht = btr_search_sys->hash_tables[i];
+
+		ut_ad(ht);
+		ut_ad(ht->heap);
+		/* Multiple mutexes/heaps are currently never used for adaptive
+		hash index tables. */
+		ut_ad(!ht->n_sync_obj);
+		ut_ad(!ht->heaps);
+
+		mem_adaptive_hash += mem_heap_get_size(ht->heap);
+		mem_adaptive_hash += ht->n_cells * sizeof(hash_cell_t);
 	}
 
 	mem_dictionary = (dict_sys ? ((dict_sys->table_hash->n_cells
@@ -1755,19 +1837,23 @@ srv_export_innodb_status(void)
 		: 0;
 	rw_lock_s_unlock(&purge_sys->latch);
 
-	if (!done_trx_no || trx_sys->rw_max_trx_id < done_trx_no - 1) {
+	mutex_enter(&trx_sys->mutex);
+	trx_id_t	max_trx_id	= trx_sys->rw_max_trx_id;
+	mutex_exit(&trx_sys->mutex);
+
+	if (!done_trx_no || max_trx_id < done_trx_no - 1) {
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - done_trx_no + 1);
+			(ulint) (max_trx_id - done_trx_no + 1);
 	}
 
 	if (!up_limit_id
-	    || trx_sys->rw_max_trx_id < up_limit_id) {
+	    || max_trx_id < up_limit_id) {
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-			(ulint) (trx_sys->rw_max_trx_id - up_limit_id);
+			(ulint) (max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -2208,6 +2294,12 @@ DECLARE_THREAD(srv_redo_log_follow_thread)(
 	do {
 		os_event_wait(srv_checkpoint_completed_event);
 		os_event_reset(srv_checkpoint_completed_event);
+
+#ifdef UNIV_DEBUG
+		if (!srv_track_changed_pages) {
+			continue;
+		}
+#endif
 
 		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 			if (!log_online_follow_redo_log()) {
@@ -2821,6 +2913,10 @@ DECLARE_THREAD(srv_master_thread)(
 
 	ut_ad(!srv_read_only_mode);
 
+	srv_master_tid = os_thread_get_tid();
+
+	os_thread_set_priority(srv_master_tid, srv_sched_priority_master);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
@@ -2847,6 +2943,8 @@ loop:
 		srv_master_sleep();
 
 		MONITOR_INC(MONITOR_MASTER_THREAD_SLEEP);
+
+		srv_current_thread_priority = srv_master_thread_priority;
 
 		if (srv_check_activity(old_activity_count)) {
 			old_activity_count = srv_get_activity_count();
@@ -2943,10 +3041,14 @@ srv_task_execute(void)
 
 		os_atomic_inc_ulint(
 			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
+
+		srv_inc_activity_count();
 	}
 
 	return(thr != NULL);
 }
+
+static ulint purge_tid_i = 0;
 
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
@@ -2959,9 +3061,15 @@ DECLARE_THREAD(srv_worker_thread)(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
+	ulint		tid_i = os_atomic_increment_ulint(&purge_tid_i, 1);
 
+	ut_ad(tid_i < srv_n_purge_threads);
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
+
+	srv_purge_tids[tid_i] = os_thread_get_tid();
+	os_thread_set_priority(srv_purge_tids[tid_i],
+			       srv_sched_priority_purge);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ut_print_timestamp(stderr);
@@ -2987,6 +3095,8 @@ DECLARE_THREAD(srv_worker_thread)(
 		srv_suspend_thread(slot);
 
 		os_event_wait(slot->event);
+
+		srv_current_thread_priority = srv_purge_thread_priority;
 
 		if (srv_task_execute()) {
 
@@ -3054,6 +3164,8 @@ srv_do_purge(
 	}
 
 	do {
+		srv_current_thread_priority = srv_purge_thread_priority;
+
 		if (trx_sys->rseg_history_len > rseg_history_len
 		    || (srv_max_purge_lag > 0
 			&& rseg_history_len > srv_max_purge_lag)) {
@@ -3226,6 +3338,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
+	srv_purge_tids[0] = os_thread_get_tid();
+	os_thread_set_priority(srv_purge_tids[0], srv_sched_priority_purge);
+
 	rw_lock_x_lock(&purge_sys->latch);
 
 	purge_sys->running = true;
@@ -3264,8 +3379,12 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 		n_total_purged = 0;
 
+		srv_current_thread_priority = srv_purge_thread_priority;
+
 		rseg_history_len = srv_do_purge(
 			srv_n_purge_threads, &n_total_purged);
+
+		srv_inc_activity_count();
 
 	} while (!srv_purge_should_exit(n_total_purged));
 

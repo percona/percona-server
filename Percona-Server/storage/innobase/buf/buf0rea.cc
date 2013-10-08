@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -63,10 +63,15 @@ buf_read_page_handle_error(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const bool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
+	const ulint	fold = buf_page_address_fold(bpage->space,
+						     bpage->offset);
+	prio_rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+
+	mutex_enter(&buf_pool->LRU_list_mutex);
+	rw_lock_x_lock(hash_lock);
+	mutex_enter(buf_page_get_mutex(bpage));
 
 	/* First unfix and release lock on the bpage */
-	buf_pool_mutex_enter(buf_pool);
-	mutex_enter(buf_page_get_mutex(bpage));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_READ);
 	ut_ad(bpage->buf_fix_count == 0);
 
@@ -79,15 +84,13 @@ buf_read_page_handle_error(
 			BUF_IO_READ);
 	}
 
-	mutex_exit(buf_page_get_mutex(bpage));
-
 	/* remove the block from LRU list */
 	buf_LRU_free_one_page(bpage);
 
-	ut_ad(buf_pool->n_pend_reads > 0);
-	buf_pool->n_pend_reads--;
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
-	buf_pool_mutex_exit(buf_pool);
+	ut_ad(buf_pool->n_pend_reads > 0);
+	os_atomic_decrement_ulint(&buf_pool->n_pend_reads, 1);
 }
 
 /********************************************************************//**
@@ -107,7 +110,7 @@ buf_read_page_low(
 	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
 			trying to read from a non-existent tablespace, or a
 			tablespace which is just now being dropped */
-	ibool	sync,	/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,	/*!< in: true if synchronous aio is desired */
 	ulint	mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ...,
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
 			at read-ahead functions) */
@@ -153,7 +156,7 @@ buf_read_page_low(
 		syncronous i/o, to make sure they do not get involved in
 		thread deadlocks. */
 
-		sync = TRUE;
+		sync = true;
 	}
 
 	/* The following call will also check if the tablespace does not exist
@@ -210,13 +213,13 @@ not_to_recover:
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr,
-			"Posting read request for page %lu, sync %lu\n",
-			(ulong) offset,
-			(ulong) sync);
+			"Posting read request for page %lu, sync %s\n",
+			(ulong) offset, sync ? "true" : "false");
 	}
 #endif
 
 	ut_ad(buf_page_in_file(bpage));
+	ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
 	if (sync) {
 		thd_wait_begin(NULL, THD_WAIT_DISKIO);
@@ -333,11 +336,8 @@ buf_read_ahead_random(
 		high = fil_space_get_size(space);
 	}
 
-	buf_pool_mutex_enter(buf_pool);
-
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -346,8 +346,12 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
+
+		prio_rw_lock_t*	hash_lock;
+
 		const buf_page_t* bpage =
-			buf_page_hash_get(buf_pool, space, i);
+			buf_page_hash_get_s_locked(buf_pool, space, i,
+						   &hash_lock);
 
 		if (bpage
 		    && buf_page_is_accessed(bpage)
@@ -358,13 +362,16 @@ buf_read_ahead_random(
 			if (recent_blocks
 			    >= BUF_READ_AHEAD_RANDOM_THRESHOLD(buf_pool)) {
 
-				buf_pool_mutex_exit(buf_pool);
+				rw_lock_s_unlock(hash_lock);
 				goto read_ahead;
 			}
 		}
+
+		if (bpage) {
+			rw_lock_s_unlock(hash_lock);
+		}
 	}
 
-	buf_pool_mutex_exit(buf_pool);
 	/* Do nothing */
 	return(0);
 
@@ -385,7 +392,7 @@ read_ahead:
 
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
-				&err, FALSE,
+				&err, false,
 				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
 				space, zip_size, FALSE,
 				tablespace_version, i, trx);
@@ -450,7 +457,7 @@ buf_read_page(
 	/* We do the i/o in the synchronous aio mode to save thread
 	switches: hence TRUE */
 
-	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, space,
 				  zip_size, FALSE,
 				  tablespace_version, offset, trx);
 	srv_stats.buf_pool_reads.add(count);
@@ -496,7 +503,7 @@ buf_read_page_async(
 
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE
+	count = buf_read_page_low(&err, true, BUF_READ_ANY_PAGE
 				  | OS_AIO_SIMULATED_WAKE_LATER
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,
@@ -552,6 +559,7 @@ buf_read_ahead_linear(
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
 	buf_page_t*	pred_bpage	= NULL;
+	unsigned	pred_bpage_is_accessed = 0;
 	ulint		pred_offset;
 	ulint		succ_offset;
 	ulint		count;
@@ -603,10 +611,7 @@ buf_read_ahead_linear(
 
 	tablespace_version = fil_space_get_version(space);
 
-	buf_pool_mutex_enter(buf_pool);
-
 	if (high > fil_space_get_size(space)) {
-		buf_pool_mutex_exit(buf_pool);
 		/* The area is not whole, return */
 
 		return(0);
@@ -614,7 +619,6 @@ buf_read_ahead_linear(
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -637,7 +641,11 @@ buf_read_ahead_linear(
 	fail_count = 0;
 
 	for (i = low; i < high; i++) {
-		bpage = buf_page_hash_get(buf_pool, space, i);
+
+		prio_rw_lock_t*	hash_lock;
+
+		bpage = buf_page_hash_get_s_locked(buf_pool, space, i,
+						   &hash_lock);
 
 		if (bpage == NULL || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
@@ -654,7 +662,7 @@ buf_read_ahead_linear(
 			a little against this. */
 			int res = ut_ulint_cmp(
 				buf_page_is_accessed(bpage),
-				buf_page_is_accessed(pred_bpage));
+				pred_bpage_is_accessed);
 			/* Accesses not in the right order */
 			if (res != 0 && res != asc_or_desc) {
 				fail_count++;
@@ -663,12 +671,20 @@ buf_read_ahead_linear(
 
 		if (fail_count > threshold) {
 			/* Too many failures: return */
-			buf_pool_mutex_exit(buf_pool);
+			if (bpage) {
+				rw_lock_s_unlock(hash_lock);
+			}
 			return(0);
 		}
 
-		if (bpage && buf_page_is_accessed(bpage)) {
-			pred_bpage = bpage;
+		if (bpage) {
+			if (buf_page_is_accessed(bpage)) {
+				pred_bpage = bpage;
+				pred_bpage_is_accessed
+					= buf_page_is_accessed(bpage);
+			}
+
+			rw_lock_s_unlock(hash_lock);
 		}
 	}
 
@@ -678,7 +694,6 @@ buf_read_ahead_linear(
 	bpage = buf_page_hash_get(buf_pool, space, offset);
 
 	if (bpage == NULL) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -703,8 +718,6 @@ buf_read_ahead_linear(
 
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
-
-	buf_pool_mutex_exit(buf_pool);
 
 	if ((offset == low) && (succ_offset == offset + 1)) {
 
@@ -758,7 +771,7 @@ buf_read_ahead_linear(
 
 		if (!ibuf_bitmap_page(zip_size, i)) {
 			count += buf_read_page_low(
-				&err, FALSE,
+				&err, false,
 				ibuf_mode,
 				space, zip_size, FALSE, tablespace_version, i, trx);
 			if (err == DB_TABLESPACE_DELETED) {
@@ -804,7 +817,7 @@ UNIV_INTERN
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
-	ibool		sync,		/*!< in: TRUE if the caller
+	bool		sync,		/*!< in: true if the caller
 					wants this function to wait
 					for the highest address page
 					to get read in, before this
@@ -962,7 +975,8 @@ not_to_recover:
 
 		os_aio_print_debug = FALSE;
 		buf_pool = buf_pool_get(space, page_nos[i]);
-		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
+		while (buf_pool->n_pend_reads
+		       >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
 			os_thread_sleep(10000);
@@ -987,11 +1001,11 @@ not_to_recover:
 		os_aio_print_debug = FALSE;
 
 		if ((i + 1 == n_stored) && sync) {
-			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
+			buf_read_page_low(&err, true, BUF_READ_ANY_PAGE, space,
 					  zip_size, TRUE, tablespace_version,
 					  page_nos[i], NULL);
 		} else {
-			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
+			buf_read_page_low(&err, false, BUF_READ_ANY_PAGE
 					  | OS_AIO_SIMULATED_WAKE_LATER,
 					  space, zip_size, TRUE,
 					  tablespace_version, page_nos[i], NULL);

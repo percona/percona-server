@@ -105,13 +105,14 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
 #ifdef HAVE_PSI_INTERFACE
   relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
-                         key_RELAYLOG_LOCK_log,
-                         key_RELAYLOG_LOCK_flush_queue,
                          key_RELAYLOG_LOCK_commit,
                          key_RELAYLOG_LOCK_commit_queue,
+                         key_RELAYLOG_LOCK_done,
+                         key_RELAYLOG_LOCK_flush_queue,
+                         key_RELAYLOG_LOCK_log,
                          key_RELAYLOG_LOCK_sync,
                          key_RELAYLOG_LOCK_sync_queue,
-                         key_RELAYLOG_LOCK_done,
+                         key_RELAYLOG_LOCK_xids,
                          key_RELAYLOG_COND_done,
                          key_RELAYLOG_update_cond,
                          key_RELAYLOG_prep_xids_cond,
@@ -240,6 +241,13 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
     */
     w->checkpoint_notified= FALSE;
     w->bitmap_shifted= w->bitmap_shifted + shift;
+    /*
+      Zero shift indicates the caller rotates the master binlog.
+      The new name will be passed to W through the group descriptor
+      during the first post-rotation time scheduling.
+    */
+    if (shift == 0)
+      w->master_log_change_notified= false;
 
     DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
                "worker->bitmap_shifted --> %lu, worker --> %u.",

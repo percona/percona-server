@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -752,7 +753,7 @@ public:
   SQL_I_List<ORDER> order_list;
   Group_list_ptrs *order_list_ptrs;
 
-  SQL_I_List<ORDER> *gorder_list;
+  SQL_I_List<ORDER> gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
 
   /// Array of pointers to top elements of all_fields list
@@ -778,7 +779,11 @@ public:
   ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
-  int nest_level;     /* nesting level of select */
+  /**
+    Nesting level of query block, outer-most query block has level 0,
+    its subqueries have level 1, etc. @see also sql/item_sum.h.
+  */
+  int nest_level;
   /* Circularly linked list of sum func in nested selects */
   Item_sum *inner_sum_func_list;
   uint with_wild; /* item list contain '*' */
@@ -898,6 +903,7 @@ public:
   bool add_group_to_list(THD *thd, Item *item, bool asc);
   bool add_ftfunc_to_list(Item_func_match *func);
   bool add_order_to_list(THD *thd, Item *item, bool asc);
+  bool add_gorder_to_list(THD *thd, Item *item, bool asc);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
 				LEX_STRING *alias,
 				ulong table_options,
@@ -1382,6 +1388,17 @@ public:
     Maps elements of enum_binlog_stmt_unsafe to error codes.
   */
   static const int binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT];
+
+  /**
+    Determine if this statement is marked as unsafe with
+    specific type
+
+    @retval false if the statement is not marked as unsafe.
+    @retval true if it is.
+  */
+  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) const {
+    return ((binlog_stmt_flags & (1U << unsafe_type)) != 0);
+  }
 
   /**
     Determine if this statement is marked as unsafe.
@@ -2275,6 +2292,13 @@ struct LEX: public Query_tables_list
 
   List<Key_part_spec> col_list;
   List<Key_part_spec> ref_list;
+  /*
+    A list of strings is maintained to store the SET clause command user strings
+    which are specified in load data operation.  This list will be used
+    during the reconstruction of "load data" statement at the time of writing
+    to binary log.
+   */
+  List<String>        load_set_str_list;
   List<String>	      interval_list;
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;

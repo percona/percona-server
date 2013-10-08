@@ -482,14 +482,15 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - 1 for "statement/com/new_packet", for unknown enum_server_command
   - 1 for "statement/com/Error", for invalid enum_server_command
   - SQLCOM_END for all regular "statement/sql/...",
-  - 1 for "statement/sql/error", for invalid enum_sql_command.
+  - 1 for "statement/sql/error", for invalid enum_sql_command
+  - 1 for "statement/rpl/relay_log", for replicated statements.
 */
 static Sys_var_ulong Sys_pfs_max_statement_classes(
        "performance_schema_max_statement_classes",
        "Maximum number of statement instruments.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
-       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 3),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 4),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(
@@ -1509,6 +1510,13 @@ static Sys_var_mybool Sys_locked_in_memory(
 static Sys_var_mybool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
        READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
+
+static Sys_var_ulong Sys_rpl_stop_slave_timeout(
+       "rpl_stop_slave_timeout",
+       "Timeout in seconds to wait for slave to stop before returning a "
+       "warning.",
+       GLOBAL_VAR(rpl_stop_slave_timeout), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
@@ -2701,12 +2709,17 @@ static Sys_var_enum Slave_exec_mode(
        "between the master and the slave",
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
        slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
-const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
+const char *slave_type_conversions_name[]=
+       {"ALL_LOSSY", "ALL_NON_LOSSY", "ALL_UNSIGNED", "ALL_SIGNED", 0};
 static Sys_var_set Slave_type_conversions(
        "slave_type_conversions",
        "Set of slave type conversions that are enabled. Legal values are:"
-       " ALL_LOSSY to enable lossy conversions and"
-       " ALL_NON_LOSSY to enable non-lossy conversions."
+       " ALL_LOSSY to enable lossy conversions,"
+       " ALL_NON_LOSSY to enable non-lossy conversions,"
+       " ALL_UNSIGNED to treat all integer column type data to be unsigned values, and"
+       " ALL_SIGNED to treat all integer column type data to be signed values."
+       " Default treatment is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are"
+       " specifed, ALL_SIGNED will take high priority than ALL_UNSIGNED."
        " If the variable is assigned the empty set, no conversions are"
        " allowed and it is expected that the types match exactly.",
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
@@ -2914,6 +2927,12 @@ static Sys_var_set Sys_sql_mode(
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
        sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
+
+static Sys_var_ulong Sys_max_statement_time(
+       "max_statement_time",
+       "Kill any statement that takes over the specified number of milliseconds",
+       SESSION_VAR(max_statement_time), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
@@ -3953,6 +3972,10 @@ static Sys_var_have Sys_have_symlink(
        "have_symlink", "have_symlink",
        READ_ONLY GLOBAL_VAR(have_symlink), NO_CMD_LINE);
 
+static Sys_var_have Sys_have_statement_timeout(
+       "have_statement_timeout", "have_statement_timeout",
+       READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
+
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type);
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
@@ -3985,6 +4008,23 @@ static Sys_var_ulong sys_log_slow_rate_limit(
        "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
        SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+
+static double opt_slow_query_log_always_write_time;
+static bool update_slow_query_log_always_write_time(sys_var *self, THD *thd,
+                                                    enum_var_type type)
+{
+  slow_query_log_always_write_time=
+    double2ulonglong(opt_slow_query_log_always_write_time * 1e6);
+  return false;
+}
+static Sys_var_double sys_slow_query_log_always_write_time(
+       "slow_query_log_always_write_time",
+       "Log queries which run longer than specified by this value regardless "
+       "of the log_slow_rate_limit valiue.",
+       GLOBAL_VAR(opt_slow_query_log_always_write_time), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(10),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(update_slow_query_log_always_write_time));
 const char* log_slow_verbosity_name[] = { 
   "microtime", "query_plan", "innodb", 
   "profiling", "profiling_use_getrusage", 

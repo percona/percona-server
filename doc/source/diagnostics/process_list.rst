@@ -19,6 +19,9 @@ Version Specific Information
 
     * Added column ``TIME_MS`` to table ``PROCESSLIST``.
 
+  * :rn:`5.6.11-60.3`:
+
+    * Added ``ROWS_SENT`` and ``ROWS_EXAMINED`` columns to table ``PROCESSLIST``.`
 
 INFORMATION_SCHEMA Tables
 =========================
@@ -36,6 +39,8 @@ INFORMATION_SCHEMA Tables
    :column STATE: An action, event, or state that indicates what the thread is doing.
    :column INFO: The statement that the thread is executing, or NULL if it is not executing any statement.
    :column TIME_MS: The time in milliseconds that the thread has been in its current state.
+   :column ROWS_SENT: The number of rows query sent.
+   :column ROWS_EXAMINED: The number of rows scanned for a query.
 
 
 Example Output
@@ -45,9 +50,9 @@ Table :table:`PROCESSLIST`: ::
 
   mysql> SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 
-  +----+------+-----------+--------------------+---------+------+-----------+----------------------------------------------+---------+
-  | ID | USER | HOST      | DB                 | COMMAND | TIME | STATE     | INFO                                         | TIME_MS |
-  +----+------+-----------+--------------------+---------+------+-----------+----------------------------------------------+---------+
-  |  5 | root | localhost | information_schema | Query   |    0 | executing | select * from information_schema.PROCESSLIST |       0 |
-  +----+------+-----------+--------------------+---------+------+-----------+----------------------------------------------+---------+
- 
+  +----+------+-----------+--------------------+---------+------+-----------+---------------------------+---------+-----------+---------------+
+  | ID | USER | HOST      | DB                 | COMMAND | TIME | STATE     | INFO                      | TIME_MS | ROWS_SENT | ROWS_EXAMINED |
+  +----+------+-----------+--------------------+---------+------+-----------+---------------------------+---------+-----------+---------------+
+  | 12 | root | localhost | information_schema | Query   |    0 | executing | select * from processlist |       0 |         0 |             0 |
+  +----+------+-----------+--------------------+---------+------+-----------+---------------------------+---------+-----------+---------------+
+

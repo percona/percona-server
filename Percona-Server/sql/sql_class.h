@@ -86,6 +86,8 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 
+struct st_thd_timer;
+
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -125,7 +127,9 @@ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
                             SLAVE_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
@@ -598,6 +602,8 @@ typedef struct system_variables
 
   my_bool pseudo_slave_mode;
 
+  ulong max_statement_time;
+
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
 
@@ -680,6 +686,11 @@ typedef struct system_status_var
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
+  ulong max_statement_time_exceeded;
+  ulong max_statement_time_set;
+  ulong max_statement_time_set_failed;
+
 } STATUS_VAR;
 
 /*
@@ -2279,6 +2290,8 @@ public:
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  bool order_deterministic;
+
   /*
     Position of first event in Binlog
     *after* last event written by this
@@ -2383,6 +2396,9 @@ public:
     return m_binlog_filter_state;
   }
 
+  /** Timer object. */
+  struct st_thd_timer *timer, *timer_cache;
+
 private:
   /**
     Indicate if the current statement should be discarded
@@ -2438,6 +2454,7 @@ private:
    */
   /**@{*/
   const char *m_trans_log_file;
+  const char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
 
@@ -2490,15 +2507,21 @@ public:
     /*
       (Mostly) binlog-specific fields use while flushing the caches
       and committing transactions.
+      We don't use bitfield any more in the struct. Modification will
+      be lost when concurrently updating multiple bit fields. It will
+      cause a race condition in a multi-threaded application. And we
+      already caught a race condition case between xid_written and
+      ready_preempt in MYSQL_BIN_LOG::ordered_commit.
     */
     struct {
-      bool enabled:1;                   // see ha_enable_transaction()
-      bool pending:1;                   // Is the transaction commit pending?
-      bool xid_written:1;               // The session wrote an XID
-      bool real_commit:1;               // Is this a "real" commit?
-      bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+      bool enabled;                   // see ha_enable_transaction()
+      bool pending;                   // Is the transaction commit pending?
+      bool xid_written;               // The session wrote an XID
+      bool real_commit;               // Is this a "real" commit?
+      bool commit_low;                // see MYSQL_BIN_LOG::ordered_commit
+      bool run_hooks;                 // Call the after_commit hook
 #ifndef DBUG_OFF
-      bool ready_preempt:1;             // internal in MYSQL_BIN_LOG::ordered_commit
+      bool ready_preempt;             // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
     } flags;
 
@@ -2776,7 +2799,6 @@ public:
   }
 
   ha_rows    cuted_fields;
-  uint8      failed_com_change_user;
 
 private:
   /**
@@ -2943,13 +2965,22 @@ public:
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file= file + dirname_length(file);
+      MEM_ROOT *log_file_mem_root= &main_mem_root;
+      if (!m_trans_fixed_log_file)
+        m_trans_fixed_log_file= new (log_file_mem_root) char[FN_REFLEN + 1];
+      m_trans_fixed_log_file= strdup_root(log_file_mem_root,
+                                          file + dirname_length(file));
     }
     else
+    {
       m_trans_log_file= NULL;
+      m_trans_fixed_log_file= NULL;
+    }
 
     m_trans_end_pos= pos;
-    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_end_pos: %llu",
-                          m_trans_log_file, m_trans_end_pos));
+    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_fixed_log_file: %s, "
+                          "m_trans_end_pos: %llu", m_trans_log_file,
+                          m_trans_fixed_log_file, m_trans_end_pos));
     DBUG_VOID_RETURN;
   }
 
@@ -2965,13 +2996,32 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+
+  void get_trans_fixed_pos(const char **file_var, my_off_t *pos_var) const
+  {
+    DBUG_ENTER("THD::get_trans_fixed_pos");
+    if (file_var)
+      *file_var = m_trans_fixed_log_file;
+    if (pos_var)
+      *pos_var= m_trans_end_pos;
+    DBUG_PRINT("return", ("file: %s, pos: %llu",
+                          file_var ? *file_var : "<none>",
+                          pos_var ? *pos_var : 0));
+    DBUG_VOID_RETURN;
+  }
   /**@}*/
 
 
   /*
     Error code from committing or rolling back the transaction.
   */
-  int commit_error;
+  enum Commit_error
+  {
+    CE_NONE= 0,
+    CE_FLUSH_ERROR,
+    CE_COMMIT_ERROR,
+    CE_ERROR_COUNT
+  } commit_error;
 
   /*
     Define durability properties that engines may check to
@@ -2991,6 +3041,7 @@ public:
     KILL_BAD_DATA=1,
     KILL_CONNECTION=ER_SERVER_SHUTDOWN,
     KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
   killed_state volatile killed;
@@ -4454,6 +4505,9 @@ private:
      allowed.
    */
   List<Item> *fields;
+protected:
+  /// ha_start_bulk_insert has been called. Never cleared.
+  bool bulk_insert_started;
 public:
   ulonglong autoinc_value_of_last_inserted_row; // autogenerated or not
   COPY_INFO info;
@@ -4519,6 +4573,7 @@ public:
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
+     bulk_insert_started(false),
      autoinc_value_of_last_inserted_row(0),
      info(COPY_INFO::INSERT_OPERATION,
           target_columns,
@@ -4649,7 +4704,20 @@ public:
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
-  bool  using_indirect_summary_function;
+  /**
+    Number of outer_sum_funcs i.e the number of set functions that are
+    aggregated in a query block outer to this subquery.
+
+    @see count_field_types
+  */
+  uint  outer_sum_func_count;
+  /**
+    Enabled when we have atleast one outer_sum_func. Needed when used
+    along with distinct.
+
+    @see create_tmp_table
+  */
+  bool  using_outer_summary_function;
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4676,8 +4744,8 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), copy_field_end(0), group_parts(0),
-     group_length(0), group_null_parts(0),
-     using_indirect_summary_function(0),
+     group_length(0), group_null_parts(0), outer_sum_func_count(0),
+     using_outer_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}
@@ -5347,6 +5415,11 @@ inline bool add_value_to_list(THD *thd, Item *value)
 inline bool add_order_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_order_to_list(thd, item, asc);
+}
+
+inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
 }
 
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)

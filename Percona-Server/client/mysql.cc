@@ -102,7 +102,7 @@ extern "C" {
 #if defined(__WIN__)
 #include <conio.h>
 #else
-#include <readline/readline.h>
+#include <readline.h>
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
@@ -169,6 +169,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
 static my_bool opt_binary_mode= FALSE;
+static my_bool opt_connect_expired_password= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -1770,6 +1771,11 @@ static struct my_option my_long_options[] =
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"connect-expired-password", 0,
+   "Notify the server that this client is prepared to handle expired "
+   "password sandbox mode.",
+   &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2044,7 +2050,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line;
+  char	*line= NULL;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
@@ -2130,6 +2136,13 @@ static int read_and_execute(bool interactive)
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
+      /*
+        free the previous entered line.
+        Note: my_free() cannot be used here as the memory was allocated under
+        the readline/libedit library.
+      */
+      if (line)
+        free(line);
       line= readline(prompt);
 #endif /* defined(__WIN__) */
 
@@ -2189,6 +2202,14 @@ static int read_and_execute(bool interactive)
 #if defined(__WIN__)
   buffer.free();
   tmpbuf.free();
+#else
+  if (interactive)
+    /*
+      free the last entered line.
+      Note: my_free() cannot be used here as the memory was allocated under
+      the readline/libedit library.
+    */
+    free(line);
 #endif
 
   /*
@@ -3035,7 +3056,7 @@ my_bool check_histignore(const char *string)
   for (i= 0; i < histignore_patterns.elements; i++)
   {
     tmp= dynamic_element(&histignore_patterns, i, LEX_STRING *);
-    if ((rc= charset_info->coll->wildcmp(&my_charset_latin1,
+    if ((rc= charset_info->coll->wildcmp(charset_info,
                                          string, string + strlen(string),
                                          tmp->str, tmp->str + tmp->length,
                                          wild_prefix, wild_one,
@@ -3293,13 +3314,12 @@ com_help(String *buffer __attribute__((unused)),
 	  return com_server_help(buffer,line,help_arg);
   }
 
-  put_info("\nFor information about MySQL products and services, visit:\n"
-           "   http://www.mysql.com/\n"
-           "For developer information, including the MySQL Reference Manual, "
-           "visit:\n"
-           "   http://dev.mysql.com/\n"
-           "To buy MySQL Enterprise support, training, or other products, visit:\n"
-           "   https://shop.mysql.com/\n", INFO_INFO);
+  put_info("\nFor information about Percona products and services, visit:\n"
+           "   http://www.percona.com/\n"
+	   "Percona Server manual: http://www.percona.com/doc/percona-server/5.1\n"
+           "For the MySQL Reference Manual: http://dev.mysql.com/\n"
+           "To buy Percona support, training, or other products, visit:\n"
+           "   https://www.percona.com/\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
@@ -3434,6 +3454,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
   do
   {
     char *pos;
+    bool batchmode= (status.batch && verbose <= 1) ? TRUE : FALSE;
+    buff[0]= 0;
 
     if (quick)
     {
@@ -3486,9 +3508,10 @@ com_go(String *buffer,char *line __attribute__((unused)))
 	  print_tab_data(result);
 	else
 	  print_table_data(result);
-	sprintf(buff,"%ld %s in set",
-		(long) mysql_num_rows(result),
-		(long) mysql_num_rows(result) == 1 ? "row" : "rows");
+        if( !batchmode )
+	  sprintf(buff,"%lld %s in set",
+	          mysql_num_rows(result),
+		  mysql_num_rows(result) == 1LL ? "row" : "rows");
 	end_pager();
         if (mysql_errno(&mysql))
           error= put_error(&mysql);
@@ -3496,13 +3519,13 @@ com_go(String *buffer,char *line __attribute__((unused)))
     }
     else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
       strmov(buff,"Query OK");
-    else
-      sprintf(buff,"Query OK, %ld %s affected",
-	      (long) mysql_affected_rows(&mysql),
-	      (long) mysql_affected_rows(&mysql) == 1 ? "row" : "rows");
+    else if( !batchmode )
+      sprintf(buff,"Query OK, %lld %s affected",
+	      mysql_affected_rows(&mysql),
+	      mysql_affected_rows(&mysql) == 1LL ? "row" : "rows");
 
     pos=strend(buff);
-    if ((warnings= mysql_warning_count(&mysql)))
+    if ((warnings= mysql_warning_count(&mysql)) && !batchmode)
     {
       *pos++= ',';
       *pos++= ' ';
@@ -4730,7 +4753,8 @@ static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
 {
-  my_bool interactive= status.batch ? FALSE : TRUE;
+  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+    TRUE : FALSE;
 
   if (connected)
   {
@@ -4822,7 +4846,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
                  "program_name", "mysql");
-  mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &interactive);
+  mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,

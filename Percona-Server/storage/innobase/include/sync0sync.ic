@@ -39,14 +39,17 @@ mutex_set_waiters(
 	ib_mutex_t*	mutex,	/*!< in: mutex */
 	ulint		n);	/*!< in: value to set */
 /******************************************************************//**
-Reserves a mutex for the current thread. If the mutex is reserved, the
-function spins a preset time (controlled by SYNC_SPIN_ROUNDS) waiting
-for the mutex before suspending the thread. */
+Reserves a mutex or a priority mutex for the current thread. If the mutex is
+reserved, the function spins a preset time (controlled by SYNC_SPIN_ROUNDS)
+waiting for the mutex before suspending the thread. */
 UNIV_INTERN
 void
 mutex_spin_wait(
 /*============*/
-	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	void*		_mutex,		/*!< in: pointer to mutex */
+	bool		high_priority,	/*!< in: whether the mutex is a
+					priority mutex with high priority
+					specified */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line);		/*!< in: line where requested */
@@ -192,6 +195,55 @@ mutex_exit_func(
 }
 
 /******************************************************************//**
+NOTE! Use the corresponding macro mutex_exit(), not directly this function!
+Unlocks a priority mutex owned by the current thread. */
+UNIV_INLINE
+void
+mutex_exit_func(
+/*============*/
+	ib_prio_mutex_t*	mutex)	/*!< in: pointer to mutex */
+{
+	ut_ad(mutex_own(mutex));
+
+	ut_d(mutex->base_mutex.thread_id = (os_thread_id_t) ULINT_UNDEFINED);
+
+#ifdef UNIV_SYNC_DEBUG
+	sync_thread_reset_level(&mutex->base_mutex);
+#endif
+	mutex_reset_lock_word(&mutex->base_mutex);
+
+	/* A problem: we assume that mutex_reset_lock word
+	is a memory barrier, that is when we read the waiters
+	field next, the read must be serialized in memory
+	after the reset. A speculative processor might
+	perform the read first, which could leave a waiting
+	thread hanging indefinitely.
+
+	Our current solution call every second
+	sync_arr_wake_threads_if_sema_free()
+	to wake up possible hanging threads if
+	they are missed in mutex_signal_object. */
+
+	/* Wake up any high priority waiters first.  */
+	if (mutex->high_priority_waiters != 0) {
+
+		mutex->high_priority_waiters = 0;
+		os_event_set(mutex->high_priority_event);
+		sync_array_object_signalled();
+
+	} else if (mutex_get_waiters(&mutex->base_mutex) != 0) {
+
+		mutex_signal_object(&mutex->base_mutex);
+	}
+
+#ifdef UNIV_SYNC_PERF_STAT
+	mutex_exit_count++;
+#endif
+
+}
+
+
+/******************************************************************//**
 Locks a mutex for the current thread. If the mutex is reserved, the function
 spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting for the mutex
 before suspending the thread. */
@@ -217,8 +269,54 @@ mutex_enter_func(
 		return;	/* Succeeded! */
 	}
 
-	mutex_spin_wait(mutex, file_name, line);
+	mutex_spin_wait(mutex, false, file_name, line);
 }
+
+/******************************************************************//**
+NOTE! Use the corresponding macro in the header file, not this function
+directly. Locks a priority mutex for the current thread. If the mutex is
+reserved the function spins a preset time (controlled by SYNC_SPIN_ROUNDS)
+waiting for the mutex before suspending the thread. If the thread is suspended,
+the priority argument value determines the relative order for its wake up.  Any
+HIGH_PRIO waiters will be woken up before any LOW_PRIO waiters.  In case of
+DEFAULT_PRIO, the relative priority will be set according to
+srv_current_thread_priority.  */
+UNIV_INLINE
+void
+mutex_enter_func(
+/*=============*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*		file_name,	/*!< in: file name where
+						locked */
+	ulint			line,		/*!< in: line where locked */
+	enum ib_sync_priority	priority)
+						/*!<in: mutex acquisition
+						priority */
+{
+	bool	high_priority;
+
+	ut_ad(mutex_validate(&mutex->base_mutex));
+	ut_ad(!mutex_own(mutex));
+
+	/* Note that we do not peek at the value of lock_word before trying
+	the atomic test_and_set; we could peek, and possibly save time. */
+
+	if (!ib_mutex_test_and_set(&mutex->base_mutex)) {
+		ut_d(mutex->base_mutex.thread_id = os_thread_get_curr_id());
+#ifdef UNIV_SYNC_DEBUG
+		mutex_set_debug_info(&mutex->base_mutex, file_name, line);
+#endif
+		return;	/* Succeeded! */
+	}
+
+	if (UNIV_LIKELY(priority == DEFAULT_PRIO)) {
+		high_priority = srv_current_thread_priority;
+	} else {
+		high_priority = (priority == HIGH_PRIO);
+	}
+	mutex_spin_wait(mutex, high_priority, file_name, line);
+}
+
 
 #ifdef UNIV_PFS_MUTEX
 /******************************************************************//**
@@ -249,6 +347,40 @@ pfs_mutex_enter_func(
 		}
 	} else {
 		mutex_enter_func(mutex, file_name, line);
+	}
+}
+
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_func(). */
+UNIV_INLINE
+void
+pfs_mutex_enter_func(
+/*=================*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*		file_name,	/*!< in: file name where
+						locked */
+	ulint			line,		/*!< in: line where locked */
+	enum ib_sync_priority	priority)	/*!<in: mutex acquisition
+						priority */
+{
+	if (mutex->base_mutex.pfs_psi != NULL) {
+		PSI_mutex_locker*	locker;
+		PSI_mutex_locker_state	state;
+
+		locker = PSI_MUTEX_CALL(start_mutex_wait)(
+			&state, mutex->base_mutex.pfs_psi,
+			PSI_MUTEX_LOCK, file_name, line);
+
+		mutex_enter_func(mutex, file_name, line, priority);
+
+		if (locker != NULL) {
+			PSI_MUTEX_CALL(end_mutex_wait)(locker, 0);
+		}
+	} else {
+		mutex_enter_func(mutex, file_name, line, priority);
 	}
 }
 
@@ -289,6 +421,26 @@ pfs_mutex_enter_nowait_func(
 	return(ret);
 }
 
+/********************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_nowait_func.
+@return	0 if succeed, 1 if not */
+UNIV_INLINE
+ulint
+pfs_mutex_enter_nowait_func(
+/*========================*/
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*		file_name,	/*!< in: file name where mutex
+						  requested */
+	ulint			line)		/*!< in: line where
+						  requested */
+{
+	return pfs_mutex_enter_nowait_func(&mutex->base_mutex, file_name,
+					   line);
+}
+
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_exit(), not directly
 this function!
@@ -306,6 +458,25 @@ pfs_mutex_exit_func(
 
 	mutex_exit_func(mutex);
 }
+
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_exit(), not directly
+this function!
+A wrap function of mutex_exit_func() with peformance schema instrumentation.
+Unlocks a priority mutex owned by the current thread. */
+UNIV_INLINE
+void
+pfs_mutex_exit_func(
+/*================*/
+	ib_prio_mutex_t*	mutex)	/*!< in: pointer to mutex */
+{
+	if (mutex->base_mutex.pfs_psi != NULL) {
+		PSI_MUTEX_CALL(unlock_mutex)(mutex->base_mutex.pfs_psi);
+	}
+
+	mutex_exit_func(mutex);
+}
+
 
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_create(), not directly
@@ -342,6 +513,44 @@ pfs_mutex_create_func(
 }
 
 /******************************************************************//**
+NOTE! Please use the corresponding macro mutex_create(), not directly
+this function!
+A wrapper function for mutex_create_func(), registers the mutex
+with peformance schema if "UNIV_PFS_MUTEX" is defined when
+creating the performance mutex */
+UNIV_INLINE
+void
+pfs_mutex_create_func(
+/*==================*/
+	PSI_mutex_key		key,		/*!< in: Performance Schema
+						key */
+	ib_prio_mutex_t*	mutex,		/*!< in: pointer to memory */
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+	ulint			level,		/*!< in: level */
+#  endif /* UNIV_SYNC_DEBUG */
+	const char*		cfile_name,	/*!< in: file name where
+						created */
+	ulint			cline,		/*!< in: file line where
+						  created */
+# endif /* UNIV_DEBUG */
+	const char*		cmutex_name)
+{
+	mutex->base_mutex.pfs_psi = PSI_MUTEX_CALL(init_mutex)(key, mutex);
+
+	mutex_create_func(mutex,
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+			  level,
+#  endif /* UNIV_SYNC_DEBUG */
+			  cfile_name,
+			  cline,
+# endif /* UNIV_DEBUG */
+			  cmutex_name);
+}
+
+
+/******************************************************************//**
 NOTE! Please use the corresponding macro mutex_free(), not directly
 this function!
 Wrapper function for mutex_free_func(). Also destroys the performance
@@ -359,6 +568,26 @@ pfs_mutex_free_func(
 
 	mutex_free_func(mutex);
 }
+
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_free(), not directly
+this function!
+Wrapper function for mutex_free_func(). Also destroys the performance
+schema probes when freeing the priority mutex */
+UNIV_INLINE
+void
+pfs_mutex_free_func(
+/*================*/
+	ib_prio_mutex_t*	mutex)	/*!< in: mutex */
+{
+	if (mutex->base_mutex.pfs_psi != NULL) {
+		PSI_MUTEX_CALL(destroy_mutex)(mutex->base_mutex.pfs_psi);
+		mutex->base_mutex.pfs_psi = NULL;
+	}
+
+	mutex_free_func(mutex);
+}
+
 
 #endif /* UNIV_PFS_MUTEX */
 

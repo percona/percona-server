@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -344,7 +344,7 @@ read_view_open_now_low(
 
 	/* NOTE that a transaction whose trx number is < trx_sys->max_trx_id can
 	still be active, if it is in the middle of its commit! Note that when a
-	transaction starts, we initialize trx->no to IB_ULONGLONG_MAX. */
+	transaction starts, we initialize trx->no to TRX_ID_MAX. */
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_serial_list) > 0) {
 

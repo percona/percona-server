@@ -39,6 +39,7 @@ Created 5/11/1994 Heikki Tuuri
 #include <ctype.h>
 
 #ifndef UNIV_HOTBACKUP
+# include "btr0types.h"
 # include "trx0trx.h"
 # include "ha_prototypes.h"
 # include "mysql_com.h" /* NAME_LEN */
@@ -816,6 +817,8 @@ ut_strerr(
 		return("Table dictionary has changed");
 	case DB_IDENTIFIER_TOO_LONG:
 		return("Identifier name is too long");
+	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:
+		return("FTS query exceeds result cache limit");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

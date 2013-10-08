@@ -121,6 +121,31 @@ This variable can be used to define the number of threads that can use the CPU a
 
 The number of milliseconds before a running thread is considered stalled. When this limit is reached thread pool will wake up or create another thread. This is being used to prevent a long-running query from monopolizing the pool.
 
+.. variable:: extra_port
+      
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: No
+     :vartype: Numeric
+     :default: 0
+
+This variable can be used to specify additional port |Percona Server| will listen on. This can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled. To connect to the extra port following command can be used: ::
+
+  mysql --port='extra-port-number' --protocol=tcp
+
+
+.. variable:: extra_max_connections
+      
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: Numeric
+     :default: 1
+     
+This variable can be used to specify the maximum allowed number of connections on the extra port. This can be used with the :variable:`extra_port` variable to access the server in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled.
+
 Status Variables
 =====================
 

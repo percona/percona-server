@@ -105,6 +105,8 @@
 using std::max;
 using std::min;
 
+#include "sql_timer.h"        // thd_timer_set, thd_timer_reset
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
@@ -451,9 +453,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REPAIR]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_ANALYZE]=           CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -480,9 +480,9 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]|=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]|=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
@@ -1125,6 +1125,85 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
   DBUG_RETURN(FALSE);
 }
 
+
+/**
+  Get the maximum execution time for a statement.
+
+  @return Length of time in milliseconds.
+
+  @remark A zero timeout means that no timeout should be
+          applied to this particular statement.
+*/
+
+static ulong inline get_max_statement_time(THD *thd)
+{
+
+  /* Assume query execution timeout feature is not used in the most cases */
+  if (likely(!thd->variables.max_statement_time))
+    return 0;
+
+  /* Check if timer support is implemented and was initialized. */
+  if (unlikely(have_statement_timeout != SHOW_OPTION_YES))
+    return 0;
+
+  /* The maximum execution time only applies to top-level statements. */
+  if (unlikely(thd->sp_runtime_ctx || thd->in_sub_stmt))
+    return 0;
+
+  /* Also does not apply to statements made by the slave thread. */
+  if (unlikely(thd->slave_thread))
+    return 0;
+
+  return thd->variables.max_statement_time;
+}
+
+
+/**
+  Set the time until the currently running statement is aborted.
+
+  @param  thd   Thread (session) context.
+
+  @return TRUE if the timer was armed.
+*/
+
+static inline bool set_statement_timer(THD *thd)
+{
+  ulong max_statement_time= get_max_statement_time(thd);
+
+  /* Assume query execution timeout feature is not used in the most cases */
+  if (likely(max_statement_time == 0))
+    return false;
+
+  if (unlikely(thd->timer != NULL))
+    return false;
+
+  thd->timer= thd_timer_set(thd, thd->timer_cache, max_statement_time);
+  thd->timer_cache= NULL;
+
+  if (thd->timer)
+    status_var_increment(thd->status_var.max_statement_time_set);
+  else
+    status_var_increment(thd->status_var.max_statement_time_set_failed);
+
+  return thd->timer;
+}
+
+
+/**
+  Deactivate the timer associated with the statement that was executed.
+
+  @param  thd   Thread (session) context.
+*/
+
+static void reset_statement_timer(THD *thd)
+{
+  DBUG_ASSERT(thd->timer);
+  /* Cache the timer object if it can be reused. */
+  thd->timer_cache= thd_timer_reset(thd->timer);
+  thd->timer= NULL;
+}
+
+
 /**
   Perform one connection-level (COM_XXXX) command.
 
@@ -1264,47 +1343,27 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /* acl_authenticate() takes the data from net->read_pos */
     net->read_pos= (uchar*)packet;
 
-    uint save_db_length= thd->db_length;
-    char *save_db= thd->db;
     USER_CONN *save_user_connect=
       const_cast<USER_CONN*>(thd->get_user_connect());
+    char *save_db= thd->db;
+    uint save_db_length= thd->db_length;
     Security_context save_security_ctx= *thd->security_ctx;
-    const CHARSET_INFO *save_character_set_client=
-      thd->variables.character_set_client;
-    const CHARSET_INFO *save_collation_connection=
-      thd->variables.collation_connection;
-    const CHARSET_INFO *save_character_set_results=
-      thd->variables.character_set_results;
 
-    /* Ensure we don't free security_ctx->user in case we have to revert */
-    thd->security_ctx->user= 0;
-    thd->set_user_connect(0);
-
-    /*
-      to limit COM_CHANGE_USER ability to brute-force passwords,
-      we only allow three unsuccessful COM_CHANGE_USER per connection.
-    */
-    if (thd->failed_com_change_user >= 3)
-    {
-      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
-      auth_rc= 1;
-    }
-    else
-      auth_rc= acl_authenticate(thd, packet_length);
-
+    auth_rc= acl_authenticate(thd, packet_length);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
     if (auth_rc)
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
       thd->set_user_connect(save_user_connect);
-      thd->reset_db (save_db, save_db_length);
-      thd->variables.character_set_client= save_character_set_client;
-      thd->variables.collation_connection= save_collation_connection;
-      thd->variables.character_set_results= save_character_set_results;
-      thd->update_charset();
-      thd->failed_com_change_user++;
-      my_sleep(1000000);
+      thd->reset_db(save_db, save_db_length);
+
+      my_error(ER_ACCESS_DENIED_CHANGE_USER_ERROR, MYF(0),
+               thd->security_ctx->user,
+               thd->security_ctx->host_or_ip,
+               (thd->password ? ER(ER_YES) : ER(ER_NO)));
+      thd->killed= THD::KILL_CONNECTION;
+      error=true;
     }
     else
     {
@@ -1315,6 +1374,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
       my_free(save_db);
       my_free(save_security_ctx.user);
+
     }
     break;
   }
@@ -1340,12 +1400,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_STMT_CLOSE:
   {
-    mysqld_stmt_close(thd, packet);
+    mysqld_stmt_close(thd, packet, packet_length);
     break;
   }
   case COM_STMT_RESET:
   {
-    mysqld_stmt_reset(thd, packet);
+    mysqld_stmt_reset(thd, packet, packet_length);
     break;
   }
   case COM_QUERY:
@@ -1387,6 +1447,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->update_server_status();
       thd->protocol->end_statement();
       query_cache_end_of_result(thd);
+
+      mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                          thd->get_stmt_da()->is_error() ?
+                          thd->get_stmt_da()->sql_errno() : 0,
+                          command_name[command].str);
+
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
@@ -1574,6 +1640,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     int not_used;
 
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
+
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains unitialized and may cause crash
@@ -1622,6 +1694,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
+    if (packet_length < 1)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     status_var_increment(thd->status_var.com_other);
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
@@ -1708,6 +1785,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (thread_id & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else if (packet_length < 4)
+      my_error(ER_MALFORMED_PACKET, MYF(0));
     else
     {
       status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
@@ -1718,6 +1797,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_SET_OPTION:
   {
+
+    if (packet_length < 2)
+    {
+      my_error(ER_MALFORMED_PACKET, MYF(0));
+      break;
+    }
     status_var_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION]);
     uint opt_command= uint2korr(packet);
 
@@ -1925,6 +2010,7 @@ bool log_slow_applicable(THD *thd)
   if (opt_slow_query_log_rate_type == SLOG_RT_QUERY
       && thd->variables.log_slow_rate_limit
       && thd->query_id % thd->variables.log_slow_rate_limit
+      && query_exec_time < slow_query_log_always_write_time
       && (thd->variables.long_query_time >= 1000000
           || (ulong) query_exec_time < 1000000)) {
     DBUG_RETURN(false);
@@ -1932,6 +2018,7 @@ bool log_slow_applicable(THD *thd)
   if (opt_slow_query_log_rate_type == SLOG_RT_SESSION
       && thd->variables.log_slow_rate_limit
       && thd->thread_id % thd->variables.log_slow_rate_limit
+      && query_exec_time < slow_query_log_always_write_time
       && (thd->variables.long_query_time >= 1000000
           || (ulong) query_exec_time < 1000000)) {
     DBUG_RETURN(false);
@@ -2607,6 +2694,8 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
 
+  bool reset_timer= set_statement_timer(thd);
+
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
   Opt_trace_start ots(thd, all_tables, lex->sql_command, &lex->var_list,
@@ -2644,6 +2733,15 @@ mysql_execute_command(THD *thd)
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+
+    /*
+      Implicit commit is not allowed with an active XA transaction.
+      In this case we should not release metadata locks as the XA transaction
+      will not be rolled back. Therefore we simply return here.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
+
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))
       goto error;
@@ -3935,6 +4033,12 @@ end_with_restore_list:
     */
     if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
+      /*
+        Can we commit safely? If not, return to avoid releasing
+        transactional metadata locks.
+      */
+      if (trans_check_state(thd))
+        DBUG_RETURN(-1);
       res= trans_commit_implicit(thd);
       thd->locked_tables_list.unlock_locked_tables(thd);
       thd->mdl_context.release_transactional_locks();
@@ -3947,6 +4051,12 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
+    /*
+      Can we commit safely? If not, return to avoid releasing
+      transactional metadata locks.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
     /* We must end the transaction first, regardless of anything */
     res= trans_commit_implicit(thd);
     thd->locked_tables_list.unlock_locked_tables(thd);
@@ -5174,12 +5284,17 @@ finish:
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
 
+  if (reset_timer)
+    reset_statement_timer(thd);
+
   if (! thd->in_sub_stmt)
   {
     /* report error issued during command execution */
     if (thd->killed_errno())
       thd->send_kill_message();
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+    if (thd->killed == THD::KILL_QUERY ||
+        thd->killed == THD::KILL_TIMEOUT ||
+        thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
       thd->mysys_var->abort= 0;
@@ -6094,7 +6209,8 @@ void THD::reset_for_next_command()
 
   thd->m_trans_end_pos= 0;
   thd->m_trans_log_file= NULL;
-  thd->commit_error= 0;
+  thd->m_trans_fixed_log_file= NULL;
+  thd->commit_error= THD::CE_NONE;
   thd->durability_property= HA_REGULAR_DURABILITY;
   thd->set_trans_pos(NULL, 0);
 
@@ -6329,7 +6445,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   double end_usecs=       0;
   /* cpu time */
   int cputime_error=      0;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
+#endif
   double start_cpu_nsecs= 0;
   double end_cpu_nsecs=   0;
 
@@ -6948,24 +7066,19 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
 bool st_select_lex::init_nested_join(THD *thd)
 {
-  TABLE_LIST *ptr;
-  NESTED_JOIN *nested_join;
   DBUG_ENTER("init_nested_join");
 
-  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                       sizeof(NESTED_JOIN))))
-    DBUG_RETURN(1);
-  nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+  TABLE_LIST *const ptr=
+    TABLE_LIST::new_nested_join(thd->mem_root, "(nested_join)",
+                                embedding, join_list, this);
+  if (ptr == NULL)
+    DBUG_RETURN(true);
 
   join_list->push_front(ptr);
-  ptr->embedding= embedding;
-  ptr->join_list= join_list;
-  ptr->alias= (char*) "(nested_join)";
   embedding= ptr;
-  join_list= &nested_join->join_list;
-  join_list->empty();
-  DBUG_RETURN(0);
+  join_list= &ptr->nested_join->join_list;
+
+  DBUG_RETURN(false);
 }
 
 
@@ -7027,22 +7140,15 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
 
 TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 {
-  TABLE_LIST *ptr;
-  NESTED_JOIN *nested_join;
-  List<TABLE_LIST> *embedded_list;
   DBUG_ENTER("nest_last_join");
 
-  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                       sizeof(NESTED_JOIN))))
-    DBUG_RETURN(0);
-  nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+  TABLE_LIST *const ptr=
+    TABLE_LIST::new_nested_join(thd->mem_root, "(nest_last_join)",
+                                embedding, join_list, this);
+  if (ptr == NULL)
+    DBUG_RETURN(NULL);
 
-  ptr->embedding= embedding;
-  ptr->join_list= join_list;
-  ptr->alias= (char*) "(nest_last_join)";
-  embedded_list= &nested_join->join_list;
-  embedded_list->empty();
+  List<TABLE_LIST> *const embedded_list= &ptr->nested_join->join_list;
 
   for (uint i=0; i < 2; i++)
   {
@@ -7062,7 +7168,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
     }
   }
   join_list->push_front(ptr);
-  nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
+
   DBUG_RETURN(ptr);
 }
 

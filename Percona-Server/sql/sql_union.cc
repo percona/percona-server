@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   UNION  of select's
@@ -569,8 +569,14 @@ bool st_select_lex_unit::optimize()
         sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
 
       saved_error= sl->join->optimize();
-      /* Save estimated number of rows. */
-      result->estimated_rowcount+= sl->join->best_rowcount;
+      /*
+        Accumulate estimated number of rows. Notice that an implicitly grouped
+        query has one row (with HAVING it has zero or one rows).
+      */
+      result->estimated_rowcount+=
+        sl->with_sum_func && sl->group_list.elements == 0 ?
+          1 : sl->join->best_rowcount;
+
       thd->lex->current_select= lex_select_save;
     }
     if (saved_error)
@@ -947,8 +953,8 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
 /**
   Get field list for this query expression.
 
-  For a UNION of query blocks, return the field list of the created
-  temporary table.
+  For a UNION of query blocks, return the field list generated
+  during prepare.
   For a single query block, return the field list after all possible
   intermediate query processing steps are completed.
 
@@ -957,7 +963,14 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
 
 List<Item> *st_select_lex_unit::get_field_list()
 {
-  return is_union() ? &item_list : first_select()->join->fields;
+  if (is_union())
+  {
+    DBUG_ASSERT(prepared);
+    /* Types are generated during prepare */
+    return &types;
+  }
+
+  return first_select()->join->fields;
 }
 
 

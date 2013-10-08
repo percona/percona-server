@@ -74,6 +74,7 @@ bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
+static unsigned long stop_wait_timeout;
 char* slave_load_tmpdir = 0;
 Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
@@ -212,6 +213,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
+static void set_stop_slave_wait_timeout(unsigned long wait_timeout);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
                                   mysql_cond_t *term_cond,
@@ -220,6 +222,37 @@ static int terminate_slave_thread(THD *thd,
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
+/*
+  Function to set the slave's max_allowed_packet based on the value
+  of slave_max_allowed_packet.
+
+    @in_param    thd    Thread handler for slave
+    @in_param    mysql  MySQL connection handle
+*/
+
+static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql)
+{
+  DBUG_ENTER("set_slave_max_allowed_packet");
+  // thd and mysql must be valid
+  DBUG_ASSERT(thd && mysql);
+
+  thd->variables.max_allowed_packet= slave_max_allowed_packet;
+  thd->net.max_packet_size= slave_max_allowed_packet;
+  /*
+    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
+    thread and the mysql->option max_allowed_packet, since a
+    replication event can become this much  larger than
+    the corresponding packet (query) sent from client to master.
+  */
+  thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
+  /*
+    Skipping the setting of mysql->net.max_packet size to slave
+    max_allowed_packet since this is done during mysql_real_connect.
+  */
+  mysql->options.max_allowed_packet=
+    slave_max_allowed_packet+MAX_LOG_EVENT_HEADER;
+  DBUG_VOID_RETURN;
+}
 
 /*
   Find out which replications threads are running
@@ -457,6 +490,13 @@ int init_recovery(Master_info* mi, const char** errmsg)
     rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
   }
 
+  /*
+    Clear the retrieved GTID set so that events that are written partially
+    will be fetched again.
+    */
+  global_sid_lock->wrlock();
+  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+  global_sid_lock->unlock();
   DBUG_RETURN(error);
 }
 
@@ -648,6 +688,10 @@ static void print_slave_skip_errors(void)
   DBUG_VOID_RETURN;
 }
 
+static void set_stop_slave_wait_timeout(unsigned long wait_timeout) {
+  stop_wait_timeout = wait_timeout;
+}
+
 /**
  Change arg to the string with the nice, human-readable skip error values.
    @param slave_skip_errors_ptr
@@ -797,6 +841,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   mysql_mutex_t *sql_lock = &mi->rli->run_lock, *io_lock = &mi->run_lock;
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
+  set_stop_slave_wait_timeout(rpl_stop_slave_timeout);
 
   if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
@@ -807,8 +852,13 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
                                       &mi->rli->slave_running,
                                       need_lock_term)) &&
         !force_all)
+    {
+      if (error == 1)
+      {
+        DBUG_RETURN(ER_STOP_SLAVE_SQL_THREAD_TIMEOUT);
+      }
       DBUG_RETURN(error);
-
+    }
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay-log info file."));
@@ -835,8 +885,13 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
                                       &mi->slave_running,
                                       need_lock_term)) &&
         !force_all)
+    {
+      if (error == 1)
+      {
+        DBUG_RETURN(ER_STOP_SLAVE_IO_THREAD_TIMEOUT);
+      }
       DBUG_RETURN(error);
-
+    }
     mysql_mutex_lock(log_lock);
 
     DBUG_PRINT("info",("Flushing relay log and master info repository."));
@@ -895,7 +950,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
           the condition. In this case, it is assumed that the calling
           function acquires the lock before calling this function.
 
-   @retval 0 All OK ER_SLAVE_NOT_RUNNING otherwise.
+   @retval 0 All OK, 1 on "STOP SLAVE" command timeout, ER_SLAVE_NOT_RUNNING otherwise.
 
    @note  If the executing thread has to acquire term_lock
           (need_lock_term is true, the negative running status does not
@@ -967,6 +1022,14 @@ terminate_slave_thread(THD *thd,
     struct timespec abstime;
     set_timespec(abstime,2);
     error= mysql_cond_timedwait(term_cond, term_lock, &abstime);
+    if (stop_wait_timeout >= 2)
+      stop_wait_timeout= stop_wait_timeout - 2;
+    else if (*slave_running)
+    {
+      if (need_lock_term)
+        mysql_mutex_unlock(term_lock);
+      DBUG_RETURN (1);
+    }
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
 
@@ -1073,18 +1136,18 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
   mysql_cond_t* cond_io=0, *cond_sql=0;
   int error=0;
   DBUG_ENTER("start_slave_threads");
+  DBUG_EXECUTE_IF("uninitialized_master-info_structure",
+                   mi->inited= FALSE;);
 
   if (!mi->inited || !mi->rli->inited)
   {
-    if (!mi->inited)
-      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 ER(ER_SLAVE_FATAL_ERROR),
-                 "Failed to initialize the master info structure");
-    else
-      mi->rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER(ER_SLAVE_FATAL_ERROR),
-                      "Failed to initialize the master info structure");
-    DBUG_RETURN(ER_SLAVE_FATAL_ERROR);
+    error= !mi->inited ? ER_SLAVE_MI_INIT_REPOSITORY :
+                         ER_SLAVE_RLI_INIT_REPOSITORY;
+    Rpl_info *info= (!mi->inited ?  mi : static_cast<Rpl_info *>(mi->rli));
+    const char* prefix= current_thd ? ER(error) : ER_DEFAULT(error);
+    info->report(ERROR_LEVEL, error, prefix, NULL);
+
+    DBUG_RETURN(error);
   }
 
   if (need_lock_slave)
@@ -2589,6 +2652,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
     mysql_mutex_lock(&mi->err_lock);
     mysql_mutex_lock(&mi->rli->err_lock);
 
+    DEBUG_SYNC(thd, "wait_after_lock_active_mi_and_rli_data_lock_is_acquired");
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->get_user(), &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -2880,12 +2944,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
   thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
-/*
-  Adding MAX_LOG_EVENT_HEADER_LEN to the max_allowed_packet on all
-  slave threads, since a replication event can become this much larger
-  than the corresponding packet (query) sent from client to master.
-*/
-  thd->variables.max_allowed_packet= slave_max_allowed_packet;
   thd->slave_thread = 1;
   thd->enable_slow_log= TRUE;
   set_slave_thread_options(thd);
@@ -3382,13 +3440,18 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
           rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
           rli->last_assigned_worker= NULL;
         }
+        /* 
+           Stroring GAQ index of the group that the event belongs to
+           in the event. Deferred events are handled similarly below.
+        */
+        ev->mts_group_idx= rli->gaq->assigned_group_index;
 
         bool append_item_to_jobs_error= false;
         if (rli->curr_group_da.elements > 0)
         {
           /*
-            the current event sorted out which partion the current group belongs to.
-            It's time now to processed deferred array events.
+            the current event sorted out which partion the current group
+            belongs to. It's time now to processed deferred array events.
           */
           for (uint i= 0; i < rli->curr_group_da.elements; i++)
           { 
@@ -3396,6 +3459,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
                       ((Log_event* )da_item.data)->log_pos, w->id));
+            static_cast<Log_event*>(da_item.data)->mts_group_idx=
+              rli->gaq->assigned_group_index; // similarly to above
             if (!append_item_to_jobs_error)
               append_item_to_jobs_error= append_item_to_jobs(&da_item, w, rli);
             if (append_item_to_jobs_error)
@@ -5173,8 +5238,6 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   int i;
   THD *thd= rli->info_thd;
 
-  mysql_mutex_assert_owner(&rli->run_lock);
-
   if (!*mts_inited) 
     return;
   else if (rli->slave_parallel_workers == 0)
@@ -5615,11 +5678,11 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
 
-  mysql_mutex_lock(&rli->run_lock);
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   if (rli->recovery_groups_inited)
   {
     bitmap_free(&rli->recovery_groups);
+    rli->mts_recovery_group_cnt= 0;
     rli->recovery_groups_inited= false;
   }
 
@@ -5641,6 +5704,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->reset_db(NULL, 0);
 
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
+  mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   mysql_mutex_lock(&rli->data_lock);
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
@@ -6628,7 +6692,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   char password[MAX_PASSWORD_LENGTH + 1];
   int password_size= sizeof(password);
   DBUG_ENTER("connect_to_master");
-
+  set_slave_max_allowed_packet(thd, mysql);
 #ifndef DBUG_OFF
   mi->events_until_exit = disconnect_slave_event_count;
 #endif
@@ -6666,16 +6730,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset_info->csname);
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
-  /*
-    Assign the max_packet_size with the bigger one of the values of
-    'max_packet_size' and 'opt_binlog_rows_event_max_size'. So that
-    slave I/O thread can replicate large row event from master.
-    Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
-    thread, since a replication event can become this much larger than
-    the corresponding packet (query) sent from client to master.
-  */
-  thd->net.max_packet_size= slave_max_allowed_packet;
-  mysql->options.max_allowed_packet= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
 
   if (mi->is_start_plugin_auth_configured())
   {
@@ -7935,6 +7989,13 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 
   if (slave_errno)
   {
+    if ((slave_errno == ER_STOP_SLAVE_SQL_THREAD_TIMEOUT) ||
+        (slave_errno == ER_STOP_SLAVE_IO_THREAD_TIMEOUT))
+    {
+      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, slave_errno,
+                   ER(slave_errno));
+      sql_print_warning("%s",ER(slave_errno));
+    }
     if (net_report)
       my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);

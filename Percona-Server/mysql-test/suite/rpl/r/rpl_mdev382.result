@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 create table t1 (a int primary key) engine=innodb;
 create table t2 (a int primary key) engine=myisam;
@@ -299,7 +299,7 @@ CREATE TABLE `t``1` ( `a``` INT PRIMARY KEY) ENGINE=innodb;
 CREATE TABLE `t``2` ( `b``` INT PRIMARY KEY, `c``` INT NOT NULL,
 FOREIGN KEY fk (`c```) REFERENCES `t``1`(`a```)) ENGINE=innodb;
 TRUNCATE `t``1`;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`db1``; SELECT 'oops!'`.`t``2`, CONSTRAINT `INNODB_FOREIGN_KEY_NAME` FOREIGN KEY (`c```) REFERENCES `db1``; SELECT 'oops!'`.`t``1` (`a```))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`db1``; SELECT 'oops!'`.`t``2`, CONSTRAINT `t``INNODB_FOREIGN_KEY_NAME` FOREIGN KEY (`c```) REFERENCES `db1``; SELECT 'oops!'`.`t``1` (`a```))
 DROP TABLE `t``2`;
 DROP TABLE `t``1`;
 *** Test correct quoting of DELETE FROM statement binlogged for HEAP table that is emptied due to server restart

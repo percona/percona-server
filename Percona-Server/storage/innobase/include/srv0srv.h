@@ -309,6 +309,45 @@ extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
+extern ulint	srv_foreground_preflush;/*!< Query thread preflush algorithm */
+
+extern ulint	srv_cleaner_max_lru_time;/*!< the maximum time limit for a
+					single LRU tail flush iteration by the
+					page cleaner thread */
+
+extern ulint	srv_cleaner_max_flush_time;/*!< the maximum time limit for a
+					single flush list flush iteration by
+					the page cleaner thread */
+
+extern ulint	srv_cleaner_flush_chunk_size;
+					/*!< page cleaner flush list flush
+					batches are further divided into this
+					chunk size  */
+
+extern ulint	srv_cleaner_lru_chunk_size;
+					/*!< page cleaner LRU list flush
+					batches are further divided into this
+					chunk size  */
+
+extern ulint	srv_cleaner_free_list_lwm;/*!< if free list length is lower
+					than this percentage of
+					srv_LRU_scan_depth, page cleaner LRU
+					flushes will issue flush batches to the
+					same instance in a row  */
+
+extern my_bool	srv_cleaner_eviction_factor;
+					/*!< if TRUE, page cleaner heuristics
+					use evicted instead of flushed page
+					counts for its heuristics  */
+
+extern ulong	srv_cleaner_lsn_age_factor;
+					/*!< page cleaner LSN age factor
+					formula option */
+
+extern ulong	srv_empty_free_list_algorithm;
+					/*!< Empty free list for a query thread
+					handling algorithm option */
+
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
@@ -474,10 +513,48 @@ extern ib_mutex_t	server_mutex;
 
 #define SRV_MAX_N_IO_THREADS	130
 
+#define SRV_MAX_N_PURGE_THREADS 32
+
 /* Array of English strings describing the current state of an
 i/o handler thread */
 extern const char* srv_io_thread_op_info[];
 extern const char* srv_io_thread_function[];
+
+/* The tid of the cleaner thread */
+extern os_tid_t	srv_cleaner_tid;
+
+/* The tids of the purge threads */
+extern os_tid_t srv_purge_tids[];
+
+/* The tids of the I/O threads */
+extern os_tid_t	srv_io_tids[];
+
+/* The tid of the master thread */
+extern os_tid_t	srv_master_tid;
+
+/* The relative scheduling priority of the cleaner thread */
+extern ulint	srv_sched_priority_cleaner;
+
+/* The relative scheduling priority of the purge threads */
+extern ulint	srv_sched_priority_purge;
+
+/* The relative scheduling priority of the I/O threads */
+extern ulint	srv_sched_priority_io;
+
+/* The relative scheduling priority of the master thread */
+extern ulint	srv_sched_priority_master;
+
+/* The relative priority of the purge coordinator and worker threads.  */
+extern my_bool srv_purge_thread_priority;
+
+/* The relative priority of the I/O threads.  */
+extern my_bool srv_io_thread_priority;
+
+/* The relative priority of the cleaner thread.  */
+extern my_bool srv_cleaner_thread_priority;
+
+/* The relative priority of the master thread.  */
+extern my_bool srv_master_thread_priority;
 
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
@@ -557,13 +634,17 @@ enum {
 				the reason for which is that some FS
 				do not flush meta-data when
 				unbuffered IO happens */
-	SRV_UNIX_O_DIRECT_NO_FSYNC
+	SRV_UNIX_O_DIRECT_NO_FSYNC,
 				/*!< do not use fsync() when using
 				direct IO i.e.: it can be set to avoid
 				the fsync() call that we make when
 				using SRV_UNIX_O_DIRECT. However, in
 				this case user/DBA should be sure about
 				the integrity of the meta-data */
+	SRV_UNIX_ALL_O_DIRECT   /*!< similar to O_DIRECT, invokes
+				os_file_set_nocache() on data and log files.
+				This implies using non-buffered IO but still
+				using fsync for data but not log files. */
 };
 
 /** Alternatives for file i/o in Windows */

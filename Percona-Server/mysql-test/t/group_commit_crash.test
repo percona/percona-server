@@ -17,8 +17,6 @@ CREATE TABLE t1(a CHAR(255),
                 id INT AUTO_INCREMENT,
                 PRIMARY KEY(id)) ENGINE=InnoDB;
 create table t2 like t1;
-# The crash options 2-4 are temporarily disabled until
-# http://bugs.mysql.com/bug.php?id=68932 is fixed.
 delimiter //;
 create procedure setcrash(IN i INT)
 begin
@@ -27,9 +25,9 @@ begin
     WHEN 2 THEN SET SESSION debug="d,crash_commit_after_prepare";
     WHEN 3 THEN SET SESSION debug="d,crash_commit_after_prepare";
     WHEN 4 THEN SET SESSION debug="d,crash_commit_after_prepare";
-#    WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
-#    WHEN 3 THEN SET SESSION debug="d,crash_before_writing_xid";
-#    WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
+    WHEN 2 THEN SET SESSION debug="d,crash_commit_after_log";
+    WHEN 3 THEN SET SESSION debug="d,crash_before_writing_xid";
+    WHEN 4 THEN SET SESSION debug="d,crash_commit_after";
     WHEN 5 THEN SET SESSION debug="d,crash_commit_before";
     ELSE BEGIN END;
   END CASE;

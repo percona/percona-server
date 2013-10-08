@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.6.11
+%define mysql_version   5.6.13
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 60
-%define minorversion 3
+%define minorversion 6
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rc%{majorversion}.%{minorversion}
 
@@ -236,7 +236,7 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-BuildRequires:  %{distro_buildreq} pam-devel
+BuildRequires:  %{distro_buildreq} pam-devel openssl-devel
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -382,6 +382,16 @@ export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
 
+# "Fix" cmake directories in case we're crosscompiling.
+# We detect crosscompiles to i686 if uname is x86_64 however _libdir does not
+# contain lib64.
+# In this case, we cannot instruct cmake to change CMAKE_SYSTEM_PROCESSOR, so
+# we need to alter the directories in cmake/install_layout.cmake manually.
+if test "x$(uname -m)" = "xx86_64" && echo "%{_libdir}" | fgrep -vq lib64
+then
+    sed -i 's/lib64/lib/' "cmake/install_layout.cmake"
+fi
+
 # Build debug mysqld and libmysqld.a
 mkdir debug
 (
@@ -405,6 +415,7 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -423,6 +434,7 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
+           -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -559,7 +571,7 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -722,7 +734,7 @@ fi
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -737,13 +749,11 @@ STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
-	mkdir $mysql_datadir/mysql;
 	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
 else
 	# If the directory exists, we may assume it is an upgrade.
 	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
 fi
-if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 
 # ----------------------------------------------------------------------
 # Make MySQL start/shutdown automatically when the machine does it.
@@ -778,8 +788,15 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} \
-    --datadir=$mysql_datadir
+    # Does $mysql_datadir/mysql exist? In this case, this is probably an
+    # upgrade from a previous version or a reinstall. It's best not to
+    # call mysql_install_db in this case since the test db would be
+    # possibly recreated (bug #1169522).
+    if test ! -e $mysql_datadir/mysql
+    then
+        %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} \
+            --datadir=$mysql_datadir
+    fi
 
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
@@ -912,7 +929,7 @@ fi
 # Check local settings to support them.
 if [ -x %{_bindir}/my_print_defaults ]
 then
-  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
 fi
 if [ -z "$mysql_datadir" ]
 then
@@ -1035,44 +1052,9 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
-%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
-# UDF files
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0.0.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so.0.0.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0.0.0
-
-
-
+%attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
+%attr(755, root, root) %{_libdir}/mysql/plugin/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}

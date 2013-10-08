@@ -206,41 +206,6 @@ retry:
 }
 
 /**********************************************************************//**
-Allocates cleared memory, provides calloc()-like interface.
-@return own: allocated memory */
-UNIV_INTERN
-void*
-ut_calloc_low(
-/*==========*/
-	ulint	n,			/*!< in: number of elements */
-	ulint	c,			/*!< in: size of an element */
-	ibool	assert_on_error)	/*!< in: if TRUE, we crash mysqld if
-					the memory cannot be allocated */
-{
-	void*	ret;
-
-	if (UNIV_LIKELY(srv_use_sys_malloc)) {
-
-		ret = calloc(n, c);
-		ut_a(ret || !assert_on_error);
-
-		return ret;
-	}
-
-	ret = ut_malloc(n * c);
-
-	if (UNIV_LIKELY(ret != NULL)) {
-
-		memset(ret, 0, n * c);
-	} else {
-
-		ut_a(!assert_on_error);
-	}
-
-	return ret;
-}
-
-/**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */
 UNIV_INTERN

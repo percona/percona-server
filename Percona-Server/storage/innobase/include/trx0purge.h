@@ -138,7 +138,7 @@ struct trx_purge_t{
 					purge query: this trx is not in the
 					trx list of the trx system and it
 					never ends */
-	rw_lock_t	latch;		/*!< The latch protecting the purge
+	prio_rw_lock_t	latch;		/*!< The latch protecting the purge
 					view. A purge operation must acquire an
 					x-latch here for the instant at which
 					it changes the purge view: an undo

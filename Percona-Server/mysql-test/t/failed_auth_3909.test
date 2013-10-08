@@ -25,8 +25,9 @@ connect (fail,localhost,u2,password);
 --error ER_PLUGIN_IS_NOT_LOADED
 change_user u1;
 
---error ER_ACCESS_DENIED_ERROR
+--error 2006
 change_user u2;
+--enable_reconnect
 
 --error ER_ACCESS_DENIED_ERROR
 change_user u2,password;

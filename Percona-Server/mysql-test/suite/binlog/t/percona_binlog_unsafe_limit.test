@@ -1,0 +1,227 @@
+# ==== Purpose ====
+#
+# Test under what circumstances there is a warning for unsafe
+# statements on the following form:
+#
+# [INSERT...SELECT | REPLACE...SELECT | DELETE | UPDATE] ... ORDER BY ... LIMIT
+#
+# INSERT...SELECT...LIMIT should give a warning because the order of
+# rows may differ between master and slave, so the LIMIT may select a
+# different set of rows on master and slave.  However, if there is an
+# 'ORDER BY primary_key', then the order is known and there should not
+# be any warning.  The same is true for REPLACE...SELECT, DELETE, and
+# UPDATE.  In REPLACE...SELECT and INSERT...SELECT, the select may be
+# compound using UNION or JOIN or subqueries in the FROM clause.  So
+# we test LIMIT in various places in the subqueries.
+#
+# We also test various forms of ORDER BY ... LIMIT. If there is one
+# ORDER BY column and it is a PRIMARY KEY or NOT NULL UNIQUE KEY, then
+# the order is deterministic.  If there is one ORDER BY column and it
+# is neither a PRIMARY KEY nor a NOT NULL UNIQUE KEY, then the order
+# is not deterministic.  If the ORDER BY consists of several columns,
+# and a prefix of the ORDER BY columns is a PRIMARY KEY or NOT NULL
+# UNIQUE KEY, then the order is deterministic.  If the ORDER BY
+# consists of several columns, and no prefix of the ORDER BY COLUMNS
+# is a PRIMARY KEY or NOT NULL UNIQUE KEY, then the order is not
+# deterministic.
+
+source include/have_log_bin.inc;
+source include/have_binlog_format_statement.inc;
+
+--disable_query_log
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+#
+# Create the tables for test
+# Where:
+#    - nokey is a column not part of key
+#    - pk is column of the primary key
+#    - nuk is a column of UNIQUE KEY, which can be NULL.
+#    - nnuk is a column of NOT NULL UNIQUE KEY
+#    - nnuk1 and nnuk2 are NOT NULL columns, and togather forms a UNIQUE KEY.
+#    - nnuk_str_long is a VARCHAR UNIQUE KEY column that is longer than MAX_LENGTH_SORT in this test.
+#    - nnuk_str_short is a VARCHAR UNIQUE KEY column that is shorter than MAX_LENGTH_SORT in this test.
+#
+CREATE TABLE t (nokey INT, pk INT PRIMARY KEY, nnuk INT NOT NULL UNIQUE KEY, nuk INT UNIQUE KEY,
+                nnuk1 INT NOT NULL, nnuk2 INT NOT NULL, UNIQUE KEY(nnuk1, nnuk2),
+		nnuk_str_long VARCHAR(512) NOT NULL UNIQUE KEY,
+		nnuk_str_short VARCHAR(50) NOT NULL UNIQUE KEY);
+CREATE TABLE t1 LIKE t;
+CREATE TABLE t2 LIKE t;
+CREATE TABLE t3 LIKE t;
+CREATE TABLE t4 LIKE t;
+
+
+CREATE TABLE queries (query VARCHAR(1024) NOT NULL);
+CREATE TABLE result_queries (id INT AUTO_INCREMENT PRIMARY KEY, query VARCHAR(1024) NOT NULL);
+CREATE TABLE limits (`limit` VARCHAR(256) NOT NULL);
+
+#
+# Iterate through the following queries
+#
+# [LIMIT_1] and [LIMIT_2] will iterate over the strings in table `limits`
+#
+INSERT INTO queries(query) VALUES
+	('UPDATE t SET nokey = nokey + 10 [LIMIT_1]'),
+	('UPDATE t SET nokey = nokey + 10 WHERE nokey=1 [LIMIT_1]'),
+	('UPDATE t SET nokey = nokey + 10 WHERE nuk=1   [LIMIT_1]'),
+	('UPDATE t SET nokey = nokey + 10 WHERE nnuk=1  [LIMIT_1]'),
+	('UPDATE t SET nokey = nokey + 10 WHERE pk=1    [LIMIT_1]'),
+
+	('DELETE FROM t [LIMIT_1]'),
+	('DELETE FROM t WHERE nokey=1 [LIMIT_1]'),
+	('DELETE FROM t WHERE nuk=1   [LIMIT_1]'),
+	('DELETE FROM t WHERE nnuk=1  [LIMIT_1]'),
+	('DELETE FROM t WHERE pk=1    [LIMIT_1]'),
+
+	('REPLACE INTO t SELECT * FROM t1 [LIMIT_1]'),
+	('REPLACE INTO t SELECT * FROM t1 WHERE nokey=1 [LIMIT_1]'),
+	('REPLACE INTO t SELECT * FROM t1 WHERE nuk=1   [LIMIT_1]'),
+	('REPLACE INTO t SELECT * FROM t1 WHERE nnuk=1  [LIMIT_1]'),
+	('REPLACE INTO t SELECT * FROM t1 WHERE pk=1    [LIMIT_1]'),
+					 
+	('INSERT INTO t SELECT * FROM t1 [LIMIT_1]'),
+	('INSERT INTO t SELECT * FROM t1 WHERE nokey=1 [LIMIT_1]'),
+	('INSERT INTO t SELECT * FROM t1 WHERE nuk=1   [LIMIT_1]'),
+	('INSERT INTO t SELECT * FROM t1 WHERE nnuk=1  [LIMIT_1]'),
+	('INSERT INTO t SELECT * FROM t1 WHERE pk=1    [LIMIT_1]'),
+
+	('INSERT INTO t (SELECT * FROM t1) UNION (SELECT * FROM t2) [LIMIT_1]'),
+	('INSERT INTO t (SELECT * FROM t1 [LIMIT_1]) UNION (SELECT * FROM t2)'),
+	('INSERT INTO t (SELECT * FROM t1) UNION (SELECT * FROM t2 [LIMIT_1])'),
+	('INSERT INTO t (SELECT * FROM t1 [LIMIT_1]) UNION (SELECT * FROM t2 [LIMIT_2])'),
+
+	('INSERT INTO t SELECT * FROM (SELECT * FROM t1 [LIMIT_1]) AS subselect [LIMIT_2]'),
+	('INSERT INTO t SELECT * FROM t1 WHERE pk IN (SELECT t2.pk FROM t2 WHERE t1.pk = t2.pk) [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1, t2 [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1, t2 WHERE t1.nokey=t2.nokey [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1, t2 WHERE t1.nuk=t2.nuk     [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1, t2 WHERE t1.nnuk=t2.nnuk   [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1, t2 WHERE t1.pk=t2.pk       [LIMIT_1]'),
+
+	('INSERT INTO t SELECT t1.* FROM t1 NATURAL JOIN t2 [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 JOIN t2 USING(pk) [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 JOIN t2 ON t1.nnuk1=t2.nnuk1 AND t1.nnuk2=t2.nnuk2 [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 JOIN t2 ON t1.nnuk1=t2.nnuk2 AND t1.nnuk2=t2.nnuk1 [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 JOIN (t2 JOIN t3 USING (pk)) USING(pk) [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 JOIN (t2 JOIN (t3 JOIN t4 USING (pk)) ON t2.pk=t3.pk) ON t1.pk=t4.pk [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 JOIN (t2 JOIN (t3 JOIN t4 USING (pk)) ON t2.nnuk=t3.nnuk) ON t1.nnuk1=t4.nnuk1 AND t1.nnuk2=t4.nnuk2 [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 JOIN (t2 JOIN (t3 JOIN t4 USING (pk)) ON t2.nnuk=t3.nnuk) ON t1.nnuk1=t4.nnuk1 AND t1.nnuk2=t4.nnuk2 AND t2.pk=1 [LIMIT_1]'),
+	('INSERT INTO t SELECT t1.* FROM t1 LEFT JOIN t2 ON t1.pk=t2.pk [LIMIT_1]'),
+	('INSERT INTO t SELECT t2.* FROM t1 RIGHT JOIN t2 ON t1.pk=t2.pk [LIMIT_1]');
+
+
+#
+# Let the LIMIT cluase ([LIMIT_1] and [LIMIT_2]) iterate through the following strings:
+#
+INSERT INTO limits (`limit`) VALUES
+	('LIMIT 0'),
+	('LIMIT 1'),
+	('ORDER BY nokey LIMIT 1'),
+	('ORDER BY nuk LIMIT 1'),
+	('ORDER BY nnuk1 LIMIT 1'),
+	('ORDER BY nnuk LIMIT 1'),
+	('ORDER BY nnuk_str_short LIMIT 1'),
+	('ORDER BY nnuk_str_long LIMIT 1'),
+	('ORDER BY pk LIMIT 1'),
+	('ORDER BY nnuk1, nnuk2 LIMIT 1'),
+	('ORDER BY nnuk1, nnuk2, nokey LIMIT 1'),
+	('ORDER BY nnuk1, nokey, nnuk2 LIMIT 1');
+
+
+DELIMITER |;
+
+#
+# This function is used to generate the queries by replace [LIMIT_1]
+# and [LIMIT_2] with values in table `limits` for values in table
+# `queries`. And the result will be save in table `result_queries`.
+#
+
+CREATE PROCEDURE gen_queries()
+BEGIN
+  DECLARE done INT DEFAULT 0;
+  DECLARE q VARCHAR(1024);
+  DECLARE limit1, limit2 VARCHAR(256);
+  DECLARE qcur CURSOR FOR SELECT * FROM queries;
+  DECLARE lcur1 CURSOR FOR SELECT * FROM limits;
+  DECLARE lcur2 CURSOR FOR SELECT * FROM limits;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done=1;
+
+  OPEN qcur;
+
+  FETCH qcur INTO q;
+  WHILE done <> 1 DO
+    OPEN lcur1;
+    FETCH lcur1 INTO limit1;
+    WHILE done <> 1 DO
+
+      IF LOCATE('[LIMIT_2]', q) > 0 THEN
+        OPEN lcur2;
+	FETCH lcur2 INTO limit2;
+        WHILE done <> 1 DO
+	  SELECT REPLACE(REPLACE(q, '[LIMIT_1]', limit1), '[LIMIT_2]', limit2) INTO @query;
+	  FETCH lcur2 INTO limit2;
+	END WHILE;
+	CLOSE lcur2;
+	SET done = 0;
+      ELSE
+        SELECT REPLACE(q, '[LIMIT_1]', limit1) INTO @query;
+      END IF;
+      INSERT INTO result_queries set query=@query;
+      FETCH lcur1 INTO limit1;
+    END WHILE;
+    CLOSE lcur1;
+    SET done = 0;
+    FETCH qcur INTO q;
+  END WHILE;
+  CLOSE qcur;
+END|
+
+DELIMITER ;|
+
+call gen_queries();
+
+#
+# Execute the generated queries
+#
+let $count= `SELECT COUNT(*) FROM result_queries`;
+let $id=1;
+SET MAX_SORT_LENGTH=50;
+while (`SELECT $id <= $count`)
+{
+  disable_query_log;
+  TRUNCATE t;
+  TRUNCATE t1;
+  TRUNCATE t2;
+  TRUNCATE t3;
+  TRUNCATE t4;
+
+  # INSERT INTO t VALUES  (1, 1, 1, 1, 1, 1), (2, 2, 2, 2, 2, 2);
+  # INSERT INTO t1 VALUES (3, 3, 3, 3, 3, 3), (4, 4, 4, 4, 4, 4);
+  # INSERT INTO t2 VALUES (5, 5, 5, 5, 5, 5), (6, 6, 6, 6, 6, 6);
+  # INSERT INTO t3 VALUES (7, 7, 7, 7, 7, 7), (8, 8, 8, 8, 8, 8);
+  # INSERT INTO t4 VALUES (9, 9, 9, 9, 9, 9), (10, 10, 10, 10, 10, 10);
+
+  INSERT INTO t VALUES  (1, 1, 1, 1, 1, 1, "a", "a"), (2, 2, 2, 2, 2, 2, "b", "b");
+  INSERT INTO t1 VALUES (3, 3, 3, 3, 3, 3, "c", "c"), (4, 4, 4, 4, 4, 4, "d", "d");
+  INSERT INTO t2 VALUES (5, 5, 5, 5, 5, 5, "e", "e"), (6, 6, 6, 6, 6, 6, "f", "f");
+  INSERT INTO t3 VALUES (7, 7, 7, 7, 7, 7, "g", "g"), (8, 8, 8, 8, 8, 8, "h", "h");
+  INSERT INTO t4 VALUES (9, 9, 9, 9, 9, 9, "i", "i"), (10, 10, 10, 10, 10, 10, "j", "j");
+
+  let $query= `SELECT query FROM result_queries WHERE id=$id`;
+  enable_query_log;
+
+  eval $query;
+  let $rows= `SELECT COUNT(*) FROM t`;
+  echo ROWS in table t: $rows;
+  inc $id;
+}
+SET MAX_SORT_LENGTH=DEFAULT;
+
+#
+# Cleanup
+#
+DROP TABLE t, t1, t2, t3, t4;
+DROP TABLE queries, result_queries, limits;
+DROP PROCEDURE gen_queries;

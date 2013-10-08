@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,8 @@
 
 using std::min;
 using std::max;
+
+#include "sql_timer.h"                          // thd_timer_end
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -622,10 +624,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     m_current_stage_key= new_stage->m_key;
     proc_info= msg;
 
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_state)(msg);
     MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
-#endif
   }
   return;
 }
@@ -767,8 +766,11 @@ int thd_opt_slow_log()
   
   @note LOCK_thread_count mutex is not necessary when the function is invoked on
    the currently running thread (current_thd) or if the caller in some other
-   way guarantees that access to thd->query is serialized.
- 
+   way guarantees that the thread won't be going away.
+
+  @note The query string is only printed if the session (thd) to be
+        described belongs to the calling thread.
+
   @return Pointer to string
 */
 
@@ -781,13 +783,11 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   char header[256];
   int len;
   /*
-    The pointers thd->query and thd->proc_info might change since they are
-    being modified concurrently. This is acceptable for proc_info since its
-    values doesn't have to very accurate and the memory it points to is static,
-    but we need to attempt a snapshot on the pointer values to avoid using NULL
-    values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thread_count or risk pointing to
-    uninitialized memory.
+    The thd->proc_info pointer might change since it is being modified
+    concurrently. This is acceptable for proc_info since its value
+    doesn't have to be accurate and the memory it points to is static,
+    but we need to attempt a snapshot on the pointer values to avoid
+    using NULL values.
   */
   const char *proc_info= thd->proc_info;
 
@@ -821,9 +821,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-
-  if (thd->query())
+  if (thd == current_thd && thd->query())
   {
     if (max_query_len < 1)
       len= thd->query_length();
@@ -832,8 +830,6 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append('\n');
     str.append(thd->query(), len);
   }
-
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -958,11 +954,13 @@ THD::THD(bool enable_plugins)
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
    in_sub_stmt(0),
+   order_deterministic(false),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
    m_trans_log_file(NULL),
+   m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
@@ -970,7 +968,6 @@ THD::THD(bool enable_plugins)
    first_successful_insert_id_in_prev_stmt_for_binlog(0),
    first_successful_insert_id_in_cur_stmt(0),
    stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
-   failed_com_change_user(0),
    m_examined_row_count(0),
    m_statement_psi(NULL),
    m_idle_psi(NULL),
@@ -1048,7 +1045,7 @@ THD::THD(bool enable_plugins)
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
-  commit_error= 0;
+  commit_error= CE_NONE;
   durability_property= HA_REGULAR_DURABILITY;
   busy_time=            0;
   cpu_time=             0;
@@ -1131,6 +1128,8 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+
+  timer= timer_cache= NULL;
 }
 
 
@@ -1764,6 +1763,15 @@ THD::~THD()
 
   clear_next_event_pos();
 
+  /* Ensure that no one is using THD */
+  mysql_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
+
+  DBUG_ASSERT(timer == NULL);
+
+  if (timer_cache)
+    thd_timer_end(timer_cache);
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   my_free(db);
@@ -1888,38 +1896,14 @@ void THD::awake(THD::killed_state state_to_set)
   /* Set the 'killed' flag of 'this', which is the target THD object. */
   killed= state_to_set;
 
-  if (state_to_set != THD::KILL_QUERY)
+  if (state_to_set != THD::KILL_QUERY &&
+      state_to_set != THD::KILL_TIMEOUT)
   {
 #ifdef SIGNAL_WITH_VIO_SHUTDOWN
     if (this != current_thd)
     {
-      /*
-        Before sending a signal, let's close the socket of the thread
-        that is being killed ("this", which is not the current thread).
-        This is to make sure it does not block if the signal is lost.
-        This needs to be done only on platforms where signals are not
-        a reliable interruption mechanism.
-
-        Note that the downside of this mechanism is that we could close
-        the connection while "this" target thread is in the middle of
-        sending a result to the application, thus violating the client-
-        server protocol.
-
-        On the other hand, without closing the socket we have a race
-        condition. If "this" target thread passes the check of
-        thd->killed, and then the current thread runs through
-        THD::awake(), sets the 'killed' flag and completes the
-        signaling, and then the target thread runs into read(), it will
-        block on the socket. As a result of the discussions around
-        Bug#37780, it has been decided that we accept the race
-        condition. A second KILL awakes the target from read().
-
-        If we are killing ourselves, we know that we are not blocked.
-        We also know that we will check thd->killed before we go for
-        reading the next statement.
-      */
-
-      shutdown_active_vio();
+      if (active_vio)
+        vio_cancel(active_vio, SHUT_RDWR);
     }
 #endif
 
@@ -1930,6 +1914,13 @@ void THD::awake(THD::killed_state state_to_set)
     if (!slave_thread)
       MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
   }
+
+  /* Interrupt target waiting inside a storage engine. */
+  if (state_to_set != THD::NOT_KILLED)
+    ha_kill_connection(this);
+
+  if (state_to_set == THD::KILL_TIMEOUT)
+    status_var_increment(status_var.max_statement_time_exceeded);
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
@@ -2144,6 +2135,10 @@ void THD::cleanup_after_query()
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
     binlog_accessed_db_names= NULL;
+    m_trans_fixed_log_file= NULL;
+
+    if (gtid_mode > 0)
+      gtid_post_statement_checks(this);
 #ifndef EMBEDDED_LIBRARY
     /*
       Clean possible unused INSERT_ID events by current statement.
@@ -2808,7 +2803,10 @@ select_export::~select_export()
 static File create_file(THD *thd, char *path, sql_exchange *exchange,
 			IO_CACHE *cache)
 {
-  File file;
+  File file= -1;
+  bool new_file_created= false;
+  MY_STAT stat_arg;
+
   uint option= MY_UNPACK_FILENAME | MY_RELATIVE_PATH;
 
 #ifdef DONT_ALLOW_FULL_LOAD_DATA_PATHS
@@ -2831,25 +2829,43 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     return -1;
   }
 
-  if (!access(path, F_OK))
+  if (my_stat(path, &stat_arg, MYF(0)))
   {
-    my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
-    return -1;
-  }
-  /* Create the file world readable */
-  if ((file= mysql_file_create(key_select_to_file,
-                               path, 0666, O_WRONLY|O_EXCL, MYF(MY_WME))) < 0)
-    return file;
-#ifdef HAVE_FCHMOD
-  (void) fchmod(file, 0666);			// Because of umask()
-#else
-  (void) chmod(path, 0666);
+    /* Check if file is named pipe or unix socket */
+    if (MY_S_ISFIFO(stat_arg.st_mode))
+      file= mysql_file_open(key_select_to_file,
+                            path, O_WRONLY, MYF(MY_WME));
+#ifndef __WIN__
+    if (MY_S_ISSOCK(stat_arg.st_mode))
+      file= mysql_unix_socket_connect(key_select_to_file,
+                                      path, MYF(MY_WME));
 #endif
+    if (file < 0)
+    {
+      if (!(MY_S_ISFIFO(stat_arg.st_mode) || MY_S_ISSOCK(stat_arg.st_mode)))
+        my_error(ER_FILE_EXISTS_ERROR, MYF(0), exchange->file_name);
+      return -1;
+    }
+  }
+  else
+  {
+    /* Create the file world readable */
+    if ((file= mysql_file_create(key_select_to_file,
+                                 path, 0666, O_WRONLY|O_EXCL, MYF(MY_WME))) < 0)
+      return file;
+    new_file_created= true;
+#ifdef HAVE_FCHMOD
+    (void) fchmod(file, 0666);      // Because of umask()
+#else
+    (void) chmod(path, 0666);
+#endif
+  }
   if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME)))
   {
     mysql_file_close(file, MYF(0));
-    /* Delete file on error, it was just created */
-    mysql_file_delete(key_select_to_file, path, MYF(0));
+    /* Delete file on error, if it was just created */
+    if (new_file_created)
+      mysql_file_delete(key_select_to_file, path, MYF(0));
     return -1;
   }
   return file;
@@ -4242,6 +4258,16 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
   return(thd->killed);
+}
+
+/**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+extern "C" void thd_set_kill_status(const MYSQL_THD thd)
+{
+  thd->send_kill_message();
 }
 
 /**

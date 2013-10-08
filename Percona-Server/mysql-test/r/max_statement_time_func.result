@@ -1,0 +1,116 @@
+SET @old_session_max_statement_time = @@SESSION.max_statement_time;
+#
+# Test max statement time interruption.
+# Note that if SLEEP() is interrupted, it returns 1.
+#
+SET @@SESSION.max_statement_time = 10;
+SELECT SLEEP(1000);
+SLEEP(1000)
+1
+SET @@SESSION.max_statement_time = 0;
+#
+# Apply timeout to the top-level statement.
+#
+CREATE PROCEDURE p1()
+BEGIN
+SELECT SLEEP(1000);
+END|
+SET @@SESSION.max_statement_time = 10;
+CALL p1();
+SLEEP(1000)
+1
+SET @@SESSION.max_statement_time = 0;
+# Apply timeout to prepared statements.
+PREPARE prep_1 FROM 'call p1()';
+SET @@SESSION.max_statement_time = 10;
+EXECUTE prep_1;
+SLEEP(1000)
+1
+SET @@SESSION.max_statement_time = 0;
+DROP PREPARE prep_1;
+DROP PROCEDURE p1;
+#
+# Interrupt a statement that changes data.
+#
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+WHILE true DO
+INSERT INTO t1 VALUES (1);
+END WHILE;
+RETURN 1;
+END|
+SET @@SESSION.max_statement_time = 500;
+SELECT f1();
+ERROR 70101: Query execution was interrupted, max_statement_time exceeded
+SET @@SESSION.max_statement_time = 0;
+DROP FUNCTION f1;
+DROP TABLE t1;
+SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set
+FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET';
+SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_exceeded
+FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_EXCEEDED';
+SET @@SESSION.max_statement_time = 100;
+SELECT SLEEP(1000);
+SLEEP(1000)
+1
+# Ensure that the counters for:
+# - statements that are time limited; and
+# - statements that exceeded their maximum execution time
+# are incremented.
+SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET'
+        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set;
+STATUS
+SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_EXCEEDED'
+        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_exceeded;
+STATUS
+SET @@SESSION.max_statement_time = default;
+
+# Check that the appropriate error status is set.
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+START TRANSACTION;
+SELECT * FROM t1 FOR UPDATE;
+a
+1
+SET @@SESSION.max_statement_time = 100;
+UPDATE t1 SET a = 2;
+ERROR 70101: Query execution was interrupted, max_statement_time exceeded
+SHOW WARNINGS;
+Level	Code	Message
+Error	1877	Query execution was interrupted, max_statement_time exceeded
+ROLLBACK;
+DROP TABLE t1;
+#
+# Test interaction with lock waits.
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+SET @@SESSION.max_statement_time = 500;
+LOCK TABLES t1 WRITE;
+LOCK TABLES t1 READ;
+ERROR 70101: Query execution was interrupted, max_statement_time exceeded
+UNLOCK TABLES;
+BEGIN;
+SELECT * FROM t1;
+a
+1
+ALTER TABLE t1 ADD COLUMN b INT;
+ERROR 70101: Query execution was interrupted, max_statement_time exceeded
+ROLLBACK;
+SELECT GET_LOCK('lock', 1);
+GET_LOCK('lock', 1)
+1
+SELECT GET_LOCK('lock', 1);
+GET_LOCK('lock', 1)
+NULL
+SELECT RELEASE_LOCK('lock');
+RELEASE_LOCK('lock')
+1
+DROP TABLE t1;
+SET @@SESSION.max_statement_time = @old_session_max_statement_time;

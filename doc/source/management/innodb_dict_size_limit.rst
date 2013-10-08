@@ -42,7 +42,7 @@ Status Variables
 The following status variable was introduced by this feature:
 
 
-.. variable:: innodb_dict_tables
+.. variable:: Innodb_dict_tables
 
      :vartype: LONG
      :scope: Global

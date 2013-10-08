@@ -1,3 +1,4 @@
 build
 .pc
 Makefile.in
+doc/source/ext/psdom.pyc

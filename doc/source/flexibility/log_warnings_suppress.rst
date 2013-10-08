@@ -46,8 +46,8 @@ Related Reading
 
   * `MySQL bug 42851 <http://bugs.mysql.com/bug.php?id=42851>`_
 
-  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.1/en/innodb-and-mysql-replication.html>`_
+  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.5/en/innodb-and-mysql-replication.html>`_
 
-  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/5.1/en/innodb-parameters.html>`_
+  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/5.5/en/innodb-parameters.html>`_
 
-  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/5.1/en/innodb-error-handling.html>`_
+  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/5.5/en/innodb-error-handling.html>`_

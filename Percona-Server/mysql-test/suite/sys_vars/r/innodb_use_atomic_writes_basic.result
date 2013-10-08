@@ -1,0 +1,30 @@
+SELECT @@global.innodb_use_atomic_writes;
+@@global.innodb_use_atomic_writes
+0
+SELECT @@innodb_use_atomic_writes;
+@@innodb_use_atomic_writes
+0
+SELECT COUNT(VARIABLE_VALUE) AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_use_atomic_writes';
+should_be_1
+1
+SELECT COUNT(VARIABLE_VALUE) AS should_be_1
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='innodb_use_atomic_writes';
+should_be_1
+1
+SET @@global.innodb_use_atomic_writes=1;
+ERROR HY000: Variable 'innodb_use_atomic_writes' is a read only variable
+SELECT IF(@@global.innodb_use_atomic_writes, "ON", "OFF") = VARIABLE_VALUE AS should_be_1
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_use_atomic_writes';
+should_be_1
+1
+SELECT @@innodb_use_atomic_writes = @@global.innodb_use_atomic_writes AS should_be_1;
+should_be_1
+1
+SELECT @@local.innodb_use_atomic_writes;
+ERROR HY000: Variable 'innodb_use_atomic_writes' is a GLOBAL variable
+SELECT @@session.innodb_use_atomic_writes;
+ERROR HY000: Variable 'innodb_use_atomic_writes' is a GLOBAL variable

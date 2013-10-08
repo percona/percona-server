@@ -1,5 +1,5 @@
 /*
-(C) 2011 Percona Inc.
+(C) 2011-2013 Percona Ireland Ltd.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,8 +19,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "config.h"
 #endif
 
+#include <string.h>
 #include "auth_pam_common.h"
 #include "auth_mapping.h"
+#include "groups.h"
 
 /* The server plugin */
 
@@ -110,7 +112,6 @@ int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
   struct pam_conv conv_func_info= { &vio_server_conv, &data };
   int error;
   char *pam_mapped_user_name;
-  char user_group[MYSQL_USERNAME_LENGTH];
   char service_name[max_pam_service_name_len];
 
   /* Set service name as specified in auth_string. If no auth_string
@@ -173,13 +174,10 @@ int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
     info->authenticated_as[MYSQL_USERNAME_LENGTH]= '\0';
   }
 
-  /* If auth_string specified, then lookup user group,
-  get mapped MySQL user name and use it as CURRENT_USER() value */
-  if (info->auth_string &&
-      lookup_user_group(pam_mapped_user_name, user_group, sizeof(user_group)))
+  if (info->auth_string)
   {
-    mapping_get_value(user_group, info->authenticated_as,
-                      MYSQL_USERNAME_LENGTH, info->auth_string);
+    mapping_lookup_user(pam_mapped_user_name, info->authenticated_as,
+                        MYSQL_USERNAME_LENGTH, info->auth_string);
   }
 
   error= pam_end(pam_handle, error);

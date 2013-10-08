@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -64,8 +64,7 @@ nobase_test_DATA = \
 	lib/My/File/Path.pm \
 	lib/My/SysInfo.pm \
 	lib/My/CoreDump.pm \
-	lib/My/SafeProcess/Base.pm \
-	lib/My/SafeProcess/safe_process.pl
+	lib/My/SafeProcess/Base.pm
 
 SUBDIRS =	lib/My/SafeProcess
 

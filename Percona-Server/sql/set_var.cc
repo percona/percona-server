@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2669,6 +2669,9 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
 
     goto err;
   }
+
+  if (!is_filename_allowed(log_file_str, strlen(log_file_str)))
+    goto err;
 
   if (my_stat(path, &f_stat, MYF(0)))
   {

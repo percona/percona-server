@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000-2002, 2004, 2006, 2007, 2013 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -35,7 +35,7 @@
 
 size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
 {
-  size_t readbytes, save_count;
+  size_t readbytes= 0, save_count;
   DBUG_ENTER("my_read");
   DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
                    Filedes, (long) Buffer, (ulong) Count, MyFlags));
@@ -44,8 +44,18 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
   for (;;)
   {
     errno= 0;					/* Linux doesn't reset this */
-    if ((readbytes= read(Filedes, Buffer, (uint) Count)) != Count)
+    if (DBUG_EVALUATE_IF("simulate_file_read_error", 1, 0) ||
+        (readbytes= read(Filedes, Buffer, (uint) Count)) != Count)
     {
+      DBUG_EXECUTE_IF ("simulate_file_read_error",
+                       {
+                         errno= ENOSPC;
+                         readbytes= (size_t) -1;
+                         DBUG_SET("-d,simulate_file_read_error");
+                         DBUG_SET("-d,simulate_my_b_fill_error");
+                       });
+
+
       my_errno= errno ? errno : -1;
       DBUG_PRINT("warning",("Read only %d bytes off %lu from %d, errno: %d",
                             (int) readbytes, (ulong) Count, Filedes,

@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,9 +48,11 @@ word32 PBKDF2_HMAC<T>::DeriveKey(byte* derived, word32 dLen, const byte* pwd,
                                  word32 pLen, const byte* salt, word32 sLen,
                                  word32 iterations) const
 {
-	if (dLen > MaxDerivedKeyLength())
+    if (dLen > MaxDerivedKeyLength())
         return 0;
 
+    if (iterations < 0)
+        return 0;
 
     ByteBlock buffer(T::DIGEST_SIZE);
 	HMAC<T>   hmac;

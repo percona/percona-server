@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
@@ -217,6 +217,13 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
   DWORD filecreate;                       /* OS method of opening/creating */
   DWORD fileattrib;                       /* OS file attribute flags */
   SECURITY_ATTRIBUTES SecurityAttributes;
+
+  if (!is_filename_allowed(path, strlen(path)))
+  {
+    errno= EINVAL;
+    _doserrno= 0L;        /* not an OS error */
+    return -1;
+  }
 
   SecurityAttributes.nLength= sizeof(SecurityAttributes);
   SecurityAttributes.lpSecurityDescriptor= NULL;

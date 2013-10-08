@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /* thread safe version of some common functions */
 
@@ -60,9 +60,15 @@ struct hostent *my_gethostbyname_r(const char *name,
 				   int buflen, int *h_errnop)
 {
   struct hostent *hp;
+  int ret;
   DBUG_ASSERT((size_t) buflen >= sizeof(*result));
-  if (gethostbyname_r(name,result, buffer, (size_t) buflen, &hp, h_errnop))
+  ret= gethostbyname_r(name,result, buffer, (size_t) buflen, &hp, h_errnop);
+  if (unlikely(ret || !hp)) {
+    if (*h_errnop == NETDB_INTERNAL) {
+      *h_errnop= errno;
+    }
     return 0;
+  }
   return hp;
 }
 

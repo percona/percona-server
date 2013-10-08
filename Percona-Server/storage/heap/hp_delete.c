@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002, 2004-2007 MySQL AB
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA */
 
 /* remove current record in heap-database */
 
@@ -104,7 +104,7 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
 		  const uchar *record, uchar *recpos, int flag)
 {
-  ulong blength,pos2,pos_hashnr,lastpos_hashnr;
+  ulong blength, pos2, pos_hashnr, lastpos_hashnr, key_pos;
   HASH_INFO *lastpos,*gpos,*pos,*pos3,*empty,*last_ptr;
   HP_SHARE *share=info->s;
   DBUG_ENTER("hp_delete_key");
@@ -116,9 +116,9 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   last_ptr=0;
 
   /* Search after record with key */
-  pos= hp_find_hash(&keyinfo->block,
-		    hp_mask(hp_rec_hashnr(keyinfo, record), blength,
-			    share->records + 1));
+  key_pos= hp_mask(hp_rec_hashnr(keyinfo, record), blength, share->records + 1);
+  pos= hp_find_hash(&keyinfo->block, key_pos);
+
   gpos = pos3 = 0;
 
   while (pos->ptr_to_rec != recpos)
@@ -188,6 +188,16 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
       DBUG_RETURN(0);
     }
     pos3= pos;				/* Link pos->next after lastpos */
+    /* 
+      One of elements from the bucket we're scanning is moved to the
+      beginning of the list. Reset search since this element may not have
+      been processed yet. 
+    */
+    if (flag && pos2 == key_pos)
+    {
+      info->current_ptr= 0;
+      info->current_hash_ptr= 0;
+    }
   }
   else
   {

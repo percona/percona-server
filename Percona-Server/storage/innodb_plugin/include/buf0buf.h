@@ -945,8 +945,7 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage,		/*!< in/out: control block */
-	ulint		time_ms)	/*!< in: ut_time_ms() */
+	buf_page_t*	bpage)	/*!< in/out: control block */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
@@ -1282,9 +1281,11 @@ struct buf_page_struct{
 					to read this for heuristic
 					purposes without holding any
 					mutex or latch */
-	unsigned	access_time:32;	/*!< time of first access, or
+	/* @} */
+	unsigned	access_time;	/*!< time of first access, or
 					0 if the block was never accessed
-					in the buffer pool */
+					in the buffer pool. Protected by
+					block mutex */
 	/* @} */
 	ibool		space_was_being_deleted;
 	ibool		is_corrupt;

@@ -163,13 +163,13 @@ IF(WIN32)
   LIST(APPEND LIBS auth_win_client)
 ENDIF()
 
-# Merge several convenience libraries into one big mysqlclient
+# Merge several convenience libraries into one big perconaserverclient
 # and link them together into shared library.
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
+MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
- INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+ INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
 IF(UNIX)
@@ -184,7 +184,7 @@ IF(UNIX)
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
     ENDIF() 
   ENDMACRO()
-  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a mysqlclient ${INSTALL_LIBDIR} Development)
+  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}perconaserverclient_r.a perconaserverclient ${INSTALL_LIBDIR} Development)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
@@ -198,9 +198,9 @@ IF(NOT DISABLE_SHARED)
     ELSE()
       SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0")
     ENDIF()
-    # Name of shared library is mysqlclient on Unix
+    # Name of shared library is perconaserverclient on Unix
     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-      OUTPUT_NAME mysqlclient 
+      OUTPUT_NAME perconaserverclient 
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     IF(LINK_FLAG_NO_UNDEFINED)
@@ -215,13 +215,13 @@ IF(NOT DISABLE_SHARED)
     ENDIF(INSTALL_LAYOUT STREQUAL "RPM")
     ENDIF() 
     # clean direct output needs to be set several targets have the same name
-    #(mysqlclient in this case)
-    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    #(perconaserverclient in this case)
+    SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-    # Install links to libmysqlclient.so (client_r)
+    # Install links to libperconaserverclient.so (client_r)
     GET_VERSIONED_LIBNAME(
-      "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
+      "${CMAKE_SHARED_LIBRARY_PREFIX}perconaserverclient_r"
       "${CMAKE_SHARED_LIBRARY_SUFFIX}"
       ""
       linkname)
@@ -230,7 +230,7 @@ IF(NOT DISABLE_SHARED)
     LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
     FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
       GET_VERSIONED_LIBNAME(
-        "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
+        "${CMAKE_SHARED_LIBRARY_PREFIX}perconaserverclient_r"
         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
         "${ver}"
         linkname)

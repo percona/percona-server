@@ -6,7 +6,7 @@ PERCONA_SERVER_SHORT_2 ?=Percona-Server
 KEWPIE ?=kewpie
 BASEDIR = $(CURDIR)
 
-all:  main handlersocket maatkit-udf autorun
+all:  maatkit-udf autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -19,26 +19,10 @@ all:  main handlersocket maatkit-udf autorun
 	@echo ""
 
 autorun:
-	cd $(PERCONA_SERVER) && ./BUILD/autorun.sh
-
-handlersocket:
-	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
-	patch -p1 -d $(PERCONA_SERVER)/storage < handlersocket.patch
+	./BUILD/autorun.sh
 
 maatkit-udf:
-	cp -R UDF "$(PERCONA_SERVER)"
-	cd "$(PERCONA_SERVER)"/UDF && autoreconf --install
-
-prepare: 
-	@echo "Prepare Percona Server sources"
-	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
-	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER)
-	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
-
-main: prepare
-
-clean:
-	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
+	cd UDF && autoreconf --install
 
 test-crashme:
 	cd $(KEWPIE) && ./kewpie.py --suite=crashme --basedir=$(BASEDIR)/$(PERCONA_SERVER_SHORT_2)

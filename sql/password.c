@@ -29,7 +29,7 @@
   The password is saved (in user.password) by using the PASSWORD() function in
   mysql.
 
-  This is .c file because it's used in libmysqlclient, which is entirely in C.
+  This is .c file because it's used in libperconaserverclient, which is entirely in C.
   (we need it to be portable to a variety of systems).
   Example:
     update user set password=PASSWORD("hello") where user="test"

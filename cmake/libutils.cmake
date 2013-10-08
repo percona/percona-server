@@ -28,8 +28,8 @@
 # excessive recompiles.
 
 # Except for convenience libraries, this file provides macros to merge static 
-# libraries (we need it for mysqlclient) and to create shared library out of 
-# convenience libraries(again, for mysqlclient)
+# libraries (we need it for perconaserverclient) and to create shared library out of 
+# convenience libraries(again, for perconaserverclient)
 
 # Following macros are exported
 # - ADD_CONVENIENCE_LIBRARY(target source1...sourceN)
@@ -122,7 +122,7 @@ ENDMACRO()
 
 # Merge static libraries into a big static lib. The resulting library 
 # should not not have dependencies on other static libraries.
-# We use it in MySQL to merge mysys,dbug,vio etc into mysqlclient
+# We use it in MySQL to merge mysys,dbug,vio etc into perconaserverclient
 
 MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   # To produce a library we need at least one source file.

@@ -235,7 +235,7 @@ ELSE()
 ENDIF()
 
 # Use cmake variables to inspect dependencies for 
-# mysqlclient library (add -l stuff)
+# perconaserverclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")
 
@@ -275,7 +275,7 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
   ENDIF()
 ENDMACRO()
 
-EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+EXTRACT_LINK_LIBRARIES(perconaserverclient CLIENT_LIBS)
 EXTRACT_LINK_LIBRARIES(mysqlserver LIBS)
 
 # mysql_config evaluates ${LIBDL}, we want to avoid it

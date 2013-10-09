@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Execute this tool to setup the environment and build binary releases
 # for Percona-Server starting from a fresh tree.
@@ -75,7 +75,7 @@ else
 fi
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
-test -e "$SOURCEDIR/Makefile" || exit 2
+test -e "$SOURCEDIR/Makefile-ps" || exit 2
 
 # The number of processors is a good default for -j
 if test -e "/proc/cpuinfo"
@@ -85,11 +85,11 @@ else
     PROCESSORS=4
 fi
 
-# Extract version from the Makefile
-MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
+# Extract version from the Makefile-ps
+MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile-ps" \
     | cut -d = -f 2)"
 PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
-    "$SOURCEDIR/Makefile" | cut -d = -f 2)"
+    "$SOURCEDIR/Makefile-ps" | cut -d = -f 2)"
 PERCONA_INNODB_VERSION="$(echo "$PERCONA_SERVER_VERSION" |
     sed s/rel//)"
 PRODUCT="Percona-Server-$MYSQL_VERSION"
@@ -117,9 +117,8 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     cd "$SOURCEDIR"
  
     # Execute clean and download mysql, apply patches
-    make clean all
+    make -f Makefile-ps all
 
-    cd "$PRODUCT"
     ./configure \
         --prefix="/usr/local/$PRODUCT_FULL" \
         --localstatedir="/usr/local/$PRODUCT_FULL/data" \
@@ -133,7 +132,7 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
         --with-unix-socket-path=/var/lib/mysql/mysql.sock \
         --with-pic \
         --with-extra-charsets=complex \
-        --with-ssl=/usr \
+        --with-ssl \
         --enable-thread-safe-client \
         --enable-profiling \
         --with-readline 
@@ -145,8 +144,8 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     (
         cd "storage/HandlerSocket-Plugin-for-MySQL"
         ./autogen.sh
-        CXX=${HS_CXX:-g++} ./configure --with-mysql-source="$SOURCEDIR/$PRODUCT" \
-            --with-mysql-bindir="$SOURCEDIR/$PRODUCT/scripts" \
+        CXX=${HS_CXX:-g++} ./configure --with-mysql-source="$SOURCEDIR" \
+            --with-mysql-bindir="$SOURCEDIR/scripts" \
             --with-mysql-plugindir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
             --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
             --prefix="/usr/local/$PRODUCT_FULL"
@@ -158,7 +157,7 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     # Build UDF
     (
         cd "UDF"
-        CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/$PRODUCT/include" \
+        CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/include" \
             --libdir="/usr/local/$PRODUCT_FULL/mysql/plugin"
         make $MAKE_JFLAG
         make DESTDIR="$INSTALLDIR" install
